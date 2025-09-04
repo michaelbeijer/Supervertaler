@@ -18,11 +18,11 @@ Current version: **2.0.1**
 
 | Capability | Translate Mode | Proofread Mode |
 |------------|----------------|----------------|
-| Source ingestion (.txt) | 1 column (source) | source<TAB>target[<TAB>comment] |
+| Source ingestion (.txt) | 1 column (source) | source{TAB}target[{TAB}comment] |
 | TM (exact match) | Applied pre‑LLM | Not applied |
 | Tracked changes context | Yes (relevant subset) | Yes (relevant subset) |
 | Images (fig refs) | Injected before referenced lines | Same |
-| Output TXT | source<TAB>translated | source<TAB>revised_target<TAB>comment |
+| Output TXT | source{TAB}translated | source{TAB}revised_target{TAB}comment |
 | Output TMX | Yes | No |
 | Custom instructions | Appended to prompt | Appended to prompt |
 | Comments merging | N/A | Original + AI summary (conditional) |
@@ -75,14 +75,14 @@ Source sentence 2
 ```
 If you re‑feed a previously exported 2‑column file:
 ```
-Source sentence 1<TAB>Old translation
+Source sentence 1{TAB}Old translation
 ```
 Only the first column is read; the rest are ignored.
 
 ### Proofread Mode
 ```
-Source<TAB>ExistingTarget
-Source<TAB>ExistingTarget<TAB>Optional prior comment
+Source{TAB}ExistingTarget
+Source{TAB}ExistingTarget{TAB}Optional prior comment
 ```
 
 ---
@@ -91,13 +91,13 @@ Source<TAB>ExistingTarget<TAB>Optional prior comment
 
 ### Translate Output
 ```
-Source<TAB>NewTranslation
+Source{TAB}NewTranslation
 ```
 Plus: `*.tmx` (exact matches + generated translations, excludes error placeholders).
 
 ### Proofread Output
 ```
-Source<TAB>RevisedTarget<TAB>MergedComment
+Source{TAB}RevisedTarget{TAB}MergedComment
 ```
 MergedComment includes (if present):
 - ORIGINAL COMMENT:
@@ -111,7 +111,7 @@ If no changes: AI may omit revisions or summarize “No changes”.
 
 Load:
 - **DOCX** with Word tracked revisions (insertions/deletions)
-- **TSV**: `Original<TAB>Final`
+- **TSV**: `Original{TAB}Final`
 
 Browser UI:
 - Search (substring or exact)
@@ -143,7 +143,7 @@ On a line referencing “Figure 1A” / “Fig. 1A” the corresponding image is
 
 Supported:
 - **TMX 1.4** (`<tu><tuv xml:lang=".."><seg>...`)
-- **Plain TXT**: `source<TAB>target`
+- **Plain TXT**: `source{TAB}target`
 
 Process:
 1. Normalize GUI language codes (e.g., “English”→“en”).
