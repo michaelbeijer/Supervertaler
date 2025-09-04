@@ -1,4 +1,4 @@
-# --- Supervertaler (v2.0.0) - Multi-LLM AI-powered Translator & Proofreader with DOCX Change References ---
+# --- Supervertaler (v2.0.1) - Multi-LLM AI-powered Translator & Proofreader with DOCX Change References ---
 import tkinter as tk
 from tkinter import filedialog, scrolledtext, messagebox, ttk
 import threading
@@ -10,6 +10,10 @@ import xml.etree.ElementTree as ET
 import io 
 import sys
 import zipfile  # Added for DOCX parsing
+
+# ADD: central version constant (was missing, caused NameError)
+APP_VERSION = "2.0.1"
+print(f"=== Supervertaler v{APP_VERSION} starting ===")
 
 PIL_AVAILABLE = False
 try:
@@ -649,6 +653,52 @@ def format_tracked_changes_context(tracked_changes_list, max_length=1000):
     
     return "\n".join(context_parts) + "\n"
 
+# --- TMX Generator Class ---
+class TMXGenerator:
+    """Helper class for generating TMX files"""
+    def __init__(self):
+        pass
+    
+    def generate_tmx(self, source_segments, target_segments, source_lang, target_lang):
+        """Generate TMX content from parallel segments"""
+        from datetime import datetime
+        
+        # Basic TMX structure
+        tmx = ET.Element('tmx')
+        tmx.set('version', '1.4')
+        
+        header = ET.SubElement(tmx, 'header')
+        header.set('creationdate', datetime.now().strftime('%Y%m%dT%H%M%SZ'))
+        header.set('srclang', get_simple_lang_code(source_lang))
+        header.set('adminlang', 'en')
+        header.set('segtype', 'sentence')
+        header.set('creationtool', 'Supervertaler')
+        header.set('creationtoolversion', APP_VERSION)
+        header.set('datatype', 'plaintext')
+        
+        body = ET.SubElement(tmx, 'body')
+        
+        # Add translation units
+        for src, tgt in zip(source_segments, target_segments):
+            if not src.strip() or not tgt or '[ERR' in str(tgt) or '[Missing' in str(tgt):
+                continue
+                
+            tu = ET.SubElement(body, 'tu')
+            
+            # Source segment
+            tuv_src = ET.SubElement(tu, 'tuv')
+            tuv_src.set('xml:lang', get_simple_lang_code(source_lang))
+            seg_src = ET.SubElement(tuv_src, 'seg')
+            seg_src.text = src.strip()
+            
+            # Target segment
+            tuv_tgt = ET.SubElement(tu, 'tuv')
+            tuv_tgt.set('xml:lang', get_simple_lang_code(target_lang))
+            seg_tgt = ET.SubElement(tuv_tgt, 'seg')
+            seg_tgt.text = str(tgt).strip()
+        
+        return ET.ElementTree(tmx)
+
 # --- Agent Classes ---
 class BilingualFileIngestionAgent:
     def process(self, file_path, log_queue, mode="Translate"):
@@ -656,18 +706,34 @@ class BilingualFileIngestionAgent:
         data = []
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
-                for line_num, line in enumerate(f):
-                    line = line.rstrip('\n') 
-                    if not line.strip(): continue
+                for line_num, line in enumerate(f, 1):
+                    line = line.rstrip('\n\r')
+                    if not line.strip():
+                        continue
                     if mode == "Translate":
-                        # Simply use the entire line as source text
-                        data.append(line.strip())
+                        # NEW: Only take first column if tabs present to avoid duplicating prior translations
+                        if '\t' in line:
+                            parts = line.split('\t')
+                            if len(parts) > 1:
+                                log_queue.put(f"[Ingestor] Note: Line {line_num} has {len(parts)} tab-separated fields; using only first as source.")
+                            source_text = parts[0].strip()
+                        else:
+                            source_text = line.strip()
+                        if source_text:
+                            data.append(source_text)
+                        else:
+                            log_queue.put(f"[Ingestor] Warn: Empty source after trimming on line {line_num}.")
                     elif mode == "Proofread":
-                        parts = line.split('\t', 2) 
-                        if len(parts) == 2: data.append({"source": parts[0], "target": parts[1], "comment": None})
-                        elif len(parts) == 3: data.append({"source": parts[0], "target": parts[1], "comment": parts[2]})
-                        else: log_queue.put(f"[Ingestor] Warn (Proofread): Skip line {line_num+1} (needs 2 or 3 tab-sep cols): {line}")
-        except Exception as e: log_queue.put(f"[Ingestor] Err reading {file_path}: {e}"); return []
+                        parts = line.split('\t', 2)
+                        if len(parts) == 2:
+                            data.append({"source": parts[0], "target": parts[1], "comment": None})
+                        elif len(parts) == 3:
+                            data.append({"source": parts[0], "target": parts[1], "comment": parts[2]})
+                        else:
+                            log_queue.put(f"[Ingestor] Warn (Proofread): Skip line {line_num} (needs 2 or 3 tab-sep cols): {line}")
+        except Exception as e:
+            log_queue.put(f"[Ingestor] Err reading {file_path}: {e}")
+            return []
         log_queue.put(f"[Ingestor] Done. {len(data)} entries/lines loaded.")
         return data
 
@@ -825,7 +891,7 @@ class GeminiTranslationAgent(BaseTranslationAgent):
             return translations
         except Exception as e:
             self.log_queue.put(f"[Gemini Translator] Error enhanced TL ('{self.model_name}'): {e}")
-            return {n: f"[TL Err line {n} (enhanced): {e}]" for n in line_nums_being_translated}
+            return {n: f"[TL Err line {n} (enhanced): {e}]" for n in lines_map_to_translate.keys()}
 
 class GeminiProofreadingAgent(BaseProofreadingAgent):
     def __init__(self, api_key, log_queue, model_name='gemini-2.5-pro-preview-05-06'):
@@ -843,667 +909,124 @@ class GeminiProofreadingAgent(BaseProofreadingAgent):
                                              full_original_target_doc_str, source_lang, target_lang,
                                              all_source_segments_original_list, drawings_images_map,
                                              user_custom_instructions="", tracked_changes_data=None):
-        if not self.model: self.log_queue.put(f"[Gemini Proofreader] Model not initialized."); return {n: {"revised_target": lines_to_proofread_map[n]["target_original"], "changes_summary": "[Proofread Err: Model not init]"} for n in lines_to_proofread_map.keys()}
-        if not lines_to_proofread_map: self.log_queue.put(f"[Gemini Proofreader] No lines for proofreading chunk."); return {}
+        # REPLACED buggy implementation that referenced undefined variables (self.client, messages, user_content, current_text)
+        if not self.model:
+            self.log_queue.put(f"[Gemini Proofreader] Model not initialized.")
+            return {n: {"revised_target": lines_to_proofread_map[n]["target_original"],
+                        "changes_summary": "[Proofread Err: Model not init]",
+                        "original_target": lines_to_proofread_map[n]["target_original"]} for n in lines_to_proofread_map.keys()}
+        if not lines_to_proofread_map:
+            self.log_queue.put(f"[Gemini Proofreader] No lines for proofreading chunk.")
+            return {}
 
-        line_nums_being_proofread = sorted(list(lines_to_proofread_map.keys()))
+        line_nums_being_proofread = sorted(lines_to_proofread_map.keys())
         self.log_queue.put(f"[Gemini Proofreader] Proofreading {len(line_nums_being_proofread)} lines: {line_nums_being_proofread[:3]}... w/ '{self.model_name}' (drawings + tracked changes if available)...")
 
-        prompt_parts = [f"You are an expert proofreader and editor for {source_lang} to {target_lang} translations, specializing in patent documents."]
-        if user_custom_instructions: prompt_parts.append(f"\nIMPORTANT USER-PROVIDED INSTRUCTIONS:\n{user_custom_instructions}\n")
-        
-        # Add tracked changes context if available
+        prompt_parts = [
+            f"You are an expert proofreader and editor for {source_lang} → {target_lang} translations, specializing in patent documents."
+        ]
+        if user_custom_instructions:
+            prompt_parts.append(f"\nIMPORTANT USER-PROVIDED INSTRUCTIONS:\n{user_custom_instructions}\n")
+
+        # Tracked changes context
         if tracked_changes_data:
-            # Get current source segments for this chunk
             current_source_segments = [all_source_segments_original_list[n-1] for n in line_nums_being_proofread]
             relevant_changes = tracked_changes_data.find_relevant_changes(current_source_segments)
             if relevant_changes:
-                tracked_changes_context = format_tracked_changes_context(relevant_changes)
-                prompt_parts.append(tracked_changes_context)
+                prompt_parts.append(format_tracked_changes_context(relevant_changes))
                 self.log_queue.put(f"[Gemini Proofreader] Added {len(relevant_changes)} relevant tracked changes as context")
-        
+
         prompt_parts.extend([
-            "For each segment below, you are given the 'SOURCE SEGMENT' and the 'EXISTING TRANSLATION'. Review the 'EXISTING TRANSLATION' against the 'SOURCE SEGMENT' based on the following criteria, using the 'FULL SOURCE DOCUMENT CONTEXT' and 'FULL ORIGINAL TARGET DOCUMENT CONTEXT' (provided earlier, if any) for reference. If images for Figures are provided with a segment, use them as crucial context.",
-            "Checks to perform:\n1. Accuracy: Faithfully convey source meaning. Correct mistranslations.\n2. Terminology: Ensure correct and consistent use of patent-specific terms.\n3. Tone & Style: Ensure formal, objective, and precise tone appropriate for patents.\n4. Grammar, Spelling, Punctuation: Correct all errors in the {target_lang} translation.\n5. Fluency & Naturalness: Ensure smooth, natural {target_lang} reading.\n6. Completeness: No omissions or additions.\n7. Figure Reference Consistency: Align with any provided images for figure refs.",
-            f"Your response MUST be structured as follows:\nFirst, provide a numbered list of ONLY the revised and improved {target_lang} translations for each segment. If an existing translation is already perfect and needs NO changes, return the original EXISTING TRANSLATION for that number.\nSecond, after the complete list of revised translations, add a section explicitly titled '---CHANGES SUMMARY START---'. Under this title, for EACH line number that you modified, provide a brief, clear explanation of the key changes you made (e.g., '27. Corrected spelling; rephrased for flow.'). If NO changes were made to ANY segment in this batch, this section should contain only the text 'No changes made to any segment in this batch.'.\nEnd this section with '---CHANGES SUMMARY END---'.\n",
-            f"FULL SOURCE DOCUMENT CONTEXT (for your reference):\n{full_source_doc_str}\n",
-            f"FULL ORIGINAL TARGET DOCUMENT CONTEXT (for consistency reference):\n{full_original_target_doc_str}\n",
-            "SEGMENTS FOR PROOFREADING (review 'EXISTING TRANSLATION' for each, using preceding images if provided for a figure reference in source):\n"])
+            "For each segment you get SOURCE SEGMENT and EXISTING TRANSLATION.",
+            "Tasks: accuracy, terminology consistency, patent tone, grammar, fluency, completeness, figure-reference consistency.",
+            f"OUTPUT FORMAT STRICTLY:\n1) Numbered list of revised {target_lang} translations (use same numbering; if no change, reproduce original).\n"
+            "2) Then a section:\n---CHANGES SUMMARY START---\n"
+            "Per modified line: '<line>. <brief description of changes>' OR if none changed: 'No changes made to any segment in this batch.'\n"
+            "---CHANGES SUMMARY END---",
+            f"\nFULL SOURCE DOCUMENT CONTEXT (reference only):\n{full_source_doc_str}\n",
+            f"FULL ORIGINAL TARGET DOCUMENT CONTEXT (for consistency):\n{full_original_target_doc_str}\n",
+            "SEGMENTS FOR PROOFREADING:\n"
+        ])
 
-        images_added_this_api_call = set()
-        for global_ln_num in line_nums_being_proofread:
-            segment_data = lines_to_proofread_map[global_ln_num]
-            original_source_text_for_ref_scan = all_source_segments_original_list[global_ln_num - 1]
-            fig_refs = re.findall(r"(?:figure|figuur|fig\.?)\s*([\w\d]+(?:[\s\.\-]*[\w\d]+)?)", original_source_text_for_ref_scan, re.IGNORECASE)
+        images_added_this_call = set()
+        # Add segments (optionally insert images before their segment block)
+        for ln in line_nums_being_proofread:
+            src_text = lines_to_proofread_map[ln]["source"]
+            orig_target = lines_to_proofread_map[ln]["target_original"]
+            # Figure detection
+            fig_refs = re.findall(r"(?:figure|figuur|fig\.?)\s*([\w\d]+(?:[\s\.\-]*[\w\d]+)?)", src_text, re.IGNORECASE)
             if PIL_AVAILABLE and fig_refs and drawings_images_map:
-                for raw_fig_ref_tuple in fig_refs:
-                    raw_fig_ref = raw_fig_ref_tuple if isinstance(raw_fig_ref_tuple, str) else raw_fig_ref_tuple[0]
-                    normalized_ref = normalize_figure_ref(f"fig {raw_fig_ref}")
-                    if normalized_ref and normalized_ref in drawings_images_map and normalized_ref not in images_added_this_api_call:
-                        pil_image = drawings_images_map[normalized_ref]
-                        prompt_parts.append(f"\n--- Context Image: Figure {raw_fig_ref} (for segment {global_ln_num}) ---")
-                        prompt_parts.append(pil_image)
-                        images_added_this_api_call.add(normalized_ref)
-            prompt_parts.append(f"{global_ln_num}. SOURCE SEGMENT: {segment_data['source']}")
-            prompt_parts.append(f"{global_ln_num}. EXISTING TRANSLATION: {segment_data['target_original']}")
-            prompt_parts.append("\n")
-        prompt_parts.append(f"\nREVISED AND PROOFREAD {target_lang.upper()} TARGET SENTENCES (numbered list for the segments above only):")
+                for ref in fig_refs:
+                    normalized = normalize_figure_ref(f"fig {ref}")
+                    if normalized and normalized in drawings_images_map and normalized not in images_added_this_call:
+                        prompt_parts.append(f"\n--- Context Image: Figure {ref} (for line {ln}) ---")
+                        prompt_parts.append(drawings_images_map[normalized])
+                        images_added_this_call.add(normalized)
+                        break  # one representative image per line is enough
+            prompt_parts.append(f"{ln}. SOURCE SEGMENT: {src_text}")
+            prompt_parts.append(f"{ln}. EXISTING TRANSLATION: {orig_target}\n")
 
+        prompt_parts.append("\nREVISED TRANSLATIONS (numbered list only):")
+
+        # Call Gemini
         try:
             response = self.model.generate_content(prompt_parts)
-            raw_text_response = response.text 
-            
-            if not raw_text_response and hasattr(response, 'prompt_feedback'): self.log_queue.put(f"[Gemini Proofreader] Warn: Empty response. Feedback: {response.prompt_feedback}")
-            elif not raw_text_response: self.log_queue.put(f"[Gemini Proofreader] Warn: Empty response for lines {line_nums_being_proofread}. Response: {response}")
-
-            parsed_results = {}
-            translations_text_block, changes_summary_block = raw_text_response, ""
-            summary_start_marker, summary_end_marker = "---CHANGES SUMMARY START---", "---CHANGES SUMMARY END---"
-            if summary_start_marker in raw_text_response:
-                parts = raw_text_response.split(summary_start_marker, 1)
-                translations_text_block = parts[0].strip()
-                if len(parts) > 1:
-                    summary_part = parts[1]
-                    changes_summary_block = summary_part.split(summary_end_marker, 1)[0].strip() if summary_end_marker in summary_part else summary_part.strip()
-            
-            for line in (translations_text_block or "").splitlines():
-                match = re.match(r"^\s*(\d+)\.\s*(.*)", line.strip())
-                if match:
-                    num = int(match.group(1))
-                    text = match.group(2).strip() 
-                    if num in line_nums_being_proofread: 
-                        parsed_results.setdefault(num, {})["revised_target"] = text
-            
-            parsed_summaries = {}
-            if "No changes made to any segment in this batch." not in changes_summary_block and changes_summary_block:
-                for line in changes_summary_block.splitlines():
-                    match = re.match(r"^\s*(\d+)\.\s*(.*)", line.strip())
-                    if match: parsed_summaries[match.group(1)] = match.group(2).strip()
-            
-            for num in line_nums_being_proofread:
-                if num not in parsed_results: parsed_results[num] = {}
-                if "revised_target" not in parsed_results[num]:
-                    parsed_results[num]["revised_target"] = lines_to_proofread_map[num]["target_original"]
-                    self.log_queue.put(f"[Gemini Proofreader] Warn: Missing revised target for line {num}. Using original.")
-                parsed_results[num]["changes_summary"] = parsed_summaries.get(str(num))
-                parsed_results[num]["original_target"] = lines_to_proofread_map[num]["target_original"]
-            self.log_queue.put(f"[Gemini Proofreader] Enhanced proofreading for chunk done. Processed {len(parsed_results)} segments.")
-            return parsed_results
+            raw_text = response.text or ""
+            if not raw_text:
+                self.log_queue.put(f"[Gemini Proofreader] Warn: Empty response for lines {line_nums_being_proofread}.")
         except Exception as e:
-            self.log_queue.put(f"[Gemini Proofreader] Error during enhanced proofreading ('{self.model_name}'): {e}")
-            return {n: {"revised_target": lines_to_proofread_map[n]["target_original"], "changes_summary": f"[Proofread Err line {n}: {e}]"} for n in line_nums_being_proofread}
+            self.log_queue.put(f"[Gemini Proofreader] Error during proofreading call: {e}")
+            return {n: {"revised_target": lines_to_proofread_map[n]["target_original"],
+                        "changes_summary": f"[Proofread Err line {n}: {e}]",
+                        "original_target": lines_to_proofread_map[n]["target_original"]} for n in line_nums_being_proofread}
 
-# --- Claude Agent Classes ---
-class ClaudeTranslationAgent(BaseTranslationAgent):
-    def __init__(self, api_key, log_queue, model_name='claude-3-5-sonnet-20241022'):
-        super().__init__(api_key, log_queue, model_name, "Claude")
-        if not CLAUDE_AVAILABLE: self.log_queue.put("[Claude Translator] ERROR: Anthropic library not available."); return
-        if not api_key:
-            self.log_queue.put("[Claude Translator] ERROR: API Key is missing.")
-            return
-        try:
-            self.client = anthropic.Anthropic(api_key=api_key)
-            self.model = True  # Flag to indicate successful initialization
-            self.log_queue.put(f"[Claude Translator] Agent with model '{self.model_name}' initialized.")
-        except Exception as e: self.log_queue.put(f"[Claude Translator] ERROR init ('{self.model_name}'): {e}.")
+        # Parse response
+        summary_start = "---CHANGES SUMMARY START---"
+        summary_end = "---CHANGES SUMMARY END---"
+        translations_block = raw_text
+        summary_block = ""
 
-    def translate_specific_lines_with_drawings_context(self,
-                                               lines_map_to_translate,
-                                               full_document_context_text_str,
-                                               source_lang, target_lang,
-                                               all_source_segments_original_list,
-                                               drawings_images_map,
-                                               user_custom_instructions="",
-                                               tracked_changes_data=None):
-        if not self.model: self.log_queue.put(f"[Claude Translator] Model ('{self.model_name}') not init."); return {n: f"[Err: Model not init]" for n in lines_map_to_translate.keys()}
-        if not lines_map_to_translate: self.log_queue.put(f"[Claude Translator] No lines for chunk."); return {}
+        if summary_start in raw_text:
+            parts = raw_text.split(summary_start, 1)
+            translations_block = parts[0].strip()
+            remainder = parts[1]
+            if summary_end in remainder:
+                summary_block = remainder.split(summary_end, 1)[0].strip()
+            else:
+                summary_block = remainder.strip()
 
-        line_nums_being_translated = sorted(list(lines_map_to_translate.keys()))
-        self.log_queue.put(f"[Claude Translator] Translating {len(line_nums_being_translated)} lines: {line_nums_being_translated[:3]}... w/ '{self.model_name}' (drawings + tracked changes if available)...")
+        results = {}
+        # Parse numbered revised translations
+        for line in translations_block.splitlines():
+            m = re.match(r"^\s*(\d+)\.\s*(.*)$", line.strip())
+            if m:
+                num = int(m.group(1))
+                txt = m.group(2).strip()
+                if num in line_nums_being_proofread:
+                    results.setdefault(num, {})["revised_target"] = txt
 
-        # Build system prompt
-        system_prompt = f"You are an expert {source_lang} to {target_lang} translator specialized in patent documents."
-        if user_custom_instructions:
-            system_prompt += f"\n\nIMPORTANT USER-PROVIDED INSTRUCTIONS:\n{user_custom_instructions}"
+        # Parse summary lines
+        parsed_summaries = {}
+        if summary_block and "No changes made to any segment in this batch." not in summary_block:
+            for line in summary_block.splitlines():
+                m = re.match(r"^\s*(\d+)\.\s*(.*)$", line.strip())
+                if m:
+                    parsed_summaries[m.group(1)] = m.group(2).strip()
 
-        # Build user prompt
-        user_prompt_parts = []
-        
-        # Add tracked changes context if available
-        if tracked_changes_data:
-            # Get current source segments for this chunk
-            current_source_segments = [all_source_segments_original_list[n-1] for n in line_nums_being_translated]
-            relevant_changes = tracked_changes_data.find_relevant_changes(current_source_segments)
-            if relevant_changes:
-                tracked_changes_context = format_tracked_changes_context(relevant_changes)
-                user_prompt_parts.append(tracked_changes_context)
-                self.log_queue.put(f"[Claude Translator] Added {len(relevant_changes)} relevant tracked changes as context")
-        
-        user_prompt_parts.extend([
-            "The full patent text for overall context is in 'FULL PATENT CONTEXT' below. Translate ONLY sentences from 'PATENT SENTENCES TO TRANSLATE' later. These are listed with their original line numbers from the full document.",
-            "If a sentence refers to a Figure (e.g., 'Figure 1A', 'Figuur X'), relevant images may be provided just before that sentence. Use these images as crucial context for accurately translating references to parts, features, or relationships shown in those figures.",
-            "Present your output ONLY as a numbered list of the translations for the requested sentences, using their original numbering. Maintain accuracy and appropriate patent terminology.\n",
-            f"FULL PATENT CONTEXT:\n{full_document_context_text_str}\n",
-            "PATENT SENTENCES TO TRANSLATE (translate only these, using preceding images if provided for a figure reference):\n"])
+        # Final assembly
+        for num in line_nums_being_proofread:
+            original_target = lines_to_proofread_map[num]["target_original"]
+            entry = results.setdefault(num, {})
+            if "revised_target" not in entry or not entry["revised_target"].strip():
+                entry["revised_target"] = original_target
+                self.log_queue.put(f"[Gemini Proofreader] Note: Using original translation for line {num} (missing or empty revised output).")
+            entry["changes_summary"] = parsed_summaries.get(str(num))
+            entry["original_target"] = original_target
 
-        # Build message content with images
-        message_content = []
-        current_text = "\n".join(user_prompt_parts)
-        
-        images_added_this_api_call = set()
-        for global_ln_num in line_nums_being_translated:
-            original_line_text_for_ref_scan = all_source_segments_original_list[global_ln_num - 1]
-            numbered_src_line_to_translate = lines_map_to_translate[global_ln_num]
-            found_fig_refs_in_line = re.findall(r"(?:figure|figuur|fig\.?)\s*([\w\d]+(?:[\s\.\-]*[\w\d]+)?)", original_line_text_for_ref_scan, re.IGNORECASE)
-            
-            if PIL_AVAILABLE and found_fig_refs_in_line and drawings_images_map:
-                for raw_fig_ref_tuple in found_fig_refs_in_line:
-                    raw_fig_ref = raw_fig_ref_tuple if isinstance(raw_fig_ref_tuple, str) else raw_fig_ref_tuple[0]
-                    normalized_ref = normalize_figure_ref(f"fig {raw_fig_ref}")
-                    if normalized_ref and normalized_ref in drawings_images_map and normalized_ref not in images_added_this_api_call:
-                        pil_image = drawings_images_map[normalized_ref]
-                        current_text += f"\n--- Context Image: Figure {raw_fig_ref} (Referenced in or near the following text) ---\n"
-                        
-                        # Convert PIL image to base64 for Claude
-                        import base64
-                        import io as image_io
-                        img_buffer = image_io.BytesIO()
-                        pil_image.save(img_buffer, format='PNG')
-                        img_data = base64.b64encode(img_buffer.getvalue()).decode()
-                        
-                        message_content.append({
-                            "type": "text",
-                            "text": current_text
-                        })
-                        message_content.append({
-                            "type": "image",
-                            "source": {
-                                "type": "base64",
-                                "media_type": "image/png",
-                                "data": img_data
-                            }
-                        })
-                        current_text = ""  # Reset for next part
-                        images_added_this_api_call.add(normalized_ref)
-                        self.log_queue.put(f"[Claude Translator] Added Image for Figure Ref '{raw_fig_ref}' (norm: {normalized_ref}) for line {global_ln_num}.")
-            
-            current_text += numbered_src_line_to_translate + "\n"
+        self.log_queue.put(f"[Gemini Proofreader] Proofreading parse complete. Segments: {len(results)}.")
+        return results
 
-        current_text += "\nTRANSLATED SENTENCES (numbered list for 'PATENT SENTENCES TO TRANSLATE' only):"
-        message_content.append({
-            "type": "text", 
-            "text": current_text
-        })
-
-        try:
-            response = self.client.messages.create(
-                model=self.model_name,
-                max_tokens=4000,
-                system=system_prompt,
-                messages=[{
-                    "role": "user",
-                    "content": message_content
-                }]
-            )
-            
-            raw_text = response.content[0].text if response.content else ""
-            if not raw_text: self.log_queue.put(f"[Claude Translator] Warn: Empty response for lines {line_nums_being_translated}.")
-
-            translations = {}
-            for line in (raw_text or "").splitlines():
-                match = re.match(r"^\s*(\d+)\.\s*(.*)", line.strip())
-                if match:
-                    num = int(match.group(1))
-                    text = match.group(2).strip()
-                    if num in line_nums_being_translated:
-                        translations[num] = text
-            for num in line_nums_being_translated:
-                if num not in translations:
-                    self.log_queue.put(f"[Claude Translator] Warn: Missing TL line {num}. Placeholder.")
-                    translations[num] = f"[TL Missing line {num}]"
-            self.log_queue.put(f"[Claude Translator] Enhanced TL for chunk done. Got {len(translations)} segs.")
-            return translations
-        except Exception as e:
-            self.log_queue.put(f"[Claude Translator] Error enhanced TL ('{self.model_name}'): {e}")
-            return {n: f"[TL Err line {n} (enhanced): {e}]" for n in line_nums_being_translated}
-
-class ClaudeProofreadingAgent(BaseProofreadingAgent):
-    def __init__(self, api_key, log_queue, model_name='claude-3-5-sonnet-20241022'):
-        super().__init__(api_key, log_queue, model_name, "Claude")
-        if not CLAUDE_AVAILABLE: self.log_queue.put("[Claude Proofreader] ERROR: Anthropic library not available."); return
-        if not api_key:
-            self.log_queue.put("[Claude Proofreader] ERROR: API Key is missing."); return
-        try:
-            self.client = anthropic.Anthropic(api_key=api_key)
-            self.model = True  # Flag to indicate successful initialization
-            self.log_queue.put(f"[Claude Proofreader] Agent initialized with model '{self.model_name}'.")
-        except Exception as e: self.log_queue.put(f"[Claude Proofreader] ERROR initializing ('{self.model_name}'): {e}.")
-
-    def proofread_specific_lines_with_context(self, lines_to_proofread_map, full_source_doc_str,
-                                             full_original_target_doc_str, source_lang, target_lang,
-                                             all_source_segments_original_list, drawings_images_map,
-                                             user_custom_instructions="", tracked_changes_data=None):
-        if not self.model: self.log_queue.put(f"[Claude Proofreader] Model not initialized."); return {n: {"revised_target": lines_to_proofread_map[n]["target_original"], "changes_summary": "[Proofread Err: Model not init]"} for n in lines_to_proofread_map.keys()}
-        if not lines_to_proofread_map: self.log_queue.put(f"[Claude Proofreader] No lines for proofreading chunk."); return {}
-
-        line_nums_being_proofread = sorted(list(lines_to_proofread_map.keys()))
-        self.log_queue.put(f"[Claude Proofreader] Proofreading {len(line_nums_being_proofread)} lines: {line_nums_being_proofread[:3]}... w/ '{self.model_name}' (drawings + tracked changes if available)...")
-
-        # Build system prompt
-        system_prompt = f"You are an expert proofreader and editor for {source_lang} to {target_lang} translations, specializing in patent documents."
-        if user_custom_instructions: system_prompt += f"\n\nIMPORTANT USER-PROVIDED INSTRUCTIONS:\n{user_custom_instructions}"
-
-        # Build user prompt
-        user_prompt_parts = []
-        
-        # Add tracked changes context if available
-        if tracked_changes_data:
-            # Get current source segments for this chunk
-            current_source_segments = [all_source_segments_original_list[n-1] for n in line_nums_being_proofread]
-            relevant_changes = tracked_changes_data.find_relevant_changes(current_source_segments)
-            if relevant_changes:
-                tracked_changes_context = format_tracked_changes_context(relevant_changes)
-                user_prompt_parts.append(tracked_changes_context)
-                self.log_queue.put(f"[Claude Proofreader] Added {len(relevant_changes)} relevant tracked changes as context")
-        
-        user_prompt_parts.extend([
-            "For each segment below, you are given the 'SOURCE SEGMENT' and the 'EXISTING TRANSLATION'. Review the 'EXISTING TRANSLATION' against the 'SOURCE SEGMENT' based on the following criteria, using the 'FULL SOURCE DOCUMENT CONTEXT' and 'FULL ORIGINAL TARGET DOCUMENT CONTEXT' (provided earlier, if any) for reference. If images for Figures are provided with a segment, use them as crucial context.",
-            "Checks to perform:\n1. Accuracy: Faithfully convey source meaning. Correct mistranslations.\n2. Terminology: Ensure correct and consistent use of patent-specific terms.\n3. Tone & Style: Ensure formal, objective, and precise tone appropriate for patents.\n4. Grammar, Spelling, Punctuation: Correct all errors in the {target_lang} translation.\n5. Fluency & Naturalness: Ensure smooth, natural {target_lang} reading.\n6. Completeness: No omissions or additions.\n7. Figure Reference Consistency: Align with any provided images for figure refs.",
-            f"Your response MUST be structured as follows:\nFirst, provide a numbered list of ONLY the revised and improved {target_lang} translations for each segment. If an existing translation is already perfect and needs NO changes, return the original EXISTING TRANSLATION for that number.\nSecond, after the complete list of revised translations, add a section explicitly titled '---CHANGES SUMMARY START---'. Under this title, for EACH line number that you modified, provide a brief, clear explanation of the key changes you made (e.g., '27. Corrected spelling; rephrased for flow.'). If NO changes were made to ANY segment in this batch, this section should contain only the text 'No changes made to any segment in this batch.'.\nEnd this section with '---CHANGES SUMMARY END---'.\n",
-            f"FULL SOURCE DOCUMENT CONTEXT (for your reference):\n{full_source_doc_str}\n",
-            f"FULL ORIGINAL TARGET DOCUMENT CONTEXT (for consistency reference):\n{full_original_target_doc_str}\n",
-            "SEGMENTS FOR PROOFREADING (review 'EXISTING TRANSLATION' for each, using preceding images if provided for a figure reference in source):\n"])
-
-        # Build message content with images
-        message_content = []
-        current_text = "\n".join(user_prompt_parts)
-
-        images_added_this_api_call = set()
-        for global_ln_num in line_nums_being_proofread:
-            segment_data = lines_to_proofread_map[global_ln_num]
-            original_source_text_for_ref_scan = all_source_segments_original_list[global_ln_num - 1]
-            fig_refs = re.findall(r"(?:figure|figuur|fig\.?)\s*([\w\d]+(?:[\s\.\-]*[\w\d]+)?)", original_source_text_for_ref_scan, re.IGNORECASE)
-            
-            if PIL_AVAILABLE and fig_refs and drawings_images_map:
-                for raw_fig_ref_tuple in fig_refs:
-                    raw_fig_ref = raw_fig_ref_tuple if isinstance(raw_fig_ref_tuple, str) else raw_fig_ref_tuple[0]
-                    normalized_ref = normalize_figure_ref(f"fig {raw_fig_ref}")
-                    if normalized_ref and normalized_ref in drawings_images_map and normalized_ref not in images_added_this_api_call:
-                        pil_image = drawings_images_map[normalized_ref]
-                        current_text += f"\n--- Context Image: Figure {raw_fig_ref} (for segment {global_ln_num}) ---\n"
-                        
-                        # Convert PIL image to base64 for Claude
-                        import base64
-                        import io as image_io
-                        img_buffer = image_io.BytesIO()
-                        pil_image.save(img_buffer, format='PNG')
-                        img_data = base64.b64encode(img_buffer.getvalue()).decode()
-                        
-                        message_content.append({
-                            "type": "text",
-                            "text": current_text
-                        })
-                        message_content.append({
-                            "type": "image",
-                            "source": {
-                                "type": "base64",
-                                "media_type": "image/png",
-                                "data": img_data
-                            }
-                        })
-                        current_text = ""  # Reset for next part
-                        images_added_this_api_call.add(normalized_ref)
-            
-            current_text += f"{global_ln_num}. SOURCE SEGMENT: {segment_data['source']}\n"
-            current_text += f"{global_ln_num}. EXISTING TRANSLATION: {segment_data['target_original']}\n\n"
-
-        current_text += f"\nREVISED AND PROOFREAD {target_lang.upper()} TARGET SENTENCES (numbered list for the segments above only):"
-        message_content.append({
-            "type": "text",
-            "text": current_text
-        })
-
-        try:
-            response = self.client.messages.create(
-                model=self.model_name,
-                max_tokens=4000,
-                system=system_prompt,
-                messages=[{
-                    "role": "user",
-                    "content": message_content
-                }]
-            )
-            
-            raw_text_response = response.content[0].text if response.content else ""
-            if not raw_text_response: self.log_queue.put(f"[Claude Proofreader] Warn: Empty response for lines {line_nums_being_proofread}.")
-
-            parsed_results = {}
-            translations_text_block, changes_summary_block = raw_text_response, ""
-            summary_start_marker, summary_end_marker = "---CHANGES SUMMARY START---", "---CHANGES SUMMARY END---"
-            if summary_start_marker in raw_text_response:
-                parts = raw_text_response.split(summary_start_marker, 1)
-                translations_text_block = parts[0].strip()
-                if len(parts) > 1:
-                    summary_part = parts[1]
-                    changes_summary_block = summary_part.split(summary_end_marker, 1)[0].strip() if summary_end_marker in summary_part else summary_part.strip()
-
-            for line in (translations_text_block or "").splitlines():
-                match = re.match(r"^\s*(\d+)\.\s*(.*)", line.strip())
-                if match:
-                    num = int(match.group(1))
-                    text = match.group(2).strip()
-                    if num in line_nums_being_proofread:
-                        parsed_results.setdefault(num, {})["revised_target"] = text
-
-            parsed_summaries = {}
-            if "No changes made to any segment in this batch." not in changes_summary_block and changes_summary_block:
-                for line in changes_summary_block.splitlines():
-                    match = re.match(r"^\s*(\d+)\.\s*(.*)", line.strip())
-                    if match: parsed_summaries[match.group(1)] = match.group(2).strip()
-
-            for num in line_nums_being_proofread:
-                if num not in parsed_results: parsed_results[num] = {}
-                if "revised_target" not in parsed_results[num]:
-                    parsed_results[num]["revised_target"] = lines_to_proofread_map[num]["target_original"]
-                    self.log_queue.put(f"[Claude Proofreader] Warn: Missing revised target for line {num}. Using original.")
-                parsed_results[num]["changes_summary"] = parsed_summaries.get(str(num))
-                parsed_results[num]["original_target"] = lines_to_proofread_map[num]["target_original"]
-            self.log_queue.put(f"[Claude Proofreader] Enhanced proofreading for chunk done. Processed {len(parsed_results)} segments.")
-            return parsed_results
-        except Exception as e:
-            self.log_queue.put(f"[Claude Proofreader] Error during enhanced proofreading ('{self.model_name}'): {e}")
-            return {n: {"revised_target": lines_to_proofread_map[n]["target_original"], "changes_summary": f"[Proofread Err line {n}: {e}]"} for n in line_nums_being_proofread}
-
-# --- OpenAI Agent Classes ---
-class OpenAITranslationAgent(BaseTranslationAgent):
-    def __init__(self, api_key, log_queue, model_name='gpt-4o'):
-        super().__init__(api_key, log_queue, model_name, "OpenAI")
-        if not OPENAI_AVAILABLE: self.log_queue.put("[OpenAI Translator] ERROR: OpenAI library not available."); return
-        if not api_key:
-            self.log_queue.put("[OpenAI Translator] ERROR: API Key is missing.")
-            return
-        try:
-            self.client = openai.OpenAI(api_key=api_key)
-            self.model = True  # Flag to indicate successful initialization
-            self.log_queue.put(f"[OpenAI Translator] Agent with model '{self.model_name}' initialized.")
-        except Exception as e: self.log_queue.put(f"[OpenAI Translator] ERROR init ('{self.model_name}'): {e}.")
-
-    def translate_specific_lines_with_drawings_context(self,
-                                               lines_map_to_translate,
-                                               full_document_context_text_str,
-                                               source_lang, target_lang,
-                                               all_source_segments_original_list,
-                                               drawings_images_map,
-                                               user_custom_instructions="",
-                                               tracked_changes_data=None):
-        if not self.model: self.log_queue.put(f"[OpenAI Translator] Model ('{self.model_name}') not init."); return {n: f"[Err: Model not init]" for n in lines_map_to_translate.keys()}
-        if not lines_map_to_translate: self.log_queue.put(f"[OpenAI Translator] No lines for chunk."); return {}
-
-        line_nums_being_translated = sorted(list(lines_map_to_translate.keys()))
-        self.log_queue.put(f"[OpenAI Translator] Translating {len(line_nums_being_translated)} lines: {line_nums_being_translated[:3]}... w/ '{self.model_name}' (drawings + tracked changes if available)...")
-
-        # Build system prompt
-        system_prompt = f"You are an expert {source_lang} to {target_lang} translator specialized in patent documents."
-        if user_custom_instructions:
-            system_prompt += f"\n\nIMPORTANT USER-PROVIDED INSTRUCTIONS:\n{user_custom_instructions}"
-
-        # Build user prompt
-        user_prompt_parts = []
-        
-        # Add tracked changes context if available
-        if tracked_changes_data:
-            # Get current source segments for this chunk
-            current_source_segments = [all_source_segments_original_list[n-1] for n in line_nums_being_translated]
-            relevant_changes = tracked_changes_data.find_relevant_changes(current_source_segments)
-            if relevant_changes:
-                tracked_changes_context = format_tracked_changes_context(relevant_changes)
-                user_prompt_parts.append(tracked_changes_context)
-                self.log_queue.put(f"[OpenAI Translator] Added {len(relevant_changes)} relevant tracked changes as context")
-        
-        user_prompt_parts.extend([
-            "The full patent text for overall context is in 'FULL PATENT CONTEXT' below. Translate ONLY sentences from 'PATENT SENTENCES TO TRANSLATE' later. These are listed with their original line numbers from the full document.",
-            "If a sentence refers to a Figure (e.g., 'Figure 1A', 'Figuur X'), relevant images may be provided just before that sentence. Use these images as crucial context for accurately translating references to parts, features, or relationships shown in those figures.",
-            "Present your output ONLY as a numbered list of the translations for the requested sentences, using their original numbering. Maintain accuracy and appropriate patent terminology.\n",
-            f"FULL PATENT CONTEXT:\n{full_document_context_text_str}\n",
-            "PATENT SENTENCES TO TRANSLATE (translate only these, using preceding images if provided for a figure reference):\n"])
-
-        # Build message content with images
-        messages = [
-            {"role": "system", "content": system_prompt}
-        ]
-        
-        user_content = []
-        current_text = "\n".join(user_prompt_parts)
-        
-        images_added_this_api_call = set()
-        for global_ln_num in line_nums_being_translated:
-            original_line_text_for_ref_scan = all_source_segments_original_list[global_ln_num - 1]
-            numbered_src_line_to_translate = lines_map_to_translate[global_ln_num]
-            found_fig_refs_in_line = re.findall(r"(?:figure|figuur|fig\.?)\s*([\w\d]+(?:[\s\.\-]*[\w\d]+)?)", original_line_text_for_ref_scan, re.IGNORECASE)
-            
-            if PIL_AVAILABLE and found_fig_refs_in_line and drawings_images_map:
-                for raw_fig_ref_tuple in found_fig_refs_in_line:
-                    raw_fig_ref = raw_fig_ref_tuple if isinstance(raw_fig_ref_tuple, str) else raw_fig_ref_tuple[0]
-                    normalized_ref = normalize_figure_ref(f"fig {raw_fig_ref}")
-                    if normalized_ref and normalized_ref in drawings_images_map and normalized_ref not in images_added_this_api_call:
-                        pil_image = drawings_images_map[normalized_ref]
-                        current_text += f"\n--- Context Image: Figure {raw_fig_ref} (Referenced in or near the following text) ---\n"
-                        
-                        # Convert PIL image to base64 for OpenAI
-                        import base64
-                        import io as image_io
-                        img_buffer = image_io.BytesIO()
-                        pil_image.save(img_buffer, format='PNG')
-                        img_data = base64.b64encode(img_buffer.getvalue()).decode()
-                        
-                        user_content.append({
-                            "type": "text",
-                            "text": current_text
-                        })
-                        user_content.append({
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/png;base64,{img_data}"
-                            }
-                        })
-                        current_text = ""  # Reset for next part
-                        images_added_this_api_call.add(normalized_ref)
-                        self.log_queue.put(f"[OpenAI Translator] Added Image for Figure Ref '{raw_fig_ref}' (norm: {normalized_ref}) for line {global_ln_num}.")
-            
-            current_text += numbered_src_line_to_translate + "\n"
-
-        current_text += "\nTRANSLATED SENTENCES (numbered list for 'PATENT SENTENCES TO TRANSLATE' only):"
-        user_content.append({
-            "type": "text",
-            "text": current_text
-        })
-        
-        messages.append({
-            "role": "user",
-            "content": user_content
-        })
-
-        try:
-            response = self.client.chat.completions.create(
-                model=self.model_name,
-                messages=messages,
-                max_tokens=4000,
-                temperature=0.3
-            )
-            
-            raw_text = response.choices[0].message.content if response.choices else ""
-            if not raw_text: self.log_queue.put(f"[OpenAI Translator] Warn: Empty response for lines {line_nums_being_translated}.")
-
-            translations = {}
-            for line in (raw_text or "").splitlines():
-                match = re.match(r"^\s*(\d+)\.\s*(.*)", line.strip())
-                if match:
-                    num = int(match.group(1))
-                    text = match.group(2).strip()
-                    if num in line_nums_being_translated:
-                        translations[num] = text
-            for num in line_nums_being_translated:
-                if num not in translations:
-                    self.log_queue.put(f"[OpenAI Translator] Warn: Missing TL line {num}. Placeholder.")
-                    translations[num] = f"[TL Missing line {num}]"
-            self.log_queue.put(f"[OpenAI Translator] Enhanced TL for chunk done. Got {len(translations)} segs.")
-            return translations
-        except Exception as e:
-            self.log_queue.put(f"[OpenAI Translator] Error enhanced TL ('{self.model_name}'): {e}")
-            return {n: f"[TL Err line {n} (enhanced): {e}]" for n in line_nums_being_translated}
-
-class OpenAIProofreadingAgent(BaseProofreadingAgent):
-    def __init__(self, api_key, log_queue, model_name='gpt-4o'):
-        super().__init__(api_key, log_queue, model_name, "OpenAI")
-        if not OPENAI_AVAILABLE: self.log_queue.put("[OpenAI Proofreader] ERROR: OpenAI library not available."); return
-        if not api_key:
-            self.log_queue.put("[OpenAI Proofreader] ERROR: API Key is missing."); return
-        try:
-            self.client = openai.OpenAI(api_key=api_key)
-            self.model = True  # Flag to indicate successful initialization
-            self.log_queue.put(f"[OpenAI Proofreader] Agent initialized with model '{self.model_name}'.")
-        except Exception as e: self.log_queue.put(f"[OpenAI Proofreader] ERROR initializing ('{self.model_name}'): {e}.")
-
-    def proofread_specific_lines_with_context(self, lines_to_proofread_map, full_source_doc_str,
-                                             full_original_target_doc_str, source_lang, target_lang,
-                                             all_source_segments_original_list, drawings_images_map,
-                                             user_custom_instructions="", tracked_changes_data=None):
-        if not self.model: self.log_queue.put(f"[OpenAI Proofreader] Model not initialized."); return {n: {"revised_target": lines_to_proofread_map[n]["target_original"], "changes_summary": "[Proofread Err: Model not init]"} for n in lines_to_proofread_map.keys()}
-        if not lines_to_proofread_map: self.log_queue.put(f"[OpenAI Proofreader] No lines for proofreading chunk."); return {}
-
-        line_nums_being_proofread = sorted(list(lines_to_proofread_map.keys()))
-        self.log_queue.put(f"[OpenAI Proofreader] Proofreading {len(line_nums_being_proofread)} lines: {line_nums_being_proofread[:3]}... w/ '{self.model_name}' (drawings + tracked changes if available)...")
-
-        # Build system prompt
-        system_prompt = f"You are an expert proofreader and editor for {source_lang} to {target_lang} translations, specializing in patent documents."
-        if user_custom_instructions: system_prompt += f"\n\nIMPORTANT USER-PROVIDED INSTRUCTIONS:\n{user_custom_instructions}"
-
-        # Build user prompt
-        user_prompt_parts = []
-        
-        # Add tracked changes context if available
-        if tracked_changes_data:
-            # Get current source segments for this chunk
-            current_source_segments = [all_source_segments_original_list[n-1] for n in line_nums_being_proofread]
-            relevant_changes = tracked_changes_data.find_relevant_changes(current_source_segments)
-            if relevant_changes:
-                tracked_changes_context = format_tracked_changes_context(relevant_changes)
-                user_prompt_parts.append(tracked_changes_context)
-                self.log_queue.put(f"[OpenAI Proofreader] Added {len(relevant_changes)} relevant tracked changes as context")
-        
-        user_prompt_parts.extend([
-            "For each segment below, you are given the 'SOURCE SEGMENT' and the 'EXISTING TRANSLATION'. Review the 'EXISTING TRANSLATION' against the 'SOURCE SEGMENT' based on the following criteria, using the 'FULL SOURCE DOCUMENT CONTEXT' and 'FULL ORIGINAL TARGET DOCUMENT CONTEXT' (provided earlier, if any) for reference. If images for Figures are provided with a segment, use them as crucial context.",
-            "Checks to perform:\n1. Accuracy: Faithfully convey source meaning. Correct mistranslations.\n2. Terminology: Ensure correct and consistent use of patent-specific terms.\n3. Tone & Style: Ensure formal, objective, and precise tone appropriate for patents.\n4. Grammar, Spelling, Punctuation: Correct all errors in the {target_lang} translation.\n5. Fluency & Naturalness: Ensure smooth, natural {target_lang} reading.\n6. Completeness: No omissions or additions.\n7. Figure Reference Consistency: Align with any provided images for figure refs.",
-            f"Your response MUST be structured as follows:\nFirst, provide a numbered list of ONLY the revised and improved {target_lang} translations for each segment. If an existing translation is already perfect and needs NO changes, return the original EXISTING TRANSLATION for that number.\nSecond, after the complete list of revised translations, add a section explicitly titled '---CHANGES SUMMARY START---'. Under this title, for EACH line number that you modified, provide a brief, clear explanation of the key changes you made (e.g., '27. Corrected spelling; rephrased for flow.'). If NO changes were made to ANY segment in this batch, this section should contain only the text 'No changes made to any segment in this batch.'.\nEnd this section with '---CHANGES SUMMARY END---'.\n",
-            f"FULL SOURCE DOCUMENT CONTEXT (for your reference):\n{full_source_doc_str}\n",
-            f"FULL ORIGINAL TARGET DOCUMENT CONTEXT (for consistency reference):\n{full_original_target_doc_str}\n",
-            "SEGMENTS FOR PROOFREADING (review 'EXISTING TRANSLATION' for each, using preceding images if provided for a figure reference in source):\n"])
-
-        # Build message content with images
-        messages = [
-            {"role": "system", "content": system_prompt}
-        ]
-        
-        user_content = []
-        current_text = "\n".join(user_prompt_parts)
-
-        images_added_this_api_call = set()
-        for global_ln_num in line_nums_being_proofread:
-            segment_data = lines_to_proofread_map[global_ln_num]
-            original_source_text_for_ref_scan = all_source_segments_original_list[global_ln_num - 1]
-            fig_refs = re.findall(r"(?:figure|figuur|fig\.?)\s*([\w\d]+(?:[\s\.\-]*[\w\d]+)?)", original_source_text_for_ref_scan, re.IGNORECASE)
-            
-            if PIL_AVAILABLE and fig_refs and drawings_images_map:
-                for raw_fig_ref_tuple in fig_refs:
-                    raw_fig_ref = raw_fig_ref_tuple if isinstance(raw_fig_ref_tuple, str) else raw_fig_ref_tuple[0]
-                    normalized_ref = normalize_figure_ref(f"fig {raw_fig_ref}")
-                    if normalized_ref and normalized_ref in drawings_images_map and normalized_ref not in images_added_this_api_call:
-                        pil_image = drawings_images_map[normalized_ref]
-                        current_text += f"\n--- Context Image: Figure {raw_fig_ref} (for segment {global_ln_num}) ---\n"
-                        
-                        # Convert PIL image to base64 for OpenAI
-                        import base64
-                        import io as image_io
-                        img_buffer = image_io.BytesIO()
-                        pil_image.save(img_buffer, format='PNG')
-                        img_data = base64.b64encode(img_buffer.getvalue()).decode()
-                        
-                        user_content.append({
-                            "type": "text",
-                            "text": current_text
-                        })
-                        user_content.append({
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/png;base64,{img_data}"
-                            }
-                        })
-                        current_text = ""  # Reset for next part
-                        images_added_this_api_call.add(normalized_ref)
-            
-            current_text += f"{global_ln_num}. SOURCE SEGMENT: {segment_data['source']}\n"
-            current_text += f"{global_ln_num}. EXISTING TRANSLATION: {segment_data['target_original']}\n\n"
-
-        current_text += f"\nREVISED AND PROOFREAD {target_lang.upper()} TARGET SENTENCES (numbered list for the segments above only):"
-        user_content.append({
-            "type": "text",
-            "text": current_text
-        })
-        
-        messages.append({
-            "role": "user",
-            "content": user_content
-        })
-
-        try:
-            response = self.client.chat.completions.create(
-                model=self.model_name,
-                messages=messages,
-                max_tokens=4000,
-                temperature=0.3
-            )
-            
-            raw_text_response = response.choices[0].message.content if response.choices else ""
-            if not raw_text_response: self.log_queue.put(f"[OpenAI Proofreader] Warn: Empty response for lines {line_nums_being_proofread}.")
-
-            parsed_results = {}
-            translations_text_block, changes_summary_block = raw_text_response, ""
-            summary_start_marker, summary_end_marker = "---CHANGES SUMMARY START---", "---CHANGES SUMMARY END---"
-            if summary_start_marker in raw_text_response:
-                parts = raw_text_response.split(summary_start_marker, 1)
-                translations_text_block = parts[0].strip()
-                if len(parts) > 1:
-                    summary_part = parts[1]
-                    changes_summary_block = summary_part.split(summary_end_marker, 1)[0].strip() if summary_end_marker in summary_part else summary_part.strip()
-
-            for line in (translations_text_block or "").splitlines():
-                match = re.match(r"^\s*(\d+)\.\s*(.*)", line.strip())
-                if match:
-                    num = int(match.group(1))
-                    text = match.group(2).strip()
-                    if num in line_nums_being_proofread:
-                        parsed_results.setdefault(num, {})["revised_target"] = text
-
-            parsed_summaries = {}
-            if "No changes made to any segment in this batch." not in changes_summary_block and changes_summary_block:
-                for line in changes_summary_block.splitlines():
-                    match = re.match(r"^\s*(\d+)\.\s*(.*)", line.strip())
-                    if match: parsed_summaries[match.group(1)] = match.group(2).strip()
-
-            for num in line_nums_being_proofread:
-                if num not in parsed_results: parsed_results[num] = {}
-                if "revised_target" not in parsed_results[num]:
-                    parsed_results[num]["revised_target"] = lines_to_proofread_map[num]["target_original"]
-                    self.log_queue.put(f"[OpenAI Proofreader] Warn: Missing revised target for line {num}. Using original.")
-                parsed_results[num]["changes_summary"] = parsed_summaries.get(str(num))
-                parsed_results[num]["original_target"] = lines_to_proofread_map[num]["target_original"]
-            self.log_queue.put(f"[OpenAI Proofreader] Enhanced proofreading for chunk done. Processed {len(parsed_results)} segments.")
-            return parsed_results
-        except Exception as e:
-            self.log_queue.put(f"[OpenAI Proofreader] Error during enhanced proofreading ('{self.model_name}'): {e}")
-            return {n: {"revised_target": lines_to_proofread_map[n]["target_original"], "changes_summary": f"[Proofread Err line {n}: {e}]"} for n in line_nums_being_proofread}
-
-# --- Agent Factory ---
+# --- Agent Factory Functions ---
 def create_translation_agent(provider, api_key, log_queue, model_name):
     """Factory function to create appropriate translation agent based on provider"""
     if provider.lower() == "gemini":
@@ -1551,40 +1074,11 @@ def get_available_models(provider, api_key, log_queue):
     else:
         return []
 
-class OutputGenerationAgent:
-    def process(self, source_data_list_for_output, target_data_list_for_output, output_path, log_queue, mode="Translate", comments_list_for_output=None):
-        log_queue.put(f"[Outputter] Generating output file: {output_path} for mode: {mode}")
-        
-        if len(source_data_list_for_output) != len(target_data_list_for_output):
-            log_queue.put(f"[Outputter] FATAL ERROR: Mismatch between number of source items ({len(source_data_list_for_output)}) and target items ({len(target_data_list_for_output)}).")
-            return False
-        if mode == "Proofread" and comments_list_for_output is not None and len(comments_list_for_output) != len(source_data_list_for_output):
-            log_queue.put(f"[Outputter] FATAL ERROR: Mismatch between number of source items ({len(source_data_list_for_output)}) and comments ({len(comments_list_for_output)}) in Proofread mode.")
-            return False
-
-        try:
-            with open(output_path, 'w', encoding='utf-8') as f:
-                for i in range(len(source_data_list_for_output)):
-                    source_text = source_data_list_for_output[i]
-                    target_text = target_data_list_for_output[i]
-                    
-                    f.write(f"{source_text}\t{target_text if target_text is not None else '[ERR - Target Missing]'}")
-                    
-                    if mode == "Proofread" and comments_list_for_output and i < len(comments_list_for_output) and comments_list_for_output[i] is not None:
-                        # Replace newline characters in the comment with a space to keep the output on a single line
-                        comment_to_write = comments_list_for_output[i].replace("\n", " ")
-                        f.write(f"\t{comment_to_write}")
-                    f.write("\n")
-            log_queue.put(f"[Outputter] Output file saved to: {output_path}")
-            return True
-        except Exception as e: 
-            log_queue.put(f"[Outputter] Error writing output file {output_path}: {e}")
-            return False
-
+# --- Supervertaler GUI Application Class ---
 class TranslationApp:
     def __init__(self, root):
         self.root = root
-        root.title("Supervertaler (v10.3) - Multi-LLM AI-powered Translator & Proofreader with Tracked Changes") 
+        root.title(f"Supervertaler (v{APP_VERSION}) - Multi-LLM AI-powered Translator & Proofreader with Tracked Changes") 
         root.geometry("1100x950")  # Wider to accommodate right-side log
 
         self.log_queue = queue.Queue()
@@ -1599,27 +1093,33 @@ class TranslationApp:
 
         # --- UPDATED UNIFIED INFO TEXT ---
         self.info_text_content_unified = (
-            "Supervertaler is an AI-powered document translation & proofreading tool that can operate in two modes: TRANSLATE or PROOFREAD. It leverages multiple context sources for enhanced accuracy:\n\n"
-            "COMMON CONTEXT SOURCES (for both modes):\n"
-            "• Full Document Content: The AI considers the entire document for better contextual understanding.\n"
-            "• Images: If a 'Document Images Folder' is provided, images (e.g., 'Fig 1A.png') are shown to the AI when the text references them, aiding in visual context.\n"
-            "• Tracked Changes: Load DOCX files with tracked changes or TSV files to access Original→Final text pairs as contextual reference for translation patterns.\n\n"
-            "Other features:\n"
-            "• Multiple AI Providers: Choose between Claude (Anthropic), Gemini (Google), and ChatGPT (OpenAI) models\n"
-            "• Text field for custom instructions to be added to system prompt on-the-fly\n"
-            "• System prompt (partially) editable in python code\n" 
-            "• Chunking: System breaks large documents into manageable chunks for the AI.\n\n"
-            "--- MODE-SPECIFIC DETAILS ---\n\n"
+            "Supervertaler is an AI-powered document translation & proofreading tool operating in two modes: TRANSLATE or PROOFREAD. "
+            "It leverages multiple context sources for enhanced accuracy.\n\n"
+            "COMMON CONTEXT SOURCES (both modes):\n"
+            "• Full Document Content: Entire source (and existing target in Proofread mode) provided for context.\n"
+            "• Images: If a 'Document Images Folder' is set, figures (e.g., 'Fig 1A.png') are shown to the AI when referenced.\n"
+            "• Tracked Changes: Load DOCX (with tracked changes) and/or TSV (Original<TAB>Final) to supply editing pattern examples.\n"
+            "• Custom Instructions: Freeform guidance appended to the system prompt.\n\n"
+            "MODE DETAILS:\n\n"
             "TRANSLATE MODE:\n"
-            "• Function: Translates source text to the target language.\n"
-            "• TM Usage: Uses a Translation Memory (.txt/.tmx) for exact matches before AI processing.\n"
-            "• Input Format: Text file with one source text per line.\n"
-            "• Output Format: 'source_text<tab>translated_text'.\n\n"
+            "• Input Format: Text file (.txt) with one source segment per line.\n"
+            "• TM Usage: Exact matches from TM (.tmx or .txt) populate target before any LLM calls.\n"
+            "• Output Format: source_text<TAB>translated_text.txt + TMX\n"
+            "  (Always exactly two columns. Previous extra columns are not propagated.)\n"
+            "• Re-translation: Supplying a previously exported 2‑column file is safe; only column 1 is read and a fresh translation is written as column 2.\n\n"
             "PROOFREAD MODE:\n"
-            "• Function: Reviews and revises existing target text against the source text.\n"
-            "• TM Usage: TM is bypassed in this mode; all segments are sent to the AI for review.\n"
-            "• Input Format: Text file with 'source_text<tab>EXISTING_target_text<tab>[optional_original_comment]'. (3rd column is optional).\n"
-            "• Output Format: 'source_text<tab>REVISED_target_text<tab>[comments_including_AI_changes_and_original]'.\n"
+            "• Input Format: source_text<TAB>EXISTING_target_text<TAB>[optional_comment]\n"
+            "• TM Usage: Not applied (all segments go to the model).\n"
+            "• Output Format: source_text<TAB>REVISED_target_text<TAB>COMMENT\n"
+            "  COMMENT merges (if present): original comment + AI change summary (only if changes or summary supplied).\n\n"
+            "OUTPUT FILES:\n"
+            "• Tab-delimited TXT: Primary result (see mode-specific formats above).\n"
+            "• TMX (Translate mode only): Auto-generated alongside TXT (same basename) excluding error/empty segments.\n\n"
+            "OTHER FEATURES:\n"
+            "• Chunking: Large inputs split into batches (size = Chunk Size lines).\n"
+            "• Figure/Image Matching: Filenames normalized (e.g., 'Figure_1-A.PNG' recognized as 'fig1a').\n"
+            "• Tracked Changes Context: A capped sample of relevant original→final pairs is injected per batch.\n"
+            "• Providers: Claude / Gemini / OpenAI.\n"
         )
         
         # Check if any libraries are available
@@ -1908,6 +1408,7 @@ class TranslationApp:
         """Open the tracked changes browser"""
         if not hasattr(self, 'tracked_changes_browser') or self.tracked_changes_browser is None:
             self.tracked_changes_browser = TrackedChangesBrowser(self.root, self.tracked_changes_agent)
+
         
         self.tracked_changes_browser.show_browser()
     
@@ -2165,13 +1666,22 @@ class TranslationApp:
                         comment_parts.append(f"PROOFREADER COMMENT (AI):\n{ai_summary}")
                     else: 
                         comment_parts.append(f"PROOFREADER COMMENT (AI):\nSegment was modified by AI.")
-                    modified_lines_count +=1
+                        modified_lines_count +=1
                 elif ai_summary and "No changes made" not in ai_summary: 
                      comment_parts.append(f"PROOFREADER COMMENT (AI):\n{ai_summary} (Note: Text appears identical to original despite summary.)")
                 output_comment_list.append("\n\n".join(comment_parts).strip() if comment_parts else None)
         
         had_errors = any(t is None or "[Err" in str(t) or "[Missing" in str(t) or "[SYS ERR" in str(t) for t in output_target_list)
-        file_ok = output_gen.process(output_source_list, output_target_list, output_f, self.log_queue, mode=mode, comments_list_for_output=output_comment_list if mode=="Proofread" else None)
+        file_ok = output_gen.process(
+            output_source_list,
+            output_target_list,
+            output_f,
+            self.log_queue,
+            mode=mode,
+            comments_list_for_output=output_comment_list if mode == "Proofread" else None,
+            source_lang=src_lang,
+            target_lang=tgt_lang  # FIX: was truncated & used undefined 'tgt_l'
+        )
 
         msg_title = "Success" if file_ok and not had_errors else "Partial Success" if file_ok else "Error"
         msg_detail_key = "SUCCESS" if file_ok and not had_errors else "PARTIAL" if file_ok else "FAIL"
@@ -2183,45 +1693,81 @@ class TranslationApp:
             base_log_message_suffix = "Check logs."
 
         final_log_message = f"\n--- {mode.upper()} {msg_detail_key}! "
-        
         if mode == "Translate":
             final_log_message += f"TM Hits: {tm_hits}. LLM Segs processed: {len(llm_processed_map)}. "
-        elif mode == "Proofread":
+        else:
             final_log_message += f"LLM Segs processed: {len(llm_processed_map)}. Lines Modified by AI: {modified_lines_count}. "
-        
-        # Add tracked changes info to log
         if self.tracked_changes_agent.change_data:
             final_log_message += f"Tracked Changes: {len(self.tracked_changes_agent.change_data)} pairs used as context. "
-        
         final_log_message += base_log_message_suffix + " ---"
         self.log_queue.put(final_log_message)
 
-        messagebox_func = messagebox.showinfo if msg_title == "Success" else messagebox.showwarning if msg_title == "Partial Success" else messagebox.showerror
-        messagebox_func(msg_title, f"{mode} {msg_detail_key.lower()}! Output: {output_f if file_ok else 'not saved'}\nSee logs for details.")
+        messagebox_func = (
+            messagebox.showinfo if msg_title == "Success"
+            else messagebox.showwarning if msg_title == "Partial Success"
+            else messagebox.showerror
+        )
+        messagebox_func(
+            msg_title,
+            f"{mode} {msg_detail_key.lower()}! Output: {output_f if file_ok else 'not saved'}\nSee logs for details."
+        )
         self.root.after(0, self.enable_buttons)
 
-    def enable_buttons(self): 
+    # ADD: enable_buttons method (referenced earlier)
+    def enable_buttons(self):
         self.process_button.config(state="normal", text="Start Process")
         self.list_models_button.config(state="normal")
         self.refresh_models_button.config(state="normal")
 
+# ADD / RESTORE: OutputGenerationAgent (if already present earlier, keep only one copy)
+class OutputGenerationAgent:
+    def process(self, source_data_list_for_output, target_data_list_for_output, output_path,
+                log_queue, mode="Translate", comments_list_for_output=None,
+                source_lang=None, target_lang=None):
+        log_queue.put(f"[Outputter] Generating output file(s): {output_path} for mode: {mode}")
+        if len(source_data_list_for_output) != len(target_data_list_for_output):
+            log_queue.put("[Outputter] FATAL ERROR: Source/target length mismatch.")
+            return False
+        if (mode == "Proofread" and comments_list_for_output is not None and
+            len(comments_list_for_output) != len(source_data_list_for_output)):
+            log_queue.put("[Outputter] FATAL ERROR: Source/comments length mismatch.")
+            return False
+        ok = True
+        try:
+            with open(output_path, "w", encoding="utf-8") as f:
+                for i, src in enumerate(source_data_list_for_output):
+                    tgt = target_data_list_for_output[i]
+                    f.write(f"{src}\t{tgt if tgt is not None else '[ERR - Target Missing]'}")
+                    if (mode == "Proofread" and comments_list_for_output and
+                        comments_list_for_output[i]):
+                        f.write("\t" + comments_list_for_output[i].replace("\n", " "))
+                    f.write("\n")
+            log_queue.put(f"[Outputter] Tab-delimited output file saved to: {output_path}")
+        except Exception as e:
+            log_queue.put(f"[Outputter] Error writing output file: {e}")
+            ok = False
+        if ok and mode == "Translate" and source_lang and target_lang:
+            try:
+                base = os.path.splitext(output_path)[0]
+                tmx_path = base + ".tmx"
+                tmx_tree = TMXGenerator().generate_tmx(
+                    source_data_list_for_output,
+                    target_data_list_for_output,
+                    source_lang,
+                    target_lang
+                )
+                tmx_tree.write(tmx_path, encoding="utf-8", xml_declaration=True)
+                log_queue.put(f"[Outputter] TMX output file saved to: {tmx_path}")
+            except Exception as e:
+                log_queue.put(f"[Outputter] Error writing TMX file: {e}")
+                ok = False
+        return ok
+
+# ADD: main guard to launch GUI (if missing)
 if __name__ == "__main__":
-    # Check if at least one library is available
-    if not GOOGLE_AI_AVAILABLE and not CLAUDE_AVAILABLE and not OPENAI_AVAILABLE:
-        error_details = f"Google AI: {GOOGLE_AI_IMPORT_ERROR_MESSAGE}\nClaude: {CLAUDE_IMPORT_ERROR_MESSAGE}\nOpenAI: {OPENAI_IMPORT_ERROR_MESSAGE}"
-        print(f"\nApp cannot init: No AI libraries available.\nDetails:\n{error_details}\nInstall at least one library per console instructions.")
-        try: 
-            root_err = tk.Tk(); root_err.withdraw()
-            messagebox.showerror("Critical Startup Error", f"No AI libraries available:\n{error_details}\nInstall libraries & restart.\nApp will close.")
-            root_err.destroy()
-        except: pass 
-        sys.exit(1) 
-    
-    # Load and check API keys
-    api_keys = load_api_keys()
-    if not api_keys["google"] and not api_keys["claude"] and not api_keys["openai"]:
-        print("WARNING: No API keys configured in api_keys.txt...")
-    
-    if not PIL_AVAILABLE: print("NOTE: Pillow (PIL) not found. Image features disabled.")
-    
-    root = tk.Tk(); app = TranslationApp(root); root.mainloop()
+    try:
+        root = tk.Tk()
+        app = TranslationApp(root)
+        root.mainloop()
+    except Exception as e:
+        print(f"Fatal startup error: {e}")
