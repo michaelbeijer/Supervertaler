@@ -1,36 +1,237 @@
-# Supervertaler (v2.0.0)
-Multicontextual AI-powered Translator &amp; Proofreader (currently supports Gemini, Claude and OpenAI models via their APIs)
+# Supervertaler
 
-![supervertaler_screenshot_v2 0 0_with_source code](https://github.com/user-attachments/assets/7ec606a5-9e62-47ba-9136-b85b1e4ab9b5)
+Multi‑provider (Claude / Gemini / OpenAI) AI‑powered Translator & Proofreader for technical / patent documents with:
+- Translation & proofreading modes
+- Tracked changes ingestion (DOCX revisions + TSV)
+- Figure / image contextualization (multimodal)
+- Exact-match Translation Memory (TMX / TXT)
+- Automatic TMX export (Translate mode)
+- Chunked processing for large corpora
+- GUI-based operation (Tkinter)
 
-**Supervertaler** can operate in two modes: TRANSLATE or PROOFREAD. It leverages multiple context sources for enhanced accuracy:
+Current version: **2.0.1**
 
-## GENERAL FEATURES
-### Multiple context sources:
-- **Full document content**: The AI considers the entire document when translating each sentence, for better contextual understanding.
-- **Images**: If a "Drawings Image Folder" is provided, images (e.g., "Fig 1A.png") are shown to the AI when the text references them, aiding in visual context.
-- **Translation Memory** (.txt/.tmx): For exact matches before AI processing; particularly  useful in ongoing projects.
-- **Tracked-changes**: Previous editing decisions (in the target language) can be imported from memoQ-generated bilingual DOCX files and passed to the AIs as another source of valuable context. 
-- **Custom instructions** text field: To be added to system prompt on-the-fly, for adding important context about the document or any other instructions.
+---
 
-### Other features:
+## 1. Features Overview
 
-- Multiple AI Providers: Choose between Claude (Anthropic), Gemini (Google), and ChatGPT (OpenAI) models
-- System prompt (partially) editable in python code
-- Chunking: System breaks large documents into manageable chunks for the AI.
+| Capability | Translate Mode | Proofread Mode |
+|------------|----------------|----------------|
+| Source ingestion (.txt) | 1 column (source) | source<TAB>target[<TAB>comment] |
+| TM (exact match) | Applied pre‑LLM | Not applied |
+| Tracked changes context | Yes (relevant subset) | Yes (relevant subset) |
+| Images (fig refs) | Injected before referenced lines | Same |
+| Output TXT | source<TAB>translated | source<TAB>revised_target<TAB>comment |
+| Output TMX | Yes | No |
+| Custom instructions | Appended to prompt | Appended to prompt |
+| Comments merging | N/A | Original + AI summary (conditional) |
 
-## MODE-SPECIFIC FEATURES
+---
 
-### Translate mode:
-- Function: Translates source text to the target language.
-- TM Usage: Uses a Translation Memory (.txt/.tmx) for exact matches before AI processing.
-- Input Format: Text file with one source text per line.
-- Output Format: "source_text{tab}translated_text".
+## 2. Installation
 
-### Proofread mode:
-- Function: Reviews and revises existing target text against the source text.
-- TM Usage: TM is bypassed in this mode; all segments are sent to the AI for review.
-- Input Format: Text file with "source_text{tab}EXISTING_target_text{tab}[optional_original_comment]". (3rd column is optional).
-- Output Format: "source_text{tab}REVISED_target_text{tab}[comments_including_AI_changes_and_original]".
+1. **Python**: 3.10+ recommended.
+2. Create / activate virtual environment (optional):
+   ```
+   python -m venv venv
+   source venv/Scripts/activate  (Windows: venv\Scripts\activate)
+   ```
+3. Install dependencies (install only what you need):
+   ```
+   pip install google-generativeai anthropic openai pillow
+   ```
+4. Run:
+   ```
+   python Supervertaler_v2.0.0.py
+   ```
 
-Contact me at info@michaelbeijer.co.uk for further info. 
+> Pillow is optional (only needed for image / multimodal figure context).  
+> If a provider library or API key is missing, related functionality is skipped gracefully.
+
+---
+
+## 3. API Keys
+
+Create `api_keys.txt` next to the script (auto-template generated if absent):
+
+```
+#google = YOUR_GOOGLE_API_KEY_HERE
+#claude = YOUR_CLAUDE_API_KEY_HERE
+#openai = YOUR_OPENAI_API_KEY_HERE
+```
+
+Uncomment and fill lines. Multiple providers can coexist.
+
+---
+
+## 4. Input Formats
+
+### Translate Mode
+```
+Source sentence 1
+Source sentence 2
+...
+```
+If you re‑feed a previously exported 2‑column file:
+```
+Source sentence 1<TAB>Old translation
+```
+Only the first column is read; the rest are ignored.
+
+### Proofread Mode
+```
+Source<TAB>ExistingTarget
+Source<TAB>ExistingTarget<TAB>Optional prior comment
+```
+
+---
+
+## 5. Output Formats
+
+### Translate Output
+```
+Source<TAB>NewTranslation
+```
+Plus: `*.tmx` (exact matches + generated translations, excludes error placeholders).
+
+### Proofread Output
+```
+Source<TAB>RevisedTarget<TAB>MergedComment
+```
+MergedComment includes (if present):
+- ORIGINAL COMMENT:
+- PROOFREADER COMMENT (AI):
+
+If no changes: AI may omit revisions or summarize “No changes”.
+
+---
+
+## 6. Tracked Changes
+
+Load:
+- **DOCX** with Word tracked revisions (insertions/deletions)
+- **TSV**: `Original<TAB>Final`
+
+Browser UI:
+- Search (substring or exact)
+- View full original / final pair
+- Copy single or combined entries
+
+Context Injection:
+- Per batch: exact matches first, then partial word-overlap (≥2 meaningful tokens)
+- Capped length to protect token budget
+
+---
+
+## 7. Images / Figures
+
+Place figure image files in a chosen “Document Images Folder”.
+
+Normalization examples (all map to `fig1a`):
+```
+Figure 1A.png
+fig_1-a.JPG
+Figuur 1-A.webp
+```
+
+On a line referencing “Figure 1A” / “Fig. 1A” the corresponding image is inserted into the model prompt before that line.
+
+---
+
+## 8. Translation Memory (Translate Mode)
+
+Supported:
+- **TMX 1.4** (`<tu><tuv xml:lang=".."><seg>...`)
+- **Plain TXT**: `source<TAB>target`
+
+Process:
+1. Normalize GUI language codes (e.g., “English”→“en”).
+2. Apply exact matches first (fills target, skips LLM call).
+3. Remaining segments go to model.
+
+No fuzzy matching yet (planned).
+
+---
+
+## 9. Custom Instructions
+
+Free‑text field appended verbatim near the system directive.  
+Use for:
+- Terminology constraints
+- Style (e.g., “Use formal patent phrasing”)
+- Locale notes
+
+---
+
+## 10. Chunking & Performance
+
+- Chunk Size = number of lines per model request.
+- TM filtering reduces model cost where matches exist.
+- Each batch includes: needed source lines, optional images, tracked-change subset, and instructions.
+
+---
+
+## 11. Error Handling & Logging
+
+- Real‑time log pane (queue-driven).
+- Graceful degradation when:
+  - Missing provider lib
+  - Missing API key
+  - Pillow absent (image context disabled)
+- Placeholder inserted if model omits a numbered output line.
+
+---
+
+## 12. Roadmap (See CHANGELOG.md)
+
+Planned (Unreleased):
+- Fuzzy TM matches
+- Glossary enforcement
+- JSON run metadata
+- Token-based tracked-change scoring
+- Enhanced provider capability introspection
+
+---
+
+## 13. Contributing
+
+1. Fork / feature branch.
+2. Add or update tests (if you introduce logic units).
+3. Update CHANGELOG.md (Unreleased section).
+4. Submit PR with concise summary.
+
+---
+
+## 14. License
+
+(Choose or add a LICENSE file: MIT / Apache-2.0 / Proprietary – not specified yet.)
+
+---
+
+## 15. Quick Start Checklist
+
+| Task | Done |
+|------|------|
+| Install dependencies | ☐ |
+| Add API keys | ☐ |
+| Prepare input TXT | ☐ |
+| (Optional) TMX/TXT TM | ☐ |
+| (Optional) DOCX / TSV tracked changes | ☐ |
+| (Optional) Images folder | ☐ |
+| Run script & select mode | ☐ |
+| Review log & outputs | ☐ |
+
+---
+
+## 16. Support
+
+Open an issue with:
+- Version (shown at startup)
+- Mode (Translate / Proofread)
+- Provider + model
+- Minimal repro input snippet
+- Stack trace (if any)
+
+---
+
+Happy translating & proofreading!
