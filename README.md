@@ -1,7 +1,7 @@
 # Supervertaler (v2.0.0)
 Multicontextual AI-powered Translator &amp; Proofreader (currently supports Gemini, Claude and OpenAI models via their APIs)
 
-![Supervertaler_v10 3 (with source code)](https://github.com/user-attachments/assets/223ad666-bc79-4b88-a7b1-511a7f5d3d98)
+![supervertaler_screenshot_v2 0 0_with_source code](https://github.com/user-attachments/assets/7ec606a5-9e62-47ba-9136-b85b1e4ab9b5)
 
 **Supervertaler** can operate in two modes: TRANSLATE or PROOFREAD. It leverages multiple context sources for enhanced accuracy:
 
