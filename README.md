@@ -1,12 +1,13 @@
 # Supervertaler
 
-Multi‑provider (Claude / Gemini / OpenAI) AI‑powered Translator & Proofreader for technical / patent documents with:
+AI‑powered Translator & Proofreader app, supporting multiple sources of context, with:
 - Translation & proofreading modes
 - Tracked changes ingestion (DOCX revisions + TSV)
 - Figure / image contextualization (multimodal)
 - Exact-match Translation Memory (TMX / TXT)
 - Automatic TMX export (Translate mode)
 - Chunked processing for large corpora
+- Multiple LLMs supported (Claude / Gemini / OpenAI)
 - GUI-based operation (Tkinter)
 
 Current version: **2.0.1**
