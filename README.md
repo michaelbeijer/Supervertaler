@@ -18,7 +18,7 @@ Current version: **2.0.1**
 
 | Capability | Translate Mode | Proofread Mode |
 |------------|----------------|----------------|
-| Source ingestion (.txt) | 1 column (source) | source{TAB}target[{TAB}comment] |
+| Source ingestion (.txt) | 1 column (source) | source{TAB}target{TAB}comment |
 | TM (exact match) | Applied pre‑LLM | Not applied |
 | Tracked changes context | Yes (relevant subset) | Yes (relevant subset) |
 | Images (fig refs) | Injected before referenced lines | Same |
