@@ -1,8 +1,19 @@
-# Changelog
+# Supervertaler - Changelog
 
-All notable changes to Supervertaler are documented here.  
-Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)  
-Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
+## 2.1.1 — 2025-09-05
+- Bumped app version to 2.1.1 (APP_VERSION and header banner updated).
+- Consolidated changelog into this file (replacing CHANGEOG.md).
+- Includes fixes and improvements:
+  - OutputGenerationAgent writes TXT and TMX (Translate mode).
+  - Restored required agents/factories for GUI startup (TMAgent, BilingualFileIngestionAgent, Gemini/Claude agents, factory helpers).
+  - Fixed TMX parsing deprecation by using explicit None checks (TMAgent.load_tm).
+  - Rewrote GeminiProofreadingAgent to correctly call Gemini and parse numbered outputs + change summaries.
+  - Corrected mislabeled logs in ClaudeProofreadingAgent.
+  - Added TranslationApp.enable_buttons to re-enable UI after processing.
+  - Improved multimodal image handling (Gemini: PIL.Image; Claude: base64).
+
+## 2.1.0
+- Initial 2.1.x baseline with tracked-changes context, multimodal figure support, and multi‑provider (Claude/Gemini/OpenAI) scaffolding.
 
 ## [Unreleased]
 

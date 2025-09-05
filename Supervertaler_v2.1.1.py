@@ -1,4 +1,4 @@
-# --- Supervertaler (v2.1.0) - Multi-LLM AI-powered Translator & Proofreader with DOCX Change References ---
+# --- Supervertaler (v2.1.1) - Multi-LLM AI-powered Translator & Proofreader with DOCX Change References ---
 import tkinter as tk
 from tkinter import filedialog, scrolledtext, messagebox, ttk
 import threading
@@ -14,8 +14,21 @@ import zipfile  # Added for DOCX parsing
 import base64
 
 # ADD: central version constant (was missing, caused NameError)
-APP_VERSION = "2.1.0"
+APP_VERSION = "2.1.1"
 print(f"=== Supervertaler v{APP_VERSION} starting ===")
+
+# --- Changelog (v2.1.1) ---
+# - Bumped version to 2.1.1.
+# - Added/updated external CHANGELOG.md with details for this release.
+# - No functional changes vs. prior applied fixes; includes:
+#   • OutputGenerationAgent for TXT/TMX output.
+#   • Restored core agents/factories (TMAgent, BilingualFileIngestionAgent, Gemini/Claude agents).
+#   • TMX parsing deprecation fix in TMAgent (explicit None checks).
+#   • Gemini proofreader implementation + parsing of summaries.
+#   • Corrected Claude proofreader logging labels.
+#   • UI enable_buttons to restore controls after run.
+#   • Improved multimodal image handling (Gemini: PIL.Image; Claude: base64).
+# --- End Changelog ---
 
 PIL_AVAILABLE = False
 try:
@@ -1224,6 +1237,7 @@ class ClaudeProofreadingAgent(BaseProofreadingAgent):
                         "changes_summary": "[Proofread Err: Model not init]",
                         "original_target": lines_to_proofread_map[n]["target_original"]} for n in lines_to_proofread_map.keys()}
         if not lines_to_proofread_map:
+            self.log_queue.put(f"[Claude Proofreader] No lines for proofreading chunk.")
             return {}
 
         line_nums = sorted(lines_to_proofread_map.keys())
