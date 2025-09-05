@@ -20,6 +20,14 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - (Planned) Edge cases for very long / compound figure identifiers
 - (Planned) Graceful handling of partially corrupt TMX files
 
+## [2.1.0] - 2025-09-05
+- Added Document Images Folder support to Claude and OpenAI providers (previously Gemini-only).
+- Implemented base64 PNG image embedding helper for multimodal requests.
+- Updated Claude and OpenAI agents (Translate/Proofread) to interleave text with images when figure refs are detected.
+- Aligned Gemini proofreader image handling to pass PIL images consistently.
+- Minor logs and prompts improvements to show when images are added to context.
+- Bumped APP_VERSION to 2.1.0.
+
 ## [2.0.1] - 2025-09-04
 
 ### Added
@@ -46,10 +54,6 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - Previous proofreader undefined-variable implementation replaced with stable parser
 - Safe TM language normalization; improved missing image warnings
 - Placeholder insertion when model omits numbered line output
-
-## [2.1.0] - Planned
-
-(See Unreleased; will crystallize into this milestone when scope frozen.)
 
 ## [2.0.0] - 2025-08-31
 

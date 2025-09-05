@@ -10,7 +10,7 @@ AI‑powered Translator & Proofreader app, supporting multiple sources of contex
 - Multiple LLMs supported (Claude / Gemini / OpenAI)
 - GUI-based operation (Tkinter)
 
-Current version: **2.0.1**
+Current version: **2.1.0**
 
 ---
 
@@ -137,6 +137,11 @@ Figuur 1-A.webp
 
 On a line referencing “Figure 1A” / “Fig. 1A” the corresponding image is inserted into the model prompt before that line.
 
+Supported providers:
+- **Gemini**: PIL images embedded in prompt.
+- **Claude**: base64 image blocks.
+- **OpenAI**: data URL image_url blocks.
+
 ---
 
 ## 8. Translation Memory (Translate Mode)
@@ -236,3 +241,11 @@ Open an issue with:
 ---
 
 Happy translating & proofreading!
+
+---
+
+## Quick verification of image support
+- Add a PNG named “Figure 1A.png” to your images folder.
+- Include “Figure 1A” in a test segment.
+- Run with Claude and OpenAI (e.g., claude-3-5-sonnet-20241022, gpt-4o).
+- Check Log for “Added Image for Figure Ref …” messages.

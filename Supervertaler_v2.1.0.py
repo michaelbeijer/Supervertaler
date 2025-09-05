@@ -1,4 +1,4 @@
-# --- Supervertaler (v2.0.1) - Multi-LLM AI-powered Translator & Proofreader with DOCX Change References ---
+# --- Supervertaler (v2.1.0) - Multi-LLM AI-powered Translator & Proofreader with DOCX Change References ---
 import tkinter as tk
 from tkinter import filedialog, scrolledtext, messagebox, ttk
 import threading
@@ -10,9 +10,11 @@ import xml.etree.ElementTree as ET
 import io 
 import sys
 import zipfile  # Added for DOCX parsing
+# ADD: base64 for image encoding (Claude/OpenAI multimodal)
+import base64
 
 # ADD: central version constant (was missing, caused NameError)
-APP_VERSION = "2.0.1"
+APP_VERSION = "2.1.0"
 print(f"=== Supervertaler v{APP_VERSION} starting ===")
 
 PIL_AVAILABLE = False
@@ -653,6 +655,15 @@ def format_tracked_changes_context(tracked_changes_list, max_length=1000):
     
     return "\n".join(context_parts) + "\n"
 
+def pil_image_to_base64_png(img):
+    """Encode a PIL image to base64 PNG (ascii) for Claude/OpenAI data URLs."""
+    try:
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        return base64.b64encode(buf.getvalue()).decode("ascii")
+    except Exception:
+        return None
+
 # --- TMX Generator Class ---
 class TMXGenerator:
     """Helper class for generating TMX files"""
@@ -959,41 +970,42 @@ class GeminiProofreadingAgent(BaseProofreadingAgent):
                 for ref in fig_refs:
                     normalized = normalize_figure_ref(f"fig {ref}")
                     if normalized and normalized in drawings_images_map and normalized not in images_added_this_call:
+                        # FIX: For Gemini, pass the PIL Image directly
                         prompt_parts.append(f"\n--- Context Image: Figure {ref} (for line {ln}) ---")
                         prompt_parts.append(drawings_images_map[normalized])
                         images_added_this_call.add(normalized)
-                        break  # one representative image per line is enough
+                        break
             prompt_parts.append(f"{ln}. SOURCE SEGMENT: {src_text}")
             prompt_parts.append(f"{ln}. EXISTING TRANSLATION: {orig_target}\n")
 
         prompt_parts.append("\nREVISED TRANSLATIONS (numbered list only):")
 
-        # Call Gemini
+        # FIX: Use Anthropic messages API (remove Gemini call)
         try:
-            response = self.model.generate_content(prompt_parts)
-            raw_text = response.text or ""
-            if not raw_text:
-                self.log_queue.put(f"[Gemini Proofreader] Warn: Empty response for lines {line_nums_being_proofread}.")
+            msg = {"role": "user", "content": content_parts}
+            response = self.client.messages.create(model=self.model_name, max_tokens=2048, messages=[msg])
+            raw_text = ""
+            try:
+                if hasattr(response, "content"):
+                    raw_text = "".join(block.text for block in response.content if getattr(block, "type", None) == "text")
+            except Exception:
+                raw_text = getattr(response, "text", "") or str(response)
         except Exception as e:
-            self.log_queue.put(f"[Gemini Proofreader] Error during proofreading call: {e}")
+            self.log_queue.put(f"[Claude Proofreader] Error during call: {e}")
             return {n: {"revised_target": lines_to_proofread_map[n]["target_original"],
                         "changes_summary": f"[Proofread Err line {n}: {e}]",
-                        "original_target": lines_to_proofread_map[n]["target_original"]} for n in line_nums_being_proofread}
+                        "original_target": lines_to_proofread_map[n]["target_original"]} for n in line_nums}
 
-        # Parse response
-        summary_start = "---CHANGES SUMMARY START---"
-        summary_end = "---CHANGES SUMMARY END---"
         translations_block = raw_text
         summary_block = ""
 
+        summary_start = "---CHANGES SUMMARY START---"
+        summary_end = "---CHANGES SUMMARY END---"
         if summary_start in raw_text:
             parts = raw_text.split(summary_start, 1)
             translations_block = parts[0].strip()
             remainder = parts[1]
-            if summary_end in remainder:
-                summary_block = remainder.split(summary_end, 1)[0].strip()
-            else:
-                summary_block = remainder.strip()
+            summary_block = remainder.split(summary_end, 1)[0].strip() if summary_end in remainder else remainder.strip()
 
         results = {}
         # Parse numbered revised translations
@@ -1002,7 +1014,7 @@ class GeminiProofreadingAgent(BaseProofreadingAgent):
             if m:
                 num = int(m.group(1))
                 txt = m.group(2).strip()
-                if num in line_nums_being_proofread:
+                if num in line_nums:
                     results.setdefault(num, {})["revised_target"] = txt
 
         # Parse summary lines
@@ -1014,7 +1026,235 @@ class GeminiProofreadingAgent(BaseProofreadingAgent):
                     parsed_summaries[m.group(1)] = m.group(2).strip()
 
         # Final assembly
-        for num in line_nums_being_proofread:
+        for num in line_nums:
+            original_target = lines_to_proofread_map[num]["target_original"]
+            entry = results.setdefault(num, {})
+            if "revised_target" not in entry or not entry["revised_target"].strip():
+                entry["revised_target"] = original_target
+                self.log_queue.put(f"[Gemini Proofreader] Note: Using original translation for line {num} (missing or empty revised output).")
+            entry["changes_summary"] = parsed_summaries.get(str(num))
+            entry["original_target"] = original_target
+
+        self.log_queue.put(f"[Gemini Proofreader] Proofreading parse complete. Segments: {len(results)}.")
+        return results
+
+# === NEW: Claude multimodal agents (Translate + Proofread) ===
+class ClaudeTranslationAgent(BaseTranslationAgent):
+    def __init__(self, api_key, log_queue, model_name='claude-3-5-sonnet-20241022'):
+        super().__init__(api_key, log_queue, model_name, "Claude")
+        if not CLAUDE_AVAILABLE:
+            self.log_queue.put("[Claude Translator] ERROR: anthropic library not available.")
+            return
+        if not api_key:
+            self.log_queue.put("[Claude Translator] ERROR: API Key is missing.")
+            return
+        try:
+            # Support both new and older SDKs; prefer modern Anthropic client
+            self.client = anthropic.Anthropic(api_key=api_key) if hasattr(anthropic, "Anthropic") else anthropic.Client(api_key=api_key)
+            self.model = self.model_name
+            self.log_queue.put(f"[Claude Translator] Agent with model '{self.model_name}' initialized.")
+        except Exception as e:
+            self.log_queue.put(f"[Claude Translator] ERROR init ('{self.model_name}'): {e}.")
+
+    def translate_specific_lines_with_drawings_context(self, lines_map_to_translate, full_document_context_text_str,
+                                                       source_lang, target_lang, all_source_segments_original_list,
+                                                       drawings_images_map, user_custom_instructions="",
+                                                       tracked_changes_data=None):
+        if not self.model:
+            return {n: f"[Err: Model not init]" for n in lines_map_to_translate.keys()}
+        if not lines_map_to_translate:
+            return {}
+        line_nums = sorted(list(lines_map_to_translate.keys()))
+        self.log_queue.put(f"[Claude Translator] Translating {len(line_nums)} lines: {line_nums[:3]}... w/ '{self.model_name}' (images + tracked changes)...")
+
+        # Build multimodal content for Claude
+        content_parts = []
+        def add_text(t):
+            if t:
+                content_parts.append({"type": "text", "text": t})
+
+        add_text(f"You are an expert {source_lang} to {target_lang} translator specialized in patent documents.")
+        if user_custom_instructions:
+            add_text(f"\nIMPORTANT USER-PROVIDED INSTRUCTIONS:\n{user_custom_instructions}\n")
+
+        # Tracked changes context
+        if tracked_changes_data:
+            current_src = [all_source_segments_original_list[n-1] for n in line_nums]
+            rel = tracked_changes_data.find_relevant_changes(current_src)
+            if rel:
+                add_text(format_tracked_changes_context(rel))
+                self.log_queue.put(f"[Claude Translator] Added {len(rel)} relevant tracked changes as context")
+
+        add_text("The full patent text for overall context is in 'FULL PATENT CONTEXT' below. Translate ONLY sentences from 'PATENT SENTENCES TO TRANSLATE' later. These are listed with their original line numbers from the full document.")
+        add_text("If a sentence refers to a Figure (e.g., 'Figure 1A', 'Figuur X'), relevant images may be provided just before that sentence. Use these images as crucial context for accurately translating references to parts, features, or relationships shown in those figures.")
+        add_text("Present your output ONLY as a numbered list of the translations for the requested sentences, using their original numbering. Maintain accuracy and appropriate patent terminology.\n")
+        add_text(f"FULL PATENT CONTEXT:\n{full_document_context_text_str}\n")
+        add_text("PATENT SENTENCES TO TRANSLATE (translate only these, using preceding images if provided for a figure reference):\n")
+
+        # Add images before referenced lines (one per figure, overall dedup)
+        images_added = set()
+        for ln in line_nums:
+            src_text_for_scan = all_source_segments_original_list[ln - 1]
+            numbered_src_line = lines_map_to_translate[ln]
+            fig_refs = re.findall(r"(?:figure|figuur|fig\.?)\s*([\w\d]+(?:[\s\.\-]*[\w\d]+)?)", src_text_for_scan, re.IGNORECASE)
+            img_added_this_line = False
+            if PIL_AVAILABLE and fig_refs and drawings_images_map:
+                for ref in fig_refs:
+                    normalized = normalize_figure_ref(f"fig {ref}")
+                    if normalized and normalized in drawings_images_map and normalized not in images_added:
+                        b64 = pil_image_to_base64_png(drawings_images_map[normalized])
+                        if b64:
+                            add_text(f"\n--- Context Image: Figure {ref} (Referenced in or near the following text) ---")
+                            content_parts.append({"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": b64}})
+                            images_added.add(normalized); img_added_this_line = True
+                            self.log_queue.put(f"[Claude Translator] Added Image for Figure Ref '{ref}' (norm: {normalized}) for line {ln}.")
+                        break
+            add_text(numbered_src_line)
+            if img_added_this_line: add_text("\n")
+        add_text("\nTRANSLATED SENTENCES (numbered list for 'PATENT SENTENCES TO TRANSLATE' only):")
+
+        try:
+            # messages API
+            msg = {"role": "user", "content": content_parts}
+            # Reasonable defaults; Anthropic requires max_tokens
+            response = self.client.messages.create(model=self.model_name, max_tokens=2048, messages=[msg])
+            # Extract text
+            raw_text = ""
+            try:
+                # New SDK style: response.content is a list of blocks; collect text blocks
+                if hasattr(response, "content"):
+                    raw_text = "".join(block.text for block in response.content if getattr(block, "type", None) == "text")
+            except Exception:
+                # Fallback if response is simple
+                raw_text = getattr(response, "text", "") or str(response)
+        except Exception as e:
+            self.log_queue.put(f"[Claude Translator] Error: {e}")
+            return {n: f"[TL Err line {n} (Claude): {e}]" for n in lines_map_to_translate.keys()}
+
+        translations = {}
+        for line in (raw_text or "").splitlines():
+            m = re.match(r"^\s*(\d+)\.\s*(.*)", line.strip())
+            if m:
+                num = int(m.group(1)); txt = m.group(2).strip()
+                if num in line_nums: translations[num] = txt
+        for num in line_nums:
+            if num not in translations:
+                self.log_queue.put(f"[Claude Translator] Warn: Missing TL line {num}. Placeholder.")
+                translations[num] = f"[TL Missing line {num}]"
+        return translations
+
+class ClaudeProofreadingAgent(BaseProofreadingAgent):
+    def __init__(self, api_key, log_queue, model_name='claude-3-5-sonnet-20241022'):
+        super().__init__(api_key, log_queue, model_name, "Claude")
+        if not CLAUDE_AVAILABLE:
+            self.log_queue.put("[Claude Proofreader] ERROR: anthropic library not available."); return
+        if not api_key:
+            self.log_queue.put("[Claude Proofreader] ERROR: API Key is missing."); return
+        try:
+            self.client = anthropic.Anthropic(api_key=api_key) if hasattr(anthropic, "Anthropic") else anthropic.Client(api_key=api_key)
+            self.model = self.model_name
+            self.log_queue.put(f"[Claude Proofreader] Agent with model '{self.model_name}' initialized.")
+        except Exception as e:
+            self.log_queue.put(f"[Claude Proofreader] ERROR init ('{self.model_name}'): {e}.")
+
+    def proofread_specific_lines_with_context(self, lines_to_proofread_map, full_source_doc_str,
+                                             full_original_target_doc_str, source_lang, target_lang,
+                                             all_source_segments_original_list, drawings_images_map,
+                                             user_custom_instructions="", tracked_changes_data=None):
+        # FIX: rebuild content and call Anthropic messages API (remove Gemini call)
+        if not self.model:
+            return {n: {"revised_target": lines_to_proofread_map[n]["target_original"],
+                        "changes_summary": "[Proofread Err: Model not init]",
+                        "original_target": lines_to_proofread_map[n]["target_original"]} for n in lines_to_proofread_map.keys()}
+        if not lines_to_proofread_map:
+            return {}
+
+        line_nums = sorted(lines_to_proofread_map.keys())
+        self.log_queue.put(f"[Claude Proofreader] Proofreading {len(line_nums)} lines: {line_nums[:3]}... w/ '{self.model_name}' (images + tracked changes)...")
+
+        content_parts = []
+        def add_text(t):
+            if t:
+                content_parts.append({"type": "text", "text": t})
+
+        add_text(f"You are an expert proofreader and editor for {source_lang} → {target_lang} translations, specializing in patent documents.")
+        if user_custom_instructions:
+            add_text(f"\nIMPORTANT USER-PROVIDED INSTRUCTIONS:\n{user_custom_instructions}\n")
+        if tracked_changes_data:
+            current_src = [all_source_segments_original_list[n-1] for n in line_nums]
+            rel = tracked_changes_data.find_relevant_changes(current_src)
+            if rel:
+                add_text(format_tracked_changes_context(rel))
+                self.log_queue.put(f"[Claude Proofreader] Added {len(rel)} relevant tracked changes as context")
+
+        add_text("SEGMENTS FOR PROOFREADING:\n")
+        images_added = set()
+        for ln in line_nums:
+            src_text = lines_to_proofread_map[ln]["source"]
+            orig_target = lines_to_proofread_map[ln]["target_original"]
+            fig_refs = re.findall(r"(?:figure|figuur|fig\.?)\s*([\w\d]+(?:[\s\.\-]*[\w\d]+)?)", src_text, re.IGNORECASE)
+            if PIL_AVAILABLE and fig_refs and drawings_images_map:
+                for ref in fig_refs:
+                    normalized = normalize_figure_ref(f"fig {ref}")
+                    if normalized and normalized in drawings_images_map and normalized not in images_added:
+                        b64 = pil_image_to_base64_png(drawings_images_map[normalized])
+                        if b64:
+                            add_text(f"\n--- Context Image: Figure {ref} (for line {ln}) ---")
+                            # FIX: Anthropic expects {"type":"image","source":{"type":"base64",...}}
+                            content_parts.append({"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": b64}})
+                            images_added.add(normalized)
+                        break
+            add_text(f"{ln}. SOURCE SEGMENT: {src_text}")
+            add_text(f"{ln}. EXISTING TRANSLATION: {orig_target}\n")
+        add_text("\nREVISED TRANSLATIONS (numbered list only):")
+
+        # FIX: Use Anthropic messages API (remove Gemini call)
+        try:
+            msg = {"role": "user", "content": content_parts}
+            response = self.client.messages.create(model=self.model_name, max_tokens=2048, messages=[msg])
+            raw_text = ""
+            try:
+                if hasattr(response, "content"):
+                    raw_text = "".join(block.text for block in response.content if getattr(block, "type", None) == "text")
+            except Exception:
+                raw_text = getattr(response, "text", "") or str(response)
+        except Exception as e:
+            self.log_queue.put(f"[Claude Proofreader] Error during call: {e}")
+            return {n: {"revised_target": lines_to_proofread_map[n]["target_original"],
+                        "changes_summary": f"[Proofread Err line {n}: {e}]",
+                        "original_target": lines_to_proofread_map[n]["target_original"]} for n in line_nums}
+
+        translations_block = raw_text
+        summary_block = ""
+
+        summary_start = "---CHANGES SUMMARY START---"
+        summary_end = "---CHANGES SUMMARY END---"
+        if summary_start in raw_text:
+            parts = raw_text.split(summary_start, 1)
+            translations_block = parts[0].strip()
+            remainder = parts[1]
+            summary_block = remainder.split(summary_end, 1)[0].strip() if summary_end in remainder else remainder.strip()
+
+        results = {}
+        # Parse numbered revised translations
+        for line in translations_block.splitlines():
+            m = re.match(r"^\s*(\d+)\.\s*(.*)$", line.strip())
+            if m:
+                num = int(m.group(1))
+                txt = m.group(2).strip()
+                if num in line_nums:
+                    results.setdefault(num, {})["revised_target"] = txt
+
+        # Parse summary lines
+        parsed_summaries = {}
+        if summary_block and "No changes made to any segment in this batch." not in summary_block:
+            for line in summary_block.splitlines():
+                m = re.match(r"^\s*(\d+)\.\s*(.*)$", line.strip())
+                if m:
+                    parsed_summaries[m.group(1)] = m.group(2).strip()
+
+        # Final assembly
+        for num in line_nums:
             original_target = lines_to_proofread_map[num]["target_original"]
             entry = results.setdefault(num, {})
             if "revised_target" not in entry or not entry["revised_target"].strip():
@@ -1188,6 +1428,7 @@ class TranslationApp:
         # Tracked Changes row
         tk.Label(context_sources_frame, text="Tracked-changes:").grid(row=context_row, column=0, padx=5, pady=2, sticky="w")
         
+
         tracked_changes_inner_frame = tk.Frame(context_sources_frame)
         tracked_changes_inner_frame.grid(row=context_row, column=1, columnspan=2, padx=5, pady=2, sticky="ew")
         
@@ -1552,7 +1793,7 @@ class TranslationApp:
                                         self.drawings_images_map, custom_instr)) 
         thread.daemon = True; thread.start()
 
-    def run_pipeline(self, mode, input_f, output_f, src_lang, tgt_lang, provider, model_name, chunk_s, drawings_map, user_custom_instructions):
+    def run_pipeline(self, mode, input_f, output_f, source_lang, target_lang, provider, model_name, chunk_s, drawings_map, user_custom_instructions):
         ingestor = BilingualFileIngestionAgent(); output_gen = OutputGenerationAgent()
         
         all_original_data = ingestor.process(input_f, self.log_queue, mode=mode) 
@@ -1619,17 +1860,15 @@ class TranslationApp:
                 
                 if mode == "Translate":
                     lines_map_for_llm = {orig_idx + 1: f"{orig_idx + 1}. {source_segments_original[orig_idx]}" for orig_idx in current_orig_doc_indices}
-                    # PASS TRACKED CHANGES DATA TO TRANSLATOR
                     chunk_results = translator.translate_specific_lines_with_drawings_context(
-                        lines_map_for_llm, full_source_doc_str, src_lang, tgt_lang, 
-                        source_segments_original, drawings_map, user_custom_instructions, 
+                        lines_map_for_llm, full_source_doc_str, source_lang, target_lang,
+                        source_segments_original, drawings_map, user_custom_instructions,
                         tracked_changes_data=self.tracked_changes_agent)
                 elif mode == "Proofread":
-                    lines_map_for_llm = { orig_idx + 1: {"source": source_segments_original[orig_idx], "target_original": original_target_segments[orig_idx]} for orig_idx in current_orig_doc_indices }
-                    # PASS TRACKED CHANGES DATA TO PROOFREADER
+                    lines_map_for_llm = {orig_idx + 1: {"source": source_segments_original[orig_idx], "target_original": original_target_segments[orig_idx]} for orig_idx in current_orig_doc_indices}
                     chunk_results = proofreader.proofread_specific_lines_with_context(
-                        lines_map_for_llm, full_source_doc_str, full_original_target_doc_str, 
-                        src_lang, tgt_lang, source_segments_original, drawings_map, 
+                        lines_map_for_llm, full_source_doc_str, full_original_target_doc_str,
+                        source_lang, target_lang, source_segments_original, drawings_map,
                         user_custom_instructions, tracked_changes_data=self.tracked_changes_agent)
                 
                 llm_processed_map.update(chunk_results)
@@ -1679,8 +1918,8 @@ class TranslationApp:
             self.log_queue,
             mode=mode,
             comments_list_for_output=output_comment_list if mode == "Proofread" else None,
-            source_lang=src_lang,
-            target_lang=tgt_lang  # FIX: was truncated & used undefined 'tgt_l'
+            source_lang=source_lang,
+            target_lang=target_lang  # FIX: use correct parameter name
         )
 
         msg_title = "Success" if file_ok and not had_errors else "Partial Success" if file_ok else "Error"
@@ -1713,57 +1952,7 @@ class TranslationApp:
         )
         self.root.after(0, self.enable_buttons)
 
-    # ADD: enable_buttons method (referenced earlier)
-    def enable_buttons(self):
-        self.process_button.config(state="normal", text="Start Process")
-        self.list_models_button.config(state="normal")
-        self.refresh_models_button.config(state="normal")
-
-# ADD / RESTORE: OutputGenerationAgent (if already present earlier, keep only one copy)
-class OutputGenerationAgent:
-    def process(self, source_data_list_for_output, target_data_list_for_output, output_path,
-                log_queue, mode="Translate", comments_list_for_output=None,
-                source_lang=None, target_lang=None):
-        log_queue.put(f"[Outputter] Generating output file(s): {output_path} for mode: {mode}")
-        if len(source_data_list_for_output) != len(target_data_list_for_output):
-            log_queue.put("[Outputter] FATAL ERROR: Source/target length mismatch.")
-            return False
-        if (mode == "Proofread" and comments_list_for_output is not None and
-            len(comments_list_for_output) != len(source_data_list_for_output)):
-            log_queue.put("[Outputter] FATAL ERROR: Source/comments length mismatch.")
-            return False
-        ok = True
-        try:
-            with open(output_path, "w", encoding="utf-8") as f:
-                for i, src in enumerate(source_data_list_for_output):
-                    tgt = target_data_list_for_output[i]
-                    f.write(f"{src}\t{tgt if tgt is not None else '[ERR - Target Missing]'}")
-                    if (mode == "Proofread" and comments_list_for_output and
-                        comments_list_for_output[i]):
-                        f.write("\t" + comments_list_for_output[i].replace("\n", " "))
-                    f.write("\n")
-            log_queue.put(f"[Outputter] Tab-delimited output file saved to: {output_path}")
-        except Exception as e:
-            log_queue.put(f"[Outputter] Error writing output file: {e}")
-            ok = False
-        if ok and mode == "Translate" and source_lang and target_lang:
-            try:
-                base = os.path.splitext(output_path)[0]
-                tmx_path = base + ".tmx"
-                tmx_tree = TMXGenerator().generate_tmx(
-                    source_data_list_for_output,
-                    target_data_list_for_output,
-                    source_lang,
-                    target_lang
-                )
-                tmx_tree.write(tmx_path, encoding="utf-8", xml_declaration=True)
-                log_queue.put(f"[Outputter] TMX output file saved to: {tmx_path}")
-            except Exception as e:
-                log_queue.put(f"[Outputter] Error writing TMX file: {e}")
-                ok = False
-        return ok
-
-# ADD: main guard to launch GUI (if missing)
+# ADD: main guard to launch GUI
 if __name__ == "__main__":
     try:
         root = tk.Tk()
