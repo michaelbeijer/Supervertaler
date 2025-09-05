@@ -10,7 +10,7 @@ AI‑powered Translator & Proofreader app, leveraging multiple context sources f
 - Multiple LLMs supported (Claude / Gemini / OpenAI)
 - GUI-based operation (Tkinter)
 
-Current version: **2.1.0**
+Current version: **2.1.1**
 
 ---
 
