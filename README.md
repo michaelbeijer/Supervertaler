@@ -1,6 +1,6 @@
 # Supervertaler
 
-AI‑powered Translator & Proofreader app, supporting multiple sources of context, with:
+AI‑powered Translator & Proofreader app, leveraging multiple context sources for enhanced accuracy, with:
 - Translation & proofreading modes
 - Tracked changes ingestion (DOCX revisions + TSV)
 - Figure / image contextualization (multimodal)
