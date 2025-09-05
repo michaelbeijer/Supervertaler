@@ -2,7 +2,6 @@
 
 ## 2.1.1 — 2025-09-05
 - Bumped app version to 2.1.1 (APP_VERSION and header banner updated).
-- Consolidated changelog into this file (replacing CHANGEOG.md).
 - Includes fixes and improvements:
   - OutputGenerationAgent writes TXT and TMX (Translate mode).
   - Restored required agents/factories for GUI startup (TMAgent, BilingualFileIngestionAgent, Gemini/Claude agents, factory helpers).
