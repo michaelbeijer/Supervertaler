@@ -14,6 +14,8 @@ Current version: **2.1.1**
 
 ---
 
+![supervertaler_screenshot_v2 0 0_with_source code](https://github.com/user-attachments/assets/996e9098-163e-41b3-93a3-cbe110a769ec)
+
 ## 1. Features Overview
 
 | Capability | Translate Mode | Proofread Mode |
