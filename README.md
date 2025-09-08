@@ -1,5 +1,4 @@
 # Supervertaler
-**Current version: 2.3.0**
 
 🎯 **Multicontextual AI Translation & Proofreading Suite** - Revolutionary approach to document translation that leverages multiple context sources for unparalleled accuracy.
 
@@ -27,6 +26,8 @@
 - **Chunked processing** - Handle large documents with intelligent batching
 - **Multiple LLM support** - Claude, Gemini, and OpenAI integration
 - **Automatic TMX export** - Build translation memories from your work
+
+Current version: 2.3.0
 
 ---
 
