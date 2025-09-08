@@ -1,5 +1,21 @@
 # Supervertaler - Changelog
 
+## [Unreleased]
+
+### Added
+- (Planned) Fuzzy Translation Memory (TM) match application
+- (Planned) Optional glossary enforcement / terminology lock
+- (Planned) Batch retry & per‑provider exponential backoff tuning
+- (Planned) JSON export of run metadata (segments, timings, provider stats)
+
+### Changed
+- (Planned) Token / embedding–based tracked‑change relevance scoring
+- (Planned) More granular model capability detection (true multimodal flags)
+
+### Fixed
+- (Planned) Edge cases for very long / compound figure identifiers
+- (Planned) Graceful handling of partially corrupt TMX files
+
 ## 2.2.0 — 2025-09-08
 - **MAJOR UPDATE**: Bumped to version 2.2.0 with comprehensive GUI improvements and new prompt management system
 - **NEW: Custom Prompt Library** - Revolutionary prompt management system:
@@ -50,22 +66,6 @@
 
 ## 2.1.0
 - Initial 2.1.x baseline with tracked-changes context, multimodal figure support, and multi‑provider (Claude/Gemini/OpenAI) scaffolding.
-
-## [Unreleased]
-
-### Added
-- (Planned) Fuzzy Translation Memory (TM) match application
-- (Planned) Optional glossary enforcement / terminology lock
-- (Planned) Batch retry & per‑provider exponential backoff tuning
-- (Planned) JSON export of run metadata (segments, timings, provider stats)
-
-### Changed
-- (Planned) Token / embedding–based tracked‑change relevance scoring
-- (Planned) More granular model capability detection (true multimodal flags)
-
-### Fixed
-- (Planned) Edge cases for very long / compound figure identifiers
-- (Planned) Graceful handling of partially corrupt TMX files
 
 ## [2.1.0] - 2025-09-05
 - Added Document Images Folder support to Claude and OpenAI providers (previously Gemini-only).
