@@ -1,6 +1,6 @@
 # Supervertaler
 
-🎯 **Multicontextual AI Translation & Proofreading Suite** - Revolutionary approach to document translation that leverages multiple context sources for unparalleled accuracy.
+🎯 **Multicontextual AI Translation & Proofreading Tool** - Revolutionary approach to document translation that leverages multiple context sources for unparalleled accuracy.
 
 ## 🚀 What Makes Supervertaler Special
 
