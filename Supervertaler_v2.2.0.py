@@ -14,6 +14,7 @@ import zipfile  # Added for DOCX parsing
 import base64
 import json  # For custom prompt management
 import time  # For timestamp in saved prompts
+import webbrowser  # For clickable email link
 
 # ADD: central version constant (was missing, caused NameError)
 APP_VERSION = "2.2.0"
@@ -1444,7 +1445,7 @@ def get_available_models(provider, api_key, log_queue):
 class TranslationApp:
     def __init__(self, root):
         self.root = root
-        root.title(f"Supervertaler (v{APP_VERSION}) - Multi-LLM AI-powered Translator & Proofreader with Tracked Changes") 
+        root.title(f"Supervertaler v{APP_VERSION} (by Michael Beijer)") 
         root.geometry("1100x950")  # Wider to accommodate right-side log
 
         self.log_queue = queue.Queue()
@@ -1457,35 +1458,35 @@ class TranslationApp:
         # Create the log widget instance early to make it available for logging during init
         self.log_text = scrolledtext.ScrolledText(root, width=80, height=10, wrap=tk.WORD, state="disabled")
 
-        # --- UPDATED UNIFIED INFO TEXT ---
+        # --- UPDATED UNIFIED INFO TEXT FOR v2.2.0 ---
         self.info_text_content_unified = (
-            "Supervertaler is an AI-powered document translation & proofreading tool operating in two modes: TRANSLATE or PROOFREAD. "
-            "It leverages multiple context sources for enhanced accuracy.\n\n"
-            "COMMON CONTEXT SOURCES (both modes):\n"
-            "• Full Document Content: Entire source (and existing target in Proofread mode) provided for context.\n"
-            "• Images: If a 'Document Images Folder' is set, figures (e.g., 'Fig 1A.png') are shown to the AI when referenced.\n"
-            "• Tracked Changes: Load DOCX (with tracked changes) and/or TSV (Original<TAB>Final) to supply editing pattern examples.\n"
-            "• Custom Instructions: Freeform guidance appended to the system prompt.\n\n"
-            "MODE DETAILS:\n\n"
+            "🚀 Supervertaler v2.2.0 - Advanced AI Translation & Proofreading Suite\n"
+            "Enhanced with Custom Prompt Library and professional 3-panel interface.\n\n"
+            "🔥 NEW IN v2.2.0:\n"
+            "• Custom Prompt Library: Save/load specialized system prompt collections for different document types\n"
+            "• Enhanced GUI: Resizable 3-panel layout with professional Segoe UI fonts\n"
+            "• Advanced System Prompts: Full control over translation and proofreading prompts\n\n"
+            "⚙️ CORE MODES:\n\n"
             "TRANSLATE MODE:\n"
-            "• Input Format: Text file (.txt) with one source segment per line.\n"
-            "• TM Usage: Exact matches from TM (.tmx or .txt) populate target before any LLM calls.\n"
-            "• Output Format: source_text<TAB>translated_text.txt + TMX\n"
-            "  (Always exactly two columns. Previous extra columns are not propagated.)\n"
-            "• Re-translation: Supplying a previously exported 2‑column file is safe; only column 1 is read and a fresh translation is written as column 2.\n\n"
+            "• Input: Text file (.txt) with one source segment per line\n"
+            "• TM Usage: Exact matches from Translation Memory (.tmx/.txt) applied before AI processing\n"
+            "• Output: source<TAB>translation.txt + auto-generated TMX file\n"
+            "• Safe re-translation: Previous outputs can be safely re-processed (only column 1 is read)\n\n"
             "PROOFREAD MODE:\n"
-            "• Input Format: source_text<TAB>EXISTING_target_text<TAB>[optional_comment]\n"
-            "• TM Usage: Not applied (all segments go to the model).\n"
-            "• Output Format: source_text<TAB>REVISED_target_text<TAB>COMMENT\n"
-            "  COMMENT merges (if present): original comment + AI change summary (only if changes or summary supplied).\n\n"
-            "OUTPUT FILES:\n"
-            "• Tab-delimited TXT: Primary result (see mode-specific formats above).\n"
-            "• TMX (Translate mode only): Auto-generated alongside TXT (same basename) excluding error/empty segments.\n\n"
-            "OTHER FEATURES:\n"
-            "• Chunking: Large inputs split into batches (size = Chunk Size lines).\n"
-            "• Figure/Image Matching: Filenames normalized (e.g., 'Figure_1-A.PNG' recognized as 'fig1a').\n"
-            "• Tracked Changes Context: A capped sample of relevant original→final pairs is injected per batch.\n"
-            "• Providers: Claude / Gemini / OpenAI.\n"
+            "• Input: source<TAB>existing_target<TAB>[comment] format\n"
+            "• Output: source<TAB>revised_target<TAB>merged_comment\n"
+            "• AI provides detailed change summaries and improvement suggestions\n\n"
+            "🎯 CONTEXT SOURCES:\n"
+            "• Document Images: Reference figures (Fig 1A.png) shown to AI when mentioned\n"
+            "• Tracked Changes: DOCX revisions + TSV editing patterns for consistency\n"
+            "• Custom Instructions: Specialized guidance for domain-specific translations\n"
+            "• Translation Memory: Leverage previous translations for consistency\n\n"
+            "🔧 ADVANCED FEATURES:\n"
+            "• Multi-Provider Support: Claude, Gemini, OpenAI with intelligent model selection\n"
+            "• Intelligent Chunking: Optimized batch processing for large documents\n"
+            "• Custom Prompt Management: Create, save, and organize prompt libraries\n"
+            "• Professional Interface: Resizable panels, enhanced fonts, improved workflow\n\n"
+            "📚 Access full documentation via the User Guide and Quick Start Guide (Markdown format)."
         )
         
         # Check if any libraries are available
@@ -1518,7 +1519,7 @@ class TranslationApp:
         
         # Info frame (top right) - white background for consistency
         info_frame = tk.Frame(right_paned, bg="white", relief=tk.SUNKEN, bd=2)
-        right_paned.add(info_frame, minsize=300, height=700)
+        right_paned.add(info_frame, minsize=350, height=800)
         
         # Log frame (bottom right) - white background for consistency
         log_frame = tk.Frame(right_paned, bg="white", relief=tk.SUNKEN, bd=2)
@@ -1527,7 +1528,7 @@ class TranslationApp:
         current_row = 0
         
         # Add program title at top of functions panel - extra sharp font
-        title_label = tk.Label(left_frame, text=f"Supervertaler v{APP_VERSION}", 
+        title_label = tk.Label(left_frame, text=f"Supervertaler v{APP_VERSION} (by Michael Beijer)", 
                               font=("Segoe UI", 16, "bold"), fg="#1a365d", bg="white")
         title_label.grid(row=current_row, column=0, columnspan=3, padx=5, pady=(10,15), sticky="ew")
         current_row += 1
@@ -1538,6 +1539,23 @@ class TranslationApp:
                                   anchor="nw", relief=tk.SOLID, borderwidth=1, padx=8, pady=8, bg="white", 
                                   font=("Segoe UI", 9))
         self.info_label.pack(fill=tk.BOTH, expand=True, padx=5, pady=(0,5))
+        
+        # Add website link at bottom of info panel
+        def open_website():
+            webbrowser.open("https://michaelbeijer.co.uk/")
+        
+        # Create frame for the info text and clickable link
+        link_frame = tk.Frame(info_frame, bg="white")
+        link_frame.pack(anchor="w", padx=5, pady=(0,5))
+        
+        # Non-clickable "Info @" text
+        tk.Label(link_frame, text="Info @ ", font=("Segoe UI", 9), fg="black", bg="white").pack(side=tk.LEFT)
+        
+        # Clickable website URL
+        website_label = tk.Label(link_frame, text="https://michaelbeijer.co.uk/", 
+                                font=("Segoe UI", 9, "underline"), fg="#0066cc", bg="white", cursor="hand2")
+        website_label.pack(side=tk.LEFT)
+        website_label.bind("<Button-1>", lambda e: open_website())
         
         mode_frame = tk.Frame(left_frame, bg="white")
         mode_frame.grid(row=current_row, column=0, columnspan=3, pady=2, sticky="w", padx=5)
