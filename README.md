@@ -17,13 +17,16 @@
 
 ### **Professional workflow features:**
 
-- **Custom prompt library** - Save/load specialized prompt sets for different use cases
+- **Project Library** - Save/restore complete workspace configurations for different clients/projects
+- **Custom Prompt Library** - Save/load specialized prompt sets for different use cases
+- **Prompt Library** - Edit and customize active AI instructions in real-time
 - **Advanced 3-panel GUI** - Resizable interface with professional font rendering
+- **Clickable folder paths** - Direct access to project and prompt directories
 - **Chunked processing** - Handle large documents with intelligent batching
 - **Multiple LLM support** - Claude, Gemini, and OpenAI integration
 - **Automatic TMX export** - Build translation memories from your work
 
-Current version: **2.2.0**
+Current version: **2.3.0**
 
 ---
 
@@ -94,7 +97,7 @@ This multicontextual approach delivers translation quality that approaches human
    ```
 4. Run:
    ```
-   python Supervertaler_v2.2.0.py
+   python Supervertaler_v2.3.0.py
    ```
 
 > Pillow is optional (only needed for image / multimodal figure context).  
@@ -102,18 +105,25 @@ This multicontextual approach delivers translation quality that approaches human
 
 ---
 
-## 4. 🎯 NEW: Advanced System Prompts & Custom Prompt Library
+## 4. 🎯 NEW: Project Management & Library System
 
-**Supervertaler v2.2.0** introduces comprehensive prompt management capabilities:
+**Supervertaler v2.3.0** introduces a revolutionary triple-library system for complete workflow management:
 
-### Advanced System Prompts
-- **Expandable Section**: Click "⚙️ Advanced System Prompts" to reveal the prompt editor
-- **Tabbed Interface**: Separate tabs for Translation and Proofreading prompts
+### 💼 Project Library (NEW!)
+- **Complete Workspace Saving**: Save entire application state in one click
+- **Configuration Management**: Languages, providers, models, file paths, prompts - everything
+- **Client/Project Switching**: Instant switching between different project configurations
+- **Cross-platform Storage**: JSON-based projects work on Windows, macOS, Linux
+- **Clickable Folder Access**: Direct access to project directory from the interface
+
+### 📝 Prompt Library (Renamed from Advanced System Prompts)
+- **Expandable Section**: Click "📝 Prompt Library" to reveal the prompt editor
+- **Tabbed Interface**: Separate tabs for Translation and Proofreading prompts with ⚡ active indicators
 - **Template Variables**: Use `{source_lang}` and `{target_lang}` in your prompts
 - **Live Preview**: See how your prompts will look with current language settings
 - **Reset Function**: Instantly restore default prompts with one click
 
-### Custom Prompt Library
+### 📚 Custom Prompt Library
 - **Save Custom Sets**: Create named collections of your specialized prompts
 - **Organized Storage**: Automatic file management in `custom_prompts/` folder
 - **Easy Switching**: Browse and load different prompt sets instantly

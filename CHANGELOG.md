@@ -3,7 +3,7 @@
 ## [Unreleased]
 
 ### Added
-- (Planned v2.3.0) **Standalone Executable**: Self-contained launcher requiring no Python installation
+- (Planned v2.4.0) **Standalone Executable**: Self-contained launcher requiring no Python installation
   - PyInstaller-based single-file executable for Windows/Mac/Linux
   - One-click installer with desktop shortcut creation
   - Portable version for USB/network deployment
@@ -23,6 +23,31 @@
 ### Fixed
 - (Planned) Edge cases for very long / compound figure identifiers
 - (Planned) Graceful handling of partially corrupt TMX files
+
+## 2.3.0 — 2025-09-08
+- **MAJOR UPDATE**: Revolutionary Project Management System
+- **NEW: Project Library** - Complete workspace configuration management:
+  - Save entire application state: languages, providers, models, file paths, prompts
+  - JSON-based project storage in local `projects/` folder
+  - Cross-platform project management (Windows, macOS, Linux)
+  - Instant project switching and workspace restoration
+  - Professional project organization with timestamps
+- **ENHANCED: Library Structure Reorganization**:
+  - Renamed "Advanced System Prompts" to "Prompt Library" for clarity
+  - Clear hierarchy: Prompt Library → Custom Prompt Library → Project Library
+  - Consistent iconography and user experience across all library sections
+- **NEW: Clickable Folder Paths** - Direct file system access:
+  - Click folder paths to open directories in system file manager
+  - Cross-platform support with proper error handling
+  - Easy access to custom prompts and project files for backup/sharing
+- **IMPROVED: User Interface Polish**:
+  - Lightning bolt indicators (⚡) for active prompts
+  - Consistent visual design across all expandable sections
+  - Enhanced tooltips and status indicators
+- **TECHNICAL: Enhanced Project Data Structure**:
+  - Complete state serialization including custom instructions
+  - Robust error handling for project save/load operations
+  - Backward compatibility with existing prompt library
 
 ## 2.2.0 — 2025-09-08
 - **MAJOR UPDATE**: Bumped to version 2.2.0 with comprehensive GUI improvements and new prompt management system
