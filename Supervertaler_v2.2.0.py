@@ -1817,10 +1817,10 @@ class TranslationApp:
         
         # Translation prompt tab
         translate_frame = ttk.Frame(notebook)
-        notebook.add(translate_frame, text="Translation Prompt")
+        notebook.add(translate_frame, text="⚡ Translation Prompt")
         
-        tk.Label(translate_frame, text="System prompt template for Translation mode:", 
-                font=("Segoe UI", 10, "bold"), bg="white").pack(anchor="w", padx=5, pady=(5,2))
+        tk.Label(translate_frame, text="ACTIVE system prompt for Translation mode:", 
+                font=("Segoe UI", 10, "bold"), bg="white", fg="#2d5a2d").pack(anchor="w", padx=5, pady=(5,2))
         
         tk.Label(translate_frame, text="Available variables: {source_lang}, {target_lang}", 
                 fg="gray", font=("Segoe UI", 8), bg="white").pack(anchor="w", padx=5)
@@ -1839,10 +1839,10 @@ class TranslationApp:
         
         # Proofreading prompt tab
         proofread_frame = ttk.Frame(notebook)
-        notebook.add(proofread_frame, text="Proofreading Prompt")
+        notebook.add(proofread_frame, text="⚡ Proofreading Prompt")
         
-        tk.Label(proofread_frame, text="System prompt template for Proofreading mode:", 
-                font=("Segoe UI", 10, "bold"), bg="white").pack(anchor="w", padx=5, pady=(5,2))
+        tk.Label(proofread_frame, text="ACTIVE system prompt for Proofreading mode:", 
+                font=("Segoe UI", 10, "bold"), bg="white", fg="#2d5a2d").pack(anchor="w", padx=5, pady=(5,2))
         
         tk.Label(proofread_frame, text="Available variables: {source_lang}, {target_lang}", 
                 fg="gray", font=("Segoe UI", 8), bg="white").pack(anchor="w", padx=5)
@@ -1893,6 +1893,11 @@ class TranslationApp:
         # Available prompts list
         tk.Label(management_frame, text="Saved Prompt Sets:", 
                 font=("Segoe UI", 9, "bold"), bg="white").pack(anchor="w", padx=5, pady=(10,2))
+        
+        # Show folder location
+        custom_prompts_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "custom_prompts")
+        tk.Label(management_frame, text=f"📁 Folder: {custom_prompts_path}", 
+                font=("Segoe UI", 8), fg="gray", bg="white").pack(anchor="w", padx=5, pady=(0,5))
         
         list_frame = tk.Frame(management_frame, bg="white")
         list_frame.pack(fill="both", expand=True, padx=5, pady=(0,5))
