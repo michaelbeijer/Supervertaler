@@ -17,11 +17,12 @@
 
 ### **Professional workflow features:**
 
-- **Project Library** - Save/restore complete workspace configurations for different clients/projects
+- **Project Library** ⚡ - Save/restore complete workspace configurations for different clients/projects
+- **Domain-Specific Prompts** ⚡ - 8 professionally crafted prompt collections (medical, legal, technical, financial, etc.)
 - **Custom Prompt Library** - Save/load specialized prompt sets for different use cases
 - **Prompt Library** - Edit and customize active AI instructions in real-time
 - **Advanced 3-panel GUI** - Resizable interface with professional font rendering
-- **Clickable folder paths** - Direct access to project and prompt directories
+- **Cross-platform Support** - Clickable folder paths work on Windows, macOS, and Linux
 - **Chunked processing** - Handle large documents with intelligent batching
 - **Multiple LLM support** - Claude, Gemini, and OpenAI integration
 - **Automatic TMX export** - Build translation memories from your work
@@ -31,6 +32,16 @@ Current version: **2.3.0**
 ---
 
 ![supervertaler_screenshot_v2 0 0](https://github.com/user-attachments/assets/39cc08ee-0709-4ebe-af23-d39eaa21abbb)
+
+## 📖 Documentation
+
+**📋 Complete User Guide**: [`Supervertaler User Guide (v2.3.0).md`](Supervertaler%20User%20Guide%20(v2.3.0).md)
+- **5-minute Quick Start**: Get up and running immediately
+- **Complete Feature Documentation**: Comprehensive coverage of all capabilities
+- **Domain-Specific Prompts**: Professional prompt collections for specialized fields
+- **Project Library**: Revolutionary workspace management
+- **Troubleshooting**: Common issues and solutions
+- **Advanced Tips**: Professional workflow optimization
 
 ## 1. Features Overview
 
