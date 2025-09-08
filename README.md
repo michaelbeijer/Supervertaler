@@ -56,7 +56,7 @@ Traditional translation tools translate each sentence in isolation, missing cruc
 - **Disambiguation**: Resolves ambiguous terms using surrounding content
 
 #### 🔄 Tracked Changes Context  
-- **Learning from edits**: Analyzes DOCX track changes and TSV edit patterns
+- **Learning from edits**: Analyzes track changes from memoQ/Trados-generated bilingual review files (DOCX) and TSV edit patterns
 - **Style adaptation**: Understands preferred editing patterns and terminology choices
 - **Quality improvement**: Learns from human corrections to avoid similar issues
 
