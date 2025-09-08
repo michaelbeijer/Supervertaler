@@ -1,16 +1,18 @@
 # Supervertaler
 
 AI‑powered Translator & Proofreader app, leveraging multiple context sources for enhanced accuracy, with:
-- Translation & proofreading modes
+- Translation & proofreading modes with **custom prompt library**
+- **Advanced system prompt management** with save/load functionality
 - Tracked changes ingestion (DOCX revisions + TSV)
 - Figure / image contextualization (multimodal)
 - Exact-match Translation Memory (TMX / TXT)
 - Automatic TMX export (Translate mode)
 - Chunked processing for large corpora
 - Multiple LLMs supported (Claude / Gemini / OpenAI)
-- GUI-based operation (Tkinter)
+- **Professional 3-panel resizable GUI** (Tkinter)
+- **Custom prompt templates** organized in local library
 
-Current version: **2.1.1**
+Current version: **2.2.0**
 
 ---
 
@@ -45,7 +47,7 @@ Current version: **2.1.1**
    ```
 4. Run:
    ```
-   python Supervertaler_v2.0.0.py
+   python Supervertaler_v2.2.0.py
    ```
 
 > Pillow is optional (only needed for image / multimodal figure context).  
@@ -53,7 +55,36 @@ Current version: **2.1.1**
 
 ---
 
-## 3. API Keys
+## 3. 🎯 NEW: Advanced System Prompts & Custom Prompt Library
+
+**Supervertaler v2.2.0** introduces comprehensive prompt management capabilities:
+
+### Advanced System Prompts
+- **Expandable Section**: Click "⚙️ Advanced System Prompts" to reveal the prompt editor
+- **Tabbed Interface**: Separate tabs for Translation and Proofreading prompts
+- **Template Variables**: Use `{source_lang}` and `{target_lang}` in your prompts
+- **Live Preview**: See how your prompts will look with current language settings
+- **Reset Function**: Instantly restore default prompts with one click
+
+### Custom Prompt Library
+- **Save Custom Sets**: Create named collections of your specialized prompts
+- **Organized Storage**: Automatic file management in `custom_prompts/` folder
+- **Easy Switching**: Browse and load different prompt sets instantly
+- **Professional Use Cases**: 
+  - Legal document translation prompts
+  - Medical/scientific terminology sets
+  - Creative writing style variations
+  - Industry-specific formatting requirements
+
+### Usage Example
+1. Open Advanced System Prompts → Edit translation/proofreading prompts
+2. Switch to "📁 Prompt Library" tab → Enter name → Save
+3. Later: Select saved set from list → Load instantly
+4. Perfect for switching between document types or client requirements!
+
+---
+
+## 4. API Keys
 
 Create `api_keys.txt` next to the script (auto-template generated if absent):
 
@@ -67,7 +98,7 @@ Uncomment and fill lines. Multiple providers can coexist.
 
 ---
 
-## 4. Input Formats
+## 5. Input Formats
 
 ### Translate Mode
 ```
@@ -89,7 +120,7 @@ Source{TAB}ExistingTarget{TAB}Optional prior comment
 
 ---
 
-## 5. Output Formats
+## 6. Output Formats
 
 ### Translate Output
 ```
@@ -109,7 +140,7 @@ If no changes: AI may omit revisions or summarize “No changes”.
 
 ---
 
-## 6. Tracked Changes
+## 7. Tracked Changes
 
 Load:
 - **DOCX** with Word tracked revisions (insertions/deletions)
@@ -126,7 +157,7 @@ Context Injection:
 
 ---
 
-## 7. Images / Figures
+## 8. Images / Figures
 
 Place figure image files in a chosen “Document Images Folder”.
 
@@ -146,7 +177,7 @@ Supported providers:
 
 ---
 
-## 8. Translation Memory (Translate Mode)
+## 9. Translation Memory (Translate Mode)
 
 Supported:
 - **TMX 1.4** (`<tu><tuv xml:lang=".."><seg>...`)
@@ -161,7 +192,7 @@ No fuzzy matching yet (planned).
 
 ---
 
-## 9. Custom Instructions
+## 10. Custom Instructions
 
 Free‑text field appended verbatim near the system directive.  
 Use for:
@@ -171,7 +202,7 @@ Use for:
 
 ---
 
-## 10. Chunking & Performance
+## 11. Chunking & Performance
 
 - Chunk Size = number of lines per model request.
 - TM filtering reduces model cost where matches exist.
@@ -179,7 +210,7 @@ Use for:
 
 ---
 
-## 11. Error Handling & Logging
+## 12. Error Handling & Logging
 
 - Real‑time log pane (queue-driven).
 - Graceful degradation when:
@@ -190,7 +221,7 @@ Use for:
 
 ---
 
-## 12. Roadmap (See CHANGELOG.md)
+## 13. Roadmap (See CHANGELOG.md)
 
 Planned (Unreleased):
 - Fuzzy TM matches
@@ -201,7 +232,7 @@ Planned (Unreleased):
 
 ---
 
-## 13. Contributing
+## 14. Contributing
 
 1. Fork / feature branch.
 2. Add or update tests (if you introduce logic units).
@@ -210,13 +241,13 @@ Planned (Unreleased):
 
 ---
 
-## 14. License
+## 15. License
 
 (Choose or add a LICENSE file: MIT / Apache-2.0 / Proprietary – not specified yet.)
 
 ---
 
-## 15. Quick Start Checklist
+## 16. Quick Start Checklist
 
 | Task | Done |
 |------|------|
@@ -231,7 +262,7 @@ Planned (Unreleased):
 
 ---
 
-## 16. Support
+## 17. Support
 
 Open an issue with:
 - Version (shown at startup)

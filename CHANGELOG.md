@@ -1,7 +1,44 @@
 # Supervertaler - Changelog
 
+## 2.2.0 — 2025-09-08
+- **MAJOR UPDATE**: Bumped to version 2.2.0 with comprehensive GUI improvements and new prompt management system
+- **NEW: Custom Prompt Library** - Revolutionary prompt management system:
+  - Save and organize custom system prompt sets in local `custom_prompts/` folder
+  - Load and switch between different prompt templates instantly
+  - Browse prompt library with intuitive selection interface
+  - Delete unwanted prompt sets with confirmation dialogs
+  - Automatic JSON file organization with timestamps and metadata
+  - Seamless integration with Advanced System Prompts interface
+  - Perfect for creating specialized prompts for different document types or use cases
+- **Enhanced GUI Design**:
+  - Complete 3-panel resizable layout matching user specifications
+  - Consistent white backgrounds throughout all sections
+  - Sharp, professional font rendering using Segoe UI family
+  - Enhanced heading fonts with increased sizes (16pt title, 12pt section headers)
+  - Optimized panel sizes: larger information panel (700px), compact log panel (200px)
+  - Improved visual hierarchy and professional appearance
+- **Advanced System Prompts Enhancements**:
+  - Added third "📁 Prompt Library" tab for comprehensive prompt management
+  - Enhanced font clarity and consistency across all tabs
+  - Improved button layouts with proper background colors
+  - Better user experience with selection memory and visual feedback
+
 ## 2.1.1 — 2025-09-05
 - Bumped app version to 2.1.1 (APP_VERSION and header banner updated).
+- **NEW: Advanced System Prompts GUI** - Added collapsible section allowing users to:
+  - View and edit underlying system prompts for Translation and Proofreading modes
+  - Use template variables like `{source_lang}` and `{target_lang}`
+  - Preview final prompts with current language settings
+  - Reset prompts to defaults with one click
+  - Organize prompts in tabbed interface (Translation/Proofreading)
+  - Click section header to expand/collapse for easy access
+- **NEW: Custom Prompt Library** - Added comprehensive prompt management system:
+  - Save custom system prompt sets to local files (`custom_prompts/` folder)
+  - Load and switch between saved prompt templates
+  - Browse prompt library with easy selection interface
+  - Delete unwanted prompt sets with confirmation
+  - Automatic file organization with JSON format and timestamps
+  - Seamless integration with existing Advanced System Prompts interface
 - Includes fixes and improvements:
   - OutputGenerationAgent writes TXT and TMX (Translate mode).
   - Restored required agents/factories for GUI startup (TMAgent, BilingualFileIngestionAgent, Gemini/Claude agents, factory helpers).
