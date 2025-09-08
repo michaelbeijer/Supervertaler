@@ -15,6 +15,7 @@ import base64
 import json  # For custom prompt management
 import time  # For timestamp in saved prompts
 import webbrowser  # For clickable email link
+import subprocess  # For opening folder in file manager
 
 # ADD: central version constant (was missing, caused NameError)
 APP_VERSION = "2.2.0"
@@ -1894,10 +1895,28 @@ class TranslationApp:
         tk.Label(management_frame, text="Saved Prompt Sets:", 
                 font=("Segoe UI", 9, "bold"), bg="white").pack(anchor="w", padx=5, pady=(10,2))
         
-        # Show folder location
+        # Show clickable folder location
         custom_prompts_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "custom_prompts")
-        tk.Label(management_frame, text=f"📁 Folder: {custom_prompts_path}", 
-                font=("Segoe UI", 8), fg="gray", bg="white").pack(anchor="w", padx=5, pady=(0,5))
+        folder_frame = tk.Frame(management_frame, bg="white")
+        folder_frame.pack(anchor="w", padx=5, pady=(0,5))
+        
+        tk.Label(folder_frame, text="📁 Folder:", 
+                font=("Segoe UI", 8), fg="gray", bg="white").pack(side="left")
+        
+        folder_button = tk.Button(folder_frame, text=custom_prompts_path,
+                                 font=("Segoe UI", 8), fg="blue", bg="white",
+                                 relief="flat", cursor="hand2", bd=0,
+                                 command=self.open_custom_prompts_folder)
+        folder_button.pack(side="left", padx=(3,0))
+        
+        # Add hover effects for the clickable path
+        def on_enter(event):
+            folder_button.config(fg="darkblue", font=("Segoe UI", 8, "underline"))
+        def on_leave(event):
+            folder_button.config(fg="blue", font=("Segoe UI", 8))
+            
+        folder_button.bind("<Enter>", on_enter)
+        folder_button.bind("<Leave>", on_leave)
         
         list_frame = tk.Frame(management_frame, bg="white")
         list_frame.pack(fill="both", expand=True, padx=5, pady=(0,5))
@@ -2104,6 +2123,29 @@ class TranslationApp:
         except Exception as e:
             messagebox.showerror("Error", f"Failed to load prompt set: {str(e)}")
             self.update_log(f"[ERROR] Failed to load prompts: {str(e)}")
+
+    def open_custom_prompts_folder(self):
+        """Open the custom prompts folder in the system file manager"""
+        try:
+            custom_prompts_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "custom_prompts")
+            
+            # Ensure the folder exists
+            if not os.path.exists(custom_prompts_path):
+                os.makedirs(custom_prompts_path)
+            
+            # Open folder in system file manager (cross-platform)
+            if sys.platform == "win32":
+                subprocess.run(["explorer", custom_prompts_path])
+            elif sys.platform == "darwin":  # macOS
+                subprocess.run(["open", custom_prompts_path])
+            else:  # Linux and other Unix-like systems
+                subprocess.run(["xdg-open", custom_prompts_path])
+                
+            self.update_log(f"[INFO] Opened folder: {custom_prompts_path}")
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to open folder: {str(e)}")
+            self.update_log(f"[ERROR] Failed to open folder: {str(e)}")
 
     def delete_custom_prompts(self):
         """Delete selected custom prompt set"""
