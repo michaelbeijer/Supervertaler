@@ -16,8 +16,6 @@ Current version: **2.2.0**
 
 ---
 
-![Supervertaler_v2 2 0 py (with source code)(2025-09-08)](https://github.com/user-attachments/assets/85cf1eb4-a6c3-4d06-9237-f3a3984f1499)
-
 ![Supervertaler_v2 2 0 py (2025-09-08)](https://github.com/user-attachments/assets/34b811bb-5f9c-4ae4-8a61-3b733dd8738a)
 
 ## 1. Features Overview
