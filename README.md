@@ -127,11 +127,13 @@ This multicontextual approach delivers translation quality that approaches human
 - **Save Custom Sets**: Create named collections of your specialized prompts
 - **Organized Storage**: Automatic file management in `custom_prompts/` folder
 - **Easy Switching**: Browse and load different prompt sets instantly
-- **Professional Use Cases**: 
-  - Legal document translation prompts
-  - Medical/scientific terminology sets
-  - Creative writing style variations
-  - Industry-specific formatting requirements
+- **Pre-built Domain Collections** (NEW!):
+  - **Medical Translation Specialist**: Patient safety, medical terminology, regulatory compliance
+  - **Legal Translation Specialist**: Juridical precision, legal system differences, formal register
+  - **Financial Translation Specialist**: Banking terminology, regulatory compliance, market conventions
+  - **Technical Translation Specialist**: Engineering precision, safety warnings, technical documentation
+  - **Cryptocurrency & Blockchain Specialist**: DeFi protocols, Web3 terminology, security considerations
+  - **Gaming & Entertainment Specialist**: Cultural adaptation, character voice, user experience optimization
 
 ### Usage Example
 1. Open Advanced System Prompts → Edit translation/proofreading prompts

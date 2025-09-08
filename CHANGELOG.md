@@ -32,6 +32,13 @@
   - Cross-platform project management (Windows, macOS, Linux)
   - Instant project switching and workspace restoration
   - Professional project organization with timestamps
+- **NEW: Domain-Specific Custom Prompt Collections** - Professional prompt libraries:
+  - Medical Translation Specialist: Patient safety, medical terminology, regulatory compliance
+  - Legal Translation Specialist: Juridical precision, legal system differences, formal register
+  - Financial Translation Specialist: Banking terminology, regulatory compliance, market conventions
+  - Technical Translation Specialist: Engineering precision, safety warnings, technical documentation
+  - Cryptocurrency & Blockchain Specialist: DeFi protocols, Web3 terminology, security considerations
+  - Gaming & Entertainment Specialist: Cultural adaptation, character voice, user experience optimization
 - **ENHANCED: Library Structure Reorganization**:
   - Renamed "Advanced System Prompts" to "Prompt Library" for clarity
   - Clear hierarchy: Prompt Library → Custom Prompt Library → Project Library
