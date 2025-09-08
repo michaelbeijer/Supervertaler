@@ -27,7 +27,7 @@
 - **Multiple LLM support** - Claude, Gemini, and OpenAI integration
 - **Automatic TMX export** - Build translation memories from your work
 
-**Current version: 2.3.0**
+Current version: 2.3.0
 ---
 
 ![supervertaler_screenshot_v2 0 0](https://github.com/user-attachments/assets/39cc08ee-0709-4ebe-af23-d39eaa21abbb)
