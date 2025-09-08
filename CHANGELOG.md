@@ -3,14 +3,22 @@
 ## [Unreleased]
 
 ### Added
+- (Planned v2.3.0) **Standalone Executable**: Self-contained launcher requiring no Python installation
+  - PyInstaller-based single-file executable for Windows/Mac/Linux
+  - One-click installer with desktop shortcut creation
+  - Portable version for USB/network deployment
+  - Automatic folder structure setup and example files
+  - Professional deployment ready for enterprise environments
 - (Planned) Fuzzy Translation Memory (TM) match application
 - (Planned) Optional glossary enforcement / terminology lock
 - (Planned) Batch retry & per‑provider exponential backoff tuning
 - (Planned) JSON export of run metadata (segments, timings, provider stats)
+- (Planned) Automatic updates check system
 
 ### Changed
 - (Planned) Token / embedding–based tracked‑change relevance scoring
 - (Planned) More granular model capability detection (true multimodal flags)
+- (Planned) Enhanced distribution strategy for wider user adoption
 
 ### Fixed
 - (Planned) Edge cases for very long / compound figure identifiers
