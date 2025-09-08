@@ -1205,4 +1205,4 @@ You're now ready to use Supervertaler v2.3.0 effectively! The combination of pow
 
 *Supervertaler v2.3.0 - Professional AI Translation with Revolutionary Project Management and Domain Expertise*
 
-**Contact**: For support, feedback, or suggestions, email [supervertaler@example.com](mailto:supervertaler@example.com)
+**Contact**: For support, feedback, or suggestions, email [info@michaelbeijer.co.uk](mailto:info@michaelbeijer.co.uk)

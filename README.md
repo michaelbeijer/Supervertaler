@@ -31,7 +31,8 @@ Current version: 2.3.0
 
 ---
 
-![supervertaler_screenshot_v2 0 0](https://github.com/user-attachments/assets/39cc08ee-0709-4ebe-af23-d39eaa21abbb)
+![supervertaler_screenshot_v2 3 0](https://github.com/user-attachments/assets/22481fd0-fe7e-42c4-b037-b39ddb1eec7b)
+
 
 ## 📖 Documentation
 
