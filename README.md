@@ -9,7 +9,7 @@
 ### **Multiple context sources for enhanced translation/proofreading accuracy:**
 
 - **Full document context** - Every sentence translated with awareness of the entire document
-- **Tracked changes ingestion** - Learn from DOCX revisions and TSV editing patterns  
+- **Tracked changes ingestion** - Learn from DOCX revisions (from memoQ/Trados-generated bilingual review files) and TSV editing patterns  
 - **Translation memory matching** - Leverage exact matches from TMX/TXT for consistency
 - **Multimodal figure context** - AI sees referenced images when translating figure captions
 - **Custom instructions** - Domain-specific guidance tailored to your content
