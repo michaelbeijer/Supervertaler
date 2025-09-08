@@ -1770,21 +1770,20 @@ class TranslationApp:
 
     def setup_advanced_prompts_content(self):
         """Setup the content of the advanced prompts section"""
-        # Initialize default system prompts
-        self.default_translate_prompt = ("You are an expert {source_lang} to {target_lang} translator specialized in patent documents. "
-                                       "The full patent text for overall context is in 'FULL PATENT CONTEXT' below. "
-                                       "Translate ONLY sentences from 'PATENT SENTENCES TO TRANSLATE' later. "
-                                       "These are listed with their original line numbers from the full document.\n\n"
-                                       "If a sentence refers to a Figure (e.g., 'Figure 1A', 'Figuur X'), relevant images may be provided just before that sentence. "
-                                       "Use these images as crucial context for accurately translating references to parts, features, or relationships shown in those figures.\n\n"
-                                       "Present your output ONLY as a numbered list of the translations for the requested sentences, using their original numbering. "
-                                       "Maintain accuracy and appropriate patent terminology.")
+        # Initialize default system prompts (generic for all document types)
+        self.default_translate_prompt = ("You are an expert {source_lang} to {target_lang} translator with deep understanding of context and nuance. "
+                                       "The full document context is provided in 'FULL DOCUMENT CONTEXT' below for reference. "
+                                       "Translate ONLY the sentences from 'SENTENCES TO TRANSLATE' later, maintaining their original line numbers.\n\n"
+                                       "If a sentence refers to figures, images, or diagrams (e.g., 'Figure 1A', 'Chart 2', 'Diagram B'), relevant images may be provided just before that sentence. "
+                                       "Use these visual elements as crucial context for accurately translating references to parts, features, relationships, or data shown in those figures.\n\n"
+                                       "Present your output ONLY as a numbered list of translations for the requested sentences, using their original numbering. "
+                                       "Maintain accuracy, appropriate terminology for the document type, and natural fluency in the target language.")
 
-        self.default_proofread_prompt = ("You are an expert proofreader and editor for {source_lang} → {target_lang} translations, specializing in patent documents.\n\n"
-                                       "For each segment you get SOURCE SEGMENT and EXISTING TRANSLATION.\n"
-                                       "Tasks: accuracy, terminology consistency, patent tone, grammar, fluency, completeness, figure-reference consistency.\n\n"
+        self.default_proofread_prompt = ("You are an expert proofreader and editor for {source_lang} → {target_lang} translations, skilled in various document types and domains.\n\n"
+                                       "For each segment you receive a SOURCE SEGMENT and EXISTING TRANSLATION. "
+                                       "Your tasks: improve accuracy, ensure terminology consistency, enhance readability, correct grammar, improve fluency, verify completeness, and maintain consistency with visual elements.\n\n"
                                        "OUTPUT FORMAT STRICTLY:\n"
-                                       "1) Numbered list of revised {target_lang} translations (use same numbering; if no change, reproduce original).\n"
+                                       "1) Numbered list of revised {target_lang} translations (use same numbering; if no changes needed, reproduce the original).\n"
                                        "2) Then a section:\n---CHANGES SUMMARY START---\n"
                                        "Per modified line: '<line>. <brief description of changes>' OR if none changed: 'No changes made to any segment in this batch.'\n"
                                        "---CHANGES SUMMARY END---")
