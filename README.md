@@ -13,7 +13,7 @@
 - **Translation memory matching** - Leverage exact matches from TMX/TXT for consistency
 - **Multimodal figure context** - AI sees referenced images when translating figure captions
 - **Custom instructions** - Domain-specific guidance tailored to your content
-- **Advanced prompt management** - Specialized system prompts for different document types
+- **Advanced prompt management** - Specialized system prompt library for different document types
 
 ### **Professional workflow features:**
 
