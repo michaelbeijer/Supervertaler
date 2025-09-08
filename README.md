@@ -6,20 +6,22 @@
 
 **Multicontextual Intelligence**: Unlike traditional sentence-by-sentence translators, Supervertaler considers multiple layers of context simultaneously:
 
-• **Multiple context sources for enhanced translation/proofreading accuracy:**
-  • **Full document context** - Every sentence translated with awareness of the entire document
-  • **Tracked changes ingestion** - Learn from DOCX revisions and TSV editing patterns  
-  • **Translation memory matching** - Leverage exact matches from TMX/TXT for consistency
-  • **Multimodal figure context** - AI sees referenced images when translating figure captions
-  • **Custom instructions** - Domain-specific guidance tailored to your content
-  • **Advanced prompt management** - Specialized system prompts for different document types
+### **Multiple context sources for enhanced translation/proofreading accuracy:**
 
-• **Professional workflow features:**
-  • **Custom prompt library** - Save/load specialized prompt sets for different use cases
-  • **Advanced 3-panel GUI** - Resizable interface with professional font rendering
-  • **Chunked processing** - Handle large documents with intelligent batching
-  • **Multiple LLM support** - Claude, Gemini, and OpenAI integration
-  • **Automatic TMX export** - Build translation memories from your work
+- **Full document context** - Every sentence translated with awareness of the entire document
+- **Tracked changes ingestion** - Learn from DOCX revisions and TSV editing patterns  
+- **Translation memory matching** - Leverage exact matches from TMX/TXT for consistency
+- **Multimodal figure context** - AI sees referenced images when translating figure captions
+- **Custom instructions** - Domain-specific guidance tailored to your content
+- **Advanced prompt management** - Specialized system prompts for different document types
+
+### **Professional workflow features:**
+
+- **Custom prompt library** - Save/load specialized prompt sets for different use cases
+- **Advanced 3-panel GUI** - Resizable interface with professional font rendering
+- **Chunked processing** - Handle large documents with intelligent batching
+- **Multiple LLM support** - Claude, Gemini, and OpenAI integration
+- **Automatic TMX export** - Build translation memories from your work
 
 Current version: **2.2.0**
 
