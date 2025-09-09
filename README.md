@@ -2,7 +2,32 @@
 
 🎯 **Multicontextual AI translation & proofreading tool (built for translators)** - Revolutionary approach to document translation that leverages multiple context sources for unparalleled accuracy.
 
-## 🚀 What Makes Supervertaler Special
+## � CAT Tool Integration
+
+**Supervertaler is designed for professional translators using CAT tools** (memoQ, Trados Studio, CafeTran, Wordfast, etc.). It integrates seamlessly into existing translation workflows:
+
+### Input Workflow:
+1. **Export from CAT tool**: Export bilingual table from your CAT tool (usually .docx or .rtf format)
+2. **Extract source text**: Copy all rows from the source language column
+3. **Create .txt input**: Paste into plain text file, one segment per line
+4. **Process with Supervertaler**: Use Translation mode for AI-powered translation
+
+### Output Integration:
+Supervertaler provides two output formats for flexible CAT tool integration:
+
+**📄 Tab-delimited .txt file**: 
+- Source{TAB}Target format for easy reimport
+- Copy target column back into your bilingual table
+- Reimport into CAT tool to populate translations
+
+**📚 TMX translation memory**:
+- Add directly to your CAT tool project
+- Instant exact matches as you translate
+- Builds your translation memory assets
+
+*Why this approach?* Leveraging CAT tools' existing segmentation capabilities is more efficient and maintainable than recreating complex file format support in Supervertaler.
+
+## �🚀 What Makes Supervertaler Special
 
 **Multicontextual Intelligence**: Unlike traditional sentence-by-sentence translators, Supervertaler considers multiple layers of context simultaneously:
 

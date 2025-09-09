@@ -4,12 +4,126 @@
 ---
 
 ## 🚀 Quick Navigation
+- **[🔧 CAT Tool Integration](#-cat-tool-integration)** - Essential workflow for professional translators
 - **[⚡ Quick Start](#-5-minute-quick-start)** - Get up and running fast!
 - **[📖 Complete Guide](#complete-user-guide)** - Comprehensive documentation
 - **[🆕 What's New in v2.3.0](#whats-new-in-v230)** - Latest features
 - **[🎛️ Project Library](#project-library)** - Revolutionary workspace management
 - **[📁 Prompt Library](#custom-prompt-library)** - Domain-specific expertise
 - **[🆘 Troubleshooting](#troubleshooting)** - Common issues and solutions
+
+---
+
+## 🔧 CAT Tool Integration
+
+**Supervertaler is designed for professional translators using CAT tools** and integrates seamlessly into existing translation workflows. Understanding this integration is essential for getting the most out of Supervertaler.
+
+### 🎯 Why CAT Tool Integration?
+
+Supervertaler doesn't directly translate .docx, .xlsx, .pptx files because:
+1. **Complexity**: Creating and maintaining support for all file formats would be extremely complex
+2. **CAT Tool Excellence**: Professional CAT tools already excel at segmenting diverse file formats
+3. **Better Together**: Leveraging existing CAT tool capabilities is more efficient and reliable
+
+### 📋 Complete Workflow Guide
+
+#### Step 1: Export from Your CAT Tool
+**Supported CAT Tools**: memoQ, Trados Studio, CafeTran, Wordfast, and others
+
+1. **Open your translation project** in your CAT tool
+2. **Export bilingual table**: Export the translation grid/table to bilingual format
+   - **memoQ**: File → Export → Bilingual → Word Document (.docx)
+   - **Trados Studio**: File → Export → Export for Review → Word Document (.docx)
+   - **CafeTran**: Project → Export → Bilingual Document (.rtf/.docx)
+   - **Wordfast**: File → Export → Bilingual RTF (.rtf)
+
+#### Step 2: Extract Source Text
+1. **Open the bilingual document** (.docx/.rtf) in Word or compatible editor
+2. **Select source column**: Carefully select ALL rows in the source language column
+   - If you have 150 segments, select all 150 source texts
+   - Avoid selecting headers, footers, or formatting
+3. **Copy and paste**: Create a new .txt file with one segment per line
+   - Each source segment becomes one line in your .txt file
+   - Remove any extra formatting or characters
+
+**Example Input File** (`input.txt`):
+```
+Welcome to our comprehensive software solution.
+This innovative platform will revolutionize your workflow.
+Please refer to Figure 1A for technical specifications.
+Contact our support team if you need assistance.
+```
+
+#### Step 3: Process with Supervertaler
+1. **Launch Supervertaler** and select **Translation Mode**
+2. **Load your .txt file** as input
+3. **Configure settings**: languages, AI provider, context sources
+4. **Process**: Supervertaler translates with full document context
+
+#### Step 4: Integration Back to CAT Tool
+
+**Supervertaler provides two output formats for flexible integration:**
+
+##### Option A: Direct Replacement Method
+**File**: `output_translated.txt` (tab-delimited format)
+```
+Welcome to our comprehensive software solution.	Bienvenido a nuestra solución integral de software.
+This innovative platform will revolutionize your workflow.	Esta plataforma innovadora revolucionará su flujo de trabajo.
+Please refer to Figure 1A for technical specifications.	Consulte la Figura 1A para las especificaciones técnicas.
+Contact our support team if you need assistance.	Póngase en contacto con nuestro equipo de soporte si necesita ayuda.
+```
+
+**Integration Steps**:
+1. **Select target column**: In your original bilingual document, select all target language cells
+2. **Copy translations**: From Supervertaler's output file, copy only the target language column
+3. **Paste and replace**: Paste into the target column of your bilingual document
+4. **Reimport to CAT tool**: Import the updated bilingual document back into your project
+
+##### Option B: Translation Memory Method
+**File**: `output_translated.tmx` (Translation Memory eXchange format)
+
+**Integration Steps**:
+1. **Add TMX to project**: Import the .tmx file into your CAT tool project
+2. **Instant matches**: As you translate, Supervertaler's translations appear as exact matches
+3. **Accept or edit**: Review and accept matches, or make adjustments as needed
+4. **Build TM assets**: Contributes to your growing translation memory database
+
+### 🔍 Detailed Example Workflow
+
+#### memoQ Integration Example:
+1. **Export**: File → Export → Bilingual → Export to review document (.docx)
+2. **Extract**: Open .docx, copy source column to .txt file (150 lines)
+3. **Process**: Run Supervertaler translation mode
+4. **Option A**: Copy target column back to bilingual .docx, then File → Import → Import from review document
+5. **Option B**: Add .tmx to project via Translation Memories → Import
+
+#### Trados Studio Integration Example:
+1. **Export**: File → Export → Export for Review → Package for Review (.docx)
+2. **Extract**: Open review document, copy source segments to .txt file
+3. **Process**: Run Supervertaler translation mode  
+4. **Option A**: Update review document with translations, then File → Import → Return Package
+5. **Option B**: Project Settings → Translation Memories → Add .tmx file
+
+### ⚡ Pro Tips for CAT Tool Integration
+
+#### Workflow Optimization:
+- **Consistent Segmentation**: Ensure your CAT tool's segmentation rules are consistent
+- **Clean Source Text**: Remove any CAT tool tags or formatting before processing
+- **Quality Check**: Review translations before final integration
+- **Backup Projects**: Always backup your CAT tool project before importing
+
+#### Common Integration Challenges:
+- **Segment Count Mismatch**: Ensure input .txt has same number of lines as source segments
+- **Encoding Issues**: Use UTF-8 encoding for all text files
+- **Tag Handling**: Some CAT tools add formatting tags - remove these before processing
+- **Table Formatting**: Preserve table structure when copying between documents
+
+### 💡 Why This Approach Works
+
+This integration method leverages the strengths of both tools:
+- **CAT Tools**: Excel at file format handling, project management, and client delivery
+- **Supervertaler**: Provides superior AI translation with multicontextual intelligence
+- **Combined**: Professional translation workflow with enhanced quality and efficiency
 
 ---
 
@@ -84,7 +198,9 @@ google = your_google_key_here
 ## 🎯 Your First Translation (5 minutes)
 
 ### Prepare Input File
-Create a text file `sample.txt` with one sentence per line:
+**For CAT tool users**: Follow the [CAT Tool Integration](#-cat-tool-integration) workflow above to extract source text from your bilingual export.
+
+**For quick testing**: Create a text file `sample.txt` with one sentence per line:
 ```
 Welcome to our new product.
 This software will change your workflow.
@@ -172,28 +288,38 @@ The AI will:
 
 ## Table of Contents
 1. [Introduction](#introduction)
-2. [Installation & Setup](#installation--setup)
-3. [Getting Started](#getting-started)
-4. [Prompt Library](#prompt-library)
-5. [Custom Prompt Library](#custom-prompt-library)
-6. [Project Library](#project-library)
-7. [Translation Mode](#translation-mode)
-8. [Proofreading Mode](#proofreading-mode)
-9. [Context Sources](#context-sources)
-10. [Tracked Changes](#tracked-changes)
-11. [Document Images](#document-images)
-12. [Translation Memory](#translation-memory)
-13. [AI Provider Settings](#ai-provider-settings)
-14. [Troubleshooting](#troubleshooting)
-15. [Advanced Tips](#advanced-tips)
+2. [CAT Tool Integration](#-cat-tool-integration)
+3. [Installation & Setup](#installation--setup)
+4. [Getting Started](#getting-started)
+5. [Prompt Library](#prompt-library)
+6. [Custom Prompt Library](#custom-prompt-library)
+7. [Project Library](#project-library)
+8. [Translation Mode](#translation-mode)
+9. [Proofreading Mode](#proofreading-mode)
+10. [Context Sources](#context-sources)
+11. [Tracked Changes](#tracked-changes)
+12. [Document Images](#document-images)
+13. [Translation Memory](#translation-memory)
+14. [AI Provider Settings](#ai-provider-settings)
+15. [Troubleshooting](#troubleshooting)
+16. [Advanced Tips](#advanced-tips)
 
 ---
 
 ## Introduction
 
-Supervertaler is a professional AI-powered translation and proofreading application that leverages multiple Large Language Models (LLMs) and context sources to deliver highly accurate translations. Version 2.3.0 introduces revolutionary **Project Library** functionality and **domain-specific prompt collections** alongside an enhanced user interface.
+Supervertaler is a professional AI-powered translation and proofreading application designed specifically for **professional translators using CAT tools** (memoQ, Trados Studio, CafeTran, Wordfast, etc.). It leverages multiple Large Language Models (LLMs) and context sources to deliver highly accurate translations that integrate seamlessly into existing CAT tool workflows.
+
+Version 2.3.0 introduces revolutionary **Project Library** functionality and **domain-specific prompt collections** alongside an enhanced user interface optimized for professional translation workflows.
+
+### 🔧 CAT Tool-Centric Design
+Supervertaler is built around the professional translator's existing workflow:
+- **Input**: Source text extracted from CAT tool bilingual exports
+- **Processing**: AI translation with multicontextual intelligence
+- **Output**: Tab-delimited text for direct CAT tool integration + TMX for translation memory
 
 ### Key Features
+- **Seamless CAT Tool Integration**: Designed for memoQ, Trados Studio, CafeTran, Wordfast workflows
 - **Dual Operation Modes**: Translation and Proofreading with specialized workflows
 - **Project Library**: Complete workspace configuration management with cross-platform support
 - **Domain-Specific Prompts**: 8 professionally crafted prompt collections for specialized translation
@@ -206,10 +332,17 @@ Supervertaler is a professional AI-powered translation and proofreading applicat
 - **Multicontextual Approach**: Leverages multiple context sources for superior accuracy
 
 ### What Makes Supervertaler Unique
+- **CAT Tool Integration**: Purpose-built for professional translation workflows, not end-user document translation
 - **Multicontextual Intelligence**: Unlike simple AI translation tools, Supervertaler combines Translation Memory, tracked changes, visual context, and domain expertise
 - **Professional Workflow Management**: Complete project management with instant workspace switching
 - **Domain Expertise**: Built-in specialized knowledge for medical, legal, technical, financial, and other professional fields
-- **Quality-Focused Design**: Every feature designed to maximize translation accuracy and consistency
+- **Quality-Focused Design**: Every feature designed to maximize translation accuracy and consistency within existing CAT tool environments
+
+### Why Not Direct File Support?
+Supervertaler doesn't directly translate .docx, .xlsx, .pptx files because:
+1. **Complexity**: Creating and maintaining support for all file formats would be extremely complex and difficult to maintain
+2. **CAT Tool Excellence**: Professional CAT tools already excel at segmenting and managing diverse file formats
+3. **Better Integration**: Leveraging existing CAT tool capabilities provides more reliable, maintainable, and feature-rich workflows
 
 ---
 
@@ -688,22 +821,44 @@ Supervertaler/
 ## Translation Mode
 
 ### Purpose and Workflow
-Translation Mode is designed for converting source language text into target language text with maximum accuracy and context awareness. It integrates multiple context sources and produces both text and TMX output files.
+Translation Mode is designed for converting source language text into target language text with maximum accuracy and context awareness. It integrates multiple context sources and produces both text and TMX output files for seamless CAT tool integration.
 
-### Input Requirements
+### 🔧 CAT Tool Input (Recommended Workflow)
 
-#### File Format
+#### Professional Translator Workflow
+**Most users should follow the [CAT Tool Integration](#-cat-tool-integration) process:**
+
+1. **Export bilingual document** from your CAT tool (memoQ, Trados, CafeTran, etc.)
+2. **Extract source column** to create .txt input file
+3. **Process with Supervertaler** for AI translation with full context
+4. **Integrate results** back into CAT tool via .txt replacement or .tmx import
+
+#### Input Requirements from CAT Tool Export
+
+**File Format**: 
 - **Extension**: `.txt` (plain text)
-- **Encoding**: UTF-8 recommended
-- **Structure**: One sentence or segment per line
+- **Encoding**: UTF-8 recommended  
+- **Structure**: One segment per line (extracted from CAT tool bilingual export)
+- **Segment Count**: Must match your CAT tool project segments exactly
 
-#### Sample Input File
+#### Sample CAT Tool Input File
+*Extracted from bilingual .docx export with 150 segments:*
 ```
 The new product features advanced technology.
 Users can access the system through multiple interfaces. 
 Data security remains our top priority.
 Please refer to Figure 1A for the technical specifications.
+... (146 more segments)
 ```
+
+### 📝 Direct Input (Testing/Non-CAT Workflows)
+
+For users not using CAT tools or testing purposes:
+
+#### Manual Input Requirements
+- **Extension**: `.txt` (plain text)
+- **Encoding**: UTF-8 recommended
+- **Structure**: One sentence or segment per line
 
 ### Processing Flow
 
@@ -731,9 +886,12 @@ Please refer to Figure 1A for the technical specifications.
 - **Image Injection**: Corresponding images inserted before referenced lines
 - **Multimodal Translation**: AI receives both text and visual context
 
-### Output Files
+### Output Files for CAT Tool Integration
 
-#### Text Output (.txt)
+Supervertaler produces two output formats optimized for professional CAT tool workflows:
+
+#### 📄 Tab-Delimited Text Output (.txt)
+**Purpose**: Direct replacement in bilingual CAT tool documents
 **Format**: Source{TAB}Translation
 ```
 The new product features advanced technology.	El nuevo producto cuenta con tecnología avanzada.
@@ -741,11 +899,21 @@ Users can access the system through multiple interfaces.	Los usuarios pueden acc
 Data security remains our top priority.	La seguridad de los datos sigue siendo nuestra máxima prioridad.
 ```
 
-#### TMX Output (.tmx)  
-**Purpose**: Translation Memory exchange format
+**CAT Tool Integration**:
+1. **Copy target column**: Select and copy only the translated text (right column)
+2. **Paste into bilingual document**: Replace target column in your exported bilingual .docx/.rtf
+3. **Reimport to CAT tool**: Use your CAT tool's import function to update the project
+
+#### 📚 TMX Translation Memory (.tmx)  
+**Purpose**: Translation Memory eXchange format for direct TM integration
 **Content**: All exact matches plus new AI translations
 **Exclusions**: Error segments and processing failures
-**Usage**: Import into CAT tools or other TM systems
+
+**CAT Tool Integration**:
+1. **Add to project TMs**: Import .tmx file into your CAT tool's translation memory
+2. **Instant exact matches**: Translations appear as 100% matches during translation
+3. **Build TM assets**: Contributes to your growing translation memory database
+4. **Cross-project reuse**: Use for future projects with similar content
 
 ### Quality Optimization
 
