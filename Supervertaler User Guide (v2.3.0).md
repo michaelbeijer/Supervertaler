@@ -3,7 +3,7 @@
 
 ---
 
-## 🚀 Table of Contents
+## � Reading Guide
 - **[🔧 CAT Tool Integration](#-cat-tool-integration)** - Essential workflow for professional translators
 - **[🆕 What's New in v2.3.0](#whats-new-in-v230)** - Latest features
 - **[📖 Complete User Guide](#complete-user-guide)** - Comprehensive documentation
