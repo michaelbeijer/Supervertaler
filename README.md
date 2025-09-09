@@ -1,4 +1,8 @@
-# Supervertaler
+# Su## 🔧 CAT Tool Integratio*Why this approach?* Leveraging CAT tools' existing segmentation capabilities is more efficient and maintainable than recreating complex file format support in Supervertaler.
+
+## 🚀 What Makes Supervertaler Special
+
+**Multicontextual Intelligence**: Unlike traditional sentence-by-sentence translators, Supervertaler considers multiple layers of context simultaneously:**Supervertaler is designed for professional translators using CAT tools** (memoQ, Trados Studio, CafeTran, Wordfast, etc.). It integrates seamlessly into existing translation workflows:vertaler
 
 🎯 **Multicontextual AI translation & proofreading tool (built for translators)** - Revolutionary approach to document translation that leverages multiple context sources for unparalleled accuracy.
 
