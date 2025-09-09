@@ -5,11 +5,8 @@
 
 ## 🚀 Table of Contents
 - **[🔧 CAT Tool Integration](#-cat-tool-integration)** - Essential workflow for professional translators
-- **[📖 Complete Guide](#complete-user-guide)** - Comprehensive documentation
 - **[🆕 What's New in v2.3.0](#whats-new-in-v230)** - Latest features
-- **[🎛️ Project Library](#project-library)** - Revolutionary workspace management
-- **[📁 Prompt Library](#custom-prompt-library)** - Domain-specific expertise
-- **[🆘 Troubleshooting](#troubleshooting)** - Common issues and solutions
+- **[📖 Complete User Guide](#complete-user-guide)** - Comprehensive documentation
 
 ---
 
