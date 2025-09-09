@@ -1,11 +1,10 @@
 # Supervertaler User Guide
-## Version 2.3.0 - Complete Documentation & Quick Start
+## Version 2.3.0 - Complete Documentation
 
 ---
 
 ## 🚀 Table of Contents
 - **[🔧 CAT Tool Integration](#-cat-tool-integration)** - Essential workflow for professional translators
-- **[⚡ Quick Start](#-5-minute-quick-start)** - Get up and running fast!
 - **[📖 Complete Guide](#complete-user-guide)** - Comprehensive documentation
 - **[🆕 What's New in v2.3.0](#whats-new-in-v230)** - Latest features
 - **[🎛️ Project Library](#project-library)** - Revolutionary workspace management
@@ -154,136 +153,6 @@ Eight new professionally crafted prompt sets for specialized translation:
 
 ---
 
-## ⚡ 5-Minute Quick Start
-
-### Step 1: Install Dependencies (2 minutes)
-```bash
-pip install google-generativeai anthropic openai pillow
-```
-**Note**: Install only what you need based on your AI provider choice.
-
-### Step 2: Get API Keys (2 minutes)
-Choose at least one provider and get your API key:
-
-**🤖 Google Gemini** (Recommended for beginners)
-- Visit: https://aistudio.google.com/
-- Click "Get API Key" → Create new key
-- Copy the key
-
-**🧠 Claude (Anthropic)** (Best for creative content)
-- Visit: https://console.anthropic.com/
-- Create account → API Keys → Generate
-- Add billing credits
-- Copy the key
-
-**💬 OpenAI** (Most familiar)
-- Visit: https://platform.openai.com/
-- Account → API Keys → Create new
-- Add billing information  
-- Copy the key
-
-### Step 3: Configure Supervertaler (1 minute)
-1. **Download**: Get `Supervertaler_v2.3.0.py`
-2. **First Run**: Execute the file to create `api_keys.txt`
-3. **Add Key**: Edit `api_keys.txt`, uncomment and fill your API key:
-```
-google = your_google_key_here
-#claude = your_claude_key_here  
-#openai = your_openai_key_here
-```
-4. **Launch**: Run `python Supervertaler_v2.3.0.py`
-
----
-
-## 🎯 Your First Translation (5 minutes)
-
-### Prepare Input File
-**For CAT tool users**: Follow the [CAT Tool Integration](#-cat-tool-integration) workflow above to extract source text from your bilingual export.
-
-**For quick testing**: Create a text file `sample.txt` with one sentence per line:
-```
-Welcome to our new product.
-This software will change your workflow.
-Please refer to Figure 1 for details.
-Contact support if you need assistance.
-```
-
-### Run Translation
-1. **Launch Supervertaler** - You'll see the professional 3-panel interface
-2. **Operation Mode** - Select "Translate" (default)
-3. **Input File** - Browse and select your `sample.txt`
-4. **Output File** - Choose where to save results
-5. **Languages** - Set Source: "English", Target: "Spanish" 
-6. **AI Provider** - Select your configured provider
-7. **Start Process** - Click the button and watch the progress!
-
-### Check Results
-- **Text File**: Tab-separated source and translations
-- **TMX File**: Translation memory format for CAT tools
-- **Processing Log**: Detailed status in bottom-right panel
-
----
-
-## 🎨 Explore the New Libraries (10 minutes)
-
-### Understanding the Interface
-**Professional 3-Panel Design**:
-- **Left Panel**: All controls and settings (resizable)
-- **Top Right**: Information and guidance (larger display)
-- **Bottom Right**: Real-time processing log
-
-### Access the Prompt Library
-1. **Expand Section**: Click "⚙️ Prompt Library (Click to expand/collapse)"
-2. **Four Tabs Available**:
-   - **Translation Prompt**: Control AI translation behavior
-   - **Proofreading Prompt**: Control AI proofreading behavior  
-   - **📁 Custom Prompt Library**: Save and manage your custom prompts
-   - **📂 Project Library**: NEW! Complete workspace management
-
-### Try Domain-Specific Prompts
-
-#### Load a Professional Prompt Set
-1. **Switch to 📁 Custom Prompt Library tab**
-2. **Browse Available Sets**: See the 8 new domain-specific collections
-3. **Select**: "Medical Translation Specialist" or your preferred domain
-4. **Load**: Click "📂 Load Selected"
-5. **Active Indicator**: Notice the ⚡ lightning bolt showing it's active
-
-#### Create Your Own Project
-1. **Switch to 📂 Project Library tab**
-2. **Configure Settings**: Set up your languages, provider, file paths
-3. **Save Project**: Enter name like "Medical Documents Project"
-4. **Click**: "💾 Save Current Project"
-5. **Success**: See your project in the list with timestamp!
-
----
-
-## 🔄 Your First Proofreading (5 minutes)
-
-### Prepare Proofreading File  
-Create `proofread_sample.txt` with tab-separated content:
-```
-Hello world	Hola mundo
-How are you?	Como estas?
-Good morning	Buenos dias
-The weather is nice	El clima esta bien
-```
-
-### Run Proofreading
-1. **Change Mode**: Select "Proofread" 
-2. **Input File**: Browse and select your proofreading file
-3. **Same Settings**: Keep your language and AI provider
-4. **Process**: Click "Start Process"
-
-### Review Improvements
-The AI will:
-- Fix spelling errors (missing accents)
-- Improve fluency and naturalness  
-- Provide explanations for changes
-- Maintain original meaning
-
----
-
 ## Complete User Guide
 
 ## Table of Contents
@@ -429,6 +298,87 @@ When you first start Supervertaler v2.3.0, you'll see a professional 3-panel int
 5. **Select AI Provider**: Choose from available models
 6. **Add Context Sources** (optional): TM files, tracked changes, images
 7. **Start Processing**: Click "Start Process" to begin
+
+### 🎯 Your First Translation
+
+#### Prepare Input File
+**For CAT tool users**: Follow the [CAT Tool Integration](#-cat-tool-integration) workflow above to extract source text from your bilingual export.
+
+**For quick testing**: Create a text file `sample.txt` with one sentence per line:
+```
+Welcome to our new product.
+This software will change your workflow.
+Please refer to Figure 1 for details.
+Contact support if you need assistance.
+```
+
+#### Run Translation
+1. **Launch Supervertaler** - You'll see the professional 3-panel interface
+2. **Operation Mode** - Select "Translate" (default)
+3. **Input File** - Browse and select your `sample.txt`
+4. **Output File** - Choose where to save results
+5. **Languages** - Set Source: "English", Target: "Spanish" 
+6. **AI Provider** - Select your configured provider
+7. **Start Process** - Click the button and watch the progress!
+
+#### Check Results
+- **Text File**: Tab-separated source and translations
+- **TMX File**: Translation memory format for CAT tools
+- **Processing Log**: Detailed status in bottom-right panel
+
+### 🎨 Exploring the Interface and Libraries
+
+#### Understanding the Interface
+**Professional 3-Panel Design**:
+- **Left Panel**: All controls and settings (resizable)
+- **Top Right**: Information and guidance (larger display)
+- **Bottom Right**: Real-time processing log
+
+#### Access the Prompt Library
+1. **Expand Section**: Click "⚙️ Prompt Library (Click to expand/collapse)"
+2. **Four Tabs Available**:
+   - **Translation Prompt**: Control AI translation behavior
+   - **Proofreading Prompt**: Control AI proofreading behavior  
+   - **📁 Custom Prompt Library**: Save and manage your custom prompts
+   - **📂 Project Library**: Complete workspace management
+
+#### Try Domain-Specific Prompts
+1. **Switch to 📁 Custom Prompt Library tab**
+2. **Browse Available Sets**: See the 8 domain-specific collections
+3. **Select**: "Medical Translation Specialist" or your preferred domain
+4. **Load**: Click "📂 Load Selected"
+5. **Active Indicator**: Notice the ⚡ lightning bolt showing it's active
+
+#### Create Your Own Project
+1. **Switch to 📂 Project Library tab**
+2. **Configure Settings**: Set up your languages, provider, file paths
+3. **Save Project**: Enter name like "Medical Documents Project"
+4. **Click**: "💾 Save Current Project"
+5. **Success**: See your project in the list with timestamp!
+
+### 🔄 Your First Proofreading
+
+#### Prepare Proofreading File  
+Create `proofread_sample.txt` with tab-separated content:
+```
+Hello world	Hola mundo
+How are you?	Como estas?
+Good morning	Buenos dias
+The weather is nice	El clima esta bien
+```
+
+#### Run Proofreading
+1. **Change Mode**: Select "Proofread" 
+2. **Input File**: Browse and select your proofreading file
+3. **Same Settings**: Keep your language and AI provider
+4. **Process**: Click "Start Process"
+
+#### Review Improvements
+The AI will:
+- Fix spelling errors (missing accents)
+- Improve fluency and naturalness  
+- Provide explanations for changes
+- Maintain original meaning
 
 ### File Format Requirements
 
