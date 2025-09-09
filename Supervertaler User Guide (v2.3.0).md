@@ -3,7 +3,7 @@
 
 ---
 
-## 🚀 Quick Navigation
+## 🚀 Table of Contents
 - **[🔧 CAT Tool Integration](#-cat-tool-integration)** - Essential workflow for professional translators
 - **[⚡ Quick Start](#-5-minute-quick-start)** - Get up and running fast!
 - **[📖 Complete Guide](#complete-user-guide)** - Comprehensive documentation
