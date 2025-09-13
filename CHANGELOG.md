@@ -39,6 +39,29 @@
   - Technical Translation Specialist: Engineering precision, safety warnings, technical documentation
   - Cryptocurrency & Blockchain Specialist: DeFi protocols, Web3 terminology, security considerations
   - Gaming & Entertainment Specialist: Cultural adaptation, character voice, user experience optimization
+- **NEW: Private Custom Prompts Support** - Confidential prompt management:
+  - `custom_prompts_private/` folder for sensitive/proprietary prompts
+  - Never synced to GitHub (gitignore protection)
+  - Perfect for client-specific, confidential, or company proprietary prompts
+  - Seamlessly integrated with existing prompt library interface
+  - [Private] prefix clearly identifies confidential prompts in UI
+- **FIXED: OpenAI Integration** - Complete OpenAI support implementation:
+  - Fully implemented OpenAITranslationAgent and OpenAIProofreadingAgent
+  - Fixed "Translator model init failed" error when using OpenAI provider
+  - Complete feature parity with Gemini and Claude (multimodal, tracked changes, custom prompts)
+  - Support for all OpenAI models including latest GPT-5 (September 2025 release)
+  - Proper error handling and logging throughout OpenAI integration
+- **FIXED: Custom Prompt Loading Issues** - JSON structure compatibility:
+  - Resolved custom prompt loading failures for domain-specific prompts
+  - Standardized JSON structure across all custom prompt files
+  - Converted nested "prompts" format to flat "translate_prompt"/"proofread_prompt" format
+  - All 8 domain-specific prompt collections now load correctly
+- **ENHANCED: Documentation Structure** - Streamlined user guide:
+  - Consolidated separate Quick Start Guide into main User Guide
+  - Removed redundant "Quick Start" section while preserving valuable content
+  - Renamed main navigation from "Table of Contents" to "Reading Guide" for clarity
+  - Integrated practical walkthroughs into "Getting Started" section
+  - Fixed table of contents references and emoji encoding issues
 - **ENHANCED: Library Structure Reorganization**:
   - Renamed "Advanced System Prompts" to "Prompt Library" for clarity
   - Clear hierarchy: Prompt Library → Custom Prompt Library → Project Library
