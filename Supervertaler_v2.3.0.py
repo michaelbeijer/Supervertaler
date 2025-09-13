@@ -1395,6 +1395,219 @@ class ClaudeProofreadingAgent(BaseProofreadingAgent):
         self.log_queue.put(f"[Claude Proofreader] Proofreading parse complete. Segments: {len(results)}.")
         return results
 
+# --- OpenAI Agents ---
+class OpenAITranslationAgent(BaseTranslationAgent):
+    def __init__(self, api_key, log_queue, model_name='gpt-4o'):
+        super().__init__(api_key, log_queue, model_name, "OpenAI")
+        if not OPENAI_AVAILABLE:
+            self.log_queue.put("[OpenAI Translator] ERROR: openai library not available.")
+            return
+        if not api_key:
+            self.log_queue.put("[OpenAI Translator] ERROR: API Key is missing.")
+            return
+        try:
+            self.client = openai.OpenAI(api_key=api_key)
+            self.model = self.model_name
+            self.log_queue.put(f"[OpenAI Translator] Agent with model '{self.model_name}' initialized.")
+        except Exception as e:
+            self.log_queue.put(f"[OpenAI Translator] ERROR init ('{self.model_name}'): {e}.")
+
+    def translate_specific_lines_with_drawings_context(self, lines_map_to_translate, full_document_context_text_str,
+                                                       source_lang, target_lang, all_source_segments_original_list,
+                                                       drawings_images_map, user_custom_instructions="",
+                                                       tracked_changes_data=None, custom_system_prompt=None):
+        if not self.model:
+            return {n: f"[Err: Model not init]" for n in lines_map_to_translate.keys()}
+        if not lines_map_to_translate:
+            return {}
+        line_nums = sorted(list(lines_map_to_translate.keys()))
+        self.log_queue.put(f"[OpenAI Translator] Translating {len(line_nums)} lines: {line_nums[:3]}... w/ '{self.model_name}' (images + tracked changes)...")
+
+        content_parts = []
+        def add_text(t):
+            if t:
+                content_parts.append({"type": "text", "text": t})
+        
+        def add_image(img):
+            if img:
+                import io
+                import base64
+                buffer = io.BytesIO()
+                img.save(buffer, format='PNG')
+                img_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+                content_parts.append({
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:image/png;base64,{img_base64}"
+                    }
+                })
+
+        # Use custom system prompt if provided, otherwise use default
+        if custom_system_prompt:
+            try:
+                system_prompt = custom_system_prompt.format(source_lang=source_lang, target_lang=target_lang)
+            except:
+                system_prompt = custom_system_prompt
+        else:
+            system_prompt = f"You are an expert {source_lang} to {target_lang} translator. Translate ONLY the sentences from 'PATENT SENTENCES TO TRANSLATE' later, maintaining their original line numbers.\n\nPresent your output ONLY as a numbered list of translations for the requested sentences."
+
+        # Add context
+        add_text(f"FULL DOCUMENT CONTEXT for reference:\n{full_document_context_text_str}\n\n")
+        if user_custom_instructions:
+            add_text(f"ADDITIONAL INSTRUCTIONS:\n{user_custom_instructions}\n\n")
+        if tracked_changes_data and tracked_changes_data != "No tracked changes found.":
+            add_text(f"TRACKED CHANGES:\n{tracked_changes_data}\n\n")
+
+        # Add sentences to translate
+        add_text("PATENT SENTENCES TO TRANSLATE:\n")
+        numbered_src_line = ""
+        for num in line_nums:
+            src_line = lines_map_to_translate[num]
+            if num in drawings_images_map:
+                img_added = False
+                ref_name = f"FIGURE {num}"
+                for ref, img in drawings_images_map.items():
+                    if ref.upper().replace(" ", "").replace(".", "") == ref_name.upper().replace(" ", "").replace(".", ""):
+                        add_text(numbered_src_line)
+                        add_image(img)
+                        numbered_src_line = f"\n{num}. {src_line}\n"
+                        img_added = True
+                        break
+            numbered_src_line += f"{num}. {src_line}\n"
+            if img_added:
+                add_text(numbered_src_line)
+                numbered_src_line = ""
+        add_text(numbered_src_line)
+        add_text("TRANSLATED SENTENCES (numbered list for 'PATENT SENTENCES TO TRANSLATE' only):")
+
+        try:
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": content_parts}
+            ]
+            response = self.client.chat.completions.create(
+                model=self.model_name,
+                messages=messages,
+                max_tokens=2048,
+                temperature=0.1
+            )
+            raw_text = response.choices[0].message.content if response.choices else ""
+        except Exception as e:
+            self.log_queue.put(f"[OpenAI Translator] Error: {e}")
+            return {n: f"[TL Err line {n} (OpenAI): {e}]" for n in lines_map_to_translate.keys()}
+
+        translations = {}
+        for line in (raw_text or "").splitlines():
+            m = re.match(r"^\s*(\d+)\.\s*(.*)", line.strip())
+            if m:
+                num = int(m.group(1)); txt = m.group(2).strip()
+                if num in line_nums: translations[num] = txt
+        for num in line_nums:
+            if num not in translations:
+                self.log_queue.put(f"[OpenAI Translator] Warn: Missing TL line {num}. Placeholder.")
+                translations[num] = f"[TL Missing line {num}]"
+        return translations
+
+class OpenAIProofreadingAgent(BaseProofreadingAgent):
+    def __init__(self, api_key, log_queue, model_name='gpt-4o'):
+        super().__init__(api_key, log_queue, model_name, "OpenAI")
+        if not OPENAI_AVAILABLE:
+            self.log_queue.put("[OpenAI Proofreader] ERROR: openai library not available.")
+            return
+        if not api_key:
+            self.log_queue.put("[OpenAI Proofreader] ERROR: API Key is missing.")
+            return
+        try:
+            self.client = openai.OpenAI(api_key=api_key)
+            self.model = self.model_name
+            self.log_queue.put(f"[OpenAI Proofreader] Agent with model '{self.model_name}' initialized.")
+        except Exception as e:
+            self.log_queue.put(f"[OpenAI Proofreader] ERROR init ('{self.model_name}'): {e}.")
+
+    def proofread_specific_lines_with_context(self, lines_data, full_document_context_text_str,
+                                            source_lang, target_lang, user_custom_instructions="",
+                                            tracked_changes_data=None, custom_system_prompt=None):
+        if not self.model:
+            return [{"line_num": item.get("line_num", 0), "original_target": item.get("target", ""), 
+                    "revised_target": f"[Err: Model not init]", "changes_summary": ""} for item in lines_data]
+        if not lines_data:
+            return []
+
+        line_nums = [item.get("line_num") for item in lines_data]
+        self.log_queue.put(f"[OpenAI Proofreader] Proofreading {len(line_nums)} lines: {line_nums[:3]}... w/ '{self.model_name}'...")
+
+        # Use custom system prompt if provided, otherwise use default
+        if custom_system_prompt:
+            try:
+                system_prompt = custom_system_prompt.format(source_lang=source_lang, target_lang=target_lang)
+            except:
+                system_prompt = custom_system_prompt
+        else:
+            system_prompt = f"You are an expert {source_lang}-{target_lang} translation proofreader. Review and improve the translations provided, maintaining accuracy and fluency."
+
+        # Build content
+        content = f"FULL DOCUMENT CONTEXT for reference:\n{full_document_context_text_str}\n\n"
+        if user_custom_instructions:
+            content += f"ADDITIONAL INSTRUCTIONS:\n{user_custom_instructions}\n\n"
+        if tracked_changes_data and tracked_changes_data != "No tracked changes found.":
+            content += f"TRACKED CHANGES:\n{tracked_changes_data}\n\n"
+        
+        content += "TRANSLATIONS TO REVIEW:\n"
+        for item in lines_data:
+            line_num = item.get("line_num")
+            source = item.get("source", "")
+            target = item.get("target", "")
+            content += f"{line_num}. SOURCE: {source}\n   TARGET: {target}\n\n"
+        
+        content += "REVISED TRANSLATIONS (numbered list only):"
+
+        try:
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": content}
+            ]
+            response = self.client.chat.completions.create(
+                model=self.model_name,
+                messages=messages,
+                max_tokens=3000,
+                temperature=0.1
+            )
+            raw_text = response.choices[0].message.content if response.choices else ""
+        except Exception as e:
+            self.log_queue.put(f"[OpenAI Proofreader] Error: {e}")
+            return [{"line_num": item.get("line_num", 0), "original_target": item.get("target", ""), 
+                    "revised_target": f"[PR Err line {item.get('line_num', 0)} (OpenAI): {e}]", 
+                    "changes_summary": ""} for item in lines_data]
+
+        # Parse responses
+        parsed_translations = {}
+        for line in (raw_text or "").splitlines():
+            m = re.match(r"^\s*(\d+)\.\s*(.*)", line.strip())
+            if m:
+                num = int(m.group(1)); txt = m.group(2).strip()
+                if num in line_nums: parsed_translations[num] = txt
+
+        results = []
+        for item in lines_data:
+            line_num = item.get("line_num")
+            original_target = item.get("target", "")
+            entry = {
+                "line_num": line_num,
+                "source": item.get("source", ""),
+                "original_target": original_target,
+                "comment": item.get("comment", "")
+            }
+            if line_num in parsed_translations and parsed_translations[line_num]:
+                entry["revised_target"] = parsed_translations[line_num]
+                entry["changes_summary"] = "Revised by OpenAI" if parsed_translations[line_num] != original_target else "No changes needed"
+            else:
+                entry["revised_target"] = original_target
+                self.log_queue.put(f"[OpenAI Proofreader] Note: Using original translation for line {line_num} (missing or empty revised output).")
+            results.append(entry)
+
+        self.log_queue.put(f"[OpenAI Proofreader] Proofreading parse complete. Segments: {len(results)}.")
+        return results
+
 # --- Agent Factory Functions ---
 def create_translation_agent(provider, api_key, log_queue, model_name):
     if provider.lower() == "gemini":
@@ -1402,8 +1615,7 @@ def create_translation_agent(provider, api_key, log_queue, model_name):
     elif provider.lower() == "claude":
         return ClaudeTranslationAgent(api_key, log_queue, model_name)
     elif provider.lower() == "openai":
-        log_queue.put("[Factory] OpenAI translator not implemented in this build.")
-        return None
+        return OpenAITranslationAgent(api_key, log_queue, model_name)
     else:
         log_queue.put(f"[Factory] Unknown provider: {provider}")
         return None
@@ -1414,8 +1626,7 @@ def create_proofreading_agent(provider, api_key, log_queue, model_name):
     elif provider.lower() == "claude":
         return ClaudeProofreadingAgent(api_key, log_queue, model_name)
     elif provider.lower() == "openai":
-        log_queue.put("[Factory] OpenAI proofreader not implemented in this build.")
-        return None
+        return OpenAIProofreadingAgent(api_key, log_queue, model_name)
     else:
         log_queue.put(f"[Factory] Unknown provider: {provider}")
         return None
