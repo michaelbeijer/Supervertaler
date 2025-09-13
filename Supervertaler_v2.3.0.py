@@ -2114,9 +2114,17 @@ class TranslationApp:
             messagebox.showinfo("Loaded", "Default system prompts loaded.")
             return
             
-        # Find the JSON file
-        filename = f"{selected_name}.json"
-        filepath = os.path.join(self.custom_prompts_dir, filename)
+        # Determine if this is a private prompt and get the correct path
+        if selected_name.startswith("[Private] "):
+            # Private prompt - remove prefix and look in private folder
+            actual_name = selected_name[10:]  # Remove "[Private] " prefix
+            filename = f"{actual_name}.json"
+            private_prompts_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "custom_prompts_private")
+            filepath = os.path.join(private_prompts_dir, filename)
+        else:
+            # Public prompt - look in public folder
+            filename = f"{selected_name}.json"
+            filepath = os.path.join(self.custom_prompts_dir, filename)
         
         if not os.path.exists(filepath):
             messagebox.showerror("File Not Found", f"Prompt file not found: {filename}")
@@ -2186,8 +2194,17 @@ class TranslationApp:
         if not messagebox.askyesno("Confirm Delete", f"Are you sure you want to delete the prompt set '{selected_name}'?\n\nThis action cannot be undone."):
             return
             
-        filename = f"{selected_name}.json"
-        filepath = os.path.join(self.custom_prompts_dir, filename)
+        # Determine if this is a private prompt and get the correct path
+        if selected_name.startswith("[Private] "):
+            # Private prompt - remove prefix and look in private folder
+            actual_name = selected_name[10:]  # Remove "[Private] " prefix
+            filename = f"{actual_name}.json"
+            private_prompts_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "custom_prompts_private")
+            filepath = os.path.join(private_prompts_dir, filename)
+        else:
+            # Public prompt - look in public folder
+            filename = f"{selected_name}.json"
+            filepath = os.path.join(self.custom_prompts_dir, filename)
         
         try:
             if os.path.exists(filepath):
@@ -2198,7 +2215,6 @@ class TranslationApp:
             else:
                 messagebox.showerror("File Not Found", f"Prompt file not found: {filename}")
                 self.refresh_prompts_list()
-                
         except Exception as e:
             messagebox.showerror("Error", f"Failed to delete prompt set: {str(e)}")
             self.update_log(f"[ERROR] Failed to delete prompts: {str(e)}")
@@ -2210,15 +2226,34 @@ class TranslationApp:
         # Add default option
         self.prompts_listbox.insert(tk.END, "[Default System Prompts]")
         
-        # Scan custom prompts directory
+        # Scan both custom prompts directories
+        prompt_files = []
+        
+        # Scan public custom prompts directory
         if os.path.exists(self.custom_prompts_dir):
             try:
                 for filename in sorted(os.listdir(self.custom_prompts_dir)):
                     if filename.endswith('.json'):
                         prompt_name = filename[:-5]  # Remove .json extension
-                        self.prompts_listbox.insert(tk.END, prompt_name)
+                        prompt_files.append(prompt_name)
             except Exception as e:
                 self.update_log(f"[ERROR] Failed to scan custom prompts: {str(e)}")
+        
+        # Scan private custom prompts directory
+        private_prompts_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "custom_prompts_private")
+        if os.path.exists(private_prompts_dir):
+            try:
+                for filename in sorted(os.listdir(private_prompts_dir)):
+                    if filename.endswith('.json'):
+                        prompt_name = filename[:-5]  # Remove .json extension
+                        # Add [Private] prefix to distinguish from public prompts
+                        prompt_files.append(f"[Private] {prompt_name}")
+            except Exception as e:
+                self.update_log(f"[ERROR] Failed to scan private custom prompts: {str(e)}")
+        
+        # Add all prompts to listbox
+        for prompt_name in sorted(prompt_files):
+            self.prompts_listbox.insert(tk.END, prompt_name)
 
     def on_prompt_selection(self, event=None):
         """Handle prompt selection in listbox"""
