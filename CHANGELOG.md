@@ -32,6 +32,18 @@
 - **API Parameter Handling**: Improved parameter detection for different OpenAI models
   - Dynamic parameter selection based on model capabilities
   - Proper error handling for unsupported parameters
+- **Proofreading Output Format**: Comprehensive fixes for professional CAT tool integration
+  - Fixed doubled line count issue in proofreading output (proper 1:1 line mapping)
+  - Resolved GPT-5 proofreading parameter conflicts and format parsing
+  - Enhanced comment formatting to remove embedded newlines that broke tab-separated format
+  - Improved extraction of corrected text vs explanatory comments for proper column separation
+- **Gemini Proofreading Agent**: Fixed critical API format incompatibility
+  - Corrected message format from OpenAI-style to proper Gemini SDK format
+  - Resolved dictionary format errors that prevented Gemini proofreading from working
+- **OpenAI Proofreading Agent**: Enhanced response parsing for GPT-5
+  - Added intelligent text extraction to separate corrected text from explanations
+  - Improved handling of various correction patterns ("corrected X to Y", "rephrased to X", etc.)
+  - Smart detection of substantial corrections vs brief explanations
 
 ### Changed
 - **Token Management**: Smarter token allocation strategy for reasoning models

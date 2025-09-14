@@ -1113,8 +1113,7 @@ class GeminiProofreadingAgent(BaseProofreadingAgent):
         prompt_parts.append("\nREVISED TRANSLATIONS (numbered list only):")
 
         try:
-            msg = {"role": "user", "content": prompt_parts}
-            response = self.model.generate_content(msg)
+            response = self.model.generate_content(prompt_parts)
             raw_text = getattr(response, "text", "") or ""
             if not raw_text:
                 self.log_queue.put(f"[Gemini Proofreader] Warn: Empty response for lines {line_nums}. Response: {response}")
@@ -1724,6 +1723,140 @@ class OpenAIProofreadingAgent(BaseProofreadingAgent):
         else:
             return {"temperature": 0.1}
 
+    def extract_corrected_text_and_explanation(self, response_text, lines_data, line_num):
+        """Extract both the corrected text and explanation from AI response."""
+        if not response_text:
+            return "", ""
+            
+        # Get the original target text for this line
+        original_target = ""
+        for item in lines_data:
+            if item.get("line_num") == line_num:
+                original_target = item.get("target", "")
+                break
+        
+        # Common patterns indicating no changes needed
+        no_change_patterns = [
+            "no change needed",
+            "no changes needed", 
+            "unchanged",
+            "text appears identical",
+            "keep as is",
+            "original is correct",
+            "no revision required"
+        ]
+        
+        response_lower = response_text.lower()
+        if any(pattern in response_lower for pattern in no_change_patterns):
+            return original_target, response_text
+            
+        # Pattern for explicit corrections like 'Corrected "old" to "new"'
+        correction_patterns = [
+            r'corrected\s+["\']([^"\']+)["\']\s+to\s+["\']([^"\']+)["\']',
+            r'changed\s+["\']([^"\']+)["\']\s+to\s+["\']([^"\']+)["\']',
+            r'replaced\s+["\']([^"\']+)["\']\s+with\s+["\']([^"\']+)["\']'
+        ]
+        
+        for pattern in correction_patterns:
+            match = re.search(pattern, response_text, re.IGNORECASE)
+            if match:
+                old_text = match.group(1)
+                new_text = match.group(2)
+                # Replace the old text with new text in the original target
+                if old_text.lower() in original_target.lower():
+                    # Find the actual case in the original
+                    original_lower = original_target.lower()
+                    start_idx = original_lower.find(old_text.lower())
+                    if start_idx != -1:
+                        end_idx = start_idx + len(old_text)
+                        corrected_text = original_target[:start_idx] + new_text + original_target[end_idx:]
+                        return corrected_text, response_text
+        
+        # Special patterns for rephrasings and replacements
+        rephrase_patterns = [
+            r'rephrased to ["\']([^"\']+)["\']',
+            r'standardized to ["\']([^"\']+)["\']',
+            r'harmonized to ["\']([^"\']+)["\']',
+            r'adjusted to ["\']([^"\']+)["\']'
+        ]
+        
+        for pattern in rephrase_patterns:
+            match = re.search(pattern, response_text, re.IGNORECASE)
+            if match:
+                new_text = match.group(1)
+                return new_text, response_text
+        
+        # Check if response looks like a partial replacement (just the new term)
+        # This catches cases like "model voor multimodale informatieverwerking" or "omvatten"
+        if (len(response_text.split()) <= 10 and  # Short response
+            not any(word in response_lower for word in ["for", "to", "with", "standardized", "replaced", "rephrased", "adjusted"]) and
+            response_text != original_target and
+            not response_text.lower().startswith(("note:", "explanation:", "comment:"))):
+            
+            # This might be just the corrected term/phrase
+            # Try to find where it should go in the original
+            if response_text.lower() in original_target.lower():
+                # It's already in the original, return original
+                return original_target, response_text
+            else:
+                # Check if this could be a replacement for a specific part
+                # For now, if it's very short and doesn't contain explanation words, treat as corrected text
+                if len(response_text.split()) <= 3:
+                    # Very short - likely just a term replacement, but we need context
+                    # For safety, return original with explanation
+                    return original_target, response_text
+                else:
+                    # Longer response that might be the corrected text
+                    return response_text, response_text
+        
+        # If the response looks like an explanation rather than corrected text
+        explanation_indicators = [
+            "standardized", "harmonized", "adjusted", "improved", "refined", "enhanced", 
+            "for clarity", "for consistency", "to match", "to reflect", "maintains meaning",
+            "added", "removed", "replaced", "modified", "rephrased"
+        ]
+        
+        if any(indicator in response_lower for indicator in explanation_indicators):
+            # This looks like an explanation, try to extract quoted corrections
+            quoted_text = re.findall(r'"([^"]+)"', response_text)
+            if len(quoted_text) >= 2:
+                # Look for "from" to "to" pattern in quotes
+                for i in range(len(quoted_text) - 1):
+                    old_candidate = quoted_text[i]
+                    new_candidate = quoted_text[i + 1]
+                    if old_candidate.lower() in original_target.lower():
+                        # Apply the correction
+                        original_lower = original_target.lower()
+                        old_lower = old_candidate.lower()
+                        start_idx = original_lower.find(old_lower)
+                        if start_idx != -1:
+                            end_idx = start_idx + len(old_candidate)
+                            corrected_text = original_target[:start_idx] + new_candidate + original_target[end_idx:]
+                            return corrected_text, response_text
+                            
+                # If no clear correction found, check if last quote is different from original
+                if quoted_text[-1] != original_target and quoted_text[-1].lower() != original_target.lower():
+                    # Check if it's a substantial piece of text (not just a word)
+                    if len(quoted_text[-1].split()) > 3:
+                        return quoted_text[-1], response_text
+            elif len(quoted_text) == 1:
+                # Single quote might be the correction if it's substantial and different
+                if (quoted_text[0] != original_target and 
+                    quoted_text[0].lower() != original_target.lower() and
+                    len(quoted_text[0].split()) > 3):
+                    return quoted_text[0], response_text
+            
+            # If we can't extract a clear correction, return original with explanation
+            return original_target, response_text
+        
+        # If response seems to be the corrected text itself (longer, substantive text)
+        if (len(response_text.split()) > 5 and 
+            not response_text.lower().startswith(("note:", "explanation:", "comment:"))):
+            return response_text, response_text
+            
+        # Default: return original with explanation
+        return original_target, response_text
+
     def proofread_specific_lines_with_context(self, lines_data, full_document_context_text_str,
                                             source_lang, target_lang, user_custom_instructions="",
                                             tracked_changes_data=None, custom_system_prompt=None):
@@ -1743,7 +1876,18 @@ class OpenAIProofreadingAgent(BaseProofreadingAgent):
             except:
                 system_prompt = custom_system_prompt
         else:
-            system_prompt = f"You are an expert {source_lang}-{target_lang} translation proofreader. Review and improve the translations provided, maintaining accuracy and fluency."
+            # Enhanced system prompt for GPT-5 clarity
+            system_prompt = f"""You are an expert {source_lang}-{target_lang} translation proofreader. 
+
+Review and improve the translations provided, maintaining accuracy and fluency.
+
+OUTPUT FORMAT: Provide only a numbered list of revised translations. Use this exact format:
+1. [revised translation for line 1]
+2. [revised translation for line 2]
+3. [revised translation for line 3]
+
+If a translation needs no changes, output the original translation for that line number.
+Do not include explanations or comments - only the numbered translations."""
 
         # Build content
         content = f"FULL DOCUMENT CONTEXT for reference:\n{full_document_context_text_str}\n\n"
@@ -1759,7 +1903,7 @@ class OpenAIProofreadingAgent(BaseProofreadingAgent):
             target = item.get("target", "")
             content += f"{line_num}. SOURCE: {source}\n   TARGET: {target}\n\n"
         
-        content += "REVISED TRANSLATIONS (numbered list only):"
+        content += "REVISED TRANSLATIONS (numbered list only, no explanations):"
 
         try:
             messages = [
@@ -1768,29 +1912,71 @@ class OpenAIProofreadingAgent(BaseProofreadingAgent):
             ]
             
             # Get the correct token parameter based on the model
-            token_params = self.get_token_parameter(3000)
+            # For GPT-5, use dynamic token allocation like the translation agent
+            if "gpt-5" in self.model_name.lower():
+                # Calculate dynamic token limit based on number of lines (like translation agent)
+                segment_count = len(lines_data)
+                token_limit = max(32000, segment_count * 500)  # 32K minimum, 500 per segment
+                # Cap at 50K to prevent excessive costs
+                token_limit = min(token_limit, 50000)
+                self.log_queue.put(f"[OpenAI Proofreader] DEBUG - GPT-5 dynamic token limit: {token_limit} for {segment_count} segments")
+                token_params = self.get_token_parameter(token_limit)
+            else:
+                token_params = self.get_token_parameter(3000)
+            
             temp_params = self.get_temperature_parameter()
+            
+            # For GPT-5, add reasoning_effort parameter to control thinking
+            extra_params = {}
+            if "gpt-5" in self.model_name.lower():
+                extra_params["reasoning_effort"] = "low"  # Use less reasoning to save tokens for output
+                self.log_queue.put(f"[OpenAI Proofreader] DEBUG - Adding reasoning_effort=low for GPT-5")
             
             response = self.client.chat.completions.create(
                 model=self.model_name,
                 messages=messages,
                 **token_params,
-                **temp_params
+                **temp_params,
+                **extra_params
             )
             raw_text = response.choices[0].message.content if response.choices else ""
+            
+            # Debug: Log what GPT-5 actually returns
+            self.log_queue.put(f"[OpenAI Proofreader DEBUG] Raw GPT-5 response (first 200 chars): {raw_text[:200]}...")
+            
+            # Enhanced GPT-5 debugging like the translation agent
+            if "gpt-5" in self.model_name.lower():
+                self.log_queue.put(f"[OpenAI Proofreader] DEBUG - Response object type: {type(response)}")
+                self.log_queue.put(f"[OpenAI Proofreader] DEBUG - First choice finish_reason: {response.choices[0].finish_reason if response.choices else 'no choices'}")
+                if hasattr(response, 'usage') and response.usage:
+                    completion_tokens = getattr(response.usage, 'completion_tokens', 'unknown')
+                    reasoning_tokens = getattr(response.usage, 'reasoning_tokens', 'unknown')
+                    self.log_queue.put(f"[OpenAI Proofreader] DEBUG - Usage: completion_tokens={completion_tokens}, reasoning_tokens={reasoning_tokens}")
+                else:
+                    self.log_queue.put(f"[OpenAI Proofreader] DEBUG - No usage information available")
+                self.log_queue.put(f"[OpenAI Proofreader] DEBUG - Raw response length: {len(raw_text)} chars")
+                if not raw_text.strip():
+                    self.log_queue.put(f"[OpenAI Proofreader] WARNING - GPT-5 returned empty response!")
+            
         except Exception as e:
             self.log_queue.put(f"[OpenAI Proofreader] Error: {e}")
             return [{"line_num": item.get("line_num", 0), "original_target": item.get("target", ""), 
                     "revised_target": f"[PR Err line {item.get('line_num', 0)} (OpenAI): {e}]", 
                     "changes_summary": ""} for item in lines_data]
 
-        # Parse responses
+        # Parse responses - handle both "1." and "1)" formats that GPT-5 might use
         parsed_translations = {}
+        parsed_explanations = {}
         for line in (raw_text or "").splitlines():
-            m = re.match(r"^\s*(\d+)\.\s*(.*)", line.strip())
+            # Updated regex to match both "1." and "1)" formats
+            m = re.match(r"^\s*(\d+)[\.\)]\s*(.*)", line.strip())
             if m:
                 num = int(m.group(1)); txt = m.group(2).strip()
-                if num in line_nums: parsed_translations[num] = txt
+                if num in line_nums: 
+                    # Process the response to extract actual corrected text and explanation
+                    corrected_text, explanation = self.extract_corrected_text_and_explanation(txt, lines_data, num)
+                    parsed_translations[num] = corrected_text
+                    parsed_explanations[num] = explanation
 
         results = []
         for item in lines_data:
@@ -1802,11 +1988,22 @@ class OpenAIProofreadingAgent(BaseProofreadingAgent):
                 "original_target": original_target,
                 "comment": item.get("comment", "")
             }
-            if line_num in parsed_translations and parsed_translations[line_num]:
-                entry["revised_target"] = parsed_translations[line_num]
-                entry["changes_summary"] = "Revised by OpenAI" if parsed_translations[line_num] != original_target else "No changes needed"
+            if line_num in parsed_translations:
+                corrected_text = parsed_translations[line_num]
+                explanation = parsed_explanations.get(line_num, "")
+                
+                entry["revised_target"] = corrected_text
+                
+                # Create enhanced comment with explanation
+                base_comment = "Revised by OpenAI" if corrected_text != original_target else "No changes needed"
+                if explanation and explanation != corrected_text:
+                    # Add the explanation to the comment
+                    entry["changes_summary"] = f"{base_comment}: {explanation}"
+                else:
+                    entry["changes_summary"] = base_comment
             else:
                 entry["revised_target"] = original_target
+                entry["changes_summary"] = "No changes needed"
                 self.log_queue.put(f"[OpenAI Proofreader] Note: Using original translation for line {line_num} (missing or empty revised output).")
             results.append(entry)
 
@@ -1899,6 +2096,7 @@ class TranslationApp:
             "⚙️ OPERATION MODES:\n\n"
             "TRANSLATE: Input .txt (one segment per line) → source<TAB>translation + TMX\n"
             "PROOFREAD: Input source<TAB>target<TAB>comment → revised output with summaries\n\n"
+            "⚠️ Please note: Proofreading functionality with OpenAI/Claude is still a little buggy; Gemini works fine. Translation also works well (with all AIs).\n\n"
             "🔧 PROFESSIONAL FEATURES:\n"
             "• Multi-Provider Support: Claude, Gemini, OpenAI with intelligent selection\n"
             "• Intelligent Chunking: Optimized processing for large documents\n"
@@ -3379,11 +3577,32 @@ class TranslationApp:
                         tracked_changes_data=self.tracked_changes_agent, custom_system_prompt=custom_system_prompt)
                 elif mode == "Proofread":
                     lines_map_for_llm = {orig_idx + 1: {"source": source_segments_original[orig_idx], "target_original": original_target_segments[orig_idx]} for orig_idx in current_orig_doc_indices}
-                    chunk_results = proofreader.proofread_specific_lines_with_context(
-                        lines_map_for_llm, full_source_doc_str, full_original_target_doc_str,
-                        source_lang, target_lang, source_segments_original, drawings_map,
-                        user_custom_instructions, tracked_changes_data=self.tracked_changes_agent, 
-                        custom_system_prompt=custom_system_prompt)
+                    
+                    # OpenAI agent has different method signature
+                    if isinstance(proofreader, OpenAIProofreadingAgent):
+                        # Convert lines_map to the format expected by OpenAI agent
+                        lines_data = [{"line_num": line_num, "source": data["source"], "target": data["target_original"]} 
+                                     for line_num, data in lines_map_for_llm.items()]
+                        openai_results = proofreader.proofread_specific_lines_with_context(
+                            lines_data, full_source_doc_str, source_lang, target_lang,
+                            user_custom_instructions, self.tracked_changes_agent, custom_system_prompt)
+                        
+                        # Convert OpenAI list format to dictionary format expected by the pipeline
+                        chunk_results = {}
+                        for result in openai_results:
+                            line_num = result.get("line_num")
+                            if line_num:
+                                chunk_results[line_num] = {
+                                    "revised_target": result.get("revised_target", result.get("original_target", "")),
+                                    "changes_summary": result.get("changes_summary", "")
+                                }
+                    else:
+                        # Gemini/Claude agents use the full parameter set
+                        chunk_results = proofreader.proofread_specific_lines_with_context(
+                            lines_map_for_llm, full_source_doc_str, full_original_target_doc_str,
+                            source_lang, target_lang, source_segments_original, drawings_map,
+                            user_custom_instructions, self.tracked_changes_agent, 
+                            custom_system_prompt)
                 
                 llm_processed_map.update(chunk_results)
                 self.log_queue.put(f"Finished LLM Chunk {i+1}/{num_llm_chunks} for {mode}.")
@@ -3413,16 +3632,16 @@ class TranslationApp:
                 output_target_list.append(revised_target)
                 existing_comment = original_comments[i]
                 comment_parts = []
-                if existing_comment: comment_parts.append(f"ORIGINAL COMMENT:\n{existing_comment}")
+                if existing_comment: comment_parts.append(f"ORIGINAL COMMENT: {existing_comment}")
                 if revised_target.strip() != original_target_segments[i].strip(): 
                     if ai_summary and "No changes made" not in ai_summary:
-                        comment_parts.append(f"PROOFREADER COMMENT (AI):\n{ai_summary}")
+                        comment_parts.append(f"PROOFREADER COMMENT (AI): {ai_summary}")
                     else: 
-                        comment_parts.append(f"PROOFREADER COMMENT (AI):\nSegment was modified by AI.")
+                        comment_parts.append(f"PROOFREADER COMMENT (AI): Segment was modified by AI.")
                         modified_lines_count +=1
                 elif ai_summary and "No changes made" not in ai_summary: 
-                     comment_parts.append(f"PROOFREADER COMMENT (AI):\n{ai_summary} (Note: Text appears identical to original despite summary.)")
-                output_comment_list.append("\n\n".join(comment_parts).strip() if comment_parts else None)
+                     comment_parts.append(f"PROOFREADER COMMENT (AI): {ai_summary} (Note: Text appears identical to original despite summary.)")
+                output_comment_list.append(" | ".join(comment_parts).strip() if comment_parts else None)
         
         had_errors = any(t is None or "[Err" in str(t) or "[Missing" in str(t) or "[SYS ERR" in str(t) for t in output_target_list)
         file_ok = output_gen.process(
