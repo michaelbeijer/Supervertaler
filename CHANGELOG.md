@@ -1,5 +1,46 @@
 # Supervertaler - Changelog
 
+## [2.3.1] - 2025-09-14
+
+### Added
+- **GPT-5 Support**: Full compatibility with OpenAI's GPT-5 model
+  - Automatic parameter detection (`max_completion_tokens` vs `max_tokens`)
+  - Temperature parameter compatibility (GPT-5 uses default temperature)
+  - Reasoning effort control (`reasoning_effort="low"`) to optimize token usage
+  - Dynamic token limits based on segment count (up to 50K tokens for large jobs)
+  - Automatic cleanup of GPT-5's double-numbering output format
+- **Switch Languages Button**: New GUI feature for quick language pair switching
+  - One-click swap between source and target languages
+  - Convenient placement next to language input fields
+  - Clear "⇄ Switch languages" label for intuitive use
+- **Enhanced Debugging**: Comprehensive GPT-5 diagnostic system
+  - Detailed API response analysis (finish reason, usage statistics, content validation)
+  - Token usage breakdown (reasoning tokens vs output tokens)
+  - Simple test request fallback for troubleshooting
+- **Session Reporting**: Comprehensive markdown reports generated alongside translation outputs
+  - Captures complete AI prompts sent to providers (system prompts, custom prompts, custom instructions)
+  - Records all session settings (provider, model, languages, file paths, etc.)
+  - Documents processing statistics and context data
+  - Saved as `[output_filename]_report.md` for transparency and reproducibility
+
+### Fixed
+- **GPT-5 Compatibility Issues**: Resolved multiple compatibility problems
+  - Fixed empty response issue due to insufficient token allocation
+  - Resolved "max_tokens" parameter error (now uses "max_completion_tokens")
+  - Fixed temperature parameter incompatibility 
+  - Corrected double-numbering in translation output format
+- **API Parameter Handling**: Improved parameter detection for different OpenAI models
+  - Dynamic parameter selection based on model capabilities
+  - Proper error handling for unsupported parameters
+
+### Changed
+- **Token Management**: Smarter token allocation strategy for reasoning models
+  - GPT-5 now gets 32K-50K tokens based on content size vs previous 2K limit
+  - Reasoning token overhead properly accounted for in calculations
+- **Output Formatting**: Cleaner translation output format
+  - GPT-5 translations now match input format (no unwanted line numbers)
+  - Automatic cleanup of redundant numbering patterns
+
 ## [Unreleased]
 
 ### Added
@@ -21,6 +62,26 @@
 - (Planned) Enhanced distribution strategy for wider user adoption
 
 ### Fixed
+- **UnboundLocalError**: Fixed variable scoping issue with `img_added` in OpenAI translation function
+  - Proper initialization of `img_added` variable at start of each loop iteration
+  - Prevents crashes when processing patent translations with image context
+- **Session Report Generation**: Fixed `tm_f` undefined variable error in report generation
+  - Added `tm_file` parameter to `run_pipeline` method signature
+  - Properly pass translation memory file path through threading call
+  - Ensures session reports generate successfully without variable scoping errors
+- **GPT-5 API Compatibility**: Fixed "Unsupported parameter" errors for GPT-5 and newer OpenAI models
+  - Automatically detects model type and uses correct token parameter (`max_completion_tokens` vs `max_tokens`)
+  - Handles temperature parameter restrictions (GPT-5 only supports default temperature of 1.0)
+  - Maintains backward compatibility with older OpenAI models (GPT-4, GPT-3.5, etc.)
+  - Prevents both "max_tokens" and "temperature" API errors when using GPT-5
+- **GPT-5 Translation Format**: Improved response parsing for GPT-5's different output format
+  - Enhanced system prompt with more explicit formatting instructions for GPT-5
+  - Added multiple regex patterns to handle various numbering formats (1., 1), 1:)
+  - Added debug logging to diagnose GPT-5 response format issues
+  - Resolves "Missing TL line" placeholder issues when using GPT-5
+- **Session Report Enhancement**: Updated report to show all output files generated
+  - Now explicitly lists TXT, TMX, and markdown report files with their purposes
+  - Provides complete transparency of all files created during translation sessions
 - (Planned) Edge cases for very long / compound figure identifiers
 - (Planned) Graceful handling of partially corrupt TMX files
 
