@@ -184,6 +184,8 @@ Uncomment and fill keys for desired providers. At least **one** valid key is req
 2. Same setup as Translation
 3. Output: revised targets + merged comments
 
+**⚠️ Provider Note**: For proofreading, Gemini works most reliably. OpenAI/Claude proofreading may have formatting quirks but remain functional. Translation works excellently with all providers.
+
 ---
 
 ## 6. Context Sources (Power Features)
