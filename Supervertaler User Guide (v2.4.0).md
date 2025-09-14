@@ -1,11 +1,11 @@
 # Supervertaler User Guide
-## Version 2.3.1 - Complete Documentation
+## Version 2.4.0 - Complete Documentation
 
 ---
 
 ## 📖 Reading Guide
 - **[🔧 CAT Tool Integration](#-cat-tool-integration)** - Essential workflow for professional translators
-- **[🆕 What's New in v2.3.1](#whats-new-in-v231)** - Latest features
+- **[🆕 What's New in v2.4.0](#whats-new-in-v240)** - Latest features
 - **[📖 Complete User Guide](#complete-user-guide)** - Comprehensive documentation
 
 ---
@@ -49,7 +49,7 @@ Supervertaler doesn't directly translate .docx, .xlsx, .pptx files because:
 
 ---
 
-## What's New in v2.3.1
+## What's New in v2.4.0
 
 ### 🚀 GPT-5 Full Support
 **Complete compatibility with OpenAI's latest reasoning model:**
@@ -107,7 +107,7 @@ Supervertaler doesn't directly translate .docx, .xlsx, .pptx files because:
 
 Supervertaler is a professional AI-powered translation and proofreading application designed specifically for **professional translators using CAT tools** (memoQ, Trados Studio, CafeTran, Wordfast, etc.). It leverages multiple Large Language Models (LLMs) and context sources to deliver highly accurate translations that integrate seamlessly into existing CAT tool workflows.
 
-Version 2.3.1 introduces **complete GPT-5 support** with advanced reasoning capabilities and a convenient **Switch Languages** feature, building on the revolutionary **Project Library** functionality and **domain-specific prompt collections** from v2.3.0.
+Version 2.4.0 introduces **complete GPT-5 support** with advanced reasoning capabilities and a convenient **Switch Languages** feature, building on the revolutionary **Project Library** functionality and **domain-specific prompt collections** from v2.3.0.
 
 ### 🔧 CAT Tool-Centric Design
 Supervertaler is built around the professional translator's existing workflow:
