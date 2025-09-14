@@ -1,8 +1,6 @@
 # Supervertaler
 **Current version: 2.4.0**
 
-**Please note**: Proofreading functionality with OpenAI/Claude is still buggy, although it seems to work fine with Gemini. Translation works well with all AIs.
-
 🎯 **Multicontextual AI translation & proofreading tool (built for translators)** - Revolutionary approach to document translation that leverages multiple context sources for unparalleled accuracy.
 
 ## 🔧 CAT Tool Integration
