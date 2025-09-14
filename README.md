@@ -1,5 +1,5 @@
 # Supervertaler
-**Current version: 2.3.1**
+**Current version: 2.4.0**
 
 🎯 **Multicontextual AI translation & proofreading tool (built for translators)** - Revolutionary approach to document translation that leverages multiple context sources for unparalleled accuracy.
 

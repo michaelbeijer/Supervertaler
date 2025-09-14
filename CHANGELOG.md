@@ -1,6 +1,6 @@
 # Supervertaler - Changelog
 
-## [2.3.1] - 2025-09-14
+## [2.4.0] - 2025-09-14
 
 ### Added
 - **GPT-5 Support**: Full compatibility with OpenAI's GPT-5 model
@@ -44,7 +44,7 @@
 ## [Unreleased]
 
 ### Added
-- (Planned v2.4.0) **Standalone Executable**: Self-contained launcher requiring no Python installation
+- (Planned v2.5.0) **Standalone Executable**: Self-contained launcher requiring no Python installation
   - PyInstaller-based single-file executable for Windows/Mac/Linux
   - One-click installer with desktop shortcut creation
   - Portable version for USB/network deployment
