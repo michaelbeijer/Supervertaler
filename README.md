@@ -1,5 +1,5 @@
 # Supervertaler
-**Current version: 2.3.0**
+**Current version: 2.3.1**
 
 🎯 **Multicontextual AI translation & proofreading tool (built for translators)** - Revolutionary approach to document translation that leverages multiple context sources for unparalleled accuracy.
 
@@ -48,6 +48,7 @@ Supervertaler provides two output formats for flexible CAT tool integration:
 - **Custom Prompt Library** - Save/load specialized prompt sets for different use cases
 - **Prompt Library** - Edit and customize active AI instructions in real-time
 - **Advanced 3-panel GUI** - Resizable interface with professional font rendering
+- **Switch Languages Button** - One-click swap between source and target languages
 - **Cross-platform Support** - Clickable folder paths work on Windows, macOS, and Linux
 - **Chunked processing** - Handle large documents with intelligent batching
 - **Multiple LLM support** - Claude, Gemini, and OpenAI integration
@@ -224,6 +225,8 @@ Uncomment and fill keys for desired providers. At least **one** valid key is req
 - **Strong**: Creative writing, cultural adaptation
 
 ### OpenAI
+- **gpt-5**: Latest reasoning model with advanced capabilities  
+- **gpt-4o**: Excellent multimodal performance
 - **gpt-4**: Reliable general-purpose
 - **gpt-4-turbo**: Better context window
 - **Strong**: Balanced performance across domains

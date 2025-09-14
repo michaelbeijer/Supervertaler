@@ -18,7 +18,7 @@ import webbrowser  # For clickable email link
 import subprocess  # For opening folder in file manager
 
 # ADD: central version constant (was missing, caused NameError)
-APP_VERSION = "2.3.0"
+APP_VERSION = "2.3.1"
 print(f"=== Supervertaler v{APP_VERSION} starting ===")
 
 # --- Changelog (v2.1.1) ---
@@ -1413,6 +1413,22 @@ class OpenAITranslationAgent(BaseTranslationAgent):
         except Exception as e:
             self.log_queue.put(f"[OpenAI Translator] ERROR init ('{self.model_name}'): {e}.")
 
+    def get_token_parameter(self, token_count):
+        """Get the correct token parameter name and value based on the model."""
+        # GPT-5 and newer models use max_completion_tokens
+        if "gpt-5" in self.model_name.lower():
+            return {"max_completion_tokens": token_count}
+        else:
+            return {"max_tokens": token_count}
+    
+    def get_temperature_parameter(self):
+        """Get the correct temperature parameter based on the model."""
+        # GPT-5 only supports default temperature (1.0)
+        if "gpt-5" in self.model_name.lower():
+            return {}  # Don't include temperature parameter for GPT-5
+        else:
+            return {"temperature": 0.1}
+
     def translate_specific_lines_with_drawings_context(self, lines_map_to_translate, full_document_context_text_str,
                                                        source_lang, target_lang, all_source_segments_original_list,
                                                        drawings_images_map, user_custom_instructions="",
@@ -1450,7 +1466,27 @@ class OpenAITranslationAgent(BaseTranslationAgent):
             except:
                 system_prompt = custom_system_prompt
         else:
-            system_prompt = f"You are an expert {source_lang} to {target_lang} translator. Translate ONLY the sentences from 'PATENT SENTENCES TO TRANSLATE' later, maintaining their original line numbers.\n\nPresent your output ONLY as a numbered list of translations for the requested sentences."
+            if "gpt-5" in self.model_name.lower():
+                system_prompt = f"""You are an expert {source_lang} to {target_lang} translator. 
+
+CRITICAL: The input sentences may have numbers like "1. CLAIMS" or "2. A vehicle control method".
+
+IGNORE those numbers completely. They are just for internal processing.
+
+Extract only the actual text content after the number and translate that.
+
+Example:
+Input: "1. CLAIMS" → Extract: "CLAIMS" → Translate: "CONCLUSIES"
+Input: "2. A vehicle control method" → Extract: "A vehicle control method" → Translate: "Een voertuigbesturingsmethode"
+
+Your output should be ONLY the translations, one per line, with NO numbering:
+CONCLUSIES
+Een voertuigbesturingsmethode
+[more translations...]
+
+Do NOT include any line numbers, bullets, or numbering in your response."""
+            else:
+                system_prompt = f"You are an expert {source_lang} to {target_lang} translator. Translate ONLY the sentences from 'PATENT SENTENCES TO TRANSLATE' later, maintaining their original line numbers.\n\nPresent your output ONLY as a numbered list of translations for the requested sentences."
 
         # Add context
         add_text(f"FULL DOCUMENT CONTEXT for reference:\n{full_document_context_text_str}\n\n")
@@ -1463,9 +1499,9 @@ class OpenAITranslationAgent(BaseTranslationAgent):
         add_text("PATENT SENTENCES TO TRANSLATE:\n")
         numbered_src_line = ""
         for num in line_nums:
+            img_added = False  # Initialize img_added for each iteration
             src_line = lines_map_to_translate[num]
             if num in drawings_images_map:
-                img_added = False
                 ref_name = f"FIGURE {num}"
                 for ref, img in drawings_images_map.items():
                     if ref.upper().replace(" ", "").replace(".", "") == ref_name.upper().replace(" ", "").replace(".", ""):
@@ -1482,31 +1518,178 @@ class OpenAITranslationAgent(BaseTranslationAgent):
         add_text("TRANSLATED SENTENCES (numbered list for 'PATENT SENTENCES TO TRANSLATE' only):")
 
         try:
-            messages = [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": content_parts}
-            ]
+            # For GPT-5, try a simpler message format if we have complex content
+            if "gpt-5" in self.model_name.lower() and isinstance(content_parts, list) and len(content_parts) > 1:
+                # Convert complex content to simple text for GPT-5
+                text_content = ""
+                for part in content_parts:
+                    if part.get('type') == 'text':
+                        text_content += part.get('text', '') + "\n"
+                    elif part.get('type') == 'image_url':
+                        text_content += "[IMAGE CONTENT OMITTED FOR GPT-5 COMPATIBILITY]\n"
+                
+                messages = [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": text_content}
+                ]
+                self.log_queue.put(f"[OpenAI Translator] DEBUG - Using simplified text-only format for GPT-5")
+            else:
+                messages = [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": content_parts}
+                ]
+            
+            # Debug logging for GPT-5 API call
+            if "gpt-5" in self.model_name.lower():
+                self.log_queue.put(f"[OpenAI Translator] DEBUG - System prompt length: {len(system_prompt)} chars")
+                user_content = messages[1]["content"]
+                if isinstance(user_content, str):
+                    self.log_queue.put(f"[OpenAI Translator] DEBUG - User content (string): {len(user_content)} chars")
+                else:
+                    self.log_queue.put(f"[OpenAI Translator] DEBUG - User content parts count: {len(user_content) if isinstance(user_content, list) else 'not a list'}")
+            
+            # Get the correct token parameter based on the model and segment count
+            # GPT-5 needs much more tokens due to reasoning tokens
+            if "gpt-5" in self.model_name.lower():
+                # For GPT-5, use a very high token limit to account for reasoning
+                segment_count = len(lines_map_to_translate)
+                # GPT-5 can use huge amounts of tokens for reasoning
+                # Start with a very generous limit
+                token_limit = max(32000, segment_count * 500)  # Much higher: 32K minimum, 500 per segment
+                # Cap at reasonable maximum
+                token_limit = min(token_limit, 50000)
+                self.log_queue.put(f"[OpenAI Translator] DEBUG - GPT-5 token limit set to {token_limit} for {segment_count} segments")
+            else:
+                token_limit = 2048
+            
+            token_params = self.get_token_parameter(int(token_limit))
+            temp_params = self.get_temperature_parameter()
+            
+            self.log_queue.put(f"[OpenAI Translator] DEBUG - Making API call with token_params: {token_params}, temp_params: {temp_params}")
+            
+            # For GPT-5, add reasoning_effort parameter to control thinking
+            extra_params = {}
+            if "gpt-5" in self.model_name.lower():
+                extra_params["reasoning_effort"] = "low"  # Use less reasoning to save tokens for output
+                self.log_queue.put(f"[OpenAI Translator] DEBUG - Adding reasoning_effort=low for GPT-5")
+            
             response = self.client.chat.completions.create(
                 model=self.model_name,
                 messages=messages,
-                max_tokens=2048,
-                temperature=0.1
+                **token_params,
+                **temp_params,
+                **extra_params
             )
+            
+            # Debug the response structure
+            if "gpt-5" in self.model_name.lower():
+                self.log_queue.put(f"[OpenAI Translator] DEBUG - Response object type: {type(response)}")
+                self.log_queue.put(f"[OpenAI Translator] DEBUG - Response choices count: {len(response.choices) if response.choices else 0}")
+                if response.choices:
+                    choice = response.choices[0]
+                    self.log_queue.put(f"[OpenAI Translator] DEBUG - First choice message type: {type(choice.message) if choice.message else None}")
+                    self.log_queue.put(f"[OpenAI Translator] DEBUG - First choice content type: {type(choice.message.content) if choice.message else None}")
+                    self.log_queue.put(f"[OpenAI Translator] DEBUG - First choice finish_reason: {choice.finish_reason}")
+                    
+                    # Check if there are any usage stats or other response details
+                    if hasattr(response, 'usage'):
+                        self.log_queue.put(f"[OpenAI Translator] DEBUG - Usage: {response.usage}")
+                    if hasattr(response, 'system_fingerprint'):
+                        self.log_queue.put(f"[OpenAI Translator] DEBUG - System fingerprint: {response.system_fingerprint}")
+                    
+                    # Log the raw content value (might be None vs empty string)
+                    raw_content = choice.message.content
+                    self.log_queue.put(f"[OpenAI Translator] DEBUG - Raw content repr: {repr(raw_content)}")
+                    self.log_queue.put(f"[OpenAI Translator] DEBUG - Raw content is None: {raw_content is None}")
+                    self.log_queue.put(f"[OpenAI Translator] DEBUG - Raw content is empty string: {raw_content == ''}")
+            
             raw_text = response.choices[0].message.content if response.choices else ""
         except Exception as e:
             self.log_queue.put(f"[OpenAI Translator] Error: {e}")
             return {n: f"[TL Err line {n} (OpenAI): {e}]" for n in lines_map_to_translate.keys()}
 
+        # Debug logging for GPT-5 response format issues
+        if "gpt-5" in self.model_name.lower():
+            self.log_queue.put(f"[OpenAI Translator] DEBUG - Raw response length: {len(raw_text or '')} chars")
+            if raw_text:
+                preview = raw_text[:200] + "..." if len(raw_text) > 200 else raw_text
+                self.log_queue.put(f"[OpenAI Translator] DEBUG - Response preview: {repr(preview)}")
+            else:
+                # If GPT-5 returns empty, try a simple test request
+                self.log_queue.put(f"[OpenAI Translator] DEBUG - Empty response detected, testing with simple request...")
+                try:
+                    test_messages = [
+                        {"role": "system", "content": "You are a translator."},
+                        {"role": "user", "content": "Translate to English: Hello world"}
+                    ]
+                    test_response = self.client.chat.completions.create(
+                        model=self.model_name,
+                        messages=test_messages,
+                        **self.get_token_parameter(100),
+                        **self.get_temperature_parameter()
+                    )
+                    test_content = test_response.choices[0].message.content if test_response.choices else ""
+                    self.log_queue.put(f"[OpenAI Translator] DEBUG - Test response: {repr(test_content)}")
+                    self.log_queue.put(f"[OpenAI Translator] DEBUG - Test finish_reason: {test_response.choices[0].finish_reason if test_response.choices else 'None'}")
+                except Exception as test_e:
+                    self.log_queue.put(f"[OpenAI Translator] DEBUG - Test request failed: {test_e}")
+
         translations = {}
-        for line in (raw_text or "").splitlines():
-            m = re.match(r"^\s*(\d+)\.\s*(.*)", line.strip())
-            if m:
-                num = int(m.group(1)); txt = m.group(2).strip()
-                if num in line_nums: translations[num] = txt
-        for num in line_nums:
-            if num not in translations:
-                self.log_queue.put(f"[OpenAI Translator] Warn: Missing TL line {num}. Placeholder.")
-                translations[num] = f"[TL Missing line {num}]"
+        
+        # Special parsing for GPT-5 which now outputs without line numbers
+        if "gpt-5" in self.model_name.lower():
+            lines = [line.strip() for line in (raw_text or "").splitlines() if line.strip()]
+            for i, line in enumerate(lines):
+                if i < len(line_nums):
+                    # GPT-5 tends to add double numbering like "1. 1. CLAIMS"
+                    # Strip any leading numbering patterns
+                    cleaned_line = line
+                    
+                    # Remove patterns like "1. 1. Text" → "Text"
+                    cleaned_line = re.sub(r'^\d+\.\s*\d+\.\s*', '', cleaned_line)
+                    # Remove patterns like "1. Text" → "Text" 
+                    cleaned_line = re.sub(r'^\d+\.\s*', '', cleaned_line)
+                    # Remove patterns like "1) Text" → "Text"
+                    cleaned_line = re.sub(r'^\d+\)\s*', '', cleaned_line)
+                    
+                    translations[line_nums[i]] = cleaned_line.strip()
+            
+            # Fill in any missing translations
+            for num in line_nums:
+                if num not in translations:
+                    self.log_queue.put(f"[OpenAI Translator] Warn: Missing TL line {num}. Placeholder.")
+                    translations[num] = f"[TL Missing line {num}]"
+        else:
+            # Original parsing logic for other models that include line numbers
+            for line in (raw_text or "").splitlines():
+                # More flexible regex patterns to handle different formatting
+                line_stripped = line.strip()
+                
+                # Pattern 1: "1. Translation" (standard expected format)
+                m = re.match(r"^\s*(\d+)\.\s*(.*)", line_stripped)
+                if m:
+                    num = int(m.group(1)); txt = m.group(2).strip()
+                    if num in line_nums: translations[num] = txt
+                    continue
+                    
+                # Pattern 2: "1) Translation" (alternative format)
+                m = re.match(r"^\s*(\d+)\)\s*(.*)", line_stripped)
+                if m:
+                    num = int(m.group(1)); txt = m.group(2).strip()
+                    if num in line_nums: translations[num] = txt
+                    continue
+                    
+                # Pattern 3: "1: Translation" (colon format)
+                m = re.match(r"^\s*(\d+):\s*(.*)", line_stripped)
+                if m:
+                    num = int(m.group(1)); txt = m.group(2).strip()
+                    if num in line_nums: translations[num] = txt
+                    continue
+                    
+            for num in line_nums:
+                if num not in translations:
+                    self.log_queue.put(f"[OpenAI Translator] Warn: Missing TL line {num}. Placeholder.")
+                    translations[num] = f"[TL Missing line {num}]"
         return translations
 
 class OpenAIProofreadingAgent(BaseProofreadingAgent):
@@ -1524,6 +1707,22 @@ class OpenAIProofreadingAgent(BaseProofreadingAgent):
             self.log_queue.put(f"[OpenAI Proofreader] Agent with model '{self.model_name}' initialized.")
         except Exception as e:
             self.log_queue.put(f"[OpenAI Proofreader] ERROR init ('{self.model_name}'): {e}.")
+
+    def get_token_parameter(self, token_count):
+        """Get the correct token parameter name and value based on the model."""
+        # GPT-5 and newer models use max_completion_tokens
+        if "gpt-5" in self.model_name.lower():
+            return {"max_completion_tokens": token_count}
+        else:
+            return {"max_tokens": token_count}
+    
+    def get_temperature_parameter(self):
+        """Get the correct temperature parameter based on the model."""
+        # GPT-5 only supports default temperature (1.0)
+        if "gpt-5" in self.model_name.lower():
+            return {}  # Don't include temperature parameter for GPT-5
+        else:
+            return {"temperature": 0.1}
 
     def proofread_specific_lines_with_context(self, lines_data, full_document_context_text_str,
                                             source_lang, target_lang, user_custom_instructions="",
@@ -1567,11 +1766,16 @@ class OpenAIProofreadingAgent(BaseProofreadingAgent):
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": content}
             ]
+            
+            # Get the correct token parameter based on the model
+            token_params = self.get_token_parameter(3000)
+            temp_params = self.get_temperature_parameter()
+            
             response = self.client.chat.completions.create(
                 model=self.model_name,
                 messages=messages,
-                max_tokens=3000,
-                temperature=0.1
+                **token_params,
+                **temp_params
             )
             raw_text = response.choices[0].message.content if response.choices else ""
         except Exception as e:
@@ -1787,7 +1991,7 @@ class TranslationApp:
         tk.Entry(left_frame, textvariable=self.input_file_var, width=50, state="readonly").grid(row=current_row, column=1, padx=5, pady=2, sticky="ew")
         tk.Button(left_frame, text="Browse...", command=self.browse_input_file).grid(row=current_row, column=2, padx=5, pady=2); current_row += 1
         
-        tk.Label(left_frame, text="Output File:", bg="white").grid(row=current_row, column=0, padx=5, pady=2, sticky="w")
+        tk.Label(left_frame, text="Output File (TXT + TMX):", bg="white").grid(row=current_row, column=0, padx=5, pady=2, sticky="w")
         tk.Entry(left_frame, textvariable=self.output_file_var, width=50, state="readonly").grid(row=current_row, column=1, padx=5, pady=2, sticky="ew")
         tk.Button(left_frame, text="Browse...", command=self.browse_output_file).grid(row=current_row, column=2, padx=5, pady=2); current_row += 1
 
@@ -1912,6 +2116,12 @@ class TranslationApp:
             tk.Label(left_frame, text=text, bg="white").grid(row=current_row, column=0, padx=5, pady=2, sticky="w")
             tk.Entry(left_frame, textvariable=var, width=width).grid(row=current_row, column=1, padx=5, pady=2, sticky="w"); current_row += 1
 
+        # Switch Languages button
+        switch_lang_frame = tk.Frame(left_frame, bg="white")
+        switch_lang_frame.grid(row=current_row-2, column=2, padx=(10,5), pady=2, sticky="w")  # Align with language fields
+        self.switch_lang_button = tk.Button(switch_lang_frame, text="⇄ Switch languages", command=self.switch_languages, width=14, height=1)
+        self.switch_lang_button.pack()
+
         buttons_frame = tk.Frame(left_frame, bg="white"); buttons_frame.grid(row=current_row, column=0, columnspan=3, pady=5); current_row += 1
         self.process_button = tk.Button(buttons_frame, text="Start Process", command=self.start_processing_thread, width=15, height=2); self.process_button.pack(side=tk.LEFT, padx=10) 
         self.list_models_button = tk.Button(buttons_frame, text="List Models", command=self.list_available_models, width=15); self.list_models_button.pack(side=tk.LEFT, padx=10) 
@@ -1957,6 +2167,19 @@ class TranslationApp:
     def on_provider_changed(self, event=None):
         """Called when user changes AI provider"""
         self.update_available_models()
+
+    def switch_languages(self):
+        """Switch source and target languages"""
+        # Get current values
+        current_source = self.source_lang_var.get()
+        current_target = self.target_lang_var.get()
+        
+        # Swap them
+        self.source_lang_var.set(current_target)
+        self.target_lang_var.set(current_source)
+        
+        # Log the switch
+        self.log_queue.put(f"[GUI] Languages switched: {current_source} ⇄ {current_target}")
 
     def update_available_models(self):
         """Update the model dropdown based on selected provider"""
@@ -2832,7 +3055,7 @@ class TranslationApp:
                 self.output_file_var.set(f"{base}{suffix}{ext}")
 
     def browse_output_file(self):
-        filepath = filedialog.asksaveasfilename(title="Save Output File As", filetypes=(("Text files", "*.txt"),("All files", "*.*")), defaultextension=".txt")
+        filepath = filedialog.asksaveasfilename(title="Save Output Files As (TXT + TMX will be generated)", filetypes=(("Text files", "*.txt"),("All files", "*.*")), defaultextension=".txt")
         if filepath: self.output_file_var.set(filepath)
     
     def update_log(self, msg): 
@@ -2947,10 +3170,143 @@ class TranslationApp:
         
         thread = threading.Thread(target=self.run_pipeline,
                                   args=(mode, input_f, output_f, src_l, tgt_l, provider, model_name, chunk_s, 
-                                        self.drawings_images_map, custom_instr, custom_system_prompt)) 
+                                        self.drawings_images_map, custom_instr, custom_system_prompt, tm_f)) 
         thread.daemon = True; thread.start()
 
-    def run_pipeline(self, mode, input_f, output_f, source_lang, target_lang, provider, model_name, chunk_s, drawings_map, user_custom_instructions, custom_system_prompt=None):
+    def generate_session_report(self, mode, input_f, output_f, source_lang, target_lang, provider, model_name, 
+                               chunk_s, drawings_map, user_custom_instructions, custom_system_prompt, 
+                               tm_file=None, tracked_changes_data=None):
+        """Generate comprehensive markdown report of session settings and AI prompts"""
+        import datetime
+        
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        # Determine default vs custom prompts
+        if mode == "Translate":
+            default_prompt = self.default_translate_prompt
+            current_prompt = self.current_translate_prompt if hasattr(self, 'current_translate_prompt') else default_prompt
+        else:  # Proofread
+            default_prompt = self.default_proofread_prompt  
+            current_prompt = self.current_proofread_prompt if hasattr(self, 'current_proofread_prompt') else default_prompt
+        
+        is_custom_prompt = current_prompt != default_prompt
+        custom_prompt_source = "Custom loaded prompt" if is_custom_prompt else "Default system prompt"
+        
+        # Get active custom prompt name if available
+        active_prompt_name = "Default System Prompts"
+        if hasattr(self, 'prompts_listbox'):
+            try:
+                selection = self.prompts_listbox.curselection()
+                if selection:
+                    active_prompt_name = self.prompts_listbox.get(selection[0])
+            except:
+                pass
+        
+        # Build comprehensive markdown report
+        report = f"""# Supervertaler Session Report
+
+## Session Information
+- **Date & Time**: {timestamp}
+- **Supervertaler Version**: {APP_VERSION}
+- **Operation Mode**: {mode}
+- **AI Provider**: {provider}
+- **AI Model**: {model_name}
+
+## File Settings
+- **Input File**: `{input_f}`
+- **Output Files**: 
+  - **TXT**: `{output_f}` (tab-separated source/target)
+  - **TMX**: `{output_f.replace('.txt', '.tmx') if output_f.endswith('.txt') else output_f + '.tmx'}` (translation memory)
+  - **Report**: `{output_f.replace('.txt', '_report.md') if output_f.endswith('.txt') else output_f + '_report.md'}` (session details)
+- **Source Language**: {source_lang}
+- **Target Language**: {target_lang}
+- **Chunk Size**: {chunk_s} segments per batch
+
+## Optional Resources
+- **Translation Memory File**: {"None" if not tm_file else f"`{tm_file}`"}
+- **Drawings/Images Folder**: {"None" if not drawings_map else f"✅ {len(drawings_map)} images loaded"}
+- **Tracked Changes Data**: {"None" if not tracked_changes_data or tracked_changes_data == "No tracked changes found." else "✅ Tracked changes detected"}
+
+## AI Prompt Configuration
+
+### Active Prompt Set
+- **Source**: {custom_prompt_source}
+- **Prompt Name**: {active_prompt_name}
+
+### System Prompt Sent to AI
+```
+{custom_system_prompt if custom_system_prompt else current_prompt}
+```
+
+### Custom Instructions
+"""
+        
+        if user_custom_instructions and user_custom_instructions.strip():
+            report += f"""```
+{user_custom_instructions}
+```
+"""
+        else:
+            report += "None provided\n"
+        
+        # Add application state information
+        report += f"""
+## Application Settings
+
+### UI State
+- **Provider Selection**: {provider}
+- **Model Selection**: {model_name}  
+- **Processing Mode**: {mode}
+- **Language Pair**: {source_lang} → {target_lang}
+
+### Library Availability
+- **Google AI (Gemini)**: {"✅ Available" if GOOGLE_AI_AVAILABLE else "❌ Not Available"}
+- **Anthropic (Claude)**: {"✅ Available" if CLAUDE_AVAILABLE else "❌ Not Available"}  
+- **OpenAI**: {"✅ Available" if OPENAI_AVAILABLE else "❌ Not Available"}
+- **PIL (Image Processing)**: {"✅ Available" if PIL_AVAILABLE else "❌ Not Available"}
+
+### API Key Status
+- **Google/Gemini**: {"✅ Configured" if self.api_keys.get("google") else "❌ Not Configured"}
+- **Claude**: {"✅ Configured" if self.api_keys.get("claude") else "❌ Not Configured"}
+- **OpenAI**: {"✅ Configured" if self.api_keys.get("openai") else "❌ Not Configured"}
+
+## Processing Details
+
+### Prompt Template Variables
+- **{{source_lang}}**: {source_lang}
+- **{{target_lang}}**: {target_lang}
+
+### Additional Context Provided to AI
+"""
+        
+        context_items = []
+        if tm_file:
+            context_items.append("- Translation Memory entries")
+        if drawings_map:
+            context_items.append(f"- {len(drawings_map)} patent drawings/images")  
+        if tracked_changes_data and tracked_changes_data != "No tracked changes found.":
+            context_items.append("- Document tracked changes")
+        if user_custom_instructions and user_custom_instructions.strip():
+            context_items.append("- User custom instructions")
+            
+        if context_items:
+            report += "\n".join(context_items) + "\n"
+        else:
+            report += "None\n"
+            
+        report += f"""
+## Technical Information
+- **Processing Method**: Chunked processing ({chunk_s} segments per API call)
+- **Output Formats**: TXT (tab-separated) + TMX (translation memory)
+- **Report Generated**: {timestamp}
+
+---
+*This report was automatically generated by Supervertaler v{APP_VERSION}*
+"""
+        
+        return report
+
+    def run_pipeline(self, mode, input_f, output_f, source_lang, target_lang, provider, model_name, chunk_s, drawings_map, user_custom_instructions, custom_system_prompt=None, tm_file=None):
         ingestor = BilingualFileIngestionAgent(); output_gen = OutputGenerationAgent()
         
         all_original_data = ingestor.process(input_f, self.log_queue, mode=mode) 
@@ -3079,6 +3435,40 @@ class TranslationApp:
             source_lang=source_lang,
             target_lang=target_lang  # FIX: use correct parameter name
         )
+
+        # Generate session report if processing was successful
+        if file_ok:
+            try:
+                # Create report filename by replacing output extension with '_report.md'
+                base_name = os.path.splitext(output_f)[0]
+                report_filename = f"{base_name}_report.md"
+                
+                # Generate the comprehensive session report
+                report_content = self.generate_session_report(
+                    mode=mode,
+                    input_f=input_f,
+                    output_f=output_f,
+                    source_lang=source_lang,
+                    target_lang=target_lang,
+                    provider=provider,
+                    model_name=model_name,
+                    chunk_s=chunk_s,
+                    drawings_map=drawings_map,
+                    user_custom_instructions=user_custom_instructions,
+                    custom_system_prompt=custom_system_prompt,
+                    tm_file=tm_file,
+                    tracked_changes_data=getattr(self.tracked_changes_agent, 'change_data', None)
+                )
+                
+                # Write the report to file
+                with open(report_filename, 'w', encoding='utf-8') as report_file:
+                    report_file.write(report_content)
+                
+                self.log_queue.put(f"Session report saved: {report_filename}")
+                
+            except Exception as e:
+                # Don't let report generation errors disrupt the main workflow
+                self.log_queue.put(f"Warning: Could not generate session report: {str(e)}")
 
         msg_title = "Success" if file_ok and not had_errors else "Partial Success" if file_ok else "Error"
         msg_detail_key = "SUCCESS" if file_ok and not had_errors else "PARTIAL" if file_ok else "FAIL"
