@@ -3,7 +3,7 @@
 
 // Please note: Proofreading functionality with OpenAI/Claude is still a little buggy; Gemini works fine. Translation also works well (with all AIs).
 
-🎯 **Multicontextual AI translation & proofreading tool (built for translators)** - Revolutionary approach to document translation that leverages multiple context sources for unparalleled accuracy.
+🎯 **Context-aware, LLM-powered translation & proofreading tool, leveraging multiple context sources for enhanced accuracy (built for translators)** - Revolutionary approach to document translation that leverages multiple context sources for unparalleled accuracy.
 
 ## 🔧 CAT Tool Integration
 
