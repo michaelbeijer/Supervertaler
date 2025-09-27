@@ -278,7 +278,7 @@
 - (Planned) Automatic updates check system
 - (Planned) **Document importer**
   - (Planned) Import .docx files and segment text into segments (with .srx segmentation rules)   
-  - (Planned) Diplay imported documents in Grid (like in a CAT tool)
+  - (Planned) Display imported documents in Grid (like in a CAT tool)
   - (Planned) Edit imported documents in Grid (like in a CAT tool)
   - (Planned) Filter imported documents in Grid (like in a CAT tool)
 
