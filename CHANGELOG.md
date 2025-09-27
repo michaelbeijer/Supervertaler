@@ -53,26 +53,6 @@
   - GPT-5 translations now match input format (no unwanted line numbers)
   - Automatic cleanup of redundant numbering patterns
 
-## [Unreleased]
-
-### Added
-- (Planned v2.5.0) **Standalone Executable**: Self-contained launcher requiring no Python installation
-  - PyInstaller-based single-file executable for Windows/Mac/Linux
-  - One-click installer with desktop shortcut creation
-  - Portable version for USB/network deployment
-  - Automatic folder structure setup and example files
-  - Professional deployment ready for enterprise environments
-- (Planned) Fuzzy Translation Memory (TM) match application
-- (Planned) Optional glossary enforcement / terminology lock
-- (Planned) Batch retry & per‑provider exponential backoff tuning
-- (Planned) JSON export of run metadata (segments, timings, provider stats)
-- (Planned) Automatic updates check system
-
-### Changed
-- (Planned) Token / embedding–based tracked‑change relevance scoring
-- (Planned) More granular model capability detection (true multimodal flags)
-- (Planned) Enhanced distribution strategy for wider user adoption
-
 ### Fixed
 - **UnboundLocalError**: Fixed variable scoping issue with `img_added` in OpenAI translation function
   - Proper initialization of `img_added` variable at start of each loop iteration
@@ -282,6 +262,32 @@
 
 ---
 
+## [Unreleased]
+
+### Added
+- (Planned v2.5.0) **Standalone Executable**: Self-contained launcher requiring no Python installation
+  - PyInstaller-based single-file executable for Windows/Mac/Linux
+  - One-click installer with desktop shortcut creation
+  - Portable version for USB/network deployment
+  - Automatic folder structure setup and example files
+  - Professional deployment ready for enterprise environments
+- (Planned) Fuzzy Translation Memory (TM) match application
+- (Planned) Optional glossary enforcement / terminology lock
+- (Planned) Batch retry & per‑provider exponential backoff tuning
+- (Planned) JSON export of run metadata (segments, timings, provider stats)
+- (Planned) Automatic updates check system
+- (Planned) **Document importer**
+  - (Planned) Import .docx files and segment text into segments (with .srx segmentation rules)   
+  - (Planned) Diplay imported documents in Grid (like in a CAT tool)
+  - (Planned) Edit imported documents in Grid (like in a CAT tool)
+  - (Planned) Filter imported documents in Grid (like in a CAT tool)
+
+### Changed
+- (Planned) Token / embedding–based tracked‑change relevance scoring
+- (Planned) More granular model capability detection (true multimodal flags)
+- (Planned) Enhanced distribution strategy for wider user adoption
+
+---
 ## Legend
 
 Sections: Added | Changed | Deprecated | Removed | Fixed | Security
