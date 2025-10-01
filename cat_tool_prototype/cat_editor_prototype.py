@@ -26,9 +26,10 @@ from typing import List, Dict, Any, Optional
 try:
     from simple_segmenter import SimpleSegmenter
     from docx_handler import DOCXHandler
+    from tag_manager import TagManager
 except ImportError:
     print("ERROR: Could not import required modules")
-    print("Make sure simple_segmenter.py and docx_handler.py are in the same folder")
+    print("Make sure simple_segmenter.py, docx_handler.py, and tag_manager.py are in the same folder")
     import sys
     sys.exit(1)
 
@@ -79,7 +80,7 @@ class CATEditorPrototype:
     
     def __init__(self, root):
         self.root = root
-        self.root.title("Supervertaler CAT Editor - Prototype v0.1")
+        self.root.title("Supervertaler CAT Editor - Prototype v0.2.0")
         self.root.geometry("1200x800")
         
         # Data
@@ -92,12 +93,14 @@ class CATEditorPrototype:
         # Components
         self.segmenter = SimpleSegmenter()
         self.docx_handler = DOCXHandler()
+        self.tag_manager = TagManager()
         
         # Setup UI
         self.setup_ui()
         
         # Status
         self.log("CAT Editor ready. Import a DOCX file to begin.")
+        self.log("✨ NEW: Inline formatting support (bold, italic, underline)")
     
     def setup_ui(self):
         """Create the user interface"""
@@ -235,11 +238,32 @@ class CATEditorPrototype:
         self.source_text.pack(fill='x', pady=(2, 10))
         
         # Target (editable)
-        tk.Label(editor_frame, text="Target:", font=('Segoe UI', 9, 'bold')).pack(anchor='w')
+        target_header_frame = tk.Frame(editor_frame)
+        target_header_frame.pack(fill='x', anchor='w')
+        tk.Label(target_header_frame, text="Target:", font=('Segoe UI', 9, 'bold')).pack(side='left')
+        self.tag_validation_label = tk.Label(target_header_frame, text="", font=('Segoe UI', 8))
+        self.tag_validation_label.pack(side='left', padx=(10, 0))
+        
         self.target_text = tk.Text(editor_frame, height=2, wrap='word', font=('Segoe UI', 10))
-        self.target_text.pack(fill='x', pady=(2, 10))
+        self.target_text.pack(fill='x', pady=(2, 5))
         self.target_text.bind('<KeyRelease>', self.on_target_change)
         self.target_text.bind('<Control-Return>', lambda e: self.save_segment_and_next())
+        
+        # Tag buttons
+        tag_button_frame = tk.Frame(editor_frame)
+        tag_button_frame.pack(fill='x', pady=(0, 10))
+        
+        tk.Label(tag_button_frame, text="Insert:").pack(side='left', padx=(0, 5))
+        tk.Button(tag_button_frame, text="<b>Bold</b>", command=lambda: self.insert_tag('b'),
+                 relief='flat', bg='#ffcccc', font=('Segoe UI', 8)).pack(side='left', padx=2)
+        tk.Button(tag_button_frame, text="<i>Italic</i>", command=lambda: self.insert_tag('i'),
+                 relief='flat', bg='#ccccff', font=('Segoe UI', 8, 'italic')).pack(side='left', padx=2)
+        tk.Button(tag_button_frame, text="<u>Underline</u>", command=lambda: self.insert_tag('u'),
+                 relief='flat', bg='#ccffcc', font=('Segoe UI', 8, 'underline')).pack(side='left', padx=2)
+        tk.Button(tag_button_frame, text="Strip Tags", command=self.strip_tags_from_target,
+                 relief='flat', bg='#eeeeee', font=('Segoe UI', 8)).pack(side='left', padx=10)
+        tk.Button(tag_button_frame, text="Copy Source Tags", command=self.copy_source_tags,
+                 relief='flat', bg='#e6f3ff', font=('Segoe UI', 8)).pack(side='left', padx=2)
         
         # Action buttons
         button_frame = tk.Frame(editor_frame)
@@ -410,9 +434,87 @@ class CATEditorPrototype:
         self.save_current_segment()
     
     def on_target_change(self, event):
-        """Handle target text change"""
-        # Could implement auto-save here
-        pass
+        """Handle target text change - validate tags"""
+        target = self.target_text.get('1.0', 'end-1c')
+        
+        # Validate tags
+        is_valid, error_msg = self.tag_manager.validate_tags(target)
+        
+        if not is_valid:
+            self.tag_validation_label.config(text=f"⚠️ {error_msg}", fg='red')
+        else:
+            # Count tags
+            tag_counts = self.tag_manager.count_tags(target)
+            if tag_counts:
+                tag_text = ', '.join([f"{count} {tag}" for tag, count in tag_counts.items()])
+                self.tag_validation_label.config(text=f"✓ Tags: {tag_text}", fg='green')
+            else:
+                self.tag_validation_label.config(text="", fg='black')
+    
+    def insert_tag(self, tag_name: str):
+        """Insert formatting tag at cursor position"""
+        try:
+            # Get current selection or cursor position
+            try:
+                start = self.target_text.index('sel.first')
+                end = self.target_text.index('sel.last')
+                selected_text = self.target_text.get(start, end)
+                
+                # Wrap selection in tags
+                tagged_text = f"<{tag_name}>{selected_text}</{tag_name}>"
+                self.target_text.delete(start, end)
+                self.target_text.insert(start, tagged_text)
+            except tk.TclError:
+                # No selection, insert empty tags at cursor
+                cursor_pos = self.target_text.index('insert')
+                self.target_text.insert(cursor_pos, f"<{tag_name}></{tag_name}>")
+                # Move cursor between tags
+                self.target_text.mark_set('insert', f"{cursor_pos}+{len(tag_name)+2}c")
+            
+            self.target_text.focus_set()
+            # Trigger validation
+            self.on_target_change(None)
+        except Exception as e:
+            self.log(f"Error inserting tag: {str(e)}")
+    
+    def strip_tags_from_target(self):
+        """Remove all formatting tags from target"""
+        if not self.current_segment:
+            return
+        
+        target = self.target_text.get('1.0', 'end-1c')
+        clean_text = self.tag_manager.strip_tags(target)
+        
+        self.target_text.delete('1.0', 'end')
+        self.target_text.insert('1.0', clean_text)
+        self.on_target_change(None)
+    
+    def copy_source_tags(self):
+        """Copy tag structure from source to target"""
+        if not self.current_segment:
+            return
+        
+        source = self.current_segment.source
+        target = self.target_text.get('1.0', 'end-1c')
+        
+        # Extract tag positions from source
+        source_tags = self.tag_manager.count_tags(source)
+        
+        if not source_tags:
+            messagebox.showinfo("No Tags", "Source segment has no formatting tags.")
+            return
+        
+        # If target is empty, copy source structure
+        if not target.strip():
+            self.target_text.delete('1.0', 'end')
+            self.target_text.insert('1.0', source)
+            messagebox.showinfo("Tags Copied", "Source formatting structure copied to target. Now translate the text.")
+        else:
+            messagebox.showinfo("Tag Structure", 
+                              f"Source has: {', '.join([f'{c} {t}' for t, c in source_tags.items()])}\n\n"
+                              "Use the Insert buttons to add matching tags to your translation.")
+        
+        self.on_target_change(None)
     
     def copy_source_to_target(self):
         """Copy source to target"""

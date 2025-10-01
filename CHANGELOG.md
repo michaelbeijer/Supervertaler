@@ -1,5 +1,55 @@
 # Supervertaler - Changelog
 
+## [2.5.0-prototype-v0.2.0] - 2025-10-01 (Feature Update)
+
+### Added
+- **Inline Formatting Tags**: Full support for bold, italic, and underline preservation
+  - Automatic extraction of run-level formatting from DOCX import
+  - XML-like tags display in editor (<b>, <i>, <u>, <bi> for bold+italic)
+  - Real-time tag validation with error messages
+  - Tag insertion buttons (Bold, Italic, Underline) with selection wrapping
+  - "Copy Source Tags" feature to match source formatting structure
+  - "Strip Tags" button to remove all formatting from target
+  - Visual tag indicators (color-coded by type)
+  - Automatic tag reconstruction on DOCX export
+  - Proper formatting run creation with bold/italic/underline applied
+
+### Technical Details
+- **New Module**: `tag_manager.py` - Complete inline tag handling system (290+ lines)
+  - `FormattingRun` dataclass for run representation
+  - `TagManager` class with extraction, conversion, and validation
+  - Tag pattern matching with regex
+  - Run-to-tags and tags-to-runs conversion
+  - Nested tag validation
+  - Color scheme for different tag types
+- **Updated**: `docx_handler.py` - Enhanced with formatting support
+  - `extract_runs()` method to extract formatting from paragraphs
+  - `import_docx()` now has `extract_formatting` parameter (default True)
+  - `_replace_paragraph_with_formatting()` method for tag reconstruction
+  - Proper handling of multiple runs with different formatting
+- **Updated**: `cat_editor_prototype.py` - Enhanced UI and tag features
+  - Tag validation label showing real-time status
+  - Tag insertion buttons with keyboard support
+  - Copy source tags functionality
+  - Strip tags functionality
+  - Visual feedback for tag errors
+
+### How It Works
+```
+IMPORT: Bold text in DOCX → <b>Bold text</b> in editor
+EDIT:   Translator sees: "The <b>API key</b> is required"
+        Translates to:    "La <b>clé API</b> est requise"
+EXPORT: <b>clé API</b> → Bold formatting in DOCX
+```
+
+### Benefits
+- ✅ Professional formatting preserved through translation workflow
+- ✅ Visual indication of formatted regions in source/target
+- ✅ No formatting lost during export
+- ✅ Quality control with tag validation
+- ✅ Efficient tag copying from source
+- ✅ Works with patents, contracts, technical docs with formatting
+
 ## [2.5.0-prototype-v0.1.1] - 2025-10-01 (Hot Fix)
 
 ### Fixed
