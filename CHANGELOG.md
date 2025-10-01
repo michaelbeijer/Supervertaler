@@ -1,5 +1,62 @@
 # Supervertaler - Changelog
 
+## [2.5.0-prototype-v0.1.1] - 2025-10-01 (Hot Fix)
+
+### Fixed
+- **DOCX Export Issues**: Corrected paragraph matching and whitespace handling
+  - Fixed source text appearing in exported DOCX when segments were untranslated
+  - Fixed extra newlines/line breaks in exported documents
+  - Improved paragraph index matching between import and export
+  - Better run management to prevent empty runs causing spacing issues
+  - Strip whitespace from translated text to prevent formatting problems
+  - Export now correctly skips empty paragraphs (matching import logic)
+
+### Technical Changes
+- Updated `docx_handler.py` export logic to use `non_empty_para_index`
+- Improved `_replace_paragraph_text()` to properly remove extra runs
+- Added whitespace stripping to prevent trailing spaces/newlines
+
+## [2.5.0-prototype] - 2025-10-01
+
+### Added
+- **CAT Editor Prototype**: Standalone Computer-Aided Translation editor (experimental)
+  - DOCX file import with automatic sentence segmentation
+  - Interactive grid interface for segment-by-segment translation
+  - Editable target column with status tracking (untranslated, draft, translated, approved)
+  - DOCX export with formatting preservation
+  - Bilingual DOCX export (source|target table format)
+  - TSV export for spreadsheet compatibility
+  - Find/Replace functionality across segments
+  - Project save/load to JSON format
+  - Progress tracking and completion percentage
+  - Keyboard shortcuts for efficient translation workflow
+  - Color-coded status indicators in grid
+  - Segment editor panel with quick actions
+  - Paragraph tracking for document reconstruction
+  - Basic formatting preservation (paragraph-level)
+
+### Technical Details (Prototype)
+- **New Modules**:
+  - `cat_tool_prototype/cat_editor_prototype.py` - Main application (800+ lines)
+  - `cat_tool_prototype/simple_segmenter.py` - Sentence segmentation engine
+  - `cat_tool_prototype/docx_handler.py` - DOCX import/export with formatting
+  - `cat_tool_prototype/README.md` - Complete documentation
+  - `cat_tool_prototype/QUICK_START.md` - Quick start guide
+- **Dependencies**: python-docx, lxml (installed)
+- **Architecture**: Standalone prototype for testing before main integration
+- **Status**: Experimental - Testing phase before v2.5.0 integration
+
+### Planned (For Main Integration)
+- SRX-based segmentation rules
+- Translation memory integration with existing TMAgent
+- AI translation using existing translation agents (Gemini, Claude, OpenAI)
+- Custom prompts integration
+- Advanced tag handling for inline formatting
+- Table cell segmentation
+- Quality assurance checks
+- Concordance search
+- Auto-propagation of repeated segments
+
 ## [2.4.1] - 2025-10-01
 
 ### Added
