@@ -16,6 +16,13 @@ except ImportError:
     DOCX_AVAILABLE = False
     print("ERROR: python-docx not installed. Run: pip install python-docx")
 
+# Import tag manager for inline formatting
+try:
+    from tag_manager import TagManager
+except ImportError:
+    print("WARNING: tag_manager not found. Inline formatting will not be preserved.")
+    TagManager = None
+
 
 @dataclass
 class ParagraphInfo:
