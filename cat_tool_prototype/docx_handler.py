@@ -43,17 +43,24 @@ class DOCXHandler:
         self.original_document = None
         self.original_path = None
         self.paragraphs_info: List[ParagraphInfo] = []
+        self.tag_manager = TagManager() if TagManager else None
     
-    def import_docx(self, file_path: str) -> List[str]:
+    def import_docx(self, file_path: str, extract_formatting: bool = True) -> List[str]:
         """
-        Import DOCX file and extract paragraphs
+        Import DOCX file and extract paragraphs with formatting tags
         
-        Returns: List of paragraph texts
+        Args:
+            file_path: Path to DOCX file
+            extract_formatting: If True, convert formatting to inline tags
+        
+        Returns: List of paragraph texts (with tags if extract_formatting=True)
         """
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"File not found: {file_path}")
         
         print(f"[DOCX Handler] Importing: {file_path}")
+        if extract_formatting and self.tag_manager:
+            print("[DOCX Handler] Extracting inline formatting as tags")
         
         # Load document
         self.original_document = Document(file_path)
@@ -67,7 +74,13 @@ class DOCXHandler:
             text = para.text.strip()
             
             if text:  # Only include non-empty paragraphs
-                paragraphs.append(text)
+                # Extract formatting if requested
+                if extract_formatting and self.tag_manager:
+                    runs = self.tag_manager.extract_runs(para)
+                    text_with_tags = self.tag_manager.runs_to_tagged_text(runs)
+                    paragraphs.append(text_with_tags)
+                else:
+                    paragraphs.append(text)
                 
                 # Store paragraph info for reconstruction
                 para_info = ParagraphInfo(
@@ -149,11 +162,17 @@ class DOCXHandler:
     
     def _replace_paragraph_text(self, paragraph, new_text: str):
         """
-        Replace paragraph text while attempting to preserve formatting
+        Replace paragraph text while preserving or applying formatting
         
-        This is a simplified version. For complex formatting, we would need
-        to track run-level formatting.
+        If new_text contains inline tags (e.g., <b>text</b>), they will be
+        converted to proper formatting runs.
         """
+        # Check if text contains formatting tags
+        if self.tag_manager and ('<b>' in new_text or '<i>' in new_text or '<u>' in new_text or '<bi>' in new_text):
+            self._replace_paragraph_with_formatting(paragraph, new_text)
+            return
+        
+        # Simple replacement (no tags) - preserve original formatting
         # Store original formatting from first run (if any)
         original_font_name = None
         original_font_size = None
@@ -190,6 +209,55 @@ class DOCXHandler:
             run.font.bold = True
         if original_italic:
             run.font.italic = True
+    
+    def _replace_paragraph_with_formatting(self, paragraph, tagged_text: str):
+        """
+        Replace paragraph text with formatted runs based on inline tags
+        
+        Example: "Hello <b>world</b>!" creates runs with proper bold formatting
+        """
+        if not self.tag_manager:
+            # Fallback: strip tags and use simple replacement
+            clean_text = tagged_text.replace('<b>', '').replace('</b>', '')
+            clean_text = clean_text.replace('<i>', '').replace('</i>', '')
+            clean_text = clean_text.replace('<u>', '').replace('</u>', '')
+            clean_text = clean_text.replace('<bi>', '').replace('</bi>', '')
+            self._replace_paragraph_text(paragraph, clean_text)
+            return
+        
+        # Store original font properties
+        original_font_name = None
+        original_font_size = None
+        
+        if paragraph.runs and paragraph.runs[0].font:
+            first_run = paragraph.runs[0]
+            original_font_name = first_run.font.name
+            original_font_size = first_run.font.size
+        
+        # Clear all runs
+        for run in paragraph.runs:
+            paragraph._element.remove(run._element)
+        
+        # Convert tagged text to run specifications
+        run_specs = self.tag_manager.tagged_text_to_runs(tagged_text)
+        
+        # Create runs with proper formatting
+        for spec in run_specs:
+            run = paragraph.add_run(spec['text'])
+            
+            # Apply formatting
+            if spec.get('bold'):
+                run.font.bold = True
+            if spec.get('italic'):
+                run.font.italic = True
+            if spec.get('underline'):
+                run.font.underline = True
+            
+            # Restore original font properties
+            if original_font_name:
+                run.font.name = original_font_name
+            if original_font_size:
+                run.font.size = original_font_size
     
     def export_bilingual_docx(self, segments: List[Dict[str, Any]], output_path: str):
         """
