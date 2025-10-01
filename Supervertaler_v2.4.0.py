@@ -2536,6 +2536,11 @@ class TranslationApp:
         self.prompt_name_var = tk.StringVar()
         tk.Entry(name_frame, textvariable=self.prompt_name_var, width=30).pack(side="left", padx=(0,5))
         
+        # Private checkbox for custom prompts
+        self.prompt_private_var = tk.BooleanVar(value=False)
+        tk.Checkbutton(name_frame, text="Save to Private Folder", 
+                      variable=self.prompt_private_var, bg="white").pack(side="left", padx=(10,0))
+        
         # Save/Load buttons
         save_load_frame = tk.Frame(management_frame, bg="white")
         save_load_frame.pack(fill="x", padx=5, pady=5)
@@ -2695,7 +2700,17 @@ class TranslationApp:
             return
             
         filename = f"{safe_name}.json"
-        filepath = os.path.join(self.custom_prompts_dir, filename)
+        
+        # Determine which directory to save to
+        if self.prompt_private_var.get():
+            # Save to private folder
+            save_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "custom_prompts_private")
+            os.makedirs(save_dir, exist_ok=True)
+        else:
+            # Save to public folder
+            save_dir = self.custom_prompts_dir
+            
+        filepath = os.path.join(save_dir, filename)
         
         # Get current prompts from the text widgets
         translate_prompt = self.translate_prompt_text.get("1.0", tk.END).strip() if hasattr(self, 'translate_prompt_text') else self.current_translate_prompt
@@ -2714,13 +2729,16 @@ class TranslationApp:
                 json.dump(prompt_data, f, indent=2, ensure_ascii=False)
             
             self.refresh_prompts_list()
-            self.update_log(f"[Prompts] Saved custom prompt set: '{prompt_name}'")
-            messagebox.showinfo("Saved", f"Prompt set '{prompt_name}' saved successfully!")
+            folder_type = "private" if self.prompt_private_var.get() else "public"
+            self.update_log(f"[Prompts] Saved custom prompt set to {folder_type} folder: '{prompt_name}'")
+            messagebox.showinfo("Saved", f"Prompt set '{prompt_name}' saved successfully to {folder_type} folder!")
             
             # Select the newly saved item
             items = list(self.prompts_listbox.get(0, tk.END))
             try:
-                index = items.index(prompt_name)
+                # Add [Private] prefix if it's a private prompt for selection
+                search_name = f"[Private] {prompt_name}" if self.prompt_private_var.get() else prompt_name
+                index = items.index(search_name)
                 self.prompts_listbox.selection_clear(0, tk.END)
                 self.prompts_listbox.selection_set(index)
             except ValueError:
@@ -2894,9 +2912,17 @@ class TranslationApp:
             selected_name = self.prompts_listbox.get(selection[0])
             # Update the name field (except for default)
             if selected_name != "[Default System Prompts]":
-                self.prompt_name_var.set(selected_name)
+                # Remove [Private] prefix for display in name field
+                if selected_name.startswith("[Private] "):
+                    display_name = selected_name[10:]  # Remove "[Private] " prefix
+                    self.prompt_private_var.set(True)
+                else:
+                    display_name = selected_name
+                    self.prompt_private_var.set(False)
+                self.prompt_name_var.set(display_name)
             else:
                 self.prompt_name_var.set("")
+                self.prompt_private_var.set(False)
 
     # ===== PROJECT LIBRARY METHODS =====
     
@@ -2927,6 +2953,12 @@ class TranslationApp:
         self.project_name_var = tk.StringVar()
         project_name_entry = tk.Entry(save_frame, textvariable=self.project_name_var, width=30, font=("Segoe UI", 9))
         project_name_entry.pack(fill="x", pady=(2,5))
+        
+        # Private checkbox for projects
+        self.project_private_var = tk.BooleanVar(value=False)
+        tk.Checkbutton(save_frame, text="Save to Private Folder", 
+                      variable=self.project_private_var, bg="white", 
+                      font=("Segoe UI", 9)).pack(anchor="w", pady=(2,5))
 
         # Save/Load/Delete buttons
         buttons_frame = tk.Frame(save_frame, bg="white")
@@ -3024,15 +3056,26 @@ class TranslationApp:
 
         # Save to file
         filename = f"{project_name}.json"
-        filepath = os.path.join(self.projects_dir, filename)
+        
+        # Determine which directory to save to
+        if self.project_private_var.get():
+            # Save to private folder
+            save_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "projects_private")
+            os.makedirs(save_dir, exist_ok=True)
+        else:
+            # Save to public folder
+            save_dir = self.projects_dir
+            
+        filepath = os.path.join(save_dir, filename)
 
         try:
             with open(filepath, 'w', encoding='utf-8') as f:
                 json.dump(project_data, f, indent=2, ensure_ascii=False)
             
             self.refresh_projects_list()
-            self.update_log(f"[Project] Saved project: '{project_name}'")
-            messagebox.showinfo("Saved", f"Project '{project_name}' saved successfully!")
+            folder_type = "private" if self.project_private_var.get() else "public"
+            self.update_log(f"[Project] Saved project to {folder_type} folder: '{project_name}'")
+            messagebox.showinfo("Saved", f"Project '{project_name}' saved successfully to {folder_type} folder!")
             
         except Exception as e:
             messagebox.showerror("Error", f"Failed to save project: {str(e)}")
@@ -3046,8 +3089,23 @@ class TranslationApp:
             return
 
         selected_name = self.projects_listbox.get(selection[0])
-        filename = f"{selected_name}.json"
-        filepath = os.path.join(self.projects_dir, filename)
+        
+        # Determine if this is a private project and get the correct path
+        if selected_name.startswith("[Private] "):
+            # Private project - remove prefix and look in private folder
+            actual_name = selected_name[10:]  # Remove "[Private] " prefix
+            filename = f"{actual_name}.json"
+            private_projects_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "projects_private")
+            filepath = os.path.join(private_projects_dir, filename)
+        else:
+            # Public project - look in public folder
+            filename = f"{selected_name}.json"
+            filepath = os.path.join(self.projects_dir, filename)
+        
+        if not os.path.exists(filepath):
+            messagebox.showerror("File Not Found", f"Project file not found: {filename}")
+            self.refresh_projects_list()
+            return
 
         try:
             with open(filepath, 'r', encoding='utf-8') as f:
@@ -3103,8 +3161,17 @@ class TranslationApp:
         if not messagebox.askyesno("Confirm Delete", f"Are you sure you want to delete the project '{selected_name}'?\n\nThis action cannot be undone."):
             return
 
-        filename = f"{selected_name}.json"
-        filepath = os.path.join(self.projects_dir, filename)
+        # Determine if this is a private project and get the correct path
+        if selected_name.startswith("[Private] "):
+            # Private project - remove prefix and look in private folder
+            actual_name = selected_name[10:]  # Remove "[Private] " prefix
+            filename = f"{actual_name}.json"
+            private_projects_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "projects_private")
+            filepath = os.path.join(private_projects_dir, filename)
+        else:
+            # Public project - look in public folder
+            filename = f"{selected_name}.json"
+            filepath = os.path.join(self.projects_dir, filename)
 
         try:
             if os.path.exists(filepath):
@@ -3124,22 +3191,48 @@ class TranslationApp:
         """Refresh the list of available projects"""
         self.projects_listbox.delete(0, tk.END)
 
-        # Scan projects directory
+        # Scan both projects directories
+        project_files = []
+        
+        # Scan public projects directory
         if os.path.exists(self.projects_dir):
             try:
                 for filename in sorted(os.listdir(self.projects_dir)):
                     if filename.endswith('.json'):
                         project_name = filename[:-5]  # Remove .json extension
-                        self.projects_listbox.insert(tk.END, project_name)
+                        project_files.append(project_name)
             except Exception as e:
                 self.update_log(f"[ERROR] Failed to scan projects: {str(e)}")
+        
+        # Scan private projects directory
+        private_projects_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "projects_private")
+        if os.path.exists(private_projects_dir):
+            try:
+                for filename in sorted(os.listdir(private_projects_dir)):
+                    if filename.endswith('.json'):
+                        project_name = filename[:-5]  # Remove .json extension
+                        # Add [Private] prefix to distinguish from public projects
+                        project_files.append(f"[Private] {project_name}")
+            except Exception as e:
+                self.update_log(f"[ERROR] Failed to scan private projects: {str(e)}")
+        
+        # Add all projects to listbox
+        for project_name in sorted(project_files):
+            self.projects_listbox.insert(tk.END, project_name)
 
     def on_project_selection(self, event=None):
         """Handle project selection in listbox"""
         selection = self.projects_listbox.curselection()
         if selection:
             selected_name = self.projects_listbox.get(selection[0])
-            self.project_name_var.set(selected_name)
+            # Remove [Private] prefix for display in name field
+            if selected_name.startswith("[Private] "):
+                display_name = selected_name[10:]  # Remove "[Private] " prefix
+                self.project_private_var.set(True)
+            else:
+                display_name = selected_name
+                self.project_private_var.set(False)
+            self.project_name_var.set(display_name)
 
     def open_projects_folder(self):
         """Open the projects folder in the system file manager"""
