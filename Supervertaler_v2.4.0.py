@@ -22,7 +22,6 @@ APP_VERSION = "2.4.0"
 print(f"=== Supervertaler v{APP_VERSION} starting ===")
 
 # --- Changelog (v2.1.1) ---
-# - Bumped version to 2.1.1.
 # - Added/updated external CHANGELOG.md with details for this release.
 # - NEW: Advanced System Prompts section - collapsible GUI section allowing users to:
 #   • View and edit underlying system prompts for Translation and Proofreading modes
