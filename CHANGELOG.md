@@ -1,5 +1,40 @@
 # Supervertaler - Changelog
 
+## [2.4.1] - 2025-10-01
+
+### Added
+- **Private Projects Support**: Enhanced project management with public/private separation
+  - "Save to Private Folder" checkbox for projects
+  - Automatic `projects_private/` folder creation for confidential projects
+  - `[Private]` prefix clearly identifies private projects in project library
+  - Private projects never synced to GitHub (gitignore protection)
+  - Seamless integration with existing project management interface
+- **Private Custom Prompts UI Enhancement**: Improved custom prompts interface
+  - "Save to Private Folder" checkbox integrated into custom prompts management
+  - Automatic folder selection based on privacy preference
+  - Visual indication of private prompts with `[Private]` prefix
+  - Consistent privacy handling across application features
+
+### Fixed
+- **Project Loading**: Fixed project file path resolution for private projects
+  - Correctly loads projects from both public and private folders
+  - Proper handling of `[Private]` prefix in project names
+  - Prevents "File Not Found" errors when switching between public/private projects
+- **Project Deletion**: Fixed deletion functionality for private projects
+  - Correctly identifies private project location for deletion
+  - Properly removes files from `projects_private/` folder
+  - Maintains deletion confirmation dialog for safety
+- **Custom Prompts Selection**: Improved prompt selection UI behavior
+  - Automatically updates privacy checkbox when selecting prompts
+  - Correctly removes `[Private]` prefix from name field for editing
+  - Maintains consistency between prompt name display and storage
+
+### Changed
+- **Project Library**: Enhanced project listing to show all projects from both folders
+  - Combined view of public and private projects in single list
+  - Alphabetically sorted project list regardless of folder
+  - Clear visual distinction between public and private projects
+
 ## [2.4.0] - 2025-09-14
 
 ### Added
