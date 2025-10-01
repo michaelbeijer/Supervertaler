@@ -7,6 +7,9 @@ api_keys.txt
 # Private custom prompts folder - never sync to GitHub
 custom_prompts_private/
 
+# Private projects folder - never sync to GitHub
+projects_private
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
