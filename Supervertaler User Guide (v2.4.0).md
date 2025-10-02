@@ -1244,6 +1244,108 @@ google_api_key=your_google_ai_api_key_here
 - Fallback options if primary provider unavailable
 - Real-time model listing and updates
 
+### Model Management Controls
+
+Supervertaler provides two dedicated buttons for managing AI models: **"Refresh Models"** and **"List Models"**. Understanding the difference between these controls is essential for efficient workflow management.
+
+#### 🔄 Refresh Models Button
+
+**Primary Function**: Updates the model dropdown menu with current available models
+
+**What It Does:**
+- ✅ Updates the model dropdown with available models for selected provider
+- ✅ Sets appropriate default model (e.g., `claude-3-5-sonnet-20241022` for Claude)
+- ✅ Quick operation with minimal logging
+- ✅ Essential for UI maintenance and troubleshooting
+
+**Technical Behavior:**
+- **Gemini**: Makes live API call to fetch current models from Google's servers
+- **Claude**: Uses predefined model list (static)  
+- **OpenAI**: Uses predefined model list (static)
+
+**When to Use:**
+- Model dropdown appears empty or shows outdated options
+- After switching between AI providers
+- When you want the latest Gemini models from Google
+- UI appears unresponsive or broken
+- After updating API keys
+
+**Sample Output:**
+```
+Updated models for Gemini: 8 available
+Updated models for Claude: 5 available
+```
+
+#### 📋 List Models Button
+
+**Primary Function**: Displays comprehensive model information in the log panel
+
+**What It Does:**
+- ✅ Shows detailed model information in the log panel
+- ✅ Provides model descriptions, capabilities, and metadata
+- ✅ Functions as diagnostic tool for research and troubleshooting
+- ✅ Verbose logging with comprehensive details
+
+**Technical Behavior:**
+- **Gemini**: Shows full model details (names, descriptions, capabilities, generation methods)
+- **Claude**: Shows numbered list with multimodal capability indicators
+- **OpenAI**: Shows numbered list with multimodal support information
+
+**When to Use:**
+- Research available models and their capabilities
+- Determine which models support multimodal features (images)
+- Troubleshoot API connectivity issues
+- Copy exact model names for configuration
+- Evaluate models for specific use cases
+
+**Sample Output for Gemini:**
+```
+--- Listing Models for Gemini ---
+Fetching Gemini models...
+Model: models/gemini-2.5-pro-preview-05-06
+  Display: Gemini 2.5 Pro Preview
+  Desc: Advanced reasoning and code generation...
+  Methods: ['generateContent']
+  ✅ genContent
+
+Found 8 Gemini models. For drawings, use multimodal.
+--- Done Listing ---
+```
+
+**Sample Output for Claude:**
+```
+--- Listing Models for Claude ---
+Available Claude models:
+1. claude-3-5-sonnet-20241022
+2. claude-3-5-haiku-20241022
+3. claude-3-opus-20240229
+
+Found 5 Claude models. All support multimodal capabilities.
+--- Done Listing ---
+```
+
+#### Quick Comparison
+
+| Feature | **🔄 Refresh Models** | **📋 List Models** |
+|---------|----------------------|-------------------|
+| **Purpose** | Update dropdown menu | Display model information |
+| **Output** | UI dropdown update | Detailed log information |
+| **Speed** | Fast | Slower (more data) |
+| **Use Case** | UI maintenance | Research & diagnostics |
+| **Logging** | Minimal | Comprehensive |
+
+#### Best Practices
+
+**For Regular Users:**
+- Use "Refresh Models" when dropdown issues occur
+- Use "List Models" to research model capabilities before starting projects
+- Check log panel for error messages if buttons fail
+
+**For Advanced Users:**
+- Use "List Models" to understand multimodal support for image processing
+- Monitor detailed output to diagnose API connectivity issues
+- Document preferred models for different document types based on detailed information
+
 ### Performance Optimization
 
 #### Token Usage Optimization
