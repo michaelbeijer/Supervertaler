@@ -38,7 +38,8 @@ class Segment:
     """Represents a translation segment"""
     
     def __init__(self, seg_id: int, source: str, paragraph_id: int = 0, 
-                 is_table_cell: bool = False, table_info: tuple = None):
+                 is_table_cell: bool = False, table_info: tuple = None,
+                 style: str = None):
         self.id = seg_id
         self.source = source
         self.target = ""
@@ -52,6 +53,9 @@ class Segment:
         # Table information
         self.is_table_cell = is_table_cell
         self.table_info = table_info  # (table_idx, row_idx, cell_idx) if is_table_cell
+        
+        # Style information (Heading 1, Normal, Title, etc.)
+        self.style = style or "Normal"
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization"""
@@ -66,14 +70,16 @@ class Segment:
             'created_at': self.created_at,
             'modified_at': self.modified_at,
             'is_table_cell': self.is_table_cell,
-            'table_info': self.table_info
+            'table_info': self.table_info,
+            'style': self.style
         }
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Segment':
         """Create Segment from dictionary"""
         seg = cls(data['id'], data['source'], data.get('paragraph_id', 0),
-                  data.get('is_table_cell', False), data.get('table_info'))
+                  data.get('is_table_cell', False), data.get('table_info'),
+                  data.get('style', 'Normal'))
         seg.target = data.get('target', '')
         seg.status = data.get('status', 'untranslated')
         seg.notes = data.get('notes', '')
@@ -88,7 +94,7 @@ class CATEditorPrototype:
     
     def __init__(self, root):
         self.root = root
-        self.root.title("Supervertaler CAT Editor - Prototype v0.3.0")
+        self.root.title("Supervertaler CAT Editor - Prototype v0.3.1")
         self.root.geometry("1200x800")
         
         # Data
@@ -177,22 +183,24 @@ class CATEditorPrototype:
         
         # Create treeview for segments
         self.tree = ttk.Treeview(grid_frame,
-                                columns=('id', 'type', 'status', 'source', 'target'),
+                                columns=('id', 'type', 'style', 'status', 'source', 'target'),
                                 show='headings',
                                 selectmode='browse')
         
         # Define columns
         self.tree.heading('id', text='#')
         self.tree.heading('type', text='Type')
+        self.tree.heading('style', text='Style')
         self.tree.heading('status', text='Status')
         self.tree.heading('source', text='Source')
         self.tree.heading('target', text='Target')
         
-        self.tree.column('id', width=50, anchor='center')
-        self.tree.column('type', width=80, anchor='center')
-        self.tree.column('status', width=100, anchor='center')
-        self.tree.column('source', width=420, anchor='w')
-        self.tree.column('target', width=420, anchor='w')
+        self.tree.column('id', width=40, minwidth=40, anchor='center', stretch=False)
+        self.tree.column('type', width=65, minwidth=60, anchor='center', stretch=False)
+        self.tree.column('style', width=80, minwidth=70, anchor='w', stretch=False)
+        self.tree.column('status', width=95, minwidth=90, anchor='center', stretch=False)
+        self.tree.column('source', width=400, minwidth=200, anchor='w', stretch=True)
+        self.tree.column('target', width=400, minwidth=200, anchor='w', stretch=True)
         
         # Scrollbars
         v_scroll = ttk.Scrollbar(grid_frame, orient='vertical', command=self.tree.yview)
@@ -212,6 +220,13 @@ class CATEditorPrototype:
         self.tree.tag_configure('translated', background='#e6ffe6')
         self.tree.tag_configure('approved', background='#e6f3ff')
         self.tree.tag_configure('table_cell', foreground='#0066cc', font=('TkDefaultFont', 9, 'italic'))
+        
+        # Configure style-specific formatting
+        self.tree.tag_configure('heading1', font=('TkDefaultFont', 10, 'bold'), foreground='#003366')
+        self.tree.tag_configure('heading2', font=('TkDefaultFont', 9, 'bold'), foreground='#0066cc')
+        self.tree.tag_configure('heading3', font=('TkDefaultFont', 9, 'bold'), foreground='#3399ff')
+        self.tree.tag_configure('title', font=('TkDefaultFont', 11, 'bold'), foreground='#663399')
+        self.tree.tag_configure('subtitle', font=('TkDefaultFont', 9, 'italic'), foreground='#663399')
         
         # Bind events
         self.tree.bind('<<TreeviewSelect>>', self.on_segment_select)
@@ -327,19 +342,26 @@ class CATEditorPrototype:
             self.log("Segmenting text...")
             segmented = self.segmenter.segment_paragraphs(paragraphs)
             
-            # Create segments with table information
+            # Create segments with table and style information
             self.segments = []
             for seg_id, (para_id, text) in enumerate(segmented, 1):
-                # Get paragraph info to check if it's a table cell
+                # Get paragraph info to check if it's a table cell and get style
                 para_info = self.docx_handler._get_para_info(para_id)
                 
                 is_table = False
                 table_info = None
-                if para_info and para_info.is_table_cell:
-                    is_table = True
-                    table_info = (para_info.table_index, para_info.row_index, para_info.cell_index)
+                style = "Normal"  # Default style
                 
-                segment = Segment(seg_id, text, para_id, is_table, table_info)
+                if para_info:
+                    # Get style information
+                    style = para_info.style or "Normal"
+                    
+                    # Get table information
+                    if para_info.is_table_cell:
+                        is_table = True
+                        table_info = (para_info.table_index, para_info.row_index, para_info.cell_index)
+                
+                segment = Segment(seg_id, text, para_id, is_table, table_info, style)
                 self.segments.append(segment)
             
             # Load into grid
@@ -368,15 +390,23 @@ class CATEditorPrototype:
             else:
                 type_label = "Para"
             
+            # Format style name for display
+            style_display = self._format_style_name(seg.style)
+            
             # Set tags for styling
             tags = [seg.status]
             if seg.is_table_cell:
                 tags.append('table_cell')
             
+            # Add style-specific tag for visual formatting
+            style_tag = self._get_style_tag(seg.style)
+            if style_tag:
+                tags.append(style_tag)
+            
             self.tree.insert('', 'end',
-                           values=(seg.id, type_label, seg.status.capitalize(),
-                                  self._truncate(seg.source, 90),
-                                  self._truncate(seg.target, 90)),
+                           values=(seg.id, type_label, style_display, seg.status.capitalize(),
+                                  self._truncate(seg.source, 75),
+                                  self._truncate(seg.target, 75)),
                            tags=tuple(tags))
     
     def _truncate(self, text: str, length: int) -> str:
@@ -384,6 +414,34 @@ class CATEditorPrototype:
         if len(text) <= length:
             return text
         return text[:length-3] + "..."
+    
+    def _format_style_name(self, style: str) -> str:
+        """Format style name for display in grid"""
+        if not style or style == "Normal":
+            return "Normal"
+        # Shorten common styles for better display
+        style = style.replace("Heading", "H").replace("heading", "H")
+        # Limit length
+        if len(style) > 12:
+            return style[:12]
+        return style
+    
+    def _get_style_tag(self, style: str) -> str:
+        """Get treeview tag for style-specific formatting"""
+        if not style:
+            return None
+        style_lower = style.lower()
+        if 'heading 1' in style_lower or style_lower == 'heading1':
+            return 'heading1'
+        elif 'heading 2' in style_lower or style_lower == 'heading2':
+            return 'heading2'
+        elif 'heading 3' in style_lower or style_lower == 'heading3':
+            return 'heading3'
+        elif 'title' in style_lower and 'sub' not in style_lower:
+            return 'title'
+        elif 'subtitle' in style_lower:
+            return 'subtitle'
+        return None
     
     def on_segment_select(self, event):
         """Handle segment selection in grid"""
@@ -453,11 +511,28 @@ class CATEditorPrototype:
         for item in self.tree.get_children():
             values = self.tree.item(item, 'values')
             if int(values[0]) == segment.id:
+                # Determine type label
+                if segment.is_table_cell and segment.table_info:
+                    type_label = f"T{segment.table_info[0]+1}R{segment.table_info[1]+1}C{segment.table_info[2]+1}"
+                else:
+                    type_label = "Para"
+                
+                # Format style name
+                style_display = self._format_style_name(segment.style)
+                
+                # Set tags for styling
+                tags = [segment.status]
+                if segment.is_table_cell:
+                    tags.append('table_cell')
+                style_tag = self._get_style_tag(segment.style)
+                if style_tag:
+                    tags.append(style_tag)
+                
                 self.tree.item(item,
-                             values=(segment.id, segment.status.capitalize(),
-                                    self._truncate(segment.source, 100),
-                                    self._truncate(segment.target, 100)),
-                             tags=(segment.status,))
+                             values=(segment.id, type_label, style_display, segment.status.capitalize(),
+                                    self._truncate(segment.source, 75),
+                                    self._truncate(segment.target, 75)),
+                             tags=tuple(tags))
                 break
     
     def on_status_change(self, event):
