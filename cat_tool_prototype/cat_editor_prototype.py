@@ -94,7 +94,7 @@ class CATEditorPrototype:
     
     def __init__(self, root):
         self.root = root
-        self.root.title("Supervertaler CAT Editor - Prototype v0.3.1")
+        self.root.title("Supervertaler CAT Editor - Prototype v0.3.2")
         self.root.geometry("1200x800")
         
         # Data
@@ -676,7 +676,7 @@ class CATEditorPrototype:
         
         try:
             data = {
-                'version': '0.1',
+                'version': '0.3.2',
                 'created_at': datetime.now().isoformat(),
                 'original_docx': self.original_docx,
                 'segments': [s.to_dict() for s in self.segments]

@@ -1,18 +1,30 @@
-# CAT Editor Prototype v0.1
+# CAT Editor Prototype v0.3.2
 
 **A standalone Computer-Aided Translation (CAT) Editor for Supervertaler**
 
 ## 🎯 Features
 
-- ✅ **DOCX Import** - Import Microsoft Word documents
+### Core Features
+- ✅ **DOCX Import** - Import Microsoft Word documents with full formatting
 - ✅ **Automatic Segmentation** - Split text into translatable segments
-- ✅ **Editable Grid** - Excel-like interface for translation
-- ✅ **DOCX Export** - Export with formatting preservation
+- ✅ **Table Support** - Import and translate table cells as individual segments
+- ✅ **Style Support** - Visual display and preservation of Word styles (Heading 1-3, Title, etc.)
+- ✅ **Editable Grid** - Excel-like interface with 6 columns (ID, Type, Style, Status, Source, Target)
+- ✅ **DOCX Export** - Export with full formatting and style preservation
 - ✅ **Bilingual Export** - Create side-by-side review documents
 - ✅ **TSV Export** - Export to tab-separated format
 - ✅ **Find/Replace** - Search and replace across segments
-- ✅ **Status Tracking** - Track translation progress
+- ✅ **Status Tracking** - Track translation progress (Untranslated, Draft, Translated, Approved)
 - ✅ **Project Save/Load** - Save work and resume later
+- ✅ **Inline Formatting** - Preserve bold, italic, underline with XML-like tags
+
+### Advanced Features
+- ✅ **Table Cell Segmentation** - Each table cell is a separate translatable segment
+- ✅ **Style Visibility** - Color-coded headings (H1=dark blue, H2=medium blue, H3=light blue)
+- ✅ **Style Preservation on Export** - Exported documents maintain original styles
+- ✅ **Type Column** - Shows "Para" for paragraphs, "T#R#C#" for table cells
+- ✅ **Tag Management** - Insert, validate, and manage inline formatting tags
+- ✅ **Real-time Tag Validation** - Instant feedback on tag errors
 
 ## 📋 Requirements
 
@@ -83,10 +95,16 @@ python cat_editor_prototype.py
 
 ```
 cat_tool_prototype/
-├── cat_editor_prototype.py    # Main application
+├── cat_editor_prototype.py    # Main application (1000+ lines)
 ├── simple_segmenter.py         # Sentence segmentation
-├── docx_handler.py             # DOCX import/export
-└── README.md                   # This file
+├── docx_handler.py             # DOCX import/export with formatting (450+ lines)
+├── tag_manager.py              # Inline formatting tag management (300+ lines)
+├── README.md                   # This file
+├── PHASE_0.1_COMPLETE.md       # Table support documentation
+├── PHASE_A_COMPLETE.md         # Style visibility documentation
+├── PHASE_B_STYLE_PRESERVATION.md  # Style preservation documentation
+├── BUGFIX_*.md                 # Bug fix documentation
+└── test_*.py                   # Test scripts
 ```
 
 ## 🎨 User Interface
@@ -94,10 +112,31 @@ cat_tool_prototype/
 ### Main Window
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│  Supervertaler CAT Editor - Prototype v0.1              │
-├─────────────────────────────────────────────────────────┤
-│ [Import] [Save] [Export] │ [Find/Replace]  Progress: 50%│
+┌─────────────────────────────────────────────────────────────────────────┐
+│  Supervertaler CAT Editor - Prototype v0.3.2                            │
+├─────────────────────────────────────────────────────────────────────────┤
+│ [Import] [Save] [Export] │ [Find/Replace]  Progress: 50%               │
+├─────────────────────────────────────────────────────────────────────────┤
+│  Translation Grid                                                        │
+│  # │ Type │ Style    │ Status      │ Source             │ Target        │
+├────┼──────┼──────────┼─────────────┼────────────────────┼───────────────┤
+│  1 │ Para │ Heading 1│ Translated  │ First sentence.    │ Eerste zin.   │
+│  2 │ Para │ Normal   │ Draft       │ Second sentence.   │ Tweede...     │
+│  3 │ T1R1C1│ Normal  │ Untranslated│ Table cell text    │               │
+├─────────────────────────────────────────────────────────────────────────┤
+│  Segment Editor                                                          │
+│  Segment #2 | Para | Normal          Status: [Draft ▼]                 │
+│  Source: Second sentence.                                                │
+│  Target: [Tweede zin.____________________________]                       │
+│  [Copy Source → Target] [Clear]  [Save & Next]                         │
+│  [📎 Bold] [📎 Italic] [📎 Underline] [Copy Tags] [Strip Tags]        │
+│  Tags: ✓ Valid                                                          │
+├─────────────────────────────────────────────────────────────────────────┤
+│  Log                                                                     │
+│  [10:30:15] Imported: document.docx                                      │
+│  [10:30:16] ✓ Loaded 50 segments (40 paragraphs + 10 table cells)      │
+└─────────────────────────────────────────────────────────────────────────┘
+```
 ├─────────────────────────────────────────────────────────┤
 │  Translation Grid                                        │
 │  # │ Status      │ Source             │ Target          │
@@ -171,27 +210,26 @@ Projects are saved as JSON files containing:
 3. Export to TSV for glossary extraction
 ```
 
-## 🐛 Known Limitations (v0.1)
+## 🐛 Known Limitations (v0.3.2)
 
 - ❌ No SRX-based segmentation yet (simple regex only)
-- ❌ Limited formatting preservation (paragraph-level only)
-- ❌ No inline tag handling for bold/italic within segments
-- ❌ No table support during segmentation
 - ❌ No translation memory integration
 - ❌ No AI translation integration
+- ❌ No concordance search
+- ⚠️ Complex nested tables may need testing
+- ⚠️ Very large documents (1000+ segments) may be slow
 
 ## 🚧 Planned Features (Future Versions)
 
 - [ ] SRX rule-based segmentation
-- [ ] Advanced formatting preservation (run-level)
-- [ ] Inline tag handling
-- [ ] Table cell segmentation
 - [ ] Translation memory matching
 - [ ] Integration with Supervertaler AI agents
 - [ ] Quality assurance checks
 - [ ] Concordance search
 - [ ] Segment splitting/merging
 - [ ] Auto-propagation of translations
+- [ ] Complex table support (merged cells, nested tables)
+- [ ] Track changes preservation
 
 ## 🔍 Testing
 
@@ -261,6 +299,33 @@ For issues or questions:
 - Test with small documents first
 
 ## 📝 Version History
+
+### v0.3.2 (October 2, 2025)
+- ✅ **Style Preservation on Export** - All Word styles maintained (Heading 1-3, Title, Subtitle, Normal)
+- 🐛 **Bug Fix**: Missing Subtitle paragraph (object identity comparison fix)
+- ✅ Style preservation for regular paragraphs AND table cells
+- ✅ Graceful handling of missing styles
+
+### v0.3.1 (October 2, 2025)
+- ✅ **Style Visibility** - Display Word styles in Style column
+- ✅ Color-coded headings (H1, H2, H3, Title, Subtitle)
+- ✅ Style column added to grid (6 columns total)
+- 🐛 **Bug Fix**: Column misalignment when saving translations
+
+### v0.3.0 (October 2, 2025)
+- ✅ **Table Support** - Import and translate table cells
+- ✅ Type column showing "Para" or "T#R#C#" format
+- ✅ Table cells as individual segments
+- 🐛 **Bug Fix**: Table cell duplication (filter table paragraphs)
+
+### v0.2.0 (October 1, 2025)
+- ✅ **Inline Formatting Tags** - Bold, italic, underline preservation
+- ✅ Tag validation and visual feedback
+- ✅ Tag insertion buttons and keyboard shortcuts
+- ✅ Copy source tags functionality
+
+### v0.1.1 (October 1, 2025)
+- 🐛 **Bug Fix**: DOCX export whitespace and paragraph matching
 
 ### v0.1 (October 1, 2025)
 - ✅ Initial prototype release
