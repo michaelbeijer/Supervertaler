@@ -37,7 +37,8 @@ except ImportError:
 class Segment:
     """Represents a translation segment"""
     
-    def __init__(self, seg_id: int, source: str, paragraph_id: int = 0):
+    def __init__(self, seg_id: int, source: str, paragraph_id: int = 0, 
+                 is_table_cell: bool = False, table_info: tuple = None):
         self.id = seg_id
         self.source = source
         self.target = ""
@@ -47,6 +48,10 @@ class Segment:
         self.modified = False
         self.created_at = datetime.now().isoformat()
         self.modified_at = datetime.now().isoformat()
+        
+        # Table information
+        self.is_table_cell = is_table_cell
+        self.table_info = table_info  # (table_idx, row_idx, cell_idx) if is_table_cell
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization"""
@@ -59,13 +64,16 @@ class Segment:
             'notes': self.notes,
             'modified': self.modified,
             'created_at': self.created_at,
-            'modified_at': self.modified_at
+            'modified_at': self.modified_at,
+            'is_table_cell': self.is_table_cell,
+            'table_info': self.table_info
         }
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Segment':
         """Create Segment from dictionary"""
-        seg = cls(data['id'], data['source'], data.get('paragraph_id', 0))
+        seg = cls(data['id'], data['source'], data.get('paragraph_id', 0),
+                  data.get('is_table_cell', False), data.get('table_info'))
         seg.target = data.get('target', '')
         seg.status = data.get('status', 'untranslated')
         seg.notes = data.get('notes', '')
@@ -80,7 +88,7 @@ class CATEditorPrototype:
     
     def __init__(self, root):
         self.root = root
-        self.root.title("Supervertaler CAT Editor - Prototype v0.2.0")
+        self.root.title("Supervertaler CAT Editor - Prototype v0.3.0")
         self.root.geometry("1200x800")
         
         # Data
@@ -169,20 +177,22 @@ class CATEditorPrototype:
         
         # Create treeview for segments
         self.tree = ttk.Treeview(grid_frame,
-                                columns=('id', 'status', 'source', 'target'),
+                                columns=('id', 'type', 'status', 'source', 'target'),
                                 show='headings',
                                 selectmode='browse')
         
         # Define columns
         self.tree.heading('id', text='#')
+        self.tree.heading('type', text='Type')
         self.tree.heading('status', text='Status')
         self.tree.heading('source', text='Source')
         self.tree.heading('target', text='Target')
         
         self.tree.column('id', width=50, anchor='center')
+        self.tree.column('type', width=80, anchor='center')
         self.tree.column('status', width=100, anchor='center')
-        self.tree.column('source', width=450, anchor='w')
-        self.tree.column('target', width=450, anchor='w')
+        self.tree.column('source', width=420, anchor='w')
+        self.tree.column('target', width=420, anchor='w')
         
         # Scrollbars
         v_scroll = ttk.Scrollbar(grid_frame, orient='vertical', command=self.tree.yview)
@@ -201,6 +211,7 @@ class CATEditorPrototype:
         self.tree.tag_configure('draft', background='#fff9e6')
         self.tree.tag_configure('translated', background='#e6ffe6')
         self.tree.tag_configure('approved', background='#e6f3ff')
+        self.tree.tag_configure('table_cell', foreground='#0066cc', font=('TkDefaultFont', 9, 'italic'))
         
         # Bind events
         self.tree.bind('<<TreeviewSelect>>', self.on_segment_select)
@@ -316,10 +327,19 @@ class CATEditorPrototype:
             self.log("Segmenting text...")
             segmented = self.segmenter.segment_paragraphs(paragraphs)
             
-            # Create segments
+            # Create segments with table information
             self.segments = []
             for seg_id, (para_id, text) in enumerate(segmented, 1):
-                segment = Segment(seg_id, text, para_id)
+                # Get paragraph info to check if it's a table cell
+                para_info = self.docx_handler._get_para_info(para_id)
+                
+                is_table = False
+                table_info = None
+                if para_info and para_info.is_table_cell:
+                    is_table = True
+                    table_info = (para_info.table_index, para_info.row_index, para_info.cell_index)
+                
+                segment = Segment(seg_id, text, para_id, is_table, table_info)
                 self.segments.append(segment)
             
             # Load into grid
@@ -342,11 +362,22 @@ class CATEditorPrototype:
         
         # Add segments
         for seg in self.segments:
+            # Determine type label
+            if seg.is_table_cell and seg.table_info:
+                type_label = f"T{seg.table_info[0]+1}R{seg.table_info[1]+1}C{seg.table_info[2]+1}"
+            else:
+                type_label = "Para"
+            
+            # Set tags for styling
+            tags = [seg.status]
+            if seg.is_table_cell:
+                tags.append('table_cell')
+            
             self.tree.insert('', 'end',
-                           values=(seg.id, seg.status.capitalize(),
-                                  self._truncate(seg.source, 100),
-                                  self._truncate(seg.target, 100)),
-                           tags=(seg.status,))
+                           values=(seg.id, type_label, seg.status.capitalize(),
+                                  self._truncate(seg.source, 90),
+                                  self._truncate(seg.target, 90)),
+                           tags=tuple(tags))
     
     def _truncate(self, text: str, length: int) -> str:
         """Truncate text for display"""
