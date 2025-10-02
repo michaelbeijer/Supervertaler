@@ -1,5 +1,45 @@
 # CAT Editor Prototype - Release Notes
 
+## Version 0.3.1 (October 2, 2025) - Style Visibility Release 🎨
+
+### New Features
+- **✨ Style Column** - Segment grid now shows Word style (Title, H 1, H 2, H 3, Normal, etc.)
+- **🎨 Visual Style Formatting** - Headings display with distinct colors and fonts:
+  - Heading 1: Bold, dark blue
+  - Heading 2: Bold, medium blue
+  - Heading 3: Bold, light blue
+  - Title: Bold, larger, purple
+  - Subtitle: Italic, purple
+  - Normal: Regular text
+
+### Enhancements
+- **Better Translator Context** - Instantly see if segment is heading vs body text
+- **Enhanced Data Model** - Segment class includes style attribute
+- **Style Statistics** - Import shows breakdown of styles in document
+- **Backward Compatible** - Old projects load with "Normal" default style
+
+### Use Cases
+Perfect for documents with structure:
+- Legal documents (section headings, subsections)
+- Technical manuals (chapter titles, sections)
+- Business reports (executive summaries, headers)
+- Contracts (article headers, clauses)
+- Academic papers (titles, abstracts)
+
+### Technical Details
+- **Files Modified**: `cat_editor_prototype.py` (~60 lines)
+- **Style Detection**: Already captured, now displayed
+- **Visual Tags**: heading1, heading2, heading3, title, subtitle
+- **Test Document**: `test_document_with_styles.docx` (46 segments, 7 different styles)
+
+### Benefits
+- ✅ **Immediate visual feedback** - See heading hierarchy at a glance
+- ✅ **Better translations** - Apply appropriate tone based on style
+- ✅ **Document structure** - Understand organization
+- ✅ **Quality control** - Verify headings translated correctly
+
+---
+
 ## Version 0.3.0 (October 2, 2025) - Table Support Release 🎉
 
 ### New Features

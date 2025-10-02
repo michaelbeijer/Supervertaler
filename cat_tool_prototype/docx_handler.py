@@ -77,11 +77,22 @@ class DOCXHandler:
         # Track position in document structure
         para_counter = 0
         
-        # Process document in order: paragraphs and tables intermixed
-        # We need to process them in document order to maintain structure
+        # Build a set of paragraph objects that are inside tables
+        # We'll use the paragraph element's parent to check if it's in a table
+        table_paragraph_ids = set()
+        for table in self.original_document.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    for para in cell.paragraphs:
+                        # Use the element itself as identifier
+                        table_paragraph_ids.add(id(para._element))
         
-        # First, extract regular paragraphs
+        # First, extract regular paragraphs (excluding those in tables)
         for idx, para in enumerate(self.original_document.paragraphs):
+            # Skip paragraphs that are inside tables
+            if id(para._element) in table_paragraph_ids:
+                continue
+                
             text = para.text.strip()
             
             if text:  # Only include non-empty paragraphs
