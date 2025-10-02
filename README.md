@@ -3,7 +3,7 @@
 
 🎯 **Context-aware, LLM-powered translation & proofreading tool, leveraging multiple context sources for enhanced accuracy (built for translators)** - Revolutionary approach to document translation that leverages multiple context sources for unparalleled accuracy.
 
-**Note**: A standalone CAT (Computer-Aided Translation) editor prototype is under active development in the cat_tool_prototype/ folder. This experimental tool is being designed for potential integration into Supervertaler v2.5.0.
+**Note**: A standalone CAT (Computer-Aided Translation) editor prototype is under active development in the *cat_tool_prototype/* folder. This experimental tool is being designed for potential integration into Supervertaler v2.5.0.
 
 ## 🔧 CAT Tool Integration
 
