@@ -1,5 +1,117 @@
 # Supervertaler - Changelog
 
+## [2.5.0-prototype-v0.3.2] - 2025-10-02 (Style Preservation Update)
+
+### Added
+- **Style Preservation on Export** (Phase B) - Complete Word style preservation
+  - All paragraph styles preserved: Title, Subtitle, Heading 1-3, Normal, custom styles
+  - Works for both regular paragraphs and table cells
+  - Modified `_replace_paragraph_text()` to accept and apply styles
+  - Modified `_replace_paragraph_with_formatting()` for style support
+  - Graceful error handling when style doesn't exist in template
+  - Professional output documents with correct formatting hierarchy
+
+### Fixed
+- **Missing Subtitle Bug** (Critical) - Object identity comparison fix
+  - Changed table paragraph filtering from object IDs to actual objects
+  - Fixed Python memory address reuse causing false positives
+  - Subtitle and other paragraphs no longer skipped during import
+  - Reliable object comparison prevents silent data loss
+  - All document content now imported correctly
+
+### Technical Details
+- **Updated**: `docx_handler.py` (Lines 75-95, 258-316, 318-382, 197-215, 227-241)
+  - Table filtering uses `table_paragraphs` set (objects) instead of IDs
+  - `_replace_paragraph_text()` now applies original style parameter
+  - `_replace_paragraph_with_formatting()` applies style after creating runs
+  - `export_docx()` passes original styles during paragraph replacement
+- **Documentation**: `PHASE_B_STYLE_PRESERVATION.md`, `BUGFIX_MISSING_SUBTITLE.md`
+
+### Benefits
+- ✅ Exported documents maintain professional appearance
+- ✅ No manual reformatting needed after translation
+- ✅ Document structure and hierarchy preserved
+- ✅ All content imported reliably (no data loss)
+
+---
+
+## [2.5.0-prototype-v0.3.1] - 2025-10-02 (Style Visibility Update)
+
+### Added
+- **Style Visibility** (Phase A) - Display Word styles in grid
+  - New "Style" column showing paragraph styles (Heading 1-3, Title, Normal, etc.)
+  - Color-coded headings for visual hierarchy:
+    - Heading 1: Dark blue (bold)
+    - Heading 2: Medium blue
+    - Heading 3: Light blue
+    - Title: Purple (bold)
+    - Subtitle: Purple (italic)
+  - Helper methods: `_format_style_name()`, `_get_style_tag()`
+  - Grid expanded to 6 columns: ID, Type, Style, Status, Source, Target
+
+### Fixed
+- **Column Misalignment Bug** (Critical)
+  - `update_segment_in_grid()` was passing 4 values to 6-column grid
+  - Now correctly passes all 6 values in proper order
+  - Column widths configured with `minwidth` and `stretch` properties
+  - Source and target text now appear in correct columns after save
+
+### Technical Details
+- **Updated**: `cat_editor_prototype.py`
+  - Lines ~37-56: Added `style` parameter to Segment class
+  - Lines ~186-203: Treeview configured for 6 columns
+  - Lines ~218-223: Visual tags for heading styles
+  - Lines ~508-533: Fixed `update_segment_in_grid()` value count
+- **Documentation**: `PHASE_A_COMPLETE.md`, `BUGFIX_COLUMN_MISALIGNMENT.md`
+- **Test Script**: `test_style_support.py` (44 segments with 7 different styles)
+
+### Benefits
+- ✅ Visual document structure in grid
+- ✅ Easier to maintain document hierarchy
+- ✅ Color-coded headings improve readability
+- ✅ Grid updates correctly after translation
+
+---
+
+## [2.5.0-prototype-v0.3.0] - 2025-10-02 (Table Support Update)
+
+### Added
+- **Table Support** (Phase 0.1) - Full table cell segmentation
+  - Table cells imported as individual segments
+  - Each cell identified as T{table}R{row}C{col} (e.g., T1R2C3)
+  - "Type" column in grid showing "Para" or "T#R#C#"
+  - Table cells translatable independently
+  - Export reconstructs tables with translations
+  - Enhanced `ParagraphInfo` with table metadata
+  - Grid expanded to 5 columns: ID, Type, Status, Source, Target
+
+### Fixed
+- **Table Cell Duplication Bug** (Critical)
+  - python-docx `document.paragraphs` includes table cell paragraphs
+  - Created filtering system to prevent duplicate processing
+  - Build `table_paragraph_ids` set for filtering
+  - Process regular paragraphs first, then table cells separately
+  - No more duplicate segments in grid
+
+### Technical Details
+- **Updated**: `docx_handler.py` (Lines 70-140, 220-241, 247-261)
+  - Enhanced import to extract table cells with position tracking
+  - Export reconstructs tables by finding cells using metadata
+  - Helper methods: `_get_para_info()`, `_find_table_cell_info()`
+- **Updated**: `cat_editor_prototype.py` (Lines ~186-203, ~377-401)
+  - Grid configured for 5 columns with Type column
+  - Display type labels clearly (Para vs T#R#C#)
+- **Documentation**: `PHASE_0.1_COMPLETE.md`, `BUGFIX_TABLE_DUPLICATION.md`
+- **Test Script**: `test_table_support.py` (26 segments: 8 para + 18 table cells)
+
+### Benefits
+- ✅ Professional documents with tables can be translated
+- ✅ Clear indication of segment origin
+- ✅ Table structure preserved on export
+- ✅ Each cell is independent segment
+
+---
+
 ## [2.5.0-prototype-v0.2.0] - 2025-10-01 (Feature Update)
 
 ### Added
