@@ -78,19 +78,19 @@ class DOCXHandler:
         para_counter = 0
         
         # Build a set of paragraph objects that are inside tables
-        # We'll use the paragraph element's parent to check if it's in a table
-        table_paragraph_ids = set()
+        # Store the actual paragraph objects, not IDs (which can be reused)
+        table_paragraphs = set()
         for table in self.original_document.tables:
             for row in table.rows:
                 for cell in row.cells:
                     for para in cell.paragraphs:
-                        # Use the element itself as identifier
-                        table_paragraph_ids.add(id(para._element))
+                        # Store the actual paragraph object
+                        table_paragraphs.add(para)
         
         # First, extract regular paragraphs (excluding those in tables)
         for idx, para in enumerate(self.original_document.paragraphs):
             # Skip paragraphs that are inside tables
-            if id(para._element) in table_paragraph_ids:
+            if para in table_paragraphs:
                 continue
                 
             text = para.text.strip()
@@ -208,8 +208,8 @@ class DOCXHandler:
                         # Join segments back into paragraph (single space, no extra newlines)
                         new_text = ' '.join(translations)
                         
-                        # Replace text while preserving formatting
-                        self._replace_paragraph_text(para, new_text)
+                        # Replace text while preserving formatting AND style
+                        self._replace_paragraph_text(para, new_text, para_info.style)
                         processed_paras.add(non_empty_para_index)
             
             non_empty_para_index += 1
@@ -233,7 +233,8 @@ class DOCXHandler:
                             
                             if translations:
                                 new_text = ' '.join(translations)
-                                self._replace_paragraph_text(para, new_text)
+                                # Table cells can also have styles - preserve them
+                                self._replace_paragraph_text(para, new_text, para_info.style)
                                 processed_paras.add(para_info.paragraph_index)
         
         # Save the document
@@ -258,16 +259,21 @@ class DOCXHandler:
                 return info
         return None
     
-    def _replace_paragraph_text(self, paragraph, new_text: str):
+    def _replace_paragraph_text(self, paragraph, new_text: str, original_style: str = None):
         """
         Replace paragraph text while preserving or applying formatting
         
         If new_text contains inline tags (e.g., <b>text</b>), they will be
         converted to proper formatting runs.
+        
+        Args:
+            paragraph: The paragraph object to modify
+            new_text: The new text content
+            original_style: Optional original style name to preserve
         """
         # Check if text contains formatting tags
         if self.tag_manager and ('<b>' in new_text or '<i>' in new_text or '<u>' in new_text or '<bi>' in new_text):
-            self._replace_paragraph_with_formatting(paragraph, new_text)
+            self._replace_paragraph_with_formatting(paragraph, new_text, original_style)
             return
         
         # Simple replacement (no tags) - preserve original formatting
@@ -298,7 +304,7 @@ class DOCXHandler:
         # Set the new text (strip any trailing/leading whitespace to avoid extra newlines)
         run.text = new_text.strip()
         
-        # Restore formatting
+        # Restore run-level formatting
         if original_font_name:
             run.font.name = original_font_name
         if original_font_size:
@@ -307,12 +313,26 @@ class DOCXHandler:
             run.font.bold = True
         if original_italic:
             run.font.italic = True
+        
+        # Preserve paragraph style if provided
+        if original_style:
+            try:
+                paragraph.style = original_style
+            except KeyError:
+                # Style doesn't exist in document - keep original
+                print(f"[DOCX Handler] Warning: Style '{original_style}' not found, keeping original style")
+                pass
     
-    def _replace_paragraph_with_formatting(self, paragraph, tagged_text: str):
+    def _replace_paragraph_with_formatting(self, paragraph, tagged_text: str, original_style: str = None):
         """
         Replace paragraph text with formatted runs based on inline tags
         
         Example: "Hello <b>world</b>!" creates runs with proper bold formatting
+        
+        Args:
+            paragraph: The paragraph object to modify
+            tagged_text: Text with inline formatting tags
+            original_style: Optional original style name to preserve
         """
         if not self.tag_manager:
             # Fallback: strip tags and use simple replacement
@@ -320,7 +340,7 @@ class DOCXHandler:
             clean_text = clean_text.replace('<i>', '').replace('</i>', '')
             clean_text = clean_text.replace('<u>', '').replace('</u>', '')
             clean_text = clean_text.replace('<bi>', '').replace('</bi>', '')
-            self._replace_paragraph_text(paragraph, clean_text)
+            self._replace_paragraph_text(paragraph, clean_text, original_style)
             return
         
         # Store original font properties
@@ -356,6 +376,15 @@ class DOCXHandler:
                 run.font.name = original_font_name
             if original_font_size:
                 run.font.size = original_font_size
+        
+        # Preserve paragraph style if provided
+        if original_style:
+            try:
+                paragraph.style = original_style
+            except KeyError:
+                # Style doesn't exist in document - keep original
+                print(f"[DOCX Handler] Warning: Style '{original_style}' not found, keeping original style")
+                pass
     
     def export_bilingual_docx(self, segments: List[Dict[str, Any]], output_path: str):
         """
