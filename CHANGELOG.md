@@ -1,223 +1,29 @@
 # Supervertaler - Changelog
 
-## [2.5.0-prototype-v0.3.2] - 2025-10-02 (Style Preservation Update)
+## [Unreleased - CAT Editor Prototype] - 2025-10-01 to 2025-10-02
 
-### Added
-- **Style Preservation on Export** (Phase B) - Complete Word style preservation
-  - All paragraph styles preserved: Title, Subtitle, Heading 1-3, Normal, custom styles
-  - Works for both regular paragraphs and table cells
-  - Modified `_replace_paragraph_text()` to accept and apply styles
-  - Modified `_replace_paragraph_with_formatting()` for style support
-  - Graceful error handling when style doesn't exist in template
-  - Professional output documents with correct formatting hierarchy
+### Experimental: CAT Editor Prototype Development
 
-### Fixed
-- **Missing Subtitle Bug** (Critical) - Object identity comparison fix
-  - Changed table paragraph filtering from object IDs to actual objects
-  - Fixed Python memory address reuse causing false positives
-  - Subtitle and other paragraphs no longer skipped during import
-  - Reliable object comparison prevents silent data loss
-  - All document content now imported correctly
+A standalone CAT (Computer-Aided Translation) editor prototype is under active development in the `cat_tool_prototype/` folder. This experimental tool is being designed for potential integration into Supervertaler v2.5.0.
 
-### Technical Details
-- **Updated**: `docx_handler.py` (Lines 75-95, 258-316, 318-382, 197-215, 227-241)
-  - Table filtering uses `table_paragraphs` set (objects) instead of IDs
-  - `_replace_paragraph_text()` now applies original style parameter
-  - `_replace_paragraph_with_formatting()` applies style after creating runs
-  - `export_docx()` passes original styles during paragraph replacement
-- **Documentation**: `PHASE_B_STYLE_PRESERVATION.md`, `BUGFIX_MISSING_SUBTITLE.md`
+**Current Status**: Prototype v0.3.2 (Stable, ready for real-world testing)
 
-### Benefits
-- ✅ Exported documents maintain professional appearance
-- ✅ No manual reformatting needed after translation
-- ✅ Document structure and hierarchy preserved
-- ✅ All content imported reliably (no data loss)
+**Key Features Implemented**:
+- ✅ DOCX import/export with full formatting preservation
+- ✅ Table support with cell-by-cell translation
+- ✅ Style visibility and preservation (Heading 1-3, Title, Subtitle, etc.)
+- ✅ Inline formatting tags (bold, italic, underline)
+- ✅ Interactive translation grid with status tracking
+- ✅ Find/Replace, project save/load
+- ✅ Bilingual and TSV export options
+
+**For detailed prototype changelog**, see: `cat_tool_prototype/CHANGELOG.md`
+
+**For prototype documentation**, see: `cat_tool_prototype/README.md`
+
+**Note**: This prototype is experimental and separate from the main Supervertaler application. It will remain a standalone tool until integration is planned and completed.
 
 ---
-
-## [2.5.0-prototype-v0.3.1] - 2025-10-02 (Style Visibility Update)
-
-### Added
-- **Style Visibility** (Phase A) - Display Word styles in grid
-  - New "Style" column showing paragraph styles (Heading 1-3, Title, Normal, etc.)
-  - Color-coded headings for visual hierarchy:
-    - Heading 1: Dark blue (bold)
-    - Heading 2: Medium blue
-    - Heading 3: Light blue
-    - Title: Purple (bold)
-    - Subtitle: Purple (italic)
-  - Helper methods: `_format_style_name()`, `_get_style_tag()`
-  - Grid expanded to 6 columns: ID, Type, Style, Status, Source, Target
-
-### Fixed
-- **Column Misalignment Bug** (Critical)
-  - `update_segment_in_grid()` was passing 4 values to 6-column grid
-  - Now correctly passes all 6 values in proper order
-  - Column widths configured with `minwidth` and `stretch` properties
-  - Source and target text now appear in correct columns after save
-
-### Technical Details
-- **Updated**: `cat_editor_prototype.py`
-  - Lines ~37-56: Added `style` parameter to Segment class
-  - Lines ~186-203: Treeview configured for 6 columns
-  - Lines ~218-223: Visual tags for heading styles
-  - Lines ~508-533: Fixed `update_segment_in_grid()` value count
-- **Documentation**: `PHASE_A_COMPLETE.md`, `BUGFIX_COLUMN_MISALIGNMENT.md`
-- **Test Script**: `test_style_support.py` (44 segments with 7 different styles)
-
-### Benefits
-- ✅ Visual document structure in grid
-- ✅ Easier to maintain document hierarchy
-- ✅ Color-coded headings improve readability
-- ✅ Grid updates correctly after translation
-
----
-
-## [2.5.0-prototype-v0.3.0] - 2025-10-02 (Table Support Update)
-
-### Added
-- **Table Support** (Phase 0.1) - Full table cell segmentation
-  - Table cells imported as individual segments
-  - Each cell identified as T{table}R{row}C{col} (e.g., T1R2C3)
-  - "Type" column in grid showing "Para" or "T#R#C#"
-  - Table cells translatable independently
-  - Export reconstructs tables with translations
-  - Enhanced `ParagraphInfo` with table metadata
-  - Grid expanded to 5 columns: ID, Type, Status, Source, Target
-
-### Fixed
-- **Table Cell Duplication Bug** (Critical)
-  - python-docx `document.paragraphs` includes table cell paragraphs
-  - Created filtering system to prevent duplicate processing
-  - Build `table_paragraph_ids` set for filtering
-  - Process regular paragraphs first, then table cells separately
-  - No more duplicate segments in grid
-
-### Technical Details
-- **Updated**: `docx_handler.py` (Lines 70-140, 220-241, 247-261)
-  - Enhanced import to extract table cells with position tracking
-  - Export reconstructs tables by finding cells using metadata
-  - Helper methods: `_get_para_info()`, `_find_table_cell_info()`
-- **Updated**: `cat_editor_prototype.py` (Lines ~186-203, ~377-401)
-  - Grid configured for 5 columns with Type column
-  - Display type labels clearly (Para vs T#R#C#)
-- **Documentation**: `PHASE_0.1_COMPLETE.md`, `BUGFIX_TABLE_DUPLICATION.md`
-- **Test Script**: `test_table_support.py` (26 segments: 8 para + 18 table cells)
-
-### Benefits
-- ✅ Professional documents with tables can be translated
-- ✅ Clear indication of segment origin
-- ✅ Table structure preserved on export
-- ✅ Each cell is independent segment
-
----
-
-## [2.5.0-prototype-v0.2.0] - 2025-10-01 (Feature Update)
-
-### Added
-- **Inline Formatting Tags**: Full support for bold, italic, and underline preservation
-  - Automatic extraction of run-level formatting from DOCX import
-  - XML-like tags display in editor (<b>, <i>, <u>, <bi> for bold+italic)
-  - Real-time tag validation with error messages
-  - Tag insertion buttons (Bold, Italic, Underline) with selection wrapping
-  - "Copy Source Tags" feature to match source formatting structure
-  - "Strip Tags" button to remove all formatting from target
-  - Visual tag indicators (color-coded by type)
-  - Automatic tag reconstruction on DOCX export
-  - Proper formatting run creation with bold/italic/underline applied
-
-### Technical Details
-- **New Module**: `tag_manager.py` - Complete inline tag handling system (290+ lines)
-  - `FormattingRun` dataclass for run representation
-  - `TagManager` class with extraction, conversion, and validation
-  - Tag pattern matching with regex
-  - Run-to-tags and tags-to-runs conversion
-  - Nested tag validation
-  - Color scheme for different tag types
-- **Updated**: `docx_handler.py` - Enhanced with formatting support
-  - `extract_runs()` method to extract formatting from paragraphs
-  - `import_docx()` now has `extract_formatting` parameter (default True)
-  - `_replace_paragraph_with_formatting()` method for tag reconstruction
-  - Proper handling of multiple runs with different formatting
-- **Updated**: `cat_editor_prototype.py` - Enhanced UI and tag features
-  - Tag validation label showing real-time status
-  - Tag insertion buttons with keyboard support
-  - Copy source tags functionality
-  - Strip tags functionality
-  - Visual feedback for tag errors
-
-### How It Works
-```
-IMPORT: Bold text in DOCX → <b>Bold text</b> in editor
-EDIT:   Translator sees: "The <b>API key</b> is required"
-        Translates to:    "La <b>clé API</b> est requise"
-EXPORT: <b>clé API</b> → Bold formatting in DOCX
-```
-
-### Benefits
-- ✅ Professional formatting preserved through translation workflow
-- ✅ Visual indication of formatted regions in source/target
-- ✅ No formatting lost during export
-- ✅ Quality control with tag validation
-- ✅ Efficient tag copying from source
-- ✅ Works with patents, contracts, technical docs with formatting
-
-## [2.5.0-prototype-v0.1.1] - 2025-10-01 (Hot Fix)
-
-### Fixed
-- **DOCX Export Issues**: Corrected paragraph matching and whitespace handling
-  - Fixed source text appearing in exported DOCX when segments were untranslated
-  - Fixed extra newlines/line breaks in exported documents
-  - Improved paragraph index matching between import and export
-  - Better run management to prevent empty runs causing spacing issues
-  - Strip whitespace from translated text to prevent formatting problems
-  - Export now correctly skips empty paragraphs (matching import logic)
-
-### Technical Changes
-- Updated `docx_handler.py` export logic to use `non_empty_para_index`
-- Improved `_replace_paragraph_text()` to properly remove extra runs
-- Added whitespace stripping to prevent trailing spaces/newlines
-
-## [2.5.0-prototype] - 2025-10-01
-
-### Added
-- **CAT Editor Prototype**: Standalone Computer-Aided Translation editor (experimental)
-  - DOCX file import with automatic sentence segmentation
-  - Interactive grid interface for segment-by-segment translation
-  - Editable target column with status tracking (untranslated, draft, translated, approved)
-  - DOCX export with formatting preservation
-  - Bilingual DOCX export (source|target table format)
-  - TSV export for spreadsheet compatibility
-  - Find/Replace functionality across segments
-  - Project save/load to JSON format
-  - Progress tracking and completion percentage
-  - Keyboard shortcuts for efficient translation workflow
-  - Color-coded status indicators in grid
-  - Segment editor panel with quick actions
-  - Paragraph tracking for document reconstruction
-  - Basic formatting preservation (paragraph-level)
-
-### Technical Details (Prototype)
-- **New Modules**:
-  - `cat_tool_prototype/cat_editor_prototype.py` - Main application (800+ lines)
-  - `cat_tool_prototype/simple_segmenter.py` - Sentence segmentation engine
-  - `cat_tool_prototype/docx_handler.py` - DOCX import/export with formatting
-  - `cat_tool_prototype/README.md` - Complete documentation
-  - `cat_tool_prototype/QUICK_START.md` - Quick start guide
-- **Dependencies**: python-docx, lxml (installed)
-- **Architecture**: Standalone prototype for testing before main integration
-- **Status**: Experimental - Testing phase before v2.5.0 integration
-
-### Planned (For Main Integration)
-- SRX-based segmentation rules
-- Translation memory integration with existing TMAgent
-- AI translation using existing translation agents (Gemini, Claude, OpenAI)
-- Custom prompts integration
-- Advanced tag handling for inline formatting
-- Table cell segmentation
-- Quality assurance checks
-- Concordance search
-- Auto-propagation of repeated segments
 
 ## [2.4.1] - 2025-10-01
 
