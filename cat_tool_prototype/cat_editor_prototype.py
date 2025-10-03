@@ -165,6 +165,18 @@ class CATEditorPrototype:
         edit_menu.add_command(label="Copy Source to Target", command=self.copy_source_to_target, accelerator="Ctrl+D")
         edit_menu.add_command(label="Clear Target", command=self.clear_target)
         
+        # View menu
+        view_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="View", menu=view_menu)
+        view_menu.add_command(label="Grid View", command=lambda: self.switch_layout(LayoutMode.GRID), accelerator="Ctrl+1")
+        view_menu.add_command(label="List View", command=lambda: self.switch_layout(LayoutMode.SPLIT), accelerator="Ctrl+2")
+        view_menu.add_command(label="Document View", command=lambda: self.switch_layout(LayoutMode.DOCUMENT), accelerator="Ctrl+3")
+        view_menu.add_separator()
+        view_menu.add_command(label="Toggle Filter Mode", command=self.toggle_filter_mode, accelerator="Ctrl+M")
+        view_menu.add_command(label="Apply Filters", command=self.apply_filters, accelerator="Ctrl+Shift+A")
+        view_menu.add_command(label="Clear Filters", command=self.clear_filters)
+        view_menu.add_command(label="Focus Filter", command=self.focus_filter_source, accelerator="Ctrl+Shift+F")
+        
         # Keyboard shortcuts
         self.root.bind('<Control-o>', lambda e: self.import_docx())
         self.root.bind('<Control-s>', lambda e: self.save_project())
@@ -176,6 +188,11 @@ class CATEditorPrototype:
         self.root.bind('<Control-Key-1>', lambda e: self.switch_layout(LayoutMode.GRID))
         self.root.bind('<Control-Key-2>', lambda e: self.switch_layout(LayoutMode.SPLIT))
         self.root.bind('<Control-Key-3>', lambda e: self.switch_layout(LayoutMode.DOCUMENT))
+        
+        # Filter shortcuts
+        self.root.bind('<Control-m>', lambda e: self.toggle_filter_mode())  # Toggle filter mode
+        self.root.bind('<Control-Shift-F>', lambda e: self.focus_filter_source())  # Focus source filter
+        self.root.bind('<Control-Shift-A>', lambda e: self.apply_filters())  # Apply filters
         
         # Navigation shortcuts
         self.root.bind('<Control-Down>', lambda e: self.navigate_segment('next'))
@@ -297,34 +314,42 @@ class CATEditorPrototype:
         tk.Label(filter_frame, text="Source:", bg='#f0f0f0', 
                 font=('Segoe UI', 9)).pack(side='left', padx=(10, 2))
         self.filter_source_var = tk.StringVar()
-        self.filter_source_var.trace('w', lambda *args: self.apply_filters())
         source_filter_entry = tk.Entry(filter_frame, textvariable=self.filter_source_var,
                                       font=('Segoe UI', 9), width=25, relief='solid', borderwidth=1)
         source_filter_entry.pack(side='left', padx=2, pady=3)
+        # Bind Enter key to apply filters
+        source_filter_entry.bind('<Return>', lambda e: self.apply_filters())
         
         # Target filter
         tk.Label(filter_frame, text="Target:", bg='#f0f0f0', 
                 font=('Segoe UI', 9)).pack(side='left', padx=(10, 2))
         self.filter_target_var = tk.StringVar()
-        self.filter_target_var.trace('w', lambda *args: self.apply_filters())
         target_filter_entry = tk.Entry(filter_frame, textvariable=self.filter_target_var,
                                       font=('Segoe UI', 9), width=25, relief='solid', borderwidth=1)
         target_filter_entry.pack(side='left', padx=2, pady=3)
+        # Bind Enter key to apply filters
+        target_filter_entry.bind('<Return>', lambda e: self.apply_filters())
         
         # Status filter
         tk.Label(filter_frame, text="Status:", bg='#f0f0f0', 
                 font=('Segoe UI', 9)).pack(side='left', padx=(10, 2))
         self.filter_status_var = tk.StringVar(value="All")
-        self.filter_status_var.trace('w', lambda *args: self.apply_filters())
         status_filter_combo = ttk.Combobox(filter_frame, textvariable=self.filter_status_var,
                                           values=["All", "untranslated", "draft", "translated", "approved"],
                                           state='readonly', width=12, font=('Segoe UI', 9))
         status_filter_combo.pack(side='left', padx=2, pady=3)
+        # Combobox selection triggers apply automatically (user expectation for dropdowns)
+        status_filter_combo.bind('<<ComboboxSelected>>', lambda e: self.apply_filters())
+        
+        # Apply filters button
+        tk.Button(filter_frame, text="🔍 Apply", command=self.apply_filters,
+                 bg='#2196F3', fg='white', font=('Segoe UI', 9, 'bold'),
+                 relief='raised', padx=10, pady=2, cursor='hand2').pack(side='left', padx=5)
         
         # Clear filters button
         tk.Button(filter_frame, text="✕ Clear", command=self.clear_filters,
                  bg='#ff9800', fg='white', font=('Segoe UI', 8),
-                 relief='flat', padx=8, pady=2).pack(side='left', padx=10)
+                 relief='flat', padx=8, pady=2).pack(side='left', padx=5)
         
         # Filter results label
         self.filter_results_label = tk.Label(filter_frame, text="", bg='#f0f0f0',
@@ -1402,29 +1427,30 @@ class CATEditorPrototype:
         # Source filter - using shared variables
         if not hasattr(self, 'filter_source_var'):
             self.filter_source_var = tk.StringVar()
-            self.filter_source_var.trace('w', lambda *args: self.apply_filters())
         
         tk.Label(filter_frame, text="Source:", bg='#f0f0f0',
                 font=('Segoe UI', 9)).pack(side='left', padx=(0, 2))
         source_entry = tk.Entry(filter_frame, textvariable=self.filter_source_var, width=20,
                                font=('Segoe UI', 9))
         source_entry.pack(side='left', padx=(0, 10))
+        # Bind Enter key to apply filters
+        source_entry.bind('<Return>', lambda e: self.apply_filters())
         
         # Target filter
         if not hasattr(self, 'filter_target_var'):
             self.filter_target_var = tk.StringVar()
-            self.filter_target_var.trace('w', lambda *args: self.apply_filters())
         
         tk.Label(filter_frame, text="Target:", bg='#f0f0f0',
                 font=('Segoe UI', 9)).pack(side='left', padx=(0, 2))
         target_entry = tk.Entry(filter_frame, textvariable=self.filter_target_var, width=20,
                                font=('Segoe UI', 9))
         target_entry.pack(side='left', padx=(0, 10))
+        # Bind Enter key to apply filters
+        target_entry.bind('<Return>', lambda e: self.apply_filters())
         
         # Status filter
         if not hasattr(self, 'filter_status_var'):
             self.filter_status_var = tk.StringVar(value="All")
-            self.filter_status_var.trace('w', lambda *args: self.apply_filters())
         
         tk.Label(filter_frame, text="Status:", bg='#f0f0f0',
                 font=('Segoe UI', 9)).pack(side='left', padx=(0, 2))
@@ -1432,6 +1458,13 @@ class CATEditorPrototype:
                                    values=["All", "untranslated", "draft", "translated", "approved"],
                                    state='readonly', width=12, font=('Segoe UI', 9))
         status_combo.pack(side='left', padx=(0, 10))
+        # Combobox selection triggers apply automatically (user expectation for dropdowns)
+        status_combo.bind('<<ComboboxSelected>>', lambda e: self.apply_filters())
+        
+        # Apply button
+        tk.Button(filter_frame, text="🔍 Apply", command=self.apply_filters,
+                 bg='#2196F3', fg='white', font=('Segoe UI', 9, 'bold'),
+                 relief='raised', cursor='hand2', padx=8).pack(side='left', padx=5)
         
         # Clear button
         tk.Button(filter_frame, text="✕ Clear", command=self.clear_filters,
@@ -1584,6 +1617,96 @@ class CATEditorPrototype:
         # Left side: Document and editor
         left_container = tk.Frame(self.main_paned)
         self.main_paned.add(left_container, weight=3)
+        
+        # Filter panel (at the top) - using same filter variables as Grid View
+        filter_frame = tk.Frame(left_container, bg='#f0f0f0', relief='ridge', borderwidth=1)
+        filter_frame.pack(side='top', fill='x', pady=(0, 5))
+        
+        # Filter label
+        tk.Label(filter_frame, text="🔍 Filter:", bg='#f0f0f0', 
+                font=('Segoe UI', 9, 'bold')).pack(side='left', padx=5, pady=5)
+        
+        # Filter mode selection - always create new buttons for this view
+        mode_frame = tk.Frame(filter_frame, bg='#f0f0f0', relief='solid', bd=1)
+        mode_frame.pack(side='left', padx=5)
+        
+        # Create buttons with current mode state
+        filter_btn = tk.Button(mode_frame, text="🔍 Filter",
+                              command=lambda: self.set_filter_mode('filter'),
+                              bg='#4CAF50' if self.filter_mode == 'filter' else '#e0e0e0',
+                              fg='white' if self.filter_mode == 'filter' else '#666',
+                              font=('Segoe UI', 9, 'bold') if self.filter_mode == 'filter' else ('Segoe UI', 9),
+                              relief='sunken' if self.filter_mode == 'filter' else 'raised',
+                              bd=2, cursor='hand2', width=10)
+        filter_btn.pack(side='left', padx=1, pady=1)
+        
+        highlight_btn = tk.Button(mode_frame, text="💡 Highlight",
+                                 command=lambda: self.set_filter_mode('highlight'),
+                                 bg='#FFA500' if self.filter_mode == 'highlight' else '#e0e0e0',
+                                 fg='white' if self.filter_mode == 'highlight' else '#666',
+                                 font=('Segoe UI', 9, 'bold') if self.filter_mode == 'highlight' else ('Segoe UI', 9),
+                                 relief='sunken' if self.filter_mode == 'highlight' else 'raised',
+                                 bd=2, cursor='hand2', width=10)
+        highlight_btn.pack(side='left', padx=1, pady=1)
+        
+        # Store references for this view
+        self.doc_filter_mode_btn = filter_btn
+        self.doc_highlight_mode_btn = highlight_btn
+        # Also update main references to point to these buttons
+        self.filter_mode_btn = filter_btn
+        self.highlight_mode_btn = highlight_btn
+        
+        tk.Label(filter_frame, text="│", bg='#f0f0f0', fg='#ccc',
+                font=('Segoe UI', 10)).pack(side='left', padx=5)
+        
+        # Source filter - using shared variables
+        if not hasattr(self, 'filter_source_var'):
+            self.filter_source_var = tk.StringVar()
+        
+        tk.Label(filter_frame, text="Source:", bg='#f0f0f0',
+                font=('Segoe UI', 9)).pack(side='left', padx=(0, 2))
+        source_entry = tk.Entry(filter_frame, textvariable=self.filter_source_var, width=20,
+                               font=('Segoe UI', 9))
+        source_entry.pack(side='left', padx=(0, 10))
+        source_entry.bind('<Return>', lambda e: self.apply_filters())
+        
+        # Target filter
+        if not hasattr(self, 'filter_target_var'):
+            self.filter_target_var = tk.StringVar()
+        
+        tk.Label(filter_frame, text="Target:", bg='#f0f0f0',
+                font=('Segoe UI', 9)).pack(side='left', padx=(0, 2))
+        target_entry = tk.Entry(filter_frame, textvariable=self.filter_target_var, width=20,
+                               font=('Segoe UI', 9))
+        target_entry.pack(side='left', padx=(0, 10))
+        target_entry.bind('<Return>', lambda e: self.apply_filters())
+        
+        # Status filter
+        if not hasattr(self, 'filter_status_var'):
+            self.filter_status_var = tk.StringVar(value="All")
+        
+        tk.Label(filter_frame, text="Status:", bg='#f0f0f0',
+                font=('Segoe UI', 9)).pack(side='left', padx=(0, 2))
+        status_combo = ttk.Combobox(filter_frame, textvariable=self.filter_status_var,
+                                   values=["All", "untranslated", "draft", "translated", "approved"],
+                                   state='readonly', width=12, font=('Segoe UI', 9))
+        status_combo.pack(side='left', padx=(0, 10))
+        status_combo.bind('<<ComboboxSelected>>', lambda e: self.apply_filters())
+        
+        # Apply button
+        tk.Button(filter_frame, text="🔍 Apply", command=self.apply_filters,
+                 bg='#2196F3', fg='white', font=('Segoe UI', 9, 'bold'),
+                 relief='raised', cursor='hand2', padx=8).pack(side='left', padx=5)
+        
+        # Clear button
+        tk.Button(filter_frame, text="✕ Clear", command=self.clear_filters,
+                 bg='#ff5252', fg='white', font=('Segoe UI', 8),
+                 relief='raised', cursor='hand2').pack(side='left', padx=5)
+        
+        # Results label - always create new for this view
+        self.filter_results_label = tk.Label(filter_frame, text="", bg='#f0f0f0',
+                                            font=('Segoe UI', 9, 'italic'), fg='#666')
+        self.filter_results_label.pack(side='left', padx=10)
         
         # Split into document area (top) and editor panel (bottom)
         # Document area
@@ -1845,6 +1968,11 @@ class CATEditorPrototype:
             # Apply tag styling
             para_text.tag_config(tag_name, background=bg_color, relief='flat')
             
+            # Apply filter highlighting if active and segment matches
+            if self.filter_active and self.should_highlight_segment(seg):
+                # Highlight only the specific search terms within the segment
+                self.highlight_search_terms_in_segment(para_text, start_pos, end_pos, seg, tag_name)
+            
             # Bind click event to enter edit mode
             para_text.tag_bind(tag_name, '<Button-1>', 
                              lambda e, s=seg, pt=para_text, tn=tag_name: self.on_doc_segment_click(s, pt, tn))
@@ -1947,6 +2075,11 @@ class CATEditorPrototype:
                     
                     # Apply tag styling
                     cell_text.tag_config(tag_name, background=bg_color, relief='flat')
+                    
+                    # Apply filter highlighting if active and segment matches
+                    if self.filter_active and self.should_highlight_segment(seg):
+                        # Highlight only the specific search terms within the cell
+                        self.highlight_search_terms_in_segment(cell_text, '1.0', 'end-1c', seg, tag_name)
                     
                     # Bind click event
                     cell_text.tag_bind(tag_name, '<Button-1>',
@@ -2655,6 +2788,64 @@ class CATEditorPrototype:
             return False
         
         return True
+    
+    def highlight_search_terms_in_segment(self, text_widget, start_index, end_index, segment, tag_name):
+        """
+        Highlight only the specific search terms within a segment in Document View.
+        This provides more precise visual feedback than highlighting the entire segment.
+        """
+        source_filter = self.filter_source_var.get().strip().lower()
+        target_filter = self.filter_target_var.get().strip().lower()
+        
+        # Get the text content from the widget
+        segment_text = text_widget.get(start_index, end_index)
+        
+        # Determine which text to search in based on what's displayed
+        # If target has content, we're showing target; otherwise showing source
+        if segment.target and segment.target.strip():
+            display_text = segment.target
+            search_term = target_filter
+        else:
+            display_text = segment.source
+            search_term = source_filter
+        
+        # If we have a search term, highlight all occurrences
+        if search_term:
+            # Search for all occurrences (case-insensitive)
+            search_lower = display_text.lower()
+            search_term_lower = search_term.lower()
+            
+            start_pos = 0
+            occurrence_count = 0
+            
+            while True:
+                # Find next occurrence
+                pos = search_lower.find(search_term_lower, start_pos)
+                if pos == -1:
+                    break
+                
+                # Calculate the actual position in the Text widget
+                # We need to account for the start_index offset
+                match_start = f"{start_index} + {pos} chars"
+                match_end = f"{start_index} + {pos + len(search_term)} chars"
+                
+                # Create a unique tag for this highlight
+                highlight_tag = f"search_highlight_{segment.id}_{occurrence_count}"
+                
+                # Add the tag to this occurrence
+                text_widget.tag_add(highlight_tag, match_start, match_end)
+                
+                # Configure the tag with bright yellow background and bold
+                text_widget.tag_config(highlight_tag, 
+                                     background='#FFFF00',  # Bright yellow
+                                     foreground='#000000',  # Black text
+                                     font=('Segoe UI', 11, 'bold'))
+                
+                # Raise the tag so it appears above the segment background
+                text_widget.tag_raise(highlight_tag)
+                
+                occurrence_count += 1
+                start_pos = pos + 1  # Move past this occurrence to find next one
     
     def add_grid_row(self, segment):
         """Add a row to the custom grid with dynamic height"""
@@ -3713,6 +3904,38 @@ class CATEditorPrototype:
             self.filter_results_label.config(text="")
         self.log("✓ Filters cleared")
     
+    def toggle_filter_mode(self):
+        """Toggle between filter and highlight modes (Ctrl+M)"""
+        new_mode = 'highlight' if self.filter_mode == 'filter' else 'filter'
+        self.set_filter_mode(new_mode)
+    
+    def focus_filter_source(self):
+        """Focus the source filter entry field (Ctrl+Shift+F)"""
+        # Find the source filter entry in the current view
+        # This is a bit tricky since we need to find the widget
+        # We'll use a simple approach: find all Entry widgets and check their textvariable
+        try:
+            for widget in self.root.winfo_children():
+                self._focus_filter_recursive(widget)
+        except:
+            pass
+    
+    def _focus_filter_recursive(self, widget):
+        """Recursively search for source filter entry and focus it"""
+        try:
+            if isinstance(widget, tk.Entry):
+                # Check if this entry uses the source filter variable
+                if hasattr(widget, 'cget') and widget.cget('textvariable') == str(self.filter_source_var):
+                    widget.focus_set()
+                    return True
+            # Recurse into children
+            for child in widget.winfo_children():
+                if self._focus_filter_recursive(child):
+                    return True
+        except:
+            pass
+        return False
+    
     def highlight_text_in_widget(self, text_widget, search_text, color='yellow'):
         """Highlight all occurrences of search_text in a Text widget"""
         if not search_text:
@@ -4160,7 +4383,15 @@ class CATEditorPrototype:
                 'version': '0.3.2',
                 'created_at': datetime.now().isoformat(),
                 'original_docx': self.original_docx,
-                'segments': [s.to_dict() for s in self.segments]
+                'segments': [s.to_dict() for s in self.segments],
+                # Save filter preferences
+                'filter_preferences': {
+                    'mode': self.filter_mode,
+                    'source_filter': self.filter_source_var.get() if hasattr(self, 'filter_source_var') else '',
+                    'target_filter': self.filter_target_var.get() if hasattr(self, 'filter_target_var') else '',
+                    'status_filter': self.filter_status_var.get() if hasattr(self, 'filter_status_var') else 'All',
+                    'active': self.filter_active
+                }
             }
             
             with open(self.project_file, 'w', encoding='utf-8') as f:
@@ -4213,6 +4444,35 @@ class CATEditorPrototype:
             self.segments = [Segment.from_dict(s) for s in data['segments']]
             self.original_docx = data.get('original_docx')
             self.project_file = file_path
+            
+            # Load filter preferences if they exist
+            if 'filter_preferences' in data:
+                prefs = data['filter_preferences']
+                if hasattr(self, 'filter_source_var'):
+                    self.filter_source_var.set(prefs.get('source_filter', ''))
+                if hasattr(self, 'filter_target_var'):
+                    self.filter_target_var.set(prefs.get('target_filter', ''))
+                if hasattr(self, 'filter_status_var'):
+                    self.filter_status_var.set(prefs.get('status_filter', 'All'))
+                self.filter_mode = prefs.get('mode', 'filter')
+                self.filter_active = prefs.get('active', False)
+                
+                # Update button states to match loaded mode
+                if hasattr(self, 'filter_mode_btn') and hasattr(self, 'highlight_mode_btn'):
+                    if self.filter_mode == 'filter':
+                        self.filter_mode_btn.config(bg='#4CAF50', fg='white', 
+                                                   font=('Segoe UI', 9, 'bold'), relief='sunken')
+                        self.highlight_mode_btn.config(bg='#e0e0e0', fg='#666',
+                                                      font=('Segoe UI', 9), relief='raised')
+                    else:
+                        self.filter_mode_btn.config(bg='#e0e0e0', fg='#666',
+                                                   font=('Segoe UI', 9), relief='raised')
+                        self.highlight_mode_btn.config(bg='#FFA500', fg='white',
+                                                      font=('Segoe UI', 9, 'bold'), relief='sunken')
+                
+                # Apply the filters if they were active
+                if self.filter_active:
+                    self.apply_filters()
             
             # If original DOCX exists, load it for export
             if self.original_docx and os.path.exists(self.original_docx):

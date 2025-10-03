@@ -1,4 +1,4 @@
-# CAT Editor Prototype v0.4.0
+# CAT Editor Prototype v0.4.1
 
 **A standalone Computer-Aided Translation (CAT) Editor for Supervertaler**
 
@@ -9,15 +9,17 @@
 - ✅ **Automatic Segmentation** - Split text into translatable segments
 - ✅ **Table Support** - Import and translate table cells as individual segments
 - ✅ **Style Support** - Visual display and preservation of Word styles (Heading 1-3, Title, etc.)
-- ✅ **Multiple View Modes** - Grid View, Split View, Compact View, and Document View
+- ✅ **Multiple View Modes** - Grid View, List View, and Document View
 - ✅ **Document View** - See translations in natural document flow with tables rendered properly
+- ✅ **Dual-Mode Filtering** - Filter Mode (show only matches) or Highlight Mode (show all, highlight matches)
+- ✅ **Precise Search Highlighting** - Search terms highlighted in bright yellow (not entire segments)
 - ✅ **Editable Grid** - Excel-like interface with 6 columns (ID, Type, Style, Status, Source, Target)
 - ✅ **DOCX Export** - Export with full formatting and style preservation
 - ✅ **Bilingual Export** - Create side-by-side review documents
 - ✅ **TSV Export** - Export to tab-separated format
 - ✅ **Find/Replace** - Search and replace across segments
 - ✅ **Status Tracking** - Track translation progress (Untranslated, Draft, Translated, Approved)
-- ✅ **Project Save/Load** - Save work and resume later
+- ✅ **Project Save/Load** - Save work and resume later (includes filter preferences)
 - ✅ **Inline Formatting** - Preserve bold, italic, underline with XML-like tags
 
 ### Advanced Features
@@ -29,6 +31,8 @@
 - ✅ **Tag Management** - Insert, validate, and manage inline formatting tags
 - ✅ **Real-time Tag Validation** - Instant feedback on tag errors
 - ✅ **View Switching** - Seamlessly switch between views with selection preserved
+- ✅ **Filter Panel in All Views** - Consistent filtering across Grid, List, and Document views
+- ✅ **Filter Preferences Saved** - Filter settings remembered per project
 
 ## 📋 Requirements
 
@@ -76,7 +80,15 @@ python cat_editor_prototype.py
 - Press `Ctrl+Enter` to save and move to next segment
 - Use the Status dropdown to mark progress
 
-### 5. Export
+### 5. Use Filtering
+
+- Type search terms in **Source** or **Target** filter fields
+- Select status from **Status** dropdown
+- Click **🔍 Apply** or press `Enter` to apply filters
+- Toggle between Filter Mode (🔍) and Highlight Mode (💡) with `Ctrl+M`
+- In Document View, search terms are highlighted in bright yellow
+
+### 6. Export
 
 - **Export to DOCX** - Creates translated Word document with original formatting
 - **Export to Bilingual DOCX** - Creates review document with source and target side-by-side
@@ -84,20 +96,36 @@ python cat_editor_prototype.py
 
 ## 💡 Keyboard Shortcuts
 
+### File Operations
 | Shortcut | Action |
 |----------|--------|
 | `Ctrl+O` | Import DOCX |
 | `Ctrl+S` | Save project |
 | `Ctrl+L` | Load project |
 | `Ctrl+F` | Find/Replace |
+
+### Editing
+| Shortcut | Action |
+|----------|--------|
 | `Ctrl+D` | Copy source to target |
 | `Ctrl+Enter` | Save segment and move to next |
 | `Enter` | Edit selected segment |
 | `↑` `↓` | Navigate segments |
+
+### View Switching
+| Shortcut | Action |
+|----------|--------|
 | `Ctrl+1` | Switch to Grid View |
-| `Ctrl+2` | Switch to Split View |
-| `Ctrl+3` | Switch to Compact View |
-| `Ctrl+4` | Switch to Document View |
+| `Ctrl+2` | Switch to List View |
+| `Ctrl+3` | Switch to Document View |
+
+### Filtering (New in v0.4.0)
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+M` | Toggle between Filter Mode and Highlight Mode |
+| `Ctrl+Shift+A` | Apply filters |
+| `Ctrl+Shift+F` | Focus source filter field |
+| `Enter` (in filter fields) | Apply filters |
 
 ## 🎨 View Modes
 

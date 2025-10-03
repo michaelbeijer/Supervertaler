@@ -1,8 +1,57 @@
 # CAT Editor Prototype - Changelog
 
+## [0.4.1] - 2025-10-03
+
+### Changed
+- **Precise Search Term Highlighting in Document View**
+  - Search terms now highlighted individually in bright yellow (not entire segments)
+  - Multiple occurrences in same segment all highlighted
+  - Bold font applied to highlighted terms for better visibility
+  - Works in both paragraphs and table cells
+  - Much cleaner and more precise visual feedback
+  - Easier to see exactly what matched the filter
+
+### Improved
+- Better readability in Document View when using filters
+- Context around search terms remains visible
+- Status colors still visible (highlights layer on top)
+
 ## [0.4.0] - 2025-10-03
 
 ### Added
+- **Filter Panel in Document View**
+  - Complete filter UI matching Grid and List views
+  - Mode toggle (Filter/Highlight), source/target/status filters
+  - Apply and Clear buttons
+  - Results counter showing match statistics
+  
+- **Dual-Mode Filtering System**
+  - **Filter Mode (🔍)**: Shows only matching segments
+  - **Highlight Mode (💡)**: Shows all segments, highlights matches
+  - Radio-style buttons for clear mode indication
+  - Real-time results counter
+  - Works consistently across all three views
+  
+- **Keyboard Shortcuts for Filtering**
+  - `Ctrl+M` - Toggle between Filter and Highlight modes
+  - `Ctrl+Shift+A` - Apply filters
+  - `Ctrl+Shift+F` - Focus source filter field
+  - `Enter` in filter fields - Apply filters
+  
+- **Filter Preferences Saved to Projects**
+  - Filter mode (Filter/Highlight) saved
+  - Source and target filter text saved
+  - Status selection saved
+  - Active state saved
+  - Filters automatically restored when loading project
+  - 100% backward compatible with old project files
+  
+- **Button-Triggered Filtering**
+  - Filters now manual (click Apply or press Enter)
+  - No more real-time filtering while typing
+  - Better performance and user control
+  - Status dropdown still auto-applies (standard UX)
+
 - **Document View** - Revolutionary new view mode showing translations in natural document flow
   - Natural text flow with paragraphs appearing as they would in the original document
   - Clickable segments with editor panel below for easy editing
@@ -13,7 +62,7 @@
   - Status color coding (red=untranslated, yellow=draft, green=translated, blue=approved)
   - Hover effects on segments (brighten and raise on mouseover)
   - Style support with visual formatting (headings in appropriate sizes and colors)
-  - Keyboard shortcut: `Ctrl+4` to switch to Document View
+  - Keyboard shortcut: `Ctrl+3` to switch to Document View
   
 - **Table Rendering in Document View**
   - Tables now render as actual table structures (not flowing text)
@@ -33,19 +82,17 @@
 - **View Switching with State Preservation**
   - Current segment selection preserved when switching between views
   - Auto-scroll to selected segment in new view
-  - Works across all view modes: Grid, Split, Compact, Document
+  - Works across all view modes: Grid, List, Document
   - Keyboard shortcuts for all views:
     - `Ctrl+1` - Grid View
-    - `Ctrl+2` - Split View
-    - `Ctrl+3` - Compact View
-    - `Ctrl+4` - Document View
+    - `Ctrl+2` - List View
+    - `Ctrl+3` - Document View
 
-- **Compact View** - Minimalist three-column interface for maximum efficiency
-  - Three-column layout: Status, Source, Target (no clutter)
-  - Text truncation at 100 characters for list density
-  - Compact 2-line editor panel below
-  - See ~30 segments on screen (vs. ~15 in Grid View)
-  - Perfect for speed translation and quick edits
+- **List View** - Tree-based view with compact list interface
+  - Six-column treeview: ID, Type, Style, Status, Source, Target
+  - Text truncation for list density
+  - Compact editor panel below
+  - Perfect for quick navigation and overview
   - Full keyboard support with same shortcuts as other views
   - Status color coding for visual progress tracking
   - Keyboard shortcut: `Ctrl+3` to switch to Compact View
