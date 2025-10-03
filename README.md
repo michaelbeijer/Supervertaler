@@ -5,6 +5,8 @@
 
 **Note**: A standalone CAT (Computer-Aided Translation) editor prototype is under active development in the *cat_tool_prototype/* folder. **Latest: v0.4.1** with advanced filtering, precise search highlighting, and three professional view modes (Grid, List, Document). See `cat_tool_prototype/README.md` for details.
 
+https://photos.app.goo.gl/TbvChxEWjHAMXHFm9
+
 ## 🔧 CAT Tool Integration
 
 **Supervertaler is designed for professional translators using CAT tools** (memoQ, Trados Studio, CafeTran, Wordfast, etc.). It integrates seamlessly into existing translation workflows:
