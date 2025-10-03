@@ -1,4 +1,4 @@
-# CAT Editor Prototype v0.3.2
+# CAT Editor Prototype v0.4.0
 
 **A standalone Computer-Aided Translation (CAT) Editor for Supervertaler**
 
@@ -9,6 +9,8 @@
 - ✅ **Automatic Segmentation** - Split text into translatable segments
 - ✅ **Table Support** - Import and translate table cells as individual segments
 - ✅ **Style Support** - Visual display and preservation of Word styles (Heading 1-3, Title, etc.)
+- ✅ **Multiple View Modes** - Grid View, Split View, Compact View, and Document View
+- ✅ **Document View** - See translations in natural document flow with tables rendered properly
 - ✅ **Editable Grid** - Excel-like interface with 6 columns (ID, Type, Style, Status, Source, Target)
 - ✅ **DOCX Export** - Export with full formatting and style preservation
 - ✅ **Bilingual Export** - Create side-by-side review documents
@@ -20,11 +22,13 @@
 
 ### Advanced Features
 - ✅ **Table Cell Segmentation** - Each table cell is a separate translatable segment
+- ✅ **Table Rendering in Document View** - Tables appear as actual table structures in correct position
 - ✅ **Style Visibility** - Color-coded headings (H1=dark blue, H2=medium blue, H3=light blue)
 - ✅ **Style Preservation on Export** - Exported documents maintain original styles
 - ✅ **Type Column** - Shows "Para" for paragraphs, "T#R#C#" for table cells
 - ✅ **Tag Management** - Insert, validate, and manage inline formatting tags
 - ✅ **Real-time Tag Validation** - Instant feedback on tag errors
+- ✅ **View Switching** - Seamlessly switch between views with selection preserved
 
 ## 📋 Requirements
 
