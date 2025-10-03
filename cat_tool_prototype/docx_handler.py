@@ -31,6 +31,7 @@ class ParagraphInfo:
     style: str = None
     alignment: str = None
     paragraph_index: int = 0
+    document_position: int = 0  # Position in original document structure
     is_table_cell: bool = False
     table_index: int = None
     row_index: int = None
@@ -76,55 +77,33 @@ class DOCXHandler:
         
         # Track position in document structure
         para_counter = 0
+        doc_position = 0  # Track actual position in document for proper ordering
         
-        # Build a set of paragraph objects that are inside tables
-        # Store the actual paragraph objects, not IDs (which can be reused)
-        table_paragraphs = set()
-        for table in self.original_document.tables:
-            for row in table.rows:
-                for cell in row.cells:
-                    for para in cell.paragraphs:
-                        # Store the actual paragraph object
-                        table_paragraphs.add(para)
-        
-        # First, extract regular paragraphs (excluding those in tables)
-        for idx, para in enumerate(self.original_document.paragraphs):
-            # Skip paragraphs that are inside tables
-            if para in table_paragraphs:
-                continue
-                
-            text = para.text.strip()
-            
-            if text:  # Only include non-empty paragraphs
-                # Extract formatting if requested
-                if extract_formatting and self.tag_manager:
-                    runs = self.tag_manager.extract_runs(para)
-                    text_with_tags = self.tag_manager.runs_to_tagged_text(runs)
-                    paragraphs.append(text_with_tags)
-                else:
-                    paragraphs.append(text)
-                
-                # Store paragraph info for reconstruction
-                para_info = ParagraphInfo(
-                    text=text,
-                    style=para.style.name if para.style else None,
-                    alignment=str(para.alignment) if para.alignment else None,
-                    paragraph_index=para_counter,
-                    is_table_cell=False
-                )
-                self.paragraphs_info.append(para_info)
-                para_counter += 1
-        
-        # Then, extract table cells
-        table_cell_count = 0
+        # Build mapping of paragraph objects to their positions for tables
+        para_to_table_info = {}
         for table_idx, table in enumerate(self.original_document.tables):
             for row_idx, row in enumerate(table.rows):
                 for cell_idx, cell in enumerate(row.cells):
-                    # Each cell may contain multiple paragraphs
                     for para in cell.paragraphs:
+                        para_to_table_info[id(para)] = (table_idx, row_idx, cell_idx)
+        
+        # Process document elements in order
+        # Use document.element.body to get elements in document order
+        for elem in self.original_document.element.body:
+            # Check if it's a paragraph
+            if elem.tag.endswith('}p'):
+                # Find corresponding paragraph object
+                for para in self.original_document.paragraphs:
+                    if para._element == elem:
                         text = para.text.strip()
                         
-                        if text:  # Only include non-empty cells
+                        # Check if this paragraph is inside a table
+                        if id(para) in para_to_table_info:
+                            # This paragraph is in a table, skip it here
+                            # (tables are handled separately below)
+                            break
+                        
+                        if text:  # Only include non-empty paragraphs
                             # Extract formatting if requested
                             if extract_formatting and self.tag_manager:
                                 runs = self.tag_manager.extract_runs(para)
@@ -133,21 +112,61 @@ class DOCXHandler:
                             else:
                                 paragraphs.append(text)
                             
-                            # Store table cell info
+                            # Store paragraph info for reconstruction
                             para_info = ParagraphInfo(
                                 text=text,
                                 style=para.style.name if para.style else None,
                                 alignment=str(para.alignment) if para.alignment else None,
                                 paragraph_index=para_counter,
-                                is_table_cell=True,
-                                table_index=table_idx,
-                                row_index=row_idx,
-                                cell_index=cell_idx
+                                document_position=doc_position,
+                                is_table_cell=False
                             )
                             self.paragraphs_info.append(para_info)
                             para_counter += 1
-                            table_cell_count += 1
+                        
+                        doc_position += 1
+                        break
+            
+            # Check if it's a table
+            elif elem.tag.endswith('}tbl'):
+                # Find corresponding table object
+                for table_idx, table in enumerate(self.original_document.tables):
+                    if table._element == elem:
+                        # Process this table
+                        for row_idx, row in enumerate(table.rows):
+                            for cell_idx, cell in enumerate(row.cells):
+                                # Each cell may contain multiple paragraphs
+                                for para in cell.paragraphs:
+                                    text = para.text.strip()
+                                    
+                                    if text:  # Only include non-empty cells
+                                        # Extract formatting if requested
+                                        if extract_formatting and self.tag_manager:
+                                            runs = self.tag_manager.extract_runs(para)
+                                            text_with_tags = self.tag_manager.runs_to_tagged_text(runs)
+                                            paragraphs.append(text_with_tags)
+                                        else:
+                                            paragraphs.append(text)
+                                        
+                                        # Store table cell info
+                                        para_info = ParagraphInfo(
+                                            text=text,
+                                            style=para.style.name if para.style else None,
+                                            alignment=str(para.alignment) if para.alignment else None,
+                                            paragraph_index=para_counter,
+                                            document_position=doc_position,
+                                            is_table_cell=True,
+                                            table_index=table_idx,
+                                            row_index=row_idx,
+                                            cell_index=cell_idx
+                                        )
+                                        self.paragraphs_info.append(para_info)
+                                        para_counter += 1
+                        
+                        doc_position += 1  # Table counts as one position
+                        break
         
+        table_cell_count = sum(1 for p in self.paragraphs_info if p.is_table_cell)
         print(f"[DOCX Handler] Extracted {len(paragraphs)} total items:")
         print(f"  - Regular paragraphs: {len(paragraphs) - table_cell_count}")
         print(f"  - Table cells: {table_cell_count} (from {len(self.original_document.tables)} tables)")
