@@ -790,49 +790,100 @@ class CATEditorPrototype:
                 self.tree.focus(prev_item)
     
     def show_source_popup(self, event):
-        """Show source text in a popup for easy reading/copying"""
+        """Show source and target in a memoQ-style popup with clear divider"""
         if not self.current_segment:
             return
         
+        # Calculate content-aware size
+        source_lines = self.current_segment.source.count('\n') + 1
+        target_lines = self.current_segment.target.count('\n') + 1 if self.current_segment.target else 1
+        
+        # Estimate height needed (30px per line + padding)
+        source_height = max(60, min(200, source_lines * 30 + 40))
+        target_height = max(60, min(200, target_lines * 30 + 40))
+        total_height = source_height + target_height + 120  # Extra for labels and buttons
+        
+        # Width based on content length
+        max_line_length = max(
+            max(len(line) for line in self.current_segment.source.split('\n') or ['']) if self.current_segment.source else 0,
+            max(len(line) for line in self.current_segment.target.split('\n') or ['']) if self.current_segment.target else 0
+        )
+        popup_width = max(500, min(800, max_line_length * 8 + 100))
+        
         # Create popup window
         popup = tk.Toplevel(self.root)
-        popup.title(f"Source - Segment #{self.current_segment.id}")
-        popup.geometry("600x300")
+        popup.title(f"Segment #{self.current_segment.id} - Source & Target")
+        popup.geometry(f"{popup_width}x{total_height}")
         popup.transient(self.root)
         
         # Position near cursor
         popup.geometry(f"+{event.x_root + 10}+{event.y_root + 10}")
         
-        # Add text widget
-        text_frame = tk.Frame(popup, padx=10, pady=10)
-        text_frame.pack(fill='both', expand=True)
+        # Main content frame
+        main_frame = tk.Frame(popup, padx=15, pady=10)
+        main_frame.pack(fill='both', expand=True)
         
-        tk.Label(text_frame, text="Source Text (Read-only, select to copy)", 
-                font=('Segoe UI', 9, 'bold')).pack(anchor='w', pady=(0, 5))
+        # Source section
+        source_label_frame = tk.Frame(main_frame)
+        source_label_frame.pack(fill='x', pady=(0, 5))
+        tk.Label(source_label_frame, text="📄 Source", 
+                font=('Segoe UI', 10, 'bold'), fg='#0066cc').pack(side='left')
+        tk.Label(source_label_frame, text="(Read-only, select to copy)", 
+                font=('Segoe UI', 8), fg='#666').pack(side='left', padx=(10, 0))
         
-        text_widget = scrolledtext.ScrolledText(text_frame, wrap='word', 
-                                                font=('Segoe UI', 10),
-                                                bg='#f5f5f5')
-        text_widget.pack(fill='both', expand=True)
-        text_widget.insert('1.0', self.current_segment.source)
-        text_widget.config(state='normal')  # Allow selection for copying
+        source_widget = scrolledtext.ScrolledText(main_frame, wrap='word', 
+                                                  font=('Segoe UI', 10),
+                                                  bg='#f0f8ff',
+                                                  relief='solid',
+                                                  borderwidth=1,
+                                                  height=max(2, source_lines))
+        source_widget.pack(fill='both', expand=True, pady=(0, 10))
+        source_widget.insert('1.0', self.current_segment.source)
+        source_widget.config(state='normal')  # Allow selection for copying
+        
+        # Clear divider line (memoQ-style)
+        divider = tk.Frame(main_frame, height=2, bg='#0066cc', relief='solid')
+        divider.pack(fill='x', pady=10)
+        
+        # Target section
+        target_label_frame = tk.Frame(main_frame)
+        target_label_frame.pack(fill='x', pady=(0, 5))
+        tk.Label(target_label_frame, text="🎯 Target", 
+                font=('Segoe UI', 10, 'bold'), fg='#009900').pack(side='left')
+        tk.Label(target_label_frame, text="(Read-only)", 
+                font=('Segoe UI', 8), fg='#666').pack(side='left', padx=(10, 0))
+        
+        target_widget = scrolledtext.ScrolledText(main_frame, wrap='word', 
+                                                  font=('Segoe UI', 10),
+                                                  bg='#f0fff0',
+                                                  relief='solid',
+                                                  borderwidth=1,
+                                                  height=max(2, target_lines))
+        target_widget.pack(fill='both', expand=True, pady=(0, 10))
+        if self.current_segment.target:
+            target_widget.insert('1.0', self.current_segment.target)
+        else:
+            target_widget.insert('1.0', '[No translation yet]')
+            target_widget.config(fg='#999')
+        target_widget.config(state='normal')  # Allow selection for copying
         
         # Button frame
-        btn_frame = tk.Frame(popup, padx=10, pady=5)
-        btn_frame.pack(fill='x')
+        btn_frame = tk.Frame(popup, padx=15, pady=10, bg='#f0f0f0')
+        btn_frame.pack(fill='x', side='bottom')
         
-        tk.Button(btn_frame, text="Copy to Clipboard", 
+        tk.Button(btn_frame, text="📋 Copy Source to Clipboard", 
                  command=lambda: self.copy_to_clipboard(self.current_segment.source, popup),
-                 bg='#2196F3', fg='white').pack(side='left', padx=5)
-        tk.Button(btn_frame, text="Copy to Target", 
+                 bg='#2196F3', fg='white', padx=10).pack(side='left', padx=5)
+        tk.Button(btn_frame, text="✨ Copy Source → Target", 
                  command=lambda: [self.copy_source_to_target(), popup.destroy()],
-                 bg='#4CAF50', fg='white').pack(side='left', padx=5)
-        tk.Button(btn_frame, text="Close", 
-                 command=popup.destroy).pack(side='right', padx=5)
+                 bg='#4CAF50', fg='white', padx=10).pack(side='left', padx=5)
+        tk.Button(btn_frame, text="✖ Close", 
+                 command=popup.destroy,
+                 padx=10).pack(side='right', padx=5)
         
-        # Auto-select all text for easy copying
-        text_widget.tag_add('sel', '1.0', 'end')
-        text_widget.focus()
+        # Auto-select source text for easy copying
+        source_widget.tag_add('sel', '1.0', 'end')
+        source_widget.focus()
         
         # Close on Escape
         popup.bind('<Escape>', lambda e: popup.destroy())
