@@ -1,6 +1,6 @@
 # Version Summary - Supervertaler Project
 
-**Last Updated**: October 2, 2025
+**Last Updated**: October 3, 2025
 
 ## Current Versions
 
@@ -14,9 +14,11 @@
   - Image context support
 
 ### CAT Editor Prototype
-- **CAT Editor Prototype**: v0.3.2 (Experimental)
+- **CAT Editor Prototype**: v0.4.0 (Experimental)
   - Standalone translation editor
   - DOCX import/export with full formatting
+  - Four view modes: Grid, Split, Compact, Document
+  - Document View with table rendering (v0.4.0)
   - Table support (v0.3.0)
   - Style visibility and preservation (v0.3.1, v0.3.2)
   - Inline formatting tags (v0.2.0)
@@ -30,11 +32,12 @@
 
 | File | Current Version | Status |
 |------|----------------|--------|
-| `cat_editor_prototype.py` | v0.3.2 | ✅ Updated |
-| Project JSON files | v0.3.2 | ✅ Updated |
-| `README.md` (prototype) | v0.3.2 | ✅ Updated |
-| `CHANGELOG.md` (prototype) | v0.3.2 | ✅ Created |
-| `test_style_support.py` | v0.3.1 reference | ℹ️ OK (references older version) |
+| `cat_editor_prototype.py` | v0.4.0 | ✅ Updated |
+| Project JSON files | v0.4.0 | ✅ Updated |
+| `README.md` (prototype) | v0.4.0 | ✅ Updated |
+| `DOCUMENT_VIEW_v0.4.0.md` | v0.4.0 | ✅ Created |
+| `UX_IMPROVEMENTS_v0.4.0.md` | v0.4.0 | ✅ Exists |
+| `VERSION_SUMMARY.md` | v0.4.0 | ✅ Updated |
 
 ### Main Supervertaler Files
 

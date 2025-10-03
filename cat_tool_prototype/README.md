@@ -94,6 +94,29 @@ python cat_editor_prototype.py
 | `Ctrl+Enter` | Save segment and move to next |
 | `Enter` | Edit selected segment |
 | `↑` `↓` | Navigate segments |
+| `Ctrl+1` | Switch to Grid View |
+| `Ctrl+2` | Switch to Split View |
+| `Ctrl+3` | Switch to Compact View |
+| `Ctrl+4` | Switch to Document View |
+
+## 🎨 View Modes
+
+### Grid View (Ctrl+1)
+Excel-like table with all segments visible. Best for bulk editing and getting an overview.
+
+### Split View (Ctrl+2)
+Traditional CAT tool layout with segment list on left and editor on right. Best for focused translation work.
+
+### Compact View (Ctrl+3)
+Minimalist 3-column view (placeholder - coming soon).
+
+### Document View (Ctrl+4) ⭐ NEW
+Natural document flow showing text and tables as they appear in the original document. Best for reviewing context and final output. Features:
+- Text flows naturally like a Word document
+- Tables rendered in proper position with correct structure
+- Clickable segments with editor panel below
+- Color-coded by status (red=untranslated, yellow=draft, green=translated, blue=approved)
+- Smart placeholders show source when not translated, target when complete
 
 ## 📁 File Structure
 
