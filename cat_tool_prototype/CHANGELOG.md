@@ -40,6 +40,16 @@
     - `Ctrl+3` - Compact View
     - `Ctrl+4` - Document View
 
+- **Compact View** - Minimalist three-column interface for maximum efficiency
+  - Three-column layout: Status, Source, Target (no clutter)
+  - Text truncation at 100 characters for list density
+  - Compact 2-line editor panel below
+  - See ~30 segments on screen (vs. ~15 in Grid View)
+  - Perfect for speed translation and quick edits
+  - Full keyboard support with same shortcuts as other views
+  - Status color coding for visual progress tracking
+  - Keyboard shortcut: `Ctrl+3` to switch to Compact View
+
 - **UX Improvements**
   - `Ctrl+D` (Copy Source to Target) now works in Grid View
   - Double-click source column opens popup with full text
@@ -75,7 +85,9 @@
     - Implemented `render_table()` (lines 753-838)
     - Implemented `on_doc_segment_click()` (lines 840-877)
     - Implemented `save_doc_segment()` (lines 961-1026)
-    - Updated `switch_layout()` for view preservation (lines 1104-1182)
+    - Implemented `create_compact_layout()` (lines 463-590)
+    - Implemented `load_segments_to_compact()` (lines 592-610)
+    - Updated `switch_layout()` for view preservation (lines 1220-1300)
     - Updated `import_docx()` to pass document_position (line ~2336)
   - `docx_handler.py`:
     - Added `document_position` to ParagraphInfo (line ~35)
@@ -83,6 +95,7 @@
 
 ### Documentation
 - Created `DOCUMENT_VIEW_v0.4.0.md` - Complete Document View documentation
+- Created `COMPACT_VIEW_v0.4.0.md` - Complete Compact View documentation
 - Updated `UX_IMPROVEMENTS_v0.4.0.md` - Grid View improvements
 - Updated `README.md` with v0.4.0 information and view modes section
 - Updated `VERSION_SUMMARY.md` with current version
@@ -94,10 +107,12 @@
 
 ### Impact
 - ✅ Professional document preview mode
-- ✅ Better context for translators
+- ✅ Better context for translators  
 - ✅ Natural reading flow for reviewers
 - ✅ Proper table structure visualization
-- ✅ Complete view mode ecosystem (Grid, Split, Document)
+- ✅ Complete view mode ecosystem (Grid, Split, Compact, Document)
+- ✅ Maximum efficiency interface for speed translation
+- ✅ Flexible workflow - choose the right view for each task
 
 ---
 

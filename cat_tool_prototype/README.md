@@ -107,8 +107,13 @@ Excel-like table with all segments visible. Best for bulk editing and getting an
 ### Split View (Ctrl+2)
 Traditional CAT tool layout with segment list on left and editor on right. Best for focused translation work.
 
-### Compact View (Ctrl+3)
-Minimalist 3-column view (placeholder - coming soon).
+### Compact View (Ctrl+3) ⭐ NEW
+Minimalist 3-column view (Status, Source, Target) for maximum screen efficiency. Best for speed translation and tight deadlines. Features:
+- See ~30 segments on screen at once
+- No clutter - only essential columns
+- Compact 2-line editor panel
+- Text truncation for density
+- Perfect for laptop screens and distraction-free work
 
 ### Document View (Ctrl+4) ⭐ NEW
 Natural document flow showing text and tables as they appear in the original document. Best for reviewing context and final output. Features:
