@@ -248,8 +248,16 @@ class CATEditorPrototype:
     def create_grid_layout(self):
         """Create Grid View layout (memoQ-style with inline editing and dynamic row heights)"""
         
+        # Create main horizontal paned window (grid on left, assistance panel on right)
+        self.main_paned = ttk.PanedWindow(self.content_frame, orient='horizontal')
+        self.main_paned.pack(fill='both', expand=True)
+        
+        # Left side: Grid and editor
+        left_container = tk.Frame(self.main_paned)
+        self.main_paned.add(left_container, weight=3)
+        
         # Grid frame (top part - expandable)
-        grid_frame = tk.LabelFrame(self.content_frame, text="Translation Grid - Grid View (Click target to edit)", padx=5, pady=5)
+        grid_frame = tk.LabelFrame(left_container, text="Translation Grid - Grid View (Click target to edit)", padx=5, pady=5)
         grid_frame.pack(side='top', fill='both', expand=True)
         
         # Column configuration with adjustable source/target widths
@@ -316,14 +324,20 @@ class CATEditorPrototype:
         # Focus the canvas so keyboard events work
         self.grid_canvas.focus_set()
         
+        # Store reference to container for editor panel
+        self.grid_left_container = left_container
+        
         # Editor panel at bottom (hideable)
         self.grid_editor_visible = True
         self.create_grid_editor_panel()
+        
+        # Right side: Assistance panel (MT, TM, Glossary, etc.)
+        self.create_assistance_panel()
     
     def create_grid_editor_panel(self):
         """Create the editor panel for Grid View"""
         # Toggle button above the editor panel
-        toggle_btn_frame = tk.Frame(self.content_frame, bg='#f0f0f0')
+        toggle_btn_frame = tk.Frame(self.grid_left_container, bg='#f0f0f0')
         toggle_btn_frame.pack(side='bottom', fill='x', pady=(2, 0))
         
         self.grid_editor_toggle_btn = tk.Button(toggle_btn_frame, 
@@ -338,7 +352,7 @@ class CATEditorPrototype:
         self.grid_editor_toggle_btn.pack(side='left', padx=5, pady=2)
         
         # Editor frame (bottom part)
-        self.grid_editor_frame = tk.LabelFrame(self.content_frame, text="Segment Editor", padx=10, pady=10)
+        self.grid_editor_frame = tk.LabelFrame(self.grid_left_container, text="Segment Editor", padx=10, pady=10)
         self.grid_editor_frame.pack(side='bottom', fill='x', pady=(0, 0))
         
         # Segment info and status on same row
@@ -556,11 +570,717 @@ class CATEditorPrototype:
         self.validate_tags_grid()
         self.log("✓ Tags copied from source")
     
+    def create_assistance_panel(self):
+        """Create the right-side assistance panel with dockable/stackable panes"""
+        # Right panel container
+        right_container = tk.Frame(self.main_paned, bg='#f9f9f9')
+        self.main_paned.add(right_container, weight=1)
+        
+        # Header with controls
+        header_frame = tk.Frame(right_container, bg='#e0e0e0', height=35)
+        header_frame.pack(side='top', fill='x')
+        header_frame.pack_propagate(False)
+        
+        tk.Label(header_frame, text="Translation Assistance", font=('Segoe UI', 10, 'bold'),
+                bg='#e0e0e0').pack(side='left', padx=10, pady=5)
+        
+        # Layout mode button
+        self.assist_layout_btn = tk.Button(header_frame, text="⊞ Stacked View",
+                                          command=self.toggle_assistance_layout,
+                                          font=('Segoe UI', 8), bg='#4CAF50', fg='white',
+                                          relief='raised', padx=8, pady=2)
+        self.assist_layout_btn.pack(side='right', padx=5)
+        
+        # Container for dynamic content (will switch between tabbed and stacked)
+        self.assist_content_frame = tk.Frame(right_container, bg='#f9f9f9')
+        self.assist_content_frame.pack(fill='both', expand=True)
+        
+        # Track which panels are visible
+        self.assist_visible_panels = {'mt': True, 'llm': True, 'tm': True, 'glossary': True, 'nontrans': True}
+        self.assist_layout_mode = 'tabbed'  # 'tabbed' or 'stacked'
+        
+        # Create initial tabbed layout
+        self.create_tabbed_assistance()
+        
+        # Create detail view (always at bottom)
+        self.create_detail_panel(right_container)
+    
+    def toggle_assistance_layout(self):
+        """Toggle between tabbed and stacked layout for assistance panels"""
+        if self.assist_layout_mode == 'tabbed':
+            # Switch to stacked
+            self.assist_layout_mode = 'stacked'
+            self.assist_layout_btn.config(text="⊟ Tabbed View", bg='#FF9800')
+            self.rebuild_assistance_layout()
+        else:
+            # Switch to tabbed
+            self.assist_layout_mode = 'tabbed'
+            self.assist_layout_btn.config(text="⊞ Stacked View", bg='#4CAF50')
+            self.rebuild_assistance_layout()
+    
+    def rebuild_assistance_layout(self):
+        """Rebuild the assistance panel layout"""
+        # Clear current content
+        for widget in self.assist_content_frame.winfo_children():
+            widget.destroy()
+        
+        if self.assist_layout_mode == 'tabbed':
+            self.create_tabbed_assistance()
+        else:
+            self.create_stacked_assistance()
+    
+    def create_tabbed_assistance(self):
+        """Create tabbed notebook layout"""
+        # Tabbed notebook for different suggestion types
+        self.assist_notebook = ttk.Notebook(self.assist_content_frame)
+        self.assist_notebook.pack(fill='both', expand=True, padx=2, pady=2)
+        
+        # Create tabs for visible panels
+        if self.assist_visible_panels.get('mt', True):
+            mt_frame = tk.Frame(self.assist_notebook, bg='white')
+            self.assist_notebook.add(mt_frame, text='🤖 MT')
+            self.create_mt_tab(mt_frame)
+        
+        if self.assist_visible_panels.get('llm', True):
+            llm_frame = tk.Frame(self.assist_notebook, bg='white')
+            self.assist_notebook.add(llm_frame, text='✨ LLM')
+            self.create_llm_tab(llm_frame)
+        
+        if self.assist_visible_panels.get('tm', True):
+            tm_frame = tk.Frame(self.assist_notebook, bg='white')
+            self.assist_notebook.add(tm_frame, text='💾 TM')
+            self.create_tm_tab(tm_frame)
+        
+        if self.assist_visible_panels.get('glossary', True):
+            glossary_frame = tk.Frame(self.assist_notebook, bg='white')
+            self.assist_notebook.add(glossary_frame, text='📚 Glossary')
+            self.create_glossary_tab(glossary_frame)
+        
+        if self.assist_visible_panels.get('nontrans', True):
+            nt_frame = tk.Frame(self.assist_notebook, bg='white')
+            self.assist_notebook.add(nt_frame, text='🔒 Non-trans')
+            self.create_nontrans_tab(nt_frame)
+    
+    def create_stacked_assistance(self):
+        """Create stacked collapsible panels layout with resizable panes"""
+        # Create a vertical PanedWindow for resizable panels
+        self.assist_stacked_paned = ttk.PanedWindow(self.assist_content_frame, orient='vertical')
+        self.assist_stacked_paned.pack(fill='both', expand=True, padx=2, pady=2)
+        
+        # Track panel weights for initial sizing
+        panel_weights = []
+        
+        # Create collapsible panels in the PanedWindow
+        if self.assist_visible_panels.get('mt', True):
+            mt_container = self.create_collapsible_panel_resizable('🤖 Machine Translation', 'mt',
+                                                                   self.create_mt_tab, expanded=True)
+            self.assist_stacked_paned.add(mt_container, weight=1)
+            panel_weights.append(1)
+        
+        if self.assist_visible_panels.get('llm', True):
+            llm_container = self.create_collapsible_panel_resizable('✨ LLM Translation', 'llm',
+                                                                    self.create_llm_tab, expanded=True)
+            self.assist_stacked_paned.add(llm_container, weight=1)
+            panel_weights.append(1)
+        
+        if self.assist_visible_panels.get('tm', True):
+            tm_container = self.create_collapsible_panel_resizable('💾 Translation Memory', 'tm',
+                                                                   self.create_tm_tab, expanded=False)
+            self.assist_stacked_paned.add(tm_container, weight=1)
+            panel_weights.append(1)
+        
+        if self.assist_visible_panels.get('glossary', True):
+            glossary_container = self.create_collapsible_panel_resizable('📚 Glossary', 'glossary',
+                                                                         self.create_glossary_tab, expanded=False)
+            self.assist_stacked_paned.add(glossary_container, weight=1)
+            panel_weights.append(1)
+        
+        if self.assist_visible_panels.get('nontrans', True):
+            nontrans_container = self.create_collapsible_panel_resizable('🔒 Non-translatables', 'nontrans',
+                                                                         self.create_nontrans_tab, expanded=False)
+            self.assist_stacked_paned.add(nontrans_container, weight=1)
+            panel_weights.append(1)
+
+    
+    
+    def create_collapsible_panel_resizable(self, title, panel_id, content_creator, expanded=True):
+        """Create a resizable collapsible panel with header and content for use in PanedWindow"""
+        # Panel container - this will be added to the PanedWindow
+        panel_container = tk.Frame(self.assist_stacked_paned, bg='#ffffff', relief='solid', borderwidth=1)
+        
+        # Header with collapse/expand button and visibility toggle
+        header = tk.Frame(panel_container, bg='#e3f2fd', cursor='hand2')
+        header.pack(fill='x')
+        
+        # Collapse/Expand button
+        collapse_btn = tk.Label(header, text='▼' if expanded else '▶',
+                               bg='#e3f2fd', font=('Segoe UI', 10),
+                               cursor='hand2', width=2)
+        collapse_btn.pack(side='left', padx=5, pady=3)
+        
+        # Title
+        title_label = tk.Label(header, text=title, bg='#e3f2fd',
+                              font=('Segoe UI', 9, 'bold'), cursor='hand2')
+        title_label.pack(side='left', pady=3)
+        
+        # Resize indicator
+        resize_label = tk.Label(header, text='⇕', bg='#e3f2fd',
+                               font=('Segoe UI', 9), fg='#666')
+        resize_label.pack(side='left', padx=10)
+        
+        # Undock button (removes from stack, returns to tabs)
+        undock_btn = tk.Button(header, text='⊟', command=lambda: self.undock_panel(panel_id),
+                              bg='#ff9800', fg='white', font=('Segoe UI', 8),
+                              relief='flat', padx=4, pady=0, cursor='hand2')
+        undock_btn.pack(side='right', padx=5, pady=3)
+        
+        # Content frame with minimum height
+        content_frame = tk.Frame(panel_container, bg='white')
+        if expanded:
+            content_frame.pack(fill='both', expand=True, padx=2, pady=2)
+        
+        # Set minimum height for the panel
+        panel_container.update_idletasks()
+        
+        # Create content using the provided creator function
+        content_creator(content_frame)
+        
+        # Toggle function
+        def toggle_panel():
+            if content_frame.winfo_ismapped():
+                content_frame.pack_forget()
+                collapse_btn.config(text='▶')
+                panel_container.config(height=30)  # Collapsed height (just header)
+            else:
+                content_frame.pack(fill='both', expand=True, padx=2, pady=2)
+                collapse_btn.config(text='▼')
+                panel_container.config(height=200)  # Expanded default height
+        
+        # Bind click events to header elements (but not the undock button)
+        collapse_btn.bind('<Button-1>', lambda e: toggle_panel())
+        title_label.bind('<Button-1>', lambda e: toggle_panel())
+        
+        # Return the container to be added to PanedWindow
+        return panel_container
+    
+    def create_collapsible_panel(self, parent, title, panel_id, content_creator, expanded=True):
+        """Create a collapsible panel with header and content"""
+        # Panel container
+        panel_container = tk.Frame(parent, bg='#ffffff', relief='solid', borderwidth=1)
+        panel_container.pack(fill='both', expand=False, padx=3, pady=2)
+        
+        # Header with collapse/expand button and visibility toggle
+        header = tk.Frame(panel_container, bg='#e3f2fd', cursor='hand2')
+        header.pack(fill='x')
+        
+        # Collapse/Expand button
+        collapse_btn = tk.Label(header, text='▼' if expanded else '▶',
+                               bg='#e3f2fd', font=('Segoe UI', 10),
+                               cursor='hand2', width=2)
+        collapse_btn.pack(side='left', padx=5, pady=3)
+        
+        # Title
+        title_label = tk.Label(header, text=title, bg='#e3f2fd',
+                              font=('Segoe UI', 9, 'bold'), cursor='hand2')
+        title_label.pack(side='left', pady=3)
+        
+        # Undock button (removes from stack, returns to tabs)
+        undock_btn = tk.Button(header, text='⊟', command=lambda: self.undock_panel(panel_id),
+                              bg='#ff9800', fg='white', font=('Segoe UI', 8),
+                              relief='flat', padx=4, pady=0, cursor='hand2')
+        undock_btn.pack(side='right', padx=5, pady=3)
+        
+        # Content frame
+        content_frame = tk.Frame(panel_container, bg='white')
+        if expanded:
+            content_frame.pack(fill='both', expand=True, padx=2, pady=2)
+        
+        # Create content using the provided creator function
+        content_creator(content_frame)
+        
+        # Toggle function
+        def toggle_panel():
+            if content_frame.winfo_ismapped():
+                content_frame.pack_forget()
+                collapse_btn.config(text='▶')
+            else:
+                content_frame.pack(fill='both', expand=True, padx=2, pady=2)
+                collapse_btn.config(text='▼')
+        
+        # Bind click events to header elements
+        collapse_btn.bind('<Button-1>', lambda e: toggle_panel())
+        title_label.bind('<Button-1>', lambda e: toggle_panel())
+        header.bind('<Button-1>', lambda e: toggle_panel())
+    
+    def undock_panel(self, panel_id):
+        """Remove a panel from stacked view (will reappear when switching to tabbed)"""
+        self.assist_visible_panels[panel_id] = False
+        self.rebuild_assistance_layout()
+        self.log(f"ℹ Panel '{panel_id}' hidden. Switch to Tabbed View to restore.")
+    
+    def create_detail_panel(self, parent):
+        """Create the suggestion detail panel (shows source/target of selected item)"""
+        detail_frame = tk.LabelFrame(parent, text="Suggestion Detail", padx=5, pady=5)
+        detail_frame.pack(side='bottom', fill='x', padx=2, pady=2)
+        
+        # Source of selected suggestion
+        tk.Label(detail_frame, text="Source:", font=('Segoe UI', 9, 'bold')).pack(anchor='w')
+        self.assist_detail_source = tk.Text(detail_frame, height=2, wrap='word', 
+                                            bg='#f5f5f5', state='disabled',
+                                            font=('Segoe UI', 9))
+        self.assist_detail_source.pack(fill='x', pady=(2, 8))
+        
+        # Target of selected suggestion
+        tk.Label(detail_frame, text="Target:", font=('Segoe UI', 9, 'bold')).pack(anchor='w')
+        self.assist_detail_target = tk.Text(detail_frame, height=2, wrap='word',
+                                            bg='white', state='disabled',
+                                            font=('Segoe UI', 9))
+        self.assist_detail_target.pack(fill='x', pady=(2, 5))
+        
+        # Action buttons
+        detail_btn_frame = tk.Frame(detail_frame)
+        detail_btn_frame.pack(fill='x', pady=(5, 0))
+        
+        tk.Button(detail_btn_frame, text="📋 Copy to Target", 
+                 command=self.copy_suggestion_to_target,
+                 bg='#4CAF50', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
+        tk.Button(detail_btn_frame, text="➕ Insert at Cursor",
+                 command=self.insert_suggestion_at_cursor,
+                 bg='#2196F3', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
+    
+    def create_mt_tab(self, parent):
+        """Create Machine Translation tab content"""
+        # Toolbar with provider selection and translate button
+        toolbar = tk.Frame(parent, bg='#f0f0f0')
+        toolbar.pack(side='top', fill='x', padx=5, pady=5)
+        
+        tk.Label(toolbar, text="Provider:", bg='#f0f0f0', font=('Segoe UI', 9)).pack(side='left', padx=2)
+        self.mt_provider_var = tk.StringVar(value="Google Translate")
+        mt_provider_combo = ttk.Combobox(toolbar, textvariable=self.mt_provider_var,
+                                        values=["Google Translate", "DeepL", "Microsoft Translator", 
+                                               "Amazon Translate", "Custom MT"],
+                                        state='readonly', width=18, font=('Segoe UI', 9))
+        mt_provider_combo.pack(side='left', padx=5)
+        
+        tk.Button(toolbar, text="🔄 Translate", command=self.get_mt_translation,
+                 bg='#4CAF50', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=5)
+        
+        # Listbox for MT results
+        list_frame = tk.Frame(parent)
+        list_frame.pack(fill='both', expand=True, padx=5, pady=5)
+        
+        scrollbar = ttk.Scrollbar(list_frame, orient='vertical')
+        self.mt_listbox = tk.Listbox(list_frame, yscrollcommand=scrollbar.set,
+                                     font=('Segoe UI', 9), selectmode='single')
+        scrollbar.config(command=self.mt_listbox.yview)
+        
+        self.mt_listbox.pack(side='left', fill='both', expand=True)
+        scrollbar.pack(side='right', fill='y')
+        
+        self.mt_listbox.bind('<<ListboxSelect>>', self.on_mt_select)
+        self.mt_listbox.bind('<Double-Button-1>', lambda e: self.copy_suggestion_to_target())
+        
+        # Store MT results
+        self.mt_results = []
+    
+    def create_llm_tab(self, parent):
+        """Create LLM Translation tab content"""
+        # Toolbar with model selection and translate button
+        toolbar = tk.Frame(parent, bg='#f0f0f0')
+        toolbar.pack(side='top', fill='x', padx=5, pady=5)
+        
+        tk.Label(toolbar, text="Model:", bg='#f0f0f0', font=('Segoe UI', 9)).pack(side='left', padx=2)
+        self.llm_model_var = tk.StringVar(value="Claude 3.5 Sonnet")
+        llm_model_combo = ttk.Combobox(toolbar, textvariable=self.llm_model_var,
+                                      values=["Claude 3.5 Sonnet", "GPT-4", "Gemini Pro",
+                                             "Claude 3 Opus", "GPT-4 Turbo", "Supervertaler Custom"],
+                                      state='readonly', width=18, font=('Segoe UI', 9))
+        llm_model_combo.pack(side='left', padx=5)
+        
+        tk.Button(toolbar, text="✨ Generate", command=self.get_llm_translation,
+                 bg='#9C27B0', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=5)
+        
+        # Prompt template selector
+        prompt_frame = tk.Frame(parent, bg='#f9f9f9')
+        prompt_frame.pack(side='top', fill='x', padx=5, pady=5)
+        
+        tk.Label(prompt_frame, text="Prompt:", bg='#f9f9f9', font=('Segoe UI', 9)).pack(side='left', padx=2)
+        self.llm_prompt_var = tk.StringVar(value="Standard Translation")
+        llm_prompt_combo = ttk.Combobox(prompt_frame, textvariable=self.llm_prompt_var,
+                                       values=["Standard Translation", "Legal Translation",
+                                              "Technical Translation", "Marketing Translation",
+                                              "Medical Translation", "Custom Supervertaler Prompt"],
+                                       state='readonly', width=25, font=('Segoe UI', 9))
+        llm_prompt_combo.pack(side='left', padx=5)
+        
+        # Listbox for LLM results (can have multiple alternatives)
+        list_frame = tk.Frame(parent)
+        list_frame.pack(fill='both', expand=True, padx=5, pady=5)
+        
+        scrollbar = ttk.Scrollbar(list_frame, orient='vertical')
+        self.llm_listbox = tk.Listbox(list_frame, yscrollcommand=scrollbar.set,
+                                      font=('Segoe UI', 9), selectmode='single')
+        scrollbar.config(command=self.llm_listbox.yview)
+        
+        self.llm_listbox.pack(side='left', fill='both', expand=True)
+        scrollbar.pack(side='right', fill='y')
+        
+        self.llm_listbox.bind('<<ListboxSelect>>', self.on_llm_select)
+        self.llm_listbox.bind('<Double-Button-1>', lambda e: self.copy_suggestion_to_target())
+        
+        # Store LLM results
+        self.llm_results = []
+    
+    def create_tm_tab(self, parent):
+        """Create Translation Memory tab content"""
+        # Toolbar with TM source selection and search button
+        toolbar = tk.Frame(parent, bg='#f0f0f0')
+        toolbar.pack(side='top', fill='x', padx=5, pady=5)
+        
+        tk.Label(toolbar, text="TM:", bg='#f0f0f0', font=('Segoe UI', 9)).pack(side='left', padx=2)
+        self.tm_source_var = tk.StringVar(value="Project TM")
+        tm_source_combo = ttk.Combobox(toolbar, textvariable=self.tm_source_var,
+                                      values=["Project TM", "Main TM", "Reference TM",
+                                             "All TMs", "Custom TM"],
+                                      state='readonly', width=15, font=('Segoe UI', 9))
+        tm_source_combo.pack(side='left', padx=5)
+        
+        tk.Button(toolbar, text="🔍 Search", command=self.search_tm,
+                 bg='#2196F3', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=5)
+        
+        # Settings frame
+        settings_frame = tk.Frame(parent, bg='#f9f9f9')
+        settings_frame.pack(side='top', fill='x', padx=5, pady=2)
+        
+        tk.Label(settings_frame, text="Min. Match:", bg='#f9f9f9', 
+                font=('Segoe UI', 8)).pack(side='left', padx=2)
+        self.tm_threshold_var = tk.StringVar(value="75")
+        tm_threshold_spin = ttk.Spinbox(settings_frame, from_=50, to=100, increment=5,
+                                       textvariable=self.tm_threshold_var, width=5,
+                                       font=('Segoe UI', 8))
+        tm_threshold_spin.pack(side='left', padx=2)
+        tk.Label(settings_frame, text="%", bg='#f9f9f9', font=('Segoe UI', 8)).pack(side='left')
+        
+        # Treeview for TM matches (shows match %, source, target)
+        tree_frame = tk.Frame(parent)
+        tree_frame.pack(fill='both', expand=True, padx=5, pady=5)
+        
+        scrollbar = ttk.Scrollbar(tree_frame, orient='vertical')
+        self.tm_tree = ttk.Treeview(tree_frame, columns=('match', 'text'),
+                                   show='headings', yscrollcommand=scrollbar.set,
+                                   selectmode='browse', height=10)
+        scrollbar.config(command=self.tm_tree.yview)
+        
+        self.tm_tree.heading('match', text='Match %')
+        self.tm_tree.heading('text', text='Translation')
+        
+        self.tm_tree.column('match', width=70, minwidth=70, stretch=False)
+        self.tm_tree.column('text', width=250, minwidth=150, stretch=True)
+        
+        self.tm_tree.pack(side='left', fill='both', expand=True)
+        scrollbar.pack(side='right', fill='y')
+        
+        # Tag configuration for match percentage colors
+        self.tm_tree.tag_configure('exact', background='#c8e6c9')  # Light green
+        self.tm_tree.tag_configure('high', background='#fff9c4')   # Light yellow
+        self.tm_tree.tag_configure('medium', background='#ffecb3') # Light orange
+        
+        self.tm_tree.bind('<<TreeviewSelect>>', self.on_tm_select)
+        self.tm_tree.bind('<Double-Button-1>', lambda e: self.copy_suggestion_to_target())
+        
+        # Store TM results
+        self.tm_results = []
+    
+    def create_glossary_tab(self, parent):
+        """Create Glossary/Termbase tab content"""
+        # Toolbar
+        toolbar = tk.Frame(parent, bg='#f0f0f0')
+        toolbar.pack(side='top', fill='x', padx=5, pady=5)
+        
+        tk.Label(toolbar, text="Glossary:", bg='#f0f0f0', font=('Segoe UI', 9)).pack(side='left', padx=2)
+        self.glossary_source_var = tk.StringVar(value="Project Glossary")
+        glossary_combo = ttk.Combobox(toolbar, textvariable=self.glossary_source_var,
+                                     values=["Project Glossary", "Main Termbase",
+                                            "Domain Glossary", "All Glossaries"],
+                                     state='readonly', width=18, font=('Segoe UI', 9))
+        glossary_combo.pack(side='left', padx=5)
+        
+        tk.Button(toolbar, text="🔍 Search", command=self.search_glossary,
+                 bg='#FF9800', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=5)
+        
+        # Treeview for glossary matches
+        tree_frame = tk.Frame(parent)
+        tree_frame.pack(fill='both', expand=True, padx=5, pady=5)
+        
+        scrollbar = ttk.Scrollbar(tree_frame, orient='vertical')
+        self.glossary_tree = ttk.Treeview(tree_frame, columns=('source_term', 'target_term', 'domain'),
+                                         show='headings', yscrollcommand=scrollbar.set,
+                                         selectmode='browse', height=10)
+        scrollbar.config(command=self.glossary_tree.yview)
+        
+        self.glossary_tree.heading('source_term', text='Source Term')
+        self.glossary_tree.heading('target_term', text='Target Term')
+        self.glossary_tree.heading('domain', text='Domain')
+        
+        self.glossary_tree.column('source_term', width=120, minwidth=80, stretch=True)
+        self.glossary_tree.column('target_term', width=120, minwidth=80, stretch=True)
+        self.glossary_tree.column('domain', width=80, minwidth=60, stretch=False)
+        
+        self.glossary_tree.pack(side='left', fill='both', expand=True)
+        scrollbar.pack(side='right', fill='y')
+        
+        self.glossary_tree.bind('<<TreeviewSelect>>', self.on_glossary_select)
+        self.glossary_tree.bind('<Double-Button-1>', lambda e: self.insert_suggestion_at_cursor())
+        
+        # Store glossary results
+        self.glossary_results = []
+    
+    def create_nontrans_tab(self, parent):
+        """Create Non-translatables tab content"""
+        # Info label
+        info_frame = tk.Frame(parent, bg='#e3f2fd')
+        info_frame.pack(side='top', fill='x', padx=5, pady=5)
+        
+        tk.Label(info_frame, text="💡 Non-translatable elements detected in source",
+                bg='#e3f2fd', font=('Segoe UI', 9)).pack(padx=10, pady=5)
+        
+        # Listbox for non-translatables
+        list_frame = tk.Frame(parent)
+        list_frame.pack(fill='both', expand=True, padx=5, pady=5)
+        
+        scrollbar = ttk.Scrollbar(list_frame, orient='vertical')
+        self.nontrans_listbox = tk.Listbox(list_frame, yscrollcommand=scrollbar.set,
+                                          font=('Segoe UI', 9), selectmode='single')
+        scrollbar.config(command=self.nontrans_listbox.yview)
+        
+        self.nontrans_listbox.pack(side='left', fill='both', expand=True)
+        scrollbar.pack(side='right', fill='y')
+        
+        self.nontrans_listbox.bind('<<ListboxSelect>>', self.on_nontrans_select)
+        self.nontrans_listbox.bind('<Double-Button-1>', lambda e: self.insert_suggestion_at_cursor())
+        
+        # Store non-translatables
+        self.nontrans_results = []
+        
+    # Assistance panel action methods (placeholder implementations for now)
+    
+    def get_mt_translation(self):
+        """Get machine translation for current segment"""
+        if not hasattr(self, 'current_segment') or not self.current_segment:
+            self.log("⚠ No segment selected")
+            return
+        
+        provider = self.mt_provider_var.get()
+        source_text = self.current_segment.source
+        
+        self.log(f"🤖 Requesting MT from {provider}...")
+        
+        # Placeholder: In real implementation, call MT API
+        # For now, show example results
+        self.mt_results = [
+            {"provider": provider, "text": f"[MT] {source_text} (translated)", "confidence": 0.95},
+            {"provider": provider, "text": f"[MT Alt] {source_text} (alternative)", "confidence": 0.85}
+        ]
+        
+        self.mt_listbox.delete(0, 'end')
+        for i, result in enumerate(self.mt_results):
+            conf_pct = int(result['confidence'] * 100)
+            self.mt_listbox.insert('end', f"{conf_pct}% - {result['text']}")
+        
+        self.log(f"✓ Received {len(self.mt_results)} MT suggestions")
+    
+    def get_llm_translation(self):
+        """Get LLM translation for current segment"""
+        if not hasattr(self, 'current_segment') or not self.current_segment:
+            self.log("⚠ No segment selected")
+            return
+        
+        model = self.llm_model_var.get()
+        prompt_type = self.llm_prompt_var.get()
+        source_text = self.current_segment.source
+        
+        self.log(f"✨ Requesting LLM translation from {model} with {prompt_type}...")
+        
+        # Placeholder: In real implementation, call LLM API
+        # This is where Supervertaler integration will happen!
+        self.llm_results = [
+            {"model": model, "prompt": prompt_type, "text": f"[LLM] {source_text} (professional translation)", "quality": 0.98},
+            {"model": model, "prompt": prompt_type, "text": f"[LLM Alt] {source_text} (alternative phrasing)", "quality": 0.92}
+        ]
+        
+        self.llm_listbox.delete(0, 'end')
+        for i, result in enumerate(self.llm_results):
+            quality_pct = int(result['quality'] * 100)
+            self.llm_listbox.insert('end', f"{quality_pct}% - {result['text']}")
+        
+        self.log(f"✓ Received {len(self.llm_results)} LLM suggestions")
+        self.log(f"💡 Future: This will integrate with Supervertaler prompts and models")
+    
+    def search_tm(self):
+        """Search translation memory for matches"""
+        if not hasattr(self, 'current_segment') or not self.current_segment:
+            self.log("⚠ No segment selected")
+            return
+        
+        tm_source = self.tm_source_var.get()
+        threshold = int(self.tm_threshold_var.get())
+        source_text = self.current_segment.source
+        
+        self.log(f"🔍 Searching {tm_source} (min {threshold}% match)...")
+        
+        # Placeholder: In real implementation, search TM database
+        self.tm_results = [
+            {"match": 100, "source": source_text, "target": f"[100% TM] {source_text} (exact match)", "tm": tm_source},
+            {"match": 95, "source": source_text, "target": f"[95% TM] {source_text} (fuzzy match)", "tm": tm_source},
+            {"match": 80, "source": source_text, "target": f"[80% TM] {source_text} (partial match)", "tm": tm_source}
+        ]
+        
+        # Filter by threshold
+        self.tm_results = [r for r in self.tm_results if r['match'] >= threshold]
+        
+        # Clear and populate tree
+        for item in self.tm_tree.get_children():
+            self.tm_tree.delete(item)
+        
+        for result in self.tm_results:
+            match_pct = result['match']
+            if match_pct == 100:
+                tag = 'exact'
+            elif match_pct >= 90:
+                tag = 'high'
+            else:
+                tag = 'medium'
+            
+            self.tm_tree.insert('', 'end', values=(f"{match_pct}%", result['target']), tags=(tag,))
+        
+        self.log(f"✓ Found {len(self.tm_results)} TM matches")
+    
+    def search_glossary(self):
+        """Search glossary/termbase for terms"""
+        if not hasattr(self, 'current_segment') or not self.current_segment:
+            self.log("⚠ No segment selected")
+            return
+        
+        glossary = self.glossary_source_var.get()
+        source_text = self.current_segment.source
+        
+        self.log(f"📚 Searching {glossary}...")
+        
+        # Placeholder: In real implementation, search glossary database
+        # Extract potential terms from source
+        self.glossary_results = [
+            {"source_term": "pivot point", "target_term": "draaipunt", "domain": "Technical"},
+            {"source_term": "coupling bar", "target_term": "koppelstang", "domain": "Technical"},
+            {"source_term": "frame", "target_term": "frame", "domain": "General"}
+        ]
+        
+        # Clear and populate tree
+        for item in self.glossary_tree.get_children():
+            self.glossary_tree.delete(item)
+        
+        for result in self.glossary_results:
+            self.glossary_tree.insert('', 'end', values=(
+                result['source_term'],
+                result['target_term'],
+                result['domain']
+            ))
+        
+        self.log(f"✓ Found {len(self.glossary_results)} glossary terms")
+    
+    def on_mt_select(self, event):
+        """Handle MT suggestion selection"""
+        selection = self.mt_listbox.curselection()
+        if selection and self.mt_results:
+            idx = selection[0]
+            result = self.mt_results[idx]
+            self.update_suggestion_detail(self.current_segment.source if hasattr(self, 'current_segment') else "",
+                                         result['text'])
+    
+    def on_llm_select(self, event):
+        """Handle LLM suggestion selection"""
+        selection = self.llm_listbox.curselection()
+        if selection and self.llm_results:
+            idx = selection[0]
+            result = self.llm_results[idx]
+            self.update_suggestion_detail(self.current_segment.source if hasattr(self, 'current_segment') else "",
+                                         result['text'])
+    
+    def on_tm_select(self, event):
+        """Handle TM match selection"""
+        selection = self.tm_tree.selection()
+        if selection and self.tm_results:
+            idx = self.tm_tree.index(selection[0])
+            result = self.tm_results[idx]
+            self.update_suggestion_detail(result['source'], result['target'])
+    
+    def on_glossary_select(self, event):
+        """Handle glossary term selection"""
+        selection = self.glossary_tree.selection()
+        if selection and self.glossary_results:
+            idx = self.glossary_tree.index(selection[0])
+            result = self.glossary_results[idx]
+            self.update_suggestion_detail(result['source_term'], result['target_term'])
+    
+    def on_nontrans_select(self, event):
+        """Handle non-translatable selection"""
+        selection = self.nontrans_listbox.curselection()
+        if selection and self.nontrans_results:
+            idx = selection[0]
+            result = self.nontrans_results[idx]
+            self.update_suggestion_detail("Non-translatable", result)
+    
+    def update_suggestion_detail(self, source, target):
+        """Update the suggestion detail panel with source/target"""
+        # Update source
+        self.assist_detail_source.config(state='normal')
+        self.assist_detail_source.delete('1.0', 'end')
+        self.assist_detail_source.insert('1.0', source)
+        self.assist_detail_source.config(state='disabled')
+        
+        # Update target
+        self.assist_detail_target.config(state='normal')
+        self.assist_detail_target.delete('1.0', 'end')
+        self.assist_detail_target.insert('1.0', target)
+        self.assist_detail_target.config(state='disabled')
+    
+    def copy_suggestion_to_target(self):
+        """Copy the selected suggestion to the target field"""
+        target_text = self.assist_detail_target.get('1.0', 'end-1c')
+        if not target_text.strip():
+            self.log("⚠ No suggestion selected")
+            return
+        
+        # Insert into grid editor if visible
+        if hasattr(self, 'grid_target_text'):
+            self.grid_target_text.delete('1.0', 'end')
+            self.grid_target_text.insert('1.0', target_text)
+            self.log("✓ Suggestion copied to target")
+    
+    def insert_suggestion_at_cursor(self):
+        """Insert the selected suggestion at cursor position in target field"""
+        target_text = self.assist_detail_target.get('1.0', 'end-1c')
+        if not target_text.strip():
+            self.log("⚠ No suggestion selected")
+            return
+        
+        # Insert at cursor position in grid editor
+        if hasattr(self, 'grid_target_text'):
+            self.grid_target_text.insert('insert', target_text)
+            self.log("✓ Suggestion inserted at cursor")
+    
     def create_split_layout(self):
         """Create List View layout (list with editor panel)"""
         
+        # Create main horizontal paned window (list/editor on left, assistance panel on right)
+        self.main_paned = ttk.PanedWindow(self.content_frame, orient='horizontal')
+        self.main_paned.pack(fill='both', expand=True)
+        
+        # Left side: Grid and editor
+        left_container = tk.Frame(self.main_paned)
+        self.main_paned.add(left_container, weight=3)
+        
         # Grid frame (top part)
-        grid_frame = tk.LabelFrame(self.content_frame, text="Translation Grid", padx=5, pady=5)
+        grid_frame = tk.LabelFrame(left_container, text="Translation Grid", padx=5, pady=5)
         grid_frame.pack(side='top', fill='both', expand=True)
         
         # Create treeview for segments
@@ -616,7 +1336,7 @@ class CATEditorPrototype:
         self.tree.bind('<Double-1>', lambda e: self.focus_target_editor())
         
         # Editor frame (bottom part)
-        editor_frame = tk.LabelFrame(self.content_frame, text="Segment Editor", padx=10, pady=10)
+        editor_frame = tk.LabelFrame(left_container, text="Segment Editor", padx=10, pady=10)
         editor_frame.pack(side='bottom', fill='x', pady=(5, 0))
         
         # Segment info
@@ -686,13 +1406,24 @@ class CATEditorPrototype:
                  ).pack(side='left', padx=(0, 5))
         tk.Button(button_frame, text="Save & Next (Ctrl+Enter)", command=self.save_segment_and_next,
                  bg='#4CAF50', fg='white').pack(side='right')
+        
+        # Right side: Assistance panel
+        self.create_assistance_panel()
     
     def create_document_layout(self):
         """Create Document View layout - shows text in document flow with clickable segments"""
         
+        # Create main horizontal paned window (document/editor on left, assistance panel on right)
+        self.main_paned = ttk.PanedWindow(self.content_frame, orient='horizontal')
+        self.main_paned.pack(fill='both', expand=True)
+        
+        # Left side: Document and editor
+        left_container = tk.Frame(self.main_paned)
+        self.main_paned.add(left_container, weight=3)
+        
         # Split into document area (top) and editor panel (bottom)
         # Document area
-        doc_container = tk.Frame(self.content_frame)
+        doc_container = tk.Frame(left_container)
         doc_container.pack(side='top', fill='both', expand=True)
         
         # Canvas for scrolling
@@ -725,7 +1456,7 @@ class CATEditorPrototype:
         self.doc_inner_frame.bind('<MouseWheel>', lambda e: self.doc_canvas.yview_scroll(int(-1*(e.delta/120)), "units"))
         
         # Editor panel (bottom) - similar to Split View
-        editor_frame = tk.LabelFrame(self.content_frame, text="Segment Editor", padx=10, pady=10)
+        editor_frame = tk.LabelFrame(left_container, text="Segment Editor", padx=10, pady=10)
         editor_frame.pack(side='bottom', fill='x', pady=(5, 0))
         
         # Segment info
@@ -776,6 +1507,9 @@ class CATEditorPrototype:
         # Store segment widgets for later reference
         self.doc_segment_widgets = {}
         self.doc_current_segment = None
+        
+        # Right side: Assistance panel
+        self.create_assistance_panel()
     
     def load_segments_to_document(self):
         """Load segments into document view, grouped by paragraphs and tables"""
