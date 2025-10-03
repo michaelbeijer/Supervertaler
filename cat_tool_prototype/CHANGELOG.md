@@ -1,5 +1,106 @@
 # CAT Editor Prototype - Changelog
 
+## [0.4.0] - 2025-10-03
+
+### Added
+- **Document View** - Revolutionary new view mode showing translations in natural document flow
+  - Natural text flow with paragraphs appearing as they would in the original document
+  - Clickable segments with editor panel below for easy editing
+  - Smart placeholder system:
+    - Shows target translation when available
+    - Shows `[empty - click to edit]` when user clears target
+    - Shows source text when not yet translated (for context)
+  - Status color coding (red=untranslated, yellow=draft, green=translated, blue=approved)
+  - Hover effects on segments (brighten and raise on mouseover)
+  - Style support with visual formatting (headings in appropriate sizes and colors)
+  - Keyboard shortcut: `Ctrl+4` to switch to Document View
+  
+- **Table Rendering in Document View**
+  - Tables now render as actual table structures (not flowing text)
+  - Proper grid layout with rows and columns
+  - Tables appear in correct document position (not at end)
+  - Each cell is individually clickable and editable
+  - Equal column widths with proper spacing
+  - Cell borders visible for clear structure
+  
+- **Document Position Tracking**
+  - Added `document_position` field to `Segment` class
+  - Added `document_position` field to `ParagraphInfo` class
+  - Rewrote `docx_handler.py` import to process elements in document order
+  - Now iterates through `document.element.body` for proper element ordering
+  - Tables and paragraphs interleaved correctly based on source document structure
+  
+- **View Switching with State Preservation**
+  - Current segment selection preserved when switching between views
+  - Auto-scroll to selected segment in new view
+  - Works across all view modes: Grid, Split, Compact, Document
+  - Keyboard shortcuts for all views:
+    - `Ctrl+1` - Grid View
+    - `Ctrl+2` - Split View
+    - `Ctrl+3` - Compact View
+    - `Ctrl+4` - Document View
+
+- **UX Improvements**
+  - `Ctrl+D` (Copy Source to Target) now works in Grid View
+  - Double-click source column opens popup with full text
+  - Source text popup includes "Copy to Clipboard" and "Copy to Target" buttons
+  - Source text is selectable and copyable
+  - Escape key closes source popup
+
+### Changed
+- **Grid View Layout Buttons** - Visual indication of active view mode
+- **docx_handler.py** - Complete rewrite of import logic for proper element ordering
+  - Lines 28-38: Added `document_position` to ParagraphInfo
+  - Lines 75-160: Rewrote to process document.element.body in order
+  - Tables and paragraphs now extracted in document order (not all paragraphs first)
+
+### Fixed
+- **Table Position Bug** - Tables no longer appear at end of document
+  - Root cause: Import was processing all paragraphs first, then all tables
+  - Solution: Process elements in document order and track position
+  - Result: Perfect document structure preservation
+  
+- **Text Wrapping in Document View** - Proper height calculation
+  - Uses `dlineinfo()` to count actual wrapped display lines
+  - Paragraphs now show full content without vertical clipping
+
+### Technical Details
+- **Files Modified**:
+  - `cat_editor_prototype.py`:
+    - Added `LayoutMode.DOCUMENT` constant
+    - Added `document_position` parameter to Segment class (line ~50)
+    - Implemented `create_document_layout()` (lines 467-555)
+    - Implemented `load_segments_to_document()` (lines 557-612)
+    - Implemented `render_paragraph()` (lines 614-751)
+    - Implemented `render_table()` (lines 753-838)
+    - Implemented `on_doc_segment_click()` (lines 840-877)
+    - Implemented `save_doc_segment()` (lines 961-1026)
+    - Updated `switch_layout()` for view preservation (lines 1104-1182)
+    - Updated `import_docx()` to pass document_position (line ~2336)
+  - `docx_handler.py`:
+    - Added `document_position` to ParagraphInfo (line ~35)
+    - Rewrote `import_docx()` to process in document order (lines 75-160)
+
+### Documentation
+- Created `DOCUMENT_VIEW_v0.4.0.md` - Complete Document View documentation
+- Updated `UX_IMPROVEMENTS_v0.4.0.md` - Grid View improvements
+- Updated `README.md` with v0.4.0 information and view modes section
+- Updated `VERSION_SUMMARY.md` with current version
+
+### Performance
+- Dynamic height calculation using `dlineinfo()` - tested up to 500 segments
+- Canvas scrolling performs well for typical documents
+- Consider pagination for documents > 1000 segments
+
+### Impact
+- ✅ Professional document preview mode
+- ✅ Better context for translators
+- ✅ Natural reading flow for reviewers
+- ✅ Proper table structure visualization
+- ✅ Complete view mode ecosystem (Grid, Split, Document)
+
+---
+
 ## [0.3.2] - 2025-10-02
 
 ### Added
