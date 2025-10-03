@@ -169,6 +169,13 @@ class CATEditorPrototype:
         self.root.bind('<Control-Key-2>', lambda e: self.switch_layout(LayoutMode.SPLIT))
         self.root.bind('<Control-Key-3>', lambda e: self.switch_layout(LayoutMode.COMPACT))
         
+        # Navigation shortcuts
+        self.root.bind('<Control-Down>', lambda e: self.navigate_segment('next'))
+        self.root.bind('<Control-Up>', lambda e: self.navigate_segment('prev'))
+        
+        # F2 to enter edit mode (works globally when segment is selected)
+        self.root.bind('<F2>', lambda e: self.enter_edit_mode_global())
+        
         # Toolbar
         self.toolbar = tk.Frame(self.root, bg='#f0f0f0', height=40)
         self.toolbar.pack(side='top', fill='x', padx=5, pady=5)
@@ -291,6 +298,9 @@ class CATEditorPrototype:
         self.tree.bind('<Double-1>', self.on_cell_double_click)
         self.tree.bind('<F2>', self.enter_edit_mode)
         self.tree.bind('<Return>', lambda e: self.enter_edit_mode())
+        
+        # Bind Ctrl+D for copy source to target in Grid mode
+        self.tree.bind('<Control-d>', lambda e: self.copy_source_to_target())
         
         # Context menu
         self.create_context_menu()
@@ -498,8 +508,10 @@ class CATEditorPrototype:
     def create_context_menu(self):
         """Create context menu for Grid View"""
         self.context_menu = tk.Menu(self.root, tearoff=0)
-        self.context_menu.add_command(label="Copy Source → Target (Ctrl+D)", 
+        self.context_menu.add_command(label="📋 Copy Source → Target (Ctrl+D)", 
                                      command=self.copy_source_to_target)
+        self.context_menu.add_command(label="📄 View Source Text (Double-click source)", 
+                                     command=lambda: self.show_source_popup_from_menu())
         self.context_menu.add_separator()
         self.context_menu.add_command(label="Insert <b>Bold</b> Tag (Ctrl+B)", 
                                      command=lambda: self.insert_tag_inline('b'))
@@ -508,15 +520,20 @@ class CATEditorPrototype:
         self.context_menu.add_command(label="Insert <u>Underline</u> Tag (Ctrl+U)", 
                                      command=lambda: self.insert_tag_inline('u'))
         self.context_menu.add_separator()
-        self.context_menu.add_command(label="Clear Target", 
+        self.context_menu.add_command(label="🗑️ Clear Target", 
                                      command=self.clear_target_inline)
         self.context_menu.add_separator()
-        self.context_menu.add_command(label="Mark as Translated", 
+        self.context_menu.add_command(label="✅ Mark as Translated", 
                                      command=lambda: self.set_status_inline('translated'))
-        self.context_menu.add_command(label="Mark as Approved", 
+        self.context_menu.add_command(label="⭐ Mark as Approved", 
                                      command=lambda: self.set_status_inline('approved'))
-        self.context_menu.add_command(label="Mark as Draft", 
+        self.context_menu.add_command(label="📝 Mark as Draft", 
                                      command=lambda: self.set_status_inline('draft'))
+        self.context_menu.add_separator()
+        self.context_menu.add_command(label="⬇️ Next Segment (Ctrl+Down)", 
+                                     command=lambda: self.navigate_segment('next'))
+        self.context_menu.add_command(label="⬆️ Previous Segment (Ctrl+Up)", 
+                                     command=lambda: self.navigate_segment('prev'))
     
     def show_context_menu(self, event):
         """Show context menu on right-click"""
@@ -525,6 +542,16 @@ class CATEditorPrototype:
         if item:
             self.tree.selection_set(item)
             self.context_menu.post(event.x_root, event.y_root)
+    
+    def show_source_popup_from_menu(self):
+        """Show source popup from context menu"""
+        # Create a fake event at center of screen
+        class FakeEvent:
+            pass
+        event = FakeEvent()
+        event.x_root = self.root.winfo_x() + self.root.winfo_width() // 2
+        event.y_root = self.root.winfo_y() + self.root.winfo_height() // 2
+        self.show_source_popup(event)
     
     def on_segment_select_grid(self, event):
         """Handle segment selection in Grid View (minimal action)"""
@@ -549,9 +576,24 @@ class CATEditorPrototype:
             return
         
         column = self.tree.identify_column(event.x)
-        # Column #5 is target (0-indexed: #0 is tree column, #1-5 are our columns)
-        if column == '#5':  # Target column
+        # Column #4 is source, #5 is target (0-indexed: #0 is tree column, #1-5 are our columns)
+        if column == '#4':  # Source column
+            self.show_source_popup(event)
+        elif column == '#5':  # Target column
             self.enter_edit_mode()
+    
+    def enter_edit_mode_global(self):
+        """Enter edit mode from anywhere - works in Grid or Split mode"""
+        if not self.current_segment:
+            return
+        
+        if self.layout_mode == LayoutMode.GRID:
+            # In Grid mode, enter inline editing
+            self.enter_edit_mode()
+        else:
+            # In Split mode, focus the target text widget
+            if hasattr(self, 'target_text'):
+                self.target_text.focus()
     
     def enter_edit_mode(self, event=None):
         """Enter inline edit mode for target cell"""
@@ -719,6 +761,89 @@ class CATEditorPrototype:
             if self.layout_mode == LayoutMode.GRID:
                 # Small delay to allow selection to update
                 self.root.after(100, self.enter_edit_mode)
+    
+    def navigate_segment(self, direction='next'):
+        """Navigate to next or previous segment"""
+        selection = self.tree.selection()
+        if not selection:
+            # No selection, select first item
+            children = self.tree.get_children()
+            if children:
+                self.tree.selection_set(children[0])
+                self.tree.see(children[0])
+                self.tree.focus(children[0])
+            return
+        
+        item = selection[0]
+        
+        if direction == 'next':
+            next_item = self.tree.next(item)
+            if next_item:
+                self.tree.selection_set(next_item)
+                self.tree.see(next_item)
+                self.tree.focus(next_item)
+        elif direction == 'prev':
+            prev_item = self.tree.prev(item)
+            if prev_item:
+                self.tree.selection_set(prev_item)
+                self.tree.see(prev_item)
+                self.tree.focus(prev_item)
+    
+    def show_source_popup(self, event):
+        """Show source text in a popup for easy reading/copying"""
+        if not self.current_segment:
+            return
+        
+        # Create popup window
+        popup = tk.Toplevel(self.root)
+        popup.title(f"Source - Segment #{self.current_segment.id}")
+        popup.geometry("600x300")
+        popup.transient(self.root)
+        
+        # Position near cursor
+        popup.geometry(f"+{event.x_root + 10}+{event.y_root + 10}")
+        
+        # Add text widget
+        text_frame = tk.Frame(popup, padx=10, pady=10)
+        text_frame.pack(fill='both', expand=True)
+        
+        tk.Label(text_frame, text="Source Text (Read-only, select to copy)", 
+                font=('Segoe UI', 9, 'bold')).pack(anchor='w', pady=(0, 5))
+        
+        text_widget = scrolledtext.ScrolledText(text_frame, wrap='word', 
+                                                font=('Segoe UI', 10),
+                                                bg='#f5f5f5')
+        text_widget.pack(fill='both', expand=True)
+        text_widget.insert('1.0', self.current_segment.source)
+        text_widget.config(state='normal')  # Allow selection for copying
+        
+        # Button frame
+        btn_frame = tk.Frame(popup, padx=10, pady=5)
+        btn_frame.pack(fill='x')
+        
+        tk.Button(btn_frame, text="Copy to Clipboard", 
+                 command=lambda: self.copy_to_clipboard(self.current_segment.source, popup),
+                 bg='#2196F3', fg='white').pack(side='left', padx=5)
+        tk.Button(btn_frame, text="Copy to Target", 
+                 command=lambda: [self.copy_source_to_target(), popup.destroy()],
+                 bg='#4CAF50', fg='white').pack(side='left', padx=5)
+        tk.Button(btn_frame, text="Close", 
+                 command=popup.destroy).pack(side='right', padx=5)
+        
+        # Auto-select all text for easy copying
+        text_widget.tag_add('sel', '1.0', 'end')
+        text_widget.focus()
+        
+        # Close on Escape
+        popup.bind('<Escape>', lambda e: popup.destroy())
+    
+    def copy_to_clipboard(self, text, popup=None):
+        """Copy text to clipboard"""
+        self.root.clipboard_clear()
+        self.root.clipboard_append(text)
+        self.log("✓ Copied to clipboard")
+        if popup:
+            popup.destroy()
     
     def import_docx(self):
         """Import a DOCX file"""
@@ -1042,16 +1167,40 @@ class CATEditorPrototype:
         self.on_target_change(None)
     
     def copy_source_to_target(self):
-        """Copy source to target"""
+        """Copy source to target - works in both Grid and Split modes"""
         if not self.current_segment:
+            self.log("⚠️ No segment selected")
             return
         
-        self.target_text.delete('1.0', 'end')
-        self.target_text.insert('1.0', self.current_segment.source)
+        # Update the segment
+        self.current_segment.target = self.current_segment.source
+        if self.current_segment.status == 'untranslated':
+            self.current_segment.status = 'draft'
+        self.current_segment.modified = True
+        
+        # Update UI based on mode
+        if self.layout_mode == LayoutMode.GRID:
+            # In Grid mode, update the grid directly
+            self.update_segment_in_grid(self.current_segment)
+            
+            # If currently editing, update the edit widget
+            if self.current_edit_widget:
+                self.current_edit_widget.delete(0, tk.END)
+                self.current_edit_widget.insert(0, self.current_segment.source)
+        else:
+            # In Split mode, update the target text widget
+            if hasattr(self, 'target_text'):
+                self.target_text.delete('1.0', 'end')
+                self.target_text.insert('1.0', self.current_segment.source)
+        
+        self.modified = True
+        self.update_progress()
+        self.log(f"✓ Copied source to target (Segment #{self.current_segment.id})")
     
     def clear_target(self):
         """Clear target text"""
-        self.target_text.delete('1.0', 'end')
+        if hasattr(self, 'target_text'):
+            self.target_text.delete('1.0', 'end')
     
     def save_segment_and_next(self):
         """Save current segment and move to next"""
