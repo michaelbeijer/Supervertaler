@@ -19,6 +19,7 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, scrolledtext
 import json
 import os
+import re
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 
@@ -37,8 +38,7 @@ except ImportError:
 class LayoutMode:
     """Layout mode constants"""
     GRID = "grid"      # memoQ-style inline editing
-    SPLIT = "split"    # Current style with editor panel
-    COMPACT = "compact" # Maximum density view
+    SPLIT = "split"    # List view with editor panel
     DOCUMENT = "document" # Document flow view with clickable segments
 
 
@@ -128,7 +128,7 @@ class CATEditorPrototype:
         
         # Status
         self.log("CAT Editor ready. Import a DOCX file to begin.")
-        self.log("✨ Layout modes available: Grid (memoQ-style), Split, Compact")
+        self.log("✨ Layout modes available: Grid (memoQ-style), List, Document")
     
     def setup_ui(self):
         """Create the user interface"""
@@ -144,7 +144,8 @@ class CATEditorPrototype:
         file_menu.add_separator()
         file_menu.add_command(label="Save Project", command=self.save_project, accelerator="Ctrl+S")
         file_menu.add_command(label="Save Project As...", command=self.save_project_as)
-        file_menu.add_command(label="Load Project...", command=self.load_project, accelerator="Ctrl+L")
+        file_menu.add_command(label="Open Project...", command=self.load_project, accelerator="Ctrl+L")
+        file_menu.add_command(label="Close Project", command=self.close_project)
         file_menu.add_separator()
         file_menu.add_command(label="Export to DOCX...", command=self.export_docx)
         file_menu.add_command(label="Export to Bilingual DOCX...", command=self.export_bilingual_docx)
@@ -170,8 +171,7 @@ class CATEditorPrototype:
         # Layout switching shortcuts
         self.root.bind('<Control-Key-1>', lambda e: self.switch_layout(LayoutMode.GRID))
         self.root.bind('<Control-Key-2>', lambda e: self.switch_layout(LayoutMode.SPLIT))
-        self.root.bind('<Control-Key-3>', lambda e: self.switch_layout(LayoutMode.COMPACT))
-        self.root.bind('<Control-Key-4>', lambda e: self.switch_layout(LayoutMode.DOCUMENT))
+        self.root.bind('<Control-Key-3>', lambda e: self.switch_layout(LayoutMode.DOCUMENT))
         
         # Navigation shortcuts
         self.root.bind('<Control-Down>', lambda e: self.navigate_segment('next'))
@@ -199,15 +199,10 @@ class CATEditorPrototype:
                                          bg='#9C27B0', fg='white', padx=10, relief='sunken')
         self.layout_btn_grid.pack(side='left', padx=2)
         
-        self.layout_btn_split = tk.Button(self.toolbar, text="📋 Split View",
+        self.layout_btn_split = tk.Button(self.toolbar, text="📋 List View",
                                           command=lambda: self.switch_layout(LayoutMode.SPLIT),
                                           padx=10, relief='raised')
         self.layout_btn_split.pack(side='left', padx=2)
-        
-        self.layout_btn_compact = tk.Button(self.toolbar, text="📄 Compact View",
-                                            command=lambda: self.switch_layout(LayoutMode.COMPACT),
-                                            padx=10, relief='raised')
-        self.layout_btn_compact.pack(side='left', padx=2)
         
         self.layout_btn_document = tk.Button(self.toolbar, text="📖 Document View",
                                              command=lambda: self.switch_layout(LayoutMode.DOCUMENT),
@@ -247,13 +242,13 @@ class CATEditorPrototype:
             self.create_grid_layout()
         elif self.layout_mode == LayoutMode.SPLIT:
             self.create_split_layout()
-        elif self.layout_mode == LayoutMode.COMPACT:
-            self.create_compact_layout()
+        elif self.layout_mode == LayoutMode.DOCUMENT:
+            self.create_document_layout()
     
     def create_grid_layout(self):
         """Create Grid View layout (memoQ-style with inline editing and dynamic row heights)"""
         
-        # Grid frame
+        # Grid frame (top part - expandable)
         grid_frame = tk.LabelFrame(self.content_frame, text="Translation Grid - Grid View (Click target to edit)", padx=5, pady=5)
         grid_frame.pack(side='top', fill='both', expand=True)
         
@@ -318,19 +313,251 @@ class CATEditorPrototype:
         self.create_context_menu()
         self.grid_canvas.bind('<Button-3>', self.show_grid_context_menu)
         
-        # Tag validation indicator (below grid)
-        self.tag_validation_label = tk.Label(self.content_frame, text="", 
-                                            font=('Segoe UI', 9), fg='#666')
-        self.tag_validation_label.pack(side='bottom', pady=5)
-        
         # Focus the canvas so keyboard events work
         self.grid_canvas.focus_set()
         
-        # Focus the canvas so keyboard events work
-        self.grid_canvas.focus_set()
+        # Editor panel at bottom (hideable)
+        self.grid_editor_visible = True
+        self.create_grid_editor_panel()
+    
+    def create_grid_editor_panel(self):
+        """Create the editor panel for Grid View"""
+        # Toggle button above the editor panel
+        toggle_btn_frame = tk.Frame(self.content_frame, bg='#f0f0f0')
+        toggle_btn_frame.pack(side='bottom', fill='x', pady=(2, 0))
+        
+        self.grid_editor_toggle_btn = tk.Button(toggle_btn_frame, 
+                                               text="🔽 Hide Editor Panel", 
+                                               command=self.toggle_grid_editor,
+                                               font=('Segoe UI', 9),
+                                               relief='raised',
+                                               bg='#4CAF50',
+                                               fg='white',
+                                               padx=10,
+                                               pady=2)
+        self.grid_editor_toggle_btn.pack(side='left', padx=5, pady=2)
+        
+        # Editor frame (bottom part)
+        self.grid_editor_frame = tk.LabelFrame(self.content_frame, text="Segment Editor", padx=10, pady=10)
+        self.grid_editor_frame.pack(side='bottom', fill='x', pady=(0, 0))
+        
+        # Segment info and status on same row
+        info_frame = tk.Frame(self.grid_editor_frame)
+        info_frame.pack(fill='x', pady=(0, 5))
+        
+        self.grid_seg_info_label = tk.Label(info_frame, text="No segment selected",
+                                           font=('Segoe UI', 9, 'bold'))
+        self.grid_seg_info_label.pack(side='left')
+        
+        # Status selector
+        status_frame = tk.Frame(info_frame)
+        status_frame.pack(side='right')
+        
+        tk.Label(status_frame, text="Status:").pack(side='left', padx=(0, 5))
+        self.grid_status_var = tk.StringVar(value="untranslated")
+        grid_status_combo = ttk.Combobox(status_frame, textvariable=self.grid_status_var,
+                                        values=["untranslated", "draft", "translated", "approved"],
+                                        state='readonly', width=12)
+        grid_status_combo.pack(side='left')
+        grid_status_combo.bind('<<ComboboxSelected>>', self.on_grid_editor_status_change)
+        
+        # Source (read-only)
+        tk.Label(self.grid_editor_frame, text="Source:", font=('Segoe UI', 9, 'bold')).pack(anchor='w')
+        self.grid_source_text = tk.Text(self.grid_editor_frame, height=2, wrap='word', bg='#f5f5f5',
+                                       state='disabled', font=('Segoe UI', 10))
+        self.grid_source_text.pack(fill='x', pady=(2, 10))
+        
+        # Target (editable) with validation label
+        target_header_frame = tk.Frame(self.grid_editor_frame)
+        target_header_frame.pack(fill='x', anchor='w')
+        tk.Label(target_header_frame, text="Target:", font=('Segoe UI', 9, 'bold')).pack(side='left')
+        self.grid_tag_validation_label = tk.Label(target_header_frame, text="", font=('Segoe UI', 8))
+        self.grid_tag_validation_label.pack(side='left', padx=(10, 0))
+        
+        self.grid_target_text = tk.Text(self.grid_editor_frame, height=2, wrap='word', font=('Segoe UI', 10))
+        self.grid_target_text.pack(fill='x', pady=(2, 5))
+        self.grid_target_text.bind('<KeyRelease>', self.on_grid_target_change)
+        self.grid_target_text.bind('<Control-Return>', lambda e: self.save_grid_editor_and_next())
+        self.grid_target_text.bind('<Control-b>', lambda e: self.insert_tag_grid('b'))
+        self.grid_target_text.bind('<Control-i>', lambda e: self.insert_tag_grid('i'))
+        self.grid_target_text.bind('<Control-u>', lambda e: self.insert_tag_grid('u'))
+        
+        # Tag buttons
+        tag_button_frame = tk.Frame(self.grid_editor_frame)
+        tag_button_frame.pack(fill='x', pady=(0, 10))
+        
+        tk.Label(tag_button_frame, text="Insert:").pack(side='left', padx=(0, 5))
+        tk.Button(tag_button_frame, text="<b>Bold</b>", command=lambda: self.insert_tag_grid('b'),
+                 relief='flat', bg='#ffcccc', font=('Segoe UI', 8)).pack(side='left', padx=2)
+        tk.Button(tag_button_frame, text="<i>Italic</i>", command=lambda: self.insert_tag_grid('i'),
+                 relief='flat', bg='#ccccff', font=('Segoe UI', 8, 'italic')).pack(side='left', padx=2)
+        tk.Button(tag_button_frame, text="<u>Underline</u>", command=lambda: self.insert_tag_grid('u'),
+                 relief='flat', bg='#ccffcc', font=('Segoe UI', 8, 'underline')).pack(side='left', padx=2)
+        tk.Button(tag_button_frame, text="Strip Tags", command=self.strip_tags_from_grid_target,
+                 relief='flat', bg='#eeeeee', font=('Segoe UI', 8)).pack(side='left', padx=10)
+        tk.Button(tag_button_frame, text="Copy Source Tags", command=self.copy_source_tags_grid,
+                 relief='flat', bg='#e6f3ff', font=('Segoe UI', 8)).pack(side='left', padx=2)
+        
+        # Action buttons
+        button_frame = tk.Frame(self.grid_editor_frame)
+        button_frame.pack(fill='x', pady=(0, 0))
+        
+        tk.Button(button_frame, text="Copy Source → Target", command=self.copy_source_to_target_grid_editor
+                 ).pack(side='left', padx=(0, 5))
+        tk.Button(button_frame, text="Clear Target", command=self.clear_grid_target
+                 ).pack(side='left', padx=(0, 5))
+        tk.Button(button_frame, text="Save & Next (Ctrl+Enter)", command=self.save_grid_editor_and_next,
+                 bg='#4CAF50', fg='white').pack(side='right')
+
+    
+    def toggle_grid_editor(self):
+        """Toggle visibility of Grid View editor panel"""
+        if self.grid_editor_visible:
+            # Hide the editor
+            self.grid_editor_frame.pack_forget()
+            self.grid_editor_visible = False
+            # Update toolbar button
+            self.grid_editor_toggle_btn.config(text="🔼 Show Editor Panel", relief='raised', bg='#E0E0E0', fg='black')
+        else:
+            # Show the editor
+            self.grid_editor_frame.pack(side='bottom', fill='x', pady=(5, 0))
+            self.grid_editor_visible = True
+            # Update toolbar button
+            self.grid_editor_toggle_btn.config(text="🔽 Hide Editor Panel", relief='sunken', bg='#4CAF50', fg='white')
+    
+    def on_grid_editor_status_change(self, event):
+        """Handle status change from grid editor panel"""
+        if hasattr(self, 'current_segment') and self.current_segment:
+            new_status = self.grid_status_var.get()
+            self.current_segment.status = new_status
+            self.current_segment.modified = True
+            self.modified = True
+            self.update_progress()
+            # Update the grid row if visible
+            if self.current_row_index >= 0:
+                self.update_grid_row(self.current_row_index)
+    
+    def copy_source_to_target_grid_editor(self):
+        """Copy source to target in grid editor panel"""
+        if hasattr(self, 'current_segment') and self.current_segment:
+            self.grid_target_text.delete('1.0', 'end')
+            self.grid_target_text.insert('1.0', self.current_segment.source)
+    
+    def save_grid_editor_segment(self):
+        """Save the current segment from grid editor panel"""
+        if hasattr(self, 'current_segment') and self.current_segment:
+            target = self.grid_target_text.get('1.0', 'end-1c').strip()
+            self.current_segment.target = target
+            self.current_segment.status = self.grid_status_var.get()
+            self.current_segment.modified = True
+            self.modified = True
+            self.update_progress()
+            # Update the grid row
+            if self.current_row_index >= 0:
+                self.update_grid_row(self.current_row_index)
+            self.log(f"✓ Segment #{self.current_segment.id} saved")
+    
+    def save_grid_editor_and_next(self):
+        """Save and move to next segment"""
+        self.save_grid_editor_segment()
+        self.navigate_segment('next')
+    
+    def load_segment_to_grid_editor(self, segment):
+        """Load a segment into the grid editor panel"""
+        if not hasattr(self, 'grid_editor_frame'):
+            return
+        
+        self.current_segment = segment
+        self.grid_seg_info_label.config(text=f"Segment #{segment.id} | Paragraph {segment.paragraph_id}")
+        
+        # Source
+        self.grid_source_text.config(state='normal')
+        self.grid_source_text.delete('1.0', 'end')
+        self.grid_source_text.insert('1.0', segment.source)
+        self.grid_source_text.config(state='disabled')
+        
+        # Target
+        self.grid_target_text.delete('1.0', 'end')
+        if segment.target:
+            self.grid_target_text.insert('1.0', segment.target)
+        
+        # Status
+        self.grid_status_var.set(segment.status)
+    
+    def on_grid_target_change(self, event):
+        """Handle target text changes in grid editor to validate tags"""
+        if hasattr(self, 'current_segment') and self.current_segment:
+            self.validate_tags_grid()
+    
+    def validate_tags_grid(self):
+        """Validate HTML tags in grid editor target text"""
+        if not hasattr(self, 'current_segment') or not self.current_segment:
+            return
+        
+        source = self.current_segment.source
+        target = self.grid_target_text.get('1.0', 'end-1c')
+        
+        # Extract tags from source and target
+        source_tags = re.findall(r'<[^>]+>', source)
+        target_tags = re.findall(r'<[^>]+>', target)
+        
+        # Compare
+        if source_tags == target_tags:
+            self.grid_tag_validation_label.config(text="✓ Tags match", fg='#4CAF50')
+        elif not source_tags and not target_tags:
+            self.grid_tag_validation_label.config(text="", fg='#666')
+        else:
+            self.grid_tag_validation_label.config(text="⚠ Tags differ from source", fg='#FF9800')
+    
+    def clear_grid_target(self):
+        """Clear target text in grid editor"""
+        self.grid_target_text.delete('1.0', 'end')
+        self.grid_tag_validation_label.config(text="", fg='#666')
+    
+    def strip_tags_from_grid_target(self):
+        """Remove all HTML tags from grid editor target text"""
+        target = self.grid_target_text.get('1.0', 'end-1c')
+        cleaned = re.sub(r'<[^>]+>', '', target)
+        self.grid_target_text.delete('1.0', 'end')
+        self.grid_target_text.insert('1.0', cleaned)
+        self.validate_tags_grid()
+    
+    def copy_source_tags_grid(self):
+        """Copy HTML tags from source to target in grid editor, preserving target text"""
+        if not hasattr(self, 'current_segment') or not self.current_segment:
+            return
+        
+        source = self.current_segment.source
+        target = self.grid_target_text.get('1.0', 'end-1c')
+        
+        # Extract tags from source
+        source_tags = re.findall(r'<[^>]+>', source)
+        
+        if not source_tags:
+            self.log("No tags found in source")
+            return
+        
+        # Remove existing tags from target
+        clean_target = re.sub(r'<[^>]+>', '', target)
+        
+        # Try to intelligently place tags
+        # For now, just wrap the target with the same tags
+        result = clean_target
+        for tag in source_tags:
+            if not tag.startswith('</'):
+                # Opening tag - add at start
+                result = tag + result
+            else:
+                # Closing tag - add at end
+                result = result + tag
+        
+        self.grid_target_text.delete('1.0', 'end')
+        self.grid_target_text.insert('1.0', result)
+        self.validate_tags_grid()
+        self.log("✓ Tags copied from source")
     
     def create_split_layout(self):
-        """Create Split View layout (current style with editor panel)"""
+        """Create List View layout (list with editor panel)"""
         
         # Grid frame (top part)
         grid_frame = tk.LabelFrame(self.content_frame, text="Translation Grid", padx=5, pady=5)
@@ -459,12 +686,6 @@ class CATEditorPrototype:
                  ).pack(side='left', padx=(0, 5))
         tk.Button(button_frame, text="Save & Next (Ctrl+Enter)", command=self.save_segment_and_next,
                  bg='#4CAF50', fg='white').pack(side='right')
-    
-    def create_compact_layout(self):
-        """Create Compact View layout (minimal columns, maximum density)"""
-        # TODO: Implement compact layout
-        # For now, create same as grid but will be enhanced later
-        self.create_grid_layout()
     
     def create_document_layout(self):
         """Create Document View layout - shows text in document flow with clickable segments"""
@@ -681,13 +902,13 @@ class CATEditorPrototype:
                 display_text = seg.target
             elif seg.modified and seg.target == '':
                 # Segment was edited but target was cleared
-                display_text = "[empty - click to edit]"
+                display_text = f"[Segment {seg.id} - Empty - Click to edit]"
             elif seg.source:
                 # Not yet translated or target is empty, show source
                 display_text = seg.source
             else:
                 # Both source and target empty
-                display_text = "[empty segment]"
+                display_text = f"[Segment {seg.id} - Empty segment]"
             
             start_pos = para_text.index('insert')
             para_text.insert('end', display_text, tag_name)
@@ -775,11 +996,11 @@ class CATEditorPrototype:
                     if seg.target and seg.target.strip():
                         display_text = seg.target
                     elif seg.modified and seg.target == '':
-                        display_text = "[empty - click to edit]"
+                        display_text = f"[Segment {seg.id} - Empty - Click to edit]"
                     elif seg.source:
                         display_text = seg.source
                     else:
-                        display_text = "[empty segment]"
+                        display_text = f"[Segment {seg.id} - Empty segment]"
                     
                     # Configure tag appearance based on status
                     if seg.status == 'untranslated':
@@ -996,13 +1217,13 @@ class CATEditorPrototype:
                     display_text = new_target
                 elif new_target == '' and self.doc_current_segment.modified:
                     # Target explicitly cleared by user (and segment was modified)
-                    display_text = "[empty - click to edit]"
+                    display_text = f"[Segment {self.doc_current_segment.id} - Empty - Click to edit]"
                 elif self.doc_current_segment.source:
                     # Fallback to source
                     display_text = self.doc_current_segment.source
                 else:
                     # Both empty
-                    display_text = "[empty segment]"
+                    display_text = f"[Segment {self.doc_current_segment.id} - Empty segment]"
                 
                 # Replace the text
                 para_text.config(state='normal')
@@ -1115,11 +1336,8 @@ class CATEditorPrototype:
             current_seg_id = self.current_segment.id
         elif self.layout_mode == LayoutMode.DOCUMENT and hasattr(self, 'doc_current_segment') and self.doc_current_segment:
             current_seg_id = self.doc_current_segment.id
-        elif hasattr(self, 'tree'):
-            selection = self.tree.selection()
-            if selection:
-                item = selection[0]
-                current_seg_id = int(self.tree.item(item)['values'][0])
+        elif self.layout_mode == LayoutMode.SPLIT and hasattr(self, 'current_segment') and self.current_segment:
+            current_seg_id = self.current_segment.id
         
         # Update layout mode
         self.layout_mode = new_mode
@@ -1153,15 +1371,6 @@ class CATEditorPrototype:
                         # Trigger selection event to load segment in editor
                         self.on_segment_select(None)
                         break
-        elif new_mode == LayoutMode.COMPACT:
-            self.create_compact_layout()
-            self.load_segments_to_grid()
-            # Restore selection
-            if current_seg_id:
-                for i, row_data in enumerate(self.grid_rows):
-                    if row_data['segment'].id == current_seg_id:
-                        self.select_grid_row(i)
-                        break
         elif new_mode == LayoutMode.DOCUMENT:
             self.create_document_layout()
             self.load_segments_to_document()
@@ -1174,8 +1383,7 @@ class CATEditorPrototype:
         
         mode_names = {
             LayoutMode.GRID: "Grid View (memoQ-style)",
-            LayoutMode.SPLIT: "Split View (Traditional)",
-            LayoutMode.COMPACT: "Compact View",
+            LayoutMode.SPLIT: "List View",
             LayoutMode.DOCUMENT: "Document View (Flow)"
         }
         self.log(f"✓ Switched to {mode_names.get(new_mode, new_mode)}")
@@ -1185,7 +1393,6 @@ class CATEditorPrototype:
         # Reset all buttons
         self.layout_btn_grid.config(relief='raised', bg='#E0E0E0', fg='black')
         self.layout_btn_split.config(relief='raised', bg='#E0E0E0', fg='black')
-        self.layout_btn_compact.config(relief='raised', bg='#E0E0E0', fg='black')
         self.layout_btn_document.config(relief='raised', bg='#E0E0E0', fg='black')
         
         # Highlight active button
@@ -1193,8 +1400,6 @@ class CATEditorPrototype:
             self.layout_btn_grid.config(relief='sunken', bg='#9C27B0', fg='white')
         elif self.layout_mode == LayoutMode.SPLIT:
             self.layout_btn_split.config(relief='sunken', bg='#9C27B0', fg='white')
-        elif self.layout_mode == LayoutMode.COMPACT:
-            self.layout_btn_compact.config(relief='sunken', bg='#9C27B0', fg='white')
         elif self.layout_mode == LayoutMode.DOCUMENT:
             self.layout_btn_document.config(relief='sunken', bg='#9C27B0', fg='white')
     
@@ -1496,6 +1701,9 @@ class CATEditorPrototype:
             elif row_y + row_height > view_bottom:
                 # Row is below viewport - scroll to show it at bottom
                 self.grid_canvas.yview_moveto((row_y + row_height - canvas_height) / total_height)
+        
+        # Load segment into editor panel
+        self.load_segment_to_grid_editor(self.current_segment)
     
     def add_grid_row(self, segment):
         """Add a row to the custom grid with dynamic height"""
@@ -2360,7 +2568,7 @@ class CATEditorPrototype:
             self.log(f"✗ Import failed: {str(e)}")
     
     def load_segments_to_tree(self):
-        """Load segments into Treeview (for Split View)"""
+        """Load segments into Treeview (for List View)"""
         # Clear existing
         for item in self.tree.get_children():
             self.tree.delete(item)
@@ -2444,18 +2652,9 @@ class CATEditorPrototype:
                 if style_tag:
                     tags.append(style_tag)
                 
-                # Different column layouts for different modes
-                if self.layout_mode == LayoutMode.COMPACT:
-                    # Compact: No style column (5 columns)
-                    self.tree.insert('', 'end',
-                                   values=(seg.id, type_label, seg.status.capitalize(),
-                                          self._truncate_multiline(seg.source, 150),
-                                          self._truncate_multiline(seg.target, 150)),
-                                   tags=tuple(tags))
-                else:
-                    # Split: Include style column (6 columns)
-                    self.tree.insert('', 'end',
-                                   values=(seg.id, type_label, style_display, seg.status.capitalize(),
+                # Insert with style column (6 columns)
+                self.tree.insert('', 'end',
+                               values=(seg.id, type_label, style_display, seg.status.capitalize(),
                                           self._truncate(seg.source, 75),
                                           self._truncate(seg.target, 75)),
                                    tags=tuple(tags))
@@ -2605,8 +2804,8 @@ class CATEditorPrototype:
                     tags.append(style_tag)
                 
                 # Different column layouts for different modes
-                if self.layout_mode == LayoutMode.GRID or self.layout_mode == LayoutMode.COMPACT:
-                    # Grid/Compact: No style column (5 columns)
+                if self.layout_mode == LayoutMode.GRID:
+                    # Grid: No style column (5 columns)
                     # Use multiline truncate for better display
                     self.tree.item(item,
                                  values=(segment.id, type_label, segment.status.capitalize(),
@@ -2829,7 +3028,7 @@ class CATEditorPrototype:
                 return
         
         file_path = filedialog.askopenfilename(
-            title="Load Project",
+            title="Open Project",
             filetypes=[("JSON Files", "*.json"), ("All Files", "*.*")]
         )
         
@@ -2857,7 +3056,51 @@ class CATEditorPrototype:
             self.update_progress()
             
         except Exception as e:
-            messagebox.showerror("Load Error", f"Failed to load project:\n{str(e)}")
+            messagebox.showerror("Open Error", f"Failed to open project:\n{str(e)}")
+    
+    def close_project(self):
+        """Close current project"""
+        if not self.segments:
+            messagebox.showinfo("No Project", "No project is currently open")
+            return
+        
+        if self.modified:
+            response = messagebox.askyesnocancel(
+                "Unsaved Changes",
+                "Save current project before closing?"
+            )
+            if response is True:
+                self.save_project()
+            elif response is None:
+                return
+        
+        # Clear all data
+        self.segments = []
+        self.current_segment_index = None
+        self.project_file = None
+        self.original_docx = None
+        self.modified = False
+        
+        # Clear the current view
+        if self.current_layout_mode == LayoutMode.GRID:
+            for item in self.tree.get_children():
+                self.tree.delete(item)
+        elif self.current_layout_mode == LayoutMode.SPLIT:
+            for item in self.tree.get_children():
+                self.tree.delete(item)
+            self.source_text.config(state='normal')
+            self.source_text.delete('1.0', 'end')
+            self.source_text.config(state='disabled')
+            self.target_text.delete('1.0', 'end')
+        elif self.current_layout_mode == LayoutMode.DOCUMENT:
+            # Clear document canvas
+            for widget in self.doc_inner_frame.winfo_children():
+                widget.destroy()
+            self.doc_segment_widgets.clear()
+            self.doc_current_segment = None
+        
+        self.log("✓ Project closed")
+        self.update_progress()
     
     def export_docx(self):
         """Export to translated DOCX"""
