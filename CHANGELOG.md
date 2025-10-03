@@ -1,19 +1,29 @@
 # Supervertaler - Changelog
 
-## [Unreleased - CAT Editor Prototype] - 2025-10-01 to 2025-10-02
+## [Unreleased - CAT Editor Prototype] - 2025-10-01 to 2025-10-03
 
 ### Experimental: CAT Editor Prototype Development
 
 A standalone CAT (Computer-Aided Translation) editor prototype is under active development in the `cat_tool_prototype/` folder. This experimental tool is being designed for potential integration into Supervertaler v2.5.0.
 
-**Current Status**: Prototype v0.3.2 (Stable, ready for real-world testing)
+**Current Status**: Prototype v0.4.1 (Feature-complete with advanced filtering)
 
-**Key Features Implemented**:
+**Latest Updates (v0.4.1 - October 3, 2025)**:
+- ✅ **Precise search term highlighting** - Only search terms highlighted (not entire segments)
+- ✅ **Filter panel in all views** - Grid, List, and Document View all have filtering
+- ✅ **Dual-mode filtering** - Filter Mode (show only matches) or Highlight Mode (show all, highlight matches)
+- ✅ **Keyboard shortcuts** - Ctrl+M (toggle modes), Ctrl+Shift+A (apply), Ctrl+Shift+F (focus filter)
+- ✅ **Filter preferences saved** - Filter settings remembered per project
+
+**Core Features**:
 - ✅ DOCX import/export with full formatting preservation
 - ✅ Table support with cell-by-cell translation
 - ✅ Style visibility and preservation (Heading 1-3, Title, Subtitle, etc.)
 - ✅ Inline formatting tags (bold, italic, underline)
+- ✅ Three view modes (Grid, List, Document) with seamless switching
+- ✅ Document View shows translations in natural document flow
 - ✅ Interactive translation grid with status tracking
+- ✅ Advanced filtering system with precise highlighting
 - ✅ Find/Replace, project save/load
 - ✅ Bilingual and TSV export options
 
