@@ -118,6 +118,10 @@ class CATEditorPrototype:
         self.original_docx: Optional[str] = None
         self.modified = False
         
+        # Filter state
+        self.filtered_segments = []
+        self.filter_active = False
+        
         # Components
         self.segmenter = SimpleSegmenter()
         self.docx_handler = DOCXHandler()
@@ -260,6 +264,73 @@ class CATEditorPrototype:
         grid_frame = tk.LabelFrame(left_container, text="Translation Grid - Grid View (Click target to edit)", padx=5, pady=5)
         grid_frame.pack(side='top', fill='both', expand=True)
         
+        # Filter panel (above the grid header)
+        filter_frame = tk.Frame(grid_frame, bg='#f0f0f0', relief='ridge', borderwidth=1)
+        filter_frame.pack(side='top', fill='x', pady=(0, 5))
+        
+        # Filter label
+        tk.Label(filter_frame, text="🔍 Filter:", bg='#f0f0f0', 
+                font=('Segoe UI', 9, 'bold')).pack(side='left', padx=5, pady=5)
+        
+        # Filter mode selection (radio-style buttons)
+        self.filter_mode = 'filter'  # 'filter' or 'highlight'
+        
+        mode_frame = tk.Frame(filter_frame, bg='#f0f0f0', relief='solid', bd=1)
+        mode_frame.pack(side='left', padx=5)
+        
+        self.filter_mode_btn = tk.Button(mode_frame, text="� Filter",
+                                        command=lambda: self.set_filter_mode('filter'),
+                                        bg='#4CAF50', fg='white', font=('Segoe UI', 9, 'bold'),
+                                        relief='sunken', bd=2, cursor='hand2', width=10)
+        self.filter_mode_btn.pack(side='left', padx=1, pady=1)
+        
+        self.highlight_mode_btn = tk.Button(mode_frame, text="💡 Highlight",
+                                            command=lambda: self.set_filter_mode('highlight'),
+                                            bg='#e0e0e0', fg='#666', font=('Segoe UI', 9),
+                                            relief='raised', bd=2, cursor='hand2', width=10)
+        self.highlight_mode_btn.pack(side='left', padx=1, pady=1)
+        
+        tk.Label(filter_frame, text="│", bg='#f0f0f0', fg='#ccc',
+                font=('Segoe UI', 10)).pack(side='left', padx=5)
+        
+        # Source filter
+        tk.Label(filter_frame, text="Source:", bg='#f0f0f0', 
+                font=('Segoe UI', 9)).pack(side='left', padx=(10, 2))
+        self.filter_source_var = tk.StringVar()
+        self.filter_source_var.trace('w', lambda *args: self.apply_filters())
+        source_filter_entry = tk.Entry(filter_frame, textvariable=self.filter_source_var,
+                                      font=('Segoe UI', 9), width=25, relief='solid', borderwidth=1)
+        source_filter_entry.pack(side='left', padx=2, pady=3)
+        
+        # Target filter
+        tk.Label(filter_frame, text="Target:", bg='#f0f0f0', 
+                font=('Segoe UI', 9)).pack(side='left', padx=(10, 2))
+        self.filter_target_var = tk.StringVar()
+        self.filter_target_var.trace('w', lambda *args: self.apply_filters())
+        target_filter_entry = tk.Entry(filter_frame, textvariable=self.filter_target_var,
+                                      font=('Segoe UI', 9), width=25, relief='solid', borderwidth=1)
+        target_filter_entry.pack(side='left', padx=2, pady=3)
+        
+        # Status filter
+        tk.Label(filter_frame, text="Status:", bg='#f0f0f0', 
+                font=('Segoe UI', 9)).pack(side='left', padx=(10, 2))
+        self.filter_status_var = tk.StringVar(value="All")
+        self.filter_status_var.trace('w', lambda *args: self.apply_filters())
+        status_filter_combo = ttk.Combobox(filter_frame, textvariable=self.filter_status_var,
+                                          values=["All", "untranslated", "draft", "translated", "approved"],
+                                          state='readonly', width=12, font=('Segoe UI', 9))
+        status_filter_combo.pack(side='left', padx=2, pady=3)
+        
+        # Clear filters button
+        tk.Button(filter_frame, text="✕ Clear", command=self.clear_filters,
+                 bg='#ff9800', fg='white', font=('Segoe UI', 8),
+                 relief='flat', padx=8, pady=2).pack(side='left', padx=10)
+        
+        # Filter results label
+        self.filter_results_label = tk.Label(filter_frame, text="", bg='#f0f0f0',
+                                            font=('Segoe UI', 9), fg='#666')
+        self.filter_results_label.pack(side='left', padx=10)
+        
         # Column configuration with adjustable source/target widths
         self.fixed_columns_width = 200  # ID + Type + Status combined
         self.source_width = 450  # Initial source width
@@ -273,6 +344,10 @@ class CATEditorPrototype:
             'source': {'title': '📄 Source', 'width': self.source_width, 'anchor': 'w'},
             'target': {'title': '🎯 Target', 'width': self.target_width, 'anchor': 'w'}
         }
+        
+        # Initialize filter state
+        self.filtered_segments = []
+        self.filter_active = False
         
         # Create STICKY header row (outside canvas, fixed at top)
         self.header_container = tk.Frame(grid_frame, bg='white')
@@ -1283,8 +1358,97 @@ class CATEditorPrototype:
         grid_frame = tk.LabelFrame(left_container, text="Translation Grid", padx=5, pady=5)
         grid_frame.pack(side='top', fill='both', expand=True)
         
-        # Create treeview for segments
-        self.tree = ttk.Treeview(grid_frame,
+        # Filter panel (above the treeview) - using same filter variables as Grid View
+        filter_frame = tk.Frame(grid_frame, bg='#f0f0f0', relief='ridge', borderwidth=1)
+        filter_frame.pack(side='top', fill='x', pady=(0, 5))
+        
+        # Filter label
+        tk.Label(filter_frame, text="🔍 Filter:", bg='#f0f0f0', 
+                font=('Segoe UI', 9, 'bold')).pack(side='left', padx=5, pady=5)
+        
+        # Filter mode selection - always create new buttons for this view
+        mode_frame = tk.Frame(filter_frame, bg='#f0f0f0', relief='solid', bd=1)
+        mode_frame.pack(side='left', padx=5)
+        
+        # Create buttons with current mode state
+        filter_btn = tk.Button(mode_frame, text="🔍 Filter",
+                              command=lambda: self.set_filter_mode('filter'),
+                              bg='#4CAF50' if self.filter_mode == 'filter' else '#e0e0e0',
+                              fg='white' if self.filter_mode == 'filter' else '#666',
+                              font=('Segoe UI', 9, 'bold') if self.filter_mode == 'filter' else ('Segoe UI', 9),
+                              relief='sunken' if self.filter_mode == 'filter' else 'raised',
+                              bd=2, cursor='hand2', width=10)
+        filter_btn.pack(side='left', padx=1, pady=1)
+        
+        highlight_btn = tk.Button(mode_frame, text="💡 Highlight",
+                                 command=lambda: self.set_filter_mode('highlight'),
+                                 bg='#FFA500' if self.filter_mode == 'highlight' else '#e0e0e0',
+                                 fg='white' if self.filter_mode == 'highlight' else '#666',
+                                 font=('Segoe UI', 9, 'bold') if self.filter_mode == 'highlight' else ('Segoe UI', 9),
+                                 relief='sunken' if self.filter_mode == 'highlight' else 'raised',
+                                 bd=2, cursor='hand2', width=10)
+        highlight_btn.pack(side='left', padx=1, pady=1)
+        
+        # Store references for this view
+        self.list_filter_mode_btn = filter_btn
+        self.list_highlight_mode_btn = highlight_btn
+        # Also update main references to point to these buttons
+        self.filter_mode_btn = filter_btn
+        self.highlight_mode_btn = highlight_btn
+        
+        tk.Label(filter_frame, text="│", bg='#f0f0f0', fg='#ccc',
+                font=('Segoe UI', 10)).pack(side='left', padx=5)
+        
+        # Source filter - using shared variables
+        if not hasattr(self, 'filter_source_var'):
+            self.filter_source_var = tk.StringVar()
+            self.filter_source_var.trace('w', lambda *args: self.apply_filters())
+        
+        tk.Label(filter_frame, text="Source:", bg='#f0f0f0',
+                font=('Segoe UI', 9)).pack(side='left', padx=(0, 2))
+        source_entry = tk.Entry(filter_frame, textvariable=self.filter_source_var, width=20,
+                               font=('Segoe UI', 9))
+        source_entry.pack(side='left', padx=(0, 10))
+        
+        # Target filter
+        if not hasattr(self, 'filter_target_var'):
+            self.filter_target_var = tk.StringVar()
+            self.filter_target_var.trace('w', lambda *args: self.apply_filters())
+        
+        tk.Label(filter_frame, text="Target:", bg='#f0f0f0',
+                font=('Segoe UI', 9)).pack(side='left', padx=(0, 2))
+        target_entry = tk.Entry(filter_frame, textvariable=self.filter_target_var, width=20,
+                               font=('Segoe UI', 9))
+        target_entry.pack(side='left', padx=(0, 10))
+        
+        # Status filter
+        if not hasattr(self, 'filter_status_var'):
+            self.filter_status_var = tk.StringVar(value="All")
+            self.filter_status_var.trace('w', lambda *args: self.apply_filters())
+        
+        tk.Label(filter_frame, text="Status:", bg='#f0f0f0',
+                font=('Segoe UI', 9)).pack(side='left', padx=(0, 2))
+        status_combo = ttk.Combobox(filter_frame, textvariable=self.filter_status_var,
+                                   values=["All", "untranslated", "draft", "translated", "approved"],
+                                   state='readonly', width=12, font=('Segoe UI', 9))
+        status_combo.pack(side='left', padx=(0, 10))
+        
+        # Clear button
+        tk.Button(filter_frame, text="✕ Clear", command=self.clear_filters,
+                 bg='#ff5252', fg='white', font=('Segoe UI', 8),
+                 relief='raised', cursor='hand2').pack(side='left', padx=5)
+        
+        # Results label - always create new for this view
+        self.filter_results_label = tk.Label(filter_frame, text="", bg='#f0f0f0',
+                                            font=('Segoe UI', 9, 'italic'), fg='#666')
+        self.filter_results_label.pack(side='left', padx=10)
+        
+        # Create a frame to hold treeview and scrollbars with grid layout
+        tree_container = tk.Frame(grid_frame)
+        tree_container.pack(side='top', fill='both', expand=True)
+        
+        # Create treeview for segments (parent is tree_container now)
+        self.tree = ttk.Treeview(tree_container,
                                 columns=('id', 'type', 'style', 'status', 'source', 'target'),
                                 show='headings',
                                 selectmode='browse')
@@ -1305,16 +1469,16 @@ class CATEditorPrototype:
         self.tree.column('target', width=400, minwidth=200, anchor='w', stretch=True)
         
         # Scrollbars
-        v_scroll = ttk.Scrollbar(grid_frame, orient='vertical', command=self.tree.yview)
-        h_scroll = ttk.Scrollbar(grid_frame, orient='horizontal', command=self.tree.xview)
+        v_scroll = ttk.Scrollbar(tree_container, orient='vertical', command=self.tree.yview)
+        h_scroll = ttk.Scrollbar(tree_container, orient='horizontal', command=self.tree.xview)
         self.tree.configure(yscrollcommand=v_scroll.set, xscrollcommand=h_scroll.set)
         
         self.tree.grid(row=0, column=0, sticky='nsew')
         v_scroll.grid(row=0, column=1, sticky='ns')
         h_scroll.grid(row=1, column=0, sticky='ew')
         
-        grid_frame.grid_rowconfigure(0, weight=1)
-        grid_frame.grid_columnconfigure(0, weight=1)
+        tree_container.grid_rowconfigure(0, weight=1)
+        tree_container.grid_columnconfigure(0, weight=1)
         
         # Configure row colors
         self.tree.tag_configure('untranslated', background='#ffe6e6')
@@ -1523,11 +1687,24 @@ class CATEditorPrototype:
         top_spacer = tk.Frame(self.doc_inner_frame, bg='white', height=30)
         top_spacer.pack(side='top', fill='x')
         
+        # Use filtered segments if filter is active, otherwise all segments
+        segments_to_show = self.filtered_segments if self.filter_active else self.segments
+        
+        # Debug: Check if we have segments to show
+        if not segments_to_show:
+            # No segments to display
+            no_content_label = tk.Label(self.doc_inner_frame, 
+                                       text="No segments to display.\n\nPlease import a document first.",
+                                       bg='white', fg='#666', font=('Segoe UI', 12),
+                                       pady=50)
+            no_content_label.pack(fill='both', expand=True)
+            return
+        
         # Group segments by paragraph and identify tables
         paragraphs = {}
         tables = {}  # table_id -> {(row, col): segment}
         
-        for seg in self.segments:
+        for seg in segments_to_show:
             if seg.is_table_cell and seg.table_info:
                 # This is a table cell
                 table_id, row_idx, col_idx = seg.table_info
@@ -2060,9 +2237,19 @@ class CATEditorPrototype:
         
         # Save current segment if editing
         if hasattr(self, 'current_edit_widget') and self.current_edit_widget:
-            self.save_grid_edit(go_next=False)
+            try:
+                # Check if widget still exists before trying to save
+                if self.current_edit_widget.winfo_exists():
+                    self.save_grid_edit(go_next=False)
+            except:
+                pass  # Widget already destroyed
+            finally:
+                self.current_edit_widget = None
         elif self.layout_mode == LayoutMode.DOCUMENT and hasattr(self, 'doc_current_segment') and self.doc_current_segment:
-            self.save_doc_segment()
+            try:
+                self.save_doc_segment()
+            except:
+                pass  # Widget already destroyed
         
         # Remember current selection from any view mode
         current_seg_id = None
@@ -2439,6 +2626,36 @@ class CATEditorPrototype:
         # Load segment into editor panel
         self.load_segment_to_grid_editor(self.current_segment)
     
+    def should_highlight_segment(self, segment):
+        """
+        Check if a segment matches the current filter criteria.
+        Used in Highlight Mode to determine which segments to highlight.
+        In Filter Mode, all visible segments already match, so highlighting is always applied.
+        In Highlight Mode, all segments are visible, so we only highlight those that match.
+        """
+        # In filter mode, all visible segments match (already filtered)
+        if self.filter_mode == 'filter':
+            return True
+        
+        # In highlight mode, check if this segment matches the filters
+        source_filter = self.filter_source_var.get().strip().lower()
+        target_filter = self.filter_target_var.get().strip().lower()
+        status_filter = self.filter_status_var.get()
+        
+        # Check source filter
+        if source_filter and source_filter not in segment.source.lower():
+            return False
+        
+        # Check target filter
+        if target_filter and target_filter not in segment.target.lower():
+            return False
+        
+        # Check status filter
+        if status_filter != "All" and segment.status != status_filter:
+            return False
+        
+        return True
+    
     def add_grid_row(self, segment):
         """Add a row to the custom grid with dynamic height"""
         # Calculate row height based on content
@@ -2507,6 +2724,13 @@ class CATEditorPrototype:
                              cursor='arrow',
                              padx=2, pady=2)
         source_text.insert('1.0', segment.source)
+        
+        # Highlight filter matches in source (only if segment matches filters in highlight mode)
+        if self.filter_active and hasattr(self, 'filter_source_var'):
+            source_filter = self.filter_source_var.get().strip()
+            if source_filter and self.should_highlight_segment(segment):
+                self.highlight_text_in_widget(source_text, source_filter, 'yellow')
+        
         source_text.config(state='disabled')
         source_text.pack(fill='both', expand=True, padx=1, pady=1)
         
@@ -2536,6 +2760,13 @@ class CATEditorPrototype:
                              padx=2, pady=2)
         if segment.target:
             target_text.insert('1.0', segment.target)
+        
+        # Highlight filter matches in target (only if segment matches filters in highlight mode)
+        if self.filter_active and hasattr(self, 'filter_target_var'):
+            target_filter = self.filter_target_var.get().strip()
+            if target_filter and self.should_highlight_segment(segment):
+                self.highlight_text_in_widget(target_text, target_filter, 'lightgreen')
+        
         target_text.config(state='disabled')  # Initially disabled, enabled in edit mode
         target_text.pack(fill='both', expand=True, padx=1, pady=1)
         
@@ -3303,12 +3534,33 @@ class CATEditorPrototype:
     
     def load_segments_to_tree(self):
         """Load segments into Treeview (for List View)"""
+        self.log(f"load_segments_to_tree() called. Has tree: {hasattr(self, 'tree')}")
+        
+        # Check if tree exists
+        if not hasattr(self, 'tree'):
+            self.log("⚠ Tree view not created yet, skipping load")
+            return
+        
+        self.log(f"Tree exists, attempting to load segments...")
+        
         # Clear existing
         for item in self.tree.get_children():
             self.tree.delete(item)
         
+        # Use filtered segments if filter is active, otherwise all segments
+        segments_to_show = self.filtered_segments if self.filter_active else self.segments
+        
+        self.log(f"Segments info: total={len(self.segments)}, filter_active={self.filter_active}, filtered={len(self.filtered_segments)}, to_show={len(segments_to_show)}")
+        
+        # Debug: Check if we have segments
+        if not segments_to_show:
+            self.log(f"⚠ No segments to display in List View. filter_active={self.filter_active}, segments count={len(self.segments)}, filtered count={len(self.filtered_segments)}")
+            return
+        
+        self.log(f"Loading {len(segments_to_show)} segments to tree...")
+        
         # Add segments
-        for seg in self.segments:
+        for seg in segments_to_show:
             # Determine type label
             if seg.is_table_cell and seg.table_info:
                 type_label = f"T{seg.table_info[0]+1}R{seg.table_info[1]+1}C{seg.table_info[2]+1}"
@@ -3328,19 +3580,201 @@ class CATEditorPrototype:
             if style_tag:
                 tags.append(style_tag)
             
+            # Prepare source and target text with potential highlighting
+            source_text = self._truncate(seg.source, 75)
+            target_text = self._truncate(seg.target, 75)
+            
+            # Note: Treeview doesn't support text highlighting like Text widget
+            # In highlight mode, matches are shown but not visually highlighted in the tree
+            # The highlighting will be visible in the editor panel below
+            
             # Insert into tree
-            self.tree.insert('', 'end',
+            item_id = self.tree.insert('', 'end',
                            values=(seg.id, type_label, style_display, seg.status.capitalize(),
-                                  self._truncate(seg.source, 75),
-                                  self._truncate(seg.target, 75)),
+                                  source_text, target_text),
                            tags=tuple(tags))
+            if len(tags) == 0:  # Log first item only
+                self.log(f"  Inserted segment {seg.id}: {source_text[:30]}... -> item_id={item_id}")
         
         # Select first segment if available
         children = self.tree.get_children()
+        self.log(f"After loading, tree has {len(children)} children")
         if children:
             self.tree.selection_set(children[0])
             self.tree.focus(children[0])
             self.on_segment_select(None)
+    
+    
+    
+    def set_filter_mode(self, mode):
+        """Set the filter mode and update button states"""
+        if self.filter_mode == mode:
+            return  # Already in this mode
+        
+        self.filter_mode = mode
+        
+        if mode == 'filter':
+            # Filter mode active - show only matches
+            self.filter_mode_btn.config(bg='#4CAF50', fg='white', 
+                                       font=('Segoe UI', 9, 'bold'), relief='sunken')
+            self.highlight_mode_btn.config(bg='#e0e0e0', fg='#666',
+                                          font=('Segoe UI', 9), relief='raised')
+            self.log("� Filter Mode: Only matching segments shown")
+        else:
+            # Highlight mode active - show all with highlights
+            self.filter_mode_btn.config(bg='#e0e0e0', fg='#666',
+                                       font=('Segoe UI', 9), relief='raised')
+            self.highlight_mode_btn.config(bg='#FFA500', fg='white',
+                                          font=('Segoe UI', 9, 'bold'), relief='sunken')
+            self.log("� Highlight Mode: All segments shown with matches highlighted")
+        
+        # Reapply filters with new mode
+        self.apply_filters()
+    
+    def apply_filters(self):
+        """Apply filters to the segment list"""
+        if not hasattr(self, 'segments') or not self.segments:
+            return
+        
+        source_filter = self.filter_source_var.get().strip().lower()
+        target_filter = self.filter_target_var.get().strip().lower()
+        status_filter = self.filter_status_var.get()
+        
+        # Check if any filter is active
+        self.filter_active = bool(source_filter or target_filter or (status_filter != "All"))
+        
+        if not self.filter_active:
+            # No filters - show all segments
+            self.filtered_segments = self.segments.copy()
+            if hasattr(self, 'filter_results_label') and self.filter_results_label.winfo_exists():
+                self.filter_results_label.config(text="")
+        elif self.filter_mode == 'highlight':
+            # Highlight mode: show ALL segments but highlight matches
+            self.filtered_segments = self.segments.copy()
+            
+            # Count how many segments have matches (for info label)
+            match_count = 0
+            for seg in self.segments:
+                has_match = True
+                if source_filter and source_filter not in seg.source.lower():
+                    has_match = False
+                if target_filter and target_filter not in seg.target.lower():
+                    has_match = False
+                if status_filter != "All" and seg.status != status_filter:
+                    has_match = False
+                if has_match:
+                    match_count += 1
+            
+            # Update results label
+            total = len(self.segments)
+            if hasattr(self, 'filter_results_label') and self.filter_results_label.winfo_exists():
+                self.filter_results_label.config(
+                    text=f"💡 Highlighting {match_count} of {total} segments",
+                    fg='#4CAF50' if match_count > 0 else '#FF5722'
+                )
+        else:
+            # Filter mode: show ONLY matching segments
+            self.filtered_segments = []
+            for seg in self.segments:
+                # Source filter
+                if source_filter and source_filter not in seg.source.lower():
+                    continue
+                
+                # Target filter
+                if target_filter and target_filter not in seg.target.lower():
+                    continue
+                
+                # Status filter
+                if status_filter != "All" and seg.status != status_filter:
+                    continue
+                
+                # Segment passed all filters
+                self.filtered_segments.append(seg)
+            
+            # Update results label
+            total = len(self.segments)
+            filtered = len(self.filtered_segments)
+            if hasattr(self, 'filter_results_label') and self.filter_results_label.winfo_exists():
+                self.filter_results_label.config(
+                    text=f"🔍 Showing {filtered} of {total} segments",
+                    fg='#4CAF50' if filtered > 0 else '#FF5722'
+                )
+        
+        # Reload the grid with filtered segments
+        self.reload_grid_with_filters()
+    
+    def clear_filters(self):
+        """Clear all filters"""
+        self.filter_source_var.set("")
+        self.filter_target_var.set("")
+        self.filter_status_var.set("All")
+        self.filter_active = False
+        if hasattr(self, 'filter_results_label') and self.filter_results_label.winfo_exists():
+            self.filter_results_label.config(text="")
+        self.log("✓ Filters cleared")
+    
+    def highlight_text_in_widget(self, text_widget, search_text, color='yellow'):
+        """Highlight all occurrences of search_text in a Text widget"""
+        if not search_text:
+            return
+        
+        # Configure tag for highlighting
+        tag_name = f"highlight_{color}"
+        text_widget.tag_configure(tag_name, background=color, foreground='black')
+        
+        # Get the content
+        content = text_widget.get('1.0', 'end-1c')
+        search_lower = search_text.lower()
+        content_lower = content.lower()
+        
+        # Find all occurrences (case-insensitive)
+        start_pos = 0
+        while True:
+            start_pos = content_lower.find(search_lower, start_pos)
+            if start_pos == -1:
+                break
+            
+            # Calculate Text widget position
+            lines_before = content[:start_pos].count('\n')
+            chars_in_line = start_pos - content.rfind('\n', 0, start_pos) - 1
+            
+            start_index = f"{lines_before + 1}.{chars_in_line}"
+            end_index = f"{lines_before + 1}.{chars_in_line + len(search_text)}"
+            
+            # Apply tag
+            text_widget.tag_add(tag_name, start_index, end_index)
+            
+            start_pos += len(search_text)
+    
+    def reload_grid_with_filters(self):
+        """Reload the current view with filtered segments"""
+        if self.layout_mode == LayoutMode.GRID:
+            # Grid View: Clear and rebuild grid
+            self.grid_rows = []
+            for widget in self.grid_inner_frame.winfo_children():
+                widget.destroy()
+            
+            # Use filtered segments if filter is active, otherwise all segments
+            segments_to_show = self.filtered_segments if self.filter_active else self.segments
+            
+            # Add filtered segments to grid
+            for seg in segments_to_show:
+                self.add_grid_row(seg)
+            
+            # Select first row if available
+            if self.grid_rows:
+                self.select_grid_row(0)
+        
+        elif self.layout_mode == LayoutMode.SPLIT:
+            # List View: Reload tree
+            self.load_segments_to_tree()
+        
+        elif self.layout_mode == LayoutMode.DOCUMENT:
+            # Document View: Reload document
+            self.load_segments_to_document()
+        # Log the filter result
+        if self.filter_active:
+            self.log(f"🔍 Filter applied: {len(segments_to_show)} segments match")
     
     def load_segments_to_grid(self):
         """Load segments into the grid"""
@@ -3348,11 +3782,13 @@ class CATEditorPrototype:
             # Clear existing custom grid rows
             self.grid_rows = []
             for widget in self.grid_inner_frame.winfo_children():
-                if widget != self.grid_inner_frame.winfo_children()[0]:  # Don't delete header
-                    widget.destroy()
+                widget.destroy()
+            
+            # Determine which segments to show (filtered or all)
+            segments_to_show = self.filtered_segments if self.filter_active else self.segments
             
             # Add segments to custom grid
-            for seg in self.segments:
+            for seg in segments_to_show:
                 self.add_grid_row(seg)
             
             # Select first row if available
