@@ -1,5 +1,92 @@
 # CAT Editor Prototype - Changelog
 
+## [0.4.2] - 2025-10-05
+
+### Added - Dual Text Selection System (memoQ-inspired) 🎉
+
+**Feature 1 from [michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool](https://michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool)** - "Ability to select corresponding pieces of source and target text in the grid"
+
+- **Mouse-Based Dual Selection**
+  - Can now select text in both source and target columns simultaneously
+  - Both selections remain visible with distinct colors
+  - Source selections: Light blue background (#B3E5FC)
+  - Target selections: Light green background (#C8E6C9)
+  - Essential for translating long segments methodically
+  - Professional CAT tool feature (matches memoQ standard)
+  - Status bar shows selected text and character count
+  - Selections automatically clear when changing rows or entering edit mode
+
+- **Keyboard-Based Dual Selection** ⌨️
+  - `Tab` - Switch focus between source and target widgets
+  - `Ctrl+Shift+→` - Extend selection right by one character
+  - `Ctrl+Shift+←` - Extend selection left by one character
+  - `Ctrl+Shift+Ctrl+→` - Extend selection right by one word
+  - `Ctrl+Shift+Ctrl+←` - Extend selection left by one word
+  - `Escape` - Clear all dual selections
+  - First Tab press goes to position 1.0, subsequent tabs return to saved cursor position
+  - Matches memoQ keyboard workflow
+  - Visual focus indicator (blue border for source, green for target)
+  - Bidirectional selection (forward and backward)
+  - Cursor memory across Tab switches
+  - Hands stay on keyboard for maximum efficiency
+
+- **Grid View Column Management**
+  - Style column added to Grid View (matches List View)
+  - Column visibility dialog (View → Grid Columns...)
+  - Show/hide specific columns with checkboxes
+  - Columns ordered: Type, Style, Status for consistency
+  - Grid rebuilds automatically after visibility changes
+
+- **Formatting Display in Grid View**
+  - Bold/italic/underline tags rendered visually
+  - `<b>text</b>` displayed in bold
+  - `<i>text</i>` displayed in italic
+  - `<u>text</u>` displayed with underline
+  - Multiple formatting tags can be combined
+  - Matches List View formatting display
+  
+- **Optional Style Colors Toggle**
+  - View → Toggle Style Colors menu item
+  - Enable/disable style-based font colors in Grid View
+  - Matches List View style colors when enabled:
+    - Heading 1: #003366 (dark blue, bold, 10pt)
+    - Heading 2: #0066cc (medium blue, bold, 9pt)
+    - Heading 3: #3399ff (light blue, bold, 9pt)
+    - Table: #0066cc (medium blue, italic, 8pt)
+    - Title: #663399 (purple, bold, 11pt)
+    - Subtitle: #663399 (purple, italic, 9pt)
+  - Default: enabled
+  - User preference for cleaner vs. richer visual display
+
+- **Improved Navigation Feedback**
+  - Ctrl+Up/Down now shows segment type (Para, Table, Heading 1, etc.)
+  - Removed distracting "next/previous segment" arrows
+  - Cleaner, more informative navigation logging
+
+- **Streamlined Edit Mode**
+  - Double-click on target enters edit mode directly
+  - Removed old editor panel popup on source double-click
+  - Tab key switches dual selection focus (no longer "save & next" in edit mode)
+  - More intuitive editing workflow
+
+### Technical Details
+- Mouse selection methods: `on_source_selection_made()`, `on_target_selection_made()`, `clear_dual_selection()`
+- Keyboard selection methods: `switch_dual_selection_focus()`, `focus_source_for_selection()`, `focus_target_for_selection()`, `extend_selection_keyboard()`
+- Column management: `show_column_visibility_dialog()`, `rebuild_grid()`
+- Formatting: `apply_formatting_to_text_widget()` with regex pattern matching for tags and style colors
+- Navigation: `navigate_segment()` with `get_segment_type_label()` helper
+- State variables: `dual_selection_row`, `dual_selection_source`, `dual_selection_target`, `dual_selection_focused_widget`, `dual_selection_source_cursor`, `dual_selection_target_cursor`, `grid_style_colors_enabled`
+- ~500 lines of new/modified code
+
+### Improved
+- Grid View text selection behavior more professional
+- Better visual feedback for segment verification
+- Systematic long segment translation workflow support
+- Full keyboard accessibility for dual selection
+- Formatting consistency between Grid and List views
+- Flexible visual customization with style colors toggle
+- Cleaner navigation feedback
+
 ## [0.4.1] - 2025-10-03
 
 ### Changed
