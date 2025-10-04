@@ -9,3 +9,5 @@
 - **openai-translator** (https://github.com/openai-translator/openai-translator)
 - **toLLMatch🔪** Context-aware LLM-based simultaneous translation (https://github.com/RomanKoshkin/toLLMatch)
 - **Supervertaler (by Michael Beijer)** (https://github.com/michaelbeijer/Supervertaler/)
+
+If you can think of any more, let me know @ info@michaelbeijer.co.uk!
