@@ -172,6 +172,9 @@ class CATEditorPrototype:
         view_menu.add_command(label="List View", command=lambda: self.switch_layout(LayoutMode.SPLIT), accelerator="Ctrl+2")
         view_menu.add_command(label="Document View", command=lambda: self.switch_layout(LayoutMode.DOCUMENT), accelerator="Ctrl+3")
         view_menu.add_separator()
+        view_menu.add_command(label="Grid Columns...", command=self.show_column_visibility_dialog)
+        view_menu.add_command(label="Toggle Style Colors", command=self.toggle_grid_style_colors)
+        view_menu.add_separator()
         view_menu.add_command(label="Toggle Filter Mode", command=self.toggle_filter_mode, accelerator="Ctrl+M")
         view_menu.add_command(label="Apply Filters", command=self.apply_filters, accelerator="Ctrl+Shift+A")
         view_menu.add_command(label="Clear Filters", command=self.clear_filters)
@@ -197,6 +200,17 @@ class CATEditorPrototype:
         # Navigation shortcuts
         self.root.bind('<Control-Down>', lambda e: self.navigate_segment('next'))
         self.root.bind('<Control-Up>', lambda e: self.navigate_segment('prev'))
+        
+        # Grid View display options
+        self.grid_style_colors_enabled = True  # Toggle for style-based font colors
+        
+        # Dual text selection state (for Grid View)
+        self.dual_selection_row = None  # Currently active row index
+        self.dual_selection_source = None  # Source Text widget with selection
+        self.dual_selection_target = None  # Target Text widget with selection
+        self.dual_selection_focused_widget = None  # 'source' or 'target' for keyboard selection
+        self.dual_selection_source_cursor = None  # Remember cursor position in source
+        self.dual_selection_target_cursor = None  # Remember cursor position in target
         
         # F2 to enter edit mode (works globally when segment is selected)
         self.root.bind('<F2>', lambda e: self.enter_edit_mode_global())
@@ -363,11 +377,12 @@ class CATEditorPrototype:
         self.dragging_splitter = False
         
         self.grid_columns = {
-            'id': {'title': '#', 'width': 40, 'anchor': 'center'},
-            'type': {'title': 'Type', 'width': 65, 'anchor': 'center'},
-            'status': {'title': 'Status', 'width': 95, 'anchor': 'center'},
-            'source': {'title': '📄 Source', 'width': self.source_width, 'anchor': 'w'},
-            'target': {'title': '🎯 Target', 'width': self.target_width, 'anchor': 'w'}
+            'id': {'title': '#', 'width': 40, 'anchor': 'center', 'visible': True},
+            'type': {'title': 'Type', 'width': 65, 'anchor': 'center', 'visible': True},
+            'style': {'title': 'Style', 'width': 100, 'anchor': 'center', 'visible': True},
+            'status': {'title': 'Status', 'width': 95, 'anchor': 'center', 'visible': True},
+            'source': {'title': '📄 Source', 'width': self.source_width, 'anchor': 'w', 'visible': True},
+            'target': {'title': '🎯 Target', 'width': self.target_width, 'anchor': 'w', 'visible': True}
         }
         
         # Initialize filter state
@@ -2464,9 +2479,12 @@ class CATEditorPrototype:
         header_frame = tk.Frame(self.header_container, bg='#e0e0e0', relief='raised', bd=1)
         header_frame.pack(fill='x', side='top', pady=0)
         
-        # Fixed columns - match exact row layout
-        for col_name in ['id', 'type', 'status']:
+        # Fixed columns - match exact row layout (Type, Style, Status order)
+        for col_name in ['id', 'type', 'style', 'status']:
             col_info = self.grid_columns[col_name]
+            if not col_info.get('visible', True):
+                continue  # Skip hidden columns
+            
             header_label = tk.Label(header_frame, 
                                    text=col_info['title'],
                                    font=('Segoe UI', 9, 'bold'),
@@ -2578,6 +2596,150 @@ class CATEditorPrototype:
         # Update canvas
         self.grid_canvas.update_idletasks()
         self.update_grid_scroll_region()
+    
+    def show_column_visibility_dialog(self):
+        """Show dialog to toggle column visibility"""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Grid View - Show/Hide Columns")
+        dialog.geometry("300x250")
+        dialog.transient(self.root)
+        dialog.grab_set()
+        
+        tk.Label(dialog, text="Select columns to display:", 
+                font=('Segoe UI', 10, 'bold')).pack(pady=10)
+        
+        # Create checkboxes for each column (except source/target which are always visible)
+        # Order matches the actual column order: Type, Style, Status
+        checkbox_vars = {}
+        for col_name in ['id', 'type', 'style', 'status']:
+            var = tk.BooleanVar(value=self.grid_columns[col_name].get('visible', True))
+            checkbox_vars[col_name] = var
+            
+            cb = tk.Checkbutton(dialog, 
+                              text=self.grid_columns[col_name]['title'],
+                              variable=var,
+                              font=('Segoe UI', 10))
+            cb.pack(anchor='w', padx=20, pady=5)
+        
+        # Note about source/target
+        tk.Label(dialog, text="Note: Source and Target are always visible",
+                fg='gray', font=('Segoe UI', 8)).pack(pady=5)
+        
+        # Buttons
+        button_frame = tk.Frame(dialog)
+        button_frame.pack(pady=10)
+        
+        def apply_changes():
+            # Update column visibility
+            for col_name, var in checkbox_vars.items():
+                self.grid_columns[col_name]['visible'] = var.get()
+            
+            # Rebuild grid
+            self.rebuild_grid()
+            dialog.destroy()
+            self.log("Column visibility updated")
+        
+        def cancel():
+            dialog.destroy()
+        
+        tk.Button(button_frame, text="Apply", command=apply_changes, width=10).pack(side='left', padx=5)
+        tk.Button(button_frame, text="Cancel", command=cancel, width=10).pack(side='left', padx=5)
+    
+    def rebuild_grid(self):
+        """Rebuild the entire grid (e.g., after column visibility changes)"""
+        if self.layout_mode != LayoutMode.GRID:
+            return
+        
+        # Store current selection
+        current_selection = self.current_row_index
+        
+        # Clear existing grid
+        for widget in self.grid_inner_frame.winfo_children():
+            widget.destroy()
+        self.grid_rows.clear()
+        
+        # Clear header
+        for widget in self.header_container.winfo_children():
+            widget.destroy()
+        
+        # Recreate header
+        self.create_grid_header()
+        
+        # Recreate all rows
+        segments = self.segments if not self.filter_active else self.filtered_segments
+        for segment in segments:
+            self.add_grid_row(segment)
+        
+        # Restore selection
+        if 0 <= current_selection < len(self.grid_rows):
+            self.select_grid_row(current_selection)
+        
+        # Update scroll region
+        self.grid_canvas.update_idletasks()
+        self.update_grid_scroll_region()
+    
+    def toggle_grid_style_colors(self):
+        """Toggle style-based font colors in Grid View"""
+        self.grid_style_colors_enabled = not self.grid_style_colors_enabled
+        status = "enabled" if self.grid_style_colors_enabled else "disabled"
+        self.log(f"Style colors {status}")
+        
+        # Rebuild grid to apply changes
+        if self.layout_mode == LayoutMode.GRID:
+            self.rebuild_grid()
+    
+    def apply_formatting_to_text_widget(self, text_widget, text_content, segment=None):
+        """Apply visual formatting (bold, italic, underline) and style colors to text in a Text widget"""
+        import re
+        
+        # Configure text tags for formatting
+        text_widget.tag_configure('bold', font=('Segoe UI', 9, 'bold'))
+        text_widget.tag_configure('italic', font=('Segoe UI', 9, 'italic'))
+        text_widget.tag_configure('underline', font=('Segoe UI', 9, 'underline'))
+        
+        # Apply style-based colors if enabled (matching List View)
+        if self.grid_style_colors_enabled and segment:
+            if segment.is_table_cell:
+                text_widget.tag_configure('style_color', foreground='#0066cc', font=('Segoe UI', 9, 'italic'))
+                text_widget.tag_add('style_color', '1.0', 'end')
+            elif segment.style:
+                style_lower = segment.style.lower()
+                if 'heading 1' in style_lower:
+                    text_widget.tag_configure('style_color', foreground='#003366', font=('Segoe UI', 10, 'bold'))
+                    text_widget.tag_add('style_color', '1.0', 'end')
+                elif 'heading 2' in style_lower:
+                    text_widget.tag_configure('style_color', foreground='#0066cc', font=('Segoe UI', 9, 'bold'))
+                    text_widget.tag_add('style_color', '1.0', 'end')
+                elif 'heading 3' in style_lower:
+                    text_widget.tag_configure('style_color', foreground='#3399ff', font=('Segoe UI', 9, 'bold'))
+                    text_widget.tag_add('style_color', '1.0', 'end')
+                elif 'title' in style_lower and 'subtitle' not in style_lower:
+                    text_widget.tag_configure('style_color', foreground='#663399', font=('Segoe UI', 11, 'bold'))
+                    text_widget.tag_add('style_color', '1.0', 'end')
+                elif 'subtitle' in style_lower:
+                    text_widget.tag_configure('style_color', foreground='#663399', font=('Segoe UI', 9, 'italic'))
+                    text_widget.tag_add('style_color', '1.0', 'end')
+        
+        # Find and apply bold tags <b>...</b>
+        for match in re.finditer(r'<b>(.*?)</b>', text_content, re.DOTALL):
+            start_pos = f"1.0 + {match.start()} chars"
+            end_pos = f"1.0 + {match.end()} chars"
+            # Get the actual position of the content (without tags)
+            content_start = f"1.0 + {match.start(1)} chars"
+            content_end = f"1.0 + {match.end(1)} chars"
+            text_widget.tag_add('bold', content_start, content_end)
+        
+        # Find and apply italic tags <i>...</i>
+        for match in re.finditer(r'<i>(.*?)</i>', text_content, re.DOTALL):
+            content_start = f"1.0 + {match.start(1)} chars"
+            content_end = f"1.0 + {match.end(1)} chars"
+            text_widget.tag_add('italic', content_start, content_end)
+        
+        # Find and apply underline tags <u>...</u>
+        for match in re.finditer(r'<u>(.*?)</u>', text_content, re.DOTALL):
+            content_start = f"1.0 + {match.start(1)} chars"
+            content_end = f"1.0 + {match.end(1)} chars"
+            text_widget.tag_add('underline', content_start, content_end)
     
     def calculate_row_height(self, segment):
         """Calculate appropriate row height based on content with word wrapping"""
@@ -2693,10 +2855,13 @@ class CATEditorPrototype:
         return 'break'  # Prevent default Text widget behavior
     
     def on_target_double_click(self, event, row_index):
-        """Handle double-click on target - already in edit mode from single click"""
-        # Just select all text on double-click (standard behavior)
-        if self.current_edit_widget:
-            self.current_edit_widget.tag_add('sel', '1.0', 'end')
+        """Handle double-click on target - enter edit mode directly"""
+        # Select the row first
+        self.select_grid_row(row_index)
+        
+        # Enter edit mode for this row
+        self.enter_edit_mode()
+        
         return 'break'
     
     def on_source_right_click(self, event, row_index):
@@ -2715,6 +2880,10 @@ class CATEditorPrototype:
         """Select a row in the custom grid"""
         if row_index < 0 or row_index >= len(self.grid_rows):
             return
+        
+        # Clear dual selection if changing rows
+        if self.dual_selection_row is not None and self.dual_selection_row != row_index:
+            self.clear_dual_selection()
         
         # Deselect previous row
         if self.current_row_index >= 0 and self.current_row_index < len(self.grid_rows):
@@ -2876,28 +3045,41 @@ class CATEditorPrototype:
         widgets = {}
         
         # ID column
-        id_label = tk.Label(row_frame, text=str(segment.id), 
-                           bg=bg_color, font=('Segoe UI', 9),
-                           width=self.grid_columns['id']['width'] // 8,
-                           anchor='center')
-        id_label.pack(side='left', padx=1)
-        widgets['id'] = id_label
+        if self.grid_columns['id'].get('visible', True):
+            id_label = tk.Label(row_frame, text=str(segment.id), 
+                               bg=bg_color, font=('Segoe UI', 9),
+                               width=self.grid_columns['id']['width'] // 8,
+                               anchor='center')
+            id_label.pack(side='left', padx=1)
+            widgets['id'] = id_label
         
         # Type column
-        type_label = tk.Label(row_frame, text=type_text, 
-                             bg=bg_color, font=('Segoe UI', 9),
-                             width=self.grid_columns['type']['width'] // 8,
-                             anchor='center')
-        type_label.pack(side='left', padx=1)
-        widgets['type'] = type_label
+        if self.grid_columns['type'].get('visible', True):
+            type_label = tk.Label(row_frame, text=type_text, 
+                                 bg=bg_color, font=('Segoe UI', 9),
+                                 width=self.grid_columns['type']['width'] // 8,
+                                 anchor='center')
+            type_label.pack(side='left', padx=1)
+            widgets['type'] = type_label
+        
+        # Style column
+        if self.grid_columns['style'].get('visible', True):
+            style_text = segment.style if segment.style else "Normal"
+            style_label = tk.Label(row_frame, text=style_text, 
+                                  bg=bg_color, font=('Segoe UI', 9),
+                                  width=self.grid_columns['style']['width'] // 8,
+                                  anchor='center')
+            style_label.pack(side='left', padx=1)
+            widgets['style'] = style_label
         
         # Status column
-        status_label = tk.Label(row_frame, text=segment.status, 
-                               bg=bg_color, font=('Segoe UI', 9),
-                               width=self.grid_columns['status']['width'] // 8,
-                               anchor='center')
-        status_label.pack(side='left', padx=1)
-        widgets['status'] = status_label
+        if self.grid_columns['status'].get('visible', True):
+            status_label = tk.Label(row_frame, text=segment.status, 
+                                   bg=bg_color, font=('Segoe UI', 9),
+                                   width=self.grid_columns['status']['width'] // 8,
+                                   anchor='center')
+            status_label.pack(side='left', padx=1)
+            widgets['status'] = status_label
         
         # Create a container frame for source + splitter + target to match header layout
         content_container = tk.Frame(row_frame, bg=bg_color)
@@ -2916,6 +3098,9 @@ class CATEditorPrototype:
                              padx=2, pady=2)
         source_text.insert('1.0', segment.source)
         
+        # Apply formatting tags to source text (with optional style colors)
+        self.apply_formatting_to_text_widget(source_text, segment.source, segment)
+        
         # Highlight filter matches in source (only if segment matches filters in highlight mode)
         if self.filter_active and hasattr(self, 'filter_source_var'):
             source_filter = self.filter_source_var.get().strip()
@@ -2925,12 +3110,24 @@ class CATEditorPrototype:
         source_text.config(state='disabled')
         source_text.pack(fill='both', expand=True, padx=1, pady=1)
         
-        # Make source clickable to select row
+        # Make source clickable to select row and support dual selection
         row_index = len(self.grid_rows)  # Current index before appending
-        source_text.bind('<Button-1>', lambda e, idx=row_index: self.on_text_widget_click(e, idx))
-        source_text.bind('<Double-Button-1>', lambda e: self.show_source_popup(e))
+        source_text.bind('<Button-1>', lambda e, idx=row_index: self.on_source_text_click(e, idx))
+        source_text.bind('<ButtonRelease-1>', lambda e, idx=row_index: self.on_source_selection_made(e, idx))
         source_text.bind('<Button-3>', lambda e, idx=row_index: self.on_source_right_click(e, idx))
         source_text.bind('<MouseWheel>', self.on_grid_mousewheel)
+        
+        # Keyboard selection bindings (Ctrl+Shift+Arrow keys - memoQ style)
+        source_text.bind('<Control-Shift-Left>', 
+                        lambda e, w=source_text: self.extend_selection_keyboard(w, 'left', 'char', 'source'))
+        source_text.bind('<Control-Shift-Right>', 
+                        lambda e, w=source_text: self.extend_selection_keyboard(w, 'right', 'char', 'source'))
+        source_text.bind('<Control-Shift-Control-Left>', 
+                        lambda e, w=source_text: self.extend_selection_keyboard(w, 'left', 'word', 'source'))
+        source_text.bind('<Control-Shift-Control-Right>', 
+                        lambda e, w=source_text: self.extend_selection_keyboard(w, 'right', 'word', 'source'))
+        source_text.bind('<Tab>', lambda e: self.switch_dual_selection_focus())
+        source_text.bind('<Escape>', lambda e: (self.clear_dual_selection(), None)[1] or 'break')
         
         widgets['source'] = source_text
         widgets['source_frame'] = source_frame
@@ -2951,6 +3148,8 @@ class CATEditorPrototype:
                              padx=2, pady=2)
         if segment.target:
             target_text.insert('1.0', segment.target)
+            # Apply formatting tags to target text (with optional style colors)
+            self.apply_formatting_to_text_widget(target_text, segment.target, segment)
         
         # Highlight filter matches in target (only if segment matches filters in highlight mode)
         if self.filter_active and hasattr(self, 'filter_target_var'):
@@ -2961,11 +3160,24 @@ class CATEditorPrototype:
         target_text.config(state='disabled')  # Initially disabled, enabled in edit mode
         target_text.pack(fill='both', expand=True, padx=1, pady=1)
         
-        # Make target clickable - single click selects, double click or focus enters edit mode
-        target_text.bind('<Button-1>', lambda e, idx=row_index: self.on_target_click(e, idx))
+        # Make target clickable - support dual selection and edit mode
+        target_text.bind('<Button-1>', lambda e, idx=row_index: self.on_target_text_click(e, idx))
+        target_text.bind('<ButtonRelease-1>', lambda e, idx=row_index: self.on_target_selection_made(e, idx))
         target_text.bind('<Double-Button-1>', lambda e, idx=row_index: self.on_target_double_click(e, idx))
         target_text.bind('<Button-3>', lambda e, idx=row_index: self.on_target_right_click(e, idx))
         target_text.bind('<MouseWheel>', self.on_grid_mousewheel)
+        
+        # Keyboard selection bindings (Ctrl+Shift+Arrow keys - memoQ style)
+        target_text.bind('<Control-Shift-Left>', 
+                        lambda e, w=target_text: self.extend_selection_keyboard(w, 'left', 'char', 'target'))
+        target_text.bind('<Control-Shift-Right>', 
+                        lambda e, w=target_text: self.extend_selection_keyboard(w, 'right', 'char', 'target'))
+        target_text.bind('<Control-Shift-Control-Left>', 
+                        lambda e, w=target_text: self.extend_selection_keyboard(w, 'left', 'word', 'target'))
+        target_text.bind('<Control-Shift-Control-Right>', 
+                        lambda e, w=target_text: self.extend_selection_keyboard(w, 'right', 'word', 'target'))
+        target_text.bind('<Tab>', lambda e: self.switch_dual_selection_focus())
+        target_text.bind('<Escape>', lambda e: (self.clear_dual_selection(), None)[1] or 'break')
         
         widgets['target'] = target_text
         widgets['target_frame'] = target_frame
@@ -2996,7 +3208,7 @@ class CATEditorPrototype:
         self.context_menu = tk.Menu(self.root, tearoff=0)
         self.context_menu.add_command(label="📋 Copy Source → Target (Ctrl+D)", 
                                      command=self.copy_source_to_target)
-        self.context_menu.add_command(label="📄 View Source Text (Double-click source)", 
+        self.context_menu.add_command(label="📄 View Source Text", 
                                      command=lambda: self.show_source_popup_from_menu())
         self.context_menu.add_separator()
         self.context_menu.add_command(label="Insert <b>Bold</b> Tag (Ctrl+B)", 
@@ -3083,6 +3295,9 @@ class CATEditorPrototype:
     
     def enter_edit_mode(self, event=None):
         """Enter inline edit mode for target cell"""
+        # Clear dual selection when entering edit mode
+        self.clear_dual_selection()
+        
         if self.layout_mode == LayoutMode.GRID:
             # Custom grid edit mode
             if self.current_row_index < 0 or self.current_row_index >= len(self.grid_rows):
@@ -3098,7 +3313,6 @@ class CATEditorPrototype:
             # Bind save/cancel keys
             target_widget.bind('<Control-Return>', lambda e: self.save_grid_edit(go_next=True))
             target_widget.bind('<Escape>', lambda e: self.cancel_grid_edit())
-            target_widget.bind('<Tab>', lambda e: self.save_grid_edit(go_next=True))
             
             # Bind tag shortcuts
             target_widget.bind('<Control-b>', lambda e: self.insert_tag_grid('b'))
@@ -3111,7 +3325,7 @@ class CATEditorPrototype:
             # Store current edit widget
             self.current_edit_widget = target_widget
             
-            self.log("Edit mode: Ctrl+Enter to save & next, Tab to save & next, Escape to cancel")
+            self.log("Edit mode: Ctrl+Enter to save & next, Escape to cancel")
             
         else:
             # Treeview edit mode (Split/Compact)
@@ -3443,6 +3657,352 @@ class CATEditorPrototype:
         else:
             self.tag_validation_label.config(text=f"✗ {error}", fg='red')
     
+    # Dual text selection methods (Grid View)
+    
+    def on_source_text_click(self, event, row_index):
+        """Handle click in source text - potential start of dual selection"""
+        # First, handle row selection
+        self.select_grid_row(row_index)
+        
+        # Clear any existing dual selection from other rows
+        if self.dual_selection_row is not None and self.dual_selection_row != row_index:
+            self.clear_dual_selection()
+        
+        self.dual_selection_row = row_index
+        row_data = self.grid_rows[row_index]
+        self.dual_selection_source = row_data['widgets']['source']
+    
+    def on_source_selection_made(self, event, row_index):
+        """Handle selection made in source text"""
+        if row_index != self.dual_selection_row:
+            return
+        
+        source_widget = self.grid_rows[row_index]['widgets']['source']
+        
+        # Check if there's a selection
+        try:
+            selection_start = source_widget.index(tk.SEL_FIRST)
+            selection_end = source_widget.index(tk.SEL_LAST)
+            
+            # Store the selection and highlight it
+            if selection_start != selection_end:
+                # Remove existing source selection tag
+                source_widget.tag_remove('dual_sel_source', '1.0', tk.END)
+                
+                # Add colored tag for source selection
+                source_widget.tag_add('dual_sel_source', selection_start, selection_end)
+                source_widget.tag_config('dual_sel_source',
+                                        background='#B3E5FC',  # Light blue
+                                        foreground='#01579B')  # Dark blue
+                
+                # Raise the tag above other tags
+                source_widget.tag_raise('dual_sel_source')
+                
+                selected_text = source_widget.get(selection_start, selection_end)
+                self.log(f"Source selection: '{selected_text}' ({len(selected_text)} chars)")
+        except tk.TclError:
+            # No selection made
+            pass
+    
+    def on_target_text_click(self, event, row_index):
+        """Handle click in target text - potential start of dual selection"""
+        # First, handle row selection
+        self.select_grid_row(row_index)
+        
+        # Check if this is the same row
+        if self.dual_selection_row is not None and self.dual_selection_row != row_index:
+            self.clear_dual_selection()
+        
+        self.dual_selection_row = row_index
+        row_data = self.grid_rows[row_index]
+        self.dual_selection_target = row_data['widgets']['target']
+        
+        # Don't enter edit mode on single click - only on double-click
+        # This allows for selection without editing
+    
+    def on_target_selection_made(self, event, row_index):
+        """Handle selection made in target text"""
+        if row_index != self.dual_selection_row:
+            return
+        
+        target_widget = self.grid_rows[row_index]['widgets']['target']
+        
+        # Check if there's a selection
+        try:
+            selection_start = target_widget.index(tk.SEL_FIRST)
+            selection_end = target_widget.index(tk.SEL_LAST)
+            
+            # Store the selection and highlight it
+            if selection_start != selection_end:
+                # Remove existing target selection tag
+                target_widget.tag_remove('dual_sel_target', '1.0', tk.END)
+                
+                # Add colored tag for target selection
+                target_widget.tag_add('dual_sel_target', selection_start, selection_end)
+                target_widget.tag_config('dual_sel_target',
+                                        background='#C8E6C9',  # Light green
+                                        foreground='#1B5E20')  # Dark green
+                
+                # Raise the tag above other tags
+                target_widget.tag_raise('dual_sel_target')
+                
+                selected_text = target_widget.get(selection_start, selection_end)
+                self.log(f"Target selection: '{selected_text}' ({len(selected_text)} chars)")
+        except tk.TclError:
+            # No selection made
+            pass
+    
+    def clear_dual_selection(self):
+        """Clear dual text selection highlights"""
+        if self.dual_selection_row is not None and self.dual_selection_row < len(self.grid_rows):
+            row_data = self.grid_rows[self.dual_selection_row]
+            
+            # Clear source selection tag
+            if 'source' in row_data['widgets']:
+                source_widget = row_data['widgets']['source']
+                source_widget.tag_remove('dual_sel_source', '1.0', tk.END)
+            
+            # Clear target selection tag
+            if 'target' in row_data['widgets']:
+                target_widget = row_data['widgets']['target']
+                target_widget.tag_remove('dual_sel_target', '1.0', tk.END)
+        
+        self.dual_selection_row = None
+        self.dual_selection_source = None
+        self.dual_selection_target = None
+        self.dual_selection_focused_widget = None
+        # Reset cursor memory when clearing selection
+        self.dual_selection_source_cursor = None
+        self.dual_selection_target_cursor = None
+    
+    def switch_dual_selection_focus(self):
+        """Switch focus between source and target for keyboard selection (Tab key)"""
+        # Don't interfere with edit mode - Tab should save & next in edit mode
+        if self.current_edit_widget:
+            return  # Allow default Tab behavior (save & next)
+        
+        if self.current_row_index < 0 or self.current_row_index >= len(self.grid_rows):
+            return 'break'
+        
+        row_data = self.grid_rows[self.current_row_index]
+        
+        if self.dual_selection_focused_widget == 'source':
+            # Switch to target
+            self.focus_target_for_selection(self.current_row_index)
+        elif self.dual_selection_focused_widget == 'target':
+            # Switch to source
+            self.focus_source_for_selection(self.current_row_index)
+        else:
+            # Start with source
+            self.focus_source_for_selection(self.current_row_index)
+        
+        return 'break'  # Prevent default Tab behavior
+    
+    def focus_source_for_selection(self, row_index):
+        """Focus source widget for keyboard-based dual selection"""
+        if row_index < 0 or row_index >= len(self.grid_rows):
+            return
+        
+        row_data = self.grid_rows[row_index]
+        source_widget = row_data['widgets']['source']
+        
+        # Enable source widget temporarily for keyboard input (usually disabled/readonly)
+        source_widget.config(state='normal')
+        source_widget.focus_set()
+        
+        # Position cursor - use remembered position or start at 1.0
+        if self.dual_selection_source_cursor is not None:
+            # Return to where we left off
+            cursor_pos = self.dual_selection_source_cursor
+        else:
+            # First time - start at beginning
+            cursor_pos = '1.0'
+        
+        source_widget.mark_set(tk.INSERT, cursor_pos)
+        source_widget.see(cursor_pos)
+        
+        # Visual indicator - subtle border
+        source_widget.config(relief='solid', bd=2, highlightthickness=1,
+                           highlightbackground='#2196F3', highlightcolor='#2196F3')
+        
+        # Save target's cursor position before switching away
+        if 'target' in row_data['widgets']:
+            target_widget = row_data['widgets']['target']
+            try:
+                self.dual_selection_target_cursor = target_widget.index(tk.INSERT)
+            except:
+                pass
+            target_widget.config(state='disabled', relief='solid', bd=1, highlightthickness=0)
+        
+        self.dual_selection_focused_widget = 'source'
+        self.dual_selection_row = row_index
+        self.log("Source focused - use Ctrl+Shift+Arrows to select, Tab to switch")
+    
+    def focus_target_for_selection(self, row_index):
+        """Focus target widget for keyboard-based dual selection"""
+        if row_index < 0 or row_index >= len(self.grid_rows):
+            return
+        
+        row_data = self.grid_rows[row_index]
+        target_widget = row_data['widgets']['target']
+        
+        # Enable target widget temporarily for keyboard input (may be disabled)
+        target_widget.config(state='normal')
+        target_widget.focus_set()
+        
+        # Position cursor - use remembered position or start at 1.0
+        if self.dual_selection_target_cursor is not None:
+            # Return to where we left off
+            cursor_pos = self.dual_selection_target_cursor
+        else:
+            # First time - start at beginning
+            cursor_pos = '1.0'
+        
+        target_widget.mark_set(tk.INSERT, cursor_pos)
+        target_widget.see(cursor_pos)
+        
+        # Visual indicator - subtle border
+        target_widget.config(relief='solid', bd=2, highlightthickness=1,
+                           highlightbackground='#4CAF50', highlightcolor='#4CAF50')
+        
+        # Save source's cursor position before switching away
+        if 'source' in row_data['widgets']:
+            source_widget = row_data['widgets']['source']
+            try:
+                self.dual_selection_source_cursor = source_widget.index(tk.INSERT)
+            except:
+                pass
+            source_widget.config(state='disabled', relief='solid', bd=1, highlightthickness=0)
+        
+        self.dual_selection_focused_widget = 'target'
+        self.dual_selection_row = row_index
+        self.log("Target focused - use Ctrl+Shift+Arrows to select, Tab to switch")
+    
+    def extend_selection_keyboard(self, widget, direction, unit, widget_type):
+        """Extend selection using keyboard (Ctrl+Shift+Arrow keys)
+        
+        Args:
+            widget: The Text widget (source or target)
+            direction: 'left' or 'right'
+            unit: 'char' or 'word'
+            widget_type: 'source' or 'target'
+        """
+        try:
+            # Get current insert position (cursor)
+            current_pos = widget.index(tk.INSERT)
+            
+            # Check if we already have a selection
+            try:
+                sel_start = widget.index(tk.SEL_FIRST)
+                sel_end = widget.index(tk.SEL_LAST)
+                has_selection = True
+                # Determine if cursor is at start or end to know direction of extension
+                cursor_at_start = widget.compare(current_pos, "==", sel_start)
+            except tk.TclError:
+                # No existing selection, start from cursor
+                sel_start = current_pos
+                sel_end = current_pos
+                has_selection = False
+                cursor_at_start = False
+            
+            # Calculate new position based on direction and unit
+            if direction == 'right':
+                if unit == 'char':
+                    new_pos = widget.index(f"{current_pos} + 1 char")
+                else:  # word
+                    new_pos = widget.index(f"{current_pos} wordend")
+                    # If not at word boundary, move to next word end
+                    if widget.compare(new_pos, "==", current_pos):
+                        new_pos = widget.index(f"{new_pos} + 1 char wordend")
+                
+                # Extend selection
+                if has_selection and cursor_at_start:
+                    # Cursor at start, moving right shrinks selection
+                    new_start = new_pos
+                    new_end = sel_end
+                else:
+                    # Cursor at end or no selection, extend right
+                    new_start = sel_start if has_selection else current_pos
+                    new_end = new_pos
+                
+                cursor_pos = new_end
+                
+            else:  # left
+                if unit == 'char':
+                    new_pos = widget.index(f"{current_pos} - 1 char")
+                else:  # word
+                    new_pos = widget.index(f"{current_pos} wordstart")
+                    # If not at word boundary, move to previous word start
+                    if widget.compare(new_pos, "==", current_pos):
+                        new_pos = widget.index(f"{new_pos} - 1 char wordstart")
+                
+                # Extend selection
+                if has_selection and not cursor_at_start:
+                    # Cursor at end, moving left shrinks selection
+                    new_start = sel_start
+                    new_end = new_pos
+                else:
+                    # Cursor at start or no selection, extend left
+                    new_start = new_pos
+                    new_end = sel_end if has_selection else current_pos
+                
+                cursor_pos = new_start
+            
+            # Don't go beyond text boundaries
+            text_start = widget.index("1.0")
+            text_end = widget.index("end-1c")
+            
+            # Clamp to boundaries
+            if widget.compare(new_start, "<", text_start):
+                new_start = text_start
+            if widget.compare(new_end, ">", text_end):
+                new_end = text_end
+            
+            # Ensure start is before end
+            if widget.compare(new_start, ">", new_end):
+                new_start, new_end = new_end, new_start
+            
+            # Apply the selection
+            widget.tag_remove('sel', '1.0', tk.END)  # Clear default selection
+            
+            # Remove existing colored tag
+            tag_name = f'dual_sel_{widget_type}'
+            widget.tag_remove(tag_name, '1.0', tk.END)
+            
+            # Add new colored selection if there's a range
+            if widget.compare(new_start, "!=", new_end):
+                # Add Tkinter selection for cursor positioning
+                widget.tag_add('sel', new_start, new_end)
+                
+                # Add colored tag
+                widget.tag_add(tag_name, new_start, new_end)
+                
+                # Configure tag colors
+                if widget_type == 'source':
+                    widget.tag_config(tag_name,
+                                    background='#B3E5FC',  # Light blue
+                                    foreground='#01579B')  # Dark blue
+                else:  # target
+                    widget.tag_config(tag_name,
+                                    background='#C8E6C9',  # Light green
+                                    foreground='#1B5E20')  # Dark green
+                
+                widget.tag_raise(tag_name)
+                
+                # Update cursor position
+                widget.mark_set(tk.INSERT, cursor_pos)
+                widget.see(cursor_pos)  # Scroll to cursor
+                
+                # Show selection in status bar
+                selected_text = widget.get(new_start, new_end)
+                self.log(f"{widget_type.capitalize()} selection: '{selected_text}' ({len(selected_text)} chars)")
+        
+        except tk.TclError as e:
+            # Handle edge cases silently
+            pass
+        
+        return 'break'  # Prevent default behavior
+    
     def insert_tag_inline(self, tag_type):
         """Insert tag at cursor position in inline editor"""
         if self.current_edit_widget:
@@ -3519,17 +4079,33 @@ class CATEditorPrototype:
             if self.current_row_index < 0:
                 # No selection, select first
                 self.select_grid_row(0)
+                segment = self.grid_rows[0]['segment']
+                seg_type = self.get_segment_type_label(segment)
+                self.log(f"Segment #{segment.id} ({seg_type})")
                 return
             
             if direction == 'next':
                 if self.current_row_index < len(self.grid_rows) - 1:
                     self.select_grid_row(self.current_row_index + 1)
+                    segment = self.grid_rows[self.current_row_index]['segment']
+                    seg_type = self.get_segment_type_label(segment)
+                    self.log(f"Segment #{segment.id} ({seg_type})")
+                else:
+                    self.log("Already at last segment")
             elif direction == 'prev':
                 if self.current_row_index > 0:
                     self.select_grid_row(self.current_row_index - 1)
+                    segment = self.grid_rows[self.current_row_index]['segment']
+                    seg_type = self.get_segment_type_label(segment)
+                    self.log(f"Segment #{segment.id} ({seg_type})")
+                else:
+                    self.log("Already at first segment")
         elif self.layout_mode == LayoutMode.DOCUMENT:
             # Document view navigation
             self.navigate_document_segment(direction)
+            if self.current_segment:
+                seg_type = self.get_segment_type_label(self.current_segment)
+                self.log(f"Segment #{self.current_segment.id} ({seg_type})")
         else:
             # Treeview navigation
             selection = self.tree.selection()
@@ -3540,6 +4116,10 @@ class CATEditorPrototype:
                     self.tree.selection_set(children[0])
                     self.tree.see(children[0])
                     self.tree.focus(children[0])
+                    # Get segment info
+                    if self.current_segment:
+                        seg_type = self.get_segment_type_label(self.current_segment)
+                        self.log(f"Segment #{self.current_segment.id} ({seg_type})")
                 return
             
             item = selection[0]
@@ -3550,12 +4130,33 @@ class CATEditorPrototype:
                     self.tree.selection_set(next_item)
                     self.tree.see(next_item)
                     self.tree.focus(next_item)
+                    if self.current_segment:
+                        seg_type = self.get_segment_type_label(self.current_segment)
+                        self.log(f"Segment #{self.current_segment.id} ({seg_type})")
+                else:
+                    self.log("Already at last segment")
             elif direction == 'prev':
                 prev_item = self.tree.prev(item)
                 if prev_item:
                     self.tree.selection_set(prev_item)
                     self.tree.see(prev_item)
                     self.tree.focus(prev_item)
+                    if self.current_segment:
+                        seg_type = self.get_segment_type_label(self.current_segment)
+                        self.log(f"Segment #{self.current_segment.id} ({seg_type})")
+                else:
+                    self.log("Already at first segment")
+    
+    def get_segment_type_label(self, segment):
+        """Get a user-friendly label for the segment type"""
+        if segment.is_table_cell:
+            return "Table"
+        elif segment.style and "Heading" in segment.style:
+            return segment.style  # e.g., "Heading 1", "Heading 2"
+        elif segment.style and segment.style != "Normal":
+            return segment.style  # e.g., "Title", "Subtitle"
+        else:
+            return "Para"  # Regular paragraph
     
     def show_source_popup(self, event):
         """Show source and target in a memoQ-style popup with clear divider"""

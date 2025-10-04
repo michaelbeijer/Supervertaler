@@ -1,6 +1,8 @@
-# CAT Editor Prototype v0.4.1
+# CAT Editor Prototype v0.4.2
 
 **A standalone Computer-Aided Translation (CAT) Editor for Supervertaler**
+
+**Implementing features from:** [michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool](https://michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool)
 
 ## 🎯 Features
 
@@ -11,9 +13,13 @@
 - ✅ **Style Support** - Visual display and preservation of Word styles (Heading 1-3, Title, etc.)
 - ✅ **Multiple View Modes** - Grid View, List View, and Document View
 - ✅ **Document View** - See translations in natural document flow with tables rendered properly
+- ✅ **Dual Text Selection** - Select corresponding pieces of source and target text (memoQ-style) 🎉 **[Blog Feature #1]**
 - ✅ **Dual-Mode Filtering** - Filter Mode (show only matches) or Highlight Mode (show all, highlight matches)
 - ✅ **Precise Search Highlighting** - Search terms highlighted in bright yellow (not entire segments)
 - ✅ **Editable Grid** - Excel-like interface with 6 columns (ID, Type, Style, Status, Source, Target)
+- ✅ **Column Management** - Show/hide columns, reorder display 🆕
+- ✅ **Formatting Display** - Bold/italic/underline rendered visually in Grid View 🆕
+- ✅ **Optional Style Colors** - Toggle style-based font colors on/off 🆕
 - ✅ **DOCX Export** - Export with full formatting and style preservation
 - ✅ **Bilingual Export** - Create side-by-side review documents
 - ✅ **TSV Export** - Export to tab-separated format
@@ -23,6 +29,19 @@
 - ✅ **Inline Formatting** - Preserve bold, italic, underline with XML-like tags
 
 ### Advanced Features
+- ✅ **Dual Text Selection (memoQ-inspired)** - Professional CAT tool feature for systematic verification
+  - Mouse-based selection with colored highlights (blue for source, green for target)
+  - Keyboard-based selection with Tab and Ctrl+Shift+Arrows
+  - Bidirectional selection support (forward and backward)
+  - Cursor memory across focus switches
+  - Visual focus indicators
+  - Essential for translating long segments methodically
+- ✅ **Grid View Enhancements** - Professional spreadsheet-like interface
+  - Style column matching List View
+  - Column visibility dialog (show/hide specific columns)
+  - Formatting tags rendered visually (bold/italic/underline)
+  - Optional style-based font colors (headings, tables, etc.)
+  - Columns ordered: Type, Style, Status
 - ✅ **Table Cell Segmentation** - Each table cell is a separate translatable segment
 - ✅ **Table Rendering in Document View** - Tables appear as actual table structures in correct position
 - ✅ **Style Visibility** - Color-coded headings (H1=dark blue, H2=medium blue, H3=light blue)
@@ -110,7 +129,18 @@ python cat_editor_prototype.py
 | `Ctrl+D` | Copy source to target |
 | `Ctrl+Enter` | Save segment and move to next |
 | `Enter` | Edit selected segment |
-| `↑` `↓` | Navigate segments |
+| `↑` `↓` | Navigate segments (shows segment type) |
+| `F2` | Enter edit mode on selected segment |
+
+### Dual Text Selection (Grid View) 🆕
+| Shortcut | Action |
+|----------|--------|
+| `Tab` | Switch focus between source and target |
+| `Ctrl+Shift+→` | Extend selection right (character) |
+| `Ctrl+Shift+←` | Extend selection left (character) |
+| `Ctrl+Shift+Ctrl+→` | Extend selection right (word) |
+| `Ctrl+Shift+Ctrl+←` | Extend selection left (word) |
+| `Escape` | Clear all dual selections |
 
 ### View Switching
 | Shortcut | Action |
@@ -130,26 +160,35 @@ python cat_editor_prototype.py
 ## 🎨 View Modes
 
 ### Grid View (Ctrl+1)
-Excel-like table with all segments visible. Best for bulk editing and getting an overview.
+Excel-like table with all segments visible. Best for bulk editing and systematic long segment verification.
 
-### Split View (Ctrl+2)
+**Features:**
+- 6 columns: ID, Type, Style, Status, Source, Target
+- Column visibility management (View → Grid Columns...)
+- Dual text selection (mouse + keyboard) for comparing source/target
+- Formatting rendered visually (bold/italic/underline)
+- Optional style-based font colors (View → Toggle Style Colors)
+- Inline editing with F2 or double-click on target
+
+### List View (Ctrl+2)
 Traditional CAT tool layout with segment list on left and editor on right. Best for focused translation work.
 
-### Compact View (Ctrl+3) ⭐ NEW
-Minimalist 3-column view (Status, Source, Target) for maximum screen efficiency. Best for speed translation and tight deadlines. Features:
-- See ~30 segments on screen at once
-- No clutter - only essential columns
-- Compact 2-line editor panel
-- Text truncation for density
-- Perfect for laptop screens and distraction-free work
+**Features:**
+- Compact segment list with status indicators
+- Dedicated editor panel on right
+- Tag management tools
+- Real-time tag validation
 
-### Document View (Ctrl+4) ⭐ NEW
-Natural document flow showing text and tables as they appear in the original document. Best for reviewing context and final output. Features:
+### Document View (Ctrl+3) ⭐
+Natural document flow showing text and tables as they appear in the original document. Best for reviewing context and final output.
+
+**Features:**
 - Text flows naturally like a Word document
 - Tables rendered in proper position with correct structure
 - Clickable segments with editor panel below
 - Color-coded by status (red=untranslated, yellow=draft, green=translated, blue=approved)
 - Smart placeholders show source when not translated, target when complete
+- Precise search term highlighting (bright yellow)
 
 ## 📁 File Structure
 

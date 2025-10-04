@@ -1,31 +1,47 @@
 # Supervertaler - Changelog
 
-## [Unreleased - CAT Editor Prototype] - 2025-10-01 to 2025-10-03
+## [Unreleased - CAT Editor Prototype] - 2025-10-01 to 2025-10-05
 
 ### Experimental: CAT Editor Prototype Development
 
 A standalone CAT (Computer-Aided Translation) editor prototype is under active development in the `cat_tool_prototype/` folder. This experimental tool is being designed for potential integration into Supervertaler v2.5.0.
 
-**Current Status**: Prototype v0.4.1 (Feature-complete with advanced filtering)
+**Design Philosophy**: We're implementing features from [michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool](https://michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool) - a translator's non-negotiable CAT tool requirements.
 
-**Latest Updates (v0.4.1 - October 3, 2025)**:
-- ✅ **Precise search term highlighting** - Only search terms highlighted (not entire segments)
-- ✅ **Filter panel in all views** - Grid, List, and Document View all have filtering
-- ✅ **Dual-mode filtering** - Filter Mode (show only matches) or Highlight Mode (show all, highlight matches)
-- ✅ **Keyboard shortcuts** - Ctrl+M (toggle modes), Ctrl+Shift+A (apply), Ctrl+Shift+F (focus filter)
-- ✅ **Filter preferences saved** - Filter settings remembered per project
+**Current Status**: Prototype v0.4.2 (Feature-complete with dual text selection)
+
+**Latest Updates (v0.4.2 - October 5, 2025)**:
+- ✅ **Dual text selection** - Select corresponding pieces of source and target text simultaneously (memoQ-style) 🎉 **[Blog Feature #1]**
+- ✅ **Mouse-based dual selection** - Light blue for source, light green for target
+- ✅ **Keyboard-based dual selection** - Tab to switch focus, Ctrl+Shift+Arrows to extend selection
+- ✅ **Bidirectional selection** - Works forward and backward with cursor memory
+- ✅ **Column management** - Show/hide specific columns (View → Grid Columns...)
+- ✅ **Formatting display** - Bold/italic/underline tags rendered visually in Grid View
+- ✅ **Optional style colors** - Toggle style-based font colors (View → Toggle Style Colors)
+- ✅ **Improved navigation** - Shows segment type (Para, Table, Heading 1, etc.)
+- ✅ **Streamlined editing** - Double-click target to edit directly, removed old popups
 
 **Core Features**:
 - ✅ DOCX import/export with full formatting preservation
 - ✅ Table support with cell-by-cell translation
 - ✅ Style visibility and preservation (Heading 1-3, Title, Subtitle, etc.)
-- ✅ Inline formatting tags (bold, italic, underline)
+- ✅ Inline formatting tags (bold, italic, underline) with visual rendering
 - ✅ Three view modes (Grid, List, Document) with seamless switching
 - ✅ Document View shows translations in natural document flow
-- ✅ Interactive translation grid with status tracking
+- ✅ Interactive translation grid with dual text selection
 - ✅ Advanced filtering system with precise highlighting
 - ✅ Find/Replace, project save/load
 - ✅ Bilingual and TSV export options
+- ✅ Column visibility management
+- ✅ Optional style color display
+
+**Implementing Blog Features**:
+- ✅ Feature #1: Dual text selection in grid (memoQ-style)
+- 🔄 Feature #2: Quick termbase management (planned)
+- 🔄 Feature #3: Document preview pane (planned)
+- 🔄 Feature #4: Bilingual table import/export with tracking (planned)
+- ✅ Feature #5: Fast, responsive actions (optimized grid rendering)
+- 🔄 Feature #6: Sentence/paragraph segmentation switching (planned)
 
 **For detailed prototype changelog**, see: `cat_tool_prototype/CHANGELOG.md`
 
