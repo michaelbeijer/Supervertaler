@@ -1,0 +1,13 @@
+- **aLLMende** (https://www.proz.com/forum/cafetran_support/374570-allmende_automated_imitation.html)
+- **Bohemicus CAT editor** (https://www.youtube.com/watch?si=X_6YsNfjn6Ib6Faq&v=HTIPNOltNbI&feature=youtu.be)
+- **CALT: Context-Aware LLM Translator** (https://github.com/CyrusCKF/translator) (runs locally)
+- **ChatGPT-AutoHotkey-Utility** (https://github.com/kdalanon/ChatGPT-AutoHotkey-Utility)
+- **ConText - Local Secure Translation App** (https://github.com/KazKozDev/ConText) (runs locally)
+- **CotranslatorAI** (https://cotranslatorai.com/)
+- **LLM-AutoHotkey-Assistant** (https://github.com/kdalanon/LLM-AutoHotkey-Assistant)
+- **openai_translation** (https://github.com/gasparl/openai_translation?utm_source=chatgpt.com)
+- **openai-translator** (https://github.com/openai-translator/openai-translator)
+- **toLLMatch🔪** Context-aware LLM-based simultaneous translation (https://github.com/RomanKoshkin/toLLMatch)
+- **Supervertaler (by Michael Beijer)** (https://github.com/michaelbeijer/Supervertaler/)
+
+If you can think of any more, let me know @ info@michaelbeijer.co.uk!
