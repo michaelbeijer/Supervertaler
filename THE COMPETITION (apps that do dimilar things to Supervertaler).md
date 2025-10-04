@@ -2,6 +2,7 @@
 - Bohemicus CAT editor (https://www.youtube.com/watch?si=X_6YsNfjn6Ib6Faq&v=HTIPNOltNbI&feature=youtu.be)
 - CALT: Context-Aware LLM Translator (https://github.com/CyrusCKF/translator)(runs locally)
 - ChatGPT-AutoHotkey-Utility (https://github.com/kdalanon/ChatGPT-AutoHotkey-Utility)
+- ConText - Local Secure Translation App (https://github.com/KazKozDev/ConText)
 - CotranslatorAI (https://cotranslatorai.com/)
 - LLM-AutoHotkey-Assistant (https://github.com/kdalanon/LLM-AutoHotkey-Assistant)
 - openai_translation (https://github.com/gasparl/openai_translation?utm_source=chatgpt.com)
