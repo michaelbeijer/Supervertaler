@@ -1,3 +1,5 @@
 - aLLMende (https://www.proz.com/forum/cafetran_support/374570-allmende_automated_imitation.html)
 - Bohemicus CAT editor (https://www.youtube.com/watch?si=X_6YsNfjn6Ib6Faq&v=HTIPNOltNbI&feature=youtu.be)
+- ChatGPT-AutoHotkey-Utility (https://github.com/kdalanon/ChatGPT-AutoHotkey-Utility)
 - CotranslatorAI (https://cotranslatorai.com/)
+- LLM-AutoHotkey-Assistant (https://github.com/kdalanon/LLM-AutoHotkey-Assistant) 
