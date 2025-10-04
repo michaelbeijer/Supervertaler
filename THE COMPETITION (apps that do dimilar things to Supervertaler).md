@@ -8,3 +8,4 @@
 - openai_translation (https://github.com/gasparl/openai_translation?utm_source=chatgpt.com)
 - openai-translator (https://github.com/openai-translator/openai-translator)
 - toLLMatch🔪: Context-aware LLM-based simultaneous translation (https://github.com/RomanKoshkin/toLLMatch)
+- Supervertaler (by Michael Beijer) (https://github.com/michaelbeijer/Supervertaler/)
