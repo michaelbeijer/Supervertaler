@@ -1,3 +1,4 @@
+# SUPERVERTALER'S COMPETITION (apps that do dimilar things)
 - **aLLMende (by Hans Lenting)** (https://www.proz.com/forum/cafetran_support/374570-allmende_automated_imitation.html)
 - **Bohemicus CAT editor** (https://www.youtube.com/watch?si=X_6YsNfjn6Ib6Faq&v=HTIPNOltNbI&feature=youtu.be)
 - **CALT: Context-Aware LLM Translator** (https://github.com/CyrusCKF/translator) (runs locally)
