@@ -11,7 +11,7 @@ Features:
 - Status tracking
 - Progress monitoring
 
-Author: Supervertaler Project
+Author: Supervertaler Project (Michael Beijer + Claude)
 Date: October 1, 2025
 """
 
