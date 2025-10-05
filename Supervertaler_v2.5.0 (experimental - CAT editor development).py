@@ -1005,7 +1005,17 @@ class Supervertaler:
         tk.Label(header_frame, text="Translation Workspace", font=('Segoe UI', 10, 'bold'),
                 bg='#e0e0e0').pack(side='left', padx=10, pady=5)
         
-        # Layout mode button
+        # Toolbar buttons (middle section)
+        toolbar_frame = tk.Frame(header_frame, bg='#e0e0e0')
+        toolbar_frame.pack(side='left', padx=20, pady=2)
+        
+        tk.Button(toolbar_frame, text="🧪 Preview Prompt", 
+                 command=self.preview_combined_prompt,
+                 font=('Segoe UI', 8), bg='#2196F3', fg='white',
+                 relief='raised', padx=8, pady=2,
+                 cursor='hand2').pack(side='left', padx=2)
+        
+        # Layout mode button (right side)
         self.assist_layout_btn = tk.Button(header_frame, text="⊞ Stacked View",
                                           command=self.toggle_assistance_layout,
                                           font=('Segoe UI', 8), bg='#4CAF50', fg='white',
@@ -1593,9 +1603,10 @@ class Supervertaler:
         tk.Button(button_frame, text="🔄 Reload Template", 
                  command=self.reload_default_instructions,
                  bg='#9E9E9E', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
-        tk.Button(button_frame, text="🧪 Test with Current Segment", 
-                 command=self.test_custom_instructions,
-                 bg='#2196F3', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
+        
+        # Hint about global preview button
+        tk.Label(button_frame, text="💡 Use '🧪 Preview Prompt' button in workspace header to test",
+                font=('Segoe UI', 8), fg='#666').pack(side='right', padx=10)
     
     def save_custom_instructions(self):
         """Save custom instructions to project"""
@@ -1722,6 +1733,108 @@ class Supervertaler:
         text.config(state='disabled')
         
         tk.Button(dialog, text="Close", command=dialog.destroy).pack(pady=5)
+    
+    def preview_combined_prompt(self):
+        """Preview the complete combined prompt (system + custom instructions) with current segment"""
+        # Check if there's a current segment
+        if not self.current_segment:
+            messagebox.showinfo("No Segment Selected", 
+                              "Please select a segment to preview the prompt.\n\n"
+                              "The preview will show how the system prompt and custom instructions "
+                              "are combined for the current segment.")
+            return
+        
+        # Build the complete prompt
+        prompt = self.current_translate_prompt
+        prompt = prompt.replace("{{SOURCE_LANGUAGE}}", self.source_language)
+        prompt = prompt.replace("{{TARGET_LANGUAGE}}", self.target_language)
+        prompt = prompt.replace("{{SOURCE_TEXT}}", self.current_segment.source)
+        
+        # Add custom instructions if provided
+        custom_instructions = self.custom_instructions_text.get('1.0', tk.END).strip()
+        if custom_instructions and custom_instructions != "# Custom Translation Instructions for This Project":
+            prompt += "\n\n**SPECIAL INSTRUCTIONS FOR THIS PROJECT:**\n" + custom_instructions
+        
+        # Show preview dialog
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Complete Prompt Preview - What AI Will Receive")
+        dialog.geometry("800x600")
+        dialog.transient(self.root)
+        
+        # Header
+        header_frame = tk.Frame(dialog, bg='#2196F3', height=60)
+        header_frame.pack(fill='x')
+        header_frame.pack_propagate(False)
+        
+        tk.Label(header_frame, 
+                text="🧪 Complete Prompt Preview",
+                font=('Segoe UI', 14, 'bold'), bg='#2196F3', fg='white').pack(pady=5)
+        tk.Label(header_frame,
+                text=f"{self.source_language} → {self.target_language} | Segment #{self.current_segment.id}",
+                font=('Segoe UI', 9), bg='#2196F3', fg='white').pack()
+        
+        # Info panel
+        info_frame = tk.Frame(dialog, bg='#e3f2fd')
+        info_frame.pack(fill='x', padx=10, pady=5)
+        
+        tk.Label(info_frame, text="💡 This is the EXACT prompt that will be sent to the AI",
+                font=('Segoe UI', 9, 'bold'), bg='#e3f2fd').pack(anchor='w', padx=10, pady=5)
+        
+        # Composition breakdown
+        composition_text = "📋 Composition:\n"
+        composition_text += f"  • System Prompt (Translation): {len(self.current_translate_prompt)} characters\n"
+        if custom_instructions and custom_instructions != "# Custom Translation Instructions for This Project":
+            composition_text += f"  • Custom Instructions: {len(custom_instructions)} characters\n"
+        composition_text += f"  • Total prompt length: {len(prompt)} characters"
+        
+        tk.Label(info_frame, text=composition_text,
+                font=('Segoe UI', 8), bg='#e3f2fd', fg='#666', justify='left').pack(anchor='w', padx=20, pady=(0, 5))
+        
+        # Prompt text area
+        text_frame = tk.Frame(dialog)
+        text_frame.pack(fill='both', expand=True, padx=10, pady=5)
+        
+        scrollbar = tk.Scrollbar(text_frame)
+        scrollbar.pack(side='right', fill='y')
+        
+        text = tk.Text(text_frame, wrap='word', font=('Consolas', 9),
+                      yscrollcommand=scrollbar.set, bg='#f5f5f5')
+        text.pack(fill='both', expand=True)
+        scrollbar.config(command=text.yview)
+        
+        # Insert prompt with highlighting
+        text.insert('1.0', prompt)
+        
+        # Highlight the source text section
+        start_idx = prompt.find(self.current_segment.source)
+        if start_idx != -1:
+            start_line = prompt[:start_idx].count('\n') + 1
+            start_col = start_idx - prompt[:start_idx].rfind('\n') - 1
+            end_idx = start_idx + len(self.current_segment.source)
+            end_line = prompt[:end_idx].count('\n') + 1
+            end_col = end_idx - prompt[:end_idx].rfind('\n') - 1
+            
+            text.tag_add("source", f"{start_line}.{start_col}", f"{end_line}.{end_col}")
+            text.tag_config("source", background="#fff9c4", font=('Consolas', 9, 'bold'))
+        
+        text.config(state='disabled')
+        
+        # Button frame
+        btn_frame = tk.Frame(dialog)
+        btn_frame.pack(fill='x', padx=10, pady=10)
+        
+        tk.Button(btn_frame, text="📋 Copy to Clipboard", 
+                 command=lambda: self.copy_to_clipboard(prompt),
+                 bg='#4CAF50', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=5)
+        tk.Button(btn_frame, text="Close", command=dialog.destroy,
+                 bg='#757575', fg='white', font=('Segoe UI', 9)).pack(side='right', padx=5)
+    
+    def copy_to_clipboard(self, text):
+        """Copy text to clipboard"""
+        self.root.clipboard_clear()
+        self.root.clipboard_append(text)
+        self.log("✓ Copied to clipboard")
+        messagebox.showinfo("Copied", "Prompt copied to clipboard!")
     
     def create_context_tab(self, parent):
         """DEPRECATED: Old Context tab - kept for backward compatibility but not used"""
