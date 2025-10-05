@@ -3,7 +3,7 @@
 
 🎯 **Context-aware, LLM-powered translation & proofreading tool, leveraging multiple context sources for enhanced accuracy (built for translators)** - Revolutionary approach to document translation that leverages multiple context sources for unparalleled accuracy.
 
-**Note**: A standalone CAT (Computer-Aided Translation) editor prototype is under active development in the *cat_tool_prototype/* folder. **Latest: v0.4.2** with dual text selection (memoQ-style), column management, formatting display, and three professional view modes (Grid, List, Document). We're implementing features from [michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool](https://michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool). See `cat_tool_prototype/README.md` for details..
+**Note**: A standalone CAT (Computer-Aided Translation) editor prototype is under active development in the *cat_tool_prototype/* folder. **Latest: v0.4.2** with dual text selection (memoQ-style), column management, formatting display, and three professional view modes (Grid, List, Document). We're implementing features from [michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool](https://michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool). See `cat_tool_prototype/README.md` for details.
 
 ## 🔧 CAT Tool Integration
 
