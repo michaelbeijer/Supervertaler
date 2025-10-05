@@ -4,6 +4,7 @@
 - **ChatGPT-AutoHotkey-Utility** (https://github.com/kdalanon/ChatGPT-AutoHotkey-Utility)
 - **ConText - Local Secure Translation App** (https://github.com/KazKozDev/ConText) (runs locally)
 - **CotranslatorAI** (https://cotranslatorai.com/)
+- **DeepContextual-Translate** (https://github.com/RUIJIESHI0917/DeepContextual-Translate/tree/main)
 - **LLM-AutoHotkey-Assistant** (https://github.com/kdalanon/LLM-AutoHotkey-Assistant)
 - **openai_translation** (https://github.com/gasparl/openai_translation?utm_source=chatgpt.com)
 - **openai-translator** (https://github.com/openai-translator/openai-translator)
