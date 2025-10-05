@@ -5024,10 +5024,10 @@ class CATEditorPrototype:
                 "Unsaved Changes",
                 "Save current project before loading?"
             )
-            if response is True:
-                self.save_project()
-            elif response is None:
+            if response is None:
                 return
+            elif response is True:
+                self.save_project()
         
         file_path = filedialog.askopenfilename(
             title="Open Project",
@@ -5100,10 +5100,10 @@ class CATEditorPrototype:
                 "Unsaved Changes",
                 "Save current project before closing?"
             )
-            if response is True:
-                self.save_project()
-            elif response is None:
+            if response is None:
                 return
+            elif response is True:
+                self.save_project()
         
         # Clear all data
         self.segments = []
