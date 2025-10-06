@@ -1,11 +1,24 @@
 # Supervertaler
-# Supervertaler
 
-**Version 2.5.0 (In Development)** - AI-Powered Translation Tool with Advanced CAT Features
+**AI-Powered Translation Tool with Advanced CAT Features**
 
-> **Note**: Two versions are maintained:
-> - `Supervertaler_v2.4.0 (stable - production ready).py` - Tested and stable for production use
-> - `Supervertaler_v2.5.0 (experimental - CAT editor development).py` - Active development with new features
+## 📦 Available Versions
+
+### v2.4.0 (Stable - Production Ready) ✅
+**File**: `Supervertaler_v2.4.0 (stable - production ready).py`
+- ✅ Fully tested and stable
+- ✅ Complete documentation available
+- ✅ Ready for professional translation work
+- 📖 **User Guide**: [`docs/user_guides/Supervertaler User Guide (v2.4.0).md`](docs/user_guides/Supervertaler%20User%20Guide%20(v2.4.0).md)
+
+### v2.5.0 (Experimental - CAT Editor Development) 🚧
+**File**: `Supervertaler_v2.5.0 (experimental - CAT editor development).py`
+- 🚧 Under active development
+- ⚠️ Features may change without notice
+- 🔬 Testing new CAT editor integration
+- 📖 **Documentation**: Implementation notes in `docs/implementation/` (user guide pending)
+
+> **💡 Recommendation**: Use **v2.4.0** for production translation work. Try **v2.5.0** if you want to explore new features and provide feedback.
 
 🎯 **Context-aware, LLM-powered translation & proofreading tool, leveraging multiple context sources for enhanced accuracy (built for translators)** - Revolutionary approach to document translation that leverages multiple context sources for unparalleled accuracy.
 
@@ -69,7 +82,8 @@ Supervertaler provides two output formats for flexible CAT tool integration:
 
 ## 📖 Documentation
 
-**📋 Complete User Guide**: [`Supervertaler User Guide (v2.3.0).md`](Supervertaler%20User%20Guide%20(v2.3.0).md)
+### For v2.4.0 (Stable) - Production Use
+**📋 Complete User Guide**: [`docs/user_guides/Supervertaler User Guide (v2.4.0).md`](docs/user_guides/Supervertaler%20User%20Guide%20(v2.4.0).md)
 - **5-minute Quick Start**: Get up and running immediately
 - **Complete Feature Documentation**: Comprehensive coverage of all capabilities
 - **Domain-Specific Prompts**: Professional prompt collections for specialized fields
@@ -77,7 +91,18 @@ Supervertaler provides two output formats for flexible CAT tool integration:
 - **Troubleshooting**: Common issues and solutions
 - **Advanced Tips**: Professional workflow optimization
 
+### For v2.5.0 (Experimental) - Development Version
+- **System Prompts Guide**: [`docs/user_guides/SYSTEM_PROMPTS_GUIDE.md`](docs/user_guides/SYSTEM_PROMPTS_GUIDE.md)
+- **Translation Memory Guide**: [`docs/user_guides/TM_USER_GUIDE.md`](docs/user_guides/TM_USER_GUIDE.md)
+- **Translation Workspace**: [`docs/user_guides/TRANSLATION_WORKSPACE_REDESIGN.md`](docs/user_guides/TRANSLATION_WORKSPACE_REDESIGN.md)
+- **Implementation Docs**: See `docs/implementation/` for technical details
+- **⚠️ Note**: Full user guide for v2.5.0 will be created once features stabilize
+
 ## 1. Features Overview
+
+> **📌 Note**: The features below apply to **v2.4.0 (stable)**. For v2.5.0 experimental features, see the [v2.5.0 Features](#v25-experimental-features) section below.
+
+### v2.4.0 Feature Matrix
 
 | Capability | Translate Mode | Proofread Mode |
 |------------|----------------|----------------|
@@ -89,6 +114,22 @@ Supervertaler provides two output formats for flexible CAT tool integration:
 | Output TMX | Yes | No |
 | Custom instructions | Appended to prompt | Appended to prompt |
 | Comments merging | N/A | Original + AI summary (conditional) |
+
+### v2.5.0 Experimental Features
+
+**🚧 Under Development** - The following features are available in v2.5.0 but may change:
+
+- **✅ Translation Memory with Fuzzy Matching**: 75% threshold with difflib.SequenceMatcher
+- **✅ Enhanced Translation Workspace**: 10 organized tabs (Projects, System Prompts, Custom Instructions, MT, LLM, TM, Glossary, Images, Non-trans, Settings)
+- **✅ System Prompts Architecture**: Separate global AI behavior from project-specific instructions
+- **✅ Custom Instructions**: Project-level guidance that extends system prompts
+- **✅ Global Prompt Preview**: Test combined prompts with current segment
+- **✅ TM Manager**: Import/export TMX, delete individual entries
+- **🚧 Context-Aware Translation**: In development
+- **🚧 Batch Translation**: In development
+- **🚧 Prompt Library Integration**: In development
+
+**⚠️ Important**: v2.5.0 is experimental. Features may be incomplete, changed, or removed. Use v2.4.0 for production work.
 
 ---
 
