@@ -8,7 +8,7 @@
 
 This major release transforms Supervertaler from an AI-powered translation assistant into a full-featured CAT (Computer-Aided Translation) tool with integrated AI capabilities. Users can now work directly with DOCX files without requiring external CAT tools like memoQ or Trados.
 
-### ✨ Major New Features
+### ✨ Major New Features 
 
 #### 🔧 CAT Editor Integration
 - **Direct DOCX Import**: Import Word documents directly into Supervertaler
