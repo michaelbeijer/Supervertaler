@@ -58,12 +58,12 @@ except ImportError as e:
 
 # Import our custom modules
 try:
-    from simple_segmenter import SimpleSegmenter
-    from docx_handler import DOCXHandler
-    from tag_manager import TagManager
+    from modules.simple_segmenter import SimpleSegmenter
+    from modules.docx_handler import DOCXHandler
+    from modules.tag_manager import TagManager
 except ImportError:
     print("ERROR: Could not import required modules")
-    print("Make sure simple_segmenter.py, docx_handler.py, and tag_manager.py are in the same folder")
+    print("Make sure the 'modules' folder exists with simple_segmenter.py, docx_handler.py, and tag_manager.py")
     import sys
     sys.exit(1)
 
