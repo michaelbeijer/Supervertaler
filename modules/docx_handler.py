@@ -18,10 +18,13 @@ except ImportError:
 
 # Import tag manager for inline formatting
 try:
-    from tag_manager import TagManager
+    from .tag_manager import TagManager
 except ImportError:
-    print("WARNING: tag_manager not found. Inline formatting will not be preserved.")
-    TagManager = None
+    try:
+        from tag_manager import TagManager
+    except ImportError:
+        print("WARNING: tag_manager not found. Inline formatting will not be preserved.")
+        TagManager = None
 
 
 @dataclass
@@ -206,34 +209,67 @@ class DOCXHandler:
         # Track which paragraphs we've processed
         processed_paras = set()
         
-        # First, process regular paragraphs
+        print(f"[DOCX Export] Starting export with {len(segments)} segments")
+        print(f"[DOCX Export] Paragraph segments grouped into {len(para_segments)} paragraph indices")
+        print(f"[DOCX Export] Document has {len(doc.paragraphs)} paragraphs and {len(doc.tables)} tables")
+        
+        # Build a mapping of paragraph objects in tables
+        table_paras = set()
+        for table in doc.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    for para in cell.paragraphs:
+                        table_paras.add(id(para))
+        
+        print(f"[DOCX Export] Found {len(table_paras)} paragraphs inside tables")
+        
+        # First, process regular paragraphs (excluding those in tables)
         non_empty_para_index = 0
-        for para in doc.paragraphs:
+        for para_idx, para in enumerate(doc.paragraphs):
+            # Skip paragraphs that are inside tables
+            if id(para) in table_paras:
+                print(f"[DOCX Export] Skipping doc.paragraphs[{para_idx}] - it's inside a table")
+                continue
+            
             # Only process non-empty paragraphs (same logic as import)
             if not para.text.strip():
+                print(f"[DOCX Export] Skipping doc.paragraphs[{para_idx}] - empty paragraph")
                 continue
             
             # Check if this paragraph has corresponding segments
             if non_empty_para_index in para_segments:
                 para_info = self._get_para_info(non_empty_para_index)
                 
-                # Skip if this is a table cell (handled separately)
-                if para_info and not para_info.is_table_cell:
-                    # Combine all segments from this paragraph
-                    translations = [s['target'] for s in para_segments[non_empty_para_index] 
-                                  if s['target'].strip()]
+                # Double-check it's not a table cell (should already be filtered)
+                if para_info and para_info.is_table_cell:
+                    print(f"[DOCX Export] ERROR: Para {non_empty_para_index} marked as table cell but found in regular paragraphs!")
+                    non_empty_para_index += 1
+                    continue
+                
+                # Combine all segments from this paragraph
+                translations = [s['target'] for s in para_segments[non_empty_para_index] 
+                              if s['target'].strip()]
+                
+                if translations:
+                    # Join segments back into paragraph (single space, no extra newlines)
+                    new_text = ' '.join(translations)
                     
-                    if translations:
-                        # Join segments back into paragraph (single space, no extra newlines)
-                        new_text = ' '.join(translations)
-                        
-                        # Replace text while preserving formatting AND style
-                        self._replace_paragraph_text(para, new_text, para_info.style)
-                        processed_paras.add(non_empty_para_index)
+                    print(f"[DOCX Export] Para {non_empty_para_index}: Replacing with {len(translations)} segment(s)")
+                    print(f"[DOCX Export]   Original: {para.text[:50]}...")
+                    print(f"[DOCX Export]   New: {new_text[:50]}...")
+                    
+                    # Replace text while preserving formatting AND style
+                    self._replace_paragraph_text(para, new_text, para_info.style if para_info else None)
+                    processed_paras.add(non_empty_para_index)
+                else:
+                    print(f"[DOCX Export] Para {non_empty_para_index}: No translations found")
+            else:
+                print(f"[DOCX Export] Para {non_empty_para_index}: No segments for this paragraph")
             
             non_empty_para_index += 1
         
         # Then, process table cells
+        print(f"[DOCX Export] Processing {len(doc.tables)} tables...")
         for table_idx, table in enumerate(doc.tables):
             for row_idx, row in enumerate(table.rows):
                 for cell_idx, cell in enumerate(row.cells):
@@ -252,9 +288,17 @@ class DOCXHandler:
                             
                             if translations:
                                 new_text = ' '.join(translations)
+                                print(f"[DOCX Export] Table[{table_idx}][{row_idx}][{cell_idx}] Para {para_info.paragraph_index}: Replacing")
+                                print(f"[DOCX Export]   Original: {para.text[:50]}...")
+                                print(f"[DOCX Export]   New: {new_text[:50]}...")
                                 # Table cells can also have styles - preserve them
                                 self._replace_paragraph_text(para, new_text, para_info.style)
                                 processed_paras.add(para_info.paragraph_index)
+                        else:
+                            if para_info:
+                                print(f"[DOCX Export] Table[{table_idx}][{row_idx}][{cell_idx}] Para {para_info.paragraph_index}: No translations")
+                            else:
+                                print(f"[DOCX Export] Table[{table_idx}][{row_idx}][{cell_idx}]: No para_info found")
         
         # Save the document
         doc.save(output_path)

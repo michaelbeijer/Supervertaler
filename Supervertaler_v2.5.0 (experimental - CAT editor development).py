@@ -23,6 +23,10 @@ from tkinter import ttk, filedialog, messagebox, scrolledtext
 import json
 import os
 import re
+import zipfile
+import io
+import base64
+import shutil
 from datetime import datetime
 from typing import List, Dict, Any, Optional, Tuple
 from difflib import SequenceMatcher
@@ -55,6 +59,13 @@ except ImportError as e:
     GEMINI_AVAILABLE = False
     GEMINI_VERSION = "not installed"
     print(f"Note: google-generativeai library not available: {e}")
+
+try:
+    from PIL import Image
+    PIL_AVAILABLE = True
+except ImportError as e:
+    PIL_AVAILABLE = False
+    print(f"Note: PIL/Pillow library not available (image support disabled): {e}")
 
 # Import our custom modules
 try:
@@ -119,6 +130,688 @@ def load_api_keys():
 
 # Load API keys at module level
 API_KEYS = load_api_keys()
+
+
+# --- DOCX Track Changes Parsing Utilities ---
+W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+
+def tag(name: str) -> str:
+    """Create fully qualified XML tag name"""
+    return f"{{{W_NS}}}{name}"
+
+def collect_text(node, mode: str):
+    """
+    Recursively collect visible text from a node.
+    mode='original' -> exclude insertions (<w:ins>), include deletions (<w:del> and <w:delText>)
+    mode='final'    -> include insertions, exclude deletions
+    """
+    parts = []
+    t = node.tag
+
+    if t == tag("ins"):
+        if mode == "final":
+            for child in node:
+                parts.extend(collect_text(child, mode))
+        return parts  # in 'original' we ignore insertions
+
+    if t == tag("del"):
+        if mode == "original":
+            for child in node:
+                parts.extend(collect_text(child, mode))
+        return parts  # in 'final' we ignore deletions
+
+    # Runs and their children
+    if t == tag("r"):
+        for child in node:
+            if child.tag == tag("t"):
+                parts.append(child.text or "")
+            elif child.tag == tag("delText"):
+                if mode == "original":
+                    parts.append(child.text or "")
+            elif child.tag == tag("tab"):
+                parts.append("\t")
+            elif child.tag == tag("br"):
+                parts.append("\n")
+            else:
+                parts.extend(collect_text(child, mode))
+        return parts
+
+    # Plain text nodes
+    if t == tag("t"):
+        parts.append(node.text or "")
+        return parts
+    if t == tag("delText"):
+        if mode == "original":
+            parts.append(node.text or "")
+        return parts
+    if t == tag("tab"):
+        parts.append("\t")
+        return parts
+    if t == tag("br"):
+        parts.append("\n")
+        return parts
+
+    # Generic recursion
+    for child in node:
+        parts.extend(collect_text(child, mode))
+    return parts
+
+def tidy_text(s: str) -> str:
+    """Clean up text by collapsing whitespace"""
+    s = re.sub(r"[ \t]+\n", "\n", s)
+    s = re.sub(r"\n+", "\n", s)
+    return s.strip()
+
+def parse_docx_pairs(docx_path):
+    """
+    Extract (original_text, final_text) pairs from DOCX file with track changes.
+    Returns list of tuples where text actually changed.
+    """
+    try:
+        with zipfile.ZipFile(docx_path) as z:
+            try:
+                xml = z.read("word/document.xml").decode("utf-8")
+            except KeyError:
+                raise RuntimeError("This file does not contain word/document.xml; is it a valid .docx?")
+
+        root = ET.fromstring(xml)
+        ns = {"w": W_NS}
+
+        rows = []
+        for p in root.findall(".//w:p", ns):
+            original = "".join(collect_text(p, "original"))
+            final = "".join(collect_text(p, "final"))
+            o_clean = tidy_text(original)
+            f_clean = tidy_text(final)
+            if o_clean != f_clean:
+                rows.append((o_clean, f_clean))
+        return rows
+    except Exception as e:
+        raise RuntimeError(f"Error parsing DOCX file: {e}")
+
+def format_tracked_changes_context(tracked_changes_list, max_length=1000):
+    """Format tracked changes for AI context, keeping within token limits"""
+    if not tracked_changes_list:
+        return ""
+    
+    context_parts = ["TRACKED CHANGES REFERENCE (Original→Final editing patterns):"]
+    current_length = len(context_parts[0])
+    
+    for i, (original, final) in enumerate(tracked_changes_list):
+        change_text = f"• \"{original}\" → \"{final}\""
+        if current_length + len(change_text) > max_length:
+            if i > 0:  # Only add if we have at least one example
+                context_parts.append("(Additional examples truncated to save space)")
+            break
+        context_parts.append(change_text)
+        current_length += len(change_text)
+    
+    return "\n".join(context_parts) + "\n"
+
+def pil_image_to_base64_png(img):
+    """Encode a PIL image to base64 PNG (ascii) for Claude/OpenAI data URLs."""
+    try:
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        return base64.b64encode(buf.getvalue()).decode("ascii")
+    except Exception:
+        return None
+
+def normalize_figure_ref(ref_text):
+    """Normalize figure references to match drawing filenames"""
+    if not ref_text:
+        return None
+    match = re.search(r"(?:figure|figuur|fig\.?)\s*([\w\d]+(?:[\s\.\-]*[\w\d]+)?)", ref_text, re.IGNORECASE)
+    if match:
+        identifier = match.group(1)
+        return re.sub(r"[\s\.\-]", "", identifier).lower()
+    base_name = os.path.splitext(ref_text)[0]
+    cleaned_base = re.sub(r"(?:figure|figuur|fig\.?)\s*", "", base_name, flags=re.IGNORECASE)
+    normalized = re.sub(r"[\s\.\-]", "", cleaned_base).lower()
+    if normalized:
+        return normalized
+    return None
+
+def get_simple_lang_code(lang_name_or_code_input):
+    """Convert language name to simple 2-letter code"""
+    if not lang_name_or_code_input:
+        return ""
+    lang_lower = lang_name_or_code_input.strip().lower()
+    lang_map = {
+        "english": "en", "dutch": "nl", "german": "de", "french": "fr",
+        "spanish": "es", "italian": "it", "japanese": "ja", "chinese": "zh",
+        "russian": "ru", "portuguese": "pt",
+    }
+    if lang_lower in lang_map:
+        return lang_map[lang_lower]
+    base_code = lang_lower.split('-')[0].split('_')[0]
+    if len(base_code) == 2:
+        return base_code
+    return lang_lower[:2]
+
+
+# --- Tracked Changes Agent ---
+class TrackedChangesAgent:
+    """
+    Manages tracked changes from DOCX files or TSV files.
+    Provides AI with examples of preferred editing patterns to learn translator style.
+    """
+    def __init__(self, log_callback=None):
+        self.change_data = []  # List of (original_text, final_text) tuples
+        self.files_loaded = []  # Track which files have been loaded
+        self.log_callback = log_callback or print
+    
+    def log(self, message):
+        """Log a message"""
+        if callable(self.log_callback):
+            self.log_callback(message)
+    
+    def load_docx_changes(self, docx_path):
+        """Load tracked changes from a DOCX file"""
+        if not docx_path:
+            return False
+            
+        self.log(f"[Tracked Changes] Loading changes from: {os.path.basename(docx_path)}")
+        
+        try:
+            new_changes = parse_docx_pairs(docx_path)
+            
+            # Add to existing changes
+            self.change_data.extend(new_changes)
+            self.files_loaded.append(os.path.basename(docx_path))
+            
+            self.log(f"[Tracked Changes] Loaded {len(new_changes)} change pairs from {os.path.basename(docx_path)}")
+            self.log(f"[Tracked Changes] Total change pairs available: {len(self.change_data)}")
+            
+            return True
+        except Exception as e:
+            self.log(f"[Tracked Changes] Error loading {docx_path}: {e}")
+            messagebox.showerror("Tracked Changes Error", 
+                               f"Failed to load tracked changes from {os.path.basename(docx_path)}:\\n{e}")
+            return False
+    
+    def load_tsv_changes(self, tsv_path):
+        """Load tracked changes from a TSV file (original_text<tab>final_text format)"""
+        if not tsv_path:
+            return False
+            
+        self.log(f"[Tracked Changes] Loading changes from: {os.path.basename(tsv_path)}")
+        
+        try:
+            new_changes = []
+            with open(tsv_path, 'r', encoding='utf-8') as f:
+                for line_num, line in enumerate(f, 1):
+                    line = line.rstrip('\n\r')
+                    if not line.strip():
+                        continue
+                    
+                    # Skip header line if it looks like one
+                    if line_num == 1 and ('original' in line.lower() and 'final' in line.lower()):
+                        continue
+                    
+                    parts = line.split('\t')
+                    if len(parts) >= 2:
+                        original = parts[0].strip()
+                        final = parts[1].strip()
+                        if original and final and original != final:  # Only add if actually different
+                            new_changes.append((original, final))
+                    else:
+                        self.log(f"[Tracked Changes] Skipping line {line_num}: insufficient columns")
+            
+            # Add to existing changes
+            self.change_data.extend(new_changes)
+            self.files_loaded.append(os.path.basename(tsv_path))
+            
+            self.log(f"[Tracked Changes] Loaded {len(new_changes)} change pairs from {os.path.basename(tsv_path)}")
+            self.log(f"[Tracked Changes] Total change pairs available: {len(self.change_data)}")
+            
+            return True
+        except Exception as e:
+            self.log(f"[Tracked Changes] Error loading {tsv_path}: {e}")
+            messagebox.showerror("Tracked Changes Error", 
+                               f"Failed to load tracked changes from {os.path.basename(tsv_path)}:\\n{e}")
+            return False
+    
+    def clear_changes(self):
+        """Clear all loaded tracked changes"""
+        self.change_data.clear()
+        self.files_loaded.clear()
+        self.log("[Tracked Changes] All tracked changes cleared")
+    
+    def search_changes(self, search_text, exact_match=False):
+        """Search for changes containing the search text"""
+        if not search_text.strip():
+            return self.change_data
+        
+        search_lower = search_text.lower()
+        results = []
+        
+        for original, final in self.change_data:
+            if exact_match:
+                if search_text == original or search_text == final:
+                    results.append((original, final))
+            else:
+                if (search_lower in original.lower() or 
+                    search_lower in final.lower()):
+                    results.append((original, final))
+        
+        return results
+
+    def find_relevant_changes(self, source_segments, max_changes=10):
+        """
+        Find tracked changes relevant to the current source segments being processed.
+        Uses two-pass algorithm: exact matches first, then partial word overlap.
+        """
+        if not self.change_data or not source_segments:
+            return []
+        
+        relevant_changes = []
+        
+        # First pass: exact matches
+        for segment in source_segments:
+            segment_lower = segment.lower().strip()
+            for original, final in self.change_data:
+                original_lower = original.lower().strip()
+                if segment_lower == original_lower and (original, final) not in relevant_changes:
+                    relevant_changes.append((original, final))
+                    if len(relevant_changes) >= max_changes:
+                        return relevant_changes
+        
+        # Second pass: partial matches (word overlap)
+        if len(relevant_changes) < max_changes:
+            for segment in source_segments:
+                segment_words = set(word.lower() for word in segment.split() if len(word) > 3)
+                for original, final in self.change_data:
+                    if (original, final) in relevant_changes:
+                        continue
+                    
+                    original_words = set(word.lower() for word in original.split() if len(word) > 3)
+                    # Check if there's significant word overlap
+                    if segment_words and original_words:
+                        overlap = len(segment_words.intersection(original_words))
+                        min_overlap = min(2, len(segment_words) // 2)
+                        if overlap >= min_overlap:
+                            relevant_changes.append((original, final))
+                            if len(relevant_changes) >= max_changes:
+                                return relevant_changes
+        
+        return relevant_changes
+    
+    def get_entry_count(self):
+        """Get number of loaded change pairs"""
+        return len(self.change_data)
+
+
+# --- TMX Generator Class ---
+class TMXGenerator:
+    """Helper class for generating TMX (Translation Memory eXchange) files"""
+    
+    def __init__(self, log_callback=None):
+        self.log = log_callback if log_callback else lambda msg: None
+    
+    def generate_tmx(self, source_segments, target_segments, source_lang, target_lang):
+        """Generate TMX content from parallel segments"""
+        # Basic TMX structure
+        tmx = ET.Element('tmx')
+        tmx.set('version', '1.4')
+        
+        header = ET.SubElement(tmx, 'header')
+        header.set('creationdate', datetime.now().strftime('%Y%m%dT%H%M%SZ'))
+        header.set('srclang', get_simple_lang_code(source_lang))
+        header.set('adminlang', 'en')
+        header.set('segtype', 'sentence')
+        header.set('creationtool', 'Supervertaler')
+        header.set('creationtoolversion', '2.5.0')
+        header.set('datatype', 'plaintext')
+        
+        body = ET.SubElement(tmx, 'body')
+        
+        # Add translation units
+        added_count = 0
+        for src, tgt in zip(source_segments, target_segments):
+            if not src.strip() or not tgt or '[ERR' in str(tgt) or '[Missing' in str(tgt):
+                continue
+                
+            tu = ET.SubElement(body, 'tu')
+            
+            # Source segment
+            tuv_src = ET.SubElement(tu, 'tuv')
+            tuv_src.set('xml:lang', get_simple_lang_code(source_lang))
+            seg_src = ET.SubElement(tuv_src, 'seg')
+            seg_src.text = src.strip()
+            
+            # Target segment
+            tuv_tgt = ET.SubElement(tu, 'tuv')
+            tuv_tgt.set('xml:lang', get_simple_lang_code(target_lang))
+            seg_tgt = ET.SubElement(tuv_tgt, 'seg')
+            seg_tgt.text = str(tgt).strip()
+            
+            added_count += 1
+        
+        self.log(f"[TMX Generator] Created TMX with {added_count} translation units")
+        return ET.ElementTree(tmx)
+    
+    def save_tmx(self, tmx_tree, output_path):
+        """Save TMX tree to file with proper XML formatting"""
+        try:
+            # Pretty print with indentation
+            self._indent(tmx_tree.getroot())
+            tmx_tree.write(output_path, encoding='utf-8', xml_declaration=True)
+            self.log(f"[TMX Generator] Saved TMX file: {output_path}")
+            return True
+        except Exception as e:
+            self.log(f"[TMX Generator] Error saving TMX: {e}")
+            return False
+    
+    def _indent(self, elem, level=0):
+        """Add indentation to XML for pretty printing"""
+        i = "\n" + level * "  "
+        if len(elem):
+            if not elem.text or not elem.text.strip():
+                elem.text = i + "  "
+            if not elem.tail or not elem.tail.strip():
+                elem.tail = i
+            for child in elem:
+                self._indent(child, level + 1)
+            if not child.tail or not child.tail.strip():
+                child.tail = i
+        else:
+            if level and (not elem.tail or not elem.tail.strip()):
+                elem.tail = i
+
+
+# --- Prompt Library Manager ---
+class PromptLibrary:
+    """
+    Manages custom translation prompts with domain-specific expertise.
+    Loads JSON prompt files from custom_prompts and custom_prompts_private folders.
+    """
+    def __init__(self, custom_prompts_dir, log_callback=None):
+        self.custom_prompts_dir = custom_prompts_dir
+        self.private_prompts_dir = os.path.join(os.path.dirname(custom_prompts_dir), "custom_prompts_private")
+        self.log = log_callback if log_callback else print
+        
+        # Create directories if they don't exist
+        os.makedirs(self.custom_prompts_dir, exist_ok=True)
+        os.makedirs(self.private_prompts_dir, exist_ok=True)
+        
+        # Available prompts: {filename: prompt_data}
+        self.prompts = {}
+        self.active_prompt = None  # Currently selected prompt
+        self.active_prompt_name = None
+        
+    def load_all_prompts(self):
+        """Load all custom prompts from both public and private directories"""
+        self.prompts = {}
+        
+        # Load from public directory
+        public_count = self._load_from_directory(self.custom_prompts_dir, is_private=False)
+        
+        # Load from private directory
+        private_count = self._load_from_directory(self.private_prompts_dir, is_private=True)
+        
+        total = public_count + private_count
+        self.log(f"✓ Loaded {total} custom prompts ({public_count} public, {private_count} private)")
+        return total
+    
+    def _load_from_directory(self, directory, is_private=False):
+        """Load prompts from a specific directory"""
+        count = 0
+        
+        if not os.path.exists(directory):
+            return count
+        
+        for filename in os.listdir(directory):
+            if not filename.endswith('.json'):
+                continue
+            
+            filepath = os.path.join(directory, filename)
+            try:
+                with open(filepath, 'r', encoding='utf-8') as f:
+                    prompt_data = json.load(f)
+                    
+                    # Add metadata
+                    prompt_data['_filename'] = filename
+                    prompt_data['_filepath'] = filepath
+                    prompt_data['_is_private'] = is_private
+                    
+                    # Validate required fields
+                    if 'name' not in prompt_data or 'translate_prompt' not in prompt_data:
+                        self.log(f"⚠ Skipping {filename}: missing required fields (name, translate_prompt)")
+                        continue
+                    
+                    self.prompts[filename] = prompt_data
+                    count += 1
+                    
+            except Exception as e:
+                self.log(f"⚠ Failed to load {filename}: {e}")
+                
+        return count
+    
+    def get_prompt_list(self):
+        """Get list of available prompts with metadata"""
+        prompt_list = []
+        for filename, data in sorted(self.prompts.items()):
+            prompt_list.append({
+                'filename': filename,
+                'name': data.get('name', 'Unnamed'),
+                'description': data.get('description', ''),
+                'domain': data.get('domain', 'General'),
+                'version': data.get('version', '1.0'),
+                'is_private': data.get('_is_private', False),
+                'filepath': data.get('_filepath', '')
+            })
+        return prompt_list
+    
+    def get_prompt(self, filename):
+        """Get full prompt data by filename"""
+        return self.prompts.get(filename)
+    
+    def set_active_prompt(self, filename):
+        """Set the active custom prompt"""
+        if filename not in self.prompts:
+            self.log(f"✗ Prompt not found: {filename}")
+            return False
+        
+        self.active_prompt = self.prompts[filename]
+        self.active_prompt_name = self.active_prompt.get('name', filename)
+        self.log(f"✓ Active prompt: {self.active_prompt_name}")
+        return True
+    
+    def clear_active_prompt(self):
+        """Clear active prompt (use default)"""
+        self.active_prompt = None
+        self.active_prompt_name = None
+        self.log("✓ Using default translation prompt")
+    
+    def get_translate_prompt(self):
+        """Get the translate_prompt from active prompt, or None if using default"""
+        if self.active_prompt:
+            return self.active_prompt.get('translate_prompt')
+        return None
+    
+    def get_proofread_prompt(self):
+        """Get the proofread_prompt from active prompt, or None if using default"""
+        if self.active_prompt:
+            return self.active_prompt.get('proofread_prompt')
+        return None
+    
+    def search_prompts(self, search_text):
+        """Search prompts by name, description, or domain"""
+        if not search_text:
+            return self.get_prompt_list()
+        
+        search_lower = search_text.lower()
+        results = []
+        
+        for filename, data in sorted(self.prompts.items()):
+            name = data.get('name', '').lower()
+            desc = data.get('description', '').lower()
+            domain = data.get('domain', '').lower()
+            
+            if search_lower in name or search_lower in desc or search_lower in domain:
+                results.append({
+                    'filename': filename,
+                    'name': data.get('name', 'Unnamed'),
+                    'description': data.get('description', ''),
+                    'domain': data.get('domain', 'General'),
+                    'version': data.get('version', '1.0'),
+                    'is_private': data.get('_is_private', False),
+                    'filepath': data.get('_filepath', '')
+                })
+        
+        return results
+    
+    def create_new_prompt(self, name, description, domain, translate_prompt, proofread_prompt="", 
+                         version="1.0", is_private=False):
+        """Create a new custom prompt and save to JSON"""
+        # Create filename from name
+        filename = name.replace(' ', '_').replace('/', '_') + '.json'
+        
+        # Choose directory
+        directory = self.private_prompts_dir if is_private else self.custom_prompts_dir
+        filepath = os.path.join(directory, filename)
+        
+        # Create prompt data
+        prompt_data = {
+            'name': name,
+            'description': description,
+            'domain': domain,
+            'version': version,
+            'created': datetime.now().strftime('%Y-%m-%d'),
+            'translate_prompt': translate_prompt,
+            'proofread_prompt': proofread_prompt
+        }
+        
+        # Save to file
+        try:
+            with open(filepath, 'w', encoding='utf-8') as f:
+                json.dump(prompt_data, f, indent=2, ensure_ascii=False)
+            
+            # Add to loaded prompts
+            prompt_data['_filename'] = filename
+            prompt_data['_filepath'] = filepath
+            prompt_data['_is_private'] = is_private
+            self.prompts[filename] = prompt_data
+            
+            self.log(f"✓ Created new prompt: {name}")
+            return True
+            
+        except Exception as e:
+            self.log(f"✗ Failed to create prompt: {e}")
+            messagebox.showerror("Save Error", f"Failed to save prompt:\n{e}")
+            return False
+    
+    def update_prompt(self, filename, name, description, domain, translate_prompt, 
+                     proofread_prompt="", version="1.0"):
+        """Update an existing prompt"""
+        if filename not in self.prompts:
+            self.log(f"✗ Prompt not found: {filename}")
+            return False
+        
+        filepath = self.prompts[filename]['_filepath']
+        is_private = self.prompts[filename]['_is_private']
+        
+        # Update prompt data
+        prompt_data = {
+            'name': name,
+            'description': description,
+            'domain': domain,
+            'version': version,
+            'created': self.prompts[filename].get('created', datetime.now().strftime('%Y-%m-%d')),
+            'modified': datetime.now().strftime('%Y-%m-%d'),
+            'translate_prompt': translate_prompt,
+            'proofread_prompt': proofread_prompt
+        }
+        
+        # Save to file
+        try:
+            with open(filepath, 'w', encoding='utf-8') as f:
+                json.dump(prompt_data, f, indent=2, ensure_ascii=False)
+            
+            # Update loaded prompts
+            prompt_data['_filename'] = filename
+            prompt_data['_filepath'] = filepath
+            prompt_data['_is_private'] = is_private
+            self.prompts[filename] = prompt_data
+            
+            self.log(f"✓ Updated prompt: {name}")
+            return True
+            
+        except Exception as e:
+            self.log(f"✗ Failed to update prompt: {e}")
+            messagebox.showerror("Save Error", f"Failed to update prompt:\n{e}")
+            return False
+    
+    def delete_prompt(self, filename):
+        """Delete a custom prompt"""
+        if filename not in self.prompts:
+            return False
+        
+        filepath = self.prompts[filename]['_filepath']
+        prompt_name = self.prompts[filename].get('name', filename)
+        
+        try:
+            os.remove(filepath)
+            del self.prompts[filename]
+            
+            # Clear active if this was active
+            if self.active_prompt and self.active_prompt.get('_filename') == filename:
+                self.clear_active_prompt()
+            
+            self.log(f"✓ Deleted prompt: {prompt_name}")
+            return True
+            
+        except Exception as e:
+            self.log(f"✗ Failed to delete prompt: {e}")
+            messagebox.showerror("Delete Error", f"Failed to delete prompt:\n{e}")
+            return False
+    
+    def export_prompt(self, filename, export_path):
+        """Export a prompt to a specific location"""
+        if filename not in self.prompts:
+            return False
+        
+        try:
+            source = self.prompts[filename]['_filepath']
+            shutil.copy2(source, export_path)
+            self.log(f"✓ Exported prompt to: {export_path}")
+            return True
+        except Exception as e:
+            self.log(f"✗ Export failed: {e}")
+            return False
+    
+    def import_prompt(self, import_path, is_private=False):
+        """Import a prompt from an external file"""
+        try:
+            with open(import_path, 'r', encoding='utf-8') as f:
+                prompt_data = json.load(f)
+            
+            # Validate
+            if 'name' not in prompt_data or 'translate_prompt' not in prompt_data:
+                messagebox.showerror("Invalid Prompt", "Missing required fields: name, translate_prompt")
+                return False
+            
+            # Copy to appropriate directory
+            filename = os.path.basename(import_path)
+            directory = self.private_prompts_dir if is_private else self.custom_prompts_dir
+            dest_path = os.path.join(directory, filename)
+            
+            shutil.copy2(import_path, dest_path)
+            
+            # Add metadata and load
+            prompt_data['_filename'] = filename
+            prompt_data['_filepath'] = dest_path
+            prompt_data['_is_private'] = is_private
+            self.prompts[filename] = prompt_data
+            
+            self.log(f"✓ Imported prompt: {prompt_data['name']}")
+            return True
+            
+        except Exception as e:
+            self.log(f"✗ Import failed: {e}")
+            messagebox.showerror("Import Error", f"Failed to import prompt:\n{e}")
+            return False
 
 
 # --- Translation Memory Agent ---
@@ -259,7 +952,7 @@ class TMAgent:
         return len(self.tm_data)
 
 
-# Model definitions
+# Model definitions (fallbacks if API fetch fails)
 GEMINI_MODELS = [
     "gemini-2.5-pro-preview-05-06",
     "gemini-2.5-flash-preview-05-06",
@@ -279,6 +972,65 @@ OPENAI_MODELS = [
     "gpt-4-turbo",
     "gpt-4"
 ]
+
+
+def fetch_available_models(provider: str, api_key: str) -> List[str]:
+    """Fetch available models from API provider.
+    
+    Args:
+        provider: 'openai', 'claude', or 'gemini'
+        api_key: API key for the provider
+        
+    Returns:
+        List of available model names, or fallback list if fetch fails
+    """
+    if not api_key or not api_key.strip():
+        return []
+    
+    try:
+        if provider == "openai" and OPENAI_AVAILABLE:
+            client = openai.OpenAI(api_key=api_key)
+            models_response = client.models.list()
+            available_models = [model.id for model in models_response.data]
+            # Filter for chat models only
+            chat_models = [m for m in available_models if 'gpt' in m.lower()]
+            # Sort by preference (4o, 4o-mini, 4-turbo, etc.)
+            preferred_order = ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo']
+            sorted_models = []
+            for pref in preferred_order:
+                matching = [m for m in chat_models if m.startswith(pref)]
+                sorted_models.extend(sorted(matching, reverse=True))
+            # Add any remaining models
+            remaining = [m for m in chat_models if m not in sorted_models]
+            sorted_models.extend(sorted(remaining, reverse=True))
+            return sorted_models if sorted_models else OPENAI_MODELS
+            
+        elif provider == "claude" and ANTHROPIC_AVAILABLE:
+            # Anthropic doesn't have a models.list() endpoint
+            # Return known models
+            return CLAUDE_MODELS
+            
+        elif provider == "gemini" and GEMINI_AVAILABLE:
+            genai.configure(api_key=api_key)
+            models_response = genai.list_models()
+            available_models = []
+            for model in models_response:
+                if 'generateContent' in model.supported_generation_methods:
+                    model_name = model.name.replace('models/', '')
+                    available_models.append(model_name)
+            return available_models if available_models else GEMINI_MODELS
+            
+    except Exception as e:
+        print(f"Warning: Could not fetch models for {provider}: {e}")
+        # Return fallback models
+        if provider == "openai":
+            return OPENAI_MODELS
+        elif provider == "claude":
+            return CLAUDE_MODELS
+        elif provider == "gemini":
+            return GEMINI_MODELS
+    
+    return []
 
 
 class LayoutMode:
@@ -380,17 +1132,54 @@ class Supervertaler:
         self.source_language = "English"
         self.target_language = "Dutch"
         
-        # Translation prompts (detailed versions from v2.4.0)
-        self.default_translate_prompt = (
-            "You are an expert {{SOURCE_LANGUAGE}} to {{TARGET_LANGUAGE}} translator with deep understanding of context and nuance. "
-            "The full document context is provided in 'FULL DOCUMENT CONTEXT' below for reference. "
-            "Translate ONLY the sentences from 'SENTENCES TO TRANSLATE' later, maintaining their original line numbers.\n\n"
-            "If a sentence refers to figures, images, or diagrams (e.g., 'Figure 1A', 'Chart 2', 'Diagram B'), relevant images may be provided just before that sentence. "
-            "Use these visual elements as crucial context for accurately translating references to parts, features, relationships, or data shown in those figures.\n\n"
-            "Present your output ONLY as a numbered list of translations for the requested sentences, using their original numbering. "
-            "Maintain accuracy, appropriate terminology for the document type, and natural fluency in the target language.\n\n"
+        # Translation prompts - context-aware for different modes
+        # Single segment translation (Ctrl+T)
+        self.single_segment_prompt = (
+            "You are an expert {{SOURCE_LANGUAGE}} to {{TARGET_LANGUAGE}} translator with deep understanding of context and nuance.\n\n"
+            "**CONTEXT**: Full document context is provided for reference below.\n\n"
+            "**YOUR TASK**: Translate ONLY the text in the 'TEXT TO TRANSLATE' section.\n\n"
+            "**IMPORTANT INSTRUCTIONS**:\n"
+            "- Provide ONLY the translated text\n"
+            "- Do NOT include numbering, labels, or commentary\n"
+            "- Do NOT repeat the source text\n"
+            "- Maintain accuracy and natural fluency\n"
+            "- If the text contains inline formatting tags like <b>, <i>, <u>, preserve them EXACTLY in the same positions relative to the translated words\n"
+            "- Example: '<b>Hello</b> world' → '<b>Hallo</b> wereld' (tags stay with the word they format)\n\n"
+            "If the text refers to figures (e.g., 'Figure 1A'), relevant images may be provided for visual context.\n\n"
             "{{SOURCE_LANGUAGE}} text:\n{{SOURCE_TEXT}}"
         )
+        
+        # Batch DOCX translation
+        self.batch_docx_prompt = (
+            "You are an expert {{SOURCE_LANGUAGE}} to {{TARGET_LANGUAGE}} translator specializing in document translation.\n\n"
+            "**YOUR TASK**: Translate ALL segments below while maintaining document structure and formatting.\n\n"
+            "**IMPORTANT INSTRUCTIONS**:\n"
+            "- Translate each segment completely and accurately\n"
+            "- Preserve paragraph breaks and structure\n"
+            "- Maintain consistent terminology throughout\n"
+            "- Consider document-wide context for accuracy\n"
+            "- Output translations in the same order as source segments\n"
+            "- If segments contain inline formatting tags like <b>, <i>, <u>, preserve them EXACTLY\n"
+            "- Example: '<b>Career</b>' → '<b>Carrière</b>' (keep the tags with the formatted text)\n\n"
+            "{{SOURCE_LANGUAGE}} text:\n{{SOURCE_TEXT}}"
+        )
+        
+        # Batch bilingual (TXT/memoQ export) translation
+        self.batch_bilingual_prompt = (
+            "You are an expert {{SOURCE_LANGUAGE}} to {{TARGET_LANGUAGE}} translator working with a bilingual translation file.\n\n"
+            "**YOUR TASK**: Translate each source segment below.\n\n"
+            "**FILE FORMAT**: This is a bilingual export (e.g., from memoQ) where each segment is numbered.\n\n"
+            "**IMPORTANT INSTRUCTIONS**:\n"
+            "- Translate each numbered segment\n"
+            "- Maintain segment numbering in your output\n"
+            "- Keep translations aligned with source segment numbers\n"
+            "- Preserve any special formatting markers\n"
+            "- Ensure consistency across all segments\n\n"
+            "{{SOURCE_LANGUAGE}} text:\n{{SOURCE_TEXT}}"
+        )
+        
+        # Default translation prompt (backwards compatibility)
+        self.default_translate_prompt = self.single_segment_prompt
         
         self.default_proofread_prompt = (
             "You are an expert proofreader and editor for {{SOURCE_LANGUAGE}} → {{TARGET_LANGUAGE}} translations, skilled in various document types and domains.\n\n"
@@ -415,13 +1204,52 @@ class Supervertaler:
         self.tm_agent = TMAgent()
         self.translation_memory: List[Dict[str, str]] = []  # Deprecated - keeping for backward compatibility
         
+        # Tracked changes agent (learns from editing patterns)
+        self.tracked_changes_agent = TrackedChangesAgent(log_callback=self.log)
+        
+        # Prompt library (custom domain-specific prompts)
+        self.prompt_library = PromptLibrary(self.custom_prompts_dir, log_callback=self.log)
+        
+        # TMX Generator for export
+        self.tmx_generator = TMXGenerator(log_callback=self.log)
+        
+        # Drawings/Images support for multimodal translation
+        self.drawings_images_map = {}  # Normalized figure name -> PIL Image
+        self.drawings_folder = None  # Path to folder containing drawing images
+        
         # Setup UI
         self.setup_ui()
+        
+        # Load prompts after UI is ready (so logging works)
+        self.prompt_library.load_all_prompts()
         
         # Status
         self.log("Supervertaler v2.5.0 ready. Import a DOCX file to begin.")
         self.log(f"✨ LLM APIs: OpenAI={OPENAI_AVAILABLE}, Claude={ANTHROPIC_AVAILABLE}, Gemini={GEMINI_AVAILABLE}")
         self.log("✨ Layout modes available: Grid (memoQ-style), List, Document")
+    
+    def get_context_aware_prompt(self, mode: str = "single") -> str:
+        """Get the appropriate translation prompt based on context.
+        
+        Args:
+            mode: Translation mode - 'single', 'batch_docx', or 'batch_bilingual'
+            
+        Returns:
+            The appropriate prompt template for the given context
+        """
+        # If user has selected a custom prompt, use that
+        if hasattr(self, 'current_translate_prompt') and self.current_translate_prompt != self.single_segment_prompt:
+            return self.current_translate_prompt
+        
+        # Otherwise, select based on mode
+        if mode == "single":
+            return self.single_segment_prompt
+        elif mode == "batch_docx":
+            return self.batch_docx_prompt
+        elif mode == "batch_bilingual":
+            return self.batch_bilingual_prompt
+        else:
+            return self.single_segment_prompt  # Default fallback
     
     def setup_ui(self):
         """Create the user interface"""
@@ -434,6 +1262,7 @@ class Supervertaler:
         file_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="File", menu=file_menu)
         file_menu.add_command(label="Import DOCX...", command=self.import_docx, accelerator="Ctrl+O")
+        file_menu.add_command(label="Import Bilingual TXT...", command=self.import_txt_bilingual)
         file_menu.add_separator()
         file_menu.add_command(label="Save Project", command=self.save_project, accelerator="Ctrl+S")
         file_menu.add_command(label="Save Project As...", command=self.save_project_as)
@@ -442,7 +1271,9 @@ class Supervertaler:
         file_menu.add_separator()
         file_menu.add_command(label="Export to DOCX...", command=self.export_docx)
         file_menu.add_command(label="Export to Bilingual DOCX...", command=self.export_bilingual_docx)
+        file_menu.add_command(label="Export to Bilingual TXT...", command=self.export_txt_bilingual)
         file_menu.add_command(label="Export to TSV...", command=self.export_tsv)
+        file_menu.add_command(label="Export to TMX...", command=self.export_tmx)
         file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self.on_closing)
         
@@ -477,6 +1308,14 @@ class Supervertaler:
         translate_menu.add_separator()
         translate_menu.add_command(label="Translation Memory...", command=self.show_tm_manager)
         translate_menu.add_command(label="Load TM File...", command=self.load_tm_file)
+        translate_menu.add_separator()
+        translate_menu.add_command(label="📝 Load Tracked Changes (DOCX)...", command=self.load_tracked_changes_docx)
+        translate_menu.add_command(label="📝 Load Tracked Changes (TSV)...", command=self.load_tracked_changes_tsv)
+        translate_menu.add_command(label="🔍 Browse Tracked Changes...", command=self.browse_tracked_changes)
+        translate_menu.add_command(label="🗑️ Clear Tracked Changes", command=self.clear_tracked_changes)
+        translate_menu.add_separator()
+        translate_menu.add_command(label="🎨 Load Drawing Images...", command=self.load_drawings)
+        translate_menu.add_command(label="🗑️ Clear Drawings", command=self.clear_drawings)
         translate_menu.add_separator()
         translate_menu.add_command(label="API Settings...", command=self.show_api_settings)
         translate_menu.add_command(label="Custom Prompts...", command=self.show_custom_prompts)
@@ -527,7 +1366,9 @@ class Supervertaler:
         
         tk.Button(self.toolbar, text="📁 Import DOCX", command=self.import_docx,
                  bg='#4CAF50', fg='white', padx=10).pack(side='left', padx=2)
-        tk.Button(self.toolbar, text="💾 Save Project", command=self.save_project,
+        tk.Button(self.toolbar, text="� Import TXT", command=self.import_txt_bilingual,
+                 bg='#8BC34A', fg='white', padx=10).pack(side='left', padx=2)
+        tk.Button(self.toolbar, text="�💾 Save Project", command=self.save_project,
                  bg='#2196F3', fg='white', padx=10).pack(side='left', padx=2)
         tk.Button(self.toolbar, text="📤 Export DOCX", command=self.export_docx,
                  bg='#FF9800', fg='white', padx=10).pack(side='left', padx=2)
@@ -1373,6 +2214,9 @@ class Supervertaler:
         tk.Button(translate_btn_frame, text="👁️ Preview", 
                  command=self.preview_translate_prompt,
                  bg='#2196F3', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
+        tk.Button(translate_btn_frame, text="📚 Browse Prompt Library", 
+                 command=self.show_custom_prompts,
+                 bg='#FF9800', fg='white', font=('Segoe UI', 9, 'bold')).pack(side='right', padx=2)
         
         # === PROOFREADING PROMPT TAB ===
         proofread_frame = tk.Frame(prompts_notebook, bg='white')
@@ -1404,6 +2248,9 @@ class Supervertaler:
         tk.Button(proofread_btn_frame, text="👁️ Preview", 
                  command=self.preview_proofread_prompt,
                  bg='#2196F3', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
+        tk.Button(proofread_btn_frame, text="📚 Browse Prompt Library", 
+                 command=self.show_custom_prompts,
+                 bg='#FF9800', fg='white', font=('Segoe UI', 9, 'bold')).pack(side='right', padx=2)
         
         # Help text
         help_text = tk.Label(parent, 
@@ -1570,6 +2417,23 @@ class Supervertaler:
                      "• Custom Instructions (per-project) define WHAT to focus on\n"
                      "• Both are combined when translating segments",
                 font=('Segoe UI', 8), bg='#e8f5e9', justify='left').pack(anchor='w', padx=20, pady=(0, 5))
+        
+        # Document Context Info
+        context_info_frame = tk.Frame(parent, bg='#e3f2fd', relief='solid', borderwidth=1)
+        context_info_frame.pack(fill='x', padx=5, pady=5)
+        
+        tk.Label(context_info_frame, text="📄 Document Context Status",
+                font=('Segoe UI', 9, 'bold'), bg='#e3f2fd').pack(anchor='w', padx=10, pady=(5, 2))
+        
+        self.context_status_label = tk.Label(context_info_frame, 
+                text="Context: Enabled | 0 segments | 0 characters",
+                font=('Segoe UI', 8), bg='#e3f2fd', fg='#1976D2')
+        self.context_status_label.pack(anchor='w', padx=20, pady=(0, 5))
+        
+        tk.Label(context_info_frame, 
+                text="Full document context is sent to AI for better terminology consistency.\n"
+                     "Toggle in Settings tab if needed.",
+                font=('Segoe UI', 8), bg='#e3f2fd', fg='#666', justify='left').pack(anchor='w', padx=20, pady=(0, 5))
         
         # Instructions text area
         self.custom_instructions_text = scrolledtext.ScrolledText(parent, wrap='word', height=10,
@@ -1940,8 +2804,10 @@ class Supervertaler:
         pref_frame.pack(fill='x', padx=5, pady=5)
         
         self.use_context_var = tk.BooleanVar(value=True)
-        tk.Checkbutton(pref_frame, text="Include surrounding segments as context",
+        tk.Checkbutton(pref_frame, text="Use full document context (recommended for technical/patent documents)",
                       variable=self.use_context_var, font=('Segoe UI', 9)).pack(anchor='w', pady=2)
+        tk.Label(pref_frame, text="  ⓘ Provides AI with entire document for better terminology consistency",
+                font=('Segoe UI', 8), fg='gray').pack(anchor='w', padx=20)
         
         self.check_tm_var = tk.BooleanVar(value=True)
         tk.Checkbutton(pref_frame, text="Check TM before API call",
@@ -4584,13 +5450,13 @@ class Supervertaler:
         
         # Validate tags
         if not text:
-            self.tag_validation_label.config(text="", fg='#666')
+            self.grid_tag_validation_label.config(text="", fg='#666')
         else:
             is_valid, error = self.tag_manager.validate_tags(text)
             if is_valid:
-                self.tag_validation_label.config(text="✓ Tags valid", fg='green')
+                self.grid_tag_validation_label.config(text="✓ Tags valid", fg='green')
             else:
-                self.tag_validation_label.config(text=f"✗ {error}", fg='red')
+                self.grid_tag_validation_label.config(text=f"✗ {error}", fg='red')
         
         # Dynamic row resizing while typing
         if self.current_row_index >= 0 and self.current_row_index < len(self.grid_rows):
@@ -4676,14 +5542,14 @@ class Supervertaler:
         
         text = self.current_edit_widget.get()
         if not text:
-            self.tag_validation_label.config(text="", fg='#666')
+            self.grid_tag_validation_label.config(text="", fg='#666')
             return
         
         is_valid, error = self.tag_manager.validate_tags(text)
         if is_valid:
-            self.tag_validation_label.config(text="✓ Tags valid", fg='green')
+            self.grid_tag_validation_label.config(text="✓ Tags valid", fg='green')
         else:
-            self.tag_validation_label.config(text=f"✗ {error}", fg='red')
+            self.grid_tag_validation_label.config(text=f"✗ {error}", fg='red')
     
     # Dual text selection methods (Grid View)
     
@@ -5293,6 +6159,134 @@ class Supervertaler:
         if popup:
             popup.destroy()
     
+    def import_txt_bilingual(self):
+        """Import bilingual TXT file (memoQ/CAT tool format) or source-only TXT"""
+        file_path = filedialog.askopenfilename(
+            title="Select Bilingual TXT file",
+            filetypes=[("Text Files", "*.txt"), ("TSV Files", "*.tsv"), ("All Files", "*.*")]
+        )
+        
+        if not file_path:
+            return
+        
+        try:
+            self.log(f"Importing text file: {os.path.basename(file_path)}")
+            
+            # Clear existing segments
+            self.segments = []
+            
+            # Detect delimiter (tab or comma)
+            with open(file_path, 'r', encoding='utf-8') as f:
+                first_line = f.readline()
+                
+                # Smart delimiter detection:
+                # - If file has tabs, use tab delimiter
+                # - If file has NO tabs but has commas in EVERY line, assume CSV
+                # - Otherwise, treat as single-column (no delimiter splitting)
+                if '\t' in first_line:
+                    delimiter = '\t'
+                else:
+                    # Check if this looks like a CSV (commas in multiple lines)
+                    f.seek(0)
+                    sample_lines = [f.readline() for _ in range(min(5, sum(1 for _ in f)))]
+                    f.seek(0)
+                    
+                    # Count lines with commas
+                    comma_count = sum(1 for line in sample_lines if ',' in line)
+                    
+                    # If most lines have commas, assume CSV
+                    if comma_count >= len(sample_lines) * 0.8:
+                        delimiter = ','
+                    else:
+                        # Single column file, use a delimiter that won't match
+                        delimiter = '\t'  # Use tab but file won't have any
+                
+                f.seek(0)  # Reset to beginning
+                
+                # Check if first line is header
+                has_header = any(header in first_line.lower() for header in ['id', 'source', 'target', 'segment'])
+                
+                if has_header:
+                    next(f)  # Skip header row
+                
+                # Parse segments
+                for line_num, line in enumerate(f, 1):
+                    line = line.strip()
+                    if not line:
+                        continue
+                    
+                    # Split by delimiter
+                    parts = line.split(delimiter)
+                    
+                    if len(parts) < 1:
+                        self.log(f"Warning: Line {line_num} is empty, skipping")
+                        continue
+                    
+                    # Determine format based on number of columns
+                    if len(parts) == 1:
+                        # Single column: Source only (no pre-translation)
+                        seg_id = line_num
+                        source = parts[0].strip()
+                        target = ""
+                        
+                    elif len(parts) == 2:
+                        # Two columns: Check if first is numeric ID or source text
+                        if parts[0].strip().isdigit():
+                            # Format: ID, Source (no target)
+                            seg_id = int(parts[0].strip())
+                            source = parts[1].strip()
+                            target = ""
+                        else:
+                            # Format: Source, Target (bilingual)
+                            seg_id = line_num
+                            source = parts[0].strip()
+                            target = parts[1].strip()
+                    
+                    else:  # 3 or more columns
+                        # Format: ID, Source, Target (full bilingual)
+                        if parts[0].strip().isdigit():
+                            seg_id = int(parts[0].strip())
+                            source = parts[1].strip()
+                            target = parts[2].strip() if len(parts) > 2 else ""
+                        else:
+                            # No numeric ID, use line number
+                            seg_id = line_num
+                            source = parts[0].strip()
+                            target = parts[1].strip() if len(parts) > 1 else ""
+                    
+                    # Create segment
+                    segment = Segment(seg_id, source)
+                    segment.target = target
+                    segment.status = "translated" if target.strip() else "untranslated"
+                    segment.modified = False
+                    self.segments.append(segment)
+            
+            # Load into grid
+            self.load_segments_to_grid()
+            
+            # Update status with format detection
+            translated_count = sum(1 for seg in self.segments if seg.target.strip())
+            
+            # Determine what format was detected
+            if translated_count == 0:
+                format_msg = "source-only format"
+            elif translated_count == len(self.segments):
+                format_msg = "fully translated bilingual format"
+            else:
+                format_msg = "partially translated bilingual format"
+            
+            self.log(f"✓ Loaded {len(self.segments)} segments ({format_msg})")
+            self.log(f"  Pre-translated: {translated_count}, Untranslated: {len(self.segments) - translated_count}")
+            self.update_progress()
+            self.modified = False
+            
+            # Store original file for reference
+            self.original_txt = file_path
+            
+        except Exception as e:
+            messagebox.showerror("Import Error", f"Failed to import text file:\n{str(e)}")
+            self.log(f"✗ Import failed: {str(e)}")
+    
     def import_docx(self):
         """Import a DOCX file"""
         file_path = filedialog.askopenfilename(
@@ -5351,6 +6345,62 @@ class Supervertaler:
         except Exception as e:
             messagebox.showerror("Import Error", f"Failed to import DOCX:\n{str(e)}")
             self.log(f"✗ Import failed: {str(e)}")
+    
+    def load_drawings(self):
+        """Load drawing images from a folder for multimodal translation context"""
+        if not PIL_AVAILABLE:
+            messagebox.showwarning("PIL Not Available", 
+                                 "PIL/Pillow library is not installed. Image support is disabled.\n\n"
+                                 "To enable image support, install Pillow:\npip install Pillow")
+            return
+        
+        folder_path = filedialog.askdirectory(title="Select folder containing drawing images")
+        if not folder_path:
+            return
+        
+        try:
+            self.log(f"[Drawings] Loading images from: {folder_path}")
+            self.drawings_folder = folder_path
+            self.drawings_images_map = {}
+            
+            # Supported image formats
+            image_extensions = ('.png', '.jpg', '.jpeg', '.gif', '.bmp', '.tiff')
+            
+            # Load all images from folder
+            loaded_count = 0
+            for filename in os.listdir(folder_path):
+                if filename.lower().endswith(image_extensions):
+                    img_path = os.path.join(folder_path, filename)
+                    try:
+                        img = Image.open(img_path)
+                        # Normalize the filename to match figure references
+                        normalized_name = normalize_figure_ref(filename)
+                        if normalized_name:
+                            self.drawings_images_map[normalized_name] = img
+                            loaded_count += 1
+                            self.log(f"[Drawings] Loaded: {filename} as '{normalized_name}'")
+                    except Exception as e:
+                        self.log(f"[Drawings] Failed to load {filename}: {e}")
+            
+            if loaded_count > 0:
+                self.log(f"[Drawings] ✓ Successfully loaded {loaded_count} drawing images")
+                messagebox.showinfo("Drawings Loaded", 
+                                  f"Loaded {loaded_count} drawing images.\n\n"
+                                  "These will be used as context for figure references during translation.")
+            else:
+                self.log(f"[Drawings] ⚠ No valid images found in folder")
+                messagebox.showwarning("No Images", "No valid image files found in selected folder.")
+                
+        except Exception as e:
+            self.log(f"[Drawings] Error loading images: {e}")
+            messagebox.showerror("Load Error", f"Failed to load drawings:\n{str(e)}")
+    
+    def clear_drawings(self):
+        """Clear all loaded drawings"""
+        self.drawings_images_map.clear()
+        self.drawings_folder = None
+        self.log("[Drawings] All drawings cleared")
+        messagebox.showinfo("Drawings Cleared", "All loaded drawings have been cleared.")
     
     def load_segments_to_tree(self):
         """Load segments into Treeview (for List View)"""
@@ -5787,6 +6837,17 @@ class Supervertaler:
         if not self.current_segment:
             return
         
+        # Check layout mode and get values accordingly
+        if self.layout_mode == LayoutMode.GRID:
+            # In Grid mode, save from grid editor if active
+            if hasattr(self, 'save_grid_editor_segment'):
+                self.save_grid_editor_segment()
+            return
+        
+        # List/Document mode - use target_text widget
+        if not hasattr(self, 'target_text'):
+            return
+        
         # Get values
         target = self.target_text.get('1.0', 'end-1c').strip()
         status = self.status_var.get()
@@ -5998,6 +7059,34 @@ class Supervertaler:
             text=f"Progress: {translated}/{total} ({percentage:.1f}%) | "
                  f"{'Modified' if self.modified else 'Saved'}"
         )
+        
+        # Update context status
+        self.update_context_status()
+    
+    def update_context_status(self):
+        """Update document context status display"""
+        if not hasattr(self, 'context_status_label'):
+            return
+        
+        context_enabled = self.use_context_var.get()
+        segment_count = len(self.segments)
+        
+        if segment_count > 0:
+            context_text = self.get_full_document_context(include_translations=False)
+            char_count = len(context_text)
+            
+            status = "Enabled ✓" if context_enabled else "Disabled ✗"
+            color = '#1976D2' if context_enabled else '#F44336'
+            
+            self.context_status_label.config(
+                text=f"Context: {status} | {segment_count} segments | {char_count:,} characters",
+                fg=color
+            )
+        else:
+            self.context_status_label.config(
+                text="Context: No document loaded",
+                fg='#666'
+            )
     
     def save_project(self):
         """Save project to JSON"""
@@ -6287,6 +7376,89 @@ class Supervertaler:
         except Exception as e:
             messagebox.showerror("Export Error", f"Failed to export TSV:\n{str(e)}")
     
+    def export_txt_bilingual(self):
+        """Export to bilingual TXT (memoQ/CAT tool format)"""
+        if not self.segments:
+            messagebox.showwarning("No Data", "No segments to export")
+            return
+        
+        file_path = filedialog.asksaveasfilename(
+            title="Export to Bilingual TXT",
+            defaultextension=".txt",
+            filetypes=[("Text Files", "*.txt"), ("TSV Files", "*.tsv"), ("All Files", "*.*")]
+        )
+        
+        if not file_path:
+            return
+        
+        try:
+            self.save_current_segment()
+            
+            with open(file_path, 'w', encoding='utf-8') as f:
+                # Write tab-delimited format: ID, Source, Target
+                for seg in self.segments:
+                    f.write(f"{seg.id}\t{seg.source}\t{seg.target}\n")
+            
+            self.log(f"✓ Exported to bilingual TXT: {os.path.basename(file_path)}")
+            messagebox.showinfo("Export Complete", 
+                              f"Bilingual TXT file exported successfully!\n\n"
+                              f"Format: Tab-delimited (ID, Source, Target)\n"
+                              f"Segments: {len(self.segments)}\n"
+                              f"File: {os.path.basename(file_path)}")
+            
+        except Exception as e:
+            messagebox.showerror("Export Error", f"Failed to export bilingual TXT:\n{str(e)}")
+    
+    def export_tmx(self):
+        """Export translation memory to TMX format"""
+        if not self.segments:
+            messagebox.showwarning("No Data", "No segments to export")
+            return
+        
+        # Count translated segments
+        translated_segments = [seg for seg in self.segments if seg.target.strip() and seg.status != "untranslated"]
+        
+        if not translated_segments:
+            messagebox.showwarning("No Translations", "No translated segments to export to TMX")
+            return
+        
+        file_path = filedialog.asksaveasfilename(
+            title="Export to TMX",
+            defaultextension=".tmx",
+            filetypes=[("TMX Files", "*.tmx"), ("All Files", "*.*")]
+        )
+        
+        if not file_path:
+            return
+        
+        try:
+            self.save_current_segment()
+            
+            # Prepare source and target lists
+            source_segments = [seg.source for seg in translated_segments]
+            target_segments = [seg.target for seg in translated_segments]
+            
+            # Generate TMX
+            tmx_tree = self.tmx_generator.generate_tmx(
+                source_segments, 
+                target_segments,
+                self.source_language,
+                self.target_language
+            )
+            
+            # Save TMX
+            if self.tmx_generator.save_tmx(tmx_tree, file_path):
+                self.log(f"✓ Exported {len(translated_segments)} translation units to TMX: {os.path.basename(file_path)}")
+                messagebox.showinfo("Export Complete", 
+                                  f"TMX file exported successfully.\n\n"
+                                  f"{len(translated_segments)} translation units saved.")
+            else:
+                messagebox.showerror("Export Error", "Failed to save TMX file")
+            
+        except Exception as e:
+            self.log(f"✗ TMX export failed: {str(e)}")
+            messagebox.showerror("Export Error", f"Failed to export TMX:\n{str(e)}")
+    
     def show_find_replace(self):
         """Show find/replace dialog"""
         FindReplaceDialog(self.root, self)
@@ -6366,24 +7538,82 @@ class Supervertaler:
         model_var = tk.StringVar(value=self.current_llm_model)
         model_combo = ttk.Combobox(model_frame, textvariable=model_var, state="readonly", width=40)
         
+        # Store dynamically fetched models separately
+        fetched_models = {}  # provider -> list of models
+        
+        # Refresh models button
+        refresh_frame = ttk.Frame(model_frame)
+        refresh_frame.pack(fill=tk.X, pady=5)
+        
+        def refresh_models():
+            """Fetch available models from API"""
+            provider = provider_var.get()
+            
+            # Get API key
+            api_key = None
+            if provider == "openai":
+                api_key = openai_entry.get()
+            elif provider == "claude":
+                api_key = claude_entry.get()
+            elif provider == "gemini":
+                api_key = gemini_entry.get()
+            
+            if not api_key or not api_key.strip():
+                messagebox.showwarning("No API Key", f"Please enter a {provider.upper()} API key first.")
+                return
+            
+            # Show loading message
+            status_label = ttk.Label(refresh_frame, text="Fetching models...")
+            status_label.pack(side=tk.LEFT, padx=5)
+            dialog.update()
+            
+            try:
+                available_models = fetch_available_models(provider, api_key)
+                if available_models:
+                    # Store the fetched models
+                    fetched_models[provider] = available_models
+                    model_combo['values'] = available_models
+                    if model_var.get() not in available_models:
+                        model_var.set(available_models[0])
+                    status_label.config(text=f"✓ Found {len(available_models)} models", foreground="green")
+                    self.log(f"✓ Loaded {len(available_models)} {provider} models")
+                else:
+                    status_label.config(text="✗ No models found", foreground="red")
+            except Exception as e:
+                status_label.config(text=f"✗ Error: {str(e)[:30]}", foreground="red")
+            
+            # Clear status after 3 seconds
+            dialog.after(3000, lambda: status_label.destroy())
+        
         def update_models(*args):
             provider = provider_var.get()
-            if provider == "openai":
-                model_combo['values'] = OPENAI_MODELS
-                if model_var.get() not in OPENAI_MODELS:
-                    model_var.set(OPENAI_MODELS[0])
-            elif provider == "claude":
-                model_combo['values'] = CLAUDE_MODELS
-                if model_var.get() not in CLAUDE_MODELS:
-                    model_var.set(CLAUDE_MODELS[0])
-            elif provider == "gemini":
-                model_combo['values'] = GEMINI_MODELS
-                if model_var.get() not in GEMINI_MODELS:
-                    model_var.set(GEMINI_MODELS[0])
+            
+            # Check if we have fetched models for this provider
+            if provider in fetched_models:
+                model_combo['values'] = fetched_models[provider]
+                # Don't reset the model if it's in the fetched list
+                if model_var.get() not in fetched_models[provider]:
+                    model_var.set(fetched_models[provider][0])
+            else:
+                # Use cached/fallback models
+                if provider == "openai":
+                    model_combo['values'] = OPENAI_MODELS
+                    if model_var.get() not in OPENAI_MODELS:
+                        model_var.set(OPENAI_MODELS[0])
+                elif provider == "claude":
+                    model_combo['values'] = CLAUDE_MODELS
+                    if model_var.get() not in CLAUDE_MODELS:
+                        model_var.set(CLAUDE_MODELS[0])
+                elif provider == "gemini":
+                    model_combo['values'] = GEMINI_MODELS
+                    if model_var.get() not in GEMINI_MODELS:
+                        model_var.set(GEMINI_MODELS[0])
         
         provider_var.trace('w', update_models)
         update_models()
-        model_combo.pack(fill=tk.X)
+        model_combo.pack(fill=tk.X, pady=(0, 5))
+        
+        ttk.Button(refresh_frame, text="🔄 Refresh Available Models", command=refresh_models).pack(side=tk.LEFT)
         
         # Buttons
         button_frame = ttk.Frame(main_frame)
@@ -6417,7 +7647,10 @@ class Supervertaler:
             self.current_llm_provider = provider_var.get()
             self.current_llm_model = model_var.get()
             
-            messagebox.showinfo("Success", "API settings saved successfully!")
+            self.log(f"✓ Provider set to: {self.current_llm_provider}")
+            self.log(f"✓ Model set to: {self.current_llm_model}")
+            
+            messagebox.showinfo("Success", f"API settings saved successfully!\n\nProvider: {self.current_llm_provider}\nModel: {self.current_llm_model}")
             dialog.destroy()
         
         ttk.Button(button_frame, text="Save", command=save_settings).pack(side=tk.RIGHT, padx=5)
@@ -6460,57 +7693,496 @@ class Supervertaler:
         ttk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(side=tk.LEFT)
     
     def show_custom_prompts(self):
-        """Show custom prompts dialog"""
+        """Show comprehensive prompt library browser"""
         dialog = tk.Toplevel(self.root)
-        dialog.title("Custom Translation Prompts")
-        dialog.geometry("700x500")
+        dialog.title("🎯 Prompt Library - Domain-Specific Translation Expertise")
+        dialog.geometry("1000x700")
         dialog.transient(self.root)
-        dialog.grab_set()
         
         main_frame = ttk.Frame(dialog, padding="10")
         main_frame.pack(fill=tk.BOTH, expand=True)
         
-        # Title
-        title_label = tk.Label(main_frame, text="📝 Translation Prompt Template", 
-                              font=('Segoe UI', 11, 'bold'))
-        title_label.pack(pady=(0, 10))
+        # Header with active prompt info
+        header_frame = ttk.Frame(main_frame)
+        header_frame.pack(fill=tk.X, pady=(0, 10))
         
-        # Info
-        info_text = (
-            "Variables: {{SOURCE_LANGUAGE}}, {{TARGET_LANGUAGE}}, {{SOURCE_TEXT}}\n"
-            "These will be automatically replaced during translation."
-        )
-        info_label = tk.Label(main_frame, text=info_text, fg='#666', justify=tk.LEFT)
-        info_label.pack(anchor=tk.W, pady=(0, 10))
+        ttk.Label(header_frame, text="📚 Custom Prompts Library", 
+                 font=('Segoe UI', 12, 'bold')).pack(side=tk.LEFT)
         
-        # Prompt text
-        prompt_frame = ttk.Frame(main_frame)
-        prompt_frame.pack(fill=tk.BOTH, expand=True)
+        active_label = ttk.Label(header_frame, text="", font=('Segoe UI', 9))
+        active_label.pack(side=tk.RIGHT)
         
-        prompt_text = tk.Text(prompt_frame, wrap=tk.WORD, height=15, font=('Consolas', 10))
-        prompt_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        prompt_text.insert("1.0", self.current_translate_prompt)
+        def update_active_label():
+            if self.prompt_library.active_prompt_name:
+                active_label.config(text=f"✓ Active: {self.prompt_library.active_prompt_name}", 
+                                   foreground='green')
+            else:
+                active_label.config(text="Using default prompt", foreground='gray')
         
-        scrollbar = ttk.Scrollbar(prompt_frame, command=prompt_text.yview)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        prompt_text.config(yscrollcommand=scrollbar.set)
+        update_active_label()
+        
+        # Search frame
+        search_frame = ttk.Frame(main_frame)
+        search_frame.pack(fill=tk.X, pady=(0, 5))
+        
+        ttk.Label(search_frame, text="🔍 Search:").pack(side=tk.LEFT, padx=(0, 5))
+        search_var = tk.StringVar()
+        search_entry = ttk.Entry(search_frame, textvariable=search_var, width=40)
+        search_entry.pack(side=tk.LEFT, padx=(0, 10))
+        
+        # Main content - 3 panes
+        paned = ttk.PanedWindow(main_frame, orient=tk.HORIZONTAL)
+        paned.pack(fill=tk.BOTH, expand=True)
+        
+        # Left pane - Prompt list
+        left_frame = ttk.Frame(paned)
+        paned.add(left_frame, weight=1)
+        
+        ttk.Label(left_frame, text="Available Prompts", font=('Segoe UI', 10, 'bold')).pack(anchor=tk.W)
+        
+        # Location info
+        location_label = ttk.Label(left_frame, 
+                                  text="📁 custom_prompts/  🔒 custom_prompts_private/",
+                                  font=('Segoe UI', 8), foreground='#666')
+        location_label.pack(anchor=tk.W, pady=(0, 5))
+        
+        # Treeview for prompts
+        tree_frame = ttk.Frame(left_frame)
+        tree_frame.pack(fill=tk.BOTH, expand=True, pady=(5, 0))
+        
+        prompt_tree = ttk.Treeview(tree_frame, columns=('Domain', 'Location'), show='tree headings', height=15)
+        prompt_tree.heading('#0', text='Name ▼')
+        prompt_tree.heading('Domain', text='Domain')
+        prompt_tree.heading('Location', text='Location')
+        prompt_tree.column('#0', width=200)
+        prompt_tree.column('Domain', width=120)
+        prompt_tree.column('Location', width=100)
+        
+        tree_scroll = ttk.Scrollbar(tree_frame, orient=tk.VERTICAL, command=prompt_tree.yview)
+        prompt_tree.configure(yscrollcommand=tree_scroll.set)
+        prompt_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        tree_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # Sorting state
+        sort_state = {'column': 'name', 'reverse': False}
+        
+        # Right pane - Preview and details
+        right_frame = ttk.Frame(paned)
+        paned.add(right_frame, weight=2)
+        
+        # Details section
+        details_frame = ttk.LabelFrame(right_frame, text="Prompt Details", padding=10)
+        details_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Metadata
+        meta_frame = ttk.Frame(details_frame)
+        meta_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        name_label = ttk.Label(meta_frame, text="", font=('Segoe UI', 11, 'bold'))
+        name_label.pack(anchor=tk.W)
+        
+        desc_label = ttk.Label(meta_frame, text="", wraplength=500, justify=tk.LEFT, foreground='#666')
+        desc_label.pack(anchor=tk.W, pady=(5, 0))
+        
+        info_label = ttk.Label(meta_frame, text="", font=('Segoe UI', 8), foreground='#999')
+        info_label.pack(anchor=tk.W, pady=(5, 0))
+        
+        # Tabs for translate and proofread prompts
+        notebook = ttk.Notebook(details_frame)
+        notebook.pack(fill=tk.BOTH, expand=True, pady=(10, 0))
+        
+        # Translate prompt tab
+        translate_frame = ttk.Frame(notebook)
+        notebook.add(translate_frame, text="Translation Prompt")
+        
+        translate_text = tk.Text(translate_frame, wrap=tk.WORD, height=12, font=('Consolas', 9))
+        translate_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        translate_scroll = ttk.Scrollbar(translate_frame, command=translate_text.yview)
+        translate_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        translate_text.config(yscrollcommand=translate_scroll.set, state='disabled')
+        
+        # Proofread prompt tab
+        proofread_frame = ttk.Frame(notebook)
+        notebook.add(proofread_frame, text="Proofreading Prompt")
+        
+        proofread_text = tk.Text(proofread_frame, wrap=tk.WORD, height=12, font=('Consolas', 9))
+        proofread_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        proofread_scroll = ttk.Scrollbar(proofread_frame, command=proofread_text.yview)
+        proofread_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        proofread_text.config(yscrollcommand=proofread_scroll.set, state='disabled')
+        
+        # Selected prompt data
+        selected_prompt = {'filename': None, 'data': None}
+        
+        def sort_prompts(prompts_list, column, reverse=False):
+            """Sort prompts by specified column"""
+            if column == 'name':
+                return sorted(prompts_list, key=lambda x: x['name'].lower(), reverse=reverse)
+            elif column == 'domain':
+                return sorted(prompts_list, key=lambda x: x['domain'].lower(), reverse=reverse)
+            elif column == 'location':
+                return sorted(prompts_list, key=lambda x: x['is_private'], reverse=reverse)
+            return prompts_list
+        
+        def update_sort_indicators():
+            """Update column headers with sort indicators"""
+            arrow = ' ▼' if not sort_state['reverse'] else ' ▲'
+            
+            # Reset all headers
+            prompt_tree.heading('#0', text='Name')
+            prompt_tree.heading('Domain', text='Domain')
+            prompt_tree.heading('Location', text='Location')
+            
+            # Add arrow to sorted column
+            if sort_state['column'] == 'name':
+                prompt_tree.heading('#0', text='Name' + arrow)
+            elif sort_state['column'] == 'domain':
+                prompt_tree.heading('Domain', text='Domain' + arrow)
+            elif sort_state['column'] == 'location':
+                prompt_tree.heading('Location', text='Location' + arrow)
+        
+        def on_column_click(column):
+            """Handle column header click for sorting"""
+            # Toggle reverse if clicking same column
+            if sort_state['column'] == column:
+                sort_state['reverse'] = not sort_state['reverse']
+            else:
+                sort_state['column'] = column
+                sort_state['reverse'] = False
+            
+            update_sort_indicators()
+            load_prompts_to_tree()
+        
+        # Bind column header clicks
+        prompt_tree.heading('#0', command=lambda: on_column_click('name'))
+        prompt_tree.heading('Domain', command=lambda: on_column_click('domain'))
+        prompt_tree.heading('Location', command=lambda: on_column_click('location'))
+        
+        def load_prompts_to_tree(prompts_list=None):
+            """Load prompts into treeview"""
+            prompt_tree.delete(*prompt_tree.get_children())
+            
+            if prompts_list is None:
+                prompts_list = self.prompt_library.get_prompt_list()
+            
+            # Apply sorting
+            prompts_list = sort_prompts(prompts_list, sort_state['column'], sort_state['reverse'])
+            
+            for prompt_info in prompts_list:
+                location = "🔒 Private" if prompt_info['is_private'] else "📁 Public"
+                icon = "🔒" if prompt_info['is_private'] else "📄"
+                
+                prompt_tree.insert('', 'end', 
+                                  text=f"{icon} {prompt_info['name']}", 
+                                  values=(prompt_info['domain'], location),
+                                  tags=(prompt_info['filename'],))
+        
+        def on_search(*args):
+            """Filter prompts by search text"""
+            search_text = search_var.get()
+            if search_text:
+                results = self.prompt_library.search_prompts(search_text)
+                load_prompts_to_tree(results)
+            else:
+                load_prompts_to_tree()
+        
+        search_var.trace('w', on_search)
+        
+        def on_select(event):
+            """Show prompt details when selected"""
+            selection = prompt_tree.selection()
+            if not selection:
+                return
+            
+            # Get filename from tags
+            item = selection[0]
+            tags = prompt_tree.item(item, 'tags')
+            if not tags:
+                return
+            
+            filename = tags[0]
+            prompt_data = self.prompt_library.get_prompt(filename)
+            
+            if not prompt_data:
+                return
+            
+            selected_prompt['filename'] = filename
+            selected_prompt['data'] = prompt_data
+            
+            # Update metadata
+            name_label.config(text=prompt_data.get('name', 'Unnamed'))
+            desc_label.config(text=prompt_data.get('description', 'No description'))
+            
+            domain = prompt_data.get('domain', 'General')
+            version = prompt_data.get('version', '1.0')
+            created = prompt_data.get('created', 'Unknown')
+            location = "🔒 custom_prompts_private/" if prompt_data.get('_is_private') else "📁 custom_prompts/"
+            info_label.config(text=f"Domain: {domain} | Version: {version} | Created: {created} | {location}")
+            
+            # Update translate prompt
+            translate_text.config(state='normal')
+            translate_text.delete('1.0', 'end')
+            translate_text.insert('1.0', prompt_data.get('translate_prompt', 'N/A'))
+            translate_text.config(state='disabled')
+            
+            # Update proofread prompt
+            proofread_text.config(state='normal')
+            proofread_text.delete('1.0', 'end')
+            proofread_text.insert('1.0', prompt_data.get('proofread_prompt', 'N/A'))
+            proofread_text.config(state='disabled')
+        
+        prompt_tree.bind('<<TreeviewSelect>>', on_select)
+        
+        # Bottom button frame
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=(10, 0))
+        
+        def apply_prompt():
+            """Apply selected prompt as active"""
+            if not selected_prompt['filename']:
+                messagebox.showwarning("No Selection", "Please select a prompt to apply")
+                return
+            
+            if self.prompt_library.set_active_prompt(selected_prompt['filename']):
+                # Update current prompts
+                self.current_translate_prompt = self.prompt_library.get_translate_prompt()
+                proofread = self.prompt_library.get_proofread_prompt()
+                if proofread:
+                    self.current_proofread_prompt = proofread
+                
+                update_active_label()
+                messagebox.showinfo("Prompt Applied", 
+                                   f"Now using: {selected_prompt['data']['name']}\n\n"
+                                   "This custom prompt will be used for all translations.")
+        
+        def use_default():
+            """Clear active prompt and use default"""
+            self.prompt_library.clear_active_prompt()
+            self.current_translate_prompt = self.default_translate_prompt
+            self.current_proofread_prompt = self.default_proofread_prompt
+            update_active_label()
+            messagebox.showinfo("Default Prompt", "Now using default translation prompt")
+        
+        def create_new():
+            """Create new custom prompt"""
+            self.create_prompt_editor(dialog, on_save=lambda: load_prompts_to_tree())
+        
+        def edit_selected():
+            """Edit selected prompt"""
+            if not selected_prompt['filename']:
+                messagebox.showwarning("No Selection", "Please select a prompt to edit")
+                return
+            
+            self.create_prompt_editor(dialog, 
+                                     edit_prompt=selected_prompt['data'],
+                                     on_save=lambda: load_prompts_to_tree())
+        
+        def delete_selected():
+            """Delete selected prompt"""
+            if not selected_prompt['filename']:
+                messagebox.showwarning("No Selection", "Please select a prompt to delete")
+                return
+            
+            prompt_name = selected_prompt['data'].get('name', 'this prompt')
+            if messagebox.askyesno("Confirm Delete", 
+                                  f"Delete '{prompt_name}'?\n\nThis cannot be undone."):
+                if self.prompt_library.delete_prompt(selected_prompt['filename']):
+                    load_prompts_to_tree()
+                    # Clear selection
+                    selected_prompt['filename'] = None
+                    selected_prompt['data'] = None
+                    update_active_label()
+        
+        def import_prompt():
+            """Import prompt from file"""
+            filepath = filedialog.askopenfilename(
+                title="Import Custom Prompt",
+                filetypes=[("JSON Files", "*.json"), ("All Files", "*.*")]
+            )
+            
+            if not filepath:
+                return
+            
+            # Ask if private
+            is_private = messagebox.askyesno("Prompt Type", 
+                                            "Import as private prompt?\n\n"
+                                            "Yes = Private (custom_prompts_private)\n"
+                                            "No = Public (custom_prompts)")
+            
+            if self.prompt_library.import_prompt(filepath, is_private=is_private):
+                load_prompts_to_tree()
+                messagebox.showinfo("Import Success", "Prompt imported successfully!")
+        
+        def export_selected():
+            """Export selected prompt"""
+            if not selected_prompt['filename']:
+                messagebox.showwarning("No Selection", "Please select a prompt to export")
+                return
+            
+            filepath = filedialog.asksaveasfilename(
+                title="Export Custom Prompt",
+                defaultextension=".json",
+                initialfile=selected_prompt['filename'],
+                filetypes=[("JSON Files", "*.json"), ("All Files", "*.*")]
+            )
+            
+            if filepath:
+                if self.prompt_library.export_prompt(selected_prompt['filename'], filepath):
+                    messagebox.showinfo("Export Success", "Prompt exported successfully!")
+        
+        def refresh_list():
+            """Reload all prompts"""
+            self.prompt_library.load_all_prompts()
+            load_prompts_to_tree()
+            update_active_label()
+        
+        # Left buttons
+        ttk.Button(button_frame, text="✓ Apply Selected", command=apply_prompt).pack(side=tk.LEFT, padx=2)
+        ttk.Button(button_frame, text="↺ Use Default", command=use_default).pack(side=tk.LEFT, padx=2)
+        ttk.Button(button_frame, text="➕ New", command=create_new).pack(side=tk.LEFT, padx=2)
+        ttk.Button(button_frame, text="✏️ Edit", command=edit_selected).pack(side=tk.LEFT, padx=2)
+        ttk.Button(button_frame, text="🗑️ Delete", command=delete_selected).pack(side=tk.LEFT, padx=2)
+        
+        # Separator
+        ttk.Separator(button_frame, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=10)
+        
+        # Right buttons
+        ttk.Button(button_frame, text="📥 Import", command=import_prompt).pack(side=tk.LEFT, padx=2)
+        ttk.Button(button_frame, text="📤 Export", command=export_selected).pack(side=tk.LEFT, padx=2)
+        ttk.Button(button_frame, text="🔄 Refresh", command=refresh_list).pack(side=tk.LEFT, padx=2)
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.RIGHT, padx=2)
+        
+        # Initial load
+        load_prompts_to_tree()
+    
+    def create_prompt_editor(self, parent, edit_prompt=None, on_save=None):
+        """Show prompt creation/editing dialog"""
+        editor = tk.Toplevel(parent)
+        editor.title("Edit Custom Prompt" if edit_prompt else "Create New Custom Prompt")
+        editor.geometry("900x700")
+        editor.transient(parent)
+        editor.grab_set()
+        
+        main_frame = ttk.Frame(editor, padding=15)
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Metadata section
+        meta_frame = ttk.LabelFrame(main_frame, text="Prompt Metadata", padding=10)
+        meta_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        # Name
+        ttk.Label(meta_frame, text="Name:").grid(row=0, column=0, sticky=tk.W, pady=5)
+        name_var = tk.StringVar(value=edit_prompt.get('name', '') if edit_prompt else '')
+        name_entry = ttk.Entry(meta_frame, textvariable=name_var, width=50)
+        name_entry.grid(row=0, column=1, sticky=tk.EW, pady=5, padx=(5, 0))
+        
+        # Description
+        ttk.Label(meta_frame, text="Description:").grid(row=1, column=0, sticky=tk.W, pady=5)
+        desc_var = tk.StringVar(value=edit_prompt.get('description', '') if edit_prompt else '')
+        desc_entry = ttk.Entry(meta_frame, textvariable=desc_var, width=50)
+        desc_entry.grid(row=1, column=1, sticky=tk.EW, pady=5, padx=(5, 0))
+        
+        # Domain
+        ttk.Label(meta_frame, text="Domain:").grid(row=2, column=0, sticky=tk.W, pady=5)
+        domain_var = tk.StringVar(value=edit_prompt.get('domain', 'General') if edit_prompt else 'General')
+        domain_entry = ttk.Entry(meta_frame, textvariable=domain_var, width=50)
+        domain_entry.grid(row=2, column=1, sticky=tk.EW, pady=5, padx=(5, 0))
+        
+        # Version
+        ttk.Label(meta_frame, text="Version:").grid(row=3, column=0, sticky=tk.W, pady=5)
+        version_var = tk.StringVar(value=edit_prompt.get('version', '1.0') if edit_prompt else '1.0')
+        version_entry = ttk.Entry(meta_frame, textvariable=version_var, width=50)
+        version_entry.grid(row=3, column=1, sticky=tk.EW, pady=5, padx=(5, 0))
+        
+        # Private checkbox
+        is_private_var = tk.BooleanVar(value=edit_prompt.get('_is_private', False) if edit_prompt else False)
+        ttk.Checkbutton(meta_frame, text="🔒 Private prompt (save to custom_prompts_private/ folder)", 
+                       variable=is_private_var).grid(row=4, column=1, sticky=tk.W, pady=5, padx=(5, 0))
+        
+        meta_frame.columnconfigure(1, weight=1)
+        
+        # Prompts section
+        prompts_frame = ttk.Frame(main_frame)
+        prompts_frame.pack(fill=tk.BOTH, expand=True)
+        
+        notebook = ttk.Notebook(prompts_frame)
+        notebook.pack(fill=tk.BOTH, expand=True)
+        
+        # Translation prompt
+        translate_frame = ttk.Frame(notebook)
+        notebook.add(translate_frame, text="Translation Prompt")
+        
+        ttk.Label(translate_frame, text="Variables: {source_lang}, {target_lang}", 
+                 foreground='#666').pack(anchor=tk.W, pady=(5, 2))
+        
+        translate_text = tk.Text(translate_frame, wrap=tk.WORD, height=20, font=('Consolas', 9))
+        translate_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        translate_scroll = ttk.Scrollbar(translate_frame, command=translate_text.yview)
+        translate_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        translate_text.config(yscrollcommand=translate_scroll.set)
+        
+        if edit_prompt:
+            translate_text.insert('1.0', edit_prompt.get('translate_prompt', ''))
+        
+        # Proofread prompt
+        proofread_frame = ttk.Frame(notebook)
+        notebook.add(proofread_frame, text="Proofreading Prompt")
+        
+        ttk.Label(proofread_frame, text="Variables: {source_lang}, {target_lang}", 
+                 foreground='#666').pack(anchor=tk.W, pady=(5, 2))
+        
+        proofread_text = tk.Text(proofread_frame, wrap=tk.WORD, height=20, font=('Consolas', 9))
+        proofread_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        proofread_scroll = ttk.Scrollbar(proofread_frame, command=proofread_text.yview)
+        proofread_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        proofread_text.config(yscrollcommand=proofread_scroll.set)
+        
+        if edit_prompt:
+            proofread_text.insert('1.0', edit_prompt.get('proofread_prompt', ''))
         
         # Buttons
         button_frame = ttk.Frame(main_frame)
-        button_frame.pack(fill=tk.X, pady=10)
+        button_frame.pack(fill=tk.X, pady=(10, 0))
         
         def save_prompt():
-            self.current_translate_prompt = prompt_text.get("1.0", tk.END).strip()
-            self.log("✓ Translation prompt updated")
-            dialog.destroy()
+            """Save the prompt"""
+            name = name_var.get().strip()
+            if not name:
+                messagebox.showwarning("Missing Name", "Please enter a prompt name")
+                return
+            
+            translate_prompt = translate_text.get('1.0', 'end-1c').strip()
+            if not translate_prompt:
+                messagebox.showwarning("Missing Prompt", "Please enter a translation prompt")
+                return
+            
+            description = desc_var.get().strip()
+            domain = domain_var.get().strip()
+            version = version_var.get().strip()
+            proofread_prompt = proofread_text.get('1.0', 'end-1c').strip()
+            is_private = is_private_var.get()
+            
+            if edit_prompt:
+                # Update existing
+                filename = edit_prompt['_filename']
+                success = self.prompt_library.update_prompt(
+                    filename, name, description, domain, translate_prompt, 
+                    proofread_prompt, version
+                )
+            else:
+                # Create new
+                success = self.prompt_library.create_new_prompt(
+                    name, description, domain, translate_prompt, 
+                    proofread_prompt, version, is_private
+                )
+            
+            if success:
+                if on_save:
+                    on_save()
+                editor.destroy()
         
-        def reset_prompt():
-            prompt_text.delete("1.0", tk.END)
-            prompt_text.insert("1.0", self.default_translate_prompt)
-        
-        ttk.Button(button_frame, text="Reset to Default", command=reset_prompt).pack(side=tk.LEFT, padx=5)
-        ttk.Button(button_frame, text="Save", command=save_prompt).pack(side=tk.RIGHT, padx=5)
-        ttk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(side=tk.RIGHT)
+        ttk.Button(button_frame, text="💾 Save", command=save_prompt).pack(side=tk.RIGHT, padx=2)
+        ttk.Button(button_frame, text="Cancel", command=editor.destroy).pack(side=tk.RIGHT, padx=2)
     
     def load_tm_file(self):
         """Load a TM file (TMX or TXT)"""
@@ -6655,6 +8327,208 @@ class Supervertaler:
         ttk.Button(button_frame, text="Clear All", command=clear_tm).pack(side=tk.LEFT, padx=5)
         ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.RIGHT, padx=5)
     
+    # === Tracked Changes Management ===
+    
+    def load_tracked_changes_docx(self):
+        """Load tracked changes from a DOCX file"""
+        filepath = filedialog.askopenfilename(
+            title="Select DOCX File with Tracked Changes",
+            filetypes=[("Word Documents", "*.docx"), ("All Files", "*.*")]
+        )
+        
+        if filepath:
+            if self.tracked_changes_agent.load_docx_changes(filepath):
+                count = self.tracked_changes_agent.get_entry_count()
+                messagebox.showinfo("Tracked Changes Loaded", 
+                                  f"Successfully loaded tracked changes!\\n\\n"
+                                  f"Change pairs: {count}\\n"
+                                  f"Files: {len(self.tracked_changes_agent.files_loaded)}\\n\\n"
+                                  f"These editing patterns will be provided to AI as examples.")
+    
+    def load_tracked_changes_tsv(self):
+        """Load tracked changes from a TSV file"""
+        filepath = filedialog.askopenfilename(
+            title="Select TSV File with Tracked Changes",
+            filetypes=[("TSV Files", "*.tsv"), ("Text Files", "*.txt"), ("All Files", "*.*")]
+        )
+        
+        if filepath:
+            if self.tracked_changes_agent.load_tsv_changes(filepath):
+                count = self.tracked_changes_agent.get_entry_count()
+                messagebox.showinfo("Tracked Changes Loaded", 
+                                  f"Successfully loaded tracked changes!\\n\\n"
+                                  f"Change pairs: {count}\\n"
+                                  f"Files: {len(self.tracked_changes_agent.files_loaded)}\\n\\n"
+                                  f"These editing patterns will be provided to AI as examples.")
+    
+    def clear_tracked_changes(self):
+        """Clear all loaded tracked changes"""
+        if not self.tracked_changes_agent.change_data:
+            messagebox.showinfo("No Changes", "No tracked changes are currently loaded.")
+            return
+        
+        count = self.tracked_changes_agent.get_entry_count()
+        if messagebox.askyesno("Clear Tracked Changes", 
+                              f"Clear all {count} tracked change pairs?\\n\\n"
+                              f"Files loaded: {len(self.tracked_changes_agent.files_loaded)}"):
+            self.tracked_changes_agent.clear_changes()
+            messagebox.showinfo("Cleared", "All tracked changes have been cleared.")
+    
+    def browse_tracked_changes(self):
+        """Browse and search tracked changes"""
+        if not self.tracked_changes_agent.change_data:
+            messagebox.showinfo("No Changes", 
+                              "No tracked changes loaded yet.\\n\\n"
+                              "Load a DOCX file with tracked changes or TSV file first:\\n"
+                              "Translate → Load Tracked Changes...")
+            return
+        
+        # Create browser dialog
+        browser = tk.Toplevel(self.root)
+        browser.title(f"Tracked Changes Browser ({self.tracked_changes_agent.get_entry_count()} pairs)")
+        browser.geometry("900x700")
+        browser.transient(self.root)
+        
+        # Search frame
+        search_frame = tk.Frame(browser)
+        search_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        tk.Label(search_frame, text="Search:").pack(side=tk.LEFT)
+        search_var = tk.StringVar()
+        search_entry = tk.Entry(search_frame, textvariable=search_var, width=40)
+        search_entry.pack(side=tk.LEFT, padx=(5,0))
+        
+        exact_match_var = tk.BooleanVar()
+        tk.Checkbutton(search_frame, text="Exact match", variable=exact_match_var).pack(side=tk.LEFT, padx=(10,0))
+        
+        # Results info
+        results_label = tk.Label(browser, text="")
+        results_label.pack(pady=2)
+        
+        # Treeview for results
+        results_frame = tk.Frame(browser)
+        results_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+        
+        columns = ('Original', 'Final')
+        tree = ttk.Treeview(results_frame, columns=columns, show='headings', height=15)
+        tree.heading('Original', text='Original Text (Before)')
+        tree.heading('Final', text='Final Text (After)')
+        tree.column('Original', width=400)
+        tree.column('Final', width=400)
+        
+        # Scrollbars
+        v_scroll = ttk.Scrollbar(results_frame, orient=tk.VERTICAL, command=tree.yview)
+        h_scroll = ttk.Scrollbar(results_frame, orient=tk.HORIZONTAL, command=tree.xview)
+        tree.configure(yscrollcommand=v_scroll.set, xscrollcommand=h_scroll.set)
+        
+        tree.grid(row=0, column=0, sticky="nsew")
+        v_scroll.grid(row=0, column=1, sticky="ns")
+        h_scroll.grid(row=1, column=0, sticky="ew")
+        
+        results_frame.grid_rowconfigure(0, weight=1)
+        results_frame.grid_columnconfigure(0, weight=1)
+        
+        # Detail view
+        detail_frame = tk.LabelFrame(browser, text="Selected Change Details", padx=5, pady=5)
+        detail_frame.pack(fill=tk.BOTH, expand=False, padx=10, pady=(10,5))
+        
+        tk.Label(detail_frame, text="Original:", font=('Segoe UI', 10, 'bold')).pack(anchor='w')
+        original_text = tk.Text(detail_frame, height=4, wrap=tk.WORD, state='disabled', 
+                               bg='#f8f8f8', relief='solid', borderwidth=1)
+        original_text.pack(fill=tk.X, pady=(2,5))
+        
+        tk.Label(detail_frame, text="Final:", font=('Segoe UI', 10, 'bold')).pack(anchor='w')
+        final_text = tk.Text(detail_frame, height=4, wrap=tk.WORD, state='disabled',
+                            bg='#f0f8ff', relief='solid', borderwidth=1)
+        final_text.pack(fill=tk.X, pady=(2,0))
+        
+        # Functions for browser
+        def load_results(results):
+            tree.delete(*tree.get_children())
+            for original, final in results:
+                display_orig = (original[:100] + "...") if len(original) > 100 else original
+                display_final = (final[:100] + "...") if len(final) > 100 else final
+                tree.insert('', 'end', values=(display_orig, display_final))
+            
+            total = self.tracked_changes_agent.get_entry_count()
+            showing = len(results)
+            if showing == total:
+                results_label.config(text=f"Showing all {total} change pairs")
+            else:
+                results_label.config(text=f"Showing {showing} of {total} change pairs")
+        
+        def on_search(event=None):
+            search_text = search_var.get()
+            exact = exact_match_var.get()
+            results = self.tracked_changes_agent.search_changes(search_text, exact)
+            load_results(results)
+        
+        def on_selection_change(event):
+            selection = tree.selection()
+            if not selection:
+                return
+            
+            index = tree.index(selection[0])
+            search_text = search_var.get()
+            exact = exact_match_var.get()
+            current_results = self.tracked_changes_agent.search_changes(search_text, exact)
+            
+            if 0 <= index < len(current_results):
+                original, final = current_results[index]
+                
+                original_text.config(state='normal')
+                original_text.delete('1.0', tk.END)
+                original_text.insert('1.0', original)
+                original_text.config(state='disabled')
+                
+                final_text.config(state='normal')
+                final_text.delete('1.0', tk.END)
+                final_text.insert('1.0', final)
+                final_text.config(state='disabled')
+        
+        search_entry.bind('<KeyRelease>', on_search)
+        exact_match_var.trace('w', lambda *args: on_search())
+        tree.bind('<<TreeviewSelect>>', on_selection_change)
+        
+        # Status bar
+        status_text = f"Files loaded: {', '.join(self.tracked_changes_agent.files_loaded)}"
+        tk.Label(browser, text=status_text, anchor=tk.W).pack(fill=tk.X, padx=10, pady=2)
+        
+        # Close button
+        tk.Button(browser, text="Close", command=browser.destroy,
+                 bg='#757575', fg='white').pack(pady=10)
+        
+        # Load initial results
+        load_results(self.tracked_changes_agent.change_data)
+    
+    # === Context Building ===
+    
+    def get_full_document_context(self, include_translations=False):
+        """
+        Build full document context string with all segments.
+        This provides the AI with complete document understanding for better translation quality.
+        
+        Args:
+            include_translations: If True, include existing translations alongside source text
+        
+        Returns:
+            str: Formatted document context with numbered segments
+        """
+        if not self.segments:
+            return ""
+        
+        context_lines = []
+        
+        for segment in self.segments:
+            # Format: "[Segment ID]. Source text"
+            context_lines.append(f"{segment.id}. {segment.source}")
+            
+            # Optionally include translation if available (helps with consistency)
+            if include_translations and segment.target:
+                context_lines.append(f"   → {segment.target}")
+        
+        return "\n".join(context_lines)
+    
     def translate_current_segment(self):
         """Translate the currently selected segment using LLM (with TM lookup first)"""
         if not self.current_segment:
@@ -6712,16 +8586,46 @@ class Supervertaler:
             messagebox.showerror("Library Missing", "Google GenAI library not installed. Run: pip install google-generativeai")
             return
         
-        # Prepare prompt (combine system prompt with custom instructions)
-        prompt = self.current_translate_prompt
-        prompt = prompt.replace("{{SOURCE_LANGUAGE}}", self.source_language)
-        prompt = prompt.replace("{{TARGET_LANGUAGE}}", self.target_language)
-        prompt = prompt.replace("{{SOURCE_TEXT}}", segment.source)
+        # Build prompt with full document context (if enabled)
+        prompt_parts = []
         
-        # Add custom instructions if provided
+        # 1. System prompt (with language variables replaced) - USE CONTEXT-AWARE PROMPT
+        system_prompt = self.get_context_aware_prompt(mode="single")
+        system_prompt = system_prompt.replace("{{SOURCE_LANGUAGE}}", self.source_language)
+        system_prompt = system_prompt.replace("{{TARGET_LANGUAGE}}", self.target_language)
+        system_prompt = system_prompt.replace("{{SOURCE_TEXT}}", segment.source)
+        prompt_parts.append(system_prompt)
+        
+        # 2. Add custom instructions if provided
         custom_instructions = self.custom_instructions_text.get('1.0', tk.END).strip()
         if custom_instructions and custom_instructions != "# Custom Translation Instructions for This Project":
-            prompt += "\n\n**SPECIAL INSTRUCTIONS FOR THIS PROJECT:**\n" + custom_instructions
+            prompt_parts.append("\n**SPECIAL INSTRUCTIONS FOR THIS PROJECT:**")
+            prompt_parts.append(custom_instructions)
+        
+        # 3. Add tracked changes context (if available)
+        if self.tracked_changes_agent.change_data:
+            relevant_changes = self.tracked_changes_agent.find_relevant_changes([segment.source], max_changes=10)
+            if relevant_changes:
+                tracked_context = format_tracked_changes_context(relevant_changes, max_length=1000)
+                prompt_parts.append("\n" + tracked_context)
+                self.log(f"  Including {len(relevant_changes)} relevant tracked changes as examples")
+        
+        # 4. Add full document context (if enabled)
+        if self.use_context_var.get():
+            full_context = self.get_full_document_context(include_translations=False)
+            if full_context:
+                prompt_parts.append("\n**FULL DOCUMENT CONTEXT FOR REFERENCE:**")
+                prompt_parts.append("(Use this context to understand terminology, references, and maintain consistency)\n")
+                prompt_parts.append(full_context)
+                self.log(f"  Including full document context ({len(self.segments)} segments)")
+        
+        # 5. Specify which segment to translate
+        prompt_parts.append(f"\n**TEXT TO TRANSLATE:**")
+        prompt_parts.append(segment.source)
+        prompt_parts.append("\n**YOUR TRANSLATION (provide ONLY the translated text, no numbering or labels):**")
+        
+        # Combine all parts
+        prompt = "\n".join(prompt_parts)
         
         self.log(f"🤖 Translating segment #{segment.id} using {self.current_llm_provider}/{self.current_llm_model}...")
         
@@ -6761,20 +8665,155 @@ class Supervertaler:
             self.log(f"✗ Translation failed: {e}")
     
     def translate_all_untranslated(self):
-        """Translate all untranslated segments"""
+        """Translate all untranslated segments with progress tracking"""
         untranslated = [seg for seg in self.segments if not seg.target or seg.status == "untranslated"]
         
         if not untranslated:
             messagebox.showinfo("Complete", "All segments are already translated!")
             return
         
-        if not messagebox.askyesno("Confirm Batch Translation", 
-                                   f"Translate {len(untranslated)} untranslated segments?\n\n"
-                                   f"This will use {self.current_llm_provider}/{self.current_llm_model}"):
+        # Check API key
+        api_key_name = "google" if self.current_llm_provider == "gemini" else self.current_llm_provider
+        if not self.api_keys.get(api_key_name):
+            messagebox.showerror("API Key Missing", 
+                               f"Please configure your {self.current_llm_provider.upper()} API key in Translate → API Settings")
             return
         
-        # TODO: Implement batch translation with progress bar
-        messagebox.showinfo("Coming Soon", "Batch translation will be implemented in the next update!")
+        if not messagebox.askyesno("Confirm Batch Translation", 
+                                   f"Translate {len(untranslated)} untranslated segments?\n\n"
+                                   f"Provider: {self.current_llm_provider}/{self.current_llm_model}\n"
+                                   f"Context: {'Enabled' if self.use_context_var.get() else 'Disabled'}\n\n"
+                                   f"This may take several minutes."):
+            return
+        
+        # Create progress dialog
+        progress_dialog = tk.Toplevel(self.root)
+        progress_dialog.title("Batch Translation")
+        progress_dialog.geometry("500x200")
+        progress_dialog.transient(self.root)
+        progress_dialog.grab_set()
+        
+        tk.Label(progress_dialog, text="Translating segments...", 
+                font=('Segoe UI', 12, 'bold')).pack(pady=10)
+        
+        progress_var = tk.DoubleVar()
+        progress_bar = ttk.Progressbar(progress_dialog, variable=progress_var, 
+                                      maximum=len(untranslated), length=400)
+        progress_bar.pack(pady=10)
+        
+        status_label = tk.Label(progress_dialog, text="Starting...", 
+                               font=('Segoe UI', 10))
+        status_label.pack(pady=5)
+        
+        cancel_var = tk.BooleanVar(value=False)
+        
+        def cancel_translation():
+            cancel_var.set(True)
+        
+        tk.Button(progress_dialog, text="Cancel", command=cancel_translation,
+                 bg='#F44336', fg='white').pack(pady=10)
+        
+        # Process segments
+        successful = 0
+        failed = 0
+        
+        for i, segment in enumerate(untranslated):
+            if cancel_var.get():
+                self.log(f"⚠ Batch translation cancelled by user ({successful}/{len(untranslated)} completed)")
+                break
+            
+            status_label.config(text=f"Translating segment {i+1}/{len(untranslated)}: #{segment.id}")
+            progress_var.set(i)
+            progress_dialog.update()
+            
+            try:
+                # Check for TM match first
+                if self.check_tm_var.get():
+                    exact_match = self.tm_agent.get_exact_match(segment.source)
+                    if exact_match:
+                        segment.target = exact_match
+                        segment.status = "translated"
+                        segment.modified = True
+                        self.log(f"✓ Segment #{segment.id} from TM (100% match)")
+                        successful += 1
+                        continue
+                
+                # Build prompt with context (same as translate_current_segment)
+                prompt_parts = []
+                
+                # USE CONTEXT-AWARE PROMPT for batch DOCX translation
+                system_prompt = self.get_context_aware_prompt(mode="batch_docx")
+                system_prompt = system_prompt.replace("{{SOURCE_LANGUAGE}}", self.source_language)
+                system_prompt = system_prompt.replace("{{TARGET_LANGUAGE}}", self.target_language)
+                system_prompt = system_prompt.replace("{{SOURCE_TEXT}}", segment.source)
+                prompt_parts.append(system_prompt)
+                
+                custom_instructions = self.custom_instructions_text.get('1.0', tk.END).strip()
+                if custom_instructions and custom_instructions != "# Custom Translation Instructions for This Project":
+                    prompt_parts.append("\n**SPECIAL INSTRUCTIONS FOR THIS PROJECT:**")
+                    prompt_parts.append(custom_instructions)
+                
+                # Add tracked changes context
+                if self.tracked_changes_agent.change_data:
+                    relevant_changes = self.tracked_changes_agent.find_relevant_changes([segment.source], max_changes=10)
+                    if relevant_changes:
+                        tracked_context = format_tracked_changes_context(relevant_changes, max_length=1000)
+                        prompt_parts.append("\n" + tracked_context)
+                
+                # Add full document context
+                if self.use_context_var.get():
+                    full_context = self.get_full_document_context(include_translations=True)
+                    if full_context:
+                        prompt_parts.append("\n**FULL DOCUMENT CONTEXT FOR REFERENCE:**")
+                        prompt_parts.append("(Use this context to maintain terminology consistency)\n")
+                        prompt_parts.append(full_context)
+                
+                prompt_parts.append(f"\n**SEGMENT TO TRANSLATE:**")
+                prompt_parts.append(f"Segment {segment.id}: {segment.source}")
+                prompt_parts.append("\n**YOUR TRANSLATION (provide ONLY the translated text):**")
+                
+                prompt = "\n".join(prompt_parts)
+                
+                # Call API
+                if self.current_llm_provider == "openai":
+                    translation = self.call_openai_api(prompt)
+                elif self.current_llm_provider == "claude":
+                    translation = self.call_claude_api(prompt)
+                elif self.current_llm_provider == "gemini":
+                    translation = self.call_gemini_api(prompt)
+                else:
+                    raise ValueError(f"Unknown provider: {self.current_llm_provider}")
+                
+                # Update segment
+                segment.target = translation.strip()
+                segment.status = "translated"
+                segment.modified = True
+                
+                # Add to TM
+                self.tm_agent.add_entry(segment.source, segment.target)
+                self.translation_memory.append({"source": segment.source, "target": segment.target})
+                
+                self.log(f"✓ Segment #{segment.id} translated")
+                successful += 1
+                
+            except Exception as e:
+                self.log(f"✗ Failed to translate segment #{segment.id}: {e}")
+                failed += 1
+        
+        # Update UI
+        self.modified = True
+        self.load_segments_to_grid()
+        self.update_progress()
+        
+        progress_dialog.destroy()
+        
+        # Show summary
+        messagebox.showinfo("Batch Translation Complete", 
+                          f"Successfully translated: {successful}\n"
+                          f"Failed: {failed}\n"
+                          f"Total: {len(untranslated)}")
+        
+        self.log(f"✓ Batch translation complete: {successful} successful, {failed} failed")
     
     def call_openai_api(self, prompt: str) -> str:
         """Call OpenAI API"""
@@ -6795,7 +8834,7 @@ class Supervertaler:
         
         response = client.messages.create(
             model=self.current_llm_model,
-            max_tokens=4096,
+            max_tokens=8192,  # Increased for potentially longer translations
             messages=[{"role": "user", "content": prompt}]
         )
         
