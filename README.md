@@ -1,5 +1,11 @@
 # Supervertaler
-**Current version: 2.4.0**
+# Supervertaler
+
+**Version 2.5.0 (In Development)** - AI-Powered Translation Tool with Advanced CAT Features
+
+> **Note**: Two versions are maintained:
+> - `Supervertaler_v2.4.0 (stable - production ready).py` - Tested and stable for production use
+> - `Supervertaler_v2.5.0 (experimental - CAT editor development).py` - Active development with new features
 
 🎯 **Context-aware, LLM-powered translation & proofreading tool, leveraging multiple context sources for enhanced accuracy (built for translators)** - Revolutionary approach to document translation that leverages multiple context sources for unparalleled accuracy.
 
