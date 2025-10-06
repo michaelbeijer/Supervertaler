@@ -1,6 +1,10 @@
 # Supervertaler User Guide
 ## Version 2.4.0 - Complete Documentation
 
+> **⚠️ IMPORTANT**: This guide is for **Supervertaler v2.4.0 (stable - production ready).py** only.
+> 
+> If you're using **v2.5.0 (experimental - CAT editor development).py**, note that it's under active development and documentation is in progress. For now, refer to the implementation docs in `docs/implementation/` for v2.5.0 features.
+
 ---
 
 ## 📖 Reading Guide

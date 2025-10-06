@@ -2,6 +2,12 @@
 
 This directory contains all documentation for the Supervertaler project, organized by type and audience.
 
+> **📌 IMPORTANT**: Supervertaler has two versions with different documentation:
+> - **v2.4.0 (stable)**: Complete user guide available
+> - **v2.5.0 (experimental)**: Feature-specific guides, full guide pending
+> 
+> See [`VERSION_GUIDE.md`](VERSION_GUIDE.md) for detailed documentation navigation.
+
 ## Directory Structure
 
 ### 📘 user_guides/
