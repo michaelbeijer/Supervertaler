@@ -1,6 +1,84 @@
 # Supervertaler - Changelog
 
-## [2.5.0] - 2025-10-05 🎉 MAJOR RELEASE
+## [2.5.0] - 2025-10-06 🎉 MAJOR RELEASE (In Progress)
+
+### 🚀 Latest Updates - October 6, 2025
+
+#### ✨ Dynamic Model Fetching
+- **API-Based Model Discovery**: Automatically fetch available models from each provider based on user's API key
+  - **OpenAI**: Full dynamic fetch via `/v1/models` endpoint with intelligent filtering
+  - **Gemini**: Full dynamic fetch via `list_models()` API
+  - **Claude**: Returns curated model list (no public list endpoint)
+- **🔄 Refresh Button**: Added to API Settings dialog for instant model updates
+- **Smart Fallbacks**: Falls back to curated lists if API fetch fails
+- **User Benefits**: 
+  - No more 403 errors from outdated model names
+  - Always see only models you can actually use
+  - Automatic access to new models as providers release them
+
+#### � Context-Aware Translation Prompts
+- **Three Specialized Prompt Templates**:
+  1. **Single Segment Mode** (Ctrl+T): Focus on quality, deep context understanding, figure references
+  2. **Batch DOCX Mode**: Emphasis on consistency, structure preservation, terminology
+  3. **Batch Bilingual Mode**: Focus on segment alignment, numbered output for TXT files
+- **Automatic Selection**: System intelligently chooses appropriate prompt based on translation mode
+- **Inline Formatting Preservation**: Explicit instructions to preserve `<b>`, `<i>`, `<u>` tags exactly
+
+#### 📄 Bilingual TXT Import/Export (Professional CAT Tool Workflow)
+- **Flexible TXT Import** - Auto-detects and handles multiple formats:
+  - **Single-column source files** (all untranslated)
+  - **Two-column bilingual** (Source\tTarget with partial translations)
+  - **Three-column with IDs** (ID\tSource\tTarget)
+- **Smart Delimiter Detection**:
+  - Auto-detects tab-delimited vs CSV format
+  - Handles commas in source text correctly (doesn't split on them)
+  - Samples multiple lines for accurate format detection
+- **Bilingual TXT Export**: Simple tab-delimited format compatible with memoQ/Trados
+- **Pre-Translation Support**: Automatically detects and preserves existing translations
+- **Status Tracking**: Distinguishes between pre-translated and untranslated segments
+- **Format Messages**: Clear feedback about file format detected (source-only, fully translated, partially translated)
+
+#### 🐛 Critical Bug Fixes
+- **DOCX Table Paragraph Alignment**: Fixed critical export bug where translations stopped mid-document
+  - Problem: `doc.paragraphs` includes table paragraphs, causing counter misalignment
+  - Solution: Build `table_paras` set and skip early without incrementing counter
+  - Result: Perfect paragraph alignment in exported DOCX files
+- **Prompt Template Mismatch**: Fixed AI confusion from SENTENCES vs TEXT placeholder inconsistency
+- **Inline Formatting Tags**: Fixed AI removing or malforming `<b>`, `<i>`, `<u>` tags in translations
+- **CSV Comma Splitting**: Fixed single-column TXT files being incorrectly split at commas
+
+#### 📊 UI Enhancements
+- **New Toolbar Button**: "📄 Import TXT" for quick bilingual file import
+- **New Menu Items**:
+  - "Import Bilingual TXT..." (File menu)
+  - "Export to Bilingual TXT..." (File menu)
+- **Enhanced Save Dialog**: Shows selected model details when saving configurations
+- **Model Refresh Button**: In API Settings dialog for instant model list updates
+
+#### 📁 Sample Files Created
+- `test_bilingual.txt` - Sample bilingual file with 3 pre-translated, 7 untranslated segments
+- `test_source_only.txt` - Sample single-column source file (10 segments)
+
+#### 📚 Documentation Updates
+- `FEATURES_dynamic_models_contextual_prompts.md` - Comprehensive guide to new features
+- `QUICK_REFERENCE_dynamic_models_prompts.md` - Quick reference card
+- `BUGFIX_CRITICAL_docx_table_alignment.md` - Detailed bug analysis and fix
+- `STRATEGIC_PIVOT_TXT_bilingual_first.md` - Rationale for TXT-first approach
+- `FEATURE_bilingual_txt_import_export.md` - Complete TXT workflow documentation
+
+### 🔄 Strategic Direction
+- **TXT Workflow First**: Focusing on simpler, more reliable bilingual TXT workflow
+- **DOCX Complexity Deferred**: Pausing complex DOCX table/formatting edge cases
+- **Professional CAT Integration**: Prioritizing compatibility with memoQ/Trados workflows
+- **Modular Development**: Building features incrementally with comprehensive testing
+
+### ⚠️ Known Issues
+- Model selection dialog shows cached value on reopen (cosmetic only - selection saves correctly)
+- DOCX table export needs more real-world testing
+
+---
+
+## [2.5.0] - 2025-10-05 �🎉 MAJOR RELEASE (Initial)
 
 ### 🚀 NEW: Integrated CAT Editor - Direct DOCX Translation Workflow
 
