@@ -373,7 +373,38 @@ Planned (Unreleased):
 
 ---
 
-## 15. Contributing
+## 15. Similar Projects & Tools
+
+Supervertaler is part of a growing ecosystem of AI-powered translation tools that bring LLM capabilities to professional translators. Here are other notable projects exploring similar approaches:
+
+### Context-Aware Translation Tools
+- **[aLLMende](https://www.proz.com/forum/cafetran_support/374570-allmende_automated_imitation.html)** by Hans Lenting - AI-powered translation assistant
+- **[Bohemicus CAT editor](https://www.youtube.com/watch?si=X_6YsNfjn6Ib6Faq&v=HTIPNOltNbI&feature=youtu.be)** - CAT tool with AI integration
+- **[CALT: Context-Aware LLM Translator](https://github.com/CyrusCKF/translator)** - Runs locally for privacy
+- **[ConText - Local Secure Translation App](https://github.com/KazKozDev/ConText)** - Privacy-focused local translation
+- **[CotranslatorAI](https://cotranslatorai.com/)** - AI translation platform
+- **[DeepContextual-Translate](https://github.com/RUIJIESHI0917/DeepContextual-Translate/tree/main)** - Deep learning context translation
+- **[toLLMatch🔪](https://github.com/RomanKoshkin/toLLMatch)** - Context-aware LLM-based simultaneous translation
+
+### Automation & Integration Tools
+- **[ChatGPT-AutoHotkey-Utility](https://github.com/kdalanon/ChatGPT-AutoHotkey-Utility)** - AutoHotkey integration for ChatGPT
+- **[LLM-AutoHotkey-Assistant](https://github.com/kdalanon/LLM-AutoHotkey-Assistant)** - General LLM automation
+- **[openai_translation](https://github.com/gasparl/openai_translation?utm_source=chatgpt.com)** - OpenAI translation utilities
+- **[openai-translator](https://github.com/openai-translator/openai-translator)** - Cross-platform translation tool
+
+### Why Supervertaler?
+While many tools offer AI translation, Supervertaler's unique approach combines:
+- **Multiple context sources** (document, TM, tracked changes, images, custom instructions)
+- **Professional CAT tool integration** (seamless workflow with memoQ, Trados, etc.)
+- **Specialized domain prompts** (legal, medical, technical, financial, etc.)
+- **Project library system** (save/restore complete workspace configurations)
+- **Multimodal support** (AI sees referenced images in context)
+
+**Know of another tool?** Contact us at [info@michaelbeijer.co.uk](mailto:info@michaelbeijer.co.uk) to add it to this list!
+
+---
+
+## 16. Contributing
 
 1. **Fork** / feature branch.
 2. **Add or update** functionality (ideally in discrete logic units).
@@ -382,13 +413,13 @@ Planned (Unreleased):
 
 ---
 
-## 16. License
+## 17. License
 
 (Choose or add a LICENSE file: MIT / Apache-2.0 / Proprietary – not specified yet.)
 
 ---
 
-## 17. Quick Start Checklist
+## 18. Quick Start Checklist
 
 | Task | Done |
 |------|------|
@@ -403,7 +434,7 @@ Planned (Unreleased):
 
 ---
 
-## 18. Support
+## 19. Support
 
 Open an issue with:
 - Version (shown at startup)
