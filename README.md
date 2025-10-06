@@ -127,8 +127,18 @@ Supervertaler provides two output formats for flexible CAT tool integration:
 - **✅ Global Prompt Preview**: Test combined prompts with current segment
 - **✅ TM Manager**: Import/export TMX, delete individual entries
 - **🚧 Context-Aware Translation**: In development
-- **🚧 Batch Translation**: In development
-- **🚧 Prompt Library Integration**: In development
+🚧 Under Development:
+
+- ✅ Translation Memory with Fuzzy Matching
+- ✅ Enhanced Translation Workspace (10 tabs)
+- ✅ System Prompts Architecture
+- ✅ Custom Instructions
+- ✅ Global Prompt Preview
+- ✅ TM Manager
+- ✅ **Full Document Context** (v2.4.0 proven approach - **JUST COMPLETED!**)
+- 🚧 Batch Translation with Progress (basic implementation complete, refinement in progress)
+- 🚧 TrackedChangesAgent (port from v2.4.0)
+- 🚧 Prompt Library Integration
 
 **⚠️ Important**: v2.5.0 is experimental. Features may be incomplete, changed, or removed. Use v2.4.0 for production work.
 

@@ -1,0 +1,134 @@
+<?xml version='1.0' encoding='utf-8'?>
+<tmx version="1.4">
+  <header creationdate="20251006T222955Z" srclang="en" adminlang="en" segtype="sentence" creationtool="Supervertaler" creationtoolversion="2.5.0" datatype="plaintext" />
+  <body>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Biagio Pagano</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>Biagio Pagano</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>From Wikipedia, the free encyclopaedia</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>Van Wikipedia, de vrije encyclopedie</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>&lt;b&gt;Biagio Pagano&lt;/b&gt; (born 29 January 1983) is an Italian footballer who currently plays as a midfielder for Ghivizzano Borgoamozzano.</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>&lt;b&gt;Biagio Pagano&lt;/b&gt; (geboren op 29 januari 1983) is een Italiaanse voetballer die momenteel als middenvelder speelt voor Ghivizzano Borgoamozzano.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Pagano had made 250 appearances in Italian Serie B, including 2 in the playoffs in 2008–09 Serie B.</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>Pagano had 250 optredens in de Italiaanse Serie B, waaronder 2 in de play-offs in de Serie B van 2008–09.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Personal information</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>Persoonlijke informatie</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Date of birth</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>Geboortedatum</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>29 January 1983 (age 42)</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>29 januari 1983 (leeftijd 42)</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Place of birth</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>Geboorteplaats</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>, Italy</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>, Italië</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Height</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>Lengte</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>1.80 m (5 ft 11 in)</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>1,80 m (5 ft 11 in)</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Career</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>Carrière</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Pagano started his career at .</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>Pagano begon zijn carrière bij .</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>He made his Serie A debut on 17 June 2001 against  He played a few more Serie A games for Atalanta in October 2003, after he was returned from loan to  of the third division in .</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>Hij maakte zijn Serie A-debuut op 17 juni 2001 tegen  Hij speelde nog een paar Serie A-wedstrijden voor Atalanta in oktober 2003, nadat hij was teruggekeerd van een verhuur aan  van de derde divisie in .</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Football is a family of team sports that involve, to varying degrees, kicking a ball to score a goal.</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>Voetbal is een familie van teamsporten die, in verschillende mate, het schoppen van een bal omvatten om een doelpunt te scoren.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Unqualified, the word football generally means the form of football that is the most popular where the word is used. (source: Wikipedia)</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>Ongespecificeerd betekent het woord voetbal over het algemeen de vorm van voetbal die het meest populair is waar het woord wordt gebruikt. (bron: Wikipedia)</seg>
+      </tuv>
+    </tu>
+  </body>
+</tmx>

@@ -18,10 +18,13 @@ except ImportError:
 
 # Import tag manager for inline formatting
 try:
-    from tag_manager import TagManager
+    from .tag_manager import TagManager
 except ImportError:
-    print("WARNING: tag_manager not found. Inline formatting will not be preserved.")
-    TagManager = None
+    try:
+        from tag_manager import TagManager
+    except ImportError:
+        print("WARNING: tag_manager not found. Inline formatting will not be preserved.")
+        TagManager = None
 
 
 @dataclass
