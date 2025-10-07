@@ -4,7 +4,27 @@
 
 ### 🚀 Latest Updates - October 7, 2025
 
-#### 🔢 Language-Specific Number Formatting Rules (CRITICAL FIX)
+#### � Session Report Generation (NEW FEATURE)
+- **Added comprehensive session report generation** to v2.5.0 CAT Editor
+- **Menu Location**: File → Generate Session Report...
+- **Report Format**: Markdown (.md) file with complete session details
+- **Report Contents**:
+  - Session information (date, version, AI provider/model)
+  - Project statistics (total segments, translated/untranslated breakdown)
+  - Language settings (source/target languages)
+  - AI translation settings (provider, model, prompts)
+  - Translation features used (TM status, context awareness)
+  - Library and API key availability status
+  - Detailed segment breakdown by status
+  - Workflow summary
+- **Benefits**: 
+  - Document translation project settings for future reference
+  - Share AI configuration with team members
+  - Track translation progress and statistics
+  - Audit trail for professional projects
+- **Port from v2.4.0**: Successfully adapted the report generation feature from stable version
+
+#### �🔢 Language-Specific Number Formatting Rules (CRITICAL FIX)
 - **Added to ALL translation and proofreading prompts** (both v2.4.0 and v2.5.0)
 - **Continental European Languages** (Dutch, French, German, Italian, Spanish, etc.):
   - Decimal separator: **comma** (e.g., 17,1 cm)
