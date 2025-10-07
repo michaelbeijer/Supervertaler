@@ -1291,6 +1291,8 @@ class Supervertaler:
         file_menu.add_command(label="Export to TSV...", command=self.export_tsv)
         file_menu.add_command(label="Export to TMX...", command=self.export_tmx)
         file_menu.add_separator()
+        file_menu.add_command(label="Generate Session Report...", command=self.generate_session_report)
+        file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self.on_closing)
         
         # Edit menu
@@ -7474,6 +7476,161 @@ class Supervertaler:
         except Exception as e:
             self.log(f"✗ TMX export failed: {str(e)}")
             messagebox.showerror("Export Error", f"Failed to export TMX:\n{str(e)}")
+    
+    def generate_session_report(self):
+        """Generate comprehensive markdown report of current session"""
+        if not self.segments:
+            messagebox.showwarning("No Data", "No segments to generate report from")
+            return
+        
+        import datetime
+        
+        file_path = filedialog.asksaveasfilename(
+            title="Save Session Report",
+            defaultextension=".md",
+            filetypes=[("Markdown Files", "*.md"), ("Text Files", "*.txt"), ("All Files", "*.*")]
+        )
+        
+        if not file_path:
+            return
+        
+        try:
+            timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            
+            # Calculate statistics
+            total_segments = len(self.segments)
+            translated = sum(1 for seg in self.segments if seg.target.strip() and seg.status != "untranslated")
+            untranslated = total_segments - translated
+            draft = sum(1 for seg in self.segments if seg.status == "draft")
+            approved = sum(1 for seg in self.segments if seg.status == "approved")
+            
+            # Get current prompt (context-aware)
+            current_mode = "batch_bilingual" if hasattr(self, 'original_txt') else "batch_docx"
+            current_prompt = self.get_context_aware_prompt(current_mode)
+            
+            # Determine prompt source
+            is_custom_prompt = (hasattr(self, 'current_translate_prompt') and 
+                              self.current_translate_prompt != self.single_segment_prompt)
+            custom_prompt_source = "Custom loaded prompt" if is_custom_prompt else "Default system prompt"
+            
+            # Build comprehensive markdown report
+            report = f"""# Supervertaler CAT Editor Session Report
+
+## Session Information
+- **Date & Time**: {timestamp}
+- **Supervertaler Version**: {APP_VERSION}
+- **Mode**: CAT Editor with AI-Assisted Translation
+- **AI Provider**: {self.current_llm_provider}
+- **AI Model**: {self.current_llm_model}
+
+## Project Statistics
+- **Total Segments**: {total_segments}
+- **Translated**: {translated} ({translated/total_segments*100:.1f}%)
+- **Untranslated**: {untranslated} ({untranslated/total_segments*100:.1f}%)
+- **Draft (AI-generated)**: {draft}
+- **Approved**: {approved}
+
+## Language Settings
+- **Source Language**: {self.source_language}
+- **Target Language**: {self.target_language}
+
+## Source File
+- **Original File**: {getattr(self, 'original_docx', getattr(self, 'original_txt', 'Not saved'))}
+
+## AI Translation Settings
+
+### Active Provider & Model
+- **Provider**: {self.current_llm_provider.upper()}
+- **Model**: {self.current_llm_model}
+
+### Prompt Configuration
+- **Prompt Source**: {custom_prompt_source}
+- **Context Mode**: {current_mode}
+
+### Current System Prompt
+```
+{current_prompt}
+```
+
+## Translation Features Used
+
+### TM (Translation Memory)
+- **Status**: {"✅ Enabled" if self.check_tm_var.get() else "❌ Disabled"}
+- **TM Entries**: {len(self.tm_agent.memory) if hasattr(self, 'tm_agent') and self.tm_agent else 0}
+
+### Context Awareness
+- **Full Document Context**: {"✅ Enabled" if self.use_context_var.get() else "❌ Disabled"}
+- **Description**: Provides surrounding segments to AI for better translation quality
+
+## Library Availability
+- **Google AI (Gemini)**: {"✅ Available" if GOOGLE_AI_AVAILABLE else "❌ Not Available"}
+- **Anthropic (Claude)**: {"✅ Available" if CLAUDE_AVAILABLE else "❌ Not Available"}
+- **OpenAI**: {"✅ Available" if OPENAI_AVAILABLE else "❌ Not Available"}
+- **PIL (Image Processing)**: {"✅ Available" if PIL_AVAILABLE else "❌ Not Available"}
+
+## API Key Status
+- **Google/Gemini**: {"✅ Configured" if self.api_keys.get("google") else "❌ Not Configured"}
+- **Claude**: {"✅ Configured" if self.api_keys.get("claude") else "❌ Not Configured"}
+- **OpenAI**: {"✅ Configured" if self.api_keys.get("openai") else "❌ Not Configured"}
+
+## Segment Details
+
+### Segments by Status
+"""
+            
+            # Group segments by status
+            status_groups = {}
+            for seg in self.segments:
+                status = seg.status or "untranslated"
+                if status not in status_groups:
+                    status_groups[status] = []
+                status_groups[status].append(seg)
+            
+            for status, segs in sorted(status_groups.items()):
+                report += f"\n#### {status.upper()} ({len(segs)} segments)\n"
+                if len(segs) <= 10:
+                    for seg in segs:
+                        report += f"- **Segment {seg.id}**: {seg.source[:50]}{'...' if len(seg.source) > 50 else ''}\n"
+                else:
+                    report += f"- {len(segs)} segments (too many to list)\n"
+            
+            report += f"""
+
+## Workflow Summary
+
+This session used Supervertaler's CAT Editor mode with the following workflow:
+1. **Import**: Document imported and segmented
+2. **AI Pre-Translation**: {'Segments translated using ' + self.current_llm_provider if translated > 0 else 'No AI translation performed yet'}
+3. **Manual Review**: {'Human review and editing of AI translations' if approved > 0 else 'No segments approved yet'}
+4. **Quality Control**: TM matching {'enabled' if self.check_tm_var.get() else 'disabled'}
+
+## Technical Information
+- **Processing Method**: Segment-by-segment with optional batch translation
+- **Context Mode**: {'Full document context provided to AI' if self.use_context_var.get() else 'Single segment translation only'}
+- **Output Formats Available**: DOCX, Bilingual DOCX, TSV, TXT, TMX
+- **Report Generated**: {timestamp}
+
+---
+*This report was automatically generated by Supervertaler v{APP_VERSION} CAT Editor*
+"""
+            
+            # Write report to file
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write(report)
+            
+            self.log(f"✓ Session report saved: {os.path.basename(file_path)}")
+            messagebox.showinfo("Report Generated", 
+                              f"Session report saved successfully!\n\n"
+                              f"File: {os.path.basename(file_path)}\n\n"
+                              f"The report includes:\n"
+                              f"• Project statistics\n"
+                              f"• AI configuration\n"
+                              f"• Translation settings\n"
+                              f"• Segment details")
+            
+        except Exception as e:
+            self.log(f"✗ Report generation failed: {str(e)}")
+            messagebox.showerror("Report Error", f"Failed to generate report:\n{str(e)}")
     
     def show_find_replace(self):
         """Show find/replace dialog"""
