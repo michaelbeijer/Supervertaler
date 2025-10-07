@@ -1145,6 +1145,10 @@ class Supervertaler:
             "- Maintain accuracy and natural fluency\n"
             "- If the text contains inline formatting tags like <b>, <i>, <u>, preserve them EXACTLY in the same positions relative to the translated words\n"
             "- Example: '<b>Hello</b> world' → '<b>Hallo</b> wereld' (tags stay with the word they format)\n\n"
+            "**LANGUAGE-SPECIFIC NUMBER FORMATTING**:\n"
+            "- If the target language is **Dutch**, **French**, **German**, **Italian**, **Spanish**, or another **continental European language**, use a **comma** as the decimal separator and a **space or non-breaking space** between the number and unit (e.g., 17,1 cm).\n"
+            "- If the target language is **English** or **Irish**, use a **full stop (period)** as the decimal separator and **no space** before the unit (e.g., 17.1 cm).\n"
+            "- Always follow the **number formatting conventions** of the target language.\n\n"
             "If the text refers to figures (e.g., 'Figure 1A'), relevant images may be provided for visual context.\n\n"
             "{{SOURCE_LANGUAGE}} text:\n{{SOURCE_TEXT}}"
         )
@@ -1161,6 +1165,10 @@ class Supervertaler:
             "- Output translations in the same order as source segments\n"
             "- If segments contain inline formatting tags like <b>, <i>, <u>, preserve them EXACTLY\n"
             "- Example: '<b>Career</b>' → '<b>Carrière</b>' (keep the tags with the formatted text)\n\n"
+            "**LANGUAGE-SPECIFIC NUMBER FORMATTING**:\n"
+            "- If the target language is **Dutch**, **French**, **German**, **Italian**, **Spanish**, or another **continental European language**, use a **comma** as the decimal separator and a **space or non-breaking space** between the number and unit (e.g., 17,1 cm).\n"
+            "- If the target language is **English** or **Irish**, use a **full stop (period)** as the decimal separator and **no space** before the unit (e.g., 17.1 cm).\n"
+            "- Always follow the **number formatting conventions** of the target language.\n\n"
             "{{SOURCE_LANGUAGE}} text:\n{{SOURCE_TEXT}}"
         )
         
@@ -1175,6 +1183,10 @@ class Supervertaler:
             "- Keep translations aligned with source segment numbers\n"
             "- Preserve any special formatting markers\n"
             "- Ensure consistency across all segments\n\n"
+            "**LANGUAGE-SPECIFIC NUMBER FORMATTING**:\n"
+            "- If the target language is **Dutch**, **French**, **German**, **Italian**, **Spanish**, or another **continental European language**, use a **comma** as the decimal separator and a **space or non-breaking space** between the number and unit (e.g., 17,1 cm).\n"
+            "- If the target language is **English** or **Irish**, use a **full stop (period)** as the decimal separator and **no space** before the unit (e.g., 17.1 cm).\n"
+            "- Always follow the **number formatting conventions** of the target language.\n\n"
             "{{SOURCE_LANGUAGE}} text:\n{{SOURCE_TEXT}}"
         )
         
@@ -1185,6 +1197,10 @@ class Supervertaler:
             "You are an expert proofreader and editor for {{SOURCE_LANGUAGE}} → {{TARGET_LANGUAGE}} translations, skilled in various document types and domains.\n\n"
             "For each segment you receive a SOURCE SEGMENT and EXISTING TRANSLATION. "
             "Your tasks: improve accuracy, ensure terminology consistency, enhance readability, correct grammar, improve fluency, verify completeness, and maintain consistency with visual elements.\n\n"
+            "**LANGUAGE-SPECIFIC NUMBER FORMATTING**:\n"
+            "- If the target language is **Dutch**, **French**, **German**, **Italian**, **Spanish**, or another **continental European language**, use a **comma** as the decimal separator and a **space or non-breaking space** between the number and unit (e.g., 17,1 cm).\n"
+            "- If the target language is **English** or **Irish**, use a **full stop (period)** as the decimal separator and **no space** before the unit (e.g., 17.1 cm).\n"
+            "- Always follow the **number formatting conventions** of the target language.\n\n"
             "OUTPUT FORMAT STRICTLY:\n"
             "1) Numbered list of revised {{TARGET_LANGUAGE}} translations (use same numbering; if no changes needed, reproduce the original).\n"
             "2) Then a section:\n---CHANGES SUMMARY START---\n"

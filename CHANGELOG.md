@@ -1,6 +1,21 @@
 # Supervertaler - Changelog
 
-## [2.5.0] - 2025-10-06 🎉 MAJOR RELEASE (In Progress)
+## [2.5.0] - 2025-10-07 🎉 MAJOR RELEASE (In Progress)
+
+### 🚀 Latest Updates - October 7, 2025
+
+#### 🔢 Language-Specific Number Formatting Rules (CRITICAL FIX)
+- **Added to ALL translation and proofreading prompts** (both v2.4.0 and v2.5.0)
+- **Continental European Languages** (Dutch, French, German, Italian, Spanish, etc.):
+  - Decimal separator: **comma** (e.g., 17,1 cm)
+  - Number-unit spacing: **space or non-breaking space** (e.g., 17,1 cm)
+- **English/Irish**:
+  - Decimal separator: **period/full stop** (e.g., 17.1 cm)
+  - Number-unit spacing: **no space** (e.g., 17.1cm)
+- **Impact**: Fixes incorrect number formatting in translations (e.g., "17.1 cm" incorrectly appearing in Dutch translations instead of "17,1 cm")
+- **Updated Prompts**:
+  - v2.4.0: `default_translate_prompt`, `default_proofread_prompt`
+  - v2.5.0: `single_segment_prompt`, `batch_docx_prompt`, `batch_bilingual_prompt`, `default_proofread_prompt`
 
 ### 🚀 Latest Updates - October 6, 2025
 
