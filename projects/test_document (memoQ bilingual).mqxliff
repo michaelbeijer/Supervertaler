@@ -1,0 +1,409 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2" xmlns:mq="MQXliff" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="urn:oasis:names:tc:xliff:document:1.2 xliff-core-1.2-transitional.xsd">
+<file original="test_document.docx" mq:id="bda3dfbd-f918-4c7d-b40b-3eda89ebf30e" mq:projectid="139a0a4a-9fca-42b4-b961-0784a02b9f6e" source-language="nl-nl" target-language="en-gb" datatype="x-docx">
+<header>
+<tool tool-id="MQ" tool-name="MemoQ" tool-version="12.0.10" tool-company="Kilgray" />
+<mq:export-path>C:\Users\mbeijer\My Drive\Software\Python\Supervertaler\projects\test_document_eng-GB.docx</mq:export-path>
+<mq:docinformation mq:isabstract="isabstract" mq:hashistory="true" mq:docname="test_document.docx" mq:majorversion="1" mq:minorversion="2" mq:nosplitjoin="false" mq:langindepgroupid="11682d31-c192-495d-a5b8-b36d98e88c4b" mq:multidocgroupid="b6b67c99-40f5-4c21-967f-7ddaddac1708" mq:origfile="C:\Users\mbeijer\My Drive\Software\Python\Supervertaler\projects\test_document.docx" mq:numberofwords="173" mq:filterconfigname="default" mq:filterconfigserverurl="" mq:changetrackingenabledstates="Off,Off,Off,Off">
+<mq:versioninfos mq:majorversion="1"><mq:minorversioninfo mq:minorversion="0" mq:comment="" mq:createdthroughview="false" mq:createreason="Import" mq:creationtime="562070962" mq:creatoruser="pc" mq:tag=""><mq:details mq:type="MinorVersionDetailsImport"><![CDATA[<?xml version="1.0"?>
+<MinorVersionDetailsImport xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <FilePath>C:\Users\mbeijer\My Drive\Software\Python\Supervertaler\projects\test_document.docx</FilePath>
+</MinorVersionDetailsImport>]]></mq:details></mq:minorversioninfo>
+<mq:minorversioninfo mq:minorversion="1" mq:comment="" mq:createdthroughview="false" mq:createreason="BilingualExport" mq:creationtime="562071026" mq:creatoruser="pc" mq:tag=""><mq:details mq:type="MinorVersionDetailsBilingExport"><![CDATA[<?xml version="1.0"?>
+<MinorVersionDetailsBilingExport xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <BilingualType>TableDocx</BilingualType>
+  <TargetPath>C:\Users\mbeijer\My Drive\Software\Python\Supervertaler\projects\test_document (memoQ bilingual).docx</TargetPath>
+  <TwoColumpRtfProperties>None</TwoColumpRtfProperties>
+  <TableDocxProperties>CommentColumn StatusColumn TagsWithStyle</TableDocxProperties>
+  <BilingRtfProperties>None</BilingRtfProperties>
+  <XliffProperties>None</XliffProperties>
+</MinorVersionDetailsBilingExport>]]></mq:details></mq:minorversioninfo>
+<mq:minorversioninfo mq:minorversion="2" mq:comment="" mq:createdthroughview="false" mq:createreason="BilingualExport" mq:creationtime="562071046" mq:creatoruser="pc" mq:tag=""><mq:details mq:type="MinorVersionDetailsBilingExport"><![CDATA[<?xml version="1.0"?>
+<MinorVersionDetailsBilingExport xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <BilingualType>Xliff</BilingualType>
+  <TargetPath>C:\Users\mbeijer\My Drive\Software\Python\Supervertaler\projects\test_document (memoQ bilingual).mqxliff</TargetPath>
+  <TwoColumpRtfProperties>None</TwoColumpRtfProperties>
+  <TableDocxProperties>None</TableDocxProperties>
+  <BilingRtfProperties>None</BilingRtfProperties>
+  <XliffProperties>None</XliffProperties>
+</MinorVersionDetailsBilingExport>]]></mq:details></mq:minorversioninfo>
+</mq:versioninfos>
+<mq:tagdefinition alignhighlight="false" caseinsensitive="false" oeid="1200" oename="utf-16" rawhtml="false" showitags="true" basicformat="true" supersubscript="true" xmlcommands="true"><mq:tagdefelement name="b" placeholder="false" tagrequired="Normal"></mq:tagdefelement><mq:tagdefelement name="btn" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="dt" filtered="true" required="true" translatable="true" /><mq:tagdefattribute name="name" filtered="false" required="true" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="i" placeholder="false" tagrequired="Normal"></mq:tagdefelement><mq:tagdefelement name="underline-sng" placeholder="false" tagrequired="Normal"></mq:tagdefelement><mq:tagdefelement name="rtl-on" placeholder="false" tagrequired="Normal"></mq:tagdefelement><mq:tagdefelement name="rtl-off" placeholder="false" tagrequired="Normal"></mq:tagdefelement><mq:tagdefelement name="rpr" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="id" filtered="false" required="false" translatable="false" /><mq:tagdefattribute name="transform" filtered="true" required="false" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="idx" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="id" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="transform" filtered="true" required="false" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="idxm" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="id" filtered="true" required="false" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="l" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="depth" filtered="false" required="true" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="instr" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="id" filtered="false" required="false" translatable="false" /><mq:tagdefattribute name="rprid" filtered="true" required="false" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="delinstr" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="id" filtered="false" required="false" translatable="false" /><mq:tagdefattribute name="rprid" filtered="true" required="false" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="sym" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="font" filtered="false" required="false" translatable="false" /><mq:tagdefattribute name="char" filtered="false" required="false" translatable="false" /><mq:tagdefattribute name="rprid" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="mqc" filtered="true" required="false" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="pict" placeholder="true" tagrequired="Required"><mq:tagdefattribute name="id" filtered="false" required="false" translatable="false" /><mq:tagdefattribute name="rprid" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="textpath1" filtered="false" required="false" translatable="true" /><mq:tagdefattribute name="textpath2" filtered="false" required="false" translatable="true" /><mq:tagdefattribute name="textpath3" filtered="false" required="false" translatable="true" /><mq:tagdefattribute name="textpath4" filtered="false" required="false" translatable="true" /><mq:tagdefattribute name="textpath5" filtered="false" required="false" translatable="true" /><mq:tagdefattribute name="textpath6" filtered="false" required="false" translatable="true" /><mq:tagdefattribute name="textpath7" filtered="false" required="false" translatable="true" /><mq:tagdefattribute name="textpath8" filtered="false" required="false" translatable="true" /><mq:tagdefattribute name="textpath9" filtered="false" required="false" translatable="true" /><mq:tagdefattribute name="textpath10" filtered="false" required="false" translatable="true" /></mq:tagdefelement><mq:tagdefelement name="altcontent" placeholder="true" tagrequired="Required"><mq:tagdefattribute name="id" filtered="false" required="false" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="bmk" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="colFirst" filtered="false" required="false" translatable="false" /><mq:tagdefattribute name="colLast" filtered="false" required="false" translatable="false" /><mq:tagdefattribute name="displacedByCustomXml" filtered="false" required="false" translatable="false" /><mq:tagdefattribute name="id" filtered="false" required="false" translatable="false" /><mq:tagdefattribute name="transform" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="name" filtered="false" required="false" translatable="false" /><mq:tagdefattribute name="rprid" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="val" filtered="true" required="false" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="cmt" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="transform" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="displacedByCustomXml" filtered="false" required="false" translatable="false" /><mq:tagdefattribute name="id" filtered="false" required="false" translatable="false" /><mq:tagdefattribute name="rprid" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="comment" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="creator" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="creationtime" filtered="true" required="false" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="day" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="rprid" filtered="true" required="false" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="month" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="rprid" filtered="true" required="false" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="monthL" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="rprid" filtered="true" required="false" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="year" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="rprid" filtered="true" required="false" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="yearL" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="rprid" filtered="true" required="false" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="dayL" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="rprid" filtered="true" required="false" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="pgNum" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="rprid" filtered="true" required="false" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="mq:ch" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="val" filtered="false" required="false" translatable="false" /><mq:tagdefattribute name="rprid" filtered="true" required="false" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="o" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="id" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="rprid" filtered="true" required="false" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="fld" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="id" filtered="false" required="false" translatable="false" /><mq:tagdefattribute name="rprid" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="val" filtered="true" required="false" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="ruby" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="id" filtered="false" required="false" translatable="false" /><mq:tagdefattribute name="rprid" filtered="true" required="false" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="draw" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="id" filtered="false" required="false" translatable="false" /><mq:tagdefattribute name="rprid" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="mmq-alttitle" filtered="true" required="false" translatable="true" /><mq:tagdefattribute name="mmq-altdescr" filtered="true" required="false" translatable="true" /></mq:tagdefelement><mq:tagdefelement name="sdt" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="id" filtered="false" required="false" translatable="false" /><mq:tagdefattribute name="rprid" filtered="true" required="false" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="ptab" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="alignment" filtered="false" required="false" translatable="false" /><mq:tagdefattribute name="relativeTo" filtered="false" required="false" translatable="false" /><mq:tagdefattribute name="leader" filtered="false" required="false" translatable="false" /><mq:tagdefattribute name="rprid" filtered="true" required="false" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="ent" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="id" filtered="false" required="false" translatable="false" /><mq:tagdefattribute name="rprid" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="customMarkFollows" filtered="false" required="false" translatable="false" /><mq:tagdefattribute name="b" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="i" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="underline-sng" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="vertAlign-sub" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="vertAlign-super" filtered="true" required="false" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="fnt" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="id" filtered="false" required="false" translatable="false" /><mq:tagdefattribute name="rprid" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="customMarkFollows" filtered="false" required="false" translatable="false" /><mq:tagdefattribute name="b" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="i" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="underline-sng" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="vertAlign-sub" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="vertAlign-super" filtered="true" required="false" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="hlnk" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="tgtFrame" filtered="false" required="false" translatable="false" /><mq:tagdefattribute name="tooltip" filtered="false" required="false" translatable="true" /><mq:tagdefattribute name="docLocation" filtered="false" required="false" translatable="false" /><mq:tagdefattribute name="history" filtered="false" required="false" translatable="false" /><mq:tagdefattribute name="anchor" filtered="false" required="false" translatable="false" /><mq:tagdefattribute name="id" filtered="false" required="false" translatable="false" /><mq:tagdefattribute name="rprid" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="href" filtered="true" required="false" translatable="true" /><mq:tagdefattribute name="fileName" filtered="false" required="false" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="entr" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="rprid" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="b" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="i" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="underline-sng" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="vertAlign-sub" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="vertAlign-super" filtered="true" required="false" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="fntr" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="rprid" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="b" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="i" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="underline-sng" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="vertAlign-sub" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="vertAlign-super" filtered="true" required="false" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="mq:nt" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="id" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="type" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="text" filtered="false" required="false" translatable="false" /><mq:tagdefattribute name="rprid" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="val" filtered="false" required="false" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="mo" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="id" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="rprid" filtered="true" required="false" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="font" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="ea" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="latin" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="cs" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="sym" filtered="true" required="false" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="u" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="type" filtered="false" required="true" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="c" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="val" filtered="true" required="true" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="lnk-c" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="val" filtered="true" required="true" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="ext" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="val" filtered="true" required="true" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="ln" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="val" filtered="true" required="true" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="lnk-m" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="val" filtered="true" required="true" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="eff-l" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="val" filtered="true" required="true" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="eff-c" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="val" filtered="true" required="true" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="ul-f" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="val" filtered="true" required="true" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="ul-p" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="val" filtered="true" required="true" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="fill-pt" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="val" filtered="true" required="true" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="fill-no" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="val" filtered="true" required="true" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="fill-bl" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="val" filtered="true" required="true" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="fill-gr" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="val" filtered="true" required="true" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="fill-sd" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="val" filtered="true" required="true" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="fill-gd" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="val" filtered="true" required="true" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="fill-ug" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="val" filtered="true" required="true" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="fill-uf" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="val" filtered="true" required="true" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="km" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="val" filtered="true" required="true" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="size" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="val" filtered="true" required="true" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="strike" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="val" filtered="true" required="true" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="kern" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="val" filtered="true" required="true" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="cap" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="val" filtered="true" required="true" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="spc" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="val" filtered="true" required="true" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="normh" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="val" filtered="true" required="true" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="bline" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="val" filtered="true" required="true" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="underline-none" placeholder="false" tagrequired="Normal"></mq:tagdefelement><mq:tagdefelement name="mmq-moveFrom" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="author" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="date" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="id" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="mmq-commonId" filtered="false" required="false" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="mmq-moveTo" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="author" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="date" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="id" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="mmq-commonId" filtered="false" required="false" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="mq:cmt" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="val" filtered="false" required="false" translatable="false" /><mq:tagdefattribute name="prv" filtered="false" required="false" translatable="false" /><mq:tagdefattribute name="id" filtered="true" required="false" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="mq:pi" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="instruction" filtered="false" required="false" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="mq:rxt" placeholder="false" tagrequired="Normal"><mq:tagdefattribute name="displaytext" filtered="true" required="true" translatable="false" /><mq:tagdefattribute name="val" filtered="true" required="true" translatable="false" /><mq:tagdefattribute name="fmt_b" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="fmt_i" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="fmt_u" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="fmt_sup" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="fmt_sub" filtered="true" required="false" translatable="false" /></mq:tagdefelement><mq:tagdefelement name="mq:rxt-req" placeholder="true" tagrequired="Required"><mq:tagdefattribute name="displaytext" filtered="true" required="true" translatable="false" /><mq:tagdefattribute name="val" filtered="true" required="true" translatable="false" /><mq:tagdefattribute name="fmt_b" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="fmt_i" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="fmt_u" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="fmt_sup" filtered="true" required="false" translatable="false" /><mq:tagdefattribute name="fmt_sub" filtered="true" required="false" translatable="false" /></mq:tagdefelement></mq:tagdefinition>
+<mq:doccomments />
+<mq:lqamodel><![CDATA[<XMLSerializedLQAModel xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><Version>1</Version><Name /><RevisionID>00000000-0000-0000-0000-000000000000</RevisionID><UseSeverityLevels>false</UseSeverityLevels><UsePenaltyPoints>false</UsePenaltyPoints><RequiresReviewerCommenting>false</RequiresReviewerCommenting><SeverityLevelNames /><ModelEntries /><PassFailCriterion><CountMultipleErrorOccuranceAsOne>false</CountMultipleErrorOccuranceAsOne><CritDefType>PenaltyPoints</CritDefType><PenaltyPointsNominator>0</PenaltyPointsNominator><PenaltyPointPerWordsDenominator>0</PenaltyPointPerWordsDenominator><NormalizedPenaltyScoreLimit>0</NormalizedPenaltyScoreLimit><CritDefinitionRules /></PassFailCriterion><QALQAMapping /><Timestamp>0001-01-01T00:00:00</Timestamp></XMLSerializedLQAModel>]]></mq:lqamodel>
+<mq:externalpreviewinfo>
+<mq:previewidsbylabels>
+<mq:previewidbylabel mq:label="1" mq:previewid="mQ-default-b57cb9c4-ee4c-4fbd-a6b2-a78fefaeb220-1" />
+<mq:previewidbylabel mq:label="2" mq:previewid="mQ-default-b57cb9c4-ee4c-4fbd-a6b2-a78fefaeb220-2" />
+<mq:previewidbylabel mq:label="3" mq:previewid="mQ-default-b57cb9c4-ee4c-4fbd-a6b2-a78fefaeb220-3" />
+<mq:previewidbylabel mq:label="4" mq:previewid="mQ-default-b57cb9c4-ee4c-4fbd-a6b2-a78fefaeb220-4" />
+<mq:previewidbylabel mq:label="5" mq:previewid="mQ-default-b57cb9c4-ee4c-4fbd-a6b2-a78fefaeb220-5" />
+<mq:previewidbylabel mq:label="6" mq:previewid="mQ-default-b57cb9c4-ee4c-4fbd-a6b2-a78fefaeb220-6" />
+<mq:previewidbylabel mq:label="7" mq:previewid="mQ-default-b57cb9c4-ee4c-4fbd-a6b2-a78fefaeb220-7" />
+<mq:previewidbylabel mq:label="8" mq:previewid="mQ-default-b57cb9c4-ee4c-4fbd-a6b2-a78fefaeb220-8" />
+<mq:previewidbylabel mq:label="9" mq:previewid="mQ-default-b57cb9c4-ee4c-4fbd-a6b2-a78fefaeb220-9" />
+<mq:previewidbylabel mq:label="10" mq:previewid="mQ-default-b57cb9c4-ee4c-4fbd-a6b2-a78fefaeb220-10" />
+<mq:previewidbylabel mq:label="11" mq:previewid="mQ-default-b57cb9c4-ee4c-4fbd-a6b2-a78fefaeb220-11" />
+<mq:previewidbylabel mq:label="12" mq:previewid="mQ-default-b57cb9c4-ee4c-4fbd-a6b2-a78fefaeb220-12" />
+<mq:previewidbylabel mq:label="13" mq:previewid="mQ-default-b57cb9c4-ee4c-4fbd-a6b2-a78fefaeb220-13" />
+<mq:previewidbylabel mq:label="14" mq:previewid="mQ-default-b57cb9c4-ee4c-4fbd-a6b2-a78fefaeb220-14" />
+<mq:previewidbylabel mq:label="15" mq:previewid="mQ-default-b57cb9c4-ee4c-4fbd-a6b2-a78fefaeb220-15" />
+</mq:previewidsbylabels>
+</mq:externalpreviewinfo>
+</mq:docinformation>
+</header>
+<body>
+<trans-unit id="1" mq:minorversionend="2" mq:minorversionstart="0" mq:status="NotStarted" mq:segmentguid="bb787d5e-b2e0-463f-b95d-9b12c340aa79" mq:lastchangedtimestamp="0001-01-01T00:00:00Z" mq:maxlengthchars="-1" mq:nosplitjoin="false" mq:firstlabel="1" mq:lastlabel="1" mq:autosplitjoinstate="0" mq:lastmodifrole="0" mq:multipleexactmatch="false">
+<source xml:space="preserve" mq:segpart="1">Biagio Pagano</source>
+<target xml:space="preserve"></target>
+<context-group>
+<context context-type="x-mmq-structural-context">trans-units / trans-unit#1</context>
+</context-group>
+<mq:minorversions>
+</mq:minorversions>
+<mq:startingws xml:space="preserve" />
+<mq:endingws xml:space="preserve" />
+<mq:commitinfos xmlns="MQXliff" /><mq:nosplitjoins />
+<mq:originalsource edited="false" />
+</trans-unit>
+<trans-unit id="2" mq:minorversionend="2" mq:minorversionstart="0" mq:status="NotStarted" mq:segmentguid="d016b03f-c820-4812-ae54-f65f88f1c1ec" mq:lastchangedtimestamp="0001-01-01T00:00:00Z" mq:maxlengthchars="-1" mq:nosplitjoin="false" mq:firstlabel="2" mq:lastlabel="2" mq:autosplitjoinstate="0" mq:lastmodifrole="0" mq:multipleexactmatch="false">
+<source xml:space="preserve" mq:segpart="2"><bpt id="1" ctype="italic">{}</bpt>From Wikipedia, the free encyclopaedia<ept id="1">{}</ept></source>
+<target xml:space="preserve"></target>
+<context-group>
+<context context-type="x-mmq-structural-context">trans-units / trans-unit#2</context>
+</context-group>
+<mq:minorversions>
+</mq:minorversions>
+<mq:startingws xml:space="preserve" />
+<mq:endingws xml:space="preserve" />
+<mq:commitinfos xmlns="MQXliff" /><mq:nosplitjoins />
+<mq:originalsource edited="false" />
+</trans-unit>
+<trans-unit id="3" mq:minorversionend="2" mq:minorversionstart="0" mq:status="NotStarted" mq:segmentguid="7215a243-6b44-46ab-a173-beb9dd35a4c5" mq:lastchangedtimestamp="0001-01-01T00:00:00Z" mq:maxlengthchars="-1" mq:nosplitjoin="false" mq:firstlabel="3" mq:lastlabel="3" mq:autosplitjoinstate="0" mq:lastmodifrole="0" mq:multipleexactmatch="false">
+<source xml:space="preserve" mq:segpart="3"><bpt id="1" ctype="bold">{}</bpt>About<ept id="1">{}</ept></source>
+<target xml:space="preserve"></target>
+<context-group>
+<context context-type="x-mmq-structural-context">trans-units / trans-unit#3</context>
+</context-group>
+<mq:minorversions>
+</mq:minorversions>
+<mq:startingws xml:space="preserve" />
+<mq:endingws xml:space="preserve" />
+<mq:commitinfos xmlns="MQXliff" /><mq:nosplitjoins />
+<mq:originalsource edited="false" />
+</trans-unit>
+<trans-unit id="4" mq:minorversionend="2" mq:minorversionstart="0" mq:status="NotStarted" mq:segmentguid="31e7b7e9-9a44-4e8e-84de-2b624a97eef6" mq:lastchangedtimestamp="0001-01-01T00:00:00Z" mq:maxlengthchars="-1" mq:nosplitjoin="false" mq:firstlabel="4" mq:lastlabel="4" mq:autosplitjoinstate="0" mq:lastmodifrole="0" mq:multipleexactmatch="false">
+<source xml:space="preserve" mq:segpart="4"><bpt id="1" ctype="bold">{}</bpt>Biagio Pagano<ept id="1">{}</ept> (born 29 January 1983) is an Italian footballer who currently plays as a midfielder for Ghivizzano Borgoamozzano.</source>
+<target xml:space="preserve"></target>
+<context-group>
+<context context-type="x-mmq-structural-context">trans-units / trans-unit#4</context>
+</context-group>
+<mq:minorversions>
+</mq:minorversions>
+<mq:startingws xml:space="preserve" />
+<mq:endingws xml:space="preserve" />
+<mq:commitinfos xmlns="MQXliff" /><mq:nosplitjoins />
+<mq:originalsource edited="false" />
+</trans-unit>
+<trans-unit id="5" mq:minorversionend="2" mq:minorversionstart="0" mq:status="NotStarted" mq:segmentguid="a1257415-b679-4f87-9fc5-b251d69cba85" mq:lastchangedtimestamp="0001-01-01T00:00:00Z" mq:maxlengthchars="-1" mq:nosplitjoin="false" mq:firstlabel="5" mq:lastlabel="5" mq:autosplitjoinstate="0" mq:lastmodifrole="0" mq:multipleexactmatch="false">
+<source xml:space="preserve" mq:segpart="5">Pagano had made 250 appearances in Italian Serie B, including 2 in the playoffs in 2008–09 Serie B.</source>
+<target xml:space="preserve"></target>
+<context-group>
+<context context-type="x-mmq-structural-context">trans-units / trans-unit#5</context>
+</context-group>
+<mq:minorversions>
+</mq:minorversions>
+<mq:startingws xml:space="preserve" />
+<mq:endingws xml:space="preserve" />
+<mq:commitinfos xmlns="MQXliff" /><mq:nosplitjoins />
+<mq:originalsource edited="false" />
+</trans-unit>
+<trans-unit id="6" mq:minorversionend="2" mq:minorversionstart="0" mq:status="NotStarted" mq:segmentguid="24463156-1492-40c5-9164-b08d1fa160e5" mq:lastchangedtimestamp="0001-01-01T00:00:00Z" mq:maxlengthchars="-1" mq:nosplitjoin="false" mq:firstlabel="6" mq:lastlabel="6" mq:autosplitjoinstate="0" mq:lastmodifrole="0" mq:multipleexactmatch="false">
+<source xml:space="preserve" mq:segpart="6"><bpt id="1" ctype="bold">{}</bpt>Personal information<ept id="1">{}</ept></source>
+<target xml:space="preserve"></target>
+<context-group>
+<context context-type="x-mmq-structural-context">trans-units / trans-unit#6</context>
+</context-group>
+<mq:minorversions>
+</mq:minorversions>
+<mq:startingws xml:space="preserve" />
+<mq:endingws xml:space="preserve" />
+<mq:commitinfos xmlns="MQXliff" /><mq:nosplitjoins />
+<mq:originalsource edited="false" />
+</trans-unit>
+<trans-unit id="7" mq:minorversionend="2" mq:minorversionstart="0" mq:status="NotStarted" mq:segmentguid="3741fbb1-7bb5-4156-9ad7-996bf9c8f7b2" mq:lastchangedtimestamp="0001-01-01T00:00:00Z" mq:maxlengthchars="-1" mq:nosplitjoin="false" mq:firstlabel="7" mq:lastlabel="7" mq:autosplitjoinstate="0" mq:lastmodifrole="0" mq:multipleexactmatch="false">
+<source xml:space="preserve" mq:segpart="7"><bpt id="1" ctype="bold">{}</bpt>Date of birth<ept id="1">{}</ept></source>
+<target xml:space="preserve"></target>
+<context-group>
+<context context-type="x-mmq-structural-context">trans-units / trans-unit#7</context>
+</context-group>
+<mq:minorversions>
+</mq:minorversions>
+<mq:startingws xml:space="preserve" />
+<mq:endingws xml:space="preserve" />
+<mq:commitinfos xmlns="MQXliff" /><mq:nosplitjoins />
+<mq:originalsource edited="false" />
+</trans-unit>
+<trans-unit id="8" mq:minorversionend="2" mq:minorversionstart="0" mq:status="NotStarted" mq:segmentguid="496dd06b-0b7a-4e3e-8039-584998ebe773" mq:lastchangedtimestamp="0001-01-01T00:00:00Z" mq:maxlengthchars="-1" mq:nosplitjoin="false" mq:firstlabel="8" mq:lastlabel="8" mq:autosplitjoinstate="0" mq:lastmodifrole="0" mq:multipleexactmatch="false">
+<source xml:space="preserve" mq:segpart="8"><bpt id="1" ctype="bold">{}</bpt>29 January 1983 (age 42)<ept id="1">{}</ept></source>
+<target xml:space="preserve"></target>
+<context-group>
+<context context-type="x-mmq-structural-context">trans-units / trans-unit#8</context>
+</context-group>
+<mq:minorversions>
+</mq:minorversions>
+<mq:startingws xml:space="preserve" />
+<mq:endingws xml:space="preserve" />
+<mq:commitinfos xmlns="MQXliff" /><mq:nosplitjoins />
+<mq:originalsource edited="false" />
+</trans-unit>
+<trans-unit id="9" mq:minorversionend="2" mq:minorversionstart="0" mq:status="NotStarted" mq:segmentguid="0d3ee463-af80-4881-a5c6-d4a1f1faa3ec" mq:lastchangedtimestamp="0001-01-01T00:00:00Z" mq:maxlengthchars="-1" mq:nosplitjoin="false" mq:firstlabel="9" mq:lastlabel="9" mq:autosplitjoinstate="0" mq:lastmodifrole="0" mq:multipleexactmatch="false">
+<source xml:space="preserve" mq:segpart="9"><bpt id="1" ctype="bold">{}</bpt>Place of birth<ept id="1">{}</ept></source>
+<target xml:space="preserve"></target>
+<context-group>
+<context context-type="x-mmq-structural-context">trans-units / trans-unit#9</context>
+</context-group>
+<mq:minorversions>
+</mq:minorversions>
+<mq:startingws xml:space="preserve" />
+<mq:endingws xml:space="preserve" />
+<mq:commitinfos xmlns="MQXliff" /><mq:nosplitjoins />
+<mq:originalsource edited="false" />
+</trans-unit>
+<trans-unit id="10" mq:minorversionend="2" mq:minorversionstart="0" mq:status="NotStarted" mq:segmentguid="c1b480fc-0048-4e64-9c7d-cf8900c96fa3" mq:lastchangedtimestamp="0001-01-01T00:00:00Z" mq:maxlengthchars="-1" mq:nosplitjoin="false" mq:firstlabel="10" mq:lastlabel="10" mq:autosplitjoinstate="0" mq:lastmodifrole="0" mq:multipleexactmatch="false">
+<source xml:space="preserve" mq:segpart="10"><bpt id="1" ctype="underlined">{}</bpt><bpt id="2" rid="1">&lt;hlnk id=&quot;rId6&quot; history=&quot;1&quot; fileName=&quot;document.xml&quot; href=&quot;@7776bae2-d721-4cd9-9221-edd856806c83&quot;&gt;</bpt><bpt id="3" rid="2">&lt;rpr id=&quot;0&quot;&gt;</bpt>Naples<ept id="1">{}</ept><ept id="4" rid="2">&lt;/rpr id=&quot;0&quot; transform=&quot;close&quot;&gt;</ept><ept id="5" rid="1">&lt;/hlnk&gt;</ept>, Italy</source>
+<target xml:space="preserve"></target>
+<context-group>
+<context context-type="x-mmq-structural-context">trans-units / trans-unit#10</context>
+</context-group>
+<mq:minorversions>
+</mq:minorversions>
+<mq:startingws xml:space="preserve" />
+<mq:endingws xml:space="preserve" />
+<mq:commitinfos xmlns="MQXliff" /><mq:nosplitjoins />
+<mq:originalsource edited="false" />
+</trans-unit>
+<trans-unit id="11" mq:minorversionend="2" mq:minorversionstart="0" mq:status="NotStarted" mq:segmentguid="7776bae2-d721-4cd9-9221-edd856806c83" mq:lastchangedtimestamp="0001-01-01T00:00:00Z" mq:maxlengthchars="-1" mq:nosplitjoin="true" mq:firstlabel="-1" mq:lastlabel="-1" mq:autosplitjoinstate="0" mq:lastmodifrole="0" mq:multipleexactmatch="false">
+<source xml:space="preserve" mq:segpart="-1">https://en.wikipedia.org/wiki/Naples</source>
+<target xml:space="preserve"></target>
+<context-group>
+<context context-type="x-mmq-structural-context">trans-units / trans-unit#10</context>
+</context-group>
+<mq:minorversions>
+</mq:minorversions>
+<mq:startingws xml:space="preserve" />
+<mq:endingws xml:space="preserve" />
+<mq:commitinfos xmlns="MQXliff" /><mq:nosplitjoins><mq:nosplitjoin type="SplitJoin" reason="DocConverterFramework.TranslatableAttributeSplitJoin" /></mq:nosplitjoins>
+<mq:originalsource edited="false" />
+</trans-unit>
+<trans-unit id="12" mq:minorversionend="2" mq:minorversionstart="0" mq:status="NotStarted" mq:segmentguid="9af6a264-73de-4a30-b899-13f3e3f94da2" mq:lastchangedtimestamp="0001-01-01T00:00:00Z" mq:maxlengthchars="-1" mq:nosplitjoin="false" mq:firstlabel="11" mq:lastlabel="11" mq:autosplitjoinstate="0" mq:lastmodifrole="0" mq:multipleexactmatch="false">
+<source xml:space="preserve" mq:segpart="11"><bpt id="1" ctype="bold">{}</bpt>Height<ept id="1">{}</ept></source>
+<target xml:space="preserve"></target>
+<context-group>
+<context context-type="x-mmq-structural-context">trans-units / trans-unit#11</context>
+</context-group>
+<mq:minorversions>
+</mq:minorversions>
+<mq:startingws xml:space="preserve" />
+<mq:endingws xml:space="preserve" />
+<mq:commitinfos xmlns="MQXliff" /><mq:nosplitjoins />
+<mq:originalsource edited="false" />
+</trans-unit>
+<trans-unit id="13" mq:minorversionend="2" mq:minorversionstart="0" mq:status="NotStarted" mq:segmentguid="b7353ad7-8026-4c91-900f-c47057f93247" mq:lastchangedtimestamp="0001-01-01T00:00:00Z" mq:maxlengthchars="-1" mq:nosplitjoin="false" mq:firstlabel="12" mq:lastlabel="12" mq:autosplitjoinstate="0" mq:lastmodifrole="0" mq:multipleexactmatch="false">
+<source xml:space="preserve" mq:segpart="12">1.80 m (5 ft 11 in)</source>
+<target xml:space="preserve"></target>
+<context-group>
+<context context-type="x-mmq-structural-context">trans-units / trans-unit#12</context>
+</context-group>
+<mq:minorversions>
+</mq:minorversions>
+<mq:startingws xml:space="preserve" />
+<mq:endingws xml:space="preserve" />
+<mq:commitinfos xmlns="MQXliff" /><mq:nosplitjoins />
+<mq:originalsource edited="false" />
+</trans-unit>
+<trans-unit id="14" mq:minorversionend="2" mq:minorversionstart="0" mq:status="NotStarted" mq:segmentguid="07a00835-3212-450c-961b-39fdae373bdc" mq:lastchangedtimestamp="0001-01-01T00:00:00Z" mq:maxlengthchars="-1" mq:nosplitjoin="false" mq:firstlabel="13" mq:lastlabel="13" mq:autosplitjoinstate="0" mq:lastmodifrole="0" mq:multipleexactmatch="false">
+<source xml:space="preserve" mq:segpart="13"><bpt id="1" ctype="bold">{}</bpt>Career<ept id="1">{}</ept></source>
+<target xml:space="preserve"></target>
+<context-group>
+<context context-type="x-mmq-structural-context">trans-units / trans-unit#13</context>
+</context-group>
+<mq:minorversions>
+</mq:minorversions>
+<mq:startingws xml:space="preserve" />
+<mq:endingws xml:space="preserve" />
+<mq:commitinfos xmlns="MQXliff" /><mq:nosplitjoins />
+<mq:originalsource edited="false" />
+</trans-unit>
+<trans-unit id="15" mq:minorversionend="2" mq:minorversionstart="0" mq:status="NotStarted" mq:segmentguid="5fb76fff-9685-4a88-a9f2-384ed585a1a2" mq:lastchangedtimestamp="0001-01-01T00:00:00Z" mq:maxlengthchars="-1" mq:nosplitjoin="false" mq:firstlabel="14" mq:lastlabel="14" mq:autosplitjoinstate="0" mq:lastmodifrole="0" mq:multipleexactmatch="false">
+<source xml:space="preserve" mq:segpart="14">Pagano started his career at <bpt id="1" ctype="underlined">{}</bpt><bpt id="2" rid="1">&lt;hlnk id=&quot;rId7&quot; tooltip=&quot;@c97ea2c5-0821-4d3e-bd29-aec47aff4aab&quot; history=&quot;1&quot; fileName=&quot;document.xml&quot; href=&quot;@8b7f03b6-f897-4685-9475-39ed2cb8fa61&quot;&gt;</bpt><bpt id="3" rid="2">&lt;rpr id=&quot;0&quot;&gt;</bpt>Atalanta<ept id="1">{}</ept><ept id="4" rid="2">&lt;/rpr id=&quot;0&quot; transform=&quot;close&quot;&gt;</ept><ept id="5" rid="1">&lt;/hlnk&gt;</ept>.</source>
+<target xml:space="preserve"></target>
+<context-group>
+<context context-type="x-mmq-structural-context">trans-units / trans-unit#14</context>
+</context-group>
+<mq:minorversions>
+</mq:minorversions>
+<mq:startingws xml:space="preserve" />
+<mq:endingws xml:space="preserve"> </mq:endingws>
+<mq:commitinfos xmlns="MQXliff" /><mq:nosplitjoins />
+<mq:originalsource edited="false" />
+</trans-unit>
+<trans-unit id="16" mq:minorversionend="2" mq:minorversionstart="0" mq:status="NotStarted" mq:segmentguid="0f4b5077-aa09-44b5-9224-97c5529fa72d" mq:lastchangedtimestamp="0001-01-01T00:00:00Z" mq:maxlengthchars="-1" mq:nosplitjoin="false" mq:firstlabel="14" mq:lastlabel="14" mq:autosplitjoinstate="0" mq:lastmodifrole="0" mq:multipleexactmatch="false">
+<source xml:space="preserve" mq:segpart="14">He made his Serie A debut on 17 June 2001 against <bpt id="1" ctype="underlined">{}</bpt><bpt id="2" rid="1">&lt;hlnk id=&quot;rId8&quot; tooltip=&quot;@758331e9-94cc-4b8a-8534-77351bf0d86a&quot; history=&quot;1&quot; fileName=&quot;document.xml&quot; href=&quot;@37a95813-2f59-47ab-b8a4-e9e783ac3f50&quot;&gt;</bpt><bpt id="3" rid="2">&lt;rpr id=&quot;0&quot;&gt;</bpt>Juventus FC<ept id="1">{}</ept><ept id="4" rid="2">&lt;/rpr id=&quot;0&quot; transform=&quot;close&quot;&gt;</ept><ept id="5" rid="1">&lt;/hlnk&gt;</ept> He played a few more Serie A games for Atalanta in October 2003, after he was returned from loan to <bpt id="6" ctype="underlined">{}</bpt><bpt id="7" rid="3">&lt;hlnk id=&quot;rId9&quot; tooltip=&quot;@ced3934e-0c92-4227-8290-db2d73625bfd&quot; history=&quot;1&quot; fileName=&quot;document.xml&quot; href=&quot;@e6ae4962-9b81-4637-84de-6e6892bea3a7&quot;&gt;</bpt><bpt id="8" rid="4">&lt;rpr id=&quot;0&quot;&gt;</bpt>Lumezzane<ept id="6">{}</ept><ept id="9" rid="4">&lt;/rpr id=&quot;0&quot; transform=&quot;close&quot;&gt;</ept><ept id="10" rid="3">&lt;/hlnk&gt;</ept> of the third division in <bpt id="11" ctype="underlined">{}</bpt><bpt id="12" rid="5">&lt;hlnk id=&quot;rId10&quot; tooltip=&quot;@5f90170f-c0b8-4c90-8aad-5db7bda7a351&quot; history=&quot;1&quot; fileName=&quot;document.xml&quot; href=&quot;@81498068-8dd9-4dc4-8731-e9af5ddd4262&quot;&gt;</bpt><bpt id="13" rid="6">&lt;rpr id=&quot;0&quot;&gt;</bpt>2002–03 Serie C1<ept id="11">{}</ept><ept id="14" rid="6">&lt;/rpr id=&quot;0&quot; transform=&quot;close&quot;&gt;</ept><ept id="15" rid="5">&lt;/hlnk&gt;</ept>.</source>
+<target xml:space="preserve"></target>
+<context-group>
+<context context-type="x-mmq-structural-context">trans-units / trans-unit#14</context>
+</context-group>
+<mq:minorversions>
+</mq:minorversions>
+<mq:startingws xml:space="preserve" />
+<mq:endingws xml:space="preserve" />
+<mq:commitinfos xmlns="MQXliff" /><mq:nosplitjoins />
+<mq:originalsource edited="false" />
+</trans-unit>
+<trans-unit id="17" mq:minorversionend="2" mq:minorversionstart="0" mq:status="NotStarted" mq:segmentguid="c97ea2c5-0821-4d3e-bd29-aec47aff4aab" mq:lastchangedtimestamp="0001-01-01T00:00:00Z" mq:maxlengthchars="-1" mq:nosplitjoin="true" mq:firstlabel="-1" mq:lastlabel="-1" mq:autosplitjoinstate="0" mq:lastmodifrole="0" mq:multipleexactmatch="false">
+<source xml:space="preserve" mq:segpart="-1">Atalanta B.C.</source>
+<target xml:space="preserve"></target>
+<context-group>
+<context context-type="x-mmq-structural-context">trans-units / trans-unit#14</context>
+</context-group>
+<mq:minorversions>
+</mq:minorversions>
+<mq:startingws xml:space="preserve" />
+<mq:endingws xml:space="preserve" />
+<mq:commitinfos xmlns="MQXliff" /><mq:nosplitjoins><mq:nosplitjoin type="SplitJoin" reason="DocConverterFramework.TranslatableAttributeSplitJoin" /></mq:nosplitjoins>
+<mq:originalsource edited="false" />
+</trans-unit>
+<trans-unit id="18" mq:minorversionend="2" mq:minorversionstart="0" mq:status="NotStarted" mq:segmentguid="8b7f03b6-f897-4685-9475-39ed2cb8fa61" mq:lastchangedtimestamp="0001-01-01T00:00:00Z" mq:maxlengthchars="-1" mq:nosplitjoin="true" mq:firstlabel="-1" mq:lastlabel="-1" mq:autosplitjoinstate="0" mq:lastmodifrole="0" mq:multipleexactmatch="false">
+<source xml:space="preserve" mq:segpart="-1">https://en.wikipedia.org/wiki/Atalanta_B.C.</source>
+<target xml:space="preserve"></target>
+<context-group>
+<context context-type="x-mmq-structural-context">trans-units / trans-unit#14</context>
+</context-group>
+<mq:minorversions>
+</mq:minorversions>
+<mq:startingws xml:space="preserve" />
+<mq:endingws xml:space="preserve" />
+<mq:commitinfos xmlns="MQXliff" /><mq:nosplitjoins><mq:nosplitjoin type="SplitJoin" reason="DocConverterFramework.TranslatableAttributeSplitJoin" /></mq:nosplitjoins>
+<mq:originalsource edited="false" />
+</trans-unit>
+<trans-unit id="19" mq:minorversionend="2" mq:minorversionstart="0" mq:status="NotStarted" mq:segmentguid="758331e9-94cc-4b8a-8534-77351bf0d86a" mq:lastchangedtimestamp="0001-01-01T00:00:00Z" mq:maxlengthchars="-1" mq:nosplitjoin="true" mq:firstlabel="-1" mq:lastlabel="-1" mq:autosplitjoinstate="0" mq:lastmodifrole="0" mq:multipleexactmatch="false">
+<source xml:space="preserve" mq:segpart="-1">Juventus FC</source>
+<target xml:space="preserve"></target>
+<context-group>
+<context context-type="x-mmq-structural-context">trans-units / trans-unit#14</context>
+</context-group>
+<mq:minorversions>
+</mq:minorversions>
+<mq:startingws xml:space="preserve" />
+<mq:endingws xml:space="preserve" />
+<mq:commitinfos xmlns="MQXliff" /><mq:nosplitjoins><mq:nosplitjoin type="SplitJoin" reason="DocConverterFramework.TranslatableAttributeSplitJoin" /></mq:nosplitjoins>
+<mq:originalsource edited="false" />
+</trans-unit>
+<trans-unit id="20" mq:minorversionend="2" mq:minorversionstart="0" mq:status="NotStarted" mq:segmentguid="37a95813-2f59-47ab-b8a4-e9e783ac3f50" mq:lastchangedtimestamp="0001-01-01T00:00:00Z" mq:maxlengthchars="-1" mq:nosplitjoin="true" mq:firstlabel="-1" mq:lastlabel="-1" mq:autosplitjoinstate="0" mq:lastmodifrole="0" mq:multipleexactmatch="false">
+<source xml:space="preserve" mq:segpart="-1">https://en.wikipedia.org/wiki/Juventus_FC</source>
+<target xml:space="preserve"></target>
+<context-group>
+<context context-type="x-mmq-structural-context">trans-units / trans-unit#14</context>
+</context-group>
+<mq:minorversions>
+</mq:minorversions>
+<mq:startingws xml:space="preserve" />
+<mq:endingws xml:space="preserve" />
+<mq:commitinfos xmlns="MQXliff" /><mq:nosplitjoins><mq:nosplitjoin type="SplitJoin" reason="DocConverterFramework.TranslatableAttributeSplitJoin" /></mq:nosplitjoins>
+<mq:originalsource edited="false" />
+</trans-unit>
+<trans-unit id="21" mq:minorversionend="2" mq:minorversionstart="0" mq:status="NotStarted" mq:segmentguid="ced3934e-0c92-4227-8290-db2d73625bfd" mq:lastchangedtimestamp="0001-01-01T00:00:00Z" mq:maxlengthchars="-1" mq:nosplitjoin="true" mq:firstlabel="-1" mq:lastlabel="-1" mq:autosplitjoinstate="0" mq:lastmodifrole="0" mq:multipleexactmatch="false">
+<source xml:space="preserve" mq:segpart="-1">F.C. Lumezzane V.G.Z. A.S.D.</source>
+<target xml:space="preserve"></target>
+<context-group>
+<context context-type="x-mmq-structural-context">trans-units / trans-unit#14</context>
+</context-group>
+<mq:minorversions>
+</mq:minorversions>
+<mq:startingws xml:space="preserve" />
+<mq:endingws xml:space="preserve" />
+<mq:commitinfos xmlns="MQXliff" /><mq:nosplitjoins><mq:nosplitjoin type="SplitJoin" reason="DocConverterFramework.TranslatableAttributeSplitJoin" /></mq:nosplitjoins>
+<mq:originalsource edited="false" />
+</trans-unit>
+<trans-unit id="22" mq:minorversionend="2" mq:minorversionstart="0" mq:status="NotStarted" mq:segmentguid="e6ae4962-9b81-4637-84de-6e6892bea3a7" mq:lastchangedtimestamp="0001-01-01T00:00:00Z" mq:maxlengthchars="-1" mq:nosplitjoin="true" mq:firstlabel="-1" mq:lastlabel="-1" mq:autosplitjoinstate="0" mq:lastmodifrole="0" mq:multipleexactmatch="false">
+<source xml:space="preserve" mq:segpart="-1">https://en.wikipedia.org/wiki/F.C._Lumezzane_V.G.Z._A.S.D.</source>
+<target xml:space="preserve"></target>
+<context-group>
+<context context-type="x-mmq-structural-context">trans-units / trans-unit#14</context>
+</context-group>
+<mq:minorversions>
+</mq:minorversions>
+<mq:startingws xml:space="preserve" />
+<mq:endingws xml:space="preserve" />
+<mq:commitinfos xmlns="MQXliff" /><mq:nosplitjoins><mq:nosplitjoin type="SplitJoin" reason="DocConverterFramework.TranslatableAttributeSplitJoin" /></mq:nosplitjoins>
+<mq:originalsource edited="false" />
+</trans-unit>
+<trans-unit id="23" mq:minorversionend="2" mq:minorversionstart="0" mq:status="NotStarted" mq:segmentguid="5f90170f-c0b8-4c90-8aad-5db7bda7a351" mq:lastchangedtimestamp="0001-01-01T00:00:00Z" mq:maxlengthchars="-1" mq:nosplitjoin="true" mq:firstlabel="-1" mq:lastlabel="-1" mq:autosplitjoinstate="0" mq:lastmodifrole="0" mq:multipleexactmatch="false">
+<source xml:space="preserve" mq:segpart="-1">2002–03 Serie C1</source>
+<target xml:space="preserve"></target>
+<context-group>
+<context context-type="x-mmq-structural-context">trans-units / trans-unit#14</context>
+</context-group>
+<mq:minorversions>
+</mq:minorversions>
+<mq:startingws xml:space="preserve" />
+<mq:endingws xml:space="preserve" />
+<mq:commitinfos xmlns="MQXliff" /><mq:nosplitjoins><mq:nosplitjoin type="SplitJoin" reason="DocConverterFramework.TranslatableAttributeSplitJoin" /></mq:nosplitjoins>
+<mq:originalsource edited="false" />
+</trans-unit>
+<trans-unit id="24" mq:minorversionend="2" mq:minorversionstart="0" mq:status="NotStarted" mq:segmentguid="81498068-8dd9-4dc4-8731-e9af5ddd4262" mq:lastchangedtimestamp="0001-01-01T00:00:00Z" mq:maxlengthchars="-1" mq:nosplitjoin="true" mq:firstlabel="-1" mq:lastlabel="-1" mq:autosplitjoinstate="0" mq:lastmodifrole="0" mq:multipleexactmatch="false">
+<source xml:space="preserve" mq:segpart="-1">https://en.wikipedia.org/wiki/2002%E2%80%9303_Serie_C1</source>
+<target xml:space="preserve"></target>
+<context-group>
+<context context-type="x-mmq-structural-context">trans-units / trans-unit#14</context>
+</context-group>
+<mq:minorversions>
+</mq:minorversions>
+<mq:startingws xml:space="preserve" />
+<mq:endingws xml:space="preserve" />
+<mq:commitinfos xmlns="MQXliff" /><mq:nosplitjoins><mq:nosplitjoin type="SplitJoin" reason="DocConverterFramework.TranslatableAttributeSplitJoin" /></mq:nosplitjoins>
+<mq:originalsource edited="false" />
+</trans-unit>
+<trans-unit id="25" mq:minorversionend="2" mq:minorversionstart="0" mq:status="NotStarted" mq:segmentguid="32dc83e0-b2a9-41e1-ae29-e2c0e2cdb167" mq:lastchangedtimestamp="0001-01-01T00:00:00Z" mq:maxlengthchars="-1" mq:nosplitjoin="false" mq:firstlabel="15" mq:lastlabel="15" mq:autosplitjoinstate="0" mq:lastmodifrole="0" mq:multipleexactmatch="false">
+<source xml:space="preserve" mq:segpart="15"><bpt id="1" ctype="bold">{}</bpt><bpt id="2" ctype="italic">{}</bpt>Football is a family of team sports that involve, to varying degrees, kicking a ball to score a goal.<ept id="1">{}</ept><ept id="2">{}</ept></source>
+<target xml:space="preserve"></target>
+<context-group>
+<context context-type="x-mmq-structural-context">trans-units / trans-unit#15</context>
+</context-group>
+<mq:minorversions>
+</mq:minorversions>
+<mq:startingws xml:space="preserve" />
+<mq:endingws xml:space="preserve"><bpt id="1" ctype="bold">{}</bpt><bpt id="2" ctype="italic">{}</bpt> <ept id="1">{}</ept><ept id="2">{}</ept></mq:endingws>
+<mq:commitinfos xmlns="MQXliff" /><mq:nosplitjoins />
+<mq:originalsource edited="false" />
+</trans-unit>
+<trans-unit id="26" mq:minorversionend="2" mq:minorversionstart="0" mq:status="NotStarted" mq:segmentguid="5d897764-eb46-4bae-8256-ad755804a07b" mq:lastchangedtimestamp="0001-01-01T00:00:00Z" mq:maxlengthchars="-1" mq:nosplitjoin="false" mq:firstlabel="15" mq:lastlabel="15" mq:autosplitjoinstate="0" mq:lastmodifrole="0" mq:multipleexactmatch="false">
+<source xml:space="preserve" mq:segpart="15"><bpt id="1" ctype="bold">{}</bpt><bpt id="2" ctype="italic">{}</bpt>Unqualified, the word football generally means the form of football that is the most popular where the word is used. (source:<ept id="1">{}</ept><ept id="2">{}</ept></source>
+<target xml:space="preserve"></target>
+<context-group>
+<context context-type="x-mmq-structural-context">trans-units / trans-unit#15</context>
+</context-group>
+<mq:minorversions>
+</mq:minorversions>
+<mq:startingws xml:space="preserve" />
+<mq:endingws xml:space="preserve"><bpt id="1" ctype="bold">{}</bpt><bpt id="2" ctype="italic">{}</bpt> <ept id="1">{}</ept><ept id="2">{}</ept></mq:endingws>
+<mq:commitinfos xmlns="MQXliff" /><mq:nosplitjoins />
+<mq:originalsource edited="false" />
+</trans-unit>
+<trans-unit id="27" mq:minorversionend="2" mq:minorversionstart="0" mq:status="NotStarted" mq:segmentguid="e9e2c8b5-928a-4420-b8a0-1ca3009389e3" mq:lastchangedtimestamp="0001-01-01T00:00:00Z" mq:maxlengthchars="-1" mq:nosplitjoin="false" mq:firstlabel="15" mq:lastlabel="15" mq:autosplitjoinstate="0" mq:lastmodifrole="0" mq:multipleexactmatch="false">
+<source xml:space="preserve" mq:segpart="15"><bpt id="1" ctype="bold">{}</bpt><bpt id="2" ctype="italic">{}</bpt>Wikipedia)<ept id="1">{}</ept><ept id="2">{}</ept></source>
+<target xml:space="preserve"></target>
+<context-group>
+<context context-type="x-mmq-structural-context">trans-units / trans-unit#15</context>
+</context-group>
+<mq:minorversions>
+</mq:minorversions>
+<mq:startingws xml:space="preserve" />
+<mq:endingws xml:space="preserve" />
+<mq:commitinfos xmlns="MQXliff" /><mq:nosplitjoins />
+<mq:originalsource edited="false" />
+</trans-unit>
+</body>
+</file>
+</xliff>
