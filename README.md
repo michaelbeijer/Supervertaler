@@ -4,6 +4,73 @@
 
 **Note**: A standalone CAT (Computer-Aided Translation) editor prototype is under active development in **v2.5.0**. It features dual text selection (memoQ-style), column management, formatting display, and three professional view modes (Grid, List, Document). We're implementing features from [michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool](https://michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool).
 
+---
+
+## 📥 Download & Installation
+
+### ⬇️ Windows (Easiest - No Python Required!)
+
+**[Download Supervertaler v2.4.1 for Windows](https://github.com/michaelbeijer/Supervertaler/releases/latest)**
+
+- **Size**: ~53 MB (compressed), ~154 MB (extracted)
+- **System**: Windows 10/11 (64-bit)
+- **Installation**: Just extract and run - no Python or dependencies needed!
+
+**Quick Start**:
+1. Download `Supervertaler_v2.4.1_Windows.zip` from the link above
+2. Extract to any folder (e.g., `C:\Program Files\Supervertaler`)
+3. Edit `api_keys.txt` with your API keys (OpenAI, Anthropic, or Google)
+4. Double-click `Supervertaler.exe` to launch
+
+📖 **Full installation guide**: See `INSTALLATION_GUIDE.txt` inside the package
+
+---
+
+### 🍎 macOS & 🐧 Linux (Python Required)
+
+**Requirements**: Python 3.8+, pip, tkinter
+
+#### 1. Clone or Download Repository
+```bash
+git clone https://github.com/michaelbeijer/Supervertaler.git
+cd Supervertaler
+```
+*Or download ZIP from GitHub's green "Code" button and extract*
+
+#### 2. Install Dependencies
+```bash
+pip3 install anthropic openai google-generativeai python-docx pillow
+```
+
+**Linux users** also need tkinter:
+- **Ubuntu/Debian**: `sudo apt install python3-tk`
+- **Fedora/RHEL**: `sudo dnf install python3-tkinter`
+- **Arch Linux**: `sudo pacman -S tk`
+
+#### 3. Set Up API Keys
+```bash
+cp api_keys.example.txt api_keys.txt
+nano api_keys.txt  # or use your preferred text editor
+```
+
+Add your API keys (get them from OpenAI, Anthropic, or Google - see [API Keys Setup Guide](docs/user_guides/API_KEYS_SETUP_GUIDE.md))
+
+#### 4. Run Supervertaler
+```bash
+python3 Supervertaler_v2.4.1.py
+```
+
+📖 **Detailed setup guide**: [docs/user_guides/INSTALLATION_LINUX_MACOS.md](docs/user_guides/INSTALLATION_LINUX_MACOS.md)
+
+---
+
+### 🍎 Want a macOS .app or 🐧 Linux executable?
+
+You can build one yourself using PyInstaller! See [BUILD_INSTRUCTIONS.md](BUILD_INSTRUCTIONS.md) for details.
+
+**Or request official builds**: If there's enough demand (10+ users), I'll create official macOS and Linux executables. [Vote here →](https://github.com/michaelbeijer/Supervertaler/issues)
+
+---
 
 ## 📦 Available Versions
 
