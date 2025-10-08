@@ -1,0 +1,126 @@
+name: Request macOS/Linux Executable
+description: Vote for official macOS or Linux executable builds
+title: "[Platform Request] macOS/Linux Executable"
+labels: ["enhancement", "platform-support"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 🍎🐧 Request Official macOS/Linux Executable
+        
+        Currently, Supervertaler provides:
+        - ✅ **Windows**: Standalone `.exe` (no Python required)
+        - ⚠️ **macOS/Linux**: Python script (requires Python installation)
+        
+        **This issue tracks demand for official macOS/Linux executables.**
+        
+        👍 **Vote with a thumbs-up** on this issue if you'd like to see:
+        - macOS `.app` bundle (double-click to run)
+        - Linux AppImage/executable (no Python needed)
+        
+        **Threshold**: When we reach **10+ votes**, official builds will be created!
+        
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Which platform do you use?
+      options:
+        - macOS (Intel)
+        - macOS (Apple Silicon / M1/M2/M3)
+        - Linux (Ubuntu/Debian)
+        - Linux (Fedora/RHEL)
+        - Linux (Arch)
+        - Linux (Other)
+        - Both macOS and Linux
+    validations:
+      required: true
+      
+  - type: dropdown
+    id: technical_level
+    attributes:
+      label: How comfortable are you with Python?
+      description: This helps us prioritize executable builds
+      options:
+        - "Very comfortable - I can install Python and dependencies easily"
+        - "Somewhat comfortable - I can follow installation guides"
+        - "Not comfortable - I prefer ready-to-run executables"
+        - "Never used Python before"
+    validations:
+      required: true
+      
+  - type: dropdown
+    id: current_usage
+    attributes:
+      label: Are you currently using Supervertaler?
+      options:
+        - "Yes - using the Python script"
+        - "No - waiting for an executable"
+        - "Not yet - just evaluating"
+    validations:
+      required: true
+      
+  - type: textarea
+    id: use_case
+    attributes:
+      label: How would you use Supervertaler? (Optional)
+      description: Tell us about your translation workflow
+      placeholder: |
+        Example: "I'm a freelance translator working with memoQ. I translate 20+ documents per week and Supervertaler would save me hours on pre-translation."
+    validations:
+      required: false
+      
+  - type: checkboxes
+    id: willing_to_test
+    attributes:
+      label: Testing
+      description: Would you be willing to test beta builds?
+      options:
+        - label: "Yes, I can test macOS/Linux builds before official release"
+          required: false
+          
+  - type: markdown
+    attributes:
+      value: |
+        ---
+        
+        ## ⚡ In the Meantime
+        
+        You can use the Python script today! It works perfectly on macOS/Linux:
+        
+        ### Quick Install (5 minutes):
+        ```bash
+        # 1. Clone repository
+        git clone https://github.com/michaelbeijer/Supervertaler.git
+        cd Supervertaler
+        
+        # 2. Install dependencies
+        pip3 install anthropic openai google-generativeai python-docx pillow
+        
+        # 3. Set up API keys
+        cp api_keys.example.txt api_keys.txt
+        nano api_keys.txt  # add your keys
+        
+        # 4. Run
+        python3 Supervertaler_v2.4.1.py
+        ```
+        
+        📖 **Full guide**: [docs/user_guides/INSTALLATION_LINUX_MACOS.md](https://github.com/michaelbeijer/Supervertaler/blob/main/docs/user_guides/INSTALLATION_LINUX_MACOS.md)
+        
+        ---
+        
+        ## 🛠️ Or Build Your Own!
+        
+        You can create a macOS `.app` or Linux executable yourself:
+        
+        ```bash
+        pip install pyinstaller
+        python build_executable.py  # Works on macOS/Linux too!
+        ```
+        
+        📖 **Build guide**: [BUILD_INSTRUCTIONS.md](https://github.com/michaelbeijer/Supervertaler/blob/main/BUILD_INSTRUCTIONS.md)
+        
+        ---
+        
+        **Thank you for your interest in Supervertaler!** 🎉
+        
+        👍 Don't forget to **thumbs-up this issue** to vote!
