@@ -16,7 +16,7 @@
 # 2. Remove the # symbol before each key you want to use
 # 3. Replace [YOUR_KEY_HERE] with your actual API key
 # 4. Save the file
-# 5. Restart Supervertaler
+# 5. Restart Supervertaler 
 #
 # IMPORTANT:
 # ---------
