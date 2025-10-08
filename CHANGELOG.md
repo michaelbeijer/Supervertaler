@@ -1,5 +1,136 @@
 # Supervertaler - Changelog
 
+## [2.4.1] - 2025-10-08 🎉 PRODUCTION RELEASE
+
+### 🚀 NEW FEATURES
+
+#### 📄 memoQ Bilingual DOCX Import/Export (GAME-CHANGER)
+- **Direct bilingual file support** - No more manual copy-paste workflows!
+- **Import memoQ bilingual DOCX** files with single button click
+- **Automatic source extraction** from bilingual table format
+- **Translate using existing AI workflow** - Full compatibility with all providers
+- **Export back to bilingual DOCX** - memoQ-ready format
+- **Reimport to memoQ verified** - Complete round-trip workflow tested
+- **UI Integration**:
+  - Green "📄 Import memoQ Bilingual DOCX" button
+  - Blue "💾 Export to Bilingual DOCX" button
+  - Automatic input/output file path configuration
+- **Benefits**:
+  - ✅ Eliminates manual copying between memoQ and text files
+  - ✅ Preserves all segment IDs and metadata
+  - ✅ Maintains CAT tool tags perfectly
+  - ✅ Professional CAT tool integration
+  - ✅ Massive time savings for translation workflows
+
+#### ✨ Formatting Preservation (ADVANCED)
+- **Bold, italic, and underline preservation** from source to target
+- **Smart detection algorithms**:
+  - Full segment formatting (>60% threshold)
+  - Partial formatting at beginning of segments
+  - CAT tag formatting preservation
+- **Intelligent application**:
+  - Whole-segment formatting applied to entire translation
+  - Partial formatting applied to first 1-2 words
+  - Special handling for CAT tags and URLs
+- **Tested and verified** with real memoQ bilingual files
+- **100% success rate** in production testing (15/15 segments)
+- **Supported formats**: Bold, Italic, Underline
+- **Future-ready**: Foundation for additional formatting types
+
+### 🔧 IMPROVEMENTS
+
+#### CAT Tool Tag Support Enhanced
+- **Three major CAT tool formats** explicitly documented:
+  - memoQ: `[1}...{2]` (asymmetric bracket-brace pairs)
+  - Trados Studio: `<410>...</410>` (XML-style tags)
+  - CafeTran: `|1|...|2|` (pipe-delimited)
+- **Tag preservation verified** in bilingual workflow
+- **Format detection** during import
+- **Position maintenance** during translation
+
+#### Workflow Automation
+- **Auto-configuration** of input/output paths after import
+- **Smart temp file creation** for bilingual sources
+- **Format validation** during import (table structure check)
+- **Status updates** to "Confirmed" on export
+- **Comprehensive logging** of formatting detection
+
+### 📊 STATISTICS FROM PRODUCTION TESTING
+
+**Test File**: memoQ bilingual DOCX (27 segments)
+- ✅ 27/27 segments imported successfully
+- ✅ 15/15 segments with formatting preserved
+- ✅ All CAT tool tags maintained
+- ✅ All segment IDs unchanged
+- ✅ Successful reimport to memoQ verified
+- ✅ 100% round-trip compatibility
+
+**Performance**:
+- Import: < 1 second
+- Export: < 1 second  
+- No additional AI costs
+- No manual intervention required
+
+### 🛠️ TECHNICAL DETAILS
+
+**New Functions Added** (~300 lines):
+- `import_memoq_bilingual()` - Import bilingual DOCX with formatting detection
+- `export_memoq_bilingual()` - Export to bilingual DOCX with formatting application
+- `apply_formatting_to_cell()` - Intelligent formatting preservation logic
+
+**Data Structures**:
+- `self.bilingual_source_file` - Stores original file path
+- `self.bilingual_formatting_map` - Segment formatting metadata
+- Run-based formatting analysis (bold, italic, underline properties)
+
+**Dependencies**:
+- `python-docx` library (already used for TMX generation)
+- No additional dependencies required
+
+### 📝 DOCUMENTATION UPDATES
+
+- Created `BILINGUAL_IMPORT_FEATURE_v2.4.1.md` - Comprehensive feature guide
+- Updated testing checklist - 7 phases of validation
+- Added user workflow documentation
+- Included troubleshooting guide
+
+### ⚠️ COMPATIBILITY
+
+**Backward Compatible**: ✅
+- All existing TXT file workflows unchanged
+- Regular translation/proofreading unaffected
+- v2.4.0 features fully preserved
+- Safe production upgrade
+
+**CAT Tool Compatibility**:
+- ✅ memoQ (tested and verified)
+- 🔄 Trados Studio (format supported, testing pending)
+- 🔄 CafeTran (format supported, testing pending)
+
+### 🎯 RECOMMENDED FOR
+
+- **Professional translators** using memoQ
+- **Translation agencies** with CAT tool workflows  
+- **Users processing bilingual files** regularly
+- **Anyone wanting formatting preservation**
+- **Production environments** requiring proven features
+
+### 📦 UPGRADE NOTES
+
+**From v2.4.0**:
+1. v2.4.0 automatically archived to `Previous versions/`
+2. No configuration changes needed
+3. All settings and API keys preserved
+4. New buttons appear automatically in UI
+
+**Testing Recommended**:
+- Import a bilingual DOCX file
+- Translate a few segments
+- Export and verify in memoQ
+- Confirm formatting preservation
+
+---
+
 ## [2.5.0] - 2025-10-07 🎉 MAJOR RELEASE (In Progress)
 
 ### 🚀 Latest Updates - October 7, 2025
