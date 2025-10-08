@@ -10,6 +10,12 @@ custom_prompts_private/
 # Private projects folder - never sync to GitHub
 projects_private
 
+# PyInstaller build artifacts
+build/
+dist/
+*.spec.bak
+*.ico
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
