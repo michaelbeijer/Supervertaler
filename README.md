@@ -3,10 +3,7 @@
 🎯 **Context-aware, LLM-powered translation & proofreading tool, leveraging multiple context sources for enhanced accuracy (built for translators)** - Revolutionary approach to document translation that leverages multiple context sources for unparalleled accuracy.
 
 **Note**: A standalone CAT (Computer-Aided Translation) editor prototype is under active development in **v2.5.0**. It features dual text selection (memoQ-style), column management, formatting display, and three professional view modes (Grid, List, Document). We're implementing features from [michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool](https://michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool).
-
 <img width="432" height="592" alt="supervertaler_icon_colours" src="https://github.com/user-attachments/assets/40ff0ef2-2534-419d-a308-fb5e92fed0b9" />
-
-
 ## 📦 Available Versions
 
 ### v2.4.1 (Latest - Production Ready) 🎉
