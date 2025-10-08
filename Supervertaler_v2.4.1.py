@@ -114,7 +114,12 @@ except Exception as e_other:
 # --- API Key Configuration ---
 def load_api_keys():
     """Load API keys from api_keys.txt file in the same directory as the script"""
-    script_dir = os.path.dirname(os.path.abspath(__file__))
+    # Use PyInstaller-compatible logic to find api_keys.txt
+    if getattr(sys, 'frozen', False):
+        # Running as PyInstaller bundle
+        script_dir = os.path.dirname(sys.executable)
+    else:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
     api_keys_file = os.path.join(script_dir, "api_keys.txt")
     
     api_keys = {

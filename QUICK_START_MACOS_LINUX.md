@@ -77,7 +77,7 @@ sudo dnf install python3 python3-pip python3-tkinter git
 **Add to api_keys.txt**:
 ```
 openai_api_key=sk-proj-xxxxxxxxxxxxx
-anthropic_api_key=sk-ant-xxxxxxxxxxxxx
+claude_api_key=sk-ant-xxxxxxxxxxxxx
 google_api_key=AIzaSyxxxxxxxxxxxxx
 ```
 

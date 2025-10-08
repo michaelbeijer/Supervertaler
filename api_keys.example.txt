@@ -36,7 +36,7 @@
 
 # Example API keys (replace with your real keys):
 openai_api_key=YOUR_OPENAI_KEY_HERE
-anthropic_api_key=YOUR_CLAUDE_KEY_HERE
+claude_api_key=YOUR_CLAUDE_KEY_HERE
 google_api_key=YOUR_GOOGLE_KEY_HERE
 
 # NOTE: The above keys are FAKE examples for illustration only.

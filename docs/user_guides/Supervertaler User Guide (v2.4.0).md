@@ -1239,7 +1239,7 @@ Restrict file permissions (600 on Unix systems)
 ```
 # api_keys.txt format
 openai_api_key=your_openai_api_key_here
-claude_api_key=your_anthropic_api_key_here  
+claude_api_key=your_claude_api_key_here  
 google_api_key=your_google_ai_api_key_here
 ```
 
