@@ -33,28 +33,14 @@
 #
 # ============================================================
 
-# OpenAI API Key (for GPT-4, GPT-4o, GPT-4-turbo, etc.)
-# Uncomment and add your key:
-#openai = YOUR_OPENAI_KEY_HERE
 
-# Anthropic Claude API Key (for Claude 3.5 Sonnet, Claude 3 Opus, etc.)
-# Uncomment and add your key:
-#claude = YOUR_CLAUDE_KEY_HERE
+# Example API keys (replace with your real keys):
+openai_api_key=YOUR_OPENAI_KEY_HERE
+anthropic_api_key=YOUR_CLAUDE_KEY_HERE
+google_api_key=YOUR_GOOGLE_KEY_HERE
 
-# Google Gemini API Key (for Gemini 2.5 Pro, Gemini 1.5 Flash, etc.)
-# Uncomment and add your key:
-#google = YOUR_GOOGLE_KEY_HERE
-
-# ============================================================
-# EXAMPLE (what it should look like when configured):
-# ============================================================
-# openai = sk-proj-abc123def456ghi789jkl012mno345pqr678stu901vwx234yz
-# claude = sk-ant-api03-xyz789abc123def456ghi789jkl012mno345pqr678stu
-# google = AIzaSyD1234567890abcdefghijklmnopqrstuvwxyz
-#
 # NOTE: The above keys are FAKE examples for illustration only.
 #       Do NOT use them - they will not work!
-# ============================================================
 
 # TROUBLESHOOTING:
 # ---------------
