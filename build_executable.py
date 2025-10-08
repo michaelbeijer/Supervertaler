@@ -35,7 +35,7 @@ class SupervertalerBuilder:
         
         # Check Python version
         python_version = sys.version_info
-        print(f"✓ Python {python_version.major}.{python_version.minor}.{python_version.micro}")
+        print(f"OK - Python {python_version.major}.{python_version.minor}.{python_version.micro}")
         
         # Check for required packages
         required_packages = [
@@ -52,18 +52,18 @@ class SupervertalerBuilder:
         for import_name, package_name in required_packages:
             try:
                 __import__(import_name)
-                print(f"✓ {package_name}")
+                print(f"OK - {package_name}")
             except ImportError:
-                print(f"✗ {package_name} - NOT INSTALLED")
+                print(f"ERROR - {package_name} - NOT INSTALLED")
                 missing_packages.append(package_name)
         
         if missing_packages:
-            print("\n⚠ Missing packages detected!")
+            print("\nWARNING - Missing packages detected!")
             print("\nInstall them with:")
             print(f"  pip install {' '.join(missing_packages)}")
             return False
         
-        print("\n✓ All dependencies installed!")
+        print("\nOK - All dependencies installed!")
         return True
     
     def create_icon(self):
@@ -73,7 +73,7 @@ class SupervertalerBuilder:
         icon_path = self.project_dir / "Supervertaler.ico"
         
         if icon_path.exists():
-            print(f"✓ Icon already exists: {icon_path}")
+            print(f"OK - Icon already exists: {icon_path}")
             return True
         
         print("Icon not found. Running icon creator...")
@@ -89,16 +89,16 @@ class SupervertalerBuilder:
             )
             
             if result.returncode == 0 and icon_path.exists():
-                print("✓ Icon created successfully!")
+                print("OK - Icon created successfully!")
                 return True
             else:
-                print("⚠ Icon creation failed, continuing without icon")
+                print("WARNING - Icon creation failed, continuing without icon")
                 print(result.stdout)
                 print(result.stderr)
                 return True  # Continue anyway
                 
         except Exception as e:
-            print(f"⚠ Error creating icon: {e}")
+            print(f"WARNING - Error creating icon: {e}")
             print("Continuing without icon...")
             return True  # Continue anyway
     
@@ -112,9 +112,9 @@ class SupervertalerBuilder:
             if dir_path.exists():
                 print(f"Removing {dir_path}...")
                 shutil.rmtree(dir_path)
-                print(f"✓ Cleaned {dir_path}")
+                print(f"OK - Cleaned {dir_path}")
             else:
-                print(f"✓ {dir_path} doesn't exist (nothing to clean)")
+                print(f"OK - {dir_path} doesn't exist (nothing to clean)")
     
     def build_executable(self):
         """Run PyInstaller to build the executable"""
@@ -123,7 +123,7 @@ class SupervertalerBuilder:
         spec_file = self.project_dir / "Supervertaler.spec"
         
         if not spec_file.exists():
-            print(f"✗ Spec file not found: {spec_file}")
+            print(f"ERROR - Spec file not found: {spec_file}")
             return False
         
         print(f"Using spec file: {spec_file}")
@@ -136,11 +136,11 @@ class SupervertalerBuilder:
                 check=True
             )
             
-            print("\n✓ Build completed successfully!")
+            print("\nOK - Build completed successfully!")
             return True
             
         except subprocess.CalledProcessError as e:
-            print(f"\n✗ Build failed with error code {e.returncode}")
+            print(f"\nERROR - Build failed with error code {e.returncode}")
             return False
     
     def create_user_folders(self):
@@ -150,7 +150,7 @@ class SupervertalerBuilder:
         package_dir = self.dist_dir / self.package_name
         
         if not package_dir.exists():
-            print(f"✗ Package directory not found: {package_dir}")
+            print(f"ERROR - Package directory not found: {package_dir}")
             return False
         
         # Create user data folders
@@ -173,7 +173,7 @@ class SupervertalerBuilder:
             dst_path = package_dir / dst_file
             if src_path.exists():
                 shutil.copy(src_path, dst_path)
-                print(f"✓ Copied {src_file}")
+                print(f"OK - Copied {src_file}")
         
         # Copy folders from _internal to root for user convenience
         internal_dir = package_dir / "_internal"
@@ -184,7 +184,7 @@ class SupervertalerBuilder:
             dst_folder = package_dir / folder
             if src_folder.exists() and not dst_folder.exists():
                 shutil.copytree(src_folder, dst_folder)
-                print(f"✓ Copied {folder}/ to package root")
+                print(f"OK - Copied {folder}/ to package root")
         
         # Create api_keys.txt as a copy of example
         api_keys_src = package_dir / "api_keys.example.txt"
@@ -192,7 +192,7 @@ class SupervertalerBuilder:
         
         if api_keys_src.exists() and not api_keys_dst.exists():
             shutil.copy(api_keys_src, api_keys_dst)
-            print(f"✓ Created api_keys.txt from example")
+            print(f"OK - Created api_keys.txt from example")
         
         # Create folders
         for folder in ["custom_prompts_private", "projects", "projects_private"]:
@@ -208,7 +208,7 @@ class SupervertalerBuilder:
                 else:
                     f.write(f"This folder is for your {folder.replace('_', ' ')}.\n")
             
-            print(f"✓ Created {folder}/")
+            print(f"OK - Created {folder}/")
         
         return True
     
@@ -219,7 +219,7 @@ class SupervertalerBuilder:
         package_dir = self.dist_dir / self.package_name
         
         if not package_dir.exists():
-            print(f"✗ Package directory not found: {package_dir}")
+            print(f"ERROR - Package directory not found: {package_dir}")
             return False
         
         # Create installation guide
@@ -263,16 +263,16 @@ CHANGELOG.md                - Version history
 
 IMPORTANT NOTES:
 
-⚠ API KEYS REQUIRED: You must add at least one API key to api_keys.txt
+WARNING - API KEYS REQUIRED: You must add at least one API key to api_keys.txt
    before using Supervertaler. Get API keys from:
    - OpenAI: https://platform.openai.com/api-keys
    - Anthropic: https://console.anthropic.com/
    - Google: https://makersuite.google.com/app/apikey
 
-⚠ KEEP THIS FOLDER INTACT: Do not move Supervertaler.exe out of this
+WARNING - KEEP THIS FOLDER INTACT: Do not move Supervertaler.exe out of this
    folder. It needs the other files and folders to work properly.
 
-⚠ WINDOWS SECURITY: If Windows SmartScreen blocks the app, click
+WARNING - WINDOWS SECURITY: If Windows SmartScreen blocks the app, click
    "More info" then "Run anyway". This is normal for new applications.
 
 ═══════════════════════════════════════════════════════════════════════
@@ -294,7 +294,7 @@ SUPPORT:
 ═══════════════════════════════════════════════════════════════════════
 """)
         
-        print(f"✓ Created INSTALLATION_GUIDE.txt")
+        print(f"OK - Created INSTALLATION_GUIDE.txt")
         
         # Show package info
         print("\n" + "=" * 70)
@@ -304,13 +304,13 @@ SUPPORT:
         exe_path = package_dir / self.exe_name
         if exe_path.exists():
             exe_size = exe_path.stat().st_size / (1024 * 1024)
-            print(f"✓ Executable: {self.exe_name} ({exe_size:.1f} MB)")
+            print(f"OK - Executable: {self.exe_name} ({exe_size:.1f} MB)")
         
         total_size = sum(f.stat().st_size for f in package_dir.rglob('*') if f.is_file())
         total_size_mb = total_size / (1024 * 1024)
         
-        print(f"✓ Package size: {total_size_mb:.1f} MB")
-        print(f"✓ Location: {package_dir}")
+        print(f"OK - Package size: {total_size_mb:.1f} MB")
+        print(f"OK - Location: {package_dir}")
         
         return True
     
@@ -323,12 +323,12 @@ SUPPORT:
         
         # Step 1: Check dependencies
         if not self.check_dependencies():
-            print("\n✗ Build aborted: Missing dependencies")
+            print("\nERROR - Build aborted: Missing dependencies")
             return False
         
         # Step 2: Create icon
         if not self.create_icon():
-            print("\n✗ Build aborted: Icon creation failed")
+            print("\nERROR - Build aborted: Icon creation failed")
             return False
         
         # Step 3: Clean previous builds
@@ -336,23 +336,23 @@ SUPPORT:
         
         # Step 4: Build executable
         if not self.build_executable():
-            print("\n✗ Build aborted: Executable build failed")
+            print("\nERROR - Build aborted: Executable build failed")
             return False
         
         # Step 5: Create user folders
         if not self.create_user_folders():
-            print("\n✗ Build aborted: User folder creation failed")
+            print("\nERROR - Build aborted: User folder creation failed")
             return False
         
         # Step 6: Create distribution package
         if not self.create_distribution_package():
-            print("\n✗ Build aborted: Distribution package creation failed")
+            print("\nERROR - Build aborted: Distribution package creation failed")
             return False
         
         # Success!
         self.print_header("BUILD COMPLETED SUCCESSFULLY!")
         
-        print("✓ Supervertaler is ready for distribution!\n")
+        print("OK - Supervertaler is ready for distribution!\n")
         print(f"Distribution package location:")
         print(f"  {self.dist_dir / self.package_name}\n")
         print("Next steps:")

@@ -92,14 +92,13 @@ cp api_keys.example.txt api_keys.txt
 open -a TextEdit api_keys.txt
 ```
 
-**Add your API keys** (get them from the providers - see [API Keys Setup Guide](API_KEYS_SETUP_GUIDE.md)):
+**Add your API keys** (get them from the providers - see [API Keys Setup Guide](API_KEYS_SETUP_GUIDE.md)): 
 
 ```
 openai_api_key=sk-proj-xxxxxxxxxxxxx
-anthropic_api_key=sk-ant-xxxxxxxxxxxxx
+claude_api_key=sk-ant-xxxxxxxxxxxxx
 google_api_key=AIzaSyxxxxxxxxxxxxx
 ```
-
 **Save the file** and close the editor.
 
 ### Step 5: Run Supervertaler
@@ -220,7 +219,7 @@ nano api_keys.txt
 **Add your API keys**:
 ```
 openai_api_key=sk-proj-xxxxxxxxxxxxx
-anthropic_api_key=sk-ant-xxxxxxxxxxxxx
+claude_api_key=sk-ant-xxxxxxxxxxxxx
 google_api_key=AIzaSyxxxxxxxxxxxxx
 ```
 
