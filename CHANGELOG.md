@@ -5,6 +5,8 @@
 ### 🚀 NEW FEATURES
 
 #### 📄 memoQ Bilingual DOCX Import/Export (GAME-CHANGER)
+**Note**: Currently supports memoQ bilingual DOCX format. Support for Trados and other CAT tools planned for future releases.
+
 - **Direct bilingual file support** - No more manual copy-paste workflows!
 - **Import memoQ bilingual DOCX** files with single button click
 - **Automatic source extraction** from bilingual table format
@@ -15,6 +17,7 @@
   - Green "📄 Import memoQ Bilingual DOCX" button
   - Blue "💾 Export to Bilingual DOCX" button
   - Automatic input/output file path configuration
+- **Supported Format**: memoQ bilingual DOCX (5-column table format)
 - **Benefits**:
   - ✅ Eliminates manual copying between memoQ and text files
   - ✅ Preserves all segment IDs and metadata
