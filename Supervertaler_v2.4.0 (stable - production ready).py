@@ -2433,13 +2433,19 @@ class TranslationApp:
                                        "If a sentence refers to figures, images, or diagrams (e.g., 'Figure 1A', 'Chart 2', 'Diagram B'), relevant images may be provided just before that sentence. "
                                        "Use these visual elements as crucial context for accurately translating references to parts, features, relationships, or data shown in those figures.\n\n"
                                        "**CRITICAL: CAT TOOL TAG PRESERVATION**:\n"
-                                       "- Source text may contain CAT tool formatting tags like [1}, {2], |1|, or other bracketed/special characters\n"
-                                       "- These are placeholder tags from memoQ, Trados, CafeTran, Wordfast - they represent formatting (bold, italic, links, etc.)\n"
-                                       "- You MUST preserve ALL tags in your translation - if source has 4 tags, target must have 4 tags\n"
-                                       "- Keep tags with the content they wrap: '[1}De uitvoer{2]' → '[1}The exports{2]' (tags move with the content)\n"
-                                       "- Tags can be repositioned if sentence structure changes: '[1}word A{2] [3}word B{4]' might become '[3}word B{4] [1}word A{2]' if natural in target language\n"
-                                       "- Never translate, omit, or change the tag format itself - only move tags to appropriate positions\n"
-                                       "- Example: '[1}De uitvoer van machines{2] [3}stelt niets voor{4]' → '[1}Exports of machinery{2] [3}mean nothing{4]'\n\n"
+                                       "- Source text may contain CAT tool formatting tags in various formats:\n"
+                                       "  • memoQ: [1}, {2], [3}, {4] (asymmetric bracket-brace pairs)\n"
+                                       "  • Trados Studio: <410>text</410>, <434>text</434> (XML-style opening/closing tags)\n"
+                                       "  • CafeTran: |1|, |2| (pipe-delimited)\n"
+                                       "  • Other CAT tools: various bracketed or special character sequences\n"
+                                       "- These are placeholder tags representing formatting (bold, italic, links, etc.)\n"
+                                       "- You MUST preserve ALL tags - if source has 4 tags, target must have 4 tags\n"
+                                       "- Keep tags with the content they wrap and reposition as needed for natural target language structure\n"
+                                       "- Never translate, omit, or modify the tags themselves - only reposition them appropriately\n"
+                                       "- Examples:\n"
+                                       "  • memoQ: '[1}De uitvoer{2]' → '[1}The exports{2]'\n"
+                                       "  • Trados: '<410>De uitvoer van machines</410> <434>stelt niets voor</434>' → '<410>Exports of machinery</410> <434>mean nothing</434>'\n"
+                                       "  • Multiple memoQ: '[1}De uitvoer{2] [3}stelt niets voor{4]' → '[1}Exports{2] [3}mean nothing{4]'\n\n"
                                        "**LANGUAGE-SPECIFIC NUMBER FORMATTING**:\n"
                                        "- If the target language is **Dutch**, **French**, **German**, **Italian**, **Spanish**, or another **continental European language**, use a **comma** as the decimal separator and a **space or non-breaking space** between the number and unit (e.g., 17,1 cm).\n"
                                        "- If the target language is **English** or **Irish**, use a **full stop (period)** as the decimal separator and **no space** before the unit (e.g., 17.1 cm).\n"
@@ -2451,11 +2457,12 @@ class TranslationApp:
                                        "For each segment you receive a SOURCE SEGMENT and EXISTING TRANSLATION. "
                                        "Your tasks: improve accuracy, ensure terminology consistency, enhance readability, correct grammar, improve fluency, verify completeness, and maintain consistency with visual elements.\n\n"
                                        "**CRITICAL: CAT TOOL TAG PRESERVATION**:\n"
-                                       "- Source/target may contain CAT tool formatting tags like [1}, {2], |1|, or other bracketed/special characters\n"
+                                       "- Source/target may contain CAT tool formatting tags in various formats:\n"
+                                       "  • memoQ: [1}, {2] | Trados: <410>text</410> | CafeTran: |1|, |2|\n"
                                        "- These are placeholder tags representing formatting (bold, italic, links, etc.) - preserve ALL of them\n"
-                                       "- If source has 4 tags, target must have 4 tags - never omit tags\n"
+                                       "- If source has 4 tags, target must have 4 tags - never omit, translate, or modify tags\n"
                                        "- Keep tags with the content they wrap, adjusting position if sentence structure changes between languages\n"
-                                       "- Example: '[1}The exports{2]' remains '[1}The exports{2]' (or '[1}Exports{2]' if shortened appropriately)\n\n"
+                                       "- Example: '<410>The exports</410>' remains '<410>The exports</410>' (or '<410>Exports</410>' if shortened appropriately)\n\n"
                                        "**LANGUAGE-SPECIFIC NUMBER FORMATTING**:\n"
                                        "- If the target language is **Dutch**, **French**, **German**, **Italian**, **Spanish**, or another **continental European language**, use a **comma** as the decimal separator and a **space or non-breaking space** between the number and unit (e.g., 17,1 cm).\n"
                                        "- If the target language is **English** or **Irish**, use a **full stop (period)** as the decimal separator and **no space** before the unit (e.g., 17.1 cm).\n"
@@ -3485,6 +3492,190 @@ class TranslationApp:
                                         self.drawings_images_map, custom_instr, custom_system_prompt, tm_f)) 
         thread.daemon = True; thread.start()
 
+    
+    def markdown_to_html(self, markdown_text, title="Session Report"):
+        """Convert markdown to styled HTML"""
+        html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{title}</title>
+    <style>
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 0 20px;
+            color: #333;
+            background-color: #f5f5f5;
+        }}
+        .container {{
+            background-color: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }}
+        h1 {{
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+        }}
+        h2 {{
+            color: #34495e;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 8px;
+        }}
+        h3 {{
+            color: #7f8c8d;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }}
+        h4 {{
+            color: #95a5a6;
+            margin-top: 15px;
+            margin-bottom: 8px;
+        }}
+        ul, ol {{
+            margin: 10px 0;
+            padding-left: 30px;
+        }}
+        li {{
+            margin: 5px 0;
+        }}
+        pre {{
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            overflow-x: auto;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 14px;
+        }}
+        code {{
+            background-color: #f8f9fa;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 14px;
+        }}
+        pre code {{
+            background-color: transparent;
+            padding: 0;
+        }}
+        strong {{
+            color: #2c3e50;
+        }}
+        .emoji {{
+            font-size: 1.2em;
+        }}
+        table {{
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }}
+        th, td {{
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            text-align: left;
+        }}
+        th {{
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }}
+        hr {{
+            border: none;
+            border-top: 1px solid #dee2e6;
+            margin: 30px 0;
+        }}
+        .footer {{
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #dee2e6;
+            color: #7f8c8d;
+            font-size: 14px;
+            font-style: italic;
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+"""
+        
+        # Simple markdown to HTML conversion
+        lines = markdown_text.split('\n')
+        in_code_block = False
+        in_list = False
+        html_content = []
+        
+        for line in lines:
+            # Code blocks
+            if line.strip().startswith('```'):
+                if in_code_block:
+                    html_content.append('</code></pre>')
+                    in_code_block = False
+                else:
+                    html_content.append('<pre><code>')
+                    in_code_block = True
+                continue
+            
+            if in_code_block:
+                html_content.append(line.replace('<', '&lt;').replace('>', '&gt;'))
+                continue
+            
+            # Headers
+            if line.startswith('# '):
+                html_content.append(f'<h1>{line[2:]}</h1>')
+            elif line.startswith('## '):
+                html_content.append(f'<h2>{line[3:]}</h2>')
+            elif line.startswith('### '):
+                html_content.append(f'<h3>{line[4:]}</h3>')
+            elif line.startswith('#### '):
+                html_content.append(f'<h4>{line[5:]}</h4>')
+            # Horizontal rule
+            elif line.strip() == '---':
+                html_content.append('<hr>')
+            # Lists
+            elif line.strip().startswith('- '):
+                if not in_list:
+                    html_content.append('<ul>')
+                    in_list = True
+                content = line.strip()[2:]
+                # Handle bold
+                content = content.replace('**', '<strong>', 1).replace('**', '</strong>', 1)
+                html_content.append(f'<li>{content}</li>')
+            else:
+                if in_list and not line.strip().startswith('- '):
+                    html_content.append('</ul>')
+                    in_list = False
+                
+                if line.strip():
+                    # Handle bold
+                    line = line.replace('**', '<strong>', 1).replace('**', '</strong>', 1)
+                    # Handle inline code
+                    import re
+                    line = re.sub(r'`([^`]+)`', r'<code>\1</code>', line)
+                    html_content.append(f'<p>{line}</p>')
+                else:
+                    html_content.append('')
+        
+        if in_list:
+            html_content.append('</ul>')
+        if in_code_block:
+            html_content.append('</code></pre>')
+        
+        html += '\n'.join(html_content)
+        html += """
+    </div>
+</body>
+</html>"""
+        
+        return html
+    
     def generate_session_report(self, mode, input_f, output_f, source_lang, target_lang, provider, model_name, 
                                chunk_s, drawings_map, user_custom_instructions, custom_system_prompt, 
                                tm_file=None, tracked_changes_data=None):
@@ -3775,6 +3966,7 @@ class TranslationApp:
                 # Create report filename by replacing output extension with '_report.md'
                 base_name = os.path.splitext(output_f)[0]
                 report_filename = f"{base_name}_report.md"
+                html_report_filename = f"{base_name}_report.html"
                 
                 # Generate the comprehensive session report
                 report_content = self.generate_session_report(
@@ -3793,11 +3985,18 @@ class TranslationApp:
                     tracked_changes_data=getattr(self.tracked_changes_agent, 'change_data', None)
                 )
                 
-                # Write the report to file
+                # Write the markdown report to file
                 with open(report_filename, 'w', encoding='utf-8') as report_file:
                     report_file.write(report_content)
                 
-                self.log_queue.put(f"Session report saved: {report_filename}")
+                # Also generate HTML version
+                import datetime
+                timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                html_content = self.markdown_to_html(report_content, f"Supervertaler Session Report - {timestamp}")
+                with open(html_report_filename, 'w', encoding='utf-8') as html_file:
+                    html_file.write(html_content)
+                
+                self.log_queue.put(f"Session reports saved: {report_filename} and {html_report_filename}")
                 
             except Exception as e:
                 # Don't let report generation errors disrupt the main workflow

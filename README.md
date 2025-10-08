@@ -10,6 +10,7 @@
 ### v2.4.1 (Latest - Production Ready) 🎉
 **File**: `Supervertaler_v2.4.1.py`
 - ✅ **NEW**: memoQ bilingual DOCX import/export - Direct CAT tool integration!
+  - *Currently supports memoQ format only. Trados/CafeTran support planned.*
 - ✅ **NEW**: Formatting preservation (bold, italic, underline)
 - ✅ 100% success rate in production testing
 - ✅ All v2.4.0 features + revolutionary bilingual workflow
@@ -39,26 +40,30 @@
 
 ### 🆕 Bilingual Workflow (v2.4.1 - RECOMMENDED) 🎉
 
-**One-click import/export directly from your CAT tool!**
+**One-click import/export directly from memoQ!**
 
-1. **Export bilingual DOCX** from your CAT tool (memoQ, Trados, etc.)
+> **📌 Note**: Currently supports **memoQ bilingual DOCX files only**. Support for Trados Studio and CafeTran bilingual files is planned for future releases.
+
+1. **Export bilingual DOCX** from memoQ
 2. **Click "📄 Import memoQ Bilingual DOCX"** in Supervertaler
 3. **Configure translation settings** (language pair, AI provider, model)
 4. **Click "Translate"** - AI processes all segments
 5. **Click "💾 Export to Bilingual DOCX"** - File ready for reimport
-6. **Reimport to your CAT tool** - Formatting and tags preserved!
+6. **Reimport to memoQ** - Formatting and tags preserved!
 
 **Benefits**:
 - ✅ **No manual copying** - Direct file integration
-- ✅ **Formatting preserved** - Bold, italic, underline maintained
-- ✅ **CAT tags preserved** - memoQ `[1}...{2]`, Trados `<410>...</410>`, CafeTran `|1|...|2|`
+- ✅ **Formatting preserved** - Bold, italic, underline maintained (100% success rate)
+- ✅ **memoQ tags preserved** - `[1}...{2]` format maintained
 - ✅ **Segment IDs maintained** - Perfect reimport compatibility
 - ✅ **Massive time savings** - Eliminate copy-paste workflows
 
-**Verified Compatibility**:
-- ✅ **memoQ** - Fully tested and verified
-- 🔄 **Trados Studio** - Format supported (testing pending)
-- 🔄 **CafeTran** - Format supported (testing pending)
+**Supported Format**:
+- ✅ **memoQ bilingual DOCX** - Fully tested and verified (5-column table format)
+
+**Planned for Future Releases**:
+- 🔄 **Trados Studio bilingual files**
+- 🔄 **CafeTran bilingual files**
 
 ---
 
@@ -483,7 +488,7 @@ Supervertaler is part of a growing ecosystem of AI-powered translation tools tha
 ### Why Supervertaler?
 While many tools offer AI translation, Supervertaler's unique approach combines:
 - **Multiple context sources** (document, TM, tracked changes, images, custom instructions)
-- **Professional CAT tool integration** (seamless workflow with memoQ, Trados, etc.)
+- **Professional CAT tool integration** (memoQ bilingual DOCX workflow in v2.4.1; expanded CAT support planned)
 - **Specialized domain prompts** (legal, medical, technical, financial, etc.)
 - **Project library system** (save/restore complete workspace configurations)
 - **Multimodal support** (AI sees referenced images in context)
