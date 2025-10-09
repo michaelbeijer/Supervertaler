@@ -1107,7 +1107,7 @@ class Supervertaler:
     
     def __init__(self, root):
         self.root = root
-        self.root.title("Supervertaler v2.5.0 - AI-Powered CAT Tool")
+        self.root.title("Supervertaler v2.5.1 - AI-Powered CAT Tool")
         self.root.geometry("1200x800")
         
         # Layout mode
@@ -1282,7 +1282,7 @@ class Supervertaler:
         self.prompt_library.load_all_prompts()
         
         # Status
-        self.log("Supervertaler v2.5.0 ready. Import a DOCX file to begin.")
+        self.log("Supervertaler v2.5.1 ready. Import a DOCX file to begin.")
         self.log(f"✨ LLM APIs: OpenAI={OPENAI_AVAILABLE}, Claude={ANTHROPIC_AVAILABLE}, Gemini={GEMINI_AVAILABLE}")
         self.log("✨ Layout modes available: Grid (memoQ-style), List, Document")
     

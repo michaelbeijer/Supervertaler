@@ -1,4 +1,4 @@
-# --- Supervertaler (v2.4.0) - Multi-LLM AI-powered Translator & Proofreader with Project Management ---
+# --- Supervertaler (v2.4.1) - Multi-LLM AI-powered Translator & Proofreader with Project Management ---
 import tkinter as tk
 from tkinter import filedialog, scrolledtext, messagebox, ttk
 import threading
@@ -2161,7 +2161,7 @@ class TranslationApp:
 
         # --- UPDATED UNIFIED INFO TEXT FOR v2.2.0 ---
         self.info_text_content_unified = (
-            "🎯 Supervertaler v2.4.0 - Multicontextual AI Translation & Proofreading Suite\n"
+            "🎯 Supervertaler v2.4.1 - Multicontextual AI Translation & Proofreading Suite\n"
             "Revolutionary approach using multiple context sources for unparalleled accuracy.\n\n"
             "🧠 MULTICONTEXTUAL INTELLIGENCE:\n"
             "Unlike traditional sentence-by-sentence translators, Supervertaler considers multiple layers of context:\n\n"
@@ -2171,7 +2171,11 @@ class TranslationApp:
             "• Multimodal Figures: AI sees referenced images when translating captions\n"
             "• Custom Instructions: Domain-specific guidance tailored to your content\n"
             "• Advanced Prompts: Specialized system prompts for different document types\n\n"
-            "🔥 NEW IN v2.4.0:\n"
+            "🔥 NEW IN v2.4.1:\n"
+            "• CafeTran Bilingual DOCX: Import/export with AI-based pipe symbol formatting preservation\n"
+            "• memoQ Bilingual DOCX: Direct import/export support for memoQ workflows\n"
+            "• CAT Tool Integration: Enhanced support for professional translation workflows\n\n"
+            "✨ PREVIOUS UPDATES (v2.4.0):\n"
             "• Project Library: Save/restore complete workspace configurations\n"
             "• Enhanced Library Structure: Prompt Library, Custom Prompt Library, Project Library\n"
             "• Cross-platform Project Management: Works on Windows, macOS, Linux\n"
