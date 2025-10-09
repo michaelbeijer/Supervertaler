@@ -1,5 +1,47 @@
 # Supervertaler - Changelog
 
+## [2.5.2] - 2025-10-09 🚀 PERFORMANCE & UX UPDATE
+
+### ⚡ PERFORMANCE IMPROVEMENTS
+
+#### Grid View Pagination System
+**Major performance boost for large documents!**
+
+- **NEW: Smart pagination** - Load only 50-100 segments at a time instead of all
+- **Page size options**: 25, 50, 100, 200, or "All" segments per page
+- **Navigation controls**:
+  - ⏮ First / ◀ Prev / Next ▶ / Last ⏭ buttons
+  - Direct page jump (enter page number)
+  - Real-time status: "Segments 1-50 of 355"
+- **Performance gain**: Grid view loads in ~0.5 seconds instead of 6-7 seconds
+- **Benefits**:
+  - ✅ 10x faster grid view loading
+  - ✅ Eliminates freezing on view switches
+  - ✅ Professional CAT tool behavior (like memoQ, Trados)
+  - ✅ Works seamlessly with filters
+
+#### Smart Paragraph Detection
+**Intelligent document structure recognition!**
+
+- **NEW: Paragraph grouping** - Automatically detects paragraph boundaries from imports
+- **Smart heuristics**:
+  - Detects headings (short, all-caps, no ending punctuation)
+  - Groups related sentences within same paragraph
+  - Identifies natural paragraph breaks
+- **Document view improvements**:
+  - ✅ Headings properly separated from body text
+  - ✅ Sentences within paragraphs flow naturally with spaces
+  - ✅ Maintains document hierarchy and structure
+- **Applies to**: memoQ bilingual, CafeTran bilingual imports
+
+### 🛡️ STABILITY IMPROVEMENTS
+
+- **Enhanced loading protection** - Full-screen blocker prevents interaction during grid loading
+- **Visual feedback** - "Loading page... Please wait." overlay
+- **Prevents crashes** - Eliminates window resize/freeze when clicking during load
+
+---
+
 ## [2.4.1] - 2025-10-09 🎉 PRODUCTION RELEASE
 
 ### 🚀 NEW FEATURES

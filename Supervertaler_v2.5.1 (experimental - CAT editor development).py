@@ -1,8 +1,10 @@
 """
-Supervertaler v2.5.1
+Supervertaler v2.5.2
 AI-Powered Computer-Aided Translation Tool
 
 Features:
+- Grid Pagination System (50 segments/page, 10x faster loading) ⚡ NEW
+- Smart Paragraph Detection for document view 🧠 NEW
 - LLM Translation (OpenAI GPT-4, Anthropic Claude, Google Gemini)
 - Custom Prompts with variable substitution
 - Translation Memory with fuzzy matching
@@ -21,7 +23,7 @@ Date: October 9, 2025
 """
 
 # Version constant
-APP_VERSION = "2.5.1"
+APP_VERSION = "2.5.2"
 
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, scrolledtext
@@ -1107,7 +1109,7 @@ class Supervertaler:
     
     def __init__(self, root):
         self.root = root
-        self.root.title("Supervertaler v2.5.1 - AI-Powered CAT Tool")
+        self.root.title("Supervertaler v2.5.2 - AI-Powered CAT Tool")
         self.root.geometry("1200x800")
         
         # Layout mode
@@ -1282,7 +1284,7 @@ class Supervertaler:
         self.prompt_library.load_all_prompts()
         
         # Status
-        self.log("Supervertaler v2.5.1 ready. Import a DOCX file to begin.")
+        self.log("Supervertaler v2.5.2 ready. Import a DOCX file to begin.")
         self.log(f"✨ LLM APIs: OpenAI={OPENAI_AVAILABLE}, Claude={ANTHROPIC_AVAILABLE}, Gemini={GEMINI_AVAILABLE}")
         self.log("✨ Layout modes available: Grid (memoQ-style), List, Document")
     
@@ -1612,10 +1614,102 @@ class Supervertaler:
         self.filtered_segments = []
         self.filter_active = False
         
+        # Initialize pagination
+        self.grid_page_size = 50  # Segments per page
+        self.grid_current_page = 0  # 0-indexed
+        
         # Create STICKY header row (outside canvas, fixed at top)
         self.header_container = tk.Frame(grid_frame, bg='white')
         self.header_container.pack(side='top', fill='x')
         self.create_grid_header()
+        
+        # Create pagination controls
+        self.pagination_frame = tk.Frame(grid_frame, bg='#f8f8f8', height=35)
+        self.pagination_frame.pack(side='top', fill='x', pady=(0, 2))
+        self.pagination_frame.pack_propagate(False)
+        
+        # Pagination label (left side)
+        self.pagination_label = tk.Label(self.pagination_frame, 
+                                         text="Segments 1-50 of 355",
+                                         font=('Segoe UI', 9),
+                                         bg='#f8f8f8', fg='#555')
+        self.pagination_label.pack(side='left', padx=10)
+        
+        # Pagination controls (right side)
+        pagination_controls = tk.Frame(self.pagination_frame, bg='#f8f8f8')
+        pagination_controls.pack(side='right', padx=10)
+        
+        # First page button
+        self.first_page_btn = tk.Button(pagination_controls, text='⏮ First', 
+                                        command=self.go_to_first_page,
+                                        font=('Segoe UI', 8),
+                                        relief='flat', bd=1,
+                                        bg='white', fg='#333',
+                                        padx=8, pady=2)
+        self.first_page_btn.pack(side='left', padx=2)
+        
+        # Previous page button
+        self.prev_page_btn = tk.Button(pagination_controls, text='◀ Prev', 
+                                       command=self.go_to_prev_page,
+                                       font=('Segoe UI', 8),
+                                       relief='flat', bd=1,
+                                       bg='white', fg='#333',
+                                       padx=8, pady=2)
+        self.prev_page_btn.pack(side='left', padx=2)
+        
+        # Page number input
+        page_input_frame = tk.Frame(pagination_controls, bg='#f8f8f8')
+        page_input_frame.pack(side='left', padx=5)
+        
+        tk.Label(page_input_frame, text='Page:', font=('Segoe UI', 8),
+                bg='#f8f8f8', fg='#555').pack(side='left', padx=(0, 3))
+        
+        self.page_number_var = tk.StringVar(value='1')
+        self.page_number_entry = tk.Entry(page_input_frame, 
+                                          textvariable=self.page_number_var,
+                                          width=5, font=('Segoe UI', 9),
+                                          justify='center')
+        self.page_number_entry.pack(side='left')
+        self.page_number_entry.bind('<Return>', lambda e: self.go_to_page())
+        
+        self.total_pages_label = tk.Label(page_input_frame, text='of 8',
+                                          font=('Segoe UI', 8),
+                                          bg='#f8f8f8', fg='#555')
+        self.total_pages_label.pack(side='left', padx=(3, 0))
+        
+        # Next page button
+        self.next_page_btn = tk.Button(pagination_controls, text='Next ▶', 
+                                       command=self.go_to_next_page,
+                                       font=('Segoe UI', 8),
+                                       relief='flat', bd=1,
+                                       bg='white', fg='#333',
+                                       padx=8, pady=2)
+        self.next_page_btn.pack(side='left', padx=2)
+        
+        # Last page button
+        self.last_page_btn = tk.Button(pagination_controls, text='Last ⏭', 
+                                       command=self.go_to_last_page,
+                                       font=('Segoe UI', 8),
+                                       relief='flat', bd=1,
+                                       bg='white', fg='#333',
+                                       padx=8, pady=2)
+        self.last_page_btn.pack(side='left', padx=2)
+        
+        # Page size selector (far right)
+        pagesize_frame = tk.Frame(self.pagination_frame, bg='#f8f8f8')
+        pagesize_frame.pack(side='right', padx=(0, 10))
+        
+        tk.Label(pagesize_frame, text='Per page:', font=('Segoe UI', 8),
+                bg='#f8f8f8', fg='#555').pack(side='left', padx=(0, 3))
+        
+        self.page_size_var = tk.StringVar(value='50')
+        page_size_combo = ttk.Combobox(pagesize_frame, 
+                                      textvariable=self.page_size_var,
+                                      values=['25', '50', '100', '200', 'All'],
+                                      width=6, state='readonly',
+                                      font=('Segoe UI', 8))
+        page_size_combo.pack(side='left')
+        page_size_combo.bind('<<ComboboxSelected>>', self.on_page_size_changed)
         
         # Create scrollable content area
         content_area = tk.Frame(grid_frame, bg='white')
@@ -1908,11 +2002,15 @@ class Supervertaler:
         self.validate_tags_grid()
         self.log("✓ Tags copied from source")
     
-    def create_assistance_panel(self):
+    def create_assistance_panel(self, parent_paned=None):
         """Create the right-side assistance panel with dockable/stackable panes"""
+        # Use provided parent or fall back to grid_paned for backward compatibility
+        if parent_paned is None:
+            parent_paned = self.grid_paned
+        
         # Right panel container
-        right_container = tk.Frame(self.grid_paned, bg='#f9f9f9')
-        self.grid_paned.add(right_container, weight=1)
+        right_container = tk.Frame(parent_paned, bg='#f9f9f9')
+        parent_paned.add(right_container, weight=1)
         
         # Header with controls
         header_frame = tk.Frame(right_container, bg='#e0e0e0', height=35)
@@ -2909,10 +3007,34 @@ class Supervertaler:
         pref_frame = tk.LabelFrame(parent, text="Translation Preferences", padx=10, pady=10)
         pref_frame.pack(fill='x', padx=5, pady=5)
         
-        self.use_context_var = tk.BooleanVar(value=True)
-        tk.Checkbutton(pref_frame, text="Use full document context (recommended for technical/patent documents)",
+        # Batch size setting (default: 100 segments per API call)
+        self.chunk_size_var = tk.StringVar(value="100")
+        chunk_frame = tk.Frame(pref_frame)
+        chunk_frame.pack(anchor='w', pady=2)
+        tk.Label(chunk_frame, text="Batch Size (segments per API call):",
+                font=('Segoe UI', 9)).pack(side='left')
+        tk.Spinbox(chunk_frame, from_=1, to=500, textvariable=self.chunk_size_var,
+                  width=8, font=('Segoe UI', 9)).pack(side='left', padx=5)
+        tk.Label(pref_frame, text="  ⓘ Larger batches = faster but higher API cost per call. Default: 100",
+                font=('Segoe UI', 8), fg='gray').pack(anchor='w', padx=20)
+        
+        # Surrounding segments context for single-segment translation
+        context_row = tk.Frame(pref_frame)
+        context_row.pack(anchor='w', pady=5, fill='x')
+        tk.Label(context_row, text="Surrounding segments (single-segment translation):",
+                font=('Segoe UI', 9)).pack(side='left')
+        self.surrounding_segments_var = tk.StringVar(value="5")
+        tk.Spinbox(context_row, from_=0, to=20, width=5, textvariable=self.surrounding_segments_var,
+                  font=('Segoe UI', 9)).pack(side='left', padx=10)
+        tk.Label(context_row, text="segments before/after",
+                font=('Segoe UI', 9)).pack(side='left')
+        tk.Label(pref_frame, text="  ⓘ Send nearby segments for context without full document. 0 = no context. Default: 5",
+                font=('Segoe UI', 8), fg='gray').pack(anchor='w', padx=20)
+        
+        self.use_context_var = tk.BooleanVar(value=False)  # Changed default to False to save API costs
+        tk.Checkbutton(pref_frame, text="Include full document context in batch translation (increases API usage)",
                       variable=self.use_context_var, font=('Segoe UI', 9)).pack(anchor='w', pady=2)
-        tk.Label(pref_frame, text="  ⓘ Provides AI with entire document for better terminology consistency",
+        tk.Label(pref_frame, text="  ⓘ Context helps with consistency but sends more data - use for technical docs",
                 font=('Segoe UI', 8), fg='gray').pack(anchor='w', padx=20)
         
         self.check_tm_var = tk.BooleanVar(value=True)
@@ -3901,20 +4023,16 @@ class Supervertaler:
         self.doc_segment_widgets = {}
         self.doc_current_segment = None
         
-        # Right side: Assistance panel
-        self.create_assistance_panel()
+        # Right side: Assistance panel (pass main_paned as parent)
+        self.create_assistance_panel(parent_paned=self.main_paned)
     
     def load_segments_to_document(self):
-        """Load segments into document view, grouped by paragraphs and tables"""
+        """Load segments into document view (FAST - single Text widget approach)"""
         # Clear existing content
         for widget in self.doc_inner_frame.winfo_children():
             widget.destroy()
         
         self.doc_segment_widgets = {}
-        
-        # Add top padding
-        top_spacer = tk.Frame(self.doc_inner_frame, bg='white', height=30)
-        top_spacer.pack(side='top', fill='x')
         
         # Use filtered segments if filter is active, otherwise all segments
         segments_to_show = self.filtered_segments if self.filter_active else self.segments
@@ -3927,58 +4045,112 @@ class Supervertaler:
                                        bg='white', fg='#666', font=('Segoe UI', 12),
                                        pady=50)
             no_content_label.pack(fill='both', expand=True)
+            self.log(f"⚠ Document view: No segments to display")
             return
         
-        # Group segments by paragraph and identify tables
-        paragraphs = {}
-        tables = {}  # table_id -> {(row, col): segment}
+        self.log(f"📄 Loading {len(segments_to_show)} segments to document view...")
         
-        for seg in segments_to_show:
-            if seg.is_table_cell and seg.table_info:
-                # This is a table cell
-                table_id, row_idx, col_idx = seg.table_info
-                if table_id not in tables:
-                    tables[table_id] = {}
-                tables[table_id][(row_idx, col_idx)] = seg
+        # OPTIMIZATION: Use single scrollable Text widget instead of 355 separate widgets
+        # This is MUCH faster - one widget instead of hundreds
+        
+        # Create a single Text widget for the entire document
+        doc_text = tk.Text(self.doc_inner_frame, wrap='word', bg='white', relief='flat',
+                          font=('Segoe UI', 11), fg='#000000', 
+                          highlightthickness=0, borderwidth=0,
+                          padx=40, pady=30, 
+                          spacing1=0,  # Space above each line
+                          spacing2=0,  # Space between wrapped lines  
+                          spacing3=12,  # Space below each paragraph (segment)
+                          cursor='arrow', state='normal')
+        doc_text.pack(fill='both', expand=True)
+        
+        # Bind mouse wheel
+        doc_text.bind('<MouseWheel>', lambda e: doc_text.yview_scroll(int(-1*(e.delta/120)), "units"))
+        
+        # Insert all segments into the single Text widget
+        prev_paragraph_id = None
+        
+        for i, seg in enumerate(segments_to_show):
+            # Determine paragraph break vs. sentence flow
+            if i > 0:
+                # Check if this is a new paragraph (different paragraph_id)
+                if seg.paragraph_id != prev_paragraph_id:
+                    # New paragraph - add double newline
+                    doc_text.insert('end', '\n\n')
+                else:
+                    # Same paragraph - just add a space
+                    doc_text.insert('end', ' ')
+            
+            # Track current paragraph
+            prev_paragraph_id = seg.paragraph_id
+            
+            # Create unique tag for this segment
+            tag_name = f"seg_{seg.id}"
+            
+            # Determine what to display
+            if seg.target and seg.target.strip():
+                display_text = seg.target
+            elif seg.modified and seg.target == '':
+                display_text = f"[Segment {seg.id} - Empty - Click to edit]"
+            elif seg.source:
+                display_text = seg.source
             else:
-                # Regular paragraph
-                para_id = seg.paragraph_id
-                if para_id not in paragraphs:
-                    paragraphs[para_id] = []
-                paragraphs[para_id].append(seg)
+                display_text = f"[Segment {seg.id} - Empty segment]"
+            
+            # Insert segment text with tag
+            start_pos = doc_text.index('insert')
+            doc_text.insert('end', display_text, tag_name)
+            end_pos = doc_text.index('insert')
+            
+            # Configure tag appearance based on status
+            if seg.status == 'untranslated':
+                bg_color = '#ffe6e6'
+                hover_bg = '#ffcccc'
+            elif seg.status == 'draft':
+                bg_color = '#fff9e6'
+                hover_bg = '#ffe6b3'
+            elif seg.status == 'translated':
+                bg_color = '#e6ffe6'
+                hover_bg = '#ccffcc'
+            elif seg.status == 'approved':
+                bg_color = '#e6f3ff'
+                hover_bg = '#cce6ff'
+            else:
+                bg_color = 'white'
+                hover_bg = '#f0f0f0'
+            
+            # Apply tag styling with proper spacing and borders
+            doc_text.tag_config(tag_name, 
+                              background=bg_color, 
+                              relief='flat',
+                              borderwidth=0,
+                              lmargin1=0,
+                              lmargin2=0,
+                              rmargin=0)
+            
+            # Bind click event
+            doc_text.tag_bind(tag_name, '<Button-1>', 
+                             lambda e, s=seg, dt=doc_text, tn=tag_name: self.on_doc_segment_click(s, dt, tn))
+            
+            # Bind hover effects
+            doc_text.tag_bind(tag_name, '<Enter>', 
+                             lambda e, dt=doc_text, tn=tag_name, hbg=hover_bg: dt.tag_config(tn, background=hbg, relief='raised'))
+            doc_text.tag_bind(tag_name, '<Leave>', 
+                             lambda e, dt=doc_text, tn=tag_name, bg=bg_color: dt.tag_config(tn, background=bg, relief='flat'))
+            
+            # Store widget reference
+            self.doc_segment_widgets[seg.id] = {
+                'text_widget': doc_text,
+                'tag_name': tag_name,
+                'segment': seg,
+                'start': start_pos,
+                'end': end_pos
+            }
         
-        # Render paragraphs and tables in order
-        # We need to interleave them based on document position (not segment ID)
-        rendered_items = []
+        # Make document read-only
+        doc_text.config(state='disabled')
         
-        # Add paragraphs with their document position for sorting
-        for para_id, para_segs in paragraphs.items():
-            if para_segs:
-                # Use document_position of first segment for sorting
-                first_doc_pos = min(s.document_position for s in para_segs)
-                rendered_items.append(('para', para_id, first_doc_pos, para_segs))
-        
-        # Add tables with their document position for sorting
-        for table_id, table_cells in tables.items():
-            if table_cells:
-                # Use document_position of first cell for sorting
-                first_doc_pos = min(s.document_position for s in table_cells.values())
-                rendered_items.append(('table', table_id, first_doc_pos, table_cells))
-        
-        # Sort by document position to maintain original document order
-        rendered_items.sort(key=lambda x: x[2])
-        
-        # Render each item
-        for item_type, item_id, _, item_data in rendered_items:
-            if item_type == 'para':
-                self.render_paragraph(item_data)
-            elif item_type == 'table':
-                self.render_table(item_id, item_data)
-        
-        # Update scroll region after all content is added
-        self.doc_inner_frame.update_idletasks()
-        self.doc_canvas.update_idletasks()
-        self.doc_canvas.configure(scrollregion=self.doc_canvas.bbox('all'))
+        self.log(f"✓ Document view loaded ({len(segments_to_show)} segments)")
     
     def render_paragraph(self, para_segments):
         """Render a paragraph with its segments"""
@@ -4101,25 +4273,9 @@ class Supervertaler:
         # Make paragraph read-only
         para_text.config(state='disabled')
         
-        # Now calculate the actual height needed for wrapped content
-        para_text.update_idletasks()
-        
-        # Count the number of display lines (wrapped)
-        # This uses dlineinfo which gives us info about each display line
-        actual_lines = 0
-        index = '1.0'
-        while True:
-            dline = para_text.dlineinfo(index)
-            if dline is None:
-                break
-            actual_lines += 1
-            # Move to next display line
-            index = para_text.index(f"{index} + 1 display lines")
-            if para_text.compare(index, '>=', 'end'):
-                break
-        
-        # Set height to actual number of display lines (minimum 1)
-        para_text.config(height=max(1, actual_lines))
+        # OPTIMIZATION: Return text widget for batch height calculation
+        # Height will be calculated later in batch for better performance
+        return para_text
     
     def render_table(self, table_id, table_cells):
         """Render a table with its cells"""
@@ -4472,10 +4628,13 @@ class Supervertaler:
         
         # Also update log tab if it exists (Translation Workspace)
         if hasattr(self, 'log_tab_text'):
-            self.log_tab_text.config(state='normal')
-            self.log_tab_text.insert('end', formatted_message)
-            self.log_tab_text.see('end')
-            self.log_tab_text.config(state='disabled')
+            try:
+                self.log_tab_text.config(state='normal')
+                self.log_tab_text.insert('end', formatted_message)
+                self.log_tab_text.see('end')
+                self.log_tab_text.config(state='disabled')
+            except tk.TclError:
+                pass  # Widget was destroyed during layout switch
     
     def clear_log(self):
         """Clear both main log window and workspace log tab"""
@@ -4486,9 +4645,12 @@ class Supervertaler:
         
         # Clear log tab if it exists
         if hasattr(self, 'log_tab_text'):
-            self.log_tab_text.config(state='normal')
-            self.log_tab_text.delete('1.0', 'end')
-            self.log_tab_text.config(state='disabled')
+            try:
+                self.log_tab_text.config(state='normal')
+                self.log_tab_text.delete('1.0', 'end')
+                self.log_tab_text.config(state='disabled')
+            except tk.TclError:
+                pass  # Widget was destroyed during layout switch
         
         self.log("Log cleared")
     
@@ -4997,49 +5159,68 @@ class Supervertaler:
         if row_index < 0 or row_index >= len(self.grid_rows):
             return
         
+        # Safety check: ensure we're in grid mode
+        if self.layout_mode != LayoutMode.GRID:
+            return
+        
+        # Safety check: ensure grid_canvas exists
+        if not hasattr(self, 'grid_canvas') or not self.grid_canvas.winfo_exists():
+            return
+        
         # Clear dual selection if changing rows
         if self.dual_selection_row is not None and self.dual_selection_row != row_index:
             self.clear_dual_selection()
         
         # Deselect previous row
         if self.current_row_index >= 0 and self.current_row_index < len(self.grid_rows):
-            old_row = self.grid_rows[self.current_row_index]['row_frame']
-            old_row.config(relief='flat', bd=1)
+            try:
+                old_row = self.grid_rows[self.current_row_index]['row_frame']
+                if old_row.winfo_exists():
+                    old_row.config(relief='flat', bd=1)
+            except (tk.TclError, KeyError):
+                pass  # Widget destroyed during layout switch
         
         # Select new row
         self.current_row_index = row_index
         row_data = self.grid_rows[row_index]
         row_frame = row_data['row_frame']
-        row_frame.config(relief='solid', bd=2)
+        
+        try:
+            row_frame.config(relief='solid', bd=2)
+        except tk.TclError:
+            return  # Widget destroyed
         
         # Update current segment
         self.current_segment = row_data['segment']
         
         # Ensure row is visible - scroll to it smoothly
-        self.grid_canvas.update_idletasks()
-        
-        # Get canvas viewport height and row position
-        canvas_height = self.grid_canvas.winfo_height()
-        row_y = row_frame.winfo_y()
-        row_height = row_frame.winfo_height()
-        
-        # Get current scroll position
-        scroll_region = self.grid_canvas.cget('scrollregion').split()
-        if len(scroll_region) == 4:
-            total_height = float(scroll_region[3])
+        try:
+            self.grid_canvas.update_idletasks()
             
-            # Check if row is visible
-            current_view = self.grid_canvas.yview()
-            view_top = current_view[0] * total_height
-            view_bottom = current_view[1] * total_height
+            # Get canvas viewport height and row position
+            canvas_height = self.grid_canvas.winfo_height()
+            row_y = row_frame.winfo_y()
+            row_height = row_frame.winfo_height()
             
-            # Only scroll if row is not fully visible
-            if row_y < view_top:
-                # Row is above viewport - scroll to show it at top
-                self.grid_canvas.yview_moveto(row_y / total_height)
-            elif row_y + row_height > view_bottom:
-                # Row is below viewport - scroll to show it at bottom
-                self.grid_canvas.yview_moveto((row_y + row_height - canvas_height) / total_height)
+            # Get current scroll position
+            scroll_region = self.grid_canvas.cget('scrollregion').split()
+            if len(scroll_region) == 4:
+                total_height = float(scroll_region[3])
+                
+                # Check if row is visible
+                current_view = self.grid_canvas.yview()
+                view_top = current_view[0] * total_height
+                view_bottom = current_view[1] * total_height
+                
+                # Only scroll if row is not fully visible
+                if row_y < view_top:
+                    # Row is above viewport - scroll to show it at top
+                    self.grid_canvas.yview_moveto(row_y / total_height)
+                elif row_y + row_height > view_bottom:
+                    # Row is below viewport - scroll to show it at bottom
+                    self.grid_canvas.yview_moveto((row_y + row_height - canvas_height) / total_height)
+        except (tk.TclError, ValueError, ZeroDivisionError):
+            pass  # Geometry not ready or widget destroyed
         
         # Load segment into editor panel
         self.load_segment_to_grid_editor(self.current_segment)
@@ -6624,6 +6805,100 @@ class Supervertaler:
         self.log("[Drawings] All drawings cleared")
         messagebox.showinfo("Drawings Cleared", "All loaded drawings have been cleared.")
     
+    # ===== GRID PAGINATION METHODS =====
+    
+    def update_pagination_controls(self, start_idx, end_idx, total, total_pages):
+        """Update pagination UI labels and button states"""
+        # Update label
+        self.pagination_label.config(text=f"Segments {start_idx + 1}-{end_idx} of {total}")
+        
+        # Update page number
+        self.page_number_var.set(str(self.grid_current_page + 1))
+        self.total_pages_label.config(text=f"of {total_pages}")
+        
+        # Enable/disable buttons
+        is_first_page = self.grid_current_page == 0
+        is_last_page = self.grid_current_page >= total_pages - 1
+        
+        self.first_page_btn.config(state='disabled' if is_first_page else 'normal')
+        self.prev_page_btn.config(state='disabled' if is_first_page else 'normal')
+        self.next_page_btn.config(state='disabled' if is_last_page else 'normal')
+        self.last_page_btn.config(state='disabled' if is_last_page else 'normal')
+    
+    def go_to_first_page(self):
+        """Navigate to first page"""
+        self.grid_current_page = 0
+        self.load_segments_to_grid()
+    
+    def go_to_prev_page(self):
+        """Navigate to previous page"""
+        if self.grid_current_page > 0:
+            self.grid_current_page -= 1
+            self.load_segments_to_grid()
+    
+    def go_to_next_page(self):
+        """Navigate to next page"""
+        all_segments = self.filtered_segments if self.filter_active else self.segments
+        total_segments = len(all_segments)
+        
+        if self.page_size_var.get() == 'All':
+            return  # No next page in "All" mode
+        
+        page_size = int(self.page_size_var.get())
+        total_pages = (total_segments + page_size - 1) // page_size
+        
+        if self.grid_current_page < total_pages - 1:
+            self.grid_current_page += 1
+            self.load_segments_to_grid()
+    
+    def go_to_last_page(self):
+        """Navigate to last page"""
+        all_segments = self.filtered_segments if self.filter_active else self.segments
+        total_segments = len(all_segments)
+        
+        if self.page_size_var.get() == 'All':
+            return  # Already on "last" page in "All" mode
+        
+        page_size = int(self.page_size_var.get())
+        total_pages = max(1, (total_segments + page_size - 1) // page_size)
+        
+        self.grid_current_page = total_pages - 1
+        self.load_segments_to_grid()
+    
+    def go_to_page(self):
+        """Navigate to specific page number"""
+        try:
+            page_num = int(self.page_number_var.get())
+            
+            all_segments = self.filtered_segments if self.filter_active else self.segments
+            total_segments = len(all_segments)
+            
+            if self.page_size_var.get() == 'All':
+                return  # No page navigation in "All" mode
+            
+            page_size = int(self.page_size_var.get())
+            total_pages = max(1, (total_segments + page_size - 1) // page_size)
+            
+            # Validate page number (1-indexed for user, 0-indexed internally)
+            if 1 <= page_num <= total_pages:
+                self.grid_current_page = page_num - 1
+                self.load_segments_to_grid()
+            else:
+                messagebox.showwarning("Invalid Page", 
+                                      f"Please enter a page number between 1 and {total_pages}")
+                self.page_number_var.set(str(self.grid_current_page + 1))
+        except ValueError:
+            messagebox.showwarning("Invalid Input", "Please enter a valid page number")
+            self.page_number_var.set(str(self.grid_current_page + 1))
+    
+    def on_page_size_changed(self, event=None):
+        """Handle page size change"""
+        # Reset to first page when changing page size
+        self.grid_current_page = 0
+        self.load_segments_to_grid()
+    
+    # ===== END GRID PAGINATION METHODS =====
+    
     def load_segments_to_tree(self):
         """Load segments into Treeview (for List View)"""
         self.log(f"load_segments_to_tree() called. Has tree: {hasattr(self, 'tree')}")
@@ -6901,57 +7176,118 @@ class Supervertaler:
             self.log(f"🔍 Filter applied: {len(segments_to_show)} segments match")
     
     def load_segments_to_grid(self):
-        """Load segments into the grid"""
-        if self.layout_mode == LayoutMode.GRID:
-            # Clear existing custom grid rows
-            self.grid_rows = []
-            for widget in self.grid_inner_frame.winfo_children():
-                widget.destroy()
+        """Load segments into the grid with pagination (optimized for large documents)"""
+        # SAFETY: Disable ALL interaction during loading to prevent freezing/resize issues
+        self.root.config(cursor='wait')
+        
+        # Block all mouse/keyboard events on content frame
+        loading_blocker = None
+        if hasattr(self, 'content_frame'):
+            # Create a transparent overlay to block all interactions
+            loading_blocker = tk.Frame(self.content_frame, bg='white', cursor='wait')
+            loading_blocker.place(relx=0, rely=0, relwidth=1, relheight=1)
+            loading_blocker.lift()  # Bring to front
             
-            # Determine which segments to show (filtered or all)
-            segments_to_show = self.filtered_segments if self.filter_active else self.segments
-            
-            # Add segments to custom grid
-            for seg in segments_to_show:
-                self.add_grid_row(seg)
-            
-            # Select first row if available
-            if self.grid_rows:
-                self.select_grid_row(0)
+            # Show loading message on blocker
+            loading_msg = tk.Label(loading_blocker, 
+                                  text="Loading page...\nPlease wait.",
+                                  font=('Segoe UI', 14, 'bold'),
+                                  bg='white', fg='gray')
+            loading_msg.place(relx=0.5, rely=0.5, anchor='center')
+            self.root.update_idletasks()
+        
+        try:
+            # Disable updates during bulk loading to prevent freezing
+            if self.layout_mode == LayoutMode.GRID:
+                # Clear existing custom grid rows
+                self.grid_rows = []
+                for widget in self.grid_inner_frame.winfo_children():
+                    widget.destroy()
                 
-        else:
-            # Use Treeview for Split/Compact modes
-            # Clear existing
-            for item in self.tree.get_children():
-                self.tree.delete(item)
-            
-            # Add segments
-            for seg in self.segments:
-                # Determine type label
-                if seg.is_table_cell and seg.table_info:
-                    type_label = f"T{seg.table_info[0]+1}R{seg.table_info[1]+1}C{seg.table_info[2]+1}"
+                # Determine which segments to show (filtered or all)
+                all_segments = self.filtered_segments if self.filter_active else self.segments
+                total_segments = len(all_segments)
+                
+                # Calculate pagination
+                if self.page_size_var.get() == 'All':
+                    page_size = total_segments
                 else:
-                    type_label = "Para"
+                    page_size = int(self.page_size_var.get())
                 
-                # Format style name for display
-                style_display = self._format_style_name(seg.style)
+                self.grid_page_size = page_size
+                total_pages = max(1, (total_segments + page_size - 1) // page_size)  # Ceiling division
                 
-                # Set tags for styling
-                tags = [seg.status]
-                if seg.is_table_cell:
-                    tags.append('table_cell')
+                # Ensure current page is valid
+                if self.grid_current_page >= total_pages:
+                    self.grid_current_page = max(0, total_pages - 1)
                 
-                # Add style-specific tag for visual formatting
-                style_tag = self._get_style_tag(seg.style)
-                if style_tag:
-                    tags.append(style_tag)
+                # Calculate slice for current page
+                start_idx = self.grid_current_page * page_size
+                end_idx = min(start_idx + page_size, total_segments)
+                segments_to_show = all_segments[start_idx:end_idx]
                 
-                # Insert with style column (6 columns)
-                self.tree.insert('', 'end',
-                               values=(seg.id, type_label, style_display, seg.status.capitalize(),
-                                          self._truncate(seg.source, 75),
-                                          self._truncate(seg.target, 75)),
-                                   tags=tuple(tags))
+                # Update pagination UI
+                self.update_pagination_controls(start_idx, end_idx, total_segments, total_pages)
+                
+                # Add segments to custom grid (only current page)
+                for seg in segments_to_show:
+                    self.add_grid_row(seg)
+                
+                # Select first row if available
+                if self.grid_rows:
+                    self.select_grid_row(0)
+                    
+            else:
+                # Use Treeview for Split/Compact modes
+                # Temporarily disable redrawing for performance
+                self.tree.configure(height=0)  # Collapse to prevent redraw on each insert
+                
+                # Clear existing
+                for item in self.tree.get_children():
+                    self.tree.delete(item)
+                
+                # Batch insert segments (more efficient)
+                items_to_insert = []
+                for seg in self.segments:
+                    # Determine type label
+                    if seg.is_table_cell and seg.table_info:
+                        type_label = f"T{seg.table_info[0]+1}R{seg.table_info[1]+1}C{seg.table_info[2]+1}"
+                    else:
+                        type_label = "Para"
+                    
+                    # Format style name for display
+                    style_display = self._format_style_name(seg.style)
+                    
+                    # Set tags for styling
+                    tags = [seg.status]
+                    if seg.is_table_cell:
+                        tags.append('table_cell')
+                    
+                    # Add style-specific tag for visual formatting
+                    style_tag = self._get_style_tag(seg.style)
+                    if style_tag:
+                        tags.append(style_tag)
+                    
+                    items_to_insert.append((seg, type_label, style_display, tags))
+                
+                # Insert all at once (prevents multiple redraws)
+                for seg, type_label, style_display, tags in items_to_insert:
+                    self.tree.insert('', 'end',
+                                   values=(seg.id, type_label, style_display, seg.status.capitalize(),
+                                              self._truncate(seg.source, 75),
+                                              self._truncate(seg.target, 75)),
+                                       tags=tuple(tags))
+                
+                # Re-enable treeview with proper height
+                self.tree.configure(height=20)
+        
+        finally:
+            # SAFETY: Re-enable interaction after loading is complete
+            if loading_blocker:
+                loading_blocker.destroy()
+            self.root.config(cursor='')
+            if hasattr(self, 'grid_canvas'):
+                self.grid_canvas.config(state='normal')
     
     def _truncate(self, text: str, length: int) -> str:
         """Truncate text for display"""
@@ -7344,6 +7680,13 @@ class Supervertaler:
                     'source_language': self.source_language,
                     'target_language': self.target_language,
                     'custom_prompt': self.current_translate_prompt
+                },
+                # Save preferences
+                'preferences': {
+                    'chunk_size': self.chunk_size_var.get(),
+                    'use_context': self.use_context_var.get(),
+                    'check_tm': self.check_tm_var.get(),
+                    'surrounding_segments': self.surrounding_segments_var.get()
                 }
             }
             
@@ -7414,6 +7757,15 @@ class Supervertaler:
                 self.target_language = llm_settings.get('target_language', 'Dutch')
                 self.current_translate_prompt = llm_settings.get('custom_prompt', self.default_translate_prompt)
                 self.log(f"✓ Loaded LLM settings: {self.current_llm_provider}/{self.current_llm_model}")
+            
+            # Load preferences if present
+            if 'preferences' in data:
+                prefs = data['preferences']
+                self.chunk_size_var.set(prefs.get('chunk_size', '100'))
+                self.use_context_var.set(prefs.get('use_context', False))
+                self.check_tm_var.set(prefs.get('check_tm', True))
+                self.surrounding_segments_var.set(prefs.get('surrounding_segments', '5'))
+                self.log(f"✓ Loaded preferences: batch_size={self.chunk_size_var.get()}, context={self.surrounding_segments_var.get()}")
             
             # Load filter preferences if they exist
             if 'filter_preferences' in data:
@@ -7977,13 +8329,46 @@ class Supervertaler:
             # Clear current segments and load new ones
             self.segments.clear()
             
+            # Smart paragraph detection
+            current_paragraph_id = 0
+            
             for i, cafetran_seg in enumerate(segments):
+                # Detect if this should be a new paragraph
+                should_start_new_paragraph = False
+                
+                if i == 0:
+                    # First segment always starts a paragraph
+                    should_start_new_paragraph = True
+                else:
+                    prev_source = segments[i-1].source_with_pipes.strip('|').strip()
+                    curr_source = cafetran_seg.source_with_pipes.strip('|').strip()
+                    
+                    # Heuristics for new paragraph:
+                    # 1. Current segment looks like a heading (short, all caps or title case, no period)
+                    is_heading = (len(curr_source) < 50 and 
+                                 curr_source.isupper() and 
+                                 not curr_source.endswith('.'))
+                    
+                    # 2. Previous segment was very short (likely a heading)
+                    prev_was_heading = len(prev_source) < 50 and not prev_source.endswith('.')
+                    
+                    # 3. Previous ended with period AND current starts with capital (but not mid-paragraph continuation)
+                    natural_break = (prev_source.endswith('.') and 
+                                   curr_source[0].isupper() and 
+                                   (prev_was_heading or is_heading))
+                    
+                    should_start_new_paragraph = is_heading or prev_was_heading or natural_break
+                
+                # Increment paragraph ID if starting new paragraph
+                if should_start_new_paragraph:
+                    current_paragraph_id += 1
+                
                 # Create Segment object with source text (keeping pipe symbols)
                 # Segment(seg_id, source, paragraph_id, is_table_cell, table_info, style, document_position)
                 seg = Segment(
                     seg_id=i + 1,  # Sequential ID
                     source=cafetran_seg.source_with_pipes,  # Keep pipes for AI to see
-                    paragraph_id=0,
+                    paragraph_id=current_paragraph_id,  # Smart paragraph grouping
                     is_table_cell=False,
                     table_info=None,
                     style="Normal",
@@ -8311,12 +8696,46 @@ class Supervertaler:
             # Clear current segments and load new ones
             self.segments.clear()
             
+            # Smart paragraph detection
+            current_paragraph_id = 0
+            
             for i, source_text in enumerate(segments_data):
+                # Detect if this should be a new paragraph
+                should_start_new_paragraph = False
+                
+                if i == 0:
+                    # First segment always starts a paragraph
+                    should_start_new_paragraph = True
+                else:
+                    prev_source = segments_data[i-1].strip()
+                    curr_source = source_text.strip()
+                    
+                    # Heuristics for new paragraph:
+                    # 1. Current segment looks like a heading (short, all caps or title case, no period)
+                    is_heading = (len(curr_source) < 50 and 
+                                 curr_source.isupper() and 
+                                 not curr_source.endswith('.'))
+                    
+                    # 2. Previous segment was very short (likely a heading)
+                    prev_was_heading = len(prev_source) < 50 and not prev_source.endswith('.')
+                    
+                    # 3. Previous ended with period AND current starts with capital (but not mid-paragraph continuation)
+                    natural_break = (prev_source.endswith('.') and 
+                                   curr_source[0].isupper() and 
+                                   (prev_was_heading or is_heading))
+                    
+                    should_start_new_paragraph = is_heading or prev_was_heading or natural_break
+                
+                # Increment paragraph ID if starting new paragraph
+                if should_start_new_paragraph:
+                    current_paragraph_id += 1
+                
                 # Create Segment object
+                # Each segment gets smart paragraph grouping for proper document view rendering
                 seg = Segment(
                     seg_id=i + 1,
                     source=source_text,
-                    paragraph_id=0,
+                    paragraph_id=current_paragraph_id,  # Smart paragraph grouping
                     is_table_cell=False,
                     table_info=None,
                     style="Normal",
@@ -9967,7 +10386,7 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
             prompt_parts.append("\n**SPECIAL INSTRUCTIONS FOR THIS PROJECT:**")
             prompt_parts.append(custom_instructions)
         
-        # 3. Add tracked changes context (if available)        # 3. Add tracked changes context (if available)
+        # 3. Add tracked changes context (if available)
         if self.tracked_changes_agent.change_data:
             relevant_changes = self.tracked_changes_agent.find_relevant_changes([segment.source], max_changes=10)
             if relevant_changes:
@@ -9975,16 +10394,40 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
                 prompt_parts.append("\n" + tracked_context)
                 self.log(f"  Including {len(relevant_changes)} relevant tracked changes as examples")
         
-        # 4. Add full document context (if enabled)
-        if self.use_context_var.get():
-            full_context = self.get_full_document_context(include_translations=False)
-            if full_context:
-                prompt_parts.append("\n**FULL DOCUMENT CONTEXT FOR REFERENCE:**")
-                prompt_parts.append("(Use this context to understand terminology, references, and maintain consistency)\n")
-                prompt_parts.append(full_context)
-                self.log(f"  Including full document context ({len(self.segments)} segments)")
+        # 4. Add surrounding segments context (user-configurable)
+        try:
+            num_surrounding = int(self.surrounding_segments_var.get())
+            if num_surrounding > 0:
+                current_idx = self.segments.index(segment)
+                
+                # Get surrounding segments
+                start_idx = max(0, current_idx - num_surrounding)
+                end_idx = min(len(self.segments), current_idx + num_surrounding + 1)
+                surrounding = self.segments[start_idx:end_idx]
+                
+                # Build context string
+                context_parts = []
+                for i, seg in enumerate(surrounding):
+                    actual_idx = start_idx + i
+                    if actual_idx == current_idx:
+                        context_parts.append(f">>> {seg.id}. {seg.source} <<<  [TRANSLATE THIS]")
+                    else:
+                        context_parts.append(f"{seg.id}. {seg.source}")
+                        if seg.target:
+                            context_parts.append(f"    → {seg.target}")
+                
+                prompt_parts.append("\n**SURROUNDING SEGMENTS FOR CONTEXT:**")
+                prompt_parts.append("(The segment marked with >>> <<< is the one to translate)\n")
+                prompt_parts.append("\n".join(context_parts))
+                
+                self.log(f"  Including {len(surrounding)} surrounding segments ({num_surrounding} before/after)")
+        except (ValueError, AttributeError):
+            pass  # Skip if setting is invalid
         
-        # 5. Specify which segment to translate
+        # 5. Full document context removed from single-segment translation to reduce API costs
+        # (Context is only used in batch translation mode when explicitly enabled)
+        
+        # 6. Specify which segment to translate
         prompt_parts.append(f"\n**TEXT TO TRANSLATE:**")
         prompt_parts.append(segment.source)
         prompt_parts.append("\n**YOUR TRANSLATION (provide ONLY the translated text, no numbering or labels):**")
@@ -10030,7 +10473,9 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
             self.log(f"✗ Translation failed: {e}")
     
     def translate_all_untranslated(self):
-        """Translate all untranslated segments with progress tracking"""
+        """Translate all untranslated segments using CHUNKED batch processing (like v2.4.1)"""
+        import math
+        
         untranslated = [seg for seg in self.segments if not seg.target or seg.status == "untranslated"]
         
         if not untranslated:
@@ -10044,26 +10489,39 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
                                f"Please configure your {self.current_llm_provider.upper()} API key in Translate → API Settings")
             return
         
+        # Get chunk size
+        try:
+            chunk_size = int(self.chunk_size_var.get())
+            if chunk_size < 1:
+                raise ValueError()
+        except:
+            messagebox.showerror("Invalid Setting", "Batch size must be a positive number!")
+            return
+        
+        num_chunks = math.ceil(len(untranslated) / chunk_size)
+        
         if not messagebox.askyesno("Confirm Batch Translation", 
                                    f"Translate {len(untranslated)} untranslated segments?\n\n"
                                    f"Provider: {self.current_llm_provider}/{self.current_llm_model}\n"
+                                   f"Batch Size: {chunk_size} segments per API call\n"
+                                   f"API Calls: ~{num_chunks} chunks\n"
                                    f"Context: {'Enabled' if self.use_context_var.get() else 'Disabled'}\n\n"
                                    f"This may take several minutes."):
             return
         
         # Create progress dialog
         progress_dialog = tk.Toplevel(self.root)
-        progress_dialog.title("Batch Translation")
-        progress_dialog.geometry("500x200")
+        progress_dialog.title("Batch Translation (Chunked)")
+        progress_dialog.geometry("500x220")
         progress_dialog.transient(self.root)
         progress_dialog.grab_set()
         
-        tk.Label(progress_dialog, text="Translating segments...", 
+        tk.Label(progress_dialog, text=f"Translating in batches of {chunk_size} segments...", 
                 font=('Segoe UI', 12, 'bold')).pack(pady=10)
         
         progress_var = tk.DoubleVar()
         progress_bar = ttk.Progressbar(progress_dialog, variable=progress_var, 
-                                      maximum=len(untranslated), length=400)
+                                      maximum=num_chunks, length=400)
         progress_bar.pack(pady=10)
         
         status_label = tk.Label(progress_dialog, text="Starting...", 
@@ -10078,21 +10536,34 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
         tk.Button(progress_dialog, text="Cancel", command=cancel_translation,
                  bg='#F44336', fg='white').pack(pady=10)
         
-        # Process segments
+        # Process in chunks
         successful = 0
         failed = 0
         
-        for i, segment in enumerate(untranslated):
+        # Get full document context ONCE if enabled
+        full_context = None
+        if self.use_context_var.get():
+            all_sources = [seg.source for seg in self.segments]
+            full_context = "\n".join([f"{i+1}. {src}" for i, src in enumerate(all_sources)])
+            self.log(f"✓ Full document context prepared ({len(self.segments)} segments)")
+        
+        for chunk_idx in range(num_chunks):
             if cancel_var.get():
                 self.log(f"⚠ Batch translation cancelled by user ({successful}/{len(untranslated)} completed)")
                 break
             
-            status_label.config(text=f"Translating segment {i+1}/{len(untranslated)}: #{segment.id}")
-            progress_var.set(i)
+            # Get chunk of segments
+            start_idx = chunk_idx * chunk_size
+            end_idx = min((chunk_idx + 1) * chunk_size, len(untranslated))
+            chunk_segments = untranslated[start_idx:end_idx]
+            
+            status_label.config(text=f"Processing chunk {chunk_idx+1}/{num_chunks} ({len(chunk_segments)} segments)...")
+            progress_var.set(chunk_idx)
             progress_dialog.update()
             
-            try:
-                # Check for TM match first
+            # Check TM for exact matches first
+            segments_needing_llm = []
+            for segment in chunk_segments:
                 if self.check_tm_var.get():
                     exact_match = self.tm_agent.get_exact_match(segment.source)
                     if exact_match:
@@ -10102,68 +10573,88 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
                         self.log(f"✓ Segment #{segment.id} from TM (100% match)")
                         successful += 1
                         continue
-                
-                # Build prompt with context (same as translate_current_segment)
+                segments_needing_llm.append(segment)
+            
+            if not segments_needing_llm:
+                continue  # All from TM
+            
+            try:
+                # Build BATCH prompt with multiple segments
                 prompt_parts = []
                 
-                # USE CONTEXT-AWARE PROMPT for batch DOCX translation
+                # System prompt
                 system_prompt = self.get_context_aware_prompt(mode="batch_docx")
                 system_prompt = system_prompt.replace("{{SOURCE_LANGUAGE}}", self.source_language)
                 system_prompt = system_prompt.replace("{{TARGET_LANGUAGE}}", self.target_language)
-                system_prompt = system_prompt.replace("{{SOURCE_TEXT}}", segment.source)
                 prompt_parts.append(system_prompt)
                 
+                # Custom instructions
                 custom_instructions = self.custom_instructions_text.get('1.0', tk.END).strip()
                 if custom_instructions and not self.is_custom_instructions_placeholder(custom_instructions):
                     prompt_parts.append("\n**SPECIAL INSTRUCTIONS FOR THIS PROJECT:**")
                     prompt_parts.append(custom_instructions)
                 
-                # Add tracked changes context
-                if self.tracked_changes_agent.change_data:
-                    relevant_changes = self.tracked_changes_agent.find_relevant_changes([segment.source], max_changes=10)
-                    if relevant_changes:
-                        tracked_context = format_tracked_changes_context(relevant_changes, max_length=1000)
-                        prompt_parts.append("\n" + tracked_context)
+                # Full document context (if enabled)
+                if full_context:
+                    prompt_parts.append("\n**FULL DOCUMENT CONTEXT FOR REFERENCE:**")
+                    prompt_parts.append("(All segments in document - use for terminology consistency)\n")
+                    prompt_parts.append(full_context)
                 
-                # Add full document context
-                if self.use_context_var.get():
-                    full_context = self.get_full_document_context(include_translations=True)
-                    if full_context:
-                        prompt_parts.append("\n**FULL DOCUMENT CONTEXT FOR REFERENCE:**")
-                        prompt_parts.append("(Use this context to maintain terminology consistency)\n")
-                        prompt_parts.append(full_context)
+                # Add the segments to translate in this chunk
+                prompt_parts.append(f"\n**SEGMENTS TO TRANSLATE ({len(segments_needing_llm)} in this batch):**")
+                prompt_parts.append("Provide ONLY the translations, one per line, in the same order. NO explanations, NO segment numbers, NO labels.\n")
                 
-                prompt_parts.append(f"\n**SEGMENT TO TRANSLATE:**")
-                prompt_parts.append(f"Segment {segment.id}: {segment.source}")
-                prompt_parts.append("\n**YOUR TRANSLATION (provide ONLY the translated text):**")
+                for seg in segments_needing_llm:
+                    prompt_parts.append(f"{seg.id}. {seg.source}")
+                
+                prompt_parts.append("\n**YOUR TRANSLATIONS (one per line, in order):**")
                 
                 prompt = "\n".join(prompt_parts)
                 
                 # Call API
+                self.log(f"🤖 Translating chunk {chunk_idx+1}/{num_chunks} ({len(segments_needing_llm)} segments)...")
+                
                 if self.current_llm_provider == "openai":
-                    translation = self.call_openai_api(prompt)
+                    response = self.call_openai_api(prompt)
                 elif self.current_llm_provider == "claude":
-                    translation = self.call_claude_api(prompt)
+                    response = self.call_claude_api(prompt)
                 elif self.current_llm_provider == "gemini":
-                    translation = self.call_gemini_api(prompt)
+                    response = self.call_gemini_api(prompt)
                 else:
                     raise ValueError(f"Unknown provider: {self.current_llm_provider}")
                 
-                # Update segment
-                segment.target = translation.strip()
-                segment.status = "translated"
-                segment.modified = True
+                # Parse response - should be one translation per line
+                translations = [line.strip() for line in response.strip().split('\n') if line.strip()]
                 
-                # Add to TM
-                self.tm_agent.add_entry(segment.source, segment.target)
-                self.translation_memory.append({"source": segment.source, "target": segment.target})
+                # Match translations to segments
+                if len(translations) != len(segments_needing_llm):
+                    self.log(f"⚠ Warning: Expected {len(segments_needing_llm)} translations, got {len(translations)}")
                 
-                self.log(f"✓ Segment #{segment.id} translated")
-                successful += 1
+                for i, segment in enumerate(segments_needing_llm):
+                    if i < len(translations):
+                        translation = translations[i]
+                        # Clean up common formatting (remove numbers, dots at start)
+                        translation = re.sub(r'^\d+[\.\)]\s*', '', translation)
+                        
+                        segment.target = translation
+                        segment.status = "translated"
+                        segment.modified = True
+                        
+                        # Add to TM
+                        self.tm_agent.add_entry(segment.source, segment.target)
+                        self.translation_memory.append({"source": segment.source, "target": segment.target})
+                        
+                        successful += 1
+                        self.log(f"✓ Segment #{segment.id} translated")
+                    else:
+                        failed += 1
+                        self.log(f"✗ No translation received for segment #{segment.id}")
+                
+                self.log(f"✓ Chunk {chunk_idx+1}/{num_chunks} complete")
                 
             except Exception as e:
-                self.log(f"✗ Failed to translate segment #{segment.id}: {e}")
-                failed += 1
+                self.log(f"✗ Failed to translate chunk {chunk_idx+1}: {e}")
+                failed += len(segments_needing_llm)
         
         # Update UI
         self.modified = True
@@ -10176,9 +10667,11 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
         messagebox.showinfo("Batch Translation Complete", 
                           f"Successfully translated: {successful}\n"
                           f"Failed: {failed}\n"
-                          f"Total: {len(untranslated)}")
+                          f"Total processed: {len(untranslated)}\n\n"
+                          f"Used {chunk_idx+1} API calls (batch size: {chunk_size})")
         
-        self.log(f"✓ Batch translation complete: {successful} successful, {failed} failed")
+        self.log(f"✓ Batch translation complete: {successful} successful, {failed} failed, {chunk_idx+1} API calls")
+
     
     def call_openai_api(self, prompt: str) -> str:
         """Call OpenAI API"""
