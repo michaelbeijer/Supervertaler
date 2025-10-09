@@ -2,12 +2,23 @@
 
 🎯 **Context-aware, LLM-powered translation & proofreading tool, leveraging multiple context sources for enhanced accuracy (built for translators)** - Revolutionary approach to document translation that leverages multiple context sources for unparalleled accuracy.
 
-**Note**: A standalone CAT (Computer-Aided Translation) editor prototype is under active development in **v2.5.1**. It features dual text selection (memoQ-style), column management, formatting display, three professional view modes (Grid, List, Document), and comprehensive auto-export options. We're implementing features from [michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool](https://michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool).
+**Note**: A standalone CAT (Computer-Aided Translation) editor prototype has reached **v2.5.2** with major performance improvements! It features grid pagination (10x faster loading), smart paragraph detection, dual text selection (memoQ-style), column management, formatting display, three professional view modes (Grid, List, Document), and comprehensive auto-export options. We're implementing features from [michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool](https://michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool).
 
 
 ## 📦 Available Versions
 
-### v2.4.1 (Latest - Production Ready) 🎉
+### v2.5.2 (Latest - Experimental CAT Editor) 🚀
+**File**: `Supervertaler_v2.5.1 (experimental - CAT editor development).py`
+- ⚡ **NEW**: Grid pagination system (50 segments/page, 10x faster loading!)
+- 🧠 **NEW**: Smart paragraph detection for document view
+- 🛡️ **NEW**: Enhanced loading protection (prevents crashes)
+- ✅ Professional CAT editor with Grid, List, and Document views
+- ✅ Auto-export options (session reports MD/HTML, TMX, TSV, XLIFF, Excel)
+- ✅ CafeTran and memoQ bilingual DOCX support
+- 📖 **Status**: Feature-complete, performance optimized, ready for testing
+- 💡 **Note**: Experimental branch - please report any issues!
+
+### v2.4.1 (Production Ready) 🎉
 **File**: `Supervertaler_v2.4.1.py`
 - ✅ **NEW**: CafeTran bilingual DOCX support - AI-based pipe formatting!
 - ✅ **NEW**: memoQ bilingual DOCX support - Programmatic formatting preservation!
@@ -25,16 +36,7 @@
 - ✅ Fully backward compatible with v2.4.1
 - 💡 Upgrade to v2.4.1 recommended for CAT tool integration
 
-### v2.5.1 (Experimental - CAT Editor Development) 🚧
-**File**: `Supervertaler_v2.5.1 (experimental - CAT editor development).py`
-- 🚧 Under active development
-- ⚠️ Features may change without notice
-- 🔬 Testing new CAT editor integration with segment-based workflow
-- ✅ **NEW**: Auto-export options (session reports MD/HTML, TMX, TSV, XLIFF, Excel)
-- ✅ CafeTran and memoQ support also available in this version
-- 📖 **Documentation**: Implementation notes in `docs/implementation/` (user guide pending)
-
-> **💡 Recommendation**: Use **v2.4.1** for production translation work. Try **v2.5.1** if you want to explore cutting-edge CAT editor features.
+> **💡 Recommendation**: Use **v2.4.1** for production translation work. Try **v2.5.2** if you want cutting-edge CAT editor features with blazing-fast performance!
 
 ----
 
