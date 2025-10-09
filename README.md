@@ -8,7 +8,7 @@
 ## 📦 Available Versions
 
 ### v2.5.2 (Latest - Experimental CAT Editor) 🚀
-**File**: `Supervertaler_v2.5.1 (experimental - CAT editor development).py`
+**File**: `Supervertaler_v2.5.2 (experimental - CAT editor).py`
 - ⚡ **NEW**: Grid pagination system (50 segments/page, 10x faster loading!)
 - 🧠 **NEW**: Smart paragraph detection for document view
 - 🛡️ **NEW**: Enhanced loading protection (prevents crashes)
