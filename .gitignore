@@ -10,8 +10,8 @@ custom_prompts_private/
 # Private projects folder - never sync to GitHub
 projects_private
 
-# PyInstaller build artifacts
-build/
+# PyInstaller build artifacts (but allow docs/build/)
+/build/
 dist/
 *.spec.bak
 *.ico
@@ -26,7 +26,7 @@ __pycache__/
 
 # Distribution / packaging
 .Python
-build/
+/build/
 develop-eggs/
 dist/
 downloads/
