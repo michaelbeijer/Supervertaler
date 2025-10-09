@@ -2,68 +2,103 @@
 
 🎯 **Context-aware, LLM-powered translation & proofreading tool, leveraging multiple context sources for enhanced accuracy (built for translators)** - Revolutionary approach to document translation that leverages multiple context sources for unparalleled accuracy.
 
-**Note**: A standalone CAT (Computer-Aided Translation) editor prototype is under active development in **v2.5.0**. It features dual text selection (memoQ-style), column management, formatting display, and three professional view modes (Grid, List, Document). We're implementing features from [michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool](https://michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool).
+**Note**: A standalone CAT (Computer-Aided Translation) editor prototype is under active development in **v2.5.1**. It features dual text selection (memoQ-style), column management, formatting display, three professional view modes (Grid, List, Document), and comprehensive auto-export options. We're implementing features from [michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool](https://michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool).
 
 
 ## 📦 Available Versions
 
 ### v2.4.1 (Latest - Production Ready) 🎉
 **File**: `Supervertaler_v2.4.1.py`
-- ✅ **NEW**: memoQ bilingual DOCX import/export - Direct CAT tool integration!
-  - *Currently supports memoQ format only. Trados/CafeTran support planned.*
-- ✅ **NEW**: Formatting preservation (bold, italic, underline)
-- ✅ 100% success rate in production testing
-- ✅ All v2.4.0 features + revolutionary bilingual workflow
+- ✅ **NEW**: CafeTran bilingual DOCX support - AI-based pipe formatting!
+- ✅ **NEW**: memoQ bilingual DOCX support - Programmatic formatting preservation!
+- ✅ **NEW**: Two complementary formatting approaches (AI-based & programmatic)
+- ✅ 100% success rate in production testing (both formats)
+- ✅ All v2.4.0 features + revolutionary CAT tool integration
 - ✅ Fully tested and stable for professional use
 - 📖 **User Guide**: [`Supervertaler User Guide (v2.4.0).md`](Supervertaler%20User%20Guide%20(v2.4.0).md) *(v2.4.1 addendum coming soon)*
+- 📖 **CafeTran Guide**: [`docs/features/CAFETRAN_SUPPORT.md`](docs/features/CAFETRAN_SUPPORT.md)
+- 📖 **memoQ Guide**: [`docs/features/MEMOQ_SUPPORT.md`](docs/features/MEMOQ_SUPPORT.md)
 
 ### v2.4.0 (Previous Stable - Archived) 📦
 **File**: `Previous versions/Supervertaler_v2.4.0 (stable - production ready)(2025-10-07).py`
 - 📦 Archived on 2025-10-07
 - ✅ Fully backward compatible with v2.4.1
-- 💡 Upgrade to v2.4.1 recommended for bilingual workflow support
+- 💡 Upgrade to v2.4.1 recommended for CAT tool integration
 
-### v2.5.0 (Experimental - CAT Editor Development) 🚧
-**File**: `Supervertaler_v2.5.0 (experimental - CAT editor development).py`
+### v2.5.1 (Experimental - CAT Editor Development) 🚧
+**File**: `Supervertaler_v2.5.1 (experimental - CAT editor development).py`
 - 🚧 Under active development
 - ⚠️ Features may change without notice
-- 🔬 Testing new CAT editor integration
+- 🔬 Testing new CAT editor integration with segment-based workflow
+- ✅ **NEW**: Auto-export options (session reports MD/HTML, TMX, TSV, XLIFF, Excel)
+- ✅ CafeTran and memoQ support also available in this version
 - 📖 **Documentation**: Implementation notes in `docs/implementation/` (user guide pending)
 
-> **💡 Recommendation**: Use **v2.4.1** for production translation work. Try **v2.5.0** if you want to explore cutting-edge CAT editor features.
+> **💡 Recommendation**: Use **v2.4.1** for production translation work. Try **v2.5.1** if you want to explore cutting-edge CAT editor features.
 
 ----
 
 ## 🔧 CAT Tool Integration
 
-**Supervertaler is designed for professional translators using CAT tools** (memoQ, Trados Studio, CafeTran, Wordfast, etc.). It integrates seamlessly into existing translation workflows with **two workflow options**:
+**Supervertaler is designed for professional translators using CAT tools** (memoQ, CafeTran, Trados Studio, Wordfast, etc.). It integrates seamlessly into existing translation workflows with **three workflow options**:
 
-### 🆕 Bilingual Workflow (v2.4.1 - RECOMMENDED) 🎉
+### 🆕 CafeTran Bilingual DOCX Workflow (v2.4.1 - ☕ AI-BASED) 🎉
 
-**One-click import/export directly from memoQ!**
+**Intelligent AI-powered formatting marker preservation!**
 
-> **📌 Note**: Currently supports **memoQ bilingual DOCX files only**. Support for Trados Studio and CafeTran bilingual files is planned for future releases.
+> **📌 Why CafeTran?**: CafeTran uses simple pipe symbols `|text|` to mark formatted text. Supervertaler's AI understands these markers contextually and places them intelligently in translations, even when word order changes completely.
+
+1. **Export bilingual DOCX** from CafeTran
+2. **Click "☕ Import CafeTran DOCX"** in Supervertaler (green button)
+3. **Configure translation settings** (language pair, AI provider, model)
+4. **Click "Translate"** - AI processes segments and intelligently places pipes
+5. **Click "☕ Export to CafeTran DOCX"** - Pipes displayed as BOLD + RED
+6. **Reimport to CafeTran** - Formatting markers perfectly preserved!
+
+**Benefits**:
+- ✅ **AI-based intelligence** - Pipes placed contextually, not mechanically
+- ✅ **Handles word reordering** - Works perfectly even with different sentence structures
+- ✅ **Visual clarity** - All pipe symbols displayed as BOLD + RED in exported DOCX
+- ✅ **Simple format** - `|formatted text|` is easy to understand
+- ✅ **Complete round-trip** - Verified CafeTran reimport workflow
+- ✅ **Native integration** - Direct CafeTran bilingual format support
+
+**Example**:
+- Source: `"He debuted against |Juventus FC| in 2001"`
+- Translation: `"Hij debuteerde tegen |Juventus FC| in 2001"`
+- AI correctly preserves the pipe position around the team name
+
+📖 **Full Documentation**: See [`docs/features/CAFETRAN_SUPPORT.md`](docs/features/CAFETRAN_SUPPORT.md) for detailed guide
+
+---
+
+### 🆕 memoQ Bilingual DOCX Workflow (v2.4.1 - 📊 PROGRAMMATIC) 🎉
+
+**Professional CAT tool integration with algorithmic formatting preservation!**
+
+> **📌 Why memoQ?**: memoQ bilingual DOCX files include complex formatting at the character-run level. Supervertaler extracts this formatting and applies it programmatically to translations using smart threshold logic.
 
 1. **Export bilingual DOCX** from memoQ
-2. **Click "📄 Import memoQ Bilingual DOCX"** in Supervertaler
+2. **Click "� Import memoQ DOCX"** in Supervertaler (green button)
 3. **Configure translation settings** (language pair, AI provider, model)
-4. **Click "Translate"** - AI processes all segments
-5. **Click "💾 Export to Bilingual DOCX"** - File ready for reimport
+4. **Click "Translate"** - AI translates segments
+5. **Click "💾 Export to memoQ DOCX"** - Formatting applied programmatically
 6. **Reimport to memoQ** - Formatting and tags preserved!
 
 **Benefits**:
-- ✅ **No manual copying** - Direct file integration
-- ✅ **Formatting preserved** - Bold, italic, underline maintained (100% success rate)
-- ✅ **memoQ tags preserved** - `[1}...{2]` format maintained
+- ✅ **Programmatic precision** - Formatting applied algorithmically (>60% = whole segment)
+- ✅ **Professional format** - Industry-standard memoQ bilingual DOCX
+- ✅ **Complex formatting supported** - Bold, italic, underline at character level
+- ✅ **CAT tag preservation** - `[1}...{2]` format maintained
 - ✅ **Segment IDs maintained** - Perfect reimport compatibility
-- ✅ **Massive time savings** - Eliminate copy-paste workflows
+- ✅ **Status updates** - Automatically marked as "Confirmed"
 
-**Supported Format**:
-- ✅ **memoQ bilingual DOCX** - Fully tested and verified (5-column table format)
+**Smart Formatting Logic**:
+- If source is >60% formatted → entire target gets formatting
+- If source has partial formatting → first 1-2 words formatted
+- Character-level precision when needed
 
-**Planned for Future Releases**:
-- 🔄 **Trados Studio bilingual files**
-- 🔄 **CafeTran bilingual files**
+📖 **Full Documentation**: See [`docs/features/MEMOQ_SUPPORT.md`](docs/features/MEMOQ_SUPPORT.md) for detailed guide
 
 ---
 
@@ -133,16 +168,16 @@ Supervertaler provides two output formats for flexible CAT tool integration:
 - **Troubleshooting**: Common issues and solutions
 - **Advanced Tips**: Professional workflow optimization
 
-### For v2.5.0 (Experimental) - Development Version
+### For v2.5.1 (Experimental) - Development Version
 - **System Prompts Guide**: [`docs/user_guides/SYSTEM_PROMPTS_GUIDE.md`](docs/user_guides/SYSTEM_PROMPTS_GUIDE.md)
 - **Translation Memory Guide**: [`docs/user_guides/TM_USER_GUIDE.md`](docs/user_guides/TM_USER_GUIDE.md)
 - **Translation Workspace**: [`docs/user_guides/TRANSLATION_WORKSPACE_REDESIGN.md`](docs/user_guides/TRANSLATION_WORKSPACE_REDESIGN.md)
 - **Implementation Docs**: See `docs/implementation/` for technical details
-- **⚠️ Note**: Full user guide for v2.5.0 will be created once features stabilize
+- **⚠️ Note**: Full user guide for v2.5.1 will be created once features stabilize
 
 ## 1. Features Overview
 
-> **📌 Note**: The features below apply to **v2.4.0 (stable)**. For v2.5.0 experimental features, see the [v2.5.0 Features](#v25-experimental-features) section below.
+> **📌 Note**: The features below apply to **v2.4.0 (stable)**. For v2.5.1 experimental features, see the [v2.5.1 Features](#v251-experimental-features) section below.
 
 ### v2.4.0 Feature Matrix
 
@@ -157,9 +192,9 @@ Supervertaler provides two output formats for flexible CAT tool integration:
 | Custom instructions | Appended to prompt | Appended to prompt |
 | Comments merging | N/A | Original + AI summary (conditional) |
 
-### v2.5.0 Experimental Features
+### v2.5.1 Experimental Features
 
-**🚧 Under Development** - The following features are available in v2.5.0 but may change:
+**🚧 Under Development** - The following features are available in v2.5.1 but may change:
 
 - **✅ Translation Memory with Fuzzy Matching**: 75% threshold with difflib.SequenceMatcher
 - **✅ Enhanced Translation Workspace**: 10 organized tabs (Projects, System Prompts, Custom Instructions, MT, LLM, TM, Glossary, Images, Non-trans, Settings)
@@ -167,6 +202,7 @@ Supervertaler provides two output formats for flexible CAT tool integration:
 - **✅ Custom Instructions**: Project-level guidance that extends system prompts
 - **✅ Global Prompt Preview**: Test combined prompts with current segment
 - **✅ TM Manager**: Import/export TMX, delete individual entries
+- **✅ Auto-Export Options**: Session reports (MD/HTML), TMX, TSV, XLIFF, Excel bilingual
 - **🚧 Context-Aware Translation**: In development
 🚧 Under Development:
 
@@ -176,12 +212,13 @@ Supervertaler provides two output formats for flexible CAT tool integration:
 - ✅ Custom Instructions
 - ✅ Global Prompt Preview
 - ✅ TM Manager
+- ✅ Auto-Export Options (7 formats)
 - ✅ **Full Document Context** (v2.4.0 proven approach - **JUST COMPLETED!**)
 - 🚧 Batch Translation with Progress (basic implementation complete, refinement in progress)
 - 🚧 TrackedChangesAgent (port from v2.4.0)
 - 🚧 Prompt Library Integration
 
-**⚠️ Important**: v2.5.0 is experimental. Features may be incomplete, changed, or removed. Use v2.4.0 for production work.
+**⚠️ Important**: v2.5.1 is experimental. Features may be incomplete, changed, or removed. Use v2.4.1 for production work.
 
 ---
 

@@ -1,76 +1,98 @@
 # Supervertaler - Changelog
 
-## [2.4.1] - 2025-10-08 🎉 PRODUCTION RELEASE
+## [2.4.1] - 2025-10-09 🎉 PRODUCTION RELEASE
 
 ### 🚀 NEW FEATURES
 
-#### 📄 memoQ Bilingual DOCX Import/Export (GAME-CHANGER)
-**Note**: Currently supports memoQ bilingual DOCX format. Support for Trados and other CAT tools planned for future releases.
+#### ☕ CafeTran Bilingual DOCX Support (AI-Based Formatting)
+**Direct integration with CafeTran bilingual workflow!**
 
-- **Direct bilingual file support** - No more manual copy-paste workflows!
-- **Import memoQ bilingual DOCX** files with single button click
-- **Automatic source extraction** from bilingual table format
-- **Translate using existing AI workflow** - Full compatibility with all providers
-- **Export back to bilingual DOCX** - memoQ-ready format
-- **Reimport to memoQ verified** - Complete round-trip workflow tested
+- **NEW: CafeTran bilingual DOCX import/export** - Native CafeTran format support
+- **AI-based pipe placement** - Intelligent formatting marker preservation
+- **Pipe symbol format**: `|formatted text|` marks bold, italic, underline, etc.
+- **Smart AI handling** - Pipes included in source, AI places them contextually in translation
+- **Visual formatting** - All pipe symbols displayed as BOLD + RED in exported DOCX
 - **UI Integration**:
-  - Green "📄 Import memoQ Bilingual DOCX" button
-  - Blue "💾 Export to Bilingual DOCX" button
-  - Automatic input/output file path configuration
-- **Supported Format**: memoQ bilingual DOCX (5-column table format)
+  - Green "☕ Import CafeTran DOCX" button
+  - Green "☕ Export to CafeTran DOCX" button
+  - Automatic workflow configuration
+- **Module**: New `modules/cafetran_docx_handler.py` for robust processing
 - **Benefits**:
-  - ✅ Eliminates manual copying between memoQ and text files
-  - ✅ Preserves all segment IDs and metadata
-  - ✅ Maintains CAT tool tags perfectly
-  - ✅ Professional CAT tool integration
-  - ✅ Massive time savings for translation workflows
+  - ✅ Eliminates manual copy-paste between CafeTran and Supervertaler
+  - ✅ AI intelligently preserves formatting markers
+  - ✅ Works perfectly with word order changes
+  - ✅ Red pipe symbols provide clear visual cues
+  - ✅ Complete round-trip workflow (export → translate → reimport)
+- **Documentation**: Full guide in `docs/features/CAFETRAN_SUPPORT.md`
 
-#### ✨ Formatting Preservation (ADVANCED)
-- **Bold, italic, and underline preservation** from source to target
-- **Smart detection algorithms**:
-  - Full segment formatting (>60% threshold)
-  - Partial formatting at beginning of segments
-  - CAT tag formatting preservation
-- **Intelligent application**:
-  - Whole-segment formatting applied to entire translation
-  - Partial formatting applied to first 1-2 words
-  - Special handling for CAT tags and URLs
-- **Tested and verified** with real memoQ bilingual files
-- **100% success rate** in production testing (15/15 segments)
-- **Supported formats**: Bold, Italic, Underline
-- **Future-ready**: Foundation for additional formatting types
+#### � memoQ Bilingual DOCX Support (Programmatic Formatting)
+**Professional CAT tool integration with programmatic formatting preservation!**
+
+- **NEW: memoQ bilingual DOCX import/export** - Industry-standard CAT format
+- **Programmatic formatting preservation** - Algorithm-based bold/italic/underline
+- **Smart threshold logic** - >60% formatted = entire segment, else first words
+- **CAT tag handling** - Complex `[1}{2]` tag format fully supported
+- **Extract-and-apply workflow** - Source formatting extracted, applied to target
+- **UI Integration**:
+  - Green "� Import memoQ DOCX" button (v2.4.1)
+  - Green "💾 Export to memoQ DOCX" button
+  - Status automatically updated to "Confirmed"
+- **Supported formatting**: Bold, Italic, Underline at character-run level
+- **Benefits**:
+  - ✅ Direct memoQ integration
+  - ✅ Preserves document-level formatting
+  - ✅ Maintains all CAT metadata and segment IDs
+  - ✅ Verified round-trip compatibility with memoQ
+  - ✅ Professional translation workflow
+- **Documentation**: Complete guide in `docs/features/MEMOQ_SUPPORT.md`
 
 ### 🔧 IMPROVEMENTS
 
-#### CAT Tool Tag Support Enhanced
-- **Three major CAT tool formats** explicitly documented:
-  - memoQ: `[1}...{2]` (asymmetric bracket-brace pairs)
-  - Trados Studio: `<410>...</410>` (XML-style tags)
-  - CafeTran: `|1|...|2|` (pipe-delimited)
-- **Tag preservation verified** in bilingual workflow
-- **Format detection** during import
-- **Position maintenance** during translation
+#### Two Formatting Approaches
+**CafeTran (AI-Based)**:
+- Simple visual markers `|text|` in source
+- AI analyzes context and places pipes intelligently
+- Perfect for translations with word reordering
+- Example: `"He debuted against |Juventus FC| in 2001"` → `"Hij debuteerde tegen |Juventus FC| in 2001"`
+
+**memoQ (Programmatic)**:
+- Formatting extracted from DOCX character runs
+- Applied algorithmically based on coverage threshold
+- Deterministic and predictable results
+- Handles complex nested formatting structures
+
+#### CAT Tool Tag Support
+- **memoQ**: `[1}...{2]` (asymmetric bracket-brace pairs) - ✅ Fully supported
+- **CafeTran**: `|1|...|2|` (pipe-delimited) - ✅ Fully supported
+- **Tag preservation** verified in bilingual workflows
+- **Position maintenance** during AI translation
 
 #### Workflow Automation
 - **Auto-configuration** of input/output paths after import
 - **Smart temp file creation** for bilingual sources
 - **Format validation** during import (table structure check)
-- **Status updates** to "Confirmed" on export
-- **Comprehensive logging** of formatting detection
+- **Status updates** to "Confirmed" on memoQ export
+- **Comprehensive logging** of all operations
 
 ### 📊 STATISTICS FROM PRODUCTION TESTING
 
-**Test File**: memoQ bilingual DOCX (27 segments)
+**CafeTran Test** (18 segments with pipe formatting):
+- ✅ 18/18 segments translated successfully
+- ✅ All pipe symbols correctly placed by AI
+- ✅ 100% formatting markers preserved
+- ✅ All pipes displayed as BOLD + RED
+- ✅ Successful reimport to CafeTran verified
+
+**memoQ Test** (27 segments with formatting):
 - ✅ 27/27 segments imported successfully
-- ✅ 15/15 segments with formatting preserved
+- ✅ 15/15 segments with formatting preserved programmatically
 - ✅ All CAT tool tags maintained
 - ✅ All segment IDs unchanged
 - ✅ Successful reimport to memoQ verified
-- ✅ 100% round-trip compatibility
 
 **Performance**:
-- Import: < 1 second
-- Export: < 1 second  
+- Import: < 1 second for both formats
+- Export: < 1 second for both formats
 - No additional AI costs
 - No manual intervention required
 
