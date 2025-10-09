@@ -793,6 +793,52 @@ class BilingualFileIngestionAgent:
     def process(self, file_path, log_queue, mode="Translate"):
         log_queue.put(f"[Ingestor] Processing: {file_path} for mode: {mode}")
         data = []
+        
+        # MQXLIFF support disabled - feature removed due to unreliable formatting preservation
+        # The bilingual DOCX format provides better results for memoQ files
+        # Keeping this code commented for future reference
+        # if file_path.lower().endswith('.mqxliff'):
+        #     try:
+        #         # Import the MQXLIFF handler
+        #         import sys
+        #         import os
+        #         # Add modules directory to path
+        #         modules_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules')
+        #         if modules_dir not in sys.path:
+        #             sys.path.insert(0, modules_dir)
+        #         
+        #         from mqxliff_handler import MQXLIFFHandler
+        #         
+        #         log_queue.put(f"[Ingestor] Detected MQXLIFF file, using specialized parser")
+        #         handler = MQXLIFFHandler()
+        #         
+        #         if not handler.load(file_path):
+        #             log_queue.put(f"[Ingestor] ERROR: Failed to load MQXLIFF file")
+        #             return []
+        #         
+        #         segments = handler.extract_source_segments()
+        #         log_queue.put(f"[Ingestor] Extracted {len(segments)} segments from MQXLIFF")
+        #         
+        #         if mode == "Translate":
+        #             # Return plain text for translation
+        #             data = [seg.plain_text for seg in segments]
+        #         elif mode == "Proofread":
+        #             # For proofreading, we need source and target
+        #             # For now, if target is empty, we'll skip proofreading mode for MQXLIFF
+        #             log_queue.put(f"[Ingestor] WARN: Proofread mode not yet fully supported for MQXLIFF")
+        #             data = [{"source": seg.plain_text, "target": "", "comment": None} for seg in segments]
+        #         
+        #         log_queue.put(f"[Ingestor] Done. {len(data)} entries loaded from MQXLIFF.")
+        #         return data
+        #         
+        #     except ImportError as e:
+        #         log_queue.put(f"[Ingestor] ERROR: Could not import MQXLIFF handler: {e}")
+        #         return []
+        #     except Exception as e:
+        #         log_queue.put(f"[Ingestor] ERROR processing MQXLIFF: {e}")
+        #         return []
+        
+        # Original TXT/TSV processing
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 for line_num, line in enumerate(f, 1):
@@ -1480,24 +1526,47 @@ class OpenAITranslationAgent(BaseTranslationAgent):
             if "gpt-5" in self.model_name.lower():
                 system_prompt = f"""You are an expert {source_lang} to {target_lang} translator. 
 
-CRITICAL: The input sentences may have numbers like "1. CLAIMS" or "2. A vehicle control method".
+CRITICAL INSTRUCTIONS:
+1. You MUST translate from {source_lang} to {target_lang}. No other target language is acceptable.
+2. The input sentences may have numbers like "1. CLAIMS" or "2. A vehicle control method".
+3. IGNORE those numbers completely. They are just for internal processing.
+4. Extract only the actual text content after the number and translate that INTO {target_lang}.
 
-IGNORE those numbers completely. They are just for internal processing.
+Example (generic - adapt to your actual target language {target_lang}):
+Input: "1. CLAIMS" → Extract: "CLAIMS" → Translate to {target_lang}
+Input: "2. A vehicle control method" → Extract: "A vehicle control method" → Translate to {target_lang}
 
-Extract only the actual text content after the number and translate that.
+Your output should be ONLY the translations in {target_lang}, one per line, with NO numbering.
 
-Example:
-Input: "1. CLAIMS" → Extract: "CLAIMS" → Translate: "CONCLUSIES"
-Input: "2. A vehicle control method" → Extract: "A vehicle control method" → Translate: "Een voertuigbesturingsmethode"
-
-Your output should be ONLY the translations, one per line, with NO numbering:
-CONCLUSIES
-Een voertuigbesturingsmethode
-[more translations...]
-
-Do NOT include any line numbers, bullets, or numbering in your response."""
+REMEMBER: Target language is {target_lang}. All translations must be in {target_lang}."""
             else:
                 system_prompt = f"You are an expert {source_lang} to {target_lang} translator. Translate ONLY the sentences from 'PATENT SENTENCES TO TRANSLATE' later, maintaining their original line numbers.\n\nPresent your output ONLY as a numbered list of translations for the requested sentences."
+        
+        # Add CafeTran pipe symbol instructions if applicable
+        if hasattr(self, 'cafetran_source_file'):
+            pipe_instructions = f"""
+
+IMPORTANT - FORMATTING MARKERS:
+The source text contains pipe symbols (|) that mark formatted text (bold, italic, underline).
+Example: "He debuted against |Juventus FC|" - the pipe symbols surround "Juventus FC" which should be formatted.
+
+YOU MUST preserve these pipe symbols in your {target_lang} translation at the corresponding locations:
+- Translate the text into {target_lang} normally
+- Place the pipe symbols around the TRANSLATED version of the marked words in {target_lang}
+- Keep the same number of pipes and similar positioning
+
+Example (English to Dutch):
+Source: "He debuted against |Juventus FC| in 2001"
+Translation: "Hij debuteerde tegen |Juventus FC| in 2001"
+(Notice the pipes stay around "Juventus FC" in the Dutch translation)
+
+Example with multiple markers:
+Source: "Returned from |Lumezzane| of the third division in |2002-03 Serie C1|"
+Translation: "Teruggekeerd van |Lumezzane| van de derde divisie in |2002-03 Serie C1|"
+(Each marked phrase keeps its pipes in the translation)
+
+This is CRITICAL - do not omit the pipe symbols! Translate to {target_lang} and preserve all pipes!"""
+            system_prompt += pipe_instructions
 
         # Add context
         add_text(f"FULL DOCUMENT CONTEXT for reference:\n{full_document_context_text_str}\n\n")
@@ -1526,7 +1595,13 @@ Do NOT include any line numbers, bullets, or numbering in your response."""
                 add_text(numbered_src_line)
                 numbered_src_line = ""
         add_text(numbered_src_line)
-        add_text("TRANSLATED SENTENCES (numbered list for 'PATENT SENTENCES TO TRANSLATE' only):")
+        
+        # Add explicit target language reminder for GPT-5
+        if "gpt-5" in self.model_name.lower():
+            add_text(f"\nREMINDER: Translate ALL sentences above into {target_lang}. Your entire response must be in {target_lang}.\n\n")
+            add_text("TRANSLATED SENTENCES (numbered list for 'PATENT SENTENCES TO TRANSLATE' only):")
+        else:
+            add_text("TRANSLATED SENTENCES (numbered list for 'PATENT SENTENCES TO TRANSLATE' only):")
 
         try:
             # For GPT-5, try a simpler message format if we have complex content
@@ -2201,18 +2276,36 @@ class TranslationApp:
         tk.Entry(left_frame, textvariable=self.input_file_var, width=50, state="readonly").grid(row=current_row, column=1, padx=5, pady=2, sticky="ew")
         tk.Button(left_frame, text="Browse...", command=self.browse_input_file).grid(row=current_row, column=2, padx=5, pady=2); current_row += 1
         
-        # NEW (v2.4.1): Bilingual DOCX import button
-        bilingual_button = tk.Button(
-            left_frame, 
-            text="📄 Import memoQ Bilingual DOCX", 
+        # NEW (v2.4.1): Bilingual file import buttons
+        bilingual_frame = tk.Frame(left_frame, bg="white")
+        bilingual_frame.grid(row=current_row, column=0, columnspan=3, padx=5, pady=5, sticky='ew')
+        
+        # memoQ DOCX import button (recommended bilingual format)
+        docx_button = tk.Button(
+            bilingual_frame, 
+            text="📄 Import memoQ DOCX", 
             command=self.import_memoq_bilingual,
-            bg='#4CAF50', 
+            bg='#2196F3',  # Blue for primary option
             fg='white',
             font=('Arial', 9, 'bold'),
             relief='raised',
             cursor='hand2'
         )
-        bilingual_button.grid(row=current_row, column=0, columnspan=3, padx=5, pady=5, sticky='ew')
+        docx_button.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=2)
+        
+        # CafeTran DOCX import button
+        cafetran_button = tk.Button(
+            bilingual_frame, 
+            text="☕ Import CafeTran DOCX", 
+            command=self.import_cafetran_bilingual,
+            bg='#4CAF50',  # Green for alternative option
+            fg='white',
+            font=('Arial', 9, 'bold'),
+            relief='raised',
+            cursor='hand2'
+        )
+        cafetran_button.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=2)
+        
         current_row += 1
         
         tk.Label(left_frame, text="Output File (TXT + TMX):", bg="white").grid(row=current_row, column=0, padx=5, pady=2, sticky="w")
@@ -2351,22 +2444,37 @@ class TranslationApp:
         self.list_models_button = tk.Button(buttons_frame, text="List Models", command=self.list_available_models, width=15); self.list_models_button.pack(side=tk.LEFT, padx=10) 
         self.refresh_models_button = tk.Button(buttons_frame, text="Refresh Models", command=self.update_available_models, width=15); self.refresh_models_button.pack(side=tk.LEFT, padx=10)
         
-        # NEW (v2.4.1): Export to Bilingual DOCX button
+        # Export to Bilingual DOCX button
         export_bilingual_frame = tk.Frame(left_frame, bg="white")
-        export_bilingual_frame.grid(row=current_row, column=0, columnspan=3, pady=5)
+        export_bilingual_frame.grid(row=current_row, column=0, columnspan=3, pady=5, sticky='ew')
+        
+        # memoQ DOCX export button (recommended bilingual format)
         self.export_bilingual_button = tk.Button(
             export_bilingual_frame,
-            text="💾 Export to Bilingual DOCX",
+            text="💾 Export to memoQ DOCX",
             command=self.export_memoq_bilingual,
-            bg='#2196F3',
+            bg='#2196F3',  # Blue for primary option
             fg='white',
             font=('Arial', 9, 'bold'),
-            width=30,
             height=1,
             relief='raised',
             cursor='hand2'
         )
-        self.export_bilingual_button.pack()
+        self.export_bilingual_button.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=2)
+        
+        # CafeTran DOCX export button
+        self.export_cafetran_button = tk.Button(
+            export_bilingual_frame,
+            text="☕ Export to CafeTran DOCX",
+            command=self.export_cafetran_bilingual,
+            bg='#4CAF50',  # Green for alternative option
+            fg='white',
+            font=('Arial', 9, 'bold'),
+            height=1,
+            relief='raised',
+            cursor='hand2'
+        )
+        self.export_cafetran_button.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=2)
         current_row += 1
         
         # Log section in bottom right frame - extra sharp heading font
@@ -3409,7 +3517,12 @@ class TranslationApp:
     def browse_input_file(self):
         filepath = filedialog.askopenfilename(
             title="Select Input File",
-            filetypes=(("Text files", "*.txt"), ("All files", "*.*"))
+            filetypes=(
+                ("Text files", "*.txt"), 
+                ("MQXLIFF files", "*.mqxliff"),
+                ("XLIFF files", "*.xliff"),
+                ("All files", "*.*")
+            )
         )
         if filepath: 
             self.input_file_var.set(filepath)
@@ -4456,11 +4569,429 @@ class TranslationApp:
         except Exception as e:
             messagebox.showerror("Export Error", f"Failed to export bilingual DOCX:\n\n{str(e)}")
             print(f"[ERROR] Bilingual export failed: {e}")
+    
+    def import_mqxliff(self):
+        """
+        Import memoQ XLIFF (.mqxliff) file.
+        Extracts source segments with formatting preservation using the MQXLIFFHandler.
+        """
+        from tkinter import filedialog, messagebox
+        
+        file_path = filedialog.askopenfilename(
+            title="Select MQXLIFF File",
+            filetypes=[("memoQ XLIFF", "*.mqxliff"), ("XLIFF Files", "*.xliff"), ("All Files", "*.*")]
+        )
+        
+        if not file_path:
+            return  # User cancelled
+        
+        try:
+            # Import the MQXLIFF handler
+            import sys
+            # Add modules directory to path
+            modules_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules')
+            if modules_dir not in sys.path:
+                sys.path.insert(0, modules_dir)
+            
+            from mqxliff_handler import MQXLIFFHandler
+            
+            # Load the MQXLIFF file
+            handler = MQXLIFFHandler()
+            if not handler.load(file_path):
+                messagebox.showerror("Error", "Failed to load MQXLIFF file.\n\nThe file may be corrupt or not a valid MQXLIFF format.")
+                return
+            
+            # Extract source segments
+            segments = handler.extract_source_segments()
+            
+            if not segments:
+                messagebox.showwarning("Warning", "No translatable segments found in the MQXLIFF file.")
+                return
+            
+            # Create temporary TXT file with plain text source segments
+            temp_txt_path = file_path.replace('.mqxliff', '_source.txt')
+            
+            with open(temp_txt_path, 'w', encoding='utf-8') as f:
+                f.write('\n'.join([seg.plain_text for seg in segments]))
+            
+            # Store the original MQXLIFF file path for later export
+            self.mqxliff_source_file = file_path
+            self.mqxliff_segment_count = len(segments)
+            
+            # Set the input file to the temporary TXT file
+            self.input_file_var.set(temp_txt_path)
+            
+            # ALSO set the output file automatically (same location, _translated.txt)
+            temp_output_path = file_path.replace('.mqxliff', '_translated.txt')
+            self.output_file_var.set(temp_output_path)
+            
+            messagebox.showinfo(
+                "Success", 
+                f"✓ Successfully imported {len(segments)} segment(s) from MQXLIFF file.\n\n"
+                f"Source file: {os.path.basename(file_path)}\n"
+                f"Source language: {handler.source_lang}\n"
+                f"Target language: {handler.target_lang}\n\n"
+                f"Temp files created:\n"
+                f"  • Input: {os.path.basename(temp_txt_path)}\n"
+                f"  • Output: {os.path.basename(temp_output_path)}\n\n"
+                f"✓ Formatting will be preserved automatically\n\n"
+                f"Configure your translation settings and click 'Translate'.\n"
+                f"After translation, use 'Export to MQXLIFF' to save back to memoQ format."
+            )
+            
+            print(f"[INFO] Imported {len(segments)} segments from MQXLIFF")
+            print(f"[INFO] Source language: {handler.source_lang}, Target language: {handler.target_lang}")
+            
+        except ImportError as e:
+            messagebox.showerror(
+                "Module Error",
+                f"Could not load MQXLIFF handler module.\n\n{str(e)}"
+            )
+        except Exception as e:
+            messagebox.showerror("Import Error", f"Failed to import MQXLIFF file:\n\n{str(e)}")
+            print(f"[ERROR] MQXLIFF import failed: {e}")
+    
+    def export_mqxliff(self):
+        """
+        Export translations back to MQXLIFF format.
+        Reads the translated segments from the output file and writes them
+        to the target elements of the MQXLIFF file with formatting preserved.
+        """
+        from tkinter import filedialog, messagebox
+        
+        # Check if an MQXLIFF source file was imported
+        if not hasattr(self, 'mqxliff_source_file'):
+            messagebox.showwarning(
+                "No MQXLIFF Source",
+                "No MQXLIFF file was imported.\n\n"
+                "This feature is only available after importing an MQXLIFF file.\n\n"
+                "Use the regular 'Browse Output File' for standard workflows."
+            )
+            return
+        
+        # Check if translations exist
+        output_file = self.output_file_var.get()
+        if not output_file or not os.path.exists(output_file):
+            messagebox.showerror(
+                "No Translations Found",
+                "No output file found.\n\n"
+                "Please complete the translation process first."
+            )
+            return
+        
+        try:
+            # Import the MQXLIFF handler
+            import sys
+            # Add modules directory to path
+            modules_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules')
+            if modules_dir not in sys.path:
+                sys.path.insert(0, modules_dir)
+            
+            from mqxliff_handler import MQXLIFFHandler
+            import re
+            
+            # Read translations from output file (tab-separated: source\ttranslation)
+            translations = []
+            with open(output_file, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    
+                    # Supervertaler outputs: source\ttranslation
+                    if '\t' in line:
+                        parts = line.split('\t')
+                        if len(parts) >= 2:
+                            translation = parts[1].strip()  # Take only the translation column
+                            
+                            # Remove any leading numbers like "1. ", "2. ", etc.
+                            translation = re.sub(r'^\d+\.\s*', '', translation)
+                            
+                            translations.append(translation)
+                    else:
+                        # Fallback: if no tab, assume whole line is translation
+                        translation = re.sub(r'^\d+\.\s*', '', line)
+                        translations.append(translation)
+            
+            if not translations:
+                messagebox.showwarning("Warning", "No translations found in output file.")
+                return
+            
+            # Load the original MQXLIFF file
+            handler = MQXLIFFHandler()
+            if not handler.load(self.mqxliff_source_file):
+                messagebox.showerror("Error", "Failed to load the original MQXLIFF file.")
+                return
+            
+            # Update target segments with translations
+            segments_updated = handler.update_target_segments(translations)
+            
+            # Prompt user to save the updated MQXLIFF file
+            save_path = filedialog.asksaveasfilename(
+                title="Save Translated MQXLIFF",
+                defaultextension=".mqxliff",
+                initialfile=os.path.basename(self.mqxliff_source_file).replace('.mqxliff', '_translated.mqxliff'),
+                filetypes=[("memoQ XLIFF", "*.mqxliff"), ("XLIFF Files", "*.xliff"), ("All Files", "*.*")]
+            )
+            
+            if save_path:
+                if handler.save(save_path):
+                    success_msg = (
+                        f"✓ Successfully exported {segments_updated} translation(s) to MQXLIFF!\n\n"
+                        f"File saved: {os.path.basename(save_path)}\n\n"
+                        f"✓ Formatting preserved (bold, italic, underline)\n"
+                        f"✓ Hyperlinks preserved\n"
+                        f"✓ Segment IDs maintained\n\n"
+                        f"You can now import this file back into memoQ.\n"
+                        f"All formatting and structure will be preserved."
+                    )
+                    
+                    messagebox.showinfo("Success", success_msg)
+                    print(f"[INFO] Exported {segments_updated} translations to MQXLIFF: {save_path}")
+                else:
+                    messagebox.showerror("Save Error", "Failed to save the MQXLIFF file.")
+            
+        except ImportError as e:
+            messagebox.showerror(
+                "Module Error",
+                f"Could not load MQXLIFF handler module.\n\n{str(e)}"
+            )
+        except Exception as e:
+            messagebox.showerror("Export Error", f"Failed to export MQXLIFF file:\n\n{str(e)}")
+            print(f"[ERROR] MQXLIFF export failed: {e}")
+    
+    def import_cafetran_bilingual(self):
+        """
+        Import CafeTran bilingual DOCX file.
+        Extracts source segments from the CafeTran bilingual table (with pipe symbols)
+        and creates a temporary TXT file for use with the existing translation workflow.
+        
+        CafeTran Bilingual Structure:
+        - Row 0: Header (ID, filename, filename, Notes, *)
+        - Row 1+: Segment data with pipe symbols (|) marking formatted text
+        """
+        from tkinter import filedialog, messagebox
+        
+        file_path = filedialog.askopenfilename(
+            title="Select CafeTran Bilingual DOCX File",
+            filetypes=[("Word Documents", "*.docx"), ("All Files", "*.*")]
+        )
+        
+        if not file_path:
+            return  # User cancelled
+        
+        try:
+            # Import the CafeTran handler
+            import sys
+            # Add modules directory to path
+            modules_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules')
+            if modules_dir not in sys.path:
+                sys.path.insert(0, modules_dir)
+            
+            from cafetran_docx_handler import CafeTranDOCXHandler
+            
+            # Check if this is actually a CafeTran bilingual DOCX
+            if not CafeTranDOCXHandler.is_cafetran_bilingual_docx(file_path):
+                messagebox.showerror(
+                    "Invalid Format",
+                    "This does not appear to be a CafeTran bilingual DOCX file.\n\n"
+                    "Expected format: Table with columns 'ID', source, target, etc."
+                )
+                return
+            
+            # Load the CafeTran bilingual DOCX
+            handler = CafeTranDOCXHandler()
+            if not handler.load(file_path):
+                messagebox.showerror("Error", "Failed to load CafeTran bilingual DOCX file.")
+                return
+            
+            # Extract source segments
+            segments = handler.extract_source_segments()
+            
+            if not segments:
+                messagebox.showwarning("Warning", "No translatable segments found in the CafeTran bilingual file.")
+                return
+            
+            # Create temporary TXT file with source segments INCLUDING pipe symbols
+            # The AI will see the pipes and preserve them in the translation
+            temp_txt_path = file_path.replace('.docx', '_source.txt')
+            
+            with open(temp_txt_path, 'w', encoding='utf-8') as f:
+                # Include pipe symbols so AI can see formatting markers
+                f.write('\n'.join([seg.source_with_pipes for seg in segments]))
+            
+            # Store the original CafeTran file path and segments for later export
+            self.cafetran_source_file = file_path
+            self.cafetran_segments = segments  # Store segments with pipe info
+            self.cafetran_segment_count = len(segments)
+            
+            # Set the input file to the temporary TXT file
+            self.input_file_var.set(temp_txt_path)
+            
+            # ALSO set the output file automatically (same location, _translated.txt)
+            temp_output_path = file_path.replace('.docx', '_translated.txt')
+            self.output_file_var.set(temp_output_path)
+            
+            messagebox.showinfo(
+                "Success", 
+                f"✓ Imported {len(segments)} segment(s) from CafeTran bilingual DOCX!\n\n"
+                f"Source file: {os.path.basename(file_path)}\n\n"
+                f"📌 Source text includes pipe symbols (|) for formatting.\n"
+                f"   The AI will preserve these symbols in the translation.\n\n"
+                f"   Pipe symbols mark formatted text:\n"
+                f"   - |text| = formatted text (bold/italic/underline)\n\n"
+                f"Input file set to: {os.path.basename(temp_txt_path)}\n"
+                f"Output file set to: {os.path.basename(temp_output_path)}\n\n"
+                f"You can now proceed with translation.\n"
+                f"Use 'Export to CafeTran DOCX' when complete."
+            )
+            print(f"[INFO] Imported {len(segments)} segments from CafeTran bilingual DOCX: {file_path}")
+            
+        except ImportError as e:
+            messagebox.showerror(
+                "Module Error",
+                f"Could not load CafeTran handler module.\n\n{str(e)}"
+            )
+        except Exception as e:
+            messagebox.showerror("Import Error", f"Failed to import CafeTran bilingual DOCX:\n\n{str(e)}")
+            print(f"[ERROR] CafeTran import failed: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    def export_cafetran_bilingual(self):
+        """
+        Export translations back to CafeTran bilingual DOCX format.
+        Reads the translated segments from the output file and writes them
+        to the target column of the CafeTran bilingual table with pipe symbols preserved.
+        """
+        from tkinter import filedialog, messagebox
+        
+        # Check if a CafeTran source file was imported
+        if not hasattr(self, 'cafetran_source_file'):
+            messagebox.showwarning(
+                "No CafeTran Source",
+                "No CafeTran bilingual file was imported.\n\n"
+                "This feature is only available after importing a CafeTran bilingual DOCX file.\n\n"
+                "Use the regular 'Browse Output File' for standard workflows."
+            )
+            return
+        
+        # Check if translations exist
+        output_file = self.output_file_var.get()
+        if not output_file or not os.path.exists(output_file):
+            messagebox.showerror(
+                "No Translations Found",
+                "No output file found.\n\n"
+                "Please complete the translation process first."
+            )
+            return
+        
+        try:
+            # Import the CafeTran handler
+            import sys
+            # Add modules directory to path
+            modules_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules')
+            if modules_dir not in sys.path:
+                sys.path.insert(0, modules_dir)
+            
+            from cafetran_docx_handler import CafeTranDOCXHandler
+            import re
+            
+            # Read translations from output file (tab-separated: source\ttranslation)
+            # The AI should have already placed pipe symbols in the translations
+            translations = []
+            with open(output_file, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    
+                    # Supervertaler outputs: source\ttranslation
+                    if '\t' in line:
+                        parts = line.split('\t')
+                        if len(parts) >= 2:
+                            translation = parts[1].strip()  # Take only the translation column
+                            
+                            # Remove any leading numbers like "1. ", "2. ", etc.
+                            translation = re.sub(r'^\d+\.\s*', '', translation)
+                            
+                            # Translation should already have pipe symbols from AI
+                            translations.append(translation)
+                    else:
+                        # Fallback: if no tab, assume whole line is translation
+                        translation = re.sub(r'^\d+\.\s*', '', line)
+                        translations.append(translation)
+            
+            if not translations:
+                messagebox.showwarning("Warning", "No translations found in output file.")
+                return
+            
+            # Load the original CafeTran bilingual DOCX
+            handler = CafeTranDOCXHandler()
+            if not handler.load(self.cafetran_source_file):
+                messagebox.showerror("Error", "Failed to load the original CafeTran bilingual file.")
+                return
+            
+            # Extract source segments to ensure we have the formatting info
+            segments = handler.extract_source_segments()
+            
+            # Update target segments with translations
+            # The translations should already have pipes placed by the AI
+            if not handler.update_target_segments(translations):
+                messagebox.showerror("Error", "Failed to update target segments with translations.")
+                return
+            
+            # Prompt user to save the updated CafeTran bilingual file
+            save_path = filedialog.asksaveasfilename(
+                title="Save CafeTran Bilingual DOCX",
+                defaultextension=".docx",
+                initialfile=os.path.basename(self.cafetran_source_file).replace('.docx', '_translated.docx'),
+                filetypes=[("Word Documents", "*.docx"), ("All Files", "*.*")]
+            )
+            
+            if save_path:
+                if handler.save(save_path):
+                    success_msg = (
+                        f"✓ Successfully exported {len(translations)} translation(s) to CafeTran bilingual DOCX!\n\n"
+                        f"File saved: {os.path.basename(save_path)}\n\n"
+                        f"✓ Translations inserted in target column\n"
+                        f"✓ Pipe symbols (|) formatted as BOLD + RED for easy visibility\n"
+                        f"✓ Formatting markers preserved by AI at corresponding locations\n"
+                        f"✓ Segment IDs maintained\n"
+                        f"✓ Table structure preserved\n\n"
+                        f"You can now import this file back into CafeTran.\n"
+                        f"The red pipe symbols mark formatted text locations."
+                    )
+                    
+                    messagebox.showinfo("Success", success_msg)
+                    print(f"[INFO] Exported {len(translations)} translations to CafeTran bilingual DOCX: {save_path}")
+                else:
+                    messagebox.showerror("Save Error", "Failed to save the CafeTran bilingual DOCX file.")
+            
+        except ImportError as e:
+            messagebox.showerror(
+                "Module Error",
+                f"Could not load CafeTran handler module.\n\n{str(e)}"
+            )
+        except Exception as e:
+            messagebox.showerror("Export Error", f"Failed to export CafeTran bilingual DOCX:\n\n{str(e)}")
+            print(f"[ERROR] CafeTran export failed: {e}")
+            import traceback
+            traceback.print_exc()
 
 # ADD: main guard to launch GUI
 if __name__ == "__main__":
     try:
         root = tk.Tk()
+        
+        # Set window icon
+        try:
+            icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'MB.ico')
+            if os.path.exists(icon_path):
+                root.iconbitmap(icon_path)
+        except Exception as icon_error:
+            print(f"Could not load icon: {icon_error}")
+        
         app = TranslationApp(root)
         root.mainloop()
     except Exception as e:
