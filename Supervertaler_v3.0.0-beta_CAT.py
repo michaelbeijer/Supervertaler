@@ -1638,12 +1638,19 @@ class Supervertaler:
         translate_menu.add_command(label="🗑️ Clear Drawings", command=self.clear_drawings)
         translate_menu.add_separator()
         translate_menu.add_command(label="API Settings...", command=self.show_api_settings)
-        translate_menu.add_command(label="System Prompts...", command=self.show_custom_prompts)
-        translate_menu.add_separator()
         translate_menu.add_command(label="Language Settings...", command=self.show_language_settings)
+        
+        # Prompt Library menu (NEW - Prompts & Instructions)
+        prompts_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Prompt Library", menu=prompts_menu)
+        prompts_menu.add_command(label="📚 Open Prompt Library", command=self.show_custom_prompts, accelerator="Ctrl+P")
+        prompts_menu.add_separator()
+        prompts_menu.add_command(label="🎭 System Prompts", command=self.show_system_prompts)
+        prompts_menu.add_command(label="📝 Custom Instructions", command=self.show_custom_instructions)
         
         # Keyboard shortcuts (translate)
         self.root.bind('<Control-t>', lambda e: self.translate_current_segment())
+        self.root.bind('<Control-p>', lambda e: self.show_custom_prompts())  # Prompt Library shortcut
         
         # Keyboard shortcuts
         self.root.bind('<Control-o>', lambda e: self.import_docx())
@@ -2683,7 +2690,7 @@ class Supervertaler:
         tk.Button(translate_btn_frame, text="👁️ Preview", 
                  command=self.preview_translate_prompt,
                  bg='#2196F3', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
-        tk.Button(translate_btn_frame, text="📚 Browse Prompts", 
+        tk.Button(translate_btn_frame, text="📚 Prompt Library", 
                  command=self.show_custom_prompts,
                  bg='#FF9800', fg='white', font=('Segoe UI', 9, 'bold')).pack(side='right', padx=2)
         
@@ -2717,7 +2724,7 @@ class Supervertaler:
         tk.Button(proofread_btn_frame, text="👁️ Preview", 
                  command=self.preview_proofread_prompt,
                  bg='#2196F3', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
-        tk.Button(proofread_btn_frame, text="📚 Browse Prompts", 
+        tk.Button(proofread_btn_frame, text="📚 Prompt Library", 
                  command=self.show_custom_prompts,
                  bg='#FF9800', fg='white', font=('Segoe UI', 9, 'bold')).pack(side='right', padx=2)
         
@@ -10071,8 +10078,12 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
         ttk.Button(button_frame, text="Save", command=save).pack(side=tk.LEFT, padx=5)
         ttk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(side=tk.LEFT)
     
-    def show_custom_prompts(self):
-        """Show comprehensive prompt library browser"""
+    def show_custom_prompts(self, initial_filter="all"):
+        """Show comprehensive prompt library browser
+        
+        Args:
+            initial_filter: Initial type filter - "all", "system_prompt", or "custom_instruction"
+        """
         dialog = tk.Toplevel(self.root)
         dialog.title("🎯 Prompt Library - System Prompts & Custom Instructions")
         dialog.geometry("1000x700")
@@ -10115,7 +10126,7 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
         
         ttk.Label(filter_frame, text="📋 Type:", font=('Segoe UI', 9, 'bold')).pack(side=tk.LEFT, padx=(0, 10))
         
-        type_filter_var = tk.StringVar(value="all")
+        type_filter_var = tk.StringVar(value=initial_filter)
         ttk.Radiobutton(filter_frame, text="All", variable=type_filter_var, value="all").pack(side=tk.LEFT, padx=5)
         ttk.Radiobutton(filter_frame, text="🎭 System Prompts", variable=type_filter_var, value="system_prompt").pack(side=tk.LEFT, padx=5)
         ttk.Radiobutton(filter_frame, text="📝 Custom Instructions", variable=type_filter_var, value="custom_instruction").pack(side=tk.LEFT, padx=5)
@@ -10491,6 +10502,14 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
         
         # Initial load
         load_prompts_to_tree()
+    
+    def show_system_prompts(self):
+        """Show Prompt Library filtered to System Prompts only"""
+        self.show_custom_prompts(initial_filter="system_prompt")
+    
+    def show_custom_instructions(self):
+        """Show Prompt Library filtered to Custom Instructions only"""
+        self.show_custom_prompts(initial_filter="custom_instruction")
     
     def create_prompt_editor(self, parent, edit_prompt=None, on_save=None):
         """Show prompt creation/editing dialog"""
