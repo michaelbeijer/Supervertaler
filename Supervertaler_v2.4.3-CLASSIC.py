@@ -18,7 +18,7 @@ import webbrowser  # For clickable email link
 import subprocess  # For opening folder in file manager
 
 # ADD: central version constant (was missing, caused NameError)
-APP_VERSION = "2.4.2"
+APP_VERSION = "2.4.3"
 print(f"=== Supervertaler v{APP_VERSION} starting ===")
 
 # --- Changelog (v2.4.1) ---
@@ -3132,7 +3132,8 @@ class TranslationApp:
     def setup_project_library_content(self):
         """Setup the Project Library content area"""
         # Create projects directory
-        self.projects_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "projects")
+        user_data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "user data")
+        self.projects_dir = os.path.join(user_data_dir, "Projects")
         if not os.path.exists(self.projects_dir):
             os.makedirs(self.projects_dir)
 
@@ -3171,7 +3172,8 @@ class TranslationApp:
                 font=("Segoe UI", 9, "bold"), bg="white").pack(anchor="w", padx=5, pady=(10,2))
         
         # Show clickable folder location
-        projects_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "projects")
+        user_data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "user data")
+        projects_path = os.path.join(user_data_dir, "Projects")
         folder_frame = tk.Frame(management_frame, bg="white")
         folder_frame.pack(anchor="w", padx=5, pady=(0,5))
         
@@ -3251,7 +3253,8 @@ class TranslationApp:
         # Determine which directory to save to
         if self.project_private_var.get():
             # Save to private folder
-            save_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "projects_private")
+            user_data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "user data")
+            save_dir = os.path.join(user_data_dir, "Projects_private")
             os.makedirs(save_dir, exist_ok=True)
         else:
             # Save to public folder
@@ -3286,7 +3289,8 @@ class TranslationApp:
             # Private project - remove prefix and look in private folder
             actual_name = selected_name[10:]  # Remove "[Private] " prefix
             filename = f"{actual_name}.json"
-            private_projects_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "projects_private")
+            user_data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "user data")
+            private_projects_dir = os.path.join(user_data_dir, "Projects_private")
             filepath = os.path.join(private_projects_dir, filename)
         else:
             # Public project - look in public folder
@@ -3357,7 +3361,8 @@ class TranslationApp:
             # Private project - remove prefix and look in private folder
             actual_name = selected_name[10:]  # Remove "[Private] " prefix
             filename = f"{actual_name}.json"
-            private_projects_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "projects_private")
+            user_data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "user data")
+            private_projects_dir = os.path.join(user_data_dir, "Projects_private")
             filepath = os.path.join(private_projects_dir, filename)
         else:
             # Public project - look in public folder
@@ -3396,7 +3401,8 @@ class TranslationApp:
                 self.update_log(f"[ERROR] Failed to scan projects: {str(e)}")
         
         # Scan private projects directory
-        private_projects_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "projects_private")
+        user_data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "user data")
+        private_projects_dir = os.path.join(user_data_dir, "Projects_private")
         if os.path.exists(private_projects_dir):
             try:
                 for filename in sorted(os.listdir(private_projects_dir)):
@@ -3428,7 +3434,8 @@ class TranslationApp:
     def open_projects_folder(self):
         """Open the projects folder in the system file manager"""
         try:
-            projects_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "projects")
+            user_data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "user data")
+            projects_path = os.path.join(user_data_dir, "Projects")
             
             # Ensure the folder exists
             if not os.path.exists(projects_path):
