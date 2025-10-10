@@ -1,0 +1,9 @@
+{
+    "name": "Professional Tone & Style",
+    "description": "Ensures translations maintain a professional, formal tone suitable for business communications",
+    "domain": "Business",
+    "version": "1.0",
+    "created": "2024-01-15",
+    "translate_prompt": "You are translating {source_lang} to {target_lang}.\n\nIMPORTANT: Maintain a professional, formal tone throughout the translation. Use business-appropriate language and avoid colloquialisms or casual expressions.\n\nGuidelines:\n- Use formal register and respectful forms of address\n- Prefer established business terminology over informal alternatives\n- Maintain consistency in style and formality level\n- Avoid contractions and informal abbreviations\n- Use complete sentences with proper grammar\n\nTranslate the following text while adhering to these professional standards:",
+    "proofread_prompt": "You are proofreading a {source_lang} to {target_lang} translation.\n\nVerify that:\n1. The translation maintains a professional, formal tone\n2. Business terminology is used correctly and consistently\n3. No casual or colloquial expressions appear\n4. Formal register is maintained throughout\n5. Grammar and punctuation meet professional standards\n\nProvide the corrected translation if any issues are found, or confirm the translation is acceptable."
+}

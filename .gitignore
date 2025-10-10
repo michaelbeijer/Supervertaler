@@ -7,6 +7,9 @@ api_keys.txt
 # Private system prompts folder - never sync to GitHub
 user data/System_prompts_private/
 
+# Private custom instructions folder - never sync to GitHub
+user data/Custom_instructions_private/
+
 # Private projects folder - never sync to GitHub
 user data/Projects_private/
 
