@@ -1,5 +1,98 @@
 # Supervertaler - Changelog
 
+## [3.1.0-beta] - 2025-10-10 🎯 PROMPT LIBRARY UPDATE
+
+> **📌 Version Bump**: Bumped from v3.0.0-beta to v3.1.0-beta to reflect significant new feature and architectural change in prompt management system.
+
+### ✨ NEW FEATURES
+
+#### Unified Prompt Library
+**Comprehensive prompt management system with two distinct prompt types!**
+
+- **NEW: Custom Instructions** - User preferences and behavioral guidelines
+  - Define HOW the AI should translate (tone, style, formatting preferences)
+  - Examples: "Professional Tone", "Preserve Formatting", "Prefer TM Matches"
+  - Separate from System Prompts (which define WHO the AI is)
+  
+- **NEW: Dual Prompt Type System**:
+  - **🎭 System Prompts**: Define AI role/expertise (e.g., "Legal Specialist")
+  - **📝 Custom Instructions**: Define user preferences/context (e.g., "Formal Tone")
+  - Can combine both types for powerful, personalized workflows
+
+- **NEW: Type Filtering**:
+  - Radio buttons: All / System Prompts / Custom Instructions
+  - Quick filtering in tree view
+  - Sortable Type column
+
+- **NEW: Dedicated "Prompt Library" Menu**:
+  - Menu → Prompt Library → Open Prompt Library (Ctrl+P)
+  - Menu → Prompt Library → System Prompts (filtered view)
+  - Menu → Prompt Library → Custom Instructions (filtered view)
+  - Keyboard shortcut: **Ctrl+P** for quick access
+
+### 🗂️ FOLDER STRUCTURE CHANGES
+
+**BREAKING CHANGE**: Unified folder structure across v2 and v3
+
+- **New Structure**:
+  ```
+  user data/
+  ├── System_prompts/          (public, Git-tracked)
+  ├── System_prompts_private/  (private, Git-ignored)
+  ├── Custom_instructions/     (public, Git-tracked)
+  └── Custom_instructions_private/ (private, Git-ignored)
+  ```
+
+- **OLD v3 Structure** (deprecated):
+  - ~~`custom_prompts/`~~ → `user data/System_prompts/`
+  - ~~`custom_prompts_private/`~~ → `user data/System_prompts_private/`
+
+### 🎨 UI/UX IMPROVEMENTS
+
+- **Renamed**: "System Prompt Library" → "Prompt Library"
+- **Button labels**: "Browse Prompts" → "Prompt Library"
+- **Dialog title**: "🎯 Prompt Library - System Prompts & Custom Instructions"
+- **Added Type dropdown** in prompt editor (create/edit)
+- **Dynamic privacy label** updates based on selected type
+- **Tree view enhancements**: Added Type column with icons
+
+### 📝 BACKEND CHANGES
+
+- **Extended PromptLibrary class**:
+  - Handles 4 directories (2 types × 2 privacy levels)
+  - Added `'_type'` metadata field to all prompts
+  - Updated `load_all_prompts()` to load from all 4 directories
+  - Updated `create_new_prompt()` with `prompt_type` parameter
+  - Updated `get_prompt_list()` to include type information
+
+- **Helper methods**:
+  - `show_system_prompts()` - Opens library filtered to System Prompts
+  - `show_custom_instructions()` - Opens library filtered to Custom Instructions
+  - `show_custom_prompts(initial_filter)` - Opens with specified filter
+
+### 📦 EXAMPLE FILES
+
+**3 Example Custom Instructions included**:
+1. **Professional Tone & Style** - Ensures formal business language
+2. **Preserve Formatting & Layout** - Maintains document structure
+3. **Prefer Translation Memory Matches** - Prioritizes TM consistency
+
+### 🔧 COMPATIBILITY FIX
+
+**v2.4.1-CLASSIC Updated** - Now uses same folder structure as v3
+
+- ✅ v2 and v3 now share same prompt storage locations
+- ✅ Users can switch between versions without losing prompts
+- ✅ Automatic folder creation if missing (backwards compatible)
+
+### 📚 DOCUMENTATION
+
+- Added `MIGRATION_SUMMARY.md` with full details of changes
+- Added `user data/Custom_instructions/README.md` with usage guide
+- Updated `.gitignore` to exclude `Custom_instructions_private/`
+
+---
+
 ## [3.0.0-beta] - 2025-10-09 🚀 MAJOR RELEASE (CAT Editor)
 
 > **📌 Version Renumbering**: This version was previously numbered v2.5.2. The jump to v3.0 reflects a **major architectural change** - a complete rewrite from the original DOCX workflow (v2.x-CLASSIC) to a segment-based CAT editor. This is not just an incremental update but a fundamentally different application architecture.

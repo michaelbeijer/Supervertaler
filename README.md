@@ -2,22 +2,26 @@
 
 🎯 **Context-aware, LLM-powered translation & proofreading tool, leveraging multiple context sources for enhanced accuracy (built for translators)** - Revolutionary approach to document translation that leverages multiple context sources for unparalleled accuracy.
 
-**Note**: A version of Supervertaler is being developed with many features commonly found in proper CAT tools (Computer-Aided Translation tools), which has reached **v3.0.0-beta** with major improvements! It features grid pagination (10x faster loading), smart paragraph detection, dual text selection (memoQ-style), column management, formatting display, three professional view modes (Grid, List, Document), and comprehensive auto-export options. We're implementing features from [michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool](https://michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool).
+**Note**: A version of Supervertaler is being developed with many features commonly found in proper CAT tools (Computer-Aided Translation tools), which has reached **v3.1.0-beta** with a comprehensive Prompt Library system! It features unified prompt management (System Prompts + Custom Instructions), grid pagination (10x faster loading), smart paragraph detection, dual text selection (memoQ-style), column management, formatting display, three professional view modes (Grid, List, Document), and comprehensive auto-export options. We're implementing features from [michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool](https://michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool).
 
 
 ## 📦 Available Versions
 
-### v3.0.0-beta (Experimental - CAT Editor) 🚀
+### v3.1.0-beta (Experimental - CAT Editor) 🚀
 **File**: `Supervertaler_v3.0.0-beta_CAT.py`
-- ⚡ **NEW**: Grid pagination system (50 segments/page, 10x faster loading!)
-- 🧠 **NEW**: Smart paragraph detection for document view
-- 🛡️ **NEW**: Enhanced loading protection (prevents crashes)
+- 🎯 **NEW**: Unified Prompt Library with System Prompts + Custom Instructions (Ctrl+P)
+- 📝 **NEW**: Custom Instructions - Define user preferences & behavioral guidelines
+- 🎭 **NEW**: Separate System Prompts (AI role) from Custom Instructions (user preferences)
+- 🗂️ **NEW**: Type filtering and dedicated Prompt Library menu
+- ⚡ Grid pagination system (50 segments/page, 10x faster loading!)
+- 🧠 Smart paragraph detection for document view
+- 🛡️ Enhanced loading protection (prevents crashes)
 - ✅ Professional CAT editor with Grid, List, and Document views
 - ✅ Auto-export options (session reports MD/HTML, TMX, TSV, XLIFF, Excel)
 - ✅ CafeTran and memoQ bilingual DOCX support
 - 📖 **Status**: Feature-complete, performance optimized, beta testing phase
-- 💡 **Note**: v3.0 signifies major architectural change from original DOCX workflow - please report any issues!
-- 🏷️ **Version Note**: Renamed from v2.5.2 to v3.0.0-beta to reflect major rewrite
+- 💡 **Note**: v3.x signifies major architectural change from original DOCX workflow
+- 🏷️ **Version Note**: Bumped to v3.1.0 for significant Prompt Library feature
 
 ### v2.4.1-CLASSIC (Production-ready) 🎉
 **File**: `Supervertaler_v2.4.1-CLASSIC.py`
