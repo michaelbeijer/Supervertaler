@@ -23,7 +23,7 @@ Date: October 9, 2025
 """
 
 # Version constant
-APP_VERSION = "3.0.0-beta"
+APP_VERSION = "3.1.0-beta"
 
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, scrolledtext
