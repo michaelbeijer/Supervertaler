@@ -321,16 +321,16 @@ python3 Supervertaler_v2.4.1.py
 #### What's Protected ✅
 
 - **`api_keys.txt`** - Your actual API keys (NEVER uploaded to GitHub)
-- **`custom_prompts_private/`** - Your private custom prompts
-- **`projects_private/`** - Your private translation projects
+- **`user data/Custom_prompts_private/`** - Your private custom prompts
+- **`user data/Projects_private/`** - Your private translation projects
 
 These are all listed in `.gitignore` and will never be synced to version control.
 
 #### What's Shared ✅
 
 - **`api_keys.example.txt`** - Template file with instructions (safe to share)
-- **`custom_prompts/`** - Public example prompts
-- **`projects/`** - Public example projects
+- **`user data/Custom_prompts/`** - Public example prompts
+- **`user data/Projects/`** - Public example projects
 
 ---
 
@@ -844,7 +844,7 @@ specializing in automotive technical documentation.
 Give it a descriptive name and save to your library:
 - Clear, descriptive names (e.g., "Client_XYZ_Technical_Manual")
 - Include domain and client information
-- Save to `custom_prompts_private/` for privacy
+- Save to `user data/Custom_prompts_private/` for privacy
 
 ### Managing Your Library
 
@@ -856,7 +856,7 @@ Give it a descriptive name and save to your library:
 
 **File Structure**:
 ```
-custom_prompts_private/
+user data/Custom_prompts_private/
 ├── Client_ABC_Legal_Contracts.json
 ├── Technical_Manual_Safety_Focus.json
 ├── Marketing_Creative_Transcreation.json
@@ -946,7 +946,7 @@ Set up all your settings:
 
 #### Step 3: Verify Save
 
-Project saved to `projects/` or `projects_private/` folder as JSON file
+Project saved to `user data/Projects/` or `user data/Projects_private/` folder as JSON file
 
 ### Loading Projects
 
@@ -975,8 +975,8 @@ All settings restored instantly:
 - **Time-Based**: Include dates for version control
 
 **File Management**:
-- Projects stored as JSON files in `projects/` folder
-- Private projects in `projects_private/` (excluded from git)
+- Projects stored as JSON files in `user data/Projects/` folder
+- Private projects in `user data/Projects_private/` (excluded from git)
 - Include timestamps for version tracking
 - Export important projects for backup
 - Cross-platform path compatibility (Windows, macOS, Linux)

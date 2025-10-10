@@ -5,10 +5,10 @@ desktop.ini
 api_keys.txt
 
 # Private custom prompts folder - never sync to GitHub
-custom_prompts_private/
+user data/Custom_prompts_private/
 
 # Private projects folder - never sync to GitHub
-user data/projects_private/
+user data/Projects_private/
 
 # PyInstaller build artifacts (but allow docs/build/)
 /build/
