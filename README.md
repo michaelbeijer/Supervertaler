@@ -8,7 +8,7 @@
 ## 📦 Available Versions
 
 ### v3.1.0-beta (Experimental - CAT Editor) 🚀
-**File**: `Supervertaler_v3.0.0-beta_CAT.py`
+**File**: `Supervertaler_v3.1.0-beta_CAT.py`
 - 🎯 **NEW**: Unified Prompt Library with System Prompts + Custom Instructions (Ctrl+P)
 - 📝 **NEW**: Custom Instructions - Define user preferences & behavioral guidelines
 - 🎭 **NEW**: Separate System Prompts (AI role) from Custom Instructions (user preferences)
