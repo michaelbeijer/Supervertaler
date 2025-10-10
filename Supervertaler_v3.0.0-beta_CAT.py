@@ -10044,7 +10044,7 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
         header_frame = ttk.Frame(main_frame)
         header_frame.pack(fill=tk.X, pady=(0, 10))
         
-        ttk.Label(header_frame, text="📚 Custom Prompts Library", 
+        ttk.Label(header_frame, text="📚 System Prompt Library", 
                  font=('Segoe UI', 12, 'bold')).pack(side=tk.LEFT)
         
         active_label = ttk.Label(header_frame, text="", font=('Segoe UI', 9))
