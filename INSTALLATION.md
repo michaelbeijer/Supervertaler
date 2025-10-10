@@ -34,7 +34,7 @@ INSTALLATION INSTRUCTIONS
    Supervertaler_v2.4.1/
    ├── Supervertaler.exe          (Main application)
    ├── user data/                  (User data folder)
-   │   ├── Custom_prompts/      (AI prompt templates)
+   │   ├── System_prompts/      (System prompt templates)
    │   ├── Projects/            (Your projects folder)
    │   └── Projects_private/    (Private projects)
    ├── docs/                      (Documentation)
@@ -199,8 +199,8 @@ TO USE CUSTOM PROMPTS:
   4. Translate as normal - specialized instructions applied!
 
 TO CREATE YOUR OWN:
-  1. Click "Save Current Prompt" in Custom Prompts tab
-  2. Edit the JSON file in user data/Custom_prompts/ folder
+  1. Click "Save Current Prompt" in System Prompts tab
+  2. Edit the JSON file in user data/System_prompts/ folder
   3. Reload in Supervertaler
 
 --------------------------------------------------------------------------
