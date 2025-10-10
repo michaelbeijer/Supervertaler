@@ -2,6 +2,8 @@
 
 **Complete installation instructions for macOS and Linux users**
 
+> **📌 Version Note**: This guide references `Supervertaler_v2.4.1.py`. As of October 10, 2025, this file has been renamed to `Supervertaler_v2.4.1-CLASSIC.py`. Simply replace `v2.4.1.py` with `v2.4.1-CLASSIC.py` in all commands below. The functionality is identical - only the filename has changed.
+
 ---
 
 ## 📋 System Requirements

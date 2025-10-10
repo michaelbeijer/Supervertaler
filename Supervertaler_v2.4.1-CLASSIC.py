@@ -3898,21 +3898,20 @@ class TranslationApp:
 - **Source**: {custom_prompt_source}
 - **Prompt Name**: {active_prompt_name}
 
-### System Prompt Sent to AI
+### System Prompt (Translation/Proofreading Instructions)
 ```
 {custom_system_prompt if custom_system_prompt else current_prompt}
 ```
-
-### Custom Instructions
 """
         
+        # Only add Custom Instructions section if they exist and are non-empty
         if user_custom_instructions and user_custom_instructions.strip():
-            report += f"""```
+            report += f"""
+### Custom Instructions (Project-Specific)
+```
 {user_custom_instructions}
 ```
 """
-        else:
-            report += "None provided\n"
         
         # Add application state information
         report += f"""

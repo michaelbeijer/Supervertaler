@@ -2,41 +2,45 @@
 
 🎯 **Context-aware, LLM-powered translation & proofreading tool, leveraging multiple context sources for enhanced accuracy (built for translators)** - Revolutionary approach to document translation that leverages multiple context sources for unparalleled accuracy.
 
-**Note**: A standalone CAT (Computer-Aided Translation) editor prototype has reached **v2.5.2** with major performance improvements! It features grid pagination (10x faster loading), smart paragraph detection, dual text selection (memoQ-style), column management, formatting display, three professional view modes (Grid, List, Document), and comprehensive auto-export options. We're implementing features from [michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool](https://michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool).
+**Note**: A standalone CAT (Computer-Aided Translation) editor prototype has reached **v3.0.0-beta** with major performance improvements! It features grid pagination (10x faster loading), smart paragraph detection, dual text selection (memoQ-style), column management, formatting display, three professional view modes (Grid, List, Document), and comprehensive auto-export options. We're implementing features from [michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool](https://michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool).
 
 
 ## 📦 Available Versions
 
-### v2.5.2 (Latest - Experimental CAT Editor) 🚀
-**File**: `Supervertaler_v2.5.2 (experimental - CAT editor).py`
+### v3.0.0-beta (Latest - CAT Editor) 🚀
+**File**: `Supervertaler_v3.0.0-beta_CAT.py`
 - ⚡ **NEW**: Grid pagination system (50 segments/page, 10x faster loading!)
 - 🧠 **NEW**: Smart paragraph detection for document view
 - 🛡️ **NEW**: Enhanced loading protection (prevents crashes)
 - ✅ Professional CAT editor with Grid, List, and Document views
 - ✅ Auto-export options (session reports MD/HTML, TMX, TSV, XLIFF, Excel)
 - ✅ CafeTran and memoQ bilingual DOCX support
-- 📖 **Status**: Feature-complete, performance optimized, ready for testing
-- 💡 **Note**: Experimental branch - please report any issues!
+- 📖 **Status**: Feature-complete, performance optimized, beta testing phase
+- 💡 **Note**: v3.0 signifies major architectural change from original DOCX workflow - please report any issues!
+- 🏷️ **Version Note**: Renamed from v2.5.2 to v3.0.0-beta to reflect major rewrite
 
-### v2.4.1 (Production Ready) 🎉
-**File**: `Supervertaler_v2.4.1.py`
+### v2.4.1-CLASSIC (Production Ready) 🎉
+**File**: `Supervertaler_v2.4.1-CLASSIC.py`
 - ✅ **NEW**: CafeTran bilingual DOCX support - AI-based pipe formatting!
 - ✅ **NEW**: memoQ bilingual DOCX support - Programmatic formatting preservation!
 - ✅ **NEW**: Two complementary formatting approaches (AI-based & programmatic)
 - ✅ 100% success rate in production testing (both formats)
 - ✅ All v2.4.0 features + revolutionary CAT tool integration
 - ✅ Fully tested and stable for professional use
-- 📖 **User Guide**: [`Supervertaler User Guide (v2.4.0).md`](Supervertaler%20User%20Guide%20(v2.4.0).md) *(v2.4.1 addendum coming soon)*
-- 📖 **CafeTran Guide**: [`docs/features/CAFETRAN_SUPPORT.md`](docs/features/CAFETRAN_SUPPORT.md)
-- 📖 **memoQ Guide**: [`docs/features/MEMOQ_SUPPORT.md`](docs/features/MEMOQ_SUPPORT.md)
+- 📖 **User Guide**: [USER_GUIDE.md](USER_GUIDE.md)
+- 📖 **CafeTran Guide**: [`.dev/docs/features/CAFETRAN_SUPPORT.md`](.dev/docs/features/CAFETRAN_SUPPORT.md)
+- 📖 **memoQ Guide**: [`.dev/docs/features/MEMOQ_SUPPORT.md`](.dev/docs/features/MEMOQ_SUPPORT.md)
+- 🏷️ **Version Note**: "-CLASSIC" suffix denotes original DOCX workflow architecture
 
 ### v2.4.0 (Previous Stable - Archived) 📦
-**File**: `Previous versions/Supervertaler_v2.4.0 (stable - production ready)(2025-10-07).py`
+**File**: `.dev/previous_versions/Supervertaler_v2.4.0 (stable - production ready)(2025-10-07).py`
 - 📦 Archived on 2025-10-07
 - ✅ Fully backward compatible with v2.4.1
-- 💡 Upgrade to v2.4.1 recommended for CAT tool integration
+- 💡 Upgrade to v2.4.1-CLASSIC recommended for CAT tool integration
 
-> **💡 Recommendation**: Use **v2.4.1** for production translation work. Try **v2.5.2** if you want cutting-edge CAT editor features with blazing-fast performance!
+> **💡 Recommendation**: Use **v2.4.1-CLASSIC** for production translation work. Try **v3.0.0-beta** if you want cutting-edge CAT editor features with blazing-fast performance!
+> 
+> **🔢 Version Scheme**: The jump from v2.x to v3.x reflects a **major architectural change**. v2.4.1-CLASSIC uses the original DOCX-based workflow, while v3.0.0-beta is a complete rewrite as a segment-based CAT editor. The "-CLASSIC" and "-beta" suffixes help distinguish these fundamentally different architectures.
 
 ----
 
@@ -70,7 +74,7 @@
 - Translation: `"Hij debuteerde tegen |Juventus FC| in 2001"`
 - AI correctly preserves the pipe position around the team name
 
-📖 **Full Documentation**: See [`docs/features/CAFETRAN_SUPPORT.md`](docs/features/CAFETRAN_SUPPORT.md) for detailed guide
+📖 **Full Documentation**: See [`.dev/docs/features/CAFETRAN_SUPPORT.md`](.dev/docs/features/CAFETRAN_SUPPORT.md) for detailed guide
 
 ---
 
@@ -100,7 +104,7 @@
 - If source has partial formatting → first 1-2 words formatted
 - Character-level precision when needed
 
-📖 **Full Documentation**: See [`docs/features/MEMOQ_SUPPORT.md`](docs/features/MEMOQ_SUPPORT.md) for detailed guide
+📖 **Full Documentation**: See [`.dev/docs/features/MEMOQ_SUPPORT.md`](.dev/docs/features/MEMOQ_SUPPORT.md) for detailed guide
 
 ---
 
@@ -161,21 +165,16 @@ Supervertaler provides two output formats for flexible CAT tool integration:
 
 ## 📖 Documentation
 
-### For v2.4.0 (Stable) - Production Use
-**📋 Complete User Guide**: [`docs/user_guides/Supervertaler User Guide (v2.4.0).md`](docs/user_guides/Supervertaler%20User%20Guide%20(v2.4.0).md)
-- **5-minute Quick Start**: Get up and running immediately
-- **Complete Feature Documentation**: Comprehensive coverage of all capabilities
-- **Domain-Specific Prompts**: Professional prompt collections for specialized fields
-- **Project Library**: Revolutionary workspace management
-- **Troubleshooting**: Common issues and solutions
-- **Advanced Tips**: Professional workflow optimization
+### Quick Start
+- **📋 Complete User Guide**: [USER_GUIDE.md](USER_GUIDE.md) - Comprehensive guide for all versions
+- **⚡ Installation Guide**: [INSTALLATION.md](INSTALLATION.md) - Get started quickly
 
-### For v2.5.1 (Experimental) - Development Version
-- **System Prompts Guide**: [`docs/user_guides/SYSTEM_PROMPTS_GUIDE.md`](docs/user_guides/SYSTEM_PROMPTS_GUIDE.md)
-- **Translation Memory Guide**: [`docs/user_guides/TM_USER_GUIDE.md`](docs/user_guides/TM_USER_GUIDE.md)
-- **Translation Workspace**: [`docs/user_guides/TRANSLATION_WORKSPACE_REDESIGN.md`](docs/user_guides/TRANSLATION_WORKSPACE_REDESIGN.md)
-- **Implementation Docs**: See `docs/implementation/` for technical details
-- **⚠️ Note**: Full user guide for v2.5.1 will be created once features stabilize
+### Advanced Documentation (for developers/contributors)
+- **System Prompts Guide**: [`.dev/docs/user_guides/SYSTEM_PROMPTS_GUIDE.md`](.dev/docs/user_guides/SYSTEM_PROMPTS_GUIDE.md)
+- **Translation Memory Guide**: [`.dev/docs/user_guides/TM_USER_GUIDE.md`](.dev/docs/user_guides/TM_USER_GUIDE.md)
+- **Translation Workspace**: [`.dev/docs/user_guides/TRANSLATION_WORKSPACE_REDESIGN.md`](.dev/docs/user_guides/TRANSLATION_WORKSPACE_REDESIGN.md)
+- **Implementation Docs**: See `.dev/docs/implementation/` for technical details
+- **Development History**: See `.dev/docs/` for session summaries, planning docs, and implementation notes
 
 ## 1. Features Overview
 

@@ -1,6 +1,8 @@
 # Supervertaler - Changelog
 
-## [2.5.2] - 2025-10-09 🚀 PERFORMANCE & UX UPDATE
+## [3.0.0-beta] - 2025-10-09 🚀 MAJOR RELEASE (CAT Editor)
+
+> **📌 Version Renumbering**: This version was previously numbered v2.5.2. The jump to v3.0 reflects a **major architectural change** - a complete rewrite from the original DOCX workflow (v2.x-CLASSIC) to a segment-based CAT editor. This is not just an incremental update but a fundamentally different application architecture.
 
 ### ⚡ PERFORMANCE IMPROVEMENTS
 
@@ -40,9 +42,22 @@
 - **Visual feedback** - "Loading page... Please wait." overlay
 - **Prevents crashes** - Eliminates window resize/freeze when clicking during load
 
+### 📝 PROJECT STRUCTURE
+
+- **File naming**: `Supervertaler_v3.0.0-beta_CAT.py` indicates CAT editor architecture
+- **Version scheme**: v3.x = segment-based CAT editor, v2.x-CLASSIC = original DOCX workflow
+
 ---
 
-## [2.4.1] - 2025-10-09 🎉 PRODUCTION RELEASE
+## [2.5.2] - RENAMED TO v3.0.0-beta
+
+This version has been renumbered to v3.0.0-beta to better reflect the major architectural change. See [3.0.0-beta] entry above.
+
+---
+
+## [2.4.1-CLASSIC] - 2025-10-09 🎉 PRODUCTION RELEASE
+
+> **📌 Version Note**: The "-CLASSIC" suffix was added to distinguish this from the v3.0 CAT editor architecture. This version uses the original DOCX-based workflow and is production-ready and stable.
 
 ### 🚀 NEW FEATURES
 
