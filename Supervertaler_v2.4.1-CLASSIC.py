@@ -18,7 +18,7 @@ import webbrowser  # For clickable email link
 import subprocess  # For opening folder in file manager
 
 # ADD: central version constant (was missing, caused NameError)
-APP_VERSION = "2.4.1"
+APP_VERSION = "2.4.2"
 print(f"=== Supervertaler v{APP_VERSION} starting ===")
 
 # --- Changelog (v2.4.1) ---

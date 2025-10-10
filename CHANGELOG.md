@@ -142,6 +142,45 @@
 
 ---
 
+## [2.4.2-CLASSIC] - 2025-10-10 🔧 FOLDER STRUCTURE UPDATE
+
+> **📌 Compatibility Update**: Updated folder structure to match v3.1.0-beta for cross-version compatibility.
+
+### 🗂️ FOLDER STRUCTURE CHANGES
+
+**BREAKING CHANGE**: Updated to unified folder structure
+
+- **New Structure** (matches v3.1.0-beta):
+  ```
+  user data/
+  ├── System_prompts/          (public, Git-tracked)
+  └── System_prompts_private/  (private, Git-ignored)
+  ```
+
+- **OLD Structure** (deprecated):
+  - ~~`custom_prompts/`~~ → `user data/System_prompts/`
+  - ~~`custom_prompts_private/`~~ → `user data/System_prompts_private/`
+
+### 🔧 TECHNICAL CHANGES
+
+- Updated all folder path references to new structure
+- `custom_prompts_dir` now points to `user data/System_prompts/`
+- Private prompts now saved to `user data/System_prompts_private/`
+- All load/save/refresh functions updated
+
+### ✅ COMPATIBILITY
+
+- ✅ **v2 and v3 now compatible** - Share same prompt storage
+- ✅ **Automatic folder creation** - Backwards compatible
+- ✅ **No data loss** - Creates new folders if missing
+
+### 💡 VERSION BUMP
+
+- Bumped from v2.4.1 to v2.4.2 to reflect folder structure change
+- Ensures users are aware of the breaking change
+
+---
+
 ## [2.5.2] - RENAMED TO v3.0.0-beta
 
 This version has been renumbered to v3.0.0-beta to better reflect the major architectural change. See [3.0.0-beta] entry above.
