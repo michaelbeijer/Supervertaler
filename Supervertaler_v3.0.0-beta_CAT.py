@@ -628,7 +628,8 @@ class PromptLibrary:
                 'domain': data.get('domain', 'General'),
                 'version': data.get('version', '1.0'),
                 'is_private': data.get('_is_private', False),
-                'filepath': data.get('_filepath', '')
+                'filepath': data.get('_filepath', ''),
+                '_type': data.get('_type', 'system_prompt')  # Include type for filtering
             })
         return prompt_list
     
