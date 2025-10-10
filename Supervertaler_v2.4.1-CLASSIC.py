@@ -2706,7 +2706,8 @@ class TranslationApp:
         notebook.add(management_frame, text="📁 Prompt Library")
         
         # Create custom prompts directory if it doesn't exist
-        self.custom_prompts_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "custom_prompts")
+        user_data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "user data")
+        self.custom_prompts_dir = os.path.join(user_data_dir, "System_prompts")
         os.makedirs(self.custom_prompts_dir, exist_ok=True)
         
         tk.Label(management_frame, text="Custom System Prompt Library", 
@@ -2742,7 +2743,8 @@ class TranslationApp:
                 font=("Segoe UI", 9, "bold"), bg="white").pack(anchor="w", padx=5, pady=(10,2))
         
         # Show clickable folder location
-        custom_prompts_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "custom_prompts")
+        user_data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "user data")
+        custom_prompts_path = os.path.join(user_data_dir, "System_prompts")
         folder_frame = tk.Frame(management_frame, bg="white")
         folder_frame.pack(anchor="w", padx=5, pady=(0,5))
         
@@ -2890,7 +2892,8 @@ class TranslationApp:
         # Determine which directory to save to
         if self.prompt_private_var.get():
             # Save to private folder
-            save_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "custom_prompts_private")
+            user_data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "user data")
+            save_dir = os.path.join(user_data_dir, "System_prompts_private")
             os.makedirs(save_dir, exist_ok=True)
         else:
             # Save to public folder
@@ -2994,7 +2997,8 @@ class TranslationApp:
     def open_custom_prompts_folder(self):
         """Open the custom prompts folder in the system file manager"""
         try:
-            custom_prompts_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "custom_prompts")
+            user_data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "user data")
+            custom_prompts_path = os.path.join(user_data_dir, "System_prompts")
             
             # Ensure the folder exists
             if not os.path.exists(custom_prompts_path):
@@ -3076,7 +3080,8 @@ class TranslationApp:
                 self.update_log(f"[ERROR] Failed to scan custom prompts: {str(e)}")
         
         # Scan private custom prompts directory
-        private_prompts_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "custom_prompts_private")
+        user_data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "user data")
+        private_prompts_dir = os.path.join(user_data_dir, "System_prompts_private")
         if os.path.exists(private_prompts_dir):
             try:
                 for filename in sorted(os.listdir(private_prompts_dir)):
