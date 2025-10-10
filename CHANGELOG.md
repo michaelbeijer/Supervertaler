@@ -93,6 +93,40 @@
 
 ---
 
+## [2.4.3-CLASSIC] - 2025-10-10 🔧 FOLDER STRUCTURE UPDATE (Projects)
+
+> **📌 Final Compatibility Update**: Migrated project folders to `user data/` for consistency with v3.1.0-beta.
+
+### 🗂️ FOLDER STRUCTURE CHANGES
+
+**Project Folder Migration**:
+- **CHANGED**: Projects now saved to `user data/Projects/` (was: root `projects/`)
+- **CHANGED**: Private projects now in `user data/Projects_private/` (was: root `projects_private/`)
+- **BENEFIT**: All user data now centralized in `user data/` folder
+- **BENEFIT**: Consistent structure across v2 and v3 versions
+
+### 📦 BREAKING CHANGES
+
+⚠️ **Project Location Change**:
+- **Old location**: Root-level `projects/` and `projects_private/` folders
+- **New location**: `user data/Projects/` and `user data/Projects_private/`
+- **Migration**: Empty folders removed (no existing projects to migrate)
+- **Users**: Future projects will save to new location automatically
+
+### 🧹 CLEANUP
+
+- **REMOVED**: Root-level `custom_prompts/` folder (obsolete, empty)
+- **REMOVED**: Root-level `projects/` folder (replaced by `user data/Projects/`)
+- **RESULT**: Cleaner root directory with only user-facing documentation
+
+### 🔄 COMPATIBILITY
+
+- ✅ Full compatibility with v3.1.0-beta folder structure
+- ✅ Users can switch between v2.4.3 and v3.1.0 seamlessly
+- ✅ All user data (prompts, projects, TMs, glossaries) in unified location
+
+---
+
 ## [3.0.0-beta] - 2025-10-09 🚀 MAJOR RELEASE (CAT Editor)
 
 > **📌 Version Renumbering**: This version was previously numbered v2.5.2. The jump to v3.0 reflects a **major architectural change** - a complete rewrite from the original DOCX workflow (v2.x-CLASSIC) to a segment-based CAT editor. This is not just an incremental update but a fundamentally different application architecture.
@@ -174,14 +208,15 @@
 - ✅ **Automatic folder creation** - Backwards compatible
 - ✅ **No data loss** - Creates new folders if missing
 
-### 💡 VERSION BUMP
+### 💡 FILE NAMING
 
-- Bumped from v2.4.1 to v2.4.2 to reflect folder structure change
-- Ensures users are aware of the breaking change
+- **Filename**: `Supervertaler_v2.4.3-CLASSIC.py`
+- **"-CLASSIC" suffix**: Distinguishes from v3.x CAT editor architecture
+- **Version bump**: 2.4.2 → 2.4.3 to reflect project folder migration
 
 ---
 
-## [2.5.2] - RENAMED TO v3.0.0-beta
+## [2.4.2-CLASSIC] - 2025-10-10 🔧 FOLDER STRUCTURE UPDATE
 
 This version has been renumbered to v3.0.0-beta to better reflect the major architectural change. See [3.0.0-beta] entry above.
 
