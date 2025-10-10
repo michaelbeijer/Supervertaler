@@ -2,12 +2,12 @@
 
 🎯 **Context-aware, LLM-powered translation & proofreading tool, leveraging multiple context sources for enhanced accuracy (built for translators)** - Revolutionary approach to document translation that leverages multiple context sources for unparalleled accuracy.
 
-**Note**: A standalone CAT (Computer-Aided Translation) editor prototype has reached **v3.0.0-beta** with major performance improvements! It features grid pagination (10x faster loading), smart paragraph detection, dual text selection (memoQ-style), column management, formatting display, three professional view modes (Grid, List, Document), and comprehensive auto-export options. We're implementing features from [michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool](https://michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool).
+**Note**: A version of Supervertaler is being developed with many features commonly found in proper CAT tools (Computer-Aided Translation tools), which has reached **v3.0.0-beta** with major improvements! It features grid pagination (10x faster loading), smart paragraph detection, dual text selection (memoQ-style), column management, formatting display, three professional view modes (Grid, List, Document), and comprehensive auto-export options. We're implementing features from [michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool](https://michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool).
 
 
 ## 📦 Available Versions
 
-### v3.0.0-beta (Latest - CAT Editor) 🚀
+### v3.0.0-beta (Experimental - CAT Editor) 🚀
 **File**: `Supervertaler_v3.0.0-beta_CAT.py`
 - ⚡ **NEW**: Grid pagination system (50 segments/page, 10x faster loading!)
 - 🧠 **NEW**: Smart paragraph detection for document view
@@ -19,7 +19,7 @@
 - 💡 **Note**: v3.0 signifies major architectural change from original DOCX workflow - please report any issues!
 - 🏷️ **Version Note**: Renamed from v2.5.2 to v3.0.0-beta to reflect major rewrite
 
-### v2.4.1-CLASSIC (Production Ready) 🎉
+### v2.4.1-CLASSIC (Production-ready) 🎉
 **File**: `Supervertaler_v2.4.1-CLASSIC.py`
 - ✅ **NEW**: CafeTran bilingual DOCX support - AI-based pipe formatting!
 - ✅ **NEW**: memoQ bilingual DOCX support - Programmatic formatting preservation!
@@ -38,7 +38,7 @@
 - ✅ Fully backward compatible with v2.4.1
 - 💡 Upgrade to v2.4.1-CLASSIC recommended for CAT tool integration
 
-> **💡 Recommendation**: Use **v2.4.1-CLASSIC** for production translation work. Try **v3.0.0-beta** if you want cutting-edge CAT editor features with blazing-fast performance!
+> **💡 Recommendation**: Use **v2.4.1-CLASSIC** for production translation work. Try **v3.0.0-beta** if you want to test the highly experimental CAT editor features! Features are being added/changed/removed daily.
 > 
 > **🔢 Version Scheme**: The jump from v2.x to v3.x reflects a **major architectural change**. v2.4.1-CLASSIC uses the original DOCX-based workflow, while v3.0.0-beta is a complete rewrite as a segment-based CAT editor. The "-CLASSIC" and "-beta" suffixes help distinguish these fundamentally different architectures.
 
