@@ -1467,7 +1467,7 @@ class Supervertaler:
         self.current_proofread_prompt = self.default_proofread_prompt
         
         # Custom prompts directory
-        self.custom_prompts_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "custom_prompts")
+        self.custom_prompts_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "user data", "Custom_prompts")
         os.makedirs(self.custom_prompts_dir, exist_ok=True)
         
         # Translation memory - new multi-TM architecture
