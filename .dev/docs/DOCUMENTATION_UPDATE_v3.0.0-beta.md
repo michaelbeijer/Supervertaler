@@ -1,14 +1,18 @@
-# Documentation Update Summary - v2.5.2
+# Documentation Update Summary - v3.0.0-beta
 
-**Date**: October 9, 2025  
-**Version**: v2.5.2 (Performance & UX Update)
+> **📌 Version Note**: This version was previously numbered v2.5.2. Renumbered to v3.0.0-beta to reflect major architectural change from DOCX workflow to CAT editor. See [VERSION_RENUMBERING_v3.0.0.md](VERSION_RENUMBERING_v3.0.0.md).
+
+**Date**: October 9-10, 2025  
+**Version**: v3.0.0-beta (Major Release - CAT Editor Architecture)
 
 ---
 
 ## 📝 Files Updated
 
+### October 9, 2025 - Initial v2.5.2 Updates
+
 ### 1. **CHANGELOG.md** ✅
-- Added comprehensive v2.5.2 entry at the top
+- Added comprehensive v2.5.2 entry (later renumbered to v3.0.0-beta)
 - Documented grid pagination system
 - Documented smart paragraph detection
 - Documented stability improvements
@@ -34,6 +38,51 @@
 - Performance comparison table
 - Upgrade path instructions
 - Future improvement ideas
+
+---
+
+### October 10, 2025 - Version Renumbering to v3.0.0-beta
+
+### 5. **Supervertaler_v2.4.1.py → Supervertaler_v2.4.1-CLASSIC.py** ✅
+- Renamed to distinguish DOCX workflow architecture
+- No code changes - file name only
+- "-CLASSIC" suffix = dignified legacy status
+
+### 6. **Supervertaler_v2.5.2 (...).py → Supervertaler_v3.0.0-beta_CAT.py** ✅
+- Renamed to reflect major architectural change
+- Updated APP_VERSION: "2.5.2" → "3.0.0-beta"
+- Updated window title: v2.5.2 → v3.0.0-beta
+- Updated startup log: v2.5.2 → v3.0.0-beta
+- Updated docstring header: v2.5.2 → v3.0.0-beta (CAT Editor)
+
+### 7. **CHANGELOG.md** ✅ (Updated)
+- Added new [3.0.0-beta] entry with renumbering explanation
+- Added note to [2.5.2] entry explaining renumbering
+- Updated [2.4.1] to [2.4.1-CLASSIC] with version note
+
+### 8. **README.md** ✅ (Updated)
+- Updated version table (v3.0.0-beta / v2.4.1-CLASSIC)
+- Added version scheme explanation
+- Updated file references
+- Added messaging about v3.0 = major architectural change
+
+### 9. **docs/VERSION_RENUMBERING_v3.0.0.md** ✅ (NEW)
+- Complete explanation of renumbering decision
+- Version naming scheme documentation
+- Timeline of changes
+- User communication guidelines
+- Technical differences between v2.x-CLASSIC and v3.x
+
+### 10. **docs/RELEASE_NOTES_v2.5.2.md → RELEASE_NOTES_v3.0.0-beta.md** ✅
+- Renamed file to match new version
+- Updated all internal v2.5.2 references to v3.0.0-beta
+- Added version renumbering note at top
+- Updated status: "Experimental" → "Beta Testing Phase"
+
+### 11. **docs/DOCUMENTATION_UPDATE_v2.5.2.md → DOCUMENTATION_UPDATE_v3.0.0-beta.md** ✅
+- Renamed file to match new version
+- Added version renumbering note
+- Updated to reflect October 10 changes
 
 ---
 

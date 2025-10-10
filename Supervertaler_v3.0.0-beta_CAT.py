@@ -1,5 +1,5 @@
 """
-Supervertaler v2.5.2
+Supervertaler v3.0.0-beta (CAT Editor)
 AI-Powered Computer-Aided Translation Tool
 
 Features:
@@ -23,7 +23,7 @@ Date: October 9, 2025
 """
 
 # Version constant
-APP_VERSION = "2.5.2"
+APP_VERSION = "3.0.0-beta"
 
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, scrolledtext
@@ -1109,7 +1109,7 @@ class Supervertaler:
     
     def __init__(self, root):
         self.root = root
-        self.root.title("Supervertaler v2.5.2 - AI-Powered CAT Tool")
+        self.root.title("Supervertaler v3.0.0-beta - AI-Powered CAT Tool")
         self.root.geometry("1200x800")
         
         # Layout mode
@@ -1284,7 +1284,7 @@ class Supervertaler:
         self.prompt_library.load_all_prompts()
         
         # Status
-        self.log("Supervertaler v2.5.2 ready. Import a DOCX file to begin.")
+        self.log("Supervertaler v3.0.0-beta ready. Import a DOCX file to begin.")
         self.log(f"✨ LLM APIs: OpenAI={OPENAI_AVAILABLE}, Claude={ANTHROPIC_AVAILABLE}, Gemini={GEMINI_AVAILABLE}")
         self.log("✨ Layout modes available: Grid (memoQ-style), List, Document")
     
@@ -3132,6 +3132,20 @@ class Supervertaler:
         self.log_tab_text.tag_config('success', foreground='green')
         self.log_tab_text.tag_config('warning', foreground='orange')
         self.log_tab_text.tag_config('error', foreground='red')
+        
+        # SYNC: Copy existing log content from bottom log to this tab
+        if hasattr(self, 'log_text'):
+            try:
+                # Get current content from bottom log
+                bottom_log_content = self.log_text.get('1.0', 'end-1c')
+                
+                # Copy to tab log
+                self.log_tab_text.config(state='normal')
+                self.log_tab_text.insert('1.0', bottom_log_content)
+                self.log_tab_text.see('end')  # Scroll to bottom
+                self.log_tab_text.config(state='disabled')
+            except (tk.TclError, AttributeError):
+                pass  # Log widget not yet created or already destroyed
         
         # Toolbar with clear button
         toolbar = tk.Frame(parent, bg='#f0f0f0')
@@ -9111,6 +9125,17 @@ class Supervertaler:
             current_mode = "batch_bilingual" if hasattr(self, 'original_txt') else "batch_docx"
             current_prompt = self.get_context_aware_prompt(current_mode)
             
+            # Get custom instructions separately if they exist
+            custom_instructions = ""
+            if hasattr(self, 'custom_instructions_text'):
+                try:
+                    custom_instructions = self.custom_instructions_text.get('1.0', 'end-1c').strip()
+                    # Remove placeholder text if present
+                    if custom_instructions.startswith("(Enter project-specific"):
+                        custom_instructions = ""
+                except:
+                    pass
+            
             # Determine prompt source
             is_custom_prompt = (hasattr(self, 'current_translate_prompt') and 
                               self.current_translate_prompt != self.single_segment_prompt)
@@ -9150,11 +9175,22 @@ class Supervertaler:
 - **Prompt Source**: {custom_prompt_source}
 - **Context Mode**: {current_mode}
 
-### Current System Prompt
+### System Prompt (Translation Instructions)
 ```
 {current_prompt}
 ```
-
+"""
+            
+            # Add custom instructions section only if they exist and are non-empty
+            if custom_instructions:
+                report += f"""
+### Custom Instructions (Project-Specific)
+```
+{custom_instructions}
+```
+"""
+            
+            report += """
 ## Translation Features Used
 
 ### TM (Translation Memory)

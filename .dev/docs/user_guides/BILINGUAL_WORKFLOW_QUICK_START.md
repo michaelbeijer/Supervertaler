@@ -1,6 +1,8 @@
-# Bilingual DOCX Workflow - Quick Start Guide (v2.4.1)
+# Bilingual DOCX Workflow - Quick Start Guide (v2.4.1-CLASSIC)
 
-🎉 **NEW in v2.4.1**: Direct import/export of bilingual DOCX files with formatting preservation!
+> **📌 Version Note**: This guide was written for v2.4.1. The file has been renamed to `Supervertaler_v2.4.1-CLASSIC.py` as of October 10, 2025. Replace `v2.4.1.py` with `v2.4.1-CLASSIC.py` in the instructions below.
+
+🎉 **Feature in v2.4.1-CLASSIC**: Direct import/export of bilingual DOCX files with formatting preservation!
 
 ## 🚀 Quick Start (5 Steps)
 
@@ -10,7 +12,7 @@
 - Save to your working folder
 
 ### Step 2: Import to Supervertaler
-- Launch `Supervertaler_v2.4.1.py`
+- Launch `Supervertaler_v2.4.1-CLASSIC.py`
 - Click green **"📄 Import memoQ Bilingual DOCX"** button
 - Select your exported bilingual DOCX file
 - ✅ Supervertaler extracts source segments and formatting automatically

@@ -1,8 +1,10 @@
-# Supervertaler v2.5.2 - Release Notes
+# Supervertaler v3.0.0-beta - Release Notes
+
+> **📌 Version Note**: This version was previously numbered v2.5.2. The jump to v3.0 reflects a **major architectural change** - a complete rewrite from the original DOCX workflow (v2.x-CLASSIC) to a segment-based CAT editor. See [VERSION_RENUMBERING_v3.0.0.md](VERSION_RENUMBERING_v3.0.0.md) for details.
 
 **Release Date**: October 9, 2025  
-**Type**: Performance & UX Update  
-**Status**: Experimental (CAT Editor branch)
+**Type**: Major Release (CAT Editor Architecture)  
+**Status**: Beta Testing Phase
 
 ---
 
@@ -62,7 +64,7 @@ Second sentence.
 Third sentence.
 ```
 
-**After** (v2.5.2):
+**After** (v3.0.0-beta):
 ```
 HEADING ONE
 
@@ -91,8 +93,8 @@ First sentence. Second sentence. Third sentence.
 
 ## 📊 Performance Comparison
 
-| Operation | v2.5.1 | v2.5.2 | Improvement |
-|-----------|--------|--------|-------------|
+| Operation | v2.5.1 | v3.0.0-beta | Improvement |
+|-----------|--------|-------------|-------------|
 | Grid view load (355 segments) | 6-7 sec | 0.5 sec | **10-13x faster** |
 | View switching | Freezes | Instant | **∞x better** 😊 |
 | Document view formatting | All separate | Smart paragraphs | **Much cleaner** |
@@ -101,15 +103,16 @@ First sentence. Second sentence. Third sentence.
 
 ## 🔄 Upgrade Path
 
-### From v2.5.1:
-- ✅ **Automatic**: Just run v2.5.2
+### From v2.5.1 or v2.5.2:
+- ✅ **Renumbered**: v2.5.2 is now v3.0.0-beta (reflects major architecture change)
+- ✅ **Automatic**: Just run v3.0.0-beta
 - ✅ **No breaking changes**: All existing projects work
 - ✅ **New imports benefit**: Only newly imported documents get smart paragraph detection
 - ℹ️ **Existing projects**: Will use old paragraph structure (each segment = paragraph)
 
-### From v2.4.1:
-- ⚠️ **Different workflow**: v2.5.2 is CAT editor branch (experimental)
-- 💡 **Recommendation**: Keep v2.4.1 for production, test v2.5.2 separately
+### From v2.4.1-CLASSIC:
+- ⚠️ **Different architecture**: v3.0.0-beta is completely rewritten CAT editor
+- 💡 **Recommendation**: Keep v2.4.1-CLASSIC for production, test v3.0.0-beta separately
 
 ---
 
@@ -121,9 +124,10 @@ None currently reported! 🎉
 
 ## 📖 Documentation Updates
 
-- ✅ **CHANGELOG.md**: Updated with v2.5.2 entry
-- ✅ **README.md**: Version info updated, v2.5.2 highlighted
-- ✅ **In-app version**: Updated to v2.5.2 in title bar and logs
+- ✅ **CHANGELOG.md**: Updated with v3.0.0-beta entry and renumbering explanation
+- ✅ **README.md**: Version info updated, v3.0.0-beta highlighted
+- ✅ **In-app version**: Updated to v3.0.0-beta in title bar and logs
+- ✅ **VERSION_RENUMBERING_v3.0.0.md**: New doc explaining version scheme change
 
 ---
 
@@ -137,7 +141,7 @@ None currently reported! 🎉
 
 ## 📬 Feedback
 
-This is an **experimental branch**. Please report:
+This is a **beta release**. Please report:
 - 🐛 Bugs or unexpected behavior
 - 💡 Feature requests
 - 📊 Performance observations

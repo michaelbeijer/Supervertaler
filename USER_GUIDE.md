@@ -1,8 +1,10 @@
 # Supervertaler User Guide
 ## Comprehensive Documentation for All Versions
 
-**Last Updated**: October 9, 2025  
-**Covers**: v2.4.1 (Production - Stable) | v2.5.0 (Experimental - CAT Editor Development)
+> **📌 Version Note**: As of October 10, 2025, version numbering has changed. v2.4.1 is now **v2.4.1-CLASSIC** and v2.5.x has been renumbered to **v3.0.0-beta** to reflect the major architectural change. Where this guide mentions `Supervertaler_v2.4.1.py`, the current filename is `Supervertaler_v2.4.1-CLASSIC.py`. See [docs/VERSION_RENUMBERING_v3.0.0.md](docs/VERSION_RENUMBERING_v3.0.0.md) for details.
+
+**Last Updated**: October 10, 2025  
+**Covers**: v2.4.1-CLASSIC (Production - Stable) | v3.0.0-beta (Beta - CAT Editor)
 
 ---
 
@@ -15,8 +17,8 @@
 
 ### For Professional Translators
 - **[CAT Tool Integration](#cat-tool-integration)** - Essential workflow for professional translators
-- **[Bilingual DOCX Workflow](#bilingual-docx-workflow-v241)** - New in v2.4.1: Direct bilingual file handling
-- **[Translation Workspace (v2.5.0)](#translation-workspace-v250)** - Interactive CAT editor (experimental)
+- **[Bilingual DOCX Workflow](#bilingual-docx-workflow-v241)** - v2.4.1-CLASSIC: Direct bilingual file handling
+- **[Translation Workspace (v3.0.0-beta)](#translation-workspace-v250)** - Interactive CAT editor (beta)
 
 ### Feature Guides
 - **[Translation Mode](#translation-mode)** - Full document translation
@@ -30,8 +32,8 @@
 
 ## Version Guide
 
-### v2.4.1 (Production - Stable) ✅ **RECOMMENDED**
-**Filename**: `Supervertaler_v2.4.1.py`  
+### v2.4.1-CLASSIC (Production - Stable) ✅ **RECOMMENDED**
+**Filename**: `Supervertaler_v2.4.1-CLASSIC.py`  
 **Status**: Production-ready, fully tested  
 **Best For**: Professional translation projects requiring stability
 
