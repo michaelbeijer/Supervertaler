@@ -821,54 +821,198 @@ class PromptLibrary:
             return False
 
 
-# --- Translation Memory Agent ---
-class TMAgent:
-    """Translation Memory manager with fuzzy matching support"""
+# --- Translation Memory Architecture ---
+
+class TM:
+    """Individual Translation Memory with metadata"""
     
-    def __init__(self):
-        self.tm_data: Dict[str, str] = {}  # source -> target mapping
-        self.fuzzy_threshold = 0.75  # Minimum similarity for fuzzy matches (75%)
+    def __init__(self, name: str, tm_id: str, enabled: bool = True, read_only: bool = False):
+        self.name = name
+        self.tm_id = tm_id
+        self.enabled = enabled
+        self.read_only = read_only
+        self.entries: Dict[str, str] = {}  # source -> target mapping
+        self.metadata = {
+            'source_lang': None,
+            'target_lang': None,
+            'file_path': None,
+            'created': datetime.now().isoformat(),
+            'modified': datetime.now().isoformat()
+        }
+        self.fuzzy_threshold = 0.75
     
     def add_entry(self, source: str, target: str):
-        """Add a translation pair to the TM"""
-        if source and target:
-            self.tm_data[source.strip()] = target.strip()
+        """Add translation pair to this TM"""
+        if not self.read_only and source and target:
+            self.entries[source.strip()] = target.strip()
+            self.metadata['modified'] = datetime.now().isoformat()
     
     def get_exact_match(self, source: str) -> Optional[str]:
-        """Get exact translation match if available"""
-        return self.tm_data.get(source.strip())
+        """Get exact match from this TM"""
+        return self.entries.get(source.strip())
     
     def calculate_similarity(self, text1: str, text2: str) -> float:
-        """Calculate similarity ratio between two texts (0.0 to 1.0)"""
+        """Calculate similarity ratio between two texts"""
         return SequenceMatcher(None, text1.lower(), text2.lower()).ratio()
     
-    def get_fuzzy_matches(self, source: str, max_matches: int = 5) -> List[Tuple[str, str, float]]:
-        """
-        Get fuzzy matches from TM
-        Returns list of (source, target, similarity) tuples sorted by similarity
-        """
+    def get_fuzzy_matches(self, source: str, max_matches: int = 5) -> List[Dict]:
+        """Get fuzzy matches from this TM"""
         source = source.strip()
         matches = []
         
-        for tm_source, tm_target in self.tm_data.items():
+        for tm_source, tm_target in self.entries.items():
             similarity = self.calculate_similarity(source, tm_source)
             if similarity >= self.fuzzy_threshold:
-                matches.append((tm_source, tm_target, similarity))
+                matches.append({
+                    'source': tm_source,
+                    'target': tm_target,
+                    'similarity': similarity,
+                    'match_pct': int(similarity * 100),
+                    'tm_name': self.name,
+                    'tm_id': self.tm_id
+                })
         
-        # Sort by similarity (highest first)
-        matches.sort(key=lambda x: x[2], reverse=True)
+        matches.sort(key=lambda x: x['similarity'], reverse=True)
         return matches[:max_matches]
     
-    def get_best_match(self, source: str) -> Optional[Tuple[str, str, float]]:
-        """Get the best fuzzy match if available"""
-        matches = self.get_fuzzy_matches(source, max_matches=1)
-        return matches[0] if matches else None
+    def get_entry_count(self) -> int:
+        """Get number of entries in this TM"""
+        return len(self.entries)
     
-    def load_from_tmx(self, filepath: str, src_lang: str = "en", tgt_lang: str = "nl") -> int:
+    def to_dict(self) -> Dict:
+        """Serialize TM to dictionary for JSON storage"""
+        return {
+            'name': self.name,
+            'tm_id': self.tm_id,
+            'enabled': self.enabled,
+            'read_only': self.read_only,
+            'entries': self.entries,
+            'metadata': self.metadata,
+            'fuzzy_threshold': self.fuzzy_threshold
+        }
+    
+    @staticmethod
+    def from_dict(data: Dict) -> 'TM':
+        """Deserialize TM from dictionary"""
+        tm = TM(
+            name=data.get('name', 'Unnamed TM'),
+            tm_id=data.get('tm_id', 'unknown'),
+            enabled=data.get('enabled', True),
+            read_only=data.get('read_only', False)
+        )
+        tm.entries = data.get('entries', {})
+        tm.metadata = data.get('metadata', {})
+        tm.fuzzy_threshold = data.get('fuzzy_threshold', 0.75)
+        return tm
+
+
+class TMDatabase:
+    """Manages multiple Translation Memories"""
+    
+    def __init__(self):
+        # Core TMs
+        self.project_tm = TM(name='Project TM', tm_id='project', enabled=True, read_only=False)
+        self.big_mama_tm = TM(name='Big Mama', tm_id='big_mama', enabled=True, read_only=False)
+        
+        # Custom TMs (user-loaded TMX files)
+        self.custom_tms: Dict[str, TM] = {}
+        
+        # Global fuzzy threshold (can be overridden per TM)
+        self.fuzzy_threshold = 0.75
+    
+    def get_tm(self, tm_id: str) -> Optional[TM]:
+        """Get TM by ID"""
+        if tm_id == 'project':
+            return self.project_tm
+        elif tm_id == 'big_mama' or tm_id == 'main':  # Support legacy 'main' ID
+            return self.big_mama_tm
+        else:
+            return self.custom_tms.get(tm_id)
+    
+    def get_all_tms(self, enabled_only: bool = False) -> List[TM]:
+        """Get all TMs (optionally only enabled ones)"""
+        tms = [self.project_tm, self.big_mama_tm] + list(self.custom_tms.values())
+        if enabled_only:
+            tms = [tm for tm in tms if tm.enabled]
+        return tms
+    
+    def add_custom_tm(self, name: str, tm_id: str = None, read_only: bool = False) -> TM:
+        """Add a new custom TM"""
+        if tm_id is None:
+            tm_id = f"custom_{len(self.custom_tms)}"
+        tm = TM(name=name, tm_id=tm_id, enabled=True, read_only=read_only)
+        self.custom_tms[tm_id] = tm
+        return tm
+    
+    def remove_custom_tm(self, tm_id: str) -> bool:
+        """Remove a custom TM"""
+        if tm_id in self.custom_tms:
+            del self.custom_tms[tm_id]
+            return True
+        return False
+    
+    def search_all(self, source: str, tm_ids: List[str] = None, enabled_only: bool = True) -> List[Dict]:
         """
-        Load TM from TMX file
-        Returns number of entries loaded
+        Search across multiple TMs
+        Args:
+            source: Source text to search for
+            tm_ids: Specific TM IDs to search (None = search all)
+            enabled_only: Only search enabled TMs
+        Returns:
+            List of match dictionaries sorted by similarity
         """
+        all_matches = []
+        
+        # Determine which TMs to search
+        if tm_ids:
+            tms = [self.get_tm(tm_id) for tm_id in tm_ids if self.get_tm(tm_id)]
+        else:
+            tms = self.get_all_tms(enabled_only=enabled_only)
+        
+        # Search each TM
+        for tm in tms:
+            if tm and (not enabled_only or tm.enabled):
+                matches = tm.get_fuzzy_matches(source, max_matches=10)
+                all_matches.extend(matches)
+        
+        # Sort by similarity (highest first)
+        all_matches.sort(key=lambda x: x['similarity'], reverse=True)
+        return all_matches
+    
+    def add_to_project_tm(self, source: str, target: str):
+        """Add entry to Project TM (convenience method)"""
+        self.project_tm.add_entry(source, target)
+    
+    def get_entry_count(self, enabled_only: bool = False) -> int:
+        """Get total entry count across all TMs"""
+        tms = self.get_all_tms(enabled_only=enabled_only)
+        return sum(tm.get_entry_count() for tm in tms)
+    
+    def load_tmx_file(self, filepath: str, src_lang: str, tgt_lang: str, 
+                      tm_name: str = None, read_only: bool = False) -> tuple[str, int]:
+        """
+        Load TMX file into a new custom TM
+        Returns: (tm_id, entry_count)
+        """
+        if tm_name is None:
+            tm_name = os.path.basename(filepath).replace('.tmx', '')
+        
+        # Create new custom TM
+        tm_id = f"custom_{os.path.basename(filepath).replace('.', '_')}"
+        tm = self.add_custom_tm(tm_name, tm_id, read_only=read_only)
+        
+        # Load TMX content
+        loaded_count = self._load_tmx_into_tm(filepath, src_lang, tgt_lang, tm)
+        
+        # Update metadata
+        tm.metadata['file_path'] = filepath
+        tm.metadata['source_lang'] = src_lang
+        tm.metadata['target_lang'] = tgt_lang
+        
+        return tm_id, loaded_count
+    
+    def _load_tmx_into_tm(self, filepath: str, src_lang: str, tgt_lang: str, tm: TM) -> int:
+        """Internal: Load TMX content into specific TM"""
         loaded_count = 0
         
         try:
@@ -876,7 +1020,7 @@ class TMAgent:
             root = tree.getroot()
             xml_ns = "http://www.w3.org/XML/1998/namespace"
             
-            # Normalize language codes (e.g., "en-US" -> "en")
+            # Normalize language codes
             src_lang = src_lang.split('-')[0].split('_')[0].lower()
             tgt_lang = tgt_lang.split('-')[0].split('_')[0].lower()
             
@@ -888,7 +1032,6 @@ class TMAgent:
                     if not lang_attr:
                         continue
                     
-                    # Normalize TMX language code
                     tmx_lang = lang_attr.split('-')[0].split('_')[0].lower()
                     
                     seg_node = tuv_node.find('seg')
@@ -904,59 +1047,113 @@ class TMAgent:
                             tgt_text = text
                 
                 if src_text and tgt_text:
-                    self.add_entry(src_text, tgt_text)
+                    tm.add_entry(src_text, tgt_text)
                     loaded_count += 1
             
             return loaded_count
-            
         except Exception as e:
-            print(f"Error loading TMX file: {e}")
+            print(f"Error loading TMX: {e}")
             return 0
     
-    def load_from_txt(self, filepath: str) -> int:
-        """
-        Load TM from tab-delimited TXT file (source<TAB>target per line)
-        Returns number of entries loaded
-        """
-        loaded_count = 0
+    def detect_tmx_languages(self, filepath: str) -> List[str]:
+        """Detect all language codes present in a TMX file"""
+        try:
+            tree = ET.parse(filepath)
+            root = tree.getroot()
+            xml_ns = "http://www.w3.org/XML/1998/namespace"
+            
+            languages = set()
+            for tuv in root.findall('.//tuv'):
+                lang_attr = tuv.get(f'{{{xml_ns}}}lang')
+                if lang_attr:
+                    languages.add(lang_attr)
+            
+            return sorted(list(languages))
+        except:
+            return []
+    
+    def to_dict(self) -> Dict:
+        """Serialize entire database to dictionary"""
+        return {
+            'project_tm': self.project_tm.to_dict(),
+            'big_mama_tm': self.big_mama_tm.to_dict(),
+            'custom_tms': {tm_id: tm.to_dict() for tm_id, tm in self.custom_tms.items()},
+            'fuzzy_threshold': self.fuzzy_threshold
+        }
+    
+    @staticmethod
+    def from_dict(data: Dict) -> 'TMDatabase':
+        """Deserialize database from dictionary"""
+        db = TMDatabase()
         
-        try:
-            with open(filepath, 'r', encoding='utf-8') as f:
-                for line in f:
-                    parts = line.strip().split('\t', 1)
-                    if len(parts) == 2:
-                        self.add_entry(parts[0], parts[1])
-                        loaded_count += 1
-            
-            return loaded_count
-            
-        except Exception as e:
-            print(f"Error loading TXT file: {e}")
-            return 0
+        if 'project_tm' in data:
+            db.project_tm = TM.from_dict(data['project_tm'])
+        if 'big_mama_tm' in data:
+            db.big_mama_tm = TM.from_dict(data['big_mama_tm'])
+        elif 'main_tm' in data:  # Legacy support
+            db.big_mama_tm = TM.from_dict(data['main_tm'])
+            db.big_mama_tm.name = 'Big Mama'  # Update name
+            db.big_mama_tm.tm_id = 'big_mama'
+        if 'custom_tms' in data:
+            db.custom_tms = {tm_id: TM.from_dict(tm_data) 
+                            for tm_id, tm_data in data['custom_tms'].items()}
+        db.fuzzy_threshold = data.get('fuzzy_threshold', 0.75)
+        
+        return db
+
+
+# Legacy TMAgent for backwards compatibility
+class TMAgent:
+    """Wrapper for backwards compatibility - delegates to TMDatabase"""
     
-    def save_to_txt(self, filepath: str) -> int:
-        """
-        Save TM to tab-delimited TXT file
-        Returns number of entries saved
-        """
-        try:
-            with open(filepath, 'w', encoding='utf-8') as f:
-                for source, target in self.tm_data.items():
-                    f.write(f"{source}\t{target}\n")
-            
-            return len(self.tm_data)
-            
-        except Exception as e:
-            print(f"Error saving TXT file: {e}")
-            return 0
+    def __init__(self):
+        self.tm_database = TMDatabase()
+        self.fuzzy_threshold = 0.75
     
-    def clear(self):
-        """Clear all TM entries"""
-        self.tm_data.clear()
+    @property
+    def tm_data(self):
+        """Legacy property - returns Project TM entries"""
+        return self.tm_database.project_tm.entries
+    
+    @tm_data.setter
+    def tm_data(self, value: Dict[str, str]):
+        """Legacy property setter"""
+        self.tm_database.project_tm.entries = value
+    
+    def add_entry(self, source: str, target: str):
+        """Add to Project TM"""
+        self.tm_database.add_to_project_tm(source, target)
+    
+    def get_exact_match(self, source: str) -> Optional[str]:
+        """Search all enabled TMs for exact match"""
+        matches = self.tm_database.search_all(source, enabled_only=True)
+        for match in matches:
+            if match['match_pct'] == 100:
+                return match['target']
+        return None
+    
+    def get_fuzzy_matches(self, source: str, max_matches: int = 5) -> List[Tuple[str, str, float]]:
+        """Legacy format - returns tuples"""
+        matches = self.tm_database.search_all(source, enabled_only=True)
+        return [(m['source'], m['target'], m['similarity']) for m in matches[:max_matches]]
+    
+    def get_best_match(self, source: str) -> Optional[Tuple[str, str, float]]:
+        """Get best match in legacy format"""
+        matches = self.get_fuzzy_matches(source, max_matches=1)
+        return matches[0] if matches else None
+    
+    def load_from_tmx(self, filepath: str, src_lang: str = "en", tgt_lang: str = "nl") -> int:
+        """Legacy TMX load - loads into a new custom TM"""
+        tm_id, count = self.tm_database.load_tmx_file(filepath, src_lang, tgt_lang)
+        return count
     
     def get_entry_count(self) -> int:
-        """Get number of TM entries"""
-        return len(self.tm_data)
+        """Get total entry count"""
+        return self.tm_database.get_entry_count(enabled_only=False)
+    
+    def clear(self):
+        """Clear Project TM only"""
+        self.tm_database.project_tm.entries.clear()
 
 
 # Model definitions (fallbacks if API fetch fails)
@@ -1056,7 +1253,7 @@ class Segment:
         self.id = seg_id
         self.source = source
         self.target = ""
-        self.status = "untranslated"  # untranslated, draft, translated, approved
+        self.status = "untranslated"  # untranslated, translated, approved
         self.paragraph_id = paragraph_id
         self.document_position = document_position  # Position in original document
         self.notes = ""
@@ -1131,6 +1328,19 @@ class Supervertaler:
         self.segmenter = SimpleSegmenter()
         self.docx_handler = DOCXHandler()
         self.tag_manager = TagManager()
+        
+        # Default language list (user-editable)
+        self.available_languages = [
+            "Afrikaans", "Albanian", "Arabic", "Armenian", "Basque", "Bengali",
+            "Bulgarian", "Catalan", "Chinese (Simplified)", "Chinese (Traditional)",
+            "Croatian", "Czech", "Danish", "Dutch", "English", "Estonian",
+            "Finnish", "French", "Galician", "Georgian", "German", "Greek",
+            "Hebrew", "Hindi", "Hungarian", "Icelandic", "Indonesian", "Irish",
+            "Italian", "Japanese", "Korean", "Latvian", "Lithuanian", "Macedonian",
+            "Malay", "Norwegian", "Persian", "Polish", "Portuguese", "Romanian",
+            "Russian", "Serbian", "Slovak", "Slovenian", "Spanish", "Swahili",
+            "Swedish", "Thai", "Turkish", "Ukrainian", "Urdu", "Vietnamese", "Welsh"
+        ]
         
         # LLM settings
         self.api_keys = API_KEYS.copy()  # Local copy of API keys
@@ -1260,9 +1470,12 @@ class Supervertaler:
         self.custom_prompts_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "custom_prompts")
         os.makedirs(self.custom_prompts_dir, exist_ok=True)
         
-        # Translation memory
-        self.tm_agent = TMAgent()
+        # Translation memory - new multi-TM architecture
+        self.tm_database = TMDatabase()
+        self.tm_agent = TMAgent()  # Legacy wrapper for backward compatibility
+        self.tm_agent.tm_database = self.tm_database  # Share same database
         self.translation_memory: List[Dict[str, str]] = []  # Deprecated - keeping for backward compatibility
+        self.tm_auto_search_timer = None  # Timer for automatic TM search
         
         # Tracked changes agent (learns from editing patterns)
         self.tracked_changes_agent = TrackedChangesAgent(log_callback=self.log)
@@ -1802,7 +2015,7 @@ class Supervertaler:
         tk.Label(status_frame, text="Status:").pack(side='left', padx=(0, 5))
         self.grid_status_var = tk.StringVar(value="untranslated")
         grid_status_combo = ttk.Combobox(status_frame, textvariable=self.grid_status_var,
-                                        values=["untranslated", "draft", "translated", "approved"],
+                                        values=["untranslated", "translated", "approved"],
                                         state='readonly', width=12)
         grid_status_combo.pack(side='left')
         grid_status_combo.bind('<<ComboboxSelected>>', self.on_grid_editor_status_change)
@@ -1893,10 +2106,18 @@ class Supervertaler:
         """Save the current segment from grid editor panel"""
         if hasattr(self, 'current_segment') and self.current_segment:
             target = self.grid_target_text.get('1.0', 'end-1c').strip()
+            status = self.grid_status_var.get()
+            
             self.current_segment.target = target
-            self.current_segment.status = self.grid_status_var.get()
+            self.current_segment.status = status
             self.current_segment.modified = True
             self.modified = True
+            
+            # Add to Project TM if translated or approved and has content
+            if status in ['translated', 'approved'] and target:
+                self.tm_database.add_to_project_tm(self.current_segment.source, target)
+                self.log(f"✓ Added to Project TM: {self.current_segment.source[:50]}...")
+            
             self.update_progress()
             # Update the grid row
             if self.current_row_index >= 0:
@@ -1904,9 +2125,35 @@ class Supervertaler:
             self.log(f"✓ Segment #{self.current_segment.id} saved")
     
     def save_grid_editor_and_next(self):
-        """Save and move to next segment"""
+        """Save current segment with 'translated' status and move to next untranslated segment"""
+        # Set status to translated before saving
+        self.grid_status_var.set('translated')
         self.save_grid_editor_segment()
-        self.navigate_segment('next')
+        
+        # Find next untranslated segment
+        if not self.current_segment:
+            return
+        
+        current_id = self.current_segment.id
+        next_untranslated = None
+        
+        for seg in self.segments:
+            if seg.id > current_id and seg.status == 'untranslated':
+                next_untranslated = seg
+                break
+        
+        # If found, navigate to it
+        if next_untranslated:
+            # Find the tree item with this segment ID
+            for item in self.tree.get_children():
+                values = self.tree.item(item, 'values')
+                if int(values[0]) == next_untranslated.id:
+                    self.tree.selection_set(item)
+                    self.tree.see(item)
+                    self.select_grid_row(self.tree.index(item))
+                    break
+        else:
+            self.log("No more untranslated segments")
     
     def load_segment_to_grid_editor(self, segment):
         """Load a segment into the grid editor panel"""
@@ -2982,7 +3229,10 @@ class Supervertaler:
         provider_frame.pack(fill='x', padx=5, pady=5)
         
         tk.Label(provider_frame, text="Current:", font=('Segoe UI', 9, 'bold')).grid(row=0, column=0, sticky='w', pady=5)
-        tk.Label(provider_frame, text=f"{self.current_llm_provider.upper()} / {self.current_llm_model}",
+        
+        # Use StringVar for dynamic updating
+        self.settings_llm_display = tk.StringVar(value=f"{self.current_llm_provider.upper()} / {self.current_llm_model}")
+        tk.Label(provider_frame, textvariable=self.settings_llm_display,
                 font=('Segoe UI', 9), fg='#4CAF50').grid(row=0, column=1, sticky='w', pady=5)
         
         tk.Button(provider_frame, text="⚙️ Configure API Settings", command=self.show_api_settings,
@@ -2993,15 +3243,29 @@ class Supervertaler:
         lang_frame.pack(fill='x', padx=5, pady=5)
         
         tk.Label(lang_frame, text="Source:", font=('Segoe UI', 9)).grid(row=0, column=0, sticky='w', pady=5)
-        tk.Label(lang_frame, text=self.source_language, font=('Segoe UI', 9, 'bold'),
+        
+        # Use StringVar for dynamic updating
+        self.settings_source_lang_display = tk.StringVar(value=self.source_language)
+        tk.Label(lang_frame, textvariable=self.settings_source_lang_display, font=('Segoe UI', 9, 'bold'),
                 fg='#666').grid(row=0, column=1, sticky='w', pady=5)
         
         tk.Label(lang_frame, text="Target:", font=('Segoe UI', 9)).grid(row=1, column=0, sticky='w', pady=5)
-        tk.Label(lang_frame, text=self.target_language, font=('Segoe UI', 9, 'bold'),
+        
+        # Use StringVar for dynamic updating
+        self.settings_target_lang_display = tk.StringVar(value=self.target_language)
+        tk.Label(lang_frame, textvariable=self.settings_target_lang_display, font=('Segoe UI', 9, 'bold'),
                 fg='#666').grid(row=1, column=1, sticky='w', pady=5)
         
-        tk.Button(lang_frame, text="🌍 Change Languages", command=self.show_language_settings,
-                 bg='#FF9800', fg='white', font=('Segoe UI', 9)).grid(row=2, column=0, columnspan=2, pady=5, sticky='w')
+        # Buttons frame for language actions
+        lang_buttons = tk.Frame(lang_frame)
+        lang_buttons.grid(row=2, column=0, columnspan=2, pady=5, sticky='w')
+        
+        tk.Button(lang_buttons, text="🌍 Change Languages", command=self.show_language_settings,
+                 bg='#FF9800', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=(0, 5))
+        tk.Button(lang_buttons, text="🔄 Swap", command=self.swap_languages,
+                 bg='#4CAF50', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=(0, 5))
+        tk.Button(lang_buttons, text="✏️ Edit Language List", command=self.edit_language_list,
+                 bg='#2196F3', fg='white', font=('Segoe UI', 9)).pack(side='left')
         
         # Translation Preferences
         pref_frame = tk.LabelFrame(parent, text="Translation Preferences", padx=10, pady=10)
@@ -3254,12 +3518,11 @@ class Supervertaler:
         toolbar.pack(side='top', fill='x', padx=2, pady=2)
         
         tk.Label(toolbar, text="TM:", bg='#f0f0f0', font=('Segoe UI', 9)).pack(side='left', padx=2)
-        self.tm_source_var = tk.StringVar(value="Project TM")
-        tm_source_combo = ttk.Combobox(toolbar, textvariable=self.tm_source_var,
-                                      values=["Project TM", "Main TM", "Reference TM",
-                                             "All TMs", "Custom TM"],
+        self.tm_source_var = tk.StringVar(value="All Active TMs")
+        self.tm_source_combo = ttk.Combobox(toolbar, textvariable=self.tm_source_var,
+                                      values=["All Active TMs"],
                                       state='readonly', width=15, font=('Segoe UI', 9))
-        tm_source_combo.pack(side='left', padx=5)
+        self.tm_source_combo.pack(side='left', padx=5)
         
         tk.Button(toolbar, text="🔍 Search", command=self.search_tm,
                  bg='#2196F3', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=5)
@@ -3282,16 +3545,18 @@ class Supervertaler:
         tree_frame.pack(fill='both', expand=True, padx=2, pady=2)
         
         scrollbar = ttk.Scrollbar(tree_frame, orient='vertical')
-        self.tm_tree = ttk.Treeview(tree_frame, columns=('match', 'text'),
+        self.tm_tree = ttk.Treeview(tree_frame, columns=('match', 'text', 'source_tm'),
                                    show='headings', yscrollcommand=scrollbar.set,
                                    selectmode='browse', height=8)
         scrollbar.config(command=self.tm_tree.yview)
         
-        self.tm_tree.heading('match', text='Match %')
-        self.tm_tree.heading('text', text='Translation')
+        self.tm_tree.heading('match', text='Match %', anchor='w')
+        self.tm_tree.heading('text', text='Translation', anchor='w')
+        self.tm_tree.heading('source_tm', text='TM Source', anchor='w')
         
         self.tm_tree.column('match', width=70, minwidth=70, stretch=False)
         self.tm_tree.column('text', width=250, minwidth=150, stretch=True)
+        self.tm_tree.column('source_tm', width=120, minwidth=100, stretch=False)
         
         self.tm_tree.pack(side='left', fill='both', expand=True)
         scrollbar.pack(side='right', fill='y')
@@ -3458,27 +3723,82 @@ class Supervertaler:
         self.log(f"✓ Received {len(self.llm_results)} LLM suggestions")
         self.log(f"💡 Future: This will integrate with Supervertaler prompts and models")
     
-    def search_tm(self):
-        """Search translation memory for matches"""
+    def schedule_auto_tm_search(self):
+        """Schedule automatic TM search after a delay (2 seconds)"""
+        # Cancel any pending search
+        if self.tm_auto_search_timer is not None:
+            self.root.after_cancel(self.tm_auto_search_timer)
+            self.tm_auto_search_timer = None
+        
+        # Schedule new search after 2 seconds (2000 ms)
+        # This prevents searches when user is quickly navigating between segments
+        self.tm_auto_search_timer = self.root.after(2000, self.auto_search_tm)
+        self.log("⏱ Auto-search scheduled (2 seconds)...")
+    
+    def auto_search_tm(self):
+        """Automatically search TM (called after delay)"""
+        self.tm_auto_search_timer = None  # Clear timer reference
+        
         if not hasattr(self, 'current_segment') or not self.current_segment:
-            self.log("⚠ No segment selected")
+            self.log("⚠ Auto-search cancelled: No segment selected")
+            return
+        
+        # Trigger the search (auto_triggered flag prevents logging)
+        self.log("🔍 Auto-search executing...")
+        self.search_tm(auto_triggered=True)
+    
+    def search_tm(self, auto_triggered=False):
+        """Search translation memory for matches across enabled TMs"""
+        if not hasattr(self, 'current_segment') or not self.current_segment:
+            if not auto_triggered:  # Only log if manually triggered
+                self.log("⚠ No segment selected")
+            return
+        
+        # Check if TM tree exists
+        if not hasattr(self, 'tm_tree'):
+            self.log("⚠ Auto-search cancelled: TM tree not initialized")
             return
         
         tm_source = self.tm_source_var.get()
         threshold = int(self.tm_threshold_var.get())
         source_text = self.current_segment.source
         
-        self.log(f"🔍 Searching {tm_source} (min {threshold}% match)...")
+        if not auto_triggered:  # Only log if manually triggered
+            self.log(f"🔍 Searching {tm_source} (min {threshold}% match)...")
         
-        # Placeholder: In real implementation, search TM database
-        self.tm_results = [
-            {"match": 100, "source": source_text, "target": f"[100% TM] {source_text} (exact match)", "tm": tm_source},
-            {"match": 95, "source": source_text, "target": f"[95% TM] {source_text} (fuzzy match)", "tm": tm_source},
-            {"match": 80, "source": source_text, "target": f"[80% TM] {source_text} (partial match)", "tm": tm_source}
-        ]
+        # Determine which TMs to search
+        if tm_source == "All Active TMs":
+            # Search all enabled TMs
+            matches = self.tm_database.search_all(source_text, enabled_only=True)
+        else:
+            # Parse selected TM name (format: "✓ TM Name" or "✗ TM Name")
+            tm_name = tm_source.split(' ', 1)[1] if ' ' in tm_source else tm_source
+            
+            # Find matching TM by name
+            tm_ids = []
+            for tm in self.tm_database.get_all_tms(enabled_only=False):
+                if tm.name == tm_name:
+                    tm_ids.append(tm.tm_id)
+                    break
+            
+            matches = self.tm_database.search_all(source_text, tm_ids=tm_ids, enabled_only=False)
         
-        # Filter by threshold
-        self.tm_results = [r for r in self.tm_results if r['match'] >= threshold]
+        if auto_triggered:
+            self.log(f"🔍 Auto-search found {len(matches)} raw matches (before threshold filter)")
+        
+        # Filter by threshold and format for display
+        self.tm_results = []
+        for match in matches:
+            if match['match_pct'] >= threshold:
+                self.tm_results.append({
+                    "match": match['match_pct'],
+                    "source": match['source'],
+                    "target": match['target'],
+                    "tm": match['tm_name']
+                })
+        
+        if auto_triggered:
+            self.log(f"✓ Auto-search: {len(self.tm_results)} matches above {threshold}% threshold")
         
         # Clear and populate tree
         for item in self.tm_tree.get_children():
@@ -3493,9 +3813,14 @@ class Supervertaler:
             else:
                 tag = 'medium'
             
-            self.tm_tree.insert('', 'end', values=(f"{match_pct}%", result['target']), tags=(tag,))
+            # Use separate column for TM source
+            self.tm_tree.insert('', 'end', values=(f"{match_pct}%", result['target'], result['tm']), tags=(tag,))
         
-        self.log(f"✓ Found {len(self.tm_results)} TM matches")
+        if auto_triggered:
+            self.log(f"✓ Auto-search: Populated TM tree with {len(self.tm_results)} matches")
+        
+        if not auto_triggered:  # Only log if manually triggered
+            self.log(f"✓ Found {len(self.tm_results)} TM matches")
     
     def search_glossary(self):
         """Search glossary/termbase for terms"""
@@ -3697,7 +4022,7 @@ class Supervertaler:
         tk.Label(filter_frame, text="Status:", bg='#f0f0f0',
                 font=('Segoe UI', 9)).pack(side='left', padx=(0, 2))
         status_combo = ttk.Combobox(filter_frame, textvariable=self.filter_status_var,
-                                   values=["All", "untranslated", "draft", "translated", "approved"],
+                                   values=["All", "untranslated", "translated", "approved"],
                                    state='readonly', width=12, font=('Segoe UI', 9))
         status_combo.pack(side='left', padx=(0, 10))
         # Combobox selection triggers apply automatically (user expectation for dropdowns)
@@ -3757,7 +4082,6 @@ class Supervertaler:
         
         # Configure row colors
         self.tree.tag_configure('untranslated', background='#ffe6e6')
-        self.tree.tag_configure('draft', background='#fff9e6')
         self.tree.tag_configure('translated', background='#e6ffe6')
         self.tree.tag_configure('approved', background='#e6f3ff')
         self.tree.tag_configure('table_cell', foreground='#0066cc', font=('TkDefaultFont', 9, 'italic'))
@@ -3793,7 +4117,7 @@ class Supervertaler:
         tk.Label(status_frame, text="Status:").pack(side='left', padx=(0, 5))
         self.status_var = tk.StringVar(value="untranslated")
         self.status_combo = ttk.Combobox(status_frame, textvariable=self.status_var,
-                                        values=["untranslated", "draft", "translated", "approved"],
+                                        values=["untranslated", "translated", "approved"],
                                         state='readonly', width=12)
         self.status_combo.pack(side='left')
         self.status_combo.bind('<<ComboboxSelected>>', self.on_status_change)
@@ -3930,7 +4254,7 @@ class Supervertaler:
         tk.Label(filter_frame, text="Status:", bg='#f0f0f0',
                 font=('Segoe UI', 9)).pack(side='left', padx=(0, 2))
         status_combo = ttk.Combobox(filter_frame, textvariable=self.filter_status_var,
-                                   values=["All", "untranslated", "draft", "translated", "approved"],
+                                   values=["All", "untranslated", "translated", "approved"],
                                    state='readonly', width=12, font=('Segoe UI', 9))
         status_combo.pack(side='left', padx=(0, 10))
         status_combo.bind('<<ComboboxSelected>>', lambda e: self.apply_filters())
@@ -4003,7 +4327,7 @@ class Supervertaler:
         tk.Label(status_frame, text="Status:").pack(side='left', padx=(0, 5))
         self.doc_status_var = tk.StringVar(value="untranslated")
         self.doc_status_combo = ttk.Combobox(status_frame, textvariable=self.doc_status_var,
-                                        values=["untranslated", "draft", "translated", "approved"],
+                                        values=["untranslated", "translated", "approved"],
                                         state='readonly', width=12)
         self.doc_status_combo.pack(side='left')
         self.doc_status_combo.bind('<<ComboboxSelected>>', self.on_doc_status_change)
@@ -4515,9 +4839,6 @@ class Supervertaler:
         
         # Update segment
         self.doc_current_segment.target = new_target
-        if self.doc_current_segment.status == 'untranslated' and new_target:
-            self.doc_current_segment.status = 'draft'
-            self.doc_status_var.set('draft')
         self.doc_current_segment.modified = True
         
         # Update the text in the document view
@@ -4568,18 +4889,31 @@ class Supervertaler:
         self.log(f"✓ Segment #{self.doc_current_segment.id} saved")
     
     def save_doc_segment_and_next(self):
-        """Save current segment and move to next"""
-        if self.doc_current_segment:
-            self.save_doc_segment()
-            
-            # Find next segment
-            current_id = self.doc_current_segment.id
-            for seg in self.segments:
-                if seg.id > current_id:
-                    if seg.id in self.doc_segment_widgets:
-                        widget_info = self.doc_segment_widgets[seg.id]
-                        self.on_doc_segment_click(seg, widget_info['text_widget'], widget_info['tag_name'])
+        """Save current segment with 'translated' status and move to next untranslated segment"""
+        if not self.doc_current_segment:
+            return 'break'
+        
+        # Set status to translated before saving
+        self.doc_status_var.set('translated')
+        self.save_doc_segment()
+        
+        # Find next untranslated segment
+        current_id = self.doc_current_segment.id
+        next_untranslated = None
+        
+        for seg in self.segments:
+            if seg.id > current_id and seg.status == 'untranslated':
+                if seg.id in self.doc_segment_widgets:
+                    next_untranslated = seg
                     break
+        
+        # If found, navigate to it
+        if next_untranslated:
+            widget_info = self.doc_segment_widgets[next_untranslated.id]
+            self.on_doc_segment_click(next_untranslated, widget_info['text_widget'], widget_info['tag_name'])
+        else:
+            self.log("No more untranslated segments")
+        
         return 'break'
     
     def copy_source_to_target_doc(self):
@@ -5238,6 +5572,9 @@ class Supervertaler:
         
         # Load segment into editor panel
         self.load_segment_to_grid_editor(self.current_segment)
+        
+        # Trigger automatic TM search after delay
+        self.schedule_auto_tm_search()
     
     def should_highlight_segment(self, segment):
         """
@@ -5759,10 +6096,23 @@ class Supervertaler:
         row_data = self.grid_rows[self.current_row_index]
         segment = row_data['segment']
         segment.target = new_text
-        if new_text and segment.status == 'untranslated':
+        
+        # Set status based on go_next flag
+        if go_next:
+            # Ctrl+Enter was pressed - always set to translated
             segment.status = 'translated'
+        else:
+            # Regular save - only auto-set if untranslated
+            if new_text and segment.status == 'untranslated':
+                segment.status = 'translated'
+        
         segment.modified = True
         segment.modified_at = datetime.now().isoformat()
+        
+        # Add to Project TM if translated or approved
+        if segment.status in ['translated', 'approved'] and new_text:
+            self.tm_database.add_to_project_tm(segment.source, new_text)
+            self.log(f"✓ Added to Project TM: {segment.source[:50]}...")
         
         # Update the display
         self.update_grid_row(self.current_row_index)
@@ -5778,13 +6128,22 @@ class Supervertaler:
         
         # Move to next if requested
         if go_next:
-            # Navigate to next segment
-            if self.current_row_index < len(self.grid_rows) - 1:
-                self.select_grid_row(self.current_row_index + 1)
+            # Find next untranslated segment
+            current_id = segment.id
+            next_untranslated_index = None
+            
+            for i in range(self.current_row_index + 1, len(self.grid_rows)):
+                if self.grid_rows[i]['segment'].status == 'untranslated':
+                    next_untranslated_index = i
+                    break
+            
+            if next_untranslated_index is not None:
+                # Navigate to next untranslated segment
+                self.select_grid_row(next_untranslated_index)
                 # Automatically enter edit mode on the next segment
                 self.root.after(50, self.enter_edit_mode)  # Small delay to ensure row is selected
             else:
-                self.log("✓ Reached last segment")
+                self.log("No more untranslated segments")
                 self.grid_canvas.focus_set()
         else:
             # Return focus to canvas
@@ -7364,8 +7723,10 @@ class Supervertaler:
     
     def on_segment_select(self, event):
         """Handle segment selection in grid"""
+        self.log("📍 on_segment_select() called")  # DEBUG
         selection = self.tree.selection()
         if not selection:
+            self.log("⚠ No selection - returning")  # DEBUG
             return
         
         # Save current segment first
@@ -7381,7 +7742,15 @@ class Supervertaler:
         self.current_segment = next((s for s in self.segments if s.id == seg_id), None)
         
         if self.current_segment:
+            self.log(f"✓ Segment #{self.current_segment.id} selected")  # DEBUG
             self.load_segment_to_editor(self.current_segment)
+            
+            # Trigger automatic TM search after delay
+            self.log("🎯 About to call schedule_auto_tm_search()")  # DEBUG
+            self.schedule_auto_tm_search()
+            self.log("✓ schedule_auto_tm_search() called")  # DEBUG
+        else:
+            self.log("⚠ current_segment is None")  # DEBUG
     
     def load_segment_to_editor(self, segment: Segment):
         """Load segment into editor panel"""
@@ -7431,6 +7800,11 @@ class Supervertaler:
             self.current_segment.modified = True
             self.current_segment.modified_at = datetime.now().isoformat()
             self.modified = True
+            
+            # Add to Project TM if translated or approved and has content
+            if status in ['translated', 'approved'] and target:
+                self.tm_database.add_to_project_tm(self.current_segment.source, target)
+                self.log(f"✓ Added to Project TM: {self.current_segment.source[:50]}...")
             
             # Update grid
             self.update_segment_in_grid(self.current_segment)
@@ -7601,17 +7975,33 @@ class Supervertaler:
             self.target_text.delete('1.0', 'end')
     
     def save_segment_and_next(self):
-        """Save current segment and move to next"""
+        """Save current segment with 'translated' status and move to next untranslated segment"""
+        if not self.current_segment:
+            return
+        
+        # Set status to translated before saving
+        self.status_var.set('translated')
         self.save_current_segment()
         
-        # Select next segment
-        selection = self.tree.selection()
-        if selection:
-            current_item = selection[0]
-            next_item = self.tree.next(current_item)
-            if next_item:
-                self.tree.selection_set(next_item)
-                self.tree.see(next_item)
+        # Find next untranslated segment
+        current_id = self.current_segment.id
+        next_untranslated = None
+        
+        for seg in self.segments:
+            if seg.id > current_id and seg.status == 'untranslated':
+                next_untranslated = seg
+                break
+        
+        # If found, select it in the tree
+        if next_untranslated:
+            for item in self.tree.get_children():
+                values = self.tree.item(item, 'values')
+                if int(values[0]) == next_untranslated.id:
+                    self.tree.selection_set(item)
+                    self.tree.see(item)
+                    break
+        else:
+            self.log("No more untranslated segments")
     
     def focus_target_editor(self):
         """Focus the target text editor"""
@@ -7682,10 +8072,12 @@ class Supervertaler:
                     'status_filter': self.filter_status_var.get() if hasattr(self, 'filter_status_var') else 'All',
                     'active': self.filter_active
                 },
-                # Save TM data
+                # Save TM database (new multi-TM format)
+                'tm_database': self.tm_database.to_dict(),
+                # Legacy format for backwards compatibility
                 'translation_memory': {
-                    'entries': self.tm_agent.tm_data,
-                    'fuzzy_threshold': self.tm_agent.fuzzy_threshold
+                    'entries': self.tm_database.project_tm.entries,
+                    'fuzzy_threshold': self.tm_database.fuzzy_threshold
                 },
                 # Save LLM settings
                 'llm_settings': {
@@ -7755,12 +8147,27 @@ class Supervertaler:
             self.original_docx = data.get('original_docx')
             self.project_file = file_path
             
-            # Load TM data if present
-            if 'translation_memory' in data:
+            # Load TM database (try new format first, fall back to legacy)
+            if 'tm_database' in data:
+                # New multi-TM format
+                self.tm_database = TMDatabase.from_dict(data['tm_database'])
+                self.tm_agent.tm_database = self.tm_database  # Update legacy wrapper
+                enabled_count = self.tm_database.get_entry_count(enabled_only=True)
+                total_count = self.tm_database.get_entry_count(enabled_only=False)
+                self.log(f"✓ Loaded TM database: {total_count} total entries ({enabled_count} in active TMs)")
+            elif 'translation_memory' in data:
+                # Legacy single-TM format - migrate to new format
                 tm_data = data['translation_memory']
-                self.tm_agent.tm_data = tm_data.get('entries', {})
-                self.tm_agent.fuzzy_threshold = tm_data.get('fuzzy_threshold', 0.75)
-                self.log(f"✓ Loaded {len(self.tm_agent.tm_data)} TM entries")
+                self.tm_database = TMDatabase()
+                self.tm_database.project_tm.entries = tm_data.get('entries', {})
+                self.tm_database.fuzzy_threshold = tm_data.get('fuzzy_threshold', 0.75)
+                self.tm_agent.tm_database = self.tm_database
+                self.log(f"✓ Migrated legacy TM: {len(self.tm_database.project_tm.entries)} entries to Project TM")
+            else:
+                # No TM data
+                self.tm_database = TMDatabase()
+                self.tm_agent.tm_database = self.tm_database
+                self.log("ℹ No TM data in project")
             
             # Load LLM settings if present
             if 'llm_settings' in data:
@@ -9467,6 +9874,10 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
             self.current_llm_provider = provider_var.get()
             self.current_llm_model = model_var.get()
             
+            # Update the Settings tab display
+            if hasattr(self, 'settings_llm_display'):
+                self.settings_llm_display.set(f"{self.current_llm_provider.upper()} / {self.current_llm_model}")
+            
             self.log(f"✓ Provider set to: {self.current_llm_provider}")
             self.log(f"✓ Model set to: {self.current_llm_model}")
             
@@ -9476,37 +9887,144 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
         ttk.Button(button_frame, text="Save", command=save_settings).pack(side=tk.RIGHT, padx=5)
         ttk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(side=tk.RIGHT)
     
-    def show_language_settings(self):
-        """Show language settings dialog"""
+    def swap_languages(self):
+        """Swap source and target languages"""
+        self.source_language, self.target_language = self.target_language, self.source_language
+        
+        # Update Settings pane displays
+        if hasattr(self, 'settings_source_lang_display'):
+            self.settings_source_lang_display.set(self.source_language)
+        if hasattr(self, 'settings_target_lang_display'):
+            self.settings_target_lang_display.set(self.target_language)
+        
+        self.log(f"🔄 Languages swapped: {self.source_language} → {self.target_language}")
+    
+    def edit_language_list(self):
+        """Edit the custom language list"""
         dialog = tk.Toplevel(self.root)
-        dialog.title("Language Settings")
-        dialog.geometry("400x200")
+        dialog.title("Edit Language List")
+        dialog.geometry("500x600")
         dialog.transient(self.root)
         dialog.grab_set()
         
         main_frame = ttk.Frame(dialog, padding="20")
         main_frame.pack(fill=tk.BOTH, expand=True)
         
-        # Source language
-        ttk.Label(main_frame, text="Source Language:").grid(row=0, column=0, sticky=tk.W, pady=5)
-        source_var = tk.StringVar(value=self.source_language)
-        source_entry = ttk.Entry(main_frame, textvariable=source_var, width=30)
-        source_entry.grid(row=0, column=1, pady=5, padx=(10, 0))
+        ttk.Label(main_frame, text="Available Languages", 
+                 font=('Segoe UI', 11, 'bold')).pack(anchor=tk.W, pady=(0, 10))
         
-        # Target language
-        ttk.Label(main_frame, text="Target Language:").grid(row=1, column=0, sticky=tk.W, pady=5)
-        target_var = tk.StringVar(value=self.target_language)
-        target_entry = ttk.Entry(main_frame, textvariable=target_var, width=30)
-        target_entry.grid(row=1, column=1, pady=5, padx=(10, 0))
+        ttk.Label(main_frame, text="Edit the list below (one language per line):",
+                 font=('Segoe UI', 9)).pack(anchor=tk.W, pady=(0, 5))
+        
+        # Text widget with scrollbar
+        text_frame = ttk.Frame(main_frame)
+        text_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+        
+        scrollbar = ttk.Scrollbar(text_frame)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        lang_text = tk.Text(text_frame, width=50, height=25, yscrollcommand=scrollbar.set,
+                           font=('Segoe UI', 10))
+        lang_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.config(command=lang_text.yview)
+        
+        # Insert current languages
+        lang_text.insert('1.0', '\n'.join(self.available_languages))
         
         # Buttons
         button_frame = ttk.Frame(main_frame)
-        button_frame.grid(row=2, column=0, columnspan=2, pady=20)
+        button_frame.pack(fill=tk.X)
+        
+        def save_languages():
+            # Get text and split into lines
+            text_content = lang_text.get('1.0', 'end-1c')
+            new_languages = [line.strip() for line in text_content.split('\n') if line.strip()]
+            
+            if not new_languages:
+                messagebox.showwarning("Empty List", "Language list cannot be empty!")
+                return
+            
+            self.available_languages = sorted(new_languages)
+            self.log(f"✓ Language list updated: {len(self.available_languages)} languages")
+            messagebox.showinfo("Success", f"Language list saved!\n\n{len(self.available_languages)} languages available.")
+            dialog.destroy()
+        
+        def reset_defaults():
+            default_languages = [
+                "Afrikaans", "Albanian", "Arabic", "Armenian", "Basque", "Bengali",
+                "Bulgarian", "Catalan", "Chinese (Simplified)", "Chinese (Traditional)",
+                "Croatian", "Czech", "Danish", "Dutch", "English", "Estonian",
+                "Finnish", "French", "Galician", "Georgian", "German", "Greek",
+                "Hebrew", "Hindi", "Hungarian", "Icelandic", "Indonesian", "Irish",
+                "Italian", "Japanese", "Korean", "Latvian", "Lithuanian", "Macedonian",
+                "Malay", "Norwegian", "Persian", "Polish", "Portuguese", "Romanian",
+                "Russian", "Serbian", "Slovak", "Slovenian", "Spanish", "Swahili",
+                "Swedish", "Thai", "Turkish", "Ukrainian", "Urdu", "Vietnamese", "Welsh"
+            ]
+            lang_text.delete('1.0', tk.END)
+            lang_text.insert('1.0', '\n'.join(default_languages))
+        
+        ttk.Button(button_frame, text="Reset to Defaults", command=reset_defaults).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Save", command=save_languages).pack(side=tk.RIGHT, padx=5)
+        ttk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(side=tk.RIGHT)
+    
+    def show_language_settings(self):
+        """Show language settings dialog with dropdowns"""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Language Settings")
+        dialog.geometry("450x250")
+        dialog.transient(self.root)
+        dialog.grab_set()
+        
+        main_frame = ttk.Frame(dialog, padding="20")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Header
+        ttk.Label(main_frame, text="Translation Language Pair", 
+                 font=('Segoe UI', 11, 'bold')).grid(row=0, column=0, columnspan=3, pady=(0, 15))
+        
+        # Source language
+        ttk.Label(main_frame, text="Source Language:", font=('Segoe UI', 9)).grid(row=1, column=0, sticky=tk.W, pady=5)
+        source_var = tk.StringVar(value=self.source_language)
+        source_combo = ttk.Combobox(main_frame, textvariable=source_var, values=self.available_languages,
+                                   state="readonly", width=25, font=('Segoe UI', 9))
+        source_combo.grid(row=1, column=1, pady=5, padx=(10, 0), sticky=tk.W)
+        
+        # Swap button
+        def swap():
+            source_val = source_var.get()
+            target_val = target_var.get()
+            source_var.set(target_val)
+            target_var.set(source_val)
+        
+        ttk.Button(main_frame, text="🔄", command=swap, width=3).grid(row=1, column=2, rowspan=2, padx=10)
+        
+        # Target language
+        ttk.Label(main_frame, text="Target Language:", font=('Segoe UI', 9)).grid(row=2, column=0, sticky=tk.W, pady=5)
+        target_var = tk.StringVar(value=self.target_language)
+        target_combo = ttk.Combobox(main_frame, textvariable=target_var, values=self.available_languages,
+                                   state="readonly", width=25, font=('Segoe UI', 9))
+        target_combo.grid(row=2, column=1, pady=5, padx=(10, 0), sticky=tk.W)
+        
+        # Info label
+        ttk.Label(main_frame, text="💡 Tip: Use 'Edit Language List' in Settings to customize available languages",
+                 font=('Segoe UI', 8), foreground='#666').grid(row=3, column=0, columnspan=3, pady=(10, 0), sticky=tk.W)
+        
+        # Buttons
+        button_frame = ttk.Frame(main_frame)
+        button_frame.grid(row=4, column=0, columnspan=3, pady=20)
         
         def save():
             self.source_language = source_var.get()
             self.target_language = target_var.get()
-            self.log(f"Language settings: {self.source_language} → {self.target_language}")
+            
+            # Update Settings pane displays
+            if hasattr(self, 'settings_source_lang_display'):
+                self.settings_source_lang_display.set(self.source_language)
+            if hasattr(self, 'settings_target_lang_display'):
+                self.settings_target_lang_display.set(self.target_language)
+            
+            self.log(f"✓ Language pair: {self.source_language} → {self.target_language}")
             dialog.destroy()
         
         ttk.Button(button_frame, text="Save", command=save).pack(side=tk.LEFT, padx=5)
@@ -10005,7 +10523,7 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
         ttk.Button(button_frame, text="Cancel", command=editor.destroy).pack(side=tk.RIGHT, padx=2)
     
     def load_tm_file(self):
-        """Load a TM file (TMX or TXT)"""
+        """Load a TM file (TMX or TXT) with language code selection for TMX"""
         filepath = filedialog.askopenfilename(
             title="Load Translation Memory",
             filetypes=[
@@ -10020,132 +10538,558 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
         
         _, ext = os.path.splitext(filepath)
         
-        try:
-            if ext.lower() == ".tmx":
-                # Get language codes (simplified from GUI languages)
-                src_code = self.source_language[:2].lower()  # "English" -> "en"
-                tgt_code = self.target_language[:2].lower()  # "Dutch" -> "du"
-                
-                count = self.tm_agent.load_from_tmx(filepath, src_code, tgt_code)
-                messagebox.showinfo("TM Loaded", f"Loaded {count} translation pairs from TMX file")
-                self.log(f"✓ Loaded {count} TM entries from {os.path.basename(filepath)}")
-                
-            elif ext.lower() == ".txt":
-                count = self.tm_agent.load_from_txt(filepath)
-                messagebox.showinfo("TM Loaded", f"Loaded {count} translation pairs from TXT file")
-                self.log(f"✓ Loaded {count} TM entries from {os.path.basename(filepath)}")
-            else:
-                messagebox.showerror("Unsupported Format", f"Unsupported file type: {ext}")
-        
-        except Exception as e:
-            messagebox.showerror("Load Error", f"Failed to load TM file:\n{e}")
-            self.log(f"✗ TM load failed: {e}")
-    
-    def show_tm_manager(self):
-        """Show Translation Memory management dialog"""
-        dialog = tk.Toplevel(self.root)
-        dialog.title("Translation Memory Manager")
-        dialog.geometry("800x500")
-        dialog.transient(self.root)
-        
-        # Info frame
-        info_frame = ttk.Frame(dialog, padding=10)
-        info_frame.pack(fill=tk.X)
-        
-        entries_count = self.tm_agent.get_entry_count()
-        ttk.Label(info_frame, text=f"📚 Translation Memory: {entries_count} entries", 
-                 font=("Arial", 12, "bold")).pack(anchor=tk.W)
-        ttk.Label(info_frame, text=f"Fuzzy match threshold: {int(self.tm_agent.fuzzy_threshold * 100)}%").pack(anchor=tk.W)
-        
-        # TM entries list
-        list_frame = ttk.LabelFrame(dialog, text="TM Entries", padding=10)
-        list_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
-        
-        # Create Treeview with scrollbars
-        tree_scroll_y = ttk.Scrollbar(list_frame)
-        tree_scroll_y.pack(side=tk.RIGHT, fill=tk.Y)
-        
-        tree_scroll_x = ttk.Scrollbar(list_frame, orient=tk.HORIZONTAL)
-        tree_scroll_x.pack(side=tk.BOTTOM, fill=tk.X)
-        
-        tm_tree = ttk.Treeview(list_frame, columns=("source", "target"), 
-                              yscrollcommand=tree_scroll_y.set,
-                              xscrollcommand=tree_scroll_x.set)
-        tm_tree.pack(fill=tk.BOTH, expand=True)
-        
-        tree_scroll_y.config(command=tm_tree.yview)
-        tree_scroll_x.config(command=tm_tree.xview)
-        
-        # Configure columns
-        tm_tree.heading("#0", text="#")
-        tm_tree.heading("source", text="Source")
-        tm_tree.heading("target", text="Target")
-        
-        tm_tree.column("#0", width=50, anchor=tk.CENTER)
-        tm_tree.column("source", width=350, anchor=tk.W)
-        tm_tree.column("target", width=350, anchor=tk.W)
-        
-        # Populate with TM entries
-        for idx, (source, target) in enumerate(self.tm_agent.tm_data.items(), 1):
-            tm_tree.insert("", tk.END, text=str(idx), values=(source, target))
-        
-        # Button frame
-        button_frame = ttk.Frame(dialog, padding=10)
-        button_frame.pack(fill=tk.X)
-        
-        def load_tm():
-            dialog.destroy()
-            self.load_tm_file()
-            # Reopen dialog to show updated entries
-            self.show_tm_manager()
-        
-        def save_tm():
-            filepath = filedialog.asksaveasfilename(
-                title="Save Translation Memory",
-                defaultextension=".txt",
-                filetypes=[("Text Files", "*.txt"), ("All Files", "*.*")]
-            )
-            if filepath:
-                count = self.tm_agent.save_to_txt(filepath)
-                messagebox.showinfo("TM Saved", f"Saved {count} entries to {os.path.basename(filepath)}")
-                self.log(f"✓ Saved {count} TM entries")
-        
-        def delete_selected():
-            """Delete selected TM entry"""
-            selected = tm_tree.selection()
-            if not selected:
-                messagebox.showwarning("No Selection", "Please select an entry to delete")
+        # For TMX files, show language code selector
+        if ext.lower() == ".tmx":
+            # Detect available languages in TMX
+            detected_langs = self.tm_database.detect_tmx_languages(filepath)
+            
+            if not detected_langs:
+                messagebox.showerror("TMX Error", "Could not detect languages in TMX file.")
                 return
             
-            # Get the source text from the selected item
-            item = tm_tree.item(selected[0])
-            source_text = item['values'][0]
+            # Show language selector dialog
+            src_lang, tgt_lang, read_only = self.show_tmx_language_selector(filepath, detected_langs)
             
-            if messagebox.askyesno("Delete Entry", f"Delete this TM entry?\n\nSource: {source_text[:100]}..."):
-                # Remove from TM agent
-                if source_text in self.tm_agent.tm_data:
-                    del self.tm_agent.tm_data[source_text]
-                    tm_tree.delete(selected[0])
-                    self.log(f"✓ Deleted TM entry")
+            if not src_lang or not tgt_lang:
+                return  # User cancelled
+        else:
+            src_lang, tgt_lang, read_only = None, None, False
+        
+        # Create progress dialog
+        progress_dialog = tk.Toplevel(self.root)
+        progress_dialog.title("Loading Translation Memory")
+        progress_dialog.geometry("400x150")
+        progress_dialog.transient(self.root)
+        progress_dialog.grab_set()
+        
+        frame = ttk.Frame(progress_dialog, padding="20")
+        frame.pack(fill=tk.BOTH, expand=True)
+        
+        ttk.Label(frame, text=f"Loading {os.path.basename(filepath)}...", 
+                 font=('Segoe UI', 10)).pack(pady=(0, 10))
+        
+        progress_label = ttk.Label(frame, text="Initializing...")
+        progress_label.pack(pady=5)
+        
+        progress_bar = ttk.Progressbar(frame, mode='indeterminate')
+        progress_bar.pack(fill=tk.X, pady=10)
+        progress_bar.start(10)
+        
+        result_tm_id = [None]
+        result_count = [0]
+        error_msg = [None]
+        
+        def load_in_thread():
+            try:
+                if ext.lower() == ".tmx":
+                    # Load into new custom TM
+                    tm_name = os.path.basename(filepath).replace('.tmx', '')
+                    result_tm_id[0], result_count[0] = self.tm_database.load_tmx_file(
+                        filepath, src_lang, tgt_lang, tm_name=tm_name, read_only=read_only
+                    )
                     
-                    # Update entry count display
-                    entries_count = self.tm_agent.get_entry_count()
-                    for widget in info_frame.winfo_children():
-                        if isinstance(widget, ttk.Label) and "Translation Memory" in widget.cget("text"):
-                            widget.config(text=f"📚 Translation Memory: {entries_count} entries")
-                            break
+                elif ext.lower() == ".txt":
+                    # Load into Big Mama (legacy behavior)
+                    result_count[0] = self.tm_agent.load_from_txt(filepath)
+                else:
+                    error_msg[0] = f"Unsupported file type: {ext}"
+            
+            except Exception as e:
+                error_msg[0] = str(e)
+            
+            # Update UI from main thread
+            self.root.after(0, finish_loading)
+        
+        def finish_loading():
+            progress_bar.stop()
+            progress_dialog.destroy()
+            
+            if error_msg[0]:
+                messagebox.showerror("Load Error", f"Failed to load TM file:\n{error_msg[0]}")
+                self.log(f"✗ TM load failed: {error_msg[0]}")
+            elif result_count[0] == 0:
+                messagebox.showwarning("No Entries", 
+                    f"Loaded 0 translation pairs from {ext.upper()} file.\n\n"
+                    f"Possible reasons:\n"
+                    f"• Selected language codes not found in TMX\n"
+                    f"• File format is incorrect")
+                self.log(f"⚠ Loaded 0 entries from {os.path.basename(filepath)}")
+            else:
+                tm_info = ""
+                if result_tm_id[0]:
+                    tm = self.tm_database.get_tm(result_tm_id[0])
+                    tm_info = f"\n\nTM Name: {tm.name}\nLanguages: {src_lang} → {tgt_lang}"
+                
+                messagebox.showinfo("TM Loaded", 
+                    f"Successfully loaded {result_count[0]} translation pairs{tm_info}")
+                self.log(f"✓ Loaded {result_count[0]} entries into TM: {result_tm_id[0] or 'Big Mama'}")
+                
+                # Refresh TM dropdown and manager
+                self.update_tm_dropdown()
+                self.refresh_tm_manager()
+        
+        # Start loading in background thread
+        import threading
+        thread = threading.Thread(target=load_in_thread, daemon=True)
+        thread.start()
+    
+    def show_tmx_language_selector(self, filepath: str, detected_langs: List[str]) -> tuple:
+        """
+        Show dialog for selecting source/target languages from TMX
+        Returns: (source_lang_code, target_lang_code, read_only) or (None, None, False) if cancelled
+        """
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Select TMX Languages")
+        dialog.geometry("500x300")
+        dialog.transient(self.root)
+        dialog.grab_set()
+        
+        result = {'src': None, 'tgt': None, 'read_only': False}
+        
+        main_frame = ttk.Frame(dialog, padding=20)
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Info
+        ttk.Label(main_frame, text=f"TMX File: {os.path.basename(filepath)}", 
+                 font=('Segoe UI', 10, 'bold')).pack(anchor=tk.W, pady=(0, 10))
+        
+        ttk.Label(main_frame, text=f"Detected {len(detected_langs)} language(s) in file:", 
+                 font=('Segoe UI', 9)).pack(anchor=tk.W, pady=(0, 5))
+        
+        lang_display = ", ".join(detected_langs[:10])  # Show first 10
+        if len(detected_langs) > 10:
+            lang_display += f" ... and {len(detected_langs) - 10} more"
+        
+        ttk.Label(main_frame, text=lang_display, 
+                 font=('Segoe UI', 8), foreground='gray').pack(anchor=tk.W, pady=(0, 15))
+        
+        # Language selection
+        select_frame = ttk.Frame(main_frame)
+        select_frame.pack(fill=tk.X, pady=10)
+        
+        # Source language
+        ttk.Label(select_frame, text="Source Language:").grid(row=0, column=0, sticky=tk.W, pady=5)
+        src_var = tk.StringVar()
+        src_combo = ttk.Combobox(select_frame, textvariable=src_var, values=detected_langs, 
+                                state='readonly', width=25)
+        src_combo.grid(row=0, column=1, sticky=tk.EW, padx=(10, 0), pady=5)
+        
+        # Target language
+        ttk.Label(select_frame, text="Target Language:").grid(row=1, column=0, sticky=tk.W, pady=5)
+        tgt_var = tk.StringVar()
+        tgt_combo = ttk.Combobox(select_frame, textvariable=tgt_var, values=detected_langs, 
+                                state='readonly', width=25)
+        tgt_combo.grid(row=1, column=1, sticky=tk.EW, padx=(10, 0), pady=5)
+        
+        select_frame.columnconfigure(1, weight=1)
+        
+        # Auto-detect based on current GUI languages
+        def auto_detect():
+            """Try to match GUI languages to TMX codes"""
+            gui_src = self.source_language[:2].lower()
+            gui_tgt = self.target_language[:2].lower()
+            
+            # Try to find matching codes
+            for lang in detected_langs:
+                lang_code = lang.split('-')[0].split('_')[0].lower()
+                if lang_code == gui_src:
+                    src_var.set(lang)
+                if lang_code == gui_tgt:
+                    tgt_var.set(lang)
+        
+        # Auto-detect button
+        auto_btn = ttk.Button(main_frame, text="🔍 Auto-Detect from GUI Languages", 
+                             command=auto_detect)
+        auto_btn.pack(pady=10)
+        
+        # Try auto-detect on startup
+        auto_detect()
+        
+        # Options
+        options_frame = ttk.LabelFrame(main_frame, text="Options", padding=10)
+        options_frame.pack(fill=tk.X, pady=10)
+        
+        read_only_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(options_frame, text="Load as read-only TM (prevent modifications)", 
+                       variable=read_only_var).pack(anchor=tk.W)
+        
+        # Buttons
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=(10, 0))
+        
+        def on_ok():
+            if not src_var.get() or not tgt_var.get():
+                messagebox.showwarning("Selection Required", 
+                    "Please select both source and target languages")
+                return
+            
+            if src_var.get() == tgt_var.get():
+                messagebox.showwarning("Invalid Selection", 
+                    "Source and target languages must be different")
+                return
+            
+            result['src'] = src_var.get()
+            result['tgt'] = tgt_var.get()
+            result['read_only'] = read_only_var.get()
+            dialog.destroy()
+        
+        def on_cancel():
+            dialog.destroy()
+        
+        ttk.Button(button_frame, text="✓ Load TM", command=on_ok).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="✗ Cancel", command=on_cancel).pack(side=tk.LEFT)
+        
+        dialog.wait_window()
+        return result['src'], result['tgt'], result['read_only']
+    
+    def refresh_tm_manager(self):
+        """Refresh TM Manager if it's open and update TM dropdown"""
+        self.update_tm_dropdown()
+    
+    def update_tm_dropdown(self):
+        """Update TM source dropdown with all available TMs"""
+        if not hasattr(self, 'tm_source_combo'):
+            return
+        
+        # Build list of TM options
+        tm_options = ["All Active TMs"]
+        
+        for tm in self.tm_database.get_all_tms(enabled_only=False):
+            status = "✓" if tm.enabled else "✗"
+            tm_options.append(f"{status} {tm.name}")
+        
+        # Update combobox
+        self.tm_source_combo['values'] = tm_options
+        
+        # Keep current selection if still valid
+        current = self.tm_source_var.get()
+        if current not in tm_options:
+            self.tm_source_var.set("All Active TMs")
+    
+    def show_tm_manager(self):
+        """Show multi-TM management dialog with enable/disable controls"""
+        # Update dropdown first
+        self.update_tm_dropdown()
+        
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Translation Memory Manager")
+        dialog.geometry("900x600")
+        dialog.transient(self.root)
+        
+        main_frame = ttk.Frame(dialog, padding=10)
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Header
+        header_frame = ttk.Frame(main_frame)
+        header_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        total_entries = self.tm_database.get_entry_count(enabled_only=False)
+        enabled_entries = self.tm_database.get_entry_count(enabled_only=True)
+        
+        ttk.Label(header_frame, text="📚 Translation Memory Database", 
+                 font=('Segoe UI', 12, 'bold')).pack(anchor=tk.W)
+        ttk.Label(header_frame, text=f"Total: {total_entries} entries ({enabled_entries} in active TMs)", 
+                 font=('Segoe UI', 9)).pack(anchor=tk.W)
+        
+        # TM List
+        list_frame = ttk.LabelFrame(main_frame, text="Translation Memories", padding=10)
+        list_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+        
+        # Treeview for TMs
+        columns = ("enabled", "name", "entries", "languages", "type")
+        tree = ttk.Treeview(list_frame, columns=columns, show='headings', height=12)
+        
+        tree.heading("enabled", text="✓")
+        tree.heading("name", text="TM Name")
+        tree.heading("entries", text="Entries")
+        tree.heading("languages", text="Languages")
+        tree.heading("type", text="Type")
+        
+        tree.column("enabled", width=40, anchor=tk.CENTER)
+        tree.column("name", width=250, anchor=tk.W)
+        tree.column("entries", width=100, anchor=tk.CENTER)
+        tree.column("languages", width=150, anchor=tk.CENTER)
+        tree.column("type", width=120, anchor=tk.CENTER)
+        
+        # Scrollbar
+        scrollbar = ttk.Scrollbar(list_frame, orient=tk.VERTICAL, command=tree.yview)
+        tree.configure(yscrollcommand=scrollbar.set)
+        
+        tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        def populate_tree():
+            """Populate tree with all TMs"""
+            tree.delete(*tree.get_children())
+            
+            for tm in self.tm_database.get_all_tms(enabled_only=False):
+                enabled_icon = "✓" if tm.enabled else "✗"
+                entry_count = tm.get_entry_count()
+                
+                src_lang = tm.metadata.get('source_lang', 'N/A')
+                tgt_lang = tm.metadata.get('target_lang', 'N/A')
+                lang_pair = f"{src_lang} → {tgt_lang}" if src_lang != 'N/A' else "Not set"
+                
+                # Determine type
+                if tm.tm_id == 'project':
+                    tm_type = "Project TM"
+                elif tm.tm_id == 'big_mama' or tm.tm_id == 'main':
+                    tm_type = "Big Mama"
+                else:
+                    tm_type = "Custom TM" + (" [RO]" if tm.read_only else "")
+                
+                tree.insert("", tk.END, iid=tm.tm_id, 
+                           values=(enabled_icon, tm.name, entry_count, lang_pair, tm_type))
+        
+        populate_tree()
+        
+        # Selection state
+        selected_tm_id = [None]
+        
+        def on_select(event):
+            """Update selected TM"""
+            selection = tree.selection()
+            selected_tm_id[0] = selection[0] if selection else None
+        
+        tree.bind('<<TreeviewSelect>>', on_select)
+        
+        # Toggle enabled/disabled on double-click
+        def on_double_click(event):
+            """Toggle TM enabled state"""
+            item = tree.identify_row(event.y)
+            if item:
+                tm = self.tm_database.get_tm(item)
+                if tm:
+                    tm.enabled = not tm.enabled
+                    populate_tree()
+                    self.update_tm_dropdown()  # Update dropdown
+                    self.log(f"{'Enabled' if tm.enabled else 'Disabled'} TM: {tm.name}")
+        
+        tree.bind('<Double-Button-1>', on_double_click)
+        
+        # Button frame
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X)
+        
+        def toggle_enabled():
+            """Toggle selected TM enabled state"""
+            if not selected_tm_id[0]:
+                messagebox.showinfo("No Selection", "Please select a TM to enable/disable")
+                return
+            
+            tm = self.tm_database.get_tm(selected_tm_id[0])
+            if tm:
+                tm.enabled = not tm.enabled
+                populate_tree()
+                tree.selection_set(selected_tm_id[0])
+                self.update_tm_dropdown()  # Update dropdown
+        
+        def view_tm():
+            """View entries in selected TM"""
+            if not selected_tm_id[0]:
+                messagebox.showinfo("No Selection", "Please select a TM to view")
+                return
+            
+            tm = self.tm_database.get_tm(selected_tm_id[0])
+            if tm:
+                self.show_tm_entries(tm, dialog)
+        
+        def remove_tm():
+            """Remove selected custom TM"""
+            if not selected_tm_id[0]:
+                messagebox.showinfo("No Selection", "Please select a TM to remove")
+                return
+            
+            if selected_tm_id[0] in ['project', 'big_mama', 'main']:
+                messagebox.showwarning("Cannot Remove", 
+                    "Project TM and Big Mama cannot be removed.\n\n"
+                    "You can clear their contents from the View dialog.")
+                return
+            
+            tm = self.tm_database.get_tm(selected_tm_id[0])
+            if tm:
+                if messagebox.askyesno("Confirm Remove", 
+                    f"Remove TM '{tm.name}'?\n\n"
+                    f"This will delete {tm.get_entry_count()} entries.\n"
+                    f"This cannot be undone."):
+                    
+                    self.tm_database.remove_custom_tm(selected_tm_id[0])
+                    selected_tm_id[0] = None
+                    populate_tree()
+                    self.update_tm_dropdown()  # Update dropdown
+                    self.log(f"Removed TM: {tm.name}")
+        
+        def import_tm():
+            """Import new TM"""
+            self.load_tm_file()
+            populate_tree()
+        
+        def export_tm():
+            """Export selected TM to TMX"""
+            if not selected_tm_id[0]:
+                messagebox.showinfo("No Selection", "Please select a TM to export")
+                return
+            
+            tm = self.tm_database.get_tm(selected_tm_id[0])
+            if tm and tm.get_entry_count() > 0:
+                self.export_tm_to_tmx(tm)
+            else:
+                messagebox.showinfo("Empty TM", "Selected TM has no entries to export")
+        
+        # Left side buttons
+        ttk.Button(button_frame, text="⚡ Enable/Disable", 
+                  command=toggle_enabled).pack(side=tk.LEFT, padx=2)
+        ttk.Button(button_frame, text="👁 View Entries", 
+                  command=view_tm).pack(side=tk.LEFT, padx=2)
+        ttk.Button(button_frame, text="🗑 Remove", 
+                  command=remove_tm).pack(side=tk.LEFT, padx=2)
+        
+        ttk.Separator(button_frame, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=10)
+        
+        ttk.Button(button_frame, text="📥 Import TM", 
+                  command=import_tm).pack(side=tk.LEFT, padx=2)
+        ttk.Button(button_frame, text="📤 Export TM", 
+                  command=export_tm).pack(side=tk.LEFT, padx=2)
+        
+        ttk.Button(button_frame, text="Close", 
+                  command=dialog.destroy).pack(side=tk.RIGHT, padx=2)
+        
+        # Help text
+        help_frame = ttk.Frame(main_frame)
+        help_frame.pack(fill=tk.X, pady=(5, 0))
+        
+        help_text = ("💡 Tip: Double-click a TM to toggle enabled/disabled. "
+                    "Only enabled TMs are searched for matches.")
+        ttk.Label(help_frame, text=help_text, font=('Segoe UI', 8), 
+                 foreground='gray').pack(anchor=tk.W)
+    
+    def show_tm_entries(self, tm: TM, parent):
+        """Show entries in a specific TM"""
+        dialog = tk.Toplevel(parent)
+        dialog.title(f"TM Entries: {tm.name}")
+        dialog.geometry("800x500")
+        dialog.transient(parent)
+        
+        main_frame = ttk.Frame(dialog, padding=10)
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Header
+        header_frame = ttk.Frame(main_frame)
+        header_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        ttk.Label(header_frame, text=f"📖 {tm.name}", 
+                 font=('Segoe UI', 11, 'bold')).pack(anchor=tk.W)
+        
+        info_text = f"Entries: {tm.get_entry_count()} | "
+        info_text += f"Status: {'Enabled' if tm.enabled else 'Disabled'} | "
+        info_text += f"Mode: {'Read-only' if tm.read_only else 'Editable'}"
+        ttk.Label(header_frame, text=info_text).pack(anchor=tk.W)
+        
+        # Entries list
+        list_frame = ttk.Frame(main_frame)
+        list_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+        
+        columns = ("#", "source", "target")
+        tree = ttk.Treeview(list_frame, columns=columns, show='headings')
+        
+        tree.heading("#", text="#")
+        tree.heading("source", text="Source")
+        tree.heading("target", text="Target")
+        
+        tree.column("#", width=50, anchor=tk.CENTER)
+        tree.column("source", width=350, anchor=tk.W)
+        tree.column("target", width=350, anchor=tk.W)
+        
+        scrollbar = ttk.Scrollbar(list_frame, orient=tk.VERTICAL, command=tree.yview)
+        tree.configure(yscrollcommand=scrollbar.set)
+        
+        tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # Populate
+        for idx, (source, target) in enumerate(tm.entries.items(), 1):
+            tree.insert("", tk.END, values=(idx, source, target))
+        
+        # Buttons
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X)
         
         def clear_tm():
-            if messagebox.askyesno("Clear TM", "Are you sure you want to clear all TM entries?"):
-                self.tm_agent.clear()
-                dialog.destroy()
-                self.log("✓ Translation memory cleared")
+            """Clear all entries"""
+            if tm.read_only:
+                messagebox.showwarning("Read-Only", "This TM is read-only and cannot be modified")
+                return
+            
+            if messagebox.askyesno("Confirm Clear", 
+                f"Clear all {tm.get_entry_count()} entries from '{tm.name}'?\n\n"
+                "This cannot be undone."):
+                tm.entries.clear()
+                tree.delete(*tree.get_children())
+                self.log(f"Cleared TM: {tm.name}")
         
-        ttk.Button(button_frame, text="Load TM File...", command=load_tm).pack(side=tk.LEFT, padx=5)
-        ttk.Button(button_frame, text="Save TM...", command=save_tm).pack(side=tk.LEFT, padx=5)
-        ttk.Button(button_frame, text="🗑️ Delete Selected", command=delete_selected).pack(side=tk.LEFT, padx=5)
-        ttk.Button(button_frame, text="Clear All", command=clear_tm).pack(side=tk.LEFT, padx=5)
-        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.RIGHT, padx=5)
+        if not tm.read_only:
+            ttk.Button(button_frame, text="🗑 Clear All Entries", 
+                      command=clear_tm).pack(side=tk.LEFT, padx=2)
+        
+        ttk.Button(button_frame, text="Close", 
+                  command=dialog.destroy).pack(side=tk.RIGHT)
+    
+    def export_tm_to_tmx(self, tm: TM):
+        """Export TM to TMX file"""
+        filepath = filedialog.asksaveasfilename(
+            title=f"Export {tm.name}",
+            defaultextension=".tmx",
+            initialfile=f"{tm.name}.tmx",
+            filetypes=[("TMX Files", "*.tmx"), ("All Files", "*.*")]
+        )
+        
+        if not filepath:
+            return
+        
+        try:
+            # Create TMX structure
+            tmx = ET.Element('tmx', version="1.4")
+            header = ET.SubElement(tmx, 'header', 
+                                  creationtool="Supervertaler",
+                                  creationtoolversion="3.0.0",
+                                  datatype="PlainText",
+                                  segtype="sentence",
+                                  adminlang="en-us",
+                                  srclang=tm.metadata.get('source_lang', 'en'),
+                                  o_tmf="Supervertaler")
+            
+            body = ET.SubElement(tmx, 'body')
+            
+            src_lang = tm.metadata.get('source_lang', 'en')
+            tgt_lang = tm.metadata.get('target_lang', 'nl')
+            
+            for source, target in tm.entries.items():
+                tu = ET.SubElement(body, 'tu')
+                
+                # Source TUV
+                tuv_src = ET.SubElement(tu, 'tuv')
+                tuv_src.set('{http://www.w3.org/XML/1998/namespace}lang', src_lang)
+                seg_src = ET.SubElement(tuv_src, 'seg')
+                seg_src.text = source
+                
+                # Target TUV
+                tuv_tgt = ET.SubElement(tu, 'tuv')
+                tuv_tgt.set('{http://www.w3.org/XML/1998/namespace}lang', tgt_lang)
+                seg_tgt = ET.SubElement(tuv_tgt, 'seg')
+                seg_tgt.text = target
+            
+            # Write to file
+            tree = ET.ElementTree(tmx)
+            ET.indent(tree, space='  ')
+            tree.write(filepath, encoding='utf-8', xml_declaration=True)
+            
+            messagebox.showinfo("Export Success", 
+                f"Exported {tm.get_entry_count()} entries to TMX file")
+            self.log(f"✓ Exported TM '{tm.name}' to {os.path.basename(filepath)}")
+            
+        except Exception as e:
+            messagebox.showerror("Export Error", f"Failed to export TM:\n{str(e)}")
+            self.log(f"✗ TM export failed: {str(e)}")
     
     # === Tracked Changes Management ===
     

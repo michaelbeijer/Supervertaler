@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<tmx version="1.4">
+<header creationtool="CafeTran" creationtoolversion="2.0" datatype="plaintext" segtype="sentence" o-tmf="CafeTran TMX" adminlang="EN-US" srclang="en-GB" creationdate="20251009T125714Z" creationid="M.Beijer" changedate="20251009T125719Z" changeid="M.Beijer"><prop type="x-segments">true</prop><prop type="x-terms">true</prop><prop type="x-processing_tags">true</prop><prop type="x-read_only">false</prop><prop type="x-stop_autoassembling">false</prop><prop type="x-pretranslate_only">false</prop><prop type="x-terms_consistency_check">false</prop><prop type="x-priority">2</prop><prop type="x-integration">0</prop><prop type="x-prefix_matching">false</prop><prop type="x-case_match">false</prop><prop type="x-duplicates">1</prop><prop type="x-greedy_exact_match">true</prop><note>size=0</note>
+</header>
+<body></body>
+</tmx>
