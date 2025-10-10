@@ -530,16 +530,16 @@ class TMXGenerator:
 # --- Prompt Library Manager ---
 class PromptLibrary:
     """
-    Manages custom translation prompts with domain-specific expertise.
-    Loads JSON prompt files from custom_prompts and custom_prompts_private folders.
+    Manages system prompts with domain-specific translation expertise.
+    Loads JSON prompt files from System_prompts and System_prompts_private folders.
     """
-    def __init__(self, custom_prompts_dir, log_callback=None):
-        self.custom_prompts_dir = custom_prompts_dir
-        self.private_prompts_dir = os.path.join(os.path.dirname(custom_prompts_dir), "custom_prompts_private")
+    def __init__(self, system_prompts_dir, log_callback=None):
+        self.system_prompts_dir = system_prompts_dir
+        self.private_prompts_dir = os.path.join(os.path.dirname(system_prompts_dir), "System_prompts_private")
         self.log = log_callback if log_callback else print
         
         # Create directories if they don't exist
-        os.makedirs(self.custom_prompts_dir, exist_ok=True)
+        os.makedirs(self.system_prompts_dir, exist_ok=True)
         os.makedirs(self.private_prompts_dir, exist_ok=True)
         
         # Available prompts: {filename: prompt_data}
@@ -548,17 +548,17 @@ class PromptLibrary:
         self.active_prompt_name = None
         
     def load_all_prompts(self):
-        """Load all custom prompts from both public and private directories"""
+        """Load all system prompts from both public and private directories"""
         self.prompts = {}
         
         # Load from public directory
-        public_count = self._load_from_directory(self.custom_prompts_dir, is_private=False)
+        public_count = self._load_from_directory(self.system_prompts_dir, is_private=False)
         
         # Load from private directory
         private_count = self._load_from_directory(self.private_prompts_dir, is_private=True)
         
         total = public_count + private_count
-        self.log(f"✓ Loaded {total} custom prompts ({public_count} public, {private_count} private)")
+        self.log(f"✓ Loaded {total} system prompts ({public_count} public, {private_count} private)")
         return total
     
     def _load_from_directory(self, directory, is_private=False):
@@ -676,7 +676,7 @@ class PromptLibrary:
         filename = name.replace(' ', '_').replace('/', '_') + '.json'
         
         # Choose directory
-        directory = self.private_prompts_dir if is_private else self.custom_prompts_dir
+        directory = self.private_prompts_dir if is_private else self.system_prompts_dir
         filepath = os.path.join(directory, filename)
         
         # Create prompt data
@@ -801,7 +801,7 @@ class PromptLibrary:
             
             # Copy to appropriate directory
             filename = os.path.basename(import_path)
-            directory = self.private_prompts_dir if is_private else self.custom_prompts_dir
+            directory = self.private_prompts_dir if is_private else self.system_prompts_dir
             dest_path = os.path.join(directory, filename)
             
             shutil.copy2(import_path, dest_path)
@@ -1466,9 +1466,9 @@ class Supervertaler:
         self.current_translate_prompt = self.default_translate_prompt
         self.current_proofread_prompt = self.default_proofread_prompt
         
-        # Custom prompts directory
-        self.custom_prompts_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "user data", "Custom_prompts")
-        os.makedirs(self.custom_prompts_dir, exist_ok=True)
+        # System prompts directory
+        self.system_prompts_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "user data", "System_prompts")
+        os.makedirs(self.system_prompts_dir, exist_ok=True)
         
         # Translation memory - new multi-TM architecture
         self.tm_database = TMDatabase()
@@ -1480,8 +1480,8 @@ class Supervertaler:
         # Tracked changes agent (learns from editing patterns)
         self.tracked_changes_agent = TrackedChangesAgent(log_callback=self.log)
         
-        # Prompt library (custom domain-specific prompts)
-        self.prompt_library = PromptLibrary(self.custom_prompts_dir, log_callback=self.log)
+        # Prompt library (system prompts for domain-specific translation)
+        self.prompt_library = PromptLibrary(self.system_prompts_dir, log_callback=self.log)
         
         # TMX Generator for export
         self.tmx_generator = TMXGenerator(log_callback=self.log)
@@ -1597,7 +1597,7 @@ class Supervertaler:
         translate_menu.add_command(label="🗑️ Clear Drawings", command=self.clear_drawings)
         translate_menu.add_separator()
         translate_menu.add_command(label="API Settings...", command=self.show_api_settings)
-        translate_menu.add_command(label="Custom Prompts...", command=self.show_custom_prompts)
+        translate_menu.add_command(label="System Prompts...", command=self.show_custom_prompts)
         translate_menu.add_separator()
         translate_menu.add_command(label="Language Settings...", command=self.show_language_settings)
         
@@ -2642,7 +2642,7 @@ class Supervertaler:
         tk.Button(translate_btn_frame, text="👁️ Preview", 
                  command=self.preview_translate_prompt,
                  bg='#2196F3', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
-        tk.Button(translate_btn_frame, text="📚 Browse Prompt Library", 
+        tk.Button(translate_btn_frame, text="📚 Browse System Prompts", 
                  command=self.show_custom_prompts,
                  bg='#FF9800', fg='white', font=('Segoe UI', 9, 'bold')).pack(side='right', padx=2)
         
@@ -2676,7 +2676,7 @@ class Supervertaler:
         tk.Button(proofread_btn_frame, text="👁️ Preview", 
                  command=self.preview_proofread_prompt,
                  bg='#2196F3', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
-        tk.Button(proofread_btn_frame, text="📚 Browse Prompt Library", 
+        tk.Button(proofread_btn_frame, text="📚 Browse System Prompts", 
                  command=self.show_custom_prompts,
                  bg='#FF9800', fg='white', font=('Segoe UI', 9, 'bold')).pack(side='right', padx=2)
         
@@ -10033,7 +10033,7 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
     def show_custom_prompts(self):
         """Show comprehensive prompt library browser"""
         dialog = tk.Toplevel(self.root)
-        dialog.title("🎯 Prompt Library - Domain-Specific Translation Expertise")
+        dialog.title("🎯 System Prompt Library - Domain-Specific Translation Expertise")
         dialog.geometry("1000x700")
         dialog.transient(self.root)
         
@@ -10080,7 +10080,7 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
         
         # Location info
         location_label = ttk.Label(left_frame, 
-                                  text="📁 custom_prompts/  🔒 custom_prompts_private/",
+                                  text="📁 System_prompts/  🔒 System_prompts_private/",
                                   font=('Segoe UI', 8), foreground='#666')
         location_label.pack(anchor=tk.W, pady=(0, 5))
         
@@ -10124,6 +10124,10 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
         
         info_label = ttk.Label(meta_frame, text="", font=('Segoe UI', 8), foreground='#999')
         info_label.pack(anchor=tk.W, pady=(5, 0))
+        
+        # File path label (clickable)
+        filepath_label = ttk.Label(meta_frame, text="", font=('Consolas', 7), foreground='#0066cc', cursor='hand2')
+        filepath_label.pack(anchor=tk.W, pady=(3, 0))
         
         # Tabs for translate and proofread prompts
         notebook = ttk.Notebook(details_frame)
@@ -10254,8 +10258,22 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
             domain = prompt_data.get('domain', 'General')
             version = prompt_data.get('version', '1.0')
             created = prompt_data.get('created', 'Unknown')
-            location = "🔒 custom_prompts_private/" if prompt_data.get('_is_private') else "📁 custom_prompts/"
+            location = "🔒 System_prompts_private/" if prompt_data.get('_is_private') else "📁 System_prompts/"
             info_label.config(text=f"Domain: {domain} | Version: {version} | Created: {created} | {location}")
+            
+            # Update file path
+            filepath = prompt_data.get('_filepath', '')
+            if filepath:
+                filepath_label.config(text=f"📂 {filepath}")
+                # Make clickable to open folder
+                def open_folder(e):
+                    import subprocess
+                    folder_path = os.path.dirname(filepath)
+                    if os.path.exists(folder_path):
+                        subprocess.Popen(f'explorer /select,"{filepath}"')
+                filepath_label.bind('<Button-1>', open_folder)
+            else:
+                filepath_label.config(text="")
             
             # Update translate prompt
             translate_text.config(state='normal')
@@ -10344,8 +10362,8 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
             # Ask if private
             is_private = messagebox.askyesno("Prompt Type", 
                                             "Import as private prompt?\n\n"
-                                            "Yes = Private (custom_prompts_private)\n"
-                                            "No = Public (custom_prompts)")
+                                            "Yes = Private (System_prompts_private)\n"
+                                            "No = Public (System_prompts)")
             
             if self.prompt_library.import_prompt(filepath, is_private=is_private):
                 load_prompts_to_tree()
@@ -10434,7 +10452,7 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
         
         # Private checkbox
         is_private_var = tk.BooleanVar(value=edit_prompt.get('_is_private', False) if edit_prompt else False)
-        ttk.Checkbutton(meta_frame, text="🔒 Private prompt (save to custom_prompts_private/ folder)", 
+        ttk.Checkbutton(meta_frame, text="🔒 Private prompt (save to System_prompts_private/ folder)", 
                        variable=is_private_var).grid(row=4, column=1, sticky=tk.W, pady=5, padx=(5, 0))
         
         meta_frame.columnconfigure(1, weight=1)
