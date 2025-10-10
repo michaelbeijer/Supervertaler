@@ -38,7 +38,7 @@
 - ✅ Fully backward compatible with v2.4.1
 - 💡 Upgrade to v2.4.1-CLASSIC recommended for CAT tool integration
 
-> **💡 Recommendation**: Use **v2.4.1-CLASSIC** for production translation work. Try **v3.0.0-beta** if you want cutting-edge CAT editor features with blazing-fast performance!
+> **💡 Recommendation**: Use **v2.4.1-CLASSIC** for production translation work. Try **v3.0.0-beta** if you want to test the highly experimental CAT editor features! Features are being added/changed/removed daily.
 > 
 > **🔢 Version Scheme**: The jump from v2.x to v3.x reflects a **major architectural change**. v2.4.1-CLASSIC uses the original DOCX-based workflow, while v3.0.0-beta is a complete rewrite as a segment-based CAT editor. The "-CLASSIC" and "-beta" suffixes help distinguish these fundamentally different architectures.
 
