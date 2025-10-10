@@ -23,13 +23,14 @@
 - 💡 **Note**: v3.x signifies major architectural change from original DOCX workflow
 - 🏷️ **Version Note**: Bumped to v3.1.0 for significant Prompt Library feature
 
-### v2.4.1-CLASSIC (Production-ready) 🎉
-**File**: `Supervertaler_v2.4.1-CLASSIC.py`
-- ✅ **NEW**: CafeTran bilingual DOCX support - AI-based pipe formatting!
-- ✅ **NEW**: memoQ bilingual DOCX support - Programmatic formatting preservation!
-- ✅ **NEW**: Two complementary formatting approaches (AI-based & programmatic)
+### v2.4.3-CLASSIC (Production-ready) 🎉
+**File**: `Supervertaler_v2.4.3-CLASSIC.py`
+- ✅ **NEW**: Unified folder structure with v3.x (all user data in `user data/`)
+- ✅ **NEW**: Projects now saved to `user data/Projects/` and `Projects_private/`
+- ✅ CafeTran bilingual DOCX support - AI-based pipe formatting!
+- ✅ memoQ bilingual DOCX support - Programmatic formatting preservation!
+- ✅ Two complementary formatting approaches (AI-based & programmatic)
 - ✅ 100% success rate in production testing (both formats)
-- ✅ All v2.4.0 features + revolutionary CAT tool integration
 - ✅ Fully tested and stable for professional use
 - 📖 **User Guide**: [USER_GUIDE.md](USER_GUIDE.md)
 - 📖 **CafeTran Guide**: [`.dev/docs/features/CAFETRAN_SUPPORT.md`](.dev/docs/features/CAFETRAN_SUPPORT.md)
@@ -39,12 +40,12 @@
 ### v2.4.0 (Previous Stable - Archived) 📦
 **File**: `.dev/previous_versions/Supervertaler_v2.4.0 (stable - production ready)(2025-10-07).py`
 - 📦 Archived on 2025-10-07
-- ✅ Fully backward compatible with v2.4.1
-- 💡 Upgrade to v2.4.1-CLASSIC recommended for CAT tool integration
+- ✅ Fully backward compatible with v2.4.3
+- 💡 Upgrade to v2.4.3-CLASSIC recommended for CAT tool integration
 
-> **💡 Recommendation**: Use **v2.4.1-CLASSIC** for production translation work. Try **v3.0.0-beta** if you want to test the highly experimental CAT editor features! Features are being added/changed/removed daily.
+> **💡 Recommendation**: Use **v2.4.3-CLASSIC** for production translation work. Try **v3.1.0-beta** if you want to test the experimental CAT editor features with the new Prompt Library system!
 > 
-> **🔢 Version Scheme**: The jump from v2.x to v3.x reflects a **major architectural change**. v2.4.1-CLASSIC uses the original DOCX-based workflow, while v3.0.0-beta is a complete rewrite as a segment-based CAT editor. The "-CLASSIC" and "-beta" suffixes help distinguish these fundamentally different architectures.
+> **🔢 Version Scheme**: The jump from v2.x to v3.x reflects a **major architectural change**. v2.4.3-CLASSIC uses the original DOCX-based workflow, while v3.1.0-beta is a complete rewrite as a segment-based CAT editor. The "-CLASSIC" and "-beta" suffixes help distinguish these fundamentally different architectures.
 
 ----
 
@@ -52,7 +53,7 @@
 
 **Supervertaler is designed for professional translators using CAT tools** (memoQ, CafeTran, Trados Studio, Wordfast, etc.). It integrates seamlessly into existing translation workflows with **three workflow options**:
 
-### 🆕 CafeTran Bilingual DOCX Workflow (v2.4.1 - ☕ AI-BASED) 🎉
+### 🆕 CafeTran Bilingual DOCX Workflow (v2.4.3 - ☕ AI-BASED) 🎉
 
 **Intelligent AI-powered formatting marker preservation!**
 
@@ -82,7 +83,7 @@
 
 ---
 
-### 🆕 memoQ Bilingual DOCX Workflow (v2.4.1 - 📊 PROGRAMMATIC) 🎉
+### 🆕 memoQ Bilingual DOCX Workflow (v2.4.3 - 📊 PROGRAMMATIC) 🎉
 
 **Professional CAT tool integration with algorithmic formatting preservation!**
 
@@ -223,7 +224,7 @@ Supervertaler provides two output formats for flexible CAT tool integration:
 - 🚧 TrackedChangesAgent (port from v2.4.0)
 - 🚧 Prompt Library Integration
 
-**⚠️ Important**: v2.5.1 is experimental. Features may be incomplete, changed, or removed. Use v2.4.1 for production work.
+**⚠️ Important**: v3.1.0-beta is experimental. Features may be incomplete, changed, or removed. Use v2.4.3-CLASSIC for production work.
 
 ---
 
@@ -530,7 +531,7 @@ Supervertaler is part of a growing ecosystem of AI-powered translation tools tha
 ### Why Supervertaler?
 While many tools offer AI translation, Supervertaler's unique approach combines:
 - **Multiple context sources** (document, TM, tracked changes, images, custom instructions)
-- **Professional CAT tool integration** (memoQ bilingual DOCX workflow in v2.4.1; expanded CAT support planned)
+- **Professional CAT tool integration** (memoQ & CafeTran bilingual DOCX workflows in v2.4.3-CLASSIC; expanded CAT support in v3.1.0-beta)
 - **Specialized domain prompts** (legal, medical, technical, financial, etc.)
 - **Project library system** (save/restore complete workspace configurations)
 - **Multimodal support** (AI sees referenced images in context)
