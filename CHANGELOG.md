@@ -137,7 +137,7 @@
 
 ### 📝 PROJECT STRUCTURE
 
-- **File naming**: `Supervertaler_v3.0.0-beta_CAT.py` indicates CAT editor architecture
+- **File naming**: `Supervertaler_v3.1.0-beta_CAT.py` indicates CAT editor architecture
 - **Version scheme**: v3.x = segment-based CAT editor, v2.x-CLASSIC = original DOCX workflow
 
 ---
