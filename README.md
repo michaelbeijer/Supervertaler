@@ -7,7 +7,7 @@
 
 ## 📦 Available Versions
 
-### v3.0.0-beta (Latest - CAT Editor) 🚀
+### v3.0.0-beta (Experimental - CAT Editor) 🚀
 **File**: `Supervertaler_v3.0.0-beta_CAT.py`
 - ⚡ **NEW**: Grid pagination system (50 segments/page, 10x faster loading!)
 - 🧠 **NEW**: Smart paragraph detection for document view
@@ -19,7 +19,7 @@
 - 💡 **Note**: v3.0 signifies major architectural change from original DOCX workflow - please report any issues!
 - 🏷️ **Version Note**: Renamed from v2.5.2 to v3.0.0-beta to reflect major rewrite
 
-### v2.4.1-CLASSIC (Production Ready) 🎉
+### v2.4.1-CLASSIC (Production-ready) 🎉
 **File**: `Supervertaler_v2.4.1-CLASSIC.py`
 - ✅ **NEW**: CafeTran bilingual DOCX support - AI-based pipe formatting!
 - ✅ **NEW**: memoQ bilingual DOCX support - Programmatic formatting preservation!
