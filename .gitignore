@@ -8,7 +8,7 @@ api_keys.txt
 custom_prompts_private/
 
 # Private projects folder - never sync to GitHub
-projects_private
+user data/projects_private/
 
 # PyInstaller build artifacts (but allow docs/build/)
 /build/
