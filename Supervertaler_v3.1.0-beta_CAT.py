@@ -25,6 +25,39 @@ Date: October 9, 2025
 # Version constant
 APP_VERSION = "3.1.0-beta"
 
+# --- Private Features Flag ---
+# Check for .supervertaler.local file to enable private features (for developers only)
+# Users won't have this file, so they won't see confusing private folder options
+import os as _os_temp
+ENABLE_PRIVATE_FEATURES = _os_temp.path.exists(
+    _os_temp.path.join(_os_temp.path.dirname(_os_temp.path.abspath(__file__)), ".supervertaler.local")
+)
+if ENABLE_PRIVATE_FEATURES:
+    print("[DEV MODE] Private features enabled (.supervertaler.local found)")
+del _os_temp
+
+def get_user_data_path(folder_name):
+    """
+    Get the appropriate user data path based on dev mode.
+    
+    In dev mode (with .supervertaler.local file):
+        Returns: user data_private/<folder_name>
+    In user mode:
+        Returns: user data/<folder_name>
+    
+    Examples:
+        Dev mode:  get_user_data_path('TMs') -> 'user data_private/TMs'
+        User mode: get_user_data_path('TMs') -> 'user data/TMs'
+    """
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    if ENABLE_PRIVATE_FEATURES:
+        # Dev mode: use parallel private structure
+        return os.path.join(script_dir, "user data_private", folder_name)
+    else:
+        # User mode: use standard structure
+        return os.path.join(script_dir, "user data", folder_name)
+
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, scrolledtext
 import json
@@ -535,25 +568,18 @@ class PromptLibrary:
     - System Prompts: Define AI role and expertise
     - Custom Instructions: Additional context and preferences
     
-    Loads JSON files from System_prompts, System_prompts_private,
-    Custom_instructions, and Custom_instructions_private folders.
+    Loads JSON files from appropriate folders based on dev mode.
     """
     def __init__(self, system_prompts_dir, log_callback=None):
-        self.system_prompts_dir = system_prompts_dir
-        self.private_system_prompts_dir = os.path.join(os.path.dirname(system_prompts_dir), "System_prompts_private")
-        
-        # Custom instructions directories
-        user_data_dir = os.path.dirname(system_prompts_dir)
-        self.custom_instructions_dir = os.path.join(user_data_dir, "Custom_instructions")
-        self.private_custom_instructions_dir = os.path.join(user_data_dir, "Custom_instructions_private")
+        # Use path resolver for both folder types
+        self.system_prompts_dir = get_user_data_path("System_prompts")
+        self.custom_instructions_dir = get_user_data_path("Custom_instructions")
         
         self.log = log_callback if log_callback else print
         
         # Create directories if they don't exist
         os.makedirs(self.system_prompts_dir, exist_ok=True)
-        os.makedirs(self.private_system_prompts_dir, exist_ok=True)
         os.makedirs(self.custom_instructions_dir, exist_ok=True)
-        os.makedirs(self.private_custom_instructions_dir, exist_ok=True)
         
         # Available prompts: {filename: prompt_data}
         self.prompts = {}
@@ -561,27 +587,22 @@ class PromptLibrary:
         self.active_prompt_name = None
         
     def load_all_prompts(self):
-        """Load all prompts (system prompts and custom instructions) from all directories"""
+        """Load all prompts (system prompts and custom instructions) from appropriate directories"""
         self.prompts = {}
         
-        # Load system prompts
-        sys_public = self._load_from_directory(self.system_prompts_dir, is_private=False, prompt_type="system_prompt")
-        sys_private = self._load_from_directory(self.private_system_prompts_dir, is_private=True, prompt_type="system_prompt")
+        # Load from the appropriate directories based on dev mode
+        sys_count = self._load_from_directory(self.system_prompts_dir, prompt_type="system_prompt")
+        inst_count = self._load_from_directory(self.custom_instructions_dir, prompt_type="custom_instruction")
         
-        # Load custom instructions
-        inst_public = self._load_from_directory(self.custom_instructions_dir, is_private=False, prompt_type="custom_instruction")
-        inst_private = self._load_from_directory(self.private_custom_instructions_dir, is_private=True, prompt_type="custom_instruction")
-        
-        total = sys_public + sys_private + inst_public + inst_private
-        self.log(f"✓ Loaded {total} prompts ({sys_public + sys_private} system prompts, {inst_public + inst_private} custom instructions)")
+        total = sys_count + inst_count
+        self.log(f"✓ Loaded {total} prompts ({sys_count} system prompts, {inst_count} custom instructions)")
         return total
     
-    def _load_from_directory(self, directory, is_private=False, prompt_type="system_prompt"):
+    def _load_from_directory(self, directory, prompt_type="system_prompt"):
         """Load prompts from a specific directory
         
         Args:
             directory: Path to directory
-            is_private: Whether this is a private folder
             prompt_type: Either 'system_prompt' or 'custom_instruction'
         """
         count = 0
@@ -601,8 +622,7 @@ class PromptLibrary:
                     # Add metadata
                     prompt_data['_filename'] = filename
                     prompt_data['_filepath'] = filepath
-                    prompt_data['_is_private'] = is_private
-                    prompt_data['_type'] = prompt_type  # NEW: Add type field
+                    prompt_data['_type'] = prompt_type  # Add type field
                     
                     # Validate required fields
                     if 'name' not in prompt_data or 'translate_prompt' not in prompt_data:
@@ -627,7 +647,6 @@ class PromptLibrary:
                 'description': data.get('description', ''),
                 'domain': data.get('domain', 'General'),
                 'version': data.get('version', '1.0'),
-                'is_private': data.get('_is_private', False),
                 'filepath': data.get('_filepath', ''),
                 '_type': data.get('_type', 'system_prompt')  # Include type for filtering
             })
@@ -693,7 +712,7 @@ class PromptLibrary:
         return results
     
     def create_new_prompt(self, name, description, domain, translate_prompt, proofread_prompt="", 
-                         version="1.0", is_private=False, prompt_type="system_prompt"):
+                         version="1.0", prompt_type="system_prompt"):
         """Create a new prompt and save to JSON
         
         Args:
@@ -702,11 +721,11 @@ class PromptLibrary:
         # Create filename from name
         filename = name.replace(' ', '_').replace('/', '_') + '.json'
         
-        # Choose directory based on type and privacy
+        # Choose directory based on type using path resolver
         if prompt_type == "custom_instruction":
-            directory = self.private_custom_instructions_dir if is_private else self.custom_instructions_dir
+            directory = self.custom_instructions_dir
         else:  # system_prompt
-            directory = self.private_system_prompts_dir if is_private else self.system_prompts_dir
+            directory = self.system_prompts_dir
             
         filepath = os.path.join(directory, filename)
         
@@ -729,7 +748,7 @@ class PromptLibrary:
             # Add to loaded prompts
             prompt_data['_filename'] = filename
             prompt_data['_filepath'] = filepath
-            prompt_data['_is_private'] = is_private
+            prompt_data['_type'] = prompt_type
             self.prompts[filename] = prompt_data
             
             self.log(f"✓ Created new prompt: {name}")
@@ -819,7 +838,7 @@ class PromptLibrary:
             self.log(f"✗ Export failed: {e}")
             return False
     
-    def import_prompt(self, import_path, is_private=False, prompt_type="system_prompt"):
+    def import_prompt(self, import_path, prompt_type="system_prompt"):
         """Import a prompt from an external file
         
         Args:
@@ -836,12 +855,12 @@ class PromptLibrary:
                 messagebox.showerror("Invalid Prompt", "Missing required fields: name, translate_prompt")
                 return False
             
-            # Copy to appropriate directory based on type and privacy
+            # Copy to appropriate directory based on type
             filename = os.path.basename(import_path)
             if prompt_type == "custom_instruction":
-                directory = self.private_custom_instructions_dir if is_private else self.custom_instructions_dir
+                directory = self.custom_instructions_dir
             else:  # system_prompt
-                directory = self.private_system_prompts_dir if is_private else self.system_prompts_dir
+                directory = self.system_prompts_dir
             dest_path = os.path.join(directory, filename)
             
             shutil.copy2(import_path, dest_path)
@@ -849,7 +868,6 @@ class PromptLibrary:
             # Add metadata and load
             prompt_data['_filename'] = filename
             prompt_data['_filepath'] = dest_path
-            prompt_data['_is_private'] = is_private
             prompt_data['_type'] = prompt_type
             self.prompts[filename] = prompt_data
             
@@ -1730,6 +1748,15 @@ class Supervertaler:
         # Progress info
         self.progress_label = tk.Label(self.toolbar, text="No document loaded", bg='#f0f0f0')
         self.progress_label.pack(side='right', padx=10)
+        
+        # Add dev mode indicator if enabled
+        if ENABLE_PRIVATE_FEATURES:
+            dev_mode_banner = tk.Frame(self.root, bg='#d9534f', height=35)
+            dev_mode_banner.pack(side='top', fill='x', padx=5, pady=(0, 5))
+            dev_mode_label = tk.Label(dev_mode_banner, text="🔒 DEV MODE - All data saved to private folders", 
+                                     font=("Segoe UI", 10, "bold"), fg="white", bg="#d9534f", 
+                                     padx=10, pady=8)
+            dev_mode_label.pack(fill='x')
         
         # Use PanedWindow to make log resizable
         self.main_paned = ttk.PanedWindow(self.root, orient='vertical')
@@ -10451,13 +10478,7 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
             if not filepath:
                 return
             
-            # Ask if private
-            is_private = messagebox.askyesno("Prompt Type", 
-                                            "Import as private prompt?\n\n"
-                                            "Yes = Private (System_prompts_private)\n"
-                                            "No = Public (System_prompts)")
-            
-            if self.prompt_library.import_prompt(filepath, is_private=is_private):
+            if self.prompt_library.import_prompt(filepath):
                 load_prompts_to_tree()
                 messagebox.showinfo("Import Success", "Prompt imported successfully!")
         
@@ -10563,22 +10584,26 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
                              font=('Segoe UI', 7), foreground='#666')
         type_help.grid(row=5, column=1, sticky=tk.W, pady=(0, 5), padx=(5, 0))
         
-        # Private checkbox
+        # Private checkbox (only show if private features enabled)
         is_private_var = tk.BooleanVar(value=edit_prompt.get('_is_private', False) if edit_prompt else False)
-        private_check = ttk.Checkbutton(meta_frame, text="🔒 Private (excluded from Git sync)", 
-                       variable=is_private_var)
-        private_check.grid(row=6, column=1, sticky=tk.W, pady=5, padx=(5, 0))
-        
-        # Dynamic label update based on type selection
-        def update_private_label(*args):
-            prompt_type = type_var.get()
-            if prompt_type == 'custom_instruction':
-                private_check.config(text="🔒 Private (save to Custom_instructions_private/)")
-            else:
-                private_check.config(text="🔒 Private (save to System_prompts_private/)")
-        
-        type_var.trace('w', update_private_label)
-        update_private_label()  # Initial update
+        if ENABLE_PRIVATE_FEATURES:
+            private_check = ttk.Checkbutton(meta_frame, text="🔒 Private (excluded from Git sync)", 
+                           variable=is_private_var)
+            private_check.grid(row=6, column=1, sticky=tk.W, pady=5, padx=(5, 0))
+            
+            # Dynamic label update based on type selection
+            def update_private_label(*args):
+                prompt_type = type_var.get()
+                if prompt_type == 'custom_instruction':
+                    private_check.config(text="🔒 Private (save to Custom_instructions_private/)")
+                else:
+                    private_check.config(text="🔒 Private (save to System_prompts_private/)")
+            
+            type_var.trace('w', update_private_label)
+            update_private_label()  # Initial update
+        else:
+            # No private features - force is_private to False
+            is_private_var.set(False)
         
         meta_frame.columnconfigure(1, weight=1)
         
