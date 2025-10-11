@@ -1,10 +1,11 @@
-"""
-Supervertaler v3.0.0-beta (CAT Editor)
+﻿"""  
+Supervertaler v3.1.1-beta (CAT Editor)
 AI-Powered Computer-Aided Translation Tool
 
 Features:
-- Grid Pagination System (50 segments/page, 10x faster loading) ⚡ NEW
-- Smart Paragraph Detection for document view 🧠 NEW
+- Grid Pagination System (50 segments/page, 10x faster loading) ⚡
+- Smart Paragraph Detection for document view 🧠
+- Unified Prompt Library (System Prompts + Custom Instructions) 🎯
 - LLM Translation (OpenAI GPT-4, Anthropic Claude, Google Gemini)
 - Custom Prompts with variable substitution
 - Translation Memory with fuzzy matching
@@ -17,15 +18,14 @@ Features:
 - Find/Replace functionality
 - Status tracking and progress monitoring
 - Project save/load with context preservation
+- Dev mode with parallel folder structure (user data/ vs user data_private/)
 
 Author: Michael Beijer + AI Assistant
-Date: October 9, 2025
+Date: October 11, 2025
 """
 
 # Version constant
-APP_VERSION = "3.1.0-beta"
-
-# --- Private Features Flag ---
+APP_VERSION = "3.1.1-beta"# --- Private Features Flag ---
 # Check for .supervertaler.local file to enable private features (for developers only)
 # Users won't have this file, so they won't see confusing private folder options
 import os as _os_temp
@@ -705,7 +705,6 @@ class PromptLibrary:
                     'description': data.get('description', ''),
                     'domain': data.get('domain', 'General'),
                     'version': data.get('version', '1.0'),
-                    'is_private': data.get('_is_private', False),
                     'filepath': data.get('_filepath', '')
                 })
         
@@ -767,7 +766,6 @@ class PromptLibrary:
             return False
         
         filepath = self.prompts[filename]['_filepath']
-        is_private = self.prompts[filename]['_is_private']
         
         # Update prompt data
         prompt_data = {
@@ -789,7 +787,7 @@ class PromptLibrary:
             # Update loaded prompts
             prompt_data['_filename'] = filename
             prompt_data['_filepath'] = filepath
-            prompt_data['_is_private'] = is_private
+            prompt_data['_type'] = self.prompts[filename].get('_type', 'system_prompt')
             self.prompts[filename] = prompt_data
             
             self.log(f"✓ Updated prompt: {name}")
@@ -843,7 +841,6 @@ class PromptLibrary:
         
         Args:
             import_path: Path to JSON file to import
-            is_private: Save to private folder
             prompt_type: Either 'system_prompt' or 'custom_instruction'
         """
         try:
@@ -1525,8 +1522,8 @@ class Supervertaler:
         self.current_translate_prompt = self.default_translate_prompt
         self.current_proofread_prompt = self.default_proofread_prompt
         
-        # System prompts directory
-        self.system_prompts_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "user data", "System_prompts")
+        # System prompts directory (uses path resolver for dev mode support)
+        self.system_prompts_dir = get_user_data_path("System_prompts")
         os.makedirs(self.system_prompts_dir, exist_ok=True)
         
         # Translation memory - new multi-TM architecture
@@ -1822,7 +1819,7 @@ class Supervertaler:
         mode_frame = tk.Frame(filter_frame, bg='#f0f0f0', relief='solid', bd=1)
         mode_frame.pack(side='left', padx=5)
         
-        self.filter_mode_btn = tk.Button(mode_frame, text="� Filter",
+        self.filter_mode_btn = tk.Button(mode_frame, text="\U0001F50D Filter",
                                         command=lambda: self.set_filter_mode('filter'),
                                         bg='#4CAF50', fg='white', font=('Segoe UI', 9, 'bold'),
                                         relief='sunken', bd=2, cursor='hand2', width=10)
@@ -2950,7 +2947,7 @@ class Supervertaler:
         tk.Button(button_frame, text="💾 Save to Project", 
                  command=self.save_custom_instructions,
                  bg='#4CAF50', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
-        tk.Button(button_frame, text="� Load Example Template", 
+        tk.Button(button_frame, text="\U0001F4CB Load Example Template",
                  command=self.reload_default_instructions,
                  bg='#2196F3', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
         
@@ -10155,8 +10152,8 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
         
         type_filter_var = tk.StringVar(value=initial_filter)
         ttk.Radiobutton(filter_frame, text="All", variable=type_filter_var, value="all").pack(side=tk.LEFT, padx=5)
-        ttk.Radiobutton(filter_frame, text="🎭 System Prompts", variable=type_filter_var, value="system_prompt").pack(side=tk.LEFT, padx=5)
-        ttk.Radiobutton(filter_frame, text="📝 Custom Instructions", variable=type_filter_var, value="custom_instruction").pack(side=tk.LEFT, padx=5)
+        ttk.Radiobutton(filter_frame, text="🎭 System prompts", variable=type_filter_var, value="system_prompt").pack(side=tk.LEFT, padx=5)
+        ttk.Radiobutton(filter_frame, text="📝 Custom instructions", variable=type_filter_var, value="custom_instruction").pack(side=tk.LEFT, padx=5)
         
         # Trigger tree refresh when filter changes
         type_filter_var.trace('w', lambda *args: load_prompts_to_tree())
@@ -10171,9 +10168,9 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
         
         ttk.Label(left_frame, text="Available Prompts", font=('Segoe UI', 10, 'bold')).pack(anchor=tk.W)
         
-        # Location info
+        # Type info
         location_label = ttk.Label(left_frame, 
-                                  text="📁 Public  🔒 Private  |  🎭 System Prompts  � Custom Instructions",
+                                  text="🎭 System prompts  📝 Custom instructions",
                                   font=('Segoe UI', 8), foreground='#666')
         location_label.pack(anchor=tk.W, pady=(0, 5))
         
@@ -10258,7 +10255,8 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
             elif column == 'domain':
                 return sorted(prompts_list, key=lambda x: x['domain'].lower(), reverse=reverse)
             elif column == 'location':
-                return sorted(prompts_list, key=lambda x: x['is_private'], reverse=reverse)
+                # Location sorting removed - no longer relevant with auto-routing
+                return prompts_list
             elif column == 'type':
                 return sorted(prompts_list, key=lambda x: x.get('_type', 'system_prompt'), reverse=reverse)
             return prompts_list
@@ -10319,10 +10317,11 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
             for prompt_info in prompts_list:
                 # Determine type label
                 prompt_type = prompt_info.get('_type', 'system_prompt')
-                type_label = "🎭 System Prompt" if prompt_type == 'system_prompt' else "📝 Custom Instruction"
+                type_label = "🎭 System prompts" if prompt_type == 'system_prompt' else "📝 Custom instructions"
                 
-                location = "🔒 Private" if prompt_info['is_private'] else "📁 Public"
-                icon = "🔒" if prompt_info['is_private'] else "📄"
+                # Simple icon based on type
+                icon = "\U0001F3AD" if prompt_type == 'system_prompt' else "\U0001F4DD"
+                location = "System prompts" if prompt_type == 'system_prompt' else "Custom instructions"
                 
                 prompt_tree.insert('', 'end', 
                                   text=f"{icon} {prompt_info['name']}", 
@@ -10369,16 +10368,15 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
             version = prompt_data.get('version', '1.0')
             created = prompt_data.get('created', 'Unknown')
             
-            # Determine location based on type and privacy
+            # Determine location based on type
             prompt_type = prompt_data.get('_type', 'system_prompt')
-            is_private = prompt_data.get('_is_private', False)
             
             if prompt_type == 'custom_instruction':
-                location = "🔒 Custom_instructions_private/" if is_private else "📁 Custom_instructions/"
+                type_display = "� Custom Instruction"
             else:  # system_prompt
-                location = "🔒 System_prompts_private/" if is_private else "📁 System_prompts/"
+                type_display = "🎭 System Prompt"
             
-            info_label.config(text=f"Domain: {domain} | Version: {version} | Created: {created} | {location}")
+            info_label.config(text=f"Domain: {domain} | Version: {version} | Created: {created} | Type: {type_display}")
             
             # Update file path
             filepath = prompt_data.get('_filepath', '')
@@ -10575,35 +10573,27 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
         ttk.Label(meta_frame, text="Type:").grid(row=4, column=0, sticky=tk.W, pady=5)
         type_var = tk.StringVar(value=edit_prompt.get('_type', 'system_prompt') if edit_prompt else 'system_prompt')
         type_combo = ttk.Combobox(meta_frame, textvariable=type_var, width=48, state='readonly')
-        type_combo['values'] = ('system_prompt', 'custom_instruction')
+        type_combo['values'] = ('🎭 System prompts', '📝 Custom instructions')
+        # Map display values to internal values
+        type_display_map = {'🎭 System prompts': 'system_prompt', '📝 Custom instructions': 'custom_instruction'}
+        type_reverse_map = {'system_prompt': '🎭 System prompts', 'custom_instruction': '📝 Custom instructions'}
+        # Set initial display value
+        current_type = edit_prompt.get('_type', 'system_prompt') if edit_prompt else 'system_prompt'
+        type_var.set(type_reverse_map.get(current_type, '🎭 System prompts'))
         type_combo.grid(row=4, column=1, sticky=tk.EW, pady=5, padx=(5, 0))
         
         # Helper text for type
         type_help = ttk.Label(meta_frame, 
-                             text="🎭 System Prompt: Defines AI role/expertise  |  📝 Custom Instruction: User preferences/context",
+                             text="🎭 System prompts: Defines AI role/expertise  |  📝 Custom instructions: User preferences/context",
                              font=('Segoe UI', 7), foreground='#666')
         type_help.grid(row=5, column=1, sticky=tk.W, pady=(0, 5), padx=(5, 0))
         
-        # Private checkbox (only show if private features enabled)
-        is_private_var = tk.BooleanVar(value=edit_prompt.get('_is_private', False) if edit_prompt else False)
+        # Note about auto-routing in dev mode
         if ENABLE_PRIVATE_FEATURES:
-            private_check = ttk.Checkbutton(meta_frame, text="🔒 Private (excluded from Git sync)", 
-                           variable=is_private_var)
-            private_check.grid(row=6, column=1, sticky=tk.W, pady=5, padx=(5, 0))
-            
-            # Dynamic label update based on type selection
-            def update_private_label(*args):
-                prompt_type = type_var.get()
-                if prompt_type == 'custom_instruction':
-                    private_check.config(text="🔒 Private (save to Custom_instructions_private/)")
-                else:
-                    private_check.config(text="🔒 Private (save to System_prompts_private/)")
-            
-            type_var.trace('w', update_private_label)
-            update_private_label()  # Initial update
-        else:
-            # No private features - force is_private to False
-            is_private_var.set(False)
+            dev_note = ttk.Label(meta_frame, 
+                               text="🔒 DEV MODE: All prompts auto-save to private folders (user data_private/)",
+                               font=('Segoe UI', 7), foreground='#cc6600')
+            dev_note.grid(row=6, column=1, sticky=tk.W, pady=5, padx=(5, 0))
         
         meta_frame.columnconfigure(1, weight=1)
         
@@ -10666,8 +10656,9 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
             domain = domain_var.get().strip()
             version = version_var.get().strip()
             proofread_prompt = proofread_text.get('1.0', 'end-1c').strip()
-            is_private = is_private_var.get()
-            prompt_type = type_var.get()  # Get selected type
+            # Convert display value to internal value
+            prompt_type_display = type_var.get()
+            prompt_type = type_display_map.get(prompt_type_display, 'system_prompt')
             
             if edit_prompt:
                 # Update existing
@@ -10680,7 +10671,7 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
                 # Create new
                 success = self.prompt_library.create_new_prompt(
                     name, description, domain, translate_prompt, 
-                    proofread_prompt, version, is_private, prompt_type
+                    proofread_prompt, version, prompt_type
                 )
             
             if success:

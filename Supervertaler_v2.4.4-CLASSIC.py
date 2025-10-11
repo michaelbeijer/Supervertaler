@@ -1,4 +1,4 @@
-# --- Supervertaler (v2.4.1) - Multi-LLM AI-powered Translator & Proofreader with Project Management ---
+# --- Supervertaler (v2.4.4-CLASSIC) - Multi-LLM AI-powered Translator & Proofreader with Project Management ---
 import tkinter as tk
 from tkinter import filedialog, scrolledtext, messagebox, ttk
 import threading
@@ -18,7 +18,7 @@ import webbrowser  # For clickable email link
 import subprocess  # For opening folder in file manager
 
 # ADD: central version constant (was missing, caused NameError)
-APP_VERSION = "2.4.3"
+APP_VERSION = "2.4.4-CLASSIC"
 print(f"=== Supervertaler v{APP_VERSION} starting ===")
 
 # --- Private Features Flag ---

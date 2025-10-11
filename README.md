@@ -2,17 +2,21 @@
 
 🎯 **Context-aware, LLM-powered translation & proofreading tool, leveraging multiple context sources for enhanced accuracy (built for translators)** - Revolutionary approach to document translation that leverages multiple context sources for unparalleled accuracy.
 
-**Note**: A version of Supervertaler is being developed with many features commonly found in proper CAT tools (Computer-Aided Translation tools), which has reached **v3.1.0-beta** with a comprehensive Prompt Library system! It features unified prompt management (System Prompts + Custom Instructions), grid pagination (10x faster loading), smart paragraph detection, dual text selection (memoQ-style), column management, formatting display, three professional view modes (Grid, List, Document), and comprehensive auto-export options. We're implementing features from [michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool](https://michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool).
+**Note**: A version of Supervertaler is being developed with many features commonly found in proper CAT tools (Computer-Aided Translation tools), which has reached **v3.1.1-beta** with a comprehensive Prompt Library system! It features unified prompt management (System Prompts + Custom Instructions), parallel folder structure for dev mode, grid pagination (10x faster loading), smart paragraph detection, dual text selection (memoQ-style), column management, formatting display, three professional view modes (Grid, List, Document), and comprehensive auto-export options. We're implementing features from [michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool](https://michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool).
 
 
 ## 📦 Available Versions
 
-### v3.1.0-beta (Experimental - CAT Editor) 🚀
-**File**: `Supervertaler_v3.1.0-beta_CAT.py`
-- 🎯 **NEW**: Unified Prompt Library with System Prompts + Custom Instructions (Ctrl+P)
-- 📝 **NEW**: Custom Instructions - Define user preferences & behavioral guidelines
-- 🎭 **NEW**: Separate System Prompts (AI role) from Custom Instructions (user preferences)
-- 🗂️ **NEW**: Type filtering and dedicated Prompt Library menu
+### v3.1.1-beta (Experimental - CAT Editor) 🚀
+**File**: `Supervertaler_v3.1.1-beta_CAT.py`
+- 🔧 **NEW**: Parallel folder structure (`user data/` vs `user data_private/`) for dev mode
+- 🔒 **NEW**: Private features auto-routing (`.supervertaler.local` feature flag)
+- 🐛 **FIXED**: Emoji rendering issues in UI elements
+- 🐛 **FIXED**: Prompt Library loading in dev mode
+- 🎯 Unified Prompt Library with System Prompts + Custom Instructions (Ctrl+P)
+- 📝 Custom Instructions - Define user preferences & behavioral guidelines
+- 🎭 Separate System Prompts (AI role) from Custom Instructions (user preferences)
+- 🗂️ Type filtering and dedicated Prompt Library menu
 - ⚡ Grid pagination system (50 segments/page, 10x faster loading!)
 - 🧠 Smart paragraph detection for document view
 - 🛡️ Enhanced loading protection (prevents crashes)
@@ -21,12 +25,13 @@
 - ✅ CafeTran and memoQ bilingual DOCX support
 - 📖 **Status**: Feature-complete, performance optimized, beta testing phase
 - 💡 **Note**: v3.x signifies major architectural change from original DOCX workflow
-- 🏷️ **Version Note**: Bumped to v3.1.0 for significant Prompt Library feature
 
-### v2.4.3-CLASSIC (Production-ready) 🎉
-**File**: `Supervertaler_v2.4.3-CLASSIC.py`
-- ✅ **NEW**: Unified folder structure with v3.x (all user data in `user data/`)
-- ✅ **NEW**: Projects now saved to `user data/Projects/` and `Projects_private/`
+### v2.4.4-CLASSIC (Production-ready) 🎉
+**File**: `Supervertaler_v2.4.4-CLASSIC.py`
+- 🔧 **NEW**: Parallel folder structure (`user data/` vs `user data_private/`) for dev mode
+- 🔒 **NEW**: Private features auto-routing (`.supervertaler.local` feature flag)
+- ✅ Unified folder structure with v3.x (all user data in `user data/`)
+- ✅ Projects now saved to `user data/Projects/`
 - ✅ CafeTran bilingual DOCX support - AI-based pipe formatting!
 - ✅ memoQ bilingual DOCX support - Programmatic formatting preservation!
 - ✅ Two complementary formatting approaches (AI-based & programmatic)
@@ -40,12 +45,12 @@
 ### v2.4.0 (Previous Stable - Archived) 📦
 **File**: `.dev/previous_versions/Supervertaler_v2.4.0 (stable - production ready)(2025-10-07).py`
 - 📦 Archived on 2025-10-07
-- ✅ Fully backward compatible with v2.4.3
-- 💡 Upgrade to v2.4.3-CLASSIC recommended for CAT tool integration
+- ✅ Fully backward compatible with v2.4.4
+- 💡 Upgrade to v2.4.4-CLASSIC recommended for CAT tool integration
 
-> **💡 Recommendation**: Use **v2.4.3-CLASSIC** for production translation work. Try **v3.1.0-beta** if you want to test the experimental CAT editor features with the new Prompt Library system!
+> **💡 Recommendation**: Use **v2.4.4-CLASSIC** for production translation work. Try **v3.1.1-beta** if you want to test the experimental CAT editor features with the new Prompt Library system!
 > 
-> **🔢 Version Scheme**: The jump from v2.x to v3.x reflects a **major architectural change**. v2.4.3-CLASSIC uses the original DOCX-based workflow, while v3.1.0-beta is a complete rewrite as a segment-based CAT editor. The "-CLASSIC" and "-beta" suffixes help distinguish these fundamentally different architectures.
+> **🔢 Version Scheme**: The jump from v2.x to v3.x reflects a **major architectural change**. v2.4.4-CLASSIC uses the original DOCX-based workflow, while v3.1.1-beta is a complete rewrite as a segment-based CAT editor. The "-CLASSIC" and "-beta" suffixes help distinguish these fundamentally different architectures.
 
 ----
 
