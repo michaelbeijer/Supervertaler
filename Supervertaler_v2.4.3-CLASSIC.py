@@ -21,6 +21,47 @@ import subprocess  # For opening folder in file manager
 APP_VERSION = "2.4.3"
 print(f"=== Supervertaler v{APP_VERSION} starting ===")
 
+# --- Private Features Flag ---
+# Check for .supervertaler.local file to enable private features (for developers only)
+# Users won't have this file, so they won't see confusing private folder options
+ENABLE_PRIVATE_FEATURES = os.path.exists(
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), ".supervertaler.local")
+)
+if ENABLE_PRIVATE_FEATURES:
+    print("[DEV MODE] Private features enabled (.supervertaler.local found)")
+    print("[DEV MODE] All user data will be saved to *_private folders")
+
+# --- Path Resolver for Dev Mode ---
+def get_user_data_path(folder_name):
+    """
+    Returns the appropriate path based on dev mode using parallel folder structure.
+    In dev mode: Returns 'user data_private/folder_name'
+    In user mode: Returns 'user data/folder_name'
+    
+    This creates two complete parallel directory trees:
+    - user data/          (public, synced to GitHub)
+    - user data_private/  (private, gitignored)
+    
+    Example:
+        Dev mode:  get_user_data_path('TMs') -> 'user data_private/TMs'
+        User mode: get_user_data_path('TMs') -> 'user data/TMs'
+    """
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    if ENABLE_PRIVATE_FEATURES:
+        # Dev mode - use parallel private structure
+        user_data_root = os.path.join(script_dir, "user data_private")
+    else:
+        # User mode - use public structure
+        user_data_root = os.path.join(script_dir, "user data")
+    
+    full_path = os.path.join(user_data_root, folder_name)
+    
+    # Create directory if it doesn't exist
+    os.makedirs(full_path, exist_ok=True)
+    
+    return full_path
+
 # --- Changelog (v2.4.1) ---
 # NEW EXPERIMENTAL FEATURE: memoQ bilingual DOCX import/export
 # - Import memoQ bilingual DOCX files directly
@@ -2240,6 +2281,14 @@ class TranslationApp:
         title_label.grid(row=current_row, column=0, columnspan=3, padx=5, pady=(10,15), sticky="ew")
         current_row += 1
         
+        # Add dev mode indicator if enabled
+        if ENABLE_PRIVATE_FEATURES:
+            dev_mode_label = tk.Label(left_frame, text="🔒 DEV MODE - All data saved to private folders", 
+                                     font=("Segoe UI", 10, "bold"), fg="white", bg="#d9534f", 
+                                     padx=10, pady=5)
+            dev_mode_label.grid(row=current_row, column=0, columnspan=3, padx=5, pady=(0,10), sticky="ew")
+            current_row += 1
+        
         # Move info to top right - extra sharp heading font
         tk.Label(info_frame, text="ℹ️ Information", font=("Segoe UI", 12, "bold"), bg="white").pack(anchor="w", padx=5, pady=(5,2))
         self.info_label = tk.Label(info_frame, text=self.info_text_content_unified, wraplength=400, justify=tk.LEFT, 
@@ -2723,10 +2772,7 @@ class TranslationApp:
         self.prompt_name_var = tk.StringVar()
         tk.Entry(name_frame, textvariable=self.prompt_name_var, width=30).pack(side="left", padx=(0,5))
         
-        # Private checkbox for custom prompts
-        self.prompt_private_var = tk.BooleanVar(value=False)
-        tk.Checkbutton(name_frame, text="Save to Private Folder", 
-                      variable=self.prompt_private_var, bg="white").pack(side="left", padx=(10,0))
+        # Note: In dev mode, prompts auto-save to System_prompts_private/
         
         # Save/Load buttons
         save_load_frame = tk.Frame(management_frame, bg="white")
@@ -2889,16 +2935,8 @@ class TranslationApp:
             
         filename = f"{safe_name}.json"
         
-        # Determine which directory to save to
-        if self.prompt_private_var.get():
-            # Save to private folder
-            user_data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "user data")
-            save_dir = os.path.join(user_data_dir, "System_prompts_private")
-            os.makedirs(save_dir, exist_ok=True)
-        else:
-            # Save to public folder
-            save_dir = self.custom_prompts_dir
-            
+        # Use path resolver - auto-routes to private folder in dev mode
+        save_dir = get_user_data_path("System_prompts")
         filepath = os.path.join(save_dir, filename)
         
         # Get current prompts from the text widgets
@@ -2918,16 +2956,13 @@ class TranslationApp:
                 json.dump(prompt_data, f, indent=2, ensure_ascii=False)
             
             self.refresh_prompts_list()
-            folder_type = "private" if self.prompt_private_var.get() else "public"
-            self.update_log(f"[Prompts] Saved custom prompt set to {folder_type} folder: '{prompt_name}'")
-            messagebox.showinfo("Saved", f"Prompt set '{prompt_name}' saved successfully to {folder_type} folder!")
+            self.update_log(f"[Prompts] Saved custom prompt set: '{prompt_name}'")
+            messagebox.showinfo("Saved", f"Prompt set '{prompt_name}' saved successfully!")
             
             # Select the newly saved item
             items = list(self.prompts_listbox.get(0, tk.END))
             try:
-                # Add [Private] prefix if it's a private prompt for selection
-                search_name = f"[Private] {prompt_name}" if self.prompt_private_var.get() else prompt_name
-                index = items.index(search_name)
+                index = items.index(prompt_name)
                 self.prompts_listbox.selection_clear(0, tk.END)
                 self.prompts_listbox.selection_set(index)
             except ValueError:
@@ -3066,31 +3101,18 @@ class TranslationApp:
         # Add default option
         self.prompts_listbox.insert(tk.END, "[Default System Prompts]")
         
-        # Scan both custom prompts directories
+        # Scan the appropriate directory based on dev mode
+        prompts_dir = get_user_data_path("System_prompts")
         prompt_files = []
         
-        # Scan public custom prompts directory
-        if os.path.exists(self.custom_prompts_dir):
+        if os.path.exists(prompts_dir):
             try:
-                for filename in sorted(os.listdir(self.custom_prompts_dir)):
+                for filename in sorted(os.listdir(prompts_dir)):
                     if filename.endswith('.json'):
                         prompt_name = filename[:-5]  # Remove .json extension
                         prompt_files.append(prompt_name)
             except Exception as e:
                 self.update_log(f"[ERROR] Failed to scan custom prompts: {str(e)}")
-        
-        # Scan private custom prompts directory
-        user_data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "user data")
-        private_prompts_dir = os.path.join(user_data_dir, "System_prompts_private")
-        if os.path.exists(private_prompts_dir):
-            try:
-                for filename in sorted(os.listdir(private_prompts_dir)):
-                    if filename.endswith('.json'):
-                        prompt_name = filename[:-5]  # Remove .json extension
-                        # Add [Private] prefix to distinguish from public prompts
-                        prompt_files.append(f"[Private] {prompt_name}")
-            except Exception as e:
-                self.update_log(f"[ERROR] Failed to scan private custom prompts: {str(e)}")
         
         # Add all prompts to listbox
         for prompt_name in sorted(prompt_files):
@@ -3103,17 +3125,9 @@ class TranslationApp:
             selected_name = self.prompts_listbox.get(selection[0])
             # Update the name field (except for default)
             if selected_name != "[Default System Prompts]":
-                # Remove [Private] prefix for display in name field
-                if selected_name.startswith("[Private] "):
-                    display_name = selected_name[10:]  # Remove "[Private] " prefix
-                    self.prompt_private_var.set(True)
-                else:
-                    display_name = selected_name
-                    self.prompt_private_var.set(False)
-                self.prompt_name_var.set(display_name)
+                self.prompt_name_var.set(selected_name)
             else:
                 self.prompt_name_var.set("")
-                self.prompt_private_var.set(False)
 
     # ===== PROJECT LIBRARY METHODS =====
     
@@ -3146,11 +3160,7 @@ class TranslationApp:
         project_name_entry = tk.Entry(save_frame, textvariable=self.project_name_var, width=30, font=("Segoe UI", 9))
         project_name_entry.pack(fill="x", pady=(2,5))
         
-        # Private checkbox for projects
-        self.project_private_var = tk.BooleanVar(value=False)
-        tk.Checkbutton(save_frame, text="Save to Private Folder", 
-                      variable=self.project_private_var, bg="white", 
-                      font=("Segoe UI", 9)).pack(anchor="w", pady=(2,5))
+        # Note: In dev mode, projects auto-save to Projects_private/
 
         # Save/Load/Delete buttons
         buttons_frame = tk.Frame(save_frame, bg="white")
@@ -3249,17 +3259,8 @@ class TranslationApp:
 
         # Save to file
         filename = f"{project_name}.json"
-        
-        # Determine which directory to save to
-        if self.project_private_var.get():
-            # Save to private folder
-            user_data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "user data")
-            save_dir = os.path.join(user_data_dir, "Projects_private")
-            os.makedirs(save_dir, exist_ok=True)
-        else:
-            # Save to public folder
-            save_dir = self.projects_dir
-            
+        save_dir = get_user_data_path("Projects")
+        os.makedirs(save_dir, exist_ok=True)
         filepath = os.path.join(save_dir, filename)
 
         try:
@@ -3267,9 +3268,8 @@ class TranslationApp:
                 json.dump(project_data, f, indent=2, ensure_ascii=False)
             
             self.refresh_projects_list()
-            folder_type = "private" if self.project_private_var.get() else "public"
-            self.update_log(f"[Project] Saved project to {folder_type} folder: '{project_name}'")
-            messagebox.showinfo("Saved", f"Project '{project_name}' saved successfully to {folder_type} folder!")
+            self.update_log(f"[Project] Saved project: '{project_name}'")
+            messagebox.showinfo("Saved", f"Project '{project_name}' saved successfully!")
             
         except Exception as e:
             messagebox.showerror("Error", f"Failed to save project: {str(e)}")
@@ -3283,19 +3283,9 @@ class TranslationApp:
             return
 
         selected_name = self.projects_listbox.get(selection[0])
-        
-        # Determine if this is a private project and get the correct path
-        if selected_name.startswith("[Private] "):
-            # Private project - remove prefix and look in private folder
-            actual_name = selected_name[10:]  # Remove "[Private] " prefix
-            filename = f"{actual_name}.json"
-            user_data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "user data")
-            private_projects_dir = os.path.join(user_data_dir, "Projects_private")
-            filepath = os.path.join(private_projects_dir, filename)
-        else:
-            # Public project - look in public folder
-            filename = f"{selected_name}.json"
-            filepath = os.path.join(self.projects_dir, filename)
+        filename = f"{selected_name}.json"
+        projects_dir = get_user_data_path("Projects")
+        filepath = os.path.join(projects_dir, filename)
         
         if not os.path.exists(filepath):
             messagebox.showerror("File Not Found", f"Project file not found: {filename}")
@@ -3356,18 +3346,9 @@ class TranslationApp:
         if not messagebox.askyesno("Confirm Delete", f"Are you sure you want to delete the project '{selected_name}'?\n\nThis action cannot be undone."):
             return
 
-        # Determine if this is a private project and get the correct path
-        if selected_name.startswith("[Private] "):
-            # Private project - remove prefix and look in private folder
-            actual_name = selected_name[10:]  # Remove "[Private] " prefix
-            filename = f"{actual_name}.json"
-            user_data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "user data")
-            private_projects_dir = os.path.join(user_data_dir, "Projects_private")
-            filepath = os.path.join(private_projects_dir, filename)
-        else:
-            # Public project - look in public folder
-            filename = f"{selected_name}.json"
-            filepath = os.path.join(self.projects_dir, filename)
+        filename = f"{selected_name}.json"
+        projects_dir = get_user_data_path("Projects")
+        filepath = os.path.join(projects_dir, filename)
 
         try:
             if os.path.exists(filepath):
@@ -3387,49 +3368,24 @@ class TranslationApp:
         """Refresh the list of available projects"""
         self.projects_listbox.delete(0, tk.END)
 
-        # Scan both projects directories
-        project_files = []
+        # Scan the appropriate directory based on dev mode
+        projects_dir = get_user_data_path("Projects")
         
-        # Scan public projects directory
-        if os.path.exists(self.projects_dir):
+        if os.path.exists(projects_dir):
             try:
-                for filename in sorted(os.listdir(self.projects_dir)):
+                for filename in sorted(os.listdir(projects_dir)):
                     if filename.endswith('.json'):
                         project_name = filename[:-5]  # Remove .json extension
-                        project_files.append(project_name)
+                        self.projects_listbox.insert(tk.END, project_name)
             except Exception as e:
                 self.update_log(f"[ERROR] Failed to scan projects: {str(e)}")
-        
-        # Scan private projects directory
-        user_data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "user data")
-        private_projects_dir = os.path.join(user_data_dir, "Projects_private")
-        if os.path.exists(private_projects_dir):
-            try:
-                for filename in sorted(os.listdir(private_projects_dir)):
-                    if filename.endswith('.json'):
-                        project_name = filename[:-5]  # Remove .json extension
-                        # Add [Private] prefix to distinguish from public projects
-                        project_files.append(f"[Private] {project_name}")
-            except Exception as e:
-                self.update_log(f"[ERROR] Failed to scan private projects: {str(e)}")
-        
-        # Add all projects to listbox
-        for project_name in sorted(project_files):
-            self.projects_listbox.insert(tk.END, project_name)
 
     def on_project_selection(self, event=None):
         """Handle project selection in listbox"""
         selection = self.projects_listbox.curselection()
         if selection:
             selected_name = self.projects_listbox.get(selection[0])
-            # Remove [Private] prefix for display in name field
-            if selected_name.startswith("[Private] "):
-                display_name = selected_name[10:]  # Remove "[Private] " prefix
-                self.project_private_var.set(True)
-            else:
-                display_name = selected_name
-                self.project_private_var.set(False)
-            self.project_name_var.set(display_name)
+            self.project_name_var.set(selected_name)
 
     def open_projects_folder(self):
         """Open the projects folder in the system file manager"""
