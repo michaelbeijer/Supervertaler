@@ -497,7 +497,12 @@ TSV: `original{TAB}revised` per line
 
 ---
 
-## 14. Roadmap (See CHANGELOG.md)
+## 14. Roadmap
+
+For detailed version history, see:
+- **[CHANGELOG-CLASSIC.md](CHANGELOG-CLASSIC.md)** - v2.x.x-CLASSIC releases
+- **[CHANGELOG-CAT.md](CHANGELOG-CAT.md)** - v3.x.x-beta releases
+- **[CHANGELOG.md](CHANGELOG.md)** - Overview and navigation
 
 Planned (Unreleased):
 - **Fuzzy TM matches**: Leverage partial matches intelligently  
@@ -543,7 +548,7 @@ While many tools offer AI translation, Supervertaler's unique approach combines:
 
 1. **Fork** / feature branch.
 2. **Add or update** functionality (ideally in discrete logic units).
-3. **Update CHANGELOG.md** (add entry in Unreleased section).
+3. **Update appropriate CHANGELOG** (CHANGELOG-CLASSIC.md or CHANGELOG-CAT.md depending on version).
 4. **Submit PR** with concise summary.
 
 ---
