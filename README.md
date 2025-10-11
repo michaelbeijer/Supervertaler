@@ -42,12 +42,6 @@
 - 📖 **memoQ Guide**: [`.dev/docs/features/MEMOQ_SUPPORT.md`](.dev/docs/features/MEMOQ_SUPPORT.md)
 - 🏷️ **Version Note**: "-CLASSIC" suffix denotes original DOCX workflow architecture
 
-### v2.4.0 (Previous Stable - Archived) 📦
-**File**: `.dev/previous_versions/Supervertaler_v2.4.0 (stable - production ready)(2025-10-07).py`
-- 📦 Archived on 2025-10-07
-- ✅ Fully backward compatible with v2.4.4
-- 💡 Upgrade to v2.4.4-CLASSIC recommended for CAT tool integration
-
 > **💡 Recommendation**: Use **v2.4.4-CLASSIC** for production translation work. Try **v3.1.1-beta** if you want to test the experimental CAT editor features with the new Prompt Library system!
 > 
 > **🔢 Version Scheme**: The jump from v2.x to v3.x reflects a **major architectural change**. v2.4.4-CLASSIC uses the original DOCX-based workflow, while v3.1.1-beta is a complete rewrite as a segment-based CAT editor. The "-CLASSIC" and "-beta" suffixes help distinguish these fundamentally different architectures.
