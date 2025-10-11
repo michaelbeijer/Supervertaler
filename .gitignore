@@ -7,6 +7,9 @@ api_keys.txt
 # Local development config - enables private features for developers only
 .supervertaler.local
 
+# Development folder (tests, archived versions, dev tools)
+.dev/
+
 # ============================================
 # PRIVATE USER DATA (Dev Mode Only)
 # When .supervertaler.local exists, all user data saves to user data_private/

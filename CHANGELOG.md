@@ -1,5 +1,122 @@
 # Supervertaler - Changelog
 
+## [3.1.1-beta] - 2025-10-11 🔧 INFRASTRUCTURE UPDATE & BUG FIXES
+
+> **📌 Version Bump**: Infrastructure update for parallel folder structure and critical bug fixes
+
+### 🗂️ INFRASTRUCTURE CHANGES
+
+**Parallel Folder Structure** - Complete architectural change for dev mode
+
+- **NEW: Dual Directory Trees**:
+  ```
+  user data/          (public, Git-tracked, for end users)
+  user data_private/  (private, Git-ignored, for developers)
+  ```
+  
+- **Feature Flag System**:
+  - Presence of `.supervertaler.local` file enables dev mode
+  - Auto-routing: All save/load operations automatically use correct tree
+  - No UI clutter: Removed all public/private checkboxes and labels
+  - Developers create `.supervertaler.local` manually (not synced to Git)
+
+- **Path Resolution**:
+  - `get_user_data_path(folder_name)` returns appropriate root based on dev mode
+  - Dev mode: `user data_private/System_prompts/`
+  - User mode: `user data/System_prompts/`
+  - All folders auto-route: System_prompts, Custom_instructions, Projects, TMs, Glossaries, etc.
+
+- **Git Safety**:
+  - `.gitignore` simplified: Single line `user data_private/` excludes all private data
+  - Developers can work freely without accidentally committing private content
+  - Users never see private feature options
+
+### 🐛 BUG FIXES
+
+**CAT Version (v3.1.0-beta → v3.1.1-beta)**:
+
+- **FIXED**: Prompt Library not loading prompts in dev mode
+  - Root cause: `self.system_prompts_dir` was hardcoded instead of using `get_user_data_path()`
+  - Impact: PromptLibrary was looking in wrong directory when dev mode active
+  - Solution: Updated initialization to use path resolver
+  
+- **FIXED**: UI still showing "📁 Public 🔒 Private" labels
+  - Removed from Prompt Library header
+  - Cleaned up all `_is_private` metadata references
+  - UI now shows only "System prompts" and "Custom instructions" (UK English style)
+
+- **FIXED**: Emoji rendering corruption
+  - Filter button: `�` → 🔍 (magnifying glass, `\U0001F50D`)
+  - Load Example Template button: `�` → 📋 (clipboard, `\U0001F4CB`)
+  - Prompt tree icons: `�` → 📝 (memo, `\U0001F4DD`)
+  - Solution: Used Unicode escape codes for reliable cross-platform rendering
+
+### 🎨 UI/UX IMPROVEMENTS
+
+- **UK English Style**: Changed all UI labels to lowercase
+  - "System Prompts" → "System prompts"
+  - "Custom Instructions" → "Custom instructions"
+  - Location column: "System" → "System prompts", "Custom" → "Custom instructions"
+  
+- **Cleaner Prompt Editor**:
+  - Removed private checkbox (no longer needed with auto-routing)
+  - Added dev mode banner: "🔒 DEV MODE: All prompts auto-save to private folders"
+  - Type dropdown shows user-friendly names with emojis
+
+- **Dev Mode Banner**:
+  - Both versions show red "🔒 DEV MODE" indicator when `.supervertaler.local` present
+  - Clear visual confirmation that private mode is active
+
+### 📝 BACKEND CHANGES
+
+- **Removed Legacy Code**:
+  - Eliminated `is_private` parameters from all PromptLibrary methods
+  - Removed `_is_private` metadata from prompt JSON files
+  - Cleaned up `prompt_private_var` and `project_private_var` checkbox code
+  
+- **Simplified Git Ignore**:
+  - Old: 7 individual patterns (System_prompts_private, Custom_instructions_private, etc.)
+  - New: 1 pattern (`user data_private/`) covers all private data
+
+### 🔧 COMPATIBILITY
+
+- **Both Versions Updated**: v2.4.4-CLASSIC and v3.1.1-beta use identical folder structure
+- **Backward Compatible**: Existing prompts/projects automatically work
+- **Migration**: Old `*_private` folders can be manually moved to new structure
+
+---
+
+## [2.4.4-CLASSIC] - 2025-10-11 🔧 INFRASTRUCTURE UPDATE
+
+> **📌 Infrastructure Update**: Parallel folder structure for consistency with v3.1.1-beta
+
+### 🗂️ INFRASTRUCTURE CHANGES
+
+**Parallel Folder Structure** - Same architecture as v3.1.1-beta
+
+- **NEW: Dual Directory Trees**:
+  ```
+  user data/          (public, Git-tracked, for end users)
+  user data_private/  (private, Git-ignored, for developers)
+  ```
+  
+- **Feature Flag System**:
+  - `.supervertaler.local` file enables dev mode
+  - `get_user_data_path()` function routes to appropriate tree
+  - Auto-routing for all user data folders
+
+- **Dev Mode Banner**:
+  - Red "🔒 DEV MODE" indicator at top of main window
+  - Confirms private features are active
+
+### 🔧 COMPATIBILITY
+
+- **Unified with v3.1.1-beta**: Both versions now share same folder structure
+- **No User Impact**: End users see no changes (no `.supervertaler.local` file)
+- **Developer Friendly**: Create `.supervertaler.local` to enable private mode
+
+---
+
 ## [3.1.0-beta] - 2025-10-10 🎯 PROMPT LIBRARY UPDATE
 
 > **📌 Version Bump**: Bumped from v3.0.0-beta to v3.1.0-beta to reflect significant new feature and architectural change in prompt management system.
