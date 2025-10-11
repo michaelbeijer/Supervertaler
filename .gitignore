@@ -13,6 +13,10 @@ user data/Custom_instructions_private/
 # Private projects folder - never sync to GitHub
 user data/Projects_private/
 
+# OLD folder names (deprecated, but ignore if they reappear)
+custom_prompts_private/
+projects_private/
+
 # PyInstaller build artifacts (but allow docs/build/)
 /build/
 dist/
