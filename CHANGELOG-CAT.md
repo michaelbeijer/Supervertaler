@@ -4,190 +4,249 @@
 
 ---
 
-## [3.1.1-beta] - 2025-10-11 🔧 INFRASTRUCTURE UPDATE & BUG FIXES
+## [3.3.0-beta] - 2025-10-12 🎨 UI/UX REDESIGN + PROJECT START SCREEN
 
-> **📌 Version Bump**: Infrastructure update for parallel folder structure and critical bug fixes
-
-### 🗂️ INFRASTRUCTURE CHANGES
-
-**Parallel Folder Structure** - Complete architectural change for dev mode
-
-- **NEW: Dual Directory Trees**:
-  ```
-  user data/          (public, Git-tracked, for end users)
-  user data_private/  (private, Git-ignored, for developers)
-  ```
-  
-- **Feature Flag System**:
-  - Presence of `.supervertaler.local` file enables dev mode
-  - Auto-routing: All save/load operations automatically use correct tree
-  - No UI clutter: Removed all public/private checkboxes and labels
-  - Developers create `.supervertaler.local` manually (not synced to Git)
-
-- **Path Resolution**:
-  - `get_user_data_path(folder_name)` returns appropriate root based on dev mode
-  - Dev mode: `user data_private/System_prompts/`
-  - User mode: `user data/System_prompts/`
-  - All folders auto-route: System_prompts, Custom_instructions, Projects, TMs, Glossaries, etc.
-
-- **Git Safety**:
-  - `.gitignore` simplified: Single line `user data_private/` excludes all private data
-  - Developers can work freely without accidentally committing private content
-  - Users never see private feature options
-
-### 🐛 BUG FIXES
-
-**CAT Version (v3.1.0-beta → v3.1.1-beta)**:
-
-- **FIXED**: Prompt Library not loading prompts in dev mode
-  - Root cause: `self.system_prompts_dir` was hardcoded instead of using `get_user_data_path()`
-  - Impact: PromptLibrary was looking in wrong directory when dev mode active
-  - Solution: Updated initialization to use path resolver
-  
-- **FIXED**: UI still showing "📁 Public 🔒 Private" labels
-  - Removed from Prompt Library header
-  - Cleaned up all `_is_private` metadata references
-  - UI now shows only "System prompts" and "Custom instructions" (UK English style)
-
-- **FIXED**: Emoji rendering corruption
-  - Filter button: `�` → 🔍 (magnifying glass, `\U0001F50D`)
-  - Load Example Template button: `�` → 📋 (clipboard, `\U0001F4CB`)
-  - Prompt tree icons: `�` → 📝 (memo, `\U0001F4DD`)
-  - Solution: Used Unicode escape codes for reliable cross-platform rendering
+> **Major Interface Overhaul**: Cleaner toolbar, reorganized menus, semantic colors, professional Start Screen
 
 ### 🎨 UI/UX IMPROVEMENTS
 
-- **UK English Style**: Changed all UI labels to lowercase
-  - "System Prompts" → "System prompts"
-  - "Custom Instructions" → "Custom instructions"
-  - Location column: "System" → "System prompts", "Custom" → "Custom instructions"
-  
-- **Cleaner Prompt Editor**:
-  - Removed private checkbox (no longer needed with auto-routing)
-  - Added dev mode banner: "🔒 DEV MODE: All prompts auto-save to private folders"
-  - Type dropdown shows user-friendly names with emojis
+**Start Screen** (NEW - Professional Welcome Interface)
+- **BEFORE**: Empty grid view when launching program (no document loaded)
+- **AFTER**: Professional Start Screen with tabbed interface
+  * **Projects Tab**: Quick actions + Recent projects list (last 20 projects, sorted by date)
+    - Quick action buttons: Open DOCX, Open Project, Import Bilingual, Import TXT
+    - Recent projects listbox with double-click to open
+  * **File Explorer Tab**: Browse and open files directly
+    - Tree view with Name, Size, Modified columns
+    - Folder navigation with ".." parent directory access
+    - Smart file type detection (auto-detect memoQ/CafeTran files)
+    - Icons for file types (📁 folders, 📄 DOCX, ⚙ JSON, 💾 TMX, 📝 TXT)
+  * **Settings Tab**: Quick overview and configuration access
+    - Current API provider/model display
+    - Current language pair display
+    - Active TM count display
+    - Quick access buttons to all settings dialogs
+- **Automatic Transition**: Start Screen → Grid View when document is loaded
+- **Consistent Layout**: Assistant panel stays on right, Log stays at bottom
 
-- **Dev Mode Banner**:
-  - Red "🔒 DEV MODE" indicator when `.supervertaler.local` present
-  - Clear visual confirmation that private mode is active
+**Toolbar Reorganization** (55% space reduction)
+- **BEFORE**: 12 individual buttons (Import DOCX, Import TXT, Import memoQ, Import CafeTran, Save, Export, Grid, List, Document, Find/Replace)
+- **AFTER**: 4 dropdown menus + 3 toggle buttons + 1 save button
+  * Import ▼ (DOCX, TXT, memoQ, CafeTran, Trados Studio)
+  * Export ▼ (DOCX, TMX, TSV, memoQ, CafeTran, Trados Studio, Session Report)
+  * Save (frequently used, remains standalone)
+  * View toggles: Grid | List | Document (neutral gray)
+  * Tools ▼ (Find/Replace, Prompt Library, API Settings, Language Settings)
 
-### 📝 BACKEND CHANGES
+**Menu Bar Restructure**
+- **REMOVED**: "Translate" menu (distributed to Edit/Resources)
+- **REMOVED**: "Prompt Library" menu (merged into Resources)
+- **ADDED**: "Project" menu (Save/Load/API/Language settings)
+- **ADDED**: "Resources" menu (TM, Prompts, Tracked Changes, Images, Glossaries)
+- **ADDED**: "Help" menu (User Guide, Changelog, About)
+- **ENHANCED**: "View" menu now controls Assistant panel layout options
 
-- **Removed Legacy Code**:
-  - Eliminated `is_private` parameters from all PromptLibrary methods
-  - Removed `_is_private` metadata from prompt JSON files
-  - Cleaned up `prompt_private_var` and `project_private_var` checkbox code
-  
-- **Simplified Git Ignore**:
-  - Old: 7 individual patterns (System_prompts_private, Custom_instructions_private, etc.)
-  - New: 1 pattern (`user data_private/`) covers all private data
+**Color Scheme** (Semantic coding)
+- Green (#4CAF50): Import operations
+- Orange (#FF9800): Export operations
+- Blue (#2196F3): Save operations
+- Gray (#e0e0e0 / #f5f5f5): View toggles (neutral, less visually demanding)
 
-### 🔧 COMPATIBILITY
+**Terminology Changes**
+- "Translation Workspace" → **"Assistant panel"** (more accurate descriptor)
 
-- **Both Versions Updated**: v2.4.4-CLASSIC and v3.1.1-beta use identical folder structure
-- **Backward Compatible**: Existing prompts/projects automatically work
-- **Migration**: Old `*_private` folders can be manually moved to new structure
+**Tab Reordering** (Assistant panel)
+- **BEFORE**: ...Non-trans | Settings | Changes | Log
+- **AFTER**: ...Non-trans | Changes | Settings | Log
+- Rationale: Data analysis → Configuration → System log
+
+### 🆕 NEW FEATURES
+
+**Start Screen**
+- Projects tab with recent projects and quick actions
+- File Explorer tab with tree view navigation
+- Settings tab with overview and quick access
+- Automatic transition to Grid View when document loaded
+
+**Help Menu**
+- User Guide (opens USER_GUIDE.md)
+- Changelog (opens CHANGELOG-CAT.md)
+- About dialog (version info, features, license)
+
+### � BILINGUAL FORMAT SUPPORT
+
+**Trados Studio DOCX** (NEW - Third major CAT tool format)
+- **Import**: Trados Studio bilingual DOCX files (4-column table format)
+  * Automatic format detection (Segment ID, Segment status, Source segment, Target segment)
+  * Status mapping: "Not Translated (0%)", "Draft (X%)", "Translated (100%)", "Approved Sign-off"
+  * UUID-based segment IDs preserved for export
+  * Formatting preservation (bold, italic, underline via <b>, <i>, <u> tags)
+- **Export**: Export segments to Trados Studio bilingual DOCX format
+  * Reconstructs 4-column table with proper headers
+  * Preserves original segment UUIDs if available
+  * Maps Supervertaler statuses back to Trados format
+  * Formatting tags converted to Word formatting
+- **UI Integration**: 
+  * File → Import → "Trados Studio DOCX (Bilingual)..."
+  * File → Export → "Trados Studio DOCX..."
+  * Toolbar Import/Export dropdowns include Trados options
+  * Start Screen Import Bilingual menu includes Trados
+  * File Explorer smart detection (filename contains "trados")
+- **Module**: `modules/trados_docx_handler.py` (300+ lines)
+  * `is_trados_bilingual_docx()` - Format detection
+  * `extract_segments()` - Import with formatting
+  * `create_bilingual_docx()` - Export with formatting
+  * `map_trados_status_to_supervertaler()` - Status conversion
+
+**Trados Studio Re-Import Compatibility** ✅ **VERIFIED WORKING**
+- **Tag Style Preservation**: Formatting tags now use exact "Tag" character style (italic, pink FF0066)
+  * Auto-detection of "Tag" style in original document
+  * Automatic application to all Trados tags (<NUMBER>, </NUMBER>, <NUMBER/>)
+  * Fallback to manual formatting if style doesn't exist
+- **XML Declaration Fix**: Post-processing to match Trados exact format
+  * From: `<?xml version='1.0' encoding='UTF-8' standalone='yes'?>`
+  * To: `<?xml version="1.0" encoding="utf-8"?>` (matches Trados output exactly)
+  * Applied to all critical XML files (document.xml, styles.xml, settings.xml)
+- **Format Preservation**: Original file structure maintained
+  * Table style preserved
+  * Custom XML metadata preserved (segment hashes)
+  * Comments.xml preserved
+  * Settings.xml preserved
+- **Testing Results** (October 12, 2025):
+  * ✅ Trados accepts re-import of Supervertaler-exported files
+  * ✅ Segments updated correctly
+  * ✅ Tags maintain proper styling
+  * ✅ No data loss
+  * ✅ Full round-trip workflow confirmed working
+- **Critical Behavior Note**: 
+  * Trados **only imports changes to pre-translated segments**
+  * Empty/untranslated segments at export → Changes ignored on re-import
+  * Solution: Pre-translate in Trados first (MT/TM), then edit in Supervertaler
+  * See [USER_GUIDE.md - Trados Studio Re-Import](#trados-studio-re-import-critical-information) for full workflow
+- **Implementation**: 
+  * `_fix_xml_declarations_for_trados()` - Post-process DOCX after save
+  * `_add_text_with_tag_styles()` - Apply "Tag" style to formatting tags
+  * `update_bilingual_docx()` - Preserve original file structure
+
+**Complete CAT Tool Trio** ✅
+- memoQ XLIFF (v3.0.0-beta)
+- CafeTran DOCX (v3.1.0-beta)
+- Trados Studio DOCX (v3.3.0-beta) ← NEW
+
+### �📊 TRACKED CHANGES UPDATES
+
+**Report Enhancements**
+- Title now includes version: "Tracked Changes Analysis Report ([Supervertaler](https://github.com/michaelbeijer/Supervertaler) 3.3.0-beta)"
+- Footer includes clickable GitHub link
+- Both title and footer link to repository
+
+**Dialog Improvements**
+- Batch size configuration dialog height: 240px → 280px (OK button now fully visible)
+
+### 🔧 TECHNICAL CHANGES
+
+- Version bump: v3.2.0-beta → v3.3.0-beta
+- ~250 lines modified/added
+- 100% backward compatible (no breaking changes)
+- All keyboard shortcuts preserved
+
+### 💡 BENEFITS
+
+- 55% reduction in toolbar width (more content space)
+- Reduced cognitive load (fewer buttons to scan)
+- Logical grouping by function (import/export/save/view/tools)
+- Professional CAT tool aesthetic (memoQ/Trados-style)
+- Improved discoverability (related features grouped)
 
 ---
 
-## [3.1.0-beta] - 2025-10-10 🎯 PROMPT LIBRARY UPDATE
+## [3.2.0-beta] - 2025-10-12 🎯 POST-TRANSLATION ANALYSIS
 
-> **📌 Version Bump**: Bumped from v3.0.0-beta to v3.1.0-beta to reflect significant new feature and architectural change in prompt management system.
+> **📊 Major Feature Port**: AI-powered Tracked Changes Analysis from v2.5.0-CLASSIC
 
 ### ✨ NEW FEATURES
 
-#### Unified Prompt Library
-**Comprehensive prompt management system with two distinct prompt types!**
+**TrackedChangesBrowser Class** - Complete GUI for tracked changes review
 
-- **NEW: Custom Instructions** - User preferences and behavioral guidelines
-  - Define HOW the AI should translate (tone, style, formatting preferences)
-  - Examples: "Professional Tone", "Preserve Formatting", "Prefer TM Matches"
-  - Separate from System Prompts (which define WHO the AI is)
+- **AI-Powered Analysis Export**:
+  - Export markdown reports with AI-generated change summaries
+  - Batch processing (1-100 segments per request, configurable via slider)
+  - Supports Claude, Gemini, and OpenAI
+  - ~90% faster than sequential processing (25-segment batches)
   
-- **NEW: Dual Prompt Type System**:
-  - **🎭 System Prompts**: Define AI role/expertise (e.g., "Legal Specialist")
-  - **📝 Custom Instructions**: Define user preferences/context (e.g., "Formal Tone")
-  - Can combine both types for powerful, personalized workflows
+- **Interactive Browser Window**:
+  - Searchable treeview of all tracked changes
+  - Filter by exact match or partial text
+  - Shows: Segment #, Original (AI), Final (Edited)
+  - Copy to clipboard functionality
+  
+- **Export to Markdown Report**:
+  - Configurable batch size (1-100 via slider)
+  - Real-time estimate of API calls needed
+  - Precision AI prompts detect subtle changes:
+    * Curly vs straight quotes (" vs ")
+    * Apostrophes (' vs ')
+    * Dashes (- vs – vs —)
+  - Paragraph format (one segment per section)
+  - Includes full AI prompt template in header
 
-- **NEW: Type Filtering**:
-  - Radio buttons: All / System Prompts / Custom Instructions
-  - Quick filtering in tree view
-  - Sortable Type column
+### 🔧 ENHANCED METHODS
 
-- **NEW: Dedicated "Prompt Library" Menu**:
-  - Menu → Prompt Library → Open Prompt Library (Ctrl+P)
-  - Menu → Prompt Library → System Prompts (filtered view)
-  - Menu → Prompt Library → Custom Instructions (filtered view)
-  - Keyboard shortcut: **Ctrl+P** for quick access
+**browse_tracked_changes()**:
+- **CHANGED**: Now uses TrackedChangesBrowser class (was inline implementation)
+- **ADDED**: parent_app reference for AI provider/model access
+- **ADDED**: Export button "📊 Export Report (MD)"
 
-### 🗂️ FOLDER STRUCTURE CHANGES
+**Tracked Changes Integration**:
+- Maintains compatibility with existing load/clear methods
+- Works seamlessly with v3's menu structure (Translate menu)
 
-**BREAKING CHANGE**: Unified folder structure across v2 and v3
+### 📊 EXPORT REPORT FORMAT
 
-- **New Structure**:
-  ```
-  user data/
-  ├── System_prompts/          (public, Git-tracked)
-  ├── System_prompts_private/  (private, Git-ignored)
-  ├── Custom_instructions/     (public, Git-tracked)
-  └── Custom_instructions_private/ (private, Git-ignored)
-  ```
+```markdown
+# Tracked Changes Analysis Report
 
-- **OLD v3 Structure** (deprecated):
-  - ~~`custom_prompts/`~~ → `user data/System_prompts/`
-  - ~~`custom_prompts_private/`~~ → `user data/System_prompts_private/`
+## What is this report?
+This report analyzes differences between AI-generated translations 
+and your final edited versions...
 
-### 🎨 UI/UX IMPROVEMENTS
+**Generated:** [timestamp]
+**Total Changes:** [count]
+**AI Analysis:** Enabled
 
-- **Renamed**: "System Prompt Library" → "Prompt Library"
-- **Button labels**: "Browse Prompts" → "Prompt Library"
-- **Dialog title**: "🎯 Prompt Library - System Prompts & Custom Instructions"
-- **Added Type dropdown** in prompt editor (create/edit)
-- **Dynamic privacy label** updates based on selected type
-- **Tree view enhancements**: Added Type column with icons
-
-### 📦 EXAMPLE FILES
-
-**3 Example Custom Instructions included**:
-1. **Professional Tone & Style** - Ensures formal business language
-2. **Preserve Formatting & Layout** - Maintains document structure
-3. **Prefer Translation Memory Matches** - Prioritizes TM consistency
+### AI Analysis Configuration
+**Provider:** Claude/Gemini/OpenAI
+**Model:** [model-name]
+**Prompt Template Used:** [full prompt]
 
 ---
 
-## [3.0.0-beta] - 2025-10-09 🚀 MAJOR RELEASE (CAT Editor)
+### Segment 1
+**Target (Original):** [AI baseline]
+**Target (Revised):** [Your edits]
+**Change Summary:** [AI-powered precise analysis]
+```
 
-> **📌 Version Renumbering**: This version was previously numbered v2.5.2. The jump to v3.0 reflects a **major architectural change** - a complete rewrite from the original DOCX workflow (v2.x-CLASSIC) to a segment-based CAT editor.
+### 🎯 USE CASE
 
-### ⚡ PERFORMANCE IMPROVEMENTS
+1. Complete translation project in v3 CAT editor
+2. Export tracked changes (already supported)
+3. Click "Translate → Browse Tracked Changes"
+4. Click "📊 Export Report (MD)"
+5. Configure batch size (1-100 segments)
+6. Review comprehensive AI-powered analysis
 
-#### Grid View Pagination System
-**Major performance boost for large documents!**
+### ⚡ PERFORMANCE
 
-- **NEW: Smart pagination** - Load only 50-100 segments at a time instead of all
-- **Page size options**: 25, 50, 100, 200, or "All" segments per page
-- **Navigation controls**: ⏮ First / ◀ Prev / Next ▶ / Last ⏭ buttons
-- **Performance gain**: Grid view loads in ~0.5 seconds instead of 6-7 seconds
-- **Benefits**:
-  - ✅ 10x faster grid view loading
-  - ✅ Eliminates freezing on view switches
-  - ✅ Professional CAT tool behavior (like memoQ, Trados)
+- **Batch processing**: 33 changes in ~10 seconds (vs ~90 seconds sequential)
+- **Configurable batches**: Balance speed vs token usage
+- **Progress window**: Real-time feedback during processing
 
-#### Smart Paragraph Detection
-**Intelligent document structure recognition!**
+### 🔗 COMPATIBILITY
 
-- **NEW: Paragraph grouping** - Automatically detects paragraph boundaries from imports
-- **Smart heuristics**: Detects headings, groups related sentences, identifies natural breaks
-- **Document view improvements**: Headings properly separated, sentences flow naturally
-
-### 🛡️ STABILITY IMPROVEMENTS
-
-- **Enhanced loading protection** - Full-screen blocker prevents interaction during grid loading
-- **Visual feedback** - "Loading page... Please wait." overlay
-- **Prevents crashes** - Eliminates window resize/freeze issues
+- ✅ **Ported from v2.5.0-CLASSIC**: Feature parity achieved
+- ✅ **Integrated with v3 architecture**: Uses v3's AI provider system
+- ✅ **Maintains existing functionality**: Load/clear methods unchanged
 
 ---
 
-For older versions and detailed technical history, see: `CHANGELOG_full_backup.md`
-
-**Last updated**: October 11, 2025

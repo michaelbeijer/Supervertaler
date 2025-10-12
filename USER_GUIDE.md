@@ -601,6 +601,91 @@ See [Bilingual DOCX Workflow](#bilingual-docx-workflow-v241) for streamlined imp
 
 ---
 
+### Trados Studio Re-Import: Critical Information ⚠️
+
+**Important Discovery (October 2025)**: Trados Studio has specific behavior for bilingual review file re-import that differs from other CAT tools.
+
+#### ✅ The Rule
+> **Trados Studio only imports changes to segments that were translated BEFORE the export.**
+>
+> Empty/untranslated segments at export time → Changes are **ignored** during re-import
+
+**Source**: [RWS Official Documentation](https://docs.rws.com/en-US/trados-studio-2022-980998/reviewing-bilingual-files-with-word-514802)
+
+#### 📋 Workflow for Trados Studio
+
+**Correct Workflow** (Changes will be imported):
+1. In Trados: Pre-translate document (MT, TM, or manual)
+2. Export bilingual review file (`yourfile.docx.review.docx`)
+3. In Supervertaler: Import → Edit/Translate → Export
+4. In Trados: Re-import bilingual file
+5. ✅ **Changes are applied to pre-translated segments**
+
+**Incorrect Workflow** (Changes will be ignored):
+1. In Trados: Export with empty/untranslated segments
+2. In Supervertaler: Add translations
+3. In Trados: Re-import
+4. ❌ **Changes are silently ignored** (segments remain empty)
+
+#### 💡 Best Practice
+
+**Pre-translate in Trados first**, then use Supervertaler for:
+- Post-editing MT output
+- Improving TM fuzzy matches
+- Refining translations
+- Consistency improvements
+
+#### ✅ What Works
+
+- ✅ Editing segments that had MT translation
+- ✅ Improving segments with TM matches (100%, fuzzy)
+- ✅ Refining manually translated segments
+- ✅ Post-editing after Trados pre-translation
+- ✅ Tag styling (properly preserved - italic, pink color)
+- ✅ XML declaration (matches Trados format exactly)
+
+#### ❌ What Doesn't Work
+
+- ❌ Adding translations to completely empty segments
+- ❌ First-pass translation of untranslated content
+
+#### 🎯 Recommended Trados Workflow
+
+1. **Prepare in Trados:**
+   ```
+   - Create project with source files
+   - Pre-translate with MT (DeepL, Google, etc.)
+   - OR apply TM matches
+   - Export bilingual review file
+   ```
+
+2. **Process in Supervertaler:**
+   ```
+   - Import bilingual DOCX
+   - Review/edit/improve translations
+   - Export back to bilingual DOCX
+   ```
+
+3. **Finalize in Trados:**
+   ```
+   - Re-import bilingual file
+   - Run QA checks
+   - Deliver project
+   ```
+
+#### 📝 Note for v3.0.0-beta Users
+
+The v3.0.0-beta CAT editor version handles Trados files with:
+- Automatic tag style preservation
+- XML declaration format matching
+- Segment UUID preservation
+- Full metadata compatibility
+
+**All fixes are now integrated and working!** ✅
+
+
+---
+
 ## Translation Workspace (v2.5.0)
 
 🧪 **EXPERIMENTAL FEATURE** - Under active development
