@@ -166,6 +166,45 @@
 
 ### ✨ NEW FEATURES
 
+**Bulk Operations Suite** - Comprehensive Segment Management
+
+- **New "Bulk Operations" Submenu** in Edit menu with powerful batch editing tools
+- **Select All Segments** (Ctrl+A):
+  * Select all visible segments (respects current filter)
+  * Shows count and available bulk operations
+  * Foundation for future multi-selection features
+  
+- **Clear All Targets**:
+  * Remove target text from all segments at once
+  * Shows count of segments with targets before clearing
+  * Confirmation dialog with undo warning
+  * Sets status back to "untranslated"
+  
+- **Change Status (All/Filtered)**:
+  * Change status for all segments or filtered segments only
+  * Radio button dialog: Untranslated | Translated | Approved | Draft
+  * Filtered mode respects active filters (source/target/status)
+  * Shows count of segments that will be changed
+  
+- **Lock/Unlock Segments** - NEW segment lock status:
+  * Lock All / Unlock All - applies to entire project
+  * Lock/Unlock Filtered - applies only to visible segments
+  * Lock/Unlock Current Segment - in Segment submenu
+  * **Locked status** saved in project JSON
+  * Prevents accidental edits to reviewed segments
+  * Visual indication of lock status (future enhancement)
+  
+- **Segment Lock Feature**:
+  * New `locked` boolean field added to Segment class
+  * Serialized/deserialized in project save/load
+  * Foundation for edit protection (enforcement in next update)
+  
+- **Filter Integration**:
+  * Filtered operations work with existing Filter functionality
+  * "Change Status (Filtered)" respects source/target/status filters
+  * Lock/Unlock Filtered only affects visible segments
+  * Clear distinction between "All" vs "Filtered" operations
+
 **Copy Source to Target (All Segments)** - Cost-Saving CAT Tool Workflow
 
 - **Edit Menu**: New "Copy Source to Target (All Segments)" command

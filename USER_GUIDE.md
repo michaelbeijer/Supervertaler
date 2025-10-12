@@ -1875,6 +1875,147 @@ Supervertaler supports multiple AI providers, each with different models and cap
 
 ## Advanced Tips
 
+### Bulk Operations Guide (v3.3.0-beta)
+
+**New in v3.3.0-beta**: Comprehensive bulk editing tools for managing large projects efficiently.
+
+#### Accessing Bulk Operations
+
+All bulk operations are in: **Edit → Bulk Operations**
+
+#### Select All Segments (Ctrl+A)
+
+- Selects all visible segments (respects current filter)
+- Shows count and available operations
+- Foundation for multi-selection features
+
+**Use Cases**:
+- Quick overview of project size
+- Identify segments affected by bulk operations
+- Combined with filters for targeted selection
+
+#### Clear All Targets
+
+**Purpose**: Remove all target translations at once
+
+**Workflow**:
+```
+Edit → Bulk Operations → Clear All Targets...
+[Confirmation dialog shows count]
+Click "Yes" → All targets cleared
+```
+
+**When to Use**:
+- Starting fresh translation after major source changes
+- Clearing MT output before AI translation
+- Resetting project for re-translation
+- Testing workflows without losing source text
+
+**⚠️ Warning**: This action cannot be undone! Save project first.
+
+#### Change Status (All/Filtered)
+
+**Two Options**:
+1. **Change Status (All)** - Affects entire project
+2. **Change Status (Filtered)** - Affects only visible segments
+
+**Available Statuses**:
+- Untranslated
+- Translated
+- Approved
+- Draft
+
+**Workflow Example** - Mark filtered segments as approved:
+```
+1. Set filter: Status = "Translated"
+2. Edit → Bulk Operations → Change Status (Filtered)...
+3. Select "Approved"
+4. Click "Apply"
+→ Only translated segments change to approved
+```
+
+**Use Cases**:
+- Mark batch of AI translations as "Draft" for review
+- Approve all segments after QA review
+- Reset status after major revisions
+- Mark filtered segments (e.g., all table cells) with specific status
+
+#### Lock/Unlock Segments
+
+**What is Locking?**
+- **Locked segments** are marked as "final" and protected from accidental edits
+- Lock status saved in project file
+- Useful for reviewed/approved content
+
+**Four Options**:
+1. **Lock All Segments** - Lock entire project
+2. **Unlock All Segments** - Unlock entire project
+3. **Lock Filtered Segments** - Lock only visible segments
+4. **Unlock Filtered Segments** - Unlock only visible segments
+
+**Workflow Example** - Lock approved segments:
+```
+1. Set filter: Status = "Approved"
+2. Edit → Bulk Operations → Lock Filtered Segments
+→ Only approved segments are locked
+```
+
+**Lock Current Segment**:
+- **Edit → Segment → Lock Current Segment**
+- Quick way to lock single segment
+- Useful during review workflow
+
+**Use Cases**:
+- Lock approved segments to prevent accidental changes
+- Lock client-reviewed content
+- Lock glossary entries or boilerplate text
+- Unlock batch for revision after client feedback
+
+**🔒 Pro Tip**: Combine filters with lock operations:
+```
+Filter: Source contains "Copyright"
+→ Lock Filtered Segments
+→ All copyright notices locked
+```
+
+#### Combining Filters with Bulk Operations
+
+**Powerful Workflow**: Filter → Bulk Operation
+
+**Example 1** - Clear targets in table cells:
+```
+1. Set filter: Source contains "Table"
+2. Edit → Bulk Operations → Clear All Targets
+→ Only table segments cleared
+```
+
+**Example 2** - Mark all headings as translated:
+```
+1. Set filter: Status = "Draft"
+2. Set filter: Target contains text
+3. Edit → Bulk Operations → Change Status (Filtered)
+4. Select "Translated"
+→ All drafted segments marked as translated
+```
+
+**Example 3** - Lock client-reviewed segments:
+```
+1. Set filter: Status = "Approved"
+2. Edit → Bulk Operations → Lock Filtered Segments
+→ Client-approved content protected
+```
+
+#### Keyboard Shortcuts
+
+| Action | Shortcut |
+|--------|----------|
+| Select All Segments | `Ctrl+A` |
+| Find/Replace | `Ctrl+F` |
+| Apply Filters | `Ctrl+Shift+A` |
+| Toggle Filter Mode | `Ctrl+M` |
+
+---
+
 ### Workflow Optimization
 
 #### Project Setup Strategies

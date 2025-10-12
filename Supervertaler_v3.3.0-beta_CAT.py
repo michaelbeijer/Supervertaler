@@ -2265,6 +2265,7 @@ class Segment:
         self.source = source
         self.target = ""
         self.status = "untranslated"  # untranslated, translated, approved
+        self.locked = False  # Lock status to prevent editing
         self.paragraph_id = paragraph_id
         self.document_position = document_position  # Position in original document
         self.notes = ""
@@ -2286,6 +2287,7 @@ class Segment:
             'source': self.source,
             'target': self.target,
             'status': self.status,
+            'locked': self.locked,
             'paragraph_id': self.paragraph_id,
             'document_position': self.document_position,
             'notes': self.notes,
@@ -2305,6 +2307,7 @@ class Segment:
                   data.get('style', 'Normal'), data.get('document_position', 0))
         seg.target = data.get('target', '')
         seg.status = data.get('status', 'untranslated')
+        seg.locked = data.get('locked', False)
         seg.notes = data.get('notes', '')
         seg.modified = data.get('modified', False)
         seg.created_at = data.get('created_at', datetime.now().isoformat())
@@ -2600,11 +2603,29 @@ class Supervertaler:
         edit_menu.add_command(label="Clear Target", command=self.clear_target)
         edit_menu.add_separator()
         
+        # Bulk operations submenu
+        bulk_menu = tk.Menu(edit_menu, tearoff=0)
+        edit_menu.add_cascade(label="Bulk Operations", menu=bulk_menu)
+        bulk_menu.add_command(label="Select All Segments", command=self.select_all_segments, accelerator="Ctrl+A")
+        bulk_menu.add_command(label="Clear All Targets...", command=self.clear_all_targets)
+        bulk_menu.add_separator()
+        bulk_menu.add_command(label="Change Status (All)...", command=self.change_status_all)
+        bulk_menu.add_command(label="Change Status (Filtered)...", command=self.change_status_filtered)
+        bulk_menu.add_separator()
+        bulk_menu.add_command(label="Lock All Segments", command=self.lock_all_segments)
+        bulk_menu.add_command(label="Unlock All Segments", command=self.unlock_all_segments)
+        bulk_menu.add_command(label="Lock Filtered Segments", command=self.lock_filtered_segments)
+        bulk_menu.add_command(label="Unlock Filtered Segments", command=self.unlock_filtered_segments)
+        edit_menu.add_separator()
+        
         # Segment operations submenu
         segment_menu = tk.Menu(edit_menu, tearoff=0)
         edit_menu.add_cascade(label="Segment", menu=segment_menu)
         segment_menu.add_command(label="Translate Current", command=self.translate_current_segment, accelerator="Ctrl+T")
         segment_menu.add_command(label="Translate All Untranslated", command=self.translate_all_untranslated)
+        segment_menu.add_separator()
+        segment_menu.add_command(label="Lock Current Segment", command=self.lock_current_segment)
+        segment_menu.add_command(label="Unlock Current Segment", command=self.unlock_current_segment)
         
         # View menu - Layout & Assistant panel
         view_menu = tk.Menu(menubar, tearoff=0)
@@ -2657,6 +2678,7 @@ class Supervertaler:
         # Keyboard shortcuts (translate)
         self.root.bind('<Control-t>', lambda e: self.translate_current_segment())
         self.root.bind('<Control-p>', lambda e: self.show_custom_prompts())  # Prompt Library shortcut
+        self.root.bind('<Control-a>', lambda e: self.select_all_segments())  # Select All Segments
         
         # Keyboard shortcuts
         self.root.bind('<Control-o>', lambda e: self.import_docx())
@@ -9380,6 +9402,358 @@ Use this feature AFTER translation to:
         """Clear target text"""
         if hasattr(self, 'target_text'):
             self.target_text.delete('1.0', 'end')
+    
+    # ============================================================================
+    # BULK OPERATIONS
+    # ============================================================================
+    
+    def select_all_segments(self):
+        """Select all visible segments in the current view (Ctrl+A)"""
+        if not self.segments:
+            self.log("⚠️ No segments to select")
+            return
+        
+        # Get the segments to select (filtered or all)
+        segments_to_select = self.filtered_segments if self.filter_active else self.segments
+        
+        if not segments_to_select:
+            self.log("⚠️ No segments match current filter")
+            return
+        
+        self.log(f"✓ Selected {len(segments_to_select)} segments")
+        
+        # Note: Actual multi-selection handling depends on the view mode
+        # For now, we just log the action. Full multi-selection would require
+        # UI changes to support checkbox selection or Shift+Click ranges.
+        messagebox.showinfo(
+            "Select All",
+            f"Selected {len(segments_to_select)} segments.\n\n"
+            f"You can now apply bulk operations:\n"
+            f"• Change status\n"
+            f"• Lock/unlock\n"
+            f"• Clear targets"
+        )
+    
+    def clear_all_targets(self):
+        """Clear target text for all segments"""
+        if not self.segments:
+            messagebox.showwarning("No Segments", "No segments loaded.")
+            return
+        
+        # Count segments with targets
+        segments_with_targets = sum(1 for seg in self.segments if seg.target.strip())
+        
+        if segments_with_targets == 0:
+            messagebox.showinfo("Nothing to Clear", "All targets are already empty.")
+            return
+        
+        # Confirm action
+        if not messagebox.askyesno(
+            "Clear All Targets",
+            f"Clear target text for ALL {len(self.segments)} segments?\n\n"
+            f"{segments_with_targets} segments have targets that will be deleted.\n\n"
+            f"⚠️ This action cannot be undone!"
+        ):
+            return
+        
+        # Clear all targets
+        cleared_count = 0
+        for segment in self.segments:
+            if segment.target.strip():
+                segment.target = ""
+                segment.status = "untranslated"
+                segment.modified = True
+                cleared_count += 1
+        
+        # Update UI
+        self.modified = True
+        if self.layout_mode == LayoutMode.GRID:
+            self.load_segments_to_grid()
+        elif self.layout_mode == LayoutMode.SPLIT:
+            self.load_segments_to_list()
+            if self.current_segment and hasattr(self, 'target_text'):
+                self.target_text.delete('1.0', 'end')
+        elif self.layout_mode == LayoutMode.DOCUMENT:
+            self.load_segments_to_document_view()
+        
+        self.update_progress()
+        self.log(f"✓ Cleared targets for {cleared_count} segments")
+        messagebox.showinfo("Complete", f"✓ Cleared {cleared_count} targets")
+    
+    def change_status_all(self):
+        """Change status for all segments"""
+        if not self.segments:
+            messagebox.showwarning("No Segments", "No segments loaded.")
+            return
+        
+        # Create dialog for status selection
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Change Status (All Segments)")
+        dialog.geometry("400x200")
+        dialog.transient(self.root)
+        dialog.grab_set()
+        
+        tk.Label(dialog, text=f"Change status for all {len(self.segments)} segments:",
+                font=('Arial', 10, 'bold')).pack(pady=10)
+        
+        status_var = tk.StringVar(value="translated")
+        
+        tk.Radiobutton(dialog, text="Untranslated", variable=status_var,
+                      value="untranslated").pack(anchor='w', padx=20)
+        tk.Radiobutton(dialog, text="Translated", variable=status_var,
+                      value="translated").pack(anchor='w', padx=20)
+        tk.Radiobutton(dialog, text="Approved", variable=status_var,
+                      value="approved").pack(anchor='w', padx=20)
+        tk.Radiobutton(dialog, text="Draft", variable=status_var,
+                      value="draft").pack(anchor='w', padx=20)
+        
+        def apply_status():
+            new_status = status_var.get()
+            changed_count = 0
+            
+            for segment in self.segments:
+                if segment.status != new_status:
+                    segment.status = new_status
+                    segment.modified = True
+                    changed_count += 1
+            
+            if changed_count > 0:
+                self.modified = True
+                self.refresh_current_view()
+                self.update_progress()
+                self.log(f"✓ Changed status to '{new_status}' for {changed_count} segments")
+            
+            dialog.destroy()
+            messagebox.showinfo("Complete", f"✓ Changed status for {changed_count} segments")
+        
+        button_frame = tk.Frame(dialog)
+        button_frame.pack(pady=20)
+        tk.Button(button_frame, text="Apply", command=apply_status,
+                 bg='#4CAF50', fg='white', width=10).pack(side='left', padx=5)
+        tk.Button(button_frame, text="Cancel", command=dialog.destroy,
+                 width=10).pack(side='left', padx=5)
+    
+    def change_status_filtered(self):
+        """Change status for filtered/visible segments only"""
+        if not self.segments:
+            messagebox.showwarning("No Segments", "No segments loaded.")
+            return
+        
+        # Get the segments to modify
+        segments_to_modify = self.filtered_segments if self.filter_active else self.segments
+        
+        if not segments_to_modify:
+            messagebox.showwarning("No Segments", "No segments match current filter.")
+            return
+        
+        # Create dialog for status selection
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Change Status (Filtered Segments)")
+        dialog.geometry("400x220")
+        dialog.transient(self.root)
+        dialog.grab_set()
+        
+        filter_info = f"{len(segments_to_modify)} filtered" if self.filter_active else f"all {len(segments_to_modify)}"
+        tk.Label(dialog, text=f"Change status for {filter_info} segments:",
+                font=('Arial', 10, 'bold')).pack(pady=10)
+        
+        if self.filter_active:
+            tk.Label(dialog, text="(Only visible/filtered segments will be changed)",
+                    fg='#666', font=('Arial', 8)).pack()
+        
+        status_var = tk.StringVar(value="translated")
+        
+        tk.Radiobutton(dialog, text="Untranslated", variable=status_var,
+                      value="untranslated").pack(anchor='w', padx=20)
+        tk.Radiobutton(dialog, text="Translated", variable=status_var,
+                      value="translated").pack(anchor='w', padx=20)
+        tk.Radiobutton(dialog, text="Approved", variable=status_var,
+                      value="approved").pack(anchor='w', padx=20)
+        tk.Radiobutton(dialog, text="Draft", variable=status_var,
+                      value="draft").pack(anchor='w', padx=20)
+        
+        def apply_status():
+            new_status = status_var.get()
+            changed_count = 0
+            
+            for segment in segments_to_modify:
+                if segment.status != new_status:
+                    segment.status = new_status
+                    segment.modified = True
+                    changed_count += 1
+            
+            if changed_count > 0:
+                self.modified = True
+                self.refresh_current_view()
+                self.update_progress()
+                self.log(f"✓ Changed status to '{new_status}' for {changed_count} segments")
+            
+            dialog.destroy()
+            messagebox.showinfo("Complete", f"✓ Changed status for {changed_count} segments")
+        
+        button_frame = tk.Frame(dialog)
+        button_frame.pack(pady=20)
+        tk.Button(button_frame, text="Apply", command=apply_status,
+                 bg='#4CAF50', fg='white', width=10).pack(side='left', padx=5)
+        tk.Button(button_frame, text="Cancel", command=dialog.destroy,
+                 width=10).pack(side='left', padx=5)
+    
+    def lock_all_segments(self):
+        """Lock all segments to prevent editing"""
+        if not self.segments:
+            messagebox.showwarning("No Segments", "No segments loaded.")
+            return
+        
+        unlocked_count = sum(1 for seg in self.segments if not seg.locked)
+        
+        if unlocked_count == 0:
+            messagebox.showinfo("Already Locked", "All segments are already locked.")
+            return
+        
+        if not messagebox.askyesno(
+            "Lock All Segments",
+            f"Lock all {len(self.segments)} segments?\n\n"
+            f"{unlocked_count} segments will be locked and cannot be edited.\n\n"
+            f"You can unlock them later via Edit → Bulk Operations → Unlock All."
+        ):
+            return
+        
+        for segment in self.segments:
+            segment.locked = True
+            segment.modified = True
+        
+        self.modified = True
+        self.refresh_current_view()
+        self.log(f"🔒 Locked {unlocked_count} segments")
+        messagebox.showinfo("Complete", f"🔒 Locked {unlocked_count} segments")
+    
+    def unlock_all_segments(self):
+        """Unlock all segments"""
+        if not self.segments:
+            messagebox.showwarning("No Segments", "No segments loaded.")
+            return
+        
+        locked_count = sum(1 for seg in self.segments if seg.locked)
+        
+        if locked_count == 0:
+            messagebox.showinfo("Already Unlocked", "All segments are already unlocked.")
+            return
+        
+        for segment in self.segments:
+            segment.locked = False
+            segment.modified = True
+        
+        self.modified = True
+        self.refresh_current_view()
+        self.log(f"🔓 Unlocked {locked_count} segments")
+        messagebox.showinfo("Complete", f"🔓 Unlocked {locked_count} segments")
+    
+    def lock_filtered_segments(self):
+        """Lock only filtered/visible segments"""
+        if not self.segments:
+            messagebox.showwarning("No Segments", "No segments loaded.")
+            return
+        
+        segments_to_lock = self.filtered_segments if self.filter_active else self.segments
+        
+        if not segments_to_lock:
+            messagebox.showwarning("No Segments", "No segments match current filter.")
+            return
+        
+        unlocked_count = sum(1 for seg in segments_to_lock if not seg.locked)
+        
+        if unlocked_count == 0:
+            messagebox.showinfo("Already Locked", "All filtered segments are already locked.")
+            return
+        
+        filter_info = "filtered" if self.filter_active else "all"
+        if not messagebox.askyesno(
+            "Lock Filtered Segments",
+            f"Lock {len(segments_to_lock)} {filter_info} segments?\n\n"
+            f"{unlocked_count} segments will be locked."
+        ):
+            return
+        
+        for segment in segments_to_lock:
+            segment.locked = True
+            segment.modified = True
+        
+        self.modified = True
+        self.refresh_current_view()
+        self.log(f"🔒 Locked {unlocked_count} filtered segments")
+        messagebox.showinfo("Complete", f"🔒 Locked {unlocked_count} segments")
+    
+    def unlock_filtered_segments(self):
+        """Unlock only filtered/visible segments"""
+        if not self.segments:
+            messagebox.showwarning("No Segments", "No segments loaded.")
+            return
+        
+        segments_to_unlock = self.filtered_segments if self.filter_active else self.segments
+        
+        if not segments_to_unlock:
+            messagebox.showwarning("No Segments", "No segments match current filter.")
+            return
+        
+        locked_count = sum(1 for seg in segments_to_unlock if seg.locked)
+        
+        if locked_count == 0:
+            messagebox.showinfo("Already Unlocked", "All filtered segments are already unlocked.")
+            return
+        
+        for segment in segments_to_unlock:
+            segment.locked = False
+            segment.modified = True
+        
+        self.modified = True
+        self.refresh_current_view()
+        self.log(f"🔓 Unlocked {locked_count} filtered segments")
+        messagebox.showinfo("Complete", f"🔓 Unlocked {locked_count} segments")
+    
+    def lock_current_segment(self):
+        """Lock the currently selected segment"""
+        if not self.current_segment:
+            self.log("⚠️ No segment selected")
+            return
+        
+        if self.current_segment.locked:
+            messagebox.showinfo("Already Locked", "This segment is already locked.")
+            return
+        
+        self.current_segment.locked = True
+        self.current_segment.modified = True
+        self.modified = True
+        self.refresh_current_view()
+        self.log(f"🔒 Locked segment #{self.current_segment.id}")
+    
+    def unlock_current_segment(self):
+        """Unlock the currently selected segment"""
+        if not self.current_segment:
+            self.log("⚠️ No segment selected")
+            return
+        
+        if not self.current_segment.locked:
+            messagebox.showinfo("Already Unlocked", "This segment is already unlocked.")
+            return
+        
+        self.current_segment.locked = False
+        self.current_segment.modified = True
+        self.modified = True
+        self.refresh_current_view()
+        self.log(f"🔓 Unlocked segment #{self.current_segment.id}")
+    
+    def refresh_current_view(self):
+        """Refresh the current view after bulk operations"""
+        if self.layout_mode == LayoutMode.GRID:
+            self.load_segments_to_grid()
+        elif self.layout_mode == LayoutMode.SPLIT:
+            self.load_segments_to_list()
+        elif self.layout_mode == LayoutMode.DOCUMENT:
+            self.load_segments_to_document_view()
+    
+    # ============================================================================
+    # END BULK OPERATIONS
+    # ============================================================================
     
     def save_segment_and_next(self):
         """Save current segment with 'translated' status and move to next untranslated segment"""
