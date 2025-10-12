@@ -8,7 +8,7 @@ This repository tracks **two distinct product lines** with different architectur
 **Original DOCX-based workflow** - Production-ready and stable  
  See detailed changelog: **[CHANGELOG-CLASSIC.md](CHANGELOG-CLASSIC.md)**
 
-- **Current version**: v2.4.4-CLASSIC
+- **Current version**: v2.5.0-CLASSIC
 - **Architecture**: Traditional DOCX import/export workflow
 - **Status**:  Production-ready, fully tested, stable
 - **Best for**: Professional translators using CAT tools (memoQ, CafeTran)
@@ -19,7 +19,7 @@ This repository tracks **two distinct product lines** with different architectur
 **Segment-based CAT editor** - Experimental/beta  
  See detailed changelog: **[CHANGELOG-CAT.md](CHANGELOG-CAT.md)**
 
-- **Current version**: v3.1.1-beta
+- **Current version**: v3.3.0-beta
 - **Architecture**: Complete rewrite as segment-based CAT editor
 - **Status**:  Beta testing phase, experimental features
 - **Best for**: Testing new CAT editor features, early adopters

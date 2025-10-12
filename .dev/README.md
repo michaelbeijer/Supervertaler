@@ -6,6 +6,23 @@ This folder contains development resources, build files, and internal documentat
 
 ## 📂 Folder Structure
 
+### `scripts/`
+**Development utility scripts**
+
+One-off scripts created during development for:
+- Feature implementation (`add_*.py`, `implement_*.py`)
+- Code refactoring (`reorganize_*.py`, `port_*.py`)
+- Bug fixes (`fix_*.py`, `enhance_*.py`)
+- Format updates (`update_*.py`, `replace_*.py`)
+- Version management (`bump_*.py`)
+- Verification (`verify_*.py`)
+
+These scripts are kept for reference but are not part of the main application.
+
+**Note**: New development scripts should be created in this folder to keep root clean.
+
+---
+
 ### `build/`
 **Build and release automation**
 

@@ -1,4 +1,4 @@
-# --- Supervertaler (v2.4.4-CLASSIC) - Multi-LLM AI-powered Translator & Proofreader with Project Management ---
+# --- Supervertaler (v2.5.0-CLASSIC) - Multi-LLM AI-powered Translator & Proofreader with Project Management ---
 import tkinter as tk
 from tkinter import filedialog, scrolledtext, messagebox, ttk
 import threading
@@ -465,9 +465,11 @@ class TrackedChangesAgent:
 
 # --- Tracked Changes Browser Window ---
 class TrackedChangesBrowser:
-    def __init__(self, parent, tracked_changes_agent):
+    def __init__(self, parent, tracked_changes_agent, parent_app=None, log_queue=None):
         self.parent = parent
         self.tracked_changes_agent = tracked_changes_agent
+        self.parent_app = parent_app  # Reference to main app for AI settings
+        self.log_queue = log_queue if log_queue else queue.Queue()
         self.window = None
     
     def show_browser(self):
@@ -567,6 +569,17 @@ class TrackedChangesBrowser:
         self.context_menu.add_command(label="Copy Both", command=self.copy_both)
         
         self.tree.bind("<Button-3>", self.show_context_menu)  # Right click
+        
+        # Export button frame
+        export_frame = tk.Frame(self.window)
+        export_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        tk.Button(export_frame, text="📊 Export Report (MD)", command=self.export_to_md_report,
+                 bg="#4CAF50", fg="white", font=("Segoe UI", 10, "bold"),
+                 relief="raised", padx=10, pady=5).pack(side=tk.LEFT)
+        
+        tk.Label(export_frame, text="Export tracked changes report with AI-powered change analysis",
+                fg="gray").pack(side=tk.LEFT, padx=(10,0))
         
         # Status bar
         status_frame = tk.Frame(self.window)
@@ -687,6 +700,652 @@ class TrackedChangesBrowser:
             both_text = f"Original: {original}\n\nFinal: {final}"
             self.window.clipboard_clear()
             self.window.clipboard_append(both_text)
+
+    
+    def export_to_md_report(self):
+        """Export tracked changes to a Markdown report with AI-powered change analysis"""
+        from tkinter import filedialog, messagebox
+        
+        if not self.tracked_changes_agent.change_data:
+            messagebox.showwarning("No Data", "No tracked changes available to export.")
+            return
+        
+        # Ask user whether to export all or filtered results
+        search_text = self.search_var.get()
+        if search_text:
+            # User has active search filter
+            result = messagebox.askyesnocancel(
+                "Export Scope",
+                f"You have an active search filter showing {len(self.tree.get_children())} of {len(self.tracked_changes_agent.change_data)} changes.\n\n"
+                "Yes = Export filtered results only\n"
+                "No = Export all tracked changes\n"
+                "Cancel = Cancel export"
+            )
+            if result is None:  # Cancel
+                return
+            export_filtered = result
+        else:
+            export_filtered = False
+        
+        # Get the data to export
+        if export_filtered:
+            exact_match = self.exact_match_var.get()
+            data_to_export = self.tracked_changes_agent.search_changes(search_text, exact_match)
+            default_filename = "tracked_changes_filtered_report.md"
+        else:
+            data_to_export = self.tracked_changes_agent.change_data
+            default_filename = "tracked_changes_report.md"
+        
+        # Ask for save location
+        filepath = filedialog.asksaveasfilename(
+            title="Export Tracked Changes Report",
+            defaultextension=".md",
+            filetypes=(("Markdown files", "*.md"), ("All files", "*.*")),
+            initialfile=default_filename
+        )
+        
+        if not filepath:
+            return
+        
+        # Ask if user wants AI analysis
+        ai_analysis = messagebox.askyesno(
+            "AI Analysis",
+            f"Generate AI-powered change summaries?\n\n"
+            f"This will analyze {len(data_to_export)} changes using the currently selected AI model.\n\n"
+            f"Note: This may take a few minutes and will use API credits.\n\n"
+            f"Click 'No' to export without AI analysis."
+        )
+        
+        # If AI analysis enabled, let user choose batch size
+        batch_size = 25  # Default
+        if ai_analysis:
+            batch_dialog = tk.Toplevel(self.window)
+            batch_dialog.title("Batch Size Configuration")
+            batch_dialog.geometry("450x200")
+            batch_dialog.transient(self.window)
+            batch_dialog.grab_set()
+            
+            tk.Label(batch_dialog, text="Configure Batch Processing", 
+                    font=("Segoe UI", 11, "bold")).pack(pady=10)
+            tk.Label(batch_dialog, 
+                    text=f"Choose how many segments to process per AI request\n"
+                         f"Larger batches = faster but more tokens per request",
+                    font=("Segoe UI", 9)).pack(pady=5)
+            
+            # Slider for batch size
+            batch_var = tk.IntVar(value=25)
+            
+            slider_frame = tk.Frame(batch_dialog)
+            slider_frame.pack(pady=10, fill='x', padx=20)
+            
+            tk.Label(slider_frame, text="Batch Size:", font=("Segoe UI", 9)).pack(side='left')
+            batch_label = tk.Label(slider_frame, text="25", font=("Segoe UI", 10, "bold"), fg="blue")
+            batch_label.pack(side='right')
+            
+            def update_label(val):
+                batch_label.config(text=str(int(float(val))))
+            
+            slider = tk.Scale(batch_dialog, from_=1, to=100, orient='horizontal',
+                            variable=batch_var, command=update_label, length=350)
+            slider.pack(pady=5)
+            
+            # Info label
+            info_label = tk.Label(batch_dialog, 
+                                text=f"Total changes: {len(data_to_export)} | "
+                                     f"Estimated batches at size 25: {(len(data_to_export) + 24) // 25}",
+                                font=("Segoe UI", 8), fg="gray")
+            info_label.pack(pady=5)
+            
+            def update_info(*args):
+                size = batch_var.get()
+                batches = (len(data_to_export) + size - 1) // size
+                info_label.config(text=f"Total changes: {len(data_to_export)} | "
+                                      f"Estimated batches at size {size}: {batches}")
+            
+            batch_var.trace('w', update_info)
+            
+            # OK button
+            def on_ok():
+                nonlocal batch_size
+                batch_size = batch_var.get()
+                batch_dialog.destroy()
+            
+            tk.Button(batch_dialog, text="OK", command=on_ok, 
+                     font=("Segoe UI", 10), width=15).pack(pady=10)
+            
+            # Wait for dialog to close
+            batch_dialog.wait_window()
+        
+        try:
+            # Prepare report content
+            from datetime import datetime
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            
+            # Build AI prompt info for report header
+            ai_prompt_info = ""
+            if ai_analysis and hasattr(self, 'parent_app') and self.parent_app:
+                provider = self.parent_app.provider_var.get()
+                model = self.parent_app.model_var.get()
+                ai_prompt_info = f"""
+
+### AI Analysis Configuration
+
+**Provider:** {provider}  
+**Model:** {model}
+
+**Prompt Template Used:**
+```
+You are a precision editor analyzing changes between two versions of text.
+Compare the original and revised text and identify EXACTLY what changed.
+
+CRITICAL INSTRUCTIONS:
+- Be extremely specific and precise
+- PAY SPECIAL ATTENTION to quote marks: " vs " vs " (curly vs straight)
+- Check for apostrophe changes: ' vs ' (curly vs straight)  
+- Check for dash changes: - vs – vs — (hyphen vs en-dash vs em-dash)
+- Quote the exact words/phrases that changed
+- Use this format: "X" → "Y"
+- For single word changes: quote both words
+- For multiple changes: put each on its own line
+- For punctuation/formatting: describe precisely
+- For additions: "Added: [exact text]"
+- For deletions: "Removed: [exact text]"
+- DO NOT say "No change" unless texts are 100% identical
+- DO NOT use vague terms like "clarified", "improved", "fixed"
+- DO quote the actual changed text
+
+Examples of single changes:
+✓ "pre-cut" → "incision"
+✓ Curly quotes → straight quotes: "word" → "word"
+✓ Curly apostrophe → straight: don't → don't
+✓ "package" → "packaging"
+
+Examples of multiple changes (one per line):
+✓ "split portions" → "divided portions"
+  "connected by a" → "connected, via a"
+  Curly quotes → straight quotes throughout
+✓ Added: "carefully"
+✓ "color" → "colour" (US to UK spelling)
+✗ Clarified terminology (too vague)
+✗ Fixed grammar (not specific)
+✗ Improved word choice (not helpful)
+```
+
+---
+
+"""
+            
+            md_content = f"""# Tracked Changes Analysis Report
+
+## What is this report?
+
+This report analyzes the differences between AI-generated translations and your final edited versions exported from your CAT tool (memoQ, CafeTran, etc.). It shows exactly what you changed during post-editing, helping you review your editing decisions and track your translation workflow improvements.
+
+**Use case:** After completing a translation project in your CAT tool with tracked changes enabled, export the bilingual document and load it here to see a detailed breakdown of all modifications made to the AI-generated baseline.
+
+---
+
+**Generated:** {timestamp}  
+**Total Changes:** {len(data_to_export)}  
+**Filter Applied:** {"Yes - " + search_text if export_filtered else "No"}  
+**AI Analysis:** {"Enabled" if ai_analysis else "Disabled"}
+{ai_prompt_info}
+"""
+            
+            # Process changes with paragraph format
+            if ai_analysis:
+                # Show progress window
+                self.log_queue.put(f"[Export] Generating AI summaries for {len(data_to_export)} changes in batches...")
+                
+                progress_window = tk.Toplevel(self.window)
+                progress_window.title("Generating AI Analysis...")
+                progress_window.geometry("400x150")
+                progress_window.transient(self.window)
+                progress_window.grab_set()
+                
+                tk.Label(progress_window, text="Analyzing tracked changes with AI (batched)...", 
+                        font=("Segoe UI", 10)).pack(pady=10)
+                progress_label = tk.Label(progress_window, text="Processing batch 0 of 0")
+                progress_label.pack()
+                batch_info_label = tk.Label(progress_window, text="", font=("Segoe UI", 8), fg="gray")
+                batch_info_label.pack()
+                
+                # Process in batches (user-configured)
+                # batch_size already set from dialog above
+                total_batches = (len(data_to_export) + batch_size - 1) // batch_size
+                all_summaries = {}
+                
+                for batch_num in range(total_batches):
+                    start_idx = batch_num * batch_size
+                    end_idx = min(start_idx + batch_size, len(data_to_export))
+                    batch = data_to_export[start_idx:end_idx]
+                    
+                    progress_label.config(text=f"Processing batch {batch_num + 1} of {total_batches}")
+                    batch_info_label.config(text=f"Segments {start_idx + 1}-{end_idx} of {len(data_to_export)}")
+                    progress_window.update()
+                    
+                    # Generate AI summaries for this batch
+                    try:
+                        batch_summaries = self.get_ai_change_summaries_batch(batch, start_idx)
+                        all_summaries.update(batch_summaries)
+                        self.log_queue.put(f"[Export] Batch {batch_num + 1}/{total_batches} complete ({len(batch)} segments)")
+                    except Exception as e:
+                        self.log_queue.put(f"[Export] Error in batch {batch_num + 1}: {e}")
+                        # Fill in error messages for failed batch
+                        for i in range(start_idx, end_idx):
+                            all_summaries[i] = f"_Error generating summary: {str(e)}_"
+                
+                progress_window.destroy()
+                
+                # Now build the markdown content with the summaries
+                for i, (original, final) in enumerate(data_to_export):
+                    summary = all_summaries.get(i, "_No summary available_")
+                    
+                    # Add segment in paragraph format
+                    md_content += f"""### Segment {i + 1}
+
+**Target (Original):**  
+{original}
+
+**Target (Revised):**  
+{final}
+
+**Change Summary:**  
+{summary}
+
+---
+
+"""
+            else:
+                # No AI analysis - simpler paragraph format
+                for i, (original, final) in enumerate(data_to_export, 1):
+                    md_content += f"""### Segment {i}
+
+**Target (Original):**  
+{original}
+
+**Target (Revised):**  
+{final}
+
+---
+
+"""
+            
+            md_content += f"""
+
+---
+
+## Summary Statistics
+
+- **Total Segments Analyzed:** {len(data_to_export)}
+- **AI Analysis:** {"Enabled" if ai_analysis else "Disabled"}
+- **Export Type:** {"Filtered" if export_filtered else "Complete"}
+
+*This report was generated by Supervertaler v{APP_VERSION}*
+"""
+            
+            # Write to file
+            with open(filepath, 'w', encoding='utf-8') as f:
+                f.write(md_content)
+            
+            messagebox.showinfo(
+                "Export Successful",
+                f"Exported {len(data_to_export)} tracked changes to:\n{filepath}\n\n"
+                + ("AI change summaries included." if ai_analysis else "Export completed without AI analysis.")
+            )
+            
+            self.log_queue.put(f"[Export] Report saved to: {filepath}")
+            
+        except Exception as e:
+            messagebox.showerror(
+                "Export Error",
+                f"Failed to export tracked changes report:\n{str(e)}"
+            )
+            self.log_queue.put(f"[Export] Error: {e}")
+    
+    def get_ai_change_summaries_batch(self, changes_batch, start_index):
+        """Get AI summaries for a batch of changes - much faster than one-by-one"""
+        if not hasattr(self, 'parent_app') or not self.parent_app:
+            # Fallback for batch
+            return {i: "Modified text" for i in range(start_index, start_index + len(changes_batch))}
+        
+        try:
+            provider = self.parent_app.provider_var.get()
+            model_name = self.parent_app.model_var.get()
+            api_key = ""
+            
+            if provider == "Claude":
+                api_key = self.parent_app.api_keys.get("claude", "")
+            elif provider == "Gemini":
+                api_key = self.parent_app.api_keys.get("google", "")
+            elif provider == "OpenAI":
+                api_key = self.parent_app.api_keys.get("openai", "")
+            
+            if not api_key:
+                return {i: "AI unavailable" for i in range(start_index, start_index + len(changes_batch))}
+            
+            # Build batch prompt with all changes
+            batch_prompt = """You are a precision editor analyzing changes between multiple text versions.
+For each numbered pair below, identify EXACTLY what changed.
+
+CRITICAL INSTRUCTIONS:
+- Be extremely specific and precise
+- PAY SPECIAL ATTENTION to quote marks: " vs " vs " (curly vs straight)
+- Check for apostrophe changes: ' vs ' (curly vs straight)
+- Check for dash changes: - vs – vs — (hyphen vs en-dash vs em-dash)
+- Quote the exact words/phrases that changed
+- Use format: "X" → "Y"
+- For multiple changes in one segment: put each on its own line
+- For punctuation/formatting: describe precisely (e.g., 'Curly quotes → straight quotes: "word" → "word"')
+- DO NOT say "No change" unless texts are 100% identical (byte-for-byte)
+- DO NOT use vague terms like "clarified", "improved", "fixed"
+- DO quote the actual changed text
+
+IMPORTANT: If only punctuation changed (quotes, apostrophes, dashes), you MUST report it!
+
+"""
+            
+            # Add all changes to the prompt
+            for i, (original, final) in enumerate(changes_batch):
+                batch_prompt += f"""
+[{i + 1}] ORIGINAL: {original}
+    REVISED: {final}
+
+"""
+            
+            batch_prompt += """
+Now provide the change summary for each segment, formatted as:
+
+[1] your precise summary here
+[2] your precise summary here
+[3] your precise summary here
+
+(etc. for all segments)"""
+            
+            # Call AI based on provider
+            if provider == "Gemini" and GOOGLE_AI_AVAILABLE:
+                import google.generativeai as genai
+                genai.configure(api_key=api_key)
+                model = genai.GenerativeModel(model_name)
+                
+                response = model.generate_content(batch_prompt)
+                response_text = response.text.strip()
+                
+            elif provider == "Claude" and CLAUDE_AVAILABLE:
+                import anthropic
+                client = anthropic.Anthropic(api_key=api_key)
+                
+                message = client.messages.create(
+                    model=model_name,
+                    max_tokens=2000,  # Larger for batch
+                    messages=[{
+                        "role": "user",
+                        "content": batch_prompt
+                    }]
+                )
+                
+                response_text = message.content[0].text.strip()
+                
+            elif provider == "OpenAI" and OPENAI_AVAILABLE:
+                import openai
+                client = openai.OpenAI(api_key=api_key)
+                
+                response = client.chat.completions.create(
+                    model=model_name,
+                    max_tokens=2000,  # Larger for batch
+                    messages=[{
+                        "role": "user",
+                        "content": batch_prompt
+                    }]
+                )
+                
+                response_text = response.choices[0].message.content.strip()
+            else:
+                return {i: "Provider not available" for i in range(start_index, start_index + len(changes_batch))}
+            
+            # Parse the response to extract individual summaries
+            summaries = {}
+            current_num = None
+            current_summary_lines = []
+            
+            for line in response_text.split('\n'):
+                line = line.strip()
+                if not line:
+                    continue
+                
+                # Check if line starts with [N]
+                import re
+                match = re.match(r'^\[(\d+)\]\s*(.*)$', line)
+                if match:
+                    # Save previous summary if any
+                    if current_num is not None:
+                        summary_text = '\n'.join(current_summary_lines).strip()
+                        summaries[start_index + current_num - 1] = summary_text
+                    
+                    # Start new summary
+                    current_num = int(match.group(1))
+                    summary_start = match.group(2).strip()
+                    current_summary_lines = [summary_start] if summary_start else []
+                elif current_num is not None:
+                    # Continuation of current summary
+                    current_summary_lines.append(line)
+            
+            # Save last summary
+            if current_num is not None:
+                summary_text = '\n'.join(current_summary_lines).strip()
+                summaries[start_index + current_num - 1] = summary_text
+            
+            # Fill in any missing summaries
+            for i in range(len(changes_batch)):
+                if (start_index + i) not in summaries:
+                    summaries[start_index + i] = "_Summary not parsed correctly_"
+            
+            return summaries
+            
+        except Exception as e:
+            self.log_queue.put(f"[AI Batch] Error: {e}")
+            return {i: f"Analysis failed: {str(e)}" for i in range(start_index, start_index + len(changes_batch))}
+    
+    def get_ai_change_summary(self, original_text, revised_text):
+        """Get AI summary of what changed between original and revised text"""
+        # This method needs to access the parent app's AI configuration
+        # We'll need to pass the parent app reference when creating the browser
+        
+        # For now, return a simple diff-based summary as fallback
+        # The parent app integration will be added in the next step
+        
+        if not hasattr(self, 'parent_app'):
+            # Fallback to simple analysis
+            if original_text == revised_text:
+                return "No change"
+            elif len(revised_text) > len(original_text):
+                return "Expanded/added content"
+            elif len(revised_text) < len(original_text):
+                return "Shortened/removed content"
+            else:
+                return "Modified wording"
+        
+        # If parent_app is available, use its AI agent
+        try:
+            provider = self.parent_app.provider_var.get()
+            model_name = self.parent_app.model_var.get()
+            api_key = ""
+            
+            if provider == "Claude":
+                api_key = self.parent_app.api_keys.get("claude", "")
+            elif provider == "Gemini":
+                api_key = self.parent_app.api_keys.get("google", "")
+            elif provider == "OpenAI":
+                api_key = self.parent_app.api_keys.get("openai", "")
+            
+            if not api_key:
+                return "AI unavailable"
+            
+            # Create a temporary agent for this analysis
+            if provider == "Gemini" and GOOGLE_AI_AVAILABLE:
+                import google.generativeai as genai
+                genai.configure(api_key=api_key)
+                model = genai.GenerativeModel(model_name)
+                
+                prompt = f"""You are a precision editor analyzing changes between two versions of text.
+Compare the original and revised text and identify EXACTLY what changed.
+
+Original: {original_text}
+Revised: {revised_text}
+
+CRITICAL INSTRUCTIONS:
+- Be extremely specific and precise
+- PAY SPECIAL ATTENTION to quote marks: " vs " vs " (curly vs straight)
+- Check for apostrophe changes: ' vs ' (curly vs straight)  
+- Check for dash changes: - vs – vs — (hyphen vs en-dash vs em-dash)
+- Quote the exact words/phrases that changed
+- Use this format: "X" → "Y"
+- For single word changes: quote both words
+- For multiple changes: put each on its own line
+- For punctuation/formatting: describe precisely
+- For additions: "Added: [exact text]"
+- For deletions: "Removed: [exact text]"
+- DO NOT say "No change" unless texts are 100% identical
+- DO NOT use vague terms like "clarified", "improved", "fixed"
+- DO quote the actual changed text
+
+Examples of single changes:
+✓ "pre-cut" → "incision"
+✓ Curly quotes → straight quotes: "word" → "word"
+✓ Curly apostrophe → straight: don't → don't
+✓ "package" → "packaging"
+
+Examples of multiple changes (one per line):
+✓ "split portions" → "divided portions"
+  "connected by a" → "connected, via a"
+  Curly quotes → straight quotes throughout
+✗ Clarified terminology
+✗ Fixed grammar
+
+Your precise change summary:"""
+                
+                response = model.generate_content(prompt)
+                summary = response.text.strip()
+                # Clean up the response
+                summary = summary.split('.')[0].split('\n')[0]
+                words = summary.split()
+                if len(words) > 10:
+                    summary = ' '.join(words[:10]) + '...'
+                return summary
+                
+            elif provider == "Claude" and CLAUDE_AVAILABLE:
+                import anthropic
+                client = anthropic.Anthropic(api_key=api_key)
+                
+                message = client.messages.create(
+                    model=model_name,
+                    max_tokens=100,
+                    messages=[{
+                        "role": "user",
+                        "content": f"""You are a precision editor analyzing changes between two versions of text.
+Compare the original and revised text and identify EXACTLY what changed.
+
+Original: {original_text}
+Revised: {revised_text}
+
+CRITICAL INSTRUCTIONS:
+- Be extremely specific and precise
+- PAY SPECIAL ATTENTION to quote marks: " vs " vs " (curly vs straight)
+- Check for apostrophe changes: ' vs ' (curly vs straight)  
+- Check for dash changes: - vs – vs — (hyphen vs en-dash vs em-dash)
+- Quote the exact words/phrases that changed
+- Use this format: "X" → "Y"
+- For single word changes: quote both words
+- For multiple changes: put each on its own line
+- For punctuation/formatting: describe precisely
+- For additions: "Added: [exact text]"
+- For deletions: "Removed: [exact text]"
+- DO NOT say "No change" unless texts are 100% identical
+- DO NOT use vague terms like "clarified", "improved", "fixed"
+- DO quote the actual changed text
+
+Examples of single changes:
+✓ "pre-cut" → "incision"
+✓ Curly quotes → straight quotes: "word" → "word"
+✓ Curly apostrophe → straight: don't → don't
+✓ "package" → "packaging"
+
+Examples of multiple changes (one per line):
+✓ "split portions" → "divided portions"
+  "connected by a" → "connected, via a"
+  Curly quotes → straight quotes throughout
+✗ Clarified terminology
+✗ Fixed grammar
+
+Your precise change summary:"""
+                    }]
+                )
+                
+                summary = message.content[0].text.strip()
+                # Clean up the response - remove extra formatting
+                summary = summary.replace('Your precise change summary:', '').strip()
+                summary = summary.split('\n')[0]  # First line only
+                return summary
+                
+            elif provider == "OpenAI" and OPENAI_AVAILABLE:
+                import openai
+                client = openai.OpenAI(api_key=api_key)
+                
+                response = client.chat.completions.create(
+                    model=model_name,
+                    max_tokens=100,
+                    messages=[{
+                        "role": "user",
+                        "content": f"""You are a precision editor analyzing changes between two versions of text.
+Compare the original and revised text and identify EXACTLY what changed.
+
+Original: {original_text}
+Revised: {revised_text}
+
+CRITICAL INSTRUCTIONS:
+- Be extremely specific and precise
+- PAY SPECIAL ATTENTION to quote marks: " vs " vs " (curly vs straight)
+- Check for apostrophe changes: ' vs ' (curly vs straight)  
+- Check for dash changes: - vs – vs — (hyphen vs en-dash vs em-dash)
+- Quote the exact words/phrases that changed
+- Use this format: "X" → "Y"
+- For single word changes: quote both words
+- For multiple changes: put each on its own line
+- For punctuation/formatting: describe precisely
+- For additions: "Added: [exact text]"
+- For deletions: "Removed: [exact text]"
+- DO NOT say "No change" unless texts are 100% identical
+- DO NOT use vague terms like "clarified", "improved", "fixed"
+- DO quote the actual changed text
+
+Examples of single changes:
+✓ "pre-cut" → "incision"
+✓ Curly quotes → straight quotes: "word" → "word"
+✓ Curly apostrophe → straight: don't → don't
+✓ "package" → "packaging"
+
+Examples of multiple changes (one per line):
+✓ "split portions" → "divided portions"
+  "connected by a" → "connected, via a"
+  Curly quotes → straight quotes throughout
+✗ Clarified terminology
+✗ Fixed grammar
+
+Your precise change summary:"""
+                    }]
+                )
+                
+                summary = response.choices[0].message.content.strip()
+                # Clean up the response - remove extra formatting
+                summary = summary.replace('Your precise change summary:', '').strip()
+                summary = summary.split('\n')[0]  # First line only
+                return summary
+            else:
+                return "Simple text change"
+                
+        except Exception as e:
+            self.log_queue.put(f"[AI Summary] Error: {e}")
+            return "Analysis failed"
 
 # --- Helper Functions ---
 def get_simple_lang_code(lang_name_or_code_input):
@@ -2376,20 +3035,7 @@ class TranslationApp:
         tk.Entry(context_sources_frame, textvariable=self.tm_file_var, width=50, state="readonly").grid(row=context_row, column=1, padx=5, pady=2, sticky="ew")
         tk.Button(context_sources_frame, text="Browse TM...", command=self.browse_tm_file).grid(row=context_row, column=2, padx=5, pady=2); context_row += 1
 
-        # Tracked Changes row
-        tk.Label(context_sources_frame, text="Tracked-changes:", bg="white").grid(row=context_row, column=0, padx=5, pady=2, sticky="w")
-        
-
-        tracked_changes_inner_frame = tk.Frame(context_sources_frame, bg="white")
-        tracked_changes_inner_frame.grid(row=context_row, column=1, columnspan=2, padx=5, pady=2, sticky="ew")
-        
-        self.tracked_changes_status_label = tk.Label(tracked_changes_inner_frame, text="No tracked changes loaded", fg="gray", bg="white")
-        self.tracked_changes_status_label.pack(side=tk.LEFT)
-        
-        tk.Button(tracked_changes_inner_frame, text="Load Files...", command=self.load_tracked_changes).pack(side=tk.RIGHT, padx=(5,0))
-        tk.Button(tracked_changes_inner_frame, text="Browse Changes", command=self.browse_tracked_changes).pack(side=tk.RIGHT, padx=(5,0))
-        tk.Button(tracked_changes_inner_frame, text="Clear", command=self.clear_tracked_changes).pack(side=tk.RIGHT, padx=(5,0))
-        context_row += 1
+        # Tracked Changes section moved below (not a context source for translation)
 
         # Document Images Folder row
         self.document_images_label = tk.Label(context_sources_frame, text="Document Images Folder:", bg="white")
@@ -2404,6 +3050,32 @@ class TranslationApp:
 
         # Configure column weights for context sources frame
         context_sources_frame.grid_columnconfigure(1, weight=1)
+
+        # Post-Translation Analysis Section
+        analysis_frame = tk.LabelFrame(left_frame, text="📊 Post-Translation Analysis", font=("Segoe UI", 11, "bold"), padx=5, pady=5, bg="white")
+        analysis_frame.grid(row=current_row, column=0, columnspan=3, padx=5, pady=(10,5), sticky="ew"); current_row += 1
+
+        # Tracked Changes row
+        tk.Label(analysis_frame, text="Tracked Changes Review:", bg="white").grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        
+        tracked_changes_inner_frame = tk.Frame(analysis_frame, bg="white")
+        tracked_changes_inner_frame.grid(row=0, column=1, columnspan=2, padx=5, pady=5, sticky="ew")
+        
+        self.tracked_changes_status_label = tk.Label(tracked_changes_inner_frame, text="No tracked changes loaded", fg="gray", bg="white")
+        self.tracked_changes_status_label.pack(side=tk.LEFT)
+        
+        tk.Button(tracked_changes_inner_frame, text="Load Files...", command=self.load_tracked_changes).pack(side=tk.RIGHT, padx=(5,0))
+        tk.Button(tracked_changes_inner_frame, text="Browse Changes", command=self.browse_tracked_changes).pack(side=tk.RIGHT, padx=(5,0))
+        tk.Button(tracked_changes_inner_frame, text="Clear", command=self.clear_tracked_changes).pack(side=tk.RIGHT, padx=(5,0))
+        
+        # Info label explaining the feature
+        info_label = tk.Label(analysis_frame, 
+                            text="Load bilingual exports from CAT tools (memoQ, CafeTran) to analyze editing changes",
+                            font=("Segoe UI", 8), fg="gray", bg="white", wraplength=600, justify="left")
+        info_label.grid(row=1, column=0, columnspan=3, padx=5, pady=(0,5), sticky="w")
+        
+        # Configure column weights for analysis frame
+        analysis_frame.grid_columnconfigure(1, weight=1)
 
         # Advanced Prompts Section (collapsible) - extra sharp heading font
         self.advanced_prompts_frame = tk.LabelFrame(left_frame, text="📝 Prompt Library (Click to expand/collapse)", 
@@ -3422,16 +4094,14 @@ class TranslationApp:
     
     # NEW: Tracked Changes Methods
     def load_tracked_changes(self):
-        """Load tracked changes from DOCX or TSV files"""
+        """Load tracked changes from DOCX files only"""
         filetypes = [
-            ("Word & TSV files", "*.docx;*.tsv"),
             ("Word documents", "*.docx"),
-            ("TSV files", "*.tsv"),
             ("All files", "*.*")
         ]
         
         filepaths = filedialog.askopenfilenames(
-            title="Select DOCX or TSV files with tracked changes",
+            title="Select DOCX files with tracked changes",
             filetypes=filetypes
         )
         
@@ -3440,16 +4110,8 @@ class TranslationApp:
         
         success_count = 0
         for filepath in filepaths:
-            _, ext = os.path.splitext(filepath.lower())
-            
-            if ext == '.docx':
-                if self.tracked_changes_agent.load_docx_changes(filepath):
-                    success_count += 1
-            elif ext == '.tsv':
-                if self.tracked_changes_agent.load_tsv_changes(filepath):
-                    success_count += 1
-            else:
-                self.update_log(f"[Tracked Changes] Skipping unsupported file type: {filepath}")
+            if self.tracked_changes_agent.load_docx_changes(filepath):
+                success_count += 1
         
         # Update status label
         total_pairs = len(self.tracked_changes_agent.change_data)
@@ -3469,7 +4131,12 @@ class TranslationApp:
     def browse_tracked_changes(self):
         """Open the tracked changes browser"""
         if not hasattr(self, 'tracked_changes_browser') or self.tracked_changes_browser is None:
-            self.tracked_changes_browser = TrackedChangesBrowser(self.root, self.tracked_changes_agent)
+            self.tracked_changes_browser = TrackedChangesBrowser(
+                self.root,
+                self.tracked_changes_agent,
+                parent_app=self,
+                log_queue=self.log_queue
+            )
 
         
         self.tracked_changes_browser.show_browser()

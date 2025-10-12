@@ -4,207 +4,93 @@
 
 ---
 
-## [2.4.4-CLASSIC] - 2025-10-11 🔧 INFRASTRUCTURE UPDATE
+## [2.5.0-CLASSIC] - 2025-10-12 🎯 POST-TRANSLATION ANALYSIS
 
-> **📌 Infrastructure Update**: Parallel folder structure for consistency with v3.1.1-beta
+> **📊 Major Feature**: AI-powered Tracked Changes Analysis with configurable batch processing
 
-### 🗂️ INFRASTRUCTURE CHANGES
+### ✨ NEW FEATURES
 
-**Parallel Folder Structure** - Same architecture as v3.1.1-beta
+**Tracked Changes Analysis Report** - Export AI-powered markdown reports
 
-- **NEW: Dual Directory Trees**:
-  ```
-  user data/          (public, Git-tracked, for end users)
-  user data_private/  (private, Git-ignored, for developers)
-  ```
+- **AI-Powered Change Summaries**:
+  - Analyze differences between AI baseline and final edited translations
+  - Batch processing (configurable 1-100 segments per API call)
+  - Supports all AI providers (Claude, Gemini, OpenAI)
+  - Default batch size: 25 segments (optimal speed/cost balance)
   
-- **Feature Flag System**:
-  - `.supervertaler.local` file enables dev mode
-  - `get_user_data_path()` function routes to appropriate tree
-  - Auto-routing for all user data folders
+- **Interactive Batch Size Slider**:
+  - Choose batch size from 1-100 via slider dialog
+  - Real-time estimate of API calls needed
+  - Example: 33 changes → 2 batches at size 25
+  
+- **Precision AI Prompts** (4 iterations of refinement):
+  - Detects subtle changes: curly vs straight quotes (" vs ")
+  - Apostrophe detection: ' vs '
+  - Dash detection: - vs – vs —
+  - Explicit character examples in prompts
+  - "DO NOT say 'No change' unless 100% identical"
+  - Quotes exact changed text: "X" → "Y"
+  
+- **Markdown Report Format**:
+  - Clear explanation of report purpose
+  - Paragraph format (not wide tables)
+  - One segment per section with Source/Target/Summary
+  - Includes AI configuration and full prompt template
+  - Multi-line formatting for multiple changes per segment
 
-- **Dev Mode Banner**:
-  - Red "🔒 DEV MODE" indicator at top of main window
-  - Confirms private features are active
+### 🔧 GUI REORGANIZATION
 
-### 🔧 COMPATIBILITY
+**Moved Tracked Changes to New Section**:
+- **Removed** from "Context Sources" section
+- **Created** new "📊 Post-Translation Analysis" section
+- **Clarified** purpose: post-translation review tool, NOT translation context
+- **Added** explanatory label: "Load bilingual exports from CAT tools..."
 
-- **Unified with v3.1.1-beta**: Both versions now share same folder structure
-- **No User Impact**: End users see no changes (no `.supervertaler.local` file)
-- **Developer Friendly**: Create `.supervertaler.local` to enable private mode
+**Purpose**:
+- Used AFTER completing translation in CAT tools (memoQ, CafeTran)
+- Analyzes how much you edited the AI-generated baseline
+- Review tool for tracking translation workflow improvements
 
----
+### 📊 EXPORT CAPABILITIES
 
-## [2.4.3-CLASSIC] - 2025-10-10 🔧 FOLDER STRUCTURE UPDATE (Projects)
+**Markdown Report Includes**:
+```markdown
+# Tracked Changes Analysis Report
 
-> **📌 Final Compatibility Update**: Migrated project folders to `user data/` for consistency with v3.1.0-beta.
+## What is this report?
+[Clear explanation of purpose and use case]
 
-### 🗂️ FOLDER STRUCTURE CHANGES
+**Generated:** [timestamp]
+**Total Changes:** [count]
+**AI Analysis:** Enabled/Disabled
 
-**Project Folder Migration**:
-- **CHANGED**: Projects now saved to `user data/Projects/` (was: root `projects/`)
-- **CHANGED**: Private projects now in `user data/Projects_private/` (was: root `projects_private/`)
-- **BENEFIT**: All user data now centralized in `user data/` folder
-- **BENEFIT**: Consistent structure across v2 and v3 versions
-
-### 📦 BREAKING CHANGES
-
-⚠️ **Project Location Change**:
-- **Old location**: Root-level `projects/` and `projects_private/` folders
-- **New location**: `user data/Projects/` and `user data/Projects_private/`
-- **Migration**: Empty folders removed (no existing projects to migrate)
-- **Users**: Future projects will save to new location automatically
-
-### 🧹 CLEANUP
-
-- **REMOVED**: Root-level `custom_prompts/` folder (obsolete, empty)
-- **REMOVED**: Root-level `projects/` folder (replaced by `user data/Projects/`)
-- **RESULT**: Cleaner root directory with only user-facing documentation
-
----
-
-## [2.4.2-CLASSIC] - 2025-10-10 🔧 FOLDER STRUCTURE UPDATE
-
-> **📌 Compatibility Update**: Updated folder structure to match v3.1.0-beta for cross-version compatibility.
-
-### 🗂️ FOLDER STRUCTURE CHANGES
-
-**BREAKING CHANGE**: Updated to unified folder structure
-
-- **New Structure** (matches v3.1.0-beta):
-  ```
-  user data/
-  ├── System_prompts/          (public, Git-tracked)
-  └── System_prompts_private/  (private, Git-ignored)
-  ```
-
-- **OLD Structure** (deprecated):
-  - ~~`custom_prompts/`~~ → `user data/System_prompts/`
-  - ~~`custom_prompts_private/`~~ → `user data/System_prompts_private/`
-
-### 🔧 TECHNICAL CHANGES
-
-- Updated all folder path references to new structure
-- `custom_prompts_dir` now points to `user data/System_prompts/`
-- Private prompts now saved to `user data/System_prompts_private/`
-- All load/save/refresh functions updated
-
-### ✅ COMPATIBILITY
-
-- ✅ **v2 and v3 now compatible** - Share same prompt storage
-- ✅ **Automatic folder creation** - Backwards compatible
-- ✅ **No data loss** - Creates new folders if missing
+### AI Analysis Configuration
+**Provider:** Claude/Gemini/OpenAI
+**Model:** [model-name]
+**Prompt Template Used:** [full prompt shown]
 
 ---
 
-## [2.4.1-CLASSIC] - 2025-10-09 🎉 PRODUCTION RELEASE
+### Segment 1
+**Target (Original):** [AI-generated text]
+**Target (Revised):** [Your edited text]
+**Change Summary:** [AI-powered precise analysis]
+```
 
-> **📌 Version Note**: The "-CLASSIC" suffix was added to distinguish this from the v3.0 CAT editor architecture. This version uses the original DOCX-based workflow and is production-ready and stable.
+### ⚡ PERFORMANCE
 
-### 🚀 NEW FEATURES
+**Batch Processing**:
+- **90% faster** than sequential processing
+- 33 changes: ~10 seconds (batch) vs ~90 seconds (sequential)
+- Configurable batch size balances speed vs token usage
 
-#### ☕ CafeTran Bilingual DOCX Support (AI-Based Formatting)
-**Direct integration with CafeTran bilingual workflow!**
+### 🎯 USE CASE
 
-- **NEW: CafeTran bilingual DOCX import/export** - Native CafeTran format support
-- **AI-based pipe placement** - Intelligent formatting marker preservation
-- **Pipe symbol format**: `|formatted text|` marks bold, italic, underline, etc.
-- **Smart AI handling** - Pipes included in source, AI places them contextually in translation
-- **Visual formatting** - All pipe symbols displayed as BOLD + RED in exported DOCX
-- **UI Integration**:
-  - Green "☕ Import CafeTran DOCX" button
-  - Green "☕ Export to CafeTran DOCX" button
-  - Automatic workflow configuration
-- **Benefits**:
-  - ✅ Eliminates manual copy-paste between CafeTran and Supervertaler
-  - ✅ AI intelligently preserves formatting markers
-  - ✅ Works perfectly with word order changes
-  - ✅ Complete round-trip workflow (export → translate → reimport)
-
-#### 📊 memoQ Bilingual DOCX Support (Programmatic Formatting)
-**Professional CAT tool integration with programmatic formatting preservation!**
-
-- **NEW: memoQ bilingual DOCX import/export** - Industry-standard CAT format
-- **Programmatic formatting preservation** - Algorithm-based bold/italic/underline
-- **Smart threshold logic** - >60% formatted = entire segment, else first words
-- **CAT tag handling** - Complex `[1}{2]` tag format fully supported
-- **Extract-and-apply workflow** - Source formatting extracted, applied to target
-- **UI Integration**:
-  - Green "📊 Import memoQ DOCX" button
-  - Green "💾 Export to memoQ DOCX" button
-  - Status automatically updated to "Confirmed"
-- **Benefits**:
-  - ✅ Direct memoQ integration
-  - ✅ Preserves document-level formatting
-  - ✅ Maintains all CAT metadata and segment IDs
-  - ✅ Verified round-trip compatibility with memoQ
-
-### 📊 STATISTICS FROM PRODUCTION TESTING
-
-**CafeTran Test** (18 segments with pipe formatting):
-- ✅ 18/18 segments translated successfully
-- ✅ All pipe symbols correctly placed by AI
-- ✅ 100% formatting markers preserved
-- ✅ Successful reimport to CafeTran verified
-
-**memoQ Test** (27 segments with formatting):
-- ✅ 27/27 segments imported successfully
-- ✅ 15/15 segments with formatting preserved programmatically
-- ✅ All CAT tool tags maintained
-- ✅ Successful reimport to memoQ verified
-
-**Performance**:
-- Import: < 1 second for both formats
-- Export: < 1 second for both formats
-- No additional AI costs
-- No manual intervention required
+1. Complete translation project in CAT tool (with tracked changes enabled)
+2. Export bilingual document from memoQ/CafeTran
+3. Load into Supervertaler Tracked Changes feature
+4. Export markdown report with AI analysis
+5. Review all your editing decisions in one comprehensive document
 
 ---
 
-## [2.4.0] - 2025-09-14
-
-### Added
-- **GPT-5 Support**: Full compatibility with OpenAI's GPT-5 model
-- **Switch Languages Button**: One-click swap between source and target languages
-- **Session Reporting**: Comprehensive markdown reports generated alongside translation outputs
-
-### Fixed
-- **GPT-5 Compatibility Issues**: Resolved empty responses, parameter errors, temperature incompatibility
-- **Proofreading Output Format**: Fixed doubled line count issue, proper 1:1 line mapping
-- **Gemini Proofreading Agent**: Fixed critical API format incompatibility
-
----
-
-## [2.3.0] — 2025-09-08
-
-### Added
-- **MAJOR UPDATE**: Revolutionary Project Management System
-- **NEW: Project Library** - Complete workspace configuration management
-- **NEW: Domain-Specific Custom Prompt Collections** - 8 professional prompt libraries (Medical, Legal, Financial, Technical, Cryptocurrency, Gaming, etc.)
-- **NEW: Private Custom Prompts Support** - `custom_prompts_private/` folder for confidential prompts
-- **FIXED: OpenAI Integration** - Complete OpenAI support implementation
-- **ENHANCED: Documentation Structure** - Streamlined user guide
-- **NEW: Clickable Folder Paths** - Direct file system access
-
----
-
-## [2.2.0] — 2025-09-08
-
-### Added
-- **NEW: Custom Prompt Library** - Save and organize custom system prompt sets
-- **Enhanced GUI Design**: Complete 3-panel resizable layout with professional fonts
-- **Advanced System Prompts Enhancements**: Added "📁 Prompt Library" tab
-
----
-
-## [2.1.1] — 2025-09-05
-
-### Added
-- **NEW: Advanced System Prompts GUI** - Collapsible section for viewing/editing system prompts
-- **NEW: Custom Prompt Library** - Save custom system prompt sets to local files
-
----
-
-For older versions and detailed technical history, see: `CHANGELOG_full_backup.md`
-
-**Last updated**: October 11, 2025
