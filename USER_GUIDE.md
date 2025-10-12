@@ -683,6 +683,87 @@ The v3.0.0-beta CAT editor version handles Trados files with:
 
 **All fixes are now integrated and working!** ✅
 
+---
+
+### 💰 Cost-Saving Alternative: Copy Source to Target
+
+**Problem**: Pre-translating in Trados/memoQ/CafeTran with MT costs money and consumes API credits.
+
+**Solution**: Use Supervertaler's "Copy Source to Target" feature to prepare files for re-import **without** paying for MT.
+
+#### How It Works (v3.0.0-beta)
+
+Instead of pre-translating with expensive MT in your CAT tool, you can:
+
+1. **Export** bilingual file with **empty targets** from Trados/memoQ/CafeTran
+2. **Import** into Supervertaler v3.0.0-beta
+3. **Copy Source to Target (All)** from Edit menu
+4. **Translate** with Supervertaler's AI (uses your own API keys)
+5. **Export** back to bilingual format
+6. **Re-import** into Trados/memoQ/CafeTran
+
+#### Why This Works
+
+- **Trados/memoQ/CafeTran** only accept changes to segments with existing targets
+- **Copying source to target** gives each segment a "placeholder" translation
+- **Your CAT tool** now sees them as "translated" segments (even though they're just source text)
+- **On re-import**, your CAT tool accepts the AI translations ✅
+
+#### Cost Comparison
+
+| Method | Cost | Notes |
+|--------|------|-------|
+| **Trados MT Pre-translate** | ~€20-40 per 1M characters | Uses Trados credits |
+| **memoQ MT Pre-translate** | Varies by MT engine | Separate MT subscription |
+| **DeepL/Google MT** | ~€20 per 1M characters | API costs |
+| **Copy Source → AI Translate** | ~€2-5 per 1M chars | Your own OpenAI/Claude/Gemini keys |
+
+**Savings**: 80-90% compared to commercial MT! 💰
+
+#### Step-by-Step (v3.0.0-beta)
+
+1. **In Trados/memoQ/CafeTran:**
+   - Export bilingual file (empty targets = OK!)
+
+2. **In Supervertaler:**
+   ```
+   File → Import → [Trados/memoQ/CafeTran] Bilingual DOCX
+   [All segments load with empty targets]
+   
+   Edit → Copy Source to Target (All Segments)
+   [Confirmation dialog appears - click Yes]
+   [Now all targets contain source text]
+   
+   Translate → Translate All Untranslated
+   [AI translates all segments using YOUR API keys]
+   
+   File → Export → Export to [Trados/memoQ/CafeTran]
+   ```
+
+3. **Back in Trados/memoQ/CafeTran:**
+   - Re-import bilingual file
+   - ✅ All translations are accepted!
+
+#### ⚠️ Important Notes
+
+- **Source text in target**: Before translating, your targets will contain source language text. This is intentional and temporary.
+- **Translate immediately**: After copying, translate with AI before exporting (don't export with source=target).
+- **QA checks**: Your CAT tool may flag these as "identical source/target" until you translate.
+- **Version requirement**: "Copy Source to Target" feature requires v3.0.0-beta or later.
+
+#### When to Use This Workflow
+
+✅ **Use Copy Source to Target when:**
+- You want to save money on MT costs
+- You have your own OpenAI/Claude/Gemini API keys
+- You're working with large volumes
+- MT quality isn't critical (you'll review anyway)
+
+❌ **Pre-translate in CAT tool when:**
+- Client requires specific MT engine (DeepL Pro, etc.)
+- You need MT match % in analysis reports
+- Project includes MT QA requirements
+- Working with very specialized MT models
 
 ---
 
