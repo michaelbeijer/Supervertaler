@@ -1,5 +1,5 @@
 """  
-Supervertaler v3.3.0-beta (CAT Editor)
+Supervertaler v3.4.0-beta (CAT Editor)
 AI-Powered Computer-Aided Translation Tool
 
 Features:
@@ -21,11 +21,11 @@ Features:
 - Dev mode with parallel folder structure (user data/ vs user data_private/)
 
 Author: Michael Beijer + AI Assistant
-Date: October 12, 2025
+Date: October 13, 2025
 """
 
 # Version constant
-APP_VERSION = "3.3.0-beta"# --- Private Features Flag ---
+APP_VERSION = "3.4.0-beta"# --- Private Features Flag ---
 # Check for .supervertaler.local file to enable private features (for developers only)
 # Users won't have this file, so they won't see confusing private folder options
 import os as _os_temp
