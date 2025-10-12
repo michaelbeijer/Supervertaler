@@ -2,32 +2,36 @@
 
 🎯 **Context-aware, LLM-powered translation & proofreading tool, leveraging multiple context sources for enhanced accuracy (built for translators)** - Revolutionary approach to document translation that leverages multiple context sources for unparalleled accuracy.
 
-**Note**: A version of Supervertaler is being developed with many features commonly found in proper CAT tools (Computer-Aided Translation tools), which has reached **v3.1.1-beta** with a comprehensive Prompt Library system! It features unified prompt management (System Prompts + Custom Instructions), parallel folder structure for dev mode, grid pagination (10x faster loading), smart paragraph detection, dual text selection (memoQ-style), column management, formatting display, three professional view modes (Grid, List, Document), and comprehensive auto-export options. We're implementing features from [michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool](https://michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool).
+**Note**: A version of Supervertaler is being developed with many features commonly found in proper CAT tools (Computer-Aided Translation tools), which has reached **v3.3.0-beta** with a major UI/UX redesign! It features a cleaner toolbar (55% space reduction), reorganized menus, semantic color coding, unified prompt management, grid pagination (10x faster loading), smart paragraph detection, dual text selection (memoQ-style), three professional view modes (Grid, List, Document), and comprehensive auto-export options. We're implementing features from [michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool](https://michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool).
 
 
 ## 📦 Available Versions
 
-### v3.1.1-beta (Experimental - CAT Editor) 🚀
-**File**: `Supervertaler_v3.1.1-beta_CAT.py`
-- 🔧 **NEW**: Parallel folder structure (`user data/` vs `user data_private/`) for dev mode
-- 🔒 **NEW**: Private features auto-routing (`.supervertaler.local` feature flag)
-- 🐛 **FIXED**: Emoji rendering issues in UI elements
-- 🐛 **FIXED**: Prompt Library loading in dev mode
-- 🎯 Unified Prompt Library with System Prompts + Custom Instructions (Ctrl+P)
-- 📝 Custom Instructions - Define user preferences & behavioral guidelines
-- 🎭 Separate System Prompts (AI role) from Custom Instructions (user preferences)
-- 🗂️ Type filtering and dedicated Prompt Library menu
+### v3.3.0-beta (Experimental - CAT Editor) 🎨
+**File**: `Supervertaler_v3.3.0-beta_CAT.py`
+- 🎨 **NEW**: Professional Start Screen (project management interface when no document loaded)
+  * Projects tab with recent projects list and quick actions
+  * File Explorer tab with tree view for browsing/opening files
+  * Settings tab with quick access to all configuration options
+  * Automatic transition to Grid View when document is loaded
+- 🎨 **NEW**: Major UI/UX redesign - 55% cleaner toolbar with dropdown menus
+- �️ **NEW**: Reorganized menu bar (File/Edit/View/Project/Resources/Help)
+- 🎨 **NEW**: Semantic color coding (green=import, orange=export, blue=save, gray=views)
+- 📝 **NEW**: "Assistant panel" terminology (was "Translation Workspace")
+- � **NEW**: Help menu (User Guide, Changelog, About)
+- 🔧 **ENHANCED**: Tracked Changes reports now include clickable GitHub links
+- � **FIXED**: Batch size dialog height (OK button fully visible)
+- � Unified Prompt Library with System Prompts + Custom Instructions (Ctrl+P)
 - ⚡ Grid pagination system (50 segments/page, 10x faster loading!)
 - 🧠 Smart paragraph detection for document view
-- 🛡️ Enhanced loading protection (prevents crashes)
 - ✅ Professional CAT editor with Grid, List, and Document views
 - ✅ Auto-export options (session reports MD/HTML, TMX, TSV, XLIFF, Excel)
 - ✅ CafeTran and memoQ bilingual DOCX support
-- 📖 **Status**: Feature-complete, performance optimized, beta testing phase
+- 📖 **Status**: UI-optimized, feature-complete, beta testing phase
 - 💡 **Note**: v3.x signifies major architectural change from original DOCX workflow
 
-### v2.4.4-CLASSIC (Production-ready) 🎉
-**File**: `Supervertaler_v2.4.4-CLASSIC.py`
+### v2.5.0-CLASSIC (Production-ready) 🎉
+**File**: `Supervertaler_v2.5.0-CLASSIC.py`
 - 🔧 **NEW**: Parallel folder structure (`user data/` vs `user data_private/`) for dev mode
 - 🔒 **NEW**: Private features auto-routing (`.supervertaler.local` feature flag)
 - ✅ Unified folder structure with v3.x (all user data in `user data/`)
@@ -42,9 +46,9 @@
 - 📖 **memoQ Guide**: [`.dev/docs/features/MEMOQ_SUPPORT.md`](.dev/docs/features/MEMOQ_SUPPORT.md)
 - 🏷️ **Version Note**: "-CLASSIC" suffix denotes original DOCX workflow architecture
 
-> **💡 Recommendation**: Use **v2.4.4-CLASSIC** for production translation work. Try **v3.1.1-beta** if you want to test the experimental CAT editor features with the new Prompt Library system!
+> **💡 Recommendation**: Use **v2.5.0-CLASSIC** for production translation work. Try **v3.2.0-beta** if you want to test the experimental CAT editor features with the new Prompt Library system!
 > 
-> **🔢 Version Scheme**: The jump from v2.x to v3.x reflects a **major architectural change**. v2.4.4-CLASSIC uses the original DOCX-based workflow, while v3.1.1-beta is a complete rewrite as a segment-based CAT editor. The "-CLASSIC" and "-beta" suffixes help distinguish these fundamentally different architectures.
+> **🔢 Version Scheme**: The jump from v2.x to v3.x reflects a **major architectural change**. v2.5.0-CLASSIC uses the original DOCX-based workflow, while v3.2.0-beta is a complete rewrite as a segment-based CAT editor. The "-CLASSIC" and "-beta" suffixes help distinguish these fundamentally different architectures.
 
 ----
 

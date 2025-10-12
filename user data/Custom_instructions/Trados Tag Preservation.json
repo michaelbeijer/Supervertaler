@@ -1,0 +1,240 @@
+{
+  "name": "Trados Tag Preservation",
+  "description": "Ensures proper handling and preservation of Trados Studio formatting tags during translation",
+  "priority": "critical",
+  "version": "1.0.0",
+  "created": "2025-10-12",
+  "use_case": "Required when translating Trados bilingual DOCX files that contain formatting tags",
+  
+  "instructions": {
+    "overview": "The source text contains Trados Studio formatting tags. These tags MUST be preserved exactly in the target translation and placed at the corresponding semantic positions. Tags are not content to translate - they are formatting markers that must be maintained.",
+    
+    "tag_format": {
+      "description": "Trados uses numeric XML-style tags",
+      "patterns": [
+        {
+          "type": "paired_tags",
+          "format": "<NUMBER>content</NUMBER>",
+          "example": "<13>Figure 1</13>",
+          "rule": "Opening and closing tags must match exactly"
+        },
+        {
+          "type": "self_closing",
+          "format": "<NUMBER/>",
+          "example": "<231/>",
+          "rule": "Self-closing tags must remain self-closing (do not convert to paired tags)"
+        },
+        {
+          "type": "nested_tags",
+          "format": "<NUMBER1>content <NUMBER2/></NUMBER1>",
+          "example": "<233>coupling (3) <231/></233>",
+          "rule": "Nested tags must preserve exact nesting structure"
+        }
+      ]
+    },
+    
+    "critical_rules": [
+      {
+        "rule": "Preserve tag numbers exactly",
+        "detail": "Tag numbers are references to specific formatting. <13> must stay <13>, never become <14> or any other number.",
+        "example_wrong": "<13>Figure 1</13> → <14>Figure 1</14>",
+        "example_right": "<13>Figure 1</13> → <13>Figure 1</13>"
+      },
+      {
+        "rule": "Maintain tag pairing",
+        "detail": "Every opening tag <N> must have a closing tag </N>. Never omit opening or closing tags.",
+        "example_wrong": "<13>Figure 1 shows...",
+        "example_right": "<13>Figure 1</13> shows..."
+      },
+      {
+        "rule": "Preserve self-closing syntax",
+        "detail": "Self-closing tags like <231/> must not be converted to paired tags.",
+        "example_wrong": "<231/> → <231></231>",
+        "example_right": "<231/> → <231/>"
+      },
+      {
+        "rule": "Place tags semantically, not positionally",
+        "detail": "Tags should wrap the SAME meaning in target as in source, even if word order changes.",
+        "example": {
+          "source": "een <226>basisligger (1)</226> geschikt",
+          "target_option_1": "a <226>base beam</226> (1) suitable",
+          "target_option_2": "a <226>base beam (1)</226> suitable",
+          "note": "Either is acceptable - tag wraps the translated term"
+        }
+      },
+      {
+        "rule": "Never create new tags",
+        "detail": "Only use tags that appear in the source. Do not add tag numbers that don't exist in source.",
+        "example_wrong": "Add <999>emphasis</999> where needed",
+        "example_right": "Only use tags from source"
+      },
+      {
+        "rule": "Never remove tags",
+        "detail": "ALL tags from source must appear in target. Count them to verify.",
+        "example_wrong": "Source has <13>...</13> but target omits it",
+        "example_right": "If source has 3 tags, target must have exactly 3 tags"
+      }
+    ],
+    
+    "translation_workflow": [
+      {
+        "step": 1,
+        "action": "Identify all tags in source",
+        "detail": "Before translating, scan the source for all <NUMBER> and <NUMBER/> patterns"
+      },
+      {
+        "step": 2,
+        "action": "Understand tag boundaries",
+        "detail": "Determine what content each tag wraps (term, phrase, reference)"
+      },
+      {
+        "step": 3,
+        "action": "Translate the content",
+        "detail": "Translate normally, treating tags as placeholders that will move with their content"
+      },
+      {
+        "step": 4,
+        "action": "Place tags in target",
+        "detail": "Position tags around the translated equivalent of what they wrapped in source"
+      },
+      {
+        "step": 5,
+        "action": "Verify tag count",
+        "detail": "Count tags in source and target - numbers must match exactly"
+      },
+      {
+        "step": 6,
+        "action": "Verify tag integrity",
+        "detail": "Check that all tag numbers, pairings, and self-closing formats are preserved"
+      }
+    ],
+    
+    "examples": [
+      {
+        "scenario": "Simple figure reference",
+        "source_nl": "<13>Figuur 1</13> toont een zijdelingse weergave van het geraamte",
+        "target_en": "<13>Figure 1</13> shows a lateral view of the framework",
+        "explanation": "Tag <13> wraps 'Figuur 1' in source, so it wraps 'Figure 1' (the translation) in target"
+      },
+      {
+        "scenario": "Technical term with reference number",
+        "source_nl": "een <226>basisligger (1)</226> geschikt voor koppeling",
+        "target_en": "a <226>base beam</226> (1) suitable for coupling",
+        "explanation": "Tag wraps the technical term 'basisligger'. In English, the reference number (1) is moved outside the tag for better readability, but keeping it inside is also acceptable"
+      },
+      {
+        "scenario": "Multiple figure references",
+        "source_nl": "<22>Figuren 2, 3, 4, 5 en 6</22> tonen opeenvolgende weergaven",
+        "target_en": "<22>Figures 2, 3, 4, 5, and 6</22> show successive views",
+        "explanation": "Tag wraps entire figure list in both languages"
+      },
+      {
+        "scenario": "Nested tags with self-closing tag",
+        "source_nl": "een <233>eerste hoofdsteunkoppeling (3) <231/></233>met een eerste uiteinde",
+        "target_en": "a <233>first head support coupling (3) <231/></233>with a first end",
+        "explanation": "Opening tag <233>, self-closing tag <231/> inside it, then closing tag </233>. Structure is preserved exactly"
+      },
+      {
+        "scenario": "Multiple independent tags in one segment",
+        "source_nl": "verbonden aan de <240>eerste lichaamsteunkoppeling (8)</240> via de <243>lichaamsteunmatrasbeugel (9)</243>",
+        "target_en": "connected to the <240>first body support coupling (8)</240> via the <243>body support mattress bracket (9)</243>",
+        "explanation": "Two separate tagged terms, each preserved independently"
+      },
+      {
+        "scenario": "Tag at sentence end",
+        "source_nl": "geschikt voor een <267>pivotpunt (Q)</267>.",
+        "target_en": "suitable for a <267>pivot point (Q)</267>.",
+        "explanation": "Punctuation stays outside the tag"
+      }
+    ],
+    
+    "common_mistakes": [
+      {
+        "mistake": "Renumbering tags",
+        "wrong": "<13>Figure 1</13> → <1>Figure 1</1>",
+        "right": "<13>Figure 1</13> → <13>Figure 1</13>",
+        "why": "Tag numbers are references - changing them breaks the document structure"
+      },
+      {
+        "mistake": "Converting self-closing to paired",
+        "wrong": "<231/> → <231></231>",
+        "right": "<231/> → <231/>",
+        "why": "Self-closing tags have specific meaning in Trados"
+      },
+      {
+        "mistake": "Forgetting closing tags",
+        "wrong": "<226>base beam",
+        "right": "<226>base beam</226>",
+        "why": "Unpaired tags break document structure"
+      },
+      {
+        "mistake": "Placing tags positionally instead of semantically",
+        "wrong": "Source: 'een <226>basisligger</226> (1)' → Target: 'a <226>base</226> beam (1)'",
+        "right": "Source: 'een <226>basisligger</226> (1)' → Target: 'a <226>base beam</226> (1)'",
+        "why": "Tag should wrap the complete translated term, not just part of it"
+      },
+      {
+        "mistake": "Omitting tags",
+        "wrong": "Source has <13>, <22>, <226> but target only has <13>, <22>",
+        "right": "All three tags must appear in target",
+        "why": "Every tag serves a purpose and must be preserved"
+      }
+    ],
+    
+    "validation_checklist": [
+      "☑ Count tags in source (e.g., 3 opening tags, 3 closing tags, 1 self-closing)",
+      "☑ Count tags in target (must match source exactly)",
+      "☑ Verify all tag numbers are unchanged",
+      "☑ Verify all opening tags have matching closing tags",
+      "☑ Verify self-closing tags remain self-closing",
+      "☑ Verify nested tags maintain nesting structure",
+      "☑ Verify tags wrap semantically equivalent content"
+    ],
+    
+    "special_cases": [
+      {
+        "case": "Empty tags or zero-width content",
+        "example": "<52>​​</52>",
+        "handling": "Preserve exactly as-is, even if content appears empty. May contain special Unicode characters."
+      },
+      {
+        "case": "Tags wrapping punctuation",
+        "example": "<226>term (1)</226>",
+        "handling": "If source includes punctuation/numbers in tag, target should too (or use semantic judgment)"
+      },
+      {
+        "case": "Word order changes significantly",
+        "example": "Dutch: 'zetelbank of bedbank' → English: 'sofa or sofa bed'",
+        "handling": "If source has tag, determine what it wraps semantically and place accordingly in target"
+      },
+      {
+        "case": "Content splits or merges across tags",
+        "example": "Two tagged terms become one in target",
+        "handling": "Keep both tags, even if awkward. Trados requires exact tag preservation."
+      }
+    ]
+  },
+  
+  "quality_assurance": {
+    "before_submission": [
+      "Read source segment completely",
+      "Identify and count all tags",
+      "Translate content naturally",
+      "Place tags at semantically corresponding positions",
+      "Count tags in target (must match source)",
+      "Verify tag numbers unchanged",
+      "Verify pairing and self-closing syntax",
+      "Re-read target to ensure naturalness despite tags"
+    ],
+    
+    "tag_count_formula": "source_opening_tags + source_closing_tags + source_self_closing_tags = target_opening_tags + target_closing_tags + target_self_closing_tags"
+  },
+  
+  "metadata": {
+    "applies_to": "Trados Studio bilingual DOCX files",
+    "tag_format": "Numeric XML-style (<NUMBER>content</NUMBER>)",
+    "criticality": "CRITICAL - Tag errors break Trados documents",
+    "testing_status": "Tested with 235-segment patent document (24 tagged segments)",
+    "compatibility": "Trados Studio 2024 and earlier versions"
+  }
+}
