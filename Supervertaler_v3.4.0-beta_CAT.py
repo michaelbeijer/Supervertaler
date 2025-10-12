@@ -3087,7 +3087,7 @@ class Supervertaler:
             'style': {'title': 'Style', 'width': 70, 'anchor': 'center', 'visible': True},
             'source': {'title': '📄 Source', 'width': self.source_width, 'anchor': 'w', 'visible': True},
             'target': {'title': '🎯 Target', 'width': self.target_width, 'anchor': 'w', 'visible': True},
-            'status': {'title': '✓', 'width': 30, 'anchor': 'center', 'visible': True}  # Icon column, after target
+            'status': {'title': 'Status', 'width': 50, 'anchor': 'center', 'visible': True}  # Icon column, after target
         }
         
         # Initialize filter state
@@ -6752,19 +6752,23 @@ Use this feature AFTER translation to:
             resize_handle.bind('<B1-Motion>', lambda e, c=col_name: self.on_column_resize(e, c))
             resize_handle.bind('<ButtonRelease-1>', self.end_column_resize)
         
-        # Status column header (packed on right side first, before content)
+        # Status column header (packed with side='right' BEFORE content to reserve space on right edge)
         if self.grid_columns['status'].get('visible', True):
             col_info = self.grid_columns['status']
-            status_header = tk.Label(header_frame, 
-                                    text=col_info['title'],  # '\u2713' icon
+            # Use fixed-width container to match row implementation
+            status_header_container = tk.Frame(header_frame, bg='#e0e0e0', width=col_info['width'])
+            status_header_container.pack(side='right', fill='y', padx=1, pady=1)
+            status_header_container.pack_propagate(False)
+            
+            status_header = tk.Label(status_header_container, 
+                                    text=col_info['title'],
                                     font=('Segoe UI', 9, 'bold'),
                                     bg='#e0e0e0',
                                     fg='black',
-                                    width=col_info['width'] // 8,
-                                    anchor=col_info['anchor'],
+                                    anchor='center',
                                     relief='raised',
                                     bd=1)
-            status_header.pack(side='right', fill='y', padx=1, pady=1)
+            status_header.pack(fill='both', expand=True)
             self.header_labels['status'] = status_header
         
         # Create container frame to match row structure
@@ -7552,12 +7556,12 @@ Use this feature AFTER translation to:
             style_label.pack(side='left', padx=1)
             widgets['style'] = style_label
         
-        # Status column (packed first on right side, before content takes remaining space)
+        # Status column (pack FIRST with side='right' to reserve space on right edge)
         if self.grid_columns['status'].get('visible', True):
             status_color = self.get_status_icon_color(segment.status, segment.locked if hasattr(segment, 'locked') else False)
             # Create fixed-width container for status icon
-            status_container = tk.Frame(row_frame, bg=bg_color, width=30)
-            status_container.pack(side='right', fill='y')
+            status_container = tk.Frame(row_frame, bg=bg_color, width=self.grid_columns['status']['width'])
+            status_container.pack(side='right', fill='y', padx=1, pady=1)
             status_container.pack_propagate(False)
             
             status_label = tk.Label(status_container, text=status_icon, 
