@@ -4,6 +4,122 @@
 
 ---
 
+## [3.4.0-beta] - 2025-10-13 🎨 PROFESSIONAL CAT UI - STATUS ICONS & MULTI-SELECTION
+
+> **Major Grid Editor Enhancements**: memoQ-style status icons, multi-selection system, compact UI, responsive layout
+
+### 🎨 UI/UX IMPROVEMENTS
+
+**Status Icons** (memoQ-style visual indicators)
+- **Status Column Redesign**: Text labels replaced with color-coded icons
+  * ✗ (Red #F44336) - Untranslated segments
+  * ~ (Orange #FF9800) - Draft segments
+  * ✓ (Green #4CAF50) - Translated segments
+  * ✓✓ (Dark Blue #1976D2) - Approved segments
+  * 🔒 (Blue #2196F3) - Locked segments
+- **Column Reordering**: Status moved to rightmost column (after Target)
+  * Previous: # - Type - Style - Source - Status - Target
+  * New: # - Type - Style - Source - Target - Status
+- **Space Optimization**: Status column width reduced from 75px → 30px (45px reclaimed)
+- **Fixed-width Container**: 30px Frame prevents text overflow
+- **Visual Hierarchy**: 14pt bold icons for better visibility
+- **Language Independence**: Icons replace text for universal understanding
+
+**Multi-Selection System** (Ctrl/Shift modifiers)
+- **Ctrl+Click**: Toggle individual segment selection (add/remove)
+- **Shift+Click**: Range selection from last selected segment
+- **Ctrl+A**: Select all visible segments
+- **Visual Feedback**: 
+  * Selected rows highlighted with blue background (#CCE5FF)
+  * ID column clickable for selection
+  * Selection counter in status bar
+- **Bulk Operations**: All segment operations work on selected segments
+  * Change Status (Ctrl+T)
+  * Lock/Unlock Segments (Ctrl+L)
+  * Clear Selection
+
+**Selection Counter** (Status bar integration)
+- **Display**: Shows "X segment(s) selected" in status bar
+- **Log Messages**: Confirms selection changes
+- **Real-time Updates**: Counter updates on every selection change
+
+**Responsive Button Layout** (Grid Editor panel)
+- **Compact Layout**: 55% vertical space reduction
+  * Padding reduced: 10px → 5px
+  * Font size: 10pt → 8-9pt
+  * Widgets: 2-line → 1-line (dropdowns, entries)
+- **Button Groups**: Organized with separators
+  * Left: Navigation (segment controls)
+  * Right: Actions (translate, save)
+- **Visibility**: All buttons visible without scrolling
+
+**Column Optimization**
+- **Width Reduction**: 70px total saved
+  * ID column: 50px → 35px
+  * Type column: 60px → 50px
+  * Style column: 80px → 70px
+  * Status column: 75px → 30px (from status icons feature)
+- **Resize Handles**: Drag column borders to adjust width (min 25px)
+- **More Content Space**: Additional 115px for Source/Target columns
+
+**Custom Tab Overflow** (Assistant panel)
+- **Full Tab Names**: No truncation (was "Trans..." → "Translation Memory")
+- **Dropdown Menu**: "More ▼" button for remaining tabs
+- **Dynamic Layout**: Adapts to available width
+- **🔄 Refresh Tabs Button**: Purple button to fix tab display issues
+  * Toggles layout mode (stacked → tabbed) to force reflow
+  * Fixes tab overflow problems without restart
+
+**Start Screen Layout**
+- **Horizontal Buttons**: Width reduced 25% (25 → 18 chars)
+- **Compact Design**: Buttons arranged in row (was vertical stack)
+- **Shorter Labels**: "Import Bilingual File" → "Import Bilingual"
+
+### 🆕 NEW FEATURES
+
+**Multi-Selection Operations**
+- Select All (Ctrl+A)
+- Clear Selection
+- Change Status for selected segments
+- Lock/Unlock selected segments
+- Selection counter with visual feedback
+
+**Column Management**
+- Drag column borders to resize
+- Minimum width enforcement (25px)
+- Column widths persist during session
+
+### 🔧 TECHNICAL CHANGES
+
+**Grid Architecture**
+- `selected_segments` Set for tracking selections
+- `get_status_icon()` method for icon mapping
+- `get_status_icon_color()` method for color coding
+- `update_selection_counter()` for status bar updates
+- Fixed-width Frame container for status column (30px with `pack_propagate(False)`)
+- Status column packs `side='right'` before content expands `side='left'`
+
+**Method Refactoring**
+- Extracted status icon logic to separate methods
+- Unified selection handling across grid operations
+- Row update function uses icon methods (not text)
+
+**Documentation**
+- `.dev/docs/MULTI_SELECTION_IMPLEMENTATION.md`
+- `.dev/docs/SELECTION_COUNTER_UI.md`
+- `.dev/docs/RESPONSIVE_BUTTON_LAYOUT.md`
+- `.dev/docs/GRID_EDITOR_COMPACT_FIX.md`
+- `.dev/docs/CUSTOM_TAB_OVERFLOW_SYSTEM.md`
+- `.dev/docs/UI_IMPROVEMENTS_TABS_AND_COLUMNS.md`
+
+**Version & Compatibility**
+- Version bump: v3.3.0-beta → v3.4.0-beta
+- ~500 lines modified/added
+- 100% backward compatible (no breaking changes)
+- All existing functionality preserved
+
+---
+
 ## [3.3.0-beta] - 2025-10-12 🎨 UI/UX REDESIGN + PROJECT START SCREEN
 
 > **Major Interface Overhaul**: Cleaner toolbar, reorganized menus, semantic colors, professional Start Screen
@@ -168,11 +284,22 @@
 
 **Bulk Operations Suite** - Comprehensive Segment Management
 
+- **Multi-Selection System** (Trados/memoQ-style):
+  * **Click** to select single segment (blue highlight)
+  * **Ctrl+Click** to toggle individual segments in/out of selection
+  * **Shift+Click** to select range from last selected to current
+  * **Blue row highlighting** (#CCE5FF) for selected segments - no checkbox clutter
+  * **Selection persists across pages** (ID-based storage)
+  * **Selection counter** shows total selected segments in log
+  * **Professional CAT tool aesthetics** matching Trados/memoQ design patterns
+
 - **New "Bulk Operations" Submenu** in Edit menu with powerful batch editing tools
+
 - **Select All Segments** (Ctrl+A):
   * Select all visible segments (respects current filter)
+  * Applies blue highlighting to all visible rows
   * Shows count and available bulk operations
-  * Foundation for future multi-selection features
+  * Filter-aware: selects only filtered segments when filter active
   
 - **Clear All Targets**:
   * Remove target text from all segments at once

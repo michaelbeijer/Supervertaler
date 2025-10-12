@@ -2,26 +2,34 @@
 
 🎯 **Context-aware, LLM-powered translation & proofreading tool, leveraging multiple context sources for enhanced accuracy (built for translators)** - Revolutionary approach to document translation that leverages multiple context sources for unparalleled accuracy.
 
-**Note**: A version of Supervertaler is being developed with many features commonly found in proper CAT tools (Computer-Aided Translation tools), which has reached **v3.3.0-beta** with a major UI/UX redesign! It features a cleaner toolbar (55% space reduction), reorganized menus, semantic color coding, unified prompt management, grid pagination (10x faster loading), smart paragraph detection, dual text selection (memoQ-style), three professional view modes (Grid, List, Document), and comprehensive auto-export options. We're implementing features from [michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool](https://michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool).
+**Note**: A version of Supervertaler is being developed with many features commonly found in proper CAT tools (Computer-Aided Translation tools), which has reached **v3.4.0-beta** with professional UI enhancements! It features memoQ-style status icons (color-coded ✗/~/✓/✓✓/🔒), multi-selection system (Ctrl/Shift/Ctrl+A), responsive compact layout, column optimization (115px reclaimed), custom tab overflow, and comprehensive grid editor improvements. The v3.3.0-beta release added a cleaner toolbar (55% space reduction), reorganized menus, semantic color coding, unified prompt management, grid pagination (10x faster loading), smart paragraph detection, dual text selection, three professional view modes (Grid, List, Document), and comprehensive auto-export options. We're implementing features from [michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool](https://michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool).
 
 
 ## 📦 Available Versions
 
-### v3.3.0-beta (Experimental - CAT Editor) 🎨
-**File**: `Supervertaler_v3.3.0-beta_CAT.py`
-- 🎨 **NEW**: Professional Start Screen (project management interface when no document loaded)
+### v3.4.0-beta (Experimental - CAT Editor) 🎨
+**File**: `Supervertaler_v3.4.0-beta_CAT.py`
+- 🎨 **NEW**: memoQ-style status icons (✗/~/✓/✓✓/🔒) with color coding (red/orange/green/blue)
+- ✅ **NEW**: Multi-selection system (Ctrl+Click, Shift+Click, Ctrl+A)
+- 📊 **NEW**: Selection counter in status bar with visual feedback
+- 🎯 **NEW**: Responsive compact layout (55% vertical space reduction in editor)
+- 📏 **NEW**: Column optimization (115px total reclaimed: ID/Type/Style/Status optimized)
+- 🔧 **NEW**: Column resize handles (drag borders, min 25px)
+- 📑 **NEW**: Custom tab overflow with dropdown menu (full names, no truncation)
+- 🔄 **NEW**: Refresh Tabs button (purple, fixes tab display issues)
+- 🎨 **v3.3.0**: Professional Start Screen (project management interface when no document loaded)
   * Projects tab with recent projects list and quick actions
   * File Explorer tab with tree view for browsing/opening files
   * Settings tab with quick access to all configuration options
   * Automatic transition to Grid View when document is loaded
-- 🎨 **NEW**: Major UI/UX redesign - 55% cleaner toolbar with dropdown menus
-- �️ **NEW**: Reorganized menu bar (File/Edit/View/Project/Resources/Help)
-- 🎨 **NEW**: Semantic color coding (green=import, orange=export, blue=save, gray=views)
-- 📝 **NEW**: "Assistant panel" terminology (was "Translation Workspace")
-- � **NEW**: Help menu (User Guide, Changelog, About)
-- 🔧 **ENHANCED**: Tracked Changes reports now include clickable GitHub links
-- � **FIXED**: Batch size dialog height (OK button fully visible)
-- � Unified Prompt Library with System Prompts + Custom Instructions (Ctrl+P)
+- 🎨 **v3.3.0**: Major UI/UX redesign - 55% cleaner toolbar with dropdown menus
+- 🗂️ **v3.3.0**: Reorganized menu bar (File/Edit/View/Project/Resources/Help)
+- 🎨 **v3.3.0**: Semantic color coding (green=import, orange=export, blue=save, gray=views)
+- 📝 **v3.3.0**: "Assistant panel" terminology (was "Translation Workspace")
+- ❓ **v3.3.0**: Help menu (User Guide, Changelog, About)
+- 🔧 **v3.3.0**: Tracked Changes reports now include clickable GitHub links
+- ✅ **v3.3.0**: Batch size dialog height (OK button fully visible)
+- 🎯 Unified Prompt Library with System Prompts + Custom Instructions (Ctrl+P)
 - ⚡ Grid pagination system (50 segments/page, 10x faster loading!)
 - 🧠 Smart paragraph detection for document view
 - ✅ Professional CAT editor with Grid, List, and Document views
@@ -46,7 +54,7 @@
 - 📖 **memoQ Guide**: [`.dev/docs/features/MEMOQ_SUPPORT.md`](.dev/docs/features/MEMOQ_SUPPORT.md)
 - 🏷️ **Version Note**: "-CLASSIC" suffix denotes original DOCX workflow architecture
 
-> **💡 Recommendation**: Use **v2.5.0-CLASSIC** for production translation work. Try **v3.2.0-beta** if you want to test the experimental CAT editor features with the new Prompt Library system!
+> **💡 Recommendation**: Use **v2.5.0-CLASSIC** for production translation work. Try **v3.4.0-beta** if you want to test the experimental CAT editor features with professional UI enhancements!
 > 
 > **🔢 Version Scheme**: The jump from v2.x to v3.x reflects a **major architectural change**. v2.5.0-CLASSIC uses the original DOCX-based workflow, while v3.2.0-beta is a complete rewrite as a segment-based CAT editor. The "-CLASSIC" and "-beta" suffixes help distinguish these fundamentally different architectures.
 
