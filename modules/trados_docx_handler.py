@@ -420,7 +420,8 @@ class TradosDOCXHandler:
             tag_style_exists: Whether the "Tag" style is available
         """
         # Pattern to match Trados tags: <NUMBER> or </NUMBER> or <NUMBER/>
-        tag_pattern = r'(</?(\d+)(/?>))'
+        # Use non-capturing groups (?:...) to avoid extra split parts
+        tag_pattern = r'(</?\d+/?>)'
         
         import re
         parts = re.split(tag_pattern, text)
