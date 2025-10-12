@@ -2334,6 +2334,10 @@ class Supervertaler:
         self.original_docx: Optional[str] = None
         self.modified = False
         
+        # Multi-selection state
+        self.selected_segments: Set[int] = set()  # Set of selected segment IDs
+        self.last_selected_index: Optional[int] = None  # For Shift+Click range selection
+        
         # Filter state
         self.filtered_segments = []
         self.filter_active = False
