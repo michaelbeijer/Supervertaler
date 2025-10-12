@@ -2596,6 +2596,7 @@ class Supervertaler:
         edit_menu.add_command(label="Find/Replace...", command=self.show_find_replace, accelerator="Ctrl+F")
         edit_menu.add_separator()
         edit_menu.add_command(label="Copy Source to Target", command=self.copy_source_to_target, accelerator="Ctrl+D")
+        edit_menu.add_command(label="Copy Source to Target (All Segments)", command=self.copy_source_to_target_all)
         edit_menu.add_command(label="Clear Target", command=self.clear_target)
         edit_menu.add_separator()
         
@@ -9325,6 +9326,55 @@ Use this feature AFTER translation to:
         self.modified = True
         self.update_progress()
         self.log(f"✓ Copied source to target (Segment #{self.current_segment.id})")
+    
+    def copy_source_to_target_all(self):
+        """Copy source to target for ALL segments (useful for CAT tool re-import workflow)"""
+        if not self.segments:
+            messagebox.showwarning("No Segments", "No segments loaded.")
+            return
+        
+        # Confirm action
+        if not messagebox.askyesno(
+            "Copy Source to Target (All)",
+            f"Copy source text to target for ALL {len(self.segments)} segments?\n\n"
+            "This is useful for preparing files for Trados/memoQ/CafeTran re-import.\n\n"
+            "💡 TIP: After copying, translate with AI, then export.\n"
+            "This avoids paying for MT pre-translation in your CAT tool!"
+        ):
+            return
+        
+        # Copy source to target for all segments
+        copied_count = 0
+        for segment in self.segments:
+            segment.target = segment.source
+            if segment.status == 'untranslated':
+                segment.status = 'draft'
+            segment.modified = True
+            copied_count += 1
+        
+        # Update UI
+        self.modified = True
+        if self.layout_mode == LayoutMode.GRID:
+            self.load_segments_to_grid()
+        elif self.layout_mode == LayoutMode.SPLIT:
+            self.load_segments_to_list()
+            # Reload current segment if one is selected
+            if self.current_segment and hasattr(self, 'target_text'):
+                self.target_text.delete('1.0', 'end')
+                self.target_text.insert('1.0', self.current_segment.target)
+        elif self.layout_mode == LayoutMode.DOCUMENT:
+            self.load_segments_to_document_view()
+        
+        self.update_progress()
+        self.log(f"✓ Copied source to target for {copied_count} segments")
+        messagebox.showinfo(
+            "Complete",
+            f"✓ Copied source to target for {copied_count} segments.\n\n"
+            "Next steps:\n"
+            "1. Translate with AI (Translate → Translate All)\n"
+            "2. Export bilingual file\n"
+            "3. Re-import into Trados/memoQ/CafeTran"
+        )
     
     def clear_target(self):
         """Clear target text"""

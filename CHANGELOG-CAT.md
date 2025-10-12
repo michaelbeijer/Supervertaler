@@ -166,6 +166,21 @@
 
 ### ✨ NEW FEATURES
 
+**Copy Source to Target (All Segments)** - Cost-Saving CAT Tool Workflow
+
+- **Edit Menu**: New "Copy Source to Target (All Segments)" command
+- **Purpose**: Prepare files for Trados/memoQ/CafeTran re-import without paying for MT
+- **Workflow**:
+  1. Export bilingual file with empty targets from CAT tool
+  2. Import into Supervertaler
+  3. Copy source → target for all segments (Edit menu)
+  4. Translate with AI (using your own API keys)
+  5. Export and re-import to CAT tool
+- **Cost Savings**: 80-90% cheaper than commercial MT (€2-5 vs €20-40 per 1M chars)
+- **Why It Works**: CAT tools only accept changes to segments with existing targets
+- **Dialog Confirmation**: Shows tip about workflow and next steps
+- **Documentation**: Added comprehensive guide in USER_GUIDE.md with cost comparison table
+
 **TrackedChangesBrowser Class** - Complete GUI for tracked changes review
 
 - **AI-Powered Analysis Export**:
