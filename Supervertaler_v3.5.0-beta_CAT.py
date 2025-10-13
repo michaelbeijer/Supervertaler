@@ -1,11 +1,12 @@
 """  
-Supervertaler v3.4.0-beta (CAT Editor)
+Supervertaler v3.5.0-beta (CAT Editor)
 AI-Powered Computer-Aided Translation Tool
 
 Features:
 - Grid Pagination System (50 segments/page, 10x faster loading) ⚡
 - Smart Paragraph Detection for document view 🧠
 - Unified Prompt Library (System Prompts + Custom Instructions) 🎯
+- Figure Context support (visual context for technical translations) 🖼️
 - LLM Translation (OpenAI GPT-4, Anthropic Claude, Google Gemini)
 - Custom Prompts with variable substitution
 - Translation Memory with fuzzy matching
@@ -21,11 +22,13 @@ Features:
 - Dev mode with parallel folder structure (user data/ vs user data_private/)
 
 Author: Michael Beijer + AI Assistant
-Date: October 13, 2025
+Date: October 14, 2025
 """
 
 # Version constant
-APP_VERSION = "3.4.0-beta"# --- Private Features Flag ---
+APP_VERSION = "3.5.0-beta"
+
+# --- Private Features Flag ---
 # Check for .supervertaler.local file to enable private features (for developers only)
 # Users won't have this file, so they won't see confusing private folder options
 import os as _os_temp
@@ -102,7 +105,7 @@ except ImportError as e:
     print(f"Note: google-generativeai library not available: {e}")
 
 try:
-    from PIL import Image
+    from PIL import Image, ImageTk
     PIL_AVAILABLE = True
 except ImportError as e:
     PIL_AVAILABLE = False
@@ -113,6 +116,7 @@ try:
     from modules.simple_segmenter import SimpleSegmenter
     from modules.docx_handler import DOCXHandler
     from modules.tag_manager import TagManager
+    from modules.figure_context_manager import FigureContextManager, normalize_figure_ref, pil_image_to_base64_png
 except ImportError:
     print("ERROR: Could not import required modules")
     print("Make sure the 'modules' folder exists with simple_segmenter.py, docx_handler.py, and tag_manager.py")
@@ -298,20 +302,7 @@ def pil_image_to_base64_png(img):
     except Exception:
         return None
 
-def normalize_figure_ref(ref_text):
-    """Normalize figure references to match drawing filenames"""
-    if not ref_text:
-        return None
-    match = re.search(r"(?:figure|figuur|fig\.?)\s*([\w\d]+(?:[\s\.\-]*[\w\d]+)?)", ref_text, re.IGNORECASE)
-    if match:
-        identifier = match.group(1)
-        return re.sub(r"[\s\.\-]", "", identifier).lower()
-    base_name = os.path.splitext(ref_text)[0]
-    cleaned_base = re.sub(r"(?:figure|figuur|fig\.?)\s*", "", base_name, flags=re.IGNORECASE)
-    normalized = re.sub(r"[\s\.\-]", "", cleaned_base).lower()
-    if normalized:
-        return normalized
-    return None
+# normalize_figure_ref() and detect_figure_references() moved to modules/figure_context_manager.py
 
 def get_simple_lang_code(lang_name_or_code_input):
     """Convert language name to simple 2-letter code"""
@@ -589,9 +580,9 @@ class TrackedChangesBrowser:
         
         # Context menu for copying
         self.context_menu = tk.Menu(self.window, tearoff=0)
-        self.context_menu.add_command(label="Copy Original", command=self.copy_original)
-        self.context_menu.add_command(label="Copy Final", command=self.copy_final)
-        self.context_menu.add_command(label="Copy Both", command=self.copy_both)
+        self.context_menu.add_command(label="Copy original", command=self.copy_original)
+        self.context_menu.add_command(label="Copy final", command=self.copy_final)
+        self.context_menu.add_command(label="Copy both", command=self.copy_both)
         
         self.tree.bind("<Button-3>", self.show_context_menu)  # Right click
         
@@ -1426,14 +1417,7 @@ def format_tracked_changes_context(tracked_changes_list, max_length=1000):
     
     return "\n".join(context_parts) + "\n"
 
-def pil_image_to_base64_png(img):
-    """Encode a PIL image to base64 PNG (ascii) for Claude/OpenAI data URLs."""
-    try:
-        buf = io.BytesIO()
-        img.save(buf, format="PNG")
-        return base64.b64encode(buf.getvalue()).decode("ascii")
-    except Exception:
-        return None
+# pil_image_to_base64_png() moved to modules/figure_context_manager.py
 
 # --- TMX Generator Class ---
 
@@ -2504,9 +2488,8 @@ class Supervertaler:
         # TMX Generator for export
         self.tmx_generator = TMXGenerator(log_callback=self.log)
         
-        # Drawings/Images support for multimodal translation
-        self.drawings_images_map = {}  # Normalized figure name -> PIL Image
-        self.drawings_folder = None  # Path to folder containing drawing images
+        # Figure Context Manager for multimodal translation (visual context for technical documents)
+        self.figure_context_manager = FigureContextManager(self)
         
         # Setup UI
         self.setup_ui()
@@ -2552,13 +2535,13 @@ class Supervertaler:
         # Project menu - Project management (moved to first position)
         project_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Project", menu=project_menu)
-        project_menu.add_command(label="Save Project", command=self.save_project, accelerator="Ctrl+S")
-        project_menu.add_command(label="Save Project As...", command=self.save_project_as)
-        project_menu.add_command(label="Open Project...", command=self.load_project, accelerator="Ctrl+L")
-        project_menu.add_command(label="Close Project", command=self.close_project)
+        project_menu.add_command(label="Save project", command=self.save_project, accelerator="Ctrl+S")
+        project_menu.add_command(label="Save project as...", command=self.save_project_as)
+        project_menu.add_command(label="Open project...", command=self.load_project, accelerator="Ctrl+L")
+        project_menu.add_command(label="Close project", command=self.close_project)
         project_menu.add_separator()
-        project_menu.add_command(label="API Settings...", command=self.show_api_settings)
-        project_menu.add_command(label="Language Settings...", command=self.show_language_settings)
+        project_menu.add_command(label="API settings...", command=self.show_api_settings)
+        project_menu.add_command(label="Language settings...", command=self.show_language_settings)
         
         # File menu - Import/Export focus
         file_menu = tk.Menu(menubar, tearoff=0)
@@ -2567,32 +2550,36 @@ class Supervertaler:
         # Import submenu
         import_submenu = tk.Menu(file_menu, tearoff=0)
         file_menu.add_cascade(label="Import", menu=import_submenu)
-        import_submenu.add_command(label="DOCX (Monolingual)...", command=self.import_docx, accelerator="Ctrl+O")
-        import_submenu.add_command(label="TXT (Mono/Bilingual)...", command=self.import_txt_bilingual)
-        import_submenu.add_command(label="memoQ DOCX (Bilingual)...", command=self.import_memoq_bilingual)
-        import_submenu.add_command(label="CafeTran DOCX (Bilingual)...", command=self.import_cafetran_bilingual)
-        import_submenu.add_command(label="Trados Studio DOCX (Bilingual)...", command=self.import_trados_bilingual)
+        import_submenu.add_command(label="Monolingual document (DOCX)...", command=self.import_docx, accelerator="Ctrl+O")
+        import_submenu.add_command(label="Monolingual document (TXT)...", command=self.import_txt_monolingual)
+        import_submenu.add_separator()
+        import_submenu.add_command(label="memoQ bilingual table (DOCX)...", command=self.import_memoq_bilingual)
+        import_submenu.add_command(label="CafeTran bilingual table (DOCX)...", command=self.import_cafetran_bilingual)
+        import_submenu.add_command(label="Trados bilingual table (DOCX)...", command=self.import_trados_bilingual)
+        import_submenu.add_separator()
+        import_submenu.add_command(label="Manual copy/paste translation workflow (TXT)...", command=self.import_txt_bilingual)
         
         # Export submenu
         export_submenu = tk.Menu(file_menu, tearoff=0)
         file_menu.add_cascade(label="Export", menu=export_submenu)
-        export_submenu.add_command(label="DOCX (Monolingual)...", command=self.export_docx)
-        export_submenu.add_command(label="DOCX (Bilingual)...", command=self.export_bilingual_docx)
-        export_submenu.add_command(label="TMX...", command=self.export_tmx)
-        export_submenu.add_command(label="TSV...", command=self.export_tsv)
+        export_submenu.add_command(label="Translated document (DOCX/TXT)...", command=self.export_translated_document)
         export_submenu.add_separator()
-        export_submenu.add_command(label="memoQ DOCX...", command=self.export_memoq_bilingual)
-        export_submenu.add_command(label="CafeTran DOCX...", command=self.export_cafetran_bilingual)
-        export_submenu.add_command(label="Trados Studio DOCX...", command=self.export_trados_bilingual)
-        export_submenu.add_command(label="TXT (Bilingual)...", command=self.export_txt_bilingual)
+        export_submenu.add_command(label="Supervertaler project data (DOCX/TSV)...", command=self.export_supervertaler_data)
         export_submenu.add_separator()
-        export_submenu.add_command(label="Session Report...", command=self.generate_session_report)
+        export_submenu.add_command(label="Manual copy/paste translation workflow (TXT)...", command=self.export_txt_bilingual)
+        export_submenu.add_command(label="Translation memory (TMX)...", command=self.export_tmx)
+        export_submenu.add_separator()
+        export_submenu.add_command(label="memoQ bilingual table - Translated (DOCX)...", command=self.export_memoq_bilingual)
+        export_submenu.add_command(label="CafeTran bilingual table - Translated (DOCX)...", command=self.export_cafetran_bilingual)
+        export_submenu.add_command(label="Trados bilingual table - Translated (DOCX)...", command=self.export_trados_bilingual)
+        export_submenu.add_separator()
+        export_submenu.add_command(label="Session report...", command=self.generate_session_report)
         
         file_menu.add_separator()
         
         # Recent projects submenu (placeholder)
         recent_menu = tk.Menu(file_menu, tearoff=0)
-        file_menu.add_cascade(label="Recent Projects", menu=recent_menu, state='disabled')
+        file_menu.add_cascade(label="Recent projects", menu=recent_menu, state='disabled')
         
         file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self.on_closing)
@@ -2600,81 +2587,81 @@ class Supervertaler:
         # Edit menu
         edit_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Edit", menu=edit_menu)
-        edit_menu.add_command(label="Find/Replace...", command=self.show_find_replace, accelerator="Ctrl+F")
+        edit_menu.add_command(label="Find/replace...", command=self.show_find_replace, accelerator="Ctrl+F")
         edit_menu.add_separator()
-        edit_menu.add_command(label="Copy Source to Target", command=self.copy_source_to_target, accelerator="Ctrl+D")
-        edit_menu.add_command(label="Copy Source to Target (All Segments)", command=self.copy_source_to_target_all)
-        edit_menu.add_command(label="Clear Target", command=self.clear_target)
+        edit_menu.add_command(label="Copy source to target", command=self.copy_source_to_target, accelerator="Ctrl+D")
+        edit_menu.add_command(label="Copy source to target (all segments)", command=self.copy_source_to_target_all)
+        edit_menu.add_command(label="Clear target", command=self.clear_target)
         edit_menu.add_separator()
         
         # Bulk operations submenu
         bulk_menu = tk.Menu(edit_menu, tearoff=0)
-        edit_menu.add_cascade(label="Bulk Operations", menu=bulk_menu)
-        bulk_menu.add_command(label="Select All Segments", command=self.select_all_segments, accelerator="Ctrl+A")
-        bulk_menu.add_command(label="Clear All Targets...", command=self.clear_all_targets)
+        edit_menu.add_cascade(label="Bulk operations", menu=bulk_menu)
+        bulk_menu.add_command(label="Select all segments", command=self.select_all_segments, accelerator="Ctrl+A")
+        bulk_menu.add_command(label="Clear all targets...", command=self.clear_all_targets)
         bulk_menu.add_separator()
-        bulk_menu.add_command(label="Change Status (All)...", command=self.change_status_all)
-        bulk_menu.add_command(label="Change Status (Filtered)...", command=self.change_status_filtered)
+        bulk_menu.add_command(label="Change status (all)...", command=self.change_status_all)
+        bulk_menu.add_command(label="Change status (filtered)...", command=self.change_status_filtered)
         bulk_menu.add_separator()
-        bulk_menu.add_command(label="Lock All Segments", command=self.lock_all_segments)
-        bulk_menu.add_command(label="Unlock All Segments", command=self.unlock_all_segments)
-        bulk_menu.add_command(label="Lock Filtered Segments", command=self.lock_filtered_segments)
-        bulk_menu.add_command(label="Unlock Filtered Segments", command=self.unlock_filtered_segments)
+        bulk_menu.add_command(label="Lock all segments", command=self.lock_all_segments)
+        bulk_menu.add_command(label="Unlock all segments", command=self.unlock_all_segments)
+        bulk_menu.add_command(label="Lock filtered segments", command=self.lock_filtered_segments)
+        bulk_menu.add_command(label="Unlock filtered segments", command=self.unlock_filtered_segments)
         edit_menu.add_separator()
         
         # Segment operations submenu
         segment_menu = tk.Menu(edit_menu, tearoff=0)
         edit_menu.add_cascade(label="Segment", menu=segment_menu)
-        segment_menu.add_command(label="Translate Current", command=self.translate_current_segment, accelerator="Ctrl+T")
-        segment_menu.add_command(label="Translate All Untranslated", command=self.translate_all_untranslated)
+        segment_menu.add_command(label="Translate current", command=self.translate_current_segment, accelerator="Ctrl+T")
+        segment_menu.add_command(label="Translate all untranslated", command=self.translate_all_untranslated)
         segment_menu.add_separator()
-        segment_menu.add_command(label="Lock Current Segment", command=self.lock_current_segment)
-        segment_menu.add_command(label="Unlock Current Segment", command=self.unlock_current_segment)
+        segment_menu.add_command(label="Lock current segment", command=self.lock_current_segment)
+        segment_menu.add_command(label="Unlock current segment", command=self.unlock_current_segment)
         
         # View menu - Layout & Assistant panel
         view_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="View", menu=view_menu)
-        view_menu.add_command(label="Grid View", command=lambda: self.switch_layout(LayoutMode.GRID), accelerator="Ctrl+1")
-        view_menu.add_command(label="List View", command=lambda: self.switch_layout(LayoutMode.SPLIT), accelerator="Ctrl+2")
-        view_menu.add_command(label="Document View", command=lambda: self.switch_layout(LayoutMode.DOCUMENT), accelerator="Ctrl+3")
+        view_menu.add_command(label="Grid view", command=lambda: self.switch_layout(LayoutMode.GRID), accelerator="Ctrl+1")
+        view_menu.add_command(label="List view", command=lambda: self.switch_layout(LayoutMode.SPLIT), accelerator="Ctrl+2")
+        view_menu.add_command(label="Document view", command=lambda: self.switch_layout(LayoutMode.DOCUMENT), accelerator="Ctrl+3")
         view_menu.add_separator()
-        view_menu.add_command(label="Grid Columns...", command=self.show_column_visibility_dialog)
-        view_menu.add_command(label="Toggle Style Colors", command=self.toggle_grid_style_colors)
+        view_menu.add_command(label="Grid columns...", command=self.show_column_visibility_dialog)
+        view_menu.add_command(label="Toggle style colors", command=self.toggle_grid_style_colors)
         view_menu.add_separator()
         
         # Assistant panel layout submenu
         resources_layout_menu = tk.Menu(view_menu, tearoff=0)
         view_menu.add_cascade(label="Assistant panel", menu=resources_layout_menu)
-        resources_layout_menu.add_command(label="Tabbed Layout", command=lambda: self.switch_assistance_layout('tabbed'))
-        resources_layout_menu.add_command(label="Stacked Layout", command=lambda: self.switch_assistance_layout('stacked'))
-        resources_layout_menu.add_command(label="List Layout", command=lambda: self.switch_assistance_layout('list'))
+        resources_layout_menu.add_command(label="Tabbed layout", command=lambda: self.switch_assistance_layout('tabbed'))
+        resources_layout_menu.add_command(label="Stacked layout", command=lambda: self.switch_assistance_layout('stacked'))
+        resources_layout_menu.add_command(label="List layout", command=lambda: self.switch_assistance_layout('list'))
         
         view_menu.add_separator()
-        view_menu.add_command(label="Toggle Filter Mode", command=self.toggle_filter_mode, accelerator="Ctrl+M")
-        view_menu.add_command(label="Apply Filters", command=self.apply_filters, accelerator="Ctrl+Shift+A")
-        view_menu.add_command(label="Clear Filters", command=self.clear_filters)
-        view_menu.add_command(label="Focus Filter", command=self.focus_filter_source, accelerator="Ctrl+Shift+F")
+        view_menu.add_command(label="Toggle filter mode", command=self.toggle_filter_mode, accelerator="Ctrl+M")
+        view_menu.add_command(label="Apply filters", command=self.apply_filters, accelerator="Ctrl+Shift+A")
+        view_menu.add_command(label="Clear filters", command=self.clear_filters)
+        view_menu.add_command(label="Focus filter", command=self.focus_filter_source, accelerator="Ctrl+Shift+F")
         
         # Resources menu - TM, Glossaries, etc.
         resources_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Resources", menu=resources_menu)
-        resources_menu.add_command(label="Translation Memory...", command=self.show_tm_manager)
-        resources_menu.add_command(label="Load TM File...", command=self.load_tm_file)
+        resources_menu.add_command(label="Translation memory...", command=self.show_tm_manager)
+        resources_menu.add_command(label="Load TM file...", command=self.load_tm_file)
         resources_menu.add_separator()
-        resources_menu.add_command(label="📝 Load Tracked Changes (DOCX)...", command=self.load_tracked_changes_docx)
-        resources_menu.add_command(label="🗑️ Clear Tracked Changes", command=self.clear_tracked_changes)
+        resources_menu.add_command(label="📝 Load tracked changes (DOCX)...", command=self.load_tracked_changes_docx)
+        resources_menu.add_command(label="🗑️ Clear tracked changes", command=self.clear_tracked_changes)
         resources_menu.add_separator()
-        resources_menu.add_command(label="🎨 Load Drawing Images...", command=self.load_drawings)
-        resources_menu.add_command(label="🗑️ Clear Drawings", command=self.clear_drawings)
+        resources_menu.add_command(label="🖼️ Load figure context...", command=self.load_figure_context)
+        resources_menu.add_command(label="🗑️ Clear figure context", command=self.clear_figure_context)
         resources_menu.add_separator()
-        resources_menu.add_command(label="📚 Prompt Library", command=self.show_custom_prompts, accelerator="Ctrl+P")
-        resources_menu.add_command(label="🎭 System Prompts", command=self.show_system_prompts)
-        resources_menu.add_command(label="📝 Custom Instructions", command=self.show_custom_instructions)
+        resources_menu.add_command(label="📚 Prompt library", command=self.show_custom_prompts, accelerator="Ctrl+P")
+        resources_menu.add_command(label="🎭 System prompts", command=self.show_system_prompts)
+        resources_menu.add_command(label="📝 Custom instructions", command=self.show_custom_instructions)
         
         # Help menu
         help_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Help", menu=help_menu)
-        help_menu.add_command(label="User Guide", command=self.show_user_guide)
+        help_menu.add_command(label="User guide", command=self.show_user_guide)
         help_menu.add_command(label="Changelog", command=self.show_changelog)
         help_menu.add_separator()
         help_menu.add_command(label="About", command=self.show_about)
@@ -2730,11 +2717,14 @@ class Supervertaler:
         import_btn.pack(side='left', padx=2)
         import_menu = tk.Menu(import_btn, tearoff=0)
         import_btn.config(menu=import_menu)
-        import_menu.add_command(label="DOCX (Monolingual)", command=self.import_docx)
-        import_menu.add_command(label="TXT (Mono/Bilingual)", command=self.import_txt_bilingual)
-        import_menu.add_command(label="memoQ DOCX (Bilingual)", command=self.import_memoq_bilingual)
-        import_menu.add_command(label="CafeTran DOCX (Bilingual)", command=self.import_cafetran_bilingual)
-        import_menu.add_command(label="Trados Studio DOCX (Bilingual)", command=self.import_trados_bilingual)
+        import_menu.add_command(label="Monolingual document (DOCX)", command=self.import_docx)
+        import_menu.add_command(label="Monolingual document (TXT)", command=self.import_txt_monolingual)
+        import_menu.add_separator()
+        import_menu.add_command(label="memoQ bilingual table (DOCX)", command=self.import_memoq_bilingual)
+        import_menu.add_command(label="CafeTran bilingual table (DOCX)", command=self.import_cafetran_bilingual)
+        import_menu.add_command(label="Trados bilingual table (DOCX)", command=self.import_trados_bilingual)
+        import_menu.add_separator()
+        import_menu.add_command(label="Manual copy/paste translation workflow (TXT)", command=self.import_txt_bilingual)
         
         # Translate dropdown button (workflow: import → translate → export → save)
         translate_btn = tk.Menubutton(self.toolbar, text="Translate ▼", 
@@ -2755,15 +2745,18 @@ class Supervertaler:
         export_btn.pack(side='left', padx=2)
         export_menu = tk.Menu(export_btn, tearoff=0)
         export_btn.config(menu=export_menu)
-        export_menu.add_command(label="DOCX (Monolingual)", command=self.export_docx)
-        export_menu.add_command(label="DOCX (Bilingual)", command=self.export_bilingual_docx)
-        export_menu.add_command(label="TMX", command=self.export_tmx)
-        export_menu.add_command(label="TSV", command=self.export_tsv)
-        export_menu.add_command(label="memoQ DOCX", command=self.export_memoq_bilingual)
-        export_menu.add_command(label="CafeTran DOCX", command=self.export_cafetran_bilingual)
-        export_menu.add_command(label="Trados Studio DOCX", command=self.export_trados_bilingual)
+        export_menu.add_command(label="Translated document (DOCX/TXT)", command=self.export_translated_document)
         export_menu.add_separator()
-        export_menu.add_command(label="Session Report", command=self.generate_session_report)
+        export_menu.add_command(label="Supervertaler project data (DOCX/TSV)", command=self.export_supervertaler_data)
+        export_menu.add_separator()
+        export_menu.add_command(label="Manual copy/paste translation workflow (TXT)", command=self.export_txt_bilingual)
+        export_menu.add_command(label="Translation memory (TMX)", command=self.export_tmx)
+        export_menu.add_separator()
+        export_menu.add_command(label="memoQ bilingual table - Translated (DOCX)", command=self.export_memoq_bilingual)
+        export_menu.add_command(label="CafeTran bilingual table - Translated (DOCX)", command=self.export_cafetran_bilingual)
+        export_menu.add_command(label="Trados bilingual table - Translated (DOCX)", command=self.export_trados_bilingual)
+        export_menu.add_separator()
+        export_menu.add_command(label="Session report", command=self.generate_session_report)
         
         # Save Project button (single, frequently used)
         tk.Button(self.toolbar, text="Save", command=self.save_project,
@@ -2921,7 +2914,7 @@ class Supervertaler:
         tk.Button(button_frame, text="📂 Open Project", bg='#2196F3', fg='white',
                  command=self.load_project, **btn_style).pack(side='left', padx=5)
         
-        tk.Button(button_frame, text="📥 Import Bilingual", bg='#FF9800', fg='white',
+        tk.Button(button_frame, text="📥 Import Bilingual Table", bg='#FF9800', fg='white',
                  command=self.show_import_bilingual_menu, **btn_style).pack(side='left', padx=5)
         
         # Footer with info
@@ -2937,9 +2930,9 @@ class Supervertaler:
     def show_import_bilingual_menu(self):
         """Show popup menu for bilingual import options"""
         menu = tk.Menu(self.root, tearoff=0, font=('Segoe UI', 10))
-        menu.add_command(label="📋 memoQ DOCX", command=self.import_memoq_bilingual)
-        menu.add_command(label="📋 CafeTran DOCX", command=self.import_cafetran_bilingual)
-        menu.add_command(label="📋 Trados Studio DOCX", command=self.import_trados_bilingual)
+        menu.add_command(label="📋 memoQ bilingual table", command=self.import_memoq_bilingual)
+        menu.add_command(label="📋 CafeTran bilingual table", command=self.import_cafetran_bilingual)
+        menu.add_command(label="📋 Trados bilingual table", command=self.import_trados_bilingual)
         
         # Position menu at mouse cursor
         try:
@@ -4293,38 +4286,55 @@ class Supervertaler:
         """Create Reference Images tab - Visual context for multimodal AI"""
         img_info = tk.Frame(parent, bg='#fff3e0', relief='solid', borderwidth=1)
         img_info.pack(fill='x', padx=5, pady=5)
-        tk.Label(img_info, text="Reference Images", font=('Segoe UI', 10, 'bold'),
+        tk.Label(img_info, text="Figure context", font=('Segoe UI', 10, 'bold'),
                 bg='#fff3e0').pack(anchor='w', padx=10, pady=5)
-        tk.Label(img_info, text="Provide visual context for multimodal AI models (GPT-4 Vision, Claude Vision)",
+        tk.Label(img_info, text="Visual context for technical translations - automatically included when text references figures",
                 font=('Segoe UI', 9), bg='#fff3e0', fg='#666').pack(anchor='w', padx=10, pady=(0, 5))
         
-        img_folder_frame = tk.LabelFrame(parent, text="Image Folder", padx=10, pady=10)
+        # Folder info
+        img_folder_frame = tk.LabelFrame(parent, text="Loaded images", padx=10, pady=10)
         img_folder_frame.pack(fill='x', padx=5, pady=5)
         
-        self.image_folder_var = tk.StringVar(value="Not yet configured")
-        tk.Label(img_folder_frame, textvariable=self.image_folder_var,
-                font=('Segoe UI', 9), fg='#999').pack(anchor='w', pady=5)
+        self.image_folder_label = tk.Label(img_folder_frame, text="No figure context loaded",
+                font=('Segoe UI', 9), fg='#999', anchor='w', justify='left')
+        self.image_folder_label.pack(fill='x', pady=5)
         
-        tk.Button(img_folder_frame, text="📁 Select Image Folder",
-                 bg='#FF9800', fg='white', font=('Segoe UI', 9),
-                 state='disabled').pack(anchor='w', pady=5)
+        btn_frame = tk.Frame(img_folder_frame)
+        btn_frame.pack(fill='x', pady=5)
         
-        # Feature info
-        info_text = tk.Text(parent, height=10, wrap='word', font=('Segoe UI', 9),
-                           bg='#f5f5f5', relief='flat', padx=10, pady=10)
-        info_text.pack(fill='both', expand=True, padx=5, pady=5)
-        info_text.insert('1.0', 
-            "🚀 Coming Soon!\n\n"
-            "This feature will allow you to:\n\n"
-            "• Attach screenshots or diagrams to segments\n"
-            "• Provide visual context to AI models\n"
-            "• Improve translation quality for UI elements\n"
-            "• Help AI understand layout and formatting\n\n"
-            "Supported models:\n"
-            "• GPT-4 Vision (OpenAI)\n"
-            "• Claude 3 Vision (Anthropic)\n"
-            "• Gemini Pro Vision (Google)")
-        info_text.config(state='disabled')
+        tk.Button(btn_frame, text="📁 Load figure context...",
+                 command=self.load_figure_context,
+                 bg='#4CAF50', fg='white', font=('Segoe UI', 9, 'bold')).pack(side='left', padx=(0, 5))
+        
+        tk.Button(btn_frame, text="🗑️ Clear",
+                 command=self.clear_figure_context,
+                 font=('Segoe UI', 9)).pack(side='left')
+        
+        # Scrollable image preview area
+        preview_frame = tk.LabelFrame(parent, text="Image preview", padx=5, pady=5)
+        preview_frame.pack(fill='both', expand=True, padx=5, pady=5)
+        
+        # Canvas with scrollbar for image thumbnails
+        canvas_frame = tk.Frame(preview_frame)
+        canvas_frame.pack(fill='both', expand=True)
+        
+        scrollbar = tk.Scrollbar(canvas_frame, orient='vertical')
+        scrollbar.pack(side='right', fill='y')
+        
+        self.figure_canvas = tk.Canvas(canvas_frame, bg='white', yscrollcommand=scrollbar.set)
+        self.figure_canvas.pack(side='left', fill='both', expand=True)
+        scrollbar.config(command=self.figure_canvas.yview)
+        
+        # Inner frame for thumbnails
+        self.figure_thumbnails_frame = tk.Frame(self.figure_canvas, bg='white')
+        self.figure_canvas_window = self.figure_canvas.create_window((0, 0), window=self.figure_thumbnails_frame, anchor='nw')
+        
+        # Bind resize event
+        self.figure_thumbnails_frame.bind('<Configure>', 
+            lambda e: self.figure_canvas.configure(scrollregion=self.figure_canvas.bbox('all')))
+        
+        # Initial update
+        self.update_figure_context_display()
     
     def create_custom_instructions_tab(self, parent):
         """Create Custom Instructions tab - project-specific translation guidance"""
@@ -4687,17 +4697,17 @@ class Supervertaler:
         
         img_info = tk.Frame(images_context_frame, bg='#fff3e0', relief='solid', borderwidth=1)
         img_info.pack(fill='x', padx=5, pady=5)
-        tk.Label(img_info, text="Reference Images", font=('Segoe UI', 10, 'bold'),
+        tk.Label(img_info, text="Figure context", font=('Segoe UI', 10, 'bold'),
                 bg='#fff3e0').pack(anchor='w', padx=10, pady=5)
-        tk.Label(img_info, text="Provide visual context for multimodal AI (future feature)",
+        tk.Label(img_info, text="Load images for multimodal AI - see Resources > 🖼️ Load figure context...",
                 font=('Segoe UI', 9), bg='#fff3e0', fg='#666').pack(anchor='w', padx=10, pady=(0, 5))
         
-        img_folder_frame = tk.LabelFrame(images_context_frame, text="Image Folder", padx=5, pady=5)
+        img_folder_frame = tk.LabelFrame(images_context_frame, text="Status", padx=5, pady=5)
         img_folder_frame.pack(fill='x', padx=5, pady=5)
         
-        self.image_folder_var = tk.StringVar(value="Not yet implemented")
+        self.image_folder_var = tk.StringVar(value="No figure context loaded")
         tk.Label(img_folder_frame, textvariable=self.image_folder_var,
-                font=('Segoe UI', 9), fg='#999').pack(anchor='w')
+                font=('Segoe UI', 9), fg='#666', wraplength=300, justify='left').pack(anchor='w', pady=5)
         
         # === Custom Instructions Sub-tab ===
         instructions_frame = tk.Frame(context_notebook, bg='white')
@@ -8792,7 +8802,7 @@ Use this feature AFTER translation to:
             popup.destroy()
     
     def import_txt_bilingual(self):
-        """Import bilingual TXT file (memoQ/CAT tool format) or source-only TXT"""
+        """Import TXT file for manual copy/paste translation workflow (pasted from CAT tool bilingual table)"""
         file_path = filedialog.askopenfilename(
             title="Select Bilingual TXT file",
             filetypes=[("Text Files", "*.txt"), ("TSV Files", "*.tsv"), ("All Files", "*.*")]
@@ -8897,15 +8907,12 @@ Use this feature AFTER translation to:
                     segment.modified = False
                     self.segments.append(segment)
             
-            # Load into grid
-            self.load_segments_to_grid()
-            
             # Update status with format detection
             translated_count = sum(1 for seg in self.segments if seg.target.strip())
             
             # Determine what format was detected
             if translated_count == 0:
-                format_msg = "source-only format"
+                format_msg = "source-only format (manual copy/paste workflow)"
             elif translated_count == len(self.segments):
                 format_msg = "fully translated bilingual format"
             else:
@@ -8930,8 +8937,67 @@ Use this feature AFTER translation to:
             messagebox.showerror("Import Error", f"Failed to import text file:\n{str(e)}")
             self.log(f"✗ Import failed: {str(e)}")
     
+    def import_txt_monolingual(self):
+        """Import monolingual TXT file and auto-segment into sentences"""
+        file_path = filedialog.askopenfilename(
+            title="Select Monolingual Text File",
+            filetypes=[("Text Files", "*.txt"), ("All Files", "*.*")]
+        )
+        
+        if not file_path:
+            return
+        
+        try:
+            self.log(f"Importing monolingual document: {os.path.basename(file_path)}")
+            
+            # Clear existing segments
+            self.segments = []
+            
+            # Read the entire file
+            with open(file_path, 'r', encoding='utf-8') as f:
+                text = f.read()
+            
+            if not text.strip():
+                self.log("✗ File is empty")
+                return
+            
+            # Auto-segment using SimpleSegmenter
+            sentences = self.segmenter.segment_text(text)
+            
+            if not sentences:
+                self.log("✗ No sentences detected in file")
+                return
+            
+            # Create segments from sentences
+            for seg_id, sentence in enumerate(sentences, start=1):
+                segment = Segment(seg_id, sentence)
+                segment.target = ""
+                segment.status = "untranslated"
+                segment.modified = False
+                self.segments.append(segment)
+            
+            self.log(f"✓ Auto-segmented into {len(self.segments)} sentences")
+            
+            # Switch from Start Screen to Grid View if needed
+            if hasattr(self, 'start_paned'):
+                self.switch_from_start_to_grid()
+            
+            # Load into grid
+            self.load_segments_to_grid()
+            
+            self.log(f"✓ Ready to translate {len(self.segments)} segments")
+            self.update_progress()
+            self.modified = False
+            
+            # Store original file for reference
+            self.original_txt = file_path
+            
+        except Exception as e:
+            messagebox.showerror("Import Error", f"Failed to import text file:\n{str(e)}")
+            self.log(f"✗ Import failed: {str(e)}")
+    
     def import_docx(self):
-        """Import a DOCX file"""
+        """Import a monolingual DOCX document"""
         file_path = filedialog.askopenfilename(
             title="Select DOCX file",
             filetypes=[("Word Documents", "*.docx"), ("All Files", "*.*")]
@@ -8943,7 +9009,7 @@ Use this feature AFTER translation to:
         self.import_docx_from_path(file_path)
     
     def import_docx_from_path(self, file_path):
-        """Import a DOCX file from a given path"""
+        """Import a monolingual DOCX document from a given path"""
         try:
             self.log(f"Importing: {os.path.basename(file_path)}")
             
@@ -8997,61 +9063,55 @@ Use this feature AFTER translation to:
             messagebox.showerror("Import Error", f"Failed to import DOCX:\n{str(e)}")
             self.log(f"✗ Import failed: {str(e)}")
     
-    def load_drawings(self):
-        """Load drawing images from a folder for multimodal translation context"""
+    def load_figure_context(self):
+        """Load figure images from a folder to provide visual context during translation"""
         if not PIL_AVAILABLE:
             messagebox.showwarning("PIL Not Available", 
-                                 "PIL/Pillow library is not installed. Image support is disabled.\n\n"
-                                 "To enable image support, install Pillow:\npip install Pillow")
+                                 "PIL/Pillow library is not installed. Figure context (visual context) is disabled.\n\n"
+                                 "To enable figure context support, install Pillow:\npip install Pillow")
             return
         
-        folder_path = filedialog.askdirectory(title="Select folder containing drawing images")
+        folder_path = filedialog.askdirectory(title="Select folder containing figure images (e.g., Figure 1.png, Figure 2A.jpg)")
         if not folder_path:
             return
         
         try:
-            self.log(f"[Drawings] Loading images from: {folder_path}")
-            self.drawings_folder = folder_path
-            self.drawings_images_map = {}
-            
-            # Supported image formats
-            image_extensions = ('.png', '.jpg', '.jpeg', '.gif', '.bmp', '.tiff')
-            
-            # Load all images from folder
-            loaded_count = 0
-            for filename in os.listdir(folder_path):
-                if filename.lower().endswith(image_extensions):
-                    img_path = os.path.join(folder_path, filename)
-                    try:
-                        img = Image.open(img_path)
-                        # Normalize the filename to match figure references
-                        normalized_name = normalize_figure_ref(filename)
-                        if normalized_name:
-                            self.drawings_images_map[normalized_name] = img
-                            loaded_count += 1
-                            self.log(f"[Drawings] Loaded: {filename} as '{normalized_name}'")
-                    except Exception as e:
-                        self.log(f"[Drawings] Failed to load {filename}: {e}")
+            self.log(f"[Figure Context] Loading images from: {folder_path}")
+            loaded_count = self.figure_context_manager.load_from_folder(folder_path)
             
             if loaded_count > 0:
-                self.log(f"[Drawings] ✓ Successfully loaded {loaded_count} drawing images")
-                messagebox.showinfo("Drawings Loaded", 
-                                  f"Loaded {loaded_count} drawing images.\n\n"
-                                  "These will be used as context for figure references during translation.")
+                self.log(f"[Figure Context] ✓ Successfully loaded {loaded_count} figure images")
+                self.update_context_status()  # Update UI to show figure count
+                self.update_figure_context_display()  # Update Images tab
+                messagebox.showinfo("Figure Context Loaded", 
+                                  f"Loaded {loaded_count} figure images as visual context.\n\n"
+                                  "When translating segments that reference figures (e.g., 'Figure 1A'), "
+                                  "the corresponding images will be provided to AI for more accurate technical translation.")
             else:
-                self.log(f"[Drawings] ⚠ No valid images found in folder")
+                self.log(f"[Figure Context] ⚠ No valid images found in folder")
                 messagebox.showwarning("No Images", "No valid image files found in selected folder.")
                 
         except Exception as e:
-            self.log(f"[Drawings] Error loading images: {e}")
-            messagebox.showerror("Load Error", f"Failed to load drawings:\n{str(e)}")
+            self.log(f"[Figure Context] Error loading images: {e}")
+            messagebox.showerror("Load Error", f"Failed to load figure context:\n{str(e)}")
     
-    def clear_drawings(self):
-        """Clear all loaded drawings"""
-        self.drawings_images_map.clear()
-        self.drawings_folder = None
-        self.log("[Drawings] All drawings cleared")
-        messagebox.showinfo("Drawings Cleared", "All loaded drawings have been cleared.")
+    def clear_figure_context(self):
+        """Clear all loaded figure context images"""
+        self.figure_context_manager.clear()
+        self.log("[Figure Context] All figure context cleared")
+        self.update_context_status()  # Update UI to remove figure count
+        self.update_figure_context_display()  # Update Images tab
+        messagebox.showinfo("Figure Context Cleared", "All loaded figure context has been cleared.")
+    
+    def update_figure_context_display(self):
+        """Update the figure context display in the Images tab"""
+        # Delegate to FigureContextManager
+        self.figure_context_manager.update_ui_display(
+            image_folder_label=getattr(self, 'image_folder_label', None),
+            image_folder_var=getattr(self, 'image_folder_var', None),
+            thumbnails_frame=getattr(self, 'figure_thumbnails_frame', None),
+            figure_canvas=getattr(self, 'figure_canvas', None)
+        )
     
     # ===== GRID PAGINATION METHODS =====
     
@@ -10336,13 +10396,25 @@ Use this feature AFTER translation to:
             status = "Enabled ✓" if context_enabled else "Disabled ✗"
             color = '#1976D2' if context_enabled else '#F44336'
             
+            # Add figure context info
+            figure_info = ""
+            if self.figure_context_manager.has_images():
+                figure_count = self.figure_context_manager.get_image_count()
+                figure_info = f" | 🖼️ {figure_count} figure{'s' if figure_count != 1 else ''}"
+            
             self.context_status_label.config(
-                text=f"Context: {status} | {segment_count} segments | {char_count:,} characters",
+                text=f"Context: {status} | {segment_count} segments | {char_count:,} characters{figure_info}",
                 fg=color
             )
         else:
+            # Show figure context even without document
+            figure_info = ""
+            if self.figure_context_manager.has_images():
+                figure_count = self.figure_context_manager.get_image_count()
+                figure_info = f" | 🖼️ {figure_count} figure context image{'s' if figure_count != 1 else ''} loaded"
+            
             self.context_status_label.config(
-                text="Context: No document loaded",
+                text=f"Context: No document loaded{figure_info}",
                 fg='#666'
             )
     
@@ -10389,7 +10461,9 @@ Use this feature AFTER translation to:
                     'use_context': self.use_context_var.get(),
                     'check_tm': self.check_tm_var.get(),
                     'surrounding_segments': self.surrounding_segments_var.get()
-                }
+                },
+                # Save figure context folder path (images not saved, just folder reference)
+                'figure_context': self.figure_context_manager.save_state()
             }
             
             with open(self.project_file, 'w', encoding='utf-8') as f:
@@ -10489,6 +10563,11 @@ Use this feature AFTER translation to:
                 self.surrounding_segments_var.set(prefs.get('surrounding_segments', '5'))
                 self.log(f"✓ Loaded preferences: batch_size={self.chunk_size_var.get()}, context={self.surrounding_segments_var.get()}")
             
+            # Load figure context if present
+            if 'figure_context' in data:
+                if self.figure_context_manager.restore_state(data['figure_context']):
+                    self.update_figure_context_display()  # Update Images tab
+            
             # Load filter preferences if they exist
             if 'filter_preferences' in data:
                 prefs = data['filter_preferences']
@@ -10583,6 +10662,28 @@ Use this feature AFTER translation to:
         self.log("✓ Project closed")
         self.update_progress()
     
+    def export_translated_document(self):
+        """Export translated document (DOCX or TXT format)"""
+        if not self.segments:
+            messagebox.showwarning("No Data", "No segments to export")
+            return
+        
+        # Ask user to choose format
+        format_choice = messagebox.askyesnocancel(
+            "Export Format",
+            "Choose export format:\n\n"
+            "Yes = DOCX (preserves formatting)\n"
+            "No = TXT (plain text, target only)\n"
+            "Cancel = Cancel export"
+        )
+        
+        if format_choice is None:  # Cancel
+            return
+        elif format_choice:  # Yes = DOCX
+            self.export_docx()
+        else:  # No = TXT
+            self.export_txt_translated()
+    
     def export_docx(self):
         """Export to translated DOCX"""
         if not self.segments:
@@ -10624,8 +10725,73 @@ Use this feature AFTER translation to:
             messagebox.showerror("Export Error", f"Failed to export DOCX:\n{str(e)}")
             self.log(f"✗ Export failed: {str(e)}")
     
+    def export_supervertaler_data(self):
+        """Export Supervertaler project data (DOCX or TSV format - complete data with all metadata)"""
+        if not self.segments:
+            messagebox.showwarning("No Data", "No segments to export")
+            return
+        
+        # Create custom dialog for format selection
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Choose Export Format")
+        dialog.geometry("450x250")
+        dialog.transient(self.root)
+        dialog.grab_set()
+        
+        # Center the dialog
+        dialog.update_idletasks()
+        x = (dialog.winfo_screenwidth() // 2) - (dialog.winfo_width() // 2)
+        y = (dialog.winfo_screenheight() // 2) - (dialog.winfo_height() // 2)
+        dialog.geometry(f"+{x}+{y}")
+        
+        result = {'format': None}
+        
+        # Message
+        msg_frame = tk.Frame(dialog)
+        msg_frame.pack(pady=20, padx=20, fill='both', expand=True)
+        
+        tk.Label(msg_frame, text="Choose export format for Supervertaler project data:",
+                font=('Arial', 10, 'bold')).pack(anchor='w')
+        
+        tk.Label(msg_frame, text="\nBoth formats contain the same complete data:",
+                font=('Arial', 9)).pack(anchor='w')
+        tk.Label(msg_frame, text="ID, Status, Source, Target, Paragraph, Notes",
+                font=('Arial', 9, 'italic')).pack(anchor='w', padx=20)
+        
+        # Buttons
+        btn_frame = tk.Frame(dialog)
+        btn_frame.pack(pady=10)
+        
+        def choose_docx():
+            result['format'] = 'docx'
+            dialog.destroy()
+        
+        def choose_tsv():
+            result['format'] = 'tsv'
+            dialog.destroy()
+        
+        def cancel():
+            result['format'] = None
+            dialog.destroy()
+        
+        tk.Button(btn_frame, text="DOCX (Word table)", command=choose_docx,
+                 bg='#4CAF50', fg='white', width=20, height=2).pack(side='left', padx=5)
+        tk.Button(btn_frame, text="TSV (Spreadsheet)", command=choose_tsv,
+                 bg='#2196F3', fg='white', width=20, height=2).pack(side='left', padx=5)
+        tk.Button(btn_frame, text="Cancel", command=cancel,
+                 width=15).pack(side='left', padx=5)
+        
+        # Wait for dialog to close
+        self.root.wait_window(dialog)
+        
+        # Export based on choice
+        if result['format'] == 'docx':
+            self.export_bilingual_docx_full()
+        elif result['format'] == 'tsv':
+            self.export_tsv()
+    
     def export_bilingual_docx(self):
-        """Export to bilingual DOCX (table format)"""
+        """Export Supervertaler project data in DOCX format (bilingual table with all metadata)"""
         if not self.segments:
             messagebox.showwarning("No Data", "No segments to export")
             return
@@ -10654,8 +10820,74 @@ Use this feature AFTER translation to:
         except Exception as e:
             messagebox.showerror("Export Error", f"Failed to export:\n{str(e)}")
     
+    def export_bilingual_docx_full(self):
+        """Export Supervertaler project data in DOCX format with all metadata columns"""
+        if not self.segments:
+            messagebox.showwarning("No Data", "No segments to export")
+            return
+        
+        file_path = filedialog.asksaveasfilename(
+            title="Export Supervertaler Project Data (DOCX)",
+            defaultextension=".docx",
+            filetypes=[("Word Documents", "*.docx"), ("All Files", "*.*")]
+        )
+        
+        if not file_path:
+            return
+        
+        try:
+            from docx import Document
+            from docx.shared import Pt, RGBColor
+            
+            self.save_current_segment()
+            
+            doc = Document()
+            doc.add_heading('Supervertaler Project Data', 0)
+            
+            # Create table with all columns
+            table = doc.add_table(rows=1, cols=6)
+            table.style = 'Light Grid Accent 1'
+            
+            # Header row
+            header_cells = table.rows[0].cells
+            header_cells[0].text = 'ID'
+            header_cells[1].text = 'Status'
+            header_cells[2].text = 'Source'
+            header_cells[3].text = 'Target'
+            header_cells[4].text = 'Paragraph'
+            header_cells[5].text = 'Notes'
+            
+            # Make header bold
+            for cell in header_cells:
+                for paragraph in cell.paragraphs:
+                    for run in paragraph.runs:
+                        run.font.bold = True
+            
+            # Add segments
+            for seg in self.segments:
+                row_cells = table.add_row().cells
+                row_cells[0].text = str(seg.id)
+                row_cells[1].text = seg.status
+                row_cells[2].text = seg.source
+                row_cells[3].text = seg.target
+                row_cells[4].text = str(seg.paragraph_id)
+                row_cells[5].text = seg.notes
+            
+            doc.save(file_path)
+            
+            self.log(f"✓ Exported Supervertaler project data (DOCX): {os.path.basename(file_path)}")
+            messagebox.showinfo("Export Complete", 
+                              f"Project data exported successfully!\n\n"
+                              f"Format: DOCX with all metadata\n"
+                              f"Columns: ID, Status, Source, Target, Paragraph, Notes\n"
+                              f"Segments: {len(self.segments)}\n"
+                              f"File: {os.path.basename(file_path)}")
+            
+        except Exception as e:
+            messagebox.showerror("Export Error", f"Failed to export:\n{str(e)}")
+    
     def export_tsv(self):
-        """Export to TSV (tab-separated values)"""
+        """Export Supervertaler project data in TSV format (tab-separated with all metadata: ID, Status, Source, Target, Paragraph, Notes)"""
         if not self.segments:
             messagebox.showwarning("No Data", "No segments to export")
             return
@@ -10688,7 +10920,7 @@ Use this feature AFTER translation to:
             messagebox.showerror("Export Error", f"Failed to export TSV:\n{str(e)}")
     
     def export_txt_bilingual(self):
-        """Export to bilingual TXT (memoQ/CAT tool format)"""
+        """Export for manual copy/paste translation workflow (TXT format: tab-delimited ID, Source, Target)"""
         if not self.segments:
             messagebox.showwarning("No Data", "No segments to export")
             return
@@ -10719,6 +10951,42 @@ Use this feature AFTER translation to:
             
         except Exception as e:
             messagebox.showerror("Export Error", f"Failed to export bilingual TXT:\n{str(e)}")
+    
+    def export_txt_translated(self):
+        """Export to plain text (target text only, for reading/review)"""
+        if not self.segments:
+            messagebox.showwarning("No Data", "No segments to export")
+            return
+        
+        file_path = filedialog.asksaveasfilename(
+            title="Export Translated Text",
+            defaultextension=".txt",
+            filetypes=[("Text Files", "*.txt"), ("All Files", "*.*")]
+        )
+        
+        if not file_path:
+            return
+        
+        try:
+            self.save_current_segment()
+            
+            with open(file_path, 'w', encoding='utf-8') as f:
+                # Write target text only, one segment per line
+                for seg in self.segments:
+                    if seg.target.strip():  # Only write non-empty targets
+                        f.write(seg.target + "\n")
+            
+            translated_count = sum(1 for seg in self.segments if seg.target.strip())
+            
+            self.log(f"✓ Exported translated text: {os.path.basename(file_path)}")
+            messagebox.showinfo("Export Complete", 
+                              f"Translated text exported successfully!\n\n"
+                              f"Format: Plain text (target only)\n"
+                              f"Segments: {translated_count} of {len(self.segments)}\n"
+                              f"File: {os.path.basename(file_path)}")
+            
+        except Exception as e:
+            messagebox.showerror("Export Error", f"Failed to export translated text:\n{str(e)}")
     
     def export_tmx(self):
         """Export translation memory to TMX format"""
@@ -14050,16 +14318,36 @@ VALIDATION: Count pipe symbols in source and target - they must match exactly (a
         
         self.log(f"🤖 Translating segment #{segment.id} using {self.current_llm_provider}/{self.current_llm_model}...")
         
+        # Detect figure references in source text
+        figure_images = self.figure_context_manager.get_images_for_text(segment.source)
+        
+        if figure_images:
+            figure_refs = [ref for ref, _ in figure_images]
+            self.log(f"  [Figure Context] Detected references: {', '.join([f'Figure {r.upper()}' for r in figure_refs])}")
+            self.log(f"  [Figure Context] Found {len(figure_images)} matching images - using multimodal API")
+        
         try:
-            # Call appropriate API
-            if self.current_llm_provider == "openai":
-                translation = self.call_openai_api(prompt)
-            elif self.current_llm_provider == "claude":
-                translation = self.call_claude_api(prompt)
-            elif self.current_llm_provider == "gemini":
-                translation = self.call_gemini_api(prompt)
+            # Call appropriate API (with or without images)
+            if figure_images:
+                # Use multimodal API methods
+                if self.current_llm_provider == "openai":
+                    translation = self.call_openai_api_with_images(prompt, figure_images)
+                elif self.current_llm_provider == "claude":
+                    translation = self.call_claude_api_with_images(prompt, figure_images)
+                elif self.current_llm_provider == "gemini":
+                    translation = self.call_gemini_api_with_images(prompt, figure_images)
+                else:
+                    raise ValueError(f"Unknown provider: {self.current_llm_provider}")
             else:
-                raise ValueError(f"Unknown provider: {self.current_llm_provider}")
+                # Use text-only API methods
+                if self.current_llm_provider == "openai":
+                    translation = self.call_openai_api(prompt)
+                elif self.current_llm_provider == "claude":
+                    translation = self.call_claude_api(prompt)
+                elif self.current_llm_provider == "gemini":
+                    translation = self.call_gemini_api(prompt)
+                else:
+                    raise ValueError(f"Unknown provider: {self.current_llm_provider}")
             
             # Update segment
             segment.target = translation.strip()
@@ -14322,6 +14610,181 @@ VALIDATION: Count pipe symbols in source and target - they must match exactly (a
         model = genai.GenerativeModel(self.current_llm_model)
         
         response = model.generate_content(prompt)
+        return response.text
+    
+    # ===== MULTIMODAL API METHODS (WITH FIGURE CONTEXT SUPPORT) =====
+    
+    def call_openai_api_with_images(self, prompt: str, images: List[Tuple[str, Any]]) -> str:
+        """
+        Call OpenAI API with images (multimodal).
+        
+        Args:
+            prompt: Text prompt
+            images: List of tuples (figure_ref, PIL.Image) - e.g., [('1a', <PIL.Image>)]
+            
+        Returns:
+            Translation text from API
+        """
+        from openai import OpenAI
+        client = OpenAI(api_key=self.api_keys["openai"])
+        
+        # Build content parts (alternating text and images)
+        content_parts = []
+        
+        # Split prompt to insert images before relevant segments
+        prompt_lines = prompt.split('\\n')
+        current_text = []
+        
+        for line in prompt_lines:
+            # Check if this line is the segment to translate
+            if "**TEXT TO TRANSLATE:**" in line or "TEXT TO TRANSLATE" in line:
+                # Add accumulated text
+                if current_text:
+                    content_parts.append({
+                        "type": "text",
+                        "text": '\\n'.join(current_text)
+                    })
+                    current_text = []
+                
+                # Add all images before the segment
+                for fig_ref, img in images:
+                    b64 = pil_image_to_base64_png(img)
+                    if b64:
+                        content_parts.append({
+                            "type": "text",
+                            "text": f"\\n--- Visual Context: Figure {fig_ref.upper()} (Referenced in following text) ---"
+                        })
+                        content_parts.append({
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/png;base64,{b64}"
+                            }
+                        })
+                        self.log(f"  [Figure Context] Including Figure {fig_ref.upper()} as visual context")
+            
+            current_text.append(line)
+        
+        # Add remaining text
+        if current_text:
+            content_parts.append({
+                "type": "text",
+                "text": '\\n'.join(current_text)
+            })
+        
+        response = client.chat.completions.create(
+            model=self.current_llm_model,
+            messages=[{"role": "user", "content": content_parts}],
+            temperature=0.3
+        )
+        
+        return response.choices[0].message.content
+    
+    def call_claude_api_with_images(self, prompt: str, images: List[Tuple[str, Any]]) -> str:
+        """
+        Call Claude API with images (multimodal).
+        
+        Args:
+            prompt: Text prompt
+            images: List of tuples (figure_ref, PIL.Image)
+            
+        Returns:
+            Translation text from API
+        """
+        client = anthropic.Anthropic(api_key=self.api_keys["claude"])
+        
+        # Build content parts
+        content_parts = []
+        
+        # Split prompt to insert images
+        prompt_lines = prompt.split('\\n')
+        current_text = []
+        
+        for line in prompt_lines:
+            if "**TEXT TO TRANSLATE:**" in line or "TEXT TO TRANSLATE" in line:
+                # Add accumulated text
+                if current_text:
+                    content_parts.append({
+                        "type": "text",
+                        "text": '\\n'.join(current_text)
+                    })
+                    current_text = []
+                
+                # Add all images
+                for fig_ref, img in images:
+                    b64 = pil_image_to_base64_png(img)
+                    if b64:
+                        content_parts.append({
+                            "type": "text",
+                            "text": f"\\n--- Visual Context: Figure {fig_ref.upper()} (Referenced in following text) ---"
+                        })
+                        content_parts.append({
+                            "type": "image",
+                            "source": {
+                                "type": "base64",
+                                "media_type": "image/png",
+                                "data": b64
+                            }
+                        })
+                        self.log(f"  [Figure Context] Including Figure {fig_ref.upper()} as visual context")
+            
+            current_text.append(line)
+        
+        # Add remaining text
+        if current_text:
+            content_parts.append({
+                "type": "text",
+                "text": '\\n'.join(current_text)
+            })
+        
+        response = client.messages.create(
+            model=self.current_llm_model,
+            max_tokens=8192,
+            messages=[{"role": "user", "content": content_parts}]
+        )
+        
+        return response.content[0].text
+    
+    def call_gemini_api_with_images(self, prompt: str, images: List[Tuple[str, Any]]) -> str:
+        """
+        Call Gemini API with images (multimodal).
+        
+        Args:
+            prompt: Text prompt
+            images: List of tuples (figure_ref, PIL.Image)
+            
+        Returns:
+            Translation text from API
+        """
+        genai.configure(api_key=self.api_keys["google"])
+        model = genai.GenerativeModel(self.current_llm_model)
+        
+        # Build content parts - Gemini accepts PIL images directly!
+        content_parts = []
+        
+        # Split prompt to insert images
+        prompt_lines = prompt.split('\\n')
+        current_text = []
+        
+        for line in prompt_lines:
+            if "**TEXT TO TRANSLATE:**" in line or "TEXT TO TRANSLATE" in line:
+                # Add accumulated text
+                if current_text:
+                    content_parts.append('\\n'.join(current_text))
+                    current_text = []
+                
+                # Add all images (Gemini supports PIL.Image directly!)
+                for fig_ref, img in images:
+                    content_parts.append(f"\\n--- Visual Context: Figure {fig_ref.upper()} (Referenced in following text) ---")
+                    content_parts.append(img)  # PIL.Image directly supported!
+                    self.log(f"  [Figure Context] Including Figure {fig_ref.upper()} as visual context")
+            
+            current_text.append(line)
+        
+        # Add remaining text
+        if current_text:
+            content_parts.append('\\n'.join(current_text))
+        
+        response = model.generate_content(content_parts)
         return response.text
     
     def add_sash_grip(self):

@@ -4,11 +4,232 @@
 
 ---
 
-## [3.4.0-beta] - 2025-10-13 🎨 PROFESSIONAL CAT UI - STATUS ICONS & MULTI-SELECTION
+## [3.5.0-beta] - 2025-10-14 📊 DATA FORMAT STANDARDIZATION
 
-> **Major Grid Editor Enhancements**: memoQ-style status icons, multi-selection system, compact UI, responsive layout
+> **Major Feature**: Unified Supervertaler Project Data Format (DOCX/TSV) for import/export workflows
 
-### 🎨 UI/UX IMPROVEMENTS
+### 🆕 NEW FEATURES
+
+**Supervertaler Project Data Format** 📊
+- **Unified Export Format**: Single format in two file types (DOCX table or TSV spreadsheet)
+  * **6 Columns**: ID, Status, Source, Target, Paragraph, Notes
+  * **Complete Metadata**: Full preservation of translation state
+  * **Round-trip Ready**: Designed for reimport (planned for v3.6.0)
+  * Menu: Export > Supervertaler project data (DOCX/TSV)...
+- **Format Selection Dialog**: Custom dialog with proper buttons
+  * Green "DOCX (Word table)" button - For review/printing in Word
+  * Blue "TSV (Spreadsheet)" button - For Excel analysis/scripting
+  * Clear message explaining both formats contain identical data
+  * Replaces confusing Yes/No dialog
+- **True Format Equivalence**: Both formats now export ALL 6 columns
+  * DOCX: Full table with ID, Status, Source, Target, Paragraph, Notes
+  * TSV: Tab-separated with same 6 columns
+  * Previous DOCX only had 3 columns (ID, Source, Target)
+- **Professional Table Styling**: DOCX uses "Light Grid Accent 1" with bold headers
+
+**Export Menu Refinement** 🎯
+- **"Translated document (DOCX/TXT)"**: Choose output format
+  * DOCX - Preserves formatting for final delivery
+  * TXT - Plain text for copyediting/review
+- **Descriptive Labels**: All export options now clearly state purpose
+  * "Translation memory (TMX)" instead of just "TMX"
+  * "Manual copy/paste translation workflow (TXT)" instead of "Bilingual data for reimport"
+- **Workflow Pairing**: Import/Export options with identical names
+  * Import: "Manual copy/paste translation workflow (TXT)"
+  * Export: "Manual copy/paste translation workflow (TXT)"
+  * Perfect round-trip clarity
+
+**Plain Text Export** 📝
+- **New Export Option**: Export target text only (TXT format)
+  * One segment per line
+  * No formatting, no metadata
+  * Perfect for plain text delivery or copyediting
+  * Called by "Translated document (DOCX/TXT)" when TXT selected
+
+### 🏗️ ARCHITECTURE IMPROVEMENTS
+
+**Export Methods** 📦
+- **New Method**: `export_translated_document()` - Format choice wrapper
+  * Shows dialog: DOCX or TXT?
+  * Routes to appropriate export method
+  * Clean separation of concerns
+- **New Method**: `export_txt_translated()` - Plain text export
+  * Exports target text only
+  * One segment per line
+  * UTF-8 encoding
+- **New Method**: `export_supervertaler_data()` - Unified format wrapper
+  * Shows custom format selection dialog
+  * Routes to DOCX or TSV export
+  * Explains both formats contain same data
+- **New Method**: `export_bilingual_docx_full()` - Complete DOCX export
+  * Creates 6-column table (was 3 columns)
+  * Uses python-docx directly (bypasses docx_handler module)
+  * Matches TSV format exactly
+  * Bold headers, professional styling
+
+**Format Specification Document** 📋
+- **New File**: `SUPERVERTALER_DATA_FORMAT.md` (comprehensive specification)
+  * Complete format documentation
+  * Column structure definition
+  * Future extensions planned (proofreading, glossary, QA, collaboration)
+  * Version evolution roadmap
+  * Use case descriptions
+  * Design principles
+
+### 🐛 BUG FIXES
+
+**Export Dialog UX** 🔧
+- Fixed counterintuitive Yes/No dialog for format selection
+  * OLD: "Yes = DOCX, No = TSV, Cancel = Cancel" (confusing!)
+  * NEW: Custom dialog with clear "DOCX (Word table)" and "TSV (Spreadsheet)" buttons
+  * Much better user experience
+
+**DOCX Export Completeness** 🔧
+- Fixed incomplete DOCX export in Supervertaler format
+  * OLD: Only 3 columns (ID, Source, Target) - not equivalent to TSV
+  * NEW: All 6 columns (ID, Status, Source, Target, Paragraph, Notes)
+  * True format equivalence achieved
+
+### 📚 DOCUMENTATION
+
+**New Documentation Files**
+- `SUPERVERTALER_DATA_FORMAT.md` - Complete format specification
+  * Current implementation details
+  * Planned extensions (v3.6.0-v4.0.0)
+  * Proofreading workflow design
+  * Glossary integration plan
+  * QA workflow concepts
+  * Collaborative translation ideas
+  * Version comparison features
+
+**Updated Documentation**
+- `TERMINOLOGY_UPDATE_SUMMARY.md` - Import/Export terminology guide
+- `EXPORT_MENU_UPDATE.md` - Comprehensive export menu documentation
+- `CHANGELOG-CAT.md` - Complete v3.5.0-beta changes
+- `README.md` - Updated feature list and version number
+
+### 🎯 DESIGN PRINCIPLES
+
+**User Experience Focus**
+- **Clear Labels**: Descriptive menu items ("Translation memory (TMX)" not "TMX")
+- **Purpose-Driven**: Labels explain what export does ("for reimport", "with metadata")
+- **Workflow Pairing**: Identical names for Import/Export round-trips
+- **Format Flexibility**: Single menu item, multiple format choices
+- **Professional Appearance**: Matches modern CAT tool standards
+
+**Technical Excellence**
+- **Format Equivalence**: DOCX and TSV contain identical data
+- **Extensible Architecture**: Ready for future enhancements (import, proofreading, glossary)
+- **Clean Code**: New methods with clear responsibilities
+- **Comprehensive Documentation**: Complete specifications for developers
+
+### 🚀 FUTURE ROADMAP
+
+**Planned Features** (Using Supervertaler Project Data Format)
+- **v3.6.0**: Import Supervertaler project data (DOCX/TSV) - Proofreading workflow
+- **v3.7.0**: Glossary import/export using same format
+- **v3.8.0**: QA workflow with review status tracking
+- **v3.9.0**: Collaborative translation (split/merge segments)
+- **v4.0.0**: Version comparison and change tracking
+
+---
+
+## [3.4.0-beta] - 2025-10-13 🖼️ FIGURE CONTEXT & UI POLISH
+
+> **Major Feature**: Multimodal AI support with figure context for technical translations + Complete UI standardization
+
+### 🆕 NEW FEATURES
+
+**Figure Context (Visual Context for Technical Translations)** 🖼️
+- **Multimodal AI Integration**: Automatically include images when translating segments with figure references
+  * Auto-detection: Scans text for "Figure 1", "fig. 2A", "Figuur 3b" patterns
+  * Smart matching: Maps detected references to loaded images
+  * Transparent routing: Switches to multimodal API when figures detected
+- **Three Provider Support**:
+  * OpenAI: Base64-encoded PNG via data URLs
+  * Claude: Structured base64 content blocks
+  * Gemini: Direct PIL.Image support
+- **Images Tab UI**: Fully functional display in assistant panel
+  * Live thumbnail preview (200px max width)
+  * Image dimensions display
+  * Folder name and image count
+  * Load/Clear buttons
+- **Status Indicators**: Figure count shown in context status bar
+  * "Context: ... | 🖼️ 3 figures" when images loaded
+- **Project Persistence**: Figure context folder saved with projects
+  * Auto-reload: Images restored when reopening project
+- **Supported Formats**: PNG, JPG, JPEG, GIF, BMP, TIFF
+- **Filename Patterns**: "Figure 1.png", "Figure 2A.jpg", "fig3b.png"
+
+**Menu Standardization (British Sentence Case)** 📝
+- **Consistent Capitalization**: All menu items now use sentence case
+  * Before: "Save Project", "Clear All Targets", "Grid View"
+  * After: "Save project", "Clear all targets", "Grid view"
+- **Improved Readability**: Matches modern UI conventions (VS Code, memoQ, CafeTran)
+- **90+ Items Updated**: Project, File, Edit, View, Resources, Help menus
+
+**Monolingual TXT Import (Auto-Segmentation)** 📄
+- **New Feature**: Import plain text documents and auto-segment into sentences
+  * Perfect for articles, essays, books, blog posts, reports
+  * Uses `SimpleSegmenter` module for intelligent sentence detection
+  * No manual preparation needed - just import and translate
+  * Menu: File > Import > Monolingual document (TXT)...
+- **Smart Segmentation**:
+  * Handles abbreviations correctly (Dr., Inc., etc.)
+  * Preserves sentence boundaries
+  * Works with multiple paragraph formats
+
+**Terminology Clarity (Import/Export Menus)** 🏷️
+- **Improved Menu Organization**: Clear distinction between workflows
+  * **Monolingual documents (DOCX/TXT)** - Regular files to translate
+  * **Bilingual tables (DOCX)** - memoQ/CafeTran/Trados exported tables
+  * **Manual copy/paste workflow (TXT)** - For pasted CAT tool columns
+- **Menu Grouping**: Separators added for visual organization
+- **Export Menu Updates**:
+  * **"Translated document (DOCX/TXT)"** - Choose format (DOCX preserves formatting, TXT is plain text)
+  * **"Supervertaler bilingual table (DOCX)"** - Can be reimported for proofreading workflow
+  * **"Translation memory (TMX)"** - Standard TM format
+  * **"Bilingual data for reimport (TXT)"** - Tab-delimited for reimport
+  * **"Full data with metadata (TSV)"** - Complete export with status, notes, etc.
+  * **CAT tool exports** renamed: "memoQ/CafeTran/Trados bilingual table - Translated (DOCX)"
+- **Docstring Updates**: All import/export methods updated with clear descriptions
+
+### 🏗️ ARCHITECTURE IMPROVEMENTS
+
+**Modularization - Figure Context Manager** 📦
+- **New Module**: `modules/figure_context_manager.py` (~400 lines)
+  * `FigureContextManager` class with clean API
+  * `normalize_figure_ref()` helper function
+  * `pil_image_to_base64_png()` encoding utility
+- **Code Reduction**: Main file reduced by ~200 lines (14,957 → 14,751)
+- **Better Maintainability**: All figure context logic in one place
+- **Testable**: Module can be unit tested independently
+- **Reusable**: Can be used in other translation tools
+
+**Multimodal API Methods** 🤖
+- `call_openai_api_with_images(prompt, images)` - GPT-4 Vision support
+- `call_claude_api_with_images(prompt, images)` - Claude Vision support  
+- `call_gemini_api_with_images(prompt, images)` - Gemini Vision support
+- Auto-detection in `translate_current_segment()` switches to multimodal when needed
+
+### 🐛 BUG FIXES
+
+**TXT Import Crash Fix** 🔧
+- Fixed crash when importing TXT files: `'Supervertaler' object has no attribute 'grid_inner_frame'`
+  * Removed duplicate `load_segments_to_grid()` call
+  * Ensured `switch_from_start_to_grid()` happens before loading segments
+  * Proper UI initialization order
+
+**Import Fixes**
+- Added missing `ImageTk` import from PIL (fixes thumbnail display error)
+- Module imports now include figure context manager
+
+**Code Cleanup**
+- Removed duplicate `normalize_figure_ref()` functions (2 copies consolidated)
+- Removed duplicate `pil_image_to_base64_png()` function
+- Removed duplicate `detect_figure_references()` function
+
+### 🎨 UI/UX IMPROVEMENTS (from previous v3.4.0 release)
 
 **Status Icons** (memoQ-style visual indicators)
 - **Status Column Redesign**: Text labels replaced with color-coded icons
@@ -75,23 +296,15 @@
 - **Compact Design**: Buttons arranged in row (was vertical stack)
 - **Shorter Labels**: "Import Bilingual File" → "Import Bilingual"
 
-### 🆕 NEW FEATURES
-
-**Multi-Selection Operations**
-- Select All (Ctrl+A)
-- Clear Selection
-- Change Status for selected segments
-- Lock/Unlock selected segments
-- Selection counter with visual feedback
-
-**Column Management**
-- Drag column borders to resize
-- Minimum width enforcement (25px)
-- Column widths persist during session
-
 ### 🔧 TECHNICAL CHANGES
 
-**Grid Architecture**
+**Figure Context Integration**
+- Auto-detection before every translation API call
+- Logging at each stage: detection → matching → API selection
+- Status updates when loading/clearing figures
+- UI refresh after load/clear/project restore operations
+
+**Grid Architecture** (from previous release)
 - `selected_segments` Set for tracking selections
 - `get_status_icon()` method for icon mapping
 - `get_status_icon_color()` method for color coding
