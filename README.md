@@ -77,7 +77,7 @@
 - ✅ Two complementary formatting approaches (AI-based & programmatic)
 - ✅ 100% success rate in production testing (both formats)
 - ✅ Fully tested and stable for professional use
-- 📖 **User Guide**: [USER_GUIDE.md](USER_GUIDE.md)
+- 📖 **User Guide**: [docs/guides/USER_GUIDE.md](docs/guides/USER_GUIDE.md)
 - 📖 **CafeTran Guide**: [`.dev/docs/features/CAFETRAN_SUPPORT.md`](.dev/docs/features/CAFETRAN_SUPPORT.md)
 - 📖 **memoQ Guide**: [`.dev/docs/features/MEMOQ_SUPPORT.md`](.dev/docs/features/MEMOQ_SUPPORT.md)
 - 🏷️ **Version Note**: "-CLASSIC" suffix denotes original DOCX workflow architecture
@@ -209,11 +209,18 @@ Supervertaler provides two output formats for flexible CAT tool integration:
 
 ## 📖 Documentation
 
-### Quick Start
-- **📋 Complete User Guide**: [USER_GUIDE.md](USER_GUIDE.md) - Comprehensive guide for all versions
-- **⚡ Installation Guide**: [INSTALLATION.md](INSTALLATION.md) - Get started quickly
+### User Documentation
+- **📋 Complete User Guide**: [docs/guides/USER_GUIDE.md](docs/guides/USER_GUIDE.md) - Comprehensive guide for all versions
+- **⚡ Installation Guide**: [docs/guides/INSTALLATION.md](docs/guides/INSTALLATION.md) - Get started quickly
+- **❓ FAQ**: [docs/guides/FAQ.md](docs/guides/FAQ.md) - Frequently Asked Questions
+- **📚 All Documentation**: [docs/README.md](docs/README.md) - Documentation directory overview
 
-### Advanced Documentation (for developers/contributors)
+### Technical Specifications
+- **📊 Data Format Specification**: [docs/specifications/SUPERVERTALER_DATA_FORMAT.md](docs/specifications/SUPERVERTALER_DATA_FORMAT.md) - Universal data exchange format
+- **🏷️ Terminology Guide**: [docs/specifications/TERMINOLOGY_UPDATE_SUMMARY.md](docs/specifications/TERMINOLOGY_UPDATE_SUMMARY.md) - Import/Export menu terminology
+- **📤 Export Documentation**: [docs/specifications/EXPORT_MENU_UPDATE.md](docs/specifications/EXPORT_MENU_UPDATE.md) - Complete export guide (4,500 lines)
+
+### Developer Documentation
 - **System Prompts Guide**: [`.dev/docs/user_guides/SYSTEM_PROMPTS_GUIDE.md`](.dev/docs/user_guides/SYSTEM_PROMPTS_GUIDE.md)
 - **Translation Memory Guide**: [`.dev/docs/user_guides/TM_USER_GUIDE.md`](.dev/docs/user_guides/TM_USER_GUIDE.md)
 - **Translation Workspace**: [`.dev/docs/user_guides/TRANSLATION_WORKSPACE_REDESIGN.md`](.dev/docs/user_guides/TRANSLATION_WORKSPACE_REDESIGN.md)
