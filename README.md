@@ -2,21 +2,49 @@
 
 🎯 **Context-aware, LLM-powered translation & proofreading tool, leveraging multiple context sources for enhanced accuracy (built for translators)** - Revolutionary approach to document translation that leverages multiple context sources for unparalleled accuracy.
 
-**Note**: A version of Supervertaler is being developed with many features commonly found in proper CAT tools (Computer-Aided Translation tools), which has reached **v3.4.0-beta** with professional UI enhancements! It features memoQ-style status icons (color-coded ✗/~/✓/✓✓/🔒), multi-selection system (Ctrl/Shift/Ctrl+A), responsive compact layout, column optimization (115px reclaimed), custom tab overflow, and comprehensive grid editor improvements. The v3.3.0-beta release added a cleaner toolbar (55% space reduction), reorganized menus, semantic color coding, unified prompt management, grid pagination (10x faster loading), smart paragraph detection, dual text selection, three professional view modes (Grid, List, Document), and comprehensive auto-export options. We're implementing features from [michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool](https://michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool).
+**Note**: A version of Supervertaler is being developed with many features commonly found in proper CAT tools (Computer-Aided Translation tools), which has reached **v3.5.0-beta** with unified data format!! It features memoQ-style status icons (color-coded ✗/~/✓/✓✓/🔒), multi-selection system (Ctrl/Shift/Ctrl+A), responsive compact layout, column optimization (115px reclaimed), custom tab overflow, and comprehensive grid editor improvements. The v3.3.0-beta release added a cleaner toolbar (55% space reduction), reorganized menus, semantic color coding, unified prompt management, grid pagination (10x faster loading), smart paragraph detection, dual text selection, three professional view modes (Grid, List, Document), and comprehensive auto-export options. We're implementing features from [michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool](https://michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool).
 
 
 ## 📦 Available Versions
 
-### v3.4.0-beta (Experimental - CAT Editor) 🎨
-**File**: `Supervertaler_v3.4.0-beta_CAT.py`
-- 🎨 **NEW**: memoQ-style status icons (✗/~/✓/✓✓/🔒) with color coding (red/orange/green/blue)
-- ✅ **NEW**: Multi-selection system (Ctrl+Click, Shift+Click, Ctrl+A)
-- 📊 **NEW**: Selection counter in status bar with visual feedback
-- 🎯 **NEW**: Responsive compact layout (55% vertical space reduction in editor)
-- 📏 **NEW**: Column optimization (115px total reclaimed: ID/Type/Style/Status optimized)
-- 🔧 **NEW**: Column resize handles (drag borders, min 25px)
-- 📑 **NEW**: Custom tab overflow with dropdown menu (full names, no truncation)
-- 🔄 **NEW**: Refresh Tabs button (purple, fixes tab display issues)
+### v3.5.0-beta (Experimental - CAT Editor) 🎨
+**File**: `Supervertaler_v3.5.0-beta_CAT.py`
+- 📊 **NEW**: Supervertaler Project Data Format - Unified DOCX/TSV export format
+  * 6 columns: ID, Status, Source, Target, Paragraph, Notes
+  * Choose DOCX (Word table) or TSV (Spreadsheet) with proper button dialog
+  * Complete metadata preservation for future reimport workflows
+  * True format equivalence (both formats contain identical data)
+- 🎯 **NEW**: Export menu refinement - Descriptive labels with clear purposes
+  * "Translation memory (TMX)" instead of "TMX"
+  * "Translated document (DOCX/TXT)" with format choice
+  * "Manual copy/paste translation workflow (TXT)" paired with Import
+- 📝 **NEW**: Plain text export - Export target text only (TXT format)
+- 📋 **NEW**: Data format specification - Complete documentation in `SUPERVERTALER_DATA_FORMAT.md`
+  * Planned extensions: Proofreading workflow, Glossary integration, QA, Collaboration
+- 🖼️ **v3.4.0**: Figure Context support - Multimodal AI for technical translations with visual context
+  * Auto-detects figure references (Figure 1, fig. 2A, Figuur 3b)
+  * Automatically includes images in translation requests
+  * Supports OpenAI GPT-4 Vision, Claude Vision, Gemini Vision
+  * Images tab with thumbnail preview and status indicators
+  * Project persistence (auto-reload images on project open)
+- 📝 **v3.4.0**: Menu standardization - British sentence case for all menus (90+ items updated)
+- 📄 **v3.4.0**: Monolingual TXT import - Auto-segment plain text files into sentences for translation
+  * Perfect for articles, essays, books, blog posts
+  * Uses SimpleSegmenter for intelligent sentence detection
+  * No manual preparation needed - just import and translate
+- 🏷️ **v3.4.0**: Terminology clarity - Import/Export menus now distinguish:
+  * **Monolingual documents (DOCX/TXT)** - Regular files to translate
+  * **Bilingual tables (DOCX)** - memoQ/CafeTran/Trados exports
+  * **Manual copy/paste workflow (TXT)** - For pasted CAT tool columns
+- 🏗️ **v3.4.0**: Modularization - Figure context extracted to `modules/figure_context_manager.py`
+- 🎨 **v3.4.0**: memoQ-style status icons (✗/~/✓/✓✓/🔒) with color coding (red/orange/green/blue)
+- ✅ **v3.4.0**: Multi-selection system (Ctrl+Click, Shift+Click, Ctrl+A)
+- 📊 **v3.4.0**: Selection counter in status bar with visual feedback
+- 🎯 **v3.4.0**: Responsive compact layout (55% vertical space reduction in editor)
+- 📏 **v3.4.0**: Column optimization (115px total reclaimed: ID/Type/Style/Status optimized)
+- 🔧 **v3.4.0**: Column resize handles (drag borders, min 25px)
+- 📑 **v3.4.0**: Custom tab overflow with dropdown menu (full names, no truncation)
+- 🔄 **v3.4.0**: Refresh Tabs button (purple, fixes tab display issues)
 - 🎨 **v3.3.0**: Professional Start Screen (project management interface when no document loaded)
   * Projects tab with recent projects list and quick actions
   * File Explorer tab with tree view for browsing/opening files

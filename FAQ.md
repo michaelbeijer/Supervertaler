@@ -258,20 +258,20 @@ Select multiple segments simultaneously for bulk operations - inspired by profes
 4. Review and edit results
 5. Select translated segments and press Ctrl+L to lock them
 
-### Images Folder / Drawing Context Support (v2.5.0-CLASSIC)
+### Figure Context / Visual Context Support (v2.5.0-CLASSIC, v3.4.0-beta)
 
 **What is it?**  
-Load technical drawings, diagrams, and figures to provide visual context to AI during translation. Essential for patent documents, technical manuals, and scientific papers.
+Load technical drawings, diagrams, and figures to provide visual context to AI during translation. Essential for patent documents, technical manuals, and scientific papers where text references visual elements.
 
 **How it works**:
-1. Prepare a folder with your drawing images (PNG, JPG, JPEG, WEBP)
+1. Prepare a folder with your figure images (PNG, JPG, JPEG, WEBP, GIF, BMP, TIFF)
 2. Name files to match figure references: "Figure 1.png", "Figure 2A.jpg", "fig-3b.png"
-3. In Supervertaler: `Translate > 🎨 Load Drawing Images...`
-4. Select your drawings folder
+3. In Supervertaler: `Resources > 🖼️ Load Figure Context...`
+4. Select your figures folder
 5. During translation, when Supervertaler detects a figure reference in text, it automatically includes the corresponding image in the AI prompt
 
 **Example**:
-- **File**: `Figure 1A.png` in drawings folder
+- **File**: `Figure 1A.png` in figures folder
 - **Text**: "As shown in Figure 1A, the motor housing (12) connects to shaft (14)..."
 - **Result**: AI receives both text AND image, understands spatial relationships, part labels, and technical details
 - **Translation**: More accurate because AI can "see" what's being described
@@ -288,8 +288,8 @@ Load technical drawings, diagrams, and figures to provide visual context to AI d
 - ✅ Proper translation of figure labels and annotations
 - ✅ Essential for patent claims and technical specifications
 
-**Supported in**: v2.5.0-CLASSIC (translation and proofreading modes)  
-**Status in v3.x**: Not yet implemented (planned for future release)
+**Supported in**: v2.5.0-CLASSIC (full support), v3.4.0-beta (full support with multimodal API)  
+**UI indicators**: Context status shows "🖼️ X figures" when loaded
 
 ### Bilingual CAT Tool File Import/Translation/Export
 

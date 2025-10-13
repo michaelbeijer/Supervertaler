@@ -19,7 +19,7 @@ This repository tracks **two distinct product lines** with different architectur
 **Segment-based CAT editor** - Experimental/beta  
  See detailed changelog: **[CHANGELOG-CAT.md](CHANGELOG-CAT.md)**
 
-- **Current version**: v3.4.0-beta
+- **Current version**: v3.5.0-beta
 - **Architecture**: Complete rewrite as segment-based CAT editor
 - **Status**:  Beta testing phase, experimental features
 - **Best for**: Testing new CAT editor features, early adopters
