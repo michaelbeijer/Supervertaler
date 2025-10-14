@@ -1,7 +1,7 @@
 # Supervertaler
 
 > 🇳🇱 **Supervertaler** = Dutch for "Super Translator"  
-> *Built in the Netherlands by a professional translator, for professional translators worldwide.*
+> *Built by a Dutch-American professional translator based in the UK, for professional translators worldwide.*
 
 🎯 **Context-aware, LLM-powered translation & proofreading tool, leveraging multiple context sources for enhanced accuracy (built for translators)** - Revolutionary approach to document translation that leverages multiple context sources for unparalleled accuracy.
 
