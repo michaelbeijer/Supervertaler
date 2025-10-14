@@ -12907,8 +12907,21 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
         ttk.Radiobutton(filter_frame, text="🎭 System prompts", variable=type_filter_var, value="system_prompt").pack(side=tk.LEFT, padx=5)
         ttk.Radiobutton(filter_frame, text="📝 Custom instructions", variable=type_filter_var, value="custom_instruction").pack(side=tk.LEFT, padx=5)
         
-        # Trigger tree refresh when filter changes
+        # Task Type filter frame
+        task_filter_frame = ttk.Frame(main_frame)
+        task_filter_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        ttk.Label(task_filter_frame, text="🎯 Task Type:", font=('Segoe UI', 9, 'bold')).pack(side=tk.LEFT, padx=(0, 10))
+        
+        task_filter_var = tk.StringVar(value="all")
+        task_types = ["All Tasks", "Translation", "Localization", "Proofreading", "QA", "Copyediting", "Post-editing", "Transcreation", "Terminology Extraction"]
+        task_combo = ttk.Combobox(task_filter_frame, textvariable=task_filter_var, values=task_types, state='readonly', width=25)
+        task_combo.current(0)
+        task_combo.pack(side=tk.LEFT)
+        
+        # Trigger tree refresh when filters change
         type_filter_var.trace('w', lambda *args: load_prompts_to_tree())
+        task_filter_var.trace('w', lambda *args: load_prompts_to_tree())
         
         # Main content - 3 panes
         paned = ttk.PanedWindow(main_frame, orient=tk.HORIZONTAL)
@@ -13051,7 +13064,7 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
         prompt_tree.heading('Domain', command=lambda: on_column_click('domain'))
         
         def load_prompts_to_tree(prompts_list=None):
-            """Load prompts into treeview with type filtering"""
+            """Load prompts into treeview with type and task type filtering"""
             prompt_tree.delete(*prompt_tree.get_children())
             
             if prompts_list is None:
@@ -13061,6 +13074,11 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
             type_filter = type_filter_var.get()
             if type_filter != "all":
                 prompts_list = [p for p in prompts_list if p.get('_type', 'system_prompt') == type_filter]
+            
+            # Apply task type filter
+            task_filter = task_filter_var.get()
+            if task_filter != "all" and task_filter != "All Tasks":
+                prompts_list = [p for p in prompts_list if p.get('task_type', 'Translation') == task_filter]
             
             # Apply sorting
             prompts_list = sort_prompts(prompts_list, sort_state['column'], sort_state['reverse'])
