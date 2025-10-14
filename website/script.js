@@ -1,0 +1,78 @@
+// Smooth scrolling for anchor links
+document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+    anchor.addEventListener('click', function (e) {
+        e.preventDefault();
+        const target = document.querySelector(this.getAttribute('href'));
+        if (target) {
+            target.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start'
+            });
+        }
+    });
+});
+
+// Navbar background on scroll
+const navbar = document.querySelector('.navbar');
+let lastScroll = 0;
+
+window.addEventListener('scroll', () => {
+    const currentScroll = window.pageYOffset;
+    
+    if (currentScroll > 50) {
+        navbar.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
+    } else {
+        navbar.style.boxShadow = 'none';
+    }
+    
+    lastScroll = currentScroll;
+});
+
+// Add animation on scroll for feature cards
+const observerOptions = {
+    threshold: 0.1,
+    rootMargin: '0px 0px -50px 0px'
+};
+
+const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            entry.target.style.opacity = '1';
+            entry.target.style.transform = 'translateY(0)';
+        }
+    });
+}, observerOptions);
+
+// Observe all cards
+document.addEventListener('DOMContentLoaded', () => {
+    const cards = document.querySelectorAll('.feature-card, .download-card, .doc-card, .why-card');
+    
+    cards.forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+        card.style.transition = `all 0.6s ease ${index * 0.1}s`;
+        observer.observe(card);
+    });
+});
+
+// Download tracking (optional - for analytics)
+document.querySelectorAll('.btn-download').forEach(button => {
+    button.addEventListener('click', (e) => {
+        const version = button.textContent.includes('CAT') ? 'CAT Edition' : 'Classic Edition';
+        console.log(`Download initiated: ${version}`);
+        
+        // You can add Google Analytics or other tracking here
+        // Example: gtag('event', 'download', { version: version });
+    });
+});
+
+// Mobile menu toggle (for future implementation)
+function toggleMobileMenu() {
+    const menu = document.querySelector('.nav-menu');
+    menu.classList.toggle('active');
+}
+
+// Console message for developers
+console.log('%c🌐 Supervertaler Website', 'font-size: 20px; font-weight: bold; color: #3b82f6;');
+console.log('%cBuilt with ❤️ for translators', 'font-size: 14px; color: #6b7280;');
+console.log('%cRepository: https://github.com/michaelbeijer/Supervertaler', 'font-size: 12px; color: #8b5cf6;');

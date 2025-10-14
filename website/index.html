@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Supervertaler - AI-Powered Computer-Aided Translation Tool with multimodal support, translation memory, and professional CAT editor features">
+    <meta name="keywords" content="translation, CAT tool, AI translation, GPT-4, Claude, Gemini, translation memory, professional translation">
+    <meta name="author" content="Michael Beijer">
+    
+    <title>Supervertaler - AI-Powered Translation Tool</title>
+    
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <span class="logo">🌐</span>
+                <span class="brand-name">Supervertaler</span>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="#features">Features</a></li>
+                <li><a href="#download">Download</a></li>
+                <li><a href="#documentation">Docs</a></li>
+                <li><a href="https://github.com/michaelbeijer/Supervertaler" target="_blank">GitHub</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container">
+            <div class="hero-content">
+                <h1 class="hero-title">
+                    AI-Powered Translation
+                    <span class="gradient-text">Built for Professionals</span>
+                </h1>
+                <p class="hero-subtitle">
+                    Context-aware translation with GPT-4, Claude & Gemini. Translation memory, multimodal AI, 
+                    and professional CAT editor features. Built by translators, for translators.
+                </p>
+                <div class="hero-buttons">
+                    <a href="#download" class="btn btn-primary">Download Free</a>
+                    <a href="https://github.com/michaelbeijer/Supervertaler" class="btn btn-secondary" target="_blank">
+                        <span>View on GitHub</span>
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                            <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+                        </svg>
+                    </a>
+                </div>
+                <div class="version-badges">
+                    <span class="badge badge-cat">v3.5.0-beta CAT</span>
+                    <span class="badge badge-classic">v2.5.0 CLASSIC</span>
+                </div>
+            </div>
+            <div class="hero-visual">
+                <div class="feature-card-preview">
+                    <div class="preview-header">
+                        <span class="preview-dot"></span>
+                        <span class="preview-dot"></span>
+                        <span class="preview-dot"></span>
+                    </div>
+                    <div class="preview-content">
+                        <div class="preview-segment">
+                            <span class="preview-label">Source</span>
+                            <span class="preview-text">Figure 1 shows the molecular structure...</span>
+                        </div>
+                        <div class="preview-segment">
+                            <span class="preview-label">Target</span>
+                            <span class="preview-text">Figuur 1 toont de moleculaire structuur...</span>
+                        </div>
+                        <div class="preview-image">🖼️ Figure 1.png</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="features">
+        <div class="container">
+            <h2 class="section-title">Powerful Features</h2>
+            <p class="section-subtitle">Everything you need for professional translation work</p>
+            
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">🖼️</div>
+                    <h3>Figure Context (Multimodal AI)</h3>
+                    <p>Automatically includes images when translating technical documents. Supports GPT-4 Vision, Claude Vision, and Gemini Vision.</p>
+                    <ul class="feature-list">
+                        <li>Auto-detects figure references</li>
+                        <li>Visual context for technical translations</li>
+                        <li>Project persistence</li>
+                    </ul>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">🧠</div>
+                    <h3>Multiple AI Providers</h3>
+                    <p>Choose from the best AI models for your translation needs.</p>
+                    <ul class="feature-list">
+                        <li>OpenAI GPT-4 & GPT-4 Turbo</li>
+                        <li>Anthropic Claude 3.5 Sonnet</li>
+                        <li>Google Gemini 1.5 Pro/Flash</li>
+                    </ul>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">💾</div>
+                    <h3>Translation Memory</h3>
+                    <p>Fuzzy matching with TMX import/export. Never translate the same sentence twice.</p>
+                    <ul class="feature-list">
+                        <li>TM matches during translation</li>
+                        <li>TMX format support</li>
+                        <li>Customizable threshold</li>
+                    </ul>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">🎯</div>
+                    <h3>Unified Prompt Library</h3>
+                    <p>System prompts and custom instructions in one place. Domain-specific specialists included.</p>
+                    <ul class="feature-list">
+                        <li>Legal, Medical, Financial specialists</li>
+                        <li>Custom instruction templates</li>
+                        <li>Variable substitution</li>
+                    </ul>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">📊</div>
+                    <h3>Professional CAT Editor</h3>
+                    <p>Segment-based editing with Grid, List, and Document views. memoQ-style UI.</p>
+                    <ul class="feature-list">
+                        <li>Status tracking (✗/~/✓/✓✓/🔒)</li>
+                        <li>Multi-selection (Ctrl/Shift)</li>
+                        <li>Grid pagination (10x faster)</li>
+                    </ul>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">🔄</div>
+                    <h3>CAT Tool Integration</h3>
+                    <p>Import/export bilingual tables from memoQ, CafeTran, and Trados Studio.</p>
+                    <ul class="feature-list">
+                        <li>memoQ DOCX support</li>
+                        <li>CafeTran pipe formatting</li>
+                        <li>Trados bilingual tables</li>
+                    </ul>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">📋</div>
+                    <h3>Flexible Import/Export</h3>
+                    <p>Work with DOCX, TXT, TSV, TMX, XLIFF, and Excel formats.</p>
+                    <ul class="feature-list">
+                        <li>Monolingual TXT auto-segmentation</li>
+                        <li>Supervertaler project data (DOCX/TSV)</li>
+                        <li>Session reports (MD/HTML)</li>
+                    </ul>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">⚡</div>
+                    <h3>Performance Optimized</h3>
+                    <p>Grid pagination for instant loading. Handle thousands of segments smoothly.</p>
+                    <ul class="feature-list">
+                        <li>50 segments per page</li>
+                        <li>10x faster than full grid</li>
+                        <li>Responsive UI</li>
+                    </ul>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">🎨</div>
+                    <h3>Modern Interface</h3>
+                    <p>Clean, professional UI with semantic color coding and intuitive navigation.</p>
+                    <ul class="feature-list">
+                        <li>Start Screen with project management</li>
+                        <li>Three view modes</li>
+                        <li>Custom tab overflow</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Download Section -->
+    <section id="download" class="download">
+        <div class="container">
+            <h2 class="section-title">Choose Your Version</h2>
+            <p class="section-subtitle">Two editions for different workflows</p>
+            
+            <div class="download-grid">
+                <div class="download-card featured">
+                    <div class="download-badge">Experimental</div>
+                    <h3>CAT Edition</h3>
+                    <div class="version-number">v3.5.0-beta</div>
+                    <p class="download-description">
+                        Complete segment-based CAT editor with professional UI, figure context, 
+                        and advanced features. For early adopters and testing.
+                    </p>
+                    <div class="feature-highlights">
+                        <div class="highlight-item">🖼️ Figure Context (Multimodal AI)</div>
+                        <div class="highlight-item">📊 Professional Grid Editor</div>
+                        <div class="highlight-item">⚡ Grid Pagination (10x faster)</div>
+                        <div class="highlight-item">🎯 Unified Prompt Library</div>
+                        <div class="highlight-item">📋 Flexible Import/Export</div>
+                    </div>
+                    <a href="https://github.com/michaelbeijer/Supervertaler/raw/main/Supervertaler_v3.5.0-beta_CAT.py" 
+                       class="btn btn-download" download>
+                        Download CAT Edition
+                    </a>
+                    <p class="download-note">Requires Python 3.12+</p>
+                </div>
+
+                <div class="download-card">
+                    <div class="download-badge stable">Stable</div>
+                    <h3>Classic Edition</h3>
+                    <div class="version-number">v2.5.0</div>
+                    <p class="download-description">
+                        Production-ready DOCX-based workflow. Fully tested and stable 
+                        for professional translation work.
+                    </p>
+                    <div class="feature-highlights">
+                        <div class="highlight-item">✅ Production-ready</div>
+                        <div class="highlight-item">🔄 CAT Tool Integration</div>
+                        <div class="highlight-item">💾 Translation Memory</div>
+                        <div class="highlight-item">🧠 Multiple AI Providers</div>
+                        <div class="highlight-item">📝 DOCX Workflow</div>
+                    </div>
+                    <a href="https://github.com/michaelbeijer/Supervertaler/raw/main/Supervertaler_v2.5.0-CLASSIC.py" 
+                       class="btn btn-download btn-secondary" download>
+                        Download Classic Edition
+                    </a>
+                    <p class="download-note">Recommended for production</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Documentation Section -->
+    <section id="documentation" class="documentation">
+        <div class="container">
+            <h2 class="section-title">Documentation</h2>
+            <p class="section-subtitle">Everything you need to get started</p>
+            
+            <div class="docs-grid">
+                <a href="https://github.com/michaelbeijer/Supervertaler/blob/main/docs/guides/INSTALLATION.md" 
+                   class="doc-card" target="_blank">
+                    <div class="doc-icon">⚡</div>
+                    <h3>Installation Guide</h3>
+                    <p>Get up and running in minutes with step-by-step instructions</p>
+                </a>
+
+                <a href="https://github.com/michaelbeijer/Supervertaler/blob/main/docs/guides/USER_GUIDE.md" 
+                   class="doc-card" target="_blank">
+                    <div class="doc-icon">📖</div>
+                    <h3>User Guide</h3>
+                    <p>Complete guide covering all features and workflows</p>
+                </a>
+
+                <a href="https://github.com/michaelbeijer/Supervertaler/blob/main/docs/guides/FAQ.md" 
+                   class="doc-card" target="_blank">
+                    <div class="doc-icon">❓</div>
+                    <h3>FAQ</h3>
+                    <p>Answers to frequently asked questions</p>
+                </a>
+
+                <a href="https://github.com/michaelbeijer/Supervertaler/blob/main/CHANGELOG-CAT.md" 
+                   class="doc-card" target="_blank">
+                    <div class="doc-icon">📋</div>
+                    <h3>Changelog - CAT</h3>
+                    <p>What's new in v3.x.x-beta releases</p>
+                </a>
+
+                <a href="https://github.com/michaelbeijer/Supervertaler/blob/main/docs/specifications/SUPERVERTALER_DATA_FORMAT.md" 
+                   class="doc-card" target="_blank">
+                    <div class="doc-icon">📊</div>
+                    <h3>Data Format Spec</h3>
+                    <p>Universal data exchange format specification</p>
+                </a>
+
+                <a href="https://github.com/michaelbeijer/Supervertaler" 
+                   class="doc-card" target="_blank">
+                    <div class="doc-icon">💻</div>
+                    <h3>GitHub Repository</h3>
+                    <p>View source code, report issues, contribute</p>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Why Supervertaler Section -->
+    <section class="why-section">
+        <div class="container">
+            <h2 class="section-title">Why Supervertaler?</h2>
+            <div class="why-grid">
+                <div class="why-card">
+                    <h3>🎯 Built by a Translator</h3>
+                    <p>Designed with real translation workflows in mind. No unnecessary complexity, 
+                    just the features professionals actually need.</p>
+                </div>
+                <div class="why-card">
+                    <h3>🔓 Free & Open Source</h3>
+                    <p>No subscriptions, no licenses, no hidden costs. Download, use, modify. 
+                    Your translation work, your control.</p>
+                </div>
+                <div class="why-card">
+                    <h3>🤖 AI-First Approach</h3>
+                    <p>Leverage cutting-edge AI models from OpenAI, Anthropic, and Google. 
+                    Multiple providers for flexibility and reliability.</p>
+                </div>
+                <div class="why-card">
+                    <h3>🔄 CAT Tool Compatible</h3>
+                    <p>Works seamlessly with memoQ, CafeTran, and Trados Studio. 
+                    Import bilingual tables, translate, export back.</p>
+                </div>
+                <div class="why-card">
+                    <h3>📈 Constantly Evolving</h3>
+                    <p>Active development with regular updates. New features based on 
+                    real translator feedback and needs.</p>
+                </div>
+                <div class="why-card">
+                    <h3>💡 Context-Aware</h3>
+                    <p>Translation memory, figure context, custom prompts, glossaries. 
+                    Multiple context sources for accurate translations.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <span class="logo">🌐</span>
+                    <span class="brand-name">Supervertaler</span>
+                    <p class="footer-tagline">AI-Powered Translation for Professionals</p>
+                </div>
+                <div class="footer-links">
+                    <div class="footer-column">
+                        <h4>Product</h4>
+                        <ul>
+                            <li><a href="#features">Features</a></li>
+                            <li><a href="#download">Download</a></li>
+                            <li><a href="https://github.com/michaelbeijer/Supervertaler/blob/main/CHANGELOG-CAT.md" target="_blank">Changelog</a></li>
+                        </ul>
+                    </div>
+                    <div class="footer-column">
+                        <h4>Documentation</h4>
+                        <ul>
+                            <li><a href="https://github.com/michaelbeijer/Supervertaler/blob/main/docs/guides/INSTALLATION.md" target="_blank">Installation</a></li>
+                            <li><a href="https://github.com/michaelbeijer/Supervertaler/blob/main/docs/guides/USER_GUIDE.md" target="_blank">User Guide</a></li>
+                            <li><a href="https://github.com/michaelbeijer/Supervertaler/blob/main/docs/guides/FAQ.md" target="_blank">FAQ</a></li>
+                        </ul>
+                    </div>
+                    <div class="footer-column">
+                        <h4>Community</h4>
+                        <ul>
+                            <li><a href="https://github.com/michaelbeijer/Supervertaler" target="_blank">GitHub</a></li>
+                            <li><a href="https://github.com/michaelbeijer/Supervertaler/issues" target="_blank">Issues</a></li>
+                            <li><a href="https://michaelbeijer.co.uk" target="_blank">Author's Website</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 Michael Beijer. Open source under MIT License.</p>
+                <p class="footer-tech">Built with ❤️ for translators</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
