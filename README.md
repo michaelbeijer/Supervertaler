@@ -1,5 +1,8 @@
 # Supervertaler
 
+> 🇳🇱 **Supervertaler** = Dutch for "Super Translator"  
+> *Built in the Netherlands by a professional translator, for professional translators worldwide.*
+
 🎯 **Context-aware, LLM-powered translation & proofreading tool, leveraging multiple context sources for enhanced accuracy (built for translators)** - Revolutionary approach to document translation that leverages multiple context sources for unparalleled accuracy.
 
 **Note**: A version of Supervertaler is being developed with many features commonly found in proper CAT tools (Computer-Aided Translation tools), which has reached **v3.5.0-beta** with unified data format!! It features memoQ-style status icons (color-coded ✗/~/✓/✓✓/🔒), multi-selection system (Ctrl/Shift/Ctrl+A), responsive compact layout, column optimization (115px reclaimed), custom tab overflow, and comprehensive grid editor improvements. The v3.3.0-beta release added a cleaner toolbar (55% space reduction), reorganized menus, semantic color coding, unified prompt management, grid pagination (10x faster loading), smart paragraph detection, dual text selection, three professional view modes (Grid, List, Document), and comprehensive auto-export options. We're implementing features from [michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool](https://michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool).
