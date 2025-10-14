@@ -1,6 +1,23 @@
-# Supervertaler Documentation
+# Supervertaler Documentation & Website
 
-This directory contains all documentation for the Supervertaler project.
+This directory contains all documentation for the Supervertaler project **and** the project website files.
+
+---
+
+## 🌐 Website
+
+The Supervertaler website is hosted from this directory via GitHub Pages.
+
+**Live Sites:**
+- **Production**: https://supervertaler.com (custom domain)
+- **GitHub Pages**: https://michaelbeijer.github.io/Supervertaler/
+
+**Website Files:**
+- `index.html` - Main landing page
+- `styles.css` - Responsive CSS styling
+- `script.js` - Interactive features
+- `CNAME` - Custom domain configuration
+- `GITHUB_PAGES_SETUP.md` - Deployment instructions
 
 ---
 
