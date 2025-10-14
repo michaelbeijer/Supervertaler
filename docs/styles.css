@@ -296,6 +296,85 @@ body {
 }
 
 /* =============================================
+   Name Origin Section
+   ============================================= */
+
+.name-origin {
+    padding: var(--spacing-lg) 0;
+    background: linear-gradient(135deg, #EEF2FF 0%, #F9FAFB 100%);
+}
+
+.name-card {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-lg);
+    background: white;
+    border-radius: 20px;
+    padding: var(--spacing-lg);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    max-width: 900px;
+    margin: 0 auto;
+    border: 2px solid #E0E7FF;
+}
+
+.name-icon {
+    font-size: 4rem;
+    flex-shrink: 0;
+    animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+.name-content {
+    flex: 1;
+}
+
+.name-title {
+    font-size: 2.5rem;
+    font-weight: 800;
+    margin: 0 0 var(--spacing-xs) 0;
+    line-height: 1.2;
+}
+
+.name-super {
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.name-vertaler {
+    color: var(--text-primary);
+}
+
+.name-subtitle {
+    font-size: 1.25rem;
+    color: var(--text-secondary);
+    margin: 0 0 var(--spacing-sm) 0;
+}
+
+.name-subtitle strong {
+    color: var(--primary);
+    font-weight: 700;
+}
+
+.name-description {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin: 0;
+}
+
+.name-description em {
+    color: var(--primary);
+    font-style: italic;
+    font-weight: 600;
+}
+
+/* =============================================
    Features Section
    ============================================= */
 
