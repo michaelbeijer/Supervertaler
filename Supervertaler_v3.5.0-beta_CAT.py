@@ -1563,6 +1563,11 @@ class PromptLibrary:
                     prompt_data['_filepath'] = filepath
                     prompt_data['_type'] = prompt_type  # Add type field
                     
+                    # Add task_type with backward compatibility
+                    if 'task_type' not in prompt_data:
+                        # Infer task type from title/name for backward compatibility
+                        prompt_data['task_type'] = self._infer_task_type(prompt_data.get('name', ''))
+                    
                     # Validate required fields
                     if 'name' not in prompt_data or 'translate_prompt' not in prompt_data:
                         self.log(f"⚠ Skipping {filename}: missing required fields (name, translate_prompt)")
@@ -1576,6 +1581,32 @@ class PromptLibrary:
                 
         return count
     
+    def _infer_task_type(self, title):
+        """Infer task type from prompt title for backward compatibility
+        
+        Args:
+            title: Prompt title/name
+            
+        Returns:
+            str: Inferred task type
+        """
+        title_lower = title.lower()
+        
+        if 'localization' in title_lower or 'localisation' in title_lower:
+            return 'Localization'
+        elif 'proofread' in title_lower:
+            return 'Proofreading'
+        elif 'qa' in title_lower or 'quality' in title_lower:
+            return 'QA'
+        elif 'copyedit' in title_lower or 'copy-edit' in title_lower:
+            return 'Copyediting'
+        elif 'post-edit' in title_lower or 'postedit' in title_lower:
+            return 'Post-editing'
+        elif 'transcreation' in title_lower:
+            return 'Transcreation'
+        else:
+            return 'Translation'  # Default
+    
     def get_prompt_list(self):
         """Get list of available prompts with metadata"""
         prompt_list = []
@@ -1586,6 +1617,7 @@ class PromptLibrary:
                 'description': data.get('description', ''),
                 'domain': data.get('domain', 'General'),
                 'version': data.get('version', '1.0'),
+                'task_type': data.get('task_type', 'Translation'),  # NEW: Include task type
                 'filepath': data.get('_filepath', ''),
                 '_type': data.get('_type', 'system_prompt')  # Include type for filtering
             })
@@ -12898,15 +12930,15 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
         tree_frame = ttk.Frame(left_frame)
         tree_frame.pack(fill=tk.BOTH, expand=True, pady=(5, 0))
         
-        prompt_tree = ttk.Treeview(tree_frame, columns=('Type', 'Domain', 'Location'), show='tree headings', height=15)
+        prompt_tree = ttk.Treeview(tree_frame, columns=('Task', 'Type', 'Domain'), show='tree headings', height=15)
         prompt_tree.heading('#0', text='Name ▼')
+        prompt_tree.heading('Task', text='Task Type')
         prompt_tree.heading('Type', text='Type')
         prompt_tree.heading('Domain', text='Domain')
-        prompt_tree.heading('Location', text='Location')
-        prompt_tree.column('#0', width=180)
-        prompt_tree.column('Type', width=120)
+        prompt_tree.column('#0', width=200)
+        prompt_tree.column('Task', width=110)
+        prompt_tree.column('Type', width=140)
         prompt_tree.column('Domain', width=100)
-        prompt_tree.column('Location', width=80)
         
         tree_scroll = ttk.Scrollbar(tree_frame, orient=tk.VERTICAL, command=prompt_tree.yview)
         prompt_tree.configure(yscrollcommand=tree_scroll.set)
@@ -12972,11 +13004,10 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
             """Sort prompts by specified column"""
             if column == 'name':
                 return sorted(prompts_list, key=lambda x: x['name'].lower(), reverse=reverse)
+            elif column == 'task':
+                return sorted(prompts_list, key=lambda x: x.get('task_type', 'Translation').lower(), reverse=reverse)
             elif column == 'domain':
                 return sorted(prompts_list, key=lambda x: x['domain'].lower(), reverse=reverse)
-            elif column == 'location':
-                # Location sorting removed - no longer relevant with auto-routing
-                return prompts_list
             elif column == 'type':
                 return sorted(prompts_list, key=lambda x: x.get('_type', 'system_prompt'), reverse=reverse)
             return prompts_list
@@ -12987,19 +13018,19 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
             
             # Reset all headers
             prompt_tree.heading('#0', text='Name')
+            prompt_tree.heading('Task', text='Task Type')
             prompt_tree.heading('Type', text='Type')
             prompt_tree.heading('Domain', text='Domain')
-            prompt_tree.heading('Location', text='Location')
             
             # Add arrow to sorted column
             if sort_state['column'] == 'name':
                 prompt_tree.heading('#0', text='Name' + arrow)
+            elif sort_state['column'] == 'task':
+                prompt_tree.heading('Task', text='Task Type' + arrow)
             elif sort_state['column'] == 'type':
                 prompt_tree.heading('Type', text='Type' + arrow)
             elif sort_state['column'] == 'domain':
                 prompt_tree.heading('Domain', text='Domain' + arrow)
-            elif sort_state['column'] == 'location':
-                prompt_tree.heading('Location', text='Location' + arrow)
         
         def on_column_click(column):
             """Handle column header click for sorting"""
@@ -13015,9 +13046,9 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
         
         # Bind column header clicks
         prompt_tree.heading('#0', command=lambda: on_column_click('name'))
+        prompt_tree.heading('Task', command=lambda: on_column_click('task'))
         prompt_tree.heading('Type', command=lambda: on_column_click('type'))
         prompt_tree.heading('Domain', command=lambda: on_column_click('domain'))
-        prompt_tree.heading('Location', command=lambda: on_column_click('location'))
         
         def load_prompts_to_tree(prompts_list=None):
             """Load prompts into treeview with type filtering"""
@@ -13039,13 +13070,15 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
                 prompt_type = prompt_info.get('_type', 'system_prompt')
                 type_label = "🎭 System prompts" if prompt_type == 'system_prompt' else "📝 Custom instructions"
                 
+                # Get task type
+                task_type = prompt_info.get('task_type', 'Translation')
+                
                 # Simple icon based on type
                 icon = "\U0001F3AD" if prompt_type == 'system_prompt' else "\U0001F4DD"
-                location = "System prompts" if prompt_type == 'system_prompt' else "Custom instructions"
                 
                 prompt_tree.insert('', 'end', 
                                   text=f"{icon} {prompt_info['name']}", 
-                                  values=(type_label, prompt_info['domain'], location),
+                                  values=(task_type, type_label, prompt_info['domain']),
                                   tags=(prompt_info['filename'],))
         
         def on_search(*args):
