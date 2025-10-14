@@ -4210,7 +4210,9 @@ class Supervertaler:
         
         self.prompt_library_tree.pack(fill='both', expand=True)
         
-        # Load prompts
+        # Load prompts (ensure prompts are loaded first)
+        if not self.prompt_library.prompts:
+            self.prompt_library.load_all_prompts()
         self._load_prompt_library()
         
         # Buttons
