@@ -117,10 +117,13 @@ try:
     from modules.docx_handler import DOCXHandler
     from modules.tag_manager import TagManager
     from modules.figure_context_manager import FigureContextManager, normalize_figure_ref, pil_image_to_base64_png
-except ImportError:
+except ImportError as e:
     print("ERROR: Could not import required modules")
+    print(f"Import error: {e}")
     print("Make sure the 'modules' folder exists with simple_segmenter.py, docx_handler.py, and tag_manager.py")
     import sys
+    import traceback
+    traceback.print_exc()
     sys.exit(1)
 
 
@@ -4174,7 +4177,7 @@ class Supervertaler:
         
         # Task Type filter
         tk.Label(filter_row, text="Task Type:", font=('Segoe UI', 9)).pack(side='left', padx=(20, 5))
-        self.task_type_var = tk.StringVar(value="all")
+        self.task_type_var = tk.StringVar(value="All Tasks")
         task_types = ["All Tasks", "Translation", "Localization", "Transcreation", "Proofreading", 
                      "QA", "Copyediting", "Post-editing", "Terminology Extraction"]
         self.task_type_combo = ttk.Combobox(filter_row, textvariable=self.task_type_var,
@@ -4182,9 +4185,13 @@ class Supervertaler:
         self.task_type_combo.pack(side='left', padx=5)
         self.task_type_combo.bind('<<ComboboxSelected>>', lambda e: self._filter_prompt_library())
         
-        # Prompt list
-        list_frame = tk.LabelFrame(parent, text="Available Prompts", padx=5, pady=5)
-        list_frame.pack(fill='both', expand=True, padx=5, pady=5)
+        # Split pane: Prompt list on LEFT, content editor on RIGHT
+        main_paned = ttk.PanedWindow(parent, orient='horizontal')
+        main_paned.pack(fill='both', expand=True, padx=5, pady=5)
+        
+        # LEFT PANE: Prompt list
+        list_frame = tk.LabelFrame(main_paned, text="Available Prompts", padx=5, pady=5)
+        main_paned.add(list_frame, weight=1)
         
         # Treeview
         tree_scroll = ttk.Scrollbar(list_frame, orient='vertical')
@@ -4192,8 +4199,7 @@ class Supervertaler:
         
         self.prompt_library_tree = ttk.Treeview(list_frame, 
                                                columns=('type', 'task_type', 'domain', 'version'),
-                                               show='tree headings', yscrollcommand=tree_scroll.set,
-                                               height=12)
+                                               show='tree headings', yscrollcommand=tree_scroll.set)
         tree_scroll.config(command=self.prompt_library_tree.yview)
         
         self.prompt_library_tree.heading('#0', text='Prompt Name')
@@ -4210,43 +4216,373 @@ class Supervertaler:
         
         self.prompt_library_tree.pack(fill='both', expand=True)
         
+        # Bind selection event
+        self.prompt_library_tree.bind('<<TreeviewSelect>>', self._on_prompt_select)
+        
+        # RIGHT PANE: Prompt editor
+        editor_frame = tk.LabelFrame(main_paned, text="Prompt Content", padx=5, pady=5)
+        main_paned.add(editor_frame, weight=2)
+        
+        # Metadata fields
+        meta_frame = tk.Frame(editor_frame)
+        meta_frame.pack(fill='x', padx=5, pady=5)
+        
+        # Name
+        tk.Label(meta_frame, text="Name:", font=('Segoe UI', 9, 'bold')).grid(row=0, column=0, sticky='w', padx=(0, 5))
+        self.prompt_name_var = tk.StringVar()
+        tk.Entry(meta_frame, textvariable=self.prompt_name_var, font=('Segoe UI', 9), width=40).grid(row=0, column=1, sticky='ew', padx=5)
+        
+        # Domain
+        tk.Label(meta_frame, text="Domain:", font=('Segoe UI', 9, 'bold')).grid(row=0, column=2, sticky='w', padx=(20, 5))
+        self.prompt_domain_var = tk.StringVar()
+        tk.Entry(meta_frame, textvariable=self.prompt_domain_var, font=('Segoe UI', 9), width=25).grid(row=0, column=3, sticky='ew', padx=5)
+        
+        # Task Type
+        tk.Label(meta_frame, text="Task Type:", font=('Segoe UI', 9, 'bold')).grid(row=1, column=0, sticky='w', padx=(0, 5), pady=(5, 0))
+        self.prompt_task_type_var = tk.StringVar()
+        task_type_combo = ttk.Combobox(meta_frame, textvariable=self.prompt_task_type_var,
+                                       values=["Translation", "Localization", "Transcreation", "Proofreading", 
+                                              "QA", "Copyediting", "Post-editing", "Terminology Extraction"],
+                                       width=18, state='readonly')
+        task_type_combo.grid(row=1, column=1, sticky='w', padx=5, pady=(5, 0))
+        
+        # Version
+        tk.Label(meta_frame, text="Version:", font=('Segoe UI', 9, 'bold')).grid(row=1, column=2, sticky='w', padx=(20, 5), pady=(5, 0))
+        self.prompt_version_var = tk.StringVar()
+        tk.Entry(meta_frame, textvariable=self.prompt_version_var, font=('Segoe UI', 9), width=10).grid(row=1, column=3, sticky='w', padx=5, pady=(5, 0))
+        
+        meta_frame.columnconfigure(1, weight=1)
+        meta_frame.columnconfigure(3, weight=1)
+        
+        # Description
+        tk.Label(editor_frame, text="Description:", font=('Segoe UI', 9, 'bold')).pack(anchor='w', padx=5, pady=(10, 2))
+        self.prompt_description_text = tk.Text(editor_frame, height=2, font=('Segoe UI', 9), wrap='word')
+        self.prompt_description_text.pack(fill='x', padx=5, pady=(0, 5))
+        
+        # Prompt content
+        tk.Label(editor_frame, text="Prompt Content:", font=('Segoe UI', 9, 'bold')).pack(anchor='w', padx=5, pady=(5, 2))
+        
+        content_scroll = tk.Scrollbar(editor_frame)
+        content_scroll.pack(side='right', fill='y', padx=(0, 5))
+        
+        self.prompt_content_text = tk.Text(editor_frame, wrap='word', font=('Consolas', 9),
+                                          yscrollcommand=content_scroll.set)
+        self.prompt_content_text.pack(fill='both', expand=True, padx=5, pady=(0, 5))
+        content_scroll.config(command=self.prompt_content_text.yview)
+        
+        # Editor buttons
+        editor_btn_frame = tk.Frame(editor_frame)
+        editor_btn_frame.pack(fill='x', padx=5, pady=(0, 5))
+        
+        tk.Button(editor_btn_frame, text="💾 Save Changes",
+                 command=self._save_prompt_changes,
+                 bg='#4CAF50', fg='white', font=('Segoe UI', 9, 'bold')).pack(side='left', padx=2)
+        tk.Button(editor_btn_frame, text="↩️ Revert",
+                 command=self._revert_prompt_changes,
+                 bg='#9E9E9E', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
+        tk.Button(editor_btn_frame, text="🗑️ Delete",
+                 command=self._delete_selected_prompt,
+                 bg='#F44336', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
+        
+        tk.Button(editor_btn_frame, text="✅ Apply to Translation",
+                 command=lambda: self._apply_selected_prompt(slot='translate'),
+                 bg='#2196F3', fg='white', font=('Segoe UI', 9)).pack(side='right', padx=2)
+        tk.Button(editor_btn_frame, text="✅ Apply to Proofreading",
+                 command=lambda: self._apply_selected_prompt(slot='proofread'),
+                 bg='#2196F3', fg='white', font=('Segoe UI', 9)).pack(side='right', padx=2)
+        
         # Load prompts (ensure prompts are loaded first)
+        # Note: Don't log during early initialization - log_text may not exist yet
         if not self.prompt_library.prompts:
+            # Temporarily save log callback and replace with silent version
+            original_log = self.prompt_library.log
+            self.prompt_library.log = lambda msg: None  # Silent during tab creation
             self.prompt_library.load_all_prompts()
+            self.prompt_library.log = original_log  # Restore logging
         self._load_prompt_library()
         
-        # Buttons
+        # Action buttons at bottom
         button_frame = tk.Frame(parent)
         button_frame.pack(fill='x', padx=5, pady=5)
         
-        tk.Button(button_frame, text="✅ Apply Selected",
-                 command=self._apply_selected_prompt,
-                 bg='#4CAF50', fg='white', font=('Segoe UI', 9, 'bold')).pack(side='left', padx=2)
-        tk.Button(button_frame, text="✏️ Edit",
-                 command=self._edit_selected_prompt,
-                 bg='#2196F3', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
-        tk.Button(button_frame, text="👁️ Preview",
-                 command=self._preview_selected_prompt,
-                 bg='#FF9800', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
         tk.Button(button_frame, text="➕ New Prompt",
                  command=self._create_new_prompt,
-                 bg='#9C27B0', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
-        
+                 bg='#9C27B0', fg='white', font=('Segoe UI', 9, 'bold')).pack(side='left', padx=2)
         tk.Button(button_frame, text="📥 Import",
                  command=self._import_prompt,
-                 bg='#607D8B', fg='white', font=('Segoe UI', 9)).pack(side='right', padx=2)
-        tk.Button(button_frame, text="📤 Export",
+                 bg='#607D8B', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
+        tk.Button(button_frame, text="📤 Export Selected",
                  command=self._export_selected_prompt,
-                 bg='#607D8B', fg='white', font=('Segoe UI', 9)).pack(side='right', padx=2)
+                 bg='#607D8B', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
         
         # Help text
         help_text = tk.Label(parent, 
-                           text="💡 Double-click a prompt to apply it | System Prompts: global behavior | Custom Instructions: project-specific guidance",
+                           text="💡 Select a prompt to view/edit | System Prompts: global behavior | Custom Instructions: project-specific guidance",
                            font=('Segoe UI', 8), fg='#666', bg='#f5f5f5')
         help_text.pack(fill='x', padx=5, pady=2)
         
         # Bind double-click
         self.prompt_library_tree.bind('<Double-1>', lambda e: self._apply_selected_prompt())
+        
+        # Track current prompt being edited
+        self.current_editing_prompt = None
+    
+    def _on_prompt_select(self, event=None):
+        """Handle prompt selection - load content into editor"""
+        selection = self.prompt_library_tree.selection()
+        if not selection:
+            # Clear editor
+            self.prompt_name_var.set("")
+            self.prompt_domain_var.set("")
+            self.prompt_task_type_var.set("Translation")
+            self.prompt_version_var.set("")
+            self.prompt_description_text.delete('1.0', tk.END)
+            self.prompt_content_text.delete('1.0', tk.END)
+            self.current_editing_prompt = None
+            return
+        
+        item = selection[0]
+        filename = self.prompt_library_tree.item(item, 'tags')[0]
+        
+        # Load full prompt data
+        prompt_data = self.prompt_library.get_prompt(filename)
+        if not prompt_data:
+            return
+        
+        # Store reference
+        self.current_editing_prompt = filename
+        
+        # Populate editor fields
+        self.prompt_name_var.set(prompt_data.get('name', ''))
+        self.prompt_domain_var.set(prompt_data.get('domain', 'General'))
+        self.prompt_task_type_var.set(prompt_data.get('task_type', 'Translation'))
+        self.prompt_version_var.set(prompt_data.get('version', '1.0'))
+        
+        # Description
+        self.prompt_description_text.delete('1.0', tk.END)
+        self.prompt_description_text.insert('1.0', prompt_data.get('description', ''))
+        
+        # Prompt content
+        self.prompt_content_text.delete('1.0', tk.END)
+        self.prompt_content_text.insert('1.0', prompt_data.get('translate_prompt', ''))
+    
+    def _save_prompt_changes(self):
+        """Save changes to the currently selected prompt"""
+        if not self.current_editing_prompt:
+            messagebox.showwarning("No Selection", "Please select a prompt to save")
+            return
+        
+        # Get current prompt data
+        prompt_data = self.prompt_library.get_prompt(self.current_editing_prompt)
+        if not prompt_data:
+            return
+        
+        # Update with edited values
+        prompt_data['name'] = self.prompt_name_var.get().strip()
+        prompt_data['domain'] = self.prompt_domain_var.get().strip()
+        prompt_data['task_type'] = self.prompt_task_type_var.get()
+        prompt_data['version'] = self.prompt_version_var.get().strip()
+        prompt_data['description'] = self.prompt_description_text.get('1.0', 'end-1c').strip()
+        prompt_data['translate_prompt'] = self.prompt_content_text.get('1.0', 'end-1c')
+        
+        # Validate
+        if not prompt_data['name']:
+            messagebox.showerror("Validation Error", "Prompt name cannot be empty")
+            return
+        if not prompt_data['translate_prompt']:
+            messagebox.showerror("Validation Error", "Prompt content cannot be empty")
+            return
+        
+        # Save to file
+        try:
+            filepath = prompt_data.get('_filepath')
+            if not filepath:
+                messagebox.showerror("Error", "Cannot determine file path")
+                return
+            
+            # Remove internal metadata before saving
+            save_data = {k: v for k, v in prompt_data.items() if not k.startswith('_')}
+            
+            with open(filepath, 'w', encoding='utf-8') as f:
+                json.dump(save_data, f, indent=2)
+            
+            self.log(f"✓ Saved changes to: {prompt_data['name']}")
+            
+            # Reload prompts and refresh list
+            self.prompt_library.load_all_prompts()
+            self._load_prompt_library()
+            
+        except Exception as e:
+            messagebox.showerror("Save Error", f"Failed to save prompt:\n{str(e)}")
+    
+    def _revert_prompt_changes(self):
+        """Revert editor to original prompt content"""
+        if not self.current_editing_prompt:
+            return
+        
+        # Reload from file
+        self._on_prompt_select()
+        self.log("↩️ Reverted to saved version")
+    
+    def _delete_selected_prompt(self):
+        """Delete the currently selected prompt"""
+        if not self.current_editing_prompt:
+            messagebox.showwarning("No Selection", "Please select a prompt to delete")
+            return
+        
+        prompt_data = self.prompt_library.get_prompt(self.current_editing_prompt)
+        if not prompt_data:
+            return
+        
+        # Confirm deletion
+        result = messagebox.askyesno("Confirm Delete",
+                                     f"Delete prompt '{prompt_data['name']}'?\n\n"
+                                     f"This will permanently delete the file:\n{prompt_data.get('_filepath', '')}\n\n"
+                                     f"This action cannot be undone!",
+                                     icon='warning')
+        if not result:
+            return
+        
+        try:
+            filepath = prompt_data.get('_filepath')
+            if filepath and os.path.exists(filepath):
+                os.remove(filepath)
+                self.log(f"🗑️ Deleted: {prompt_data['name']}")
+                
+                # Clear editor and reload list
+                self.current_editing_prompt = None
+                self.prompt_library.load_all_prompts()
+                self._load_prompt_library()
+                self._on_prompt_select()  # Clear editor
+            else:
+                messagebox.showerror("Error", "File not found")
+        except Exception as e:
+            messagebox.showerror("Delete Error", f"Failed to delete prompt:\n{str(e)}")
+    
+    def _apply_selected_prompt(self, slot=None):
+        """Apply selected prompt to translation or proofreading slot"""
+        if not self.current_editing_prompt:
+            messagebox.showwarning("No Selection", "Please select a prompt to apply")
+            return
+        
+        prompt_data = self.prompt_library.get_prompt(self.current_editing_prompt)
+        if not prompt_data:
+            return
+        
+        # If slot not specified, ask user
+        if slot is None:
+            choice = messagebox.askquestion("Apply Prompt",
+                                           "Apply to Translation prompt?\n\n"
+                                           "Yes = Translation\n"
+                                           "No = Proofreading",
+                                           icon='question')
+            slot = 'translate' if choice == 'yes' else 'proofread'
+        
+        if slot == 'translate':
+            self.default_translate_prompt = prompt_data['translate_prompt']
+            self.active_translate_prompt_name = prompt_data['name']
+            if hasattr(self, 'translate_prompt_text'):
+                self.translate_prompt_text.delete('1.0', tk.END)
+                self.translate_prompt_text.insert('1.0', self.default_translate_prompt)
+            self.log(f"✓ Applied '{prompt_data['name']}' to Translation prompt")
+        else:
+            self.default_proofread_prompt = prompt_data['translate_prompt']
+            self.active_proofread_prompt_name = prompt_data['name']
+            if hasattr(self, 'proofread_prompt_text'):
+                self.proofread_prompt_text.delete('1.0', tk.END)
+                self.proofread_prompt_text.insert('1.0', self.default_proofread_prompt)
+            self.log(f"✓ Applied '{prompt_data['name']}' to Proofreading prompt")
+        
+        self._update_active_prompt_labels()
+    
+    def _create_new_prompt(self):
+        """Create a new blank prompt"""
+        # Ask for prompt type
+        is_system = messagebox.askyesno("Prompt Type",
+                                       "Create as System Prompt?\n\n"
+                                       "Yes = System Prompt (global)\n"
+                                       "No = Custom Instruction (project-specific)")
+        
+        # Create new blank prompt data
+        new_name = "New Prompt"
+        new_filename = f"{new_name}.json"
+        
+        # Determine directory
+        if is_system:
+            target_dir = get_user_data_path("System_prompts")
+        else:
+            target_dir = get_user_data_path("Custom_instructions")
+        
+        os.makedirs(target_dir, exist_ok=True)
+        target_file = os.path.join(target_dir, new_filename)
+        
+        # Check if file exists
+        counter = 1
+        while os.path.exists(target_file):
+            new_filename = f"New Prompt {counter}.json"
+            target_file = os.path.join(target_dir, new_filename)
+            counter += 1
+        
+        # Create minimal prompt structure
+        new_prompt = {
+            "name": new_filename.replace('.json', ''),
+            "version": "1.0",
+            "task_type": "Translation",
+            "domain": "General",
+            "description": "",
+            "translate_prompt": "# Your prompt content here\n\n"
+        }
+        
+        try:
+            with open(target_file, 'w', encoding='utf-8') as f:
+                json.dump(new_prompt, f, indent=2)
+            
+            self.log(f"✓ Created new prompt: {new_prompt['name']}")
+            
+            # Reload and select new prompt
+            self.prompt_library.load_all_prompts()
+            self._load_prompt_library()
+            
+            # Find and select the new prompt
+            for item in self.prompt_library_tree.get_children():
+                if self.prompt_library_tree.item(item, 'tags')[0] == new_filename:
+                    self.prompt_library_tree.selection_set(item)
+                    self.prompt_library_tree.see(item)
+                    self._on_prompt_select()
+                    break
+                    
+        except Exception as e:
+            messagebox.showerror("Create Error", f"Failed to create prompt:\n{str(e)}")
+    
+    def _edit_selected_prompt(self):
+        """Edit selected prompt (just selects it - editing happens inline)"""
+        if not self.prompt_library_tree.selection():
+            messagebox.showinfo("Edit Prompt", "Select a prompt from the list to edit its content below")
+        else:
+            messagebox.showinfo("Edit Prompt", "The selected prompt is now displayed below. Make your changes and click 'Save Changes'.")
+    
+    def _preview_selected_prompt(self):
+        """Preview selected prompt in read-only window"""
+        if not self.current_editing_prompt:
+            messagebox.showwarning("No Selection", "Please select a prompt to preview")
+            return
+        
+        prompt_data = self.prompt_library.get_prompt(self.current_editing_prompt)
+        if not prompt_data:
+            return
+        
+        # Show preview dialog
+        preview = tk.Toplevel(self.root)
+        preview.title(f"Preview: {prompt_data['name']}")
+        preview.geometry("700x500")
+        
+        text = scrolledtext.ScrolledText(preview, wrap='word', font=('Consolas', 9))
+        text.pack(fill='both', expand=True, padx=10, pady=10)
+        text.insert('1.0', prompt_data['translate_prompt'])
+        text.config(state='disabled')
+        
+        tk.Button(preview, text="Close", command=preview.destroy,
+                 bg='#607D8B', fg='white').pack(pady=5)
     
     def _update_active_prompt_labels(self):
         """Update the active prompt display labels"""
@@ -6964,11 +7300,15 @@ Use this feature AFTER translation to:
         timestamp = datetime.now().strftime("%H:%M:%S")
         formatted_message = f"[{timestamp}] {message}\n"
         
-        # Update main log window
-        self.log_text.config(state='normal')
-        self.log_text.insert('end', formatted_message)
-        self.log_text.see('end')
-        self.log_text.config(state='disabled')
+        # Update main log window (check if widget exists - may not during early initialization)
+        if hasattr(self, 'log_text'):
+            self.log_text.config(state='normal')
+            self.log_text.insert('end', formatted_message)
+            self.log_text.see('end')
+            self.log_text.config(state='disabled')
+        else:
+            # During early initialization, just print to console
+            print(formatted_message.strip())
         
         # Also update log tab if it exists (Translation Workspace)
         if hasattr(self, 'log_tab_text'):
@@ -9448,7 +9788,11 @@ Use this feature AFTER translation to:
         
         try:
             self.log(f"[Figure Context] Loading images from: {folder_path}")
-            loaded_count = self.figure_context_manager.load_from_folder(folder_path)
+            if self.figure_context_manager is not None:
+                loaded_count = self.figure_context_manager.load_from_folder(folder_path)
+            else:
+                self.log("[Figure Context] ⚠ Figure context manager not available")
+                return
             
             if loaded_count > 0:
                 self.log(f"[Figure Context] ✓ Successfully loaded {loaded_count} figure images")
@@ -9468,7 +9812,8 @@ Use this feature AFTER translation to:
     
     def clear_figure_context(self):
         """Clear all loaded figure context images"""
-        self.figure_context_manager.clear()
+        if self.figure_context_manager is not None:
+            self.figure_context_manager.clear()
         self.log("[Figure Context] All figure context cleared")
         self.update_context_status()  # Update UI to remove figure count
         self.update_figure_context_display()  # Update Images tab
@@ -9477,12 +9822,13 @@ Use this feature AFTER translation to:
     def update_figure_context_display(self):
         """Update the figure context display in the Images tab"""
         # Delegate to FigureContextManager
-        self.figure_context_manager.update_ui_display(
-            image_folder_label=getattr(self, 'image_folder_label', None),
-            image_folder_var=getattr(self, 'image_folder_var', None),
-            thumbnails_frame=getattr(self, 'figure_thumbnails_frame', None),
-            figure_canvas=getattr(self, 'figure_canvas', None)
-        )
+        if self.figure_context_manager is not None:
+            self.figure_context_manager.update_ui_display(
+                image_folder_label=getattr(self, 'image_folder_label', None),
+                image_folder_var=getattr(self, 'image_folder_var', None),
+                thumbnails_frame=getattr(self, 'figure_thumbnails_frame', None),
+                figure_canvas=getattr(self, 'figure_canvas', None)
+            )
     
     # ===== GRID PAGINATION METHODS =====
     
@@ -10769,7 +11115,7 @@ Use this feature AFTER translation to:
             
             # Add figure context info
             figure_info = ""
-            if self.figure_context_manager.has_images():
+            if self.figure_context_manager is not None and self.figure_context_manager.has_images():
                 figure_count = self.figure_context_manager.get_image_count()
                 figure_info = f" | 🖼️ {figure_count} figure{'s' if figure_count != 1 else ''}"
             
@@ -10780,7 +11126,7 @@ Use this feature AFTER translation to:
         else:
             # Show figure context even without document
             figure_info = ""
-            if self.figure_context_manager.has_images():
+            if self.figure_context_manager is not None and self.figure_context_manager.has_images():
                 figure_count = self.figure_context_manager.get_image_count()
                 figure_info = f" | 🖼️ {figure_count} figure context image{'s' if figure_count != 1 else ''} loaded"
             
