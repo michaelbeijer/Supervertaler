@@ -1,8 +1,9 @@
 """  
-Supervertaler v3.5.0-beta (CAT Editor)
+Supervertaler v3.6.0-beta (CAT Editor)
 AI-Powered Computer-Aided Translation Tool
 
 Features:
+- PDF Rescue - AI-Powered OCR Tool (GPT-4 Vision) 📄
 - Grid Pagination System (50 segments/page, 10x faster loading) ⚡
 - Smart Paragraph Detection for document view 🧠
 - Unified Prompt Library (System Prompts + Custom Instructions) 🎯
@@ -22,11 +23,11 @@ Features:
 - Dev mode with parallel folder structure (user data/ vs user data_private/)
 
 Author: Michael Beijer + AI Assistant
-Date: October 14, 2025
+Date: January 16, 2025
 """
 
 # Version constant
-APP_VERSION = "3.5.0-beta"
+APP_VERSION = "3.6.0-beta"
 
 # --- Private Features Flag ---
 # Check for .supervertaler.local file to enable private features (for developers only)
