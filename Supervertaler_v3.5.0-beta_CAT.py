@@ -3952,7 +3952,7 @@ class Supervertaler:
             panel_weights.append(1)
         
         if self.assist_visible_panels.get('tm', True):
-            tm_container = self.create_collapsible_panel_resizable('� TM Matches', 'tm_matches',
+            tm_container = self.create_collapsible_panel_resizable('💼 TM Matches', 'tm_matches',
                                                                    self.create_tm_tab, expanded=False)
             self.assist_stacked_paned.add(tm_container, weight=1)
             panel_weights.append(1)
@@ -4119,81 +4119,645 @@ class Supervertaler:
     # === NEW TAB CREATORS ===
     
     def create_prompt_library_tab(self, parent):
-        """Create unified Prompt Library tab - system prompts & custom instructions"""
-        # Info section
-        info_frame = tk.Frame(parent, bg='#e3f2fd', relief='solid', borderwidth=1)
-        info_frame.pack(fill='x', padx=5, pady=5)
+        """Create Prompt Library tab with sub-tabs for System Prompts and Custom Instructions"""
+        # Compact header with title and maximize button
+        header_frame = tk.Frame(parent, bg='#e3f2fd', relief='solid', borderwidth=1)
+        header_frame.pack(fill='x', padx=5, pady=5)
         
-        tk.Label(info_frame, text="🎯 Prompt Library", font=('Segoe UI', 10, 'bold'),
-                bg='#e3f2fd').pack(anchor='w', padx=10, pady=5)
-        tk.Label(info_frame, text="Manage system prompts and custom instructions with Task Type filters",
-                font=('Segoe UI', 9), bg='#e3f2fd', fg='#666').pack(anchor='w', padx=10, pady=(0, 5))
+        tk.Label(header_frame, text="🎯 Prompt Library", font=('Segoe UI', 10, 'bold'),
+                bg='#e3f2fd').pack(side='left', padx=10, pady=5)
         
-        # Active prompt display
-        active_frame = tk.LabelFrame(parent, text="Active Prompts", padx=10, pady=10, bg='#f5f5f5')
-        active_frame.pack(fill='x', padx=5, pady=5)
+        # Maximize button
+        tk.Button(header_frame, text="⛶ Maximize", command=self.maximize_prompt_library,
+                 bg='#2196F3', fg='white', font=('Segoe UI', 8)).pack(side='right', padx=10)
         
-        active_info = tk.Frame(active_frame, bg='#f5f5f5')
-        active_info.pack(fill='x')
+        # Active prompts bar (compact)
+        active_bar = tk.Frame(parent, bg='#f5f5f5', relief='solid', borderwidth=1)
+        active_bar.pack(fill='x', padx=5, pady=(0, 5))
         
-        # Translation prompt
-        tk.Label(active_info, text="🌐 Translation:", font=('Segoe UI', 9, 'bold'),
-                bg='#f5f5f5').grid(row=0, column=0, sticky='w', padx=(0, 10))
-        self.active_translate_label = tk.Label(active_info, text="Default Translation Prompt",
-                                              font=('Segoe UI', 9), bg='#f5f5f5', fg='#2196F3')
-        self.active_translate_label.grid(row=0, column=1, sticky='w')
+        tk.Label(active_bar, text="Active:", font=('Segoe UI', 8, 'bold'),
+                bg='#f5f5f5').pack(side='left', padx=10, pady=5)
+        tk.Label(active_bar, text="Trans:", font=('Segoe UI', 8),
+                bg='#f5f5f5').pack(side='left', padx=(0, 2))
+        self.active_translate_label = tk.Label(active_bar, text="Default",
+                                              font=('Segoe UI', 8), bg='#f5f5f5', fg='#2196F3')
+        self.active_translate_label.pack(side='left', padx=(0, 10))
         
-        # Proofreading prompt
-        tk.Label(active_info, text="✏️ Proofreading:", font=('Segoe UI', 9, 'bold'),
-                bg='#f5f5f5').grid(row=1, column=0, sticky='w', padx=(0, 10), pady=(5, 0))
-        self.active_proofread_label = tk.Label(active_info, text="Default Proofreading Prompt",
-                                              font=('Segoe UI', 9), bg='#f5f5f5', fg='#2196F3')
-        self.active_proofread_label.grid(row=1, column=1, sticky='w', pady=(5, 0))
-        
-        # Custom instructions
-        tk.Label(active_info, text="📋 Custom:", font=('Segoe UI', 9, 'bold'),
-                bg='#f5f5f5').grid(row=2, column=0, sticky='w', padx=(0, 10), pady=(5, 0))
-        self.active_custom_label = tk.Label(active_info, text="None (project-specific)",
-                                           font=('Segoe UI', 9), bg='#f5f5f5', fg='#666')
-        self.active_custom_label.grid(row=2, column=1, sticky='w', pady=(5, 0))
+        tk.Label(active_bar, text="Proof:", font=('Segoe UI', 8),
+                bg='#f5f5f5').pack(side='left', padx=(0, 2))
+        self.active_proofread_label = tk.Label(active_bar, text="Default",
+                                              font=('Segoe UI', 8), bg='#f5f5f5', fg='#2196F3')
+        self.active_proofread_label.pack(side='left')
         
         # Update active prompt labels
         self._update_active_prompt_labels()
         
-        # Filters section
-        filter_frame = tk.LabelFrame(parent, text="Filters", padx=10, pady=10)
-        filter_frame.pack(fill='x', padx=5, pady=5)
+        # Create sub-tabs for System Prompts and Custom Instructions
+        self.prompt_library_notebook = ttk.Notebook(parent)
+        self.prompt_library_notebook.pack(fill='both', expand=True, padx=5, pady=0)
         
-        filter_row = tk.Frame(filter_frame)
-        filter_row.pack(fill='x')
+        # System Prompts sub-tab
+        system_frame = tk.Frame(self.prompt_library_notebook, bg='white')
+        self.prompt_library_notebook.add(system_frame, text='🎯 System Prompts')
         
-        # Type filter
-        tk.Label(filter_row, text="Type:", font=('Segoe UI', 9)).pack(side='left', padx=(0, 5))
-        self.prompt_type_var = tk.StringVar(value="all")
-        type_options = [("All", "all"), ("System Prompts", "system"), ("Custom Instructions", "custom")]
-        for text, value in type_options:
-            tk.Radiobutton(filter_row, text=text, variable=self.prompt_type_var, value=value,
-                          command=self._filter_prompt_library).pack(side='left', padx=5)
+        # Custom Instructions sub-tab
+        custom_frame = tk.Frame(self.prompt_library_notebook, bg='white')
+        self.prompt_library_notebook.add(custom_frame, text='📝 Custom Instructions')
         
+        # Store current prompt type for filtering
+        self.prompt_type_var = tk.StringVar(value="system")
+        
+        # Initialize shared StringVars for editor (only once)
+        self.prompt_name_var = tk.StringVar()
+        self.prompt_domain_var = tk.StringVar()
+        self.prompt_task_type_var = tk.StringVar()
+        self.prompt_version_var = tk.StringVar()
+        
+        # Create content for each sub-tab
+        self._create_system_prompts_content(system_frame)
+        self._create_custom_instructions_content(custom_frame)
+        
+        # Bind tab change to update filter
+        self.prompt_library_notebook.bind('<<NotebookTabChanged>>', self._on_prompt_tab_changed)
+        
+        # Track current prompt being edited
+        self.current_editing_prompt = None
+    
+    def _on_prompt_tab_changed(self, event=None):
+        """Handle sub-tab change to update the filter"""
+        current_tab = self.prompt_library_notebook.index(self.prompt_library_notebook.select())
+        if current_tab == 0:  # System Prompts
+            self.prompt_type_var.set("system")
+        else:  # Custom Instructions
+            self.prompt_type_var.set("custom")
+        self._filter_prompt_library()
+    
+    def _create_system_prompts_content(self, parent):
+        """Create content for System Prompts sub-tab"""
         # Task Type filter
-        tk.Label(filter_row, text="Task Type:", font=('Segoe UI', 9)).pack(side='left', padx=(20, 5))
+        filter_bar = tk.Frame(parent, bg='#e3f2fd', relief='solid', borderwidth=1)
+        filter_bar.pack(fill='x', padx=5, pady=5)
+        
+        tk.Label(filter_bar, text="🎯 System Prompts - Define core translation behavior",
+                font=('Segoe UI', 9, 'bold'), bg='#e3f2fd').pack(side='left', padx=10, pady=5)
+        
+        tk.Label(filter_bar, text="Task Type:", font=('Segoe UI', 8), bg='#e3f2fd').pack(side='right', padx=(10, 3), pady=5)
         self.task_type_var = tk.StringVar(value="All Tasks")
         task_types = ["All Tasks", "Translation", "Localization", "Transcreation", "Proofreading", 
                      "QA", "Copyediting", "Post-editing", "Terminology Extraction"]
-        self.task_type_combo = ttk.Combobox(filter_row, textvariable=self.task_type_var,
-                                           values=task_types, width=20, state='readonly')
-        self.task_type_combo.pack(side='left', padx=5)
+        self.task_type_combo = ttk.Combobox(filter_bar, textvariable=self.task_type_var,
+                                           values=task_types, width=15, state='readonly',
+                                           font=('Segoe UI', 8))
+        self.task_type_combo.pack(side='right', padx=5, pady=5)
         self.task_type_combo.bind('<<ComboboxSelected>>', lambda e: self._filter_prompt_library())
         
-        # Split pane: Prompt list on LEFT, content editor on RIGHT
+        # Split pane
         main_paned = ttk.PanedWindow(parent, orient='horizontal')
         main_paned.pack(fill='both', expand=True, padx=5, pady=5)
         
-        # LEFT PANE: Prompt list
+        # LEFT: Prompt list
+        list_frame = tk.LabelFrame(main_paned, text="Available System Prompts", padx=5, pady=5)
+        main_paned.add(list_frame, weight=1)
+        
+        tree_scroll = ttk.Scrollbar(list_frame, orient='vertical')
+        tree_scroll.pack(side='right', fill='y')
+        
+        self.prompt_library_tree = ttk.Treeview(list_frame, 
+                                               columns=('task_type', 'domain', 'version'),
+                                               show='tree headings', yscrollcommand=tree_scroll.set)
+        tree_scroll.config(command=self.prompt_library_tree.yview)
+        
+        self.prompt_library_tree.heading('#0', text='Prompt Name')
+        self.prompt_library_tree.heading('task_type', text='Task Type')
+        self.prompt_library_tree.heading('domain', text='Domain')
+        self.prompt_library_tree.heading('version', text='Version')
+        
+        self.prompt_library_tree.column('#0', width=300)
+        self.prompt_library_tree.column('task_type', width=150)
+        self.prompt_library_tree.column('domain', width=180)
+        self.prompt_library_tree.column('version', width=70)
+        
+        self.prompt_library_tree.pack(fill='both', expand=True)
+        self.prompt_library_tree.bind('<<TreeviewSelect>>', self._on_prompt_select)
+        self.prompt_library_tree.bind('<Double-1>', lambda e: self._apply_selected_prompt())
+        
+        # RIGHT: Editor
+        editor_frame = tk.LabelFrame(main_paned, text="Prompt Content", padx=5, pady=5)
+        main_paned.add(editor_frame, weight=2)
+        
+        # ACTIVATION BUTTONS AT TOP
+        activate_frame = tk.Frame(editor_frame, bg='#FFF3E0', relief='solid', borderwidth=1)
+        activate_frame.pack(fill='x', padx=5, pady=(0, 10))
+        
+        tk.Label(activate_frame, text="⚡ Activate System Prompt:", font=('Segoe UI', 9, 'bold'),
+                bg='#FFF3E0').pack(side='left', padx=10, pady=5)
+        
+        tk.Button(activate_frame, text="⚡ For Translation",
+                 command=lambda: self._apply_selected_prompt(slot='translate'),
+                 bg='#FF9800', fg='white', font=('Segoe UI', 10, 'bold')).pack(side='left', padx=5, pady=5)
+        tk.Button(activate_frame, text="⚡ For Proofreading",
+                 command=lambda: self._apply_selected_prompt(slot='proofread'),
+                 bg='#FF9800', fg='white', font=('Segoe UI', 10, 'bold')).pack(side='left', padx=5, pady=5)
+        
+        # Metadata + editor (shared method)
+        self._create_prompt_editor_widgets(editor_frame)
+        
+        # Bottom buttons
+        button_frame = tk.Frame(parent)
+        button_frame.pack(fill='x', padx=5, pady=5)
+        
+        tk.Button(button_frame, text="➕ New System Prompt",
+                 command=lambda: self._create_new_prompt(is_system=True),
+                 bg='#2196F3', fg='white', font=('Segoe UI', 9, 'bold')).pack(side='left', padx=2)
+        tk.Button(button_frame, text="📥 Import",
+                 command=self._import_prompt,
+                 bg='#607D8B', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
+        tk.Button(button_frame, text="📤 Export Selected",
+                 command=self._export_selected_prompt,
+                 bg='#607D8B', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
+        
+        # Load prompts
+        if not self.prompt_library.prompts:
+            original_log = self.prompt_library.log
+            self.prompt_library.log = lambda msg: None
+            self.prompt_library.load_all_prompts()
+            self.prompt_library.log = original_log
+        self.prompt_type_var.set("system")
+        self._load_prompt_library()
+    
+    def _create_custom_instructions_content(self, parent):
+        """Create content for Custom Instructions sub-tab"""
+        # Info bar
+        info_bar = tk.Frame(parent, bg='#f3e5f5', relief='solid', borderwidth=1)
+        info_bar.pack(fill='x', padx=5, pady=5)
+        
+        tk.Label(info_bar, text="📝 Custom Instructions - Project-specific rules added to System Prompts",
+                font=('Segoe UI', 9, 'bold'), bg='#f3e5f5').pack(side='left', padx=10, pady=5)
+        
+        # Split pane
+        main_paned = ttk.PanedWindow(parent, orient='horizontal')
+        main_paned.pack(fill='both', expand=True, padx=5, pady=5)
+        
+        # LEFT: Custom Instructions list
+        list_frame = tk.LabelFrame(main_paned, text="Available Custom Instructions", padx=5, pady=5)
+        main_paned.add(list_frame, weight=1)
+        
+        tree_scroll = ttk.Scrollbar(list_frame, orient='vertical')
+        tree_scroll.pack(side='right', fill='y')
+        
+        self.custom_instructions_tree = ttk.Treeview(list_frame, 
+                                               columns=('domain', 'version'),
+                                               show='tree headings', yscrollcommand=tree_scroll.set)
+        tree_scroll.config(command=self.custom_instructions_tree.yview)
+        
+        self.custom_instructions_tree.heading('#0', text='Instruction Name')
+        self.custom_instructions_tree.heading('domain', text='Domain')
+        self.custom_instructions_tree.heading('version', text='Version')
+        
+        self.custom_instructions_tree.column('#0', width=350)
+        self.custom_instructions_tree.column('domain', width=200)
+        self.custom_instructions_tree.column('version', width=70)
+        
+        self.custom_instructions_tree.pack(fill='both', expand=True)
+        self.custom_instructions_tree.bind('<<TreeviewSelect>>', self._on_custom_instruction_select)
+        
+        # RIGHT: Editor  
+        editor_frame = tk.LabelFrame(main_paned, text="Instruction Content", padx=5, pady=5)
+        main_paned.add(editor_frame, weight=2)
+        
+        # LOAD BUTTON AT TOP
+        load_frame = tk.Frame(editor_frame, bg='#f3e5f5', relief='solid', borderwidth=1)
+        load_frame.pack(fill='x', padx=5, pady=(0, 10))
+        
+        tk.Label(load_frame, text="📝 Load Custom Instruction:", font=('Segoe UI', 9, 'bold'),
+                bg='#f3e5f5').pack(side='left', padx=10, pady=5)
+        
+        tk.Button(load_frame, text="📝 Load into Settings Tab",
+                 command=self._load_as_custom_instruction,
+                 bg='#9C27B0', fg='white', font=('Segoe UI', 10, 'bold')).pack(side='left', padx=5, pady=5)
+        
+        tk.Label(load_frame, text="(Custom Instructions are added ON TOP of active System Prompt)",
+                font=('Segoe UI', 8), bg='#f3e5f5', fg='#666').pack(side='left', padx=10)
+        
+        # Metadata + editor (shared method - reuses the same vars)
+        self._create_prompt_editor_widgets(editor_frame)
+        
+        # Bottom buttons
+        button_frame = tk.Frame(parent)
+        button_frame.pack(fill='x', padx=5, pady=5)
+        
+        tk.Button(button_frame, text="➕ New Custom Instruction",
+                 command=lambda: self._create_new_prompt(is_system=False),
+                 bg='#9C27B0', fg='white', font=('Segoe UI', 9, 'bold')).pack(side='left', padx=2)
+        tk.Button(button_frame, text="📥 Import",
+                 command=self._import_prompt,
+                 bg='#607D8B', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
+        tk.Button(button_frame, text="📤 Export Selected",
+                 command=self._export_selected_prompt,
+                 bg='#607D8B', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
+        
+        # Load custom instructions
+        self._load_custom_instructions()
+    
+    def _on_custom_instruction_select(self, event=None):
+        """Handle custom instruction selection"""
+        selection = self.custom_instructions_tree.selection()
+        if not selection:
+            # Clear editor
+            self.prompt_name_var.set("")
+            self.prompt_domain_var.set("")
+            self.prompt_task_type_var.set("Translation")
+            self.prompt_version_var.set("")
+            self.prompt_description_text.delete('1.0', tk.END)
+            self.prompt_content_text.delete('1.0', tk.END)
+            self.current_editing_prompt = None
+            return
+        
+        item = selection[0]
+        filename = self.custom_instructions_tree.item(item, 'tags')[0]
+        
+        # Load full prompt data
+        prompt_data = self.prompt_library.get_prompt(filename)
+        if not prompt_data:
+            return
+        
+        # Store reference
+        self.current_editing_prompt = filename
+        
+        # Populate editor fields (same as system prompts)
+        self.prompt_name_var.set(prompt_data.get('name', ''))
+        self.prompt_domain_var.set(prompt_data.get('domain', 'General'))
+        self.prompt_task_type_var.set(prompt_data.get('task_type', 'Translation'))
+        self.prompt_version_var.set(prompt_data.get('version', '1.0'))
+        
+        self.prompt_description_text.delete('1.0', tk.END)
+        self.prompt_description_text.insert('1.0', prompt_data.get('description', ''))
+        
+        self.prompt_content_text.delete('1.0', tk.END)
+        self.prompt_content_text.insert('1.0', prompt_data.get('translate_prompt', ''))
+    
+    def _load_custom_instructions(self):
+        """Load custom instructions into the custom instructions tree"""
+        # Clear existing
+        for item in self.custom_instructions_tree.get_children():
+            self.custom_instructions_tree.delete(item)
+        
+        # Load from PromptLibrary
+        prompts = self.prompt_library.get_prompt_list()
+        
+        for prompt_info in prompts:
+            # Only show custom instructions
+            is_system = prompt_info.get('_type', 'system_prompt') == 'system_prompt'
+            if is_system:
+                continue
+            
+            domain = prompt_info.get('domain', '')
+            version = prompt_info.get('version', '1.0')
+            name = prompt_info.get('name', 'Unnamed')
+            
+            self.custom_instructions_tree.insert('', 'end', text=name,
+                                          values=(domain, version),
+                                          tags=(prompt_info.get('filename'),))
+    
+    def _create_prompt_editor_widgets(self, parent):
+        """Create the shared editor widgets (metadata, description, content, buttons)"""
+        # Metadata
+        meta_frame = tk.Frame(parent)
+        meta_frame.pack(fill='x', padx=5, pady=5)
+        
+        tk.Label(meta_frame, text="Name:", font=('Segoe UI', 9, 'bold')).grid(row=0, column=0, sticky='w', padx=(0, 5))
+        tk.Entry(meta_frame, textvariable=self.prompt_name_var, font=('Segoe UI', 9), width=40).grid(row=0, column=1, sticky='ew', padx=5)
+        
+        tk.Label(meta_frame, text="Domain:", font=('Segoe UI', 9, 'bold')).grid(row=0, column=2, sticky='w', padx=(20, 5))
+        tk.Entry(meta_frame, textvariable=self.prompt_domain_var, font=('Segoe UI', 9), width=25).grid(row=0, column=3, sticky='ew', padx=5)
+        
+        tk.Label(meta_frame, text="Task Type:", font=('Segoe UI', 9, 'bold')).grid(row=1, column=0, sticky='w', padx=(0, 5), pady=(5, 0))
+        task_type_combo = ttk.Combobox(meta_frame, textvariable=self.prompt_task_type_var,
+                                       values=["Translation", "Localization", "Transcreation", "Proofreading", 
+                                              "QA", "Copyediting", "Post-editing", "Terminology Extraction"],
+                                       width=18, state='readonly')
+        task_type_combo.grid(row=1, column=1, sticky='w', padx=5, pady=(5, 0))
+        
+        tk.Label(meta_frame, text="Version:", font=('Segoe UI', 9, 'bold')).grid(row=1, column=2, sticky='w', padx=(20, 5), pady=(5, 0))
+        tk.Entry(meta_frame, textvariable=self.prompt_version_var, font=('Segoe UI', 9), width=10).grid(row=1, column=3, sticky='w', padx=5, pady=(5, 0))
+        
+        meta_frame.columnconfigure(1, weight=1)
+        meta_frame.columnconfigure(3, weight=1)
+        
+        # Description
+        tk.Label(parent, text="Description:", font=('Segoe UI', 9, 'bold')).pack(anchor='w', padx=5, pady=(10, 2))
+        if not hasattr(self, 'prompt_description_text') or not self.prompt_description_text.winfo_exists():
+            self.prompt_description_text = tk.Text(parent, height=2, font=('Segoe UI', 9), wrap='word')
+        self.prompt_description_text.pack(fill='x', padx=5, pady=(0, 5))
+        
+        # Prompt content
+        tk.Label(parent, text="Prompt Content:", font=('Segoe UI', 9, 'bold')).pack(anchor='w', padx=5, pady=(5, 2))
+        
+        content_scroll = tk.Scrollbar(parent)
+        content_scroll.pack(side='right', fill='y', padx=(0, 5))
+        
+        if not hasattr(self, 'prompt_content_text') or not self.prompt_content_text.winfo_exists():
+            self.prompt_content_text = tk.Text(parent, wrap='word', font=('Consolas', 9),
+                                              yscrollcommand=content_scroll.set)
+        else:
+            self.prompt_content_text.config(yscrollcommand=content_scroll.set)
+        self.prompt_content_text.pack(fill='both', expand=True, padx=5, pady=(0, 5))
+        content_scroll.config(command=self.prompt_content_text.yview)
+        
+        # Editor buttons
+        editor_btn_frame = tk.Frame(parent)
+        editor_btn_frame.pack(fill='x', padx=5, pady=(0, 5))
+        
+        tk.Button(editor_btn_frame, text="💾 Save Changes",
+                 command=self._save_prompt_changes,
+                 bg='#4CAF50', fg='white', font=('Segoe UI', 9, 'bold')).pack(side='left', padx=2)
+        tk.Button(editor_btn_frame, text="↩️ Revert",
+                 command=self._revert_prompt_changes,
+                 bg='#9E9E9E', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
+        tk.Button(editor_btn_frame, text="🗑️ Delete",
+                 command=self._delete_selected_prompt,
+                 bg='#F44336', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
+    
+    def maximize_prompt_library(self):
+        """Maximize Prompt Library to full window (hide start screen/workspace)"""
+        # Clear current content
+        for widget in self.content_frame.winfo_children():
+            widget.destroy()
+        
+        # Create full-screen prompt library
+        full_frame = tk.Frame(self.content_frame, bg='white')
+        full_frame.pack(fill='both', expand=True)
+        
+        # Header with restore button
+        header = tk.Frame(full_frame, bg='#e3f2fd', relief='solid', borderwidth=1)
+        header.pack(fill='x', padx=5, pady=5)
+        
+        tk.Label(header, text="🎯 Prompt Library (Maximized)", font=('Segoe UI', 11, 'bold'),
+                bg='#e3f2fd').pack(side='left', padx=10, pady=5)
+        
+        tk.Button(header, text="◱ Restore", command=self.restore_from_maximize,
+                 bg='#9E9E9E', fg='white', font=('Segoe UI', 9)).pack(side='right', padx=10)
+        
+        # Compact bar with active prompts and filters
+        compact_bar = tk.Frame(full_frame, bg='#f5f5f5', relief='solid', borderwidth=1)
+        compact_bar.pack(fill='x', padx=5, pady=(0, 5))
+        
+        # Active prompts (left)
+        active_section = tk.Frame(compact_bar, bg='#f5f5f5')
+        active_section.pack(side='left', fill='x', expand=True, padx=10, pady=5)
+        
+        tk.Label(active_section, text="Active:", font=('Segoe UI', 8, 'bold'),
+                bg='#f5f5f5').pack(side='left', padx=(0, 5))
+        tk.Label(active_section, text="Trans:", font=('Segoe UI', 8),
+                bg='#f5f5f5').pack(side='left', padx=(0, 2))
+        
+        translate_name = "Default"
+        if hasattr(self, 'active_translate_prompt_name') and self.active_translate_prompt_name:
+            translate_name = self.active_translate_prompt_name
+        tk.Label(active_section, text=translate_name,
+                font=('Segoe UI', 8), bg='#f5f5f5', fg='#2196F3').pack(side='left', padx=(0, 10))
+        
+        tk.Label(active_section, text="Proof:", font=('Segoe UI', 8),
+                bg='#f5f5f5').pack(side='left', padx=(0, 2))
+        proofread_name = "Default"
+        if hasattr(self, 'active_proofread_prompt_name') and self.active_proofread_prompt_name:
+            proofread_name = self.active_proofread_prompt_name
+        tk.Label(active_section, text=proofread_name,
+                font=('Segoe UI', 8), bg='#f5f5f5', fg='#2196F3').pack(side='left')
+        
+        # Filters (right)
+        filter_section = tk.Frame(compact_bar, bg='#f5f5f5')
+        filter_section.pack(side='right', padx=10, pady=5)
+        
+        tk.Label(filter_section, text="Type:", font=('Segoe UI', 8)).pack(side='left', padx=(0, 3))
+        type_options = [("All", "all"), ("System", "system"), ("Custom", "custom")]
+        for text, value in type_options:
+            tk.Radiobutton(filter_section, text=text, variable=self.prompt_type_var, value=value,
+                          command=self._filter_prompt_library, font=('Segoe UI', 8),
+                          bg='#f5f5f5').pack(side='left', padx=2)
+        
+        tk.Label(filter_section, text="Task:", font=('Segoe UI', 8)).pack(side='left', padx=(10, 3))
+        task_types = ["All Tasks", "Translation", "Localization", "Transcreation", "Proofreading", 
+                     "QA", "Copyediting", "Post-editing", "Terminology Extraction"]
+        task_combo = ttk.Combobox(filter_section, textvariable=self.task_type_var,
+                                 values=task_types, width=15, state='readonly',
+                                 font=('Segoe UI', 8))
+        task_combo.pack(side='left', padx=3)
+        task_combo.bind('<<ComboboxSelected>>', lambda e: self._filter_prompt_library())
+        
+        # Horizontal split pane
+        main_paned = ttk.PanedWindow(full_frame, orient='horizontal')
+        main_paned.pack(fill='both', expand=True, padx=5, pady=0)
+        
+        # LEFT: Use existing treeview (just reparent it)
         list_frame = tk.LabelFrame(main_paned, text="Available Prompts", padx=5, pady=5)
         main_paned.add(list_frame, weight=1)
         
-        # Treeview
+        tree_scroll = ttk.Scrollbar(list_frame, orient='vertical')
+        tree_scroll.pack(side='right', fill='y')
+        
+        # Recreate treeview in maximized view
+        max_tree = ttk.Treeview(list_frame, 
+                               columns=('type', 'task_type', 'domain', 'version'),
+                               show='tree headings', yscrollcommand=tree_scroll.set)
+        tree_scroll.config(command=max_tree.yview)
+        
+        max_tree.heading('#0', text='Prompt Name')
+        max_tree.heading('type', text='Type')
+        max_tree.heading('task_type', text='Task Type')
+        max_tree.heading('domain', text='Domain')
+        max_tree.heading('version', text='Version')
+        
+        max_tree.column('#0', width=250)
+        max_tree.column('type', width=150)
+        max_tree.column('task_type', width=120)
+        max_tree.column('domain', width=150)
+        max_tree.column('version', width=70)
+        
+        max_tree.pack(fill='both', expand=True)
+        max_tree.bind('<<TreeviewSelect>>', self._on_prompt_select)
+        max_tree.bind('<Double-1>', lambda e: self._apply_selected_prompt())
+        
+        # Temporarily store old tree and replace
+        old_tree = self.prompt_library_tree
+        self.prompt_library_tree = max_tree
+        
+        # Load prompts into new tree
+        self._load_prompt_library()
+        
+        # RIGHT: Editor (reuse existing widgets by updating their parents would be complex,
+        # so we'll just note that the existing editor widgets work)
+        editor_frame = tk.LabelFrame(main_paned, text="Prompt Content", padx=5, pady=5)
+        main_paned.add(editor_frame, weight=2)
+        
+        # ACTIVATION BUTTONS AT TOP
+        activate_frame = tk.Frame(editor_frame, bg='#FFF3E0', relief='solid', borderwidth=1)
+        activate_frame.pack(fill='x', padx=5, pady=(0, 10))
+        
+        tk.Label(activate_frame, text="⚡ Quick Actions:", font=('Segoe UI', 9, 'bold'),
+                bg='#FFF3E0').pack(side='left', padx=10, pady=5)
+        
+        tk.Button(activate_frame, text="⚡ ACTIVATE for Translation",
+                 command=lambda: self._apply_selected_prompt(slot='translate'),
+                 bg='#FF9800', fg='white', font=('Segoe UI', 10, 'bold')).pack(side='left', padx=5, pady=5)
+        tk.Button(activate_frame, text="⚡ ACTIVATE for Proofreading",
+                 command=lambda: self._apply_selected_prompt(slot='proofread'),
+                 bg='#FF9800', fg='white', font=('Segoe UI', 10, 'bold')).pack(side='left', padx=5, pady=5)
+        
+        tk.Label(activate_frame, text="|", font=('Segoe UI', 12), bg='#FFF3E0').pack(side='left', padx=10)
+        
+        tk.Button(activate_frame, text="📝 Load as Custom Instruction",
+                 command=self._load_as_custom_instruction,
+                 bg='#9C27B0', fg='white', font=('Segoe UI', 10, 'bold')).pack(side='left', padx=5, pady=5)
+        
+        # Metadata
+        meta_frame = tk.Frame(editor_frame)
+        meta_frame.pack(fill='x', padx=5, pady=5)
+        
+        tk.Label(meta_frame, text="Name:", font=('Segoe UI', 9, 'bold')).grid(row=0, column=0, sticky='w', padx=(0, 5))
+        name_entry = tk.Entry(meta_frame, textvariable=self.prompt_name_var, font=('Segoe UI', 9), width=40)
+        name_entry.grid(row=0, column=1, sticky='ew', padx=5)
+        
+        tk.Label(meta_frame, text="Domain:", font=('Segoe UI', 9, 'bold')).grid(row=0, column=2, sticky='w', padx=(20, 5))
+        domain_entry = tk.Entry(meta_frame, textvariable=self.prompt_domain_var, font=('Segoe UI', 9), width=25)
+        domain_entry.grid(row=0, column=3, sticky='ew', padx=5)
+        
+        tk.Label(meta_frame, text="Task Type:", font=('Segoe UI', 9, 'bold')).grid(row=1, column=0, sticky='w', padx=(0, 5), pady=(5, 0))
+        task_combo2 = ttk.Combobox(meta_frame, textvariable=self.prompt_task_type_var,
+                                   values=["Translation", "Localization", "Transcreation", "Proofreading", 
+                                          "QA", "Copyediting", "Post-editing", "Terminology Extraction"],
+                                   width=18, state='readonly')
+        task_combo2.grid(row=1, column=1, sticky='w', padx=5, pady=(5, 0))
+        
+        tk.Label(meta_frame, text="Version:", font=('Segoe UI', 9, 'bold')).grid(row=1, column=2, sticky='w', padx=(20, 5), pady=(5, 0))
+        version_entry = tk.Entry(meta_frame, textvariable=self.prompt_version_var, font=('Segoe UI', 9), width=10)
+        version_entry.grid(row=1, column=3, sticky='w', padx=5, pady=(5, 0))
+        
+        meta_frame.columnconfigure(1, weight=1)
+        meta_frame.columnconfigure(3, weight=1)
+        
+        # Description
+        tk.Label(editor_frame, text="Description:", font=('Segoe UI', 9, 'bold')).pack(anchor='w', padx=5, pady=(10, 2))
+        desc_text = tk.Text(editor_frame, height=2, font=('Segoe UI', 9), wrap='word')
+        desc_text.pack(fill='x', padx=5, pady=(0, 5))
+        
+        # Update reference
+        old_desc = self.prompt_description_text
+        self.prompt_description_text = desc_text
+        
+        # Content
+        tk.Label(editor_frame, text="Prompt Content:", font=('Segoe UI', 9, 'bold')).pack(anchor='w', padx=5, pady=(5, 2))
+        
+        content_scroll = tk.Scrollbar(editor_frame)
+        content_scroll.pack(side='right', fill='y', padx=(0, 5))
+        
+        content_text = tk.Text(editor_frame, wrap='word', font=('Consolas', 9),
+                              yscrollcommand=content_scroll.set)
+        content_text.pack(fill='both', expand=True, padx=5, pady=(0, 5))
+        content_scroll.config(command=content_text.yview)
+        
+        # Update reference
+        old_content = self.prompt_content_text
+        self.prompt_content_text = content_text
+        
+        # Editor buttons
+        editor_btn_frame = tk.Frame(editor_frame)
+        editor_btn_frame.pack(fill='x', padx=5, pady=(0, 5))
+        
+        tk.Button(editor_btn_frame, text="💾 Save Changes",
+                 command=self._save_prompt_changes,
+                 bg='#4CAF50', fg='white', font=('Segoe UI', 9, 'bold')).pack(side='left', padx=2)
+        tk.Button(editor_btn_frame, text="↩️ Revert",
+                 command=self._revert_prompt_changes,
+                 bg='#9E9E9E', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
+        tk.Button(editor_btn_frame, text="🗑️ Delete",
+                 command=self._delete_selected_prompt,
+                 bg='#F44336', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
+        
+        # Bottom buttons
+        button_frame = tk.Frame(full_frame)
+        button_frame.pack(fill='x', padx=5, pady=5)
+        
+        tk.Button(button_frame, text="➕ New Prompt",
+                 command=self._create_new_prompt,
+                 bg='#9C27B0', fg='white', font=('Segoe UI', 9, 'bold')).pack(side='left', padx=2)
+        tk.Button(button_frame, text="📥 Import",
+                 command=self._import_prompt,
+                 bg='#607D8B', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
+        tk.Button(button_frame, text="📤 Export Selected",
+                 command=self._export_selected_prompt,
+                 bg='#607D8B', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
+        
+        self.log("📖 Prompt Library maximized")
+    
+    def restore_from_maximize(self):
+        """Restore to normal layout"""
+        # Clear maximized view
+        for widget in self.content_frame.winfo_children():
+            widget.destroy()
+        
+        # Recreate normal layout
+        self.create_layout_ui()
+        self.log("↩️ Restored normal view")
+    
+    def create_prompt_library_content(self, parent):
+        """Create prompt library content (used by both tab and maximized view)"""
+        # Compact info bar: Active prompts + Filters
+        compact_bar = tk.Frame(parent, bg='#f5f5f5', relief='solid', borderwidth=1)
+        compact_bar.pack(fill='x', padx=5, pady=5)
+        
+        # Left side: Active prompts
+        active_section = tk.Frame(compact_bar, bg='#f5f5f5')
+        active_section.pack(side='left', fill='x', expand=True, padx=10, pady=5)
+        
+        tk.Label(active_section, text="Active:", font=('Segoe UI', 8, 'bold'),
+                bg='#f5f5f5').pack(side='left', padx=(0, 5))
+        tk.Label(active_section, text="Trans:", font=('Segoe UI', 8),
+                bg='#f5f5f5').pack(side='left', padx=(0, 2))
+        if not hasattr(self, 'active_translate_label_max'):
+            self.active_translate_label_max = tk.Label(active_section, text="Default",
+                                                  font=('Segoe UI', 8), bg='#f5f5f5', fg='#2196F3')
+        self.active_translate_label_max.pack(side='left', padx=(0, 10))
+        
+        tk.Label(active_section, text="Proof:", font=('Segoe UI', 8),
+                bg='#f5f5f5').pack(side='left', padx=(0, 2))
+        if not hasattr(self, 'active_proofread_label_max'):
+            self.active_proofread_label_max = tk.Label(active_section, text="Default",
+                                                  font=('Segoe UI', 8), bg='#f5f5f5', fg='#2196F3')
+        self.active_proofread_label_max.pack(side='left')
+        
+        # Right side: Filters
+        filter_section = tk.Frame(compact_bar, bg='#f5f5f5')
+        filter_section.pack(side='right', padx=10, pady=5)
+        
+        tk.Label(filter_section, text="Type:", font=('Segoe UI', 8)).pack(side='left', padx=(0, 3))
+        if not hasattr(self, 'prompt_type_var'):
+            self.prompt_type_var = tk.StringVar(value="all")
+        type_options = [("All", "all"), ("System", "system"), ("Custom", "custom")]
+        for text, value in type_options:
+            tk.Radiobutton(filter_section, text=text, variable=self.prompt_type_var, value=value,
+                          command=self._filter_prompt_library, font=('Segoe UI', 8),
+                          bg='#f5f5f5').pack(side='left', padx=2)
+        
+        tk.Label(filter_section, text="Task:", font=('Segoe UI', 8)).pack(side='left', padx=(10, 3))
+        if not hasattr(self, 'task_type_var'):
+            self.task_type_var = tk.StringVar(value="All Tasks")
+        task_types = ["All Tasks", "Translation", "Localization", "Transcreation", "Proofreading", 
+                     "QA", "Copyediting", "Post-editing", "Terminology Extraction"]
+        task_combo = ttk.Combobox(filter_section, textvariable=self.task_type_var,
+                                 values=task_types, width=15, state='readonly',
+                                 font=('Segoe UI', 8))
+        task_combo.pack(side='left', padx=3)
+        task_combo.bind('<<ComboboxSelected>>', lambda e: self._filter_prompt_library())
+        
+        # Split pane
+        main_paned = ttk.PanedWindow(parent, orient='horizontal')
+        main_paned.pack(fill='both', expand=True, padx=5, pady=0)
+        
+        # LEFT: Prompt list
+        list_frame = tk.LabelFrame(main_paned, text="Available Prompts", padx=5, pady=5)
+        main_paned.add(list_frame, weight=1)
+        
         tree_scroll = ttk.Scrollbar(list_frame, orient='vertical')
         tree_scroll.pack(side='right', fill='y')
         
@@ -4215,62 +4779,61 @@ class Supervertaler:
         self.prompt_library_tree.column('version', width=70)
         
         self.prompt_library_tree.pack(fill='both', expand=True)
-        
-        # Bind selection event
         self.prompt_library_tree.bind('<<TreeviewSelect>>', self._on_prompt_select)
         
-        # RIGHT PANE: Prompt editor
+        # RIGHT: Editor
         editor_frame = tk.LabelFrame(main_paned, text="Prompt Content", padx=5, pady=5)
         main_paned.add(editor_frame, weight=2)
         
-        # Metadata fields
+        # [Rest of editor code - metadata, description, content, buttons]
+        # (Reuse the same editor structure from the tab version)
         meta_frame = tk.Frame(editor_frame)
         meta_frame.pack(fill='x', padx=5, pady=5)
         
-        # Name
         tk.Label(meta_frame, text="Name:", font=('Segoe UI', 9, 'bold')).grid(row=0, column=0, sticky='w', padx=(0, 5))
-        self.prompt_name_var = tk.StringVar()
+        if not hasattr(self, 'prompt_name_var'):
+            self.prompt_name_var = tk.StringVar()
         tk.Entry(meta_frame, textvariable=self.prompt_name_var, font=('Segoe UI', 9), width=40).grid(row=0, column=1, sticky='ew', padx=5)
         
-        # Domain
         tk.Label(meta_frame, text="Domain:", font=('Segoe UI', 9, 'bold')).grid(row=0, column=2, sticky='w', padx=(20, 5))
-        self.prompt_domain_var = tk.StringVar()
+        if not hasattr(self, 'prompt_domain_var'):
+            self.prompt_domain_var = tk.StringVar()
         tk.Entry(meta_frame, textvariable=self.prompt_domain_var, font=('Segoe UI', 9), width=25).grid(row=0, column=3, sticky='ew', padx=5)
         
-        # Task Type
         tk.Label(meta_frame, text="Task Type:", font=('Segoe UI', 9, 'bold')).grid(row=1, column=0, sticky='w', padx=(0, 5), pady=(5, 0))
-        self.prompt_task_type_var = tk.StringVar()
+        if not hasattr(self, 'prompt_task_type_var'):
+            self.prompt_task_type_var = tk.StringVar()
         task_type_combo = ttk.Combobox(meta_frame, textvariable=self.prompt_task_type_var,
                                        values=["Translation", "Localization", "Transcreation", "Proofreading", 
                                               "QA", "Copyediting", "Post-editing", "Terminology Extraction"],
                                        width=18, state='readonly')
         task_type_combo.grid(row=1, column=1, sticky='w', padx=5, pady=(5, 0))
         
-        # Version
         tk.Label(meta_frame, text="Version:", font=('Segoe UI', 9, 'bold')).grid(row=1, column=2, sticky='w', padx=(20, 5), pady=(5, 0))
-        self.prompt_version_var = tk.StringVar()
+        if not hasattr(self, 'prompt_version_var'):
+            self.prompt_version_var = tk.StringVar()
         tk.Entry(meta_frame, textvariable=self.prompt_version_var, font=('Segoe UI', 9), width=10).grid(row=1, column=3, sticky='w', padx=5, pady=(5, 0))
         
         meta_frame.columnconfigure(1, weight=1)
         meta_frame.columnconfigure(3, weight=1)
         
-        # Description
         tk.Label(editor_frame, text="Description:", font=('Segoe UI', 9, 'bold')).pack(anchor='w', padx=5, pady=(10, 2))
-        self.prompt_description_text = tk.Text(editor_frame, height=2, font=('Segoe UI', 9), wrap='word')
+        if not hasattr(self, 'prompt_description_text'):
+            self.prompt_description_text = tk.Text(editor_frame, height=2, font=('Segoe UI', 9), wrap='word')
         self.prompt_description_text.pack(fill='x', padx=5, pady=(0, 5))
         
-        # Prompt content
         tk.Label(editor_frame, text="Prompt Content:", font=('Segoe UI', 9, 'bold')).pack(anchor='w', padx=5, pady=(5, 2))
         
         content_scroll = tk.Scrollbar(editor_frame)
         content_scroll.pack(side='right', fill='y', padx=(0, 5))
         
-        self.prompt_content_text = tk.Text(editor_frame, wrap='word', font=('Consolas', 9),
-                                          yscrollcommand=content_scroll.set)
+        if not hasattr(self, 'prompt_content_text'):
+            self.prompt_content_text = tk.Text(editor_frame, wrap='word', font=('Consolas', 9),
+                                              yscrollcommand=content_scroll.set)
         self.prompt_content_text.pack(fill='both', expand=True, padx=5, pady=(0, 5))
         content_scroll.config(command=self.prompt_content_text.yview)
         
-        # Editor buttons
+        # Buttons
         editor_btn_frame = tk.Frame(editor_frame)
         editor_btn_frame.pack(fill='x', padx=5, pady=(0, 5))
         
@@ -4284,21 +4847,19 @@ class Supervertaler:
                  command=self._delete_selected_prompt,
                  bg='#F44336', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
         
-        tk.Button(editor_btn_frame, text="✅ Apply to Translation",
+        tk.Button(editor_btn_frame, text="⚡ ACTIVATE for Translation",
                  command=lambda: self._apply_selected_prompt(slot='translate'),
-                 bg='#2196F3', fg='white', font=('Segoe UI', 9)).pack(side='right', padx=2)
-        tk.Button(editor_btn_frame, text="✅ Apply to Proofreading",
+                 bg='#FF9800', fg='white', font=('Segoe UI', 9, 'bold')).pack(side='right', padx=2)
+        tk.Button(editor_btn_frame, text="⚡ ACTIVATE for Proofreading",
                  command=lambda: self._apply_selected_prompt(slot='proofread'),
-                 bg='#2196F3', fg='white', font=('Segoe UI', 9)).pack(side='right', padx=2)
+                 bg='#FF9800', fg='white', font=('Segoe UI', 9, 'bold')).pack(side='right', padx=2)
         
-        # Load prompts (ensure prompts are loaded first)
-        # Note: Don't log during early initialization - log_text may not exist yet
+        # Load prompts
         if not self.prompt_library.prompts:
-            # Temporarily save log callback and replace with silent version
             original_log = self.prompt_library.log
-            self.prompt_library.log = lambda msg: None  # Silent during tab creation
+            self.prompt_library.log = lambda msg: None
             self.prompt_library.load_all_prompts()
-            self.prompt_library.log = original_log  # Restore logging
+            self.prompt_library.log = original_log
         self._load_prompt_library()
         
         # Action buttons at bottom
@@ -4315,16 +4876,7 @@ class Supervertaler:
                  command=self._export_selected_prompt,
                  bg='#607D8B', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
         
-        # Help text
-        help_text = tk.Label(parent, 
-                           text="💡 Select a prompt to view/edit | System Prompts: global behavior | Custom Instructions: project-specific guidance",
-                           font=('Segoe UI', 8), fg='#666', bg='#f5f5f5')
-        help_text.pack(fill='x', padx=5, pady=2)
-        
-        # Bind double-click
         self.prompt_library_tree.bind('<Double-1>', lambda e: self._apply_selected_prompt())
-        
-        # Track current prompt being edited
         self.current_editing_prompt = None
     
     def _on_prompt_select(self, event=None):
@@ -4495,13 +5047,70 @@ class Supervertaler:
         
         self._update_active_prompt_labels()
     
-    def _create_new_prompt(self):
+    def _load_as_custom_instruction(self):
+        """Load selected prompt content into Custom Instructions field (Settings tab)"""
+        if not self.current_editing_prompt:
+            messagebox.showwarning("No Selection", "Please select a Custom Instruction to load")
+            return
+        
+        prompt_data = self.prompt_library.get_prompt(self.current_editing_prompt)
+        if not prompt_data:
+            return
+        
+        # Check if it's a custom instruction
+        is_custom = prompt_data.get('_type', 'system_prompt') == 'custom_instruction'
+        if not is_custom:
+            response = messagebox.askyesno("System Prompt Selected",
+                                          f"'{prompt_data['name']}' is a System Prompt.\n\n"
+                                          "System Prompts should be ACTIVATED for Translation/Proofreading.\n"
+                                          "Custom Instructions are project-specific rules.\n\n"
+                                          "Load it as Custom Instruction anyway?")
+            if not response:
+                return
+        
+        # Load into custom instructions text field
+        if hasattr(self, 'custom_instructions_text'):
+            current = self.custom_instructions_text.get('1.0', 'end-1c').strip()
+            
+            # Check if placeholder
+            if self.is_custom_instructions_placeholder(current):
+                # Replace placeholder
+                self.custom_instructions_text.delete('1.0', tk.END)
+                self.custom_instructions_text.insert('1.0', prompt_data['translate_prompt'])
+                self.log(f"📝 Loaded '{prompt_data['name']}' as Custom Instructions")
+            else:
+                # Ask to append or replace
+                choice = messagebox.askyesnocancel("Custom Instructions Already Set",
+                                                   "Custom Instructions already exist.\n\n"
+                                                   "Yes = Append to existing\n"
+                                                   "No = Replace existing\n"
+                                                   "Cancel = Don't load",
+                                                   icon='question')
+                if choice is None:  # Cancel
+                    return
+                elif choice:  # Yes - Append
+                    self.custom_instructions_text.insert(tk.END, "\n\n" + prompt_data['translate_prompt'])
+                    self.log(f"📝 Appended '{prompt_data['name']}' to Custom Instructions")
+                else:  # No - Replace
+                    self.custom_instructions_text.delete('1.0', tk.END)
+                    self.custom_instructions_text.insert('1.0', prompt_data['translate_prompt'])
+                    self.log(f"📝 Replaced Custom Instructions with '{prompt_data['name']}'")
+            
+            # Switch to Settings tab to show the result
+            messagebox.showinfo("Success", 
+                              f"'{prompt_data['name']}' loaded into Custom Instructions.\n\n"
+                              "You can view/edit it in the Settings tab.")
+        else:
+            messagebox.showwarning("Not Available", "Custom Instructions field not initialized yet")
+    
+    def _create_new_prompt(self, is_system=None):
         """Create a new blank prompt"""
-        # Ask for prompt type
-        is_system = messagebox.askyesno("Prompt Type",
-                                       "Create as System Prompt?\n\n"
-                                       "Yes = System Prompt (global)\n"
-                                       "No = Custom Instruction (project-specific)")
+        # Ask for prompt type if not specified
+        if is_system is None:
+            is_system = messagebox.askyesno("Prompt Type",
+                                           "Create as System Prompt?\n\n"
+                                           "Yes = System Prompt (global)\n"
+                                           "No = Custom Instruction (project-specific)")
         
         # Create new blank prompt data
         new_name = "New Prompt"
@@ -4586,26 +5195,21 @@ class Supervertaler:
     
     def _update_active_prompt_labels(self):
         """Update the active prompt display labels"""
+        # Only update if labels exist (they're created in Prompt Library tab)
+        if not hasattr(self, 'active_translate_label'):
+            return
+            
         # Translation prompt name
-        translate_name = "Default Translation Prompt"
+        translate_name = "Default"
         if hasattr(self, 'active_translate_prompt_name') and self.active_translate_prompt_name:
             translate_name = self.active_translate_prompt_name
         self.active_translate_label.config(text=translate_name)
         
         # Proofreading prompt name
-        proofread_name = "Default Proofreading Prompt"
+        proofread_name = "Default"
         if hasattr(self, 'active_proofread_prompt_name') and self.active_proofread_prompt_name:
             proofread_name = self.active_proofread_prompt_name
         self.active_proofread_label.config(text=proofread_name)
-        
-        # Custom instructions
-        custom_text = "None (project-specific)"
-        if hasattr(self, 'custom_instructions_text'):
-            text = self.custom_instructions_text.get('1.0', 'end-1c').strip()
-            if text and not self.is_custom_instructions_placeholder(text):
-                # Show first 50 chars
-                custom_text = text[:50] + "..." if len(text) > 50 else text
-        self.active_custom_label.config(text=custom_text)
     
     def _load_prompt_library(self):
         """Load all prompts into the library tree"""
@@ -4619,7 +5223,6 @@ class Supervertaler:
         for prompt_info in prompts:
             # Determine prompt type from _type field
             is_system = prompt_info.get('_type', 'system_prompt') == 'system_prompt'
-            prompt_type = "System Prompt" if is_system else "Custom Instruction"
             task_type = prompt_info.get('task_type', 'Translation')
             domain = prompt_info.get('domain', '')
             version = prompt_info.get('version', '1.0')
@@ -4629,8 +5232,9 @@ class Supervertaler:
             if not self._should_show_prompt(prompt_info):
                 continue
             
+            # Insert into tree (no Type column - handled by tabs)
             self.prompt_library_tree.insert('', 'end', text=name,
-                                          values=(prompt_type, task_type, domain, version),
+                                          values=(task_type, domain, version),
                                           tags=(prompt_info.get('filename'),))
     
     def _filter_prompt_library(self):
