@@ -1,7 +1,6 @@
 {
     "version":  "1.0",
-    "task_type": "Translation",
-    "name":  "Gaming & Entertainment Specialist",
+    "name":  "Gaming \u0026 Entertainment Specialist",
     "domain":  "Gaming/Entertainment",
     "description":  "Specialized prompts for gaming, entertainment, and interactive media translation with focus on user experience and cultural adaptation",
     "proofread_prompt":  "You are a gaming translation quality assurance specialist reviewing a translation from {source_lang} to {target_lang}. Your role is to ensure the translation provides an engaging user experience and appropriate cultural adaptation.\n\nEvaluation criteria:\n- Gaming terminology accuracy and market appropriateness\n- Character voice consistency and personality preservation\n- Cultural adaptation effectiveness for target audience\n- User interface clarity and functionality\n- Narrative flow and engagement quality\n- Technical instruction clarity for gameplay\n- Cultural sensitivity and age-appropriate content\n- Market-specific gaming convention adherence\n\nProvide specific feedback on:\n- Gaming terminology errors or inconsistencies\n- Character voice or personality issues\n- Cultural adaptation problems or missed opportunities\n- User interface clarity or functionality concerns\n- Narrative flow disruptions or engagement issues\n- Technical instruction confusion or ambiguity\n- Cultural sensitivity concerns\n- Market convention deviations or improvements\n\nReview the following gaming/entertainment translation:",
