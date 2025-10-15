@@ -325,6 +325,86 @@ Direct support for bilingual DOCX files from professional CAT tools (CafeTran, m
 3. **In CAT tool**: Reimport translated DOCX
 4. **Result**: Translated segments with formatting preserved, ready for review
 
+### PDF Rescue - AI-Powered OCR Tool (v3.5.0-beta)
+
+**What is it?**  
+PDF Rescue is a specialized AI-powered OCR tool built into Supervertaler v3.5.0-beta. It extracts clean, editable text from badly formatted, scanned, or damaged PDFs using GPT-4 Vision—perfect for those "impossible" translation jobs.
+
+**The Problem It Solves**:
+Have you ever received a PDF where:
+- Text won't copy-paste cleanly (broken line breaks)
+- Traditional OCR produces gibberish
+- Formatting is completely destroyed
+- Redacted sections show as black boxes
+- Stamps and signatures clutter the text
+- Manual retyping would take hours
+
+**PDF Rescue fixes all of this.**
+
+**How it works**:
+1. **Import PDF**: Click "📄 PDF" button → select badly-formatted PDF
+2. **Automatic extraction**: PyMuPDF extracts each page as high-quality PNG (2x resolution)
+3. **AI OCR**: GPT-4 Vision processes images and extracts clean text
+4. **Smart handling**: Detects redactions, stamps, signatures → inserts descriptive placeholders
+5. **Export DOCX**: Clean, formatted Word document ready for translation
+
+**Key Features**:
+- ✅ **One-click PDF import** - No external tools needed
+- ✅ **GPT-4 Vision OCR** - Industry-leading accuracy
+- ✅ **Smart redaction handling** - Inserts language-aware placeholders (`[naam]`, `[bedrag]`, `[datum]`)
+- ✅ **Formatting preservation** - Optional markdown-based bold/italic/underline
+- ✅ **Batch processing** - Process entire documents at once
+- ✅ **Professional exports** - DOCX, session reports (MD), clipboard copy
+- ✅ **Full transparency** - "Show Prompt" button reveals exact AI instructions
+- ✅ **Persistent storage** - Images saved next to source PDF (client-deliverable!)
+
+**Real-World Success Story**:
+> *"Client reached out for rush job—4-page legal document scanned badly. Traditional OCR couldn't handle it. PDF Rescue's one-click import + AI OCR produced flawless Word doc. Multi-day nightmare became straightforward job delivered on time. Literally saved a client relationship."*  
+> — Michael Beijer, Professional Translator
+
+**Smart Features Explained**:
+
+**Language-Aware Redaction Handling**:
+- Dutch document: `De heer [naam] heeft €[bedrag] betaald op [datum]`
+- English document: `Mr. [name] paid $[amount] on [date]`
+- No manual language specification needed!
+
+**Stamp & Signature Detection**:
+- Identifies stamps: `[stempel]` (Dutch) or `[stamp]` (English)
+- Identifies signatures: `[handtekening]` (Dutch) or `[signature]` (English)
+- Contextual descriptions in square brackets
+
+**Optional Formatting**:
+- AI outputs markdown: `**bold**`, `*italic*`, `__underline__`
+- Preview shows markdown (temporary)
+- DOCX export has proper Word formatting (no visible markers)
+- Toggle on/off via checkbox
+
+**When to use PDF Rescue**:
+- ✅ Badly formatted scanned PDFs
+- ✅ Documents that won't copy-paste
+- ✅ Files with redactions/stamps/signatures
+- ✅ Traditional OCR fails
+- ✅ Client needs editable version
+- ✅ Legal documents with redactions
+- ✅ Government forms with stamps
+
+**Session Reports**:
+PDF Rescue generates professional markdown reports with:
+- Complete configuration record
+- Processing summary table (all images + status)
+- Full extracted text with page separators
+- Statistics (character/word counts)
+- Supervertaler branding (client-ready deliverable)
+
+**Standalone Mode**:
+Can run independently outside Supervertaler:
+```bash
+python modules/pdf_rescue.py
+```
+
+**Full Documentation**: See [`docs/guides/PDF_RESCUE.md`](PDF_RESCUE.md) for complete guide
+
 ### Translation Memory (TM) Integration
 
 **What is it?**  
