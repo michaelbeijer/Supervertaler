@@ -155,8 +155,16 @@ class PDFRescue:
                       font=('Segoe UI', 9)).pack(side='left', padx=(20, 0))
         
         # Custom instructions
-        tk.Label(options_frame, text="Extraction Instructions:", 
-                font=('Segoe UI', 9)).pack(anchor='w', pady=(5, 2))
+        instructions_header = tk.Frame(options_frame)
+        instructions_header.pack(fill='x', pady=(5, 2))
+        
+        tk.Label(instructions_header, text="Extraction Instructions:", 
+                font=('Segoe UI', 9)).pack(side='left')
+        
+        tk.Button(instructions_header, text="👁️ Show Prompt", 
+                 command=self._show_full_prompt,
+                 bg='#9C27B0', fg='white', font=('Segoe UI', 8),
+                 padx=8, pady=2).pack(side='right')
         
         self.instructions_text = scrolledtext.ScrolledText(options_frame, wrap='word',
                                                           font=('Segoe UI', 9),
@@ -200,6 +208,11 @@ Please:
         tk.Button(action_frame, text="📋 Copy All", 
                  command=self._copy_all_text,
                  bg='#607D8B', fg='white', font=('Segoe UI', 9, 'bold'),
+                 padx=15, pady=6).pack(side='left', padx=5)
+        
+        tk.Button(action_frame, text="📊 Session Report", 
+                 command=self._save_session_report,
+                 bg='#795548', fg='white', font=('Segoe UI', 9, 'bold'),
                  padx=15, pady=6).pack(side='left', padx=5)
         
         # Status
@@ -378,6 +391,169 @@ Please:
             if file in self.extracted_texts:
                 self.preview_text.delete('1.0', tk.END)
                 self.preview_text.insert('1.0', self.extracted_texts[file])
+    
+    def _show_full_prompt(self):
+        """Show the exact prompt that will be sent to the AI"""
+        instructions = self.instructions_text.get('1.0', 'end-1c').strip()
+        
+        # Apply formatting modifications like in _extract_text_from_image
+        if self.preserve_formatting_var.get():
+            if "markdown for text formatting" not in instructions:
+                instructions += "\n- Use markdown for text formatting: **bold text**, *italic text*, __underlined text__"
+        else:
+            instructions = instructions.replace(
+                "\n- Use markdown for text formatting: **bold text**, *italic text*, __underlined text__", ""
+            ).replace(
+                "- Use markdown for text formatting: **bold text**, *italic text*, __underlined text__", ""
+            )
+        
+        # Create popup window
+        popup = tk.Toplevel()
+        popup.title("Full Prompt Preview")
+        popup.geometry("700x600")
+        
+        # Main frame
+        main_frame = tk.Frame(popup, padx=15, pady=15)
+        main_frame.pack(fill='both', expand=True)
+        
+        # Title
+        title = tk.Label(main_frame, text="Exact Prompt Sent to OpenAI API",
+                        font=('Segoe UI', 12, 'bold'))
+        title.pack(pady=(0, 10))
+        
+        # Info frame
+        info_frame = tk.LabelFrame(main_frame, text="Configuration", padx=10, pady=10)
+        info_frame.pack(fill='x', pady=(0, 10))
+        
+        tk.Label(info_frame, text=f"Model: {self.model_var.get()}", 
+                font=('Segoe UI', 9, 'bold')).pack(anchor='w')
+        
+        formatting_status = "✓ Enabled" if self.preserve_formatting_var.get() else "✗ Disabled"
+        tk.Label(info_frame, text=f"Formatting Preservation: {formatting_status}", 
+                font=('Segoe UI', 9)).pack(anchor='w')
+        
+        tk.Label(info_frame, text=f"Max Tokens: 4000", 
+                font=('Segoe UI', 9)).pack(anchor='w')
+        
+        # Prompt text
+        prompt_frame = tk.LabelFrame(main_frame, text="Full Instructions Text", 
+                                     padx=10, pady=10)
+        prompt_frame.pack(fill='both', expand=True, pady=(0, 10))
+        
+        prompt_text = scrolledtext.ScrolledText(prompt_frame, wrap='word',
+                                               font=('Consolas', 9))
+        prompt_text.pack(fill='both', expand=True)
+        prompt_text.insert('1.0', instructions)
+        prompt_text.config(state='disabled')
+        
+        # Note
+        note = tk.Label(main_frame, 
+                       text="Note: The image is sent as base64-encoded data along with these instructions.",
+                       font=('Segoe UI', 8), fg='#666')
+        note.pack(pady=(0, 5))
+        
+        # Close button
+        tk.Button(main_frame, text="Close", command=popup.destroy,
+                 bg='#607D8B', fg='white', font=('Segoe UI', 9, 'bold'),
+                 padx=20, pady=6).pack()
+    
+    def _save_session_report(self):
+        """Generate and save a session report in markdown format"""
+        if not self.extracted_texts:
+            messagebox.showwarning("No Data", "No OCR processing has been performed yet.\n\n"
+                                 "Process some images first to generate a session report.")
+            return
+        
+        # Ask for save location
+        output_file = filedialog.asksaveasfilename(
+            title="Save Session Report",
+            defaultextension=".md",
+            filetypes=[("Markdown files", "*.md"), ("Text files", "*.txt"), ("All files", "*.*")],
+            initialfile="PDF_Rescue_SessionReport.md"
+        )
+        
+        if not output_file:
+            return
+        
+        try:
+            from datetime import datetime
+            
+            # Generate report content
+            report_lines = []
+            report_lines.append("# PDF Rescue - Session Report\n")
+            report_lines.append(f"**Generated**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+            report_lines.append("---\n\n")
+            
+            # Configuration section
+            report_lines.append("## Configuration\n\n")
+            report_lines.append(f"- **Model**: {self.model_var.get()}\n")
+            formatting_status = "Enabled ✓" if self.preserve_formatting_var.get() else "Disabled ✗"
+            report_lines.append(f"- **Formatting Preservation**: {formatting_status}\n")
+            report_lines.append(f"- **Total Images Processed**: {len(self.extracted_texts)}\n")
+            report_lines.append(f"- **Total Images in List**: {len(self.image_files)}\n\n")
+            
+            # Instructions used
+            report_lines.append("## Extraction Instructions\n\n")
+            report_lines.append("```\n")
+            instructions = self.instructions_text.get('1.0', 'end-1c').strip()
+            if self.preserve_formatting_var.get():
+                if "markdown for text formatting" not in instructions:
+                    instructions += "\n- Use markdown for text formatting: **bold text**, *italic text*, __underlined text__"
+            report_lines.append(instructions)
+            report_lines.append("\n```\n\n")
+            
+            # Processing summary
+            report_lines.append("## Processing Summary\n\n")
+            report_lines.append("| # | Image File | Status |\n")
+            report_lines.append("|---|------------|--------|\n")
+            
+            for i, file in enumerate(self.image_files, 1):
+                filename = os.path.basename(file)
+                status = "✓ Processed" if file in self.extracted_texts else "⧗ Pending"
+                report_lines.append(f"| {i} | {filename} | {status} |\n")
+            
+            report_lines.append("\n---\n\n")
+            
+            # Extracted text for each image
+            report_lines.append("## Extracted Text\n\n")
+            
+            for i, file in enumerate(self.image_files, 1):
+                if file in self.extracted_texts:
+                    filename = os.path.basename(file)
+                    report_lines.append(f"### Page {i}: {filename}\n\n")
+                    report_lines.append("```\n")
+                    report_lines.append(self.extracted_texts[file])
+                    report_lines.append("\n```\n\n")
+                    report_lines.append("---\n\n")
+            
+            # Statistics
+            report_lines.append("## Statistics\n\n")
+            total_chars = sum(len(text) for text in self.extracted_texts.values())
+            total_words = sum(len(text.split()) for text in self.extracted_texts.values())
+            report_lines.append(f"- **Total Characters Extracted**: {total_chars:,}\n")
+            report_lines.append(f"- **Total Words Extracted**: {total_words:,}\n")
+            report_lines.append(f"- **Average Characters per Page**: {total_chars // len(self.extracted_texts) if self.extracted_texts else 0:,}\n")
+            report_lines.append(f"- **Average Words per Page**: {total_words // len(self.extracted_texts) if self.extracted_texts else 0:,}\n\n")
+            
+            # Footer
+            report_lines.append("---\n\n")
+            report_lines.append("*Report generated by PDF Rescue - AI-Powered OCR Tool*\n")
+            
+            # Write to file
+            with open(output_file, 'w', encoding='utf-8') as f:
+                f.writelines(report_lines)
+            
+            self.log_message(f"Session report saved: {Path(output_file).name}")
+            self.status_label.config(text=f"✓ Report saved to {os.path.basename(output_file)}")
+            
+            if messagebox.askyesno("Success", 
+                                  f"Session report saved successfully!\n\n"
+                                  f"File: {Path(output_file).name}\n\n"
+                                  "Open the report now?"):
+                os.startfile(output_file)
+        
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to save report:\n\n{str(e)}")
     
     # === OCR Processing Methods ===
     
