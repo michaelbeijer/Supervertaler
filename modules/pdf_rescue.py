@@ -27,7 +27,7 @@ class PDFRescue:
         Initialize PDF Rescue module
         
         Args:
-            parent_app: Reference to the main application (needs .api_key attribute)
+            parent_app: Reference to the main application (needs .api_keys attribute)
         """
         self.parent_app = parent_app
         self.client = None
@@ -35,9 +35,15 @@ class PDFRescue:
         self.extracted_texts = {}
         
         # Initialize OpenAI client
-        if hasattr(parent_app, 'api_key') and parent_app.api_key:
+        api_key = None
+        if hasattr(parent_app, 'api_keys'):
+            api_key = parent_app.api_keys.get('openai')
+        elif hasattr(parent_app, 'api_key'):
+            api_key = parent_app.api_key
+            
+        if api_key:
             try:
-                self.client = OpenAI(api_key=parent_app.api_key)
+                self.client = OpenAI(api_key=api_key)
             except Exception as e:
                 print(f"Failed to initialize OpenAI client: {e}")
     
@@ -47,15 +53,9 @@ class PDFRescue:
         
         Args:
             parent: The parent widget (notebook tab or frame)
-            
-        Returns:
-            The created frame
         """
-        # Main container
-        main_frame = tk.Frame(parent, bg='white')
-        
         # Header
-        header_frame = tk.Frame(main_frame, bg='#e3f2fd', relief='solid', borderwidth=1)
+        header_frame = tk.Frame(parent, bg='#e3f2fd', relief='solid', borderwidth=1)
         header_frame.pack(fill='x', padx=5, pady=5)
         
         tk.Label(header_frame, text="🔍 PDF Rescue - AI-Powered OCR", 
@@ -65,7 +65,7 @@ class PDFRescue:
                 font=('Segoe UI', 9), bg='#e3f2fd', fg='#666').pack(side='left', padx=(0, 10), pady=5)
         
         # Split view: Files on left, Preview on right
-        paned = ttk.PanedWindow(main_frame, orient='horizontal')
+        paned = ttk.PanedWindow(parent, orient='horizontal')
         paned.pack(fill='both', expand=True, padx=5, pady=5)
         
         # LEFT: File list
@@ -117,7 +117,7 @@ class PDFRescue:
         self.preview_text.pack(fill='both', expand=True)
         
         # Processing options
-        options_frame = tk.LabelFrame(main_frame, text="Processing Options", 
+        options_frame = tk.LabelFrame(parent, text="Processing Options", 
                                      padx=10, pady=10)
         options_frame.pack(fill='x', padx=5, pady=(0, 10))
         
@@ -141,12 +141,18 @@ class PDFRescue:
         self.instructions_text.pack(fill='x')
         
         default_instructions = """Extract all text from this image. The image is a screenshot from a poorly formatted PDF.
-Please: Extract all visible text accurately, fix obvious OCR errors, remove extraneous line breaks within paragraphs, preserve intentional paragraph breaks, maintain logical flow, and output clean readable text only."""
+Please:
+- Extract all visible text accurately
+- Fix any obvious OCR errors or formatting issues
+- Remove extraneous line breaks within paragraphs
+- Preserve intentional paragraph breaks
+- Maintain the logical flow and structure of the content
+- Output clean, readable text only (no commentary)"""
         
         self.instructions_text.insert('1.0', default_instructions)
         
         # Action buttons
-        action_frame = tk.Frame(main_frame, bg='white')
+        action_frame = tk.Frame(parent, bg='white')
         action_frame.pack(fill='x', padx=5, pady=(0, 10))
         
         tk.Button(action_frame, text="🔍 Process Selected", 
@@ -170,15 +176,13 @@ Please: Extract all visible text accurately, fix obvious OCR errors, remove extr
                  padx=15, pady=6).pack(side='left', padx=5)
         
         # Status
-        self.status_label = tk.Label(main_frame, text="Ready - Add images to begin", 
+        self.status_label = tk.Label(parent, text="Ready - Add images to begin", 
                                      font=('Segoe UI', 9), fg='#666', bg='white')
         self.status_label.pack(pady=(0, 5))
         
         # Progress bar
-        self.progress = ttk.Progressbar(main_frame, mode='determinate')
+        self.progress = ttk.Progressbar(parent, mode='determinate')
         self.progress.pack(fill='x', padx=5, pady=(0, 5))
-        
-        return main_frame
     
     # === File Management Methods ===
     

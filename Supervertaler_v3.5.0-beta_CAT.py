@@ -5846,8 +5846,8 @@ class Supervertaler:
         if not hasattr(self, 'pdf_rescue'):
             self.pdf_rescue = PDFRescue(self)
         
-        # Create and return the tab UI
-        return self.pdf_rescue.create_tab(parent)
+        # Create the tab UI directly in the parent (don't return it)
+        self.pdf_rescue.create_tab(parent)
     
     def create_custom_instructions_tab(self, parent):
         """Create Custom Instructions tab - project-specific translation guidance"""
