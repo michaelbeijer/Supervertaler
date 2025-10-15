@@ -96,12 +96,19 @@ body {
     gap: var(--spacing-xs);
     font-size: 1.5rem;
     font-weight: 700;
-    text-decoration: none;
+    text-decoration: none !important;
     transition: opacity 0.2s;
 }
 
 .nav-brand:hover {
     opacity: 0.8;
+    text-decoration: none !important;
+}
+
+.nav-brand:visited,
+.nav-brand:active,
+.nav-brand:focus {
+    text-decoration: none !important;
 }
 
 .logo {
@@ -174,7 +181,7 @@ body {
 /* Mobile Responsive */
 @media (max-width: 768px) {
     .mobile-menu-toggle {
-        display: flex;
+        display: flex !important;
     }
     
     .nav-menu {
@@ -721,10 +728,6 @@ body {
     .download-grid,
     .docs-grid {
         grid-template-columns: 1fr;
-    }
-    
-    .nav-menu {
-        display: none;
     }
     
     .footer-content {
