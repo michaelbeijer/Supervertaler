@@ -96,6 +96,12 @@ body {
     gap: var(--spacing-xs);
     font-size: 1.5rem;
     font-weight: 700;
+    text-decoration: none;
+    transition: opacity 0.2s;
+}
+
+.nav-brand:hover {
+    opacity: 0.8;
 }
 
 .logo {
