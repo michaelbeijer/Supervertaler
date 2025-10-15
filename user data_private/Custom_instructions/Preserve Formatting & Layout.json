@@ -1,0 +1,9 @@
+{
+    "name": "Preserve Formatting & Layout",
+    "description": "Ensures translations maintain original formatting, line breaks, and layout structure",
+    "domain": "General",
+    "version": "1.0",
+    "created": "2024-01-15",
+    "translate_prompt": "You are translating {source_lang} to {target_lang}.\n\nCRITICAL FORMATTING REQUIREMENT:\nPreserve ALL formatting elements exactly as they appear in the source:\n- Line breaks and paragraph boundaries\n- Bullet points and numbering\n- Indentation and spacing\n- Special characters and punctuation marks\n- Headers and subheaders\n- Tables and lists structure\n\nDo NOT:\n- Add or remove line breaks\n- Change list formatting or numbering\n- Alter spacing or indentation\n- Modify structural elements\n\nTranslate only the text content while keeping ALL formatting identical to the source:",
+    "proofread_prompt": "You are proofreading a {source_lang} to {target_lang} translation.\n\nVerify formatting preservation:\n1. All line breaks match the source exactly\n2. List formatting and numbering are unchanged\n3. Indentation and spacing are identical\n4. Special characters are preserved\n5. Structural elements remain intact\n\nIf any formatting discrepancies exist, provide a corrected version that matches the source formatting exactly."
+}

@@ -1,0 +1,3 @@
+﻿1	Dit is een zin.	This is a sentence.
+2	Dit is nog een zin.	This is another sentence.
+3	En dit is een derde zin.	And this is a third sentence.

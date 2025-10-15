@@ -4,21 +4,16 @@ desktop.ini
 # API keys
 api_keys.txt
 
-# Local development config - enables private features for developers only
-.supervertaler.local
+# Private system prompts folder - never sync to GitHub
+user data/System_prompts_private/
 
-# Development folder (tests, archived versions, dev tools)
-.dev/
+# Private custom instructions folder - never sync to GitHub
+user data/Custom_instructions_private/
 
-# ============================================
-# PRIVATE USER DATA (Dev Mode Only)
-# When .supervertaler.local exists, all user data saves to user data_private/
-# This single line protects all private folders (simpler than listing each one)
-# ============================================
-user data_private/
+# Private projects folder - never sync to GitHub
+user data/Projects_private/
 
-# OLD folder structure (deprecated, but ignore if they reappear)
-user data/*_private/
+# OLD folder names (deprecated, but ignore if they reappear)
 custom_prompts_private/
 projects_private/
 

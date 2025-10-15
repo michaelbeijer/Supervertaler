@@ -1,0 +1,1339 @@
+<?xml version="1.0"?>
+<Project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Guid="d2f5eb2c-25ed-4f86-ab13-5383925ad3db" SettingsBundleGuid="82c1b6a1-c684-4836-a99c-624378007f40" Version="4.0.0.0" Owner="PRECISION7740\mbeijer" ProjectTemplateGuid="10004f3b-4acf-4425-a3e3-38d3b3514276" ReferenceProjectGuid="00000000-0000-0000-0000-000000000000">
+  <LanguageDirections>
+    <LanguageDirection Guid="5d7c586e-abb0-43ea-ae33-9325faf2d9b6" SettingsBundleGuid="65e16cf1-3679-4275-a662-5957dbd9c1f8" TargetLanguageCode="en-US" SourceLanguageCode="nl-BE">
+      <AutoSuggestDictionaries />
+      <AnalysisStatistics WordCountStatus="Complete" AnalysisStatus="Complete">
+        <Total Words="445" Characters="2655" Segments="25" Placeables="25" Tags="4" />
+        <Repetitions Words="0" Characters="0" Segments="0" Placeables="0" Tags="0" />
+        <Perfect Words="0" Characters="0" Segments="0" Placeables="0" Tags="0" />
+        <InContextExact Words="0" Characters="0" Segments="0" Placeables="0" Tags="0" />
+        <Exact Words="0" Characters="0" Segments="0" Placeables="0" Tags="0" />
+        <Fuzzy>
+          <CountData Words="0" Characters="0" Segments="0" Placeables="0" Tags="0" />
+          <CountData Words="0" Characters="0" Segments="0" Placeables="0" Tags="0" />
+          <CountData Words="0" Characters="0" Segments="0" Placeables="0" Tags="0" />
+          <CountData Words="0" Characters="0" Segments="0" Placeables="0" Tags="0" />
+        </Fuzzy>
+        <New Words="445" Characters="2655" Segments="25" Placeables="25" Tags="4" />
+        <Locked Words="0" Characters="0" Segments="0" Placeables="0" Tags="0" />
+      </AnalysisStatistics>
+      <ConfirmationStatistics Status="OutOfDate">
+        <Unspecified Words="0" Characters="0" Segments="0" Placeables="0" Tags="0" />
+        <Draft Words="0" Characters="0" Segments="0" Placeables="0" Tags="0" />
+        <Translated Words="150" Characters="906" Segments="12" Placeables="8" Tags="0" />
+        <RejectedTranslation Words="0" Characters="0" Segments="0" Placeables="0" Tags="0" />
+        <ApprovedTranslation Words="295" Characters="1749" Segments="13" Placeables="17" Tags="4" />
+        <RejectedSignOff Words="0" Characters="0" Segments="0" Placeables="0" Tags="0" />
+        <ApprovedSignOff Words="0" Characters="0" Segments="0" Placeables="0" Tags="0" />
+      </ConfirmationStatistics>
+      <CascadeItem OverrideParent="false" StopSearchingWhenResultsFound="false" />
+    </LanguageDirection>
+  </LanguageDirections>
+  <TermbaseConfiguration>
+    <Termbases>
+      <Name>BEIJER.sdltb</Name>
+      <SettingsXml>&lt;?xml version="1.0" encoding="utf-16"?&gt;
+&lt;TermbaseSettings xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema"&gt;
+  &lt;Path&gt;C:\Users\mbeijer\My Drive\Terminology\Trados TBs\BEIJER.sdltb&lt;/Path&gt;
+  &lt;IsOpen&gt;false&lt;/IsOpen&gt;
+  &lt;Filter&gt;0&lt;/Filter&gt;
+  &lt;FilterHighlight&gt;false&lt;/FilterHighlight&gt;
+  &lt;Layout&gt;0&lt;/Layout&gt;
+  &lt;Local&gt;true&lt;/Local&gt;
+  &lt;IsCustom&gt;false&lt;/IsCustom&gt;
+  &lt;Fields /&gt;
+&lt;/TermbaseSettings&gt;</SettingsXml>
+      <Enabled>false</Enabled>
+    </Termbases>
+    <LanguageIndexMappings>
+      <Language>en-US</Language>
+      <Index>English</Index>
+    </LanguageIndexMappings>
+    <LanguageIndexMappings>
+      <Language>nl-BE</Language>
+      <Index>Dutch</Index>
+    </LanguageIndexMappings>
+    <LanguageIndexMappings>
+      <Language>nl-NL</Language>
+      <Index>Dutch</Index>
+    </LanguageIndexMappings>
+    <LanguageIndexMappings>
+      <Language>en-GB</Language>
+      <Index>English</Index>
+    </LanguageIndexMappings>
+    <RecognitionOptions>
+      <ShowWithNoAvailableTranslation>false</ShowWithNoAvailableTranslation>
+      <MinimumMatchValue>95</MinimumMatchValue>
+      <SearchDepth>200</SearchDepth>
+      <SearchOrder>Parallel</SearchOrder>
+    </RecognitionOptions>
+  </TermbaseConfiguration>
+  <SettingsBundles>
+    <SettingsBundle Guid="82c1b6a1-c684-4836-a99c-624378007f40">
+      <SettingsBundle>
+        <SettingsGroup Id="TerminologyProviderSettings">
+          <Setting Id="TermbasesOrder">
+            <ArrayOfstring xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://schemas.microsoft.com/2003/10/Serialization/Arrays">
+              <string>BEIJER.sdltb</string>
+            </ArrayOfstring>
+          </Setting>
+          <Setting Id="Termbases">
+            <ArrayOfTermbase xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://schemas.datacontract.org/2004/07/Sdl.ProjectApi.Implementation.Xml">
+            </ArrayOfTermbase>
+          </Setting>
+        </SettingsGroup>
+        <SettingsGroup Id="FileTypeManagerConfigurationSettingsGroup">
+          <Setting Id="FileTypeManagerConfigurationSettings">
+            <FileTypeManagerConfigurationList xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.sdl.com/projectapi">
+              <FileTypeManagerConfigurationItem>
+                <Enabled>true</Enabled>
+                <FileTypeDefinitionId>SDL XLIFF 1.0 v 1.0.0.0</FileTypeDefinitionId>
+                <Profile xmlns:d3p1="http://www.sdl.com/filetypesupport">
+                  <d3p1:Description>OASIS XLIFF 1.2 standard compliant intermediate bilingual file format for storing fully or partially translated content with associated information during localization.</d3p1:Description>
+                  <d3p1:Expression>(^[\d\D]*\.[sS][dD][lL][xX][lL][iI][fF][fF]$)</d3p1:Expression>
+                  <d3p1:FileDialogWildcardExpression>*.sdlxliff</d3p1:FileDialogWildcardExpression>
+                  <d3p1:FileTypeDefinitionId>SDL XLIFF 1.0 v 1.0.0.0</d3p1:FileTypeDefinitionId>
+                  <d3p1:FileTypeDocumentName>SDL XLIFF Document</d3p1:FileTypeDocumentName>
+                  <d3p1:FileTypeDocumentsName>SDL XLIFF Documents</d3p1:FileTypeDocumentsName>
+                  <d3p1:FileTypeName>SDL XLIFF</d3p1:FileTypeName>
+                </Profile>
+                <Removed>false</Removed>
+              </FileTypeManagerConfigurationItem>
+              <FileTypeManagerConfigurationItem>
+                <Enabled>true</Enabled>
+                <FileTypeDefinitionId>WordprocessingML v. 2</FileTypeDefinitionId>
+                <Profile xmlns:d3p1="http://www.sdl.com/filetypesupport">
+                  <d3p1:Description>Documents created with Microsoft Word 2007-2019, including documents saved in the Microsoft Word format in Google Docs and LibreOffice.</d3p1:Description>
+                  <d3p1:Expression>(^[\d\D]*\.[dD][oO][cC][xX]$)|(^[\d\D]*\.[dD][oO][tT][xX]$)|(^[\d\D]*\.[dD][oO][cC][mM]$)|(^[\d\D]*\.[dD][oO][tT][mM]$)</d3p1:Expression>
+                  <d3p1:FileDialogWildcardExpression>*.docx;*.dotx;*.docm;*.dotm</d3p1:FileDialogWildcardExpression>
+                  <d3p1:FileTypeDefinitionId>WordprocessingML v. 2</d3p1:FileTypeDefinitionId>
+                  <d3p1:FileTypeDocumentName>Microsoft Word 2007-2019 Document</d3p1:FileTypeDocumentName>
+                  <d3p1:FileTypeDocumentsName>Microsoft Word 2007-2019 Documents</d3p1:FileTypeDocumentsName>
+                  <d3p1:FileTypeName>Microsoft Word 2007-2019</d3p1:FileTypeName>
+                </Profile>
+                <Removed>false</Removed>
+              </FileTypeManagerConfigurationItem>
+              <FileTypeManagerConfigurationItem>
+                <Enabled>true</Enabled>
+                <FileTypeDefinitionId>DOC v 2.0.0.0</FileTypeDefinitionId>
+                <Profile xmlns:d3p1="http://www.sdl.com/filetypesupport">
+                  <d3p1:Description>Documents created with Microsoft Word 97-2003 and WPS Writer</d3p1:Description>
+                  <d3p1:Expression>(^[\d\D]*\.[dD][oO][cC]$)|(^[\d\D]*\.[dD][oO][tT]$)|(^[\d\D]*\.[wW][pP][sS]$)</d3p1:Expression>
+                  <d3p1:FileDialogWildcardExpression>*.doc;*.dot;*.wps</d3p1:FileDialogWildcardExpression>
+                  <d3p1:FileTypeDefinitionId>DOC v 2.0.0.0</d3p1:FileTypeDefinitionId>
+                  <d3p1:FileTypeDocumentName>Microsoft Word 97-2003 Document</d3p1:FileTypeDocumentName>
+                  <d3p1:FileTypeDocumentsName>Microsoft Word 97-2003 Documents</d3p1:FileTypeDocumentsName>
+                  <d3p1:FileTypeName>Microsoft Word 97-2003</d3p1:FileTypeName>
+                </Profile>
+                <Removed>false</Removed>
+              </FileTypeManagerConfigurationItem>
+              <FileTypeManagerConfigurationItem>
+                <Enabled>true</Enabled>
+                <FileTypeDefinitionId>PresentationML v. 1</FileTypeDefinitionId>
+                <Profile xmlns:d3p1="http://www.sdl.com/filetypesupport">
+                  <d3p1:Description>Documents created with Microsoft PowerPoint 2007-2019, including documents saved in the Microsoft PowerPoint format in Google Slides and LibreOffice.</d3p1:Description>
+                  <d3p1:Expression>(^[\d\D]*\.[pP][pP][tT][xX]$)|(^[\d\D]*\.[pP][pP][sS][xX]$)|(^[\d\D]*\.[pP][oO][tT][xX]$)|(^[\d\D]*\.[pP][pP][tT][mM]$)|(^[\d\D]*\.[pP][oO][tT][mM]$)|(^[\d\D]*\.[pP][pP][sS][mM]$)</d3p1:Expression>
+                  <d3p1:FileDialogWildcardExpression>*.pptx;*.ppsx;*.potx;*.pptm;*.potm;*.ppsm</d3p1:FileDialogWildcardExpression>
+                  <d3p1:FileTypeDefinitionId>PresentationML v. 1</d3p1:FileTypeDefinitionId>
+                  <d3p1:FileTypeDocumentName>Microsoft PowerPoint 2007-2019 Document</d3p1:FileTypeDocumentName>
+                  <d3p1:FileTypeDocumentsName>Microsoft PowerPoint 2007-2019 Documents</d3p1:FileTypeDocumentsName>
+                  <d3p1:FileTypeName>Microsoft PowerPoint 2007-2019</d3p1:FileTypeName>
+                </Profile>
+                <Removed>false</Removed>
+              </FileTypeManagerConfigurationItem>
+              <FileTypeManagerConfigurationItem>
+                <Enabled>true</Enabled>
+                <FileTypeDefinitionId>PPT v 2.0.0.0</FileTypeDefinitionId>
+                <Profile xmlns:d3p1="http://www.sdl.com/filetypesupport">
+                  <d3p1:Description>Documents created with Microsoft PowerPoint 97-2003 and WPS Presentation</d3p1:Description>
+                  <d3p1:Expression>(^[\d\D]*\.[pP][pP][tT]$)|(^[\d\D]*\.[pP][pP][sS]$)|(^[\d\D]*\.[pP][oO][tT]$)|(^[\d\D]*\.[dD][pP][sS]$)</d3p1:Expression>
+                  <d3p1:FileDialogWildcardExpression>*.ppt;*.pps;*.pot;*.dps</d3p1:FileDialogWildcardExpression>
+                  <d3p1:FileTypeDefinitionId>PPT v 2.0.0.0</d3p1:FileTypeDefinitionId>
+                  <d3p1:FileTypeDocumentName>Microsoft PowerPoint 97-2003 Document</d3p1:FileTypeDocumentName>
+                  <d3p1:FileTypeDocumentsName>Microsoft PowerPoint 97-2003 Documents</d3p1:FileTypeDocumentsName>
+                  <d3p1:FileTypeName>Microsoft PowerPoint 97-2003</d3p1:FileTypeName>
+                </Profile>
+                <Removed>false</Removed>
+              </FileTypeManagerConfigurationItem>
+              <FileTypeManagerConfigurationItem>
+                <Enabled>true</Enabled>
+                <FileTypeDefinitionId>SpreadsheetML v. 1</FileTypeDefinitionId>
+                <Profile xmlns:d3p1="http://www.sdl.com/filetypesupport">
+                  <d3p1:Description>Documents created with Microsoft Excel 2007-2019, including documents saved in the Microsoft Excel format in Google Sheets and LibreOffice.</d3p1:Description>
+                  <d3p1:Expression>(^[\d\D]*\.[xX][lL][sS][xX]$)|(^[\d\D]*\.[xX][lL][sS][mM]$)|(^[\d\D]*\.[xX][lL][tT][xX]$)|(^[\d\D]*\.[xX][lL][tT][mM]$)</d3p1:Expression>
+                  <d3p1:FileDialogWildcardExpression>*.xlsx;*.xlsm;*.xltx;*.xltm</d3p1:FileDialogWildcardExpression>
+                  <d3p1:FileTypeDefinitionId>SpreadsheetML v. 1</d3p1:FileTypeDefinitionId>
+                  <d3p1:FileTypeDocumentName>Microsoft Excel 2007-2019 Document</d3p1:FileTypeDocumentName>
+                  <d3p1:FileTypeDocumentsName>Microsoft Excel 2007-2019 Documents</d3p1:FileTypeDocumentsName>
+                  <d3p1:FileTypeName>Microsoft Excel 2007-2019</d3p1:FileTypeName>
+                </Profile>
+                <Removed>false</Removed>
+              </FileTypeManagerConfigurationItem>
+              <FileTypeManagerConfigurationItem>
+                <Enabled>true</Enabled>
+                <FileTypeDefinitionId>XLS v 3.0.0.0</FileTypeDefinitionId>
+                <Profile xmlns:d3p1="http://www.sdl.com/filetypesupport">
+                  <d3p1:Description>Documents created with Microsoft Excel 97-2003 and WPS Spreadsheet</d3p1:Description>
+                  <d3p1:Expression>(^[\d\D]*\.[xX][lL][sS]$)|(^[\d\D]*\.[xX][lL][tT]$)|(^[\d\D]*\.[eE][tT]$)</d3p1:Expression>
+                  <d3p1:FileDialogWildcardExpression>*.xls;*.xlt;*.et</d3p1:FileDialogWildcardExpression>
+                  <d3p1:FileTypeDefinitionId>XLS v 3.0.0.0</d3p1:FileTypeDefinitionId>
+                  <d3p1:FileTypeDocumentName>Microsoft Excel 97-2003 Document</d3p1:FileTypeDocumentName>
+                  <d3p1:FileTypeDocumentsName>Microsoft Excel 97-2003 Documents</d3p1:FileTypeDocumentsName>
+                  <d3p1:FileTypeName>Microsoft Excel 97-2003</d3p1:FileTypeName>
+                </Profile>
+                <Removed>false</Removed>
+              </FileTypeManagerConfigurationItem>
+              <FileTypeManagerConfigurationItem>
+                <Enabled>true</Enabled>
+                <FileTypeDefinitionId>Bilingual Excel v 1.0.0.0</FileTypeDefinitionId>
+                <Profile xmlns:d3p1="http://www.sdl.com/filetypesupport">
+                  <d3p1:Description>Microsoft Excel (2007-2016) files with bilingual structure. Text for translation is organized in one column and translated text should be placed in a different column. In the default settings the first column contains the source language text and the second contains the translation.</d3p1:Description>
+                  <d3p1:Expression>(^[\d\D]*\.[xX][lL][sS][xX]$)</d3p1:Expression>
+                  <d3p1:FileDialogWildcardExpression>*.xlsx</d3p1:FileDialogWildcardExpression>
+                  <d3p1:FileTypeDefinitionId>Bilingual Excel v 1.0.0.0</d3p1:FileTypeDefinitionId>
+                  <d3p1:FileTypeDocumentName>Bilingual Excel Document</d3p1:FileTypeDocumentName>
+                  <d3p1:FileTypeDocumentsName>Bilingual Excel Documents</d3p1:FileTypeDocumentsName>
+                  <d3p1:FileTypeName>Bilingual Excel</d3p1:FileTypeName>
+                </Profile>
+                <Removed>false</Removed>
+              </FileTypeManagerConfigurationItem>
+              <FileTypeManagerConfigurationItem>
+                <Enabled>true</Enabled>
+                <FileTypeDefinitionId>EMAIL v 1.0.0.0</FileTypeDefinitionId>
+                <Profile xmlns:d3p1="http://www.sdl.com/filetypesupport">
+                  <d3p1:Description>Msg (.msg) files</d3p1:Description>
+                  <d3p1:Expression>(^[\d\D]*\.[mM][sS][gG]$)|(^[\d\D]*\.[oO][fF][tT]$)|(^[\d\D]*\.[eE][mM][lL]$)|(^[\d\D]*\.[eE][mM][lL][xX]$)</d3p1:Expression>
+                  <d3p1:FileDialogWildcardExpression>*.msg;*.oft;*.eml;*.emlx</d3p1:FileDialogWildcardExpression>
+                  <d3p1:FileTypeDefinitionId>EMAIL v 1.0.0.0</d3p1:FileTypeDefinitionId>
+                  <d3p1:FileTypeDocumentName>Email File</d3p1:FileTypeDocumentName>
+                  <d3p1:FileTypeDocumentsName>Email Files</d3p1:FileTypeDocumentsName>
+                  <d3p1:FileTypeName>Email</d3p1:FileTypeName>
+                </Profile>
+                <Removed>false</Removed>
+              </FileTypeManagerConfigurationItem>
+              <FileTypeManagerConfigurationItem>
+                <Enabled>true</Enabled>
+                <FileTypeDefinitionId>RTF v 2.0.0.0</FileTypeDefinitionId>
+                <Profile xmlns:d3p1="http://www.sdl.com/filetypesupport">
+                  <d3p1:Description>Rich Text Format (RTF) documents, as generated by Microsoft Word and other applications. SDL Trados tagged RTF is also supported.NOTE: RTF documents containing translation units from SDL Trados are not supported.</d3p1:Description>
+                  <d3p1:Expression>(^[\d\D]*\.[rR][tT][fF]$)</d3p1:Expression>
+                  <d3p1:FileDialogWildcardExpression>*.rtf</d3p1:FileDialogWildcardExpression>
+                  <d3p1:FileTypeDefinitionId>RTF v 2.0.0.0</d3p1:FileTypeDefinitionId>
+                  <d3p1:FileTypeDocumentName>Rich Text Format (RTF) Document</d3p1:FileTypeDocumentName>
+                  <d3p1:FileTypeDocumentsName>Rich Text Format (RTF) Documents</d3p1:FileTypeDocumentsName>
+                  <d3p1:FileTypeName>Rich Text Format (RTF)</d3p1:FileTypeName>
+                </Profile>
+                <Removed>false</Removed>
+              </FileTypeManagerConfigurationItem>
+              <FileTypeManagerConfigurationItem>
+                <Enabled>true</Enabled>
+                <FileTypeDefinitionId>Visio v 1.0.0.0</FileTypeDefinitionId>
+                <Profile xmlns:d3p1="http://www.sdl.com/filetypesupport">
+                  <d3p1:Description>Documents created with Microsoft Visio 2016</d3p1:Description>
+                  <d3p1:Expression>(^[\d\D]*\.[vV][sS][dD][xX]$)|(^[\d\D]*\.[vV][sS][xX]$)|(^[\d\D]*\.[vV][tT][xX]$)|(^[\d\D]*\.[vV][dD][xX]$)|(^[\d\D]*\.[vV][sS][sS][xX]$)|(^[\d\D]*\.[vV][sS][tT][xX]$)|(^[\d\D]*\.[vV][sS][dD][mM]$)|(^[\d\D]*\.[vV][sS][sS][mM]$)|(^[\d\D]*\.[vV][sS][tT][mM]$)|(^$)</d3p1:Expression>
+                  <d3p1:FileDialogWildcardExpression>*.vsdx;*.vsx;*.vtx;*.vdx;*.vssx;*.vstx;*.vsdm;*.vssm;*.vstm;</d3p1:FileDialogWildcardExpression>
+                  <d3p1:FileTypeDefinitionId>Visio v 1.0.0.0</d3p1:FileTypeDefinitionId>
+                  <d3p1:FileTypeDocumentName>Microsoft Visio Document</d3p1:FileTypeDocumentName>
+                  <d3p1:FileTypeDocumentsName>Microsoft Visio Documents</d3p1:FileTypeDocumentsName>
+                  <d3p1:FileTypeName>Microsoft Visio</d3p1:FileTypeName>
+                </Profile>
+                <Removed>false</Removed>
+              </FileTypeManagerConfigurationItem>
+              <FileTypeManagerConfigurationItem>
+                <Enabled>true</Enabled>
+                <FileTypeDefinitionId>XHTML 1.1 v 2.0.0.0</FileTypeDefinitionId>
+                <Profile xmlns:d3p1="http://www.sdl.com/filetypesupport">
+                  <d3p1:Description>XHTML™ 1.1 - Module-based XHTML</d3p1:Description>
+                  <d3p1:Expression>(^[\d\D]*\.[hH][tT][mM][lL]$)|(^[\d\D]*\.[hH][tT][mM]$)|(^[\d\D]*\.[xX][hH][tT][mM][lL]$)</d3p1:Expression>
+                  <d3p1:FileDialogWildcardExpression>*.html;*.htm;*.xhtml</d3p1:FileDialogWildcardExpression>
+                  <d3p1:FileTypeDefinitionId>XHTML 1.1 v 2.0.0.0</d3p1:FileTypeDefinitionId>
+                  <d3p1:FileTypeDocumentName>XHTML 1.1 Document</d3p1:FileTypeDocumentName>
+                  <d3p1:FileTypeDocumentsName>XHTML 1.1 Documents</d3p1:FileTypeDocumentsName>
+                  <d3p1:FileTypeName>XHTML 1.1 (2)</d3p1:FileTypeName>
+                </Profile>
+                <Removed>false</Removed>
+              </FileTypeManagerConfigurationItem>
+              <FileTypeManagerConfigurationItem>
+                <Enabled>true</Enabled>
+                <FileTypeDefinitionId>Html 5 2.0.0.0</FileTypeDefinitionId>
+                <Profile xmlns:d3p1="http://www.sdl.com/filetypesupport">
+                  <d3p1:Description>Documents based on the W3C HTML5 standard.</d3p1:Description>
+                  <d3p1:Expression>(^[\d\D]*\.[hH][tT][mM]$)|(^[\d\D]*\.[hH][tT][mM][lL]$)|(^[\d\D]*\.[xX][hH][tT][mM][lL]$)|(^[\d\D]*\.[jJ][sS][pP]$)|(^[\d\D]*\.[aA][sS][pP]$)|(^[\d\D]*\.[aA][sS][pP][xX]$)|(^[\d\D]*\.[aA][sS][cC][xX]$)|(^[\d\D]*\.[iI][nN][cC]$)|(^[\d\D]*\.[pP][hH][pP]$)|(^[\d\D]*\.[hH][hH][kK]$)|(^[\d\D]*\.[hH][hH][cC]$)</d3p1:Expression>
+                  <d3p1:FileDialogWildcardExpression>*.htm;*.html;*.xhtml;*.jsp;*.asp;*.aspx;*.ascx;*.inc;*.php;*.hhk;*.hhc</d3p1:FileDialogWildcardExpression>
+                  <d3p1:FileTypeDefinitionId>Html 5 2.0.0.0</d3p1:FileTypeDefinitionId>
+                  <d3p1:FileTypeDocumentName>Html Document</d3p1:FileTypeDocumentName>
+                  <d3p1:FileTypeDocumentsName>Html Documents</d3p1:FileTypeDocumentsName>
+                  <d3p1:FileTypeName>HTML 5</d3p1:FileTypeName>
+                </Profile>
+                <Removed>false</Removed>
+              </FileTypeManagerConfigurationItem>
+              <FileTypeManagerConfigurationItem>
+                <Enabled>true</Enabled>
+                <FileTypeDefinitionId>FrameMaker v 10.0.0</FileTypeDefinitionId>
+                <Profile xmlns:d3p1="http://www.sdl.com/filetypesupport">
+                  <d3p1:Description>Marker Interchange Format (MIF) files exported from Adobe FrameMaker</d3p1:Description>
+                  <d3p1:Expression>(^[\d\D]*\.[mM][iI][fF]$)</d3p1:Expression>
+                  <d3p1:FileDialogWildcardExpression>*.mif</d3p1:FileDialogWildcardExpression>
+                  <d3p1:FileTypeDefinitionId>FrameMaker v 10.0.0</d3p1:FileTypeDefinitionId>
+                  <d3p1:FileTypeDocumentName>Adobe FrameMaker Document</d3p1:FileTypeDocumentName>
+                  <d3p1:FileTypeDocumentsName>Adobe FrameMaker Documents </d3p1:FileTypeDocumentsName>
+                  <d3p1:FileTypeName>Adobe FrameMaker 8-2022 MIF V2</d3p1:FileTypeName>
+                </Profile>
+                <Removed>false</Removed>
+              </FileTypeManagerConfigurationItem>
+              <FileTypeManagerConfigurationItem>
+                <Enabled>true</Enabled>
+                <FileTypeDefinitionId>FrameMaker 8.0 v 2.0.0.0</FileTypeDefinitionId>
+                <Profile xmlns:d3p1="http://www.sdl.com/filetypesupport">
+                  <d3p1:Description>Maker Interchange Format (MIF) files exported from Adobe Framemaker</d3p1:Description>
+                  <d3p1:Expression>(^[\d\D]*\.[mM][iI][fF]$)</d3p1:Expression>
+                  <d3p1:FileDialogWildcardExpression>*.mif</d3p1:FileDialogWildcardExpression>
+                  <d3p1:FileTypeDefinitionId>FrameMaker 8.0 v 2.0.0.0</d3p1:FileTypeDefinitionId>
+                  <d3p1:FileTypeDocumentName>Adobe FrameMaker Document</d3p1:FileTypeDocumentName>
+                  <d3p1:FileTypeDocumentsName>Adobe FrameMaker Documents</d3p1:FileTypeDocumentsName>
+                  <d3p1:FileTypeName>Adobe FrameMaker 8-2020 MIF</d3p1:FileTypeName>
+                </Profile>
+                <Removed>false</Removed>
+              </FileTypeManagerConfigurationItem>
+              <FileTypeManagerConfigurationItem>
+                <Enabled>true</Enabled>
+                <FileTypeDefinitionId>Inx 1.0.0.0</FileTypeDefinitionId>
+                <Profile xmlns:d3p1="http://www.sdl.com/filetypesupport">
+                  <d3p1:Description>InDesign Interchange (INX) documents generated with Adobe InDesign CS2-CS4</d3p1:Description>
+                  <d3p1:Expression>(^[\d\D]*\.[iI][nN][xX]$)</d3p1:Expression>
+                  <d3p1:FileDialogWildcardExpression>*.inx</d3p1:FileDialogWildcardExpression>
+                  <d3p1:FileTypeDefinitionId>Inx 1.0.0.0</d3p1:FileTypeDefinitionId>
+                  <d3p1:FileTypeDocumentName>Adobe InDesign INX Document</d3p1:FileTypeDocumentName>
+                  <d3p1:FileTypeDocumentsName>Adobe InDesign INX Documents</d3p1:FileTypeDocumentsName>
+                  <d3p1:FileTypeName>Adobe InDesign CS2-CS4 INX</d3p1:FileTypeName>
+                </Profile>
+                <Removed>false</Removed>
+              </FileTypeManagerConfigurationItem>
+              <FileTypeManagerConfigurationItem>
+                <Enabled>true</Enabled>
+                <FileTypeDefinitionId>IDML v 1.0.0.0</FileTypeDefinitionId>
+                <Profile xmlns:d3p1="http://www.sdl.com/filetypesupport">
+                  <d3p1:Description>Adobe InDesign CS4-CC Markup IDML (*.idml) files</d3p1:Description>
+                  <d3p1:Expression>(^[\d\D]*\.[iI][dD][mM][lL]$)</d3p1:Expression>
+                  <d3p1:FileDialogWildcardExpression>*.idml</d3p1:FileDialogWildcardExpression>
+                  <d3p1:FileTypeDefinitionId>IDML v 1.0.0.0</d3p1:FileTypeDefinitionId>
+                  <d3p1:FileTypeDocumentName>IDML Document</d3p1:FileTypeDocumentName>
+                  <d3p1:FileTypeDocumentsName>IDML Documents</d3p1:FileTypeDocumentsName>
+                  <d3p1:FileTypeName>Adobe InDesign CS4-CC IDML</d3p1:FileTypeName>
+                </Profile>
+                <Removed>false</Removed>
+              </FileTypeManagerConfigurationItem>
+              <FileTypeManagerConfigurationItem>
+                <Enabled>true</Enabled>
+                <FileTypeDefinitionId>ICML Filter 1.0.0.0</FileTypeDefinitionId>
+                <Profile xmlns:d3p1="http://www.sdl.com/filetypesupport">
+                  <d3p1:Description>Documents created with Adobe InCopy CS4-CC.</d3p1:Description>
+                  <d3p1:Expression>(^[\d\D]*\.[iI][cC][mM][lL]$)</d3p1:Expression>
+                  <d3p1:FileDialogWildcardExpression>*.icml</d3p1:FileDialogWildcardExpression>
+                  <d3p1:FileTypeDefinitionId>ICML Filter 1.0.0.0</d3p1:FileTypeDefinitionId>
+                  <d3p1:FileTypeDocumentName>Adobe InCopy CS4-CC ICML</d3p1:FileTypeDocumentName>
+                  <d3p1:FileTypeDocumentsName>Adobe InCopy CS4-CC ICML</d3p1:FileTypeDocumentsName>
+                  <d3p1:FileTypeName>Adobe InCopy CS4-CC ICML</d3p1:FileTypeName>
+                </Profile>
+                <Removed>false</Removed>
+              </FileTypeManagerConfigurationItem>
+              <FileTypeManagerConfigurationItem>
+                <Enabled>true</Enabled>
+                <FileTypeDefinitionId>Photoshop v 1.0.0.0</FileTypeDefinitionId>
+                <Profile xmlns:d3p1="http://www.sdl.com/filetypesupport">
+                  <d3p1:Description>Documents created with Adobe Photoshop CC-2018</d3p1:Description>
+                  <d3p1:Expression>(^[\d\D]*\.[pP][sS][dD]$)|(^[\d\D]*\.[pP][dD][dD]$)|(^[\d\D]*\.[pP][sS][dD][tT]$)|(^$)</d3p1:Expression>
+                  <d3p1:FileDialogWildcardExpression>*.psd;*.pdd;*.psdt;</d3p1:FileDialogWildcardExpression>
+                  <d3p1:FileTypeDefinitionId>Photoshop v 1.0.0.0</d3p1:FileTypeDefinitionId>
+                  <d3p1:FileTypeDocumentName>Adobe Photoshop Document</d3p1:FileTypeDocumentName>
+                  <d3p1:FileTypeDocumentsName>Adobe Photoshop Documents</d3p1:FileTypeDocumentsName>
+                  <d3p1:FileTypeName>Adobe Photoshop</d3p1:FileTypeName>
+                </Profile>
+                <Removed>false</Removed>
+              </FileTypeManagerConfigurationItem>
+              <FileTypeManagerConfigurationItem>
+                <Enabled>true</Enabled>
+                <FileTypeDefinitionId>Odt 1.0.0.0</FileTypeDefinitionId>
+                <Profile xmlns:d3p1="http://www.sdl.com/filetypesupport">
+                  <d3p1:Description>Documents created in OpenOffice.org Writer, LibreOffice Text Document, Google Docs and IBM Lotus Symphony applications.</d3p1:Description>
+                  <d3p1:Expression>(^[\d\D]*\.[oO][dD][tT]$)|(^[\d\D]*\.[oO][tT][tT]$)|(^[\d\D]*\.[oO][dD][mM]$)</d3p1:Expression>
+                  <d3p1:FileDialogWildcardExpression>*.odt;*.ott;*.odm</d3p1:FileDialogWildcardExpression>
+                  <d3p1:FileTypeDefinitionId>Odt 1.0.0.0</d3p1:FileTypeDefinitionId>
+                  <d3p1:FileTypeDocumentName>OpenDocument Text Document</d3p1:FileTypeDocumentName>
+                  <d3p1:FileTypeDocumentsName>OpenDocument Text Documents</d3p1:FileTypeDocumentsName>
+                  <d3p1:FileTypeName>OpenDocument Text Document (ODT)</d3p1:FileTypeName>
+                </Profile>
+                <Removed>false</Removed>
+              </FileTypeManagerConfigurationItem>
+              <FileTypeManagerConfigurationItem>
+                <Enabled>true</Enabled>
+                <FileTypeDefinitionId>Odp 1.0.0.0</FileTypeDefinitionId>
+                <Profile xmlns:d3p1="http://www.sdl.com/filetypesupport">
+                  <d3p1:Description>Documents created in OpenOffice.org Impress, LibreOffice Presentation, Google Docs and Lotus Symphony applications.</d3p1:Description>
+                  <d3p1:Expression>(^[\d\D]*\.[oO][dD][pP]$)|(^[\d\D]*\.[oO][tT][pP]$)</d3p1:Expression>
+                  <d3p1:FileDialogWildcardExpression>*.odp;*.otp</d3p1:FileDialogWildcardExpression>
+                  <d3p1:FileTypeDefinitionId>Odp 1.0.0.0</d3p1:FileTypeDefinitionId>
+                  <d3p1:FileTypeDocumentName>OpenDocument Presentation Document</d3p1:FileTypeDocumentName>
+                  <d3p1:FileTypeDocumentsName>OpenDocument Presentation Documents</d3p1:FileTypeDocumentsName>
+                  <d3p1:FileTypeName>OpenDocument Presentation (ODP)</d3p1:FileTypeName>
+                </Profile>
+                <Removed>false</Removed>
+              </FileTypeManagerConfigurationItem>
+              <FileTypeManagerConfigurationItem>
+                <Enabled>true</Enabled>
+                <FileTypeDefinitionId>Ods 1.0.0.0</FileTypeDefinitionId>
+                <Profile xmlns:d3p1="http://www.sdl.com/filetypesupport">
+                  <d3p1:Description>Documents created in OpenOffice.org Calc, LibreOffice Spreadsheet, Google Docs and Lotus Symphony applications.</d3p1:Description>
+                  <d3p1:Expression>(^[\d\D]*\.[oO][dD][sS]$)|(^[\d\D]*\.[oO][tT][sS]$)</d3p1:Expression>
+                  <d3p1:FileDialogWildcardExpression>*.ods;*.ots</d3p1:FileDialogWildcardExpression>
+                  <d3p1:FileTypeDefinitionId>Ods 1.0.0.0</d3p1:FileTypeDefinitionId>
+                  <d3p1:FileTypeDocumentName>OpenDocument Spreadsheet Document</d3p1:FileTypeDocumentName>
+                  <d3p1:FileTypeDocumentsName>OpenDocument Spreadsheet Documents</d3p1:FileTypeDocumentsName>
+                  <d3p1:FileTypeName>OpenDocument Spreadsheet (ODS)</d3p1:FileTypeName>
+                </Profile>
+                <Removed>false</Removed>
+              </FileTypeManagerConfigurationItem>
+              <FileTypeManagerConfigurationItem>
+                <Enabled>true</Enabled>
+                <FileTypeDefinitionId>QuarkXPress v 2.0.0.0</FileTypeDefinitionId>
+                <Profile xmlns:d3p1="http://www.sdl.com/filetypesupport">
+                  <d3p1:Description>QuarkXPress Tagged Text and CopyFlow documents</d3p1:Description>
+                  <d3p1:Expression>(^[\d\D]*\.[xX][tT][gG]$)|(^[\d\D]*\.[tT][aA][gG]$)</d3p1:Expression>
+                  <d3p1:FileDialogWildcardExpression>*.xtg;*.tag</d3p1:FileDialogWildcardExpression>
+                  <d3p1:FileTypeDefinitionId>QuarkXPress v 2.0.0.0</d3p1:FileTypeDefinitionId>
+                  <d3p1:FileTypeDocumentName>QuarkXPress Export Document</d3p1:FileTypeDocumentName>
+                  <d3p1:FileTypeDocumentsName>QuarkXPress Export Documents</d3p1:FileTypeDocumentsName>
+                  <d3p1:FileTypeName>QuarkXPress Export</d3p1:FileTypeName>
+                </Profile>
+                <Removed>false</Removed>
+              </FileTypeManagerConfigurationItem>
+              <FileTypeManagerConfigurationItem>
+                <Enabled>true</Enabled>
+                <FileTypeDefinitionId>XLIFF 1.1-1.2 v 2.0.0.0</FileTypeDefinitionId>
+                <Profile xmlns:d3p1="http://www.sdl.com/filetypesupport">
+                  <d3p1:Description>Documents compliant with the OASIS XML Localisation Interchange File Format (XLIFF) standard version 1.1 or 1.2.Documents may be untranslated, partially or fully translated.</d3p1:Description>
+                  <d3p1:Expression>(^[\d\D]*\.[xX][lL][fF]$)|(^[\d\D]*\.[xX][lL][iI][fF][fF]$)|(^[\d\D]*\.[xX][lL][zZ]$)</d3p1:Expression>
+                  <d3p1:FileDialogWildcardExpression>*.xlf;*.xliff;*.xlz</d3p1:FileDialogWildcardExpression>
+                  <d3p1:FileTypeDefinitionId>XLIFF 1.1-1.2 v 2.0.0.0</d3p1:FileTypeDefinitionId>
+                  <d3p1:FileTypeDocumentName>XLIFF Document</d3p1:FileTypeDocumentName>
+                  <d3p1:FileTypeDocumentsName>XLIFF Documents</d3p1:FileTypeDocumentsName>
+                  <d3p1:FileTypeName>XLIFF</d3p1:FileTypeName>
+                </Profile>
+                <Removed>false</Removed>
+              </FileTypeManagerConfigurationItem>
+              <FileTypeManagerConfigurationItem>
+                <Enabled>true</Enabled>
+                <FileTypeDefinitionId>MemoQ v 1.0.0.0</FileTypeDefinitionId>
+                <Profile xmlns:d3p1="http://www.sdl.com/filetypesupport">
+                  <d3p1:Description>XLIFF documents using Kilgray MemoQ specializations.</d3p1:Description>
+                  <d3p1:Expression>(^[\d\D]*\.[mM][qQ][xX][lL][fF]$)|(^[\d\D]*\.[mM][qQ][xX][lL][iI][fF][fF]$)|(^[\d\D]*\.[mM][qQ][xX][lL][zZ]$)</d3p1:Expression>
+                  <d3p1:FileDialogWildcardExpression>*.mqxlf;*.mqxliff;*.mqxlz</d3p1:FileDialogWildcardExpression>
+                  <d3p1:FileTypeDefinitionId>MemoQ v 1.0.0.0</d3p1:FileTypeDefinitionId>
+                  <d3p1:FileTypeDocumentName>XLIFF: Kilgray MemoQ Document</d3p1:FileTypeDocumentName>
+                  <d3p1:FileTypeDocumentsName>XLIFF: Kilgray MemoQ Documents</d3p1:FileTypeDocumentsName>
+                  <d3p1:FileTypeName>XLIFF: Kilgray MemoQ</d3p1:FileTypeName>
+                </Profile>
+                <Removed>false</Removed>
+              </FileTypeManagerConfigurationItem>
+              <FileTypeManagerConfigurationItem>
+                <Enabled>true</Enabled>
+                <FileTypeDefinitionId>Memsource Xliff v 1.0.0.0</FileTypeDefinitionId>
+                <Profile xmlns:d3p1="http://www.sdl.com/filetypesupport">
+                  <d3p1:Description>XLIFF documents created in Memsource editor</d3p1:Description>
+                  <d3p1:Expression>(^[\d\D]*\.[mM][xX][lL][iI][fF][fF]$)</d3p1:Expression>
+                  <d3p1:FileDialogWildcardExpression>*.mxliff</d3p1:FileDialogWildcardExpression>
+                  <d3p1:FileTypeDefinitionId>Memsource Xliff v 1.0.0.0</d3p1:FileTypeDefinitionId>
+                  <d3p1:FileTypeDocumentName>XLIFF: Memsource Xliff Document</d3p1:FileTypeDocumentName>
+                  <d3p1:FileTypeDocumentsName>XLIFF: Memsource Xliff Documents</d3p1:FileTypeDocumentsName>
+                  <d3p1:FileTypeName>XLIFF: Memsource Xliff</d3p1:FileTypeName>
+                </Profile>
+                <Removed>false</Removed>
+              </FileTypeManagerConfigurationItem>
+              <FileTypeManagerConfigurationItem>
+                <Enabled>true</Enabled>
+                <FileTypeDefinitionId>XLIFF 2.0 v 1.0.0.0</FileTypeDefinitionId>
+                <Profile xmlns:d3p1="http://www.sdl.com/filetypesupport">
+                  <d3p1:Description>Documents compliant with the OASIS XML Localisation Interchange File Format (XLIFF) standard version 2.1.Documents may be untranslated, partially or fully translated.</d3p1:Description>
+                  <d3p1:Expression>(^[\d\D]*\.[xX][lL][fF]$)|(^[\d\D]*\.[xX][lL][iI][fF][fF]$)</d3p1:Expression>
+                  <d3p1:FileDialogWildcardExpression>*.xlf;*.xliff</d3p1:FileDialogWildcardExpression>
+                  <d3p1:FileTypeDefinitionId>XLIFF 2.0 v 1.0.0.0</d3p1:FileTypeDefinitionId>
+                  <d3p1:FileTypeDocumentName>XLIFF 2.0 Document</d3p1:FileTypeDocumentName>
+                  <d3p1:FileTypeDocumentsName>XLIFF 2.0 Documents</d3p1:FileTypeDocumentsName>
+                  <d3p1:FileTypeName>XLIFF 2.0</d3p1:FileTypeName>
+                </Profile>
+                <Removed>false</Removed>
+              </FileTypeManagerConfigurationItem>
+              <FileTypeManagerConfigurationItem>
+                <Enabled>true</Enabled>
+                <FileTypeDefinitionId>PDF v 3.0.0.0</FileTypeDefinitionId>
+                <Profile xmlns:d3p1="http://www.sdl.com/filetypesupport">
+                  <d3p1:Description>Portable Document Format (PDF) documents, as generated by 3rd party PDF writers.</d3p1:Description>
+                  <d3p1:Expression>(^[\d\D]*\.[pP][dD][fF]$)</d3p1:Expression>
+                  <d3p1:FileDialogWildcardExpression>*.pdf</d3p1:FileDialogWildcardExpression>
+                  <d3p1:FileTypeDefinitionId>PDF v 3.0.0.0</d3p1:FileTypeDefinitionId>
+                  <d3p1:FileTypeDocumentName>PDF Document</d3p1:FileTypeDocumentName>
+                  <d3p1:FileTypeDocumentsName>PDF Documents</d3p1:FileTypeDocumentsName>
+                  <d3p1:FileTypeName>PDF</d3p1:FileTypeName>
+                </Profile>
+                <Removed>false</Removed>
+              </FileTypeManagerConfigurationItem>
+              <FileTypeManagerConfigurationItem>
+                <Enabled>true</Enabled>
+                <FileTypeDefinitionId>CSV v 2.0.0.0</FileTypeDefinitionId>
+                <Profile xmlns:d3p1="http://www.sdl.com/filetypesupport">
+                  <d3p1:Description>Text file where rows are separated by line breaks and value are separated by commas (,). In the default settings the first column contains the source language text and the second contains the translation.</d3p1:Description>
+                  <d3p1:Expression>(^[\d\D]*\.[cC][sS][vV]$)</d3p1:Expression>
+                  <d3p1:FileDialogWildcardExpression>*.csv</d3p1:FileDialogWildcardExpression>
+                  <d3p1:FileTypeDefinitionId>CSV v 2.0.0.0</d3p1:FileTypeDefinitionId>
+                  <d3p1:FileTypeDocumentName>Comma Delimited (CSV) Document</d3p1:FileTypeDocumentName>
+                  <d3p1:FileTypeDocumentsName>Comma Delimited (CSV) Documents</d3p1:FileTypeDocumentsName>
+                  <d3p1:FileTypeName>Comma Delimited Text (CSV)</d3p1:FileTypeName>
+                </Profile>
+                <Removed>false</Removed>
+              </FileTypeManagerConfigurationItem>
+              <FileTypeManagerConfigurationItem>
+                <Enabled>true</Enabled>
+                <FileTypeDefinitionId>Tab Delimited v 2.0.0.0</FileTypeDefinitionId>
+                <Profile xmlns:d3p1="http://www.sdl.com/filetypesupport">
+                  <d3p1:Description>Text file where rows are separated by line breaks and values are separated by tab characters. In the default settings the first column contains the source language text and the second column contains the translation.</d3p1:Description>
+                  <d3p1:Expression>(^[\d\D]*\.[tT][xX][tT]$)</d3p1:Expression>
+                  <d3p1:FileDialogWildcardExpression>*.txt</d3p1:FileDialogWildcardExpression>
+                  <d3p1:FileTypeDefinitionId>Tab Delimited v 2.0.0.0</d3p1:FileTypeDefinitionId>
+                  <d3p1:FileTypeDocumentName>Tab Delimited Text Document</d3p1:FileTypeDocumentName>
+                  <d3p1:FileTypeDocumentsName>Tab Delimited Text Documents</d3p1:FileTypeDocumentsName>
+                  <d3p1:FileTypeName>Tab Delimited Text</d3p1:FileTypeName>
+                </Profile>
+                <Removed>false</Removed>
+              </FileTypeManagerConfigurationItem>
+              <FileTypeManagerConfigurationItem>
+                <Enabled>true</Enabled>
+                <FileTypeDefinitionId>Java Resources v 2.0.0.0</FileTypeDefinitionId>
+                <Profile xmlns:d3p1="http://www.sdl.com/filetypesupport">
+                  <d3p1:Description>Resource files for Java applications</d3p1:Description>
+                  <d3p1:Expression>(^[\d\D]*\.[pP][rR][oO][pP][eE][rR][tT][iI][eE][sS]$)</d3p1:Expression>
+                  <d3p1:FileDialogWildcardExpression>*.properties</d3p1:FileDialogWildcardExpression>
+                  <d3p1:FileTypeDefinitionId>Java Resources v 2.0.0.0</d3p1:FileTypeDefinitionId>
+                  <d3p1:FileTypeDocumentName>Java Resource Document</d3p1:FileTypeDocumentName>
+                  <d3p1:FileTypeDocumentsName>Java Resource Documents</d3p1:FileTypeDocumentsName>
+                  <d3p1:FileTypeName>Java Resources</d3p1:FileTypeName>
+                </Profile>
+                <Removed>false</Removed>
+              </FileTypeManagerConfigurationItem>
+              <FileTypeManagerConfigurationItem>
+                <Enabled>true</Enabled>
+                <FileTypeDefinitionId>PO files v 1.0.0.0</FileTypeDefinitionId>
+                <Profile xmlns:d3p1="http://www.sdl.com/filetypesupport">
+                  <d3p1:Description>PO (Portable Object) documents generated by GNU gettext.</d3p1:Description>
+                  <d3p1:Expression>(^[\d\D]*\.[pP][oO]$)</d3p1:Expression>
+                  <d3p1:FileDialogWildcardExpression>*.po</d3p1:FileDialogWildcardExpression>
+                  <d3p1:FileTypeDefinitionId>PO files v 1.0.0.0</d3p1:FileTypeDefinitionId>
+                  <d3p1:FileTypeDocumentName>Portable Object Document</d3p1:FileTypeDocumentName>
+                  <d3p1:FileTypeDocumentsName>Portable Object Documents</d3p1:FileTypeDocumentsName>
+                  <d3p1:FileTypeName>Portable Object</d3p1:FileTypeName>
+                </Profile>
+                <Removed>false</Removed>
+              </FileTypeManagerConfigurationItem>
+              <FileTypeManagerConfigurationItem>
+                <Enabled>true</Enabled>
+                <FileTypeDefinitionId>.NetLibraries v 1.0.0.0</FileTypeDefinitionId>
+                <Profile xmlns:d3p1="http://www.sdl.com/filetypesupport">
+                  <d3p1:Description>.NET framework portable executable (PE) files</d3p1:Description>
+                  <d3p1:Expression>(^[\d\D]*\.[dD][lL][lL]$)|(^[\d\D]*\.[eE][xX][eE]$)</d3p1:Expression>
+                  <d3p1:FileDialogWildcardExpression>*.dll;*.exe</d3p1:FileDialogWildcardExpression>
+                  <d3p1:FileTypeDefinitionId>.NetLibraries v 1.0.0.0</d3p1:FileTypeDefinitionId>
+                  <d3p1:FileTypeDocumentName>.NET Library</d3p1:FileTypeDocumentName>
+                  <d3p1:FileTypeDocumentsName>.NET Libraries</d3p1:FileTypeDocumentsName>
+                  <d3p1:FileTypeName>.NET Libraries</d3p1:FileTypeName>
+                </Profile>
+                <Removed>false</Removed>
+              </FileTypeManagerConfigurationItem>
+              <FileTypeManagerConfigurationItem>
+                <Enabled>true</Enabled>
+                <FileTypeDefinitionId>Subtitles v 1.0.0.0</FileTypeDefinitionId>
+                <Profile xmlns:d3p1="http://www.sdl.com/filetypesupport">
+                  <d3p1:Description>SubRip (.srt), SubViewer (.sbv), Web Video Text Tracks (.vtt) and Timed Text Markup (.ttml) files.</d3p1:Description>
+                  <d3p1:Expression>(^[\d\D]*\.[sS][rR][tT]$)|(^[\d\D]*\.[vV][tT][tT]$)|(^[\d\D]*\.[sS][bB][vV]$)|(^[\d\D]*\.[sS][uU][bB]$)|(^[\d\D]*\.[tT][tT][mM][lL]$)|(^[\d\D]*\.[xX][mM][lL]$)|(^[\d\D]*\.[dD][fF][xX][pP]$)</d3p1:Expression>
+                  <d3p1:FileDialogWildcardExpression>*.srt;*.vtt;*.sbv;*.sub;*.ttml;*.xml;*.dfxp</d3p1:FileDialogWildcardExpression>
+                  <d3p1:FileTypeDefinitionId>Subtitles v 1.0.0.0</d3p1:FileTypeDefinitionId>
+                  <d3p1:FileTypeDocumentName>Subtitle File</d3p1:FileTypeDocumentName>
+                  <d3p1:FileTypeDocumentsName>Subtitle Files</d3p1:FileTypeDocumentsName>
+                  <d3p1:FileTypeName>Subtitle formats</d3p1:FileTypeName>
+                </Profile>
+                <Removed>false</Removed>
+              </FileTypeManagerConfigurationItem>
+              <FileTypeManagerConfigurationItem>
+                <Enabled>true</Enabled>
+                <FileTypeDefinitionId>JSON v 1.0.0.0</FileTypeDefinitionId>
+                <Profile xmlns:d3p1="http://www.sdl.com/filetypesupport">
+                  <d3p1:Description>JavaScript Object Notation (JSON) documents.</d3p1:Description>
+                  <d3p1:Expression>(^[\d\D]*\.[jJ][sS][oO][nN]$)</d3p1:Expression>
+                  <d3p1:FileDialogWildcardExpression>*.json</d3p1:FileDialogWildcardExpression>
+                  <d3p1:FileTypeDefinitionId>JSON v 1.0.0.0</d3p1:FileTypeDefinitionId>
+                  <d3p1:FileTypeDocumentName>JSON document</d3p1:FileTypeDocumentName>
+                  <d3p1:FileTypeDocumentsName>JSON documents</d3p1:FileTypeDocumentsName>
+                  <d3p1:FileTypeName>JSON</d3p1:FileTypeName>
+                </Profile>
+                <Removed>false</Removed>
+              </FileTypeManagerConfigurationItem>
+              <FileTypeManagerConfigurationItem>
+                <Enabled>true</Enabled>
+                <FileTypeDefinitionId>YAML v 1.0.0.0</FileTypeDefinitionId>
+                <Profile xmlns:d3p1="http://www.sdl.com/filetypesupport">
+                  <d3p1:Description>YAML (YAML Ain't Markup Language) files</d3p1:Description>
+                  <d3p1:Expression>(^[\d\D]*\.[yY][aA][mM][lL]$)|(^[\d\D]*\.[yY][mM][lL]$)</d3p1:Expression>
+                  <d3p1:FileDialogWildcardExpression>*.yaml;*.yml</d3p1:FileDialogWildcardExpression>
+                  <d3p1:FileTypeDefinitionId>YAML v 1.0.0.0</d3p1:FileTypeDefinitionId>
+                  <d3p1:FileTypeDocumentName>YAML document</d3p1:FileTypeDocumentName>
+                  <d3p1:FileTypeDocumentsName>YAML documents</d3p1:FileTypeDocumentsName>
+                  <d3p1:FileTypeName>YAML</d3p1:FileTypeName>
+                </Profile>
+                <Removed>false</Removed>
+              </FileTypeManagerConfigurationItem>
+              <FileTypeManagerConfigurationItem>
+                <Enabled>true</Enabled>
+                <FileTypeDefinitionId>Markdown v 1.0.0.0</FileTypeDefinitionId>
+                <Profile xmlns:d3p1="http://www.sdl.com/filetypesupport">
+                  <d3p1:Description>Documents based on Markdown</d3p1:Description>
+                  <d3p1:Expression>(^[\d\D]*\.[mM][dD]$)|(^[\d\D]*\.[mM][aA][rR][kK][dD][oO][wW][nN]$)</d3p1:Expression>
+                  <d3p1:FileDialogWildcardExpression>*.md;*.markdown</d3p1:FileDialogWildcardExpression>
+                  <d3p1:FileTypeDefinitionId>Markdown v 1.0.0.0</d3p1:FileTypeDefinitionId>
+                  <d3p1:FileTypeDocumentName>Markdown Document</d3p1:FileTypeDocumentName>
+                  <d3p1:FileTypeDocumentsName>Markdown Documents</d3p1:FileTypeDocumentsName>
+                  <d3p1:FileTypeName>Markdown</d3p1:FileTypeName>
+                </Profile>
+                <Removed>false</Removed>
+              </FileTypeManagerConfigurationItem>
+              <FileTypeManagerConfigurationItem>
+                <Enabled>true</Enabled>
+                <FileTypeDefinitionId>XML: RESX v 2.0.0.0</FileTypeDefinitionId>
+                <Profile xmlns:d3p1="http://www.sdl.com/filetypesupport">
+                  <d3p1:Description>XML filter with parser rules for extracting localizable text from *.resx files.</d3p1:Description>
+                  <d3p1:Expression>(^[\d\D]*\.[rR][eE][sS][xX]$)</d3p1:Expression>
+                  <d3p1:FileDialogWildcardExpression>*.resx</d3p1:FileDialogWildcardExpression>
+                  <d3p1:FileTypeDefinitionId>XML: RESX v 2.0.0.0</d3p1:FileTypeDefinitionId>
+                  <d3p1:FileTypeDocumentName>Microsoft .NET Resource File</d3p1:FileTypeDocumentName>
+                  <d3p1:FileTypeDocumentsName>Microsoft .NET Resource Files</d3p1:FileTypeDocumentsName>
+                  <d3p1:FileTypeName>XML 2: Microsoft .NET Resources</d3p1:FileTypeName>
+                </Profile>
+                <Removed>false</Removed>
+              </FileTypeManagerConfigurationItem>
+              <FileTypeManagerConfigurationItem>
+                <Enabled>true</Enabled>
+                <FileTypeDefinitionId>XML: DITA 1.3 v 2.0.0.0</FileTypeDefinitionId>
+                <Profile xmlns:d3p1="http://www.sdl.com/filetypesupport">
+                  <d3p1:Description>XML filter configured to process Darwin Information Typing Architecture (DITA) 1.3 compliant files.</d3p1:Description>
+                  <d3p1:Expression>(^[\d\D]*\.[xX][mM][lL]$)|(^[\d\D]*\.[dD][iI][tT][aA]$)|(^[\d\D]*\.[dD][iI][tT][aA][mM][aA][pP]$)</d3p1:Expression>
+                  <d3p1:FileDialogWildcardExpression>*.xml;*.dita;*.ditamap</d3p1:FileDialogWildcardExpression>
+                  <d3p1:FileTypeDefinitionId>XML: DITA 1.3 v 2.0.0.0</d3p1:FileTypeDefinitionId>
+                  <d3p1:FileTypeDocumentName>DITA XML Document</d3p1:FileTypeDocumentName>
+                  <d3p1:FileTypeDocumentsName>DITA XML Documents</d3p1:FileTypeDocumentsName>
+                  <d3p1:FileTypeName>XML 2: OASIS DITA 1.3 Compliant</d3p1:FileTypeName>
+                </Profile>
+                <Removed>false</Removed>
+              </FileTypeManagerConfigurationItem>
+              <FileTypeManagerConfigurationItem>
+                <Enabled>true</Enabled>
+                <FileTypeDefinitionId>XML: DocBook 4.5 v 2.0.0.0</FileTypeDefinitionId>
+                <Profile xmlns:d3p1="http://www.sdl.com/filetypesupport">
+                  <d3p1:Description>XML file type settings for translation of OASIS DocBook 4.5 documents.</d3p1:Description>
+                  <d3p1:Expression>(^[\d\D]*\.[xX][mM][lL]$)</d3p1:Expression>
+                  <d3p1:FileDialogWildcardExpression>*.xml</d3p1:FileDialogWildcardExpression>
+                  <d3p1:FileTypeDefinitionId>XML: DocBook 4.5 v 2.0.0.0</d3p1:FileTypeDefinitionId>
+                  <d3p1:FileTypeDocumentName>DocBook XML Document</d3p1:FileTypeDocumentName>
+                  <d3p1:FileTypeDocumentsName>DocBook XML Documents</d3p1:FileTypeDocumentsName>
+                  <d3p1:FileTypeName>XML 2: OASIS DocBook 4.5 Compliant</d3p1:FileTypeName>
+                </Profile>
+                <Removed>false</Removed>
+              </FileTypeManagerConfigurationItem>
+              <FileTypeManagerConfigurationItem>
+                <Enabled>true</Enabled>
+                <FileTypeDefinitionId>XML: Author-IT 1.2 v 2.0.0.0</FileTypeDefinitionId>
+                <Profile xmlns:d3p1="http://www.sdl.com/filetypesupport">
+                  <d3p1:Description>XML filter configured to process Author-IT compliant files.</d3p1:Description>
+                  <d3p1:Expression>(^[\d\D]*\.[xX][mM][lL]$)</d3p1:Expression>
+                  <d3p1:FileDialogWildcardExpression>*.xml</d3p1:FileDialogWildcardExpression>
+                  <d3p1:FileTypeDefinitionId>XML: Author-IT 1.2 v 2.0.0.0</d3p1:FileTypeDefinitionId>
+                  <d3p1:FileTypeDocumentName>Author-IT XML Document</d3p1:FileTypeDocumentName>
+                  <d3p1:FileTypeDocumentsName>Author-IT XML Documents</d3p1:FileTypeDocumentsName>
+                  <d3p1:FileTypeName>XML 2: Author-IT Compliant</d3p1:FileTypeName>
+                </Profile>
+                <Removed>false</Removed>
+              </FileTypeManagerConfigurationItem>
+              <FileTypeManagerConfigurationItem>
+                <Enabled>true</Enabled>
+                <FileTypeDefinitionId>XML: MadCap 1.2 v 2.0.0.0</FileTypeDefinitionId>
+                <Profile xmlns:d3p1="http://www.sdl.com/filetypesupport">
+                  <d3p1:Description>XML filter configured to process MadCap compliant files.</d3p1:Description>
+                  <d3p1:Expression>(^[\d\D]*\.[hH][tT][mM][lL]$)|(^[\d\D]*\.[hH][tT][mM]$)</d3p1:Expression>
+                  <d3p1:FileDialogWildcardExpression>*.html;*.htm</d3p1:FileDialogWildcardExpression>
+                  <d3p1:FileTypeDefinitionId>XML: MadCap 1.2 v 2.0.0.0</d3p1:FileTypeDefinitionId>
+                  <d3p1:FileTypeDocumentName>MadCap XML Document</d3p1:FileTypeDocumentName>
+                  <d3p1:FileTypeDocumentsName>MadCap XML Documents</d3p1:FileTypeDocumentsName>
+                  <d3p1:FileTypeName>XML 2: MadCap Compliant</d3p1:FileTypeName>
+                </Profile>
+                <Removed>false</Removed>
+              </FileTypeManagerConfigurationItem>
+              <FileTypeManagerConfigurationItem>
+                <Enabled>true</Enabled>
+                <FileTypeDefinitionId>AEM Sites XML 1.0.0</FileTypeDefinitionId>
+                <Profile xmlns:d3p1="http://www.sdl.com/filetypesupport">
+                  <d3p1:Description>XML filter configured to process AEM Sites XML files.</d3p1:Description>
+                  <d3p1:Expression>(^[\d\D]*\.[xX][mM][lL]$)</d3p1:Expression>
+                  <d3p1:FileDialogWildcardExpression>*.xml</d3p1:FileDialogWildcardExpression>
+                  <d3p1:FileTypeDefinitionId>AEM Sites XML 1.0.0</d3p1:FileTypeDefinitionId>
+                  <d3p1:FileTypeDocumentName>AEM Sites XML Document</d3p1:FileTypeDocumentName>
+                  <d3p1:FileTypeDocumentsName>AEM Sites XML Documents</d3p1:FileTypeDocumentsName>
+                  <d3p1:FileTypeName>XML 2: AEM Sites XML</d3p1:FileTypeName>
+                </Profile>
+                <Removed>false</Removed>
+              </FileTypeManagerConfigurationItem>
+              <FileTypeManagerConfigurationItem>
+                <Enabled>true</Enabled>
+                <FileTypeDefinitionId>XML: ITS 1.0 v 2.0.0.0</FileTypeDefinitionId>
+                <Profile xmlns:d3p1="http://www.sdl.com/filetypesupport">
+                  <d3p1:Description>XML document utilizing local rules, embedded rules and/or explicit rule files following the W3C Internationalization Tag Set (ITS) standard (version 1.0) to allow automatic identification and processing of localizable content.</d3p1:Description>
+                  <d3p1:Expression>(^[\d\D]*\.[xX][mM][lL]$)|(^[\d\D]*\.[iI][tT][sS]$)</d3p1:Expression>
+                  <d3p1:FileDialogWildcardExpression>*.xml;*.its</d3p1:FileDialogWildcardExpression>
+                  <d3p1:FileTypeDefinitionId>XML: ITS 1.0 v 2.0.0.0</d3p1:FileTypeDefinitionId>
+                  <d3p1:FileTypeDocumentName>ITS XML Document</d3p1:FileTypeDocumentName>
+                  <d3p1:FileTypeDocumentsName>ITS XML Documents</d3p1:FileTypeDocumentsName>
+                  <d3p1:FileTypeName>XML 2: W3C ITS Compliant</d3p1:FileTypeName>
+                </Profile>
+                <Removed>false</Removed>
+              </FileTypeManagerConfigurationItem>
+              <FileTypeManagerConfigurationItem>
+                <Enabled>true</Enabled>
+                <FileTypeDefinitionId>XML: Any v 2.0.0.0</FileTypeDefinitionId>
+                <Profile xmlns:d3p1="http://www.sdl.com/filetypesupport">
+                  <d3p1:Description>Any XML document or fragment for which explicit rules have not been defined. All text appearing inside elements is considered localizable. Any elements appearing inside such text are considered inline.</d3p1:Description>
+                  <d3p1:Expression>(^[\d\D]*\.[xX][mM][lL]$)</d3p1:Expression>
+                  <d3p1:FileDialogWildcardExpression>*.xml</d3p1:FileDialogWildcardExpression>
+                  <d3p1:FileTypeDefinitionId>XML: Any v 2.0.0.0</d3p1:FileTypeDefinitionId>
+                  <d3p1:FileTypeDocumentName>XML Document</d3p1:FileTypeDocumentName>
+                  <d3p1:FileTypeDocumentsName>XML Documents</d3p1:FileTypeDocumentsName>
+                  <d3p1:FileTypeName>XML 2: Any XML</d3p1:FileTypeName>
+                </Profile>
+                <Removed>false</Removed>
+              </FileTypeManagerConfigurationItem>
+              <FileTypeManagerConfigurationItem>
+                <Enabled>true</Enabled>
+                <FileTypeDefinitionId>Plain Text v 1.0.0.0</FileTypeDefinitionId>
+                <Profile xmlns:d3p1="http://www.sdl.com/filetypesupport">
+                  <d3p1:Description>Text files with one paragraph per line.</d3p1:Description>
+                  <d3p1:Expression>(^[\d\D]*\.[tT][xX][tT]$)</d3p1:Expression>
+                  <d3p1:FileDialogWildcardExpression>*.txt</d3p1:FileDialogWildcardExpression>
+                  <d3p1:FileTypeDefinitionId>Plain Text v 1.0.0.0</d3p1:FileTypeDefinitionId>
+                  <d3p1:FileTypeDocumentName>Text Document</d3p1:FileTypeDocumentName>
+                  <d3p1:FileTypeDocumentsName>Text Documents</d3p1:FileTypeDocumentsName>
+                  <d3p1:FileTypeName>Text</d3p1:FileTypeName>
+                </Profile>
+                <Removed>false</Removed>
+              </FileTypeManagerConfigurationItem>
+              <FileTypeManagerConfigurationItem>
+                <Enabled>true</Enabled>
+                <FileTypeDefinitionId>Html 4 2.0.0.0</FileTypeDefinitionId>
+                <Hidden>true</Hidden>
+                <Removed>false</Removed>
+              </FileTypeManagerConfigurationItem>
+            </FileTypeManagerConfigurationList>
+          </Setting>
+        </SettingsGroup>
+        <SettingsGroup Id="WordprocessingML v. 2">
+          <Setting Id="NonTranslatableStyleMappingRules">True</Setting>
+          <Setting Id="NonTranslatableStyleMappingRules0">
+            <NonTranslatableStyleMappingRule xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://schemas.datacontract.org/2004/07/Sdl.FileTypeSupport.Filters.MicrosoftOffice.Word.Common">
+              <StyleName>tw4winInternal</StyleName>
+              <TagProperty>Inline</TagProperty>
+            </NonTranslatableStyleMappingRule>
+          </Setting>
+          <Setting Id="NonTranslatableStyleMappingRules1">
+            <NonTranslatableStyleMappingRule xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://schemas.datacontract.org/2004/07/Sdl.FileTypeSupport.Filters.MicrosoftOffice.Word.Common">
+              <StyleName>tw4winExternal</StyleName>
+              <TagProperty>Structure</TagProperty>
+            </NonTranslatableStyleMappingRule>
+          </Setting>
+          <Setting Id="NonTranslatableStyleMappingRules2">
+            <NonTranslatableStyleMappingRule xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://schemas.datacontract.org/2004/07/Sdl.FileTypeSupport.Filters.MicrosoftOffice.Word.Common">
+              <StyleName>tw4winJump</StyleName>
+              <TagProperty>Inline</TagProperty>
+            </NonTranslatableStyleMappingRule>
+          </Setting>
+          <Setting Id="NonTranslatableStyleMappingRules3">
+            <NonTranslatableStyleMappingRule xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://schemas.datacontract.org/2004/07/Sdl.FileTypeSupport.Filters.MicrosoftOffice.Word.Common">
+              <StyleName>tw4winMark</StyleName>
+              <TagProperty>Inline</TagProperty>
+            </NonTranslatableStyleMappingRule>
+          </Setting>
+          <Setting Id="WriteStudioCommentsToTarget">True</Setting>
+          <Setting Id="ExtractCommentsForTranslation">True</Setting>
+        </SettingsGroup>
+        <SettingsGroup Id="TranslationMemorySettings">
+          <Setting Id="EnablePartialSubsegmentMatching">True</Setting>
+          <Setting Id="LookupMtEvenIfTmHasMatch">True</Setting>
+          <Setting Id="TranslationSearchMainTranslationMemories">True</Setting>
+          <Setting Id="TranslationFullSearch">True</Setting>
+          <Setting Id="TranslationMaximumResults">1</Setting>
+          <Setting Id="TranslationMinimumMatchValue">80</Setting>
+        </SettingsGroup>
+        <SettingsGroup Id="QAVerificationSettings">
+          <Setting Id="CheckIdenticalSegments">True</Setting>
+          <Setting Id="CheckTargetShorter">True</Setting>
+          <Setting Id="CheckTargetLonger">True</Setting>
+          <Setting Id="RegExRules">True</Setting>
+          <Setting Id="RegExRulesCount">0</Setting>
+          <Setting Id="CheckTrademarks">True</Setting>
+          <Setting Id="TrademarksSymbols">True</Setting>
+          <Setting Id="TrademarksSymbols0">®</Setting>
+          <Setting Id="TrademarksSymbols1">©</Setting>
+          <Setting Id="TrademarksSymbols2">™</Setting>
+          <Setting Id="TrademarksSymbols3">(c)</Setting>
+          <Setting Id="TrademarksSymbols4">(r)</Setting>
+          <Setting Id="TrademarksSymbols5">(tm)</Setting>
+          <Setting Id="ElementContextExclusionValue">True</Setting>
+          <Setting Id="ExclusionStringValue">True</Setting>
+          <Setting Id="CheckInconsistencies">True</Setting>
+          <Setting Id="CheckRepeatedWords">True</Setting>
+          <Setting Id="UneditedSegments">True</Setting>
+          <Setting Id="AbsoluteLengthElements">True</Setting>
+          <Setting Id="CheckDates">True</Setting>
+          <Setting Id="CheckNumbers">True</Setting>
+          <Setting Id="CheckTimes">True</Setting>
+          <Setting Id="CheckMeasurements">True</Setting>
+          <Setting Id="CheckPunctuationDifferences">True</Setting>
+          <Setting Id="CheckPunctuationSpace">True</Setting>
+          <Setting Id="CheckMultipleSpaces">True</Setting>
+          <Setting Id="CheckMultipleDots">True</Setting>
+          <Setting Id="Ignore3Dots">True</Setting>
+          <Setting Id="ExtraEndSpace">True</Setting>
+          <Setting Id="CheckInitialCaps">True</Setting>
+          <Setting Id="CheckGlobalCaps">True</Setting>
+          <Setting Id="CheckBrackets">True</Setting>
+          <Setting Id="CheckWordList">True</Setting>
+          <Setting Id="WrongWordPairs">True</Setting>
+          <Setting Id="WrongWordPairsCount">0</Setting>
+          <Setting Id="Enabled">True</Setting>
+        </SettingsGroup>
+        <SettingsGroup Id="SettingsTagVerifier">
+          <Setting Id="Enabled">True</Setting>
+        </SettingsGroup>
+        <SettingsGroup Id="SettingsTermVerifier">
+          <Setting Id="Enabled">True</Setting>
+        </SettingsGroup>
+        <SettingsGroup Id="FuzzyMatchRepairSettings">
+          <Setting Id="BatchProcessingEnabled">True</Setting>
+          <Setting Id="UseMachineTranslation">True</Setting>
+        </SettingsGroup>
+        <SettingsGroup Id="BatchProcessingGeneralSettings">
+          <Setting Id="OptimizeBatchProcessing">True</Setting>
+        </SettingsGroup>
+        <SettingsGroup Id="FilesView">
+          <Setting Id="SelectedTargetLanguageCode">en-US</Setting>
+        </SettingsGroup>
+        <SettingsGroup Id="ImportFromReviewTaskSettings">
+          <Setting Id="ListReviewItems">
+            <ArrayOfExternalReviewMappingItem xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://schemas.datacontract.org/2004/07/Sdl.ProjectApi.Settings">
+              <ExternalReviewMappingItem>
+                <Guid>d8fc1066-6516-4a0e-8e1d-6ef845bc55fd</Guid>
+                <Language xmlns:d3p1="http://schemas.datacontract.org/2004/07/Sdl.Core.Globalization" i:nil="true">
+                </Language>
+                <ReviewFileFullPath>C:\Dev\Supervertaler\user data_private\Projects\trados test\en-US\trados-test.docx.supervertalerDONE.review.docx</ReviewFileFullPath>
+                <XliffFilePath>C:\Dev\Supervertaler\user data_private\Projects\trados test\trados-test\en-US\trados-test.docx.sdlxliff</XliffFilePath>
+              </ExternalReviewMappingItem>
+            </ArrayOfExternalReviewMappingItem>
+          </Setting>
+          <Setting Id="ConfirmationLevel">ApprovedTranslation</Setting>
+        </SettingsGroup>
+        <SettingsGroup Id="RetrofitSettings">
+          <Setting Id="RetrofitFileMappingItems">
+            <ArrayOfRetrofitFileMappingItem xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://schemas.datacontract.org/2004/07/Sdl.ProjectApi.Settings">
+            </ArrayOfRetrofitFileMappingItem>
+          </Setting>
+        </SettingsGroup>
+        <SettingsGroup Id="ExportForReviewTaskSettings">
+          <Setting Id="Location">C:\Dev\Supervertaler\user data_private\Projects\trados test</Setting>
+        </SettingsGroup>
+      </SettingsBundle>
+    </SettingsBundle>
+    <SettingsBundle Guid="918e2e6f-2d85-4f76-a914-59f36d5f31ba">
+      <SettingsBundle>
+        <SettingsGroup Id="IgnoredMessagesSettings">
+          <Setting Id="IgnoredMessagesData">
+            <IgnoredMessagesData xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://schemas.datacontract.org/2004/07/Sdl.ProjectApi">
+              <IgnoredMessageIds>
+              </IgnoredMessageIds>
+              <IgnoredMessageTypes xmlns:d2p1="http://schemas.microsoft.com/2003/10/Serialization/Arrays">
+              </IgnoredMessageTypes>
+            </IgnoredMessagesData>
+          </Setting>
+        </SettingsGroup>
+      </SettingsBundle>
+    </SettingsBundle>
+  </SettingsBundles>
+  <InitialTaskTemplate Description="ComplexTask_Prepare_NoProjectTM_Description" Name="ComplexTask_Prepare_NoProjectTM_Name" Id="Sdl.ProjectApi.AutomaticTask.Prepare.NoProjectTM">
+    <SubTaskTemplates>
+      <SubTaskTemplate TaskTemplateId="Sdl.ProjectApi.AutomaticTasks.Conversion" />
+      <SubTaskTemplate TaskTemplateId="Sdl.ProjectApi.AutomaticTasks.Split" />
+      <SubTaskTemplate TaskTemplateId="Sdl.ProjectApi.AutomaticTasks.PerfectMatch" />
+      <SubTaskTemplate TaskTemplateId="Sdl.ProjectApi.AutomaticTasks.Translate" />
+      <SubTaskTemplate TaskTemplateId="Sdl.ProjectApi.AutomaticTasks.Analysis" />
+    </SubTaskTemplates>
+  </InitialTaskTemplate>
+  <AnalysisBands>
+    <AnalysisBand MinimumMatchValue="50" />
+    <AnalysisBand MinimumMatchValue="75" />
+    <AnalysisBand MinimumMatchValue="85" />
+    <AnalysisBand MinimumMatchValue="95" />
+  </AnalysisBands>
+  <ManualTaskTemplates />
+  <Users>
+    <User UserId="PRECISION7740\mbeijer" FullName="Michael Beijer" Description="" Email="michael@beijer.uk" PhoneNumber="447475771720" EmailType="Smtp" />
+  </Users>
+  <CascadeItem OverrideParent="true" StopSearchingWhenResultsFound="false">
+    <CascadeEntryItem PerformConcordanceSearch="true" Penalty="0" PerformUpdate="true" PerformNormalSearch="true">
+      <MainTranslationProviderItem Uri="sdltm.file:///D:/Trados TMs/PATENTS/PATENTS (nl-BE to en-US).sdltm" Enabled="false" />
+    </CascadeEntryItem>
+    <CascadeEntryItem PerformConcordanceSearch="true" Penalty="0" PerformUpdate="true" PerformNormalSearch="true">
+      <MainTranslationProviderItem Uri="sdltm.file:///D:/Trados TMs/PATENTS/PATENTS (en-US to nl-BE).sdltm" Enabled="false" />
+    </CascadeEntryItem>
+    <CascadeEntryItem PerformConcordanceSearch="false" Penalty="0" PerformUpdate="false" PerformNormalSearch="true">
+      <MainTranslationProviderItem Uri="tradoscopilotopenai:///" State="{&quot;Prompt&quot;:{&quot;Name&quot;:&quot;Patent translation&quot;,&quot;Text&quot;:&quot;Translate this source; it is from a patent application. Please use standard patent terminology.\r\n\r\nAlso ensure the terms below are used throughout:\r\n\r\n• Bij voorkeur = Preferably\r\n• Bij meer voorkeur = More preferably\r\n• Bij hoogste voorkeur = Most preferably\r\n\r\n• breedterichting = transverse direction\r\n• conclusies = claims\r\n• een uiteinde = an end\r\n• één uiteinde = one end\r\n• hoogterichting = height direction\r\n• liggende positie = lying position\r\n• met het kenmerk, dat = characterized in that\r\n• staande positie = standing position\r\n• stand der techniek = prior art\r\n\r\n• In een verder voorkeurdragende uitvoeringsvorm = In a further preferred embodiment\r\n• Volgens een verder voorkeurdragende uitvoeringsvorm = According to a further preferred embodiment\r\n• volgens één der voorgaande conclusies = according to any of the preceding claims\r\n• volgens één van de voorgaande conclusies = according to any of the preceding claims\r\n• Volgens een uitvoeringsvorm = According to an embodiment\r\n• Volgens een voorkeurdragende uitvoeringsvorm = According to a preferred embodiment\r\n\r\n• UITTREKSEL = ABSTRACT\r\n• zijwanden = side walls&quot;,&quot;IncludeComment&quot;:true,&quot;CommentPrompt&quot;:&quot;Include a useful explanation of the translation&quot;,&quot;Selected&quot;:true,&quot;Order&quot;:0},&quot;Connection&quot;:{&quot;Name&quot;:&quot;gpt-4o&quot;,&quot;Provider&quot;:&quot;OpenAI&quot;,&quot;ApiKey&quot;:&quot;&quot;,&quot;Endpoint&quot;:&quot;https://api.openai.com/v1/chat/completions&quot;,&quot;Model&quot;:&quot;gpt-4o&quot;,&quot;ModelType&quot;:&quot;Chat Completions&quot;,&quot;Temperature&quot;:75.0,&quot;Selected&quot;:true},&quot;UseCachedResults&quot;:true,&quot;UseTerminologyProvider&quot;:true,&quot;TermbaseUri&quot;:&quot;sdltb.file:///D:/Trados%20TBs/ATLANTIQUE%20(4240894).sdltb&quot;,&quot;TermbaseSearchDepth&quot;:200,&quot;IncludeTags&quot;:true,&quot;TranslationMatchValue&quot;:0,&quot;TranslationOriginType&quot;:&quot;nmt&quot;,&quot;IncludeTranslation&quot;:false,&quot;IgnoreTranslated&quot;:true}" Enabled="true" />
+    </CascadeEntryItem>
+    <CascadeEntryItem PerformConcordanceSearch="false" Penalty="0" PerformUpdate="false" PerformNormalSearch="true">
+      <MainTranslationProviderItem Uri="googletranslationprovider:///" State="{&quot;Id&quot;:&quot;c3a56e79-0f7e-4b5c-9397-1961b8aa8542&quot;,&quot;PersistGoogleKey&quot;:true,&quot;V2SupportedLanguages&quot;:[{&quot;LanguageName&quot;:&quot;Abkhaz&quot;,&quot;LanguageCode&quot;:&quot;ab&quot;},{&quot;LanguageName&quot;:&quot;Acehnese&quot;,&quot;LanguageCode&quot;:&quot;ace&quot;},{&quot;LanguageName&quot;:&quot;Acholi&quot;,&quot;LanguageCode&quot;:&quot;ach&quot;},{&quot;LanguageName&quot;:&quot;Afar&quot;,&quot;LanguageCode&quot;:&quot;aa&quot;},{&quot;LanguageName&quot;:&quot;Afrikaans&quot;,&quot;LanguageCode&quot;:&quot;af&quot;},{&quot;LanguageName&quot;:&quot;Albanian&quot;,&quot;LanguageCode&quot;:&quot;sq&quot;},{&quot;LanguageName&quot;:&quot;Alur&quot;,&quot;LanguageCode&quot;:&quot;alz&quot;},{&quot;LanguageName&quot;:&quot;Amharic&quot;,&quot;LanguageCode&quot;:&quot;am&quot;},{&quot;LanguageName&quot;:&quot;Arabic&quot;,&quot;LanguageCode&quot;:&quot;ar&quot;},{&quot;LanguageName&quot;:&quot;Armenian&quot;,&quot;LanguageCode&quot;:&quot;hy&quot;},{&quot;LanguageName&quot;:&quot;Assamese&quot;,&quot;LanguageCode&quot;:&quot;as&quot;},{&quot;LanguageName&quot;:&quot;Avar&quot;,&quot;LanguageCode&quot;:&quot;av&quot;},{&quot;LanguageName&quot;:&quot;Awadhi&quot;,&quot;LanguageCode&quot;:&quot;awa&quot;},{&quot;LanguageName&quot;:&quot;Aymara&quot;,&quot;LanguageCode&quot;:&quot;ay&quot;},{&quot;LanguageName&quot;:&quot;Azerbaijani&quot;,&quot;LanguageCode&quot;:&quot;az&quot;},{&quot;LanguageName&quot;:&quot;Balinese&quot;,&quot;LanguageCode&quot;:&quot;ban&quot;},{&quot;LanguageName&quot;:&quot;Baluchi&quot;,&quot;LanguageCode&quot;:&quot;bal&quot;},{&quot;LanguageName&quot;:&quot;Bambara&quot;,&quot;LanguageCode&quot;:&quot;bm&quot;},{&quot;LanguageName&quot;:&quot;Baoulé&quot;,&quot;LanguageCode&quot;:&quot;bci&quot;},{&quot;LanguageName&quot;:&quot;Bashkir&quot;,&quot;LanguageCode&quot;:&quot;ba&quot;},{&quot;LanguageName&quot;:&quot;Basque&quot;,&quot;LanguageCode&quot;:&quot;eu&quot;},{&quot;LanguageName&quot;:&quot;Batak Karo&quot;,&quot;LanguageCode&quot;:&quot;btx&quot;},{&quot;LanguageName&quot;:&quot;Batak Simalungun&quot;,&quot;LanguageCode&quot;:&quot;bts&quot;},{&quot;LanguageName&quot;:&quot;Batak Toba&quot;,&quot;LanguageCode&quot;:&quot;bbc&quot;},{&quot;LanguageName&quot;:&quot;Belarusian&quot;,&quot;LanguageCode&quot;:&quot;be&quot;},{&quot;LanguageName&quot;:&quot;Bemba&quot;,&quot;LanguageCode&quot;:&quot;bem&quot;},{&quot;LanguageName&quot;:&quot;Bengali&quot;,&quot;LanguageCode&quot;:&quot;bn&quot;},{&quot;LanguageName&quot;:&quot;Betawi&quot;,&quot;LanguageCode&quot;:&quot;bew&quot;},{&quot;LanguageName&quot;:&quot;Bhojpuri&quot;,&quot;LanguageCode&quot;:&quot;bho&quot;},{&quot;LanguageName&quot;:&quot;Bikol&quot;,&quot;LanguageCode&quot;:&quot;bik&quot;},{&quot;LanguageName&quot;:&quot;Bosnian&quot;,&quot;LanguageCode&quot;:&quot;bs&quot;},{&quot;LanguageName&quot;:&quot;Breton&quot;,&quot;LanguageCode&quot;:&quot;br&quot;},{&quot;LanguageName&quot;:&quot;Bulgarian&quot;,&quot;LanguageCode&quot;:&quot;bg&quot;},{&quot;LanguageName&quot;:&quot;Buryat&quot;,&quot;LanguageCode&quot;:&quot;bua&quot;},{&quot;LanguageName&quot;:&quot;Cantonese&quot;,&quot;LanguageCode&quot;:&quot;yue&quot;},{&quot;LanguageName&quot;:&quot;Catalan&quot;,&quot;LanguageCode&quot;:&quot;ca&quot;},{&quot;LanguageName&quot;:&quot;Cebuano&quot;,&quot;LanguageCode&quot;:&quot;ceb&quot;},{&quot;LanguageName&quot;:&quot;Chamorro&quot;,&quot;LanguageCode&quot;:&quot;ch&quot;},{&quot;LanguageName&quot;:&quot;Chechen&quot;,&quot;LanguageCode&quot;:&quot;ce&quot;},{&quot;LanguageName&quot;:&quot;Chichewa&quot;,&quot;LanguageCode&quot;:&quot;ny&quot;},{&quot;LanguageName&quot;:&quot;Chinese (Simplified)&quot;,&quot;LanguageCode&quot;:&quot;zh&quot;},{&quot;LanguageName&quot;:&quot;Chinese (Traditional)&quot;,&quot;LanguageCode&quot;:&quot;zh-TW&quot;},{&quot;LanguageName&quot;:&quot;Chuukese&quot;,&quot;LanguageCode&quot;:&quot;chk&quot;},{&quot;LanguageName&quot;:&quot;Chuvash&quot;,&quot;LanguageCode&quot;:&quot;cv&quot;},{&quot;LanguageName&quot;:&quot;Corsican&quot;,&quot;LanguageCode&quot;:&quot;co&quot;},{&quot;LanguageName&quot;:&quot;Crimean Tatar&quot;,&quot;LanguageCode&quot;:&quot;crh&quot;},{&quot;LanguageName&quot;:&quot;Croatian&quot;,&quot;LanguageCode&quot;:&quot;hr&quot;},{&quot;LanguageName&quot;:&quot;Czech&quot;,&quot;LanguageCode&quot;:&quot;cs&quot;},{&quot;LanguageName&quot;:&quot;Danish&quot;,&quot;LanguageCode&quot;:&quot;da&quot;},{&quot;LanguageName&quot;:&quot;Dari&quot;,&quot;LanguageCode&quot;:&quot;fa-AF&quot;},{&quot;LanguageName&quot;:&quot;Dinka&quot;,&quot;LanguageCode&quot;:&quot;din&quot;},{&quot;LanguageName&quot;:&quot;Divehi&quot;,&quot;LanguageCode&quot;:&quot;dv&quot;},{&quot;LanguageName&quot;:&quot;Dogri&quot;,&quot;LanguageCode&quot;:&quot;doi&quot;},{&quot;LanguageName&quot;:&quot;Dombe&quot;,&quot;LanguageCode&quot;:&quot;dov&quot;},{&quot;LanguageName&quot;:&quot;Dutch&quot;,&quot;LanguageCode&quot;:&quot;nl&quot;},{&quot;LanguageName&quot;:&quot;Dyula&quot;,&quot;LanguageCode&quot;:&quot;dyu&quot;},{&quot;LanguageName&quot;:&quot;Dzongkha&quot;,&quot;LanguageCode&quot;:&quot;dz&quot;},{&quot;LanguageName&quot;:&quot;English&quot;,&quot;LanguageCode&quot;:&quot;en&quot;},{&quot;LanguageName&quot;:&quot;Esperanto&quot;,&quot;LanguageCode&quot;:&quot;eo&quot;},{&quot;LanguageName&quot;:&quot;Estonian&quot;,&quot;LanguageCode&quot;:&quot;et&quot;},{&quot;LanguageName&quot;:&quot;Ewe&quot;,&quot;LanguageCode&quot;:&quot;ee&quot;},{&quot;LanguageName&quot;:&quot;Faroese&quot;,&quot;LanguageCode&quot;:&quot;fo&quot;},{&quot;LanguageName&quot;:&quot;Fijian&quot;,&quot;LanguageCode&quot;:&quot;fj&quot;},{&quot;LanguageName&quot;:&quot;Filipino&quot;,&quot;LanguageCode&quot;:&quot;tl&quot;},{&quot;LanguageName&quot;:&quot;Finnish&quot;,&quot;LanguageCode&quot;:&quot;fi&quot;},{&quot;LanguageName&quot;:&quot;Fon&quot;,&quot;LanguageCode&quot;:&quot;fon&quot;},{&quot;LanguageName&quot;:&quot;French&quot;,&quot;LanguageCode&quot;:&quot;fr&quot;},{&quot;LanguageName&quot;:&quot;Frisian&quot;,&quot;LanguageCode&quot;:&quot;fy&quot;},{&quot;LanguageName&quot;:&quot;Friulian&quot;,&quot;LanguageCode&quot;:&quot;fur&quot;},{&quot;LanguageName&quot;:&quot;Fulfulde&quot;,&quot;LanguageCode&quot;:&quot;ff&quot;},{&quot;LanguageName&quot;:&quot;Ga&quot;,&quot;LanguageCode&quot;:&quot;gaa&quot;},{&quot;LanguageName&quot;:&quot;Galician&quot;,&quot;LanguageCode&quot;:&quot;gl&quot;},{&quot;LanguageName&quot;:&quot;Ganda&quot;,&quot;LanguageCode&quot;:&quot;lg&quot;},{&quot;LanguageName&quot;:&quot;Georgian&quot;,&quot;LanguageCode&quot;:&quot;ka&quot;},{&quot;LanguageName&quot;:&quot;German&quot;,&quot;LanguageCode&quot;:&quot;de&quot;},{&quot;LanguageName&quot;:&quot;Greek&quot;,&quot;LanguageCode&quot;:&quot;el&quot;},{&quot;LanguageName&quot;:&quot;Guarani&quot;,&quot;LanguageCode&quot;:&quot;gn&quot;},{&quot;LanguageName&quot;:&quot;Gujarati&quot;,&quot;LanguageCode&quot;:&quot;gu&quot;},{&quot;LanguageName&quot;:&quot;Haitian Creole&quot;,&quot;LanguageCode&quot;:&quot;ht&quot;},{&quot;LanguageName&quot;:&quot;Hakha Chin&quot;,&quot;LanguageCode&quot;:&quot;cnh&quot;},{&quot;LanguageName&quot;:&quot;Hausa&quot;,&quot;LanguageCode&quot;:&quot;ha&quot;},{&quot;LanguageName&quot;:&quot;Hawaiian&quot;,&quot;LanguageCode&quot;:&quot;haw&quot;},{&quot;LanguageName&quot;:&quot;Hebrew&quot;,&quot;LanguageCode&quot;:&quot;iw&quot;},{&quot;LanguageName&quot;:&quot;Hiligaynon&quot;,&quot;LanguageCode&quot;:&quot;hil&quot;},{&quot;LanguageName&quot;:&quot;Hindi&quot;,&quot;LanguageCode&quot;:&quot;hi&quot;},{&quot;LanguageName&quot;:&quot;Hmong&quot;,&quot;LanguageCode&quot;:&quot;hmn&quot;},{&quot;LanguageName&quot;:&quot;Hungarian&quot;,&quot;LanguageCode&quot;:&quot;hu&quot;},{&quot;LanguageName&quot;:&quot;Hunsrik&quot;,&quot;LanguageCode&quot;:&quot;hrx&quot;},{&quot;LanguageName&quot;:&quot;Iban&quot;,&quot;LanguageCode&quot;:&quot;iba&quot;},{&quot;LanguageName&quot;:&quot;Icelandic&quot;,&quot;LanguageCode&quot;:&quot;is&quot;},{&quot;LanguageName&quot;:&quot;Igbo&quot;,&quot;LanguageCode&quot;:&quot;ig&quot;},{&quot;LanguageName&quot;:&quot;Iloko&quot;,&quot;LanguageCode&quot;:&quot;ilo&quot;},{&quot;LanguageName&quot;:&quot;Indonesian&quot;,&quot;LanguageCode&quot;:&quot;id&quot;},{&quot;LanguageName&quot;:&quot;Irish Gaelic&quot;,&quot;LanguageCode&quot;:&quot;ga&quot;},{&quot;LanguageName&quot;:&quot;Italian&quot;,&quot;LanguageCode&quot;:&quot;it&quot;},{&quot;LanguageName&quot;:&quot;Jamaican Patois&quot;,&quot;LanguageCode&quot;:&quot;jam&quot;},{&quot;LanguageName&quot;:&quot;Japanese&quot;,&quot;LanguageCode&quot;:&quot;ja&quot;},{&quot;LanguageName&quot;:&quot;Javanese&quot;,&quot;LanguageCode&quot;:&quot;jw&quot;},{&quot;LanguageName&quot;:&quot;Jingpo&quot;,&quot;LanguageCode&quot;:&quot;kac&quot;},{&quot;LanguageName&quot;:&quot;Kalaallisut&quot;,&quot;LanguageCode&quot;:&quot;kl&quot;},{&quot;LanguageName&quot;:&quot;Kannada&quot;,&quot;LanguageCode&quot;:&quot;kn&quot;},{&quot;LanguageName&quot;:&quot;Kanuri&quot;,&quot;LanguageCode&quot;:&quot;kr&quot;},{&quot;LanguageName&quot;:&quot;Kapampangan&quot;,&quot;LanguageCode&quot;:&quot;pam&quot;},{&quot;LanguageName&quot;:&quot;Kazakh&quot;,&quot;LanguageCode&quot;:&quot;kk&quot;},{&quot;LanguageName&quot;:&quot;Khasi&quot;,&quot;LanguageCode&quot;:&quot;kha&quot;},{&quot;LanguageName&quot;:&quot;Khmer&quot;,&quot;LanguageCode&quot;:&quot;km&quot;},{&quot;LanguageName&quot;:&quot;Kiga&quot;,&quot;LanguageCode&quot;:&quot;cgg&quot;},{&quot;LanguageName&quot;:&quot;Kikongo&quot;,&quot;LanguageCode&quot;:&quot;kg&quot;},{&quot;LanguageName&quot;:&quot;Kinyarwanda&quot;,&quot;LanguageCode&quot;:&quot;rw&quot;},{&quot;LanguageName&quot;:&quot;Kituba&quot;,&quot;LanguageCode&quot;:&quot;ktu&quot;},{&quot;LanguageName&quot;:&quot;Kokborok&quot;,&quot;LanguageCode&quot;:&quot;trp&quot;},{&quot;LanguageName&quot;:&quot;Komi&quot;,&quot;LanguageCode&quot;:&quot;kv&quot;},{&quot;LanguageName&quot;:&quot;Konkani&quot;,&quot;LanguageCode&quot;:&quot;gom&quot;},{&quot;LanguageName&quot;:&quot;Korean&quot;,&quot;LanguageCode&quot;:&quot;ko&quot;},{&quot;LanguageName&quot;:&quot;Krio&quot;,&quot;LanguageCode&quot;:&quot;kri&quot;},{&quot;LanguageName&quot;:&quot;Kurdish (Kurmanji)&quot;,&quot;LanguageCode&quot;:&quot;ku&quot;},{&quot;LanguageName&quot;:&quot;Kurdish (Sorani)&quot;,&quot;LanguageCode&quot;:&quot;ckb&quot;},{&quot;LanguageName&quot;:&quot;Kyrgyz&quot;,&quot;LanguageCode&quot;:&quot;ky&quot;},{&quot;LanguageName&quot;:&quot;Lao&quot;,&quot;LanguageCode&quot;:&quot;lo&quot;},{&quot;LanguageName&quot;:&quot;Latgalian&quot;,&quot;LanguageCode&quot;:&quot;ltg&quot;},{&quot;LanguageName&quot;:&quot;Latin&quot;,&quot;LanguageCode&quot;:&quot;la&quot;},{&quot;LanguageName&quot;:&quot;Latvian&quot;,&quot;LanguageCode&quot;:&quot;lv&quot;},{&quot;LanguageName&quot;:&quot;Ligurian&quot;,&quot;LanguageCode&quot;:&quot;lij&quot;},{&quot;LanguageName&quot;:&quot;Limburgan&quot;,&quot;LanguageCode&quot;:&quot;li&quot;},{&quot;LanguageName&quot;:&quot;Lingala&quot;,&quot;LanguageCode&quot;:&quot;ln&quot;},{&quot;LanguageName&quot;:&quot;Lithuanian&quot;,&quot;LanguageCode&quot;:&quot;lt&quot;},{&quot;LanguageName&quot;:&quot;Lombard&quot;,&quot;LanguageCode&quot;:&quot;lmo&quot;},{&quot;LanguageName&quot;:&quot;Luo&quot;,&quot;LanguageCode&quot;:&quot;luo&quot;},{&quot;LanguageName&quot;:&quot;Luxembourgish&quot;,&quot;LanguageCode&quot;:&quot;lb&quot;},{&quot;LanguageName&quot;:&quot;Macedonian&quot;,&quot;LanguageCode&quot;:&quot;mk&quot;},{&quot;LanguageName&quot;:&quot;Madurese&quot;,&quot;LanguageCode&quot;:&quot;mad&quot;},{&quot;LanguageName&quot;:&quot;Maithili&quot;,&quot;LanguageCode&quot;:&quot;mai&quot;},{&quot;LanguageName&quot;:&quot;Makassar&quot;,&quot;LanguageCode&quot;:&quot;mak&quot;},{&quot;LanguageName&quot;:&quot;Malagasy&quot;,&quot;LanguageCode&quot;:&quot;mg&quot;},{&quot;LanguageName&quot;:&quot;Malay&quot;,&quot;LanguageCode&quot;:&quot;ms&quot;},{&quot;LanguageName&quot;:&quot;Malay (Jawi)&quot;,&quot;LanguageCode&quot;:&quot;ms-Arab&quot;},{&quot;LanguageName&quot;:&quot;Malayalam&quot;,&quot;LanguageCode&quot;:&quot;ml&quot;},{&quot;LanguageName&quot;:&quot;Maltese&quot;,&quot;LanguageCode&quot;:&quot;mt&quot;},{&quot;LanguageName&quot;:&quot;Mam&quot;,&quot;LanguageCode&quot;:&quot;mam&quot;},{&quot;LanguageName&quot;:&quot;Manx&quot;,&quot;LanguageCode&quot;:&quot;gv&quot;},{&quot;LanguageName&quot;:&quot;Maori&quot;,&quot;LanguageCode&quot;:&quot;mi&quot;},{&quot;LanguageName&quot;:&quot;Marathi&quot;,&quot;LanguageCode&quot;:&quot;mr&quot;},{&quot;LanguageName&quot;:&quot;Marshallese&quot;,&quot;LanguageCode&quot;:&quot;mh&quot;},{&quot;LanguageName&quot;:&quot;Marwadi&quot;,&quot;LanguageCode&quot;:&quot;mwr&quot;},{&quot;LanguageName&quot;:&quot;Mauritian Creole&quot;,&quot;LanguageCode&quot;:&quot;mfe&quot;},{&quot;LanguageName&quot;:&quot;Meadow Mari&quot;,&quot;LanguageCode&quot;:&quot;chm&quot;},{&quot;LanguageName&quot;:&quot;Meiteilon (Manipuri)&quot;,&quot;LanguageCode&quot;:&quot;mni-Mtei&quot;},{&quot;LanguageName&quot;:&quot;Minang&quot;,&quot;LanguageCode&quot;:&quot;min&quot;},{&quot;LanguageName&quot;:&quot;Mizo&quot;,&quot;LanguageCode&quot;:&quot;lus&quot;},{&quot;LanguageName&quot;:&quot;Mongolian&quot;,&quot;LanguageCode&quot;:&quot;mn&quot;},{&quot;LanguageName&quot;:&quot;Myanmar (Burmese)&quot;,&quot;LanguageCode&quot;:&quot;my&quot;},{&quot;LanguageName&quot;:&quot;Nahuatl (Eastern Huasteca)&quot;,&quot;LanguageCode&quot;:&quot;nhe&quot;},{&quot;LanguageName&quot;:&quot;Ndau&quot;,&quot;LanguageCode&quot;:&quot;ndc-ZW&quot;},{&quot;LanguageName&quot;:&quot;Ndebele (South)&quot;,&quot;LanguageCode&quot;:&quot;nr&quot;},{&quot;LanguageName&quot;:&quot;Nepalbhasa (Newari)&quot;,&quot;LanguageCode&quot;:&quot;new&quot;},{&quot;LanguageName&quot;:&quot;Nepali&quot;,&quot;LanguageCode&quot;:&quot;ne&quot;},{&quot;LanguageName&quot;:&quot;NKo&quot;,&quot;LanguageCode&quot;:&quot;bm-Nkoo&quot;},{&quot;LanguageName&quot;:&quot;Northern Sotho&quot;,&quot;LanguageCode&quot;:&quot;nso&quot;},{&quot;LanguageName&quot;:&quot;Norwegian&quot;,&quot;LanguageCode&quot;:&quot;no&quot;},{&quot;LanguageName&quot;:&quot;Nuer&quot;,&quot;LanguageCode&quot;:&quot;nus&quot;},{&quot;LanguageName&quot;:&quot;Occitan&quot;,&quot;LanguageCode&quot;:&quot;oc&quot;},{&quot;LanguageName&quot;:&quot;Odia (Oriya)&quot;,&quot;LanguageCode&quot;:&quot;or&quot;},{&quot;LanguageName&quot;:&quot;Oromo&quot;,&quot;LanguageCode&quot;:&quot;om&quot;},{&quot;LanguageName&quot;:&quot;Ossetian&quot;,&quot;LanguageCode&quot;:&quot;os&quot;},{&quot;LanguageName&quot;:&quot;Pangasinan&quot;,&quot;LanguageCode&quot;:&quot;pag&quot;},{&quot;LanguageName&quot;:&quot;Papiamento&quot;,&quot;LanguageCode&quot;:&quot;pap&quot;},{&quot;LanguageName&quot;:&quot;Pashto&quot;,&quot;LanguageCode&quot;:&quot;ps&quot;},{&quot;LanguageName&quot;:&quot;Persian&quot;,&quot;LanguageCode&quot;:&quot;fa&quot;},{&quot;LanguageName&quot;:&quot;Polish&quot;,&quot;LanguageCode&quot;:&quot;pl&quot;},{&quot;LanguageName&quot;:&quot;Portuguese&quot;,&quot;LanguageCode&quot;:&quot;pt&quot;},{&quot;LanguageName&quot;:&quot;Portuguese (Portugal)&quot;,&quot;LanguageCode&quot;:&quot;pt-PT&quot;},{&quot;LanguageName&quot;:&quot;Punjabi&quot;,&quot;LanguageCode&quot;:&quot;pa&quot;},{&quot;LanguageName&quot;:&quot;Punjabi (Shahmukhi)&quot;,&quot;LanguageCode&quot;:&quot;pa-Arab&quot;},{&quot;LanguageName&quot;:&quot;Q'eqchi'&quot;,&quot;LanguageCode&quot;:&quot;kek&quot;},{&quot;LanguageName&quot;:&quot;Quechua&quot;,&quot;LanguageCode&quot;:&quot;qu&quot;},{&quot;LanguageName&quot;:&quot;Romani&quot;,&quot;LanguageCode&quot;:&quot;rom&quot;},{&quot;LanguageName&quot;:&quot;Romanian&quot;,&quot;LanguageCode&quot;:&quot;ro&quot;},{&quot;LanguageName&quot;:&quot;Rundi&quot;,&quot;LanguageCode&quot;:&quot;rn&quot;},{&quot;LanguageName&quot;:&quot;Russian&quot;,&quot;LanguageCode&quot;:&quot;ru&quot;},{&quot;LanguageName&quot;:&quot;Sami (North)&quot;,&quot;LanguageCode&quot;:&quot;se&quot;},{&quot;LanguageName&quot;:&quot;Samoan&quot;,&quot;LanguageCode&quot;:&quot;sm&quot;},{&quot;LanguageName&quot;:&quot;Sango&quot;,&quot;LanguageCode&quot;:&quot;sg&quot;},{&quot;LanguageName&quot;:&quot;Sanskrit&quot;,&quot;LanguageCode&quot;:&quot;sa&quot;},{&quot;LanguageName&quot;:&quot;Santali&quot;,&quot;LanguageCode&quot;:&quot;sat-Latn&quot;},{&quot;LanguageName&quot;:&quot;Scots Gaelic&quot;,&quot;LanguageCode&quot;:&quot;gd&quot;},{&quot;LanguageName&quot;:&quot;Serbian&quot;,&quot;LanguageCode&quot;:&quot;sr&quot;},{&quot;LanguageName&quot;:&quot;Sesotho&quot;,&quot;LanguageCode&quot;:&quot;st&quot;},{&quot;LanguageName&quot;:&quot;Seychellois Creole&quot;,&quot;LanguageCode&quot;:&quot;crs&quot;},{&quot;LanguageName&quot;:&quot;Shan&quot;,&quot;LanguageCode&quot;:&quot;shn&quot;},{&quot;LanguageName&quot;:&quot;Shona&quot;,&quot;LanguageCode&quot;:&quot;sn&quot;},{&quot;LanguageName&quot;:&quot;Sicilian&quot;,&quot;LanguageCode&quot;:&quot;scn&quot;},{&quot;LanguageName&quot;:&quot;Silesian&quot;,&quot;LanguageCode&quot;:&quot;szl&quot;},{&quot;LanguageName&quot;:&quot;Sindhi&quot;,&quot;LanguageCode&quot;:&quot;sd&quot;},{&quot;LanguageName&quot;:&quot;Sinhala&quot;,&quot;LanguageCode&quot;:&quot;si&quot;},{&quot;LanguageName&quot;:&quot;Slovak&quot;,&quot;LanguageCode&quot;:&quot;sk&quot;},{&quot;LanguageName&quot;:&quot;Slovenian&quot;,&quot;LanguageCode&quot;:&quot;sl&quot;},{&quot;LanguageName&quot;:&quot;Somali&quot;,&quot;LanguageCode&quot;:&quot;so&quot;},{&quot;LanguageName&quot;:&quot;Spanish&quot;,&quot;LanguageCode&quot;:&quot;es&quot;},{&quot;LanguageName&quot;:&quot;Sundanese&quot;,&quot;LanguageCode&quot;:&quot;su&quot;},{&quot;LanguageName&quot;:&quot;Susu&quot;,&quot;LanguageCode&quot;:&quot;sus&quot;},{&quot;LanguageName&quot;:&quot;Swahili&quot;,&quot;LanguageCode&quot;:&quot;sw&quot;},{&quot;LanguageName&quot;:&quot;Swati&quot;,&quot;LanguageCode&quot;:&quot;ss&quot;},{&quot;LanguageName&quot;:&quot;Swedish&quot;,&quot;LanguageCode&quot;:&quot;sv&quot;},{&quot;LanguageName&quot;:&quot;Tahitian&quot;,&quot;LanguageCode&quot;:&quot;ty&quot;},{&quot;LanguageName&quot;:&quot;Tajik&quot;,&quot;LanguageCode&quot;:&quot;tg&quot;},{&quot;LanguageName&quot;:&quot;Tamazight&quot;,&quot;LanguageCode&quot;:&quot;ber-Latn&quot;},{&quot;LanguageName&quot;:&quot;Tamazight (Tifinagh)&quot;,&quot;LanguageCode&quot;:&quot;ber&quot;},{&quot;LanguageName&quot;:&quot;Tamil&quot;,&quot;LanguageCode&quot;:&quot;ta&quot;},{&quot;LanguageName&quot;:&quot;Tatar&quot;,&quot;LanguageCode&quot;:&quot;tt&quot;},{&quot;LanguageName&quot;:&quot;Telugu&quot;,&quot;LanguageCode&quot;:&quot;te&quot;},{&quot;LanguageName&quot;:&quot;Tetum&quot;,&quot;LanguageCode&quot;:&quot;tet&quot;},{&quot;LanguageName&quot;:&quot;Thai&quot;,&quot;LanguageCode&quot;:&quot;th&quot;},{&quot;LanguageName&quot;:&quot;Tibetan&quot;,&quot;LanguageCode&quot;:&quot;bo&quot;},{&quot;LanguageName&quot;:&quot;Tigrinya&quot;,&quot;LanguageCode&quot;:&quot;ti&quot;},{&quot;LanguageName&quot;:&quot;Tiv&quot;,&quot;LanguageCode&quot;:&quot;tiv&quot;},{&quot;LanguageName&quot;:&quot;Tok Pisin&quot;,&quot;LanguageCode&quot;:&quot;tpi&quot;},{&quot;LanguageName&quot;:&quot;Tongan&quot;,&quot;LanguageCode&quot;:&quot;to&quot;},{&quot;LanguageName&quot;:&quot;Tsonga&quot;,&quot;LanguageCode&quot;:&quot;ts&quot;},{&quot;LanguageName&quot;:&quot;Tswana&quot;,&quot;LanguageCode&quot;:&quot;tn&quot;},{&quot;LanguageName&quot;:&quot;Tulu&quot;,&quot;LanguageCode&quot;:&quot;tcy&quot;},{&quot;LanguageName&quot;:&quot;Tumbuka&quot;,&quot;LanguageCode&quot;:&quot;tum&quot;},{&quot;LanguageName&quot;:&quot;Turkish&quot;,&quot;LanguageCode&quot;:&quot;tr&quot;},{&quot;LanguageName&quot;:&quot;Turkmen&quot;,&quot;LanguageCode&quot;:&quot;tk&quot;},{&quot;LanguageName&quot;:&quot;Tuvan&quot;,&quot;LanguageCode&quot;:&quot;tyv&quot;},{&quot;LanguageName&quot;:&quot;Twi&quot;,&quot;LanguageCode&quot;:&quot;ak&quot;},{&quot;LanguageName&quot;:&quot;Udmurt&quot;,&quot;LanguageCode&quot;:&quot;udm&quot;},{&quot;LanguageName&quot;:&quot;Ukrainian&quot;,&quot;LanguageCode&quot;:&quot;uk&quot;},{&quot;LanguageName&quot;:&quot;Urdu&quot;,&quot;LanguageCode&quot;:&quot;ur&quot;},{&quot;LanguageName&quot;:&quot;Uyghur&quot;,&quot;LanguageCode&quot;:&quot;ug&quot;},{&quot;LanguageName&quot;:&quot;Uzbek&quot;,&quot;LanguageCode&quot;:&quot;uz&quot;},{&quot;LanguageName&quot;:&quot;Venda&quot;,&quot;LanguageCode&quot;:&quot;ve&quot;},{&quot;LanguageName&quot;:&quot;Venetian&quot;,&quot;LanguageCode&quot;:&quot;vec&quot;},{&quot;LanguageName&quot;:&quot;Vietnamese&quot;,&quot;LanguageCode&quot;:&quot;vi&quot;},{&quot;LanguageName&quot;:&quot;Waray&quot;,&quot;LanguageCode&quot;:&quot;war&quot;},{&quot;LanguageName&quot;:&quot;Welsh&quot;,&quot;LanguageCode&quot;:&quot;cy&quot;},{&quot;LanguageName&quot;:&quot;Wolof&quot;,&quot;LanguageCode&quot;:&quot;wo&quot;},{&quot;LanguageName&quot;:&quot;Xhosa&quot;,&quot;LanguageCode&quot;:&quot;xh&quot;},{&quot;LanguageName&quot;:&quot;Yakut&quot;,&quot;LanguageCode&quot;:&quot;sah&quot;},{&quot;LanguageName&quot;:&quot;Yiddish&quot;,&quot;LanguageCode&quot;:&quot;yi&quot;},{&quot;LanguageName&quot;:&quot;Yoruba&quot;,&quot;LanguageCode&quot;:&quot;yo&quot;},{&quot;LanguageName&quot;:&quot;Yucatec Maya&quot;,&quot;LanguageCode&quot;:&quot;yua&quot;},{&quot;LanguageName&quot;:&quot;Zapotec&quot;,&quot;LanguageCode&quot;:&quot;zap&quot;},{&quot;LanguageName&quot;:&quot;Zulu&quot;,&quot;LanguageCode&quot;:&quot;zu&quot;},{&quot;LanguageName&quot;:&quot;Hebrew&quot;,&quot;LanguageCode&quot;:&quot;he&quot;},{&quot;LanguageName&quot;:&quot;Javanese&quot;,&quot;LanguageCode&quot;:&quot;jv&quot;},{&quot;LanguageName&quot;:&quot;Chinese (Simplified)&quot;,&quot;LanguageCode&quot;:&quot;zh-CN&quot;}],&quot;ProjectId&quot;:&quot;Not specified&quot;,&quot;JsonFilePath&quot;:null,&quot;ProjectLocation&quot;:null,&quot;LanguageMappingPairs&quot;:null,&quot;V3SupportedLanguages&quot;:null,&quot;LanguagesSupported&quot;:[&quot;nl-BE&quot;],&quot;SelectedGoogleVersion&quot;:0,&quot;Uri&quot;:&quot;googletranslationprovider://&quot;,&quot;ProviderName&quot;:&quot;Google Cloud TP - V2 Basic Translation&quot;,&quot;UseCustomProviderName&quot;:false,&quot;CustomProviderName&quot;:null,&quot;ResendDrafts&quot;:false,&quot;SendPlainTextOnly&quot;:false,&quot;UsePreEdit&quot;:false,&quot;PreLookupFilename&quot;:null,&quot;UsePostEdit&quot;:false,&quot;PostLookupFilename&quot;:null,&quot;DownloadPath&quot;:&quot;C:\\Users\\mbeijer\\AppData\\Roaming\\Trados AppStore\\Google Cloud TP&quot;}" Enabled="true" />
+    </CascadeEntryItem>
+    <CascadeEntryItem PerformConcordanceSearch="true" Penalty="0" PerformUpdate="true" PerformNormalSearch="true">
+      <MainTranslationProviderItem Uri="sdltm.file:///D:/Trados TMs/Languages/en-US to nl-NL.sdltm" Enabled="false" />
+    </CascadeEntryItem>
+    <CascadeEntryItem PerformConcordanceSearch="true" Penalty="0" PerformUpdate="false" PerformNormalSearch="true">
+      <MainTranslationProviderItem Uri="sdltm.file:///C:/Users/mbeijer/My Drive/Terminology/Trados TMs/trados test.sdltm" Enabled="true" />
+    </CascadeEntryItem>
+    <CascadeEntryItem PerformConcordanceSearch="true" Penalty="0" PerformUpdate="false" PerformNormalSearch="true">
+      <MainTranslationProviderItem Uri="sdltm.file:///C:/Users/mbeijer/My Drive/Terminology/Trados terminology/PATENTS/TMs/PATENTS (nl-BE to en-US).sdltm" Enabled="true" />
+    </CascadeEntryItem>
+  </CascadeItem>
+  <GeneralProjectInfo IsInPlace="false" IsImported="false" Name="trados-test" CreatedAt="2025-10-12T17:09:03.8605231Z" StartedAt="2025-10-12T17:10:02.4634705Z" Status="Started" CreatedBy="PRECISION7740\mbeijer">
+    <Customer Guid="5f0736a0-0ec3-8e00-01e0-91beffffffff" Name="" Email="" />
+  </GeneralProjectInfo>
+  <SourceLanguageCode>nl-BE</SourceLanguageCode>
+  <ProjectFiles>
+    <ProjectFile Guid="91f6b7b6-a37d-471f-9e6a-9803cfaf08fc" Path="" Role="Translatable" Name="trados-test.docx" ParentProjectFileGuid="00000000-0000-0000-0000-000000000000" FilterDefinitionId="WordprocessingML v. 2">
+      <SpecificTargetLanguages />
+      <LanguageFiles>
+        <LanguageFile Guid="6276f593-cb9d-4a29-9d30-9c9bddda44c1" SettingsBundleGuid="a62f7f5d-39ea-4cb7-953d-04ff6a14e90c" LanguageCode="nl-BE">
+          <FileVersions>
+            <FileVersion Guid="a96b1794-f47f-41ea-92d6-f737719874c8" VersionNumber="1" Size="40478" FileName="trados-test.docx" PhysicalPath="nl-BE\trados-test.docx" CreatedBy="PRECISION7740\mbeijer" CreatedAt="2025-10-12T17:09:48.1009506Z" FileTimeStamp="2025-10-12T17:07:43.6395054Z" IsAutoUpload="false" />
+            <FileVersion Guid="4a51cd2e-f8ee-4a7d-96c6-975ff7eed599" VersionNumber="2" Size="70868" FileName="trados-test.docx.sdlxliff" PhysicalPath="nl-BE\trados-test.docx.sdlxliff" Comment="" CreatedBy="PRECISION7740\mbeijer" CreatedAt="2025-10-12T17:10:03.994661Z" FileTimeStamp="2025-10-12T17:10:03.9828483Z" IsAutoUpload="false" />
+          </FileVersions>
+          <AnalysisStatistics WordCountStatus="None" AnalysisStatus="None">
+            <Total Words="0" Characters="0" Segments="0" Placeables="0" Tags="0" />
+            <Repetitions Words="0" Characters="0" Segments="0" Placeables="0" Tags="0" />
+            <Perfect Words="0" Characters="0" Segments="0" Placeables="0" Tags="0" />
+            <InContextExact Words="0" Characters="0" Segments="0" Placeables="0" Tags="0" />
+            <Exact Words="0" Characters="0" Segments="0" Placeables="0" Tags="0" />
+            <Fuzzy>
+              <CountData Words="0" Characters="0" Segments="0" Placeables="0" Tags="0" />
+              <CountData Words="0" Characters="0" Segments="0" Placeables="0" Tags="0" />
+              <CountData Words="0" Characters="0" Segments="0" Placeables="0" Tags="0" />
+              <CountData Words="0" Characters="0" Segments="0" Placeables="0" Tags="0" />
+            </Fuzzy>
+            <New Words="0" Characters="0" Segments="0" Placeables="0" Tags="0" />
+            <Locked Words="0" Characters="0" Segments="0" Placeables="0" Tags="0" />
+          </AnalysisStatistics>
+          <ChildFiles />
+        </LanguageFile>
+        <LanguageFile Guid="d8fc1066-6516-4a0e-8e1d-6ef845bc55fd" SettingsBundleGuid="918e2e6f-2d85-4f76-a914-59f36d5f31ba" LanguageCode="en-US">
+          <FileVersions>
+            <FileVersion Guid="069a5ac6-8a80-42b4-94ac-6b9500e96fe7" VersionNumber="3" Size="70868" FileName="trados-test.docx.sdlxliff" PhysicalPath="en-US\trados-test.docx.sdlxliff" CreatedBy="PRECISION7740\mbeijer" CreatedAt="2025-10-12T17:10:04.0056543Z" FileTimeStamp="2025-10-12T17:10:03.9828483Z" IsAutoUpload="false" />
+            <FileVersion Guid="8c8a6c9b-42da-43a7-9021-4e34468203df" VersionNumber="4" Size="73450" FileName="trados-test.docx.sdlxliff" PhysicalPath="en-US\trados-test.docx.sdlxliff" Comment="Created by 'Apply PerfectMatch+Pre-translate Files+Analyze Files'" CreatedBy="PRECISION7740\mbeijer" CreatedAt="2025-10-12T17:10:05.4356887Z" FileTimeStamp="2025-10-12T17:10:05.4175562Z" IsAutoUpload="false" />
+            <FileVersion Guid="14d954a0-0498-4f0d-b43c-e53d0f5804bc" VersionNumber="5" Size="76107" FileName="trados-test.docx.sdlxliff" PhysicalPath="en-US\trados-test.docx.sdlxliff" Comment="Created by 'Update from Bilingual Review'" CreatedBy="PRECISION7740\mbeijer" CreatedAt="2025-10-12T17:16:40.8282208Z" FileTimeStamp="2025-10-12T17:16:40.8163881Z" IsAutoUpload="false" />
+            <FileVersion Guid="9bd3bba0-a75f-4fba-9d80-41c6ba8ea5ac" VersionNumber="6" Size="76107" FileName="trados-test.docx.sdlxliff" PhysicalPath="en-US\trados-test.docx.sdlxliff" Comment="Created by 'Update from Bilingual Review'" CreatedBy="PRECISION7740\mbeijer" CreatedAt="2025-10-12T17:20:05.9396071Z" FileTimeStamp="2025-10-12T17:20:05.9285887Z" IsAutoUpload="false" />
+            <FileVersion Guid="7bad8785-1792-4df3-9ca6-4a20ade0b7a7" VersionNumber="7" Size="76107" FileName="trados-test.docx.sdlxliff" PhysicalPath="en-US\trados-test.docx.sdlxliff" Comment="Created by 'Update from Bilingual Review'" CreatedBy="PRECISION7740\mbeijer" CreatedAt="2025-10-12T17:23:05.5686198Z" FileTimeStamp="2025-10-12T17:23:05.5550722Z" IsAutoUpload="false" />
+            <FileVersion Guid="fba676a1-b37a-4d07-be21-f3a052be9b6c" VersionNumber="8" Size="77788" FileName="trados-test.docx.sdlxliff" PhysicalPath="en-US\trados-test.docx.sdlxliff" Comment="Created by 'Update from Bilingual Review'" CreatedBy="PRECISION7740\mbeijer" CreatedAt="2025-10-12T17:31:46.4394899Z" FileTimeStamp="2025-10-12T17:31:46.4255145Z" IsAutoUpload="false" />
+            <FileVersion Guid="28ad7757-6760-4f18-b863-3cc89a00e21e" VersionNumber="9" Size="77788" FileName="trados-test.docx.sdlxliff" PhysicalPath="en-US\trados-test.docx.sdlxliff" Comment="Created by 'Update from Bilingual Review'" CreatedBy="PRECISION7740\mbeijer" CreatedAt="2025-10-12T18:51:02.9631727Z" FileTimeStamp="2025-10-12T18:51:02.946118Z" IsAutoUpload="false" />
+            <FileVersion Guid="81fdca1e-a592-4580-a7bc-37fb0ecb9416" VersionNumber="10" Size="74708" FileName="trados-test.docx.sdlxliff" PhysicalPath="en-US\trados-test.docx.sdlxliff" Comment="Created by 'Update from Bilingual Review'" CreatedBy="PRECISION7740\mbeijer" CreatedAt="2025-10-12T19:01:52.8247413Z" FileTimeStamp="2025-10-12T19:01:52.8102385Z" IsAutoUpload="false" />
+            <FileVersion Guid="ee528e3f-5531-4d85-b7f6-92406c2fde26" VersionNumber="11" Size="74708" FileName="trados-test.docx.sdlxliff" PhysicalPath="en-US\trados-test.docx.sdlxliff" Comment="Created by 'Update from Bilingual Review'" CreatedBy="PRECISION7740\mbeijer" CreatedAt="2025-10-12T19:03:01.1905566Z" FileTimeStamp="2025-10-12T19:03:01.1788336Z" IsAutoUpload="false" />
+            <FileVersion Guid="7618c1ec-e704-43a5-9d81-b3601fc826b8" VersionNumber="12" Size="110446" FileName="trados-test.docx.sdlxliff" PhysicalPath="en-US\trados-test.docx.sdlxliff" Comment="Created by 'Update from Bilingual Review'" CreatedBy="PRECISION7740\mbeijer" CreatedAt="2025-10-12T19:28:16.0307837Z" FileTimeStamp="2025-10-12T19:28:16.0178689Z" IsAutoUpload="false" />
+            <FileVersion Guid="a3299595-650d-428c-8f11-f0c2e3d8529e" VersionNumber="13" Size="110646" FileName="trados-test.docx.sdlxliff" PhysicalPath="en-US\trados-test.docx.sdlxliff" Comment="Created by 'Update from Bilingual Review'" CreatedBy="PRECISION7740\mbeijer" CreatedAt="2025-10-12T19:33:09.9243885Z" FileTimeStamp="2025-10-12T19:33:09.9130617Z" IsAutoUpload="false" />
+            <FileVersion Guid="cdd35476-a6f6-467a-8f9d-4ac029979808" VersionNumber="14" Size="97762" FileName="trados-test.docx.sdlxliff" PhysicalPath="en-US\trados-test.docx.sdlxliff" Comment="Created by 'Update from Bilingual Review'" CreatedBy="PRECISION7740\mbeijer" CreatedAt="2025-10-12T19:39:07.4402287Z" FileTimeStamp="2025-10-12T19:39:07.429142Z" IsAutoUpload="false" />
+          </FileVersions>
+          <AnalysisStatistics WordCountFileTimeStamp="2025-10-12T17:10:05.4175562Z" WordCountStatus="Complete" AnalysisFileTimeStamp="2025-10-12T17:10:05.4175562Z" AnalysisStatus="Complete">
+            <Total Words="445" Characters="2655" Segments="25" Placeables="25" Tags="4" />
+            <Repetitions Words="0" Characters="0" Segments="0" Placeables="0" Tags="0" />
+            <Perfect Words="0" Characters="0" Segments="0" Placeables="0" Tags="0" />
+            <InContextExact Words="0" Characters="0" Segments="0" Placeables="0" Tags="0" />
+            <Exact Words="0" Characters="0" Segments="0" Placeables="0" Tags="0" />
+            <Fuzzy>
+              <CountData Words="0" Characters="0" Segments="0" Placeables="0" Tags="0" />
+              <CountData Words="0" Characters="0" Segments="0" Placeables="0" Tags="0" />
+              <CountData Words="0" Characters="0" Segments="0" Placeables="0" Tags="0" />
+              <CountData Words="0" Characters="0" Segments="0" Placeables="0" Tags="0" />
+            </Fuzzy>
+            <New Words="445" Characters="2655" Segments="25" Placeables="25" Tags="4" />
+            <Locked Words="0" Characters="0" Segments="0" Placeables="0" Tags="0" />
+          </AnalysisStatistics>
+          <ConfirmationStatistics FileTimeStamp="2025-10-12T19:35:44.2268924Z" Status="Complete">
+            <Unspecified Words="0" Characters="0" Segments="0" Placeables="0" Tags="0" />
+            <Draft Words="0" Characters="0" Segments="0" Placeables="0" Tags="0" />
+            <Translated Words="150" Characters="906" Segments="12" Placeables="8" Tags="0" />
+            <RejectedTranslation Words="0" Characters="0" Segments="0" Placeables="0" Tags="0" />
+            <ApprovedTranslation Words="295" Characters="1749" Segments="13" Placeables="17" Tags="4" />
+            <RejectedSignOff Words="0" Characters="0" Segments="0" Placeables="0" Tags="0" />
+            <ApprovedSignOff Words="0" Characters="0" Segments="0" Placeables="0" Tags="0" />
+          </ConfirmationStatistics>
+          <ChildFiles />
+        </LanguageFile>
+      </LanguageFiles>
+      <PreviousBilingualFiles />
+    </ProjectFile>
+  </ProjectFiles>
+  <Tasks>
+    <AutomaticTask Guid="e4d66d9f-5475-434d-b721-e8bf1794a654" PercentComplete="100" Status="Completed" CreatedAt="2025-10-12T17:09:48.1029445Z" PredecessorTaskGuid="00000000-0000-0000-0000-000000000000" CreatedBy="PRECISION7740\mbeijer" CompletedAt="2025-10-12T17:09:48.2892815Z" StartedAt="2025-10-12T17:09:48.1221271Z">
+      <TaskTemplateIds>
+        <TaskTemplateId>Sdl.ProjectApi.AutomaticTasks.Scan</TaskTemplateId>
+      </TaskTemplateIds>
+      <Files>
+        <TaskFile Guid="f681ca57-d49a-44b5-a2eb-e908c9f5a6e7" Completed="true" ParentTaskFileGuid="00000000-0000-0000-0000-000000000000" LanguageFileGuid="6276f593-cb9d-4a29-9d30-9c9bddda44c1" Purpose="WorkFile">
+          <Result Guid="00000000-0000-0000-0000-000000000000" />
+        </TaskFile>
+      </Files>
+      <OutputFiles>
+        <OutputFile LanguageFileGuid="6276f593-cb9d-4a29-9d30-9c9bddda44c1" Purpose="WorkFile" />
+      </OutputFiles>
+      <Reports />
+      <Parameters />
+      <Result Guid="00000000-0000-0000-0000-000000000000" />
+    </AutomaticTask>
+    <AutomaticTask Guid="adc3c9fd-c0c3-4899-a205-457516319f70" ComplexTaskTemplateId="Sdl.ProjectApi.AutomaticTask.Prepare.NoProjectTM" PercentComplete="100" Status="Completed" CreatedAt="2025-10-12T17:10:02.4770907Z" PredecessorTaskGuid="00000000-0000-0000-0000-000000000000" CreatedBy="PRECISION7740\mbeijer" CompletedAt="2025-10-12T17:10:03.9957001Z" StartedAt="2025-10-12T17:10:02.6459737Z">
+      <TaskTemplateIds>
+        <TaskTemplateId>Sdl.ProjectApi.AutomaticTasks.Conversion</TaskTemplateId>
+      </TaskTemplateIds>
+      <Files>
+        <TaskFile Guid="d2fae15b-2ab7-4ac4-aa5e-89684ca0c5e5" Completed="true" ParentTaskFileGuid="00000000-0000-0000-0000-000000000000" LanguageFileGuid="6276f593-cb9d-4a29-9d30-9c9bddda44c1" Purpose="WorkFile">
+          <Result Guid="00000000-0000-0000-0000-000000000000" />
+        </TaskFile>
+      </Files>
+      <OutputFiles>
+        <OutputFile LanguageFileGuid="6276f593-cb9d-4a29-9d30-9c9bddda44c1" Purpose="WorkFile" />
+      </OutputFiles>
+      <Reports />
+      <Parameters />
+      <Result Guid="00000000-0000-0000-0000-000000000000" />
+    </AutomaticTask>
+    <AutomaticTask Guid="a687707d-cf99-4c46-87db-6084d8f2278b" ComplexTaskTemplateId="Sdl.ProjectApi.AutomaticTask.Prepare.NoProjectTM" PercentComplete="100" Status="Completed" CreatedAt="2025-10-12T17:10:02.4781297Z" PredecessorTaskGuid="adc3c9fd-c0c3-4899-a205-457516319f70" CreatedBy="PRECISION7740\mbeijer" CompletedAt="2025-10-12T17:10:04.012452Z" StartedAt="2025-10-12T17:10:03.9992877Z">
+      <TaskTemplateIds>
+        <TaskTemplateId>Sdl.ProjectApi.AutomaticTasks.Split</TaskTemplateId>
+      </TaskTemplateIds>
+      <Files>
+        <TaskFile Guid="d1e7b55c-8502-42d1-9f70-032296bc99d2" Completed="true" ParentTaskFileGuid="00000000-0000-0000-0000-000000000000" LanguageFileGuid="6276f593-cb9d-4a29-9d30-9c9bddda44c1" Purpose="WorkFile">
+          <Result Guid="00000000-0000-0000-0000-000000000000" />
+        </TaskFile>
+      </Files>
+      <OutputFiles>
+        <OutputFile LanguageFileGuid="d8fc1066-6516-4a0e-8e1d-6ef845bc55fd" Purpose="WorkFile" />
+      </OutputFiles>
+      <Reports />
+      <Parameters />
+      <Result Guid="00000000-0000-0000-0000-000000000000" />
+    </AutomaticTask>
+    <AutomaticTask Guid="1a4bb266-a1a2-42b8-8836-da9c25e447d4" ComplexTaskTemplateId="Sdl.ProjectApi.AutomaticTask.Prepare.NoProjectTM" PercentComplete="100" Status="Completed" CreatedAt="2025-10-12T17:10:02.4781297Z" PredecessorTaskGuid="a687707d-cf99-4c46-87db-6084d8f2278b" CreatedBy="PRECISION7740\mbeijer" CompletedAt="2025-10-12T17:10:05.4896042Z" StartedAt="2025-10-12T17:10:04.0169824Z">
+      <TaskTemplateIds>
+        <TaskTemplateId>Sdl.ProjectApi.AutomaticTasks.PerfectMatch</TaskTemplateId>
+        <TaskTemplateId>Sdl.ProjectApi.AutomaticTasks.Translate</TaskTemplateId>
+        <TaskTemplateId>Sdl.ProjectApi.AutomaticTasks.Analysis</TaskTemplateId>
+      </TaskTemplateIds>
+      <Files>
+        <TaskFile Guid="533a82d3-9831-4a59-ac8f-ae2753f8c304" Completed="true" ParentTaskFileGuid="00000000-0000-0000-0000-000000000000" LanguageFileGuid="d8fc1066-6516-4a0e-8e1d-6ef845bc55fd" Purpose="WorkFile">
+          <Result Guid="00000000-0000-0000-0000-000000000000" />
+        </TaskFile>
+      </Files>
+      <OutputFiles>
+        <OutputFile LanguageFileGuid="d8fc1066-6516-4a0e-8e1d-6ef845bc55fd" Purpose="WorkFile" />
+      </OutputFiles>
+      <Reports>
+        <Report Guid="52b7de85-6b04-466b-ba50-37da6f3c6a25" Name="Pre-translate Files Report" Description="Results of applying the translation memories to the files." TaskTemplateId="Sdl.ProjectApi.AutomaticTasks.Translate" LanguageDirectionGuid="5d7c586e-abb0-43ea-ae33-9325faf2d9b6" PhysicalPath="Reports\Pre-translate Files nl-BE_en-US.xml" />
+        <Report Guid="753310d9-7988-419a-a13c-a6d050464412" Name="Analyze Files Report" Description="Statistics showing the expected leverage from applying the translation memories." TaskTemplateId="Sdl.ProjectApi.AutomaticTasks.Analysis" LanguageDirectionGuid="5d7c586e-abb0-43ea-ae33-9325faf2d9b6" PhysicalPath="Reports\Analyze Files nl-BE_en-US.xml" />
+      </Reports>
+      <Parameters />
+      <Result Guid="00000000-0000-0000-0000-000000000000">
+        <Messages Level="Warning" Message="No translation memories found to look up translations for language pair Dutch (Belgium)-&gt;English (United States)." Source="Pre-translate Files" />
+      </Result>
+    </AutomaticTask>
+    <AutomaticTask Guid="124ec05a-a4ac-4fa3-b270-36d474d0830d" PercentComplete="100" Status="Completed" CreatedAt="2025-10-12T17:11:03.6035421Z" PredecessorTaskGuid="00000000-0000-0000-0000-000000000000" CreatedBy="PRECISION7740\mbeijer" CompletedAt="2025-10-12T17:11:04.3993683Z" StartedAt="2025-10-12T17:11:03.6209844Z">
+      <TaskTemplateIds>
+        <TaskTemplateId>Sdl.ProjectApi.AutomaticTasks.ExportForReview</TaskTemplateId>
+      </TaskTemplateIds>
+      <Files>
+        <TaskFile Guid="77358dc2-6f26-4920-a12a-74d9c735da45" Completed="true" ParentTaskFileGuid="00000000-0000-0000-0000-000000000000" LanguageFileGuid="d8fc1066-6516-4a0e-8e1d-6ef845bc55fd" Purpose="WorkFile">
+          <Result Guid="00000000-0000-0000-0000-000000000000">
+            <Messages Level="Warning" Message="There is no translation to review in file [C:\Users\mbeijer\AppData\Local\Temp\ckvwowsk\en-US\trados-test.docx.sdlxliff]." Source="Export for Bilingual Review" />
+          </Result>
+        </TaskFile>
+      </Files>
+      <OutputFiles>
+        <OutputFile LanguageFileGuid="d8fc1066-6516-4a0e-8e1d-6ef845bc55fd" Purpose="WorkFile" />
+      </OutputFiles>
+      <Reports />
+      <Parameters />
+      <Result Guid="00000000-0000-0000-0000-000000000000" />
+    </AutomaticTask>
+    <AutomaticTask Guid="066cf477-605f-484c-a8c6-e4170eaf7d4f" PercentComplete="100" Status="Completed" CreatedAt="2025-10-12T17:16:39.9456271Z" PredecessorTaskGuid="00000000-0000-0000-0000-000000000000" CreatedBy="PRECISION7740\mbeijer" CompletedAt="2025-10-12T17:16:40.8282208Z" StartedAt="2025-10-12T17:16:39.9656125Z">
+      <TaskTemplateIds>
+        <TaskTemplateId>Sdl.ProjectApi.AutomaticTasks.ImportFromReview</TaskTemplateId>
+      </TaskTemplateIds>
+      <Files>
+        <TaskFile Guid="27bba0a5-56e0-442a-9402-b786d81e56e2" Completed="true" ParentTaskFileGuid="00000000-0000-0000-0000-000000000000" LanguageFileGuid="d8fc1066-6516-4a0e-8e1d-6ef845bc55fd" Purpose="WorkFile">
+          <Result Guid="00000000-0000-0000-0000-000000000000" />
+        </TaskFile>
+      </Files>
+      <OutputFiles>
+        <OutputFile LanguageFileGuid="d8fc1066-6516-4a0e-8e1d-6ef845bc55fd" Purpose="WorkFile" />
+      </OutputFiles>
+      <Reports />
+      <Parameters />
+      <Result Guid="00000000-0000-0000-0000-000000000000" />
+    </AutomaticTask>
+    <AutomaticTask Guid="a4e6544e-aa1f-44db-b90e-420153b2fcd4" PercentComplete="100" Status="Completed" CreatedAt="2025-10-12T17:20:05.6753086Z" PredecessorTaskGuid="00000000-0000-0000-0000-000000000000" CreatedBy="PRECISION7740\mbeijer" CompletedAt="2025-10-12T17:20:05.9396071Z" StartedAt="2025-10-12T17:20:05.6897978Z">
+      <TaskTemplateIds>
+        <TaskTemplateId>Sdl.ProjectApi.AutomaticTasks.ImportFromReview</TaskTemplateId>
+      </TaskTemplateIds>
+      <Files>
+        <TaskFile Guid="6de30e4f-cd6d-48e5-9fb1-05a59d5a955e" Completed="true" ParentTaskFileGuid="00000000-0000-0000-0000-000000000000" LanguageFileGuid="d8fc1066-6516-4a0e-8e1d-6ef845bc55fd" Purpose="WorkFile">
+          <Result Guid="00000000-0000-0000-0000-000000000000" />
+        </TaskFile>
+      </Files>
+      <OutputFiles>
+        <OutputFile LanguageFileGuid="d8fc1066-6516-4a0e-8e1d-6ef845bc55fd" Purpose="WorkFile" />
+      </OutputFiles>
+      <Reports />
+      <Parameters />
+      <Result Guid="00000000-0000-0000-0000-000000000000" />
+    </AutomaticTask>
+    <AutomaticTask Guid="30ad7ea1-62f3-421d-a2e2-520f8140352b" PercentComplete="100" Status="Completed" CreatedAt="2025-10-12T17:20:29.444752Z" PredecessorTaskGuid="00000000-0000-0000-0000-000000000000" CreatedBy="PRECISION7740\mbeijer" CompletedAt="2025-10-12T17:20:29.641112Z" StartedAt="2025-10-12T17:20:29.4736257Z">
+      <TaskTemplateIds>
+        <TaskTemplateId>Sdl.ProjectApi.AutomaticTasks.ExportForReview</TaskTemplateId>
+      </TaskTemplateIds>
+      <Files>
+        <TaskFile Guid="fdc1a816-a5ef-486b-bf73-44c626f074c2" Completed="true" ParentTaskFileGuid="00000000-0000-0000-0000-000000000000" LanguageFileGuid="d8fc1066-6516-4a0e-8e1d-6ef845bc55fd" Purpose="WorkFile">
+          <Result Guid="00000000-0000-0000-0000-000000000000">
+            <Messages Level="Warning" Message="There is no translation to review in file [C:\Users\mbeijer\AppData\Local\Temp\die0bhdg\en-US\trados-test.docx.sdlxliff]." Source="Export for Bilingual Review" />
+          </Result>
+        </TaskFile>
+      </Files>
+      <OutputFiles>
+        <OutputFile LanguageFileGuid="d8fc1066-6516-4a0e-8e1d-6ef845bc55fd" Purpose="WorkFile" />
+      </OutputFiles>
+      <Reports />
+      <Parameters />
+      <Result Guid="00000000-0000-0000-0000-000000000000">
+        <Messages Level="Warning" Message="Existing bilingual review document overwritten: [C:\Dev\Supervertaler\user data_private\Projects\trados test\trados-test\External Review\en-US\trados-test.docx.review.docx]" Source="Export for Bilingual Review" />
+      </Result>
+    </AutomaticTask>
+    <AutomaticTask Guid="de627c32-c667-41fa-a95e-979edaf37d41" PercentComplete="100" Status="Completed" CreatedAt="2025-10-12T17:23:05.3142568Z" PredecessorTaskGuid="00000000-0000-0000-0000-000000000000" CreatedBy="PRECISION7740\mbeijer" CompletedAt="2025-10-12T17:23:05.5686198Z" StartedAt="2025-10-12T17:23:05.3247851Z">
+      <TaskTemplateIds>
+        <TaskTemplateId>Sdl.ProjectApi.AutomaticTasks.ImportFromReview</TaskTemplateId>
+      </TaskTemplateIds>
+      <Files>
+        <TaskFile Guid="abd4bef2-1848-4342-a2a0-05058922db0c" Completed="true" ParentTaskFileGuid="00000000-0000-0000-0000-000000000000" LanguageFileGuid="d8fc1066-6516-4a0e-8e1d-6ef845bc55fd" Purpose="WorkFile">
+          <Result Guid="00000000-0000-0000-0000-000000000000" />
+        </TaskFile>
+      </Files>
+      <OutputFiles>
+        <OutputFile LanguageFileGuid="d8fc1066-6516-4a0e-8e1d-6ef845bc55fd" Purpose="WorkFile" />
+      </OutputFiles>
+      <Reports />
+      <Parameters />
+      <Result Guid="00000000-0000-0000-0000-000000000000" />
+    </AutomaticTask>
+    <AutomaticTask Guid="8524d261-d0b2-40a2-b7b9-fda42b108fef" PercentComplete="100" Status="Completed" CreatedAt="2025-10-12T17:31:46.07536Z" PredecessorTaskGuid="00000000-0000-0000-0000-000000000000" CreatedBy="PRECISION7740\mbeijer" CompletedAt="2025-10-12T17:31:46.4394899Z" StartedAt="2025-10-12T17:31:46.094031Z">
+      <TaskTemplateIds>
+        <TaskTemplateId>Sdl.ProjectApi.AutomaticTasks.ImportFromReview</TaskTemplateId>
+      </TaskTemplateIds>
+      <Files>
+        <TaskFile Guid="eb9f7876-810b-4b1d-9f4b-0f1ae08bca18" Completed="true" ParentTaskFileGuid="00000000-0000-0000-0000-000000000000" LanguageFileGuid="d8fc1066-6516-4a0e-8e1d-6ef845bc55fd" Purpose="WorkFile">
+          <Result Guid="00000000-0000-0000-0000-000000000000">
+            <Messages Level="Warning" Message="Segment 1 - This segment was not updated because the content of segment was changed since it was exported for external review." Source="SDLXLIFFConverter" />
+            <Messages Level="Warning" Message="Segment 23 - This segment was not updated because the content of segment was changed since it was exported for external review." Source="SDLXLIFFConverter" />
+            <Messages Level="Warning" Message="Segment 24 - This segment was not updated because the content of segment was changed since it was exported for external review." Source="SDLXLIFFConverter" />
+          </Result>
+        </TaskFile>
+      </Files>
+      <OutputFiles>
+        <OutputFile LanguageFileGuid="d8fc1066-6516-4a0e-8e1d-6ef845bc55fd" Purpose="WorkFile" />
+      </OutputFiles>
+      <Reports />
+      <Parameters />
+      <Result Guid="00000000-0000-0000-0000-000000000000" />
+    </AutomaticTask>
+    <AutomaticTask Guid="038f6544-7fd5-472d-b7bb-80845e853e0f" PercentComplete="100" Status="Completed" CreatedAt="2025-10-12T18:51:02.6152973Z" PredecessorTaskGuid="00000000-0000-0000-0000-000000000000" CreatedBy="PRECISION7740\mbeijer" CompletedAt="2025-10-12T18:51:02.9641805Z" StartedAt="2025-10-12T18:51:02.6261526Z">
+      <TaskTemplateIds>
+        <TaskTemplateId>Sdl.ProjectApi.AutomaticTasks.ImportFromReview</TaskTemplateId>
+      </TaskTemplateIds>
+      <Files>
+        <TaskFile Guid="87cacd72-34f9-4f84-8552-672d8c32e7b4" Completed="true" ParentTaskFileGuid="00000000-0000-0000-0000-000000000000" LanguageFileGuid="d8fc1066-6516-4a0e-8e1d-6ef845bc55fd" Purpose="WorkFile">
+          <Result Guid="00000000-0000-0000-0000-000000000000">
+            <Messages Level="Warning" Message="Segment 1 - This segment was not updated because the content of segment was changed since it was exported for external review." Source="SDLXLIFFConverter" />
+            <Messages Level="Warning" Message="Segment 23 - This segment was not updated because the content of segment was changed since it was exported for external review." Source="SDLXLIFFConverter" />
+            <Messages Level="Warning" Message="Segment 24 - This segment was not updated because the content of segment was changed since it was exported for external review." Source="SDLXLIFFConverter" />
+          </Result>
+        </TaskFile>
+      </Files>
+      <OutputFiles>
+        <OutputFile LanguageFileGuid="d8fc1066-6516-4a0e-8e1d-6ef845bc55fd" Purpose="WorkFile" />
+      </OutputFiles>
+      <Reports />
+      <Parameters />
+      <Result Guid="00000000-0000-0000-0000-000000000000" />
+    </AutomaticTask>
+    <AutomaticTask Guid="f1574dab-5732-4b27-8a90-8d83384bc9de" PercentComplete="100" Status="Completed" CreatedAt="2025-10-12T18:55:38.0414356Z" PredecessorTaskGuid="00000000-0000-0000-0000-000000000000" CreatedBy="PRECISION7740\mbeijer" CompletedAt="2025-10-12T18:55:39.7619026Z" StartedAt="2025-10-12T18:55:38.0791537Z">
+      <TaskTemplateIds>
+        <TaskTemplateId>Sdl.ProjectApi.AutomaticTasks.ExportForReview</TaskTemplateId>
+      </TaskTemplateIds>
+      <Files>
+        <TaskFile Guid="7650e60f-0d83-4b64-980d-aa97f1c758dd" Completed="true" ParentTaskFileGuid="00000000-0000-0000-0000-000000000000" LanguageFileGuid="d8fc1066-6516-4a0e-8e1d-6ef845bc55fd" Purpose="WorkFile">
+          <Result Guid="00000000-0000-0000-0000-000000000000">
+            <Messages Level="Warning" Message="There is no translation to review in file [C:\Users\mbeijer\AppData\Local\Temp\yloyaqwb\en-US\trados-test.docx.sdlxliff]." Source="Export for Bilingual Review" />
+          </Result>
+        </TaskFile>
+      </Files>
+      <OutputFiles>
+        <OutputFile LanguageFileGuid="d8fc1066-6516-4a0e-8e1d-6ef845bc55fd" Purpose="WorkFile" />
+      </OutputFiles>
+      <Reports />
+      <Parameters />
+      <Result Guid="00000000-0000-0000-0000-000000000000" />
+    </AutomaticTask>
+    <AutomaticTask Guid="79e7445c-836a-4113-857d-f47d7c65c00f" PercentComplete="100" Status="Completed" CreatedAt="2025-10-12T19:01:51.9529701Z" PredecessorTaskGuid="00000000-0000-0000-0000-000000000000" CreatedBy="PRECISION7740\mbeijer" CompletedAt="2025-10-12T19:01:52.8257378Z" StartedAt="2025-10-12T19:01:51.9673194Z">
+      <TaskTemplateIds>
+        <TaskTemplateId>Sdl.ProjectApi.AutomaticTasks.ImportFromReview</TaskTemplateId>
+      </TaskTemplateIds>
+      <Files>
+        <TaskFile Guid="e74277d3-2dd2-4f55-b0e8-9c91edf0c7a4" Completed="true" ParentTaskFileGuid="00000000-0000-0000-0000-000000000000" LanguageFileGuid="d8fc1066-6516-4a0e-8e1d-6ef845bc55fd" Purpose="WorkFile">
+          <Result Guid="00000000-0000-0000-0000-000000000000" />
+        </TaskFile>
+      </Files>
+      <OutputFiles>
+        <OutputFile LanguageFileGuid="d8fc1066-6516-4a0e-8e1d-6ef845bc55fd" Purpose="WorkFile" />
+      </OutputFiles>
+      <Reports />
+      <Parameters />
+      <Result Guid="00000000-0000-0000-0000-000000000000" />
+    </AutomaticTask>
+    <AutomaticTask Guid="1849e4da-8ef7-4086-8de7-380822c6c17e" PercentComplete="100" Status="Completed" CreatedAt="2025-10-12T19:03:00.9204179Z" PredecessorTaskGuid="00000000-0000-0000-0000-000000000000" CreatedBy="PRECISION7740\mbeijer" CompletedAt="2025-10-12T19:03:01.1915545Z" StartedAt="2025-10-12T19:03:00.9305659Z">
+      <TaskTemplateIds>
+        <TaskTemplateId>Sdl.ProjectApi.AutomaticTasks.ImportFromReview</TaskTemplateId>
+      </TaskTemplateIds>
+      <Files>
+        <TaskFile Guid="878d0cb0-2580-41f4-b94e-caa73d6068b7" Completed="true" ParentTaskFileGuid="00000000-0000-0000-0000-000000000000" LanguageFileGuid="d8fc1066-6516-4a0e-8e1d-6ef845bc55fd" Purpose="WorkFile">
+          <Result Guid="00000000-0000-0000-0000-000000000000" />
+        </TaskFile>
+      </Files>
+      <OutputFiles>
+        <OutputFile LanguageFileGuid="d8fc1066-6516-4a0e-8e1d-6ef845bc55fd" Purpose="WorkFile" />
+      </OutputFiles>
+      <Reports />
+      <Parameters />
+      <Result Guid="00000000-0000-0000-0000-000000000000" />
+    </AutomaticTask>
+    <AutomaticTask Guid="f029890d-b4d0-4a5f-b1dd-f1b2366ad243" PercentComplete="100" Status="Completed" CreatedAt="2025-10-12T19:26:00.4304882Z" PredecessorTaskGuid="00000000-0000-0000-0000-000000000000" CreatedBy="PRECISION7740\mbeijer" CompletedAt="2025-10-12T19:26:00.9016803Z" StartedAt="2025-10-12T19:26:00.4629925Z">
+      <TaskTemplateIds>
+        <TaskTemplateId>Sdl.ProjectApi.AutomaticTasks.ExportForReview</TaskTemplateId>
+      </TaskTemplateIds>
+      <Files>
+        <TaskFile Guid="619929cf-4f3b-489d-9052-c18aa432d7ba" Completed="true" ParentTaskFileGuid="00000000-0000-0000-0000-000000000000" LanguageFileGuid="d8fc1066-6516-4a0e-8e1d-6ef845bc55fd" Purpose="WorkFile">
+          <Result Guid="00000000-0000-0000-0000-000000000000" />
+        </TaskFile>
+      </Files>
+      <OutputFiles>
+        <OutputFile LanguageFileGuid="d8fc1066-6516-4a0e-8e1d-6ef845bc55fd" Purpose="WorkFile" />
+      </OutputFiles>
+      <Reports />
+      <Parameters />
+      <Result Guid="00000000-0000-0000-0000-000000000000" />
+    </AutomaticTask>
+    <AutomaticTask Guid="c9b0cdf2-736a-467e-a28f-dd7f797124a7" PercentComplete="100" Status="Completed" CreatedAt="2025-10-12T19:28:13.5527728Z" PredecessorTaskGuid="00000000-0000-0000-0000-000000000000" CreatedBy="PRECISION7740\mbeijer" CompletedAt="2025-10-12T19:28:16.0307837Z" StartedAt="2025-10-12T19:28:13.5711195Z">
+      <TaskTemplateIds>
+        <TaskTemplateId>Sdl.ProjectApi.AutomaticTasks.ImportFromReview</TaskTemplateId>
+      </TaskTemplateIds>
+      <Files>
+        <TaskFile Guid="b8547f1c-fe91-4141-b546-aba9919ff184" Completed="true" ParentTaskFileGuid="00000000-0000-0000-0000-000000000000" LanguageFileGuid="d8fc1066-6516-4a0e-8e1d-6ef845bc55fd" Purpose="WorkFile">
+          <Result Guid="00000000-0000-0000-0000-000000000000" />
+        </TaskFile>
+      </Files>
+      <OutputFiles>
+        <OutputFile LanguageFileGuid="d8fc1066-6516-4a0e-8e1d-6ef845bc55fd" Purpose="WorkFile" />
+      </OutputFiles>
+      <Reports />
+      <Parameters />
+      <Result Guid="00000000-0000-0000-0000-000000000000" />
+    </AutomaticTask>
+    <AutomaticTask Guid="fac69fde-8c66-409b-956c-af65d8e3f792" PercentComplete="100" Status="Completed" CreatedAt="2025-10-12T19:33:07.5025978Z" PredecessorTaskGuid="00000000-0000-0000-0000-000000000000" CreatedBy="PRECISION7740\mbeijer" CompletedAt="2025-10-12T19:33:09.9253858Z" StartedAt="2025-10-12T19:33:07.5222036Z">
+      <TaskTemplateIds>
+        <TaskTemplateId>Sdl.ProjectApi.AutomaticTasks.ImportFromReview</TaskTemplateId>
+      </TaskTemplateIds>
+      <Files>
+        <TaskFile Guid="40a8a2e4-98ad-4984-9ce4-4ac27725cc4a" Completed="true" ParentTaskFileGuid="00000000-0000-0000-0000-000000000000" LanguageFileGuid="d8fc1066-6516-4a0e-8e1d-6ef845bc55fd" Purpose="WorkFile">
+          <Result Guid="00000000-0000-0000-0000-000000000000">
+            <Messages Level="Warning" Message="Segment 1 - This segment was not updated because the content of segment was changed since it was exported for external review." Source="SDLXLIFFConverter" />
+            <Messages Level="Warning" Message="Segment 3 - This segment was not updated because the content of segment was changed since it was exported for external review." Source="SDLXLIFFConverter" />
+            <Messages Level="Warning" Message="Segment 5 - This segment was not updated because the content of segment was changed since it was exported for external review." Source="SDLXLIFFConverter" />
+            <Messages Level="Warning" Message="Segment 6 - This segment was not updated because the content of segment was changed since it was exported for external review." Source="SDLXLIFFConverter" />
+            <Messages Level="Warning" Message="Segment 9 - This segment was not updated because the content of segment was changed since it was exported for external review." Source="SDLXLIFFConverter" />
+            <Messages Level="Warning" Message="Segment 10 - This segment was not updated because the content of segment was changed since it was exported for external review." Source="SDLXLIFFConverter" />
+            <Messages Level="Warning" Message="Segment 17 - This segment was not updated because the content of segment was changed since it was exported for external review." Source="SDLXLIFFConverter" />
+            <Messages Level="Warning" Message="Segment 18 - This segment was not updated because the content of segment was changed since it was exported for external review." Source="SDLXLIFFConverter" />
+            <Messages Level="Warning" Message="Segment 19 - This segment was not updated because the content of segment was changed since it was exported for external review." Source="SDLXLIFFConverter" />
+            <Messages Level="Warning" Message="Segment 21 - This segment was not updated because the content of segment was changed since it was exported for external review." Source="SDLXLIFFConverter" />
+            <Messages Level="Warning" Message="Segment 22 - This segment was not updated because the content of segment was changed since it was exported for external review." Source="SDLXLIFFConverter" />
+            <Messages Level="Warning" Message="Segment 24 - This segment was not updated because the content of segment was changed since it was exported for external review." Source="SDLXLIFFConverter" />
+            <Messages Level="Warning" Message="Segment 25 - This segment was not updated because the content of segment was changed since it was exported for external review." Source="SDLXLIFFConverter" />
+          </Result>
+        </TaskFile>
+      </Files>
+      <OutputFiles>
+        <OutputFile LanguageFileGuid="d8fc1066-6516-4a0e-8e1d-6ef845bc55fd" Purpose="WorkFile" />
+      </OutputFiles>
+      <Reports />
+      <Parameters />
+      <Result Guid="00000000-0000-0000-0000-000000000000" />
+    </AutomaticTask>
+    <AutomaticTask Guid="e35dfddc-0b57-436f-ab14-6eb6a449c6a5" PercentComplete="100" Status="Completed" CreatedAt="2025-10-12T19:36:00.0225831Z" PredecessorTaskGuid="00000000-0000-0000-0000-000000000000" CreatedBy="PRECISION7740\mbeijer" CompletedAt="2025-10-12T19:36:00.5015977Z" StartedAt="2025-10-12T19:36:00.0343523Z">
+      <TaskTemplateIds>
+        <TaskTemplateId>Sdl.ProjectApi.AutomaticTasks.ExportForReview</TaskTemplateId>
+      </TaskTemplateIds>
+      <Files>
+        <TaskFile Guid="357fc93d-6c92-4ea2-8520-93b2d1c7724e" Completed="true" ParentTaskFileGuid="00000000-0000-0000-0000-000000000000" LanguageFileGuid="d8fc1066-6516-4a0e-8e1d-6ef845bc55fd" Purpose="WorkFile">
+          <Result Guid="00000000-0000-0000-0000-000000000000" />
+        </TaskFile>
+      </Files>
+      <OutputFiles>
+        <OutputFile LanguageFileGuid="d8fc1066-6516-4a0e-8e1d-6ef845bc55fd" Purpose="WorkFile" />
+      </OutputFiles>
+      <Reports />
+      <Parameters />
+      <Result Guid="00000000-0000-0000-0000-000000000000" />
+    </AutomaticTask>
+    <AutomaticTask Guid="aef03b8d-0a0d-484d-b4bc-dc4371a3c5ed" PercentComplete="100" Status="Completed" CreatedAt="2025-10-12T19:39:05.0344911Z" PredecessorTaskGuid="00000000-0000-0000-0000-000000000000" CreatedBy="PRECISION7740\mbeijer" CompletedAt="2025-10-12T19:39:07.4412452Z" StartedAt="2025-10-12T19:39:05.0472386Z">
+      <TaskTemplateIds>
+        <TaskTemplateId>Sdl.ProjectApi.AutomaticTasks.ImportFromReview</TaskTemplateId>
+      </TaskTemplateIds>
+      <Files>
+        <TaskFile Guid="55acb749-c06d-4cd1-b683-fff272873238" Completed="true" ParentTaskFileGuid="00000000-0000-0000-0000-000000000000" LanguageFileGuid="d8fc1066-6516-4a0e-8e1d-6ef845bc55fd" Purpose="WorkFile">
+          <Result Guid="00000000-0000-0000-0000-000000000000" />
+        </TaskFile>
+      </Files>
+      <OutputFiles>
+        <OutputFile LanguageFileGuid="d8fc1066-6516-4a0e-8e1d-6ef845bc55fd" Purpose="WorkFile" />
+      </OutputFiles>
+      <Reports />
+      <Parameters />
+      <Result Guid="00000000-0000-0000-0000-000000000000" />
+    </AutomaticTask>
+  </Tasks>
+  <PackageOperations>
+    <ProjectPackageCreationOperations />
+    <ProjectPackageImportOperations />
+    <ReturnPackageCreationOperations />
+    <ReturnPackageImportOperations />
+  </PackageOperations>
+</Project>
