@@ -113,6 +113,52 @@
 
 ---
 
+### 🆕 PDF Rescue - AI-Powered OCR Tool (v3.5.0-beta) 🚀
+
+**Transform badly-formatted PDFs into clean, translator-ready documents!**
+
+> **💡 Real Story**: *"I had a client reach out for a rush job—a 4-page legal document that had been scanned badly. Traditional OCR couldn't handle it, and manual retyping would have taken hours. PDF Rescue saved the day. One-click PDF import, AI OCR on all pages, and I had a flawless Word document ready for translation. What would have been a multi-day nightmare became a straightforward job I could deliver on time. I was able to tell my client that I could handle the job—and delivered professional quality. PDF Rescue literally saved a client relationship."*  
+> — Michael Beijer, Professional Translator
+
+**What is PDF Rescue?**  
+A specialized AI-powered OCR tool built into Supervertaler v3.5.0-beta. It uses GPT-4 Vision to extract clean, editable text from poorly formatted PDFs—the kind that traditional OCR tools struggle with.
+
+**Key Features**:
+- 📄 **One-click PDF import** - Direct PDF page extraction (no external tools needed)
+- 🧠 **GPT-4 Vision OCR** - Industry-leading accuracy for badly formatted documents
+- 🎨 **Smart formatting** - Optional markdown-based preservation (`**bold**`, `*italic*`, `__underline__`)
+- 🔍 **Redaction handling** - Detects blacked-out text, inserts contextual placeholders like `[naam]`, `[bedrag]`, `[datum]` (in document language!)
+- 📝 **Stamp & signature detection** - Non-text elements described as `[stempel]`, `[handtekening]`
+- ⚡ **Batch processing** - Process entire documents at once with progress tracking
+- 💾 **Professional export** - DOCX with proper formatting, session reports (MD), clipboard copy
+- 👁️ **Full transparency** - "Show Prompt" button reveals exact AI instructions
+- 📊 **Comprehensive logging** - All operations tracked with timestamps
+- 🚀 **Standalone mode** - Can run independently: `python modules/pdf_rescue.py`
+
+**Workflow** (5 steps):
+1. **Open PDF Rescue** - Navigate to Assistant panel → PDF Rescue tab
+2. **Import PDF** - Click "📄 PDF" button, select badly-formatted PDF
+3. **Configure** - Leave "Preserve formatting" checked (default)
+4. **Process** - Click "⚡ Process ALL" to OCR all pages
+5. **Export** - Click "💾 Save DOCX" → Clean, editable Word document ready!
+
+**Smart Features**:
+- **Language-aware placeholders**: Dutch doc → `[naam]`, `[bedrag]`; English doc → `[name]`, `[amount]`
+- **Persistent storage**: Images saved in `{pdf_name}_images/` folder next to source PDF (client-deliverable!)
+- **Professional reports**: Markdown session documentation with statistics and metadata
+
+**When to use PDF Rescue**:
+- ✅ Scanned PDFs with broken formatting
+- ✅ Documents that won't copy-paste cleanly
+- ✅ PDFs with redacted sections (black boxes)
+- ✅ Files with stamps/signatures mixed with text
+- ✅ Traditional OCR produces gibberish
+- ✅ Client PDFs that need to be editable
+
+📖 **Full Documentation**: See [`docs/guides/PDF_RESCUE.md`](docs/guides/PDF_RESCUE.md) for complete guide with screenshots, examples, and troubleshooting
+
+---
+
 ### Traditional Text Workflow (All versions)
 
 **Manual extraction for maximum flexibility**:
