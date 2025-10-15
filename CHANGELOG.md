@@ -1,5 +1,146 @@
 ﻿# Supervertaler - Changelog
 
+## [3.6.0-beta] - 2025-01-16 📄 PDF RESCUE + DOCUMENTATION UPDATE
+
+> **🎉 Major Release**: PDF Rescue fully documented and production-ready! Complete documentation overhaul across README, CHANGELOG, FAQ, website, and dedicated user guide.
+
+### ✨ WHAT'S NEW
+
+**Comprehensive Documentation**:
+- **NEW: `docs/guides/PDF_RESCUE.md`** - Complete 892-line user guide
+  - Overview with real-world success story
+  - 9 key features fully explained
+  - Quick start (5 steps) + detailed workflows
+  - Smart features guide (redactions, stamps, formatting)
+  - Session report structure & use cases
+  - Pro tips & best practices
+  - Technical details & dependencies
+  - 15+ FAQ entries
+  - Troubleshooting guide
+
+**README.md Updates**:
+- Added PDF Rescue section to CAT Tool Integration
+- Featured real-world client testimonial
+- Key features highlighted
+- 5-step workflow included
+- Direct link to comprehensive guide
+
+**CHANGELOG.md Updates**:
+- v3.5.0-beta entry with complete PDF Rescue feature list
+- All 9 development commits documented
+- Technical implementation details
+- Use cases & success stories
+
+**FAQ.md Updates**:
+- New PDF Rescue subsection under "Supervertaler Features"
+- Complete Q&A covering workflows, features, examples
+- Smart features explained (language-aware placeholders)
+- Real-world success story featured
+- Session reports & standalone mode documented
+
+**Website Updates** (`docs/index.html`):
+- **NEW**: Custom logo/icon (supervertaler_icon_colours.png)
+- **NEW**: PDF Rescue feature card in features grid
+- **NEW**: PDF Rescue documentation link
+- Updated CAT Edition to v3.6.0-beta
+- PDF Rescue highlighted in download section
+
+**Repository Cleanup**:
+- ✅ Renamed: `Supervertaler_v3.5.0-beta_CAT.py` → `Supervertaler_v3.6.0-beta_CAT.py`
+- ✅ Moved to `.dev/`: `ai_ocr_tool.py`, `jpg_to_docx_converter.py`, `check_task_types.py`, `debug_prompts.py`, `test_prompt_loading.py`
+- ✅ Deleted: `PDF_RESCUE_BACKUP.txt` (obsolete backup)
+- ✅ Cleaner root directory - only user-facing files
+
+### 🎨 VISUAL IMPROVEMENTS
+
+**Custom Branding**:
+- Website now uses custom Supervertaler icon instead of emoji
+- Professional logo display in navigation bar
+- CSS styling for logo image (40x40px)
+
+### 📊 DOCUMENTATION COVERAGE
+
+PDF Rescue is now documented in:
+- ✅ Main README (CAT Tool Integration section)
+- ✅ CHANGELOG (v3.5.0-beta + v3.6.0-beta entries)
+- ✅ FAQ (dedicated subsection with 15+ Q&As)
+- ✅ Dedicated guide (PDF_RESCUE.md - 892 lines)
+- ✅ Website features grid (10th feature card)
+- ✅ Website documentation section (7th doc card)
+
+### 🌐 WEBSITE IMPACT
+
+**supervertaler.com** now features:
+- 10 feature cards (was 9) - PDF Rescue prominently displayed
+- 7 documentation cards (was 6) - PDF Rescue Guide added
+- Professional custom logo/icon
+- Updated download links to v3.6.0-beta
+- PDF Rescue highlighted in feature highlights
+
+### 🎯 USER DISCOVERABILITY
+
+**Multi-Channel Presentation**:
+- Homepage feature card with icon & description
+- Dedicated 892-line comprehensive guide
+- FAQ integration for quick answers
+- Real-world success story featured across all docs
+- GitHub Pages automatically updated
+
+**Professional Positioning**:
+- Session reports highlighted as client deliverables
+- Transparency features (Show Prompt) emphasized
+- Smart language-aware features showcased
+- Production-ready quality emphasized
+
+### 📝 VERSION UPDATES
+
+**Application**:
+- Bumped version: `3.5.0-beta` → `3.6.0-beta`
+- Updated version constant: `APP_VERSION = "3.6.0-beta"`
+- Updated docstring date: October 14, 2025 → January 16, 2025
+- Added PDF Rescue to feature list in docstring
+
+**Website**:
+- Download link updated to `Supervertaler_v3.6.0-beta_CAT.py`
+- Version badge updated to `v3.6.0-beta`
+- Feature highlights reordered (PDF Rescue first)
+
+**README**:
+- Available Versions section updated
+- Recommendation updated to mention PDF Rescue
+- Version scheme note updated
+
+### 🔄 CHANGELOG HISTORY
+
+**v3.6.0-beta commits**:
+1. ✅ Document PDF Rescue across all channels (a896eb6)
+2. ✅ Bump version to v3.6.0-beta (this commit)
+3. ✅ Update website with custom icon
+4. ✅ Clean up root directory structure
+
+**Previous PDF Rescue development** (v3.5.0-beta):
+1. ✅ Core PDF Rescue module created (d0a7771)
+2. ✅ PDF import feature added (23d4e5e)
+3. ✅ Logging & smart redaction handling (0fa9515)
+4. ✅ Standalone mode & formatting preservation (c413aef)
+5. ✅ Persistent folder refactor (cce74d8)
+6. ✅ Show Prompt & Session Report export (76a0ff0)
+7. ✅ Supervertaler branding in reports (previous commits)
+
+### 🎉 SUMMARY
+
+**v3.6.0-beta** represents the **complete documentation release** of PDF Rescue:
+- ✅ Feature fully developed and tested
+- ✅ Comprehensive documentation across all channels
+- ✅ Professional website presentation
+- ✅ Real-world success stories featured
+- ✅ User-ready with complete guides
+- ✅ Clean repository structure
+
+PDF Rescue is now ready for user discovery and professional use! 🚀
+
+---
+
 ## [3.5.0-beta] - 2025-01-16 📄 PDF RESCUE MODULE
 
 > **🚀 New Feature**: PDF Rescue - AI-Powered OCR Tool built into Supervertaler! Transform badly-formatted PDFs into clean, translator-ready documents using GPT-4 Vision.
