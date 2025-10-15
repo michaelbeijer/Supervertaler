@@ -9,7 +9,35 @@ document.querySelectorAll('a[href^="#"]').forEach(anchor => {
                 block: 'start'
             });
         }
+        // Close mobile menu after clicking a link
+        const navMenu = document.querySelector('.nav-menu');
+        const menuToggle = document.querySelector('.mobile-menu-toggle');
+        if (navMenu && menuToggle) {
+            navMenu.classList.remove('active');
+            menuToggle.classList.remove('active');
+        }
     });
+});
+
+// Mobile menu toggle
+document.addEventListener('DOMContentLoaded', () => {
+    const menuToggle = document.querySelector('.mobile-menu-toggle');
+    const navMenu = document.querySelector('.nav-menu');
+    
+    if (menuToggle && navMenu) {
+        menuToggle.addEventListener('click', () => {
+            menuToggle.classList.toggle('active');
+            navMenu.classList.toggle('active');
+        });
+        
+        // Close menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!menuToggle.contains(e.target) && !navMenu.contains(e.target)) {
+                navMenu.classList.remove('active');
+                menuToggle.classList.remove('active');
+            }
+        });
+    }
 });
 
 // Navbar background on scroll
