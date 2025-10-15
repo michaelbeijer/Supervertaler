@@ -117,6 +117,7 @@ try:
     from modules.docx_handler import DOCXHandler
     from modules.tag_manager import TagManager
     from modules.figure_context_manager import FigureContextManager, normalize_figure_ref, pil_image_to_base64_png
+    from modules.pdf_rescue import PDFRescue
 except ImportError as e:
     print("ERROR: Could not import required modules")
     print(f"Import error: {e}")
@@ -3650,11 +3651,19 @@ class Supervertaler:
     def refresh_assist_tabs(self):
         """Refresh tab layout by toggling to stacked and back to tabbed view"""
         if self.assist_layout_mode == 'tabbed':
+            # Save current tab index
+            current_tab_index = getattr(self, 'assist_current_tab', 0)
+            
             # Quick toggle to stacked and back to force tab reflow
             self.assist_layout_mode = 'stacked'
             self.rebuild_assistance_layout()
             self.assist_layout_mode = 'tabbed'
             self.rebuild_assistance_layout()
+            
+            # Restore the previously selected tab
+            if hasattr(self, 'assist_tabs') and 0 <= current_tab_index < len(self.assist_tabs):
+                self._show_assist_tab(current_tab_index)
+            
             self.log("✅ Tab layout refreshed")
     
     def rebuild_assistance_layout(self):
@@ -3773,6 +3782,16 @@ class Supervertaler:
                 'frame': None,
                 'button': None,
                 'create_func': self.create_reference_images_tab
+            })
+        
+        if self.assist_visible_panels.get('pdf_rescue', True):
+            self.assist_tabs.append({
+                'key': 'pdf_rescue',
+                'name': '🔍 PDF Rescue',
+                'short': 'PDF Rescue',
+                'frame': None,
+                'button': None,
+                'create_func': self.create_pdf_rescue_tab
             })
         
         if self.assist_visible_panels.get('nontrans', True):
@@ -4131,7 +4150,15 @@ class Supervertaler:
         tk.Button(header_frame, text="⛶ Maximize", command=self.maximize_prompt_library,
                  bg='#2196F3', fg='white', font=('Segoe UI', 8)).pack(side='right', padx=10)
         
-        # Active prompts bar (compact)
+        # Sub-tabs at the very top (System Prompts / Custom Instructions)
+        # Create notebook for sub-tabs
+        subtabs_container = tk.Frame(parent)
+        subtabs_container.pack(fill='x', padx=5, pady=(0, 5))
+        
+        self.prompt_library_notebook = ttk.Notebook(subtabs_container)
+        self.prompt_library_notebook.pack(fill='both', expand=True)
+        
+        # Active prompts bar (compact) - placed below sub-tabs
         active_bar = tk.Frame(parent, bg='#f5f5f5', relief='solid', borderwidth=1)
         active_bar.pack(fill='x', padx=5, pady=(0, 5))
         
@@ -4152,16 +4179,9 @@ class Supervertaler:
         # Update active prompt labels
         self._update_active_prompt_labels()
         
-        # Create main container with sub-tabs on LEFT and shared editor on RIGHT
+        # Create main container with content on LEFT and shared editor on RIGHT
         main_container = ttk.PanedWindow(parent, orient='horizontal')
         main_container.pack(fill='both', expand=True, padx=5, pady=0)
-        
-        # LEFT: Sub-tabs for prompt lists
-        tabs_frame = tk.Frame(main_container)
-        main_container.add(tabs_frame, weight=1)
-        
-        self.prompt_library_notebook = ttk.Notebook(tabs_frame)
-        self.prompt_library_notebook.pack(fill='both', expand=True)
         
         # System Prompts sub-tab
         system_frame = tk.Frame(self.prompt_library_notebook, bg='white')
@@ -4208,22 +4228,33 @@ class Supervertaler:
     
     def _create_system_prompts_content(self, parent):
         """Create content for System Prompts sub-tab - list only"""
-        # Task Type filter
-        filter_bar = tk.Frame(parent, bg='#e3f2fd', relief='solid', borderwidth=1)
-        filter_bar.pack(fill='x', padx=5, pady=5)
+        # Combined toolbar with filter and activation buttons
+        toolbar = tk.Frame(parent, bg='#e3f2fd', relief='solid', borderwidth=1)
+        toolbar.pack(fill='x', padx=5, pady=5)
         
-        tk.Label(filter_bar, text="🎯 System Prompts - Define core translation behavior",
+        # Left side: Title and filter
+        tk.Label(toolbar, text="🎯 System Prompts - Define core translation behavior",
                 font=('Segoe UI', 9, 'bold'), bg='#e3f2fd').pack(side='left', padx=10, pady=5)
         
-        tk.Label(filter_bar, text="Task Type:", font=('Segoe UI', 8), bg='#e3f2fd').pack(side='right', padx=(10, 3), pady=5)
+        tk.Label(toolbar, text="Task Type:", font=('Segoe UI', 8), bg='#e3f2fd').pack(side='left', padx=(20, 3), pady=5)
         self.task_type_var = tk.StringVar(value="All Tasks")
         task_types = ["All Tasks", "Translation", "Localization", "Transcreation", "Proofreading", 
                      "QA", "Copyediting", "Post-editing", "Terminology Extraction"]
-        self.task_type_combo = ttk.Combobox(filter_bar, textvariable=self.task_type_var,
+        self.task_type_combo = ttk.Combobox(toolbar, textvariable=self.task_type_var,
                                            values=task_types, width=15, state='readonly',
                                            font=('Segoe UI', 8))
-        self.task_type_combo.pack(side='right', padx=5, pady=5)
+        self.task_type_combo.pack(side='left', padx=5, pady=5)
         self.task_type_combo.bind('<<ComboboxSelected>>', lambda e: self._filter_prompt_library())
+        
+        # Right side: Activation buttons
+        tk.Button(toolbar, text="⚡ For Proofreading",
+                 command=lambda: self._apply_selected_prompt(slot='proofread'),
+                 bg='#FF9800', fg='white', font=('Segoe UI', 9, 'bold')).pack(side='right', padx=5, pady=5)
+        tk.Button(toolbar, text="⚡ For Translation",
+                 command=lambda: self._apply_selected_prompt(slot='translate'),
+                 bg='#FF9800', fg='white', font=('Segoe UI', 9, 'bold')).pack(side='right', padx=5, pady=5)
+        tk.Label(toolbar, text="⚡ Activate:", font=('Segoe UI', 9, 'bold'),
+                bg='#e3f2fd').pack(side='right', padx=(20, 5), pady=5)
         
         # Prompt list
         list_container = tk.Frame(parent)
@@ -4250,20 +4281,6 @@ class Supervertaler:
         self.prompt_library_tree.pack(fill='both', expand=True)
         self.prompt_library_tree.bind('<<TreeviewSelect>>', self._on_prompt_select)
         self.prompt_library_tree.bind('<Double-1>', lambda e: self._apply_selected_prompt())
-        
-        # ACTIVATION BUTTONS
-        activate_frame = tk.Frame(parent, bg='#FFF3E0', relief='solid', borderwidth=1)
-        activate_frame.pack(fill='x', padx=5, pady=5)
-        
-        tk.Label(activate_frame, text="⚡ Activate:", font=('Segoe UI', 9, 'bold'),
-                bg='#FFF3E0').pack(side='left', padx=10, pady=5)
-        
-        tk.Button(activate_frame, text="⚡ For Translation",
-                 command=lambda: self._apply_selected_prompt(slot='translate'),
-                 bg='#FF9800', fg='white', font=('Segoe UI', 9, 'bold')).pack(side='left', padx=5, pady=5)
-        tk.Button(activate_frame, text="⚡ For Proofreading",
-                 command=lambda: self._apply_selected_prompt(slot='proofread'),
-                 bg='#FF9800', fg='white', font=('Segoe UI', 9, 'bold')).pack(side='left', padx=5, pady=5)
         
         # Bottom buttons
         button_frame = tk.Frame(parent)
@@ -5822,6 +5839,15 @@ class Supervertaler:
         
         # Initial update
         self.update_figure_context_display()
+    
+    def create_pdf_rescue_tab(self, parent):
+        """Create PDF Rescue tab using the modular PDFRescue class"""
+        # Initialize PDF Rescue module if not already done
+        if not hasattr(self, 'pdf_rescue'):
+            self.pdf_rescue = PDFRescue(self)
+        
+        # Create and return the tab UI
+        return self.pdf_rescue.create_tab(parent)
     
     def create_custom_instructions_tab(self, parent):
         """Create Custom Instructions tab - project-specific translation guidance"""
