@@ -3631,9 +3631,6 @@ class Supervertaler:
         
         # Create initial tabbed layout
         self.create_tabbed_assistance()
-        
-        # Create detail view (always at bottom)
-        self.create_detail_panel(right_container)
     
     def toggle_assistance_layout(self):
         """Toggle between tabbed and stacked layout for assistance panels"""
@@ -4106,9 +4103,9 @@ class Supervertaler:
         self.log(f"ℹ Panel '{panel_id}' hidden. Switch to Tabbed View to restore.")
     
     def create_detail_panel(self, parent):
-        """Create the suggestion detail panel (shows source/target of selected item)"""
-        detail_frame = tk.LabelFrame(parent, text="Suggestion Detail", padx=5, pady=5)
-        detail_frame.pack(side='bottom', fill='x', padx=2, pady=2)
+        """Create the TM match detail panel (shows source/target of selected TM match)"""
+        detail_frame = tk.LabelFrame(parent, text="TM Match Detail", padx=5, pady=5)
+        detail_frame.pack(fill='x', padx=5, pady=5)
         
         # Source of selected suggestion
         tk.Label(detail_frame, text="Source:", font=('Segoe UI', 9, 'bold')).pack(anchor='w')
@@ -6715,6 +6712,9 @@ Use this feature AFTER translation to:
         tk.Button(tm_buttons, text="💾 Save TM", 
                  command=lambda: self.log("✓ TM saved (auto-saves with project)"),
                  bg='#FF9800', fg='white', font=('Segoe UI', 9), width=14).pack(side='left', padx=2)
+        
+        # TM Match Detail panel (shows source/target of selected match)
+        self.create_detail_panel(parent)
     
     def create_glossary_tab(self, parent):
         """Create Glossary/Termbase tab content"""

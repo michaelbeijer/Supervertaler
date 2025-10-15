@@ -54,6 +54,10 @@ class PDFRescue:
         Args:
             parent: The parent widget (notebook tab or frame)
         """
+        # Save current state before recreating UI
+        saved_files = self.image_files.copy() if hasattr(self, 'image_files') else []
+        saved_texts = self.extracted_texts.copy() if hasattr(self, 'extracted_texts') else {}
+        
         # Header
         header_frame = tk.Frame(parent, bg='#e3f2fd', relief='solid', borderwidth=1)
         header_frame.pack(fill='x', padx=5, pady=5)
@@ -183,6 +187,12 @@ Please:
         # Progress bar
         self.progress = ttk.Progressbar(parent, mode='determinate')
         self.progress.pack(fill='x', padx=5, pady=(0, 5))
+        
+        # Restore state after UI recreation
+        self.image_files = saved_files
+        self.extracted_texts = saved_texts
+        if self.image_files:
+            self._update_listbox()
     
     # === File Management Methods ===
     
