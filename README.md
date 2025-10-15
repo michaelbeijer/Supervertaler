@@ -1,93 +1,51 @@
 # Supervertaler
 
-> 🇳🇱 **Supervertaler** = Dutch for "Super Translator"  
-> *Built by a Dutch-American professional translator based in the UK, for professional translators worldwide.*
-
 🎯 **Context-aware, LLM-powered translation & proofreading tool, leveraging multiple context sources for enhanced accuracy (built for translators)** - Revolutionary approach to document translation that leverages multiple context sources for unparalleled accuracy.
 
-**Note**: A version of Supervertaler is being developed with many features commonly found in proper CAT tools (Computer-Aided Translation tools), which has reached **v3.5.0-beta** with unified data format!! It features memoQ-style status icons (color-coded ✗/~/✓/✓✓/🔒), multi-selection system (Ctrl/Shift/Ctrl+A), responsive compact layout, column optimization (115px reclaimed), custom tab overflow, and comprehensive grid editor improvements. The v3.3.0-beta release added a cleaner toolbar (55% space reduction), reorganized menus, semantic color coding, unified prompt management, grid pagination (10x faster loading), smart paragraph detection, dual text selection, three professional view modes (Grid, List, Document), and comprehensive auto-export options. We're implementing features from [michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool](https://michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool).
+**Note**: A version of Supervertaler is being developed with many features commonly found in proper CAT tools (Computer-Aided Translation tools), which has reached **v3.1.0-beta** with a comprehensive Prompt Library system! It features unified prompt management (System Prompts + Custom Instructions), grid pagination (10x faster loading), smart paragraph detection, dual text selection (memoQ-style), column management, formatting display, three professional view modes (Grid, List, Document), and comprehensive auto-export options. We're implementing features from [michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool](https://michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool).
 
 
 ## 📦 Available Versions
 
-### v3.5.0-beta (Experimental - CAT Editor) 🎨
-**File**: `Supervertaler_v3.5.0-beta_CAT.py`
-- 📊 **NEW**: Supervertaler Project Data Format - Unified DOCX/TSV export format
-  * 6 columns: ID, Status, Source, Target, Paragraph, Notes
-  * Choose DOCX (Word table) or TSV (Spreadsheet) with proper button dialog
-  * Complete metadata preservation for future reimport workflows
-  * True format equivalence (both formats contain identical data)
-- 🎯 **NEW**: Export menu refinement - Descriptive labels with clear purposes
-  * "Translation memory (TMX)" instead of "TMX"
-  * "Translated document (DOCX/TXT)" with format choice
-  * "Manual copy/paste translation workflow (TXT)" paired with Import
-- 📝 **NEW**: Plain text export - Export target text only (TXT format)
-- 📋 **NEW**: Data format specification - Complete documentation in `SUPERVERTALER_DATA_FORMAT.md`
-  * Planned extensions: Proofreading workflow, Glossary integration, QA, Collaboration
-- 🖼️ **v3.4.0**: Figure Context support - Multimodal AI for technical translations with visual context
-  * Auto-detects figure references (Figure 1, fig. 2A, Figuur 3b)
-  * Automatically includes images in translation requests
-  * Supports OpenAI GPT-4 Vision, Claude Vision, Gemini Vision
-  * Images tab with thumbnail preview and status indicators
-  * Project persistence (auto-reload images on project open)
-- 📝 **v3.4.0**: Menu standardization - British sentence case for all menus (90+ items updated)
-- 📄 **v3.4.0**: Monolingual TXT import - Auto-segment plain text files into sentences for translation
-  * Perfect for articles, essays, books, blog posts
-  * Uses SimpleSegmenter for intelligent sentence detection
-  * No manual preparation needed - just import and translate
-- 🏷️ **v3.4.0**: Terminology clarity - Import/Export menus now distinguish:
-  * **Monolingual documents (DOCX/TXT)** - Regular files to translate
-  * **Bilingual tables (DOCX)** - memoQ/CafeTran/Trados exports
-  * **Manual copy/paste workflow (TXT)** - For pasted CAT tool columns
-- 🏗️ **v3.4.0**: Modularization - Figure context extracted to `modules/figure_context_manager.py`
-- 🎨 **v3.4.0**: memoQ-style status icons (✗/~/✓/✓✓/🔒) with color coding (red/orange/green/blue)
-- ✅ **v3.4.0**: Multi-selection system (Ctrl+Click, Shift+Click, Ctrl+A)
-- 📊 **v3.4.0**: Selection counter in status bar with visual feedback
-- 🎯 **v3.4.0**: Responsive compact layout (55% vertical space reduction in editor)
-- 📏 **v3.4.0**: Column optimization (115px total reclaimed: ID/Type/Style/Status optimized)
-- 🔧 **v3.4.0**: Column resize handles (drag borders, min 25px)
-- 📑 **v3.4.0**: Custom tab overflow with dropdown menu (full names, no truncation)
-- 🔄 **v3.4.0**: Refresh Tabs button (purple, fixes tab display issues)
-- 🎨 **v3.3.0**: Professional Start Screen (project management interface when no document loaded)
-  * Projects tab with recent projects list and quick actions
-  * File Explorer tab with tree view for browsing/opening files
-  * Settings tab with quick access to all configuration options
-  * Automatic transition to Grid View when document is loaded
-- 🎨 **v3.3.0**: Major UI/UX redesign - 55% cleaner toolbar with dropdown menus
-- 🗂️ **v3.3.0**: Reorganized menu bar (File/Edit/View/Project/Resources/Help)
-- 🎨 **v3.3.0**: Semantic color coding (green=import, orange=export, blue=save, gray=views)
-- 📝 **v3.3.0**: "Assistant panel" terminology (was "Translation Workspace")
-- ❓ **v3.3.0**: Help menu (User Guide, Changelog, About)
-- 🔧 **v3.3.0**: Tracked Changes reports now include clickable GitHub links
-- ✅ **v3.3.0**: Batch size dialog height (OK button fully visible)
-- 🎯 Unified Prompt Library with System Prompts + Custom Instructions (Ctrl+P)
+### v3.1.0-beta (Experimental - CAT Editor) 🚀
+**File**: `Supervertaler_v3.1.0-beta_CAT.py`
+- 🎯 **NEW**: Unified Prompt Library with System Prompts + Custom Instructions (Ctrl+P)
+- 📝 **NEW**: Custom Instructions - Define user preferences & behavioral guidelines
+- 🎭 **NEW**: Separate System Prompts (AI role) from Custom Instructions (user preferences)
+- 🗂️ **NEW**: Type filtering and dedicated Prompt Library menu
 - ⚡ Grid pagination system (50 segments/page, 10x faster loading!)
 - 🧠 Smart paragraph detection for document view
+- 🛡️ Enhanced loading protection (prevents crashes)
 - ✅ Professional CAT editor with Grid, List, and Document views
 - ✅ Auto-export options (session reports MD/HTML, TMX, TSV, XLIFF, Excel)
 - ✅ CafeTran and memoQ bilingual DOCX support
-- 📖 **Status**: UI-optimized, feature-complete, beta testing phase
+- 📖 **Status**: Feature-complete, performance optimized, beta testing phase
 - 💡 **Note**: v3.x signifies major architectural change from original DOCX workflow
+- 🏷️ **Version Note**: Bumped to v3.1.0 for significant Prompt Library feature
 
-### v2.5.0-CLASSIC (Production-ready) 🎉
-**File**: `Supervertaler_v2.5.0-CLASSIC.py`
-- 🔧 **NEW**: Parallel folder structure (`user data/` vs `user data_private/`) for dev mode
-- 🔒 **NEW**: Private features auto-routing (`.supervertaler.local` feature flag)
-- ✅ Unified folder structure with v3.x (all user data in `user data/`)
-- ✅ Projects now saved to `user data/Projects/`
+### v2.4.3-CLASSIC (Production-ready) 🎉
+**File**: `Supervertaler_v2.4.3-CLASSIC.py`
+- ✅ **NEW**: Unified folder structure with v3.x (all user data in `user data/`)
+- ✅ **NEW**: Projects now saved to `user data/Projects/` and `Projects_private/`
 - ✅ CafeTran bilingual DOCX support - AI-based pipe formatting!
 - ✅ memoQ bilingual DOCX support - Programmatic formatting preservation!
 - ✅ Two complementary formatting approaches (AI-based & programmatic)
 - ✅ 100% success rate in production testing (both formats)
 - ✅ Fully tested and stable for professional use
-- 📖 **User Guide**: [docs/guides/USER_GUIDE.md](docs/guides/USER_GUIDE.md)
+- 📖 **User Guide**: [USER_GUIDE.md](USER_GUIDE.md)
 - 📖 **CafeTran Guide**: [`.dev/docs/features/CAFETRAN_SUPPORT.md`](.dev/docs/features/CAFETRAN_SUPPORT.md)
 - 📖 **memoQ Guide**: [`.dev/docs/features/MEMOQ_SUPPORT.md`](.dev/docs/features/MEMOQ_SUPPORT.md)
 - 🏷️ **Version Note**: "-CLASSIC" suffix denotes original DOCX workflow architecture
 
-> **💡 Recommendation**: Use **v2.5.0-CLASSIC** for production translation work. Try **v3.4.0-beta** if you want to test the experimental CAT editor features with professional UI enhancements!
+### v2.4.0 (Previous Stable - Archived) 📦
+**File**: `.dev/previous_versions/Supervertaler_v2.4.0 (stable - production ready)(2025-10-07).py`
+- 📦 Archived on 2025-10-07
+- ✅ Fully backward compatible with v2.4.3
+- 💡 Upgrade to v2.4.3-CLASSIC recommended for CAT tool integration
+
+> **💡 Recommendation**: Use **v2.4.3-CLASSIC** for production translation work. Try **v3.1.0-beta** if you want to test the experimental CAT editor features with the new Prompt Library system!
 > 
-> **🔢 Version Scheme**: The jump from v2.x to v3.x reflects a **major architectural change**. v2.5.0-CLASSIC uses the original DOCX-based workflow, while v3.2.0-beta is a complete rewrite as a segment-based CAT editor. The "-CLASSIC" and "-beta" suffixes help distinguish these fundamentally different architectures.
+> **🔢 Version Scheme**: The jump from v2.x to v3.x reflects a **major architectural change**. v2.4.3-CLASSIC uses the original DOCX-based workflow, while v3.1.0-beta is a complete rewrite as a segment-based CAT editor. The "-CLASSIC" and "-beta" suffixes help distinguish these fundamentally different architectures.
 
 ----
 
@@ -212,18 +170,11 @@ Supervertaler provides two output formats for flexible CAT tool integration:
 
 ## 📖 Documentation
 
-### User Documentation
-- **📋 Complete User Guide**: [docs/guides/USER_GUIDE.md](docs/guides/USER_GUIDE.md) - Comprehensive guide for all versions
-- **⚡ Installation Guide**: [docs/guides/INSTALLATION.md](docs/guides/INSTALLATION.md) - Get started quickly
-- **❓ FAQ**: [docs/guides/FAQ.md](docs/guides/FAQ.md) - Frequently Asked Questions
-- **📚 All Documentation**: [docs/README.md](docs/README.md) - Documentation directory overview
+### Quick Start
+- **📋 Complete User Guide**: [USER_GUIDE.md](USER_GUIDE.md) - Comprehensive guide for all versions
+- **⚡ Installation Guide**: [INSTALLATION.md](INSTALLATION.md) - Get started quickly
 
-### Technical Specifications
-- **📊 Data Format Specification**: [docs/specifications/SUPERVERTALER_DATA_FORMAT.md](docs/specifications/SUPERVERTALER_DATA_FORMAT.md) - Universal data exchange format
-- **🏷️ Terminology Guide**: [docs/specifications/TERMINOLOGY_UPDATE_SUMMARY.md](docs/specifications/TERMINOLOGY_UPDATE_SUMMARY.md) - Import/Export menu terminology
-- **📤 Export Documentation**: [docs/specifications/EXPORT_MENU_UPDATE.md](docs/specifications/EXPORT_MENU_UPDATE.md) - Complete export guide (4,500 lines)
-
-### Developer Documentation
+### Advanced Documentation (for developers/contributors)
 - **System Prompts Guide**: [`.dev/docs/user_guides/SYSTEM_PROMPTS_GUIDE.md`](.dev/docs/user_guides/SYSTEM_PROMPTS_GUIDE.md)
 - **Translation Memory Guide**: [`.dev/docs/user_guides/TM_USER_GUIDE.md`](.dev/docs/user_guides/TM_USER_GUIDE.md)
 - **Translation Workspace**: [`.dev/docs/user_guides/TRANSLATION_WORKSPACE_REDESIGN.md`](.dev/docs/user_guides/TRANSLATION_WORKSPACE_REDESIGN.md)
@@ -547,12 +498,7 @@ TSV: `original{TAB}revised` per line
 
 ---
 
-## 14. Roadmap
-
-For detailed version history, see:
-- **[CHANGELOG-CLASSIC.md](CHANGELOG-CLASSIC.md)** - v2.x.x-CLASSIC releases
-- **[CHANGELOG-CAT.md](CHANGELOG-CAT.md)** - v3.x.x-beta releases
-- **[CHANGELOG.md](CHANGELOG.md)** - Overview and navigation
+## 14. Roadmap (See CHANGELOG.md)
 
 Planned (Unreleased):
 - **Fuzzy TM matches**: Leverage partial matches intelligently  
@@ -598,7 +544,7 @@ While many tools offer AI translation, Supervertaler's unique approach combines:
 
 1. **Fork** / feature branch.
 2. **Add or update** functionality (ideally in discrete logic units).
-3. **Update appropriate CHANGELOG** (CHANGELOG-CLASSIC.md or CHANGELOG-CAT.md depending on version).
+3. **Update CHANGELOG.md** (add entry in Unreleased section).
 4. **Submit PR** with concise summary.
 
 ---

@@ -4094,14 +4094,16 @@ class TranslationApp:
     
     # NEW: Tracked Changes Methods
     def load_tracked_changes(self):
-        """Load tracked changes from DOCX files only"""
+        """Load tracked changes from DOCX or TSV files"""
         filetypes = [
+            ("Word & TSV files", "*.docx;*.tsv"),
             ("Word documents", "*.docx"),
+            ("TSV files", "*.tsv"),
             ("All files", "*.*")
         ]
         
         filepaths = filedialog.askopenfilenames(
-            title="Select DOCX files with tracked changes",
+            title="Select DOCX or TSV files with tracked changes",
             filetypes=filetypes
         )
         
@@ -4110,8 +4112,16 @@ class TranslationApp:
         
         success_count = 0
         for filepath in filepaths:
-            if self.tracked_changes_agent.load_docx_changes(filepath):
-                success_count += 1
+            _, ext = os.path.splitext(filepath.lower())
+            
+            if ext == '.docx':
+                if self.tracked_changes_agent.load_docx_changes(filepath):
+                    success_count += 1
+            elif ext == '.tsv':
+                if self.tracked_changes_agent.load_tsv_changes(filepath):
+                    success_count += 1
+            else:
+                self.update_log(f"[Tracked Changes] Skipping unsupported file type: {filepath}")
         
         # Update status label
         total_pairs = len(self.tracked_changes_agent.change_data)
