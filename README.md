@@ -9,7 +9,7 @@
 
 ### v3.6.0-beta (Experimental - CAT Editor) 🚀
 **File**: `Supervertaler_v3.6.0-beta_CAT.py`
-- � **NEW**: PDF Rescue - AI-Powered OCR Tool (GPT-4 Vision)
+- 🆘 **NEW**: PDF Rescue - AI-Powered OCR Tool (GPT-4 Vision)
 - 📄 **NEW**: One-click PDF import with automatic page extraction
 - 🧠 **NEW**: Smart redaction/stamp handling with language-aware placeholders
 - 🎨 **NEW**: Optional formatting preservation (markdown-based)
@@ -96,7 +96,7 @@
 > **📌 Why memoQ?**: memoQ bilingual DOCX files include complex formatting at the character-run level. Supervertaler extracts this formatting and applies it programmatically to translations using smart threshold logic.
 
 1. **Export bilingual DOCX** from memoQ
-2. **Click "� Import memoQ DOCX"** in Supervertaler (green button)
+2. **Click "📂 Import memoQ DOCX"** in Supervertaler (green button)
 3. **Configure translation settings** (language pair, AI provider, model)
 4. **Click "Translate"** - AI translates segments
 5. **Click "💾 Export to memoQ DOCX"** - Formatting applied programmatically
