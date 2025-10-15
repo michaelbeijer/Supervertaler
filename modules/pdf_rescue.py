@@ -15,7 +15,7 @@ from openai import OpenAI
 from docx import Document
 from docx.shared import Pt
 import fitz  # PyMuPDF
-import tempfile
+import re
 
 
 class PDFRescue:
@@ -138,7 +138,7 @@ class PDFRescue:
                                      padx=10, pady=10)
         options_frame.pack(fill='x', padx=5, pady=(0, 10))
         
-        # Model selection
+        # Model selection and formatting option
         model_frame = tk.Frame(options_frame)
         model_frame.pack(fill='x', pady=(0, 5))
         
@@ -147,6 +147,12 @@ class PDFRescue:
         models = ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"]
         ttk.Combobox(model_frame, textvariable=self.model_var, values=models,
                     width=20, state='readonly').pack(side='left')
+        
+        # Formatting option
+        self.preserve_formatting_var = tk.BooleanVar(value=True)
+        tk.Checkbutton(model_frame, text="Preserve formatting (bold/italic/underline)",
+                      variable=self.preserve_formatting_var,
+                      font=('Segoe UI', 9)).pack(side='left', padx=(20, 0))
         
         # Custom instructions
         tk.Label(options_frame, text="Extraction Instructions:", 
@@ -167,6 +173,7 @@ Please:
 - For redacted/blacked-out text: insert a descriptive placeholder in square brackets in the document's language (e.g., [naam] for Dutch names, [name] for English names, [bedrag] for amounts, etc.)
 - For stamps, signatures, or images: insert a descriptive placeholder in square brackets in the document's language (e.g., [handtekening], [stempel], [signature], [stamp], etc.)
 - For any non-text elements that would normally appear: describe them briefly in square brackets
+- Use markdown for text formatting: **bold text**, *italic text*, __underlined text__
 - Output clean, readable text only (no commentary)"""
         
         self.instructions_text.insert('1.0', default_instructions)
@@ -234,9 +241,14 @@ Please:
                 messagebox.showwarning("Empty PDF", "The selected PDF has no pages.")
                 return
             
-            # Create temp directory for extracted images
-            temp_dir = tempfile.mkdtemp(prefix="pdf_rescue_")
-            pdf_name = Path(pdf_file).stem
+            # Create folder for extracted images next to the PDF
+            pdf_path = Path(pdf_file)
+            pdf_name = pdf_path.stem
+            images_folder = pdf_path.parent / f"{pdf_name}_images"
+            
+            # Create folder if it doesn't exist
+            images_folder.mkdir(exist_ok=True)
+            temp_dir = str(images_folder)
             
             # Log start
             if hasattr(self, 'log_message'):
@@ -292,7 +304,8 @@ Please:
             messagebox.showinfo(
                 "PDF Import Complete",
                 f"Successfully extracted {extracted_count} page(s) from:\n{Path(pdf_file).name}\n\n"
-                f"Images saved to temporary folder:\n{temp_dir}\n\n"
+                f"Images saved to folder:\n{temp_dir}\n\n"
+                f"These images are kept for your reference and can be useful for the end client.\n\n"
                 f"You can now process these pages with AI OCR."
             )
             
@@ -381,6 +394,18 @@ Please:
         try:
             base64_image = self._encode_image(image_path)
             instructions = self.instructions_text.get('1.0', 'end-1c').strip()
+            
+            # Add or remove formatting instruction based on checkbox
+            if self.preserve_formatting_var.get():
+                if "markdown for text formatting" not in instructions:
+                    instructions += "\n- Use markdown for text formatting: **bold text**, *italic text*, __underlined text__"
+            else:
+                # Remove markdown instruction if present
+                instructions = instructions.replace(
+                    "\n- Use markdown for text formatting: **bold text**, *italic text*, __underlined text__", ""
+                ).replace(
+                    "- Use markdown for text formatting: **bold text**, *italic text*, __underlined text__", ""
+                )
             
             response = self.client.chat.completions.create(
                 model=self.model_var.get(),
@@ -477,6 +502,75 @@ Please:
     
     # === Export Methods ===
     
+    def _add_formatted_text(self, doc, text):
+        """
+        Add text to document with markdown formatting parsed
+        Supports: **bold**, *italic*, __underline__
+        """
+        # Split text into paragraphs
+        paragraphs = text.split('\n')
+        
+        for para_text in paragraphs:
+            if not para_text.strip():
+                continue
+            
+            para = doc.add_paragraph()
+            para.paragraph_format.line_spacing = 1.15
+            para.paragraph_format.space_after = Pt(12)
+            
+            # Parse markdown formatting using regex
+            # Pattern matches: **bold**, *italic*, __underline__
+            # We need to handle nested/overlapping formatting carefully
+            position = 0
+            
+            # Combined pattern to find all formatting markers
+            pattern = r'(\*\*.*?\*\*|\*.*?\*|__.*?__|.+?(?=\*\*|\*|__|$)|.)'
+            
+            # Simple approach: process sequentially
+            remaining = para_text
+            
+            while remaining:
+                # Check for bold (**text**)
+                bold_match = re.match(r'\*\*(.*?)\*\*', remaining)
+                if bold_match:
+                    run = para.add_run(bold_match.group(1))
+                    run.bold = True
+                    remaining = remaining[bold_match.end():]
+                    continue
+                
+                # Check for underline (__text__)
+                underline_match = re.match(r'__(.*?)__', remaining)
+                if underline_match:
+                    run = para.add_run(underline_match.group(1))
+                    run.underline = True
+                    remaining = remaining[underline_match.end():]
+                    continue
+                
+                # Check for italic (*text*)
+                italic_match = re.match(r'\*(.*?)\*', remaining)
+                if italic_match:
+                    run = para.add_run(italic_match.group(1))
+                    run.italic = True
+                    remaining = remaining[italic_match.end():]
+                    continue
+                
+                # No formatting - add plain text until next marker or end
+                next_marker = len(remaining)
+                for marker in ['**', '*', '__']:
+                    pos = remaining.find(marker)
+                    if pos != -1 and pos < next_marker:
+                        next_marker = pos
+                
+                if next_marker == 0:
+                    # Edge case: marker at start but no match (e.g., single * or **)
+                    para.add_run(remaining[0])
+                    remaining = remaining[1:]
+                else:
+                    plain_text = remaining[:next_marker] if next_marker < len(remaining) else remaining
+                    if plain_text:
+                        para.add_run(plain_text)
+                    remaining = remaining[next_marker:]
+    
     def _save_to_docx(self):
         """Save all extracted text to a Word document"""
         if not self.extracted_texts:
@@ -510,11 +604,14 @@ Please:
                     heading = doc.add_heading(f'Page {i}: {os.path.basename(file)}', level=2)
                     heading.runs[0].font.size = Pt(12)
                     
-                    # Text content
+                    # Text content with formatting
                     text = self.extracted_texts[file]
-                    para = doc.add_paragraph(text)
-                    para.paragraph_format.line_spacing = 1.15
-                    para.paragraph_format.space_after = Pt(12)
+                    if self.preserve_formatting_var.get():
+                        self._add_formatted_text(doc, text)
+                    else:
+                        para = doc.add_paragraph(text)
+                        para.paragraph_format.line_spacing = 1.15
+                        para.paragraph_format.space_after = Pt(12)
                     
                     # Page break except for last
                     if i < len(self.image_files):
