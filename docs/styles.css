@@ -98,21 +98,25 @@ body {
     font-weight: 700;
     text-decoration: none !important;
     transition: opacity 0.2s;
+    cursor: pointer;
 }
 
-.nav-brand:hover {
-    opacity: 0.8;
-    text-decoration: none !important;
-}
-
+.nav-brand:hover,
 .nav-brand:visited,
 .nav-brand:active,
-.nav-brand:focus {
+.nav-brand:focus,
+.nav-brand:link {
+    text-decoration: none !important;
+    opacity: 0.8;
+}
+
+.nav-brand * {
     text-decoration: none !important;
 }
 
 .logo {
     font-size: 2rem;
+    text-decoration: none !important;
 }
 
 .logo-img {
