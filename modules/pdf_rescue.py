@@ -14,6 +14,8 @@ from tkinter import filedialog, messagebox, scrolledtext, ttk
 from openai import OpenAI
 from docx import Document
 from docx.shared import Pt
+import fitz  # PyMuPDF
+import tempfile
 
 
 class PDFRescue:
@@ -46,6 +48,13 @@ class PDFRescue:
                 self.client = OpenAI(api_key=api_key)
             except Exception as e:
                 print(f"Failed to initialize OpenAI client: {e}")
+    
+    def log_message(self, message: str):
+        """Log a message to the parent app's log if available"""
+        if hasattr(self.parent_app, 'log'):
+            self.parent_app.log(f"[PDF Rescue] {message}")
+        else:
+            print(f"[PDF Rescue] {message}")
     
     def create_tab(self, parent):
         """
@@ -96,9 +105,13 @@ class PDFRescue:
         btn_frame = tk.Frame(left_frame)
         btn_frame.pack(fill='x', pady=(10, 0))
         
-        tk.Button(btn_frame, text="📁 Add Files", command=self._add_files,
-                 bg='#2196F3', fg='white', font=('Segoe UI', 8, 'bold'),
+        tk.Button(btn_frame, text="� PDF", command=self._import_from_pdf,
+                 bg='#9C27B0', fg='white', font=('Segoe UI', 8, 'bold'),
                  padx=8, pady=4).pack(side='left', padx=(0, 3))
+        
+        tk.Button(btn_frame, text="�📁 Add Files", command=self._add_files,
+                 bg='#2196F3', fg='white', font=('Segoe UI', 8, 'bold'),
+                 padx=8, pady=4).pack(side='left', padx=3)
         
         tk.Button(btn_frame, text="📂 Folder", command=self._add_folder,
                  bg='#2196F3', fg='white', font=('Segoe UI', 8, 'bold'),
@@ -151,6 +164,9 @@ Please:
 - Remove extraneous line breaks within paragraphs
 - Preserve intentional paragraph breaks
 - Maintain the logical flow and structure of the content
+- For redacted/blacked-out text: insert a descriptive placeholder in square brackets in the document's language (e.g., [naam] for Dutch names, [name] for English names, [bedrag] for amounts, etc.)
+- For stamps, signatures, or images: insert a descriptive placeholder in square brackets in the document's language (e.g., [handtekening], [stempel], [signature], [stamp], etc.)
+- For any non-text elements that would normally appear: describe them briefly in square brackets
 - Output clean, readable text only (no commentary)"""
         
         self.instructions_text.insert('1.0', default_instructions)
@@ -195,6 +211,94 @@ Please:
             self._update_listbox()
     
     # === File Management Methods ===
+    
+    def _import_from_pdf(self):
+        """Import images directly from a PDF file"""
+        pdf_file = filedialog.askopenfilename(
+            title="Select PDF File",
+            filetypes=[
+                ("PDF files", "*.pdf"),
+                ("All files", "*.*")
+            ]
+        )
+        
+        if not pdf_file:
+            return
+        
+        try:
+            # Open PDF
+            doc = fitz.open(pdf_file)
+            total_pages = len(doc)
+            
+            if total_pages == 0:
+                messagebox.showwarning("Empty PDF", "The selected PDF has no pages.")
+                return
+            
+            # Create temp directory for extracted images
+            temp_dir = tempfile.mkdtemp(prefix="pdf_rescue_")
+            pdf_name = Path(pdf_file).stem
+            
+            # Log start
+            if hasattr(self, 'log_message'):
+                self.log_message(f"Starting PDF import: {Path(pdf_file).name}")
+                self.log_message(f"Total pages: {total_pages}")
+            
+            # Extract each page as an image
+            extracted_count = 0
+            self.status_label.config(text=f"Extracting pages from PDF...")
+            self.parent_app.root.update_idletasks()
+            
+            for page_num in range(total_pages):
+                page = doc[page_num]
+                
+                # Render page to pixmap (image) at 2x resolution for better quality
+                zoom = 2.0
+                mat = fitz.Matrix(zoom, zoom)
+                pix = page.get_pixmap(matrix=mat)
+                
+                # Save as PNG
+                img_filename = f"{pdf_name}_page_{page_num + 1:03d}.png"
+                img_path = os.path.join(temp_dir, img_filename)
+                pix.save(img_path)
+                
+                # Add to image list
+                if img_path not in self.image_files:
+                    self.image_files.append(img_path)
+                    extracted_count += 1
+                    
+                    # Log each page
+                    if hasattr(self, 'log_message'):
+                        self.log_message(f"  Page {page_num + 1}/{total_pages} extracted: {img_filename}")
+                
+                # Update progress
+                self.status_label.config(
+                    text=f"Extracting page {page_num + 1}/{total_pages}..."
+                )
+                self.parent_app.root.update_idletasks()
+            
+            doc.close()
+            
+            # Update UI
+            self._update_listbox()
+            self.status_label.config(
+                text=f"Imported {extracted_count} page(s) from PDF"
+            )
+            
+            # Log completion
+            if hasattr(self, 'log_message'):
+                self.log_message(f"PDF import complete: {extracted_count} pages extracted")
+                self.log_message(f"Temporary folder: {temp_dir}")
+            
+            messagebox.showinfo(
+                "PDF Import Complete",
+                f"Successfully extracted {extracted_count} page(s) from:\n{Path(pdf_file).name}\n\n"
+                f"Images saved to temporary folder:\n{temp_dir}\n\n"
+                f"You can now process these pages with AI OCR."
+            )
+            
+        except Exception as e:
+            messagebox.showerror("PDF Import Error", f"Failed to import PDF:\n{str(e)}")
+            self.status_label.config(text="PDF import failed")
     
     def _add_files(self):
         """Add individual image files"""
@@ -319,6 +423,7 @@ Please:
         file = self.image_files[idx]
         filename = os.path.basename(file)
         
+        self.log_message(f"Processing selected image: {filename}")
         self.status_label.config(text=f"Processing {filename}...")
         if hasattr(self.parent_app, 'root'):
             self.parent_app.root.update()
@@ -330,6 +435,7 @@ Please:
         self.preview_text.insert('1.0', text)
         
         self._update_listbox()
+        self.log_message(f"Successfully processed: {filename}")
         self.status_label.config(text=f"✓ Processed {filename}")
     
     def _process_all(self):
@@ -343,6 +449,7 @@ Please:
                                    "This will use API credits and may take several minutes."):
             return
         
+        self.log_message(f"Starting batch processing: {len(self.image_files)} images")
         self.progress['maximum'] = len(self.image_files)
         self.progress['value'] = 0
         
@@ -355,10 +462,14 @@ Please:
             if file not in self.extracted_texts:
                 text = self._extract_text_from_image(file)
                 self.extracted_texts[file] = text
+                self.log_message(f"  [{i}/{len(self.image_files)}] Processed: {filename}")
+            else:
+                self.log_message(f"  [{i}/{len(self.image_files)}] Skipped (already processed): {filename}")
             
             self.progress['value'] = i
             self._update_listbox()
         
+        self.log_message(f"Batch processing complete: {len(self.image_files)} images processed")
         self.status_label.config(text=f"✓ Processed all {len(self.image_files)} images!")
         messagebox.showinfo("Complete", 
                           f"Successfully processed {len(self.image_files)} images!\n\n"
@@ -382,6 +493,8 @@ Please:
         
         if not output_file:
             return
+        
+        self.log_message(f"Saving extracted text to DOCX: {Path(output_file).name}")
         
         try:
             doc = Document()
@@ -409,6 +522,7 @@ Please:
             
             doc.save(output_file)
             
+            self.log_message(f"Successfully saved {len(self.extracted_texts)} pages to: {Path(output_file).name}")
             self.status_label.config(text=f"✓ Saved to {os.path.basename(output_file)}")
             
             if messagebox.askyesno("Success", 
@@ -442,3 +556,79 @@ Please:
         
         self.status_label.config(text=f"✓ Copied {len(self.extracted_texts)} pages to clipboard")
         messagebox.showinfo("Copied", f"Copied text from {len(self.extracted_texts)} pages to clipboard!")
+
+
+# === Standalone Application ===
+
+if __name__ == "__main__":
+    """Run PDF Rescue as a standalone application"""
+    
+    class StandaloneApp:
+        """Minimal parent app for standalone mode"""
+        def __init__(self):
+            self.root = tk.Tk()
+            self.root.title("PDF Rescue - AI-Powered OCR Tool")
+            self.root.geometry("1000x700")
+            
+            # Load API key from api_keys.txt
+            self.api_keys = {}
+            api_file = Path("api_keys.txt")
+            if api_file.exists():
+                with open(api_file, 'r', encoding='utf-8') as f:
+                    for line in f:
+                        line = line.strip()
+                        if line and not line.startswith('#') and '=' in line:
+                            key, value = line.split('=', 1)
+                            if 'openai' in key.lower():
+                                self.api_keys['openai'] = value.strip()
+            
+            if not self.api_keys.get('openai'):
+                messagebox.showerror(
+                    "API Key Missing",
+                    "Could not find OpenAI API key in api_keys.txt\n\n"
+                    "Please add a line like:\nOPENAI_API_KEY=your-key-here"
+                )
+                self.root.destroy()
+                return
+            
+            # Create main container
+            main_frame = tk.Frame(self.root)
+            main_frame.pack(fill='both', expand=True, padx=10, pady=10)
+            
+            # Add title
+            title = tk.Label(main_frame, text="PDF Rescue - AI-Powered OCR Tool",
+                           font=('Segoe UI', 14, 'bold'))
+            title.pack(pady=(0, 10))
+            
+            # Create PDF Rescue instance
+            self.pdf_rescue = PDFRescue(self)
+            self.pdf_rescue.create_tab(main_frame)
+            
+            # Add log at bottom
+            log_frame = tk.LabelFrame(self.root, text="Activity Log", padx=5, pady=5)
+            log_frame.pack(fill='x', padx=10, pady=(0, 10))
+            
+            self.log_text = scrolledtext.ScrolledText(log_frame, height=4, wrap='word',
+                                                     font=('Consolas', 9))
+            self.log_text.pack(fill='both', expand=True)
+            self.log_text.config(state='disabled')
+        
+        def log(self, message: str):
+            """Add message to log"""
+            from datetime import datetime
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            formatted_message = f"[{timestamp}] {message}\n"
+            
+            self.log_text.config(state='normal')
+            self.log_text.insert('end', formatted_message)
+            self.log_text.see('end')
+            self.log_text.config(state='disabled')
+        
+        def run(self):
+            """Start the application"""
+            self.root.mainloop()
+    
+    # Create and run standalone app
+    app = StandaloneApp()
+    if hasattr(app, 'root') and app.root.winfo_exists():
+        app.run()
