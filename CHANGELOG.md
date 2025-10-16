@@ -1,5 +1,17 @@
 ﻿# Supervertaler - Changelog
 
+## [3.6.1-beta] - 2025-10-16 🐛 CAT IMPORT BUGFIX
+
+### 🐛 BUG FIXES (CAT Edition)
+
+**Fixed AttributeError on CAT Import at Startup**:
+- **Issue**: Importing memoQ, CafeTran, or Trados bilingual tables at application startup caused crash with `AttributeError: 'grid_inner_frame'`
+- **Fix**: Added automatic grid layout initialization in `load_segments_to_grid()` method
+- **Impact**: All CAT import formats now work reliably on first import without requiring manual layout switching
+- **Details**: See [CHANGELOG-CAT.md](CHANGELOG-CAT.md) for technical implementation details
+
+---
+
 ## [3.6.0-beta] - 2025-01-16 📄 PDF RESCUE + DOCUMENTATION UPDATE
 
 > **🎉 Major Release**: PDF Rescue fully documented and production-ready! Complete documentation overhaul across README, CHANGELOG, FAQ, website, and dedicated user guide.
