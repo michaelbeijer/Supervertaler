@@ -11036,6 +11036,13 @@ Use this feature AFTER translation to:
         try:
             # Disable updates during bulk loading to prevent freezing
             if self.layout_mode == LayoutMode.GRID:
+                # Ensure grid layout exists before loading segments
+                if not hasattr(self, 'grid_inner_frame'):
+                    # Clear content frame (remove start screen if present)
+                    for widget in self.content_frame.winfo_children():
+                        widget.destroy()
+                    self.create_grid_layout()
+                
                 # Clear existing custom grid rows
                 self.grid_rows = []
                 for widget in self.grid_inner_frame.winfo_children():

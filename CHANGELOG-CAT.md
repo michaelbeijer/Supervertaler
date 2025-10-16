@@ -9,6 +9,36 @@ For the unified changelog, see [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
+## [3.6.1-beta] - 2025-10-16 🐛 CAT IMPORT BUGFIX
+
+### 🐛 BUG FIXES
+
+**Fixed AttributeError on CAT Import at Startup**:
+- **Issue**: Importing memoQ, CafeTran, or Trados bilingual tables at application startup caused `AttributeError: 'Supervertaler' object has no attribute 'grid_inner_frame'`
+- **Root Cause**: Grid layout (`grid_inner_frame`) was only created during manual layout switching, not during initial import
+- **Fix**: Added automatic grid layout initialization when importing files before grid is created
+  - `load_segments_to_grid()` now checks if `grid_inner_frame` exists
+  - If missing, creates grid layout and clears start screen automatically
+  - Ensures consistent behavior whether importing via menu or at startup
+- **Impact**: All three CAT import formats (memoQ, CafeTran, Trados) now work reliably on first import
+- **Files Modified**: `Supervertaler_v3.6.0-beta_CAT.py` (lines 11041-11048)
+
+### 📝 TECHNICAL DETAILS
+
+**Changes to `load_segments_to_grid()` method**:
+```python
+# Before loading segments, ensure grid layout exists
+if not hasattr(self, 'grid_inner_frame'):
+    # Clear content frame (remove start screen if present)
+    for widget in self.content_frame.winfo_children():
+        widget.destroy()
+    self.create_grid_layout()
+```
+
+This fix ensures the grid UI is properly initialized before attempting to populate it with segments, preventing crashes when importing CAT files at application startup.
+
+---
+
 ## [3.6.0-beta] - 2025-01-16 📄 PDF RESCUE + DOCUMENTATION UPDATE
 
 > **🎉 Major Release**: PDF Rescue fully documented and production-ready! Complete documentation overhaul across README, CHANGELOG, FAQ, website, and dedicated user guide.
