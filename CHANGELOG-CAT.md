@@ -9,6 +9,34 @@ For the unified changelog, see [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
+## [3.6.2-beta] - 2025-10-16 ✨ PROMPT LIBRARY UI IMPROVEMENTS
+
+### ✨ ENHANCEMENTS
+
+**Improved Prompt Library Active Bar Labels**:
+- **Enhanced Clarity**: Updated active prompt display labels for better readability
+  - **Before**: `Active: | Trans: Default | Proof: Default | Custom: xyz`
+  - **After**: `Active: | Translation system prompt: Default | Proofreading system prompt: Default | Custom instructions: xyz`
+- **Better User Understanding**: Full descriptive labels eliminate confusion about what each active prompt represents
+- **Consistent Terminology**: Aligns with user-facing terminology throughout the application
+
+**Simplified Custom Instructions Workflow**:
+- **Activation Model**: Custom Instructions now work like System Prompts
+  - Single button: "✅ Use in Current Project" (green, bold)
+  - Stores content in `self.active_custom_instruction`
+  - Updates active label: "Custom instructions: [name]"
+- **Removed Confusion**: Eliminated misleading "Load into Settings Tab" button (that tab doesn't exist in toolbar)
+- **Clear Behavior**: Custom Instructions are automatically appended to System Prompts during translation
+- **Visual Feedback**: Green label shows active Custom Instruction name or "None"
+
+### 🎯 USER IMPACT
+
+- **Clearer UI**: Users immediately understand what each active prompt does
+- **Simpler Workflow**: Custom Instructions activation matches System Prompts (no special loading required)
+- **Better Discoverability**: Descriptive labels help new users understand the feature
+
+---
+
 ## [3.6.1-beta] - 2025-10-16 🐛 CAT IMPORT BUGFIX
 
 ### 🐛 BUG FIXES

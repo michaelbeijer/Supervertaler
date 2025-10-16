@@ -1,5 +1,5 @@
 """  
-Supervertaler v3.6.0-beta (CAT Editor)
+Supervertaler v3.6.2-beta (CAT Editor)
 AI-Powered Computer-Aided Translation Tool
 
 Features:
@@ -27,7 +27,7 @@ Date: January 16, 2025
 """
 
 # Version constant
-APP_VERSION = "3.6.0-beta"
+APP_VERSION = "3.6.2-beta"
 
 # --- Private Features Flag ---
 # Check for .supervertaler.local file to enable private features (for developers only)
@@ -119,6 +119,12 @@ try:
     from modules.tag_manager import TagManager
     from modules.figure_context_manager import FigureContextManager, normalize_figure_ref, pil_image_to_base64_png
     from modules.pdf_rescue import PDFRescue
+    from modules.prompt_library import PromptLibrary
+    from modules.translation_memory import TM, TMDatabase, TMAgent
+    from modules.tmx_generator import TMXGenerator
+    from modules.tracked_changes import TrackedChangesAgent, TrackedChangesBrowser, format_tracked_changes_context
+    from modules.find_replace import FindReplaceDialog
+    from modules.prompt_assistant import PromptAssistant
 except ImportError as e:
     print("ERROR: Could not import required modules")
     print(f"Import error: {e}")
@@ -279,24 +285,7 @@ def parse_docx_pairs(docx_path):
     except Exception as e:
         raise RuntimeError(f"Error parsing DOCX file: {e}")
 
-def format_tracked_changes_context(tracked_changes_list, max_length=1000):
-    """Format tracked changes for AI context, keeping within token limits"""
-    if not tracked_changes_list:
-        return ""
-    
-    context_parts = ["TRACKED CHANGES REFERENCE (Original→Final editing patterns):"]
-    current_length = len(context_parts[0])
-    
-    for i, (original, final) in enumerate(tracked_changes_list):
-        change_text = f"• \"{original}\" → \"{final}\""
-        if current_length + len(change_text) > max_length:
-            if i > 0:  # Only add if we have at least one example
-                context_parts.append("(Additional examples truncated to save space)")
-            break
-        context_parts.append(change_text)
-        current_length += len(change_text)
-    
-    return "\n".join(context_parts) + "\n"
+# format_tracked_changes_context() moved to modules/tracked_changes.py
 
 def pil_image_to_base64_png(img):
     """Encode a PIL image to base64 PNG (ascii) for Claude/OpenAI data URLs."""
@@ -327,1056 +316,8 @@ def get_simple_lang_code(lang_name_or_code_input):
     return lang_lower[:2]
 
 
-# --- Tracked Changes Agent ---
-class TrackedChangesAgent:
-    """
-    Manages tracked changes from DOCX files or TSV files.
-    Provides AI with examples of preferred editing patterns to learn translator style.
-    """
-    def __init__(self, log_callback=None):
-        self.change_data = []  # List of (original_text, final_text) tuples
-        self.files_loaded = []  # Track which files have been loaded
-        self.log_callback = log_callback or print
-    
-    def log(self, message):
-        """Log a message"""
-        if callable(self.log_callback):
-            self.log_callback(message)
-    
-    def load_docx_changes(self, docx_path):
-        """Load tracked changes from a DOCX file"""
-        if not docx_path:
-            return False
-            
-        self.log(f"[Tracked Changes] Loading changes from: {os.path.basename(docx_path)}")
-        
-        try:
-            new_changes = parse_docx_pairs(docx_path)
-            
-            # Clear existing changes to prevent duplicates
-            self.change_data.clear()
-            self.files_loaded.clear()
-            
-            # Add new changes
-            self.change_data.extend(new_changes)
-            self.files_loaded.append(os.path.basename(docx_path))
-            
-            self.log(f"[Tracked Changes] Loaded {len(new_changes)} change pairs from {os.path.basename(docx_path)}")
-            self.log(f"[Tracked Changes] Total change pairs available: {len(self.change_data)}")
-            
-            return True
-        except Exception as e:
-            self.log(f"[Tracked Changes] Error loading {docx_path}: {e}")
-            messagebox.showerror("Tracked Changes Error", 
-                               f"Failed to load tracked changes from {os.path.basename(docx_path)}:\\n{e}")
-            return False
-    
-    def load_tsv_changes(self, tsv_path):
-        """Load tracked changes from a TSV file (original_text<tab>final_text format)"""
-        if not tsv_path:
-            return False
-            
-        self.log(f"[Tracked Changes] Loading changes from: {os.path.basename(tsv_path)}")
-        
-        try:
-            new_changes = []
-            with open(tsv_path, 'r', encoding='utf-8') as f:
-                for line_num, line in enumerate(f, 1):
-                    line = line.rstrip('\n\r')
-                    if not line.strip():
-                        continue
-                    
-                    # Skip header line if it looks like one
-                    if line_num == 1 and ('original' in line.lower() and 'final' in line.lower()):
-                        continue
-                    
-                    parts = line.split('\t')
-                    if len(parts) >= 2:
-                        original = parts[0].strip()
-                        final = parts[1].strip()
-                        if original and final and original != final:  # Only add if actually different
-                            new_changes.append((original, final))
-                    else:
-                        self.log(f"[Tracked Changes] Skipping line {line_num}: insufficient columns")
-            
-            # Add to existing changes
-            self.change_data.extend(new_changes)
-            self.files_loaded.append(os.path.basename(tsv_path))
-            
-            self.log(f"[Tracked Changes] Loaded {len(new_changes)} change pairs from {os.path.basename(tsv_path)}")
-            self.log(f"[Tracked Changes] Total change pairs available: {len(self.change_data)}")
-            
-            return True
-        except Exception as e:
-            self.log(f"[Tracked Changes] Error loading {tsv_path}: {e}")
-            messagebox.showerror("Tracked Changes Error", 
-                               f"Failed to load tracked changes from {os.path.basename(tsv_path)}:\\n{e}")
-            return False
-    
-    def clear_changes(self):
-        """Clear all loaded tracked changes"""
-        self.change_data.clear()
-        self.files_loaded.clear()
-        self.log("[Tracked Changes] All tracked changes cleared")
-    
-    def search_changes(self, search_text, exact_match=False):
-        """Search for changes containing the search text"""
-        if not search_text.strip():
-            return self.change_data
-        
-        search_lower = search_text.lower()
-        results = []
-        
-        for original, final in self.change_data:
-            if exact_match:
-                if search_text == original or search_text == final:
-                    results.append((original, final))
-            else:
-                if (search_lower in original.lower() or 
-                    search_lower in final.lower()):
-                    results.append((original, final))
-        
-        return results
-
-    def find_relevant_changes(self, source_segments, max_changes=10):
-        """
-        Find tracked changes relevant to the current source segments being processed.
-        Uses two-pass algorithm: exact matches first, then partial word overlap.
-        """
-        if not self.change_data or not source_segments:
-            return []
-        
-        relevant_changes = []
-        
-        # First pass: exact matches
-        for segment in source_segments:
-            segment_lower = segment.lower().strip()
-            for original, final in self.change_data:
-                original_lower = original.lower().strip()
-                if segment_lower == original_lower and (original, final) not in relevant_changes:
-                    relevant_changes.append((original, final))
-                    if len(relevant_changes) >= max_changes:
-                        return relevant_changes
-        
-        # Second pass: partial matches (word overlap)
-        if len(relevant_changes) < max_changes:
-            for segment in source_segments:
-                segment_words = set(word.lower() for word in segment.split() if len(word) > 3)
-                for original, final in self.change_data:
-                    if (original, final) in relevant_changes:
-                        continue
-                    
-                    original_words = set(word.lower() for word in original.split() if len(word) > 3)
-                    # Check if there's significant word overlap
-                    if segment_words and original_words:
-                        overlap = len(segment_words.intersection(original_words))
-                        min_overlap = min(2, len(segment_words) // 2)
-                        if overlap >= min_overlap:
-                            relevant_changes.append((original, final))
-                            if len(relevant_changes) >= max_changes:
-                                return relevant_changes
-        
-        return relevant_changes
-    
-    def get_entry_count(self):
-        """Get number of loaded change pairs"""
-        return len(self.change_data)
-
-
-# --- TMX Generator Class ---
-
-class TrackedChangesBrowser:
-    def __init__(self, parent, tracked_changes_agent, parent_app=None, log_queue=None):
-        self.parent = parent
-        self.tracked_changes_agent = tracked_changes_agent
-        self.parent_app = parent_app  # Reference to main app for AI settings
-        self.log_queue = log_queue if log_queue else queue.Queue()
-        self.window = None
-    
-    def show_browser(self):
-        """Show the tracked changes browser window"""
-        if not self.tracked_changes_agent.change_data:
-            messagebox.showinfo("No Changes", "No tracked changes loaded. Load a DOCX or TSV file with tracked changes first.")
-            return
-        
-        # Create window if it doesn't exist
-        if self.window is None or not self.window.winfo_exists():
-            self.create_window()
-        else:
-            self.window.lift()
-    
-    def create_window(self):
-        """Create the browser window"""
-        self.window = tk.Toplevel(self.parent)
-        self.window.title(f"Tracked Changes Browser ({len(self.tracked_changes_agent.change_data)} pairs)")
-        self.window.geometry("900x700")  # Taller to accommodate detail view
-        
-        # Search frame
-        search_frame = tk.Frame(self.window)
-        search_frame.pack(fill=tk.X, padx=10, pady=5)
-        
-        tk.Label(search_frame, text="Search:").pack(side=tk.LEFT)
-        self.search_var = tk.StringVar()
-        search_entry = tk.Entry(search_frame, textvariable=self.search_var, width=40)
-        search_entry.pack(side=tk.LEFT, padx=(5,0))
-        search_entry.bind('<KeyRelease>', self.on_search)
-        
-        self.exact_match_var = tk.BooleanVar()
-        tk.Checkbutton(search_frame, text="Exact match", variable=self.exact_match_var, 
-                      command=self.on_search).pack(side=tk.LEFT, padx=(10,0))
-        
-        tk.Button(search_frame, text="Clear", command=self.clear_search).pack(side=tk.LEFT, padx=(10,0))
-        
-        # Results info
-        self.results_label = tk.Label(self.window, text="")
-        self.results_label.pack(pady=2)
-        
-        # Main content frame (results + detail)
-        main_frame = tk.Frame(self.window)
-        main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
-        
-        # Results frame with scrollbar (top half)
-        results_frame = tk.Frame(main_frame)
-        results_frame.pack(fill=tk.BOTH, expand=True)
-        
-        # Create Treeview for displaying changes
-        columns = ('Original', 'Final')
-        self.tree = ttk.Treeview(results_frame, columns=columns, show='headings', height=12)
-        
-        # Define headings
-        self.tree.heading('Original', text='Original Text')
-        self.tree.heading('Final', text='Final Text')
-        
-        # Configure column widths
-        self.tree.column('Original', width=400)
-        self.tree.column('Final', width=400)
-        
-        # Add scrollbars
-        v_scrollbar = ttk.Scrollbar(results_frame, orient=tk.VERTICAL, command=self.tree.yview)
-        h_scrollbar = ttk.Scrollbar(results_frame, orient=tk.HORIZONTAL, command=self.tree.xview)
-        self.tree.configure(yscrollcommand=v_scrollbar.set, xscrollcommand=h_scrollbar.set)
-        
-        # Pack tree and scrollbars
-        self.tree.grid(row=0, column=0, sticky="nsew")
-        v_scrollbar.grid(row=0, column=1, sticky="ns")
-        h_scrollbar.grid(row=1, column=0, sticky="ew")
-        
-        results_frame.grid_rowconfigure(0, weight=1)
-        results_frame.grid_columnconfigure(0, weight=1)
-        
-        # Detail view frame (bottom half)
-        detail_frame = tk.LabelFrame(main_frame, text="Selected Change Details", padx=5, pady=5)
-        detail_frame.pack(fill=tk.BOTH, expand=False, pady=(10,0))
-        
-        # Original text display
-        tk.Label(detail_frame, text="Original Text:", font=("Segoe UI", 10, "bold")).pack(anchor="w")
-        self.original_text = tk.Text(detail_frame, height=4, wrap=tk.WORD, state="disabled", 
-                                    bg="#f8f8f8", relief="solid", borderwidth=1)
-        self.original_text.pack(fill=tk.X, pady=(2,5))
-        
-        # Final text display
-        tk.Label(detail_frame, text="Final Text:", font=("Segoe UI", 10, "bold")).pack(anchor="w")
-        self.final_text = tk.Text(detail_frame, height=4, wrap=tk.WORD, state="disabled",
-                                 bg="#f0f8ff", relief="solid", borderwidth=1)
-        self.final_text.pack(fill=tk.X, pady=(2,0))
-        
-        # Bind selection event
-        self.tree.bind('<<TreeviewSelect>>', self.on_selection_change)
-        
-        # Context menu for copying
-        self.context_menu = tk.Menu(self.window, tearoff=0)
-        self.context_menu.add_command(label="Copy original", command=self.copy_original)
-        self.context_menu.add_command(label="Copy final", command=self.copy_final)
-        self.context_menu.add_command(label="Copy both", command=self.copy_both)
-        
-        self.tree.bind("<Button-3>", self.show_context_menu)  # Right click
-        
-        # Export button frame
-        export_frame = tk.Frame(self.window)
-        export_frame.pack(fill=tk.X, padx=10, pady=5)
-        
-        tk.Button(export_frame, text="📊 Export Report (MD)", command=self.export_to_md_report,
-                 bg="#4CAF50", fg="white", font=("Segoe UI", 10, "bold"),
-                 relief="raised", padx=10, pady=5).pack(side=tk.LEFT)
-        
-        tk.Label(export_frame, text="Export tracked changes report with AI-powered change analysis",
-                fg="gray").pack(side=tk.LEFT, padx=(10,0))
-        
-        # Status bar
-        status_frame = tk.Frame(self.window)
-        status_frame.pack(fill=tk.X, padx=10, pady=2)
-        
-        files_text = f"Files loaded: {', '.join(self.tracked_changes_agent.files_loaded)}" if self.tracked_changes_agent.files_loaded else "No files loaded"
-        tk.Label(status_frame, text=files_text, anchor=tk.W).pack(fill=tk.X)
-        
-        # Load all changes initially
-        self.load_results(self.tracked_changes_agent.change_data)
-    
-    def on_selection_change(self, event=None):
-        """Handle selection change in the tree"""
-        selection = self.tree.selection()
-        if not selection:
-            # Clear detail view if no selection
-            self.original_text.config(state="normal")
-            self.original_text.delete(1.0, tk.END)
-            self.original_text.config(state="disabled")
-            self.final_text.config(state="normal")
-            self.final_text.delete(1.0, tk.END)
-            self.final_text.config(state="disabled")
-            return
-        
-        # Get the selected change pair
-        original, final = self.get_selected_change()
-        if original and final:
-            # Update original text display
-            self.original_text.config(state="normal")
-            self.original_text.delete(1.0, tk.END)
-            self.original_text.insert(1.0, original)
-            self.original_text.config(state="disabled")
-            
-            # Update final text display
-            self.final_text.config(state="normal")
-            self.final_text.delete(1.0, tk.END)
-            self.final_text.insert(1.0, final)
-            self.final_text.config(state="disabled")
-    
-    def on_search(self, event=None):
-        """Handle search input"""
-        search_text = self.search_var.get()
-        exact_match = self.exact_match_var.get()
-        
-        results = self.tracked_changes_agent.search_changes(search_text, exact_match)
-        self.load_results(results)
-    
-    def clear_search(self):
-        """Clear search and show all results"""
-        self.search_var.set("")
-        self.load_results(self.tracked_changes_agent.change_data)
-    
-    def load_results(self, results):
-        """Load results into the treeview"""
-        # Clear existing items
-        for item in self.tree.get_children():
-            self.tree.delete(item)
-        
-        # Add new items
-        for i, (original, final) in enumerate(results):
-            # Truncate long text for display
-            display_original = (original[:100] + "...") if len(original) > 100 else original
-            display_final = (final[:100] + "...") if len(final) > 100 else final
-            
-            self.tree.insert('', 'end', values=(display_original, display_final))
-        
-        # Update results label
-        total_changes = len(self.tracked_changes_agent.change_data)
-        showing = len(results)
-        if showing == total_changes:
-            self.results_label.config(text=f"Showing all {total_changes} change pairs")
-        else:
-            self.results_label.config(text=f"Showing {showing} of {total_changes} change pairs")
-    
-    def show_context_menu(self, event):
-        """Show context menu for copying"""
-        item = self.tree.identify_row(event.y)
-        if item:
-            self.tree.selection_set(item)
-            self.context_menu.post(event.x_root, event.y_root)
-    
-    def get_selected_change(self):
-        """Get the currently selected change pair"""
-        selection = self.tree.selection()
-        if not selection:
-            return None, None
-        
-        item = selection[0]
-        index = self.tree.index(item)
-        
-        # Get current results (might be filtered)
-        search_text = self.search_var.get()
-        exact_match = self.exact_match_var.get()
-        current_results = self.tracked_changes_agent.search_changes(search_text, exact_match)
-        
-        if 0 <= index < len(current_results):
-            return current_results[index]
-        return None, None
-    
-    def copy_original(self):
-        """Copy original text to clipboard"""
-        original, _ = self.get_selected_change()
-        if original:
-            self.window.clipboard_clear()
-            self.window.clipboard_append(original)
-    
-    def copy_final(self):
-        """Copy final text to clipboard"""
-        _, final = self.get_selected_change()
-        if final:
-            self.window.clipboard_clear()
-            self.window.clipboard_append(final)
-    
-    def copy_both(self):
-        """Copy both texts to clipboard"""
-        original, final = self.get_selected_change()
-        if original and final:
-            both_text = f"Original: {original}\n\nFinal: {final}"
-            self.window.clipboard_clear()
-            self.window.clipboard_append(both_text)
-
-    
-    def export_to_md_report(self):
-        """Export tracked changes to a Markdown report with AI-powered change analysis"""
-        from tkinter import filedialog, messagebox
-        
-        if not self.tracked_changes_agent.change_data:
-            messagebox.showwarning("No Data", "No tracked changes available to export.")
-            return
-        
-        # Ask user whether to export all or filtered results
-        search_text = self.search_var.get()
-        if search_text:
-            # User has active search filter
-            result = messagebox.askyesnocancel(
-                "Export Scope",
-                f"You have an active search filter showing {len(self.tree.get_children())} of {len(self.tracked_changes_agent.change_data)} changes.\n\n"
-                "Yes = Export filtered results only\n"
-                "No = Export all tracked changes\n"
-                "Cancel = Cancel export"
-            )
-            if result is None:  # Cancel
-                return
-            export_filtered = result
-        else:
-            export_filtered = False
-        
-        # Get the data to export
-        if export_filtered:
-            exact_match = self.exact_match_var.get()
-            data_to_export = self.tracked_changes_agent.search_changes(search_text, exact_match)
-            default_filename = "tracked_changes_filtered_report.md"
-        else:
-            data_to_export = self.tracked_changes_agent.change_data
-            default_filename = "tracked_changes_report.md"
-        
-        # Ask for save location
-        filepath = filedialog.asksaveasfilename(
-            title="Export Tracked Changes Report",
-            defaultextension=".md",
-            filetypes=(("Markdown files", "*.md"), ("All files", "*.*")),
-            initialfile=default_filename
-        )
-        
-        if not filepath:
-            return
-        
-        # Ask if user wants AI analysis
-        ai_analysis = messagebox.askyesno(
-            "AI Analysis",
-            f"Generate AI-powered change summaries?\n\n"
-            f"This will analyze {len(data_to_export)} changes using the currently selected AI model.\n\n"
-            f"Note: This may take a few minutes and will use API credits.\n\n"
-            f"Click 'No' to export without AI analysis."
-        )
-        
-        # If AI analysis enabled, let user choose batch size
-        batch_size = 25  # Default
-        if ai_analysis:
-            batch_dialog = tk.Toplevel(self.window)
-            batch_dialog.title("Batch Size Configuration")
-            batch_dialog.geometry("450x280")
-            batch_dialog.transient(self.window)
-            batch_dialog.grab_set()
-            
-            tk.Label(batch_dialog, text="Configure Batch Processing", 
-                    font=("Segoe UI", 11, "bold")).pack(pady=10)
-            tk.Label(batch_dialog, 
-                    text=f"Choose how many segments to process per AI request\n"
-                         f"Larger batches = faster but more tokens per request",
-                    font=("Segoe UI", 9)).pack(pady=5)
-            
-            # Slider for batch size
-            batch_var = tk.IntVar(value=25)
-            
-            slider_frame = tk.Frame(batch_dialog)
-            slider_frame.pack(pady=10, fill='x', padx=20)
-            
-            tk.Label(slider_frame, text="Batch Size:", font=("Segoe UI", 9)).pack(side='left')
-            batch_label = tk.Label(slider_frame, text="25", font=("Segoe UI", 10, "bold"), fg="blue")
-            batch_label.pack(side='right')
-            
-            def update_label(val):
-                batch_label.config(text=str(int(float(val))))
-            
-            slider = tk.Scale(batch_dialog, from_=1, to=100, orient='horizontal',
-                            variable=batch_var, command=update_label, length=350)
-            slider.pack(pady=5)
-            
-            # Info label
-            info_label = tk.Label(batch_dialog, 
-                                text=f"Total changes: {len(data_to_export)} | "
-                                     f"Estimated batches at size 25: {(len(data_to_export) + 24) // 25}",
-                                font=("Segoe UI", 8), fg="gray")
-            info_label.pack(pady=5)
-            
-            def update_info(*args):
-                size = batch_var.get()
-                batches = (len(data_to_export) + size - 1) // size
-                info_label.config(text=f"Total changes: {len(data_to_export)} | "
-                                      f"Estimated batches at size {size}: {batches}")
-            
-            batch_var.trace('w', update_info)
-            
-            # OK button
-            def on_ok():
-                nonlocal batch_size
-                batch_size = batch_var.get()
-                batch_dialog.destroy()
-            
-            tk.Button(batch_dialog, text="OK", command=on_ok, 
-                     font=("Segoe UI", 10), width=15).pack(pady=10)
-            
-            # Wait for dialog to close
-            batch_dialog.wait_window()
-        
-        try:
-            # Prepare report content
-            from datetime import datetime
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            
-            # Build AI prompt info for report header
-            ai_prompt_info = ""
-            if ai_analysis and hasattr(self, 'parent_app') and self.parent_app:
-                provider = self.parent_app.current_llm_provider
-                model = self.parent_app.current_llm_model
-                # Capitalize provider name for display
-                provider_display = provider.capitalize()
-                ai_prompt_info = f"""
-
-### AI Analysis Configuration
-
-**Provider:** {provider_display}  
-**Model:** {model}
-
-**Prompt Template Used:**
-```
-You are a precision editor analyzing changes between two versions of text.
-Compare the original and revised text and identify EXACTLY what changed.
-
-CRITICAL INSTRUCTIONS:
-- Be extremely specific and precise
-- PAY SPECIAL ATTENTION to quote marks: " vs " vs " (curly vs straight)
-- Check for apostrophe changes: ' vs ' (curly vs straight)  
-- Check for dash changes: - vs – vs — (hyphen vs en-dash vs em-dash)
-- Quote the exact words/phrases that changed
-- Use this format: "X" → "Y"
-- For single word changes: quote both words
-- For multiple changes: put each on its own line
-- For punctuation/formatting: describe precisely
-- For additions: "Added: [exact text]"
-- For deletions: "Removed: [exact text]"
-- DO NOT say "No change" unless texts are 100% identical
-- DO NOT use vague terms like "clarified", "improved", "fixed"
-- DO quote the actual changed text
-
-Examples of single changes:
-✓ "pre-cut" → "incision"
-✓ Curly quotes → straight quotes: "word" → "word"
-✓ Curly apostrophe → straight: don't → don't
-✓ "package" → "packaging"
-
-Examples of multiple changes (one per line):
-✓ "split portions" → "divided portions"
-  "connected by a" → "connected, via a"
-  Curly quotes → straight quotes throughout
-✓ Added: "carefully"
-✓ "color" → "colour" (US to UK spelling)
-✗ Clarified terminology (too vague)
-✗ Fixed grammar (not specific)
-✗ Improved word choice (not helpful)
-```
-
----
-
-"""
-            
-            md_content = f"""# Tracked Changes Analysis Report ([Supervertaler](https://github.com/michaelbeijer/Supervertaler) {APP_VERSION})
-
-## What is this report?
-
-This report analyzes the differences between AI-generated translations and your final edited versions exported from your CAT tool (memoQ, CafeTran, etc.). It shows exactly what you changed during post-editing, helping you review your editing decisions and track your translation workflow improvements.
-
-**Use case:** After completing a translation project in your CAT tool with tracked changes enabled, export the bilingual document and load it here to see a detailed breakdown of all modifications made to the AI-generated baseline.
-
----
-
-**Generated:** {timestamp}  
-**Total Changes:** {len(data_to_export)}  
-**Filter Applied:** {"Yes - " + search_text if export_filtered else "No"}  
-**AI Analysis:** {"Enabled" if ai_analysis else "Disabled"}
-{ai_prompt_info}
-"""
-            
-            # Process changes with paragraph format
-            if ai_analysis:
-                # Show progress window
-                self.log_queue.put(f"[Export] Generating AI summaries for {len(data_to_export)} changes in batches...")
-                
-                progress_window = tk.Toplevel(self.window)
-                progress_window.title("Generating AI Analysis...")
-                progress_window.geometry("400x150")
-                progress_window.transient(self.window)
-                progress_window.grab_set()
-                
-                tk.Label(progress_window, text="Analyzing tracked changes with AI (batched)...", 
-                        font=("Segoe UI", 10)).pack(pady=10)
-                progress_label = tk.Label(progress_window, text="Processing batch 0 of 0")
-                progress_label.pack()
-                batch_info_label = tk.Label(progress_window, text="", font=("Segoe UI", 8), fg="gray")
-                batch_info_label.pack()
-                
-                # Process in batches (user-configured)
-                # batch_size already set from dialog above
-                total_batches = (len(data_to_export) + batch_size - 1) // batch_size
-                all_summaries = {}
-                
-                for batch_num in range(total_batches):
-                    start_idx = batch_num * batch_size
-                    end_idx = min(start_idx + batch_size, len(data_to_export))
-                    batch = data_to_export[start_idx:end_idx]
-                    
-                    progress_label.config(text=f"Processing batch {batch_num + 1} of {total_batches}")
-                    batch_info_label.config(text=f"Segments {start_idx + 1}-{end_idx} of {len(data_to_export)}")
-                    progress_window.update()
-                    
-                    # Generate AI summaries for this batch
-                    try:
-                        batch_summaries = self.get_ai_change_summaries_batch(batch, start_idx)
-                        all_summaries.update(batch_summaries)
-                        self.log_queue.put(f"[Export] Batch {batch_num + 1}/{total_batches} complete ({len(batch)} segments)")
-                    except Exception as e:
-                        self.log_queue.put(f"[Export] Error in batch {batch_num + 1}: {e}")
-                        # Fill in error messages for failed batch
-                        for i in range(start_idx, end_idx):
-                            all_summaries[i] = f"_Error generating summary: {str(e)}_"
-                
-                progress_window.destroy()
-                
-                # Now build the markdown content with the summaries
-                for i, (original, final) in enumerate(data_to_export):
-                    summary = all_summaries.get(i, "_No summary available_")
-                    
-                    # Add segment in paragraph format
-                    md_content += f"""### Segment {i + 1}
-
-**Target (Original):**  
-{original}
-
-**Target (Revised):**  
-{final}
-
-**Change Summary:**  
-{summary}
-
----
-
-"""
-            else:
-                # No AI analysis - simpler paragraph format
-                for i, (original, final) in enumerate(data_to_export, 1):
-                    md_content += f"""### Segment {i}
-
-**Target (Original):**  
-{original}
-
-**Target (Revised):**  
-{final}
-
----
-
-"""
-            
-            md_content += f"""
-
----
-
-## Summary Statistics
-
-- **Total Segments Analyzed:** {len(data_to_export)}
-- **AI Analysis:** {"Enabled" if ai_analysis else "Disabled"}
-- **Export Type:** {"Filtered" if export_filtered else "Complete"}
-
-*This report was generated by [Supervertaler](https://github.com/michaelbeijer/Supervertaler) {APP_VERSION}*
-"""
-            
-            # Write to file
-            with open(filepath, 'w', encoding='utf-8') as f:
-                f.write(md_content)
-            
-            messagebox.showinfo(
-                "Export Successful",
-                f"Exported {len(data_to_export)} tracked changes to:\n{filepath}\n\n"
-                + ("AI change summaries included." if ai_analysis else "Export completed without AI analysis.")
-            )
-            
-            self.log_queue.put(f"[Export] Report saved to: {filepath}")
-            
-        except Exception as e:
-            messagebox.showerror(
-                "Export Error",
-                f"Failed to export tracked changes report:\n{str(e)}"
-            )
-            self.log_queue.put(f"[Export] Error: {e}")
-    
-    def get_ai_change_summaries_batch(self, changes_batch, start_index):
-        """Get AI summaries for a batch of changes - much faster than one-by-one"""
-        if not hasattr(self, 'parent_app') or not self.parent_app:
-            # Fallback for batch
-            return {i: "Modified text" for i in range(start_index, start_index + len(changes_batch))}
-        
-        try:
-            provider = self.parent_app.current_llm_provider
-            model_name = self.parent_app.current_llm_model
-            api_key = ""
-            
-            # Debug logging
-            self.log_queue.put(f"[Export] Using provider: {provider}, model: {model_name}")
-            
-            if provider == "claude":
-                api_key = self.parent_app.api_keys.get("claude", "")
-            elif provider == "gemini":
-                api_key = self.parent_app.api_keys.get("google", "")
-            elif provider == "openai":
-                api_key = self.parent_app.api_keys.get("openai", "")
-            
-            if not api_key:
-                self.log_queue.put(f"[Export] ERROR: No API key found for provider: {provider}")
-                return {i: "AI unavailable - no API key" for i in range(start_index, start_index + len(changes_batch))}
-            
-            self.log_queue.put(f"[Export] API key found, calling {provider}...")
-            
-            # Build batch prompt with all changes
-            batch_prompt = """You are a precision editor analyzing changes between multiple text versions.
-For each numbered pair below, identify EXACTLY what changed.
-
-CRITICAL INSTRUCTIONS:
-- Be extremely specific and precise
-- PAY SPECIAL ATTENTION to quote marks: " vs " vs " (curly vs straight)
-- Check for apostrophe changes: ' vs ' (curly vs straight)
-- Check for dash changes: - vs – vs — (hyphen vs en-dash vs em-dash)
-- Quote the exact words/phrases that changed
-- Use format: "X" → "Y"
-- For multiple changes in one segment: put each on its own line
-- For punctuation/formatting: describe precisely (e.g., 'Curly quotes → straight quotes: "word" → "word"')
-- DO NOT say "No change" unless texts are 100% identical (byte-for-byte)
-- DO NOT use vague terms like "clarified", "improved", "fixed"
-- DO quote the actual changed text
-
-IMPORTANT: If only punctuation changed (quotes, apostrophes, dashes), you MUST report it!
-
-"""
-            
-            # Add all changes to the prompt
-            for i, (original, final) in enumerate(changes_batch):
-                batch_prompt += f"""
-[{i + 1}] ORIGINAL: {original}
-    REVISED: {final}
-
-"""
-            
-            batch_prompt += """
-Now provide the change summary for each segment, formatted as:
-
-[1] your precise summary here
-[2] your precise summary here
-[3] your precise summary here
-
-(etc. for all segments)"""
-            
-            # Call AI based on provider
-            self.log_queue.put(f"[Export] Checking provider condition: {provider} == gemini? {provider == 'gemini'}, GEMINI_AVAILABLE? {GEMINI_AVAILABLE}")
-            if provider == "gemini" and GEMINI_AVAILABLE:
-                import google.generativeai as genai
-                genai.configure(api_key=api_key)
-                model = genai.GenerativeModel(model_name)
-                
-                response = model.generate_content(batch_prompt)
-                response_text = response.text.strip()
-                
-            elif provider == "claude" and ANTHROPIC_AVAILABLE:
-                import anthropic
-                client = anthropic.Anthropic(api_key=api_key)
-                
-                message = client.messages.create(
-                    model=model_name,
-                    max_tokens=2000,  # Larger for batch
-                    messages=[{
-                        "role": "user",
-                        "content": batch_prompt
-                    }]
-                )
-                
-                response_text = message.content[0].text.strip()
-                
-            elif provider == "openai" and OPENAI_AVAILABLE:
-                import openai
-                client = openai.OpenAI(api_key=api_key)
-                
-                response = client.chat.completions.create(
-                    model=model_name,
-                    max_tokens=2000,  # Larger for batch
-                    messages=[{
-                        "role": "user",
-                        "content": batch_prompt
-                    }]
-                )
-                
-                response_text = response.choices[0].message.content.strip()
-            else:
-                self.log_queue.put(f"[Export] ERROR: No matching provider condition for {provider}")
-                return {i: "Provider not available" for i in range(start_index, start_index + len(changes_batch))}
-            
-            # Parse the response to extract individual summaries
-            summaries = {}
-            current_num = None
-            current_summary_lines = []
-            
-            for line in response_text.split('\n'):
-                line = line.strip()
-                if not line:
-                    continue
-                
-                # Check if line starts with [N]
-                import re
-                match = re.match(r'^\[(\d+)\]\s*(.*)$', line)
-                if match:
-                    # Save previous summary if any
-                    if current_num is not None:
-                        summary_text = '\n'.join(current_summary_lines).strip()
-                        summaries[start_index + current_num - 1] = summary_text
-                    
-                    # Start new summary
-                    current_num = int(match.group(1))
-                    summary_start = match.group(2).strip()
-                    current_summary_lines = [summary_start] if summary_start else []
-                elif current_num is not None:
-                    # Continuation of current summary
-                    current_summary_lines.append(line)
-            
-            # Save last summary
-            if current_num is not None:
-                summary_text = '\n'.join(current_summary_lines).strip()
-                summaries[start_index + current_num - 1] = summary_text
-            
-            # Fill in any missing summaries
-            for i in range(len(changes_batch)):
-                if (start_index + i) not in summaries:
-                    summaries[start_index + i] = "_Summary not parsed correctly_"
-            
-            return summaries
-            
-        except Exception as e:
-            self.log_queue.put(f"[AI Batch] Error: {e}")
-            return {i: f"Analysis failed: {str(e)}" for i in range(start_index, start_index + len(changes_batch))}
-    
-    def get_ai_change_summary(self, original_text, revised_text):
-        """Get AI summary of what changed between original and revised text"""
-        # This method needs to access the parent app's AI configuration
-        # We'll need to pass the parent app reference when creating the browser
-        
-        # For now, return a simple diff-based summary as fallback
-        # The parent app integration will be added in the next step
-        
-        if not hasattr(self, 'parent_app'):
-            # Fallback to simple analysis
-            if original_text == revised_text:
-                return "No change"
-            elif len(revised_text) > len(original_text):
-                return "Expanded/added content"
-            elif len(revised_text) < len(original_text):
-                return "Shortened/removed content"
-            else:
-                return "Modified wording"
-        
-        # If parent_app is available, use its AI agent
-        try:
-            provider = self.parent_app.current_llm_provider
-            model_name = self.parent_app.current_llm_model
-            api_key = ""
-            
-            if provider == "claude":
-                api_key = self.parent_app.api_keys.get("claude", "")
-            elif provider == "gemini":
-                api_key = self.parent_app.api_keys.get("google", "")
-            elif provider == "openai":
-                api_key = self.parent_app.api_keys.get("openai", "")
-            
-            if not api_key:
-                return "AI unavailable"
-            
-            # Create a temporary agent for this analysis
-            if provider == "gemini" and GEMINI_AVAILABLE:
-                import google.generativeai as genai
-                genai.configure(api_key=api_key)
-                model = genai.GenerativeModel(model_name)
-                
-                prompt = f"""You are a precision editor analyzing changes between two versions of text.
-Compare the original and revised text and identify EXACTLY what changed.
-
-Original: {original_text}
-Revised: {revised_text}
-
-CRITICAL INSTRUCTIONS:
-- Be extremely specific and precise
-- PAY SPECIAL ATTENTION to quote marks: " vs " vs " (curly vs straight)
-- Check for apostrophe changes: ' vs ' (curly vs straight)  
-- Check for dash changes: - vs – vs — (hyphen vs en-dash vs em-dash)
-- Quote the exact words/phrases that changed
-- Use this format: "X" → "Y"
-- For single word changes: quote both words
-- For multiple changes: put each on its own line
-- For punctuation/formatting: describe precisely
-- For additions: "Added: [exact text]"
-- For deletions: "Removed: [exact text]"
-- DO NOT say "No change" unless texts are 100% identical
-- DO NOT use vague terms like "clarified", "improved", "fixed"
-- DO quote the actual changed text
-
-Examples of single changes:
-✓ "pre-cut" → "incision"
-✓ Curly quotes → straight quotes: "word" → "word"
-✓ Curly apostrophe → straight: don't → don't
-✓ "package" → "packaging"
-
-Examples of multiple changes (one per line):
-✓ "split portions" → "divided portions"
-  "connected by a" → "connected, via a"
-  Curly quotes → straight quotes throughout
-✗ Clarified terminology
-✗ Fixed grammar
-
-Your precise change summary:"""
-                
-                response = model.generate_content(prompt)
-                summary = response.text.strip()
-                # Clean up the response
-                summary = summary.split('.')[0].split('\n')[0]
-                words = summary.split()
-                if len(words) > 10:
-                    summary = ' '.join(words[:10]) + '...'
-                return summary
-                
-            elif provider == "claude" and ANTHROPIC_AVAILABLE:
-                import anthropic
-                client = anthropic.Anthropic(api_key=api_key)
-                
-                message = client.messages.create(
-                    model=model_name,
-                    max_tokens=100,
-                    messages=[{
-                        "role": "user",
-                        "content": f"""You are a precision editor analyzing changes between two versions of text.
-Compare the original and revised text and identify EXACTLY what changed.
-
-Original: {original_text}
-Revised: {revised_text}
-
-CRITICAL INSTRUCTIONS:
-- Be extremely specific and precise
-- PAY SPECIAL ATTENTION to quote marks: " vs " vs " (curly vs straight)
-- Check for apostrophe changes: ' vs ' (curly vs straight)  
-- Check for dash changes: - vs – vs — (hyphen vs en-dash vs em-dash)
-- Quote the exact words/phrases that changed
-- Use this format: "X" → "Y"
-- For single word changes: quote both words
-- For multiple changes: put each on its own line
-- For punctuation/formatting: describe precisely
-- For additions: "Added: [exact text]"
-- For deletions: "Removed: [exact text]"
-- DO NOT say "No change" unless texts are 100% identical
-- DO NOT use vague terms like "clarified", "improved", "fixed"
-- DO quote the actual changed text
-
-Examples of single changes:
-✓ "pre-cut" → "incision"
-✓ Curly quotes → straight quotes: "word" → "word"
-✓ Curly apostrophe → straight: don't → don't
-✓ "package" → "packaging"
-
-Examples of multiple changes (one per line):
-✓ "split portions" → "divided portions"
-  "connected by a" → "connected, via a"
-  Curly quotes → straight quotes throughout
-✗ Clarified terminology
-✗ Fixed grammar
-
-Your precise change summary:"""
-                    }]
-                )
-                
-                summary = message.content[0].text.strip()
-                # Clean up the response - remove extra formatting
-                summary = summary.replace('Your precise change summary:', '').strip()
-                summary = summary.split('\n')[0]  # First line only
-                return summary
-                
-            elif provider == "openai" and OPENAI_AVAILABLE:
-                import openai
-                client = openai.OpenAI(api_key=api_key)
-                
-                response = client.chat.completions.create(
-                    model=model_name,
-                    max_tokens=100,
-                    messages=[{
-                        "role": "user",
-                        "content": f"""You are a precision editor analyzing changes between two versions of text.
-Compare the original and revised text and identify EXACTLY what changed.
-
-Original: {original_text}
-Revised: {revised_text}
-
-CRITICAL INSTRUCTIONS:
-- Be extremely specific and precise
-- PAY SPECIAL ATTENTION to quote marks: " vs " vs " (curly vs straight)
-- Check for apostrophe changes: ' vs ' (curly vs straight)  
-- Check for dash changes: - vs – vs — (hyphen vs en-dash vs em-dash)
-- Quote the exact words/phrases that changed
-- Use this format: "X" → "Y"
-- For single word changes: quote both words
-- For multiple changes: put each on its own line
-- For punctuation/formatting: describe precisely
-- For additions: "Added: [exact text]"
-- For deletions: "Removed: [exact text]"
-- DO NOT say "No change" unless texts are 100% identical
-- DO NOT use vague terms like "clarified", "improved", "fixed"
-- DO quote the actual changed text
-
-Examples of single changes:
-✓ "pre-cut" → "incision"
-✓ Curly quotes → straight quotes: "word" → "word"
-✓ Curly apostrophe → straight: don't → don't
-✓ "package" → "packaging"
-
-Examples of multiple changes (one per line):
-✓ "split portions" → "divided portions"
-  "connected by a" → "connected, via a"
-  Curly quotes → straight quotes throughout
-✗ Clarified terminology
-✗ Fixed grammar
-
-Your precise change summary:"""
-                    }]
-                )
-                
-                summary = response.choices[0].message.content.strip()
-                # Clean up the response - remove extra formatting
-                summary = summary.replace('Your precise change summary:', '').strip()
-                summary = summary.split('\n')[0]  # First line only
-                return summary
-            else:
-                return "Simple text change"
-                
-        except Exception as e:
-            self.log_queue.put(f"[AI Summary] Error: {e}")
-            return "Analysis failed"
+# --- Tracked Changes Classes ---
+# TrackedChangesAgent and TrackedChangesBrowser classes moved to modules/tracked_changes.py for better modularity
 
 # --- Helper Functions ---
 def get_simple_lang_code(lang_name_or_code_input):
@@ -1427,766 +368,14 @@ def format_tracked_changes_context(tracked_changes_list, max_length=1000):
 # --- TMX Generator Class ---
 
 
-class TMXGenerator:
-    """Helper class for generating TMX (Translation Memory eXchange) files"""
-    
-    def __init__(self, log_callback=None):
-        self.log = log_callback if log_callback else lambda msg: None
-    
-    def generate_tmx(self, source_segments, target_segments, source_lang, target_lang):
-        """Generate TMX content from parallel segments"""
-        # Basic TMX structure
-        tmx = ET.Element('tmx')
-        tmx.set('version', '1.4')
-        
-        header = ET.SubElement(tmx, 'header')
-        header.set('creationdate', datetime.now().strftime('%Y%m%dT%H%M%SZ'))
-        header.set('srclang', get_simple_lang_code(source_lang))
-        header.set('adminlang', 'en')
-        header.set('segtype', 'sentence')
-        header.set('creationtool', 'Supervertaler')
-        header.set('creationtoolversion', '2.5.0')
-        header.set('datatype', 'plaintext')
-        
-        body = ET.SubElement(tmx, 'body')
-        
-        # Add translation units
-        added_count = 0
-        for src, tgt in zip(source_segments, target_segments):
-            if not src.strip() or not tgt or '[ERR' in str(tgt) or '[Missing' in str(tgt):
-                continue
-                
-            tu = ET.SubElement(body, 'tu')
-            
-            # Source segment
-            tuv_src = ET.SubElement(tu, 'tuv')
-            tuv_src.set('xml:lang', get_simple_lang_code(source_lang))
-            seg_src = ET.SubElement(tuv_src, 'seg')
-            seg_src.text = src.strip()
-            
-            # Target segment
-            tuv_tgt = ET.SubElement(tu, 'tuv')
-            tuv_tgt.set('xml:lang', get_simple_lang_code(target_lang))
-            seg_tgt = ET.SubElement(tuv_tgt, 'seg')
-            seg_tgt.text = str(tgt).strip()
-            
-            added_count += 1
-        
-        self.log(f"[TMX Generator] Created TMX with {added_count} translation units")
-        return ET.ElementTree(tmx)
-    
-    def save_tmx(self, tmx_tree, output_path):
-        """Save TMX tree to file with proper XML formatting"""
-        try:
-            # Pretty print with indentation
-            self._indent(tmx_tree.getroot())
-            tmx_tree.write(output_path, encoding='utf-8', xml_declaration=True)
-            self.log(f"[TMX Generator] Saved TMX file: {output_path}")
-            return True
-        except Exception as e:
-            self.log(f"[TMX Generator] Error saving TMX: {e}")
-            return False
-    
-    def _indent(self, elem, level=0):
-        """Add indentation to XML for pretty printing"""
-        i = "\n" + level * "  "
-        if len(elem):
-            if not elem.text or not elem.text.strip():
-                elem.text = i + "  "
-            if not elem.tail or not elem.tail.strip():
-                elem.tail = i
-            for child in elem:
-                self._indent(child, level + 1)
-            if not child.tail or not child.tail.strip():
-                child.tail = i
-        else:
-            if level and (not elem.tail or not elem.tail.strip()):
-                elem.tail = i
-
+# TMXGenerator class moved to modules/tmx_generator.py for better modularity
 
 # --- Prompt Library Manager ---
-class PromptLibrary:
-    """
-    Manages translation prompts with domain-specific expertise.
-    Supports two types:
-    - System Prompts: Define AI role and expertise
-    - Custom Instructions: Additional context and preferences
-    
-    Loads JSON files from appropriate folders based on dev mode.
-    """
-    def __init__(self, system_prompts_dir, log_callback=None):
-        # Use path resolver for both folder types
-        self.system_prompts_dir = get_user_data_path("System_prompts")
-        self.custom_instructions_dir = get_user_data_path("Custom_instructions")
-        
-        self.log = log_callback if log_callback else print
-        
-        # Create directories if they don't exist
-        os.makedirs(self.system_prompts_dir, exist_ok=True)
-        os.makedirs(self.custom_instructions_dir, exist_ok=True)
-        
-        # Available prompts: {filename: prompt_data}
-        self.prompts = {}
-        self.active_prompt = None  # Currently selected prompt
-        self.active_prompt_name = None
-        
-    def load_all_prompts(self):
-        """Load all prompts (system prompts and custom instructions) from appropriate directories"""
-        self.prompts = {}
-        
-        # Load from the appropriate directories based on dev mode
-        sys_count = self._load_from_directory(self.system_prompts_dir, prompt_type="system_prompt")
-        inst_count = self._load_from_directory(self.custom_instructions_dir, prompt_type="custom_instruction")
-        
-        total = sys_count + inst_count
-        self.log(f"✓ Loaded {total} prompts ({sys_count} system prompts, {inst_count} custom instructions)")
-        return total
-    
-    def _load_from_directory(self, directory, prompt_type="system_prompt"):
-        """Load prompts from a specific directory
-        
-        Args:
-            directory: Path to directory
-            prompt_type: Either 'system_prompt' or 'custom_instruction'
-        """
-        count = 0
-        
-        if not os.path.exists(directory):
-            return count
-        
-        for filename in os.listdir(directory):
-            if not filename.endswith('.json'):
-                continue
-            
-            filepath = os.path.join(directory, filename)
-            try:
-                with open(filepath, 'r', encoding='utf-8') as f:
-                    prompt_data = json.load(f)
-                    
-                    # Add metadata
-                    prompt_data['_filename'] = filename
-                    prompt_data['_filepath'] = filepath
-                    prompt_data['_type'] = prompt_type  # Add type field
-                    
-                    # Add task_type with backward compatibility
-                    if 'task_type' not in prompt_data:
-                        # Infer task type from title/name for backward compatibility
-                        prompt_data['task_type'] = self._infer_task_type(prompt_data.get('name', ''))
-                    
-                    # Validate required fields
-                    if 'name' not in prompt_data or 'translate_prompt' not in prompt_data:
-                        self.log(f"⚠ Skipping {filename}: missing required fields (name, translate_prompt)")
-                        continue
-                    
-                    self.prompts[filename] = prompt_data
-                    count += 1
-                    
-            except Exception as e:
-                self.log(f"⚠ Failed to load {filename}: {e}")
-                
-        return count
-    
-    def _infer_task_type(self, title):
-        """Infer task type from prompt title for backward compatibility
-        
-        Args:
-            title: Prompt title/name
-            
-        Returns:
-            str: Inferred task type
-        """
-        title_lower = title.lower()
-        
-        if 'localization' in title_lower or 'localisation' in title_lower:
-            return 'Localization'
-        elif 'proofread' in title_lower:
-            return 'Proofreading'
-        elif 'qa' in title_lower or 'quality' in title_lower:
-            return 'QA'
-        elif 'copyedit' in title_lower or 'copy-edit' in title_lower:
-            return 'Copyediting'
-        elif 'post-edit' in title_lower or 'postedit' in title_lower:
-            return 'Post-editing'
-        elif 'transcreation' in title_lower:
-            return 'Transcreation'
-        else:
-            return 'Translation'  # Default
-    
-    def get_prompt_list(self):
-        """Get list of available prompts with metadata"""
-        prompt_list = []
-        for filename, data in sorted(self.prompts.items()):
-            prompt_list.append({
-                'filename': filename,
-                'name': data.get('name', 'Unnamed'),
-                'description': data.get('description', ''),
-                'domain': data.get('domain', 'General'),
-                'version': data.get('version', '1.0'),
-                'task_type': data.get('task_type', 'Translation'),  # NEW: Include task type
-                'filepath': data.get('_filepath', ''),
-                '_type': data.get('_type', 'system_prompt')  # Include type for filtering
-            })
-        return prompt_list
-    
-    def get_prompt(self, filename):
-        """Get full prompt data by filename"""
-        return self.prompts.get(filename)
-    
-    def set_active_prompt(self, filename):
-        """Set the active custom prompt"""
-        if filename not in self.prompts:
-            self.log(f"✗ Prompt not found: {filename}")
-            return False
-        
-        self.active_prompt = self.prompts[filename]
-        self.active_prompt_name = self.active_prompt.get('name', filename)
-        self.log(f"✓ Active prompt: {self.active_prompt_name}")
-        return True
-    
-    def clear_active_prompt(self):
-        """Clear active prompt (use default)"""
-        self.active_prompt = None
-        self.active_prompt_name = None
-        self.log("✓ Using default translation prompt")
-    
-    def get_translate_prompt(self):
-        """Get the translate_prompt from active prompt, or None if using default"""
-        if self.active_prompt:
-            return self.active_prompt.get('translate_prompt')
-        return None
-    
-    def get_proofread_prompt(self):
-        """Get the proofread_prompt from active prompt, or None if using default"""
-        if self.active_prompt:
-            return self.active_prompt.get('proofread_prompt')
-        return None
-    
-    def search_prompts(self, search_text):
-        """Search prompts by name, description, or domain"""
-        if not search_text:
-            return self.get_prompt_list()
-        
-        search_lower = search_text.lower()
-        results = []
-        
-        for filename, data in sorted(self.prompts.items()):
-            name = data.get('name', '').lower()
-            desc = data.get('description', '').lower()
-            domain = data.get('domain', '').lower()
-            
-            if search_lower in name or search_lower in desc or search_lower in domain:
-                results.append({
-                    'filename': filename,
-                    'name': data.get('name', 'Unnamed'),
-                    'description': data.get('description', ''),
-                    'domain': data.get('domain', 'General'),
-                    'version': data.get('version', '1.0'),
-                    'filepath': data.get('_filepath', '')
-                })
-        
-        return results
-    
-    def create_new_prompt(self, name, description, domain, translate_prompt, proofread_prompt="", 
-                         version="1.0", prompt_type="system_prompt"):
-        """Create a new prompt and save to JSON
-        
-        Args:
-            prompt_type: Either 'system_prompt' or 'custom_instruction'
-        """
-        # Create filename from name
-        filename = name.replace(' ', '_').replace('/', '_') + '.json'
-        
-        # Choose directory based on type using path resolver
-        if prompt_type == "custom_instruction":
-            directory = self.custom_instructions_dir
-        else:  # system_prompt
-            directory = self.system_prompts_dir
-            
-        filepath = os.path.join(directory, filename)
-        
-        # Create prompt data
-        prompt_data = {
-            'name': name,
-            'description': description,
-            'domain': domain,
-            'version': version,
-            'created': datetime.now().strftime('%Y-%m-%d'),
-            'translate_prompt': translate_prompt,
-            'proofread_prompt': proofread_prompt
-        }
-        
-        # Save to file
-        try:
-            with open(filepath, 'w', encoding='utf-8') as f:
-                json.dump(prompt_data, f, indent=2, ensure_ascii=False)
-            
-            # Add to loaded prompts
-            prompt_data['_filename'] = filename
-            prompt_data['_filepath'] = filepath
-            prompt_data['_type'] = prompt_type
-            self.prompts[filename] = prompt_data
-            
-            self.log(f"✓ Created new prompt: {name}")
-            return True
-            
-        except Exception as e:
-            self.log(f"✗ Failed to create prompt: {e}")
-            messagebox.showerror("Save Error", f"Failed to save prompt:\n{e}")
-            return False
-    
-    def update_prompt(self, filename, name, description, domain, translate_prompt, 
-                     proofread_prompt="", version="1.0"):
-        """Update an existing prompt"""
-        if filename not in self.prompts:
-            self.log(f"✗ Prompt not found: {filename}")
-            return False
-        
-        filepath = self.prompts[filename]['_filepath']
-        
-        # Update prompt data
-        prompt_data = {
-            'name': name,
-            'description': description,
-            'domain': domain,
-            'version': version,
-            'created': self.prompts[filename].get('created', datetime.now().strftime('%Y-%m-%d')),
-            'modified': datetime.now().strftime('%Y-%m-%d'),
-            'translate_prompt': translate_prompt,
-            'proofread_prompt': proofread_prompt
-        }
-        
-        # Save to file
-        try:
-            with open(filepath, 'w', encoding='utf-8') as f:
-                json.dump(prompt_data, f, indent=2, ensure_ascii=False)
-            
-            # Update loaded prompts
-            prompt_data['_filename'] = filename
-            prompt_data['_filepath'] = filepath
-            prompt_data['_type'] = self.prompts[filename].get('_type', 'system_prompt')
-            self.prompts[filename] = prompt_data
-            
-            self.log(f"✓ Updated prompt: {name}")
-            return True
-            
-        except Exception as e:
-            self.log(f"✗ Failed to update prompt: {e}")
-            messagebox.showerror("Save Error", f"Failed to update prompt:\n{e}")
-            return False
-    
-    def delete_prompt(self, filename):
-        """Delete a custom prompt"""
-        if filename not in self.prompts:
-            return False
-        
-        filepath = self.prompts[filename]['_filepath']
-        prompt_name = self.prompts[filename].get('name', filename)
-        
-        try:
-            os.remove(filepath)
-            del self.prompts[filename]
-            
-            # Clear active if this was active
-            if self.active_prompt and self.active_prompt.get('_filename') == filename:
-                self.clear_active_prompt()
-            
-            self.log(f"✓ Deleted prompt: {prompt_name}")
-            return True
-            
-        except Exception as e:
-            self.log(f"✗ Failed to delete prompt: {e}")
-            messagebox.showerror("Delete Error", f"Failed to delete prompt:\n{e}")
-            return False
-    
-    def export_prompt(self, filename, export_path):
-        """Export a prompt to a specific location"""
-        if filename not in self.prompts:
-            return False
-        
-        try:
-            source = self.prompts[filename]['_filepath']
-            shutil.copy2(source, export_path)
-            self.log(f"✓ Exported prompt to: {export_path}")
-            return True
-        except Exception as e:
-            self.log(f"✗ Export failed: {e}")
-            return False
-    
-    def import_prompt(self, import_path, prompt_type="system_prompt"):
-        """Import a prompt from an external file
-        
-        Args:
-            import_path: Path to JSON file to import
-            prompt_type: Either 'system_prompt' or 'custom_instruction'
-        """
-        try:
-            with open(import_path, 'r', encoding='utf-8') as f:
-                prompt_data = json.load(f)
-            
-            # Validate
-            if 'name' not in prompt_data or 'translate_prompt' not in prompt_data:
-                messagebox.showerror("Invalid Prompt", "Missing required fields: name, translate_prompt")
-                return False
-            
-            # Copy to appropriate directory based on type
-            filename = os.path.basename(import_path)
-            if prompt_type == "custom_instruction":
-                directory = self.custom_instructions_dir
-            else:  # system_prompt
-                directory = self.system_prompts_dir
-            dest_path = os.path.join(directory, filename)
-            
-            shutil.copy2(import_path, dest_path)
-            
-            # Add metadata and load
-            prompt_data['_filename'] = filename
-            prompt_data['_filepath'] = dest_path
-            prompt_data['_type'] = prompt_type
-            self.prompts[filename] = prompt_data
-            
-            self.log(f"✓ Imported prompt: {prompt_data['name']}")
-            return True
-            
-        except Exception as e:
-            self.log(f"✗ Import failed: {e}")
-            messagebox.showerror("Import Error", f"Failed to import prompt:\n{e}")
-            return False
+# PromptLibrary class moved to modules/prompt_library.py for better modularity
 
 
 # --- Translation Memory Architecture ---
-
-class TM:
-    """Individual Translation Memory with metadata"""
-    
-    def __init__(self, name: str, tm_id: str, enabled: bool = True, read_only: bool = False):
-        self.name = name
-        self.tm_id = tm_id
-        self.enabled = enabled
-        self.read_only = read_only
-        self.entries: Dict[str, str] = {}  # source -> target mapping
-        self.metadata = {
-            'source_lang': None,
-            'target_lang': None,
-            'file_path': None,
-            'created': datetime.now().isoformat(),
-            'modified': datetime.now().isoformat()
-        }
-        self.fuzzy_threshold = 0.75
-    
-    def add_entry(self, source: str, target: str):
-        """Add translation pair to this TM"""
-        if not self.read_only and source and target:
-            self.entries[source.strip()] = target.strip()
-            self.metadata['modified'] = datetime.now().isoformat()
-    
-    def get_exact_match(self, source: str) -> Optional[str]:
-        """Get exact match from this TM"""
-        return self.entries.get(source.strip())
-    
-    def calculate_similarity(self, text1: str, text2: str) -> float:
-        """Calculate similarity ratio between two texts"""
-        return SequenceMatcher(None, text1.lower(), text2.lower()).ratio()
-    
-    def get_fuzzy_matches(self, source: str, max_matches: int = 5) -> List[Dict]:
-        """Get fuzzy matches from this TM"""
-        source = source.strip()
-        matches = []
-        
-        for tm_source, tm_target in self.entries.items():
-            similarity = self.calculate_similarity(source, tm_source)
-            if similarity >= self.fuzzy_threshold:
-                matches.append({
-                    'source': tm_source,
-                    'target': tm_target,
-                    'similarity': similarity,
-                    'match_pct': int(similarity * 100),
-                    'tm_name': self.name,
-                    'tm_id': self.tm_id
-                })
-        
-        matches.sort(key=lambda x: x['similarity'], reverse=True)
-        return matches[:max_matches]
-    
-    def get_entry_count(self) -> int:
-        """Get number of entries in this TM"""
-        return len(self.entries)
-    
-    def to_dict(self) -> Dict:
-        """Serialize TM to dictionary for JSON storage"""
-        return {
-            'name': self.name,
-            'tm_id': self.tm_id,
-            'enabled': self.enabled,
-            'read_only': self.read_only,
-            'entries': self.entries,
-            'metadata': self.metadata,
-            'fuzzy_threshold': self.fuzzy_threshold
-        }
-    
-    @staticmethod
-    def from_dict(data: Dict) -> 'TM':
-        """Deserialize TM from dictionary"""
-        tm = TM(
-            name=data.get('name', 'Unnamed TM'),
-            tm_id=data.get('tm_id', 'unknown'),
-            enabled=data.get('enabled', True),
-            read_only=data.get('read_only', False)
-        )
-        tm.entries = data.get('entries', {})
-        tm.metadata = data.get('metadata', {})
-        tm.fuzzy_threshold = data.get('fuzzy_threshold', 0.75)
-        return tm
-
-
-class TMDatabase:
-    """Manages multiple Translation Memories"""
-    
-    def __init__(self):
-        # Core TMs
-        self.project_tm = TM(name='Project TM', tm_id='project', enabled=True, read_only=False)
-        self.big_mama_tm = TM(name='Big Mama', tm_id='big_mama', enabled=True, read_only=False)
-        
-        # Custom TMs (user-loaded TMX files)
-        self.custom_tms: Dict[str, TM] = {}
-        
-        # Global fuzzy threshold (can be overridden per TM)
-        self.fuzzy_threshold = 0.75
-    
-    def get_tm(self, tm_id: str) -> Optional[TM]:
-        """Get TM by ID"""
-        if tm_id == 'project':
-            return self.project_tm
-        elif tm_id == 'big_mama' or tm_id == 'main':  # Support legacy 'main' ID
-            return self.big_mama_tm
-        else:
-            return self.custom_tms.get(tm_id)
-    
-    def get_all_tms(self, enabled_only: bool = False) -> List[TM]:
-        """Get all TMs (optionally only enabled ones)"""
-        tms = [self.project_tm, self.big_mama_tm] + list(self.custom_tms.values())
-        if enabled_only:
-            tms = [tm for tm in tms if tm.enabled]
-        return tms
-    
-    def add_custom_tm(self, name: str, tm_id: str = None, read_only: bool = False) -> TM:
-        """Add a new custom TM"""
-        if tm_id is None:
-            tm_id = f"custom_{len(self.custom_tms)}"
-        tm = TM(name=name, tm_id=tm_id, enabled=True, read_only=read_only)
-        self.custom_tms[tm_id] = tm
-        return tm
-    
-    def remove_custom_tm(self, tm_id: str) -> bool:
-        """Remove a custom TM"""
-        if tm_id in self.custom_tms:
-            del self.custom_tms[tm_id]
-            return True
-        return False
-    
-    def search_all(self, source: str, tm_ids: List[str] = None, enabled_only: bool = True) -> List[Dict]:
-        """
-        Search across multiple TMs
-        Args:
-            source: Source text to search for
-            tm_ids: Specific TM IDs to search (None = search all)
-            enabled_only: Only search enabled TMs
-        Returns:
-            List of match dictionaries sorted by similarity
-        """
-        all_matches = []
-        
-        # Determine which TMs to search
-        if tm_ids:
-            tms = [self.get_tm(tm_id) for tm_id in tm_ids if self.get_tm(tm_id)]
-        else:
-            tms = self.get_all_tms(enabled_only=enabled_only)
-        
-        # Search each TM
-        for tm in tms:
-            if tm and (not enabled_only or tm.enabled):
-                matches = tm.get_fuzzy_matches(source, max_matches=10)
-                all_matches.extend(matches)
-        
-        # Sort by similarity (highest first)
-        all_matches.sort(key=lambda x: x['similarity'], reverse=True)
-        return all_matches
-    
-    def add_to_project_tm(self, source: str, target: str):
-        """Add entry to Project TM (convenience method)"""
-        self.project_tm.add_entry(source, target)
-    
-    def get_entry_count(self, enabled_only: bool = False) -> int:
-        """Get total entry count across all TMs"""
-        tms = self.get_all_tms(enabled_only=enabled_only)
-        return sum(tm.get_entry_count() for tm in tms)
-    
-    def load_tmx_file(self, filepath: str, src_lang: str, tgt_lang: str, 
-                      tm_name: str = None, read_only: bool = False) -> tuple[str, int]:
-        """
-        Load TMX file into a new custom TM
-        Returns: (tm_id, entry_count)
-        """
-        if tm_name is None:
-            tm_name = os.path.basename(filepath).replace('.tmx', '')
-        
-        # Create new custom TM
-        tm_id = f"custom_{os.path.basename(filepath).replace('.', '_')}"
-        tm = self.add_custom_tm(tm_name, tm_id, read_only=read_only)
-        
-        # Load TMX content
-        loaded_count = self._load_tmx_into_tm(filepath, src_lang, tgt_lang, tm)
-        
-        # Update metadata
-        tm.metadata['file_path'] = filepath
-        tm.metadata['source_lang'] = src_lang
-        tm.metadata['target_lang'] = tgt_lang
-        
-        return tm_id, loaded_count
-    
-    def _load_tmx_into_tm(self, filepath: str, src_lang: str, tgt_lang: str, tm: TM) -> int:
-        """Internal: Load TMX content into specific TM"""
-        loaded_count = 0
-        
-        try:
-            tree = ET.parse(filepath)
-            root = tree.getroot()
-            xml_ns = "http://www.w3.org/XML/1998/namespace"
-            
-            # Normalize language codes
-            src_lang = src_lang.split('-')[0].split('_')[0].lower()
-            tgt_lang = tgt_lang.split('-')[0].split('_')[0].lower()
-            
-            for tu in root.findall('.//tu'):
-                src_text, tgt_text = None, None
-                
-                for tuv_node in tu.findall('tuv'):
-                    lang_attr = tuv_node.get(f'{{{xml_ns}}}lang')
-                    if not lang_attr:
-                        continue
-                    
-                    tmx_lang = lang_attr.split('-')[0].split('_')[0].lower()
-                    
-                    seg_node = tuv_node.find('seg')
-                    if seg_node is not None:
-                        try:
-                            text = ET.tostring(seg_node, encoding='unicode', method='text').strip()
-                        except:
-                            text = "".join(seg_node.itertext()).strip()
-                        
-                        if tmx_lang == src_lang:
-                            src_text = text
-                        elif tmx_lang == tgt_lang:
-                            tgt_text = text
-                
-                if src_text and tgt_text:
-                    tm.add_entry(src_text, tgt_text)
-                    loaded_count += 1
-            
-            return loaded_count
-        except Exception as e:
-            print(f"Error loading TMX: {e}")
-            return 0
-    
-    def detect_tmx_languages(self, filepath: str) -> List[str]:
-        """Detect all language codes present in a TMX file"""
-        try:
-            tree = ET.parse(filepath)
-            root = tree.getroot()
-            xml_ns = "http://www.w3.org/XML/1998/namespace"
-            
-            languages = set()
-            for tuv in root.findall('.//tuv'):
-                lang_attr = tuv.get(f'{{{xml_ns}}}lang')
-                if lang_attr:
-                    languages.add(lang_attr)
-            
-            return sorted(list(languages))
-        except:
-            return []
-    
-    def to_dict(self) -> Dict:
-        """Serialize entire database to dictionary"""
-        return {
-            'project_tm': self.project_tm.to_dict(),
-            'big_mama_tm': self.big_mama_tm.to_dict(),
-            'custom_tms': {tm_id: tm.to_dict() for tm_id, tm in self.custom_tms.items()},
-            'fuzzy_threshold': self.fuzzy_threshold
-        }
-    
-    @staticmethod
-    def from_dict(data: Dict) -> 'TMDatabase':
-        """Deserialize database from dictionary"""
-        db = TMDatabase()
-        
-        if 'project_tm' in data:
-            db.project_tm = TM.from_dict(data['project_tm'])
-        if 'big_mama_tm' in data:
-            db.big_mama_tm = TM.from_dict(data['big_mama_tm'])
-        elif 'main_tm' in data:  # Legacy support
-            db.big_mama_tm = TM.from_dict(data['main_tm'])
-            db.big_mama_tm.name = 'Big Mama'  # Update name
-            db.big_mama_tm.tm_id = 'big_mama'
-        if 'custom_tms' in data:
-            db.custom_tms = {tm_id: TM.from_dict(tm_data) 
-                            for tm_id, tm_data in data['custom_tms'].items()}
-        db.fuzzy_threshold = data.get('fuzzy_threshold', 0.75)
-        
-        return db
-
-
-# Legacy TMAgent for backwards compatibility
-class TMAgent:
-    """Wrapper for backwards compatibility - delegates to TMDatabase"""
-    
-    def __init__(self):
-        self.tm_database = TMDatabase()
-        self.fuzzy_threshold = 0.75
-    
-    @property
-    def tm_data(self):
-        """Legacy property - returns Project TM entries"""
-        return self.tm_database.project_tm.entries
-    
-    @tm_data.setter
-    def tm_data(self, value: Dict[str, str]):
-        """Legacy property setter"""
-        self.tm_database.project_tm.entries = value
-    
-    def add_entry(self, source: str, target: str):
-        """Add to Project TM"""
-        self.tm_database.add_to_project_tm(source, target)
-    
-    def get_exact_match(self, source: str) -> Optional[str]:
-        """Search all enabled TMs for exact match"""
-        matches = self.tm_database.search_all(source, enabled_only=True)
-        for match in matches:
-            if match['match_pct'] == 100:
-                return match['target']
-        return None
-    
-    def get_fuzzy_matches(self, source: str, max_matches: int = 5) -> List[Tuple[str, str, float]]:
-        """Legacy format - returns tuples"""
-        matches = self.tm_database.search_all(source, enabled_only=True)
-        return [(m['source'], m['target'], m['similarity']) for m in matches[:max_matches]]
-    
-    def get_best_match(self, source: str) -> Optional[Tuple[str, str, float]]:
-        """Get best match in legacy format"""
-        matches = self.get_fuzzy_matches(source, max_matches=1)
-        return matches[0] if matches else None
-    
-    def load_from_tmx(self, filepath: str, src_lang: str = "en", tgt_lang: str = "nl") -> int:
-        """Legacy TMX load - loads into a new custom TM"""
-        tm_id, count = self.tm_database.load_tmx_file(filepath, src_lang, tgt_lang)
-        return count
-    
-    def get_entry_count(self) -> int:
-        """Get total entry count"""
-        return self.tm_database.get_entry_count(enabled_only=False)
-    
-    def clear(self):
-        """Clear Project TM only"""
-        self.tm_database.project_tm.entries.clear()
-
+# TM, TMDatabase, TMAgent classes moved to modules/translation_memory.py for better modularity
 
 # Model definitions (fallbacks if API fetch fails)
 GEMINI_MODELS = [
@@ -2520,7 +709,14 @@ class Supervertaler:
         self.tracked_changes_agent = TrackedChangesAgent(log_callback=self.log)
         
         # Prompt library (system prompts for domain-specific translation)
-        self.prompt_library = PromptLibrary(self.system_prompts_dir, log_callback=self.log)
+        self.prompt_assistant = PromptAssistant()
+        system_prompts_dir = get_user_data_path("System_prompts")
+        custom_instructions_dir = get_user_data_path("Custom_instructions")
+        self.prompt_library = PromptLibrary(
+            system_prompts_dir=system_prompts_dir,
+            custom_instructions_dir=custom_instructions_dir, 
+            log_callback=self.log
+        )
         
         # TMX Generator for export
         self.tmx_generator = TMXGenerator(log_callback=self.log)
@@ -4136,52 +2332,548 @@ class Supervertaler:
     # === NEW TAB CREATORS ===
     
     def create_prompt_library_tab(self, parent):
-        """Create Prompt Library tab with sub-tabs for System Prompts and Custom Instructions"""
-        # Compact header with title and maximize button
-        header_frame = tk.Frame(parent, bg='#e3f2fd', relief='solid', borderwidth=1)
-        header_frame.pack(fill='x', padx=5, pady=5)
+        """Create Prompt Library tab - FRESH self-contained implementation"""
         
-        tk.Label(header_frame, text="🎯 Prompt Library", font=('Segoe UI', 10, 'bold'),
+        # ===== INITIALIZE ALL REQUIRED VARIABLES =====
+        # These are metadata StringVars for the editor
+        if not hasattr(self, 'pl_name_var'):
+            self.pl_name_var = tk.StringVar()
+        if not hasattr(self, 'pl_domain_var'):
+            self.pl_domain_var = tk.StringVar()
+        if not hasattr(self, 'pl_task_type_var'):
+            self.pl_task_type_var = tk.StringVar()
+        if not hasattr(self, 'pl_version_var'):
+            self.pl_version_var = tk.StringVar()
+        
+        # These are for filtering/state
+        if not hasattr(self, 'pl_filter_task_var'):
+            self.pl_filter_task_var = tk.StringVar(value="All Tasks")
+        if not hasattr(self, 'pl_current_filename'):
+            self.pl_current_filename = None
+        
+        # ===== TOP BAR: Active Prompts Display =====
+        active_bar = tk.Frame(parent, bg='#e3f2fd', relief='solid', borderwidth=1)
+        active_bar.pack(fill='x', padx=5, pady=5)
+        
+        tk.Label(active_bar, text="🎯 Prompt Library", font=('Segoe UI', 10, 'bold'),
                 bg='#e3f2fd').pack(side='left', padx=10, pady=5)
         
-        # Maximize button
-        tk.Button(header_frame, text="⛶ Maximize", command=self.maximize_prompt_library,
-                 bg='#2196F3', fg='white', font=('Segoe UI', 8)).pack(side='right', padx=10)
-        
-        # Sub-tabs at the very top (System Prompts / Custom Instructions)
-        # Create notebook for sub-tabs
-        subtabs_container = tk.Frame(parent)
-        subtabs_container.pack(fill='x', padx=5, pady=(0, 5))
-        
-        self.prompt_library_notebook = ttk.Notebook(subtabs_container)
-        self.prompt_library_notebook.pack(fill='both', expand=True)
-        
-        # Active prompts bar (compact) - placed below sub-tabs
-        active_bar = tk.Frame(parent, bg='#f5f5f5', relief='solid', borderwidth=1)
-        active_bar.pack(fill='x', padx=5, pady=(0, 5))
-        
         tk.Label(active_bar, text="Active:", font=('Segoe UI', 8, 'bold'),
-                bg='#f5f5f5').pack(side='left', padx=10, pady=5)
-        tk.Label(active_bar, text="Trans:", font=('Segoe UI', 8),
-                bg='#f5f5f5').pack(side='left', padx=(0, 2))
-        self.active_translate_label = tk.Label(active_bar, text="Default",
-                                              font=('Segoe UI', 8), bg='#f5f5f5', fg='#2196F3')
-        self.active_translate_label.pack(side='left', padx=(0, 10))
+                bg='#e3f2fd').pack(side='left', padx=(20, 5))
+        tk.Label(active_bar, text="Translation system prompt:", font=('Segoe UI', 8),
+                bg='#e3f2fd').pack(side='left', padx=(0, 2))
         
-        tk.Label(active_bar, text="Proof:", font=('Segoe UI', 8),
-                bg='#f5f5f5').pack(side='left', padx=(0, 2))
-        self.active_proofread_label = tk.Label(active_bar, text="Default",
-                                              font=('Segoe UI', 8), bg='#f5f5f5', fg='#2196F3')
-        self.active_proofread_label.pack(side='left')
+        # Dynamic label for active translation prompt
+        trans_name = getattr(self, 'active_translate_prompt_name', 'Default')
+        self.pl_active_trans_label = tk.Label(active_bar, text=trans_name, font=('Segoe UI', 8),
+                bg='#e3f2fd', fg='#2196F3')
+        self.pl_active_trans_label.pack(side='left', padx=(0, 10))
         
-        # Update active prompt labels
-        self._update_active_prompt_labels()
+        tk.Label(active_bar, text="Proofreading system prompt:", font=('Segoe UI', 8),
+                bg='#e3f2fd').pack(side='left', padx=(0, 2))
         
-        # Create main container with content on LEFT and shared editor on RIGHT
+        # Dynamic label for active proofreading prompt
+        proof_name = getattr(self, 'active_proofread_prompt_name', 'Default')
+        self.pl_active_proof_label = tk.Label(active_bar, text=proof_name, font=('Segoe UI', 8),
+                bg='#e3f2fd', fg='#2196F3')
+        self.pl_active_proof_label.pack(side='left', padx=(0, 10))
+        
+        # Dynamic label for active custom instruction
+        tk.Label(active_bar, text="Custom instructions:", font=('Segoe UI', 8),
+                bg='#e3f2fd').pack(side='left', padx=(0, 2))
+        custom_name = getattr(self, 'active_custom_instruction_name', 'None')
+        self.pl_active_custom_label = tk.Label(active_bar, text=custom_name, font=('Segoe UI', 8),
+                bg='#e3f2fd', fg='#4CAF50')
+        self.pl_active_custom_label.pack(side='left')
+        
+        # ===== MAIN LAYOUT: Side-by-Side (List | Editor) =====
         main_container = ttk.PanedWindow(parent, orient='horizontal')
-        main_container.pack(fill='both', expand=True, padx=5, pady=0)
+        main_container.pack(fill='both', expand=True, padx=5, pady=(0, 5))
         
-        # System Prompts sub-tab
+        # ===== LEFT PANEL: Prompt Lists =====
+        left_panel = tk.Frame(main_container)
+        main_container.add(left_panel, weight=1)
+        
+        # Tabs for System Prompts vs Custom Instructions
+        list_notebook = ttk.Notebook(left_panel)
+        list_notebook.pack(fill='both', expand=True)
+        
+        # --- System Prompts Tab ---
+        system_tab = tk.Frame(list_notebook, bg='white')
+        list_notebook.add(system_tab, text='🎯 System Prompts')
+        
+        # Filter bar
+        filter_frame = tk.Frame(system_tab, bg='#f5f5f5', relief='solid', borderwidth=1)
+        filter_frame.pack(fill='x', padx=5, pady=5)
+        
+        tk.Label(filter_frame, text="Task:", font=('Segoe UI', 8),
+                bg='#f5f5f5').pack(side='left', padx=5, pady=5)
+        task_filter = ttk.Combobox(filter_frame, textvariable=self.pl_filter_task_var,
+                                  values=["All Tasks", "Translation", "Localization", "Transcreation",
+                                         "Proofreading", "QA", "Copyediting", "Post-editing", "Terminology Extraction"],
+                                  width=15, state='readonly', font=('Segoe UI', 8))
+        task_filter.pack(side='left', padx=5, pady=5)
+        task_filter.bind('<<ComboboxSelected>>', lambda e: self._pl_load_system_prompts())
+        
+        # System prompts list
+        sys_list_frame = tk.Frame(system_tab)
+        sys_list_frame.pack(fill='both', expand=True, padx=5, pady=(0, 5))
+        
+        sys_scroll = ttk.Scrollbar(sys_list_frame, orient='vertical')
+        sys_scroll.pack(side='right', fill='y')
+        
+        self.pl_system_tree = ttk.Treeview(sys_list_frame,
+                                          columns=('task', 'domain', 'version'),
+                                          show='tree headings',
+                                          yscrollcommand=sys_scroll.set)
+        sys_scroll.config(command=self.pl_system_tree.yview)
+        
+        self.pl_system_tree.heading('#0', text='Prompt Name')
+        self.pl_system_tree.heading('task', text='Task')
+        self.pl_system_tree.heading('domain', text='Domain')
+        self.pl_system_tree.heading('version', text='Ver')
+        
+        self.pl_system_tree.column('#0', width=200)
+        self.pl_system_tree.column('task', width=120)
+        self.pl_system_tree.column('domain', width=150)
+        self.pl_system_tree.column('version', width=50)
+        
+        self.pl_system_tree.pack(fill='both', expand=True)
+        self.pl_system_tree.bind('<<TreeviewSelect>>', self._pl_on_select)
+        
+        # Activation buttons
+        sys_btn_frame = tk.Frame(system_tab, bg='#FFF3E0', relief='solid', borderwidth=1)
+        sys_btn_frame.pack(fill='x', padx=5, pady=5)
+        
+        tk.Label(sys_btn_frame, text="⚡ Activate:",
+                font=('Segoe UI', 9, 'bold'), bg='#FFF3E0').pack(side='left', padx=10, pady=5)
+        tk.Button(sys_btn_frame, text="⚡ Translation",
+                 command=lambda: self._pl_activate_prompt('translate'),
+                 bg='#FF9800', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=5)
+        tk.Button(sys_btn_frame, text="⚡ Proofreading",
+                 command=lambda: self._pl_activate_prompt('proofread'),
+                 bg='#FF9800', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=5)
+        
+        # --- Custom Instructions Tab ---
+        custom_tab = tk.Frame(list_notebook, bg='white')
+        list_notebook.add(custom_tab, text='📝 Custom Instructions')
+        
+        # Info bar
+        info_frame = tk.Frame(custom_tab, bg='#f3e5f5', relief='solid', borderwidth=1)
+        info_frame.pack(fill='x', padx=5, pady=5)
+        tk.Label(info_frame, text="📝 Project-specific rules added to System Prompts",
+                font=('Segoe UI', 8), bg='#f3e5f5').pack(padx=10, pady=5)
+        
+        # Custom instructions list
+        custom_list_frame = tk.Frame(custom_tab)
+        custom_list_frame.pack(fill='both', expand=True, padx=5, pady=(0, 5))
+        
+        custom_scroll = ttk.Scrollbar(custom_list_frame, orient='vertical')
+        custom_scroll.pack(side='right', fill='y')
+        
+        self.pl_custom_tree = ttk.Treeview(custom_list_frame,
+                                          columns=('domain', 'version'),
+                                          show='tree headings',
+                                          yscrollcommand=custom_scroll.set)
+        custom_scroll.config(command=self.pl_custom_tree.yview)
+        
+        self.pl_custom_tree.heading('#0', text='Instruction Name')
+        self.pl_custom_tree.heading('domain', text='Domain')
+        self.pl_custom_tree.heading('version', text='Ver')
+        
+        self.pl_custom_tree.column('#0', width=300)
+        self.pl_custom_tree.column('domain', width=200)
+        self.pl_custom_tree.column('version', width=50)
+        
+        self.pl_custom_tree.pack(fill='both', expand=True)
+        self.pl_custom_tree.bind('<<TreeviewSelect>>', self._pl_on_select)
+        
+        # Activate button
+        custom_btn_frame = tk.Frame(custom_tab, bg='#e8f5e9', relief='solid', borderwidth=1)
+        custom_btn_frame.pack(fill='x', padx=5, pady=5)
+        
+        tk.Label(custom_btn_frame, text="✅ Activate:",
+                font=('Segoe UI', 9, 'bold'), bg='#e8f5e9').pack(side='left', padx=10, pady=5)
+        tk.Button(custom_btn_frame, text="✅ Use in Current Project",
+                 command=self._pl_activate_custom_instruction,
+                 bg='#4CAF50', fg='white', font=('Segoe UI', 9, 'bold')).pack(side='left', padx=5)
+        
+        # Track which tab is active
+        list_notebook.bind('<<NotebookTabChanged>>',
+                          lambda e: self._pl_on_tab_changed(list_notebook))
+        
+        # ===== RIGHT PANEL: Editor =====
+        editor_panel = tk.LabelFrame(main_container, text="Prompt Editor", padx=5, pady=5)
+        main_container.add(editor_panel, weight=2)
+        
+        # Metadata grid
+        meta_frame = tk.Frame(editor_panel)
+        meta_frame.pack(fill='x', padx=5, pady=5)
+        
+        tk.Label(meta_frame, text="Name:", font=('Segoe UI', 9, 'bold')).grid(
+            row=0, column=0, sticky='w', padx=(0, 5))
+        tk.Entry(meta_frame, textvariable=self.pl_name_var, font=('Segoe UI', 9),
+                width=40).grid(row=0, column=1, sticky='ew', padx=5)
+        
+        tk.Label(meta_frame, text="Domain:", font=('Segoe UI', 9, 'bold')).grid(
+            row=0, column=2, sticky='w', padx=(20, 5))
+        tk.Entry(meta_frame, textvariable=self.pl_domain_var, font=('Segoe UI', 9),
+                width=25).grid(row=0, column=3, sticky='ew', padx=5)
+        
+        tk.Label(meta_frame, text="Task Type:", font=('Segoe UI', 9, 'bold')).grid(
+            row=1, column=0, sticky='w', padx=(0, 5), pady=(5, 0))
+        ttk.Combobox(meta_frame, textvariable=self.pl_task_type_var,
+                    values=["Translation", "Localization", "Transcreation", "Proofreading",
+                           "QA", "Copyediting", "Post-editing", "Terminology Extraction"],
+                    width=18, state='readonly').grid(row=1, column=1, sticky='w', padx=5, pady=(5, 0))
+        
+        tk.Label(meta_frame, text="Version:", font=('Segoe UI', 9, 'bold')).grid(
+            row=1, column=2, sticky='w', padx=(20, 5), pady=(5, 0))
+        tk.Entry(meta_frame, textvariable=self.pl_version_var, font=('Segoe UI', 9),
+                width=10).grid(row=1, column=3, sticky='w', padx=5, pady=(5, 0))
+        
+        meta_frame.columnconfigure(1, weight=1)
+        meta_frame.columnconfigure(3, weight=1)
+        
+        # Description
+        tk.Label(editor_panel, text="Description:", font=('Segoe UI', 9, 'bold')).pack(
+            anchor='w', padx=5, pady=(10, 2))
+        self.pl_description_text = tk.Text(editor_panel, height=2, font=('Segoe UI', 9), wrap='word')
+        self.pl_description_text.pack(fill='x', padx=5, pady=(0, 5))
+        
+        # Content
+        tk.Label(editor_panel, text="Prompt Content:", font=('Segoe UI', 9, 'bold')).pack(
+            anchor='w', padx=5, pady=(5, 2))
+        
+        content_scroll = tk.Scrollbar(editor_panel)
+        content_scroll.pack(side='right', fill='y', padx=(0, 5))
+        
+        self.pl_content_text = tk.Text(editor_panel, wrap='word', font=('Consolas', 9),
+                                       yscrollcommand=content_scroll.set)
+        self.pl_content_text.pack(fill='both', expand=True, padx=5, pady=(0, 5))
+        content_scroll.config(command=self.pl_content_text.yview)
+        
+        # Buttons
+        btn_frame = tk.Frame(editor_panel)
+        btn_frame.pack(fill='x', padx=5, pady=(0, 5))
+        
+        tk.Button(btn_frame, text="💾 Save Changes", command=self._pl_save_changes,
+                 bg='#4CAF50', fg='white', font=('Segoe UI', 9, 'bold')).pack(side='left', padx=2)
+        tk.Button(btn_frame, text="↩️ Revert", command=self._pl_revert_changes,
+                 bg='#9E9E9E', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
+        tk.Button(btn_frame, text="🗑️ Delete", command=self._pl_delete_prompt,
+                 bg='#F44336', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
+        tk.Button(btn_frame, text="🤖 AI Assistant (Beta)",
+                 command=lambda: messagebox.showinfo("AI Assistant",
+                     "AI-powered prompt modification coming soon!\n\nWill help you improve prompts using natural language requests."),
+                 bg='#2196F3', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=10)
+        
+        # ===== LOAD INITIAL DATA =====
+        self._pl_load_system_prompts()
+        self._pl_load_custom_instructions()
+    
+    # ===== PROMPT LIBRARY TAB HELPER FUNCTIONS =====
+    
+    def _pl_load_system_prompts(self):
+        """Load system prompts into the tree"""
+        if not hasattr(self, 'pl_system_tree'):
+            return
+        
+        # Ensure prompts are loaded
+        if not self.prompt_library.prompts:
+            self.prompt_library.load_all_prompts()
+        
+        # Clear existing
+        for item in self.pl_system_tree.get_children():
+            self.pl_system_tree.delete(item)
+        
+        # Get filter
+        filter_task = self.pl_filter_task_var.get()
+        
+        # Load from PromptLibrary
+        prompts = self.prompt_library.get_prompt_list()
+        
+        for prompt_info in prompts:
+            # Only show system prompts
+            if prompt_info.get('_type', 'system_prompt') != 'system_prompt':
+                continue
+            
+            # Skip if in Custom_instructions folder (backward compatibility)
+            if 'Custom_instructions' in prompt_info.get('filename', ''):
+                continue
+            
+            # Filter by task type
+            task = prompt_info.get('task_type', '')
+            if filter_task != "All Tasks" and task != filter_task:
+                continue
+            
+            name = prompt_info.get('name', 'Unnamed')
+            domain = prompt_info.get('domain', '')
+            version = prompt_info.get('version', '1.0')
+            
+            self.pl_system_tree.insert('', 'end', text=name,
+                                       values=(task, domain, version),
+                                       tags=(prompt_info.get('filename'),))
+    
+    def _pl_load_custom_instructions(self):
+        """Load custom instructions into the tree"""
+        if not hasattr(self, 'pl_custom_tree'):
+            return
+        
+        # Ensure prompts are loaded
+        if not self.prompt_library.prompts:
+            self.prompt_library.load_all_prompts()
+        
+        # Clear existing
+        for item in self.pl_custom_tree.get_children():
+            self.pl_custom_tree.delete(item)
+        
+        # Load from PromptLibrary
+        prompts = self.prompt_library.get_prompt_list()
+        
+        for prompt_info in prompts:
+            # Only show custom instructions
+            filename = prompt_info.get('filename', '')
+            is_system = prompt_info.get('_type', 'system_prompt') == 'system_prompt'
+            is_in_custom_folder = 'Custom_instructions' in filename
+            
+            # Show if explicitly custom OR in Custom_instructions folder
+            if is_system and not is_in_custom_folder:
+                continue
+            
+            name = prompt_info.get('name', 'Unnamed')
+            domain = prompt_info.get('domain', '')
+            version = prompt_info.get('version', '1.0')
+            
+            self.pl_custom_tree.insert('', 'end', text=name,
+                                       values=(domain, version),
+                                       tags=(filename,))
+    
+    def _pl_on_select(self, event):
+        """Handle prompt selection in either tree"""
+        tree = event.widget
+        selection = tree.selection()
+        if not selection:
+            self.log("⚠️ No selection")
+            return
+        
+        item = selection[0]
+        tags = tree.item(item, 'tags')
+        if not tags or len(tags) == 0:
+            self.log(f"⚠️ No tags found for item: {tree.item(item, 'text')}")
+            return
+        
+        filename = tags[0]
+        if not filename:
+            self.log("⚠️ Filename is empty")
+            return
+        
+        self.log(f"📖 Loading prompt: {filename}")
+        
+        # Load the prompt
+        prompt_data = self.prompt_library.get_prompt(filename)
+        if not prompt_data:
+            self.log(f"⚠️ Failed to load prompt: {filename}")
+            return
+        
+        self.log(f"✅ Loaded: {prompt_data.get('name', 'Unnamed')}")
+        
+        # Store current filename
+        self.pl_current_filename = filename
+        
+        # Populate editor
+        self.pl_name_var.set(prompt_data.get('name', ''))
+        self.pl_domain_var.set(prompt_data.get('domain', ''))
+        self.pl_task_type_var.set(prompt_data.get('task_type', ''))
+        self.pl_version_var.set(prompt_data.get('version', '1.0'))
+        
+        # Description
+        self.pl_description_text.delete('1.0', tk.END)
+        self.pl_description_text.insert('1.0', prompt_data.get('description', ''))
+        
+        # Content - use translate_prompt field (that's how it's stored in JSON)
+        self.pl_content_text.delete('1.0', tk.END)
+        content = prompt_data.get('translate_prompt', '') or prompt_data.get('content', '')
+        self.pl_content_text.insert('1.0', content)
+        
+        self.log(f"📝 Editor updated with content ({len(content)} chars)")
+    
+    def _pl_on_tab_changed(self, notebook):
+        """Handle tab change between System Prompts and Custom Instructions"""
+        # Just for potential future filtering logic
+        pass
+    
+    def _pl_activate_prompt(self, slot):
+        """Activate selected prompt for translation or proofreading"""
+        selection = self.pl_system_tree.selection()
+        if not selection:
+            messagebox.showwarning("No Selection", "Please select a System Prompt to activate.")
+            return
+        
+        item = selection[0]
+        filename = self.pl_system_tree.item(item, 'tags')[0] if self.pl_system_tree.item(item, 'tags') else None
+        
+        if not filename:
+            return
+        
+        # Load and apply the prompt
+        self._apply_prompt_from_filename(filename, slot)
+    
+    def _apply_prompt_from_filename(self, filename, slot='translate'):
+        """Apply a prompt by filename"""
+        prompt_data = self.prompt_library.get_prompt(filename)
+        if not prompt_data:
+            return
+        
+        # Apply to the appropriate slot
+        if slot == 'translate':
+            self.active_translate_prompt = prompt_data.get('translate_prompt', '')
+            self.active_translate_prompt_name = prompt_data.get('name', 'Unnamed')
+            # Update the label
+            if hasattr(self, 'pl_active_trans_label'):
+                self.pl_active_trans_label.config(text=self.active_translate_prompt_name)
+            self.log(f"✅ Activated for Translation: {prompt_data.get('name', 'Unnamed')}")
+        elif slot == 'proofread':
+            # Use proofread_prompt if available, otherwise translate_prompt
+            self.active_proofread_prompt = prompt_data.get('proofread_prompt', '') or prompt_data.get('translate_prompt', '')
+            self.active_proofread_prompt_name = prompt_data.get('name', 'Unnamed')
+            # Update the label
+            if hasattr(self, 'pl_active_proof_label'):
+                self.pl_active_proof_label.config(text=self.active_proofread_prompt_name)
+            self.log(f"✅ Activated for Proofreading: {prompt_data.get('name', 'Unnamed')}")
+    
+    def _pl_activate_custom_instruction(self):
+        """Activate selected custom instruction for current project"""
+        selection = self.pl_custom_tree.selection()
+        if not selection:
+            messagebox.showwarning("No Selection", "Please select a Custom Instruction to activate.")
+            return
+        
+        item = selection[0]
+        filename = self.pl_custom_tree.item(item, 'tags')[0] if self.pl_custom_tree.item(item, 'tags') else None
+        
+        if not filename:
+            return
+        
+        # Load the prompt
+        prompt_data = self.prompt_library.get_prompt(filename)
+        if not prompt_data:
+            return
+        
+        # Get content
+        content = prompt_data.get('translate_prompt', '') or prompt_data.get('content', '')
+        name = prompt_data.get('name', 'Unnamed')
+        
+        # Activate by storing in active custom instruction
+        self.active_custom_instruction = content
+        self.active_custom_instruction_name = name
+        
+        # Update the label
+        if hasattr(self, 'pl_active_custom_label'):
+            self.pl_active_custom_label.config(text=name)
+        
+        self.log(f"✅ Activated Custom Instruction: {name}")
+        messagebox.showinfo("Activated", 
+            f"Custom Instruction '{name}' is now active for this project.\n\n"
+            f"It will be appended to your System Prompts during translation.")
+    
+    def _pl_save_changes(self):
+        """Save changes to the current prompt"""
+        if not self.pl_current_filename:
+            messagebox.showwarning("No Prompt", "No prompt selected to save.")
+            return
+        
+        # Gather data from editor
+        name = self.pl_name_var.get()
+        domain = self.pl_domain_var.get()
+        task_type = self.pl_task_type_var.get()
+        version = self.pl_version_var.get()
+        description = self.pl_description_text.get('1.0', tk.END).strip()
+        translate_prompt = self.pl_content_text.get('1.0', tk.END).strip()
+        
+        # Save via PromptLibrary.update_prompt()
+        if self.prompt_library.update_prompt(
+            self.pl_current_filename, name, description, domain,
+            translate_prompt, proofread_prompt="", version=version, task_type=task_type
+        ):
+            self.log(f"💾 Saved: {name}")
+            messagebox.showinfo("Saved", f"Prompt '{name}' saved successfully.")
+            # Reload lists
+            self._pl_load_system_prompts()
+            self._pl_load_custom_instructions()
+        else:
+            messagebox.showerror("Error", "Failed to save prompt.")
+    
+    def _pl_revert_changes(self):
+        """Revert changes by reloading from file"""
+        if not self.pl_current_filename:
+            return
+        
+        # Force reload from disk (not from cached data)
+        prompt_data = self.prompt_library.get_prompt(self.pl_current_filename)
+        if not prompt_data:
+            return
+        
+        # Reload from actual file to get original content
+        import json
+        filepath = prompt_data.get('_filepath')
+        if filepath:
+            try:
+                with open(filepath, 'r', encoding='utf-8') as f:
+                    prompt_data = json.load(f)
+            except Exception as e:
+                self.log(f"⚠️ Failed to reload from file: {e}")
+                return
+        
+        # Repopulate editor
+        self.pl_name_var.set(prompt_data.get('name', ''))
+        self.pl_domain_var.set(prompt_data.get('domain', ''))
+        self.pl_task_type_var.set(prompt_data.get('task_type', ''))
+        self.pl_version_var.set(prompt_data.get('version', '1.0'))
+        
+        self.pl_description_text.delete('1.0', tk.END)
+        self.pl_description_text.insert('1.0', prompt_data.get('description', ''))
+        
+        self.pl_content_text.delete('1.0', tk.END)
+        content = prompt_data.get('translate_prompt', '') or prompt_data.get('content', '')
+        self.pl_content_text.insert('1.0', content)
+        
+        self.log("↩️ Reverted changes")
+    
+    def _pl_delete_prompt(self):
+        """Delete the current prompt"""
+        if not self.pl_current_filename:
+            messagebox.showwarning("No Prompt", "No prompt selected to delete.")
+            return
+        
+        # Confirm
+        name = self.pl_name_var.get()
+        result = messagebox.askyesno("Confirm Delete",
+                                     f"Are you sure you want to delete '{name}'?\n\nThis cannot be undone.")
+        if not result:
+            return
+        
+        # Delete via PromptLibrary
+        if self.prompt_library.delete_prompt(self.pl_current_filename):
+            self.log(f"🗑️ Deleted: {name}")
+            # Clear editor
+            self.pl_current_filename = None
+            self.pl_name_var.set('')
+            self.pl_domain_var.set('')
+            self.pl_task_type_var.set('')
+            self.pl_version_var.set('')
+            self.pl_description_text.delete('1.0', tk.END)
+            self.pl_content_text.delete('1.0', tk.END)
+            # Reload lists
+            self._pl_load_system_prompts()
+            self._pl_load_custom_instructions()
+            messagebox.showinfo("Deleted", f"Prompt '{name}' deleted successfully.")
+        else:
+            messagebox.showerror("Error", "Failed to delete prompt.")
+    
+    # ===== END PROMPT LIBRARY TAB FUNCTIONS =====
+    
+    def maximize_prompt_library(self):
         system_frame = tk.Frame(self.prompt_library_notebook, bg='white')
         self.prompt_library_notebook.add(system_frame, text='🎯 System Prompts')
         
@@ -4504,7 +3196,7 @@ class Supervertaler:
         header = tk.Frame(full_frame, bg='#e3f2fd', relief='solid', borderwidth=1)
         header.pack(fill='x', padx=5, pady=5)
         
-        tk.Label(header, text="🎯 Prompt Library (Maximized)", font=('Segoe UI', 11, 'bold'),
+        tk.Label(header, text="🎯 Prompt Library", font=('Segoe UI', 11, 'bold'),
                 bg='#e3f2fd').pack(side='left', padx=10, pady=5)
         
         tk.Button(header, text="◱ Restore", command=self.restore_from_maximize,
@@ -4634,6 +3326,11 @@ class Supervertaler:
         tk.Button(editor_btn_frame, text="🗑️ Delete",
                  command=self._delete_selected_prompt,
                  bg='#F44336', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
+        
+        # AI Assistant toggle button (coming soon)
+        tk.Button(editor_btn_frame, text="🤖 AI Assistant (Beta)",
+                 command=lambda: messagebox.showinfo("AI Assistant", "AI-powered prompt modification coming soon!\\n\\nWill help you improve prompts using natural language requests."),
+                 bg='#2196F3', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=10)
         
         self.log("📖 Prompt Library maximized")
     
@@ -14354,25 +13051,77 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
         ttk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(side=tk.LEFT)
     
     def show_custom_prompts(self, initial_filter="all"):
-        """Show comprehensive prompt library browser
+        """Show prompt library - switches to the Prompt Library tab in Assistant panel"""
+        # Switch to the Prompt Library tab in the assistant panel
+        for i in range(self.assistant_notebook.index('end')):
+            if self.assistant_notebook.tab(i, 'text') == '📚 Prompt Library':
+                self.assistant_notebook.select(i)
+                self.log("📖 Switched to Prompt Library tab")
+                return
         
-        Args:
-            initial_filter: Initial type filter - "all", "system_prompt", or "custom_instruction"
-        """
-        dialog = tk.Toplevel(self.root)
-        dialog.title("🎯 Prompt Library - System Prompts & Custom Instructions")
-        dialog.geometry("1000x700")
-        dialog.transient(self.root)
+        # If tab doesn't exist, log error
+        self.log("⚠️ Prompt Library tab not found")
+    
+    def show_system_prompts(self):
+        """Show Prompt Library filtered to System Prompts only"""
+        self.show_custom_prompts(initial_filter="system_prompt")
+    
+    def show_custom_instructions(self):
+        """Show Prompt Library filtered to Custom Instructions only"""
+        self.show_custom_prompts(initial_filter="custom_instruction")
+    
+    def create_prompt_editor(self, parent, edit_prompt=None, on_save=None):
+        """Show prompt creation/editing dialog"""
+        editor = tk.Toplevel(parent)
         
-        main_frame = ttk.Frame(dialog, padding="10")
-        main_frame.pack(fill=tk.BOTH, expand=True)
+        # Active prompts indicator
+        active_label = ttk.Label(header_frame, text="", font=('Segoe UI', 9))
+        active_label.pack(side=tk.RIGHT)
         
-        # Header with active prompt info
-        header_frame = ttk.Frame(main_frame)
-        header_frame.pack(fill=tk.X, pady=(0, 10))
+        def update_active_label():
+            if self.prompt_library.active_prompt_name:
+                active_label.config(text=f"✓ Active: {self.prompt_library.active_prompt_name}", 
+                                   foreground='green')
+            else:
+                active_label.config(text="Using default prompt", foreground='gray')
         
-        ttk.Label(header_frame, text="📚 Prompt Library", 
-                 font=('Segoe UI', 12, 'bold')).pack(side=tk.LEFT)
+        update_active_label()
+        
+        # Close button
+        ttk.Button(header_frame, text="Close", command=dialog.destroy).pack(side=tk.RIGHT, padx=(0, 10))
+        
+        # Main container: LEFT (prompt list) and RIGHT (editor)
+        main_container = ttk.PanedWindow(main_frame, orient=tk.HORIZONTAL)
+        main_container.pack(fill=tk.BOTH, expand=True, pady=(0, 0))
+        
+        # LEFT PANEL: Prompt List with Tabs
+        left_panel = ttk.Frame(main_container)
+        main_container.add(left_panel, weight=1)
+        
+        # Tabs for System Prompts vs Custom Instructions
+        list_notebook = ttk.Notebook(left_panel)
+        list_notebook.pack(fill=tk.BOTH, expand=True)
+        
+        # System Prompts Tab
+        system_tab = ttk.Frame(list_notebook)
+        list_notebook.add(system_tab, text='🎯 System Prompts')
+        
+        # Custom Instructions Tab  
+        custom_tab = ttk.Frame(list_notebook)
+        list_notebook.add(custom_tab, text='� Custom Instructions')
+        
+        # RIGHT PANEL: Prompt Editor
+        right_panel = ttk.LabelFrame(main_container, text="Prompt Editor", padding=10)
+        main_container.add(right_panel, weight=2)
+        
+        # This is a simplified version - we'll use the existing prompt library structure
+        # For now, show a message that this is the new layout
+        ttk.Label(right_panel, text="Select a prompt from the list to edit", 
+                 font=('Segoe UI', 10), foreground='gray').pack(expand=True)
+        
+        # Temporarily show old implementation
+        dialog.destroy()
+        self._show_custom_prompts_old(initial_filter)
         
         active_label = ttk.Label(header_frame, text="", font=('Segoe UI', 9))
         active_label.pack(side=tk.RIGHT)
@@ -14424,7 +13173,7 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
         
         # Main content - 3 panes
         paned = ttk.PanedWindow(main_frame, orient=tk.HORIZONTAL)
-        paned.pack(fill=tk.BOTH, expand=True)
+        paned.pack(fill=tk.BOTH, expand=True, pady=(0, 0))
         
         # Left pane - Prompt list
         left_frame = ttk.Frame(paned)
@@ -14466,7 +13215,7 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
         
         # Details section
         details_frame = ttk.LabelFrame(right_frame, text="Prompt Details", padding=10)
-        details_frame.pack(fill=tk.BOTH, expand=True)
+        details_frame.pack(fill=tk.BOTH, expand=False)
         
         # Metadata
         meta_frame = ttk.Frame(details_frame)
@@ -14487,13 +13236,13 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
         
         # Tabs for translate and proofread prompts
         notebook = ttk.Notebook(details_frame)
-        notebook.pack(fill=tk.BOTH, expand=True, pady=(10, 0))
+        notebook.pack(fill=tk.BOTH, expand=False, pady=(10, 0))
         
         # Translate prompt tab
         translate_frame = ttk.Frame(notebook)
         notebook.add(translate_frame, text="Translation Prompt")
         
-        translate_text = tk.Text(translate_frame, wrap=tk.WORD, height=12, font=('Consolas', 9))
+        translate_text = tk.Text(translate_frame, wrap=tk.WORD, height=6, font=('Consolas', 9))
         translate_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         translate_scroll = ttk.Scrollbar(translate_frame, command=translate_text.yview)
         translate_scroll.pack(side=tk.RIGHT, fill=tk.Y)
@@ -14503,7 +13252,7 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
         proofread_frame = ttk.Frame(notebook)
         notebook.add(proofread_frame, text="Proofreading Prompt")
         
-        proofread_text = tk.Text(proofread_frame, wrap=tk.WORD, height=12, font=('Consolas', 9))
+        proofread_text = tk.Text(proofread_frame, wrap=tk.WORD, height=6, font=('Consolas', 9))
         proofread_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         proofread_scroll = ttk.Scrollbar(proofread_frame, command=proofread_text.yview)
         proofread_scroll.pack(side=tk.RIGHT, fill=tk.Y)
@@ -14676,6 +13425,270 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
         
         prompt_tree.bind('<<TreeviewSelect>>', on_select)
         
+        # ==============================================
+        # AI PROMPT ASSISTANT PANEL (COLLAPSIBLE)
+        # ==============================================
+        
+        # Separator
+        ttk.Separator(main_frame, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=10)
+        
+        # AI Assistant header with toggle button
+        ai_header_frame = ttk.Frame(main_frame)
+        ai_header_frame.pack(fill=tk.X, pady=(0, 5))
+        
+        ai_visible = tk.BooleanVar(value=False)  # Start collapsed
+        
+        def toggle_ai_panel():
+            if ai_visible.get():
+                ai_panel_frame.pack(fill=tk.BOTH, expand=False, after=ai_header_frame)
+                toggle_btn.config(text="▼ Hide AI Assistant")
+            else:
+                ai_panel_frame.pack_forget()
+                toggle_btn.config(text="▶ Show AI Assistant (Beta)")
+        
+        toggle_btn = ttk.Button(ai_header_frame, 
+                               text="▶ Show AI Assistant (Beta)",
+                               command=lambda: [ai_visible.set(not ai_visible.get()), toggle_ai_panel()])
+        toggle_btn.pack(side=tk.LEFT)
+        
+        ttk.Label(ai_header_frame, 
+                 text="🤖 Get AI-powered suggestions to improve your prompts",
+                 font=('Segoe UI', 9, 'italic'),
+                 foreground='#666').pack(side=tk.LEFT, padx=(10, 0))
+        
+        # AI Assistant panel (hidden by default)
+        ai_panel_frame = ttk.LabelFrame(main_frame, text="🤖 AI Prompt Assistant", padding=10)
+        # Don't pack it initially - will be shown when toggle is clicked
+        
+        # Chat interface
+        chat_frame = ttk.Frame(ai_panel_frame)
+        chat_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Left: Chat history
+        left_chat = ttk.Frame(chat_frame)
+        left_chat.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 5))
+        
+        ttk.Label(left_chat, text="💬 Conversation", font=('Segoe UI', 9, 'bold')).pack(anchor=tk.W)
+        
+        chat_history = scrolledtext.ScrolledText(left_chat, wrap=tk.WORD, height=15, font=('Segoe UI', 9))
+        chat_history.pack(fill=tk.BOTH, expand=True, pady=(5, 0))
+        chat_history.config(state='disabled')
+        
+        # Configure tags for chat styling
+        chat_history.tag_config('timestamp', foreground='#999', font=('Segoe UI', 8))
+        chat_history.tag_config('user', foreground='#0066cc', font=('Segoe UI', 9, 'bold'))
+        chat_history.tag_config('assistant', foreground='#28a745', font=('Segoe UI', 9, 'bold'))
+        chat_history.tag_config('error', foreground='#dc3545', font=('Segoe UI', 9, 'bold'))
+        chat_history.tag_config('message', foreground='#000')
+        
+        # Right: Diff view
+        right_diff = ttk.Frame(chat_frame)
+        right_diff.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(5, 0))
+        
+        ttk.Label(right_diff, text="📝 Proposed Changes", font=('Segoe UI', 9, 'bold')).pack(anchor=tk.W)
+        
+        diff_view = scrolledtext.ScrolledText(right_diff, wrap=tk.WORD, height=15, font=('Consolas', 9))
+        diff_view.pack(fill=tk.BOTH, expand=True, pady=(5, 0))
+        diff_view.config(state='disabled')
+        
+        # Configure tags for diff styling
+        diff_view.tag_config('add', foreground='#28a745', background='#e6ffed')
+        diff_view.tag_config('remove', foreground='#dc3545', background='#ffebe9')
+        diff_view.tag_config('context', foreground='#666')
+        diff_view.tag_config('header', foreground='#0066cc', font=('Consolas', 9, 'bold'))
+        
+        # Store modified prompt
+        modified_prompt = {'text': None}
+        
+        def add_chat_message(role, message):
+            """Add a message to chat history"""
+            chat_history.config(state='normal')
+            
+            # Timestamp
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            chat_history.insert(tk.END, f"[{timestamp}] ", 'timestamp')
+            
+            # Role
+            if role == 'user':
+                chat_history.insert(tk.END, "You: ", 'user')
+            elif role == 'assistant':
+                chat_history.insert(tk.END, "AI Assistant: ", 'assistant')
+            elif role == 'error':
+                chat_history.insert(tk.END, "Error: ", 'error')
+            
+            # Message
+            chat_history.insert(tk.END, f"{message}\n\n", 'message')
+            chat_history.see(tk.END)
+            chat_history.config(state='disabled')
+        
+        def display_diff(original, modified):
+            """Display colored diff between original and modified prompts"""
+            diff_view.config(state='normal')
+            diff_view.delete('1.0', tk.END)
+            
+            # Generate diff
+            diff_lines = self.prompt_assistant.generate_diff(original, modified)
+            
+            for line in diff_lines:
+                if line.startswith('+++') or line.startswith('---'):
+                    diff_view.insert(tk.END, line + '\n', 'header')
+                elif line.startswith('+'):
+                    diff_view.insert(tk.END, line + '\n', 'add')
+                elif line.startswith('-'):
+                    diff_view.insert(tk.END, line + '\n', 'remove')
+                elif line.startswith('@@'):
+                    diff_view.insert(tk.END, line + '\n', 'context')
+                else:
+                    diff_view.insert(tk.END, line + '\n')
+            
+            diff_view.config(state='disabled')
+        
+        def send_request():
+            """Send modification request to AI"""
+            if not selected_prompt['filename']:
+                messagebox.showwarning("No Prompt Selected", 
+                                     "Please select a prompt from the list first.")
+                return
+            
+            request = input_text.get('1.0', tk.END).strip()
+            if not request:
+                messagebox.showwarning("Empty Request", 
+                                     "Please enter a modification request.")
+                return
+            
+            # Check API configuration
+            if not self.api_keys or self.current_llm_provider not in self.api_keys:
+                messagebox.showerror("API Key Missing", 
+                                   f"Please configure your {self.current_llm_provider} API key in Settings.")
+                return
+            
+            # Add user message to chat
+            add_chat_message('user', request)
+            
+            # Clear input
+            input_text.delete('1.0', tk.END)
+            
+            # Get original prompt
+            original_prompt = selected_prompt['data'].get('translate_prompt', '')
+            
+            # Show "thinking" message
+            send_btn.config(state='disabled', text="⏳ Processing...")
+            dialog.update()
+            
+            try:
+                # Get AI suggestion
+                api_key = self.api_keys.get(self.current_llm_provider)
+                suggestion = self.prompt_assistant.suggest_modification(
+                    original_prompt,
+                    request,
+                    api_key,
+                    self.current_llm_provider,
+                    self.current_llm_model
+                )
+                
+                if suggestion:
+                    # Store modified prompt
+                    modified_prompt['text'] = suggestion['modified_prompt']
+                    
+                    # Add AI response to chat
+                    add_chat_message('assistant', f"✅ {suggestion['explanation']}")
+                    
+                    # Display diff
+                    display_diff(original_prompt, suggestion['modified_prompt'])
+                    
+                    # Enable apply button
+                    apply_btn.config(state='normal')
+                    discard_btn.config(state='normal')
+                else:
+                    add_chat_message('error', "Failed to get AI suggestion. Please try again.")
+                    
+            except Exception as e:
+                add_chat_message('error', f"Error: {str(e)}")
+            
+            finally:
+                send_btn.config(state='normal', text="📤 Send Request")
+        
+        def apply_changes():
+            """Apply the modified prompt"""
+            if not modified_prompt['text'] or not selected_prompt['filename']:
+                return
+            
+            # Update prompt data
+            selected_prompt['data']['translate_prompt'] = modified_prompt['text']
+            
+            # Save to file
+            if self.prompt_library.update_prompt(selected_prompt['filename'], selected_prompt['data']):
+                messagebox.showinfo("Success", 
+                                  "Prompt has been updated successfully!\n\n"
+                                  "The changes are now saved to the prompt file.")
+                
+                # Refresh the prompt display
+                translate_text.config(state='normal')
+                translate_text.delete('1.0', tk.END)
+                translate_text.insert('1.0', modified_prompt['text'])
+                translate_text.config(state='disabled')
+                
+                # Clear modified prompt
+                modified_prompt['text'] = None
+                apply_btn.config(state='disabled')
+                discard_btn.config(state='disabled')
+                
+                # Add success message to chat
+                add_chat_message('assistant', "✅ Changes applied and saved!")
+            else:
+                messagebox.showerror("Error", "Failed to save the modified prompt.")
+        
+        def discard_changes():
+            """Discard the modified prompt"""
+            modified_prompt['text'] = None
+            apply_btn.config(state='disabled')
+            discard_btn.config(state='disabled')
+            
+            # Clear diff view
+            diff_view.config(state='normal')
+            diff_view.delete('1.0', tk.END)
+            diff_view.config(state='disabled')
+            
+            add_chat_message('assistant', "Changes discarded. You can make a new request.")
+        
+        # Input area
+        input_frame = ttk.Frame(ai_panel_frame)
+        input_frame.pack(fill=tk.X, pady=(10, 0))
+        
+        ttk.Label(input_frame, text="✍️ Your Request:", font=('Segoe UI', 9, 'bold')).pack(anchor=tk.W)
+        
+        input_text = scrolledtext.ScrolledText(input_frame, wrap=tk.WORD, height=3, font=('Segoe UI', 9))
+        input_text.pack(fill=tk.X, pady=(5, 0))
+        input_text.insert('1.0', 'Example: "Make this more formal and add emphasis on terminology consistency"')
+        input_text.bind('<FocusIn>', lambda e: input_text.delete('1.0', tk.END) if 'Example:' in input_text.get('1.0', tk.END) else None)
+        
+        # Bind Enter key to send (Shift+Enter for new line)
+        def on_enter(event):
+            if not event.state & 0x1:  # No Shift key
+                send_request()
+                return 'break'
+        input_text.bind('<Return>', on_enter)
+        
+        # Action buttons
+        action_frame = ttk.Frame(input_frame)
+        action_frame.pack(fill=tk.X, pady=(5, 0))
+        
+        send_btn = ttk.Button(action_frame, text="📤 Send Request", command=send_request)
+        send_btn.pack(side=tk.LEFT, padx=(0, 5))
+        
+        apply_btn = ttk.Button(action_frame, text="✅ Apply Changes", command=apply_changes, state='disabled')
+        apply_btn.pack(side=tk.LEFT, padx=(0, 5))
+        
+        discard_btn = ttk.Button(action_frame, text="❌ Discard Changes", command=discard_changes, state='disabled')
+        discard_btn.pack(side=tk.LEFT)
+        
+        ttk.Label(action_frame, 
+                 text="💡 Tip: Describe what you want to change in plain language",
+                 font=('Segoe UI', 8, 'italic'),
+                 foreground='#666').pack(side=tk.RIGHT)
+        
+        # END AI PROMPT ASSISTANT PANEL
+        
         # Bottom button frame
         button_frame = ttk.Frame(main_frame)
         button_frame.pack(fill=tk.X, pady=(10, 0))
@@ -14799,6 +13812,289 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
     def show_custom_instructions(self):
         """Show Prompt Library filtered to Custom Instructions only"""
         self.show_custom_prompts(initial_filter="custom_instruction")
+    
+    def create_prompt_editor(self, parent, edit_prompt=None, on_save=None):
+        """Show prompt creation/editing dialog"""
+        editor = tk.Toplevel(parent)
+        editor.title("Edit Prompt" if edit_prompt else "Create New Prompt")
+        editor.geometry("900x700")
+        editor.transient(parent)
+        editor.grab_set()
+        
+        main_frame = ttk.Frame(editor, padding=15)
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        toggle_btn = ttk.Button(ai_header_frame, 
+                               text="▶ Show AI Assistant (Beta)",
+                               command=lambda: [ai_visible.set(not ai_visible.get()), toggle_ai_panel()])
+        toggle_btn.pack(side=tk.LEFT)
+        
+        ttk.Label(ai_header_frame, 
+                 text="🤖 Get AI-powered suggestions to improve your prompts",
+                 font=('Segoe UI', 9, 'italic'),
+                 foreground='#666').pack(side=tk.LEFT, padx=(10, 0))
+        
+        # AI Assistant panel (hidden by default)
+        ai_panel_frame = ttk.LabelFrame(main_frame, text="🤖 AI Prompt Assistant", padding=10)
+        # Don't pack it initially - will be shown when toggle is clicked
+        
+        # Chat interface
+        chat_frame = ttk.Frame(ai_panel_frame)
+        chat_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Left: Chat history
+        chat_left = ttk.Frame(chat_frame)
+        chat_left.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 5))
+        
+        ttk.Label(chat_left, text="💬 Chat with AI", font=('Segoe UI', 9, 'bold')).pack(anchor=tk.W)
+        
+        chat_history = scrolledtext.ScrolledText(chat_left, wrap=tk.WORD, height=12, 
+                                                 font=('Segoe UI', 9), state='disabled',
+                                                 bg='#f9f9f9')
+        chat_history.pack(fill=tk.BOTH, expand=True, pady=(5, 5))
+        
+        # Configure tags for styling
+        chat_history.tag_config('user', foreground='#0066cc', font=('Segoe UI', 9, 'bold'))
+        chat_history.tag_config('assistant', foreground='#009900', font=('Segoe UI', 9, 'bold'))
+        chat_history.tag_config('error', foreground='#cc0000')
+        chat_history.tag_config('timestamp', foreground='#999', font=('Segoe UI', 8))
+        
+        # Input area
+        input_frame = ttk.Frame(chat_left)
+        input_frame.pack(fill=tk.X)
+        
+        ttk.Label(input_frame, text="Your request:").pack(anchor=tk.W)
+        
+        user_input = tk.Text(input_frame, height=3, wrap=tk.WORD, font=('Segoe UI', 9))
+        user_input.pack(fill=tk.X, pady=(2, 5))
+        
+        # Right: Diff preview
+        diff_right = ttk.Frame(chat_frame)
+        diff_right.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(5, 0))
+        
+        ttk.Label(diff_right, text="📝 Proposed Changes", font=('Segoe UI', 9, 'bold')).pack(anchor=tk.W)
+        
+        diff_view = scrolledtext.ScrolledText(diff_right, wrap=tk.WORD, height=12,
+                                              font=('Consolas', 8), state='disabled',
+                                              bg='#f9f9f9')
+        diff_view.pack(fill=tk.BOTH, expand=True, pady=(5, 0))
+        
+        # Configure diff tags for color coding
+        diff_view.tag_config('added', background='#e6ffe6', foreground='#006600')
+        diff_view.tag_config('removed', background='#ffe6e6', foreground='#cc0000')
+        diff_view.tag_config('header', foreground='#666', font=('Consolas', 8, 'bold'))
+        
+        # Store the current suggestion
+        current_suggestion = {'modified_text': None, 'original_text': None}
+        
+        def add_chat_message(role, message):
+            """Add a message to the chat history"""
+            from datetime import datetime
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            
+            chat_history.config(state='normal')
+            
+            # Add timestamp
+            chat_history.insert('end', f"[{timestamp}] ", 'timestamp')
+            
+            # Add role and message
+            if role == 'user':
+                chat_history.insert('end', "You: ", 'user')
+            elif role == 'assistant':
+                chat_history.insert('end', "AI Assistant: ", 'assistant')
+            elif role == 'error':
+                chat_history.insert('end', "Error: ", 'error')
+            
+            chat_history.insert('end', message + "\n\n")
+            chat_history.see('end')
+            chat_history.config(state='disabled')
+        
+        def display_diff(original, modified):
+            """Display diff with color coding"""
+            diff_view.config(state='normal')
+            diff_view.delete('1.0', 'end')
+            
+            if not modified:
+                diff_view.insert('end', "No changes to preview", 'header')
+                diff_view.config(state='disabled')
+                return
+            
+            # Use the PromptAssistant's diff generation
+            diff_text = self.prompt_assistant.generate_diff(original, modified)
+            
+            # Parse and color-code the diff
+            for line in diff_text.split('\n'):
+                if line.startswith('+++') or line.startswith('---') or line.startswith('@@'):
+                    diff_view.insert('end', line + '\n', 'header')
+                elif line.startswith('+'):
+                    diff_view.insert('end', line + '\n', 'added')
+                elif line.startswith('-'):
+                    diff_view.insert('end', line + '\n', 'removed')
+                else:
+                    diff_view.insert('end', line + '\n')
+            
+            diff_view.config(state='disabled')
+        
+        def send_request():
+            """Send user request to AI for prompt modification"""
+            if not selected_prompt['filename']:
+                messagebox.showwarning("No Prompt Selected", 
+                                      "Please select a prompt first, then describe how you'd like to modify it.")
+                return
+            
+            request = user_input.get('1.0', 'end').strip()
+            if not request:
+                return
+            
+            # Get current prompt text (translation prompt for now)
+            original_prompt = selected_prompt['data'].get('translate_prompt', '')
+            
+            if not original_prompt:
+                messagebox.showwarning("Empty Prompt", "Selected prompt has no translation prompt text.")
+                return
+            
+            # Add user message to chat
+            add_chat_message('user', request)
+            user_input.delete('1.0', 'end')
+            
+            # Show loading indicator
+            add_chat_message('assistant', "Analyzing your request... 🤔")
+            dialog.update()
+            
+            try:
+                # Get AI suggestion using PromptAssistant
+                modified_prompt = self.prompt_assistant.suggest_modification(
+                    original_prompt,
+                    request,
+                    api_key=self.api_keys.get(self.current_llm_provider, ""),
+                    provider=self.current_llm_provider,
+                    model=self.current_llm_model
+                )
+                
+                if modified_prompt and modified_prompt != original_prompt:
+                    # Store suggestion
+                    current_suggestion['original_text'] = original_prompt
+                    current_suggestion['modified_text'] = modified_prompt
+                    
+                    # Display diff
+                    display_diff(original_prompt, modified_prompt)
+                    
+                    # Add success message
+                    chat_history.config(state='normal')
+                    # Remove "Analyzing" message
+                    chat_history.delete('end-3l', 'end-2l')
+                    chat_history.config(state='disabled')
+                    
+                    add_chat_message('assistant', 
+                                    "✅ I've suggested modifications to your prompt. Review the changes on the right.\n\n"
+                                    "Click 'Apply Changes' to update the prompt, or continue chatting to refine it further.")
+                    
+                    # Enable apply button
+                    apply_changes_btn.config(state='normal')
+                else:
+                    # Remove "Analyzing" message
+                    chat_history.config(state='normal')
+                    chat_history.delete('end-3l', 'end-2l')
+                    chat_history.config(state='disabled')
+                    
+                    add_chat_message('assistant', 
+                                    "I couldn't generate a meaningful modification. Could you be more specific about what you'd like to change?")
+            
+            except Exception as e:
+                # Remove "Analyzing" message
+                chat_history.config(state='normal')
+                chat_history.delete('end-3l', 'end-2l')
+                chat_history.config(state='disabled')
+                
+                add_chat_message('error', f"Failed to get AI suggestion: {str(e)}")
+                self.log(f"[AI Assistant] Error: {e}")
+        
+        def apply_changes():
+            """Apply the suggested changes to the prompt"""
+            if not current_suggestion['modified_text']:
+                return
+            
+            # Update the prompt data
+            selected_prompt['data']['translate_prompt'] = current_suggestion['modified_text']
+            
+            # Save to file
+            try:
+                self.prompt_library.update_prompt(selected_prompt['filename'], selected_prompt['data'])
+                
+                # Refresh the display
+                translate_text.config(state='normal')
+                translate_text.delete('1.0', 'end')
+                translate_text.insert('1.0', current_suggestion['modified_text'])
+                translate_text.config(state='disabled')
+                
+                # Clear suggestion
+                current_suggestion['original_text'] = None
+                current_suggestion['modified_text'] = None
+                
+                # Clear diff view
+                diff_view.config(state='normal')
+                diff_view.delete('1.0', 'end')
+                diff_view.insert('end', "✅ Changes applied successfully!\n\n", 'header')
+                diff_view.insert('end', "The prompt has been updated. You can continue chatting for more refinements.", 'header')
+                diff_view.config(state='disabled')
+                
+                # Disable apply button
+                apply_changes_btn.config(state='disabled')
+                
+                add_chat_message('assistant', "✅ Changes applied successfully! The prompt has been updated.")
+                
+                messagebox.showinfo("Success", "Prompt updated successfully!")
+            
+            except Exception as e:
+                add_chat_message('error', f"Failed to save changes: {str(e)}")
+                messagebox.showerror("Error", f"Failed to save changes: {str(e)}")
+        
+        def discard_changes():
+            """Discard the suggested changes"""
+            current_suggestion['original_text'] = None
+            current_suggestion['modified_text'] = None
+            
+            diff_view.config(state='normal')
+            diff_view.delete('1.0', 'end')
+            diff_view.insert('end', "Changes discarded.\n\n", 'header')
+            diff_view.insert('end', "Continue chatting to request different modifications.", 'header')
+            diff_view.config(state='disabled')
+            
+            apply_changes_btn.config(state='disabled')
+            add_chat_message('assistant', "Changes discarded. How else can I help improve this prompt?")
+        
+        # Action buttons
+        action_frame = ttk.Frame(ai_panel_frame)
+        action_frame.pack(fill=tk.X, pady=(10, 0))
+        
+        ttk.Button(action_frame, text="📤 Send Request", command=send_request).pack(side=tk.LEFT, padx=(0, 5))
+        
+        apply_changes_btn = ttk.Button(action_frame, text="✅ Apply Changes", 
+                                        command=apply_changes, state='disabled')
+        apply_changes_btn.pack(side=tk.LEFT, padx=(0, 5))
+        
+        ttk.Button(action_frame, text="❌ Discard Changes", command=discard_changes).pack(side=tk.LEFT, padx=(0, 5))
+        
+        # Help text
+        help_text = ttk.Label(action_frame, 
+                             text="💡 Tip: Select a prompt above, then ask the AI to modify it (e.g., 'Make it more formal' or 'Add emphasis on terminology consistency')",
+                             font=('Segoe UI', 8, 'italic'),
+                             foreground='#666',
+                             wraplength=800)
+        help_text.pack(side=tk.RIGHT, padx=(20, 0))
+        
+        # Bind Enter key to send (Shift+Enter for new line)
+        def on_enter(event):
+            if event.state & 0x1:  # Shift key is held
+                return  # Allow default behavior (new line)
+            send_request()
+            return 'break'  # Prevent default behavior
+        
+        user_input.bind('<Return>', on_enter)
+        
+        # ==============================================
+        # END AI PROMPT ASSISTANT PANEL
+        # ==============================================
     
     def create_prompt_editor(self, parent, edit_prompt=None, on_save=None):
         """Show prompt creation/editing dialog"""
@@ -15531,7 +14827,7 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
         )
         
         if filepath:
-            if self.tracked_changes_agent.load_docx_changes(filepath):
+            if self.tracked_changes_agent.load_docx_changes(filepath, parse_docx_pairs):
                 count = self.tracked_changes_agent.get_entry_count()
                 # Update status label if it exists
                 if hasattr(self, 'tracked_changes_status_label'):
@@ -15610,7 +14906,11 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
                 self.root,
                 self.tracked_changes_agent,
                 parent_app=self,
-                log_queue=log_adapter
+                log_queue=log_adapter,
+                gemini_available=GEMINI_AVAILABLE,
+                anthropic_available=ANTHROPIC_AVAILABLE,
+                openai_available=OPENAI_AVAILABLE,
+                app_version=APP_VERSION
             )
         
         self.tracked_changes_browser.show_browser()
@@ -16422,157 +15722,9 @@ GitHub: github.com/michaelbeijer/Supervertaler
             self.root.destroy()
 
 
-class FindReplaceDialog:
-    """Find and replace dialog"""
-    
-    def __init__(self, parent, app):
-        self.app = app
-        self.window = tk.Toplevel(parent)
-        self.window.title("Find and Replace")
-        self.window.geometry("500x250")
-        self.window.transient(parent)
-        
-        # Find
-        tk.Label(self.window, text="Find:", font=('Segoe UI', 10, 'bold')).pack(anchor='w', padx=10, pady=(10,2))
-        self.find_var = tk.StringVar()
-        tk.Entry(self.window, textvariable=self.find_var, width=60).pack(padx=10, pady=2)
-        
-        # Replace
-        tk.Label(self.window, text="Replace with:", font=('Segoe UI', 10, 'bold')).pack(anchor='w', padx=10, pady=(10,2))
-        self.replace_var = tk.StringVar()
-        tk.Entry(self.window, textvariable=self.replace_var, width=60).pack(padx=10, pady=2)
-        
-        # Options
-        options_frame = tk.Frame(self.window)
-        options_frame.pack(pady=10)
-        
-        self.match_case_var = tk.BooleanVar()
-        tk.Checkbutton(options_frame, text="Match case", variable=self.match_case_var).pack(side='left', padx=5)
-        
-        self.search_in_var = tk.StringVar(value="target")
-        tk.Label(options_frame, text="Search in:").pack(side='left', padx=(20,5))
-        ttk.Combobox(options_frame, textvariable=self.search_in_var,
-                    values=["source", "target", "both"], state='readonly', width=10).pack(side='left')
-        
-        # Buttons
-        button_frame = tk.Frame(self.window)
-        button_frame.pack(pady=10)
-        
-        tk.Button(button_frame, text="Find Next", command=self.find_next, width=12).pack(side='left', padx=5)
-        tk.Button(button_frame, text="Replace", command=self.replace_current, width=12).pack(side='left', padx=5)
-        tk.Button(button_frame, text="Replace All", command=self.replace_all, width=12,
-                 bg='#FF9800', fg='white').pack(side='left', padx=5)
-        
-        # Results
-        self.result_label = tk.Label(self.window, text="", fg='blue')
-        self.result_label.pack(pady=5)
-        
-        self.current_match_index = -1
-        self.matches = []
-    
-    def find_next(self):
-        """Find next occurrence"""
-        query = self.find_var.get()
-        if not query:
-            self.result_label.config(text="Please enter search text")
-            return
-        
-        search_in = self.search_in_var.get()
-        case_sensitive = self.match_case_var.get()
-        
-        # Search segments
-        self.matches = []
-        for seg in self.app.segments:
-            source = seg.source if case_sensitive else seg.source.lower()
-            target = seg.target if case_sensitive else seg.target.lower()
-            query_cmp = query if case_sensitive else query.lower()
-            
-            found = False
-            if search_in in ['source', 'both'] and query_cmp in source:
-                found = True
-            if search_in in ['target', 'both'] and query_cmp in target:
-                found = True
-            
-            if found:
-                self.matches.append(seg.id)
-        
-        if not self.matches:
-            self.result_label.config(text="No matches found")
-            return
-        
-        # Move to next match
-        self.current_match_index = (self.current_match_index + 1) % len(self.matches)
-        match_id = self.matches[self.current_match_index]
-        
-        # Select in grid
-        for item in self.app.tree.get_children():
-            values = self.app.tree.item(item, 'values')
-            if int(values[0]) == match_id:
-                self.app.tree.selection_set(item)
-                self.app.tree.see(item)
-                break
-        
-        self.result_label.config(
-            text=f"Match {self.current_match_index + 1} of {len(self.matches)}"
-        )
-    
-    def replace_current(self):
-        """Replace current match"""
-        if not self.app.current_segment:
-            self.result_label.config(text="No segment selected")
-            return
-        
-        find_text = self.find_var.get()
-        replace_text = self.replace_var.get()
-        
-        if not find_text:
-            return
-        
-        # Replace in target
-        if self.match_case_var.get():
-            new_target = self.app.current_segment.target.replace(find_text, replace_text)
-        else:
-            import re
-            new_target = re.sub(re.escape(find_text), replace_text,
-                              self.app.current_segment.target, flags=re.IGNORECASE)
-        
-        # Update
-        self.app.target_text.delete('1.0', 'end')
-        self.app.target_text.insert('1.0', new_target)
-        self.app.save_current_segment()
-        
-        self.result_label.config(text="Replaced")
-    
-    def replace_all(self):
-        """Replace all occurrences"""
-        find_text = self.find_var.get()
-        replace_text = self.replace_var.get()
-        
-        if not find_text:
-            return
-        
-        search_in = self.search_in_var.get()
-        count = 0
-        
-        for seg in self.app.segments:
-            if search_in in ['target', 'both']:
-                if self.match_case_var.get():
-                    if find_text in seg.target:
-                        seg.target = seg.target.replace(find_text, replace_text)
-                        count += 1
-                else:
-                    import re
-                    if re.search(re.escape(find_text), seg.target, re.IGNORECASE):
-                        seg.target = re.sub(re.escape(find_text), replace_text,
-                                          seg.target, flags=re.IGNORECASE)
-                        count += 1
-        
-        # Refresh grid
-        self.app.load_segments_to_grid()
-        self.app.modified = True
-        self.app.update_progress()
-        
-        self.result_label.config(text=f"Replaced {count} occurrences")
+
+# --- Find and Replace Dialog ---
+# FindReplaceDialog class moved to modules/find_replace.py for better modularity
 
 
 # Main

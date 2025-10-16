@@ -1,5 +1,26 @@
 ﻿# Supervertaler - Changelog
 
+## [3.6.2-beta] - 2025-10-16 ✨ PROMPT LIBRARY UI IMPROVEMENTS
+
+### ✨ ENHANCEMENTS (CAT Edition)
+
+**Improved Prompt Library Active Bar Labels**:
+- Enhanced clarity with full descriptive labels
+- **Before**: `Active: | Trans: Default | Proof: Default | Custom: xyz`
+- **After**: `Active: | Translation system prompt: Default | Proofreading system prompt: Default | Custom instructions: xyz`
+- Better user understanding of active prompt types
+- Consistent terminology throughout the application
+
+**Simplified Custom Instructions Workflow**:
+- Custom Instructions now work like System Prompts (activation model)
+- Single button: "✅ Use in Current Project" (green, bold)
+- Removed confusing "Load into Settings Tab" button
+- Clear behavior: Custom Instructions automatically appended to System Prompts during translation
+- Visual feedback: Green label shows active Custom Instruction name or "None"
+- **Details**: See [CHANGELOG-CAT.md](CHANGELOG-CAT.md) for technical implementation details
+
+---
+
 ## [3.6.1-beta] - 2025-10-16 🐛 CAT IMPORT BUGFIX
 
 ### 🐛 BUG FIXES (CAT Edition)

@@ -1,0 +1,30 @@
+=== OLD create_prompt_library_tab() Implementation ===
+Lines 2334-2458 in Supervertaler_v3.6.0-beta_CAT.py
+
+Attempted to embed full side-by-side editor but had dependency issues with:
+- Missing variable initializations (prompt_name_var, prompt_domain_var, etc.)
+- Called _create_maximized_system_prompts() and _create_maximized_custom_instructions()
+- These helper functions expected variables that didn't exist yet
+
+=== OLD maximize_prompt_library() Implementation ===
+Lines 2685-2950 in Supervertaler_v3.6.0-beta_CAT.py
+
+Full-screen view with:
+- Header with Restore button
+- Active prompts bar
+- PanedWindow with left (list) and right (editor)
+- Tabs for System Prompts / Custom Instructions
+- Shared editor widgets
+- Helper functions: _create_maximized_system_prompts(), _create_maximized_custom_instructions()
+
+=== Helper Functions ===
+- _create_maximized_system_prompts() - Lines 2951-2984
+- _create_maximized_custom_instructions() - Lines 2986-3030
+- _on_maximized_tab_changed() - Lines 3032+ (had orphaned code with undefined activate_frame)
+
+=== Problems ===
+1. Missing StringVar initializations for metadata fields
+2. Missing Text widget references
+3. Helper functions expected instance variables that didn't exist at startup
+4. _on_maximized_tab_changed() had broken code with undefined variables
+5. Circular dependency between tab creation and helper functions

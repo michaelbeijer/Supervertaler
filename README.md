@@ -2,19 +2,21 @@
 
 🎯 **Context-aware, LLM-powered translation & proofreading tool, leveraging multiple context sources for enhanced accuracy (built for translators)** - Revolutionary approach to document translation that leverages multiple context sources for unparalleled accuracy.
 
-**Note**: A version of Supervertaler is being developed with many features commonly found in proper CAT tools (Computer-Aided Translation tools), which has reached **v3.6.0-beta** with PDF Rescue - an AI-powered OCR tool! It features GPT-4 Vision OCR for badly-formatted PDFs, unified prompt management (System Prompts + Custom Instructions), grid pagination (10x faster loading), smart paragraph detection, dual text selection (memoQ-style), column management, formatting display, three professional view modes (Grid, List, Document), and comprehensive auto-export options. We're implementing features from [michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool](https://michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool).
+**Note**: A version of Supervertaler is being developed with many features commonly found in proper CAT tools (Computer-Aided Translation tools), which has reached **v3.6.2-beta** with PDF Rescue - an AI-powered OCR tool! It features GPT-4 Vision OCR for badly-formatted PDFs, unified prompt management (System Prompts + Custom Instructions), grid pagination (10x faster loading), smart paragraph detection, dual text selection (memoQ-style), column management, formatting display, three professional view modes (Grid, List, Document), and comprehensive auto-export options. We're implementing features from [michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool](https://michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool).
 
 
 ## 📦 Available Versions
 
-### v3.6.0-beta (Experimental - CAT Editor) 🚀
+### v3.6.2-beta (Experimental - CAT Editor) 🚀
 **File**: `Supervertaler_v3.6.0-beta_CAT.py`
-- 🆘 **NEW**: PDF Rescue - AI-Powered OCR Tool (GPT-4 Vision)
-- 📄 **NEW**: One-click PDF import with automatic page extraction
-- 🧠 **NEW**: Smart redaction/stamp handling with language-aware placeholders
-- 🎨 **NEW**: Optional formatting preservation (markdown-based)
-- 📊 **NEW**: Professional session reports with Supervertaler branding
-- 👁️ **NEW**: Show Prompt viewer for full transparency
+- ✨ **NEW**: Improved Prompt Library UI with clearer active prompt labels
+- ✅ **NEW**: Simplified Custom Instructions workflow (activation model)
+- 🆘 PDF Rescue - AI-Powered OCR Tool (GPT-4 Vision)
+- 📄 One-click PDF import with automatic page extraction
+- 🧠 Smart redaction/stamp handling with language-aware placeholders
+- 🎨 Optional formatting preservation (markdown-based)
+- 📊 Professional session reports with Supervertaler branding
+- 👁️ Show Prompt viewer for full transparency
 - 🎯 Unified Prompt Library with System Prompts + Custom Instructions (Ctrl+P)
 - 📝 Custom Instructions - Define user preferences & behavioral guidelines
 - 🎭 Separate System Prompts (AI role) from Custom Instructions (user preferences)
@@ -27,7 +29,7 @@
 - ✅ CafeTran and memoQ bilingual DOCX support
 - 📖 **Status**: Feature-complete, performance optimized, beta testing phase
 - 💡 **Note**: v3.x signifies major architectural change from original DOCX workflow
-- 🏷️ **Version Note**: Bumped to v3.6.0 for PDF Rescue - major new feature
+- 🏷️ **Version Note**: Bumped to v3.6.2 for Prompt Library UI improvements
 
 ### v2.4.3-CLASSIC (Production-ready) 🎉
 **File**: `Supervertaler_v2.4.3-CLASSIC.py`
@@ -49,9 +51,9 @@
 - ✅ Fully backward compatible with v2.4.3
 - 💡 Upgrade to v2.4.3-CLASSIC recommended for CAT tool integration
 
-> **💡 Recommendation**: Use **v2.4.3-CLASSIC** for production translation work. Try **v3.6.0-beta** if you want to test the experimental CAT editor features with PDF Rescue and the new Prompt Library system!
+> **💡 Recommendation**: Use **v2.4.3-CLASSIC** for production translation work. Try **v3.6.2-beta** if you want to test the experimental CAT editor features with PDF Rescue and the improved Prompt Library system!
 > 
-> **🔢 Version Scheme**: The jump from v2.x to v3.x reflects a **major architectural change**. v2.4.3-CLASSIC uses the original DOCX-based workflow, while v3.6.0-beta is a complete rewrite as a segment-based CAT editor with PDF Rescue. The "-CLASSIC" and "-beta" suffixes help distinguish these fundamentally different architectures.
+> **🔢 Version Scheme**: The jump from v2.x to v3.x reflects a **major architectural change**. v2.4.3-CLASSIC uses the original DOCX-based workflow, while v3.6.2-beta is a complete rewrite as a segment-based CAT editor with PDF Rescue. The "-CLASSIC" and "-beta" suffixes help distinguish these fundamentally different architectures.
 
 ----
 
