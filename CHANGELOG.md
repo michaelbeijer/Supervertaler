@@ -1,5 +1,41 @@
 ﻿# Supervertaler - Changelog
 
+## [3.6.7-beta] - 2025-10-18 ✨ POLISH & FIXES
+
+### ✨ ENHANCEMENTS (CAT Edition)
+
+**UI Polish & Usability Improvements**:
+- **Reduced Tab Height**: Lowered vertical padding from [12, 8] to [12, 4] for better screen density
+- **Removed Maximize View**: Eliminated obsolete maximize_prompt_library() function (~725 lines cleaned)
+- **Better Button Names**: Renamed "Show Prompt" → "📝 View/Edit Analysis Prompts" for clarity
+- **Clickable Folder Links**: System_prompts and Custom_instructions folders now clickable (cross-platform)
+- Opens Windows Explorer / macOS Finder / Linux file manager directly
+- Clearer prompt location for translators
+
+**Website Enhancements**:
+- **NEW About Section**: Beautiful gradient purple design telling Supervertaler's evolution story
+- Three story cards: "Where It Started" (manual workflow), "Where It's Going" (full CAT features), "What Makes It Different" (AI-powered prompts)
+- **Vision Dialogue**: Future AI interaction showcase in golden accent
+- Responsive design with backdrop-filter blur effects
+
+### 🐛 BUG FIXES (CAT Edition)
+
+**Translation Error with Prompt Manager**:
+- **Issue**: `'Supervertaler' object has no attribute 'custom_instructions_text'` when translating with activated custom instructions
+- **Root Cause**: Translation functions looking for old text widget instead of new Prompt Manager system
+- **Fix**: Updated batch_translate_all(), translate_segment(), preview_combined_prompt() to check self.active_custom_instruction first with fallback to legacy widget
+- **Impact**: Translations now work perfectly with activated custom instructions from Prompt Manager
+
+**System Prompts Not Appearing**:
+- **Issue**: Saved prompts not showing in Prompt Manager list
+- **Root Cause**: JSON `name` field using `default_name` instead of user-entered filename
+- **Fix**: Store user_entered_name and use it in JSON metadata
+- **Impact**: All saved System Prompts now appear immediately in Prompt Manager
+
+**Details**: See [CHANGELOG-CAT.md](CHANGELOG-CAT.md) for complete technical implementation
+
+---
+
 ## [3.6.6-beta] - 2025-10-18 🤖 PROMPT ASSISTANT UX OVERHAUL
 
 ### 🎯 MAJOR UX IMPROVEMENTS (CAT Edition)
