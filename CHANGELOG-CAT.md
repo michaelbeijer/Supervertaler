@@ -97,7 +97,7 @@ For the unified changelog, see [CHANGELOG.md](CHANGELOG.md).
 - **Removed**: Dependency on `document_analyzer.py` regex patterns (still exists for fallback)
 
 **Real-World Validation**:
-Compared with successful ChatGPT.com workflow on Belgian Dutch patent (PVET.docx):
+Compared with successful ChatGPT.com workflow on Belgian Dutch patent (test.docx):
 - ✅ ChatGPT produced: "voegplaat", "verankeringsrib", "deuvel", "wegdelen" (actual technical terms)
 - ❌ Old Supervertaler produced: "De", "In", "Deze", "BESCHRIJVING" (garbage)
 - ✅ New Supervertaler: Uses same LLM intelligence as ChatGPT workflow
