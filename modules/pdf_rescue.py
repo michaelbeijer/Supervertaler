@@ -105,11 +105,11 @@ class PDFRescue:
         btn_frame = tk.Frame(left_frame)
         btn_frame.pack(fill='x', pady=(10, 0))
         
-        tk.Button(btn_frame, text="� PDF", command=self._import_from_pdf,
+        tk.Button(btn_frame, text="📄 PDF", command=self._import_from_pdf,
                  bg='#9C27B0', fg='white', font=('Segoe UI', 8, 'bold'),
                  padx=8, pady=4).pack(side='left', padx=(0, 3))
         
-        tk.Button(btn_frame, text="�📁 Add Files", command=self._add_files,
+        tk.Button(btn_frame, text="➕ Add Files", command=self._add_files,
                  bg='#2196F3', fg='white', font=('Segoe UI', 8, 'bold'),
                  padx=8, pady=4).pack(side='left', padx=3)
         
