@@ -330,6 +330,18 @@ body {
     color: #1e3a8a;
 }
 
+.badge-new {
+    display: inline-block;
+    padding: 0.125rem 0.5rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #fef3c7, #fcd34d);
+    color: #92400e;
+    margin-left: 0.5rem;
+    vertical-align: middle;
+}
+
 /* Hero Visual */
 .hero-visual {
     display: flex;
@@ -647,6 +659,82 @@ body {
 }
 
 /* =============================================
+   Screenshots Section
+   ============================================= */
+
+.screenshots {
+    padding: var(--spacing-xl) 0;
+    background: var(--bg-secondary);
+}
+
+.screenshots-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+    gap: var(--spacing-lg);
+    margin-top: var(--spacing-lg);
+}
+
+.screenshot-card {
+    background: white;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-lg);
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.screenshot-card:hover {
+    transform: translateY(-8px);
+    box-shadow: var(--shadow-xl);
+}
+
+.screenshot-card img {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-bottom: 1px solid var(--border);
+}
+
+.screenshot-caption {
+    padding: var(--spacing-md);
+}
+
+.screenshot-caption h3 {
+    font-size: 1.25rem;
+    margin-bottom: var(--spacing-xs);
+    color: var(--text-primary);
+}
+
+.screenshot-caption p {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+
+.screenshot-note {
+    margin-top: var(--spacing-lg);
+    padding: var(--spacing-md);
+    background: white;
+    border-radius: var(--radius-md);
+    border-left: 4px solid var(--primary);
+    text-align: center;
+}
+
+.screenshot-note p {
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.screenshot-note a {
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.screenshot-note a:hover {
+    text-decoration: underline;
+}
+
+/* =============================================
    Footer
    ============================================= */
 
@@ -730,7 +818,8 @@ body {
     
     .features-grid,
     .download-grid,
-    .docs-grid {
+    .docs-grid,
+    .screenshots-grid {
         grid-template-columns: 1fr;
     }
     
