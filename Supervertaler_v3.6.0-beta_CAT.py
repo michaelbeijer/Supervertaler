@@ -1,5 +1,5 @@
 """  
-Supervertaler v3.6.2-beta (CAT Editor)
+Supervertaler v3.6.5-beta (CAT Editor)
 AI-Powered Computer-Aided Translation Tool
 
 Features:
@@ -22,12 +22,12 @@ Features:
 - Project save/load with context preservation
 - Dev mode with parallel folder structure (user data/ vs user data_private/)
 
-Author: Michael Beijer + AI Assistant
+Author: Michael Beijer + Prompt Assistant
 Date: January 16, 2025
 """
 
 # Version constant
-APP_VERSION = "3.6.2-beta"
+APP_VERSION = "3.6.6-beta"
 
 # --- Private Features Flag ---
 # Check for .supervertaler.local file to enable private features (for developers only)
@@ -63,7 +63,7 @@ def get_user_data_path(folder_name):
         return os.path.join(script_dir, "user data", folder_name)
 
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox, scrolledtext
+from tkinter import ttk, filedialog, messagebox, scrolledtext, simpledialog
 import json
 import os
 import re
@@ -125,6 +125,7 @@ try:
     from modules.tracked_changes import TrackedChangesAgent, TrackedChangesBrowser, format_tracked_changes_context
     from modules.find_replace import FindReplaceDialog
     from modules.prompt_assistant import PromptAssistant
+    from modules.document_analyzer import DocumentAnalyzer
 except ImportError as e:
     print("ERROR: Could not import required modules")
     print(f"Import error: {e}")
@@ -544,6 +545,10 @@ class Supervertaler:
         self.original_docx: Optional[str] = None
         self.modified = False
         
+        # Recent projects (max 10)
+        self.recent_projects = self.load_recent_projects()
+        self.max_recent_projects = 10
+        
         # Multi-selection state
         self.selected_segments: Set[int] = set()  # Set of selected segment IDs
         self.last_selected_index: Optional[int] = None  # For Shift+Click range selection
@@ -580,6 +585,7 @@ class Supervertaler:
         # Translation prompts - context-aware for different modes
         # Single segment translation (Ctrl+T)
         self.single_segment_prompt = (
+            "# SYSTEM PROMPT\n\n"
             "You are an expert {{SOURCE_LANGUAGE}} to {{TARGET_LANGUAGE}} translator with deep understanding of context and nuance.\n\n"
             "**CONTEXT**: Full document context is provided for reference below.\n\n"
             "**YOUR TASK**: Translate ONLY the text in the 'TEXT TO TRANSLATE' section.\n\n"
@@ -613,6 +619,7 @@ class Supervertaler:
         
         # Batch DOCX translation
         self.batch_docx_prompt = (
+            "# SYSTEM PROMPT\n\n"
             "You are an expert {{SOURCE_LANGUAGE}} to {{TARGET_LANGUAGE}} translator specializing in document translation.\n\n"
             "**YOUR TASK**: Translate ALL segments below while maintaining document structure and formatting.\n\n"
             "**IMPORTANT INSTRUCTIONS**:\n"
@@ -638,6 +645,7 @@ class Supervertaler:
         
         # Batch bilingual (TXT/memoQ export) translation
         self.batch_bilingual_prompt = (
+            "# SYSTEM PROMPT\n\n"
             "You are an expert {{SOURCE_LANGUAGE}} to {{TARGET_LANGUAGE}} translator working with a bilingual translation file.\n\n"
             "**YOUR TASK**: Translate each source segment below.\n\n"
             "**FILE FORMAT**: This is a bilingual export (e.g., from memoQ) where each segment is numbered.\n\n"
@@ -718,6 +726,12 @@ class Supervertaler:
             log_callback=self.log
         )
         
+        # Document analyzer for Prompt Assistant
+        self.document_analyzer = DocumentAnalyzer()
+        self.doc_analysis_result = None  # Cache analysis results
+        self.assistant_chat_history = []  # Chat history for Prompt Assistant
+        self.last_analysis_prompt = None  # Store last analysis prompt for transparency
+        
         # TMX Generator for export
         self.tmx_generator = TMXGenerator(log_callback=self.log)
         
@@ -742,21 +756,31 @@ class Supervertaler:
             mode: Translation mode - 'single', 'batch_docx', or 'batch_bilingual'
             
         Returns:
-            The appropriate prompt template for the given context
+            The appropriate prompt template for the given context, with Custom Instructions appended if active
         """
+        # Determine base prompt
+        base_prompt = None
+        
         # If user has selected a custom prompt, use that
         if hasattr(self, 'current_translate_prompt') and self.current_translate_prompt != self.single_segment_prompt:
-            return self.current_translate_prompt
-        
-        # Otherwise, select based on mode
-        if mode == "single":
-            return self.single_segment_prompt
-        elif mode == "batch_docx":
-            return self.batch_docx_prompt
-        elif mode == "batch_bilingual":
-            return self.batch_bilingual_prompt
+            base_prompt = self.current_translate_prompt
         else:
-            return self.single_segment_prompt  # Default fallback
+            # Otherwise, select based on mode
+            if mode == "single":
+                base_prompt = self.single_segment_prompt
+            elif mode == "batch_docx":
+                base_prompt = self.batch_docx_prompt
+            elif mode == "batch_bilingual":
+                base_prompt = self.batch_bilingual_prompt
+            else:
+                base_prompt = self.single_segment_prompt  # Default fallback
+        
+        # Append Custom Instructions if active
+        if hasattr(self, 'active_custom_instruction') and self.active_custom_instruction:
+            combined_prompt = base_prompt + "\n\n" + "# CUSTOM INSTRUCTIONS\n\n" + self.active_custom_instruction
+            return combined_prompt
+        
+        return base_prompt
     
     def setup_ui(self):
         """Create the user interface"""
@@ -771,6 +795,13 @@ class Supervertaler:
         project_menu.add_command(label="Save project", command=self.save_project, accelerator="Ctrl+S")
         project_menu.add_command(label="Save project as...", command=self.save_project_as)
         project_menu.add_command(label="Open project...", command=self.load_project, accelerator="Ctrl+L")
+        
+        # Recent projects submenu
+        self.recent_projects_menu = tk.Menu(project_menu, tearoff=0)
+        project_menu.add_cascade(label="Recent projects", menu=self.recent_projects_menu)
+        self.update_recent_projects_menu()
+        
+        project_menu.add_separator()
         project_menu.add_command(label="Close project", command=self.close_project)
         project_menu.add_separator()
         project_menu.add_command(label="API settings...", command=self.show_api_settings)
@@ -807,12 +838,6 @@ class Supervertaler:
         export_submenu.add_command(label="Trados bilingual table - Translated (DOCX)...", command=self.export_trados_bilingual)
         export_submenu.add_separator()
         export_submenu.add_command(label="Session report...", command=self.generate_session_report)
-        
-        file_menu.add_separator()
-        
-        # Recent projects submenu (placeholder)
-        recent_menu = tk.Menu(file_menu, tearoff=0)
-        file_menu.add_cascade(label="Recent projects", menu=recent_menu, state='disabled')
         
         file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self.on_closing)
@@ -885,6 +910,7 @@ class Supervertaler:
         resources_menu.add_command(label="🗑️ Clear tracked changes", command=self.clear_tracked_changes)
         resources_menu.add_separator()
         resources_menu.add_command(label="🖼️ Load figure context...", command=self.load_figure_context)
+        resources_menu.add_command(label="📤 Extract images from DOCX...", command=self.extract_images_from_docx)
         resources_menu.add_command(label="🗑️ Clear figure context", command=self.clear_figure_context)
         resources_menu.add_separator()
         resources_menu.add_command(label="📚 Prompt library", command=self.show_custom_prompts, accelerator="Ctrl+P")
@@ -2399,15 +2425,15 @@ class Supervertaler:
         list_notebook.pack(fill='both', expand=True)
         
         # --- System Prompts Tab ---
-        system_tab = tk.Frame(list_notebook, bg='white')
+        system_tab = tk.Frame(list_notebook, bg='#E3F2FD', relief='solid', borderwidth=1)
         list_notebook.add(system_tab, text='🎯 System Prompts')
         
         # Filter bar
-        filter_frame = tk.Frame(system_tab, bg='#f5f5f5', relief='solid', borderwidth=1)
+        filter_frame = tk.Frame(system_tab, bg='#BBDEFB', relief='solid', borderwidth=1)
         filter_frame.pack(fill='x', padx=5, pady=5)
         
         tk.Label(filter_frame, text="Task:", font=('Segoe UI', 8),
-                bg='#f5f5f5').pack(side='left', padx=5, pady=5)
+                bg='#BBDEFB').pack(side='left', padx=5, pady=5)
         task_filter = ttk.Combobox(filter_frame, textvariable=self.pl_filter_task_var,
                                   values=["All Tasks", "Translation", "Localization", "Transcreation",
                                          "Proofreading", "QA", "Copyediting", "Post-editing", "Terminology Extraction"],
@@ -2416,7 +2442,7 @@ class Supervertaler:
         task_filter.bind('<<ComboboxSelected>>', lambda e: self._pl_load_system_prompts())
         
         # System prompts list
-        sys_list_frame = tk.Frame(system_tab)
+        sys_list_frame = tk.Frame(system_tab, bg='#E3F2FD')
         sys_list_frame.pack(fill='both', expand=True, padx=5, pady=(0, 5))
         
         sys_scroll = ttk.Scrollbar(sys_list_frame, orient='vertical')
@@ -2455,17 +2481,17 @@ class Supervertaler:
                  bg='#FF9800', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=5)
         
         # --- Custom Instructions Tab ---
-        custom_tab = tk.Frame(list_notebook, bg='white')
+        custom_tab = tk.Frame(list_notebook, bg='#E8F5E9', relief='solid', borderwidth=1)
         list_notebook.add(custom_tab, text='📝 Custom Instructions')
         
         # Info bar
-        info_frame = tk.Frame(custom_tab, bg='#f3e5f5', relief='solid', borderwidth=1)
+        info_frame = tk.Frame(custom_tab, bg='#C8E6C9', relief='solid', borderwidth=1)
         info_frame.pack(fill='x', padx=5, pady=5)
         tk.Label(info_frame, text="📝 Project-specific rules added to System Prompts",
-                font=('Segoe UI', 8), bg='#f3e5f5').pack(padx=10, pady=5)
+                font=('Segoe UI', 8), bg='#C8E6C9').pack(padx=10, pady=5)
         
         # Custom instructions list
-        custom_list_frame = tk.Frame(custom_tab)
+        custom_list_frame = tk.Frame(custom_tab, bg='#E8F5E9')
         custom_list_frame.pack(fill='both', expand=True, padx=5, pady=(0, 5))
         
         custom_scroll = ttk.Scrollbar(custom_list_frame, orient='vertical')
@@ -2489,22 +2515,36 @@ class Supervertaler:
         self.pl_custom_tree.bind('<<TreeviewSelect>>', self._pl_on_select)
         
         # Activate button
-        custom_btn_frame = tk.Frame(custom_tab, bg='#e8f5e9', relief='solid', borderwidth=1)
+        custom_btn_frame = tk.Frame(custom_tab, bg='#C8E6C9', relief='solid', borderwidth=1)
         custom_btn_frame.pack(fill='x', padx=5, pady=5)
         
         tk.Label(custom_btn_frame, text="✅ Activate:",
-                font=('Segoe UI', 9, 'bold'), bg='#e8f5e9').pack(side='left', padx=10, pady=5)
+                font=('Segoe UI', 9, 'bold'), bg='#C8E6C9').pack(side='left', padx=10, pady=5)
         tk.Button(custom_btn_frame, text="✅ Use in Current Project",
                  command=self._pl_activate_custom_instruction,
                  bg='#4CAF50', fg='white', font=('Segoe UI', 9, 'bold')).pack(side='left', padx=5)
+        tk.Button(custom_btn_frame, text="✖ Clear",
+                 command=self._pl_clear_custom_instruction,
+                 bg='#f44336', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=5)
         
-        # Track which tab is active
-        list_notebook.bind('<<NotebookTabChanged>>',
-                          lambda e: self._pl_on_tab_changed(list_notebook))
+        # --- Prompt Assistant Tab ---
+        assistant_tab = tk.Frame(list_notebook, bg='#E8F5E9', relief='solid', borderwidth=1)
+        list_notebook.add(assistant_tab, text='🤖 Prompt Assistant')
+        
+        # Create the Prompt Assistant content directly in this tab
+        self.create_prompt_assistant_content(assistant_tab)
         
         # ===== RIGHT PANEL: Editor =====
         editor_panel = tk.LabelFrame(main_container, text="Prompt Editor", padx=5, pady=5)
         main_container.add(editor_panel, weight=2)
+        
+        # Store reference for showing/hiding
+        self.pl_editor_panel = editor_panel
+        self.pl_main_container = main_container
+        
+        # Track which tab is active (to hide editor on Prompt Assistant tab)
+        list_notebook.bind('<<NotebookTabChanged>>',
+                          lambda e: self._pl_on_tab_changed(list_notebook))
         
         # Metadata grid
         meta_frame = tk.Frame(editor_panel)
@@ -2563,8 +2603,8 @@ class Supervertaler:
                  bg='#9E9E9E', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
         tk.Button(btn_frame, text="🗑️ Delete", command=self._pl_delete_prompt,
                  bg='#F44336', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
-        tk.Button(btn_frame, text="🤖 AI Assistant (Beta)",
-                 command=lambda: messagebox.showinfo("AI Assistant",
+        tk.Button(btn_frame, text="🤖 Prompt Assistant",
+                 command=lambda: messagebox.showinfo("Prompt Assistant",
                      "AI-powered prompt modification coming soon!\n\nWill help you improve prompts using natural language requests."),
                  bg='#2196F3', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=10)
         
@@ -2699,9 +2739,22 @@ class Supervertaler:
         self.log(f"📝 Editor updated with content ({len(content)} chars)")
     
     def _pl_on_tab_changed(self, notebook):
-        """Handle tab change between System Prompts and Custom Instructions"""
-        # Just for potential future filtering logic
-        pass
+        """Handle tab change - hide editor panel on Prompt Assistant tab"""
+        current_tab_index = notebook.index(notebook.select())
+        tab_text = notebook.tab(current_tab_index, 'text')
+        
+        # Hide editor panel on Prompt Assistant tab (you're generating, not editing)
+        # Show it on System Prompts and Custom Instructions tabs (you're editing)
+        if 'Prompt Assistant' in tab_text:
+            # Hide the editor panel
+            if hasattr(self, 'pl_editor_panel'):
+                self.pl_main_container.forget(self.pl_editor_panel)
+        else:
+            # Show the editor panel
+            if hasattr(self, 'pl_editor_panel'):
+                # Check if it's not already there
+                if self.pl_editor_panel not in self.pl_main_container.panes():
+                    self.pl_main_container.add(self.pl_editor_panel, weight=2)
     
     def _pl_activate_prompt(self, slot):
         """Activate selected prompt for translation or proofreading"""
@@ -2776,6 +2829,23 @@ class Supervertaler:
         messagebox.showinfo("Activated", 
             f"Custom Instruction '{name}' is now active for this project.\n\n"
             f"It will be appended to your System Prompts during translation.")
+    
+    def _pl_clear_custom_instruction(self):
+        """Clear the active custom instruction"""
+        if not hasattr(self, 'active_custom_instruction') or not self.active_custom_instruction:
+            messagebox.showinfo("No Active Custom Instruction", "No Custom Instruction is currently active.")
+            return
+        
+        # Clear the active custom instruction
+        self.active_custom_instruction = None
+        self.active_custom_instruction_name = None
+        
+        # Update label
+        if hasattr(self, 'pl_active_custom_label'):
+            self.pl_active_custom_label.config(text='None')
+        
+        self.log("✖ Cleared Custom Instruction")
+        messagebox.showinfo("Cleared", "Custom Instruction has been cleared.")
     
     def _pl_save_changes(self):
         """Save changes to the current prompt"""
@@ -3327,9 +3397,9 @@ class Supervertaler:
                  command=self._delete_selected_prompt,
                  bg='#F44336', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
         
-        # AI Assistant toggle button (coming soon)
-        tk.Button(editor_btn_frame, text="🤖 AI Assistant (Beta)",
-                 command=lambda: messagebox.showinfo("AI Assistant", "AI-powered prompt modification coming soon!\\n\\nWill help you improve prompts using natural language requests."),
+        # Prompt Assistant toggle button (coming soon)
+        tk.Button(editor_btn_frame, text="🤖 Prompt Assistant",
+                 command=lambda: messagebox.showinfo("Prompt Assistant", "AI-powered prompt modification coming soon!\\n\\nWill help you improve prompts using natural language requests."),
                  bg='#2196F3', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=10)
         
         self.log("📖 Prompt Library maximized")
@@ -4505,6 +4575,10 @@ class Supervertaler:
                  command=self.load_figure_context,
                  bg='#4CAF50', fg='white', font=('Segoe UI', 9, 'bold')).pack(side='left', padx=(0, 5))
         
+        tk.Button(btn_frame, text="📤 Extract from DOCX...",
+                 command=self.extract_images_from_docx,
+                 bg='#2196F3', fg='white', font=('Segoe UI', 9, 'bold')).pack(side='left', padx=(0, 5))
+        
         tk.Button(btn_frame, text="🗑️ Clear",
                  command=self.clear_figure_context,
                  font=('Segoe UI', 9)).pack(side='left')
@@ -4596,7 +4670,7 @@ class Supervertaler:
         tk.Button(button_frame, text="💾 Save to Project", 
                  command=self.save_custom_instructions,
                  bg='#4CAF50', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
-        tk.Button(button_frame, text="\U0001F4CB Load Example Template",
+        tk.Button(button_frame, text="📋 Load Example Template",
                  command=self.reload_default_instructions,
                  bg='#2196F3', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
         
@@ -4604,10 +4678,1175 @@ class Supervertaler:
         tk.Label(button_frame, text="💡 Use '🧪 Preview Prompt' button in workspace header to test",
                 font=('Segoe UI', 8), fg='#666').pack(side='right', padx=10)
     
+    def create_prompt_assistant_content(self, parent):
+        """Create Prompt Assistant content - document analysis and AI-powered prompt generation"""
+        # Info section
+        info_frame = tk.Frame(parent, bg='#e8f5e9', relief='solid', borderwidth=1)
+        info_frame.pack(fill='x', padx=5, pady=5)
+        
+        tk.Label(info_frame, text="🤖 Prompt Assistant", font=('Segoe UI', 10, 'bold'),
+                bg='#e8f5e9').pack(anchor='w', padx=10, pady=5)
+        tk.Label(info_frame, text="Analyze your document and generate optimized translation prompts automatically",
+                font=('Segoe UI', 9), bg='#e8f5e9', fg='#666').pack(anchor='w', padx=10, pady=(0, 5))
+        
+        # Document Analysis Section
+        analysis_frame = tk.LabelFrame(parent, text="📊 Document Analysis", padx=10, pady=10)
+        analysis_frame.pack(fill='x', padx=5, pady=5)
+        
+        # Status label
+        self.doc_analysis_status = tk.Label(analysis_frame, 
+                                            text="No analysis performed yet",
+                                            font=('Segoe UI', 9), fg='#999', anchor='w', justify='left')
+        self.doc_analysis_status.pack(fill='x', pady=5)
+        
+        # Analysis buttons
+        analysis_btn_frame = tk.Frame(analysis_frame)
+        analysis_btn_frame.pack(fill='x', pady=5)
+        
+        tk.Button(analysis_btn_frame, text="🔍 Analyze Document",
+                 command=self.analyze_current_document,
+                 bg='#4CAF50', fg='white', font=('Segoe UI', 9, 'bold')).pack(side='left', padx=(0, 5))
+        
+        tk.Button(analysis_btn_frame, text="🎯 Generate Prompts",
+                 command=self.generate_translation_prompts,
+                 bg='#2196F3', fg='white', font=('Segoe UI', 9, 'bold')).pack(side='left', padx=(0, 5))
+        
+        tk.Button(analysis_btn_frame, text="📝 Show Prompt",
+                 command=self.show_analysis_prompt,
+                 bg='#FF9800', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=(0, 5))
+        
+        tk.Button(analysis_btn_frame, text="❌ Clear",
+                 command=self.clear_analysis,
+                 font=('Segoe UI', 9)).pack(side='left')
+        
+        # Chat Interface Section
+        chat_frame = tk.LabelFrame(parent, text="💬 Chat with AI", padx=5, pady=5)
+        chat_frame.pack(fill='both', expand=True, padx=5, pady=5)
+        
+        # Chat history display
+        chat_scroll_frame = tk.Frame(chat_frame)
+        chat_scroll_frame.pack(fill='both', expand=True, pady=(0, 5))
+        
+        chat_scrollbar = tk.Scrollbar(chat_scroll_frame)
+        chat_scrollbar.pack(side='right', fill='y')
+        
+        self.assistant_chat_display = tk.Text(chat_scroll_frame, height=12, wrap='word',
+                                              yscrollcommand=chat_scrollbar.set,
+                                              font=('Segoe UI', 9), bg='#f5f5f5')
+        self.assistant_chat_display.pack(side='left', fill='both', expand=True)
+        chat_scrollbar.config(command=self.assistant_chat_display.yview)
+        
+        # Configure text tags for chat styling
+        self.assistant_chat_display.tag_config('user', foreground='#1976D2', font=('Segoe UI', 9, 'bold'))
+        self.assistant_chat_display.tag_config('assistant', foreground='#388E3C', font=('Segoe UI', 9, 'bold'))
+        self.assistant_chat_display.tag_config('error', foreground='#D32F2F', font=('Segoe UI', 9, 'bold'))
+        self.assistant_chat_display.tag_config('system', foreground='#666', font=('Segoe UI', 9, 'italic'))
+        
+        # Make read-only
+        self.assistant_chat_display.config(state='disabled')
+        
+        # Input area
+        input_frame = tk.Frame(chat_frame)
+        input_frame.pack(fill='x', pady=(5, 0))
+        
+        tk.Label(input_frame, text="Your question:", font=('Segoe UI', 9)).pack(anchor='w', pady=(0, 2))
+        
+        input_inner_frame = tk.Frame(input_frame)
+        input_inner_frame.pack(fill='x')
+        
+        self.assistant_input = tk.Entry(input_inner_frame, font=('Segoe UI', 9))
+        self.assistant_input.pack(side='left', fill='x', expand=True, padx=(0, 5))
+        self.assistant_input.bind('<Return>', lambda e: self.send_assistant_message())
+        
+        tk.Button(input_inner_frame, text="📤 Ask",
+                 command=self.send_assistant_message,
+                 bg='#4CAF50', fg='white', font=('Segoe UI', 9, 'bold')).pack(side='left')
+        
+        # Quick actions
+        quick_frame = tk.Frame(parent, bg='#fff3e0', relief='solid', borderwidth=1)
+        quick_frame.pack(fill='x', padx=5, pady=5)
+        
+        tk.Label(quick_frame, text="💡 Quick Actions", font=('Segoe UI', 9, 'bold'),
+                bg='#fff3e0').pack(anchor='w', padx=10, pady=(5, 2))
+        
+        quick_btn_frame = tk.Frame(quick_frame, bg='#fff3e0')
+        quick_btn_frame.pack(fill='x', padx=10, pady=(0, 5))
+        
+        tk.Button(quick_btn_frame, text="💡 Suggest better prompt",
+                 command=lambda: self.quick_ask("Based on my document, suggest a better translation prompt"),
+                 bg='#FF9800', fg='white', font=('Segoe UI', 8)).pack(side='left', padx=(0, 3))
+        
+        tk.Button(quick_btn_frame, text="🔍 What domain is this?",
+                 command=lambda: self.quick_ask("What type of document is this? What domain does it belong to?"),
+                 bg='#9C27B0', fg='white', font=('Segoe UI', 8)).pack(side='left', padx=(0, 3))
+        
+        tk.Button(quick_btn_frame, text="✨ Check terminology",
+                 command=lambda: self.quick_ask("What are the key terms and technical vocabulary in this document?"),
+                 bg='#00BCD4', fg='white', font=('Segoe UI', 8)).pack(side='left')
+        
+        # Initial welcome message
+        self.add_assistant_chat_message('system', "Welcome! I can help you understand your document and optimize your translation settings. Try clicking 'Analyze Document' or ask me a question!")
+    
+    def analyze_current_document(self):
+        """Analyze the currently loaded document"""
+        if not self.document_analyzer:
+            messagebox.showerror("Not Available", "Document analyzer module not loaded")
+            return
+        
+        if not self.segments:
+            messagebox.showwarning("No Document", "Please load a document first")
+            return
+        
+        # Check if LLM is configured
+        api_key_name = "google" if self.current_llm_provider == "gemini" else self.current_llm_provider
+        if not self.api_keys.get(api_key_name):
+            self.add_assistant_chat_message('error', 
+                f"Please configure {self.current_llm_provider.upper()} API key in the LLM tab first.")
+            return
+        
+        self.doc_analysis_status.config(text="⏳ Analyzing document with AI...", fg='#FF9800')
+        self.root.update_idletasks()
+        
+        try:
+            # Prepare document text (first 8000 words for context limits)
+            source_texts = [seg.source for seg in self.segments if seg.source]
+            full_text = "\n".join(source_texts)
+            
+            # Truncate if too long (roughly 10000 tokens = 7500 words)
+            words = full_text.split()
+            if len(words) > 8000:
+                full_text = " ".join(words[:8000]) + "\n\n[...document continues...]"
+            
+            # Get source and target languages
+            source_lang = self.source_language or "Dutch"
+            target_lang = self.target_language or "English"
+            
+            # Build intelligent analysis prompt (fully domain-agnostic, works for ALL document types)
+            system_prompt = f"""You are a professional translator working between {source_lang} and {target_lang}.
+
+The user is translating a document and needs your help with terminology and translation questions.
+
+Your analysis should be comprehensive and practical for professional translation work. Adapt your approach based on the document type you identify."""
+
+            user_prompt = f"""Please analyze this document carefully, examining its content, structure, and terminology. Provide me with a detailed high-level summary and a comprehensive bilingual glossary of key terms. I will use your response to help configure an AI-powered translation tool for sentence-by-sentence translation.
+
+**Document text ({source_lang}):**
+
+{full_text}
+
+**Please provide:**
+
+1. **High-level summary** (2-4 paragraphs):
+   - What is the main subject/topic?
+   - What problems does it address or what is its purpose?
+   - What are the key features, components, concepts, or methods described?
+   - What is the overall significance or application?
+
+2. **Document type and technical domain**: First identify the document type, then specify the domain:
+   - Document types: patent, medical report, legal contract, technical manual, user guide, marketing material, scientific paper, regulatory document, etc.
+   - Technical domains: civil engineering, medical devices, pharmaceuticals, software, mechanical engineering, legal/regulatory, finance, etc.
+
+3. **Bilingual glossary of key technical terms** in markdown table format:
+
+| {source_lang} term | {target_lang} equivalent | Notes / context |
+|-------------------|------------------------|------------------|
+
+**CRITICAL GLOSSARY INSTRUCTIONS:**
+- Extract 25-40 of the most important domain-specific terms (not exhaustive, focus on quality)
+- IGNORE common words: articles (de, het, een), pronouns (deze, dit), prepositions (van, in, op)
+- IGNORE section headers like "DESCRIPTION", "FIGURES", "INTRODUCTION" unless they're technical terms
+- Focus on: specialized terminology, key concepts, technical components, processes, legal/medical/technical jargon
+- For patents: emphasize claimed elements, structural components, technical features, materials, methods
+- For medical: focus on anatomical terms, procedures, medications, conditions, measurements
+- For legal: emphasize legal terms, clauses, obligations, definitions, regulatory references
+- For technical manuals: focus on components, operations, specifications, safety terms
+- Include compound terms and multi-word technical expressions
+- Provide helpful context notes for each term (usage, synonyms, technical meaning, register)
+- When multiple translations exist, list them separated by / (e.g., "joint plate / expansion joint plate")
+
+Your response will help configure an AI translation tool for professional-quality sentence-by-sentence translation."""
+            
+            # Store prompt for transparency (user can view exactly what was sent to AI)
+            self.last_analysis_prompt = {
+                'system': system_prompt,
+                'user': user_prompt,
+                'full_text': full_text,
+                'word_count': len(words),
+                'truncated': len(words) > 8000,
+                'source_lang': source_lang,
+                'target_lang': target_lang,
+                'model': self.current_llm_model,
+                'provider': self.current_llm_provider
+            }
+
+            # Call LLM
+            self.add_assistant_chat_message('system', f"🤔 Analyzing {len(words)} words with {self.current_llm_provider.upper()}...")
+            self.root.update_idletasks()
+            
+            answer = None
+            if self.current_llm_provider == "openai":
+                from openai import OpenAI
+                client = OpenAI(api_key=self.api_keys["openai"])
+                
+                response = client.chat.completions.create(
+                    model=self.current_llm_model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    temperature=0.3,  # Lower temperature for more focused analysis
+                    max_tokens=2000   # Need more tokens for glossary
+                )
+                answer = response.choices[0].message.content
+            
+            elif self.current_llm_provider == "claude":
+                import anthropic
+                client = anthropic.Anthropic(api_key=self.api_keys["claude"])
+                
+                response = client.messages.create(
+                    model=self.current_llm_model,
+                    max_tokens=2000,
+                    temperature=0.3,
+                    system=system_prompt,
+                    messages=[{"role": "user", "content": user_prompt}]
+                )
+                answer = response.content[0].text
+            
+            elif self.current_llm_provider == "gemini":
+                import google.generativeai as genai
+                genai.configure(api_key=self.api_keys["google"])
+                model = genai.GenerativeModel(self.current_llm_model)
+                
+                combined = system_prompt + "\n\n" + user_prompt
+                response = model.generate_content(
+                    combined,
+                    generation_config=genai.types.GenerationConfig(
+                        temperature=0.3,
+                        max_output_tokens=2000
+                    )
+                )
+                answer = response.text
+            
+            # Store result
+            self.doc_analysis_result = {
+                'success': True,
+                'analysis': answer,
+                'segment_count': len(self.segments),
+                'word_count': len(words),
+                'source_lang': source_lang,
+                'target_lang': target_lang
+            }
+            
+            # Update status
+            self.doc_analysis_status.config(
+                text=f"✓ Analysis complete: {len(self.segments)} segments analyzed with AI",
+                fg='#388E3C'
+            )
+            
+            # Add to chat
+            self.add_assistant_chat_message('assistant', f"**Document Analysis Complete**\n\n{answer}")
+            
+            self.log(f"✓ AI document analysis complete: {len(self.segments)} segments, {len(words)} words")
+        
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            self.doc_analysis_status.config(text=f"❌ Error: {str(e)}", fg='#D32F2F')
+            self.add_assistant_chat_message('error', f"Error during analysis: {str(e)}")
+            self.log(f"✗ Document analysis error: {str(e)}", "ERROR")
+    
+    def reanalyze_with_custom_prompts(self, system_prompt, user_prompt):
+        """Re-run analysis using user-edited prompts for iterative refinement"""
+        if not self.segments:
+            messagebox.showwarning("No Document", "Document has been closed. Please reload it.")
+            return
+        
+        # Check if LLM is configured
+        api_key_name = "google" if self.current_llm_provider == "gemini" else self.current_llm_provider
+        if not self.api_keys.get(api_key_name):
+            self.add_assistant_chat_message('error', 
+                f"Please configure {self.current_llm_provider.upper()} API key in the LLM tab first.")
+            return
+        
+        self.doc_analysis_status.config(text="⏳ Re-analyzing with edited prompts...", fg='#FF9800')
+        self.root.update_idletasks()
+        
+        try:
+            # Get the document text (same as before)
+            source_texts = [seg.source for seg in self.segments if seg.source]
+            full_text = "\n".join(source_texts)
+            words = full_text.split()
+            if len(words) > 8000:
+                full_text = " ".join(words[:8000]) + "\n\n[...document continues...]"
+            
+            # Add document text to user prompt if it doesn't already contain it
+            if "{full_text}" in user_prompt or "**Document text" not in user_prompt:
+                # User prompt has placeholder or doesn't include doc - add it
+                if "{full_text}" in user_prompt:
+                    user_prompt = user_prompt.replace("{full_text}", full_text)
+                else:
+                    # Append document text
+                    user_prompt = f"{user_prompt}\n\n**Document text:**\n\n{full_text}"
+            
+            # Inform user
+            self.add_assistant_chat_message('system', 
+                f"🔄 Re-analyzing with your edited prompts... ({len(words)} words, {self.current_llm_provider.upper()})")
+            self.root.update_idletasks()
+            
+            # Call LLM with edited prompts
+            answer = None
+            if self.current_llm_provider == "openai":
+                from openai import OpenAI
+                client = OpenAI(api_key=self.api_keys["openai"])
+                
+                response = client.chat.completions.create(
+                    model=self.current_llm_model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    temperature=0.3,
+                    max_tokens=2000
+                )
+                answer = response.choices[0].message.content
+            
+            elif self.current_llm_provider == "claude":
+                import anthropic
+                client = anthropic.Anthropic(api_key=self.api_keys["claude"])
+                
+                response = client.messages.create(
+                    model=self.current_llm_model,
+                    max_tokens=2000,
+                    temperature=0.3,
+                    system=system_prompt,
+                    messages=[{"role": "user", "content": user_prompt}]
+                )
+                answer = response.content[0].text
+            
+            elif self.current_llm_provider == "gemini":
+                import google.generativeai as genai
+                genai.configure(api_key=self.api_keys["google"])
+                model = genai.GenerativeModel(self.current_llm_model)
+                
+                combined = system_prompt + "\n\n" + user_prompt
+                response = model.generate_content(
+                    combined,
+                    generation_config=genai.types.GenerationConfig(
+                        temperature=0.3,
+                        max_output_tokens=2000
+                    )
+                )
+                answer = response.text
+            
+            # Update stored results
+            source_lang = self.last_analysis_prompt.get('source_lang', self.source_language)
+            target_lang = self.last_analysis_prompt.get('target_lang', self.target_language)
+            
+            self.doc_analysis_result = {
+                'success': True,
+                'analysis': answer,
+                'segment_count': len(self.segments),
+                'word_count': len(words),
+                'source_lang': source_lang,
+                'target_lang': target_lang,
+                'custom_prompts': True  # Flag to indicate this used custom prompts
+            }
+            
+            # Update stored prompt (for transparency)
+            self.last_analysis_prompt['system'] = system_prompt
+            self.last_analysis_prompt['user'] = user_prompt
+            
+            # Update status
+            self.doc_analysis_status.config(
+                text=f"✓ Re-analysis complete with custom prompts: {len(self.segments)} segments",
+                fg='#388E3C'
+            )
+            
+            # Add to chat
+            self.add_assistant_chat_message('assistant', 
+                f"**Re-Analysis Complete (Custom Prompts)**\n\n{answer}")
+            
+            self.log(f"✓ Re-analysis with custom prompts: {len(self.segments)} segments, {len(words)} words")
+        
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            self.doc_analysis_status.config(text=f"❌ Re-analysis error: {str(e)}", fg='#D32F2F')
+            self.add_assistant_chat_message('error', f"Re-analysis error: {str(e)}")
+            self.log(f"✗ Re-analysis error: {str(e)}", "ERROR")
+    
+    def generate_translation_prompts(self):
+        """Generate ready-to-use System Prompt and Custom Instructions based on document analysis"""
+        if not self.doc_analysis_result:
+            messagebox.showinfo("Analyze First", 
+                              "Please analyze the document first by clicking 'Analyze Document'")
+            return
+        
+        # Check if LLM is configured
+        api_key_name = "google" if self.current_llm_provider == "gemini" else self.current_llm_provider
+        if not self.api_keys.get(api_key_name):
+            self.add_assistant_chat_message('error', 
+                f"Please configure {self.current_llm_provider.upper()} API key in the LLM tab first.")
+            return
+        
+        # Show thinking indicator
+        self.add_assistant_chat_message('system', "🤔 Generating optimized prompts based on your document analysis...")
+        self.root.update_idletasks()
+        
+        try:
+            # Get the previous analysis
+            analysis_text = self.doc_analysis_result.get('analysis', '')
+            source_lang = self.doc_analysis_result.get('source_lang', self.source_language)
+            target_lang = self.doc_analysis_result.get('target_lang', self.target_language)
+            
+            # Build prompt to generate actionable System Prompt + Custom Instructions
+            system_prompt = f"""You are an expert translation workflow consultant helping configure a CAT tool.
+
+The user has just analyzed their document and received the following analysis:
+
+{analysis_text}
+
+Your task is to generate TWO separate, ready-to-use prompts for the translator:
+
+1. **SYSTEM PROMPT** (Global translation strategy - goes in "System Prompts" section)
+   - This should be a COMPLETE, ready-to-use prompt that defines HOW to translate
+   - Include the translation direction using PLACEHOLDERS: {source_lang} → {target_lang}
+   - Specify the domain, tone, register, terminology handling GENERALLY (not document-specific)
+   - Include specific translation strategies for this document type
+   - Make it GENERIC and REUSABLE for similar documents in this domain
+   - Should be 3-5 paragraphs, comprehensive but focused
+   - Do NOT include specific glossary terms - keep it general
+   - Use {source_lang} and {target_lang} placeholders, NOT specific language names
+
+2. **CUSTOM INSTRUCTIONS** (Project-specific guidance - goes in "Custom Instructions" tab)
+   - Start with 2-3 paragraphs of SPECIFIC guidance for THIS document
+   - Then include the KEY TERMINOLOGY section
+   
+   **CRITICAL: GLOSSARY TABLE REQUIREMENTS**
+   - You MUST copy the ENTIRE bilingual glossary table from the analysis above
+   - Copy it VERBATIM - every single row, word-for-word
+   - The table header must be: | Dutch term | English equivalent | Notes / context |
+   - Include the separator line: |------------|--------------------|-----------------| 
+   - Then copy EVERY SINGLE ROW from the analysis glossary
+   - If there are 33 terms in the analysis, there must be 33 rows in your output
+   - DO NOT STOP until you've copied the LAST row of the glossary
+   - After the complete table, add 2-3 paragraphs with specific examples
+   
+   Reference specific key terms with translation examples
+   Mention specific challenges identified in the analysis
+   Include domain-specific requirements (e.g., for patents: maintain claim structure, legal accuracy)
+   List terminology consistency rules with concrete examples from the glossary
+   Highlight any special handling needed (measurements, figures, technical processes)
+
+Format your response EXACTLY like this:
+
+---SYSTEM PROMPT---
+[Full system prompt text here, ready to copy-paste]
+
+---CUSTOM INSTRUCTIONS---
+[Full custom instructions text here, ready to copy-paste]
+
+---
+
+Be specific, practical, and actionable. The translator should be able to copy these directly into Supervertaler."""
+            
+            user_prompt = f"""Based on the document analysis above, generate optimized translation prompts.
+
+Document context:
+- Source: {source_lang}
+- Target: {target_lang}
+- {self.doc_analysis_result.get('segment_count', 0)} segments to translate
+
+Provide the two prompts in the specified format."""
+            
+            # Call LLM
+            answer = None
+            if self.current_llm_provider == "openai":
+                from openai import OpenAI
+                client = OpenAI(api_key=self.api_keys["openai"])
+                
+                response = client.chat.completions.create(
+                    model=self.current_llm_model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    temperature=0.4,
+                    max_tokens=8000  # Increased to ensure complete glossary (33 terms = ~6000 tokens)
+                )
+                answer = response.choices[0].message.content
+                finish_reason = response.choices[0].finish_reason
+                if finish_reason == 'length':
+                    self.log("⚠️ WARNING: Response truncated due to token limit!", "WARNING")
+                    self.add_assistant_chat_message('warning', 
+                        "⚠️ Response was truncated! Glossary may be incomplete. Try using a different model.")
+            
+            elif self.current_llm_provider == "claude":
+                import anthropic
+                client = anthropic.Anthropic(api_key=self.api_keys["claude"])
+                
+                response = client.messages.create(
+                    model=self.current_llm_model,
+                    max_tokens=8000,  # Increased to ensure complete glossary (33 terms = ~6000 tokens)
+                    temperature=0.4,
+                    system=system_prompt,
+                    messages=[{"role": "user", "content": user_prompt}]
+                )
+                answer = response.content[0].text
+                if response.stop_reason == 'max_tokens':
+                    self.log("⚠️ WARNING: Response truncated due to token limit!", "WARNING")
+                    self.add_assistant_chat_message('warning', 
+                        "⚠️ Response was truncated! Glossary may be incomplete. Try using a different model.")
+            
+            elif self.current_llm_provider == "gemini":
+                import google.generativeai as genai
+                genai.configure(api_key=self.api_keys["google"])
+                model = genai.GenerativeModel(self.current_llm_model)
+                
+                combined = system_prompt + "\n\n" + user_prompt
+                response = model.generate_content(
+                    combined,
+                    generation_config=genai.types.GenerationConfig(
+                        temperature=0.4,
+                        max_output_tokens=8000  # Increased to ensure complete glossary (33 terms = ~6000 tokens)
+                    )
+                )
+                answer = response.text
+                # Check if truncated
+                if hasattr(response, 'candidates') and response.candidates:
+                    finish_reason = response.candidates[0].finish_reason
+                    if finish_reason == 1:  # FINISH_REASON_MAX_TOKENS
+                        self.log("⚠️ WARNING: Response truncated due to token limit!", "WARNING")
+                        self.add_assistant_chat_message('warning', 
+                            "⚠️ Response was truncated! Glossary may be incomplete. Try using a different model.")
+            
+            # Parse the response and create an interactive dialog
+            # Check if response might be truncated
+            if len(answer) > 3500 and not answer.rstrip().endswith(('---', '.')):
+                self.add_assistant_chat_message('warning', 
+                    "⚠️ Response may be truncated - if glossary is incomplete, try re-generating.")
+            
+            self.show_generated_prompts_dialog(answer, source_lang, target_lang)
+            
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            self.add_assistant_chat_message('error', f"Error generating prompts: {str(e)}")
+            self.log(f"✗ Prompt generation error: {str(e)}", "ERROR")
+    
+    def show_generated_prompts_dialog(self, ai_response, source_lang, target_lang):
+        """Display generated prompts in an interactive dialog with copy/apply actions"""
+        # Parse the AI response to extract System Prompt and Custom Instructions
+        try:
+            # Split by the main delimiters
+            if "---SYSTEM PROMPT---" in ai_response and "---CUSTOM INSTRUCTIONS---" in ai_response:
+                parts = ai_response.split("---SYSTEM PROMPT---")
+                remainder = parts[1].split("---CUSTOM INSTRUCTIONS---")
+                system_prompt_text = remainder[0].strip()
+                # DON'T split on --- again - take everything after ---CUSTOM INSTRUCTIONS---
+                custom_instructions_text = remainder[1].strip()
+                # Only remove trailing --- if it exists at the very end
+                if custom_instructions_text.endswith("---"):
+                    custom_instructions_text = custom_instructions_text[:-3].strip()
+            else:
+                # Fallback: try to parse without delimiters
+                system_prompt_text = ai_response[:len(ai_response)//2]
+                custom_instructions_text = ai_response[len(ai_response)//2:]
+        except Exception as e:
+            self.log(f"⚠️ Error parsing AI response: {str(e)}", "WARNING")
+            system_prompt_text = ai_response
+            custom_instructions_text = "See System Prompt above for complete guidance."
+        
+        # Create dialog
+        dialog = tk.Toplevel(self.root)
+        dialog.title(f"Generated Translation Prompts - {source_lang} → {target_lang}")
+        dialog.geometry("950x800")
+        
+        # Header
+        header_frame = tk.Frame(dialog, bg='#e8f5e9', relief='solid', borderwidth=1)
+        header_frame.pack(fill='x', padx=10, pady=10)
+        
+        tk.Label(header_frame, text="🎯 Ready-to-Use Translation Prompts", 
+                font=('Segoe UI', 12, 'bold'), bg='#e8f5e9').pack(anchor='w', padx=10, pady=5)
+        tk.Label(header_frame, 
+                text="Generated based on your document analysis. Copy or apply directly to your translation setup.",
+                font=('Segoe UI', 9), bg='#e8f5e9', fg='#2E7D32').pack(anchor='w', padx=10, pady=(0, 5))
+        
+        # Notebook for two tabs
+        notebook = ttk.Notebook(dialog)
+        notebook.pack(fill='both', expand=True, padx=10, pady=(0, 10))
+        
+        # --- SYSTEM PROMPT TAB ---
+        system_frame = tk.Frame(notebook)
+        notebook.add(system_frame, text="📋 System Prompt (Global Strategy)")
+        
+        tk.Label(system_frame, 
+                text="This prompt will be saved as a JSON file in your System_prompts folder",
+                font=('Segoe UI', 9, 'bold'), fg='#1976D2', bg='#e3f2fd').pack(fill='x', padx=5, pady=5)
+        
+        system_text = scrolledtext.ScrolledText(system_frame, wrap='word', font=('Segoe UI', 10), height=20)
+        system_text.pack(fill='both', expand=True, padx=5, pady=5)
+        system_text.insert('1.0', system_prompt_text)
+        system_text.config(state='disabled')
+        
+        system_btn_frame = tk.Frame(system_frame)
+        system_btn_frame.pack(fill='x', padx=5, pady=5)
+        
+        def save_system_prompt():
+            """Save System Prompt as JSON file in System_prompts folder with proper schema"""
+            # Ask for filename
+            doc_type = "Custom"  # Default
+            if "patent" in system_prompt_text.lower():
+                doc_type = "Patent"
+            elif "medical" in system_prompt_text.lower():
+                doc_type = "Medical"
+            elif "legal" in system_prompt_text.lower():
+                doc_type = "Legal"
+            elif "technical" in system_prompt_text.lower():
+                doc_type = "Technical"
+            
+            default_name = f"{doc_type}_{source_lang}_to_{target_lang}"
+            
+            filename = simpledialog.askstring(
+                "Save System Prompt",
+                "Enter a name for this System Prompt:\n(will be saved as JSON file)",
+                initialvalue=default_name
+            )
+            
+            if filename:
+                # Ensure .json extension
+                if not filename.endswith('.json'):
+                    filename += '.json'
+                
+                # Get System_prompts directory
+                system_prompts_dir = get_user_data_path("System_prompts")
+                filepath = os.path.join(system_prompts_dir, filename)
+                
+                # Determine domain from doc_type
+                domain_map = {
+                    "Patent": "Intellectual Property",
+                    "Medical": "Medical/Healthcare",
+                    "Legal": "Legal/Regulatory",
+                    "Technical": "Technical/Engineering"
+                }
+                domain = domain_map.get(doc_type, "General")
+                
+                # Replace language names with placeholders for reusability
+                prompt_with_placeholders = system_prompt_text.replace(source_lang, "{source_lang}").replace(target_lang, "{target_lang}")
+                
+                # Create JSON structure matching the existing prompt library schema
+                prompt_data = {
+                    "name": default_name,
+                    "description": f"AI-generated system prompt for translation in {doc_type.lower()} domain",
+                    "domain": domain,
+                    "version": "1.0",
+                    "task_type": "Translation",
+                    "created": datetime.now().strftime("%Y-%m-%d") + " - AI Generated",
+                    "modified": datetime.now().strftime("%Y-%m-%d"),
+                    "translate_prompt": prompt_with_placeholders,
+                    "proofread_prompt": ""
+                }
+                
+                # Save file
+                try:
+                    with open(filepath, 'w', encoding='utf-8') as f:
+                        json.dump(prompt_data, f, indent=2, ensure_ascii=False)
+                    messagebox.showinfo("Saved!", 
+                        f"System Prompt saved as:\n{filename}\n\n"
+                        f"Location: {system_prompts_dir}\n\n"
+                        f"It will now appear in your Prompt Library → System Prompts section.")
+                    
+                    # Refresh prompt library if visible
+                    if hasattr(self, '_pl_load_system_prompts'):
+                        self._pl_load_system_prompts()
+                    
+                    self.log(f"✓ Saved System Prompt: {filename}")
+                    # Don't close dialog - let user see both prompts
+                except Exception as e:
+                    messagebox.showerror("Error", f"Failed to save:\n{str(e)}")
+        
+        def copy_system_prompt():
+            self.root.clipboard_clear()
+            self.root.clipboard_append(system_prompt_text)
+            messagebox.showinfo("Copied!", "System Prompt copied to clipboard!")
+        
+        tk.Button(system_btn_frame, text="💾 Save as System Prompt",
+                 command=save_system_prompt,
+                 bg='#4CAF50', fg='white', font=('Segoe UI', 10, 'bold')).pack(side='left', padx=5)
+        
+        tk.Button(system_btn_frame, text="📋 Copy to Clipboard",
+                 command=copy_system_prompt,
+                 bg='#2196F3', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=5)
+        
+        # --- CUSTOM INSTRUCTIONS TAB ---
+        custom_frame = tk.Frame(notebook)
+        notebook.add(custom_frame, text="📝 Custom Instructions (Project-Specific)")
+        
+        tk.Label(custom_frame, 
+                text="These instructions will be applied directly to your current project",
+                font=('Segoe UI', 9, 'bold'), fg='#F57C00', bg='#fff3e0').pack(fill='x', padx=5, pady=5)
+        
+        custom_text = scrolledtext.ScrolledText(custom_frame, wrap='word', font=('Segoe UI', 10), height=20)
+        custom_text.pack(fill='both', expand=True, padx=5, pady=5)
+        custom_text.insert('1.0', custom_instructions_text)
+        custom_text.config(state='disabled')
+        
+        custom_btn_frame = tk.Frame(custom_frame)
+        custom_btn_frame.pack(fill='x', padx=5, pady=5)
+        
+        def apply_custom_instructions():
+            """Save custom instructions as JSON file in Prompt Library"""
+            # Get document title from current file
+            doc_title = "Current Project"
+            if hasattr(self, 'original_docx') and self.original_docx:
+                doc_title = os.path.splitext(os.path.basename(self.original_docx))[0]
+            
+            # Ask for a name
+            from tkinter import simpledialog
+            name = simpledialog.askstring(
+                "Save Custom Instructions",
+                "Enter a name for these custom instructions:\n\n"
+                f"(For document: {doc_title})",
+                initialvalue=f"{doc_title} - Custom Instructions"
+            )
+            
+            if not name:
+                return  # User cancelled
+            
+            # Extract domain from analysis if available
+            domain = "General"
+            if hasattr(self, 'doc_analysis_result') and self.doc_analysis_result:
+                # Try to extract domain from analysis text (it's usually mentioned)
+                analysis_text = self.doc_analysis_result.get('analysis', '').lower()
+                if 'patent' in analysis_text:
+                    domain = "Legal/Patents"
+                elif 'medical' in analysis_text or 'clinical' in analysis_text:
+                    domain = "Medical"
+                elif 'technical' in analysis_text or 'engineering' in analysis_text:
+                    domain = "Technical"
+                elif 'legal' in analysis_text:
+                    domain = "Legal"
+                elif 'marketing' in analysis_text:
+                    domain = "Marketing"
+            
+            # Create the JSON structure
+            import datetime
+            custom_data = {
+                "name": name,
+                "description": f"AI-generated custom instructions for {doc_title}",
+                "domain": domain,
+                "version": "1.0",
+                "created": datetime.datetime.now().strftime("%Y-%m-%d"),
+                "translate_prompt": custom_instructions_text,
+                "proofread_prompt": custom_instructions_text  # Same instructions for both
+            }
+            
+            # Save to Custom Instructions folder (respects dev mode)
+            custom_instructions_dir = get_user_data_path('Custom_instructions')
+            os.makedirs(custom_instructions_dir, exist_ok=True)
+            
+            # Sanitize filename
+            safe_filename = "".join(c for c in name if c.isalnum() or c in (' ', '-', '_')).strip()
+            filepath = os.path.join(custom_instructions_dir, f"{safe_filename}.json")
+            
+            # Log for debugging
+            self.log(f"💾 Saving Custom Instructions to: {filepath}")
+            
+            try:
+                with open(filepath, 'w', encoding='utf-8') as f:
+                    json.dump(custom_data, f, indent=2, ensure_ascii=False)
+                
+                self.log(f"✅ Custom Instructions saved: {safe_filename}.json")
+                
+                # Reload prompt library to show the new file
+                if hasattr(self, 'prompt_library'):
+                    self.prompt_library.load_all_prompts()
+                    # Refresh the Custom Instructions list in Prompt Library UI
+                    if hasattr(self, '_pl_load_custom_instructions'):
+                        self._pl_load_custom_instructions()
+                
+                messagebox.showinfo("Saved!", 
+                    f"Custom Instructions saved as:\n\n{safe_filename}.json\n\n"
+                    "You can now find it in:\n"
+                    "📚 Prompt Library → 📝 Custom Instructions tab\n\n"
+                    "Click '✅ Use in Current Project' to activate it.")
+                
+                # Don't close the dialog - let user see both prompts
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to save custom instructions:\n\n{str(e)}")
+        
+        def copy_custom_instructions():
+            self.root.clipboard_clear()
+            self.root.clipboard_append(custom_instructions_text)
+            messagebox.showinfo("Copied!", "Custom Instructions copied to clipboard!")
+        
+        tk.Button(custom_btn_frame, text="💾 Save as Custom Instructions",
+                 command=apply_custom_instructions,
+                 bg='#4CAF50', fg='white', font=('Segoe UI', 10, 'bold')).pack(side='left', padx=5)
+        
+        tk.Button(custom_btn_frame, text="📋 Copy to Clipboard",
+                 command=copy_custom_instructions,
+                 bg='#2196F3', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=5)
+        
+        # Close button at bottom
+        tk.Button(dialog, text="❌ Close", command=dialog.destroy,
+                 bg='#757575', fg='white', font=('Segoe UI', 9)).pack(pady=(0, 10))
+        
+        # Also show in chat for reference
+        self.add_assistant_chat_message('assistant', 
+            f"✅ **Generated Translation Prompts**\n\n"
+            f"I've created optimized System Prompt and Custom Instructions based on your document analysis.\n\n"
+            f"**Next steps:**\n"
+            f"1. Review the prompts in the dialog window\n"
+            f"2. Copy System Prompt → Add to System Prompts library\n"
+            f"3. Copy/Apply Custom Instructions → Save to project\n"
+            f"4. Start translating with optimized settings!")
+    
+    def clear_analysis(self):
+        """Clear analysis results and chat history"""
+        self.doc_analysis_result = None
+        self.last_analysis_prompt = None
+        self.doc_analysis_status.config(text="No analysis performed yet", fg='#999')
+        self.assistant_chat_history = []
+        
+        # Clear chat display
+        self.assistant_chat_display.config(state='normal')
+        self.assistant_chat_display.delete('1.0', tk.END)
+        self.assistant_chat_display.config(state='disabled')
+        
+        # Add welcome message back
+        self.add_assistant_chat_message('system', "Welcome! I can help you understand your document and optimize your translation settings. Try clicking 'Analyze Document' or ask me a question!")
+        
+        self.log("Analysis results and chat history cleared")
+    
+    def show_analysis_prompt(self):
+        """Show and edit the prompts used for AI analysis - iterative refinement"""
+        if not self.last_analysis_prompt:
+            messagebox.showinfo("No Analysis Yet", 
+                              "Please analyze a document first to see what was sent to the AI.")
+            return
+        
+        # Create dialog window
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Edit Analysis Prompts - Iterative Refinement")
+        dialog.geometry("900x750")
+        
+        # Info label
+        info_frame = tk.Frame(dialog, bg='#fff3e0', relief='solid', borderwidth=1)
+        info_frame.pack(fill='x', padx=10, pady=10)
+        
+        tk.Label(info_frame, text="✏️ Edit & Refine Analysis Prompts", 
+                font=('Segoe UI', 11, 'bold'), bg='#fff3e0').pack(anchor='w', padx=10, pady=5)
+        
+        word_count = self.last_analysis_prompt.get('word_count', 0)
+        truncated = self.last_analysis_prompt.get('truncated', False)
+        truncation_note = " (truncated to fit context window)" if truncated else ""
+        
+        tk.Label(info_frame, 
+                text=f"💡 Modify the prompts below to improve analysis results, then click 'Apply & Re-analyze'",
+                font=('Segoe UI', 9), bg='#fff3e0', fg='#E65100').pack(anchor='w', padx=10, pady=(0, 2))
+        
+        tk.Label(info_frame, 
+                text=f"Document: {word_count} words{truncation_note} | Provider: {self.current_llm_provider.upper()} | Model: {self.current_llm_model}",
+                font=('Segoe UI', 9), bg='#fff3e0', fg='#666').pack(anchor='w', padx=10, pady=(0, 5))
+        
+        # Tabbed interface for system prompt and user prompt (NOW EDITABLE)
+        notebook = ttk.Notebook(dialog)
+        notebook.pack(fill='both', expand=True, padx=10, pady=(0, 10))
+        
+        # System Prompt Tab (EDITABLE)
+        system_frame = tk.Frame(notebook)
+        notebook.add(system_frame, text="📋 System Prompt (Instructions to AI)")
+        
+        tk.Label(system_frame, text="Edit the system instructions that guide how the AI should analyze:",
+                font=('Segoe UI', 9), fg='#666', bg='#f5f5f5').pack(fill='x', padx=5, pady=5)
+        
+        system_scroll = scrolledtext.ScrolledText(system_frame, wrap='word', font=('Consolas', 9))
+        system_scroll.pack(fill='both', expand=True, padx=5, pady=(0, 5))
+        system_scroll.insert('1.0', self.last_analysis_prompt['system'])
+        # Make editable (remove disabled state)
+        
+        # User Prompt Tab (EDITABLE)
+        user_frame = tk.Frame(notebook)
+        notebook.add(user_frame, text="📝 User Prompt (Analysis Request)")
+        
+        tk.Label(user_frame, text="Edit the analysis request and instructions (document text is included automatically):",
+                font=('Segoe UI', 9), fg='#666', bg='#f5f5f5').pack(fill='x', padx=5, pady=5)
+        
+        user_scroll = scrolledtext.ScrolledText(user_frame, wrap='word', font=('Consolas', 9))
+        user_scroll.pack(fill='both', expand=True, padx=5, pady=(0, 5))
+        user_scroll.insert('1.0', self.last_analysis_prompt['user'])
+        # Make editable (remove disabled state)
+        
+        # Action buttons
+        button_frame = tk.Frame(dialog)
+        button_frame.pack(fill='x', padx=10, pady=(0, 10))
+        
+        def apply_and_reanalyze():
+            """Apply edited prompts and re-run analysis"""
+            # Get edited prompts
+            edited_system = system_scroll.get('1.0', 'end-1c')
+            edited_user = user_scroll.get('1.0', 'end-1c')
+            
+            # Update stored prompts
+            self.last_analysis_prompt['system'] = edited_system
+            self.last_analysis_prompt['user'] = edited_user
+            
+            # Close dialog
+            dialog.destroy()
+            
+            # Re-run analysis with edited prompts
+            self.reanalyze_with_custom_prompts(edited_system, edited_user)
+        
+        def reset_to_defaults():
+            """Reset prompts to original defaults"""
+            if messagebox.askyesno("Reset Prompts", 
+                                  "Reset to default analysis prompts? Your edits will be lost."):
+                # Clear and reload from stored original
+                system_scroll.delete('1.0', tk.END)
+                system_scroll.insert('1.0', self.last_analysis_prompt['system'])
+                user_scroll.delete('1.0', tk.END)
+                user_scroll.insert('1.0', self.last_analysis_prompt['user'])
+        
+        tk.Button(button_frame, text="✅ Apply Changes & Re-analyze",
+                 command=apply_and_reanalyze,
+                 bg='#4CAF50', fg='white', font=('Segoe UI', 10, 'bold')).pack(side='left', padx=5)
+        
+        tk.Button(button_frame, text="🔄 Reset to Defaults",
+                 command=reset_to_defaults,
+                 bg='#FF9800', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=5)
+        
+        tk.Button(button_frame, text="❌ Close",
+                 command=dialog.destroy,
+                 bg='#757575', fg='white', font=('Segoe UI', 9)).pack(side='right', padx=5)
+    
+    def send_assistant_message(self):
+        """Send a message to the Prompt Assistant"""
+        message = self.assistant_input.get().strip()
+        if not message:
+            return
+        
+        # Clear input
+        self.assistant_input.delete(0, tk.END)
+        
+        # Add user message to chat
+        self.add_assistant_chat_message('user', message)
+        
+        # Process the message
+        self.process_assistant_query(message)
+    
+    def quick_ask(self, question):
+        """Quick action button - ask a predefined question"""
+        self.assistant_input.delete(0, tk.END)
+        self.assistant_input.insert(0, question)
+        self.send_assistant_message()
+    
+    def process_assistant_query(self, query):
+        """Process user query and generate AI response"""
+        # Check if LLM is configured
+        api_key_name = "google" if self.current_llm_provider == "gemini" else self.current_llm_provider
+        if not self.api_keys.get(api_key_name):
+            self.add_assistant_chat_message('error', 
+                f"Please configure {self.current_llm_provider.upper()} API key in the LLM tab first.")
+            return
+        
+        # Show thinking indicator
+        self.add_assistant_chat_message('system', "🤔 Thinking...")
+        self.root.update_idletasks()
+        
+        try:
+            # Build context from AI analysis if available
+            context = ""
+            if self.doc_analysis_result and self.doc_analysis_result.get('success'):
+                analysis_text = self.doc_analysis_result.get('analysis', '')
+                seg_count = self.doc_analysis_result.get('segment_count', 0)
+                word_count = self.doc_analysis_result.get('word_count', 0)
+                source_lang = self.doc_analysis_result.get('source_lang', 'source')
+                target_lang = self.doc_analysis_result.get('target_lang', 'target')
+                
+                context = f"""
+Document Analysis Results:
+- {seg_count} segments, {word_count} words
+- Source language: {source_lang}
+- Target language: {target_lang}
+
+Previous Analysis:
+{analysis_text}
+
+You have already analyzed this document and provided a summary with bilingual glossary.
+Reference this analysis when answering questions. The terminology and domain information above is accurate and complete."""
+            
+            # Build conversation with context
+            system_prompt = """You are an AI translation assistant integrated into Supervertaler CAT tool.
+Your role is to help translators understand their documents and optimize translation settings.
+
+When answering questions:
+- Be concise but informative
+- Provide actionable advice
+- Reference the document analysis when relevant
+- Suggest specific Supervertaler features when appropriate
+
+Available features you can recommend:
+- System Prompts (for domain-specific translation strategies)
+- Custom Instructions (for project-specific guidance)
+- Glossaries (for consistent terminology)
+- Translation Memory (for leveraging past translations)
+- Figure Context (for visual reference in technical documents)
+"""
+            
+            if context:
+                system_prompt += f"\n{context}"
+            
+            messages = [
+                {"role": "system", "content": system_prompt}
+            ]
+            
+            # Add chat history (last 10 exchanges)
+            for msg in self.assistant_chat_history[-10:]:
+                if msg['role'] in ['user', 'assistant']:
+                    messages.append({"role": msg['role'], "content": msg['content']})
+            
+            # Add current query
+            messages.append({"role": "user", "content": query})
+            
+            # Call LLM based on provider
+            answer = None
+            if self.current_llm_provider == "openai":
+                from openai import OpenAI
+                client = OpenAI(api_key=self.api_keys["openai"])
+                
+                response = client.chat.completions.create(
+                    model=self.current_llm_model,
+                    messages=messages,
+                    temperature=0.7,
+                    max_tokens=500
+                )
+                answer = response.choices[0].message.content
+            
+            elif self.current_llm_provider == "claude":
+                import anthropic
+                client = anthropic.Anthropic(api_key=self.api_keys["claude"])
+                
+                # Extract system message for Claude
+                system_msg = messages[0]['content']
+                user_messages = [m for m in messages[1:]]
+                
+                response = client.messages.create(
+                    model=self.current_llm_model,
+                    max_tokens=500,
+                    system=system_msg,
+                    messages=user_messages
+                )
+                answer = response.content[0].text
+            
+            elif self.current_llm_provider == "gemini":
+                import google.generativeai as genai
+                genai.configure(api_key=self.api_keys["google"])
+                model = genai.GenerativeModel(self.current_llm_model)
+                
+                # Combine messages for Gemini
+                combined = system_prompt + "\n\n"
+                for msg in messages[1:]:
+                    role = "User" if msg['role'] == 'user' else "Assistant"
+                    combined += f"{role}: {msg['content']}\n\n"
+                
+                response = model.generate_content(combined)
+                answer = response.text
+            
+            else:
+                answer = f"LLM provider '{self.current_llm_provider}' not configured"
+            
+            # Remove thinking indicator
+            self.assistant_chat_display.config(state='normal')
+            # Find and remove the last "Thinking..." line
+            content = self.assistant_chat_display.get('1.0', 'end-1c')
+            if "🤔 Thinking..." in content:
+                lines = content.split('\n')
+                if lines and "🤔 Thinking..." in lines[-1]:
+                    self.assistant_chat_display.delete('end-2l', 'end-1c')
+            self.assistant_chat_display.config(state='disabled')
+            
+            # Add AI response
+            self.add_assistant_chat_message('assistant', answer)
+            
+        except Exception as e:
+            # Remove thinking indicator
+            self.assistant_chat_display.config(state='normal')
+            content = self.assistant_chat_display.get('1.0', 'end-1c')
+            if "🤔 Thinking..." in content:
+                lines = content.split('\n')
+                if lines and "🤔 Thinking..." in lines[-1]:
+                    self.assistant_chat_display.delete('end-2l', 'end-1c')
+            self.assistant_chat_display.config(state='disabled')
+            
+            self.add_assistant_chat_message('error', f"Error: {str(e)}")
+            logging.error(f"Prompt Assistant error: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    def add_assistant_chat_message(self, role, message):
+        """Add a message to the Prompt Assistant chat display"""
+        self.assistant_chat_display.config(state='normal')
+        
+        # Add timestamp
+        from datetime import datetime
+        timestamp = datetime.now().strftime("%H:%M")
+        
+        if role == 'user':
+            self.assistant_chat_display.insert(tk.END, f"[{timestamp}] You: ", 'user')
+        elif role == 'assistant':
+            self.assistant_chat_display.insert(tk.END, f"[{timestamp}] AI: ", 'assistant')
+        elif role == 'error':
+            self.assistant_chat_display.insert(tk.END, f"[{timestamp}] Error: ", 'error')
+        elif role == 'system':
+            self.assistant_chat_display.insert(tk.END, f"[{timestamp}] ", 'system')
+        
+        self.assistant_chat_display.insert(tk.END, message + "\n\n")
+        self.assistant_chat_display.see(tk.END)
+        self.assistant_chat_display.config(state='disabled')
+        
+        # Store in history
+        self.assistant_chat_history.append({
+            'role': role if role in ['user', 'assistant'] else 'system',
+            'content': message,
+            'timestamp': timestamp
+        })
+    
     def save_custom_instructions(self):
         """Save custom instructions to project"""
-        self.log("✓ Custom instructions saved")
-        # TODO: Save to project file when project is saved
+        if not self.current_project_file:
+            self.log("⚠ No project loaded - custom instructions will be saved when you save the project", "WARNING")
+            return False
+        
+        try:
+            # Get current custom instructions text
+            if hasattr(self, 'custom_instructions_text'):
+                custom_text = self.custom_instructions_text.get('1.0', 'end-1c')
+                
+                # Skip if it's a placeholder
+                if self.is_custom_instructions_placeholder(custom_text):
+                    self.log("ℹ Custom instructions cleared (placeholder)", "INFO")
+                    return True
+                
+                # Load existing project data
+                with open(self.current_project_file, 'r', encoding='utf-8') as f:
+                    project_data = json.load(f)
+                
+                # Update custom instructions
+                project_data['custom_instructions'] = custom_text
+                
+                # Save back to file
+                with open(self.current_project_file, 'w', encoding='utf-8') as f:
+                    json.dump(project_data, f, indent=2, ensure_ascii=False)
+                
+                self.log("✓ Custom instructions saved to project")
+                return True
+            else:
+                self.log("⚠ Custom instructions widget not initialized", "WARNING")
+                return False
+        except Exception as e:
+            self.log(f"✗ Error saving custom instructions: {str(e)}", "ERROR")
+            return False
     
     def on_custom_instructions_focus(self, event):
         """Clear placeholder when user focuses on the text field"""
@@ -4779,16 +6018,11 @@ class Supervertaler:
                               "are combined for the current segment.")
             return
         
-        # Build the complete prompt
-        prompt = self.current_translate_prompt
+        # Get the context-aware prompt (which now includes Custom Instructions if active)
+        prompt = self.get_context_aware_prompt(mode="single")
         prompt = prompt.replace("{{SOURCE_LANGUAGE}}", self.source_language)
         prompt = prompt.replace("{{TARGET_LANGUAGE}}", self.target_language)
         prompt = prompt.replace("{{SOURCE_TEXT}}", self.current_segment.source)
-        
-        # Add custom instructions if provided (skip if just the placeholder)
-        custom_instructions = self.custom_instructions_text.get('1.0', tk.END).strip()
-        if custom_instructions and not self.is_custom_instructions_placeholder(custom_instructions):
-            prompt += "\n\n**SPECIAL INSTRUCTIONS FOR THIS PROJECT:**\n" + custom_instructions
         
         # Show preview dialog
         dialog = tk.Toplevel(self.root)
@@ -4817,9 +6051,14 @@ class Supervertaler:
         
         # Composition breakdown
         composition_text = "📋 Composition:\n"
-        composition_text += f"  • System Prompt (Translation): {len(self.current_translate_prompt)} characters\n"
-        if custom_instructions and not self.is_custom_instructions_placeholder(custom_instructions):
-            composition_text += f"  • Custom Instructions: {len(custom_instructions)} characters\n"
+        base_prompt_name = getattr(self, 'active_translate_prompt_name', 'Default')
+        composition_text += f"  • System Prompt ({base_prompt_name}): {len(self.current_translate_prompt)} characters\n"
+        
+        # Check if Custom Instructions are active
+        if hasattr(self, 'active_custom_instruction') and self.active_custom_instruction:
+            custom_name = getattr(self, 'active_custom_instruction_name', 'Custom')
+            composition_text += f"  • Custom Instructions ({custom_name}): {len(self.active_custom_instruction)} characters\n"
+        
         composition_text += f"  • Total prompt length: {len(prompt)} characters"
         
         tk.Label(info_frame, text=composition_text,
@@ -9323,6 +10562,141 @@ Use this feature AFTER translation to:
         self.update_figure_context_display()  # Update Images tab
         messagebox.showinfo("Figure Context Cleared", "All loaded figure context has been cleared.")
     
+    def extract_images_from_docx(self):
+        """Extract all images from a DOCX file with smart naming based on figure references"""
+        import zipfile
+        import re
+        from PIL import Image
+        import io
+        from docx import Document
+        
+        # Select DOCX file
+        docx_path = filedialog.askopenfilename(
+            title="Select DOCX to Extract Images",
+            filetypes=[("Word Documents", "*.docx"), ("All Files", "*.*")]
+        )
+        
+        if not docx_path:
+            return
+        
+        # Select output folder
+        output_folder = filedialog.askdirectory(
+            title="Select Folder to Save Extracted Images"
+        )
+        
+        if not output_folder:
+            return
+        
+        try:
+            # Load document to get text and figure references
+            doc = Document(docx_path)
+            
+            # Build a map of figure references in the document
+            figure_map = {}
+            figure_counter = 1
+            
+            # Patterns for figure references (multilingual)
+            # Matches: Figure 1, Fig. 2, Figuur 3, Abbildung 4, etc.
+            figure_patterns = [
+                r'\b(Figure|Fig\.|Figuur|Abbildung|Abb\.|Figura|图)\s*(\d+[A-Za-z]?)\b',
+                r'\b(FIG\.|FIGURE)\s*(\d+[A-Za-z]?)\b',
+            ]
+            
+            # Scan document for figure references
+            all_text = []
+            for para in doc.paragraphs:
+                all_text.append(para.text)
+            
+            # Also check tables (patent drawings often have captions in tables)
+            for table in doc.tables:
+                for row in table.rows:
+                    for cell in row.cells:
+                        all_text.append(cell.text)
+            
+            full_text = '\n'.join(all_text)
+            
+            # Extract all figure references
+            figure_refs = set()
+            for pattern in figure_patterns:
+                matches = re.finditer(pattern, full_text, re.IGNORECASE)
+                for match in matches:
+                    fig_type = match.group(1)
+                    fig_num = match.group(2)
+                    # Normalize to "Figure X" format
+                    figure_refs.add(f"Figure {fig_num}")
+            
+            # Sort figure references naturally
+            sorted_figures = sorted(figure_refs, key=lambda x: self._natural_sort_key(x))
+            
+            # Extract images from DOCX (it's a ZIP file)
+            extracted_count = 0
+            with zipfile.ZipFile(docx_path, 'r') as zip_ref:
+                # Find all image files in the document
+                image_files = [f for f in zip_ref.namelist() if f.startswith('word/media/')]
+                
+                if not image_files:
+                    messagebox.showinfo("No Images Found", 
+                                      f"No images found in:\n{os.path.basename(docx_path)}")
+                    return
+                
+                # Extract each image
+                for idx, img_file in enumerate(sorted(image_files)):
+                    # Read image data
+                    img_data = zip_ref.read(img_file)
+                    
+                    # Determine file extension
+                    img_ext = os.path.splitext(img_file)[1]
+                    if not img_ext:
+                        # Try to detect from image data
+                        try:
+                            img = Image.open(io.BytesIO(img_data))
+                            img_ext = f".{img.format.lower()}"
+                        except:
+                            img_ext = '.png'  # Default fallback
+                    
+                    # Generate filename
+                    if idx < len(sorted_figures):
+                        # Use detected figure reference
+                        filename = f"{sorted_figures[idx]}{img_ext}"
+                    else:
+                        # Fallback to sequential numbering
+                        filename = f"Figure {idx + 1}{img_ext}"
+                    
+                    # Save image
+                    output_path = os.path.join(output_folder, filename)
+                    with open(output_path, 'wb') as f:
+                        f.write(img_data)
+                    
+                    extracted_count += 1
+                    self.log(f"📤 Extracted: {filename}")
+            
+            # Show success message
+            messagebox.showinfo(
+                "Images Extracted Successfully",
+                f"✓ Extracted {extracted_count} images to:\n{output_folder}\n\n"
+                f"Found {len(sorted_figures)} figure references in document.\n\n"
+                f"You can now use this folder as Figure Context:\n"
+                f"Resources → Load figure context..."
+            )
+            
+            # Ask if user wants to load as figure context immediately
+            if messagebox.askyesno("Load as Figure Context?", 
+                                  "Would you like to load this folder as Figure Context now?"):
+                loaded_count = self.figure_context_manager.load_from_folder(output_folder)
+                self.update_figure_context_display()
+                self.log(f"✓ Loaded {loaded_count} images as figure context")
+            
+        except Exception as e:
+            messagebox.showerror("Extraction Error", 
+                               f"Failed to extract images:\n{str(e)}\n\n"
+                               f"Make sure the file is a valid DOCX and python-docx and Pillow are installed.")
+            self.log(f"✗ Image extraction failed: {e}")
+    
+    def _natural_sort_key(self, text):
+        """Generate key for natural sorting (Figure 1, Figure 2, ..., Figure 10)"""
+        import re
+        return [int(c) if c.isdigit() else c.lower() for c in re.split(r'(\d+)', text)]
+    
     def update_figure_context_display(self):
         """Update the figure context display in the Images tab"""
         # Delegate to FigureContextManager
@@ -10681,7 +12055,12 @@ Use this feature AFTER translation to:
                     'model': self.current_llm_model,
                     'source_language': self.source_language,
                     'target_language': self.target_language,
-                    'custom_prompt': self.current_translate_prompt
+                    'custom_prompt': self.current_translate_prompt,
+                    # Save active prompts
+                    'active_translate_prompt_name': getattr(self, 'active_translate_prompt_name', None),
+                    'active_proofread_prompt_name': getattr(self, 'active_proofread_prompt_name', None),
+                    'active_custom_instruction': getattr(self, 'active_custom_instruction', None),
+                    'active_custom_instruction_name': getattr(self, 'active_custom_instruction_name', None)
                 },
                 # Save preferences
                 'preferences': {
@@ -10715,6 +12094,8 @@ Use this feature AFTER translation to:
         if file_path:
             self.project_file = file_path
             self.save_project()
+            # Add to recent projects
+            self.add_recent_project(file_path)
     
     def load_project(self):
         """Load project from JSON"""
@@ -10780,7 +12161,30 @@ Use this feature AFTER translation to:
                 self.source_language = llm_settings.get('source_language', 'English')
                 self.target_language = llm_settings.get('target_language', 'Dutch')
                 self.current_translate_prompt = llm_settings.get('custom_prompt', self.default_translate_prompt)
+                
+                # Restore active prompts
+                self.active_translate_prompt_name = llm_settings.get('active_translate_prompt_name')
+                self.active_proofread_prompt_name = llm_settings.get('active_proofread_prompt_name')
+                self.active_custom_instruction = llm_settings.get('active_custom_instruction')
+                self.active_custom_instruction_name = llm_settings.get('active_custom_instruction_name')
+                
+                # Update active prompt labels if Prompt Library UI exists
+                if hasattr(self, 'pl_active_trans_label') and self.active_translate_prompt_name:
+                    self.pl_active_trans_label.config(text=self.active_translate_prompt_name)
+                if hasattr(self, 'pl_active_proof_label') and self.active_proofread_prompt_name:
+                    self.pl_active_proof_label.config(text=self.active_proofread_prompt_name)
+                if hasattr(self, 'pl_active_custom_label'):
+                    custom_name = self.active_custom_instruction_name or 'None'
+                    self.pl_active_custom_label.config(text=custom_name)
+                
                 self.log(f"✓ Loaded LLM settings: {self.current_llm_provider}/{self.current_llm_model}")
+                if self.active_translate_prompt_name or self.active_custom_instruction_name:
+                    active_prompts = []
+                    if self.active_translate_prompt_name:
+                        active_prompts.append(f"Translation: {self.active_translate_prompt_name}")
+                    if self.active_custom_instruction_name:
+                        active_prompts.append(f"Custom: {self.active_custom_instruction_name}")
+                    self.log(f"✓ Restored active prompts: {', '.join(active_prompts)}")
             
             # Load preferences if present
             if 'preferences' in data:
@@ -10843,8 +12247,78 @@ Use this feature AFTER translation to:
             self.log(f"✓ Project loaded: {os.path.basename(file_path)}")
             self.update_progress()
             
+            # Add to recent projects
+            self.add_recent_project(file_path)
+            
         except Exception as e:
             messagebox.showerror("Open Error", f"Failed to open project:\n{str(e)}")
+    
+    def load_recent_projects(self):
+        """Load recent projects list from config file"""
+        config_path = os.path.join(os.path.dirname(__file__), 'user data', 'recent_projects.json')
+        if os.path.exists(config_path):
+            try:
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    # Filter out non-existent files
+                    return [p for p in data.get('recent', []) if os.path.exists(p)]
+            except:
+                pass
+        return []
+    
+    def save_recent_projects(self):
+        """Save recent projects list to config file"""
+        config_path = os.path.join(os.path.dirname(__file__), 'user data', 'recent_projects.json')
+        try:
+            with open(config_path, 'w', encoding='utf-8') as f:
+                json.dump({'recent': self.recent_projects}, f, indent=2)
+        except Exception as e:
+            self.log(f"⚠ Failed to save recent projects: {e}")
+    
+    def add_recent_project(self, file_path):
+        """Add a project to recent projects list"""
+        # Remove if already in list
+        if file_path in self.recent_projects:
+            self.recent_projects.remove(file_path)
+        
+        # Add to beginning
+        self.recent_projects.insert(0, file_path)
+        
+        # Keep only max recent
+        self.recent_projects = self.recent_projects[:self.max_recent_projects]
+        
+        # Save and update menu
+        self.save_recent_projects()
+        self.update_recent_projects_menu()
+    
+    def update_recent_projects_menu(self):
+        """Update the Recent Projects menu"""
+        if not hasattr(self, 'recent_projects_menu'):
+            return
+        
+        # Clear existing items
+        self.recent_projects_menu.delete(0, 'end')
+        
+        # Add recent projects
+        if self.recent_projects:
+            for i, path in enumerate(self.recent_projects):
+                filename = os.path.basename(path)
+                # Add numbered menu items
+                self.recent_projects_menu.add_command(
+                    label=f"{i+1}. {filename}",
+                    command=lambda p=path: self.load_project_from_path(p)
+                )
+            self.recent_projects_menu.add_separator()
+            self.recent_projects_menu.add_command(label="Clear recent projects", command=self.clear_recent_projects)
+        else:
+            self.recent_projects_menu.add_command(label="(No recent projects)", state='disabled')
+    
+    def clear_recent_projects(self):
+        """Clear the recent projects list"""
+        self.recent_projects = []
+        self.save_recent_projects()
+        self.update_recent_projects_menu()
+        self.log("✓ Recent projects cleared")
     
     def close_project(self):
         """Close current project"""
@@ -13426,13 +14900,13 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
         prompt_tree.bind('<<TreeviewSelect>>', on_select)
         
         # ==============================================
-        # AI PROMPT ASSISTANT PANEL (COLLAPSIBLE)
+        # PROMPT ASSISTANT PANEL (COLLAPSIBLE)
         # ==============================================
         
         # Separator
         ttk.Separator(main_frame, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=10)
         
-        # AI Assistant header with toggle button
+        # Prompt Assistant header with toggle button
         ai_header_frame = ttk.Frame(main_frame)
         ai_header_frame.pack(fill=tk.X, pady=(0, 5))
         
@@ -13441,13 +14915,13 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
         def toggle_ai_panel():
             if ai_visible.get():
                 ai_panel_frame.pack(fill=tk.BOTH, expand=False, after=ai_header_frame)
-                toggle_btn.config(text="▼ Hide AI Assistant")
+                toggle_btn.config(text="▼ Hide Prompt Assistant")
             else:
                 ai_panel_frame.pack_forget()
-                toggle_btn.config(text="▶ Show AI Assistant (Beta)")
+                toggle_btn.config(text="▶ Show Prompt Assistant")
         
         toggle_btn = ttk.Button(ai_header_frame, 
-                               text="▶ Show AI Assistant (Beta)",
+                               text="▶ Show Prompt Assistant",
                                command=lambda: [ai_visible.set(not ai_visible.get()), toggle_ai_panel()])
         toggle_btn.pack(side=tk.LEFT)
         
@@ -13456,8 +14930,8 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
                  font=('Segoe UI', 9, 'italic'),
                  foreground='#666').pack(side=tk.LEFT, padx=(10, 0))
         
-        # AI Assistant panel (hidden by default)
-        ai_panel_frame = ttk.LabelFrame(main_frame, text="🤖 AI Prompt Assistant", padding=10)
+        # Prompt Assistant panel (hidden by default)
+        ai_panel_frame = ttk.LabelFrame(main_frame, text="🤖 Prompt Assistant", padding=10)
         # Don't pack it initially - will be shown when toggle is clicked
         
         # Chat interface
@@ -13512,7 +14986,7 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
             if role == 'user':
                 chat_history.insert(tk.END, "You: ", 'user')
             elif role == 'assistant':
-                chat_history.insert(tk.END, "AI Assistant: ", 'assistant')
+                chat_history.insert(tk.END, "Prompt Assistant: ", 'assistant')
             elif role == 'error':
                 chat_history.insert(tk.END, "Error: ", 'error')
             
@@ -13687,7 +15161,7 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
                  font=('Segoe UI', 8, 'italic'),
                  foreground='#666').pack(side=tk.RIGHT)
         
-        # END AI PROMPT ASSISTANT PANEL
+        # END PROMPT ASSISTANT PANEL
         
         # Bottom button frame
         button_frame = ttk.Frame(main_frame)
@@ -13825,7 +15299,7 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
         main_frame.pack(fill=tk.BOTH, expand=True)
         
         toggle_btn = ttk.Button(ai_header_frame, 
-                               text="▶ Show AI Assistant (Beta)",
+                               text="▶ Show Prompt Assistant",
                                command=lambda: [ai_visible.set(not ai_visible.get()), toggle_ai_panel()])
         toggle_btn.pack(side=tk.LEFT)
         
@@ -13834,8 +15308,8 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
                  font=('Segoe UI', 9, 'italic'),
                  foreground='#666').pack(side=tk.LEFT, padx=(10, 0))
         
-        # AI Assistant panel (hidden by default)
-        ai_panel_frame = ttk.LabelFrame(main_frame, text="🤖 AI Prompt Assistant", padding=10)
+        # Prompt Assistant panel (hidden by default)
+        ai_panel_frame = ttk.LabelFrame(main_frame, text="🤖 Prompt Assistant", padding=10)
         # Don't pack it initially - will be shown when toggle is clicked
         
         # Chat interface
@@ -13901,7 +15375,7 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
             if role == 'user':
                 chat_history.insert('end', "You: ", 'user')
             elif role == 'assistant':
-                chat_history.insert('end', "AI Assistant: ", 'assistant')
+                chat_history.insert('end', "Prompt Assistant: ", 'assistant')
             elif role == 'error':
                 chat_history.insert('end', "Error: ", 'error')
             
@@ -14007,7 +15481,7 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
                 chat_history.config(state='disabled')
                 
                 add_chat_message('error', f"Failed to get AI suggestion: {str(e)}")
-                self.log(f"[AI Assistant] Error: {e}")
+                self.log(f"[Prompt Assistant] Error: {e}")
         
         def apply_changes():
             """Apply the suggested changes to the prompt"""

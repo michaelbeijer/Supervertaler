@@ -9,6 +9,298 @@ For the unified changelog, see [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
+## [3.6.6-beta] - 2025-10-18 🤖 PROMPT ASSISTANT: REORGANIZATION & RENAMING
+
+### 🎯 MAJOR UX IMPROVEMENTS
+
+**Renamed "AI Assistant" to "Prompt Assistant"** 📝:
+- **Better Name**: "Prompt Assistant" accurately describes its purpose (analyzing documents and generating prompts)
+- **Clearer Focus**: Distinguishes from general-purpose AI chatbots
+- **Professional Branding**: More specific and professional terminology
+
+**Moved to Prompt Library as Third Tab** 📚:
+- **Old Location**: Separate panel in Assistant sidebar (cluttered)
+- **New Location**: Third tab inside Prompt Library (System Prompts | Custom Instructions | **Prompt Assistant**)
+- **Logical Grouping**: All prompt-related features now consolidated in one place
+- **Better Workflow**: Analyze → Generate → Browse/Edit → Apply (complete prompt ecosystem)
+- **Space Efficient**: Reduces sidebar clutter, saves screen real estate
+- **Natural Discovery**: Users find it when working with prompts
+
+**Smart Editor Panel Visibility** 🎨:
+- **Auto-Hide**: Editor panel automatically hides when Prompt Assistant tab is active
+- **Full Width**: Gives you maximum workspace for document analysis and prompt generation
+- **Auto-Show**: Editor reappears when switching to System Prompts or Custom Instructions tabs
+- **Context-Aware**: UI adapts based on what you're doing (generating vs editing)
+
+**Technical Changes**:
+- **Removed**: AI Assistant from sidebar panel list (lines ~1957-1966)
+- **Added**: Prompt Assistant as third tab in Prompt Library notebook (line ~2529)
+- **Renamed**: `create_ai_assistant_tab()` → `create_prompt_assistant_content()`
+- **Added**: Dynamic editor panel visibility in `_pl_on_tab_changed()` handler
+- **Updated**: All UI labels, tooltips, comments, and error messages
+- **Updated**: Header text from "🤖 AI Assistant (Beta)" to "🤖 Prompt Assistant"
+- **Updated**: Subtitle to "Analyze your document and generate optimized translation prompts automatically"
+- **Preserved**: All functionality (document analysis, prompt generation, chat interface)
+
+**Benefits**:
+- ✨ **Better Organization**: Related features grouped logically
+- ✨ **Clearer Purpose**: Name describes what it does
+- ✨ **Improved Discovery**: Natural place to find when working with prompts
+- ✨ **Space Efficiency**: One less sidebar panel, full-width workspace when generating
+- ✨ **Intuitive Workflow**: Complete prompt workflow in one location
+- ✨ **Context-Aware UI**: Interface adapts to your current task
+
+---
+
+## [3.6.5-beta] - 2025-10-17 🎯 AI ASSISTANT: INTELLIGENT GLOSSARY GENERATION
+
+### 🔧 CRITICAL IMPROVEMENTS TO AI ASSISTANT
+
+**Replaced Naive Terminology Extraction with LLM-Powered Analysis** 🧠:
+
+**PROBLEM IDENTIFIED**: Previous regex-based terminology extraction was producing garbage results:
+- Extracted common words like articles ("De", "In", "Deze", "Een") as "technical terms"
+- Listed section headers ("BESCHRIJVING", "FIGUREN") as "acronyms"
+- Provided useless glossaries that professional translators couldn't use
+- No linguistic intelligence - just pattern matching
+
+**NEW APPROACH**: Send actual document content to LLM for intelligent analysis:
+- **Full Document Context**: Sends up to 8,000 words of actual source text to LLM
+- **Professional Translator Prompt**: Uses proven successful prompt pattern from real workflow:
+  - "You are a professional patent translator, working between [source] and [target]"
+  - Explicit instructions to IGNORE common words, articles, pronouns, section headers
+  - Focus on technical terms, specialized vocabulary, domain-specific concepts
+  - For patents: extract claimed elements, technical features, components
+- **Bilingual Glossary Output**: LLM provides structured markdown table:
+  - Source term | Target equivalent | Context notes
+  - 15-25 most important terms (quality over quantity)
+  - Contextual explanations for each term
+- **Smart Filtering**: LLM naturally understands:
+  - What is a technical term vs common word
+  - Domain-specific vocabulary (medical, legal, patent, technical)
+  - Multi-word technical expressions and compound terms
+  - Language-specific patterns (Dutch compounds, German separable verbs, etc.)
+
+**Technical Changes**:
+- **Modified**: `analyze_current_document()` in main application
+  - Now sends full document text to configured LLM (OpenAI/Claude/Gemini)
+  - Uses temperature 0.3 for focused, consistent analysis
+  - max_tokens=2000 to accommodate detailed glossary
+  - Respects source/target language configuration
+- **Modified**: `process_assistant_query()` context building
+  - Now references complete LLM analysis text instead of regex results
+  - Passes bilingual glossary context to subsequent chat questions
+  - AI can reference its own analysis when answering questions
+- **Modified**: `get_prompt_suggestion()` 
+  - Now asks LLM for Supervertaler feature recommendations
+  - Suggests specific tools: system prompts, glossaries, TM, figure context
+- **Removed**: Dependency on `document_analyzer.py` regex patterns (still exists for fallback)
+
+**Real-World Validation**:
+Compared with successful ChatGPT.com workflow on Belgian Dutch patent (PVET.docx):
+- ✅ ChatGPT produced: "voegplaat", "verankeringsrib", "deuvel", "wegdelen" (actual technical terms)
+- ❌ Old Supervertaler produced: "De", "In", "Deze", "BESCHRIJVING" (garbage)
+- ✅ New Supervertaler: Uses same LLM intelligence as ChatGPT workflow
+
+**User Benefits**:
+- 🎯 **Professional-Grade Glossaries**: Actual usable terminology for translation work
+- ⚡ **Matches External Tools**: Same quality as ChatGPT.com but integrated into workflow
+- 🌍 **Language-Aware**: Works with any language pair (Dutch-English, German-French, etc.)
+- 📋 **Ready to Use**: Copy glossary directly into translation memory or glossary files
+- 🔄 **Consistent Workflow**: No need to switch to external tools for analysis
+
+**Configuration Requirements**:
+- Must have LLM API key configured (OpenAI, Claude, or Gemini)
+- Document must be loaded with segments
+- Source and target languages should be set correctly
+
+---
+
+## [3.6.4-beta] - 2025-10-17 🤖 AI ASSISTANT PHASE 2: DOCUMENT-AWARE INTELLIGENCE
+
+### ✨ MAJOR NEW FEATURE
+
+**AI Assistant with Document Analysis** 🤖:
+- **NEW TAB**: "🤖 AI Assistant" added to main workspace (between Images and PDF Rescue)
+- **Smart Document Analysis**: Automatically examines your loaded document to detect:
+  - **Domain Detection**: Identifies 6 domains (medical, legal, technical, patent, marketing, financial)
+  - **Terminology Extraction**: Finds capitalized terms, acronyms, technical vocabulary
+  - **Tone Assessment**: Analyzes formality and style (formal, informal, technical, conversational)
+  - **Structure Analysis**: Detects lists, headings, figure references, document organization
+  - **Special Elements**: Identifies URLs, emails, dates, measurements, currencies, percentages
+  - **Statistics**: Word counts, segment counts, unique terms with averages
+- **Actionable Recommendations**: AI generates prioritized suggestions based on analysis:
+  - Domain-specific prompt optimization
+  - Tone preservation instructions
+  - Visual context recommendations (when figures detected)
+  - Formatting rules (measurements, currencies)
+  - Terminology management advice
+- **Conversational Chat Interface**: Ask the AI questions about your document:
+  - "What type of document is this?"
+  - "Should I use a glossary?"
+  - "What's the best prompt for this content?"
+  - "Check terminology patterns"
+- **Context-Aware Responses**: AI uses document analysis data to provide relevant, specific advice
+- **Chat History**: Maintains conversation flow with last 10 exchanges for coherent dialogue
+- **Quick Action Buttons**: Pre-configured questions for common tasks:
+  - 💡 Suggest better prompt
+  - 🔍 What domain is this?
+  - ✨ Check terminology
+- **Multi-LLM Support**: Works with OpenAI, Anthropic Claude, and Google Gemini
+- **Comprehensive Reporting**: Detailed analysis summary with confidence scores
+
+**Technical Implementation**:
+- **New Module**: `document_analyzer.py` (500 lines)
+  - Domain detection algorithm with 300+ keywords
+  - Pattern recognition for technical formats
+  - Confidence scoring system
+  - Smart suggestion generation engine
+- **Integration**: Seamlessly integrated into main workspace
+- **Performance**: Fast analysis (completes in seconds)
+- **Privacy**: All analysis happens locally (only LLM API calls go external)
+
+**User Benefits**:
+- ⚡ **Faster Setup**: Analyze document in seconds vs manual assessment
+- 🎯 **Better Quality**: AI suggests optimal settings for specific content
+- 📚 **Learning Tool**: Understand document characteristics instantly
+- 🔄 **Workflow Integration**: No need to switch windows or interrupt work
+- 💡 **Data-Driven**: Recommendations based on actual content analysis, not guesswork
+
+**Example Workflow**:
+1. Load your document (DOCX, TSV, bilingual file)
+2. Open AI Assistant tab
+3. Click "🔍 Analyze Document"
+4. Review comprehensive analysis (domain, tone, terminology, structure)
+5. Click "📝 Get Prompt Suggestion" for actionable recommendations
+6. Chat with AI for specific questions or guidance
+7. Implement suggestions to optimize translation setup
+
+---
+
+## [3.6.3-beta] - 2025-10-17 🔧 CRITICAL FIXES & NEW FEATURES
+
+### 🐛 CRITICAL BUG FIXES
+
+**Fixed Custom Instructions Integration (CRITICAL)**:
+- **Issue**: Custom Instructions were displayed as "active" but were **never actually used during translation**
+- **Root Cause**: `get_context_aware_prompt()` stored Custom Instructions in `self.active_custom_instruction` but never checked for or appended them to the system prompt
+- **Impact**: Users believed their Custom Instructions were being applied, but they were completely ignored by the AI
+- **Fix**: Modified `get_context_aware_prompt()` to check for active Custom Instructions and append them with markdown heading:
+  ```python
+  if hasattr(self, 'active_custom_instruction') and self.active_custom_instruction:
+      combined_prompt = base_prompt + "\n\n# CUSTOM INSTRUCTIONS\n\n" + self.active_custom_instruction
+  ```
+- **Verification**: Preview Prompt now shows the complete combined prompt that will be sent to the AI
+
+**Fixed Preview Prompt AttributeError**:
+- **Issue**: Clicking "Preview Prompt" button crashed with `AttributeError: 'Supervertaler' object has no attribute 'custom_instructions_text'`
+- **Root Cause**: Old code tried to access removed widget from previous architecture
+- **Fix**: Changed to call `get_context_aware_prompt()` which properly combines System Prompt + Custom Instructions
+- **Bonus**: Preview now shows actual combined prompt with composition breakdown (names + character counts)
+
+**Fixed Extract Images Auto-Load Bug**:
+- **Issue**: After extracting images from DOCX, clicking "Yes" to auto-load caused `AttributeError: 'FigureContextManager' object has no attribute 'load_folder'`
+- **Root Cause**: Called wrong method name `load_folder()` instead of `load_from_folder()`
+- **Fix**: Changed to correct method and captured loaded count for accurate feedback
+
+### ✨ NEW FEATURES
+
+**Recent Projects Menu** 🕒:
+- **Quick Access**: New "Recent Projects" submenu in Project menu
+- **Last 10 Projects**: Automatically tracks and displays your most recent projects
+- **Smart Filtering**: Auto-removes projects whose files no longer exist
+- **Persistent Storage**: Saved in `user data/recent_projects.json`
+- **Clear Option**: "Clear Recent Projects" option to reset the list
+- **Location**: Project menu → Recent Projects (between Open and Close)
+
+**Extract Images from DOCX** 📤:
+- **Automated Extraction**: Extract all images from DOCX files with one click
+- **Smart Naming**: Automatically detects figure references in document text
+  - Multilingual support: Figure, Fig., Figuur, Abbildung, Figura, 图, etc.
+  - Pattern examples: "Figure 1", "Fig. 2A", "Figuur 3", "Abbildung 4"
+- **Natural Sorting**: Correctly orders Figure 1, 2, ..., 10 (not 1, 10, 2)
+- **Fallback Naming**: Uses sequential numbering if no figure references found
+- **Auto-Load Option**: Optionally load extracted images as Figure Context immediately
+- **Dual Access**: Available in both:
+  - Resources menu → "📤 Extract images from DOCX..."
+  - Images tab (AI Assistant) → "📤 Extract from DOCX..." button
+- **Technical**: Uses python-docx to read DOCX (ZIP format) and PIL to process images
+
+**Active Prompts Persistence** 💾:
+- **Project Memory**: Active System Prompts and Custom Instructions now saved with projects
+- **Automatic Restoration**: When loading a project, all active prompts are restored:
+  - Translation System Prompt
+  - Proofreading System Prompt
+  - Custom Instructions (both name and full content)
+- **UI Updates**: Active prompt labels automatically update to show restored prompts
+- **Logging**: Confirms which prompts were restored in console
+- **Workflow**: Set up prompts once, reload project anytime with full context preserved
+
+**Clear Custom Instructions Button** ✖️:
+- **Deactivation**: Red "✖ Clear" button next to green "✅ Use in Current Project"
+- **Clean Reset**: Clears `active_custom_instruction` and updates label to "None"
+- **Use Case**: Quickly remove Custom Instructions without switching projects
+
+### 🎨 UI ENHANCEMENTS
+
+**Markdown Headings in Prompts**:
+- **System Prompts**: All three templates now start with `# SYSTEM PROMPT\n\n`
+- **Custom Instructions**: Appended with `# CUSTOM INSTRUCTIONS\n\n` heading
+- **Clarity**: Makes prompt structure immediately visible in Preview and AI logs
+- **Consistency**: Uniform formatting across all prompt types
+
+**Enhanced Tab Visual Distinction**:
+- **System Prompts Tab**: Light blue background (#E3F2FD) with darker blue filter bar (#BBDEFB)
+- **Custom Instructions Tab**: Light green background (#E8F5E9) with darker green bars (#C8E6C9)
+- **Solid Borders**: Clear visual separation between tabs
+- **Color Coding**: Matches active label colors for intuitive association
+
+**Images Tab Button**:
+- **New Button**: "📤 Extract from DOCX..." in blue (#2196F3)
+- **Better Discoverability**: Feature now accessible directly from Images tab
+- **Logical Placement**: Between "📁 Load figure context..." and "🗑️ Clear"
+
+### 🔧 TECHNICAL IMPROVEMENTS
+
+**Code Architecture**:
+- Added `from docx import Document` import to extract_images_from_docx()
+- Fixed emoji encoding issues in menu items and buttons
+- Improved error handling in image extraction process
+- Better logging for prompt restoration and image loading
+
+**Methods Modified**:
+- `get_context_aware_prompt()`: Now actually includes Custom Instructions
+- `preview_combined_prompt()`: Shows real combined prompt via get_context_aware_prompt()
+- `save_project()`: Saves active_translate_prompt_name, active_proofread_prompt_name, active_custom_instruction, active_custom_instruction_name
+- `load_project_from_path()`: Restores all active prompts and updates UI labels
+- `extract_images_from_docx()`: Fixed method call from load_folder() to load_from_folder()
+
+**New Functions**:
+- `load_recent_projects()`: Loads and filters project list from JSON
+- `save_recent_projects()`: Persists recent projects to JSON
+- `add_recent_project()`: Adds project to top of list, removes duplicates, keeps max 10
+- `update_recent_projects_menu()`: Populates menu with numbered items
+- `clear_recent_projects()`: Empties list and updates menu
+- `_pl_clear_custom_instruction()`: Deactivates Custom Instructions
+
+### 🎯 USER IMPACT
+
+**Critical**: Custom Instructions now actually work! Previous versions displayed them as active but never used them.
+
+**Workflow Improvements**:
+- Projects fully preserve your prompt setup
+- Recent Projects saves time opening frequently-used projects
+- Extract Images streamlines visual context setup for technical translations
+- Clear Custom Instructions provides quick reset option
+
+**Better Visibility**:
+- Preview Prompt shows exactly what the AI receives
+- Markdown headings clarify prompt structure
+- Tab colors help distinguish prompt types
+- Images tab button makes extraction more discoverable
+
+---
+
 ## [3.6.2-beta] - 2025-10-16 ✨ PROMPT LIBRARY UI IMPROVEMENTS
 
 ### ✨ ENHANCEMENTS
