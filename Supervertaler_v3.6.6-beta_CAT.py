@@ -2423,18 +2423,16 @@ class Supervertaler:
         # Tabs for System Prompts vs Custom Instructions
         # Configure tab styling for better visibility
         style = ttk.Style()
-        style.configure('PromptManager.TNotebook', background='#e3f2fd', borderwidth=2, relief='solid')
+        style.theme_use('default')  # Use default theme for better control
+        style.configure('PromptManager.TNotebook', background='#e3f2fd', borderwidth=2)
         style.configure('PromptManager.TNotebook.Tab', 
                        padding=[12, 8], 
-                       borderwidth=2,
-                       relief='raised',
-                       background='#BBDEFB',
-                       foreground='#1565C0')
+                       font=('Segoe UI', 9, 'bold'),
+                       borderwidth=2)
         style.map('PromptManager.TNotebook.Tab',
-                 background=[('selected', '#2196F3'), ('active', '#90CAF9')],
-                 foreground=[('selected', '#FFFFFF'), ('active', '#0D47A1')],
-                 relief=[('selected', 'sunken')],
-                 borderwidth=[('selected', 2)])
+                 background=[('selected', '#2196F3'), ('!selected', '#BBDEFB'), ('active', '#90CAF9')],
+                 foreground=[('selected', 'white'), ('!selected', '#1565C0'), ('active', '#0D47A1')],
+                 expand=[('selected', [1, 1, 1, 0])])
         
         list_notebook = ttk.Notebook(left_panel, style='PromptManager.TNotebook')
         list_notebook.pack(fill='both', expand=True, padx=2, pady=2)
@@ -3316,18 +3314,16 @@ class Supervertaler:
         
         # Configure tab styling for maximized view (same as main tab)
         max_style = ttk.Style()
-        max_style.configure('MaxPrompt.TNotebook', background='#e3f2fd', borderwidth=2, relief='solid')
+        max_style.theme_use('default')
+        max_style.configure('MaxPrompt.TNotebook', background='#e3f2fd', borderwidth=2)
         max_style.configure('MaxPrompt.TNotebook.Tab', 
-                           padding=[12, 8], 
-                           borderwidth=2,
-                           relief='raised',
-                           background='#BBDEFB',
-                           foreground='#1565C0')
+                           padding=[12, 8],
+                           font=('Segoe UI', 9, 'bold'),
+                           borderwidth=2)
         max_style.map('MaxPrompt.TNotebook.Tab',
-                     background=[('selected', '#2196F3'), ('active', '#90CAF9')],
-                     foreground=[('selected', '#FFFFFF'), ('active', '#0D47A1')],
-                     relief=[('selected', 'sunken')],
-                     borderwidth=[('selected', 2)])
+                     background=[('selected', '#2196F3'), ('!selected', '#BBDEFB'), ('active', '#90CAF9')],
+                     foreground=[('selected', 'white'), ('!selected', '#1565C0'), ('active', '#0D47A1')],
+                     expand=[('selected', [1, 1, 1, 0])])
         
         max_notebook = ttk.Notebook(tabs_frame, style='MaxPrompt.TNotebook')
         max_notebook.pack(fill='both', expand=True, padx=2, pady=2)
