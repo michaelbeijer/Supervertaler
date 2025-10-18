@@ -13367,7 +13367,9 @@ Use this feature AFTER translation to:
             
             # Get custom instructions separately if they exist
             custom_instructions = ""
-            if hasattr(self, 'custom_instructions_text'):
+            if hasattr(self, 'active_custom_instruction') and self.active_custom_instruction:
+                custom_instructions = self.active_custom_instruction
+            elif hasattr(self, 'custom_instructions_text'):
                 try:
                     custom_instructions = self.custom_instructions_text.get('1.0', 'end-1c').strip()
                     # Remove placeholder text if present
@@ -15919,8 +15921,13 @@ VALIDATION: Count pipe symbols in source and target - they must match exactly (a
         prompt_parts.append(system_prompt)
         
         # 2. Add custom instructions if provided (skip if just placeholder)
-        custom_instructions = self.custom_instructions_text.get('1.0', tk.END).strip()
-        if custom_instructions and not self.is_custom_instructions_placeholder(custom_instructions):
+        custom_instructions = None
+        if hasattr(self, 'active_custom_instruction') and self.active_custom_instruction:
+            custom_instructions = self.active_custom_instruction
+        elif hasattr(self, 'custom_instructions_text'):
+            custom_instructions = self.custom_instructions_text.get('1.0', tk.END).strip()
+        
+        if custom_instructions and (not hasattr(self, 'is_custom_instructions_placeholder') or not self.is_custom_instructions_placeholder(custom_instructions)):
             prompt_parts.append("\n**SPECIAL INSTRUCTIONS FOR THIS PROJECT:**")
             prompt_parts.append(custom_instructions)
         
@@ -16152,9 +16159,15 @@ VALIDATION: Count pipe symbols in source and target - they must match exactly (a
                 system_prompt = system_prompt.replace("{{TARGET_LANGUAGE}}", self.target_language)
                 prompt_parts.append(system_prompt)
                 
-                # Custom instructions
-                custom_instructions = self.custom_instructions_text.get('1.0', tk.END).strip()
-                if custom_instructions and not self.is_custom_instructions_placeholder(custom_instructions):
+                # Custom instructions - use the new Prompt Manager system
+                custom_instructions = None
+                if hasattr(self, 'active_custom_instruction') and self.active_custom_instruction:
+                    custom_instructions = self.active_custom_instruction
+                elif hasattr(self, 'custom_instructions_text'):
+                    # Fallback to old text widget if it exists
+                    custom_instructions = self.custom_instructions_text.get('1.0', tk.END).strip()
+                
+                if custom_instructions and (not hasattr(self, 'is_custom_instructions_placeholder') or not self.is_custom_instructions_placeholder(custom_instructions)):
                     prompt_parts.append("\n**SPECIAL INSTRUCTIONS FOR THIS PROJECT:**")
                     prompt_parts.append(custom_instructions)
                 
