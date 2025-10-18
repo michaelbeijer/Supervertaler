@@ -690,7 +690,7 @@ body {
 .screenshot-card img {
     width: 100%;
     height: auto;
-    max-height: 600px;
+    max-height: 400px;
     object-fit: contain;
     display: block;
     border-bottom: 1px solid var(--border);
