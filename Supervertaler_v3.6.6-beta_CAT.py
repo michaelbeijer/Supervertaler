@@ -2421,8 +2421,23 @@ class Supervertaler:
         main_container.add(left_panel, weight=1)
         
         # Tabs for System Prompts vs Custom Instructions
-        list_notebook = ttk.Notebook(left_panel)
-        list_notebook.pack(fill='both', expand=True)
+        # Configure tab styling for better visibility
+        style = ttk.Style()
+        style.configure('PromptManager.TNotebook', background='#e3f2fd', borderwidth=2, relief='solid')
+        style.configure('PromptManager.TNotebook.Tab', 
+                       padding=[12, 8], 
+                       borderwidth=2,
+                       relief='raised',
+                       background='#BBDEFB',
+                       foreground='#1565C0')
+        style.map('PromptManager.TNotebook.Tab',
+                 background=[('selected', '#2196F3'), ('active', '#90CAF9')],
+                 foreground=[('selected', 'white'), ('active', '#0D47A1')],
+                 relief=[('selected', 'sunken')],
+                 borderwidth=[('selected', 2)])
+        
+        list_notebook = ttk.Notebook(left_panel, style='PromptManager.TNotebook')
+        list_notebook.pack(fill='both', expand=True, padx=2, pady=2)
         
         # --- System Prompts Tab ---
         system_tab = tk.Frame(list_notebook, bg='#E3F2FD', relief='solid', borderwidth=1)
@@ -3303,8 +3318,23 @@ class Supervertaler:
         tabs_frame = tk.Frame(main_container)
         main_container.add(tabs_frame, weight=1)
         
-        max_notebook = ttk.Notebook(tabs_frame)
-        max_notebook.pack(fill='both', expand=True)
+        # Configure tab styling for maximized view (same as main tab)
+        max_style = ttk.Style()
+        max_style.configure('MaxPrompt.TNotebook', background='#e3f2fd', borderwidth=2, relief='solid')
+        max_style.configure('MaxPrompt.TNotebook.Tab', 
+                           padding=[12, 8], 
+                           borderwidth=2,
+                           relief='raised',
+                           background='#BBDEFB',
+                           foreground='#1565C0')
+        max_style.map('MaxPrompt.TNotebook.Tab',
+                     background=[('selected', '#2196F3'), ('active', '#90CAF9')],
+                     foreground=[('selected', 'white'), ('active', '#0D47A1')],
+                     relief=[('selected', 'sunken')],
+                     borderwidth=[('selected', 2)])
+        
+        max_notebook = ttk.Notebook(tabs_frame, style='MaxPrompt.TNotebook')
+        max_notebook.pack(fill='both', expand=True, padx=2, pady=2)
         
         # System Prompts sub-tab
         system_frame = tk.Frame(max_notebook, bg='white')
