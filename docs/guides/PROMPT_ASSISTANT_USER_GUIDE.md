@@ -1,8 +1,10 @@
-# AI Prompt Assistant - User Guide
+# Prompt Assistant - User Guide
+
+> **📌 Updated for v3.6.6-beta**: The AI Assistant has been renamed to "Prompt Assistant" and moved to the Prompt Library as a third tab for better organization and workflow.
 
 ## 🎯 Quick Start Guide
 
-The AI Prompt Assistant helps you improve your translation prompts using natural language. No need to manually edit complex prompt text - just describe what you want to change!
+The Prompt Assistant helps you improve your translation prompts using natural language conversation with AI. No need to manually edit complex prompt text - just describe what you want to change!
 
 ---
 
@@ -14,17 +16,17 @@ The AI Prompt Assistant helps you improve your translation prompts using natural
 2. Go to **Menu → Prompt Library → Open Prompt Library** (or press **Ctrl+P**)
 3. The Prompt Library window appears
 
-### **Step 2: Select a Prompt**
+### **Step 2: Navigate to Prompt Assistant Tab**
 
-1. Browse the list of available prompts
-2. Click on any prompt to view its details
-3. Review the current translation prompt text
+1. Click on the **"🤖 Prompt Assistant"** tab (third tab after System Prompts and Custom Instructions)
+2. The editor panel hides automatically for full-width workspace
+3. You'll see the conversational interface for prompt refinement
 
-### **Step 3: Show AI Assistant**
+### **Step 3: Select a Prompt to Improve**
 
-1. Scroll to the bottom of the window
-2. Click **"► Show AI Assistant (Beta)"**
-3. The AI Assistant panel expands
+1. First, select a prompt from the **System Prompts** or **Custom Instructions** tabs
+2. Switch back to the **Prompt Assistant** tab
+3. The selected prompt is ready for AI-powered improvements
 
 ### **Step 4: Request Modifications**
 
@@ -48,11 +50,18 @@ Type your request in natural language. For example:
 - "Emphasize literal accuracy over fluency"
 - "Include examples of preferred translations"
 
+### **Step 4: Request Modifications**
+
+Type your request in the chat input. The AI will understand requests like:
+- "Make it more formal"
+- "Add emphasis on terminology consistency"
+- "Include instructions for handling technical abbreviations"
+
 ### **Step 5: Review Changes**
 
 1. Click **"📤 Send Request"** (or press Enter)
 2. Wait a few seconds for AI to process
-3. Review the proposed changes in the **"📝 Proposed Changes"** panel on the right
+3. Review the proposed changes in the diff panel
    - **Green lines** = additions
    - **Red lines** = deletions
 4. Read the AI's explanation in the chat
@@ -131,17 +140,19 @@ AI: I've added a note about sentence structure preservation...
 
 ## 🎨 Understanding the Interface
 
-### **Chat Panel (Left Side)**
+### **Prompt Assistant Tab Interface**
 
 ```
 [10:23:45] You: Make it more formal
-[10:23:48] AI Assistant: ✅ I've suggested modifications...
+[10:23:48] Prompt Assistant: ✅ I've suggested modifications...
 ```
 
 - **Blue** = Your messages
 - **Green** = AI responses
 - **Red** = Error messages
 - **Gray** = Timestamps
+
+**Full-Width Workspace**: The editor panel automatically hides when you're on the Prompt Assistant tab, giving you maximum space for the conversation and diff view.
 
 ### **Diff Panel (Right Side)**
 
