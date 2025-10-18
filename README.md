@@ -8,7 +8,7 @@
 ## 📦 Available Versions
 
 ### v3.6.6-beta (Experimental - CAT Editor) 🚀
-**File**: `Supervertaler_v3.6.0-beta_CAT.py`
+**File**: `Supervertaler_v3.6.6-beta_CAT.py`
 - 🤖 **NEW v3.6.6**: Prompt Assistant reorganized as third tab in Prompt Library (better UX!)
 - ✨ **NEW v3.6.6**: Editor panel auto-hides on Prompt Assistant tab (full-width workspace)
 - 📚 **v3.6.5**: Prompt Assistant - AI-powered document analysis and prompt generation
