@@ -687,6 +687,13 @@ body {
     box-shadow: var(--shadow-xl);
 }
 
+.screenshot-link {
+    position: relative;
+    display: block;
+    text-decoration: none;
+    cursor: pointer;
+}
+
 .screenshot-card img {
     width: 100%;
     height: auto;
@@ -695,6 +702,41 @@ body {
     display: block;
     border-bottom: 1px solid var(--border);
     background: var(--bg-secondary);
+    transition: opacity 0.3s;
+}
+
+.screenshot-link:hover img {
+    opacity: 0.85;
+}
+
+.screenshot-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.5);
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+}
+
+.screenshot-link:hover .screenshot-overlay {
+    opacity: 1;
+}
+
+.zoom-icon {
+    color: white;
+    font-size: 1.125rem;
+    font-weight: 600;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+    padding: 0.75rem 1.5rem;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: var(--radius-sm);
+    backdrop-filter: blur(10px);
 }
 
 .screenshot-caption {
