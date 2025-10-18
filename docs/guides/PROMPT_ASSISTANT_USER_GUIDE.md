@@ -1,6 +1,6 @@
 # Prompt Assistant - User Guide
 
-> **📌 Updated for v3.6.6-beta**: The AI Assistant has been renamed to "Prompt Assistant" and moved to the Prompt Library as a third tab for better organization and workflow.
+> **📌 Updated for v3.6.6-beta**: The AI Assistant has been renamed to "Prompt Assistant" and moved to the Prompt Manager as a third tab for better organization and workflow.
 
 ## 🎯 Quick Start Guide
 
@@ -10,11 +10,11 @@ The Prompt Assistant helps you improve your translation prompts using natural la
 
 ## 📖 How to Use
 
-### **Step 1: Open Prompt Library**
+### **Step 1: Open Prompt Manager**
 
 1. Open Supervertaler
-2. Go to **Menu → Prompt Library → Open Prompt Library** (or press **Ctrl+P**)
-3. The Prompt Library window appears
+2. Go to **Menu → Prompt Manager → Open Prompt Manager** (or press **Ctrl+P**)
+3. The Prompt Manager window appears
 
 ### **Step 2: Navigate to Prompt Assistant Tab**
 
@@ -188,7 +188,7 @@ The AI remembers the context of your conversation, so you can build on previous 
 
 - **Enter** = Send request
 - **Shift+Enter** = New line in input box
-- **Ctrl+P** = Open Prompt Library (from main window)
+- **Ctrl+P** = Open Prompt Manager (from main window)
 
 ---
 
@@ -216,8 +216,8 @@ The AI remembers the context of your conversation, so you can build on previous 
 
 ### **Changes don't appear after clicking Apply**
 **Solution:**
-- Refresh the Prompt Library (click 🔄 Refresh button)
-- Close and reopen the Prompt Library
+- Refresh the Prompt Manager (click 🔄 Refresh button)
+- Close and reopen the Prompt Manager
 - Check the file was saved (look for success message)
 
 ---

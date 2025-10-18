@@ -6,7 +6,7 @@ Features:
 - PDF Rescue - AI-Powered OCR Tool (GPT-4 Vision) 📄
 - Grid Pagination System (50 segments/page, 10x faster loading) ⚡
 - Smart Paragraph Detection for document view 🧠
-- Unified Prompt Library (System Prompts + Custom Instructions) 🎯
+- Prompt Manager (System Prompts + Custom Instructions + Prompt Assistant) 🎯
 - Figure Context support (visual context for technical translations) 🖼️
 - LLM Translation (OpenAI GPT-4, Anthropic Claude, Google Gemini)
 - Custom Prompts with variable substitution
@@ -716,7 +716,7 @@ class Supervertaler:
         # Tracked changes agent (learns from editing patterns)
         self.tracked_changes_agent = TrackedChangesAgent(log_callback=self.log)
         
-        # Prompt library (system prompts for domain-specific translation)
+        # Prompt manager (system prompts for domain-specific translation)
         self.prompt_assistant = PromptAssistant()
         system_prompts_dir = get_user_data_path("System_prompts")
         custom_instructions_dir = get_user_data_path("Custom_instructions")
@@ -913,7 +913,7 @@ class Supervertaler:
         resources_menu.add_command(label="📤 Extract images from DOCX...", command=self.extract_images_from_docx)
         resources_menu.add_command(label="🗑️ Clear figure context", command=self.clear_figure_context)
         resources_menu.add_separator()
-        resources_menu.add_command(label="📚 Prompt library", command=self.show_custom_prompts, accelerator="Ctrl+P")
+        resources_menu.add_command(label="📚 Prompt Manager", command=self.show_custom_prompts, accelerator="Ctrl+P")
         resources_menu.add_command(label="🎭 System prompts", command=self.show_system_prompts)
         resources_menu.add_command(label="📝 Custom instructions", command=self.show_custom_instructions)
         
@@ -927,7 +927,7 @@ class Supervertaler:
         
         # Keyboard shortcuts (translate)
         self.root.bind('<Control-t>', lambda e: self.translate_current_segment())
-        self.root.bind('<Control-p>', lambda e: self.show_custom_prompts())  # Prompt Library shortcut
+        self.root.bind('<Control-p>', lambda e: self.show_custom_prompts())  # Prompt Manager shortcut
         self.root.bind('<Control-a>', lambda e: self.select_all_segments())  # Select All Segments
         
         # Keyboard shortcuts
@@ -1048,7 +1048,7 @@ class Supervertaler:
         tools_menu = tk.Menu(tools_btn, tearoff=0)
         tools_btn.config(menu=tools_menu)
         tools_menu.add_command(label="Find/Replace", command=self.show_find_replace)
-        tools_menu.add_command(label="Prompt Library", command=self.show_custom_prompts)
+        tools_menu.add_command(label="Prompt Manager", command=self.show_custom_prompts)
         tools_menu.add_separator()
         tools_menu.add_command(label="API Settings", command=self.show_api_settings)
         tools_menu.add_command(label="Language Settings", command=self.show_language_settings)
@@ -1947,7 +1947,7 @@ class Supervertaler:
         if self.assist_visible_panels.get('prompt_library', True):
             self.assist_tabs.append({
                 'key': 'prompt_library',
-                'name': '🎯 Prompt Library',
+                'name': '🎯 Prompt Manager',
                 'short': 'Prompts',
                 'frame': None,
                 'button': None,
@@ -2358,7 +2358,7 @@ class Supervertaler:
     # === NEW TAB CREATORS ===
     
     def create_prompt_library_tab(self, parent):
-        """Create Prompt Library tab - FRESH self-contained implementation"""
+        """Create Prompt Manager tab - FRESH self-contained implementation"""
         
         # ===== INITIALIZE ALL REQUIRED VARIABLES =====
         # These are metadata StringVars for the editor
@@ -2381,7 +2381,7 @@ class Supervertaler:
         active_bar = tk.Frame(parent, bg='#e3f2fd', relief='solid', borderwidth=1)
         active_bar.pack(fill='x', padx=5, pady=5)
         
-        tk.Label(active_bar, text="🎯 Prompt Library", font=('Segoe UI', 10, 'bold'),
+        tk.Label(active_bar, text="🎯 Prompt Manager", font=('Segoe UI', 10, 'bold'),
                 bg='#e3f2fd').pack(side='left', padx=10, pady=5)
         
         tk.Label(active_bar, text="Active:", font=('Segoe UI', 8, 'bold'),
@@ -2612,7 +2612,7 @@ class Supervertaler:
         self._pl_load_system_prompts()
         self._pl_load_custom_instructions()
     
-    # ===== PROMPT LIBRARY TAB HELPER FUNCTIONS =====
+    # ===== PROMPT MANAGER TAB HELPER FUNCTIONS =====
     
     def _pl_load_system_prompts(self):
         """Load system prompts into the tree"""
@@ -2941,7 +2941,7 @@ class Supervertaler:
         else:
             messagebox.showerror("Error", "Failed to delete prompt.")
     
-    # ===== END PROMPT LIBRARY TAB FUNCTIONS =====
+    # ===== END PROMPT MANAGER TAB FUNCTIONS =====
     
     def maximize_prompt_library(self):
         system_frame = tk.Frame(self.prompt_library_notebook, bg='white')
@@ -3249,7 +3249,7 @@ class Supervertaler:
                  bg='#F44336', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
     
     def maximize_prompt_library(self):
-        """Maximize Prompt Library to full window (hide start screen/workspace)"""
+        """Maximize Prompt Manager to full window (hide start screen/workspace)"""
         # Store which sub-tab was active
         current_tab_index = self.prompt_library_notebook.index(self.prompt_library_notebook.select())
         self._maximized_from_tab = current_tab_index
@@ -3266,7 +3266,7 @@ class Supervertaler:
         header = tk.Frame(full_frame, bg='#e3f2fd', relief='solid', borderwidth=1)
         header.pack(fill='x', padx=5, pady=5)
         
-        tk.Label(header, text="🎯 Prompt Library", font=('Segoe UI', 11, 'bold'),
+        tk.Label(header, text="🎯 Prompt Manager", font=('Segoe UI', 11, 'bold'),
                 bg='#e3f2fd').pack(side='left', padx=10, pady=5)
         
         tk.Button(header, text="◱ Restore", command=self.restore_from_maximize,
@@ -3402,7 +3402,7 @@ class Supervertaler:
                  command=lambda: messagebox.showinfo("Prompt Assistant", "AI-powered prompt modification coming soon!\\n\\nWill help you improve prompts using natural language requests."),
                  bg='#2196F3', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=10)
         
-        self.log("📖 Prompt Library maximized")
+        self.log("📖 Prompt Manager maximized")
     
     def _create_maximized_system_prompts(self, parent):
         """Create System Prompts list for maximized view"""
@@ -3625,10 +3625,10 @@ class Supervertaler:
                  command=self._export_selected_prompt,
                  bg='#607D8B', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
         
-        self.log("📖 Prompt Library maximized")
+        self.log("📖 Prompt Manager maximized")
     
     def restore_from_maximize(self):
-        """Restore to normal layout and return to Prompt Library tab"""
+        """Restore to normal layout and return to Prompt Manager tab"""
         # Store which sub-tab was active
         restore_tab_index = getattr(self, '_maximized_from_tab', 0)
         
@@ -3645,7 +3645,7 @@ class Supervertaler:
         # Recreate normal layout
         self.create_layout_ui()
         
-        # Switch to Prompt Library tab
+        # Switch to Prompt Manager tab
         if hasattr(self, 'assist_tabs'):
             for idx, tab in enumerate(self.assist_tabs):
                 if tab['key'] == 'prompt_library':
@@ -3656,10 +3656,10 @@ class Supervertaler:
                         self.prompt_library_notebook.select(restore_tab_index)
                     break
         
-        self.log("↩️ Restored to Prompt Library")
+        self.log("↩️ Restored to Prompt Manager")
     
     def create_prompt_library_content(self, parent):
-        """Create prompt library content (used by both tab and maximized view)"""
+        """Create prompt manager content (used by both tab and maximized view)"""
         # Compact info bar: Active prompts + Filters
         compact_bar = tk.Frame(parent, bg='#f5f5f5', relief='solid', borderwidth=1)
         compact_bar.pack(fill='x', padx=5, pady=5)
