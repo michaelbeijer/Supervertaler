@@ -4617,6 +4617,9 @@ Provide the two prompts in the specified format."""
             )
             
             if filename:
+                # Store the user-entered name (without .json extension)
+                user_entered_name = filename.replace('.json', '') if filename.endswith('.json') else filename
+                
                 # Ensure .json extension
                 if not filename.endswith('.json'):
                     filename += '.json'
@@ -4639,7 +4642,7 @@ Provide the two prompts in the specified format."""
                 
                 # Create JSON structure matching the existing prompt library schema
                 prompt_data = {
-                    "name": default_name,
+                    "name": user_entered_name,  # Use the name the user entered
                     "description": f"AI-generated system prompt for translation in {doc_type.lower()} domain",
                     "domain": domain,
                     "version": "1.0",
@@ -4654,18 +4657,25 @@ Provide the two prompts in the specified format."""
                 try:
                     with open(filepath, 'w', encoding='utf-8') as f:
                         json.dump(prompt_data, f, indent=2, ensure_ascii=False)
+                    
+                    self.log(f"✓ Saved System Prompt to: {filepath}")
+                    
+                    # Refresh prompt library
+                    if hasattr(self, 'prompt_library'):
+                        old_count = len(self.prompt_library.prompts)
+                        self.prompt_library.load_all_prompts()
+                        new_count = len(self.prompt_library.prompts)
+                        self.log(f"  Prompt library reloaded: {old_count} → {new_count} prompts")
+                    
+                    if hasattr(self, '_pl_load_system_prompts'):
+                        self._pl_load_system_prompts()
+                        self.log(f"  System prompts tree refreshed")
+                    
                     messagebox.showinfo("Saved!", 
                         f"System Prompt saved as:\n{filename}\n\n"
                         f"Location: {system_prompts_dir}\n\n"
                         f"It will now appear in your Prompt Manager → System Prompts section.")
                     
-                    # Refresh prompt library
-                    if hasattr(self, 'prompt_library'):
-                        self.prompt_library.load_all_prompts()
-                    if hasattr(self, '_pl_load_system_prompts'):
-                        self._pl_load_system_prompts()
-                    
-                    self.log(f"✓ Saved System Prompt: {filename}")
                     # Don't close dialog - let user see both prompts
                 except Exception as e:
                     messagebox.showerror("Error", f"Failed to save:\n{str(e)}")
