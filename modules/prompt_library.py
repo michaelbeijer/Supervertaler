@@ -6,12 +6,16 @@ Supports two types:
 - System Prompts: Define AI role and expertise
 - Custom Instructions: Additional context and preferences
 
+Supports both JSON (legacy) and Markdown (recommended) formats.
+Markdown files use YAML frontmatter for metadata.
+
 Extracted from main Supervertaler file for better modularity.
 """
 
 import os
 import json
 import shutil
+import re
 from datetime import datetime
 from tkinter import messagebox
 

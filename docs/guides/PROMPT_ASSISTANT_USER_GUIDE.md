@@ -1,6 +1,6 @@
 # Prompt Assistant - User Guide
 
-> **📌 Updated for v3.6.6-beta**: The AI Assistant has been renamed to "Prompt Assistant" and moved to the Prompt Manager as a third tab for better organization and workflow.
+> **📌 Updated for v3.6.7-beta**: The AI Assistant has been renamed to "Prompt Assistant" and moved to the Prompt Manager as a third tab for better organization and workflow. Enhanced with clickable folder links and improved UI clarity.
 
 ## 🎯 Quick Start Guide
 
