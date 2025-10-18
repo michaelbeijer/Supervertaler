@@ -4005,7 +4005,7 @@ class Supervertaler:
                  command=self.generate_translation_prompts,
                  bg='#2196F3', fg='white', font=('Segoe UI', 9, 'bold')).pack(side='left', padx=(0, 5))
         
-        tk.Button(analysis_btn_frame, text="📝 Show Prompt",
+        tk.Button(analysis_btn_frame, text="📝 View/Edit Analysis Prompts",
                  command=self.show_analysis_prompt,
                  bg='#FF9800', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=(0, 5))
         
@@ -4574,9 +4574,18 @@ Provide the two prompts in the specified format."""
         system_frame = tk.Frame(notebook)
         notebook.add(system_frame, text="📋 System Prompt (Global Strategy)")
         
-        tk.Label(system_frame, 
-                text="This prompt will be saved as a JSON file in your System_prompts folder",
-                font=('Segoe UI', 9, 'bold'), fg='#1976D2', bg='#e3f2fd').pack(fill='x', padx=5, pady=5)
+        info_frame_sys = tk.Frame(system_frame, bg='#e3f2fd')
+        info_frame_sys.pack(fill='x', padx=5, pady=5)
+        
+        tk.Label(info_frame_sys, 
+                text="This prompt will be saved as a JSON file in your ",
+                font=('Segoe UI', 9, 'bold'), fg='#1976D2', bg='#e3f2fd').pack(side='left')
+        
+        sys_folder_link = tk.Label(info_frame_sys, 
+                text="System_prompts folder",
+                font=('Segoe UI', 9, 'bold', 'underline'), fg='#0D47A1', bg='#e3f2fd', cursor='hand2')
+        sys_folder_link.pack(side='left')
+        sys_folder_link.bind('<Button-1>', lambda e: self._open_folder_in_explorer(get_user_data_path('System_prompts')))
         
         system_text = scrolledtext.ScrolledText(system_frame, wrap='word', font=('Segoe UI', 10), height=20)
         system_text.pack(fill='both', expand=True, padx=5, pady=5)
@@ -4648,9 +4657,11 @@ Provide the two prompts in the specified format."""
                     messagebox.showinfo("Saved!", 
                         f"System Prompt saved as:\n{filename}\n\n"
                         f"Location: {system_prompts_dir}\n\n"
-                        f"It will now appear in your Prompt Library → System Prompts section.")
+                        f"It will now appear in your Prompt Manager → System Prompts section.")
                     
-                    # Refresh prompt library if visible
+                    # Refresh prompt library
+                    if hasattr(self, 'prompt_library'):
+                        self.prompt_library.load_all_prompts()
                     if hasattr(self, '_pl_load_system_prompts'):
                         self._pl_load_system_prompts()
                     
@@ -4676,9 +4687,18 @@ Provide the two prompts in the specified format."""
         custom_frame = tk.Frame(notebook)
         notebook.add(custom_frame, text="📝 Custom Instructions (Project-Specific)")
         
-        tk.Label(custom_frame, 
-                text="These instructions will be applied directly to your current project",
-                font=('Segoe UI', 9, 'bold'), fg='#F57C00', bg='#fff3e0').pack(fill='x', padx=5, pady=5)
+        info_frame_custom = tk.Frame(custom_frame, bg='#fff3e0')
+        info_frame_custom.pack(fill='x', padx=5, pady=5)
+        
+        tk.Label(info_frame_custom, 
+                text="These custom instructions will be saved as a JSON file in your ",
+                font=('Segoe UI', 9, 'bold'), fg='#F57C00', bg='#fff3e0').pack(side='left')
+        
+        custom_folder_link = tk.Label(info_frame_custom, 
+                text="Custom_instructions folder",
+                font=('Segoe UI', 9, 'bold', 'underline'), fg='#E65100', bg='#fff3e0', cursor='hand2')
+        custom_folder_link.pack(side='left')
+        custom_folder_link.bind('<Button-1>', lambda e: self._open_folder_in_explorer(get_user_data_path('Custom_instructions')))
         
         custom_text = scrolledtext.ScrolledText(custom_frame, wrap='word', font=('Segoe UI', 10), height=20)
         custom_text.pack(fill='both', expand=True, padx=5, pady=5)
@@ -4812,6 +4832,21 @@ Provide the two prompts in the specified format."""
         self.add_assistant_chat_message('system', "Welcome! I can help you understand your document and optimize your translation settings. Try clicking 'Analyze Document' or ask me a question!")
         
         self.log("Analysis results and chat history cleared")
+    
+    def _open_folder_in_explorer(self, folder_path):
+        """Open a folder in the system's file explorer (cross-platform)"""
+        import platform
+        import subprocess
+        
+        try:
+            if platform.system() == "Windows":
+                os.startfile(folder_path)
+            elif platform.system() == "Darwin":  # macOS
+                subprocess.run(["open", folder_path])
+            else:  # Linux and other Unix-like
+                subprocess.run(["xdg-open", folder_path])
+        except Exception as e:
+            messagebox.showerror("Error", f"Could not open folder:\n{str(e)}")
     
     def show_analysis_prompt(self):
         """Show and edit the prompts used for AI analysis - iterative refinement"""
