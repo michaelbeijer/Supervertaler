@@ -1,5 +1,5 @@
 """  
-Supervertaler v3.6.5-beta (CAT Editor)
+Supervertaler v3.6.6-beta (CAT Editor)
 AI-Powered Computer-Aided Translation Tool
 
 Features:
@@ -531,7 +531,7 @@ class Supervertaler:
     
     def __init__(self, root):
         self.root = root
-        self.root.title("Supervertaler v3.0.0-beta - AI-Powered CAT Tool")
+        self.root.title("Supervertaler v3.6.6-beta - AI-Powered CAT Tool")
         self.root.geometry("1200x800")
         
         # Layout mode
@@ -745,7 +745,7 @@ class Supervertaler:
         self.prompt_library.load_all_prompts()
         
         # Status
-        self.log("Supervertaler v3.0.0-beta ready. Import a DOCX file to begin.")
+        self.log("Supervertaler v3.6.6-beta ready. Import a DOCX file to begin.")
         self.log(f"✨ LLM APIs: OpenAI={OPENAI_AVAILABLE}, Claude={ANTHROPIC_AVAILABLE}, Gemini={GEMINI_AVAILABLE}")
         self.log("✨ Layout modes available: Grid (memoQ-style), List, Document")
     
@@ -1147,7 +1147,7 @@ class Supervertaler:
         tk.Label(center_frame, text="Supervertaler", 
                 font=('Segoe UI', 32, 'bold'), bg='#f5f5f5', fg='#2196F3').pack(pady=(0, 5))
         
-        tk.Label(center_frame, text="v3.3.0-beta", 
+        tk.Label(center_frame, text="v3.6.6-beta", 
                 font=('Segoe UI', 14), bg='#f5f5f5', fg='#666').pack(pady=(0, 20))
         
         # Subtitle
