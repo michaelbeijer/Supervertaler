@@ -2432,7 +2432,7 @@ class Supervertaler:
                        foreground='#1565C0')
         style.map('PromptManager.TNotebook.Tab',
                  background=[('selected', '#2196F3'), ('active', '#90CAF9')],
-                 foreground=[('selected', 'white'), ('active', '#0D47A1')],
+                 foreground=[('selected', '#FFFFFF'), ('active', '#0D47A1')],
                  relief=[('selected', 'sunken')],
                  borderwidth=[('selected', 2)])
         
@@ -2618,10 +2618,6 @@ class Supervertaler:
                  bg='#9E9E9E', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
         tk.Button(btn_frame, text="🗑️ Delete", command=self._pl_delete_prompt,
                  bg='#F44336', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
-        tk.Button(btn_frame, text="🤖 Prompt Assistant",
-                 command=lambda: messagebox.showinfo("Prompt Assistant",
-                     "AI-powered prompt modification coming soon!\n\nWill help you improve prompts using natural language requests."),
-                 bg='#2196F3', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=10)
         
         # ===== LOAD INITIAL DATA =====
         self._pl_load_system_prompts()
@@ -3329,7 +3325,7 @@ class Supervertaler:
                            foreground='#1565C0')
         max_style.map('MaxPrompt.TNotebook.Tab',
                      background=[('selected', '#2196F3'), ('active', '#90CAF9')],
-                     foreground=[('selected', 'white'), ('active', '#0D47A1')],
+                     foreground=[('selected', '#FFFFFF'), ('active', '#0D47A1')],
                      relief=[('selected', 'sunken')],
                      borderwidth=[('selected', 2)])
         
@@ -3426,11 +3422,6 @@ class Supervertaler:
         tk.Button(editor_btn_frame, text="🗑️ Delete",
                  command=self._delete_selected_prompt,
                  bg='#F44336', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
-        
-        # Prompt Assistant toggle button (coming soon)
-        tk.Button(editor_btn_frame, text="🤖 Prompt Assistant",
-                 command=lambda: messagebox.showinfo("Prompt Assistant", "AI-powered prompt modification coming soon!\\n\\nWill help you improve prompts using natural language requests."),
-                 bg='#2196F3', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=10)
         
         self.log("📖 Prompt Manager maximized")
     
