@@ -1,0 +1,5 @@
+Translate the document from Dutch to English, ensuring a high degree of accuracy and consistency throughout. The document is a patent within the civil engineering domain, specifically focusing on road construction technologies. Maintain a formal and technical tone appropriate for patent documentation, ensuring that the translation is clear and precise to convey the technical details effectively.
+
+Adhere strictly to the provided bilingual glossary for key technical terms to ensure consistency and accuracy in terminology. Pay particular attention to terms related to road construction and engineering, as these are critical to the document's subject matter. Where applicable, use the English equivalents provided in the glossary to maintain consistency across the translation.
+
+In translating this patent, focus on preserving the original meaning and intent of the source text. Ensure that the translation accurately reflects the technical specifications, processes, and benefits of the invention. Use clear and concise language to describe technical concepts, and ensure that the translation is accessible to professionals in the civil engineering field.

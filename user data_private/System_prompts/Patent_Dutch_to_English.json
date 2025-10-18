@@ -1,0 +1,11 @@
+{
+  "name": "Patent_Dutch_to_English",
+  "description": "AI-generated system prompt for translation in patent domain",
+  "domain": "Intellectual Property",
+  "version": "1.0",
+  "task_type": "Translation",
+  "created": "2025-10-18 - AI Generated",
+  "modified": "2025-10-18",
+  "translate_prompt": "When translating documents in the field of civil engineering, specifically patents, from {source_lang} to {target_lang}, it is essential to maintain a high level of technical accuracy and consistency. The translation should reflect the formal tone and precise register typical of patent documents. Ensure that the translation adheres to the conventions of patent language, which often includes specific legal and technical terminology.\n\nIn handling terminology, prioritize consistency and clarity. Use established equivalents for technical terms and ensure that any specialized language is translated accurately to maintain the document's integrity and purpose. Pay attention to the structure of the document, including claims and descriptions, to ensure that the translation is both legally sound and technically precise.\n\nFor patent documents, it is crucial to maintain the original document's structure, including headings, subheadings, and numbered sections. This helps preserve the logical flow and coherence necessary for legal and technical comprehension. Additionally, be mindful of any units of measurement, figures, and diagrams, ensuring they are accurately represented and formatted according to {target_lang} standards.",
+  "proofread_prompt": ""
+}

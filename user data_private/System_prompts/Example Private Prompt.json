@@ -1,9 +1,0 @@
-{
-  "name": "Example Private Prompt",
-  "description": "Example private custom prompt for testing - never synced to GitHub",
-  "domain": "Private/Confidential",
-  "created": "2025-09-13",
-  "version": "1.0",
-  "translate_prompt": "This is an example private translation prompt. You can modify this for your confidential or proprietary translation needs. This file will never be synced to GitHub, making it perfect for:\n\n- Client-specific terminology\n- Company proprietary translation guidelines\n- Confidential project requirements\n- Personal experimental prompts\n\nTranslate the following text from {source_lang} to {target_lang}:",
-  "proofread_prompt": "This is an example private proofreading prompt. You can customize this for your confidential quality assurance needs.\n\nReview the following translation from {source_lang} to {target_lang} and provide feedback on:\n- Accuracy and completeness\n- Adherence to confidential style guidelines\n- Consistency with proprietary terminology\n- Overall quality and fluency\n\nReview the following translation:"
-}
