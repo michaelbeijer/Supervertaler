@@ -1,5 +1,35 @@
 ﻿# Supervertaler - Changelog
 
+## [3.6.6-beta] - 2025-10-18 🤖 PROMPT ASSISTANT UX OVERHAUL
+
+### 🎯 MAJOR UX IMPROVEMENTS (CAT Edition)
+
+**Renamed "AI Assistant" to "Prompt Assistant"**:
+- More accurate name that describes its purpose (document analysis + prompt generation)
+- Distinguishes from general-purpose AI chatbots
+- Professional terminology for translation workflow
+
+**Moved to Prompt Library as Third Tab**:
+- **Old Location**: Separate panel in Assistant sidebar (cluttered)
+- **New Location**: Third tab inside Prompt Library (System Prompts | Custom Instructions | **Prompt Assistant**)
+- All prompt-related features now in one logical location
+- Natural workflow: Analyze → Generate → Browse/Edit → Apply
+
+**Smart Editor Panel Visibility**:
+- Editor panel auto-hides when Prompt Assistant tab is active (full-width workspace)
+- Editor auto-shows when switching to System Prompts or Custom Instructions tabs
+- Context-aware UI that adapts to current task
+
+**Benefits**:
+- ✨ Better organization and workflow
+- ✨ Clearer purpose with professional naming
+- ✨ Space efficiency (one less sidebar panel)
+- ✨ Intuitive prompt ecosystem in one place
+
+**Details**: See [CHANGELOG-CAT.md](CHANGELOG-CAT.md) for complete technical implementation
+
+---
+
 ## [3.6.2-beta] - 2025-10-16 ✨ PROMPT LIBRARY UI IMPROVEMENTS
 
 ### ✨ ENHANCEMENTS (CAT Edition)
