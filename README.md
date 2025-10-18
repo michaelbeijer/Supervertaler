@@ -2,15 +2,17 @@
 
 🎯 **Context-aware, LLM-powered translation & proofreading tool, leveraging multiple context sources for enhanced accuracy (built for translators)** - Revolutionary approach to document translation that leverages multiple context sources for unparalleled accuracy.
 
-**Note**: A version of Supervertaler is being developed with many features commonly found in proper CAT tools (Computer-Aided Translation tools), which has reached **v3.6.2-beta** with PDF Rescue - an AI-powered OCR tool! It features GPT-4 Vision OCR for badly-formatted PDFs, unified prompt management (System Prompts + Custom Instructions), grid pagination (10x faster loading), smart paragraph detection, dual text selection (memoQ-style), column management, formatting display, three professional view modes (Grid, List, Document), and comprehensive auto-export options. We're implementing features from [michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool](https://michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool).
+**Note**: A version of Supervertaler is being developed with many features commonly found in proper CAT tools (Computer-Aided Translation tools), which has reached **v3.6.6-beta** with major UX improvements to Prompt Assistant! It features GPT-4 Vision OCR for badly-formatted PDFs, unified prompt management (System Prompts + Custom Instructions), grid pagination (10x faster loading), smart paragraph detection, dual text selection (memoQ-style), column management, formatting display, three professional view modes (Grid, List, Document), and comprehensive auto-export options. We're implementing features from [michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool](https://michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool).
 
 
 ## 📦 Available Versions
 
-### v3.6.2-beta (Experimental - CAT Editor) 🚀
+### v3.6.6-beta (Experimental - CAT Editor) 🚀
 **File**: `Supervertaler_v3.6.0-beta_CAT.py`
-- ✨ **NEW**: Improved Prompt Library UI with clearer active prompt labels
-- ✅ **NEW**: Simplified Custom Instructions workflow (activation model)
+- 🤖 **NEW v3.6.6**: Prompt Assistant reorganized as third tab in Prompt Library (better UX!)
+- ✨ **NEW v3.6.6**: Editor panel auto-hides on Prompt Assistant tab (full-width workspace)
+- 📚 **v3.6.5**: Prompt Assistant - AI-powered document analysis and prompt generation
+- 🎯 **v3.6.5**: Intelligent glossary extraction with bilingual terminology tables
 - 🆘 PDF Rescue - AI-Powered OCR Tool (GPT-4 Vision)
 - 📄 One-click PDF import with automatic page extraction
 - 🧠 Smart redaction/stamp handling with language-aware placeholders
@@ -29,7 +31,7 @@
 - ✅ CafeTran and memoQ bilingual DOCX support
 - 📖 **Status**: Feature-complete, performance optimized, beta testing phase
 - 💡 **Note**: v3.x signifies major architectural change from original DOCX workflow
-- 🏷️ **Version Note**: Bumped to v3.6.2 for Prompt Library UI improvements
+- 🏷️ **Version Note**: v3.6.6 adds major UX improvements to Prompt Assistant
 
 ### v2.4.3-CLASSIC (Production-ready) 🎉
 **File**: `Supervertaler_v2.4.3-CLASSIC.py`
