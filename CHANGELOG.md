@@ -1,5 +1,66 @@
 ﻿# Supervertaler - Changelog
 
+## [3.6.8-beta] - 2025-10-19 📝 MARKDOWN PROMPT FORMAT
+
+### ✨ MAJOR ENHANCEMENT (CAT Edition)
+
+**Complete Markdown Format Migration for Prompts**:
+- **NEW**: All prompts (System Prompts + Custom Instructions) now use Markdown with YAML frontmatter
+- **NEW**: Save dialogs default to `.md` format instead of `.json`
+- **NEW**: Beautiful native Markdown tables for glossaries and structured data
+- **NEW**: YAML frontmatter provides clean, human-readable metadata
+- **NEW**: Mixed format support - loads both `.json` and `.md` files automatically
+- **MIGRATION**: All 27 existing prompts converted from JSON to Markdown (19 System Prompts, 8 Custom Instructions)
+
+**What This Means for Translators**:
+- ✅ Double-click prompts to open in any text editor (like documents!)
+- ✅ Read and edit prompts naturally with section headers and formatting
+- ✅ No escaped quotes or verbose JSON syntax
+- ✅ Glossaries display as beautiful Markdown tables
+- ✅ Human-friendly editing experience
+
+**Format Example**:
+```markdown
+---
+name: "Patent Translation Specialist"
+description: "Expert patent translator"
+domain: "Intellectual Property"
+version: "2.2.0"
+task_type: "Translation"
+created: "2025-10-19"
+---
+
+# Patent Translation Guide
+
+You are an expert translator with deep expertise in intellectual property...
+
+## Key Principles
+
+- Maintain technical precision
+- Preserve claim structure
+- Use consistent terminology
+```
+
+**Technical Implementation**:
+- `parse_markdown()` - Parse Markdown with YAML frontmatter into prompt data
+- `dict_to_markdown()` - Save prompt data as formatted Markdown file
+- `_parse_yaml()` - Simple YAML parser for frontmatter key:value pairs
+- `_load_from_directory()` - Enhanced to handle both `.json` and `.md` files
+- `convert_json_to_markdown()` - Convert JSON files to Markdown format
+- `convert_all_prompts_to_markdown()` - Batch conversion utility
+
+**Migration Summary**:
+- ✅ 8/10 System Prompts converted (PUBLIC user data)
+- ✅ 11/12 System Prompts converted (PRIVATE user data, includes test prompt)
+- ✅ 3/4 Custom Instructions converted (PUBLIC user data)
+- ✅ 5/5 Custom Instructions converted (PRIVATE user data, includes test)
+- ⚠️ 3 empty corrupted JSON files skipped
+- **Total**: 27 prompts successfully migrated
+
+**Details**: See [CHANGELOG-CAT.md](CHANGELOG-CAT.md) for complete technical implementation
+
+---
+
 ## [3.6.7-beta] - 2025-10-18 ✨ POLISH & FIXES
 
 ### ✨ ENHANCEMENTS (CAT Edition)
