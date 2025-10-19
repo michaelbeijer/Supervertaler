@@ -4,6 +4,9 @@ desktop.ini
 # API keys
 api_keys.txt
 
+# SECURITY: Private data folder - NEVER sync to GitHub
+user data_private/
+
 # Private system prompts folder - never sync to GitHub
 user data/System_prompts_private/
 
