@@ -2,7 +2,7 @@
 
 🎯 **Context-aware, LLM-powered CAT editor for professional translators** — Revolutionary segment-based translation tool with AI-enhanced prompts, PDF Rescue OCR, and seamless CAT tool integration.
 
-**Latest Version**: v3.7.0-beta (October 19, 2025)
+**Latest Version**: v3.7.0 (October 19, 2025)
 
 ---
 
@@ -21,9 +21,9 @@ Supervertaler is a **professional Computer-Aided Translation (CAT) editor** desi
 
 ---
 
-## 🚀 Current Version: v3.7.0-beta
+## 🚀 Current Version: v3.7.0
 
-**File**: `Supervertaler_v3.7.0-beta.py`
+**File**: `Supervertaler_v3.7.0.py`
 
 ### 📌 What's New in v3.7.0
 
@@ -103,7 +103,7 @@ cd Supervertaler
 pip install -r requirements.txt
 
 # Run application
-python Supervertaler_v3.7.0-beta.py
+python Supervertaler_v3.7.0.py
 ```
 
 ### First Steps
@@ -280,7 +280,7 @@ Check out:
 ---
 
 **Last Updated**: October 19, 2025  
-**Version**: v3.7.0-beta  
+**Version**: v3.7.0  
 **Status**: Active Development  
 **License**: MIT (Open Source)
 

@@ -1,6 +1,6 @@
 # Supervertaler - Complete Changelog
 
-**Latest Version**: v3.7.0-beta (2025-10-19)  
+**Latest Version**: v3.7.0 (2025-10-19)  
 **Product**: Unified Supervertaler (v3.x CAT Edition)  
 **Status**: Active Development
 
@@ -8,7 +8,7 @@
 
 ---
 
-## [3.7.0-beta] - 2025-10-19 🎯 UNIFIED PRODUCT LAUNCH
+## [3.7.0] - 2025-10-19 🎯 STABLE RELEASE
 
 ### ✨ MAJOR RESTRUCTURING
 
@@ -86,7 +86,7 @@ user data/
 - Archived: v2.5.0-CLASSIC.py
 - Archived: v3.6.6-beta_CAT.py
 - Archived: v3.6.7-beta_CAT.py
-- Root now contains only: v3.7.0-beta.py
+- Root now contains only: v3.7.0.py
 
 ---
 
