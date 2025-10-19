@@ -35,7 +35,6 @@ classifiers = [
     "Intended Audience :: End Users/Desktop",
     "Topic :: Office/Business",
     "Topic :: Text Processing :: Linguistic",
-    "Environment :: X11 :: Tk",
 ]
 
 dependencies = [
