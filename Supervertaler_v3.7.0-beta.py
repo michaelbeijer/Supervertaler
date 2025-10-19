@@ -5681,7 +5681,7 @@ Available features you can recommend:
         tk.Label(pref_frame, text="  ⓘ Send nearby segments for context without full document. 0 = no context. Default: 5",
                 font=('Segoe UI', 8), fg='gray').pack(anchor='w', padx=20)
         
-        self.use_context_var = tk.BooleanVar(value=False)  # Changed default to False to save API costs
+        self.use_context_var = tk.BooleanVar(value=True)  # Enabled by default for professional translations
         tk.Checkbutton(pref_frame, text="Include full document context in batch translation (increases API usage)",
                       variable=self.use_context_var, font=('Segoe UI', 9)).pack(anchor='w', pady=2)
         tk.Label(pref_frame, text="  ⓘ Context helps with consistency but sends more data - use for technical docs",
@@ -5691,7 +5691,7 @@ Available features you can recommend:
         tk.Checkbutton(pref_frame, text="Check TM before API call",
                       variable=self.check_tm_var, font=('Segoe UI', 9)).pack(anchor='w', pady=2)
         
-        self.auto_propagate_var = tk.BooleanVar(value=False)
+        self.auto_propagate_var = tk.BooleanVar(value=True)
         tk.Checkbutton(pref_frame, text="Auto-propagate 100% TM matches",
                       variable=self.auto_propagate_var, font=('Segoe UI', 9)).pack(anchor='w', pady=2)
         
