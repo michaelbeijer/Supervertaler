@@ -13,13 +13,13 @@
 ### ✨ MAJOR RESTRUCTURING
 
 **Product Unification**:
-- **Deprecated**: v2.5.0-CLASSIC (archived to `previous_versions/`)
+- **Deprecated**: v2.5.0-CLASSIC (archived to `.dev/previous_versions/`)
 - **Focus**: All development now concentrated on v3.x CAT Edition
 - **Branding**: Removed "CAT" suffix - Supervertaler IS the CAT editor
 - **Messaging**: Single product line, clear value proposition to users
 
 **Repository Cleanup**:
-- Moved all v2.x and earlier v3.x versions to `previous_versions/` folder
+- Moved all v2.x and earlier v3.x versions to `.dev/previous_versions/` folder
 - Unified changelog (consolidated CHANGELOG-CAT.md and CHANGELOG-CLASSIC.md)
 - Removed confusing dual-version documentation
 - Main executable: `Supervertaler_v3.7.0-beta.py`
@@ -82,11 +82,11 @@ user data/
 ### 📦 REPOSITORY CLEANUP
 
 **Previous Versions Folder**:
-- Created `previous_versions/` directory
+- Moved to `.dev/previous_versions/` (centralized archive)
 - Archived: v2.5.0-CLASSIC.py
 - Archived: v3.6.6-beta_CAT.py
 - Archived: v3.6.7-beta_CAT.py
-- Root now contains only: v3.6.8-beta_CAT.py (now v3.7.0-beta.py)
+- Root now contains only: v3.7.0-beta.py
 
 ---
 
@@ -209,7 +209,7 @@ You are an expert translator with deep expertise in intellectual property...
 ## Previous Versions (Archived)
 
 ### v3.6.5-beta, v3.6.4-beta, v3.6.3-beta
-See [previous_versions/](previous_versions/) folder
+See [.dev/previous_versions/](.dev/previous_versions/) folder
 
 ### v2.5.0-CLASSIC (Archived - No Longer Developed)
 **Production-ready DOCX-based workflow** (last update: 2025-10-14):
@@ -233,7 +233,7 @@ See [previous_versions/](previous_versions/) folder
 
 **Version Numbering**:
 - **v3.x-beta**: Active development (current)
-- **previous_versions/**: Archived but working versions
+- **.dev/previous_versions/**: Archived but working versions
 
 ---
 
