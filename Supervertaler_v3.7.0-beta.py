@@ -800,6 +800,7 @@ class Supervertaler:
         # Document analyzer for Prompt Assistant
         self.document_analyzer = DocumentAnalyzer()
         self.doc_analysis_result = None  # Cache analysis results
+        self.generated_prompts = {}  # Store generated system prompts and custom instructions
         self.assistant_chat_history = []  # Chat history for Prompt Assistant
         self.last_analysis_prompt = None  # Store last analysis prompt for transparency
         
@@ -4621,6 +4622,16 @@ Provide the two prompts in the specified format."""
             self.log(f"⚠️ Error parsing AI response: {str(e)}", "WARNING")
             system_prompt_text = ai_response
             custom_instructions_text = "See System Prompt above for complete guidance."
+        
+        # Store generated prompts in project for later retrieval
+        self.generated_prompts = {
+            'system_prompt': system_prompt_text,
+            'custom_instructions': custom_instructions_text,
+            'source_lang': source_lang,
+            'target_lang': target_lang,
+            'generated_at': datetime.now().isoformat()
+        }
+        self.log(f"💾 Generated prompts stored to project (will be saved when you save the project)")
         
         # Create dialog
         dialog = tk.Toplevel(self.root)
@@ -11485,8 +11496,9 @@ Use this feature AFTER translation to:
                     'surrounding_segments': self.surrounding_segments_var.get()
                 },
                 # Save figure context folder path (images not saved, just folder reference)
-                'figure_context': self.figure_context_manager.save_state()
-            }
+                'figure_context': self.figure_context_manager.save_state(),
+                # Save generated prompts from AI analysis
+                'generated_prompts': self.generated_prompts
             
             with open(self.project_file, 'w', encoding='utf-8') as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
@@ -11614,6 +11626,12 @@ Use this feature AFTER translation to:
             if 'figure_context' in data:
                 if self.figure_context_manager.restore_state(data['figure_context']):
                     self.update_figure_context_display()  # Update Images tab
+            
+            # Load generated prompts if present
+            if 'generated_prompts' in data:
+                self.generated_prompts = data['generated_prompts']
+                if self.generated_prompts:
+                    self.log(f"✓ Loaded generated prompts from previous analysis")
             
             # Load filter preferences if they exist
             if 'filter_preferences' in data:
@@ -13430,6 +13448,14 @@ Use this feature AFTER translation to:
         try:
             timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             
+            # Get complete log contents
+            log_contents = ""
+            if hasattr(self, 'log_text'):
+                try:
+                    log_contents = self.log_text.get('1.0', 'end-1c').strip()
+                except:
+                    log_contents = "(Could not retrieve log contents)"
+            
             # Calculate statistics
             total_segments = len(self.segments)
             translated = sum(1 for seg in self.segments if seg.target.strip() and seg.status != "untranslated")
@@ -13460,11 +13486,11 @@ Use this feature AFTER translation to:
             custom_prompt_source = "Custom loaded prompt" if is_custom_prompt else "Default system prompt"
             
             # Build comprehensive markdown report
-            report = f"""# Supervertaler CAT Editor Session Report
+            report = f"""# [Supervertaler](https://supervertaler.com/) CAT Editor Session Report
 
 ## Session Information
 - **Date & Time**: {timestamp}
-- **Supervertaler Version**: {APP_VERSION}
+- **[Supervertaler](https://supervertaler.com/) Version**: {APP_VERSION}
 - **Mode**: CAT Editor with AI-Assisted Translation
 - **AI Provider**: {self.current_llm_provider}
 - **AI Model**: {self.current_llm_model}
@@ -13555,7 +13581,7 @@ Use this feature AFTER translation to:
 
 ## Workflow Summary
 
-This session used Supervertaler's CAT Editor mode with the following workflow:
+This session used [Supervertaler](https://supervertaler.com/)'s CAT Editor mode with the following workflow:
 1. **Import**: Document imported and segmented
 2. **AI Pre-Translation**: {'Segments translated using ' + self.current_llm_provider if translated > 0 else 'No AI translation performed yet'}
 3. **Manual Review**: {'Human review and editing of AI translations' if approved > 0 else 'No segments approved yet'}
@@ -13567,8 +13593,16 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
 - **Output Formats Available**: DOCX, Bilingual DOCX, TSV, TXT, TMX
 - **Report Generated**: {timestamp}
 
+## Session Log
+
+The complete session log below includes all operations performed during this translation session:
+
+```
+{log_contents}
+```
+
 ---
-*This report was automatically generated by Supervertaler v{APP_VERSION} CAT Editor*
+Generated by [Supervertaler](https://supervertaler.com/) v{APP_VERSION}
 """
             
             # Write markdown report to file
@@ -13590,7 +13624,8 @@ This session used Supervertaler's CAT Editor mode with the following workflow:
                               f"• Project statistics\n"
                               f"• AI configuration\n"
                               f"• Translation settings\n"
-                              f"• Segment details\n\n"
+                              f"• Segment details\n"
+                              f"• Complete session log\n\n"
                               f"💡 Tip: Double-click the HTML file to open it in your browser!")
             
         except Exception as e:
