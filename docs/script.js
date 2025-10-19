@@ -112,3 +112,27 @@ function toggleMobileMenu() {
 console.log('%c🌐 Supervertaler Website', 'font-size: 20px; font-weight: bold; color: #3b82f6;');
 console.log('%cBuilt with ❤️ for translators', 'font-size: 14px; color: #6b7280;');
 console.log('%cRepository: https://github.com/michaelbeijer/Supervertaler', 'font-size: 12px; color: #8b5cf6;');
+
+// Back to Top Button
+document.addEventListener('DOMContentLoaded', () => {
+    const backToTopButton = document.getElementById('backToTop');
+    
+    if (backToTopButton) {
+        // Show/hide button based on scroll position
+        window.addEventListener('scroll', () => {
+            if (window.pageYOffset > 300) {
+                backToTopButton.classList.add('show');
+            } else {
+                backToTopButton.classList.remove('show');
+            }
+        });
+        
+        // Scroll to top when button is clicked
+        backToTopButton.addEventListener('click', () => {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        });
+    }
+});
