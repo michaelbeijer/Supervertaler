@@ -92,7 +92,46 @@ Supervertaler is a **professional Computer-Aided Translation (CAT) editor** desi
 
 ## 🔧 Getting Started
 
-### Installation
+### Installation - Choose Your Method
+
+Supervertaler v3.7.0 is available in **three ways**:
+
+#### **1️⃣ Windows Executable (Easiest - Recommended for Most Users)**
+
+No Python installation required!
+
+1. **Download**: Get the latest release from [GitHub Releases](https://github.com/michaelbeijer/Supervertaler/releases)
+2. **Extract**: Unzip `Supervertaler-v3.7.0.zip` to any folder
+3. **Run**: Double-click `Supervertaler/Supervertaler.exe`
+4. **Configure**: Add your API keys and start translating!
+
+**Advantages**:
+- ✅ No Python needed
+- ✅ Works on any Windows system
+- ✅ All documentation and templates included
+- ✅ Portable - run from USB stick
+- ✅ Fastest startup
+
+#### **2️⃣ Python Package (pip - For Python Developers)**
+
+For those with Python 3.12+ installed:
+
+```bash
+pip install supervertaler
+```
+
+Then run:
+```bash
+python -m Supervertaler_v3.7.0
+```
+
+**Advantages**:
+- ✅ Easy updates: `pip install --upgrade supervertaler`
+- ✅ Integrates with Python projects
+- ✅ Full source code visible
+- ✅ Can customize and extend
+
+#### **3️⃣ From Source (For Contributors and Developers)**
 
 ```bash
 # Clone repository
@@ -105,6 +144,24 @@ pip install -r requirements.txt
 # Run application
 python Supervertaler_v3.7.0.py
 ```
+
+**Advantages**:
+- ✅ Latest development version
+- ✅ Full access to source code
+- ✅ Can contribute improvements
+- ✅ Perfect for customization
+
+---
+
+### Quick Comparison Table
+
+| Method | Setup Time | Python Required | Updates | Best For |
+|--------|-----------|-----------------|---------|----------|
+| **Windows Exe** | 30 seconds | ❌ No | Manual | Most users |
+| **pip** | 1 minute | ✅ Yes (3.12+) | `pip upgrade` | Developers |
+| **From Source** | 2 minutes | ✅ Yes (3.12+) | `git pull` | Contributors |
+
+---
 
 ### First Steps
 

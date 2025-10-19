@@ -280,36 +280,125 @@
     <!-- Download Section -->
     <section id="download" class="download">
         <div class="container">
-            <h2 class="section-title">Download Supervertaler</h2>
-            <p class="section-subtitle">Unified Professional CAT Editor (v3.7.0)</p>
+            <h2 class="section-title">Get Supervertaler v3.7.0</h2>
+            <p class="section-subtitle">Choose your installation method - all three give you the same features</p>
             
-            <div class="download-grid">
+            <div class="download-grid" style="grid-template-columns: repeat(3, 1fr); gap: 25px;">
+                
+                <!-- Method 1: Windows Exe -->
                 <div class="download-card featured">
-                    <div class="download-badge">Latest</div>
-                    <h3>Supervertaler v3.7.0</h3>
-                    <div class="version-number">v3.7.0</div>
-                    <p class="download-description">
-                        Complete segment-based CAT editor with PDF Rescue (AI OCR), figure context (multimodal AI),
-                        unified Prompt Library with AI-powered Prompt Assistant, and professional CAT features.
+                    <div class="download-badge" style="background: #4CAF50;">Easiest</div>
+                    <h3>🪟 Windows Executable</h3>
+                    <p class="download-description" style="font-weight: 600; color: #4CAF50; margin-bottom: 10px;">
+                        Perfect for Most Users
                     </p>
-                    <div class="feature-highlights">
-                        <div class="highlight-item">🤖 Prompt Assistant (AI-powered)</div>
-                        <div class="highlight-item">📄 PDF Rescue (GPT-4 Vision OCR)</div>
-                        <div class="highlight-item">🖼 Figure Context (Multimodal AI)</div>
-                        <div class="highlight-item">📊 Professional Grid Editor</div>
-                        <div class="highlight-item">⚡ Grid Pagination (10x faster)</div>
-                        <div class="highlight-item">🔗 CAT Tool Integration (memoQ, CafeTran, Trados)</div>
-                        <div class="highlight-item">💾 Translation Memory</div>
-                        <div class="highlight-item">🎯 19 Domain-Specific System Prompts</div>
+                    <p class="download-description">
+                        No Python needed. Download, extract, and run. All documentation and templates included.
+                    </p>
+                    <div class="feature-highlights" style="text-align: left; font-size: 0.9em;">
+                        <div class="highlight-item">✅ No Python required</div>
+                        <div class="highlight-item">✅ 30 seconds to install</div>
+                        <div class="highlight-item">✅ All-in-one package</div>
+                        <div class="highlight-item">✅ Portable (USB-friendly)</div>
+                        <div class="highlight-item">✅ Windows 10+</div>
                     </div>
-                    <a href="https://github.com/michaelbeijer/Supervertaler/raw/main/Supervertaler_v3.7.0.py" 
-                       class="btn btn-download" download>
-                        Download v3.7.0
+                    <a href="https://github.com/michaelbeijer/Supervertaler/releases" 
+                       class="btn btn-download" target="_blank" style="background: #4CAF50; display: inline-block; width: 100%; text-align: center;">
+                        Download ZIP (108 MB)
                     </a>
-                    <p class="download-note">Requires Python 3.12+ • Open Source (MIT License)</p>
-                    <p class="download-link"><a href="https://github.com/michaelbeijer/Supervertaler/releases" target="_blank">View All Releases →</a></p>
+                    <p class="download-note" style="color: #666; font-size: 0.85em;">Extract and run Supervertaler.exe</p>
                 </div>
+
+                <!-- Method 2: pip -->
+                <div class="download-card featured">
+                    <div class="download-badge" style="background: #2196F3;">For Developers</div>
+                    <h3>🐍 Python Package (pip)</h3>
+                    <p class="download-description" style="font-weight: 600; color: #2196F3; margin-bottom: 10px;">
+                        Easy Updates & Customization
+                    </p>
+                    <p class="download-description">
+                        One command installation. Automatic updates. Full source code included.
+                    </p>
+                    <div class="feature-highlights" style="text-align: left; font-size: 0.9em;">
+                        <div class="highlight-item">✅ One command: <code style="background: #f5f5f5;">pip install supervertaler</code></div>
+                        <div class="highlight-item">✅ Easy updates</div>
+                        <div class="highlight-item">✅ Python 3.12+ required</div>
+                        <div class="highlight-item">✅ Cross-platform</div>
+                        <div class="highlight-item">✅ Customizable</div>
+                    </div>
+                    <a href="https://pypi.org/project/Supervertaler/" 
+                       class="btn btn-download" target="_blank" style="background: #2196F3; display: inline-block; width: 100%; text-align: center;">
+                        View on PyPI
+                    </a>
+                    <p class="download-note" style="color: #666; font-size: 0.85em;">Run: python -m Supervertaler_v3.7.0</p>
+                </div>
+
+                <!-- Method 3: From Source -->
+                <div class="download-card featured">
+                    <div class="download-badge" style="background: #FF9800;">For Contributors</div>
+                    <h3>👨‍💻 From Source (Git)</h3>
+                    <p class="download-description" style="font-weight: 600; color: #FF9800; margin-bottom: 10px;">
+                        Latest Development Version
+                    </p>
+                    <p class="download-description">
+                        Full source access. Contribute improvements. Customize everything.
+                    </p>
+                    <div class="feature-highlights" style="text-align: left; font-size: 0.9em;">
+                        <div class="highlight-item">✅ Full source code</div>
+                        <div class="highlight-item">✅ Latest features</div>
+                        <div class="highlight-item">✅ Python 3.12+ required</div>
+                        <div class="highlight-item">✅ Contribute to development</div>
+                        <div class="highlight-item">✅ Free & Open Source</div>
+                    </div>
+                    <a href="https://github.com/michaelbeijer/Supervertaler" 
+                       class="btn btn-download" target="_blank" style="background: #FF9800; display: inline-block; width: 100%; text-align: center;">
+                        Clone from GitHub
+                    </a>
+                    <p class="download-note" style="color: #666; font-size: 0.85em;">Run: python Supervertaler_v3.7.0.py</p>
+                </div>
+
             </div>
+
+            <!-- Comparison Table -->
+            <div style="margin-top: 40px; overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
+                    <thead style="background: #f5f5f5;">
+                        <tr>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Feature</th>
+                            <th style="padding: 12px; text-align: center; border-bottom: 2px solid #ddd;">Windows Exe</th>
+                            <th style="padding: 12px; text-align: center; border-bottom: 2px solid #ddd;">pip</th>
+                            <th style="padding: 12px; text-align: center; border-bottom: 2px solid #ddd;">From Source</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="border-bottom: 1px solid #eee;">
+                            <td style="padding: 12px;">Setup Time</td>
+                            <td style="padding: 12px; text-align: center;">30s</td>
+                            <td style="padding: 12px; text-align: center;">1m</td>
+                            <td style="padding: 12px; text-align: center;">2m</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #eee;">
+                            <td style="padding: 12px;">Python Required</td>
+                            <td style="padding: 12px; text-align: center;">❌</td>
+                            <td style="padding: 12px; text-align: center;">✅ (3.12+)</td>
+                            <td style="padding: 12px; text-align: center;">✅ (3.12+)</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #eee;">
+                            <td style="padding: 12px;">Auto-Updates</td>
+                            <td style="padding: 12px; text-align: center;">Manual</td>
+                            <td style="padding: 12px; text-align: center;">pip upgrade</td>
+                            <td style="padding: 12px; text-align: center;">git pull</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px;">Portable</td>
+                            <td style="padding: 12px; text-align: center;">✅</td>
+                            <td style="padding: 12px; text-align: center;">⚠️</td>
+                            <td style="padding: 12px; text-align: center;">⚠️</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
         </div>
     </section>
 

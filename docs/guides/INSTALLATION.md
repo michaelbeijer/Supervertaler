@@ -1,10 +1,9 @@
 ==========================================================================
-  SUPERVERTALER v2.4.1-CLASSIC - Installation & Quick Start Guide
+  SUPERVERTALER v3.7.0 - Installation Guide (Three Methods)
 ==========================================================================
 
-NOTE: As of October 10, 2025, v2.4.1 has been renamed to v2.4.1-CLASSIC
-to distinguish it from the v3.0.0-beta CAT editor. The functionality is
-identical - only the version naming has changed for clarity.
+Latest Version: v3.7.0 (October 19, 2025)
+Supervertaler is now available in THREE ways - choose what works for you!
 
 Thank you for downloading Supervertaler! This guide will help you get 
 started with AI-powered translation.
