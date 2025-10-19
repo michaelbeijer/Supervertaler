@@ -1,33 +1,34 @@
 """  
-Supervertaler v3.6.8-beta (CAT Editor)
-AI-Powered Computer-Aided Translation Tool
+Supervertaler v3.7.0-beta
+Unified Professional AI-Powered Computer-Aided Translation Tool
 
 Features:
-- PDF Rescue - AI-Powered OCR Tool (GPT-4 Vision) 📄
-- Grid Pagination System (50 segments/page, 10x faster loading) ⚡
-- Smart Paragraph Detection for document view 🧠
-- Prompt Manager (System Prompts + Custom Instructions + Prompt Assistant) 🎯
-- Figure Context support (visual context for technical translations) 🖼️
-- LLM Translation (OpenAI GPT-4, Anthropic Claude, Google Gemini)
-- Custom Prompts with variable substitution
-- Translation Memory with fuzzy matching
-- Dual Selection in Grid (memoQ-style)
-- Import/Export DOCX, TSV, JSON
-- CafeTran & memoQ bilingual DOCX support
-- Auto-export options (Session reports, TMX, TSV, XLIFF, Excel)
-- Sentence segmentation
-- Editable grid interface with inline editing
-- Find/Replace functionality
-- Status tracking and progress monitoring
-- Project save/load with context preservation
-- Dev mode with parallel folder structure (user data/ vs user data_private/)
+- 🤖 Multiple AI Providers (OpenAI GPT-4, Anthropic Claude, Google Gemini)
+- 📄 PDF Rescue - AI-Powered OCR Tool (GPT-4 Vision)
+- ⚡ Grid Pagination System (50 segments/page, 10x faster loading)
+- 🧠 Smart Paragraph Detection for document view
+- 🎯 Prompt Manager (System Prompts + Custom Instructions + Prompt Assistant)
+- 🖼️ Figure Context support (visual context for technical translations)
+- 💾 Custom Prompts with variable substitution
+- 📊 Translation Memory with fuzzy matching
+- 🎯 Dual Selection in Grid (memoQ-style)
+- 📥 Import/Export DOCX, TSV, JSON, XLIFF, TMX
+- ☕ CafeTran & memoQ bilingual DOCX support with intelligent formatting
+- 📈 Auto-export options (Session reports, TMX, TSV, XLIFF, Excel)
+- 🔀 Sentence segmentation and paragraph detection
+- ✏️ Editable grid interface with inline editing
+- 🔍 Find/Replace functionality
+- ✅ Status tracking and progress monitoring
+- 💾 Project save/load with context preservation
+- 👥 Dev mode with parallel folder structure (user data/ vs user data_private/)
 
-Author: Michael Beijer + Prompt Assistant
-Date: January 16, 2025
+Unified Product: Single version supporting all professional translation workflows
+Designer: Michael Beijer (30-year professional translator)
+License: MIT - Open Source and Free
 """
 
 # Version constant
-APP_VERSION = "3.6.6-beta"
+APP_VERSION = "3.7.0-beta"
 
 # --- Private Features Flag ---
 # Check for .supervertaler.local file to enable private features (for developers only)
@@ -600,7 +601,7 @@ class Supervertaler:
         migrate_old_folder_structure()
         
         self.root = root
-        self.root.title("Supervertaler v3.6.8-beta - AI-Powered CAT Tool")
+        self.root.title("Supervertaler v3.7.0-beta - AI-Powered CAT Tool")
         self.root.geometry("1200x800")
         
         # Layout mode

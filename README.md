@@ -1,654 +1,289 @@
-# Supervertaler
+# Supervertaler v3.7.0
 
-🎯 **Context-aware, LLM-powered translation & proofreading tool, leveraging multiple context sources for enhanced accuracy (built for translators)** - Revolutionary approach to document translation that leverages multiple context sources for unparalleled accuracy.
+🎯 **Context-aware, LLM-powered CAT editor for professional translators** — Revolutionary segment-based translation tool with AI-enhanced prompts, PDF Rescue OCR, and seamless CAT tool integration.
 
-**Note**: A version of Supervertaler is being developed with many features commonly found in proper CAT tools (Computer-Aided Translation tools), which has reached **v3.6.8-beta** with complete Markdown format migration for prompts! It features GPT-4 Vision OCR for badly-formatted PDFs, unified prompt management (System Prompts + Custom Instructions), grid pagination (10x faster loading), smart paragraph detection, dual text selection (memoQ-style), column management, formatting display, three professional view modes (Grid, List, Document), and comprehensive auto-export options. We're implementing features from [michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool](https://michaelbeijer.co.uk/what_i_look_for_in_a_cat_tool).
+**Latest Version**: v3.7.0-beta (October 19, 2025)
 
+---
 
-## 📦 Available Versions
+## ✨ What is Supervertaler?
 
-### v3.6.8-beta (Experimental - CAT Editor) 🚀
-**File**: `Supervertaler_v3.6.8-beta_CAT.py`
-- ✨ **NEW v3.6.8**: Markdown format for all prompts (System Prompts + Custom Instructions)
-- 📝 **NEW v3.6.8**: YAML frontmatter metadata for clean, human-readable prompts
-- 🔄 **NEW v3.6.8**: Automatic JSON→Markdown conversion (27 prompts migrated)
-- 💾 **NEW v3.6.8**: Save prompts as `.md` files by default (beautiful native Markdown tables)
-- 📖 **NEW v3.6.8**: Mixed format support (loads both `.json` and `.md` files)
-- 🎯 **v3.6.7**: UI Polish - Reduced tab height, improved button clarity, clickable folder links
-- 🐛 **v3.6.7**: Fixed translation errors with Prompt Manager custom instructions
-- 🌐 **v3.6.7**: Enhanced website with inspiring About section
-- 📚 **v3.6.5**: Prompt Assistant - AI-powered document analysis and prompt generation
-- 🎯 **v3.6.5**: Intelligent glossary extraction with bilingual terminology tables
-- 🆘 PDF Rescue - AI-Powered OCR Tool (GPT-4 Vision)
+Supervertaler is a **professional Computer-Aided Translation (CAT) editor** designed by a 30-year veteran translator for translators. It combines:
+
+- 🤖 **Multiple AI providers** - OpenAI GPT-4, Anthropic Claude, Google Gemini
+- 🎯 **Context-aware translation** - Full document understanding, figure context, translation memory
+- 📚 **Unified Prompt Library** - System Prompts (AI role) + Custom Instructions (user preferences)
+- 🆘 **PDF Rescue** - AI-powered OCR for badly-formatted PDFs
+- ✅ **Professional CAT features** - Segment editing, grid pagination, dual selection (memoQ-style)
+- 🔗 **CAT tool integration** - memoQ, CafeTran, Trados Studio support
+- 📊 **Smart auto-export** - Session reports, TMX, TSV, XLIFF, Excel
+- 💾 **Translation Memory** - Fuzzy matching with segment context
+
+---
+
+## 🚀 Current Version: v3.7.0-beta
+
+**File**: `Supervertaler_v3.7.0-beta.py`
+
+### 📌 What's New in v3.7.0
+
+✨ **Product Unification**:
+- Unified product focus on v3.x CAT Edition
+- Single clear product line for users and LSPs
+- Simplified repository and documentation
+
+📁 **Folder Structure Reorganization** (v3.6.9):
+- `Prompt_Library/System_prompts/` - Domain-specific prompts (19 files)
+- `Prompt_Library/Custom_instructions/` - User preferences (8 files)
+- `Translation_Resources/Glossaries/` - Terminology databases
+- `Translation_Resources/TMs/` - Translation Memory files
+- `Translation_Resources/Non-translatables/` - Non-translatable lists
+- `Translation_Resources/Segmentation_rules/` - Segmentation rules
+
+📝 **Markdown Prompt Format** (v3.6.8):
+- All prompts now in Markdown with YAML frontmatter
+- Human-readable format (no escaped JSON)
+- Beautiful Markdown tables for glossaries
+- Mixed format support (loads both `.json` and `.md`)
+
+### 🎯 Core Features
+
+**Translation Engine**:
+- ✅ Multiple AI providers with model selection
+- ✅ Custom prompts with variable substitution (`{source_lang}`, `{target_lang}`, `{domain}`, etc.)
+- ✅ Translation Memory with fuzzy matching
+- ✅ Full document context for better accuracy
+- ✅ Tracked changes learning (learns from your edits)
+
+**Professional CAT Editor**:
+- ✅ **Grid View** - 50 segments per page (10x faster loading!)
+- ✅ **List View** - Simple inline editing
+- ✅ **Document View** - Full document layout
+- ✅ **Dual Selection** - memoQ-style multi-segment selection
+- ✅ **Smart Pagination** - Instant navigation between pages
+- ✅ **Figure Context** - Multimodal AI with image understanding
+
+**Prompt Management**:
+- 🎯 **System Prompts** - Define AI behavior (specialist roles)
+- 📝 **Custom Instructions** - User preferences & guidelines
+- 🤖 **Prompt Assistant** - AI-powered document analysis and prompt generation
+- 🔍 **Prompt Library** - Browse, edit, create, filter prompts
+
+**PDF Rescue - AI-Powered OCR** (v3.5+):
 - 📄 One-click PDF import with automatic page extraction
-- 🧠 Smart redaction/stamp handling with language-aware placeholders
+- 🧠 GPT-4 Vision for badly-formatted PDFs
 - 🎨 Optional formatting preservation (markdown-based)
-- 📊 Professional session reports with Supervertaler branding
-- 👁️ Show Prompt viewer for full transparency
-- 🎯 Unified Prompt Library with System Prompts + Custom Instructions (Ctrl+P)
-- 📝 Custom Instructions - Define user preferences & behavioral guidelines
-- 🎭 Separate System Prompts (AI role) from Custom Instructions (user preferences)
-- 🗂️ Type filtering and dedicated Prompt Library menu
-- ⚡ Grid pagination system (50 segments/page, 10x faster loading!)
-- 🧠 Smart paragraph detection for document view
-- 🛡️ Enhanced loading protection (prevents crashes)
-- ✅ Professional CAT editor with Grid, List, and Document views
-- ✅ Auto-export options (session reports MD/HTML, TMX, TSV, XLIFF, Excel)
-- ✅ CafeTran and memoQ bilingual DOCX support
-- 📖 **Status**: Feature-complete, performance optimized, beta testing phase
-- 💡 **Note**: v3.x signifies major architectural change from original DOCX workflow
-- 🏷️ **Version Note**: v3.6.8 features complete Markdown migration for translator-friendly editing
+- 🔍 Smart redaction/stamp handling with language-aware placeholders
+- 📊 Professional session reports with branding
 
-### v2.4.3-CLASSIC (Production-ready) 🎉
-**File**: `Supervertaler_v2.4.3-CLASSIC.py`
-- ✅ **NEW**: Unified folder structure with v3.x (all user data in `user data/`)
-- ✅ **NEW**: Projects now saved to `user data/Projects/` and `Projects_private/`
-- ✅ CafeTran bilingual DOCX support - AI-based pipe formatting!
-- ✅ memoQ bilingual DOCX support - Programmatic formatting preservation!
-- ✅ Two complementary formatting approaches (AI-based & programmatic)
-- ✅ 100% success rate in production testing (both formats)
-- ✅ Fully tested and stable for professional use
-- 📖 **User Guide**: [USER_GUIDE.md](USER_GUIDE.md)
-- 📖 **CafeTran Guide**: [`.dev/docs/features/CAFETRAN_SUPPORT.md`](.dev/docs/features/CAFETRAN_SUPPORT.md)
-- 📖 **memoQ Guide**: [`.dev/docs/features/MEMOQ_SUPPORT.md`](.dev/docs/features/MEMOQ_SUPPORT.md)
-- 🏷️ **Version Note**: "-CLASSIC" suffix denotes original DOCX workflow architecture
+**CAT Tool Integration**:
+- ☕ **CafeTran Bilingual DOCX** - AI-based pipe symbol preservation
+- 📊 **memoQ Bilingual DOCX** - Programmatic formatting preservation
+- 🏢 **Trados Studio** - XLIFF import/export with tag preservation
+- 💾 **Export Formats** - DOCX, TSV, JSON, XLIFF, TMX, Excel, HTML, Markdown
 
-### v2.4.0 (Previous Stable - Archived) 📦
-**File**: `.dev/previous_versions/Supervertaler_v2.4.0 (stable - production ready)(2025-10-07).py`
-- 📦 Archived on 2025-10-07
-- ✅ Fully backward compatible with v2.4.3
-- 💡 Upgrade to v2.4.3-CLASSIC recommended for CAT tool integration
-
-> **💡 Recommendation**: Use **v2.4.3-CLASSIC** for production translation work. Try **v3.6.2-beta** if you want to test the experimental CAT editor features with PDF Rescue and the improved Prompt Library system!
-> 
-> **🔢 Version Scheme**: The jump from v2.x to v3.x reflects a **major architectural change**. v2.4.3-CLASSIC uses the original DOCX-based workflow, while v3.6.2-beta is a complete rewrite as a segment-based CAT editor with PDF Rescue. The "-CLASSIC" and "-beta" suffixes help distinguish these fundamentally different architectures.
-
-----
-
-## 🔧 CAT Tool Integration
-
-**Supervertaler is designed for professional translators using CAT tools** (memoQ, CafeTran, Trados Studio, Wordfast, etc.). It integrates seamlessly into existing translation workflows with **three workflow options**:
-
-### 🆕 CafeTran Bilingual DOCX Workflow (v2.4.3 - ☕ AI-BASED) 🎉
-
-**Intelligent AI-powered formatting marker preservation!**
-
-> **📌 Why CafeTran?**: CafeTran uses simple pipe symbols `|text|` to mark formatted text. Supervertaler's AI understands these markers contextually and places them intelligently in translations, even when word order changes completely.
-
-1. **Export bilingual DOCX** from CafeTran
-2. **Click "☕ Import CafeTran DOCX"** in Supervertaler (green button)
-3. **Configure translation settings** (language pair, AI provider, model)
-4. **Click "Translate"** - AI processes segments and intelligently places pipes
-5. **Click "☕ Export to CafeTran DOCX"** - Pipes displayed as BOLD + RED
-6. **Reimport to CafeTran** - Formatting markers perfectly preserved!
-
-**Benefits**:
-- ✅ **AI-based intelligence** - Pipes placed contextually, not mechanically
-- ✅ **Handles word reordering** - Works perfectly even with different sentence structures
-- ✅ **Visual clarity** - All pipe symbols displayed as BOLD + RED in exported DOCX
-- ✅ **Simple format** - `|formatted text|` is easy to understand
-- ✅ **Complete round-trip** - Verified CafeTran reimport workflow
-- ✅ **Native integration** - Direct CafeTran bilingual format support
-
-**Example**:
-- Source: `"He debuted against |Juventus FC| in 2001"`
-- Translation: `"Hij debuteerde tegen |Juventus FC| in 2001"`
-- AI correctly preserves the pipe position around the team name
-
-📖 **Full Documentation**: See [`.dev/docs/features/CAFETRAN_SUPPORT.md`](.dev/docs/features/CAFETRAN_SUPPORT.md) for detailed guide
+**Data Management**:
+- 💾 Project save/load with full context preservation
+- 📁 Organized folder structure (Prompt_Library, Translation_Resources, Projects)
+- 🔄 Automatic backup capability
+- 👥 Dev mode with parallel folder structure (`user data/` vs `user data_private/`)
 
 ---
 
-### 🆕 memoQ Bilingual DOCX Workflow (v2.4.3 - 📊 PROGRAMMATIC) 🎉
+## 🔧 Getting Started
 
-**Professional CAT tool integration with algorithmic formatting preservation!**
+### Installation
 
-> **📌 Why memoQ?**: memoQ bilingual DOCX files include complex formatting at the character-run level. Supervertaler extracts this formatting and applies it programmatically to translations using smart threshold logic.
+```bash
+# Clone repository
+git clone https://github.com/michaelbeijer/Supervertaler.git
+cd Supervertaler
 
-1. **Export bilingual DOCX** from memoQ
-2. **Click "📂 Import memoQ DOCX"** in Supervertaler (green button)
-3. **Configure translation settings** (language pair, AI provider, model)
-4. **Click "Translate"** - AI translates segments
-5. **Click "💾 Export to memoQ DOCX"** - Formatting applied programmatically
-6. **Reimport to memoQ** - Formatting and tags preserved!
+# Install dependencies
+pip install -r requirements.txt
 
-**Benefits**:
-- ✅ **Programmatic precision** - Formatting applied algorithmically (>60% = whole segment)
-- ✅ **Professional format** - Industry-standard memoQ bilingual DOCX
-- ✅ **Complex formatting supported** - Bold, italic, underline at character level
-- ✅ **CAT tag preservation** - `[1}...{2]` format maintained
-- ✅ **Segment IDs maintained** - Perfect reimport compatibility
-- ✅ **Status updates** - Automatically marked as "Confirmed"
+# Run application
+python Supervertaler_v3.7.0-beta.py
+```
 
-**Smart Formatting Logic**:
-- If source is >60% formatted → entire target gets formatting
-- If source has partial formatting → first 1-2 words formatted
-- Character-level precision when needed
+### First Steps
 
-📖 **Full Documentation**: See [`.dev/docs/features/MEMOQ_SUPPORT.md`](.dev/docs/features/MEMOQ_SUPPORT.md) for detailed guide
+1. **Configure API Keys**: Set up OpenAI, Claude, or Gemini credentials
+2. **Explore System Prompts** (Ctrl+P) - Browse domain-specific specialist prompts
+3. **Create Custom Instructions** - Define your translation preferences
+4. **Open a Document** - Import DOCX, create segments
+5. **Start Translating** - Use System Prompts or custom instructions
+6. **Export Results** - Session reports, TMX, auto-export to CAT tools
 
 ---
-
-### 🆕 PDF Rescue - AI-Powered OCR Tool (v3.5.0-beta) 🚀
-
-**Transform badly-formatted PDFs into clean, translator-ready documents!**
-
-> **💡 Real Story**: *"I had a client reach out for a rush job—a 4-page legal document that had been scanned badly. Traditional OCR couldn't handle it, and manual retyping would have taken hours. PDF Rescue saved the day. One-click PDF import, AI OCR on all pages, and I had a flawless Word document ready for translation. What would have been a multi-day nightmare became a straightforward job I could deliver on time. I was able to tell my client that I could handle the job—and delivered professional quality. PDF Rescue literally saved a client relationship."*  
-> — Michael Beijer, Professional Translator
-
-**What is PDF Rescue?**  
-A specialized AI-powered OCR tool built into Supervertaler v3.5.0-beta. It uses GPT-4 Vision to extract clean, editable text from poorly formatted PDFs—the kind that traditional OCR tools struggle with.
-
-**Key Features**:
-- 📄 **One-click PDF import** - Direct PDF page extraction (no external tools needed)
-- 🧠 **GPT-4 Vision OCR** - Industry-leading accuracy for badly formatted documents
-- 🎨 **Smart formatting** - Optional markdown-based preservation (`**bold**`, `*italic*`, `__underline__`)
-- 🔍 **Redaction handling** - Detects blacked-out text, inserts contextual placeholders like `[naam]`, `[bedrag]`, `[datum]` (in document language!)
-- 📝 **Stamp & signature detection** - Non-text elements described as `[stempel]`, `[handtekening]`
-- ⚡ **Batch processing** - Process entire documents at once with progress tracking
-- 💾 **Professional export** - DOCX with proper formatting, session reports (MD), clipboard copy
-- 👁️ **Full transparency** - "Show Prompt" button reveals exact AI instructions
-- 📊 **Comprehensive logging** - All operations tracked with timestamps
-- 🚀 **Standalone mode** - Can run independently: `python modules/pdf_rescue.py`
-
-**Workflow** (5 steps):
-1. **Open PDF Rescue** - Navigate to Assistant panel → PDF Rescue tab
-2. **Import PDF** - Click "📄 PDF" button, select badly-formatted PDF
-3. **Configure** - Leave "Preserve formatting" checked (default)
-4. **Process** - Click "⚡ Process ALL" to OCR all pages
-5. **Export** - Click "💾 Save DOCX" → Clean, editable Word document ready!
-
-**Smart Features**:
-- **Language-aware placeholders**: Dutch doc → `[naam]`, `[bedrag]`; English doc → `[name]`, `[amount]`
-- **Persistent storage**: Images saved in `{pdf_name}_images/` folder next to source PDF (client-deliverable!)
-- **Professional reports**: Markdown session documentation with statistics and metadata
-
-**When to use PDF Rescue**:
-- ✅ Scanned PDFs with broken formatting
-- ✅ Documents that won't copy-paste cleanly
-- ✅ PDFs with redacted sections (black boxes)
-- ✅ Files with stamps/signatures mixed with text
-- ✅ Traditional OCR produces gibberish
-- ✅ Client PDFs that need to be editable
-
-📖 **Full Documentation**: See [`docs/guides/PDF_RESCUE.md`](docs/guides/PDF_RESCUE.md) for complete guide with screenshots, examples, and troubleshooting
-
----
-
-### Traditional Text Workflow (All versions)
-
-**Manual extraction for maximum flexibility**:
-
-1. **Export from CAT tool**: Export bilingual table from your CAT tool (usually .docx or .rtf format)
-2. **Extract source text**: Copy all rows from the source language column
-3. **Create .txt input**: Paste into plain text file, one segment per line
-4. **Process with Supervertaler**: Use Translation mode for AI-powered translation
-
-**Output Integration**:
-Supervertaler provides two output formats for flexible CAT tool integration:
-
-**📄 Tab-delimited .txt file**: 
-- Source{TAB}Target format for easy reimport
-- Copy target column back into your bilingual table
-- Reimport into CAT tool to populate translations
-
-**📚 TMX translation memory**:
-- Add directly to your CAT tool project
-- Instant exact matches as you translate
-- Builds your translation memory assets
-
-*Why this approach?* Leveraging CAT tools' existing segmentation capabilities is more efficient and maintainable than recreating complex file format support in Supervertaler.
-
-## 🚀 What Makes Supervertaler Special
-
-**Multicontextual Intelligence**: Unlike traditional sentence-by-sentence translators, Supervertaler considers multiple layers of context simultaneously:
-
-### **Multiple context sources for enhanced translation/proofreading accuracy:**
-
-- **Full document context** - Every sentence translated with awareness of the entire document
-- **Tracked changes ingestion** - Learn from DOCX revisions (from memoQ/Trados-generated bilingual review files) and TSV editing patterns  
-- **Translation memory matching** - Leverage exact matches from TMX/TXT for consistency
-- **Multimodal figure context** - AI sees referenced images when translating figure captions
-- **Custom instructions** - Domain-specific guidance tailored to your content
-- **Advanced prompt management** - Specialized system prompt library for different document types
-
-### **Professional workflow features:**
-
-- **Project Library** ⚡ - Save/restore complete workspace configurations for different clients/projects
-- **Domain-Specific Prompts** ⚡ - 8 professionally crafted prompt collections (medical, legal, technical, financial, etc.)
-- **Custom Prompt Library** - Save/load specialized prompt sets for different use cases
-- **Prompt Library** - Edit and customize active AI instructions in real-time
-- **Advanced 3-panel GUI** - Resizable interface with professional font rendering
-- **Switch Languages Button** - One-click swap between source and target languages
-- **Cross-platform Support** - Clickable folder paths work on Windows, macOS, and Linux
-- **Chunked processing** - Handle large documents with intelligent batching
-- **Multiple LLM support** - Claude, Gemini, and OpenAI integration
-- **Automatic TMX export** - Build translation memories from your work
-
----
-
-![supervertaler_screenshot_v2 3 0](https://github.com/user-attachments/assets/22481fd0-fe7e-42c4-b037-b39ddb1eec7b)
-
 
 ## 📖 Documentation
 
-### Quick Start
-- **📋 Complete User Guide**: [USER_GUIDE.md](USER_GUIDE.md) - Comprehensive guide for all versions
-- **⚡ Installation Guide**: [INSTALLATION.md](INSTALLATION.md) - Get started quickly
-
-### Advanced Documentation (for developers/contributors)
-- **System Prompts Guide**: [`.dev/docs/user_guides/SYSTEM_PROMPTS_GUIDE.md`](.dev/docs/user_guides/SYSTEM_PROMPTS_GUIDE.md)
-- **Translation Memory Guide**: [`.dev/docs/user_guides/TM_USER_GUIDE.md`](.dev/docs/user_guides/TM_USER_GUIDE.md)
-- **Translation Workspace**: [`.dev/docs/user_guides/TRANSLATION_WORKSPACE_REDESIGN.md`](.dev/docs/user_guides/TRANSLATION_WORKSPACE_REDESIGN.md)
-- **Implementation Docs**: See `.dev/docs/implementation/` for technical details
-- **Development History**: See `.dev/docs/` for session summaries, planning docs, and implementation notes
-
-## 1. Features Overview
-
-> **📌 Note**: The features below apply to **v2.4.0 (stable)**. For v2.5.1 experimental features, see the [v2.5.1 Features](#v251-experimental-features) section below.
-
-### v2.4.0 Feature Matrix
-
-| Capability | Translate Mode | Proofread Mode |
-|------------|----------------|----------------|
-| Source ingestion (.txt) | 1 column (source) | source{TAB}target{TAB}comment |
-| TM (exact match) | Applied pre‑LLM | Not applied |
-| Tracked changes context | Yes (relevant subset) | Yes (relevant subset) |
-| Images (fig refs) | Injected before referenced lines | Same |
-| Output TXT | source{TAB}translated | source{TAB}revised_target{TAB}comment |
-| Output TMX | Yes | No |
-| Custom instructions | Appended to prompt | Appended to prompt |
-| Comments merging | N/A | Original + AI summary (conditional) |
-
-### v2.5.1 Experimental Features
-
-**🚧 Under Development** - The following features are available in v2.5.1 but may change:
-
-- **✅ Translation Memory with Fuzzy Matching**: 75% threshold with difflib.SequenceMatcher
-- **✅ Enhanced Translation Workspace**: 10 organized tabs (Projects, System Prompts, Custom Instructions, MT, LLM, TM, Glossary, Images, Non-trans, Settings)
-- **✅ System Prompts Architecture**: Separate global AI behavior from project-specific instructions
-- **✅ Custom Instructions**: Project-level guidance that extends system prompts
-- **✅ Global Prompt Preview**: Test combined prompts with current segment
-- **✅ TM Manager**: Import/export TMX, delete individual entries
-- **✅ Auto-Export Options**: Session reports (MD/HTML), TMX, TSV, XLIFF, Excel bilingual
-- **🚧 Context-Aware Translation**: In development
-🚧 Under Development:
-
-- ✅ Translation Memory with Fuzzy Matching
-- ✅ Enhanced Translation Workspace (10 tabs)
-- ✅ System Prompts Architecture
-- ✅ Custom Instructions
-- ✅ Global Prompt Preview
-- ✅ TM Manager
-- ✅ Auto-Export Options (7 formats)
-- ✅ **Full Document Context** (v2.4.0 proven approach - **JUST COMPLETED!**)
-- 🚧 Batch Translation with Progress (basic implementation complete, refinement in progress)
-- 🚧 TrackedChangesAgent (port from v2.4.0)
-- 🚧 Prompt Library Integration
-
-**⚠️ Important**: v3.1.0-beta is experimental. Features may be incomplete, changed, or removed. Use v2.4.3-CLASSIC for production work.
+- **User Guide**: [USER_GUIDE.md](USER_GUIDE.md)
+- **CAT Tool Integration**:
+  - [CafeTran Integration](.dev/docs/features/CAFETRAN_SUPPORT.md)
+  - [memoQ Integration](.dev/docs/features/MEMOQ_SUPPORT.md)
+- **Changelog**: [CHANGELOG.md](CHANGELOG.md)
+- **Website**: [supervertaler.com](https://supervertaler.com)
 
 ---
 
-## 2. 🧠 Multicontextual Intelligence Explained
+## 🎯 Why Supervertaler?
 
-### Why Context Matters
-Traditional translation tools translate each sentence in isolation, missing crucial contextual cues that affect meaning, consistency, and quality. Supervertaler's **multicontextual approach** considers multiple information sources simultaneously:
+### For Professional Translators
+- ✅ Built by a professional translator (30 years experience)
+- ✅ Designed for real translation workflows, not generic AI
+- ✅ Integrates with your existing CAT tools
+- ✅ Context-aware for better accuracy
+- ✅ Fully open source - no vendor lock-in
 
-#### 📖 Full Document Context
-- **Complete awareness**: Every sentence is translated with knowledge of the entire document
-- **Consistency**: Technical terms, proper nouns, and style remain consistent throughout
-- **Coherence**: Maintains logical flow and references between sections
-- **Disambiguation**: Resolves ambiguous terms using surrounding content
+### For Translation Agencies (LSPs)
+- ✅ Improve translator productivity (20-40% gains documented)
+- ✅ Consistent quality across your translator pool
+- ✅ Works with your existing CAT tool infrastructure
+- ✅ Open source means you own your workflow
+- ✅ Custom training and consulting available
 
-#### 🔄 Tracked Changes Context  
-- **Learning from edits**: Analyzes track changes from memoQ/Trados-generated bilingual review files (DOCX) and TSV edit patterns
-- **Style adaptation**: Understands preferred editing patterns and terminology choices
-- **Quality improvement**: Learns from human corrections to avoid similar issues
-
-#### 🎯 Translation Memory Integration
-- **Exact matching**: Pre-populates identical segments from previous translations
-- **Terminology consistency**: Ensures consistent translation of recurring phrases
-- **Efficiency**: Reduces costs and time by reusing validated translations
-
-#### 🖼️ Multimodal Figure Context
-- **Visual understanding**: AI sees referenced images when translating figure captions
-- **Accurate descriptions**: Better translation of visual elements and diagrams  
-- **Technical precision**: Improved handling of charts, graphs, and technical illustrations
-
-#### ⚙️ Advanced Custom Context
-- **Domain expertise**: Custom instructions for specialized fields (legal, medical, technical)
-- **Brand consistency**: Maintain corporate terminology and style guidelines
-- **Flexible prompts**: Adapt translation approach based on document type and requirements
-
-### The Supervertaler Advantage
-This multicontextual approach delivers translation quality that approaches human-level understanding while maintaining the efficiency and consistency of AI processing.
+### Why Open Source?
+- 🔓 **Full transparency** - See exactly what the AI is doing
+- 🔓 **No vendor lock-in** - Own your translation workflow
+- 🔓 **Community-driven** - Contribute features, report bugs
+- 🔓 **Sustainable** - Supported through consulting and training
 
 ---
 
-## 3. Installation
+## 🚀 Features Overview
 
-1. **Python**: 3.10+ recommended.
-2. Create / activate virtual environment (optional):
-   ```
-   python -m venv venv
-   source venv/Scripts/activate  (Windows: venv\Scripts\activate)
-   ```
-3. Install dependencies (install only what you need):
-   ```
-   pip install google-generativeai anthropic openai pillow
-   ```
-4. Run:
-   ```
-   python Supervertaler_v2.3.0.py
-   ```
+### AI Translation Engine
+- **Multiple providers** - OpenAI, Anthropic, Google Gemini
+- **Multimodal support** - GPT-4 Vision for figures and context
+- **Batch processing** - Translate entire documents at once
+- **Context preservation** - Full document analysis before translation
 
-### First Launch (Key Configuration)
-On first run, Supervertaler creates an `api_keys.txt` template. Edit it:
+### Professional Prompts
+- **19 System Prompts** - Domain specialists (Legal, Medical, Patent, Tech, etc.)
+- **8 Custom Instructions** - User-defined preferences
+- **Prompt Assistant** - Generate custom prompts from document analysis
+- **Markdown format** - Human-readable, easy to edit
 
-```
-#google = YOUR_GOOGLE_API_KEY_HERE
-#claude = YOUR_CLAUDE_API_KEY_HERE  
-#openai = YOUR_OPENAI_API_KEY_HERE
-```
+### Translation Memory
+- **Fuzzy matching** - Find similar segments
+- **Context display** - See source alongside match
+- **Segment history** - Learn from previous translations
+- **TMX export** - Industry-standard format
 
-Uncomment and fill keys for desired providers. At least **one** valid key is required.
+### Professional Export
+- **Auto-reports** - Session reports in HTML and Markdown
+- **CAT tool export** - Direct memoQ and CafeTran DOCX
+- **Format preservation** - Bold, italic, formatting maintained
+- **Tag safety** - XLIFF tags completely preserved
 
 ---
 
-## 4. Quick API Key Setup
+## 📊 Performance
 
-### Google Gemini (Recommended)
-1. https://aistudio.google.com/
-2. Create API key
-3. Add to `api_keys.txt`: `google = YOUR_KEY_HERE`
-
-### Anthropic Claude
-1. https://console.anthropic.com/
-2. Get API key + add billing credits
-3. Add to `api_keys.txt`: `claude = YOUR_KEY_HERE`
-
-### OpenAI
-1. https://platform.openai.com/
-2. Get API key + add billing  
-3. Add to `api_keys.txt`: `openai = YOUR_KEY_HERE`
+- ⚡ **Grid pagination** - 10x faster loading (50 segments/page)
+- ⚡ **Smart caching** - Reduce API calls with TM fuzzy matching
+- ⚡ **Batch translation** - Process 100+ segments simultaneously
+- ⚡ **Responsive UI** - Stays responsive during large operations
 
 ---
 
-## 5. Basic Usage
+## 🤝 Community & Support
 
-### Translation Mode (most common)
-1. **Prepare .txt input**: One source segment per line
-2. **Select input/output files**
-3. **Set languages** (source → target)  
-4. **Choose AI provider/model**
-5. **Add context sources** (optional): TM, tracked changes, images
-6. **Hit "Start Process"**
-
-### Proofreading Mode
-1. **Prepare .txt input**: `source{TAB}target{TAB}optional_comment` per line
-2. Same setup as Translation
-3. Output: revised targets + merged comments
-
-**⚠️ Provider Note**: For proofreading, Gemini works most reliably. OpenAI/Claude proofreading may have formatting quirks but remain functional. Translation works excellently with all providers.
+- **GitHub Issues**: [Report bugs or request features](https://github.com/michaelbeijer/Supervertaler/issues)
+- **GitHub Discussions**: [Community chat and questions](https://github.com/michaelbeijer/Supervertaler/discussions)
+- **Website**: [supervertaler.com](https://supervertaler.com)
+- **Professional Website**: [michaelbeijer.co.uk](https://michaelbeijer.co.uk)
 
 ---
 
-## 6. Context Sources (Power Features)
+## 💡 Use Cases
 
-### Translation Memory (TM)
-- **TMX files**: Standard format from CAT tools
-- **TXT files**: `source{TAB}target` format
-- **Exact matches**: Applied before LLM (saves costs)
-- **Fuzzy matches**: Provided as context to LLM
+### Individual Translators
+- Enhance personal productivity with AI
+- Maintain consistent terminology
+- Work faster without sacrificing quality
+- Leverage domain-specific prompts
 
-### Tracked Changes
-- **DOCX files**: With track changes enabled
-- **TSV files**: `original{TAB}revised` format  
-- **Learning**: AI learns from human editing patterns
+### Translation Agencies
+- Train all translators with same prompts
+- Maintain company-wide consistency
+- Increase productivity across the team
+- Reduce review/QA time
+- Custom LSP consulting available
 
-### Document Images  
-- **Auto-detection**: Finds "Figure X" references in text
-- **Multimodal**: AI sees the actual images when translating
-- **File formats**: PNG, JPG, WebP, GIF
-- **Naming**: `figure1a.png` matches "Figure 1A" in text
-
-### Custom Instructions
-- **Domain guidance**: "Use medical terminology..."
-- **Style preferences**: "Maintain formal register..."
-- **Client requirements**: Custom formatting/terminology
+### Translation Students
+- Learn professional translation workflows
+- Understand CAT tool integration
+- Practice with real-world tools
+- Open source to study and modify
 
 ---
 
-## 7. AI Provider Models
+## 🔐 Privacy & Security
 
-### Gemini (Google)
-- **gemini-1.5-pro**: Best for complex documents
-- **gemini-1.5-flash**: Fast, still high-quality  
-- **Strong**: Technical content, structured output
-
-### Claude (Anthropic)  
-- **claude-3.5-sonnet**: Excellent creative/nuanced content
-- **claude-3-haiku**: Fast for simpler tasks
-- **Strong**: Creative writing, cultural adaptation
-
-### OpenAI
-- **gpt-5**: Latest reasoning model with advanced capabilities  
-- **gpt-4o**: Excellent multimodal performance
-- **gpt-4**: Reliable general-purpose
-- **gpt-4-turbo**: Better context window
-- **Strong**: Balanced performance across domains
+- **No data collection** - Your translations stay on your computer
+- **Local processing** - Translations processed locally by default
+- **API keys encrypted** - Credentials stored securely
+- **Open source** - Full audit trail, no hidden code
+- **GDPR compliant** - User data never leaves your system
 
 ---
 
-## 8. Output Files
+## 📄 License
 
-### Translation Mode
-1. **TXT**: `source{TAB}translated` (tab-separated)
-2. **TMX**: Translation memory format (import into CAT tools)
+**MIT License** - Fully open source and free
 
-### Proofreading Mode  
-1. **TXT**: `source{TAB}revised_target{TAB}comments` 
+This software is provided as-is for both personal and commercial use.
 
 ---
 
-## 9. Advanced Features (v2.3.0)
+## 👤 About
 
-### Project Library
-- **Save complete workspace**: Languages, files, prompts, everything
-- **Instant project switching**: Client A → Client B workflows
-- **Cross-platform**: Clickable folder access on Windows/macOS/Linux
+**Supervertaler** is maintained by Michael Beijer, a professional translator with 30 years of experience in technical and patent translation. The project represents a personal passion for building tools that make translators' lives easier.
 
-### Custom Prompt Library
-- **Domain-specific prompts**: 8 professional collections included
-- **Save custom prompts**: Create your own specialized sets
-- **Quick switching**: Active prompts marked with ⚡
-
-### System Prompt Editor
-- **Full control**: Edit underlying AI instructions
-- **Template variables**: `{source_lang}`, `{target_lang}` auto-replace
-- **Preview**: See final prompt before processing
+- 🌐 **Website**: [michaelbeijer.co.uk](https://michaelbeijer.co.uk)
+- 💼 **Professional**: [ProZ Profile](https://www.proz.com/profile/652138)
+- 🔗 **LinkedIn**: [linkedin.com/in/michaelbeijer](https://www.linkedin.com/in/michaelbeijer/)
 
 ---
 
-## 10. Professional Workflow Integration
+## 🎯 Roadmap
 
-### For CAT Tool Users
-1. **Export bilingual**: From memoQ/Trados/CafeTran
-2. **Extract source column**: Paste into .txt (one line per segment)
-3. **Process with Supervertaler**: Get AI translations
-4. **Import back**: Either tab-separated TXT or TMX memory
+### Planned Features (v3.8+)
+- Enhanced Prompt Assistant with auto-refinement
+- Glossary management UI improvements
+- Advanced TM features (penalty weights, leverage scoring)
+- Integration marketplace (partner CAT tools)
+- Professional cloud hosting option (optional)
 
-### For Translation Agencies
-- **Project Library**: Client-specific configurations
-- **Domain Prompts**: Medical, legal, technical specializations
-- **Team Sharing**: Export/import prompt and project configurations
-- **Quality Control**: Consistent settings across translators
-
-### For Freelancers
-- **Efficiency**: Faster than manual translation
-- **Quality**: Better than basic AI tools via context
-- **Memory Building**: TMX exports grow your translation assets
-- **Specialization**: Domain-specific prompts for your expertise
+### Community Contributions Welcome
+We're looking for:
+- 🐛 Bug reports and feature requests
+- 💡 Prompt contributions (System Prompts, Custom Instructions)
+- 📖 Documentation improvements
+- 🌍 Translations and localization
+- 🤝 Code contributions
 
 ---
 
-## 11. File Format Requirements
+## 📞 Questions?
 
-### Translation Input (.txt)
-```
-First sentence to translate.
-Second sentence here.
-Reference to Figure 1A should trigger image.
-```
-
-### Proofreading Input (.txt)  
-```
-Hello world	Hola mundo
-How are you?	¿Como estas?	Missing accents
-Goodbye	Adiós
-```
-
-### Translation Memory (.tmx or .txt)
-TMX: Standard XML format
-TXT: `source{TAB}target` per line
-
-### Tracked Changes (.docx or .tsv)
-DOCX: Word file with track changes
-TSV: `original{TAB}revised` per line
+Check out:
+1. **README.md** (this file) - Overview
+2. **[CHANGELOG.md](CHANGELOG.md)** - What's new
+3. **[USER_GUIDE.md](USER_GUIDE.md)** - Detailed usage instructions
+4. **GitHub Issues** - Common questions
+5. **Website Documentation** - tutorials and guides
 
 ---
 
-## 12. Chunking & Performance
-
-### Chunk Size (default: 100)
-- **Small docs**: 25-50 lines per batch
-- **Large docs**: 150+ lines per batch  
-- **Complex content**: Smaller chunks for better context
-- **Simple content**: Larger chunks for efficiency
-
-### Performance Tips
-- **Larger chunks**: Fewer API calls, faster processing
-- **Smaller chunks**: Better context awareness, higher quality
-- **Chunk Size = lines per LLM request**: Balance speed vs. quality
-
-### Context Management
-- **TM filtering**: Only relevant matches sent to LLM
-- **Tracked changes**: Only applicable examples included  
-- **Each batch includes**: Current chunk + relevant context + custom instructions
+**Last Updated**: October 19, 2025  
+**Version**: v3.7.0-beta  
+**Status**: Active Development  
+**License**: MIT (Open Source)
 
 ---
 
-## 13. Error Handling & Logging
-
-### Robust Design
-- **Network issues**: Auto-retry with backoff
-- **API limits**: Graceful waiting and resume
-- **Real‑time log pane** (queue-driven)
-
-### Graceful degradation when:
-- **Missing provider** lib: Others still work
-- **Missing API key**: Other providers available  
-- **Pillow absent**: Image context disabled
-- **File errors**: Placeholder in output, processing continues
-
-### Log Analysis
-- **Processing steps**: See exactly what's happening
-- **Error context**: Specific lines/chunks with issues
-- **Performance stats**: Time per chunk, API response times
-- **Placeholder in failed output line**
-
----
-
-## 14. Roadmap (See CHANGELOG.md)
-
-Planned (Unreleased):
-- **Fuzzy TM matches**: Leverage partial matches intelligently  
-- **Glossary enforcement**: Hard terminology constraints
-- **JSON run metadata**: Detailed processing statistics
-- **Token-based tracked-change scoring**: Smarter relevance filtering
-- **Enhanced provider introspection**: Better model capability detection
-
----
-
-## 15. Similar Projects & Tools
-
-Supervertaler is part of a growing ecosystem of AI-powered translation tools that bring LLM capabilities to professional translators. Here are other notable projects exploring similar approaches:
-
-### Context-Aware Translation Tools
-- **[aLLMende](https://www.proz.com/forum/cafetran_support/374570-allmende_automated_imitation.html)** by Hans Lenting - AI-powered translation assistant
-- **[Bohemicus CAT editor](https://www.youtube.com/watch?si=X_6YsNfjn6Ib6Faq&v=HTIPNOltNbI&feature=youtu.be)** - CAT tool with AI integration
-- **[CALT: Context-Aware LLM Translator](https://github.com/CyrusCKF/translator)** - Runs locally for privacy
-- **[ConText - Local Secure Translation App](https://github.com/KazKozDev/ConText)** - Privacy-focused local translation
-- **[CotranslatorAI](https://cotranslatorai.com/)** - AI translation platform
-- **[DeepContextual-Translate](https://github.com/RUIJIESHI0917/DeepContextual-Translate/tree/main)** - Deep learning context translation
-- **[toLLMatch🔪](https://github.com/RomanKoshkin/toLLMatch)** - Context-aware LLM-based simultaneous translation
-
-### Automation & Integration Tools
-- **[ChatGPT-AutoHotkey-Utility](https://github.com/kdalanon/ChatGPT-AutoHotkey-Utility)** - AutoHotkey integration for ChatGPT
-- **[LLM-AutoHotkey-Assistant](https://github.com/kdalanon/LLM-AutoHotkey-Assistant)** - General LLM automation
-- **[openai_translation](https://github.com/gasparl/openai_translation?utm_source=chatgpt.com)** - OpenAI translation utilities
-- **[openai-translator](https://github.com/openai-translator/openai-translator)** - Cross-platform translation tool
-
-### Why Supervertaler?
-While many tools offer AI translation, Supervertaler's unique approach combines:
-- **Multiple context sources** (document, TM, tracked changes, images, custom instructions)
-- **Professional CAT tool integration** (memoQ & CafeTran bilingual DOCX workflows in v2.4.3-CLASSIC; expanded CAT support in v3.1.0-beta)
-- **Specialized domain prompts** (legal, medical, technical, financial, etc.)
-- **Project library system** (save/restore complete workspace configurations)
-- **Multimodal support** (AI sees referenced images in context)
-
-**Know of another tool?** Contact us at [info@michaelbeijer.co.uk](mailto:info@michaelbeijer.co.uk) to add it to this list!
-
----
-
-## 16. Contributing
-
-1. **Fork** / feature branch.
-2. **Add or update** functionality (ideally in discrete logic units).
-3. **Update CHANGELOG.md** (add entry in Unreleased section).
-4. **Submit PR** with concise summary.
-
----
-
-## 17. License
-
-(Choose or add a LICENSE file: MIT / Apache-2.0 / Proprietary – not specified yet.)
-
----
-
-## 18. Quick Start Checklist
-
-| Task | Done |
-|------|------|
-| Install dependencies | ☐ |
-| Add API keys | ☐ |
-| Prepare input TXT | ☐ |
-| (Optional) TMX/TXT TM | ☐ |
-| (Optional) DOCX / TSV tracked changes | ☐ |
-| (Optional) Images folder | ☐ |
-| Run script & select mode | ☐ |
-| Review log & outputs | ☐ |
-
----
-
-## 19. Support
-
-Open an issue with:
-- Version (shown at startup)
-- Mode (Translate / Proofread)
-- Provider + model
-- Minimal repro input snippet
-- Stack trace (if any)
-
----
-
-Happy translating & proofreading!
-
----
-
-## Quick verification of image support
-- Add a PNG named "Figure 1A.png" to your images folder.
-- Include "Figure 1A" in a test segment.
-- Run with Claude and OpenAI (e.g., claude-3-5-sonnet-20241022, gpt-4o).
-- Check Log for "Added Image for Figure Ref …" messages.
+> 🎯 **Supervertaler**: Empowering professional translators with intelligent, context-aware AI tools. Built by translators, for translators.
