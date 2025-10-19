@@ -1,0 +1,58 @@
+[build-system]
+requires = ["setuptools>=65.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "Supervertaler"
+version = "3.7.0"
+description = "AI-powered context-aware translation tool for professional translators"
+readme = "README.md"
+requires-python = ">=3.12"
+license = {text = "MIT"}
+authors = [
+    {name = "Michael Beijer", email = "info@michaelbeijer.co.uk"},
+]
+maintainers = [
+    {name = "Michael Beijer", email = "info@michaelbeijer.co.uk"},
+]
+keywords = [
+    "translation",
+    "CAT",
+    "AI",
+    "LLM",
+    "GPT",
+    "Claude",
+    "Gemini",
+    "translation-memory",
+    "localization",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: Microsoft :: Windows",
+    "Intended Audience :: End Users/Desktop",
+    "Topic :: Office/Business",
+    "Topic :: Text Processing :: Linguistic",
+    "Environment :: X11 :: Tk",
+]
+
+dependencies = [
+    "python-docx>=0.8.11",
+    "openpyxl>=3.1.0",
+    "Pillow>=10.0.0",
+    "openai>=1.0.0",
+    "anthropic>=0.7.0",
+    "google-generativeai>=0.3.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/michaelbeijer/Supervertaler"
+Repository = "https://github.com/michaelbeijer/Supervertaler.git"
+"Bug Tracker" = "https://github.com/michaelbeijer/Supervertaler/issues"
+Documentation = "https://michaelbeijer.co.uk"
+"Author Website" = "https://michaelbeijer.co.uk"
+
+[project.scripts]
+supervertaler = "Supervertaler_v3.7.0:main"
