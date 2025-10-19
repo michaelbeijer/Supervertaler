@@ -150,6 +150,21 @@ body {
     color: var(--primary);
 }
 
+.nav-menu a.nav-discussions {
+    background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.nav-menu a.nav-discussions:hover {
+    color: white;
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(236, 72, 153, 0.4);
+}
+
 /* Mobile Menu Toggle */
 .mobile-menu-toggle {
     display: none;
