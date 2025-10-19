@@ -533,7 +533,7 @@ A: Currently no - batch processing runs until complete. Process in smaller batch
 
 - **Main README**: [README.md](../../README.md)
 - **User Guide**: [USER_GUIDE.md](USER_GUIDE.md)
-- **FAQ**: [FAQ.md](FAQ.md)
+- **FAQ**: [FAQ.md](../../FAQ.md)
 - **Installation**: [INSTALLATION.md](INSTALLATION.md)
 - **Changelog**: [CHANGELOG-CAT.md](../../CHANGELOG-CAT.md)
 
