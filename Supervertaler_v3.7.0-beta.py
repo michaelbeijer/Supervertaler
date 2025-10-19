@@ -4743,7 +4743,7 @@ Provide the two prompts in the specified format."""
                     
                     messagebox.showinfo("Saved!", 
                         f"System Prompt saved as:\n{filename}\n\n"
-                        f"Location: {system_prompts_dir}\n\n"
+                        f"Location: {os.path.normpath(system_prompts_dir)}\n\n"
                         f"It will now appear in your Prompt Manager → System Prompts section.")
                     
                     # Don't close dialog - let user see both prompts
@@ -4917,6 +4917,12 @@ Provide the two prompts in the specified format."""
         """Open a folder in the system's file explorer (cross-platform)"""
         import platform
         import subprocess
+        
+        # Normalize path to use correct separators for the OS
+        folder_path = os.path.normpath(folder_path)
+        
+        # Create folder if it doesn't exist
+        os.makedirs(folder_path, exist_ok=True)
         
         try:
             if platform.system() == "Windows":
