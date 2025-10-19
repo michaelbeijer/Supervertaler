@@ -12,9 +12,10 @@
 3. [Supervertaler Features](#supervertaler-features)
 4. [Technical Questions](#technical-questions)
 5. [Workflow & Integration](#workflow--integration)
-6. [Troubleshooting](#troubleshooting)
-7. [Development & History](#development--history)
-8. [Miscellaneous](#miscellaneous)
+6. [Data Privacy & Confidentiality](#data-privacy--confidentiality)
+7. [Troubleshooting](#troubleshooting)
+8. [Development & History](#development--history)
+9. [Miscellaneous](#miscellaneous)
 
 ---
 
@@ -840,6 +841,240 @@ Supervertaler provides AI with **multiple layers of context**:
 - System Prompts + Custom Instructions tabs
 - Create new prompts with visual editor
 - Test different prompts on same content
+
+---
+
+## Data Privacy & Confidentiality
+
+**IMPORTANT**: This section addresses the critical concern many professional translators have about using any online translation tool, especially when handling confidential client documents.
+
+### Is my data safe when using Supervertaler?
+
+**Short Answer**: It depends on what you mean by "safe":
+
+**✅ Supervertaler itself**:
+- Runs entirely on YOUR computer (no Supervertaler company server)
+- No data collection, telemetry, or analytics
+- Fully open source (code is auditable)
+- API keys never stored or transmitted by Supervertaler
+- Translation memory, glossaries, custom instructions stay 100% local
+
+**⚠️ When using external LLM APIs**:
+- Your text MUST reach the LLM provider's servers (that's how AI translation works)
+- This is unavoidable if you want to use GPT-4, Claude, or Gemini
+- You're trusting the LLM provider's data handling practices
+- This is different from offline/local translation tools
+
+### When I click "Translate," what exactly happens to my data?
+
+**Step-by-step process**:
+
+1. **You select text** in Supervertaler
+2. **Context is gathered** locally:
+   - The text you selected
+   - Relevant TM matches (from YOUR local TM file)
+   - Custom instructions and prompts
+   - Document context if enabled
+3. **Formatted request is created** locally
+4. **Request sent to LLM provider** via HTTPS (encrypted)
+   - OpenAI servers receive: `{source_text, system_prompt, instructions, optional_context}`
+   - Anthropic servers receive: `{source_text, system_prompt, instructions, optional_context}`
+   - Google servers receive: `{source_text, system_prompt, instructions, optional_context}`
+5. **AI generates translation** on provider's infrastructure
+6. **Response returned** to your computer via HTTPS
+7. **Translation stored locally** (NOT on Supervertaler's server)
+
+**Critical Point**: Steps 4-6 mean your content briefly exists on the provider's systems. This is the tradeoff for using powerful cloud-based AI.
+
+### What do the LLM providers do with my data?
+
+**OpenAI (GPT-4, GPT-4o)**:
+- **Default**: API data NOT used for training or model improvement
+- **Enterprise plans**: Explicit zero-retention guarantees available
+- **Data Processing Agreement**: Available for business customers
+- **Compliance**: SOC 2 Type II, GDPR compliant
+- **Your responsibility**: Review their terms, ensure enterprise plan if needed
+
+**Anthropic (Claude)**:
+- **Default**: API data NOT used for training
+- **Policy**: Explicit "no data retention for training" commitment
+- **Compliance**: SOC 2 Type II compliant
+- **Enterprise**: Data processing agreements available
+- **Best for confidentiality**: Generally considered most privacy-friendly
+
+**Google Generative AI**:
+- **Default**: Privacy practices vary by product
+- **Enterprise plans**: Enhanced data protection available
+- **Compliance**: SOC 2, GDPR options available
+- **Your responsibility**: Verify your chosen Google product's specific terms
+
+**All providers**:
+- Comply with data residency requirements (GDPR, regional laws)
+- Offer data processing agreements (DPAs) for business users
+- Have documented security practices (HTTPS encryption, data centers)
+- Support SOC 2 Type II or equivalent compliance
+
+### What should I do for NDA/Confidential Work?
+
+**If you're translating under NDA or with strictly confidential documents:**
+
+**Recommended approach** (Required by most translation agencies for AI):
+
+1. **Use Enterprise/Business Plans**
+   - Most AI providers have specific enterprise products
+   - Much stricter data protection than consumer/developer API
+   - Often include zero-retention guarantees
+
+2. **Get a Data Processing Agreement (DPA)**
+   - Signed agreement with the LLM provider
+   - Specifies data handling, retention, usage
+   - Usually available through enterprise accounts
+   - Shows your client you took data protection seriously
+
+3. **Verify Key Guarantees**:
+   - ✓ Zero data retention (data deleted after processing)
+   - ✓ No use for training or model improvement
+   - ✓ No use for other purposes
+   - ✓ Data not shared with third parties
+   - ✓ Secure transmission (HTTPS)
+   - ✓ Encryption at rest (if applicable)
+
+4. **Document Your Setup**
+   - Keep copy of DPA with your records
+   - Document which AI provider you're using
+   - Note: You can use different providers for different projects
+   - Share relevant parts with your client (privacy-focused ones appreciate this)
+
+5. **Alternative for Maximum Confidentiality**:
+   - Use only local/offline translation components
+   - This means NOT using AI translation (since all major AI requires cloud transmission)
+   - Use Supervertaler for TM, glossary, and CAT tool integration only
+   - Do translation with your own local translation engine (if available)
+
+### Are there any tools that keep data completely local?
+
+**For AI Translation**: 
+- ❌ **No major LLM platform keeps AI models running locally** (as of October 2025)
+- Even "local" AI applications typically need cloud connectivity for actual translation
+- This is because GPT-4, Claude, Gemini are only available on providers' servers
+- Running large language models locally requires significant hardware and is impractical for most users
+
+**Partial solutions**:
+- **Local TM + Manual Translation**: Use Supervertaler's local TM with your own translations (no AI)
+- **Offline TM Tools**: Many traditional CAT tools have fully local operation
+- **Future**: Open-source local LLMs may improve, but current ones are significantly weaker than GPT-4/Claude
+
+**For Most Professional Translators**:
+- Accept that modern AI translation requires cloud transmission
+- Get proper data processing agreements in place
+- Use enterprise/business API plans for confidential work
+- This is industry standard now (not specific to Supervertaler)
+
+### How do I protect my data when using Supervertaler with AI?
+
+**Best Practices**:
+
+1. **API Key Security**:
+   - ✓ Keep `api_keys.txt` secure (don't share, not in version control)
+   - ✓ Regenerate keys if accidentally exposed
+   - ✓ Use separate API keys for different projects (if needed)
+   - ✓ Monitor API key usage/costs regularly
+
+2. **Document Handling**:
+   - ✓ Don't store confidential originals in Supervertaler projects
+   - ✓ Delete projects/documents after delivery
+   - ✓ Keep `user data/` folder secure (local disk encryption recommended)
+   - ✓ Separate projects: One folder per client for organization
+
+3. **Translation Memory**:
+   - ✓ TM files stay 100% local
+   - ✓ Don't share TM files with cloud services
+   - ✓ Back up TM securely (encrypted if on cloud storage)
+   - ✓ Treat TM as confidential (it contains all your work)
+
+4. **Provider Selection**:
+   - ✓ Choose Anthropic or OpenAI for strongest privacy defaults
+   - ✓ Use enterprise plans for confidential work
+   - ✓ Get written DPA from provider
+   - ✓ Review provider's security practices
+
+5. **Organizational Level**:
+   - ✓ Document your data protection process
+   - ✓ Communicate with clients about your AI usage and safeguards
+   - ✓ Keep copies of relevant DPAs
+   - ✓ Update privacy policies if you're an agency
+
+### Can I tell my clients I use Supervertaler?
+
+**Yes, and here's how to present it professionally**:
+
+**What to say**:
+- "I use professional AI-powered translation assistance (GPT-4 / Claude / Gemini) as part of my quality assurance and productivity process"
+- "All AI translations are reviewed by me before delivery"
+- "AI is used within secure enterprise data processing agreements"
+- "Your data is protected by [Provider Name] enterprise data processing agreement"
+- "No data is retained or used for training by the AI provider"
+
+**What NOT to say**:
+- ❌ "I use free/online translation tools" (implies lower quality, risky data handling)
+- ❌ "I use Supervertaler" (clients don't know what it is, creates uncertainty)
+- ❌ "My data might be used for AI training" (scary, inaccurate)
+
+**Practical tip**:
+- Many modern translation clients actually WANT you using AI (when properly secured)
+- Demonstrates productivity and modern workflow
+- Shows quality assurance capability
+- Clients appreciate transparency + proper safeguards
+
+### What about GDPR and other regulations?
+
+**GDPR Compliance (EU)**:
+- If translating EU personal data, GDPR applies
+- LLM providers must have GDPR-compliant Data Processing Agreements
+- Both OpenAI, Anthropic, Google offer GDPR-compliant enterprise plans
+- You need a DPA signed before processing personal data
+
+**Other Regulations**:
+- **HIPAA** (US healthcare): Must use HIPAA-compliant AI provider plan
+- **PCI-DSS** (payment data): Use PCI-compliant provider plans
+- **CCPA** (California privacy): Similar to GDPR, need proper agreements
+
+**What to do**:
+1. Identify applicable regulations for your work
+2. Verify LLM provider supports that regulation
+3. Get proper enterprise plan + DPA
+4. Document your compliance process
+5. Keep records for audit purposes
+
+### This seems complicated. What's the real bottom line?
+
+**For translators**:
+
+**If working with general/public-domain content**:
+- Standard OpenAI/Anthropic API + default terms = fine
+- No special precautions needed beyond basic API key security
+- Cost-effective solution
+
+**If working with client confidential content**:
+- Must use enterprise API plan + Data Processing Agreement
+- Takes 15-30 minutes to set up
+- Protects you AND your client
+- Allows you to use AI professionally without legal risk
+
+**If working with heavily regulated content** (healthcare, legal, finance):
+- Need regulation-specific enterprise plan (HIPAA, legal compliance, etc.)
+- Longer setup (provider verification, agreement review)
+- Worth it for client relationships and legal protection
+
+**If working with highly secret/military/government classified**:
+- ❌ Cannot use cloud AI at all
+- Use only offline/local tools
+- This is extremely rare in translation work
+
+**For 95% of freelance translators**:
+- Set up enterprise plan with Anthropic or OpenAI (15 min)
+- Get DPA (if working with client confidential data)
+- Use confidently = better workflow, faster delivery, competitive advantage
 
 ---
 
