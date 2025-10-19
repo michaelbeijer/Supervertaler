@@ -50,8 +50,8 @@ def get_user_data_path(folder_name):
         Returns: user data/<folder_name>
     
     Examples:
-        Dev mode:  get_user_data_path('TMs') -> 'user data_private/TMs'
-        User mode: get_user_data_path('TMs') -> 'user data/TMs'
+        Dev mode:  get_user_data_path('Prompt_Library/System_prompts') -> 'user data_private/Prompt_Library/System_prompts'
+        User mode: get_user_data_path('Translation_Resources/TMs') -> 'user data/Translation_Resources/TMs'
     """
     script_dir = os.path.dirname(os.path.abspath(__file__))
     
@@ -61,6 +61,72 @@ def get_user_data_path(folder_name):
     else:
         # User mode: use standard structure
         return os.path.join(script_dir, "user data", folder_name)
+
+
+def migrate_old_folder_structure():
+    """
+    Auto-migrate old flat folder structure to new hierarchical structure.
+    
+    This function detects if old folders exist (System_prompts, Custom_instructions, etc.)
+    at the top level and moves them to the new hierarchical structure:
+    - user data/Prompt_Library/System_prompts/
+    - user data/Prompt_Library/Custom_instructions/
+    - user data/Translation_Resources/Glossaries/
+    - etc.
+    
+    Respects dev mode (.supervertaler.local file).
+    """
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    base_dir = "user data_private" if ENABLE_PRIVATE_FEATURES else "user data"
+    base_path = os.path.join(script_dir, base_dir)
+    
+    if not os.path.exists(base_path):
+        return  # Nothing to migrate
+    
+    # Define migration mappings: old_folder -> new_folder
+    migrations = {
+        "System_prompts": "Prompt_Library/System_prompts",
+        "Custom_instructions": "Prompt_Library/Custom_instructions",
+        "Glossaries": "Translation_Resources/Glossaries",
+        "TMs": "Translation_Resources/TMs",
+        "Non-translatables (NTs)": "Translation_Resources/Non-translatables",
+        "Segmentation_rules": "Translation_Resources/Segmentation_rules",
+    }
+    
+    migrated_count = 0
+    
+    for old_folder, new_folder in migrations.items():
+        old_path = os.path.join(base_path, old_folder)
+        new_path = os.path.join(base_path, new_folder)
+        
+        # Check if old folder exists and new folder doesn't (or is empty)
+        if os.path.exists(old_path) and os.path.isdir(old_path):
+            # Check if old folder has files
+            old_files = [f for f in os.listdir(old_path) if os.path.isfile(os.path.join(old_path, f))]
+            
+            if old_files:
+                try:
+                    # Create new folder if it doesn't exist
+                    os.makedirs(new_path, exist_ok=True)
+                    
+                    # Move all files from old to new
+                    for file in old_files:
+                        old_file_path = os.path.join(old_path, file)
+                        new_file_path = os.path.join(new_path, file)
+                        shutil.move(old_file_path, new_file_path)
+                        migrated_count += 1
+                    
+                    # Remove old folder if empty
+                    try:
+                        os.rmdir(old_path)
+                    except:
+                        pass  # Folder might have subdirectories, that's okay
+                    
+                except Exception as e:
+                    print(f"[Migration Warning] Failed to migrate {old_folder}: {e}")
+    
+    if migrated_count > 0:
+        print(f"[Migration] Auto-migrated {migrated_count} files to new folder structure")
 
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, scrolledtext, simpledialog
@@ -530,6 +596,9 @@ class Supervertaler:
     """Main Supervertaler application - AI-Powered CAT Tool"""
     
     def __init__(self, root):
+        # Auto-migrate old folder structure on startup
+        migrate_old_folder_structure()
+        
         self.root = root
         self.root.title("Supervertaler v3.6.8-beta - AI-Powered CAT Tool")
         self.root.geometry("1200x800")
@@ -703,7 +772,7 @@ class Supervertaler:
         self.current_proofread_prompt = self.default_proofread_prompt
         
         # System prompts directory (uses path resolver for dev mode support)
-        self.system_prompts_dir = get_user_data_path("System_prompts")
+        self.system_prompts_dir = get_user_data_path("Prompt_Library/System_prompts")
         os.makedirs(self.system_prompts_dir, exist_ok=True)
         
         # Translation memory - new multi-TM architecture
@@ -718,8 +787,8 @@ class Supervertaler:
         
         # Prompt manager (system prompts for domain-specific translation)
         self.prompt_assistant = PromptAssistant()
-        system_prompts_dir = get_user_data_path("System_prompts")
-        custom_instructions_dir = get_user_data_path("Custom_instructions")
+        system_prompts_dir = get_user_data_path("Prompt_Library/System_prompts")
+        custom_instructions_dir = get_user_data_path("Prompt_Library/Custom_instructions")
         self.prompt_library = PromptLibrary(
             system_prompts_dir=system_prompts_dir,
             custom_instructions_dir=custom_instructions_dir, 
@@ -3370,9 +3439,9 @@ class Supervertaler:
         
         # Determine directory
         if is_system:
-            target_dir = get_user_data_path("System_prompts")
+            target_dir = get_user_data_path("Prompt_Library/System_prompts")
         else:
-            target_dir = get_user_data_path("Custom_instructions")
+            target_dir = get_user_data_path("Prompt_Library/Custom_instructions")
         
         os.makedirs(target_dir, exist_ok=True)
         target_file = os.path.join(target_dir, new_filename)
@@ -4585,7 +4654,7 @@ Provide the two prompts in the specified format."""
                 text="System_prompts folder",
                 font=('Segoe UI', 9, 'bold', 'underline'), fg='#0D47A1', bg='#e3f2fd', cursor='hand2')
         sys_folder_link.pack(side='left')
-        sys_folder_link.bind('<Button-1>', lambda e: self._open_folder_in_explorer(get_user_data_path('System_prompts')))
+        sys_folder_link.bind('<Button-1>', lambda e: self._open_folder_in_explorer(get_user_data_path('Prompt_Library/System_prompts')))
         
         system_text = scrolledtext.ScrolledText(system_frame, wrap='word', font=('Segoe UI', 10), height=20)
         system_text.pack(fill='both', expand=True, padx=5, pady=5)
@@ -4707,7 +4776,7 @@ Provide the two prompts in the specified format."""
                 text="Custom_instructions folder",
                 font=('Segoe UI', 9, 'bold', 'underline'), fg='#E65100', bg='#fff3e0', cursor='hand2')
         custom_folder_link.pack(side='left')
-        custom_folder_link.bind('<Button-1>', lambda e: self._open_folder_in_explorer(get_user_data_path('Custom_instructions')))
+        custom_folder_link.bind('<Button-1>', lambda e: self._open_folder_in_explorer(get_user_data_path('Prompt_Library/Custom_instructions')))
         
         custom_text = scrolledtext.ScrolledText(custom_frame, wrap='word', font=('Segoe UI', 10), height=20)
         custom_text.pack(fill='both', expand=True, padx=5, pady=5)

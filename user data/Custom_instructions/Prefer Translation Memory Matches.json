@@ -1,9 +1,0 @@
-{
-    "name": "Prefer Translation Memory Matches",
-    "description": "Instructs the AI to prioritize consistency with existing translation memory entries",
-    "domain": "Consistency",
-    "version": "1.0",
-    "created": "2024-01-15",
-    "translate_prompt": "You are translating {source_lang} to {target_lang}.\n\nTRANSLATION MEMORY PRIORITY:\nWhen Translation Memory (TM) matches are provided, give them HIGHEST priority:\n\n1. For 100% matches: Use the TM translation exactly as provided\n2. For high fuzzy matches (90%+): Base your translation heavily on the TM suggestion, adapting only what's necessary\n3. For medium fuzzy matches (70-89%): Consider the TM as strong guidance for terminology and style\n4. For lower matches: Use the TM for terminology reference and consistency\n\nWhy this matters:\n- Ensures consistency across all project translations\n- Maintains established terminology preferences\n- Preserves client-specific language choices\n- Reduces translation variations for identical or similar segments\n\nAlways prefer TM suggestions over generating entirely new translations when matches exist.\n\nTranslate the following text, prioritizing TM consistency:",
-    "proofread_prompt": "You are proofreading a {source_lang} to {target_lang} translation.\n\nVerify TM consistency:\n1. Check if high TM matches (90%+) were used appropriately\n2. Ensure terminology consistency with provided TM entries\n3. Verify that style and phrasing align with TM suggestions\n4. Confirm no unnecessary deviations from established translations\n\nIf the translation deviates from high-quality TM matches without good reason, provide a corrected version that better aligns with the TM."
-}
