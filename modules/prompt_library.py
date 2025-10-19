@@ -84,7 +84,7 @@ class PromptLibrary:
         return total
     
     def _load_from_directory(self, directory, prompt_type="system_prompt"):
-        """Load prompts from a specific directory
+        """Load prompts from a specific directory (both .json and .md files)
         
         Args:
             directory: Path to directory
@@ -96,35 +96,57 @@ class PromptLibrary:
             return count
         
         for filename in os.listdir(directory):
-            if not filename.endswith('.json'):
+            # Skip format_examples folder
+            if filename == 'format_examples':
                 continue
             
             filepath = os.path.join(directory, filename)
-            try:
-                with open(filepath, 'r', encoding='utf-8') as f:
-                    prompt_data = json.load(f)
-                    
+            
+            # Skip directories
+            if os.path.isdir(filepath):
+                continue
+            
+            prompt_data = None
+            
+            # Try Markdown first (preferred format)
+            if filename.endswith('.md'):
+                prompt_data = self.parse_markdown(filepath)
+                
+            # Fall back to JSON (legacy format)
+            elif filename.endswith('.json'):
+                try:
+                    with open(filepath, 'r', encoding='utf-8') as f:
+                        prompt_data = json.load(f)
+                except Exception as e:
+                    self.log(f"⚠ Failed to load JSON {filename}: {e}")
+                    continue
+            else:
+                # Skip unsupported file types
+                continue
+            
+            # Process loaded data
+            if prompt_data:
+                try:
                     # Add metadata
                     prompt_data['_filename'] = filename
                     prompt_data['_filepath'] = filepath
-                    prompt_data['_type'] = prompt_type  # Add type field
+                    prompt_data['_type'] = prompt_type
                     
                     # Add task_type with backward compatibility
                     if 'task_type' not in prompt_data:
-                        # Infer task type from title/name for backward compatibility
                         prompt_data['task_type'] = self._infer_task_type(prompt_data.get('name', ''))
                     
                     # Validate required fields
                     if 'name' not in prompt_data or 'translate_prompt' not in prompt_data:
-                        self.log(f"⚠ Skipping {filename}: missing required fields (name, translate_prompt)")
+                        self.log(f"⚠ Skipping {filename}: missing required fields")
                         continue
                     
                     self.prompts[filename] = prompt_data
                     count += 1
                     
-            except Exception as e:
-                self.log(f"⚠ Failed to load {filename}: {e}")
-                
+                except Exception as e:
+                    self.log(f"⚠ Error processing {filename}: {e}")
+        
         return count
     
     def _infer_task_type(self, title):
@@ -152,6 +174,148 @@ class PromptLibrary:
             return 'Transcreation'
         else:
             return 'Translation'  # Default
+    
+    def parse_markdown(self, filepath):
+        """Parse Markdown file with YAML frontmatter into prompt data.
+        
+        Format:
+        ---
+        name: "Prompt Name"
+        description: "Description"
+        domain: "Domain"
+        version: "1.0"
+        task_type: "Translation"
+        created: "2025-10-19"
+        ---
+        
+        # Content
+        Actual prompt content here...
+        """
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # Split frontmatter from content
+            if content.startswith('---'):
+                # Remove opening ---
+                content = content[3:].lstrip('\n')
+                
+                # Find closing ---
+                if '---' in content:
+                    frontmatter_str, prompt_content = content.split('---', 1)
+                    prompt_content = prompt_content.lstrip('\n')
+                else:
+                    self.log(f"⚠ Invalid Markdown format in {filepath}: closing --- not found")
+                    return None
+            else:
+                self.log(f"⚠ Invalid Markdown format in {filepath}: no opening ---")
+                return None
+            
+            # Parse YAML frontmatter
+            prompt_data = self._parse_yaml(frontmatter_str)
+            
+            # Store content as translate_prompt (main prompt content)
+            prompt_data['translate_prompt'] = prompt_content.strip()
+            
+            # Proofread prompt defaults to translate prompt if not specified
+            if 'proofread_prompt' not in prompt_data:
+                prompt_data['proofread_prompt'] = prompt_content.strip()
+            
+            # Validate required fields
+            if 'name' not in prompt_data or 'translate_prompt' not in prompt_data:
+                self.log(f"⚠ Missing required fields in {filepath}")
+                return None
+            
+            return prompt_data
+            
+        except Exception as e:
+            self.log(f"⚠ Failed to parse Markdown {filepath}: {e}")
+            return None
+    
+    def _parse_yaml(self, yaml_str):
+        """Simple YAML parser for frontmatter (handles basic key: value pairs).
+        
+        Supports:
+        - Simple strings: key: "value" or key: value
+        - Numbers: key: 1.0
+        - Arrays: key: [item1, item2]
+        """
+        data = {}
+        
+        for line in yaml_str.strip().split('\n'):
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue
+            
+            if ':' not in line:
+                continue
+            
+            key, value = line.split(':', 1)
+            key = key.strip()
+            value = value.strip()
+            
+            # Remove quotes
+            if value.startswith('"') and value.endswith('"'):
+                value = value[1:-1]
+            elif value.startswith("'") and value.endswith("'"):
+                value = value[1:-1]
+            
+            # Handle numbers
+            if value.replace('.', '', 1).isdigit():
+                try:
+                    value = float(value) if '.' in value else int(value)
+                except:
+                    pass
+            
+            data[key] = value
+        
+        return data
+    
+    def markdown_to_dict(self, filepath):
+        """Convert Markdown file to dictionary (alias for parse_markdown)"""
+        return self.parse_markdown(filepath)
+    
+    def dict_to_markdown(self, prompt_data, filepath):
+        """Save prompt data as Markdown file with YAML frontmatter.
+        
+        Args:
+            prompt_data: Dictionary with prompt info
+            filepath: Where to save the .md file
+        """
+        try:
+            # Prepare frontmatter fields
+            frontmatter = []
+            frontmatter.append('---')
+            
+            # Fields to include in frontmatter (in order)
+            frontmatter_fields = ['name', 'description', 'domain', 'version', 'task_type', 'created', 'modified']
+            
+            for field in frontmatter_fields:
+                if field in prompt_data:
+                    value = prompt_data[field]
+                    # Quote strings, don't quote numbers
+                    if isinstance(value, str):
+                        frontmatter.append(f'{field}: "{value}"')
+                    else:
+                        frontmatter.append(f'{field}: {value}')
+            
+            frontmatter.append('---')
+            
+            # Get content (use translate_prompt if proofread_prompt is the same)
+            content = prompt_data.get('translate_prompt', '')
+            
+            # Build final content
+            markdown_content = '\n'.join(frontmatter) + '\n\n' + content.strip()
+            
+            # Write file
+            with open(filepath, 'w', encoding='utf-8') as f:
+                f.write(markdown_content)
+            
+            return True
+            
+        except Exception as e:
+            self.log(f"⚠ Failed to save Markdown {filepath}: {e}")
+            return False
     
     def get_prompt_list(self):
         """Get list of available prompts with metadata"""
@@ -395,3 +559,102 @@ class PromptLibrary:
             self.log(f"✗ Import failed: {e}")
             messagebox.showerror("Import Error", f"Failed to import prompt:\n{e}")
             return False
+    
+    def convert_json_to_markdown(self, directory, prompt_type="system_prompt"):
+        """Convert all JSON files in directory to Markdown format.
+        
+        Args:
+            directory: Path to directory containing .json files
+            prompt_type: Either 'system_prompt' or 'custom_instruction'
+            
+        Returns:
+            tuple: (converted_count, failed_count)
+        """
+        converted = 0
+        failed = 0
+        
+        if not directory or not os.path.exists(directory):
+            self.log(f"⚠ Directory not found: {directory}")
+            return (0, 0)
+        
+        for filename in os.listdir(directory):
+            # Skip non-JSON files
+            if not filename.endswith('.json'):
+                continue
+            
+            filepath = os.path.join(directory, filename)
+            
+            # Skip directories
+            if os.path.isdir(filepath):
+                continue
+            
+            try:
+                # Load JSON
+                with open(filepath, 'r', encoding='utf-8') as f:
+                    prompt_data = json.load(f)
+                
+                # Validate
+                if 'name' not in prompt_data or 'translate_prompt' not in prompt_data:
+                    self.log(f"⚠ Skipping {filename}: missing required fields")
+                    failed += 1
+                    continue
+                
+                # Create new filename with .md extension
+                name_without_ext = os.path.splitext(filename)[0]
+                md_filename = f"{name_without_ext}.md"
+                md_filepath = os.path.join(directory, md_filename)
+                
+                # Save as Markdown
+                if self.dict_to_markdown(prompt_data, md_filepath):
+                    self.log(f"✓ Converted {filename} → {md_filename}")
+                    
+                    # Delete original JSON file
+                    try:
+                        os.remove(filepath)
+                        self.log(f"  Removed original: {filename}")
+                    except Exception as e:
+                        self.log(f"⚠ Could not delete {filename}: {e}")
+                    
+                    converted += 1
+                else:
+                    failed += 1
+                    
+            except Exception as e:
+                self.log(f"✗ Failed to convert {filename}: {e}")
+                failed += 1
+        
+        return (converted, failed)
+    
+    def convert_all_prompts_to_markdown(self):
+        """Convert all JSON prompts to Markdown format in both directories.
+        
+        Returns:
+            dict: {"system_prompts": (converted, failed), "custom_instructions": (converted, failed)}
+        """
+        results = {}
+        
+        self.log("🔄 Converting prompts to Markdown format...")
+        
+        # Convert system prompts
+        if self.system_prompts_dir:
+            self.log(f"  Converting System Prompts from {self.system_prompts_dir}")
+            results['system_prompts'] = self.convert_json_to_markdown(
+                self.system_prompts_dir, 
+                prompt_type="system_prompt"
+            )
+        
+        # Convert custom instructions
+        if self.custom_instructions_dir:
+            self.log(f"  Converting Custom Instructions from {self.custom_instructions_dir}")
+            results['custom_instructions'] = self.convert_json_to_markdown(
+                self.custom_instructions_dir, 
+                prompt_type="custom_instruction"
+            )
+        
+        # Summary
+        total_converted = sum(r[0] for r in results.values())
+        total_failed = sum(r[1] for r in results.values())
+        self.log(f"✓ Conversion complete: {total_converted} prompts converted, {total_failed} failed")
+        
+        return results
+
