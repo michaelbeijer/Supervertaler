@@ -205,10 +205,10 @@ class PromptLibrary:
                     frontmatter_str, prompt_content = content.split('---', 1)
                     prompt_content = prompt_content.lstrip('\n')
                 else:
-                    self.log(f"⚠ Invalid Markdown format in {filepath}: closing --- not found")
+                    self.log(f"[WARNING] Invalid Markdown format in {filepath}: closing --- not found")
                     return None
             else:
-                self.log(f"⚠ Invalid Markdown format in {filepath}: no opening ---")
+                self.log(f"[WARNING] Invalid Markdown format in {filepath}: no opening ---")
                 return None
             
             # Parse YAML frontmatter
@@ -223,7 +223,7 @@ class PromptLibrary:
             
             # Validate required fields
             if 'name' not in prompt_data or 'translate_prompt' not in prompt_data:
-                self.log(f"⚠ Missing required fields in {filepath}")
+                self.log(f"[WARNING] Missing required fields in {filepath}")
                 return None
             
             return prompt_data
