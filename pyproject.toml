@@ -54,5 +54,7 @@ Repository = "https://github.com/michaelbeijer/Supervertaler.git"
 Documentation = "https://michaelbeijer.co.uk"
 "Author Website" = "https://michaelbeijer.co.uk"
 
-[project.scripts]
-supervertaler = "Supervertaler_v3.7.0:main"
+# Note: Entry point disabled - run via: python -m Supervertaler_v3.7.0
+# Or create proper module structure if distributing as pip package
+# [project.scripts]
+# supervertaler = "Supervertaler_v3.7.0:main"
