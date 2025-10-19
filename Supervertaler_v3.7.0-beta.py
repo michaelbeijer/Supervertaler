@@ -626,6 +626,7 @@ class Supervertaler:
         # Filter state
         self.filtered_segments = []
         self.filter_active = False
+        self.filter_mode = 'filter'  # 'filter' or 'highlight' - initialized early to prevent AttributeError
         
         # Components
         self.segmenter = SimpleSegmenter()
@@ -4695,7 +4696,7 @@ Provide the two prompts in the specified format."""
                     filename += '.md'
                 
                 # Get System_prompts directory
-                system_prompts_dir = get_user_data_path("System_prompts")
+                system_prompts_dir = get_user_data_path("Prompt_Library/System_prompts")
                 filepath = os.path.join(system_prompts_dir, filename)
                 
                 # Determine domain from doc_type
@@ -4835,7 +4836,7 @@ Provide the two prompts in the specified format."""
             }
             
             # Save to Custom Instructions folder (respects dev mode)
-            custom_instructions_dir = get_user_data_path('Custom_instructions')
+            custom_instructions_dir = get_user_data_path('Prompt_Library/Custom_instructions')
             os.makedirs(custom_instructions_dir, exist_ok=True)
             
             # Sanitize filename
