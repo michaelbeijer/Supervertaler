@@ -1,0 +1,58 @@
+#!/bin/bash
+# Pre-commit hook: Prevent removal of critical .gitignore entries
+# This protects sensitive files from being accidentally tracked by Git
+
+set -e
+
+GITIGNORE=".gitignore"
+CRITICAL_ENTRIES=(
+    "user data_private/"
+    "api_keys.txt"
+)
+
+# Check if .gitignore is being modified
+if ! git diff --cached --name-only | grep -q "\.gitignore"; then
+    exit 0  # .gitignore not being committed, no need to check
+fi
+
+# Color codes
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+echo -e "${YELLOW}🔒 Security Check: Verifying critical .gitignore entries...${NC}"
+
+# Check if any critical entries are being removed
+for entry in "${CRITICAL_ENTRIES[@]}"; do
+    if git diff --cached "$GITIGNORE" | grep -E "^-.*$entry" > /dev/null; then
+        echo -e "${RED}❌ SECURITY VIOLATION: Attempting to remove critical entry: $entry${NC}"
+        echo ""
+        echo "Critical .gitignore entries that MUST ALWAYS be present:"
+        echo "  • user data_private/ - Contains ALL private data (prompts, projects, strategy)"
+        echo "  • api_keys.txt - API credentials (never track this!)"
+        echo ""
+        echo "If you need to modify .gitignore, restore these entries and try again."
+        echo ""
+        echo "To override this check (NOT RECOMMENDED):"
+        echo "  git commit --no-verify"
+        exit 1
+    fi
+done
+
+# Verify critical entries still exist in staged version
+STAGED_CONTENT=$(git show :."$GITIGNORE" 2>/dev/null || cat "$GITIGNORE")
+for entry in "${CRITICAL_ENTRIES[@]}"; do
+    if ! echo "$STAGED_CONTENT" | grep -q "^$entry"; then
+        echo -e "${RED}❌ ERROR: Missing critical .gitignore entry: $entry${NC}"
+        echo ""
+        echo "Staged .gitignore is missing critical security entries."
+        echo "Restore .gitignore before committing:"
+        echo "  git checkout -- .gitignore"
+        echo ""
+        exit 1
+    fi
+done
+
+echo -e "${GREEN}✅ All critical .gitignore entries verified${NC}"
+exit 0
