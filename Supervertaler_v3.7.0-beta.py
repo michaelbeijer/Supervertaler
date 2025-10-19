@@ -5706,11 +5706,11 @@ Available features you can recommend:
         reports_subframe = tk.Frame(export_frame)
         reports_subframe.pack(anchor='w', fill='x', pady=2)
         
-        self.auto_export_session_md_var = tk.BooleanVar(value=False)
+        self.auto_export_session_md_var = tk.BooleanVar(value=True)
         tk.Checkbutton(reports_subframe, text="Session Report (.md)",
                       variable=self.auto_export_session_md_var, font=('Segoe UI', 9)).pack(side='left', padx=(0, 20))
         
-        self.auto_export_session_html_var = tk.BooleanVar(value=False)
+        self.auto_export_session_html_var = tk.BooleanVar(value=True)
         tk.Checkbutton(reports_subframe, text="Session Report (.html)",
                       variable=self.auto_export_session_html_var, font=('Segoe UI', 9)).pack(side='left')
         
@@ -5718,7 +5718,7 @@ Available features you can recommend:
         tm_subframe = tk.Frame(export_frame)
         tm_subframe.pack(anchor='w', fill='x', pady=2)
         
-        self.auto_export_tmx_var = tk.BooleanVar(value=False)
+        self.auto_export_tmx_var = tk.BooleanVar(value=True)
         tk.Checkbutton(tm_subframe, text="Translation Memory (.tmx)",
                       variable=self.auto_export_tmx_var, font=('Segoe UI', 9)).pack(side='left', padx=(0, 20))
         
@@ -5742,7 +5742,7 @@ Available features you can recommend:
         excel_subframe = tk.Frame(export_frame)
         excel_subframe.pack(anchor='w', fill='x', pady=2)
         
-        self.auto_export_excel_var = tk.BooleanVar(value=False)
+        self.auto_export_excel_var = tk.BooleanVar(value=True)
         tk.Checkbutton(excel_subframe, text="Excel Bilingual (.xlsx)",
                       variable=self.auto_export_excel_var, font=('Segoe UI', 9)).pack(side='left')
         
@@ -13400,6 +13400,9 @@ Use this feature AFTER translation to:
                 content = line.strip()[2:]
                 # Handle bold
                 content = content.replace('**', '<strong>', 1).replace('**', '</strong>', 1)
+                # Convert markdown links [text](url) to HTML <a>text</a>
+                import re
+                content = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'<a href="\2" target="_blank">\1</a>', content)
                 html_content.append(f'<li>{content}</li>')
             else:
                 if in_list and not line.strip().startswith('- '):
@@ -13412,6 +13415,8 @@ Use this feature AFTER translation to:
                     # Handle inline code
                     import re
                     line = re.sub(r'`([^`]+)`', r'<code>\1</code>', line)
+                    # Convert markdown links [text](url) to HTML <a>text</a>
+                    line = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'<a href="\2" target="_blank">\1</a>', line)
                     html_content.append(f'<p>{line}</p>')
                 else:
                     html_content.append('')
