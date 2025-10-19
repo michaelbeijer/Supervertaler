@@ -4677,6 +4677,11 @@ Provide the two prompts in the specified format."""
         system_btn_frame = tk.Frame(system_frame)
         system_btn_frame.pack(fill='x', padx=5, pady=5)
         
+        # Auto-activate checkbox
+        auto_activate_system_var = tk.BooleanVar(value=True)
+        tk.Checkbutton(system_btn_frame, text="✓ Automatically activate for this project",
+                      variable=auto_activate_system_var, font=('Segoe UI', 9)).pack(side='left', padx=(0, 20))
+        
         def save_system_prompt():
             """Save System Prompt as Markdown file in System_prompts folder"""
             # Ask for filename
@@ -4702,9 +4707,12 @@ Provide the two prompts in the specified format."""
                 # Store the user-entered name (without .md extension)
                 user_entered_name = filename.replace('.md', '') if filename.endswith('.md') else filename
                 
-                # Ensure .md extension
+                # Create filename with descriptor: "name (system prompt).md"
                 if not filename.endswith('.md'):
-                    filename += '.md'
+                    filename = f"{filename} (system prompt).md"
+                elif " (system prompt)" not in filename.lower():
+                    # Insert descriptor before .md if not already there
+                    filename = filename.replace('.md', ' (system prompt).md')
                 
                 # Get System_prompts directory
                 system_prompts_dir = get_user_data_path("Prompt_Library/System_prompts")
@@ -4752,6 +4760,11 @@ Provide the two prompts in the specified format."""
                         self._pl_load_system_prompts()
                         self.log(f"  System prompts tree refreshed")
                     
+                    # Auto-activate if checkbox is checked
+                    if auto_activate_system_var.get():
+                        self._apply_prompt_from_filename(filename, slot='translate')
+                        self.log(f"✅ System Prompt automatically activated for current project")
+                    
                     messagebox.showinfo("Saved!", 
                         f"System Prompt saved as:\n{filename}\n\n"
                         f"Location: {os.path.normpath(system_prompts_dir)}\n\n"
@@ -4798,6 +4811,14 @@ Provide the two prompts in the specified format."""
         
         custom_btn_frame = tk.Frame(custom_frame)
         custom_btn_frame.pack(fill='x', padx=5, pady=5)
+        
+        # Auto-activate checkbox
+        auto_activate_custom_var = tk.BooleanVar(value=True)
+        tk.Checkbutton(custom_btn_frame, text="✓ Automatically activate for this project",
+                      variable=auto_activate_custom_var, font=('Segoe UI', 9)).pack(side='left', padx=(0, 20))
+        
+        custom_btn_frame2 = tk.Frame(custom_frame)
+        custom_btn_frame2.pack(fill='x', padx=5, pady=5)
         
         def apply_custom_instructions():
             """Save custom instructions as JSON file in Prompt Library"""
@@ -4850,9 +4871,11 @@ Provide the two prompts in the specified format."""
             custom_instructions_dir = get_user_data_path('Prompt_Library/Custom_instructions')
             os.makedirs(custom_instructions_dir, exist_ok=True)
             
-            # Sanitize filename
+            # Sanitize filename and add descriptor
             safe_filename = "".join(c for c in name if c.isalnum() or c in (' ', '-', '_')).strip()
-            filepath = os.path.join(custom_instructions_dir, f"{safe_filename}.md")
+            # Create filename with descriptor: "name (custom instructions).md"
+            filename_with_descriptor = f"{safe_filename} (custom instructions).md"
+            filepath = os.path.join(custom_instructions_dir, filename_with_descriptor)
             
             # Log for debugging
             self.log(f"💾 Saving Custom Instructions to: {filepath}")
@@ -4861,7 +4884,7 @@ Provide the two prompts in the specified format."""
                 # Save as Markdown
                 self.prompt_library.dict_to_markdown(custom_data, filepath)
                 
-                self.log(f"✅ Custom Instructions saved: {safe_filename}.md")
+                self.log(f"✅ Custom Instructions saved: {filename_with_descriptor}")
                 
                 # Reload prompt library to show the new file
                 if hasattr(self, 'prompt_library'):
@@ -4870,11 +4893,17 @@ Provide the two prompts in the specified format."""
                     if hasattr(self, '_pl_load_custom_instructions'):
                         self._pl_load_custom_instructions()
                 
+                # Auto-activate if checkbox is checked
+                if auto_activate_custom_var.get():
+                    self.active_custom_instruction = custom_instructions_text
+                    self.active_custom_instruction_name = name
+                    if hasattr(self, 'pl_active_custom_label'):
+                        self.pl_active_custom_label.config(text=name)
+                    self.log(f"✅ Custom Instructions automatically activated for current project")
+                
                 messagebox.showinfo("Saved!", 
-                    f"Custom Instructions saved as:\n\n{safe_filename}.md\n\n"
-                    "You can now find it in:\n"
-                    "📚 Prompt Library → 📝 Custom Instructions tab\n\n"
-                    "Click '✅ Use in Current Project' to activate it.")
+                    f"Custom Instructions saved as:\n\n{filename_with_descriptor}\n\n"
+                    f"Location: {os.path.normpath(custom_instructions_dir)}")
                 
                 # Don't close the dialog - let user see both prompts
             except Exception as e:
@@ -4885,11 +4914,11 @@ Provide the two prompts in the specified format."""
             self.root.clipboard_append(custom_instructions_text)
             messagebox.showinfo("Copied!", "Custom Instructions copied to clipboard!")
         
-        tk.Button(custom_btn_frame, text="💾 Save as Custom Instructions",
+        tk.Button(custom_btn_frame2, text="💾 Save as Custom Instructions",
                  command=apply_custom_instructions,
                  bg='#4CAF50', fg='white', font=('Segoe UI', 10, 'bold')).pack(side='left', padx=5)
         
-        tk.Button(custom_btn_frame, text="📋 Copy to Clipboard",
+        tk.Button(custom_btn_frame2, text="📋 Copy to Clipboard",
                  command=copy_custom_instructions,
                  bg='#2196F3', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=5)
         
