@@ -23,28 +23,32 @@ class EncodingRepair:
     
     # Common mojibake patterns (UTF-8 misinterpreted as Latin-1)
     CORRUPTION_PATTERNS = {
-        # En dash, em dash, hyphen variants
-        r'\u00e2\u20ac\u201c': '–',  # en dash
-        r'\u00e2\u20ac\u201d': '—',  # em dash
-        r'\u00e2\u20ac\u0090': '-',  # non-breaking hyphen
+        # En dash, em dash, hyphen variants (as literal strings, not Unicode escapes)
+        '\\u00e2\\u20ac\\u201c': '–',  # en dash
+        '\\u00e2\\u20ac\\u201d': '—',  # em dash
+        '\\u00e2\\u20ac\\u0090': '-',  # non-breaking hyphen (3-char sequence)
+        
+        # Standalone Unicode escape sequences (single occurrence)
+        '-\\u0090': '-',               # hyphen + corruption → single hyphen
+        '\\u0090': '',                 # standalone corruption → remove it
         
         # Quotes and apostrophes
-        r'\u00e2\u20ac\u0153': '"',  # left double quote
-        r'\u00e2\u20ac\u009d': '"',  # right double quote
-        r'\u00e2\u20ac\u0098': '\u2018',   # left single quote
-        r'\u00e2\u20ac\u0099': '\u2019',   # right single quote
-        r'\u00e2\u20ac\u2122': '\u2019',   # apostrophe/right single quote
+        '\\u00e2\\u20ac\\u0153': '"',  # left double quote
+        '\\u00e2\\u20ac\\u009d': '"',  # right double quote
+        '\\u00e2\\u20ac\\u0098': '\u2018',   # left single quote
+        '\\u00e2\\u20ac\\u0099': '\u2019',   # right single quote
+        '\\u00e2\\u20ac\\u2122': '\u2019',   # apostrophe/right single quote
         
         # Ellipsis and other punctuation
-        r'\u00e2\u20ac\u00a6': '…',   # ellipsis
-        r'\u00e2\u20ac\u00a2': '•',   # bullet
+        '\\u00e2\\u20ac\\u00a6': '…',   # ellipsis
+        '\\u00e2\\u20ac\\u00a2': '•',   # bullet
         
         # Spaces
-        r'\u00c2\u00a0': ' ',          # non-breaking space
+        '\\u00c2\\u00a0': ' ',          # non-breaking space
         
         # Degree and special symbols
-        r'\u00c2\u00b0': '°',          # degree
-        r'\u00c3\u00a9': 'é',          # e acute (example)
+        '\\u00c2\\u00b0': '°',          # degree
+        '\\u00c3\\u00a9': 'é',          # e acute (example)
     }
     
     # Regex pattern to find potential corruption sequences

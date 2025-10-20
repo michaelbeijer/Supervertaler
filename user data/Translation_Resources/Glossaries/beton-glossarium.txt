@@ -3049,7 +3049,7 @@ conformity, in ... with	overeenstemming, in … met (volgens)
 construction products regulation cpr	verordening bouwproducten
 crackling	craquelé
 crcp – continuously reinforced concrete pavement	doorgaand-gewapend betonverharding
-designed concrete	beton op prestatie-\u0090eisen
+designed concrete	beton op prestatie-eisen
 non-agitating equipment	niet-agiterend vervoermiddel
 one-way spanning slab	in één richting dragende plaat
 Poisson’s ratio	coëfficiënt van Poisson
