@@ -75,6 +75,31 @@ class SetupWizard:
                 if self.should_migrate:
                     self.migration_source = existing_data
             
+            # Step 3b: Show confirmation of what will be created
+            confirm_message = (
+                "Supervertaler will create the following structure:\n\n"
+                f"{self.selected_path}\n"
+                f"  ├── api_keys.txt\n"
+                f"  ├── Prompt_Library/\n"
+                f"  │   ├── System_prompts/\n"
+                f"  │   └── Custom_instructions/\n"
+                f"  ├── Translation_Resources/\n"
+                f"  │   ├── TMs/\n"
+                f"  │   ├── Glossaries/\n"
+                f"  │   ├── Non-translatables/\n"
+                f"  │   └── Segmentation_rules/\n"
+                f"  └── Projects/\n\n"
+                "Is this correct?"
+            )
+            
+            if not messagebox.askyesno("Confirm Folder Location", confirm_message):
+                # User wants to go back and select again
+                self.selected_path = self._select_folder()
+                if self.selected_path is None:
+                    messagebox.showinfo("Setup Cancelled", "Supervertaler setup was cancelled.")
+                    return False, ""
+                # Loop back to confirmation by recursing (or just continue with the new path)
+            
             # Step 4: Validate and create folder structure
             success, message = self.config.ensure_user_data_exists(self.selected_path)
             if not success:
@@ -109,8 +134,13 @@ class SetupWizard:
             # Success!
             messagebox.showinfo(
                 "Setup Complete",
-                f"Supervertaler is ready!\n\n"
-                f"User data folder: {self.selected_path}\n\n"
+                f"✅ Supervertaler is ready!\n\n"
+                f"Your data folder: {self.selected_path}\n\n"
+                f"Created:\n"
+                f"  • api_keys.txt (add your API keys here)\n"
+                f"  • Prompt_Library/ (your prompts)\n"
+                f"  • Translation_Resources/ (TMs, glossaries)\n"
+                f"  • Projects/ (your work)\n\n"
                 f"All your translation memories, prompts, and projects\n"
                 f"will be stored in this location."
             )
@@ -127,14 +157,18 @@ class SetupWizard:
             "Welcome to Supervertaler!\n\n"
             "This is your first launch. We need to set up your data folder.\n\n"
             "This folder is where Supervertaler will store:\n"
+            "  • api_keys.txt (your API credentials)\n"
             "  • Translation Memories (TMs)\n"
             "  • Glossaries and Non-translatables\n"
             "  • System Prompts and Custom Instructions\n"
             "  • Your translation projects\n"
-            "  • Segmentation rules\n\n"
-            "You can choose any location you'd like.\n"
-            "Popular choices: Documents, Desktop, or a dedicated folder.\n\n"
-            "Click OK to select your folder location."
+            "  • Segmentation rules\n"
+            "  • Session reports and configuration\n\n"
+            "IMPORTANT: Select a NEW or EMPTY folder location.\n"
+            "Examples: Documents/Supervertaler_Data or Desktop/Supervertaler\n\n"
+            "Supervertaler will automatically create the full folder\n"
+            "structure inside the location you select.\n\n"
+            "Click OK to browse for your folder location."
         )
         
         messagebox.showinfo("First Time Setup", welcome_message)
@@ -149,7 +183,7 @@ class SetupWizard:
         default_path = self.config._get_default_user_data_path()
         
         folder_selected = filedialog.askdirectory(
-            title="Select User Data Folder for Supervertaler",
+            title="Select WHERE to create your Supervertaler Data Folder\n(e.g., Documents or Desktop - NOT the program folder)",
             initialdir=str(Path.home()),
             mustexist=False
         )
