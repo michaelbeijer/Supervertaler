@@ -43,25 +43,38 @@ del _os_temp
 
 def get_user_data_path(folder_name):
     """
-    Get the appropriate user data path based on dev mode.
+    Get the appropriate user data path.
+    
+    UPDATED: Now uses ConfigManager for user-configurable paths.
+    Falls back to relative paths for backward compatibility during dev.
     
     In dev mode (with .supervertaler.local file):
         Returns: user data_private/<folder_name>
-    In user mode:
-        Returns: user data/<folder_name>
+    In user mode (pip install or normal launch):
+        Returns: /user/configured/path/Supervertaler_Data/<folder_name>
     
     Examples:
-        Dev mode:  get_user_data_path('Prompt_Library/System_prompts') -> 'user data_private/Prompt_Library/System_prompts'
-        User mode: get_user_data_path('Translation_Resources/TMs') -> 'user data/Translation_Resources/TMs'
+        Dev mode:  get_user_data_path('Prompt_Library/System_prompts') 
+                -> 'user data_private/Prompt_Library/System_prompts'
+        User mode: get_user_data_path('Translation_Resources/TMs') 
+                -> '/home/user/Supervertaler_Data/Translation_Resources/TMs'
     """
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    
-    if ENABLE_PRIVATE_FEATURES:
-        # Dev mode: use parallel private structure
-        return os.path.join(script_dir, "user data_private", folder_name)
-    else:
-        # User mode: use standard structure
-        return os.path.join(script_dir, "user data", folder_name)
+    # Try to use ConfigManager if available (normal user operation)
+    try:
+        from modules.config_manager import get_config_manager
+        config = get_config_manager()
+        return config.get_subfolder_path(folder_name)
+    except Exception as e:
+        # Fallback to old behavior (dev mode, or during initial setup)
+        print(f"[Warning] ConfigManager not available: {e}. Using fallback path resolution.")
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        
+        if ENABLE_PRIVATE_FEATURES:
+            # Dev mode: use parallel private structure
+            return os.path.join(script_dir, "user data_private", folder_name)
+        else:
+            # User mode fallback: use script directory
+            return os.path.join(script_dir, "user data", folder_name)
 
 
 def migrate_old_folder_structure():
@@ -16700,6 +16713,36 @@ GitHub: github.com/michaelbeijer/Supervertaler
 
 # Main
 if __name__ == "__main__":
+    # Import config manager and setup wizard
+    from modules.config_manager import get_config_manager
+    from modules.setup_wizard import SetupWizard
+    
+    # Get config manager
+    config = get_config_manager()
+    
+    # Check if first launch - show setup wizard
+    if config.is_first_launch():
+        wizard = SetupWizard()
+        success, user_data_path = wizard.run()
+        
+        if not success:
+            print("Setup wizard cancelled. Exiting.")
+            exit(1)
+        
+        print(f"[Setup Complete] User data path: {user_data_path}")
+    
+    # Validate current path on every launch
+    is_valid, error_msg = config.validate_current_path()
+    if not is_valid:
+        # Path is invalid, ask user to reconfigure
+        from modules.setup_wizard import SetupWizard
+        wizard = SetupWizard()
+        success, user_data_path = wizard.run()
+        
+        if not success:
+            print(f"Path validation failed and setup cancelled. Error: {error_msg}")
+            exit(1)
+    
     root = tk.Tk()
     
     # Set window icon
