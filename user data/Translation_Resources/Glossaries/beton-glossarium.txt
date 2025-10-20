@@ -3041,19 +3041,19 @@ yield stress	vloeispanning
 yield value	rekgrens
 yield	vloeien (van staal)
 young concrete	jong beton
-aggregate \u00e2\u20ac\u201c chemical impurities	toeslagmateriaal - chemische verontreinigingen
-aggregate \u00e2\u20ac\u201c geometrical properties	toeslagmateriaal - geometrische eigenschappen
-aggregate \u00e2\u20ac\u201c mechanical and physical properties	toeslagmateriaal - mechanische en fysische eigenschappen
-concrete, \u00e2\u20ac\u0153no slump\u00e2\u20ac\u009d concrete	beton, aardvochtig beton
-conformity, in ... with	overeenstemming, in \u00e2\u20ac\u00a6 met (volgens)
-construction products regulation\u00c2\u00a0cpr	verordening bouwproducten
+aggregate – chemical impurities	toeslagmateriaal - chemische verontreinigingen
+aggregate – geometrical properties	toeslagmateriaal - geometrische eigenschappen
+aggregate – mechanical and physical properties	toeslagmateriaal - mechanische en fysische eigenschappen
+concrete, "no slump" concrete	beton, aardvochtig beton
+conformity, in ... with	overeenstemming, in … met (volgens)
+construction products regulation cpr	verordening bouwproducten
 crackling	craquelé
-crcp \u00e2\u20ac\u201c continuously reinforced concrete pavement	doorgaand-gewapend betonverharding
+crcp – continuously reinforced concrete pavement	doorgaand-gewapend betonverharding
 designed concrete	beton op prestatie-\u0090eisen
-non\u00e2\u20ac\u0090agitating equipment	niet\u00e2\u20ac\u0090agiterend vervoermiddel
+non-agitating equipment	niet-agiterend vervoermiddel
 one-way spanning slab	in één richting dragende plaat
-Poisson\u00e2\u20ac\u2122s ratio	coëfficiënt van Poisson
-rca \u00e2\u20ac\u201c recycled concrete aggregate	betongranulaat
+Poisson’s ratio	coëfficiënt van Poisson
+rca – recycled concrete aggregate	betongranulaat
 uniaxial bending	éénassige buiding
 vacuum concrete	vacuümbeton
 wobble-effect (tendon friction)	wobble-effect (wrijving door kleine afwijkingen van het kanaaltracé)

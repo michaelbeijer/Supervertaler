@@ -10,7 +10,12 @@ Detects and fixes common text encoding issues (mojibake), particularly:
 import re
 from pathlib import Path
 from typing import Tuple, List, Dict
-import chardet
+
+try:
+    import chardet
+    CHARDET_AVAILABLE = True
+except ImportError:
+    CHARDET_AVAILABLE = False
 
 
 class EncodingRepair:
@@ -26,9 +31,9 @@ class EncodingRepair:
         # Quotes and apostrophes
         r'\u00e2\u20ac\u0153': '"',  # left double quote
         r'\u00e2\u20ac\u009d': '"',  # right double quote
-        r'\u00e2\u20ac\u0098': ''',   # left single quote
-        r'\u00e2\u20ac\u0099': ''',   # right single quote
-        r'\u00e2\u20ac\u2122': ''',   # apostrophe/right single quote
+        r'\u00e2\u20ac\u0098': '\u2018',   # left single quote
+        r'\u00e2\u20ac\u0099': '\u2019',   # right single quote
+        r'\u00e2\u20ac\u2122': '\u2019',   # apostrophe/right single quote
         
         # Ellipsis and other punctuation
         r'\u00e2\u20ac\u00a6': '…',   # ellipsis
@@ -160,20 +165,33 @@ class EncodingRepair:
             file_path = Path(file_path)
             
             # Try to detect encoding
-            with open(file_path, 'rb') as f:
-                raw_data = f.read()
+            detected_encoding = 'utf-8'
             
-            detected = chardet.detect(raw_data)
-            detected_encoding = detected.get('encoding', 'utf-8')
+            if CHARDET_AVAILABLE:
+                with open(file_path, 'rb') as f:
+                    raw_data = f.read()
+                
+                detected = chardet.detect(raw_data)
+                detected_encoding = detected.get('encoding', 'utf-8')
             
             # Try reading with detected encoding first
             try:
                 with open(file_path, 'r', encoding=detected_encoding) as f:
                     text = f.read()
             except (UnicodeDecodeError, LookupError):
-                # Fall back to utf-8
-                with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                    text = f.read()
+                # Try common encodings
+                for encoding in ['utf-8', 'latin-1', 'windows-1252', 'iso-8859-1']:
+                    try:
+                        with open(file_path, 'r', encoding=encoding) as f:
+                            text = f.read()
+                        detected_encoding = encoding
+                        break
+                    except (UnicodeDecodeError, LookupError):
+                        continue
+                else:
+                    # Fall back with error handling
+                    with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                        text = f.read()
             
             # Now detect corruption
             has_corruption, corruption_count, patterns = EncodingRepair.detect_corruption(text)
