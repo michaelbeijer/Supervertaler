@@ -2842,13 +2842,20 @@ class Supervertaler:
         if 'Prompt Assistant' in tab_text:
             # Hide the editor panel
             if hasattr(self, 'pl_editor_panel'):
-                self.pl_main_container.forget(self.pl_editor_panel)
+                try:
+                    self.pl_main_container.forget(self.pl_editor_panel)
+                except tk.TclError:
+                    pass  # Already hidden
         else:
             # Show the editor panel
             if hasattr(self, 'pl_editor_panel'):
                 # Check if it's not already there
-                if self.pl_editor_panel not in self.pl_main_container.panes():
-                    self.pl_main_container.add(self.pl_editor_panel, weight=2)
+                try:
+                    panes = self.pl_main_container.panes()
+                    if len(panes) == 1:  # Only list panel is shown
+                        self.pl_main_container.add(self.pl_editor_panel, weight=2)
+                except tk.TclError:
+                    pass  # Already added
     
     def _pl_activate_prompt(self, slot):
         """Activate selected prompt for translation or proofreading"""
