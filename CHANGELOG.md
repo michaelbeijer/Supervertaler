@@ -4,7 +4,7 @@
 **Product**: Unified Supervertaler (v3.x CAT Edition)  
 **Status**: Active Development
 
-> As of v3.7.0, Supervertaler is a unified product focusing exclusively on the CAT (Computer-Aided Translation) editor experience. The previous Classic Edition (v2.x) is archived for reference but no longer actively developed.
+> As of v3.7.1, Supervertaler is a unified product focusing exclusively on the CAT (Computer-Aided Translation) editor experience. The previous Classic Edition (v2.x) is archived for reference but no longer actively developed.
 
 ---
 
@@ -15,7 +15,7 @@
 **Data Privacy & API Keys Security**:
 - **🛡️ Removed sensitive data from git history** - `recent_projects.json` containing client project names completely removed from all 364 commits using git filter-branch
 - **🔑 API Keys Protection** - Moved `api_keys.txt` to user data folder, never committed to git
-- **v3.7.0 Yanked** - Removed from PyPI and GitHub releases due to security review (users should upgrade to v3.7.1)
+- **v3.7.1 Yanked** - Removed from PyPI and GitHub releases due to security review (users should upgrade to v3.7.1)
 - **Dev/User Mode Separation** - Separate configuration paths for development vs. user environments
 
 **User Data Folder System** (NEW):
@@ -37,7 +37,7 @@
 - Documentation - Updated README with new user data folder structure
 
 **Migration Guide**:
-- **Existing Users (v3.7.0)**: Simply upgrade - SetupWizard will guide you on first launch
+- **Existing Users (v3.7.1)**: Simply upgrade - SetupWizard will guide you on first launch
 - **New Users (v3.7.1)**: SetupWizard appears on first launch, guide you through setup
 - **API Keys**: Will be copied to your chosen data folder automatically
 - **Custom Prompts**: Already in `user data/Prompt_Library/` - can be moved to new location via Settings
@@ -65,7 +65,7 @@
 ### ✨ MAJOR RESTRUCTURING
 
 **Product Unification**:
-- **Deprecated**: v2.5.0-CLASSIC (archived to `.dev/previous_versions/`)
+- **Deprecated**: v3.7.1-CLASSIC (archived to `.dev/previous_versions/`)
 - **Focus**: All development now concentrated on v3.x CAT Edition
 - **Branding**: Removed "CAT" suffix - Supervertaler IS the CAT editor
 - **Messaging**: Single product line, clear value proposition to users
@@ -74,9 +74,9 @@
 - Moved all v2.x and earlier v3.x versions to `.dev/previous_versions/` folder
 - Unified changelog (consolidated CHANGELOG-CAT.md and CHANGELOG-CLASSIC.md)
 - Removed confusing dual-version documentation
-- Main executable: `Supervertaler_v3.7.0-beta.py`
+- Main executable: `Supervertaler_v3.7.1-beta.py`
 
-**Folder Structure Reorganization** (v3.6.9 continued):
+**Folder Structure Reorganization** (v3.7.1 continued):
 ```
 user data/
 ├── Prompt_Library/
@@ -135,10 +135,10 @@ user data/
 
 **Previous Versions Folder**:
 - Moved to `.dev/previous_versions/` (centralized archive)
-- Archived: v2.5.0-CLASSIC.py
-- Archived: v3.6.6-beta_CAT.py
-- Archived: v3.6.7-beta_CAT.py
-- Root now contains only: v3.7.0.py
+- Archived: v3.7.1-CLASSIC.py
+- Archived: v3.7.1-beta_CAT.py
+- Archived: v3.7.1-beta_CAT.py
+- Root now contains only: v3.7.1.py
 
 ---
 
@@ -260,10 +260,10 @@ You are an expert translator with deep expertise in intellectual property...
 
 ## Previous Versions (Archived)
 
-### v3.6.5-beta, v3.6.4-beta, v3.6.3-beta
+### v3.7.1-beta, v3.7.1-beta, v3.7.1-beta
 See [.dev/previous_versions/](.dev/previous_versions/) folder
 
-### v2.5.0-CLASSIC (Archived - No Longer Developed)
+### v3.7.1-CLASSIC (Archived - No Longer Developed)
 **Production-ready DOCX-based workflow** (last update: 2025-10-14):
 - CAT tool integration (CafeTran, memoQ, Trados)
 - Translation Memory with fuzzy matching
@@ -271,13 +271,13 @@ See [.dev/previous_versions/](.dev/previous_versions/) folder
 - Custom prompts with variable substitution
 - Full document context awareness
 
-**Note**: This version is archived but remains available at [GitHub Release v2.4.1](https://github.com/michaelbeijer/Supervertaler/releases/tag/v2.4.1) for users who prefer the simpler DOCX-based workflow.
+**Note**: This version is archived but remains available at [GitHub Release v3.7.1](https://github.com/michaelbeijer/Supervertaler/releases/tag/v3.7.1) for users who prefer the simpler DOCX-based workflow.
 
 ---
 
 ## Release Strategy
 
-**Current Focus**: v3.7.0+ (Unified CAT Edition)
+**Current Focus**: v3.7.1+ (Unified CAT Edition)
 - Weekly incremental improvements
 - User feedback integration
 - LSP consulting feedback incorporation

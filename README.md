@@ -34,14 +34,14 @@ Supervertaler is a **professional Computer-Aided Translation (CAT) editor** desi
 - ⚙️ **Settings Menu** - Added "Change Data Folder" option to Settings tab
 - 🐛 **Bug Fixes** - Fixed Tkinter error in Prompt Library tab switching
 
-### 📌 What's New in v3.7.0
+### 📌 What's New in v3.7.1
 
 ✨ **Product Unification**:
 - Unified product focus on v3.x CAT Edition
 - Single clear product line for users and LSPs
 - Simplified repository and documentation
 
-📁 **Folder Structure Reorganization** (v3.6.9):
+📁 **Folder Structure Reorganization** (v3.7.1):
 - `Prompt_Library/System_prompts/` - Domain-specific prompts (19 files)
 - `Prompt_Library/Custom_instructions/` - User preferences (8 files)
 - `Translation_Resources/Glossaries/` - Terminology databases
@@ -49,7 +49,7 @@ Supervertaler is a **professional Computer-Aided Translation (CAT) editor** desi
 - `Translation_Resources/Non-translatables/` - Non-translatable lists
 - `Translation_Resources/Segmentation_rules/` - Segmentation rules
 
-📝 **Markdown Prompt Format** (v3.6.8):
+📝 **Markdown Prompt Format** (v3.7.1):
 - All prompts now in Markdown with YAML frontmatter
 - Human-readable format (no escaped JSON)
 - Beautiful Markdown tables for glossaries
@@ -134,7 +134,7 @@ Then run:
 python -m Supervertaler_v3.7.1
 ```
 
-> **Note**: v3.7.0 has been yanked from PyPI due to security updates. v3.7.1 includes critical data folder security improvements.
+> **Note**: v3.7.1 has been yanked from PyPI due to security updates. v3.7.1 includes critical data folder security improvements.
 
 **Advantages**:
 - ✅ Easy updates: `pip install --upgrade supervertaler`

@@ -2,8 +2,8 @@
 
 **Release Date**: October 20, 2025  
 **Release Status**: ✅ COMPLETE - PUSHED TO GITHUB  
-**Previous Version**: v3.7.0 (Yanked from PyPI)  
-**Next Version**: Will track in v3.8.0 planning
+**Previous Version**: v3.7.1 (Yanked from PyPI)  
+**Next Version**: Will track in v3.7.1 planning
 
 ---
 
@@ -31,10 +31,10 @@
 - **Solution**: Moved to user data folder (now git-ignored)
 - **Benefit**: API keys never leave user's data folder
 
-#### 3. ✅ v3.7.0 Compromised Release
-- **Issue**: v3.7.0 uploaded to PyPI may contain exposed files
-- **Action**: Completely deleted v3.7.0 from PyPI
-- **Action**: Deleted v3.7.0 GitHub release
+#### 3. ✅ v3.7.1 Compromised Release
+- **Issue**: v3.7.1 uploaded to PyPI may contain exposed files
+- **Action**: Completely deleted v3.7.1 from PyPI
+- **Action**: Deleted v3.7.1 GitHub release
 - **Action**: Cleaned entire git history
 - **Status**: Users must upgrade to v3.7.1
 
@@ -159,7 +159,7 @@ user data_private/       ← Development parallel structure
    - Version bumped to v3.7.1
    - Added v3.7.1 features section
    - Updated user data folder structure diagram
-   - Added migration notes for v3.7.0 users
+   - Added migration notes for v3.7.1 users
    - Updated pip install command
 
 2. **`CHANGELOG.md`**
@@ -180,14 +180,14 @@ user data_private/       ← Development parallel structure
 ### Version Number Bumps
 | File | Old | New |
 |------|-----|-----|
-| `README.md` | v3.7.0 | v3.7.1 |
-| `CHANGELOG.md` | v3.7.0 | v3.7.1 |
-| `pyproject.toml` | 3.7.0 | 3.7.1 |
-| `Supervertaler_v3.7.0.py` | 3.7.0 | 3.7.1 (renamed file) |
-| `docs/index.html` | v3.7.0 | v3.7.1 |
+| `README.md` | v3.7.1 | v3.7.1 |
+| `CHANGELOG.md` | v3.7.1 | v3.7.1 |
+| `pyproject.toml` | 3.7.1 | 3.7.1 |
+| `Supervertaler_v3.7.1.py` | 3.7.1 | 3.7.1 (renamed file) |
+| `docs/index.html` | v3.7.1 | v3.7.1 |
 
 ### File Renames
-- `Supervertaler_v3.7.0.py` → `Supervertaler_v3.7.1.py`
+- `Supervertaler_v3.7.1.py` → `Supervertaler_v3.7.1.py`
 - Updated in all documentation references
 
 ---
@@ -195,10 +195,10 @@ user data_private/       ← Development parallel structure
 ## 📊 Code Changes
 
 ### Files Modified
-1. **Supervertaler_v3.7.1.py** (renamed from v3.7.0)
-   - Updated docstring header: "v3.7.0-beta" → "v3.7.1"
+1. **Supervertaler_v3.7.1.py** (renamed from v3.7.1)
+   - Updated docstring header: "v3.7.1-beta" → "v3.7.1"
    - Updated `APP_VERSION = "3.7.0"` → `APP_VERSION = "3.7.1"`
-   - Updated window title: "v3.7.0-beta" → "v3.7.1"
+   - Updated window title: "v3.7.1-beta" → "v3.7.1"
    - Tkinter tab switching error fix (lines 2839-2856)
 
 2. **modules/config_manager.py** (already implemented)
@@ -259,7 +259,7 @@ Message: v3.7.1 Release: Security & Configuration Updates
 
 ## 📈 Migration Path for Users
 
-### v3.7.0 → v3.7.1 Upgrade
+### v3.7.1 → v3.7.1 Upgrade
 
 **Automatic**:
 1. Download v3.7.1
@@ -279,8 +279,8 @@ Message: v3.7.1 Release: Security & Configuration Updates
 ✅ API keys never committed to git  
 ✅ user_data_private/ folder git-ignored  
 ✅ Client project data removed from git history  
-✅ v3.7.0 removed from PyPI (no downloads possible)  
-✅ v3.7.0 GitHub release deleted  
+✅ v3.7.1 removed from PyPI (no downloads possible)  
+✅ v3.7.1 GitHub release deleted  
 
 ### What Users Should Do
 - Update to v3.7.1 (recommended)
@@ -305,7 +305,7 @@ Message: v3.7.1 Release: Security & Configuration Updates
 
 ### Immediate (Done ✅)
 - ✅ Security incident resolved
-- ✅ v3.7.0 removed from distribution
+- ✅ v3.7.1 removed from distribution
 - ✅ v3.7.1 released with fixes
 - ✅ All documentation updated
 - ✅ Pushed to GitHub
@@ -316,7 +316,7 @@ Message: v3.7.1 Release: Security & Configuration Updates
 - Collect user feedback on new folder system
 
 ### Long Term (Future Planning)
-- v3.8.0 planning
+- v3.7.1 planning
 - Additional features based on user feedback
 - Performance optimizations
 - UI/UX enhancements
@@ -332,7 +332,7 @@ Message: v3.7.1 Release: Security & Configuration Updates
 - 🔧 Configuration: First-launch wizard for data folder selection  
 - 📁 Folders: User-controlled data location (Documents, Desktop, etc.)
 - 🐛 Fixes: Corrected Prompt Library tab switching error
-- ⚠️ Important: v3.7.0 yanked from PyPI - upgrade recommended
+- ⚠️ Important: v3.7.1 yanked from PyPI - upgrade recommended
 
 **What's New**:
 - Configurable data folder (choose location on first launch)
