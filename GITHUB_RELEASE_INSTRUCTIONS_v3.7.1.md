@@ -10,7 +10,7 @@
 ## 📋 STEP 1: Copy Release Title
 
 ```
-Supervertaler v3.7.1 - Security & Configuration Update
+Supervertaler v3.7.1 - Self-Contained Windows Exe • Security & Configuration Update
 ```
 
 ---
@@ -56,10 +56,12 @@ This release resolves a critical security incident and implements a major config
 
 ## 📁 WHAT'S INCLUDED
 
-- ✅ Windows executable (`Supervertaler.exe`)
+**Self-Contained Windows Executable**:
+- ✅ Windows executable (`Supervertaler.exe` - 22.77 MB)
+- ✅ All runtime dependencies bundled (no Python installation needed)
 - ✅ Full folder structure with docs and modules
-- ✅ All documentation and guides
-- ✅ No external dependencies needed (everything bundled)
+- ✅ Complete and portable - runs anywhere on Windows
+- ✅ No external dependencies (everything included)
 
 ## 📚 DOCUMENTATION
 
