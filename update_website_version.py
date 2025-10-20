@@ -3,20 +3,28 @@
 Update Website Version Script
 ==============================
 
-Automatically updates all version references in the website HTML files
-to match the version defined in Supervertaler_v3.7.1.py
+Automatically updates version references in the website to match
+the version defined in Supervertaler_v3.7.1.py
+
+⚠️  IMPORTANT: This script is intentionally conservative:
+    - Updates: Website HTML (docs/index.html), download links
+    - Preserves: CHANGELOG.md, RELEASE notes (historical records)
+    
+    Reason: CHANGELOG and release notes must NOT be updated to preserve
+    the history of what features were in each past version.
 
 Usage:
     python update_website_version.py
 
 This script:
 1. Reads APP_VERSION from Supervertaler_v3.7.1.py
-2. Finds all v3.x.x patterns in docs/ HTML files
-3. Replaces them with the current version
-4. Reports changes made
+2. Updates HTML files in docs/ (version badges, hero text)
+3. Updates README.md download instructions ONLY
+4. Preserves historical records (CHANGELOG, past release notes)
+5. Reports changes made
 
 This ensures the website stays in sync with the application version
-without manual updates.
+without erasing historical release information.
 """
 
 import os
@@ -101,58 +109,54 @@ def update_html_files(version):
 
 
 def update_markdown_files(version):
-    """Update all version references in Markdown files (README, docs, etc.)"""
+    """
+    Update version references in Markdown files.
+    
+    NOTE: This function only updates README.md installation instructions.
+    CHANGELOG.md and RELEASE notes are HISTORICAL RECORDS and should NOT be updated
+    to preserve the history of what features were in each version.
+    """
     root_dir = Path(__file__).parent
-    md_files = [
-        root_dir / "README.md",
-        root_dir / "CHANGELOG.md",
-        root_dir / "docs" / "RELEASE_v3.7.1.md",
-    ]
+    md_file = root_dir / "README.md"
     
-    total_replacements = 0
+    if not md_file.exists():
+        return 0
     
-    for md_file in md_files:
-        if not md_file.exists():
-            continue
+    try:
+        with open(md_file, 'r', encoding='utf-8') as f:
+            content = f.read()
         
-        try:
-            with open(md_file, 'r', encoding='utf-8') as f:
-                content = f.read()
-            
-            original_content = content
-            
-            # Pattern 1: v3.x.x (any version number)
-            content = re.sub(
-                r'v\d+\.\d+\.\d+',
-                f'v{version}',
-                content
-            )
-            
-            # Pattern 2: Supervertaler-v3.x.x.zip (filename patterns)
-            content = re.sub(
-                r'Supervertaler-v\d+\.\d+\.\d+\.zip',
-                f'Supervertaler-v{version}.zip',
-                content
-            )
-            
-            # Pattern 3: 3.x.x (standalone version numbers)
-            content = re.sub(
-                r'(?:^|\s)\d+\.\d+\.\d+(?:\s|$)',
-                f' {version} ',
-                content
-            )
-            
-            if content != original_content:
-                with open(md_file, 'w', encoding='utf-8') as f:
-                    f.write(content)
-                replacements = len(re.findall(r'v\d+\.\d+\.\d+', original_content))
-                print(f"✅ {md_file.name}: Updated version references")
-                total_replacements += replacements
+        original_content = content
         
-        except Exception as e:
-            print(f"❌ Error processing {md_file.name}: {e}")
+        # ONLY update these specific patterns in README:
+        # Pattern 1: Download instruction filenames (Supervertaler-v3.x.x.zip)
+        # Match: Supervertaler-v3.7.0.zip and replace with Supervertaler-v3.7.1.zip
+        content = re.sub(
+            r'Supervertaler-v\d+\.\d+\.\d+\.zip',
+            f'Supervertaler-v{version}.zip',
+            content
+        )
+        
+        # Pattern 2: Installation section header "Supervertaler vX.X.X is available"
+        # Match: "Supervertaler v3.7.0 is available" and replace with current version
+        content = re.sub(
+            r'Supervertaler v\d+\.\d+\.\d+ is available',
+            f'Supervertaler v{version} is available',
+            content
+        )
+        
+        if content != original_content:
+            with open(md_file, 'w', encoding='utf-8') as f:
+                f.write(content)
+            print(f"✅ {md_file.name}: Updated download instructions")
+            return 1
+        else:
+            print(f"ℹ️  {md_file.name}: No updates needed")
+            return 0
     
-    return total_replacements
+    except Exception as e:
+        print(f"❌ Error processing {md_file.name}: {e}")
+        return 0
 
 
 def main():
