@@ -16645,30 +16645,18 @@ VALIDATION: Count pipe symbols in source and target - they must match exactly (a
             pass  # Silently fail if sash not ready yet
     
     def show_user_guide(self):
-        """Open user guide in browser or show file"""
+        """Open user guide in browser (online version)"""
         import webbrowser
-        import os
         
-        # Try to open USER_GUIDE.md
-        guide_path = os.path.join(os.path.dirname(__file__), "USER_GUIDE.md")
-        if os.path.exists(guide_path):
-            webbrowser.open(f"file://{guide_path}")
-        else:
-            messagebox.showinfo("User Guide", 
-                              "User guide not found.\nPlease check the documentation folder.")
+        # Open user guide from website
+        webbrowser.open("https://supervertaler.com/guides/USER_GUIDE.md")
     
     def show_changelog(self):
-        """Open changelog in browser or show file"""
+        """Open changelog in browser (online version)"""
         import webbrowser
-        import os
         
-        # Try to open CHANGELOG-CAT.md for v3
-        changelog_path = os.path.join(os.path.dirname(__file__), "CHANGELOG-CAT.md")
-        if os.path.exists(changelog_path):
-            webbrowser.open(f"file://{changelog_path}")
-        else:
-            messagebox.showinfo("Changelog", 
-                              "Changelog not found.\nPlease check the documentation folder.")
+        # Open changelog from website
+        webbrowser.open("https://supervertaler.com/CHANGELOG.md")
     
     def show_about(self):
         """Show about dialog"""
