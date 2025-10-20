@@ -1921,17 +1921,18 @@ class Supervertaler:
         # Track which panels are visible
         self.assist_visible_panels = {
             'projects': True,          # Project Library
-            'system_prompts': True,    # System Prompt Library
-            'custom_instructions': True, # Custom translation instructions
+            'prompt_library': True,    # Prompt Manager (System Prompts, Custom Instructions)
             'mt': True,                # Machine Translation suggestions
             'llm': True,               # LLM Translation
             'tm': True,                # Translation Memory (matches + management)
             'glossary': True,          # Glossary
             'reference_images': True,  # Reference images for context
+            'pdf_rescue': True,        # PDF Rescue (AI OCR)
             'nontrans': True,          # Non-translatables
-            'settings': True,          # Translation Settings
             'tracked_changes': True,   # Post-Translation Analysis
-            'log': True                # Session Log (synchronized with main log)
+            'settings': True,          # Translation Settings
+            'log': True,               # Session Log (synchronized with main log)
+            'encoding_repair': True    # Text Encoding Repair Tool (fix mojibake)
         }
         self.assist_layout_mode = 'tabbed'  # 'tabbed' or 'stacked'
         
@@ -2135,6 +2136,16 @@ class Supervertaler:
                 'frame': None,
                 'button': None,
                 'create_func': self.create_log_tab
+            })
+        
+        if self.assist_visible_panels.get('encoding_repair', True):
+            self.assist_tabs.append({
+                'key': 'encoding_repair',
+                'name': '🔧 Text Repair',
+                'short': 'Text Repair',
+                'frame': None,
+                'button': None,
+                'create_func': self.create_text_encoding_repair_tab
             })
         
         # Create all tab frames (hidden initially)
@@ -2629,13 +2640,6 @@ class Supervertaler:
         
         # Create the Prompt Assistant content directly in this tab
         self.create_prompt_assistant_content(assistant_tab)
-        
-        # --- Text Encoding Repair Tab ---
-        repair_tab = tk.Frame(list_notebook, bg='#FFF3E0', relief='solid', borderwidth=1)
-        list_notebook.add(repair_tab, text='🔧 Text Encoding Repair')
-        
-        # Create the Text Encoding Repair content directly in this tab
-        self.create_text_encoding_repair_content(repair_tab)
         
         # ===== RIGHT PANEL: Editor =====
         editor_panel = tk.LabelFrame(main_container, text="Prompt Editor", padx=5, pady=5)
@@ -16841,8 +16845,8 @@ Author: https://michaelbeijer.co.uk/
 
 
 
-    def create_text_encoding_repair_content(self, parent):
-        """Create Text Encoding Repair Tool content - detect and fix encoding corruption"""
+    def create_text_encoding_repair_tab(self, parent):
+        """Create Text Encoding Repair Tool tab - detect and fix encoding corruption"""
         from modules.encoding_repair import EncodingRepair
         
         # Info section
