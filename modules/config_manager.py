@@ -17,12 +17,19 @@ class ConfigManager:
     """
     Manages Supervertaler configuration and user data paths.
     
+    MODES:
+    - Dev mode: .supervertaler.local exists → uses user data_private/ folder (git-ignored)
+    - User mode: No .supervertaler.local → uses ~/.supervertaler_config.json to store path
+    
     Stores configuration in home directory as .supervertaler_config.json
     Allows users to choose their own user data folder location.
     """
     
     CONFIG_FILENAME = ".supervertaler_config.json"
     DEFAULT_USER_DATA_FOLDER = "Supervertaler_Data"
+    DEV_MODE_FLAG = ".supervertaler.local"
+    API_KEYS_EXAMPLE_FILENAME = "api_keys.example.txt"
+    API_KEYS_FILENAME = "api_keys.txt"
     
     # Folder structure that must exist in user data directory
     REQUIRED_FOLDERS = [
@@ -37,12 +44,28 @@ class ConfigManager:
     
     def __init__(self):
         """Initialize ConfigManager."""
+        self.dev_mode = self._is_dev_mode()
+        self.script_dir = os.path.dirname(os.path.abspath(__file__))
         self.config_path = self._get_config_file_path()
         self.config = self._load_config()
     
     @staticmethod
-    def _get_config_file_path() -> str:
-        """Get the full path to the config file in home directory."""
+    def _is_dev_mode() -> bool:
+        """Check if running in dev mode (looking for .supervertaler.local flag)."""
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        repo_root = os.path.dirname(script_dir)  # Go up one level from modules/
+        dev_flag_path = os.path.join(repo_root, ConfigManager.DEV_MODE_FLAG)
+        return os.path.exists(dev_flag_path)
+    
+    def _get_config_file_path(self) -> str:
+        """
+        Get the full path to the config file.
+        
+        Dev mode: No config file needed (uses user data_private/)
+        User mode: ~/.supervertaler_config.json
+        """
+        if self.dev_mode:
+            return None  # Dev mode doesn't use config file
         home = str(Path.home())
         return os.path.join(home, ConfigManager.CONFIG_FILENAME)
     
@@ -54,6 +77,10 @@ class ConfigManager:
     
     def _load_config(self) -> dict:
         """Load configuration from file. Return empty dict if file doesn't exist."""
+        # Dev mode doesn't use config file
+        if self.dev_mode:
+            return {}
+        
         if os.path.exists(self.config_path):
             try:
                 with open(self.config_path, 'r', encoding='utf-8') as f:
@@ -65,6 +92,13 @@ class ConfigManager:
     
     def _save_config(self) -> bool:
         """Save configuration to file. Return True if successful."""
+        # Dev mode doesn't use config file
+        if self.dev_mode:
+            return True
+        
+        if self.config_path is None:
+            return False
+        
         try:
             with open(self.config_path, 'w', encoding='utf-8') as f:
                 json.dump(self.config, f, indent=2, ensure_ascii=False)
@@ -74,16 +108,32 @@ class ConfigManager:
             return False
     
     def is_first_launch(self) -> bool:
-        """Check if this is the first launch (no user data path set)."""
+        """
+        Check if this is the first launch (no user data path set).
+        
+        Dev mode: Always False (dev doesn't need first-launch wizard)
+        User mode: True if no path in config
+        """
+        if self.dev_mode:
+            return False
         return 'user_data_path' not in self.config or not self.config['user_data_path']
     
     def get_user_data_path(self) -> str:
         """
         Get the current user data path.
         
+        Dev mode: Returns ./user data_private/ (in repo root)
+        User mode: Returns configured path from ~/.supervertaler_config.json
+        
         If not configured, returns default suggestion (doesn't create it).
         Use ensure_user_data_exists() to create the folder.
         """
+        if self.dev_mode:
+            # Dev mode: use user data_private folder
+            repo_root = os.path.dirname(self.script_dir)
+            return os.path.join(repo_root, "user data_private")
+        
+        # User mode: use configured path
         if 'user_data_path' in self.config and self.config['user_data_path']:
             return self.config['user_data_path']
         return self._get_default_user_data_path()
@@ -148,6 +198,7 @@ class ConfigManager:
         Ensure user data folder exists with proper structure.
         
         Creates all required subdirectories if they don't exist.
+        Also copies api_keys.example.txt → api_keys.txt if not present.
         
         Args:
             user_data_path: Optional specific path. If None, uses configured path.
@@ -167,9 +218,47 @@ class ConfigManager:
                 folder_path = os.path.join(user_data_path, folder)
                 Path(folder_path).mkdir(parents=True, exist_ok=True)
             
+            # Copy api_keys.example.txt if it exists and api_keys.txt doesn't
+            self._setup_api_keys(user_data_path)
+            
             return True, f"User data folder structure created at: {user_data_path}"
         except Exception as e:
             return False, f"Failed to create user data structure: {e}"
+    
+    def _setup_api_keys(self, user_data_path: str) -> Tuple[bool, str]:
+        """
+        Copy api_keys.example.txt to api_keys.txt in user data folder.
+        
+        Only creates if api_keys.txt doesn't already exist.
+        """
+        try:
+            # Get paths
+            repo_root = os.path.dirname(self.script_dir)
+            example_source = os.path.join(repo_root, self.API_KEYS_EXAMPLE_FILENAME)
+            api_keys_dest = os.path.join(user_data_path, self.API_KEYS_FILENAME)
+            
+            # If api_keys.txt already exists, nothing to do
+            if os.path.exists(api_keys_dest):
+                return True, "api_keys.txt already exists"
+            
+            # If example file exists, copy it
+            if os.path.exists(example_source):
+                shutil.copy2(example_source, api_keys_dest)
+                print(f"[Config] Created {api_keys_dest} from template")
+                return True, f"Created api_keys.txt from template"
+            else:
+                # Create empty api_keys.txt with instructions
+                with open(api_keys_dest, 'w', encoding='utf-8') as f:
+                    f.write("# API Keys Configuration\n")
+                    f.write("# Add your API keys here in the format: KEY_NAME=value\n")
+                    f.write("# Example:\n")
+                    f.write("# OPENAI_API_KEY=sk-...\n")
+                    f.write("# ANTHROPIC_API_KEY=sk-ant-...\n\n")
+                print(f"[Config] Created empty {api_keys_dest} with instructions")
+                return True, "Created api_keys.txt with instructions"
+        except Exception as e:
+            print(f"[Config] Error setting up api_keys: {e}")
+            return False, f"Failed to setup api_keys.txt: {e}"
     
     def get_subfolder_path(self, subfolder: str) -> str:
         """
@@ -206,6 +295,8 @@ class ConfigManager:
     def migrate_user_data(self, old_path: str, new_path: str) -> Tuple[bool, str]:
         """
         Migrate user data from old location to new location.
+        
+        Also handles migration of api_keys.txt if it exists in old location.
         
         Args:
             old_path: Current user data location
@@ -245,6 +336,34 @@ class ConfigManager:
             return True, f"Migrated {files_moved} items from {old_path} to {new_path}"
         except Exception as e:
             return False, f"Migration failed: {e}"
+    
+    def migrate_api_keys_from_installation(self, user_data_path: str) -> Tuple[bool, str]:
+        """
+        Migrate api_keys.txt from installation folder to user data folder if it exists.
+        
+        This handles migration for users upgrading from older versions.
+        
+        Args:
+            user_data_path: Target user data folder
+            
+        Returns:
+            Tuple of (success: bool, message: str)
+        """
+        try:
+            repo_root = os.path.dirname(self.script_dir)
+            old_api_keys = os.path.join(repo_root, self.API_KEYS_FILENAME)
+            new_api_keys = os.path.join(user_data_path, self.API_KEYS_FILENAME)
+            
+            # If old api_keys.txt exists and new one doesn't, move it
+            if os.path.exists(old_api_keys) and not os.path.exists(new_api_keys):
+                shutil.copy2(old_api_keys, new_api_keys)
+                print(f"[Migration] Migrated api_keys.txt to {new_api_keys}")
+                return True, f"Migrated api_keys.txt to user data folder"
+            
+            return True, "api_keys.txt migration not needed"
+        except Exception as e:
+            print(f"[Migration] Error migrating api_keys.txt: {e}")
+            return False, f"Failed to migrate api_keys.txt: {e}"
     
     def validate_current_path(self) -> Tuple[bool, str]:
         """

@@ -95,6 +95,11 @@ class SetupWizard:
                 else:
                     messagebox.showinfo("Migration Complete", message)
             
+            # Step 5b: Migrate api_keys.txt from installation folder if needed
+            success, message = self.config.migrate_api_keys_from_installation(self.selected_path)
+            if success and "Migrated" in message:
+                messagebox.showinfo("API Keys Migrated", message)
+            
             # Step 6: Save configuration
             success, message = self.config.set_user_data_path(self.selected_path)
             if not success:
