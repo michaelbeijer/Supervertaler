@@ -2630,6 +2630,13 @@ class Supervertaler:
         # Create the Prompt Assistant content directly in this tab
         self.create_prompt_assistant_content(assistant_tab)
         
+        # --- Text Encoding Repair Tab ---
+        repair_tab = tk.Frame(list_notebook, bg='#FFF3E0', relief='solid', borderwidth=1)
+        list_notebook.add(repair_tab, text='🔧 Text Encoding Repair')
+        
+        # Create the Text Encoding Repair content directly in this tab
+        self.create_text_encoding_repair_content(repair_tab)
+        
         # ===== RIGHT PANEL: Editor =====
         editor_panel = tk.LabelFrame(main_container, text="Prompt Editor", padx=5, pady=5)
         main_container.add(editor_panel, weight=2)
@@ -16832,6 +16839,249 @@ Author: https://michaelbeijer.co.uk/
         else:
             self.root.destroy()
 
+
+
+    def create_text_encoding_repair_content(self, parent):
+        """Create Text Encoding Repair Tool content - detect and fix encoding corruption"""
+        from modules.encoding_repair import EncodingRepair
+        
+        # Info section
+        info_frame = tk.Frame(parent, bg='#fff3e0', relief='solid', borderwidth=1)
+        info_frame.pack(fill='x', padx=5, pady=5)
+        
+        tk.Label(info_frame, text="🔧 Text Encoding Repair Tool", font=('Segoe UI', 10, 'bold'),
+                bg='#fff3e0').pack(anchor='w', padx=10, pady=5)
+        tk.Label(info_frame, text="Detect and fix text encoding corruption (mojibake) in translation files",
+                font=('Segoe UI', 9), bg='#fff3e0', fg='#666').pack(anchor='w', padx=10, pady=(0, 5))
+        
+        # File Selection Section
+        file_frame = tk.LabelFrame(parent, text="📁 Select File or Folder", padx=10, pady=10)
+        file_frame.pack(fill='x', padx=5, pady=5)
+        
+        # File path display
+        self.repair_file_path_var = tk.StringVar(value="No file selected")
+        path_label = tk.Label(file_frame, textvariable=self.repair_file_path_var,
+                             font=('Segoe UI', 9), fg='#666', wraplength=400, justify='left')
+        path_label.pack(fill='x', pady=(0, 10))
+        
+        # Buttons
+        btn_frame = tk.Frame(file_frame)
+        btn_frame.pack(fill='x', pady=5)
+        
+        tk.Button(btn_frame, text="📄 Select File",
+                 command=lambda: self._repair_select_file(),
+                 bg='#2196F3', fg='white', font=('Segoe UI', 9, 'bold')).pack(side='left', padx=(0, 5))
+        
+        tk.Button(btn_frame, text="📁 Select Folder",
+                 command=lambda: self._repair_select_folder(),
+                 bg='#9C27B0', fg='white', font=('Segoe UI', 9, 'bold')).pack(side='left', padx=(0, 5))
+        
+        # Analysis and Repair Section
+        action_frame = tk.LabelFrame(parent, text="🔍 Detect & Repair", padx=10, pady=10)
+        action_frame.pack(fill='x', padx=5, pady=5)
+        
+        action_btn_frame = tk.Frame(action_frame)
+        action_btn_frame.pack(fill='x', pady=5)
+        
+        tk.Button(action_btn_frame, text="🔍 Scan for Corruption",
+                 command=lambda: self._repair_scan_files(),
+                 bg='#FF9800', fg='white', font=('Segoe UI', 9, 'bold')).pack(side='left', padx=(0, 5))
+        
+        tk.Button(action_btn_frame, text="✅ Repair Files",
+                 command=lambda: self._repair_fix_files(),
+                 bg='#4CAF50', fg='white', font=('Segoe UI', 9, 'bold')).pack(side='left', padx=(0, 5))
+        
+        tk.Button(action_btn_frame, text="❌ Clear",
+                 command=lambda: self._repair_clear(),
+                 font=('Segoe UI', 9)).pack(side='left')
+        
+        # Results Display Section
+        results_frame = tk.LabelFrame(parent, text="📊 Results", padx=5, pady=5)
+        results_frame.pack(fill='both', expand=True, padx=5, pady=5)
+        
+        # Results text area
+        results_scroll = tk.Scrollbar(results_frame)
+        results_scroll.pack(side='right', fill='y')
+        
+        self.repair_results_text = tk.Text(results_frame, height=12, wrap='word',
+                                           yscrollcommand=results_scroll.set,
+                                           font=('Consolas', 9), bg='#f5f5f5')
+        self.repair_results_text.pack(side='left', fill='both', expand=True)
+        results_scroll.config(command=self.repair_results_text.yview)
+        
+        # Configure text tags for results styling
+        self.repair_results_text.tag_config('file', foreground='#1976D2', font=('Consolas', 9, 'bold'))
+        self.repair_results_text.tag_config('success', foreground='#388E3C', font=('Consolas', 9, 'bold'))
+        self.repair_results_text.tag_config('warning', foreground='#F57C00', font=('Consolas', 9, 'bold'))
+        self.repair_results_text.tag_config('error', foreground='#D32F2F', font=('Consolas', 9, 'bold'))
+        self.repair_results_text.tag_config('info', foreground='#555', font=('Consolas', 9))
+        
+        # Make read-only initially
+        self.repair_results_text.config(state='disabled')
+        
+        # Store reference to EncodingRepair module
+        self.encoding_repair = EncodingRepair
+        self.repair_selected_path = None
+        self.repair_is_folder = False
+    
+    def _repair_select_file(self):
+        """Select a single file for encoding repair"""
+        from tkinter import filedialog
+        filepath = filedialog.askopenfilename(
+            title="Select file to scan",
+            filetypes=[("Text files", "*.txt"), ("All files", "*.*")]
+        )
+        if filepath:
+            self.repair_selected_path = filepath
+            self.repair_is_folder = False
+            self.repair_file_path_var.set(f"File: {filepath}")
+    
+    def _repair_select_folder(self):
+        """Select a folder for encoding repair"""
+        from tkinter import filedialog
+        folderpath = filedialog.askdirectory(title="Select folder to scan")
+        if folderpath:
+            self.repair_selected_path = folderpath
+            self.repair_is_folder = True
+            self.repair_file_path_var.set(f"Folder: {folderpath}")
+    
+    def _repair_scan_files(self):
+        """Scan selected file(s) for encoding corruption"""
+        if not self.repair_selected_path:
+            messagebox.showwarning("No File", "Please select a file or folder first")
+            return
+        
+        # Clear results
+        self.repair_results_text.config(state='normal')
+        self.repair_results_text.delete(1.0, tk.END)
+        self.repair_results_text.config(state='disabled')
+        
+        from pathlib import Path
+        
+        self.repair_results_text.config(state='normal')
+        
+        if self.repair_is_folder:
+            # Scan all text files in folder
+            folder = Path(self.repair_selected_path)
+            text_files = list(folder.rglob('*.txt'))
+            
+            if not text_files:
+                self.repair_results_text.insert(tk.END, "No text files found in folder\n", 'warning')
+            else:
+                self.repair_results_text.insert(tk.END, f"Scanning {len(text_files)} file(s)...\n\n", 'info')
+                
+                total_corruptions = 0
+                files_with_corruption = 0
+                
+                for filepath in text_files:
+                    try:
+                        with open(filepath, 'r', encoding='utf-8') as f:
+                            content = f.read()
+                        
+                        has_corruption, corruption_count, patterns = self.encoding_repair.detect_corruption(content)
+                        
+                        if has_corruption:
+                            files_with_corruption += 1
+                            total_corruptions += corruption_count
+                            
+                            self.repair_results_text.insert(tk.END, f"📄 {filepath.name}\n", 'file')
+                            self.repair_results_text.insert(tk.END, f"  ✓ Found {corruption_count} corruption(s)\n", 'warning')
+                            for pattern in patterns:
+                                self.repair_results_text.insert(tk.END, f"    • {pattern}\n", 'info')
+                            self.repair_results_text.insert(tk.END, "\n", 'info')
+                    except Exception as e:
+                        self.repair_results_text.insert(tk.END, f"❌ Error reading {filepath.name}: {str(e)}\n", 'error')
+                
+                self.repair_results_text.insert(tk.END, f"\n--- Summary ---\n", 'info')
+                self.repair_results_text.insert(tk.END, f"Files with corruption: {files_with_corruption}\n", 'warning')
+                self.repair_results_text.insert(tk.END, f"Total corruptions found: {total_corruptions}\n", 'warning')
+        else:
+            # Scan single file
+            try:
+                with open(self.repair_selected_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                
+                has_corruption, corruption_count, patterns = self.encoding_repair.detect_corruption(content)
+                
+                filename = Path(self.repair_selected_path).name
+                
+                if has_corruption:
+                    self.repair_results_text.insert(tk.END, f"📄 {filename}\n", 'file')
+                    self.repair_results_text.insert(tk.END, f"✓ Encoding corruption detected!\n\n", 'warning')
+                    self.repair_results_text.insert(tk.END, f"Found {corruption_count} corruption pattern(s):\n\n", 'warning')
+                    for pattern in patterns:
+                        self.repair_results_text.insert(tk.END, f"  • {pattern}\n", 'info')
+                else:
+                    self.repair_results_text.insert(tk.END, f"📄 {filename}\n", 'file')
+                    self.repair_results_text.insert(tk.END, f"✓ No encoding corruption found\n", 'success')
+            except Exception as e:
+                self.repair_results_text.insert(tk.END, f"❌ Error: {str(e)}\n", 'error')
+        
+        self.repair_results_text.config(state='disabled')
+    
+    def _repair_fix_files(self):
+        """Fix encoding corruption in selected file(s)"""
+        if not self.repair_selected_path:
+            messagebox.showwarning("No File", "Please select a file or folder first")
+            return
+        
+        # Append to results
+        self.repair_results_text.config(state='normal')
+        self.repair_results_text.insert(tk.END, "\n--- Repair Process ---\n", 'info')
+        
+        from pathlib import Path
+        
+        if self.repair_is_folder:
+            # Repair all text files in folder
+            folder = Path(self.repair_selected_path)
+            text_files = list(folder.rglob('*.txt'))
+            
+            if not text_files:
+                self.repair_results_text.insert(tk.END, "No text files found\n", 'warning')
+            else:
+                repaired_count = 0
+                for filepath in text_files:
+                    try:
+                        success, message, stats = self.encoding_repair.repair_file(str(filepath))
+                        
+                        if success:
+                            repaired_count += 1
+                            self.repair_results_text.insert(tk.END, f"✅ {filepath.name}\n", 'success')
+                            self.repair_results_text.insert(tk.END, f"  {message}\n", 'success')
+                        else:
+                            self.repair_results_text.insert(tk.END, f"⚠️  {filepath.name}\n", 'warning')
+                            self.repair_results_text.insert(tk.END, f"  {message}\n", 'info')
+                    except Exception as e:
+                        self.repair_results_text.insert(tk.END, f"❌ {filepath.name}: {str(e)}\n", 'error')
+                
+                self.repair_results_text.insert(tk.END, f"\n✅ Repaired {repaired_count}/{len(text_files)} file(s)\n", 'success')
+        else:
+            # Repair single file
+            try:
+                success, message, stats = self.encoding_repair.repair_file(self.repair_selected_path)
+                
+                filename = Path(self.repair_selected_path).name
+                
+                if success:
+                    self.repair_results_text.insert(tk.END, f"✅ {filename}\n", 'success')
+                    self.repair_results_text.insert(tk.END, f"{message}\n", 'success')
+                    self.repair_results_text.insert(tk.END, f"File size: {stats['original_size']} → {stats['repaired_size']} bytes\n", 'info')
+                else:
+                    self.repair_results_text.insert(tk.END, f"ℹ️  {filename}\n", 'info')
+                    self.repair_results_text.insert(tk.END, f"{message}\n", 'info')
+            except Exception as e:
+                self.repair_results_text.insert(tk.END, f"❌ Error: {str(e)}\n", 'error')
+        
+        self.repair_results_text.config(state='disabled')
+    
+    def _repair_clear(self):
+        """Clear the results display"""
+        self.repair_file_path_var.set("No file selected")
+        self.repair_selected_path = None
+        
+        self.repair_results_text.config(state='normal')
+        self.repair_results_text.delete(1.0, tk.END)
+        self.repair_results_text.config(state='disabled')
 
 
 # --- Find and Replace Dialog ---
