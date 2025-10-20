@@ -1,8 +1,8 @@
-# Supervertaler v3.7.0
+# Supervertaler v3.7.1
 
 🎯 **Context-aware, LLM-powered CAT editor for professional translators** — Revolutionary segment-based translation tool with AI-enhanced prompts, PDF Rescue OCR, and seamless CAT tool integration.
 
-**Latest Version**: v3.7.0 (October 19, 2025)
+**Latest Version**: v3.7.1 (October 20, 2025)
 
 ---
 
@@ -21,9 +21,18 @@ Supervertaler is a **professional Computer-Aided Translation (CAT) editor** desi
 
 ---
 
-## 🚀 Current Version: v3.7.0
+## 🚀 Current Version: v3.7.1
 
-**File**: `Supervertaler_v3.7.0.py`
+**File**: `Supervertaler_v3.7.1.py`
+
+### 📌 What's New in v3.7.1
+
+🔒 **Security & Configuration Updates** (v3.7.1 - October 20, 2025):
+- 🛡️ **Data Folder Security** - Reorganized user data handling to separate dev and user environments
+- 🔐 **API Keys Protection** - Moved `api_keys.txt` to user data folder (never committed to git)
+- 📁 **Configurable Data Folders** - Users can now choose where to store projects and resources on first launch
+- ⚙️ **Settings Menu** - Added "Change Data Folder" option to Settings tab
+- 🐛 **Bug Fixes** - Fixed Tkinter error in Prompt Library tab switching
 
 ### 📌 What's New in v3.7.0
 
@@ -122,8 +131,10 @@ pip install supervertaler
 
 Then run:
 ```bash
-python -m Supervertaler_v3.7.0
+python -m Supervertaler_v3.7.1
 ```
+
+> **Note**: v3.7.0 has been yanked from PyPI due to security updates. v3.7.1 includes critical data folder security improvements.
 
 **Advantages**:
 - ✅ Easy updates: `pip install --upgrade supervertaler`
@@ -336,10 +347,11 @@ Check out:
 
 ---
 
-**Last Updated**: October 19, 2025  
-**Version**: v3.7.0  
+**Last Updated**: October 20, 2025  
+**Version**: v3.7.1  
 **Status**: Active Development  
-**License**: MIT (Open Source)
+**License**: MIT (Open Source)  
+**Security Status**: Current - Security patches applied in v3.7.1
 
 ---
 

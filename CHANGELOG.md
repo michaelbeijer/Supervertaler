@@ -1,10 +1,62 @@
 # Supervertaler - Complete Changelog
 
-**Latest Version**: v3.7.0 (2025-10-19)  
+**Latest Version**: v3.7.1 (2025-10-20)  
 **Product**: Unified Supervertaler (v3.x CAT Edition)  
 **Status**: Active Development
 
 > As of v3.7.0, Supervertaler is a unified product focusing exclusively on the CAT (Computer-Aided Translation) editor experience. The previous Classic Edition (v2.x) is archived for reference but no longer actively developed.
+
+---
+
+## [3.7.1] - 2025-10-20 🔐 SECURITY & CONFIGURATION UPDATE
+
+### 🔐 CRITICAL SECURITY UPDATES
+
+**Data Privacy & API Keys Security**:
+- **🛡️ Removed sensitive data from git history** - `recent_projects.json` containing client project names completely removed from all 364 commits using git filter-branch
+- **🔑 API Keys Protection** - Moved `api_keys.txt` to user data folder, never committed to git
+- **v3.7.0 Yanked** - Removed from PyPI and GitHub releases due to security review (users should upgrade to v3.7.1)
+- **Dev/User Mode Separation** - Separate configuration paths for development vs. user environments
+
+**User Data Folder System** (NEW):
+- **First-Launch SetupWizard**: Users select where to store their data (Windows: `Documents/Supervertaler_Data/`, etc.)
+- **Configurable Location**: New "Change Data Folder" option in Settings menu
+- **Automatic Setup**: `api_keys.txt` created from template on first launch
+- **Migration Support**: Existing users' keys automatically migrated to new location
+- **Configuration Stored**: User path saved to `~/.supervertaler_config.json`
+
+**Code Quality**:
+- 🐛 **Fixed Tkinter Error** - Corrected paned window widget management in Prompt Library tab switching
+- ✅ **Enhanced Error Handling** - Try-catch blocks for TclError in tab switching
+- ✅ **Improved UX** - SetupWizard now shows confirmation dialog with exact folder structure before creation
+
+**Files Modified**:
+- `Supervertaler_v3.7.1.py` - Updated tab switching logic, user data folder routing
+- `modules/config_manager.py` - Dev/user mode detection, api_keys handling
+- `modules/setup_wizard.py` - Enhanced first-launch experience
+- Documentation - Updated README with new user data folder structure
+
+**Migration Guide**:
+- **Existing Users (v3.7.0)**: Simply upgrade - SetupWizard will guide you on first launch
+- **New Users (v3.7.1)**: SetupWizard appears on first launch, guide you through setup
+- **API Keys**: Will be copied to your chosen data folder automatically
+- **Custom Prompts**: Already in `user data/Prompt_Library/` - can be moved to new location via Settings
+
+### ✨ USER EXPERIENCE IMPROVEMENTS
+
+**First-Launch Flow**:
+1. App detects missing user data folder configuration
+2. Welcome dialog explains what will be created
+3. Folder selection dialog with clear examples
+4. Confirmation dialog shows exact folder structure
+5. Success message lists all created files/folders
+6. Application launches with full functionality
+
+**Settings Menu Enhancement**:
+- New "Data Folder" section showing current path
+- "Change Data Folder" button for mid-session changes
+- Optional data migration when changing paths
+- Clear feedback on what was moved
 
 ---
 

@@ -1,8 +1,6 @@
-"""  
-Supervertaler v3.7.0-beta
-Unified Professional AI-Powered Computer-Aided Translation Tool
-
-Features:
+"""
+Supervertaler v3.7.1
+Unified Professional AI-Powered Computer-Aided Translation ToolFeatures:
 - 🤖 Multiple AI Providers (OpenAI GPT-4, Anthropic Claude, Google Gemini)
 - 📄 PDF Rescue - AI-Powered OCR Tool (GPT-4 Vision)
 - ⚡ Grid Pagination System (50 segments/page, 10x faster loading)
@@ -28,7 +26,7 @@ License: MIT - Open Source and Free
 """
 
 # Version constant
-APP_VERSION = "3.7.0"
+APP_VERSION = "3.7.1"
 
 # --- Private Features Flag ---
 # Check for .supervertaler.local file to enable private features (for developers only)
@@ -614,7 +612,7 @@ class Supervertaler:
         migrate_old_folder_structure()
         
         self.root = root
-        self.root.title("Supervertaler v3.7.0-beta - AI-Powered CAT Tool")
+        self.root.title("Supervertaler v3.7.1 - AI-Powered CAT Tool")
         self.root.geometry("1200x800")
         
         # Layout mode

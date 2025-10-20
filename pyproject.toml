@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "Supervertaler"
-version = "3.7.0"
+version = "3.7.1"
 description = "AI-powered context-aware translation tool for professional translators"
 readme = "README.md"
 requires-python = ">=3.12"
