@@ -11748,7 +11748,15 @@ Use this feature AFTER translation to:
     
     def load_recent_projects(self):
         """Load recent projects list from config file"""
-        config_path = os.path.join(os.path.dirname(__file__), 'user data', 'recent_projects.json')
+        try:
+            from modules.config_manager import get_config_manager
+            config = get_config_manager()
+            user_data_path = config.get_user_data_path()
+            config_path = os.path.join(user_data_path, 'recent_projects.json')
+        except:
+            # Fallback for backward compatibility
+            config_path = os.path.join(os.path.dirname(__file__), 'user data', 'recent_projects.json')
+        
         if os.path.exists(config_path):
             try:
                 with open(config_path, 'r', encoding='utf-8') as f:
@@ -11761,8 +11769,18 @@ Use this feature AFTER translation to:
     
     def save_recent_projects(self):
         """Save recent projects list to config file"""
-        config_path = os.path.join(os.path.dirname(__file__), 'user data', 'recent_projects.json')
         try:
+            from modules.config_manager import get_config_manager
+            config = get_config_manager()
+            user_data_path = config.get_user_data_path()
+            config_path = os.path.join(user_data_path, 'recent_projects.json')
+        except:
+            # Fallback for backward compatibility
+            config_path = os.path.join(os.path.dirname(__file__), 'user data', 'recent_projects.json')
+        
+        try:
+            # Ensure directory exists
+            os.makedirs(os.path.dirname(config_path), exist_ok=True)
             with open(config_path, 'w', encoding='utf-8') as f:
                 json.dump({'recent': self.recent_projects}, f, indent=2)
         except Exception as e:
