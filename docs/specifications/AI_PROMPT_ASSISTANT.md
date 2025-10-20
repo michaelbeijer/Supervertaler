@@ -104,7 +104,7 @@ An interactive AI-powered chat interface that helps users create, refine, and op
    - Detect formatting patterns (lists, tables, headings)
    - Identify special elements (figures, equations, references)
    - Assess tone and formality level
-   - Recognize domain-specific patterns
+   - Recognise domain-specific patterns
 
 ### Phase 3: Edit-Based Learning (HARD - 30-40 hours)
 

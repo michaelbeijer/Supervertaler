@@ -6,7 +6,7 @@
 
 ## 📖 Overview
 
-**PDF Rescue** is a specialized AI-powered OCR tool designed to extract clean, editable text from poorly formatted PDFs. Built into Supervertaler v3.5.0-beta, it uses GPT-4 Vision to intelligently recognize text, formatting, redactions, stamps, and signatures—producing professional, translator-ready documents.
+**PDF Rescue** is a specialised AI-powered OCR tool designed to extract clean, editable text from poorly formatted PDFs. Built into Supervertaler v3.5.0-beta, it uses GPT-4 Vision to intelligently recognise text, formatting, redactions, stamps, and signatures—producing professional, translator-ready documents.
 
 ### 🎯 The Problem It Solves
 

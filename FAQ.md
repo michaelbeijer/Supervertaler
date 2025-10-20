@@ -497,7 +497,7 @@ Pre-configured AI roles that specialize the translation for specific domains and
 - Preserves Latin terms correctly
 - Uses appropriate clinical language
 - Follows medical translation conventions
-- Recognizes drug names and procedures
+- Recognises drug names and procedures
 
 **Custom System Prompts**:
 - Create your own specialist roles

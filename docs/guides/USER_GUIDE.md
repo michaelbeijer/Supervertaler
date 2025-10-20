@@ -865,7 +865,7 @@ Now that you've completed your first translation:
 
 ## Prompt Library
 
-The Prompt Library provides access to 8 professionally crafted domain-specific prompt collections, each optimized for different types of content.
+The Prompt Library provides access to 8 professionally crafted domain-specific prompt collections, each optimised for different types of content.
 
 ### Available Prompt Collections
 
@@ -1609,7 +1609,7 @@ Generated TMX files integrate directly with:
 
 ## AI Provider Settings
 
-Supervertaler supports multiple AI providers, each with different models and capabilities optimized for various translation scenarios.
+Supervertaler supports multiple AI providers, each with different models and capabilities optimised for various translation scenarios.
 
 ### OpenAI Integration
 
@@ -1843,7 +1843,7 @@ Supervertaler supports multiple AI providers, each with different models and cap
 **Slow processing speeds**
 - **Network**: Check internet connection speed
 - **API Limits**: Some providers have rate limits
-- **Chunk Size**: Optimize chunk size for provider
+- **Chunk Size**: Optimise chunk size for provider
 - **Solution**: Adjust chunk size or use faster model variant
 
 **GUI freezing or unresponsive**

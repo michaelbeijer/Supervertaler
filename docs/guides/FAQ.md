@@ -173,7 +173,7 @@ The development process showcases the potential of AI-assisted software developm
 
 ### Three CAT Editor Views (v3.x only)
 
-Supervertaler v3.4.0-beta offers three professional view modes, each optimized for different tasks:
+Supervertaler v3.4.0-beta offers three professional view modes, each optimised for different tasks:
 
 **1. Grid View** (Default - Professional Editing)
 - **Best for**: Segment-by-segment editing, detailed work
@@ -496,7 +496,7 @@ Pre-configured AI roles that specialize the translation for specific domains and
 - Preserves Latin terms correctly
 - Uses appropriate clinical language
 - Follows medical translation conventions
-- Recognizes drug names and procedures
+- Recognises drug names and procedures
 
 **Custom System Prompts**:
 - Create your own specialist roles
@@ -813,7 +813,7 @@ Supervertaler provides AI with **multiple layers of context**:
 - Consider API rate limits and costs for huge documents
 - Process overnight for very large projects
 
-### Can I customize the AI prompts?
+### Can I customise the AI prompts?
 
 **Yes!** Multiple customization levels:
 

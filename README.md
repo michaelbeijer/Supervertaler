@@ -28,7 +28,7 @@ Supervertaler is a **professional Computer-Aided Translation (CAT) editor** desi
 ### 📌 What's New in v3.7.1
 
 🔒 **Security & Configuration Updates** (v3.7.1 - October 20, 2025):
-- 🛡️ **Data Folder Security** - Reorganized user data handling to separate dev and user environments
+- 🛡️ **Data Folder Security** - Reorganised user data handling to separate dev and user environments
 - 🔐 **API Keys Protection** - Moved `api_keys.txt` to user data folder (never committed to git)
 - 📁 **Configurable Data Folders** - Users can now choose where to store projects and resources on first launch
 - ⚙️ **Settings Menu** - Added "Change Data Folder" option to Settings tab
@@ -93,7 +93,7 @@ Supervertaler is a **professional Computer-Aided Translation (CAT) editor** desi
 
 **Data Management**:
 - 💾 Project save/load with full context preservation
-- 📁 Organized folder structure (Prompt_Library, Translation_Resources, Projects)
+- 📁 Organised folder structure (Prompt_Library, Translation_Resources, Projects)
 - 🔄 Automatic backup capability
 - 👥 Dev mode with parallel folder structure (`user data/` vs `user data_private/`)
 
@@ -140,7 +140,7 @@ python -m Supervertaler_v3.7.1
 - ✅ Easy updates: `pip install --upgrade supervertaler`
 - ✅ Integrates with Python projects
 - ✅ Full source code visible
-- ✅ Can customize and extend
+- ✅ Can customise and extend
 
 #### **3️⃣ From Source (For Contributors and Developers)**
 

@@ -318,9 +318,9 @@ class DocumentAnalyzer:
             suggestions.append({
                 'type': 'domain',
                 'priority': 'high',
-                'title': f'Optimize for {primary_domain.title()} Domain',
+                'title': f'Optimise for {primary_domain.title()} Domain',
                 'description': f'Your document appears to be {primary_domain}-related. '
-                             f'Consider using a specialized {primary_domain} translation prompt.',
+                             f'Consider using a specialised {primary_domain} translation prompt.',
                 'action': f'switch_prompt_{primary_domain}'
             })
         

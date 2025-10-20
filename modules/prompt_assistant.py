@@ -32,9 +32,9 @@ class PromptAssistant:
         self.modification_history = []  # Track all prompt versions
         
         # System prompt for the AI prompt engineer
-        self.system_prompt = """You are an expert prompt engineer specializing in translation and localization prompts.
+        self.system_prompt = """You are an expert prompt engineer specialising in translation and localisation prompts.
 
-Your role is to help users refine and optimize their translation prompts based on their specific needs.
+Your role is to help users refine and optimise their translation prompts based on their specific needs.
 
 When a user requests a modification to a prompt:
 1. Analyze the current prompt structure and content

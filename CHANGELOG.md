@@ -128,7 +128,7 @@ user data/
 **Benefits**:
 - ✨ **Better Scalability**: Clear hierarchy for future features
 - ✨ **Improved Navigation**: Logical grouping of resources
-- ✨ **Professional Polish**: Well-organized data structure
+- ✨ **Professional Polish**: Well-organised data structure
 - ✨ **Future-Ready**: Easy to add new resource types
 
 ### 📦 REPOSITORY CLEANUP

@@ -4081,7 +4081,7 @@ class Supervertaler:
         
         tk.Label(info_frame, text="🤖 Prompt Assistant", font=('Segoe UI', 10, 'bold'),
                 bg='#e8f5e9').pack(anchor='w', padx=10, pady=5)
-        tk.Label(info_frame, text="Analyze your document and generate optimized translation prompts automatically",
+        tk.Label(info_frame, text="Analyze your document and generate optimised translation prompts automatically",
                 font=('Segoe UI', 9), bg='#e8f5e9', fg='#666').pack(anchor='w', padx=10, pady=(0, 5))
         
         # Document Analysis Section
@@ -4180,7 +4180,7 @@ class Supervertaler:
                  bg='#00BCD4', fg='white', font=('Segoe UI', 8)).pack(side='left')
         
         # Initial welcome message
-        self.add_assistant_chat_message('system', "Welcome! I can help you understand your document and optimize your translation settings. Try clicking 'Analyze Document' or ask me a question!")
+        self.add_assistant_chat_message('system', "Welcome! I can help you understand your document and optimise your translation settings. Try clicking 'Analyze Document' or ask me a question!")
     
     def analyze_current_document(self):
         """Analyze the currently loaded document"""
