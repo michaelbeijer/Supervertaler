@@ -1230,7 +1230,7 @@ class Supervertaler:
         tk.Label(center_frame, text="Supervertaler", 
                 font=('Segoe UI', 32, 'bold'), bg='#f5f5f5', fg='#2196F3').pack(pady=(0, 5))
         
-        tk.Label(center_frame, text="v3.6.8-beta", 
+        tk.Label(center_frame, text="v3.7.1", 
                 font=('Segoe UI', 14), bg='#f5f5f5', fg='#666').pack(pady=(0, 20))
         
         # Subtitle
@@ -16784,15 +16784,15 @@ VALIDATION: Count pipe symbols in source and target - they must match exactly (a
         """Open user guide in browser (online version)"""
         import webbrowser
         
-        # Open user guide from website
-        webbrowser.open("https://supervertaler.com/guides/USER_GUIDE.md")
+        # Open user guide from GitHub (better formatting)
+        webbrowser.open("https://github.com/michaelbeijer/Supervertaler/blob/main/docs/guides/USER_GUIDE.md")
     
     def show_changelog(self):
         """Open changelog in browser (online version)"""
         import webbrowser
         
-        # Open changelog from website
-        webbrowser.open("https://supervertaler.com/CHANGELOG.md")
+        # Open changelog from GitHub
+        webbrowser.open("https://github.com/michaelbeijer/Supervertaler/blob/main/CHANGELOG.md")
     
     def show_about(self):
         """Show about dialog"""
@@ -16808,7 +16808,10 @@ Features:
 • Custom prompts & instructions
 
 Author: Michael Beijer + AI Assistant
-GitHub: github.com/michaelbeijer/Supervertaler
+
+Website: https://supervertaler.com/
+GitHub: https://github.com/michaelbeijer/Supervertaler
+Author: https://michaelbeijer.co.uk/
 
 © 2025 - Licensed under MIT"""
         
