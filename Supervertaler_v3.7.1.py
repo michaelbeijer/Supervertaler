@@ -17410,6 +17410,16 @@ Author: https://michaelbeijer.co.uk/
         center_panel = tk.LabelFrame(main_frame, text="📝 Edit Guide", padx=5, pady=5)
         center_panel.pack(side='left', fill='both', expand=True, padx=5)
         
+        # View mode toggle
+        view_mode_frame = tk.Frame(center_panel)
+        view_mode_frame.pack(fill='x', pady=(0, 5))
+        
+        tk.Label(view_mode_frame, text="View Mode:", font=('Segoe UI', 8)).pack(side='left', padx=(0, 5))
+        
+        self.style_guide_view_mode = tk.BooleanVar(value=False)  # False = formatted, True = raw markdown
+        tk.Checkbutton(view_mode_frame, text="Edit Raw Markdown", variable=self.style_guide_view_mode,
+                      command=self._on_style_guide_view_mode_change, font=('Segoe UI', 8)).pack(side='left')
+        
         # Editor
         editor_scroll = tk.Scrollbar(center_panel)
         editor_scroll.pack(side='right', fill='y')
@@ -17418,6 +17428,18 @@ Author: https://michaelbeijer.co.uk/
                                         font=('Consolas', 9), height=10, wrap='word')
         self.style_guides_text.pack(side='left', fill='both', expand=True)
         editor_scroll.config(command=self.style_guides_text.yview)
+        
+        # Configure text tags for formatted markdown display
+        self.style_guides_text.tag_config('heading1', font=('Consolas', 14, 'bold'), foreground='#1976D2')
+        self.style_guides_text.tag_config('heading2', font=('Consolas', 12, 'bold'), foreground='#1976D2')
+        self.style_guides_text.tag_config('heading3', font=('Consolas', 11, 'bold'), foreground='#1976D2')
+        self.style_guides_text.tag_config('bold', font=('Consolas', 9, 'bold'))
+        self.style_guides_text.tag_config('code', font=('Courier New', 9), foreground='#D32F2F', background='#F5F5F5')
+        self.style_guides_text.tag_config('list_item', lmargin2=20)
+        
+        # Store raw content for toggling
+        self.current_guide_raw_content = None
+        self.current_guide_language = None
         
         # Editor buttons
         editor_btn_frame = tk.Frame(center_panel)
@@ -17480,9 +17502,12 @@ Author: https://michaelbeijer.co.uk/
                 messagebox.showwarning("Warning", f"No content found for {selected_language}")
                 return
             
-            # Display in text widget
-            self.style_guides_text.delete(1.0, tk.END)
-            self.style_guides_text.insert(1.0, content)
+            # Store raw content and language for toggling
+            self.current_guide_raw_content = content
+            self.current_guide_language = selected_language
+            
+            # Display content based on view mode
+            self._update_style_guide_display()
             
             # Update status if statusbar exists
             if hasattr(self, 'statusbar'):
@@ -17498,7 +17523,17 @@ Author: https://michaelbeijer.co.uk/
             return
         
         selected_language = self.style_guides_tree.get(selection[0])
-        content = self.style_guides_text.get(1.0, tk.END).strip()
+        
+        # Get content based on view mode
+        if self.style_guide_view_mode.get():
+            # Raw markdown mode - save what's in the editor
+            content = self.style_guides_text.get(1.0, tk.END).strip()
+            # Update stored raw content
+            self.current_guide_raw_content = content
+        else:
+            # Formatted mode - can't edit, use stored raw content
+            messagebox.showinfo("Info", "To edit, please enable 'Edit Raw Markdown' mode first.")
+            return
         
         try:
             # Save to backend
@@ -17734,6 +17769,87 @@ Keep responses concise and focused."""
         
         self.style_guides_chat.see(tk.END)
         self.style_guides_chat.config(state='disabled')
+    
+    def _on_style_guide_view_mode_change(self):
+        """Handle switching between formatted and raw markdown view"""
+        if self.current_guide_raw_content:
+            self._update_style_guide_display()
+    
+    def _update_style_guide_display(self):
+        """Update the style guide display based on view mode (formatted or raw)"""
+        if not self.current_guide_raw_content:
+            return
+        
+        # Clear current display
+        self.style_guides_text.config(state='normal')
+        self.style_guides_text.delete(1.0, tk.END)
+        
+        if self.style_guide_view_mode.get():
+            # Raw markdown mode - show and allow editing
+            self.style_guides_text.insert(1.0, self.current_guide_raw_content)
+            self.style_guides_text.config(state='normal')
+        else:
+            # Formatted mode - render markdown and make read-only
+            self._render_markdown_formatted(self.current_guide_raw_content)
+            self.style_guides_text.config(state='disabled')
+    
+    def _render_markdown_formatted(self, content):
+        """Render markdown content with formatting tags in the text widget"""
+        lines = content.split('\n')
+        
+        for line in lines:
+            # Heading 1
+            if line.startswith('# '):
+                text = line[2:].strip()
+                self.style_guides_text.insert(tk.END, text + '\n', 'heading1')
+            # Heading 2
+            elif line.startswith('## '):
+                text = line[3:].strip()
+                self.style_guides_text.insert(tk.END, text + '\n', 'heading2')
+            # Heading 3
+            elif line.startswith('### '):
+                text = line[4:].strip()
+                self.style_guides_text.insert(tk.END, text + '\n', 'heading3')
+            # Code block marker - add spacing
+            elif line.strip().startswith('```'):
+                self.style_guides_text.insert(tk.END, '\n')
+            # List items
+            elif line.lstrip().startswith('- ') or line.lstrip().startswith('* '):
+                text = line.lstrip()[2:].strip()
+                self.style_guides_text.insert(tk.END, '  • ' + text + '\n', 'list_item')
+            # Regular text with inline formatting
+            else:
+                self._insert_line_with_formatting(line + '\n')
+    
+    def _insert_line_with_formatting(self, line):
+        """Insert a line with inline markdown formatting (bold, code, etc.)"""
+        # Simple inline formatting: **text** for bold, `text` for code
+        import re
+        
+        # Pattern: **text** for bold
+        bold_pattern = r'\*\*(.+?)\*\*'
+        # Pattern: `text` for inline code
+        code_pattern = r'`(.+?)`'
+        
+        # Split by bold first
+        parts = re.split(f'({bold_pattern})', line)
+        for i, part in enumerate(parts):
+            if not part:
+                continue
+            
+            # Check if this is a bold part (every 3rd item in split result)
+            if i % 4 == 1:  # This is the captured group
+                self.style_guides_text.insert(tk.END, part, 'bold')
+            else:
+                # Now handle inline code within non-bold text
+                code_parts = re.split(f'({code_pattern})', part)
+                for j, code_part in enumerate(code_parts):
+                    if not code_part:
+                        continue
+                    if j % 4 == 1:  # This is the captured group (inline code)
+                        self.style_guides_text.insert(tk.END, code_part, 'code')
+                    else:
+                        self.style_guides_text.insert(tk.END, code_part)
 
 
 # --- Find and Replace Dialog ---
