@@ -17481,8 +17481,9 @@ Author: https://michaelbeijer.co.uk/
             self.style_guides_text.delete(1.0, tk.END)
             self.style_guides_text.insert(1.0, content)
             
-            # Update status
-            self.statusbar.config(text=f"Loaded: {selected_language} style guide")
+            # Update status if statusbar exists
+            if hasattr(self, 'statusbar'):
+                self.statusbar.config(text=f"Loaded: {selected_language} style guide")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to load guide: {str(e)}")
     
@@ -17499,7 +17500,8 @@ Author: https://michaelbeijer.co.uk/
         try:
             # Save to backend
             self.style_guide_library.update_guide(selected_language, content)
-            self.statusbar.config(text=f"✅ Saved: {selected_language}")
+            if hasattr(self, 'statusbar'):
+                self.statusbar.config(text=f"✅ Saved: {selected_language}")
             messagebox.showinfo("Success", f"Guide saved: {selected_language}")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to save guide: {str(e)}")
