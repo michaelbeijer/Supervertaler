@@ -17471,7 +17471,11 @@ Author: https://michaelbeijer.co.uk/
         
         try:
             # Load guide content from backend
-            content = self.style_guide_library.get_guide(selected_language)
+            content = self.style_guide_library.get_guide_content(selected_language)
+            
+            if not content:
+                messagebox.showwarning("Warning", f"No content found for {selected_language}")
+                return
             
             # Display in text widget
             self.style_guides_text.delete(1.0, tk.END)
