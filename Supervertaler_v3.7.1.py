@@ -17816,15 +17816,21 @@ Keep responses concise and focused."""
             # List items
             elif line.lstrip().startswith('- ') or line.lstrip().startswith('* '):
                 text = line.lstrip()[2:].strip()
-                self.style_guides_text.insert(tk.END, '  • ' + text + '\n', 'list_item')
+                # Insert bullet with list_item tag
+                self.style_guides_text.insert(tk.END, '  • ', 'list_item')
+                # Then insert the text with inline formatting
+                self._insert_line_with_formatting(text + '\n', base_tag='list_item')
             # Regular text with inline formatting
             else:
                 self._insert_line_with_formatting(line + '\n')
     
-    def _insert_line_with_formatting(self, line):
-        """Insert a line with inline markdown formatting (bold, code, etc.)"""
-        import re
+    def _insert_line_with_formatting(self, line, base_tag=None):
+        """Insert a line with inline markdown formatting (bold, code, etc.)
         
+        Args:
+            line: The line of text to insert
+            base_tag: Optional base tag to apply to regular text (e.g., 'list_item')
+        """
         # Process line character by character, looking for formatting patterns
         i = 0
         while i < len(line):
@@ -17850,8 +17856,8 @@ Keep responses concise and focused."""
                     i = closing + 1
                     continue
             
-            # Regular character - insert as-is
-            self.style_guides_text.insert(tk.END, line[i])
+            # Regular character - insert with optional base_tag
+            self.style_guides_text.insert(tk.END, line[i], base_tag)
             i += 1
 
 
