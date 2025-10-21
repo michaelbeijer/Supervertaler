@@ -198,6 +198,7 @@ try:
     from modules.figure_context_manager import FigureContextManager, normalize_figure_ref, pil_image_to_base64_png
     from modules.pdf_rescue import PDFRescue
     from modules.prompt_library import PromptLibrary
+    from modules.style_guide_manager import StyleGuideLibrary
     from modules.translation_memory import TM, TMDatabase, TMAgent
     from modules.tmx_generator import TMXGenerator
     from modules.tracked_changes import TrackedChangesAgent, TrackedChangesBrowser, format_tracked_changes_context
@@ -265,6 +266,56 @@ def load_api_keys():
 
 # Load API keys at module level
 API_KEYS = load_api_keys()
+
+
+# --- LLM Client Wrapper ---
+class LLMChatClient:
+    """Wrapper for OpenAI LLM client for simple chat interactions"""
+    
+    def __init__(self, api_key: str, model: str = "gpt-4o", provider: str = "openai"):
+        """
+        Initialize LLM client.
+        
+        Args:
+            api_key: API key for the LLM provider
+            model: Model name to use
+            provider: Provider name (openai, claude, google)
+        """
+        self.api_key = api_key
+        self.model = model
+        self.provider = provider
+        self.client = None
+        
+        if provider == "openai" and OPENAI_AVAILABLE and api_key:
+            try:
+                from openai import OpenAI
+                self.client = OpenAI(api_key=api_key)
+            except Exception as e:
+                print(f"Failed to initialize OpenAI client: {e}")
+    
+    def chat(self, messages):
+        """
+        Send chat messages to LLM and get response.
+        
+        Args:
+            messages: List of message dicts with 'role' and 'content'
+        
+        Returns:
+            Response text from LLM
+        """
+        if not self.client:
+            return "LLM client not available"
+        
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                temperature=0.7,
+                max_tokens=1000
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            return f"Error from LLM: {str(e)}"
 
 
 # --- DOCX Track Changes Parsing Utilities ---
@@ -800,6 +851,20 @@ class Supervertaler:
         
         # Prompt manager (system prompts for domain-specific translation)
         self.prompt_assistant = PromptAssistant()
+        
+        # Initialize LLM client if OpenAI API key is available
+        if self.api_keys.get("openai"):
+            try:
+                llm_client = LLMChatClient(
+                    api_key=self.api_keys["openai"],
+                    model=self.current_llm_model,
+                    provider="openai"
+                )
+                self.prompt_assistant.set_llm_client(llm_client)
+                self.log("✓ OpenAI LLM client configured for AI assistance")
+            except Exception as e:
+                self.log(f"⚠ Could not configure LLM client: {e}")
+        
         system_prompts_dir = get_user_data_path("Prompt_Library/System_prompts")
         custom_instructions_dir = get_user_data_path("Prompt_Library/Custom_instructions")
         self.prompt_library = PromptLibrary(
@@ -807,6 +872,19 @@ class Supervertaler:
             custom_instructions_dir=custom_instructions_dir, 
             log_callback=self.log
         )
+        
+        # Style guide manager (translation style guides for different languages)
+        style_guides_dir = get_user_data_path("Translation_Resources/Style_Guides")
+        self.style_guide_library = StyleGuideLibrary(
+            style_guides_dir=style_guides_dir,
+            log_callback=self.log
+        )
+        
+        # Active style guide state (for integration into unified prompt system)
+        self.active_style_guide = None  # Active style guide content
+        self.active_style_guide_name = None  # Name for display
+        self.active_style_guide_language = None  # Language of the style guide
+        self.active_style_guide_format = "markdown"  # Format (markdown by default)
         
         # Document analyzer for Prompt Assistant
         self.document_analyzer = DocumentAnalyzer()
@@ -839,7 +917,7 @@ class Supervertaler:
             mode: Translation mode - 'single', 'batch_docx', or 'batch_bilingual'
             
         Returns:
-            The appropriate prompt template for the given context, with Custom Instructions appended if active
+            The appropriate prompt template for the given context, with Custom Instructions and Style Guides appended if active
         """
         # Determine base prompt
         base_prompt = None
@@ -861,7 +939,13 @@ class Supervertaler:
         # Append Custom Instructions if active
         if hasattr(self, 'active_custom_instruction') and self.active_custom_instruction:
             combined_prompt = base_prompt + "\n\n" + "# CUSTOM INSTRUCTIONS\n\n" + self.active_custom_instruction
-            return combined_prompt
+            base_prompt = combined_prompt
+        
+        # Append Style Guide if active (third level in hierarchy)
+        if hasattr(self, 'active_style_guide') and self.active_style_guide:
+            language_label = f" ({self.active_style_guide_language})" if hasattr(self, 'active_style_guide_language') and self.active_style_guide_language else ""
+            style_header = f"# STYLE GUIDE & FORMATTING RULES{language_label}"
+            base_prompt = base_prompt + "\n\n" + style_header + "\n\n" + self.active_style_guide
         
         return base_prompt
     
@@ -2148,6 +2232,16 @@ class Supervertaler:
                 'create_func': self.create_text_encoding_repair_tab
             })
         
+        if self.assist_visible_panels.get('style_guides', True):
+            self.assist_tabs.append({
+                'key': 'style_guides',
+                'name': '📖 Style Guides',
+                'short': 'Styles',
+                'frame': None,
+                'button': None,
+                'create_func': self.create_style_guides_tab
+            })
+        
         # Create all tab frames (hidden initially)
         for tab in self.assist_tabs:
             frame = tk.Frame(self.assist_content_area, bg='white')
@@ -2504,7 +2598,15 @@ class Supervertaler:
         custom_name = getattr(self, 'active_custom_instruction_name', 'None')
         self.pl_active_custom_label = tk.Label(active_bar, text=custom_name, font=('Segoe UI', 8),
                 bg='#e3f2fd', fg='#4CAF50')
-        self.pl_active_custom_label.pack(side='left')
+        self.pl_active_custom_label.pack(side='left', padx=(0, 10))
+        
+        # Dynamic label for active style guide
+        tk.Label(active_bar, text="Style guide:", font=('Segoe UI', 8),
+                bg='#e3f2fd').pack(side='left', padx=(0, 2))
+        style_guide_name = getattr(self, 'active_style_guide_name', 'None')
+        self.pl_active_style_label = tk.Label(active_bar, text=style_guide_name, font=('Segoe UI', 8),
+                bg='#e3f2fd', fg='#FF9800')
+        self.pl_active_style_label.pack(side='left')
         
         # ===== MAIN LAYOUT: Side-by-Side (List | Editor) =====
         main_container = ttk.PanedWindow(parent, orient='horizontal')
@@ -2634,6 +2736,53 @@ class Supervertaler:
                  command=self._pl_clear_custom_instruction,
                  bg='#f44336', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=5)
         
+        # --- Style Guides Tab ---
+        style_tab = tk.Frame(list_notebook, bg='#FFF3E0', relief='solid', borderwidth=1)
+        list_notebook.add(style_tab, text='🎨 Style Guides')
+        
+        # Info bar
+        style_info_frame = tk.Frame(style_tab, bg='#FFE0B2', relief='solid', borderwidth=1)
+        style_info_frame.pack(fill='x', padx=5, pady=5)
+        tk.Label(style_info_frame, text="🎨 Language-specific formatting & style rules (3rd level in prompt hierarchy)",
+                font=('Segoe UI', 8), bg='#FFE0B2').pack(padx=10, pady=5)
+        
+        # Style guides list
+        style_list_frame = tk.Frame(style_tab, bg='#FFF3E0')
+        style_list_frame.pack(fill='both', expand=True, padx=5, pady=(0, 5))
+        
+        style_scroll = ttk.Scrollbar(style_list_frame, orient='vertical')
+        style_scroll.pack(side='right', fill='y')
+        
+        self.pl_style_tree = ttk.Treeview(style_list_frame,
+                                         columns=('language', 'version'),
+                                         show='tree headings',
+                                         yscrollcommand=style_scroll.set)
+        style_scroll.config(command=self.pl_style_tree.yview)
+        
+        self.pl_style_tree.heading('#0', text='Style Guide Name')
+        self.pl_style_tree.heading('language', text='Language')
+        self.pl_style_tree.heading('version', text='Ver')
+        
+        self.pl_style_tree.column('#0', width=300)
+        self.pl_style_tree.column('language', width=200)
+        self.pl_style_tree.column('version', width=50)
+        
+        self.pl_style_tree.pack(fill='both', expand=True)
+        self.pl_style_tree.bind('<<TreeviewSelect>>', self._pl_on_select)
+        
+        # Activate button
+        style_btn_frame = tk.Frame(style_tab, bg='#FFE0B2', relief='solid', borderwidth=1)
+        style_btn_frame.pack(fill='x', padx=5, pady=5)
+        
+        tk.Label(style_btn_frame, text="✅ Activate:",
+                font=('Segoe UI', 9, 'bold'), bg='#FFE0B2').pack(side='left', padx=10, pady=5)
+        tk.Button(style_btn_frame, text="✅ Use in Current Project",
+                 command=self._pl_activate_style_guide,
+                 bg='#FF9800', fg='white', font=('Segoe UI', 9, 'bold')).pack(side='left', padx=5)
+        tk.Button(style_btn_frame, text="✖ Clear",
+                 command=self._pl_clear_style_guide,
+                 bg='#f44336', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=5)
+        
         # --- Prompt Assistant Tab ---
         assistant_tab = tk.Frame(list_notebook, bg='#E8F5E9', relief='solid', borderwidth=1)
         list_notebook.add(assistant_tab, text='🤖 Prompt Assistant')
@@ -2714,6 +2863,7 @@ class Supervertaler:
         # ===== LOAD INITIAL DATA =====
         self._pl_load_system_prompts()
         self._pl_load_custom_instructions()
+        self._pl_load_style_guides()
     
     # ===== PROMPT MANAGER TAB HELPER FUNCTIONS =====
     
@@ -2791,6 +2941,36 @@ class Supervertaler:
             self.pl_custom_tree.insert('', 'end', text=name,
                                        values=(domain, version),
                                        tags=(filename,))
+    
+    def _pl_load_style_guides(self):
+        """Load style guides into the tree"""
+        if not hasattr(self, 'pl_style_tree'):
+            return
+        
+        # Clear existing
+        for item in self.pl_style_tree.get_children():
+            self.pl_style_tree.delete(item)
+        
+        # Load from StyleGuideLibrary
+        try:
+            # First ensure guides are loaded
+            if not self.style_guide_library.guides:
+                self.style_guide_library.load_all_guides()
+            
+            # Get all languages
+            languages = self.style_guide_library.get_all_languages()
+            
+            for language in languages:
+                guide = self.style_guide_library.get_guide(language)
+                if guide:
+                    name = guide.get('language', language)
+                    version = guide.get('version', '1.0')
+                    
+                    self.pl_style_tree.insert('', 'end', text=name,
+                                             values=(language, version),
+                                             tags=(language,))
+        except Exception as e:
+            self.log(f"⚠ Error loading style guides: {e}")
     
     def _pl_on_select(self, event):
         """Handle prompt selection in either tree"""
@@ -2957,6 +3137,61 @@ class Supervertaler:
         self.log("✖ Cleared Custom Instruction")
         messagebox.showinfo("Cleared", "Custom Instruction has been cleared.")
     
+    def _pl_activate_style_guide(self):
+        """Activate selected style guide for current project"""
+        selection = self.pl_style_tree.selection()
+        if not selection:
+            messagebox.showwarning("No Selection", "Please select a Style Guide to activate.")
+            return
+        
+        item = selection[0]
+        language = self.pl_style_tree.item(item, 'tags')[0] if self.pl_style_tree.item(item, 'tags') else None
+        
+        if not language:
+            return
+        
+        # Load the style guide
+        style_guide = self.style_guide_library.get_guide(language)
+        if not style_guide:
+            messagebox.showerror("Error", f"Could not load style guide: {language}")
+            return
+        
+        # Get content and metadata
+        content = style_guide.get('content', '')
+        name = style_guide.get('language', language)
+        
+        # Activate by storing in active style guide
+        self.active_style_guide = content
+        self.active_style_guide_name = name
+        self.active_style_guide_language = language
+        
+        # Update the label
+        if hasattr(self, 'pl_active_style_label'):
+            self.pl_active_style_label.config(text=name)
+        
+        self.log(f"✅ Activated Style Guide: {name}")
+        messagebox.showinfo("Activated", 
+            f"Style Guide '{name}' is now active for this project.\n\n"
+            f"It will be appended to your prompts during translation (3rd level in hierarchy).")
+    
+    def _pl_clear_style_guide(self):
+        """Clear the active style guide"""
+        if not hasattr(self, 'active_style_guide') or not self.active_style_guide:
+            messagebox.showinfo("No Active Style Guide", "No Style Guide is currently active.")
+            return
+        
+        # Clear the active style guide
+        self.active_style_guide = None
+        self.active_style_guide_name = None
+        self.active_style_guide_language = None
+        
+        # Update label
+        if hasattr(self, 'pl_active_style_label'):
+            self.pl_active_style_label.config(text='None')
+        
+        self.log("✖ Cleared Style Guide")
+        messagebox.showinfo("Cleared", "Style Guide has been cleared.")
+    
     def _pl_save_changes(self):
         """Save changes to the current prompt"""
         if not self.pl_current_filename:
@@ -2981,6 +3216,8 @@ class Supervertaler:
             # Reload lists
             self._pl_load_system_prompts()
             self._pl_load_custom_instructions()
+            if hasattr(self, '_pl_load_style_guides'):
+                self._pl_load_style_guides()
         else:
             messagebox.showerror("Error", "Failed to save prompt.")
     
@@ -3047,6 +3284,8 @@ class Supervertaler:
             # Reload lists
             self._pl_load_system_prompts()
             self._pl_load_custom_instructions()
+            if hasattr(self, '_pl_load_style_guides'):
+                self._pl_load_style_guides()
             messagebox.showinfo("Deleted", f"Prompt '{name}' deleted successfully.")
         else:
             messagebox.showerror("Error", "Failed to delete prompt.")
@@ -11561,7 +11800,10 @@ Use this feature AFTER translation to:
                     'active_translate_prompt_name': getattr(self, 'active_translate_prompt_name', None),
                     'active_proofread_prompt_name': getattr(self, 'active_proofread_prompt_name', None),
                     'active_custom_instruction': getattr(self, 'active_custom_instruction', None),
-                    'active_custom_instruction_name': getattr(self, 'active_custom_instruction_name', None)
+                    'active_custom_instruction_name': getattr(self, 'active_custom_instruction_name', None),
+                    # Save active style guide
+                    'active_style_guide_name': getattr(self, 'active_style_guide_name', None),
+                    'active_style_guide_language': getattr(self, 'active_style_guide_language', None)
                 },
                 # Save preferences
                 'preferences': {
@@ -11671,6 +11913,28 @@ Use this feature AFTER translation to:
                 self.active_custom_instruction = llm_settings.get('active_custom_instruction')
                 self.active_custom_instruction_name = llm_settings.get('active_custom_instruction_name')
                 
+                # Restore active style guide
+                self.active_style_guide_name = llm_settings.get('active_style_guide_name')
+                self.active_style_guide_language = llm_settings.get('active_style_guide_language')
+                
+                # Reload style guide content if language is set
+                if self.active_style_guide_language and hasattr(self, 'style_guide_library'):
+                    try:
+                        # Ensure guides are loaded
+                        if not self.style_guide_library.guides:
+                            self.style_guide_library.load_all_guides()
+                        
+                        style_guide = self.style_guide_library.get_guide(self.active_style_guide_language)
+                        if style_guide:
+                            self.active_style_guide = style_guide.get('content', '')
+                            self.log(f"✓ Restored style guide: {self.active_style_guide_name} ({self.active_style_guide_language})")
+                        else:
+                            self.active_style_guide = None
+                            self.log(f"⚠ Style guide not found: {self.active_style_guide_language}")
+                    except Exception as e:
+                        self.active_style_guide = None
+                        self.log(f"⚠ Error loading style guide: {e}")
+                
                 # Update active prompt labels if Prompt Library UI exists
                 if hasattr(self, 'pl_active_trans_label') and self.active_translate_prompt_name:
                     self.pl_active_trans_label.config(text=self.active_translate_prompt_name)
@@ -11681,12 +11945,14 @@ Use this feature AFTER translation to:
                     self.pl_active_custom_label.config(text=custom_name)
                 
                 self.log(f"✓ Loaded LLM settings: {self.current_llm_provider}/{self.current_llm_model}")
-                if self.active_translate_prompt_name or self.active_custom_instruction_name:
+                if self.active_translate_prompt_name or self.active_custom_instruction_name or self.active_style_guide_name:
                     active_prompts = []
                     if self.active_translate_prompt_name:
                         active_prompts.append(f"Translation: {self.active_translate_prompt_name}")
                     if self.active_custom_instruction_name:
                         active_prompts.append(f"Custom: {self.active_custom_instruction_name}")
+                    if self.active_style_guide_name:
+                        active_prompts.append(f"Style Guide: {self.active_style_guide_name}")
                     self.log(f"✓ Restored active prompts: {', '.join(active_prompts)}")
             
             # Load preferences if present
@@ -17086,6 +17352,374 @@ Author: https://michaelbeijer.co.uk/
         self.repair_results_text.config(state='normal')
         self.repair_results_text.delete(1.0, tk.END)
         self.repair_results_text.config(state='disabled')
+
+    def create_style_guides_tab(self, parent):
+        """Create Style Guides tab for managing professional style guides
+        
+        Used for Translation, Proofreading, Localization, Copywriting, and other tasks.
+        Manage formatting rules, terminology, and style guidelines for multiple languages.
+        """
+        
+        # Info section
+        info_frame = tk.Frame(parent, bg='#e3f2fd', relief='solid', borderwidth=1)
+        info_frame.pack(fill='x', padx=5, pady=5)
+        
+        tk.Label(info_frame, text="📖 Professional Style Guides", font=('Segoe UI', 10, 'bold'),
+                bg='#e3f2fd').pack(anchor='w', padx=10, pady=5)
+        tk.Label(info_frame, text="Manage formatting rules and style guidelines for any professional task",
+                font=('Segoe UI', 9), bg='#e3f2fd', fg='#666').pack(anchor='w', padx=10, pady=(0, 5))
+        
+        # Main container with 3 panels: List (left), Editor (center), Chat (right)
+        main_frame = tk.Frame(parent)
+        main_frame.pack(fill='both', expand=True, padx=5, pady=5)
+        
+        # LEFT PANEL: Language List
+        left_panel = tk.LabelFrame(main_frame, text="📚 Languages", padx=5, pady=5)
+        left_panel.pack(side='left', fill='both', padx=(0, 5))
+        
+        # Language list
+        list_scroll = tk.Scrollbar(left_panel)
+        list_scroll.pack(side='right', fill='y')
+        
+        self.style_guides_tree = tk.Listbox(left_panel, yscrollcommand=list_scroll.set,
+                                            font=('Segoe UI', 9), height=10, width=15)
+        self.style_guides_tree.pack(side='left', fill='both', expand=True)
+        list_scroll.config(command=self.style_guides_tree.yview)
+        
+        # Populate language list
+        if hasattr(self, 'style_guide_library'):
+            for language in self.style_guide_library.get_all_languages():
+                self.style_guides_tree.insert(tk.END, language)
+        
+        # List buttons
+        list_btn_frame = tk.Frame(left_panel)
+        list_btn_frame.pack(fill='x', pady=5)
+        
+        tk.Button(list_btn_frame, text="Load", font=('Segoe UI', 8),
+                 command=self._on_style_guide_select).pack(fill='x', pady=2)
+        
+        # CENTER PANEL: Guide Editor
+        center_panel = tk.LabelFrame(main_frame, text="📝 Edit Guide", padx=5, pady=5)
+        center_panel.pack(side='left', fill='both', expand=True, padx=5)
+        
+        # Editor
+        editor_scroll = tk.Scrollbar(center_panel)
+        editor_scroll.pack(side='right', fill='y')
+        
+        self.style_guides_text = tk.Text(center_panel, yscrollcommand=editor_scroll.set,
+                                        font=('Consolas', 9), height=10, wrap='word')
+        self.style_guides_text.pack(side='left', fill='both', expand=True)
+        editor_scroll.config(command=self.style_guides_text.yview)
+        
+        # Editor buttons
+        editor_btn_frame = tk.Frame(center_panel)
+        editor_btn_frame.pack(fill='x', pady=5)
+        
+        tk.Button(editor_btn_frame, text="💾 Save", font=('Segoe UI', 8),
+                 command=self._on_style_guide_save, bg='#4CAF50', fg='white').pack(side='left', padx=2)
+        tk.Button(editor_btn_frame, text="📥 Import", font=('Segoe UI', 8),
+                 command=self._on_style_guide_import).pack(side='left', padx=2)
+        tk.Button(editor_btn_frame, text="📤 Export", font=('Segoe UI', 8),
+                 command=self._on_style_guide_export).pack(side='left', padx=2)
+        
+        # RIGHT PANEL: Chat Interface
+        right_panel = tk.LabelFrame(main_frame, text="💬 AI Assistant", padx=5, pady=5)
+        right_panel.pack(side='left', fill='both', padx=(5, 0))
+        
+        # Chat display
+        chat_scroll = tk.Scrollbar(right_panel)
+        chat_scroll.pack(side='right', fill='y')
+        
+        self.style_guides_chat = tk.Text(right_panel, yscrollcommand=chat_scroll.set,
+                                        font=('Segoe UI', 9), height=10, width=25,
+                                        state='disabled', wrap='word')
+        self.style_guides_chat.pack(side='left', fill='both', expand=True)
+        chat_scroll.config(command=self.style_guides_chat.yview)
+        
+        # Initialize chat
+        self.style_guides_chat.config(state='normal')
+        self.style_guides_chat.insert(tk.END, "Welcome to Style Guides AI Assistant\n\n")
+        self.style_guides_chat.insert(tk.END, "Commands:\n")
+        self.style_guides_chat.insert(tk.END, "• Add to [Language]: [text]\n")
+        self.style_guides_chat.insert(tk.END, "• Add to all: [text]\n")
+        self.style_guides_chat.insert(tk.END, "• Review [Language]\n")
+        self.style_guides_chat.config(state='disabled')
+        
+        # Chat input and buttons
+        chat_input_frame = tk.Frame(right_panel)
+        chat_input_frame.pack(fill='x', pady=5)
+        
+        self.style_guides_input = tk.Entry(chat_input_frame, font=('Segoe UI', 9))
+        self.style_guides_input.pack(fill='x', pady=(0, 5))
+        self.style_guides_input.bind('<Return>', self._on_style_guide_send_chat)
+        
+        tk.Button(chat_input_frame, text="Send", font=('Segoe UI', 8),
+                 command=self._on_style_guide_send_chat, bg='#2196F3', fg='white').pack(fill='x')
+    
+    def _on_style_guide_select(self):
+        """Load selected guide content when user clicks a language"""
+        selection = self.style_guides_tree.curselection()
+        if not selection:
+            return
+        
+        selected_language = self.style_guides_tree.get(selection[0])
+        
+        try:
+            # Load guide content from backend
+            content = self.style_guide_library.get_guide(selected_language)
+            
+            # Display in text widget
+            self.style_guides_text.delete(1.0, tk.END)
+            self.style_guides_text.insert(1.0, content)
+            
+            # Update status
+            self.statusbar.config(text=f"Loaded: {selected_language} style guide")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to load guide: {str(e)}")
+    
+    def _on_style_guide_save(self):
+        """Save modified guide content to disk"""
+        selection = self.style_guides_tree.curselection()
+        if not selection:
+            messagebox.showwarning("Warning", "Please select a language first")
+            return
+        
+        selected_language = self.style_guides_tree.get(selection[0])
+        content = self.style_guides_text.get(1.0, tk.END).strip()
+        
+        try:
+            # Save to backend
+            self.style_guide_library.update_guide(selected_language, content)
+            self.statusbar.config(text=f"✅ Saved: {selected_language}")
+            messagebox.showinfo("Success", f"Guide saved: {selected_language}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to save guide: {str(e)}")
+    
+    def _on_style_guide_export(self):
+        """Export selected guide to file"""
+        selection = self.style_guides_tree.curselection()
+        if not selection:
+            messagebox.showwarning("Warning", "Please select a language")
+            return
+        
+        selected_language = self.style_guides_tree.get(selection[0])
+        
+        # Ask user for file location
+        file_path = filedialog.asksaveasfilename(
+            defaultextension=".md",
+            filetypes=[("Markdown", "*.md"), ("Text", "*.txt")],
+            initialfile=f"StyleGuide_{selected_language}.md"
+        )
+        
+        if not file_path:
+            return
+        
+        try:
+            self.style_guide_library.export_guide(selected_language, file_path)
+            messagebox.showinfo("Success", f"Exported to:\n{file_path}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Export failed: {str(e)}")
+    
+    def _on_style_guide_import(self):
+        """Import guide from file"""
+        # Ask user for file
+        file_path = filedialog.askopenfilename(
+            filetypes=[("Markdown", "*.md"), ("Text", "*.txt")]
+        )
+        
+        if not file_path:
+            return
+        
+        # Ask which language to import to
+        selection = self.style_guides_tree.curselection()
+        if not selection:
+            messagebox.showwarning("Warning", "Please select a language first")
+            return
+        
+        selected_language = self.style_guides_tree.get(selection[0])
+        
+        try:
+            self.style_guide_library.import_guide(selected_language, file_path)
+            # Reload display
+            self._on_style_guide_select()
+            messagebox.showinfo("Success", f"Imported to {selected_language}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Import failed: {str(e)}")
+    
+    def _on_style_guide_send_chat(self, event=None):
+        """Handle chat message sending with batch operations and AI integration"""
+        message = self.style_guides_input.get().strip()
+        if not message:
+            return
+        
+        # Display user message
+        self.style_guides_chat.config(state='normal')
+        self.style_guides_chat.insert(tk.END, f"\n[You]: {message}\n")
+        self.style_guides_chat.see(tk.END)
+        self.style_guides_chat.config(state='disabled')
+        
+        # Clear input
+        self.style_guides_input.delete(0, tk.END)
+        
+        # Show "thinking" indicator
+        self.style_guides_chat.config(state='normal')
+        self.style_guides_chat.insert(tk.END, "[Bot]: Processing...\n")
+        self.style_guides_chat.see(tk.END)
+        self.style_guides_chat.config(state='disabled')
+        self.style_guides_chat.update()
+        
+        # Parse command - check for batch operations first
+        command_result = self._parse_style_guide_command(message)
+        
+        if command_result and command_result.get('executed'):
+            # Command was executed (batch operation)
+            self._display_chat_response(command_result['response'], replace_thinking=True)
+        else:
+            # Not a batch operation - send to AI for intelligent response
+            self._send_to_ai_style_assistant(message, command_result)
+    
+    def _parse_style_guide_command(self, message):
+        """Parse direct batch operation commands
+        
+        Returns dict with 'executed', 'response', or None if not a batch operation
+        """
+        msg_lower = message.lower()
+        
+        # Command: "add to all: text"
+        if msg_lower.startswith("add to all:"):
+            text_to_add = message[11:].strip()  # Remove "add to all:"
+            if not text_to_add:
+                return {'executed': False, 'response': "Please provide text after 'add to all:'"}
+            
+            try:
+                self.style_guide_library.append_to_all_guides(text_to_add)
+                languages = ", ".join(self.style_guide_library.get_all_languages())
+                response = f"✅ Added to all 5 languages:\n{languages}\n\nText: {text_to_add[:50]}{'...' if len(text_to_add) > 50 else ''}"
+                self._on_style_guide_select()
+                return {'executed': True, 'response': response}
+            except Exception as e:
+                return {'executed': False, 'response': f"❌ Error: {str(e)}"}
+        
+        # Command: "add to [Language]: text"
+        elif msg_lower.startswith("add to ") and ":" in message:
+            parts = message.split(":", 1)
+            lang_part = parts[0].replace("add to", "").replace("Add to", "").strip()
+            text_to_add = parts[1].strip()
+            
+            if not text_to_add:
+                return {'executed': False, 'response': f"Please provide text after 'add to {lang_part}:'"}
+            
+            # Check if language is valid
+            available_languages = self.style_guide_library.get_all_languages()
+            if lang_part not in available_languages:
+                return {'executed': False, 
+                       'response': f"Language '{lang_part}' not found.\nAvailable: {', '.join(available_languages)}"}
+            
+            try:
+                self.style_guide_library.append_to_guide(lang_part, text_to_add)
+                response = f"✅ Added to {lang_part} guide\n\nText: {text_to_add[:50]}{'...' if len(text_to_add) > 50 else ''}"
+                self._on_style_guide_select()
+                return {'executed': True, 'response': response}
+            except Exception as e:
+                return {'executed': False, 'response': f"❌ Error: {str(e)}"}
+        
+        # Command: "show" or "list languages"
+        elif msg_lower in ["show", "show all", "list", "list languages"]:
+            languages = self.style_guide_library.get_all_languages()
+            response = f"Available languages:\n• " + "\n• ".join(languages)
+            return {'executed': True, 'response': response}
+        
+        # Not a batch operation command
+        return None
+    
+    def _send_to_ai_style_assistant(self, user_message, command_result=None):
+        """Send message to AI for intelligent style guide assistance"""
+        try:
+            # Create system prompt for style guide assistant
+            system_prompt = """You are a Style Guide Assistant for professional writers and translators.
+Your expertise covers Translation, Proofreading, Localization, and Copywriting.
+
+You help users:
+1. Create and improve style guidelines for any language
+2. Suggest formatting rules, terminology guidelines, and style conventions
+3. Provide examples for professional formatting
+4. Answer questions about style consistency and best practices
+
+When users ask for suggestions, provide:
+- Clear, actionable rules
+- Practical examples
+- Language-specific considerations
+
+When users want to add content to guides, be supportive and provide context.
+Keep responses concise and focused."""
+            
+            # Show that we're sending to AI
+            self._display_chat_response("Consulting AI Assistant...", replace_thinking=True)
+            self.style_guides_chat.update()
+            
+            # Send to AI
+            if hasattr(self, 'prompt_assistant') and self.prompt_assistant:
+                # Use existing PromptAssistant for consistency
+                self.prompt_assistant.send_message(
+                    system_prompt=system_prompt,
+                    user_message=user_message,
+                    callback=self._on_style_guide_ai_response
+                )
+            else:
+                # Fallback: provide helpful response without AI
+                self._display_chat_response(
+                    "AI not available. Try these commands:\n"
+                    "• 'add to all: [text]' - Add to all languages\n"
+                    "• 'add to Dutch: [text]' - Add to specific language\n"
+                    "• 'show' - List available languages",
+                    replace_thinking=True
+                )
+        except Exception as e:
+            self._display_chat_response(f"Error: {str(e)}", replace_thinking=True)
+    
+    def _on_style_guide_ai_response(self, response):
+        """Handle AI response from PromptAssistant"""
+        try:
+            # Display AI response
+            self._display_chat_response(response, replace_thinking=True)
+            
+            # Check if response suggests adding to guides
+            if "add to" in response.lower():
+                self._display_chat_response(
+                    "\n💡 Tip: You can use commands like 'add to Dutch: ...' to add this to your guides",
+                    append=True
+                )
+        except Exception as e:
+            self._display_chat_response(f"Error processing response: {str(e)}", replace_thinking=True)
+    
+    def _display_chat_response(self, response, replace_thinking=False, append=False):
+        """Display bot response in chat
+        
+        Args:
+            response: Message to display
+            replace_thinking: If True, removes "Processing..." line first
+            append: If True, appends to existing response instead of replacing
+        """
+        self.style_guides_chat.config(state='normal')
+        
+        if replace_thinking:
+            # Remove "Processing..." line
+            content = self.style_guides_chat.get(1.0, tk.END)
+            if "[Bot]: Processing..." in content:
+                idx = content.rfind("[Bot]: Processing...")
+                if idx >= 0:
+                    # Calculate line number of Processing... line
+                    lines_before = content[:idx].count('\n')
+                    self.style_guides_chat.delete(f"{lines_before + 1}.0", f"{lines_before + 2}.0")
+        
+        if not append:
+            self.style_guides_chat.insert(tk.END, f"[Bot]: {response}\n")
+        else:
+            # Just append to last line
+            self.style_guides_chat.insert(tk.END, f"{response}\n")
+        
+        self.style_guides_chat.see(tk.END)
+        self.style_guides_chat.config(state='disabled')
 
 
 # --- Find and Replace Dialog ---
