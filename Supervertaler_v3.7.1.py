@@ -3095,13 +3095,14 @@ class Supervertaler:
         self.log(f"📝 Editor updated with content ({len(content)} chars)")
     
     def _pl_on_tab_changed(self, notebook):
-        """Handle tab change - hide editor panel on Prompt Assistant tab"""
+        """Handle tab change - hide editor panel on Prompt Assistant and Style Guides tabs"""
         current_tab_index = notebook.index(notebook.select())
         tab_text = notebook.tab(current_tab_index, 'text')
         
         # Hide editor panel on Prompt Assistant tab (you're generating, not editing)
+        # Hide editor panel on Style Guides tab (has its own 3-panel layout)
         # Show it on System Prompts and Custom Instructions tabs (you're editing)
-        if 'Prompt Assistant' in tab_text:
+        if 'Prompt Assistant' in tab_text or 'Style Guides' in tab_text:
             # Hide the editor panel
             if hasattr(self, 'pl_editor_panel'):
                 try:
