@@ -278,15 +278,162 @@
 
                 <div class="feature-card">
                     <div class="feature-icon">🧩</div>
+                    <h3>Text Repair Tool</h3>
+                    <p>Fix encoding issues, mojibake, and text corruption with AI-powered detection and repair. <span class="badge-new">v3.7.1</span></p>
+                    <ul class="feature-list">
+                        <li>Auto-detect encoding problems</li>
+                        <li>Smart repair suggestions</li>
+                        <li>Batch processing support</li>
+                        <li>Standalone or embedded mode</li>
+                    </ul>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">🎨</div>
+                    <h3>Style Guide Library</h3>
+                    <p>Professional formatting rules and guidelines for multiple languages. Integrated into the prompt hierarchy. <span class="badge-new">v3.7.1</span></p>
+                    <ul class="feature-list">
+                        <li>Language-specific style guides</li>
+                        <li>Numbers, dates, typography rules</li>
+                        <li>Auto-appended to AI prompts</li>
+                        <li>Create & edit custom guides</li>
+                    </ul>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">🧩</div>
                     <h3>Specialised Modules</h3>
                     <p>Extensible plugin system with standalone tools. Run specialised modules independently or embed them in Supervertaler.</p>
                     <ul class="feature-list">
-                        <li>Text Encoding Repair (detect & fix mojibake)</li>
+                        <li>Modular architecture</li>
                         <li>Run modules standalone or as tabs</li>
                         <li>Enable/disable modules in settings</li>
                         <li>Community-contributed tools</li>
                     </ul>
                 </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Specialised Modules Section -->
+    <section id="modules" class="modules" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 80px 0;">
+        <div class="container">
+            <h2 class="section-title" style="color: white;">🧩 Specialised Modules</h2>
+            <p class="section-subtitle" style="color: rgba(255,255,255,0.9);">Powerful standalone tools that integrate seamlessly into Supervertaler</p>
+            
+            <div class="modules-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 30px; margin-top: 40px;">
+                
+                <!-- PDF Rescue -->
+                <div class="module-card" style="background: white; border-radius: 15px; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); transition: transform 0.3s;">
+                    <div class="module-header" style="display: flex; align-items: center; margin-bottom: 20px;">
+                        <div class="module-icon" style="font-size: 48px; margin-right: 15px;">📄</div>
+                        <div>
+                            <h3 style="margin: 0; color: #333;">PDF Rescue</h3>
+                            <span class="badge" style="background: #4CAF50; color: white; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: bold;">AVAILABLE</span>
+                        </div>
+                    </div>
+                    <p style="color: #666; line-height: 1.6; margin-bottom: 15px;">
+                        Transform badly-formatted PDFs into clean, editable documents using GPT-4 Vision OCR. 
+                        Perfect for rescuing locked PDFs, scanned documents, or files with complex layouts.
+                    </p>
+                    <div class="module-features" style="background: #f8f9fa; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+                        <div style="font-size: 13px; color: #555; line-height: 1.8;">
+                            ✓ AI-powered OCR with GPT-4 Vision<br>
+                            ✓ Smart redaction/stamp handling<br>
+                            ✓ Professional DOCX export<br>
+                            ✓ Batch processing support
+                        </div>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="color: #999; font-size: 12px;">📖 <a href="docs/guides/PDF_RESCUE.md" style="color: #667eea;">User Guide</a></span>
+                        <span style="color: #4CAF50; font-weight: bold; font-size: 13px;">✓ Built-in</span>
+                    </div>
+                </div>
+
+                <!-- Text Repair Tool -->
+                <div class="module-card" style="background: white; border-radius: 15px; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); transition: transform 0.3s;">
+                    <div class="module-header" style="display: flex; align-items: center; margin-bottom: 20px;">
+                        <div class="module-icon" style="font-size: 48px; margin-right: 15px;">🔧</div>
+                        <div>
+                            <h3 style="margin: 0; color: #333;">Text Repair Tool</h3>
+                            <span class="badge" style="background: #4CAF50; color: white; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: bold;">AVAILABLE</span>
+                        </div>
+                    </div>
+                    <p style="color: #666; line-height: 1.6; margin-bottom: 15px;">
+                        Fix encoding issues, mojibake, and text corruption with AI-powered detection and repair. 
+                        Detect and repair common encoding problems automatically.
+                    </p>
+                    <div class="module-features" style="background: #f8f9fa; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+                        <div style="font-size: 13px; color: #555; line-height: 1.8;">
+                            ✓ Auto-detect encoding problems<br>
+                            ✓ Smart repair suggestions<br>
+                            ✓ Batch processing support<br>
+                            ✓ Standalone or embedded mode
+                        </div>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="color: #999; font-size: 12px;">📖 <a href="docs/guides/ENCODING_REPAIR_TOOL.md" style="color: #667eea;">User Guide</a></span>
+                        <span style="color: #4CAF50; font-weight: bold; font-size: 13px;">✓ Built-in</span>
+                    </div>
+                </div>
+
+                <!-- Quality Checker -->
+                <div class="module-card" style="background: white; border-radius: 15px; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); transition: transform 0.3s;">
+                    <div class="module-header" style="display: flex; align-items: center; margin-bottom: 20px;">
+                        <div class="module-icon" style="font-size: 48px; margin-right: 15px;">✅</div>
+                        <div>
+                            <h3 style="margin: 0; color: #333;">Quality Checker</h3>
+                            <span class="badge" style="background: #FF9800; color: white; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: bold;">PLANNED</span>
+                        </div>
+                    </div>
+                    <p style="color: #666; line-height: 1.6; margin-bottom: 15px;">
+                        Post-translation quality analysis and validation. 
+                        Automated checks for consistency, terminology compliance, and formatting issues.
+                    </p>
+                    <div class="module-features" style="background: #f8f9fa; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+                        <div style="font-size: 13px; color: #555; line-height: 1.8;">
+                            ⏳ Terminology consistency checks<br>
+                            ⏳ Number & date format validation<br>
+                            ⏳ Tag integrity verification<br>
+                            ⏳ Comprehensive QA reports
+                        </div>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="color: #999; font-size: 12px;">🗓 Coming Soon</span>
+                        <span style="color: #FF9800; font-weight: bold; font-size: 13px;">⏳ Planned</span>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Call to Action -->
+            <div style="text-align: center; margin-top: 50px; padding: 30px; background: rgba(255,255,255,0.1); border-radius: 15px; backdrop-filter: blur(10px);">
+                <h3 style="color: white; margin-bottom: 15px;">💡 Have an Idea for a Module?</h3>
+                <p style="color: rgba(255,255,255,0.9); margin-bottom: 25px; font-size: 16px;">
+                    We'd love to hear your suggestions! Request new modules or discuss ideas with the community.
+                </p>
+                <a href="https://github.com/michaelbeijer/Supervertaler/discussions/categories/ideas-feature-requests" 
+                   target="_blank" 
+                   class="btn" 
+                   style="display: inline-block; background: white; color: #667eea; padding: 15px 40px; border-radius: 25px; text-decoration: none; font-weight: bold; box-shadow: 0 5px 15px rgba(0,0,0,0.2); transition: transform 0.3s;">
+                    💬 Suggest a Module
+                </a>
+            </div>
+
+            <!-- Module Architecture Info -->
+            <div style="margin-top: 50px; padding: 30px; background: rgba(0,0,0,0.2); border-radius: 15px; border-left: 5px solid #4CAF50;">
+                <h4 style="color: white; margin-bottom: 15px; display: flex; align-items: center;">
+                    <span style="font-size: 24px; margin-right: 10px;">🏗</span> Modular Architecture
+                </h4>
+                <p style="color: rgba(255,255,255,0.9); line-height: 1.8; margin-bottom: 15px;">
+                    All modules are built on Supervertaler's extensible plugin system. Each module can:
+                </p>
+                <ul style="color: rgba(255,255,255,0.9); line-height: 2; list-style: none; padding-left: 0;">
+                    <li>🔧 <strong>Run standalone</strong> - Use modules independently as separate tools</li>
+                    <li>📊 <strong>Integrate seamlessly</strong> - Access modules as tabs within Supervertaler</li>
+                    <li>⚙️ <strong>Enable/disable</strong> - Toggle modules on/off in settings</li>
+                    <li>🌍 <strong>Community-driven</strong> - Open architecture for community contributions</li>
+                </ul>
             </div>
         </div>
     </section>

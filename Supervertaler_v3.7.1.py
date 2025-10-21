@@ -99,6 +99,7 @@ def migrate_old_folder_structure():
     migrations = {
         "System_prompts": "Prompt_Library/System_prompts",
         "Custom_instructions": "Prompt_Library/Custom_instructions",
+        "Translation_Resources/Style_Guides": "Prompt_Library/Style_Guides",  # v3.7.1: Move to Prompt_Library
         "Glossaries": "Translation_Resources/Glossaries",
         "TMs": "Translation_Resources/TMs",
         "Non-translatables (NTs)": "Translation_Resources/Non-translatables",
@@ -874,7 +875,7 @@ class Supervertaler:
         )
         
         # Style guide manager (translation style guides for different languages)
-        style_guides_dir = get_user_data_path("Translation_Resources/Style_Guides")
+        style_guides_dir = get_user_data_path("Prompt_Library/Style_Guides")
         self.style_guide_library = StyleGuideLibrary(
             style_guides_dir=style_guides_dir,
             log_callback=self.log
@@ -2675,6 +2676,10 @@ class Supervertaler:
         sys_btn_frame = tk.Frame(system_tab, bg='#FFF3E0', relief='solid', borderwidth=1)
         sys_btn_frame.pack(fill='x', padx=5, pady=5)
         
+        tk.Button(sys_btn_frame, text="➕ New",
+                 command=self._pl_create_new_system_prompt,
+                 bg='#2196F3', fg='white', font=('Segoe UI', 9, 'bold')).pack(side='left', padx=5)
+        
         tk.Label(sys_btn_frame, text="⚡ Activate:",
                 font=('Segoe UI', 9, 'bold'), bg='#FFF3E0').pack(side='left', padx=10, pady=5)
         tk.Button(sys_btn_frame, text="⚡ Translation",
@@ -2721,6 +2726,10 @@ class Supervertaler:
         # Activate button
         custom_btn_frame = tk.Frame(custom_tab, bg='#C8E6C9', relief='solid', borderwidth=1)
         custom_btn_frame.pack(fill='x', padx=5, pady=5)
+        
+        tk.Button(custom_btn_frame, text="➕ New",
+                 command=self._pl_create_new_custom_instruction,
+                 bg='#2196F3', fg='white', font=('Segoe UI', 9, 'bold')).pack(side='left', padx=5)
         
         tk.Label(custom_btn_frame, text="✅ Activate:",
                 font=('Segoe UI', 9, 'bold'), bg='#C8E6C9').pack(side='left', padx=10, pady=5)
@@ -2773,6 +2782,12 @@ class Supervertaler:
         sg_list_btn_frame = tk.Frame(sg_left_panel)
         sg_list_btn_frame.pack(fill='x', pady=5)
         
+        tk.Button(sg_list_btn_frame, text="➕ New", font=('Segoe UI', 8),
+                 command=self._pl_create_new_style_guide, bg='#2196F3', fg='white').pack(fill='x', pady=2)
+        tk.Button(sg_list_btn_frame, text="✅ Activate", font=('Segoe UI', 8),
+                 command=self._pl_activate_style_guide, bg='#4CAF50', fg='white').pack(fill='x', pady=2)
+        tk.Button(sg_list_btn_frame, text="✖ Clear", font=('Segoe UI', 8),
+                 command=self._pl_clear_style_guide, bg='#f44336', fg='white').pack(fill='x', pady=2)
         tk.Button(sg_list_btn_frame, text="Reload All", font=('Segoe UI', 8),
                  command=self._pl_load_style_guides).pack(fill='x', pady=2)
         
@@ -2822,39 +2837,11 @@ class Supervertaler:
         tk.Button(sg_editor_btn_frame, text="📤 Export", font=('Segoe UI', 8),
                  command=self._on_style_guide_export).pack(side='left', padx=2)
         
-        # RIGHT PANEL: Chat Interface
-        sg_right_panel = tk.LabelFrame(sg_main_frame, text="💬 AI Assistant", padx=5, pady=5)
-        sg_right_panel.pack(side='left', fill='both', padx=(5, 0))
-        
-        # Chat display
-        sg_chat_scroll = tk.Scrollbar(sg_right_panel)
-        sg_chat_scroll.pack(side='right', fill='y')
-        
-        self.style_guides_chat = tk.Text(sg_right_panel, yscrollcommand=sg_chat_scroll.set,
-                                        font=('Segoe UI', 9), height=10, width=25,
-                                        state='disabled', wrap='word')
-        self.style_guides_chat.pack(side='left', fill='both', expand=True)
-        sg_chat_scroll.config(command=self.style_guides_chat.yview)
-        
-        # Initialize chat
-        self.style_guides_chat.config(state='normal')
-        self.style_guides_chat.insert(tk.END, "Welcome to Style Guides AI Assistant\n\n")
-        self.style_guides_chat.insert(tk.END, "Commands:\n")
-        self.style_guides_chat.insert(tk.END, "• Add to [Language]: [text]\n")
-        self.style_guides_chat.insert(tk.END, "• Add to all: [text]\n")
-        self.style_guides_chat.insert(tk.END, "• Review [Language]\n")
-        self.style_guides_chat.config(state='disabled')
-        
-        # Chat input and buttons
-        sg_chat_input_frame = tk.Frame(sg_right_panel)
-        sg_chat_input_frame.pack(fill='x', pady=5)
-        
-        self.style_guides_input = tk.Entry(sg_chat_input_frame, font=('Segoe UI', 9))
-        self.style_guides_input.pack(fill='x', pady=(0, 5))
-        self.style_guides_input.bind('<Return>', self._on_style_guide_send_chat)
-        
-        tk.Button(sg_chat_input_frame, text="Send", font=('Segoe UI', 8),
-                 command=self._on_style_guide_send_chat, bg='#2196F3', fg='white').pack(fill='x')
+        # Info text at bottom
+        sg_info_bottom = tk.Frame(style_tab, bg='#e3f2fd', relief='solid', borderwidth=1)
+        sg_info_bottom.pack(fill='x', padx=5, pady=5)
+        tk.Label(sg_info_bottom, text="💡 Tip: Use the Prompt Assistant tab to get AI help with editing style guides",
+                font=('Segoe UI', 9, 'italic'), bg='#e3f2fd', fg='#666').pack(padx=10, pady=5)
         
         # --- Prompt Assistant Tab ---
         assistant_tab = tk.Frame(list_notebook, bg='#E8F5E9', relief='solid', borderwidth=1)
@@ -2945,9 +2932,8 @@ class Supervertaler:
         if not hasattr(self, 'pl_system_tree'):
             return
         
-        # Ensure prompts are loaded
-        if not self.prompt_library.prompts:
-            self.prompt_library.load_all_prompts()
+        # Force reload from disk to pick up new files
+        self.prompt_library.load_all_prompts()
         
         # Clear existing
         for item in self.pl_system_tree.get_children():
@@ -2986,9 +2972,8 @@ class Supervertaler:
         if not hasattr(self, 'pl_custom_tree'):
             return
         
-        # Ensure prompts are loaded
-        if not self.prompt_library.prompts:
-            self.prompt_library.load_all_prompts()
+        # Force reload from disk to pick up new files
+        self.prompt_library.load_all_prompts()
         
         # Clear existing
         for item in self.pl_custom_tree.get_children():
@@ -3016,32 +3001,24 @@ class Supervertaler:
                                        tags=(filename,))
     
     def _pl_load_style_guides(self):
-        """Load style guides into the tree"""
-        if not hasattr(self, 'pl_style_tree'):
+        """Load style guides into the listbox"""
+        if not hasattr(self, 'style_guides_tree'):
             return
         
-        # Clear existing
-        for item in self.pl_style_tree.get_children():
-            self.pl_style_tree.delete(item)
+        # Clear existing items from Listbox
+        self.style_guides_tree.delete(0, tk.END)
         
         # Load from StyleGuideLibrary
         try:
-            # First ensure guides are loaded
-            if not self.style_guide_library.guides:
-                self.style_guide_library.load_all_guides()
+            # Force reload from disk to pick up new files
+            self.style_guide_library.load_all_guides()
             
-            # Get all languages
+            # Get all languages and populate Listbox
             languages = self.style_guide_library.get_all_languages()
             
             for language in languages:
-                guide = self.style_guide_library.get_guide(language)
-                if guide:
-                    name = guide.get('language', language)
-                    version = guide.get('version', '1.0')
-                    
-                    self.pl_style_tree.insert('', 'end', text=name,
-                                             values=(language, version),
-                                             tags=(language,))
+                self.style_guides_tree.insert(tk.END, language)
+                
         except Exception as e:
             self.log(f"⚠ Error loading style guides: {e}")
     
@@ -3213,16 +3190,14 @@ class Supervertaler:
     
     def _pl_activate_style_guide(self):
         """Activate selected style guide for current project"""
-        selection = self.pl_style_tree.selection()
+        # Get selection from the Listbox
+        selection = self.style_guides_tree.curselection()
         if not selection:
             messagebox.showwarning("No Selection", "Please select a Style Guide to activate.")
             return
         
-        item = selection[0]
-        language = self.pl_style_tree.item(item, 'tags')[0] if self.pl_style_tree.item(item, 'tags') else None
-        
-        if not language:
-            return
+        # Get the language name from the selected item
+        language = self.style_guides_tree.get(selection[0])
         
         # Load the style guide
         style_guide = self.style_guide_library.get_guide(language)
@@ -3265,6 +3240,267 @@ class Supervertaler:
         
         self.log("✖ Cleared Style Guide")
         messagebox.showinfo("Cleared", "Style Guide has been cleared.")
+    
+    def _pl_create_new_system_prompt(self):
+        """Create a new system prompt from scratch"""
+        # Ask for the prompt name
+        name = simpledialog.askstring("New System Prompt", 
+                                      "Enter a name for the new system prompt:",
+                                      parent=self.root)
+        if not name:
+            return
+        
+        # Create sanitized filename with (system prompt) suffix
+        base_filename = name.lower().replace(' ', '_').replace('-', '_')
+        base_filename = ''.join(c for c in base_filename if c.isalnum() or c == '_')
+        filename = f"{base_filename} (system prompt).md"
+        
+        # Check if file already exists
+        system_prompts_dir = get_user_data_path("Prompt_Library/System_prompts")
+        filepath = os.path.join(system_prompts_dir, filename)
+        
+        if os.path.exists(filepath):
+            messagebox.showerror("File Exists", 
+                f"A system prompt named '{name}' already exists.\nPlease choose a different name.")
+            return
+        
+        # Create template content
+        template = f"""---
+name: "{name}"
+description: "New system prompt"
+domain: "General"
+version: "1.0"
+task_type: "Translation"
+created: "{datetime.now().strftime('%Y-%m-%d')}"
+translate_prompt: |
+  You are a professional translator.
+  
+  Your task is to translate text accurately and naturally.
+  
+  Key requirements:
+  - Maintain the original meaning and tone
+  - Use natural, idiomatic language
+  - Preserve formatting and structure
+  - Be consistent with terminology
+---
+
+# {name}
+
+This is a new system prompt. Edit this content to define the translation guidelines and behavior.
+
+## Guidelines
+
+Add your translation guidelines here...
+"""
+        
+        try:
+            # Ensure directory exists
+            os.makedirs(system_prompts_dir, exist_ok=True)
+            
+            # Create the file
+            with open(filepath, 'w', encoding='utf-8') as f:
+                f.write(template)
+            
+            # Reload prompts and force UI update
+            self._pl_load_system_prompts()
+            self.root.update_idletasks()
+            
+            # Select the new prompt in the tree
+            for item in self.pl_system_tree.get_children():
+                if self.pl_system_tree.item(item, 'text') == name:
+                    self.pl_system_tree.selection_set(item)
+                    self.pl_system_tree.see(item)
+                    break
+            
+            self.log(f"✅ Created new system prompt: {name}")
+            messagebox.showinfo("Success", f"System prompt '{name}' created successfully!\n\nFile: {filename}")
+        
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to create system prompt:\n{str(e)}")
+    
+    def _pl_create_new_custom_instruction(self):
+        """Create a new custom instruction from scratch"""
+        # Ask for the instruction name
+        name = simpledialog.askstring("New Custom Instruction", 
+                                      "Enter a name for the new custom instruction:",
+                                      parent=self.root)
+        if not name:
+            return
+        
+        # Create sanitized filename with (custom instruction) suffix
+        base_filename = name.lower().replace(' ', '_').replace('-', '_')
+        base_filename = ''.join(c for c in base_filename if c.isalnum() or c == '_')
+        filename = f"{base_filename} (custom instruction).md"
+        
+        # Check if file already exists
+        custom_dir = get_user_data_path("Prompt_Library/Custom_instructions")
+        filepath = os.path.join(custom_dir, filename)
+        
+        if os.path.exists(filepath):
+            messagebox.showerror("File Exists", 
+                f"A custom instruction named '{name}' already exists.\nPlease choose a different name.")
+            return
+        
+        # Create template content
+        template = f"""---
+name: "{name}"
+description: "New custom instruction"
+domain: "Project-specific"
+version: "1.0"
+task_type: "Translation"
+created: "{datetime.now().strftime('%Y-%m-%d')}"
+translate_prompt: |
+  # {name}
+  
+  Add your project-specific instructions here...
+---
+
+# {name}
+
+This custom instruction will be appended to your system prompt during translation.
+
+## Custom Rules
+
+Add your custom rules and guidelines here...
+
+### Examples:
+- Use specific terminology
+- Follow client preferences
+- Handle special formatting
+"""
+        
+        try:
+            # Ensure directory exists
+            os.makedirs(custom_dir, exist_ok=True)
+            
+            # Create the file
+            with open(filepath, 'w', encoding='utf-8') as f:
+                f.write(template)
+            
+            # Reload custom instructions and force UI update
+            self._pl_load_custom_instructions()
+            self.root.update_idletasks()
+            
+            # Select the new instruction in the tree
+            for item in self.pl_custom_tree.get_children():
+                if self.pl_custom_tree.item(item, 'text') == name:
+                    self.pl_custom_tree.selection_set(item)
+                    self.pl_custom_tree.see(item)
+                    break
+            
+            self.log(f"✅ Created new custom instruction: {name}")
+            messagebox.showinfo("Success", f"Custom instruction '{name}' created successfully!\n\nFile: {filename}")
+        
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to create custom instruction:\n{str(e)}")
+    
+    def _pl_create_new_style_guide(self):
+        """Create a new style guide from scratch"""
+        # Ask for the language name
+        language = simpledialog.askstring("New Style Guide", 
+                                         "Enter the language for the new style guide:\n(e.g., 'German', 'French', 'Spanish')",
+                                         parent=self.root)
+        if not language:
+            return
+        
+        # Capitalize properly
+        language = language.strip().title()
+        
+        # Check if already exists
+        if hasattr(self, 'style_guide_library'):
+            existing = self.style_guide_library.get_guide(language)
+            if existing:
+                messagebox.showerror("Style Guide Exists", 
+                    f"A style guide for '{language}' already exists.\nPlease edit the existing one or choose a different language.")
+                return
+        
+        # Create template content
+        template = f"""# {language} Style Guide
+
+## Document Purpose
+Professional style guidelines for translating into {language}.
+
+## Formatting Rules
+
+### Numbers
+- Use appropriate thousands separator
+- Follow local conventions for decimals
+
+### Dates and Times
+- Follow {language} date format conventions
+- Use 24-hour or 12-hour format as appropriate
+
+### Currency
+- Use local currency symbols correctly
+- Place currency symbols according to {language} conventions
+
+## Typography
+
+### Quotation Marks
+- Use appropriate quotation marks for {language}
+
+### Punctuation
+- Follow {language} punctuation rules
+- Pay attention to spacing around punctuation
+
+## Terminology Guidelines
+
+### Consistency
+- Use consistent terminology throughout
+- Refer to project glossary when available
+
+### Formality
+- Maintain appropriate level of formality
+- Use polite forms where culturally expected
+
+## Special Considerations
+
+### Cultural Adaptation
+- Adapt idioms and expressions appropriately
+- Consider cultural context
+
+### Legal/Regulatory
+- Follow any legal requirements for {language} documents
+- Use standard legal terminology where applicable
+
+---
+
+*This style guide should be customized based on client requirements and industry standards.*
+"""
+        
+        try:
+            # Create the file with standardized naming
+            style_guides_dir = get_user_data_path("Prompt_Library/Style_Guides")
+            os.makedirs(style_guides_dir, exist_ok=True)
+            
+            base_filename = language.lower().replace(' ', '_')
+            filename = f"{base_filename} (style guide).md"
+            filepath = os.path.join(style_guides_dir, filename)
+            
+            with open(filepath, 'w', encoding='utf-8') as f:
+                f.write(template)
+            
+            # Reload style guides and force UI update
+            if hasattr(self, 'style_guide_library'):
+                self.style_guide_library.load_all_guides()
+            self._pl_load_style_guides()
+            self.root.update_idletasks()
+            
+            # Select the new guide in the listbox
+            items = self.style_guides_tree.get(0, tk.END)
+            for idx, item in enumerate(items):
+                if item == language:
+                    self.style_guides_tree.selection_clear(0, tk.END)
+                    self.style_guides_tree.selection_set(idx)
+                    self.style_guides_tree.see(idx)
+                    self._on_style_guide_select()
+                    break
+            
+            self.log(f"✅ Created new style guide: {language}")
+            messagebox.showinfo("Success", f"Style guide for '{language}' created successfully!\n\nFile: {filename}")
+        
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to create style guide:\n{str(e)}")
     
     def _pl_save_changes(self):
         """Save changes to the current prompt"""
@@ -4490,10 +4726,14 @@ class Supervertaler:
         
         tk.Button(quick_btn_frame, text="✨ Check terminology",
                  command=lambda: self.quick_ask("What are the key terms and technical vocabulary in this document?"),
-                 bg='#00BCD4', fg='white', font=('Segoe UI', 8)).pack(side='left')
+                 bg='#00BCD4', fg='white', font=('Segoe UI', 8)).pack(side='left', padx=(0, 3))
+        
+        tk.Button(quick_btn_frame, text="🎨 Edit style guide",
+                 command=self.prompt_style_guide_edit,
+                 bg='#673AB7', fg='white', font=('Segoe UI', 8)).pack(side='left')
         
         # Initial welcome message
-        self.add_assistant_chat_message('system', "Welcome! I can help you understand your document and optimise your translation settings. Try clicking 'Analyze Document' or ask me a question!")
+        self.add_assistant_chat_message('system', "Welcome! I can help you understand your document and optimise your translation settings. Try clicking 'Analyze Document' or ask me a question! You can also ask me to help edit your System Prompts, Custom Instructions, or Style Guides.")
     
     def analyze_current_document(self):
         """Analyze the currently loaded document"""
@@ -5437,6 +5677,30 @@ Provide the two prompts in the specified format."""
         self.assistant_input.delete(0, tk.END)
         self.assistant_input.insert(0, question)
         self.send_assistant_message()
+    
+    def prompt_style_guide_edit(self):
+        """Prompt user to ask for help with style guide editing"""
+        # Check if a style guide is loaded
+        if hasattr(self, 'current_guide_language') and self.current_guide_language:
+            guide_info = f" for {self.current_guide_language}"
+        else:
+            guide_info = ""
+        
+        # Pre-fill a helpful prompt
+        example_prompt = f"Help me improve the style guide{guide_info}. "
+        self.assistant_input.delete(0, tk.END)
+        self.assistant_input.insert(0, example_prompt)
+        self.assistant_input.focus_set()
+        self.assistant_input.icursor(tk.END)
+        
+        # Add a system message with tips
+        self.add_assistant_chat_message('system', 
+            "💡 Tips for editing style guides:\n"
+            "• 'Add a section about date formats'\n"
+            "• 'Review my style guide for completeness'\n"
+            "• 'Suggest improvements for technical terminology'\n"
+            "• 'Add rules for handling numbers and measurements'\n"
+            "• 'What should I include for legal document translation?'")
     
     def process_assistant_query(self, query):
         """Process user query and generate AI response"""
