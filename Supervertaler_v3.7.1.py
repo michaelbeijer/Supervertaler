@@ -2205,26 +2205,6 @@ class Supervertaler:
                 'create_func': self.create_tracked_changes_tab
             })
         
-        if self.assist_visible_panels.get('settings', True):
-            self.assist_tabs.append({
-                'key': 'settings',
-                'name': '⚙ Settings',
-                'short': 'Settings',
-                'frame': None,
-                'button': None,
-                'create_func': self.create_settings_tab
-            })
-        
-        if self.assist_visible_panels.get('log', True):
-            self.assist_tabs.append({
-                'key': 'log',
-                'name': '📋 Log',
-                'short': 'Log',
-                'frame': None,
-                'button': None,
-                'create_func': self.create_log_tab
-            })
-        
         if self.assist_visible_panels.get('encoding_repair', True):
             self.assist_tabs.append({
                 'key': 'encoding_repair',
@@ -2238,11 +2218,33 @@ class Supervertaler:
         if self.assist_visible_panels.get('style_guides', True):
             self.assist_tabs.append({
                 'key': 'style_guides',
-                'name': '📖 Style Guides',
+                'name': '� Style Guides',
                 'short': 'Styles',
                 'frame': None,
                 'button': None,
                 'create_func': self.create_style_guides_tab
+            })
+        
+        # Log tab (second to last)
+        if self.assist_visible_panels.get('log', True):
+            self.assist_tabs.append({
+                'key': 'log',
+                'name': '� Log',
+                'short': 'Log',
+                'frame': None,
+                'button': None,
+                'create_func': self.create_log_tab
+            })
+        
+        # Settings tab (always last)
+        if self.assist_visible_panels.get('settings', True):
+            self.assist_tabs.append({
+                'key': 'settings',
+                'name': '⚙ Settings',
+                'short': 'Settings',
+                'frame': None,
+                'button': None,
+                'create_func': self.create_settings_tab
             })
         
         # Create all tab frames (hidden initially)
