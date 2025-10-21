@@ -2215,16 +2215,6 @@ class Supervertaler:
                 'create_func': self.create_text_encoding_repair_tab
             })
         
-        if self.assist_visible_panels.get('style_guides', True):
-            self.assist_tabs.append({
-                'key': 'style_guides',
-                'name': '� Style Guides',
-                'short': 'Styles',
-                'frame': None,
-                'button': None,
-                'create_func': self.create_style_guides_tab
-            })
-        
         # Log tab (second to last)
         if self.assist_visible_panels.get('log', True):
             self.assist_tabs.append({
@@ -2741,52 +2731,130 @@ class Supervertaler:
                  command=self._pl_clear_custom_instruction,
                  bg='#f44336', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=5)
         
-        # --- Style Guides Tab ---
+        # --- Style Guides Tab (MOVED FROM ASSISTANT PANEL) ---
         style_tab = tk.Frame(list_notebook, bg='#FFF3E0', relief='solid', borderwidth=1)
         list_notebook.add(style_tab, text='🎨 Style Guides')
         
-        # Info bar
-        style_info_frame = tk.Frame(style_tab, bg='#FFE0B2', relief='solid', borderwidth=1)
+        # Info section
+        style_info_frame = tk.Frame(style_tab, bg='#e3f2fd', relief='solid', borderwidth=1)
         style_info_frame.pack(fill='x', padx=5, pady=5)
-        tk.Label(style_info_frame, text="🎨 Language-specific formatting & style rules (3rd level in prompt hierarchy)",
-                font=('Segoe UI', 8), bg='#FFE0B2').pack(padx=10, pady=5)
         
-        # Style guides list
-        style_list_frame = tk.Frame(style_tab, bg='#FFF3E0')
-        style_list_frame.pack(fill='both', expand=True, padx=5, pady=(0, 5))
+        tk.Label(style_info_frame, text="📖 Professional Style Guides", font=('Segoe UI', 10, 'bold'),
+                bg='#e3f2fd').pack(anchor='w', padx=10, pady=5)
+        tk.Label(style_info_frame, text="Manage formatting rules and style guidelines for multiple languages (3rd level in prompt hierarchy)",
+                font=('Segoe UI', 9), bg='#e3f2fd', fg='#666').pack(anchor='w', padx=10, pady=(0, 5))
         
-        style_scroll = ttk.Scrollbar(style_list_frame, orient='vertical')
-        style_scroll.pack(side='right', fill='y')
+        # Main container with 3 panels: List (left), Editor (center), Chat (right)
+        sg_main_frame = tk.Frame(style_tab)
+        sg_main_frame.pack(fill='both', expand=True, padx=5, pady=5)
         
-        self.pl_style_tree = ttk.Treeview(style_list_frame,
-                                         columns=('language', 'version'),
-                                         show='tree headings',
-                                         yscrollcommand=style_scroll.set)
-        style_scroll.config(command=self.pl_style_tree.yview)
+        # LEFT PANEL: Language List
+        sg_left_panel = tk.LabelFrame(sg_main_frame, text="📚 Languages", padx=5, pady=5)
+        sg_left_panel.pack(side='left', fill='both', padx=(0, 5))
         
-        self.pl_style_tree.heading('#0', text='Style Guide Name')
-        self.pl_style_tree.heading('language', text='Language')
-        self.pl_style_tree.heading('version', text='Ver')
+        # Language list
+        sg_list_scroll = tk.Scrollbar(sg_left_panel)
+        sg_list_scroll.pack(side='right', fill='y')
         
-        self.pl_style_tree.column('#0', width=300)
-        self.pl_style_tree.column('language', width=200)
-        self.pl_style_tree.column('version', width=50)
+        self.style_guides_tree = tk.Listbox(sg_left_panel, yscrollcommand=sg_list_scroll.set,
+                                            font=('Segoe UI', 9), height=10, width=15)
+        self.style_guides_tree.pack(side='left', fill='both', expand=True)
+        sg_list_scroll.config(command=self.style_guides_tree.yview)
         
-        self.pl_style_tree.pack(fill='both', expand=True)
-        self.pl_style_tree.bind('<<TreeviewSelect>>', self._pl_on_select)
+        # Bind selection event to auto-load guide content
+        self.style_guides_tree.bind('<<ListboxSelect>>', lambda e: self._on_style_guide_select())
         
-        # Activate button
-        style_btn_frame = tk.Frame(style_tab, bg='#FFE0B2', relief='solid', borderwidth=1)
-        style_btn_frame.pack(fill='x', padx=5, pady=5)
+        # Populate language list
+        if hasattr(self, 'style_guide_library'):
+            for language in self.style_guide_library.get_all_languages():
+                self.style_guides_tree.insert(tk.END, language)
         
-        tk.Label(style_btn_frame, text="✅ Activate:",
-                font=('Segoe UI', 9, 'bold'), bg='#FFE0B2').pack(side='left', padx=10, pady=5)
-        tk.Button(style_btn_frame, text="✅ Use in Current Project",
-                 command=self._pl_activate_style_guide,
-                 bg='#FF9800', fg='white', font=('Segoe UI', 9, 'bold')).pack(side='left', padx=5)
-        tk.Button(style_btn_frame, text="✖ Clear",
-                 command=self._pl_clear_style_guide,
-                 bg='#f44336', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=5)
+        # List buttons
+        sg_list_btn_frame = tk.Frame(sg_left_panel)
+        sg_list_btn_frame.pack(fill='x', pady=5)
+        
+        tk.Button(sg_list_btn_frame, text="Reload All", font=('Segoe UI', 8),
+                 command=self._pl_load_style_guides).pack(fill='x', pady=2)
+        
+        # CENTER PANEL: Guide Editor
+        sg_center_panel = tk.LabelFrame(sg_main_frame, text="📝 Edit Guide", padx=5, pady=5)
+        sg_center_panel.pack(side='left', fill='both', expand=True, padx=5)
+        
+        # View mode toggle
+        sg_view_mode_frame = tk.Frame(sg_center_panel)
+        sg_view_mode_frame.pack(fill='x', pady=(0, 5))
+        
+        tk.Label(sg_view_mode_frame, text="View Mode:", font=('Segoe UI', 8)).pack(side='left', padx=(0, 5))
+        
+        self.style_guide_view_mode = tk.BooleanVar(value=False)  # False = formatted, True = raw markdown
+        tk.Checkbutton(sg_view_mode_frame, text="Edit Raw Markdown", variable=self.style_guide_view_mode,
+                      command=self._on_style_guide_view_mode_change, font=('Segoe UI', 8)).pack(side='left')
+        
+        # Editor
+        sg_editor_scroll = tk.Scrollbar(sg_center_panel)
+        sg_editor_scroll.pack(side='right', fill='y')
+        
+        self.style_guides_text = tk.Text(sg_center_panel, yscrollcommand=sg_editor_scroll.set,
+                                        font=('Consolas', 9), height=10, wrap='word')
+        self.style_guides_text.pack(side='left', fill='both', expand=True)
+        sg_editor_scroll.config(command=self.style_guides_text.yview)
+        
+        # Configure text tags for formatted markdown display
+        self.style_guides_text.tag_config('heading1', font=('Consolas', 14, 'bold'), foreground='#1976D2')
+        self.style_guides_text.tag_config('heading2', font=('Consolas', 12, 'bold'), foreground='#1976D2')
+        self.style_guides_text.tag_config('heading3', font=('Consolas', 11, 'bold'), foreground='#1976D2')
+        self.style_guides_text.tag_config('bold', font=('Consolas', 9, 'bold'))
+        self.style_guides_text.tag_config('code', font=('Courier New', 9), foreground='#D32F2F', background='#F5F5F5')
+        self.style_guides_text.tag_config('list_item', lmargin2=20)
+        
+        # Store raw content for toggling
+        self.current_guide_raw_content = None
+        self.current_guide_language = None
+        
+        # Editor buttons
+        sg_editor_btn_frame = tk.Frame(sg_center_panel)
+        sg_editor_btn_frame.pack(fill='x', pady=5)
+        
+        tk.Button(sg_editor_btn_frame, text="💾 Save", font=('Segoe UI', 8),
+                 command=self._on_style_guide_save, bg='#4CAF50', fg='white').pack(side='left', padx=2)
+        tk.Button(sg_editor_btn_frame, text="📥 Import", font=('Segoe UI', 8),
+                 command=self._on_style_guide_import).pack(side='left', padx=2)
+        tk.Button(sg_editor_btn_frame, text="📤 Export", font=('Segoe UI', 8),
+                 command=self._on_style_guide_export).pack(side='left', padx=2)
+        
+        # RIGHT PANEL: Chat Interface
+        sg_right_panel = tk.LabelFrame(sg_main_frame, text="💬 AI Assistant", padx=5, pady=5)
+        sg_right_panel.pack(side='left', fill='both', padx=(5, 0))
+        
+        # Chat display
+        sg_chat_scroll = tk.Scrollbar(sg_right_panel)
+        sg_chat_scroll.pack(side='right', fill='y')
+        
+        self.style_guides_chat = tk.Text(sg_right_panel, yscrollcommand=sg_chat_scroll.set,
+                                        font=('Segoe UI', 9), height=10, width=25,
+                                        state='disabled', wrap='word')
+        self.style_guides_chat.pack(side='left', fill='both', expand=True)
+        sg_chat_scroll.config(command=self.style_guides_chat.yview)
+        
+        # Initialize chat
+        self.style_guides_chat.config(state='normal')
+        self.style_guides_chat.insert(tk.END, "Welcome to Style Guides AI Assistant\n\n")
+        self.style_guides_chat.insert(tk.END, "Commands:\n")
+        self.style_guides_chat.insert(tk.END, "• Add to [Language]: [text]\n")
+        self.style_guides_chat.insert(tk.END, "• Add to all: [text]\n")
+        self.style_guides_chat.insert(tk.END, "• Review [Language]\n")
+        self.style_guides_chat.config(state='disabled')
+        
+        # Chat input and buttons
+        sg_chat_input_frame = tk.Frame(sg_right_panel)
+        sg_chat_input_frame.pack(fill='x', pady=5)
+        
+        self.style_guides_input = tk.Entry(sg_chat_input_frame, font=('Segoe UI', 9))
+        self.style_guides_input.pack(fill='x', pady=(0, 5))
+        self.style_guides_input.bind('<Return>', self._on_style_guide_send_chat)
+        
+        tk.Button(sg_chat_input_frame, text="Send", font=('Segoe UI', 8),
+                 command=self._on_style_guide_send_chat, bg='#2196F3', fg='white').pack(fill='x')
         
         # --- Prompt Assistant Tab ---
         assistant_tab = tk.Frame(list_notebook, bg='#E8F5E9', relief='solid', borderwidth=1)
@@ -17358,134 +17426,6 @@ Author: https://michaelbeijer.co.uk/
         self.repair_results_text.delete(1.0, tk.END)
         self.repair_results_text.config(state='disabled')
 
-    def create_style_guides_tab(self, parent):
-        """Create Style Guides tab for managing professional style guides
-        
-        Used for Translation, Proofreading, Localization, Copywriting, and other tasks.
-        Manage formatting rules, terminology, and style guidelines for multiple languages.
-        """
-        
-        # Info section
-        info_frame = tk.Frame(parent, bg='#e3f2fd', relief='solid', borderwidth=1)
-        info_frame.pack(fill='x', padx=5, pady=5)
-        
-        tk.Label(info_frame, text="📖 Professional Style Guides", font=('Segoe UI', 10, 'bold'),
-                bg='#e3f2fd').pack(anchor='w', padx=10, pady=5)
-        tk.Label(info_frame, text="Manage formatting rules and style guidelines for any professional task",
-                font=('Segoe UI', 9), bg='#e3f2fd', fg='#666').pack(anchor='w', padx=10, pady=(0, 5))
-        
-        # Main container with 3 panels: List (left), Editor (center), Chat (right)
-        main_frame = tk.Frame(parent)
-        main_frame.pack(fill='both', expand=True, padx=5, pady=5)
-        
-        # LEFT PANEL: Language List
-        left_panel = tk.LabelFrame(main_frame, text="📚 Languages", padx=5, pady=5)
-        left_panel.pack(side='left', fill='both', padx=(0, 5))
-        
-        # Language list
-        list_scroll = tk.Scrollbar(left_panel)
-        list_scroll.pack(side='right', fill='y')
-        
-        self.style_guides_tree = tk.Listbox(left_panel, yscrollcommand=list_scroll.set,
-                                            font=('Segoe UI', 9), height=10, width=15)
-        self.style_guides_tree.pack(side='left', fill='both', expand=True)
-        list_scroll.config(command=self.style_guides_tree.yview)
-        
-        # Bind selection event to auto-load guide content
-        self.style_guides_tree.bind('<<ListboxSelect>>', lambda e: self._on_style_guide_select())
-        
-        # Populate language list
-        if hasattr(self, 'style_guide_library'):
-            for language in self.style_guide_library.get_all_languages():
-                self.style_guides_tree.insert(tk.END, language)
-        
-        # List buttons
-        list_btn_frame = tk.Frame(left_panel)
-        list_btn_frame.pack(fill='x', pady=5)
-        
-        tk.Button(list_btn_frame, text="Reload All", font=('Segoe UI', 8),
-                 command=self._pl_load_style_guides).pack(fill='x', pady=2)
-        
-        # CENTER PANEL: Guide Editor
-        center_panel = tk.LabelFrame(main_frame, text="📝 Edit Guide", padx=5, pady=5)
-        center_panel.pack(side='left', fill='both', expand=True, padx=5)
-        
-        # View mode toggle
-        view_mode_frame = tk.Frame(center_panel)
-        view_mode_frame.pack(fill='x', pady=(0, 5))
-        
-        tk.Label(view_mode_frame, text="View Mode:", font=('Segoe UI', 8)).pack(side='left', padx=(0, 5))
-        
-        self.style_guide_view_mode = tk.BooleanVar(value=False)  # False = formatted, True = raw markdown
-        tk.Checkbutton(view_mode_frame, text="Edit Raw Markdown", variable=self.style_guide_view_mode,
-                      command=self._on_style_guide_view_mode_change, font=('Segoe UI', 8)).pack(side='left')
-        
-        # Editor
-        editor_scroll = tk.Scrollbar(center_panel)
-        editor_scroll.pack(side='right', fill='y')
-        
-        self.style_guides_text = tk.Text(center_panel, yscrollcommand=editor_scroll.set,
-                                        font=('Consolas', 9), height=10, wrap='word')
-        self.style_guides_text.pack(side='left', fill='both', expand=True)
-        editor_scroll.config(command=self.style_guides_text.yview)
-        
-        # Configure text tags for formatted markdown display
-        self.style_guides_text.tag_config('heading1', font=('Consolas', 14, 'bold'), foreground='#1976D2')
-        self.style_guides_text.tag_config('heading2', font=('Consolas', 12, 'bold'), foreground='#1976D2')
-        self.style_guides_text.tag_config('heading3', font=('Consolas', 11, 'bold'), foreground='#1976D2')
-        self.style_guides_text.tag_config('bold', font=('Consolas', 9, 'bold'))
-        self.style_guides_text.tag_config('code', font=('Courier New', 9), foreground='#D32F2F', background='#F5F5F5')
-        self.style_guides_text.tag_config('list_item', lmargin2=20)
-        
-        # Store raw content for toggling
-        self.current_guide_raw_content = None
-        self.current_guide_language = None
-        
-        # Editor buttons
-        editor_btn_frame = tk.Frame(center_panel)
-        editor_btn_frame.pack(fill='x', pady=5)
-        
-        tk.Button(editor_btn_frame, text="💾 Save", font=('Segoe UI', 8),
-                 command=self._on_style_guide_save, bg='#4CAF50', fg='white').pack(side='left', padx=2)
-        tk.Button(editor_btn_frame, text="📥 Import", font=('Segoe UI', 8),
-                 command=self._on_style_guide_import).pack(side='left', padx=2)
-        tk.Button(editor_btn_frame, text="📤 Export", font=('Segoe UI', 8),
-                 command=self._on_style_guide_export).pack(side='left', padx=2)
-        
-        # RIGHT PANEL: Chat Interface
-        right_panel = tk.LabelFrame(main_frame, text="💬 AI Assistant", padx=5, pady=5)
-        right_panel.pack(side='left', fill='both', padx=(5, 0))
-        
-        # Chat display
-        chat_scroll = tk.Scrollbar(right_panel)
-        chat_scroll.pack(side='right', fill='y')
-        
-        self.style_guides_chat = tk.Text(right_panel, yscrollcommand=chat_scroll.set,
-                                        font=('Segoe UI', 9), height=10, width=25,
-                                        state='disabled', wrap='word')
-        self.style_guides_chat.pack(side='left', fill='both', expand=True)
-        chat_scroll.config(command=self.style_guides_chat.yview)
-        
-        # Initialize chat
-        self.style_guides_chat.config(state='normal')
-        self.style_guides_chat.insert(tk.END, "Welcome to Style Guides AI Assistant\n\n")
-        self.style_guides_chat.insert(tk.END, "Commands:\n")
-        self.style_guides_chat.insert(tk.END, "• Add to [Language]: [text]\n")
-        self.style_guides_chat.insert(tk.END, "• Add to all: [text]\n")
-        self.style_guides_chat.insert(tk.END, "• Review [Language]\n")
-        self.style_guides_chat.config(state='disabled')
-        
-        # Chat input and buttons
-        chat_input_frame = tk.Frame(right_panel)
-        chat_input_frame.pack(fill='x', pady=5)
-        
-        self.style_guides_input = tk.Entry(chat_input_frame, font=('Segoe UI', 9))
-        self.style_guides_input.pack(fill='x', pady=(0, 5))
-        self.style_guides_input.bind('<Return>', self._on_style_guide_send_chat)
-        
-        tk.Button(chat_input_frame, text="Send", font=('Segoe UI', 8),
-                 command=self._on_style_guide_send_chat, bg='#2196F3', fg='white').pack(fill='x')
-    
     def _on_style_guide_select(self):
         """Load selected guide content when user clicks a language"""
         selection = self.style_guides_tree.curselection()

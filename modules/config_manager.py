@@ -35,6 +35,7 @@ class ConfigManager:
     REQUIRED_FOLDERS = [
         "Prompt_Library/System_prompts",
         "Prompt_Library/Custom_instructions",
+        "Translation_Resources/Style_Guides",
         "Translation_Resources/Glossaries",
         "Translation_Resources/TMs",
         "Translation_Resources/Non-translatables",

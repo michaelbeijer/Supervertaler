@@ -66,6 +66,86 @@ Format your response as JSON:
         """Set or update the LLM client"""
         self.llm = llm_client
     
+    def send_message(self, system_prompt: str, user_message: str, callback=None) -> Optional[str]:
+        """
+        Send a message to the LLM and get a response (for Style Guides chat).
+        
+        Args:
+            system_prompt: System prompt to use for context
+            user_message: User's message
+            callback: Optional callback function to handle response (called with response text)
+        
+        Returns:
+            Response text or None if LLM not available
+        """
+        if not self.llm:
+            response = """I'm currently running in offline mode without LLM access. 
+For now, you can use these commands:
+- 'add to all: [text]' to add rules to all languages
+- 'add to [Language]: [text]' to add rules to a specific language
+- 'show' to list available languages
+
+When you have your LLM configured (OpenAI, Claude, or Gemini), 
+I'll be able to provide AI-powered suggestions for your style guides."""
+            if callback:
+                callback(response)
+            return response
+        
+        try:
+            # Build messages
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message}
+            ]
+            
+            # Call LLM through self.llm (which should be an LLM client)
+            # This is designed to work with OpenAI, Anthropic, or Google clients
+            response_text = None
+            
+            # Try different LLM client interfaces
+            if hasattr(self.llm, 'chat'):
+                # OpenAI-style interface
+                response_text = self.llm.chat(messages)
+            elif hasattr(self.llm, 'generate_content'):
+                # Google Gemini-style interface
+                response_text = self.llm.generate_content(f"{system_prompt}\n\nUser: {user_message}").text
+            elif hasattr(self.llm, 'messages'):
+                # Anthropic-style interface
+                response = self.llm.messages.create(
+                    model="claude-opus-4-1",
+                    max_tokens=1024,
+                    system=system_prompt,
+                    messages=[{"role": "user", "content": user_message}]
+                )
+                response_text = response.content[0].text
+            else:
+                response_text = "LLM client not properly configured"
+            
+            # Record in chat history
+            self.chat_history.append({
+                "role": "user",
+                "content": user_message,
+                "timestamp": datetime.now().isoformat()
+            })
+            self.chat_history.append({
+                "role": "assistant",
+                "content": response_text,
+                "timestamp": datetime.now().isoformat()
+            })
+            
+            # Call callback if provided
+            if callback:
+                callback(response_text)
+            
+            return response_text
+            
+        except Exception as e:
+            error_msg = f"Error communicating with LLM: {str(e)}"
+            if callback:
+                callback(error_msg)
+            return error_msg
+
+    
     def suggest_modification(self, prompt_name: str, current_prompt: str, user_request: str) -> Dict:
         """
         AI suggests changes to a prompt based on user request.
