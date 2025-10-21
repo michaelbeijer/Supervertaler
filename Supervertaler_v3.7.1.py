@@ -17823,33 +17823,36 @@ Keep responses concise and focused."""
     
     def _insert_line_with_formatting(self, line):
         """Insert a line with inline markdown formatting (bold, code, etc.)"""
-        # Simple inline formatting: **text** for bold, `text` for code
         import re
         
-        # Pattern: **text** for bold
-        bold_pattern = r'\*\*(.+?)\*\*'
-        # Pattern: `text` for inline code
-        code_pattern = r'`(.+?)`'
-        
-        # Split by bold first
-        parts = re.split(f'({bold_pattern})', line)
-        for i, part in enumerate(parts):
-            if not part:
-                continue
+        # Process line character by character, looking for formatting patterns
+        i = 0
+        while i < len(line):
+            # Check for bold: **text**
+            if i < len(line) - 3 and line[i:i+2] == '**':
+                # Find closing **
+                closing = line.find('**', i + 2)
+                if closing != -1:
+                    # Extract bold text
+                    bold_text = line[i+2:closing]
+                    self.style_guides_text.insert(tk.END, bold_text, 'bold')
+                    i = closing + 2
+                    continue
             
-            # Check if this is a bold part (every 3rd item in split result)
-            if i % 4 == 1:  # This is the captured group
-                self.style_guides_text.insert(tk.END, part, 'bold')
-            else:
-                # Now handle inline code within non-bold text
-                code_parts = re.split(f'({code_pattern})', part)
-                for j, code_part in enumerate(code_parts):
-                    if not code_part:
-                        continue
-                    if j % 4 == 1:  # This is the captured group (inline code)
-                        self.style_guides_text.insert(tk.END, code_part, 'code')
-                    else:
-                        self.style_guides_text.insert(tk.END, code_part)
+            # Check for inline code: `text`
+            if line[i] == '`':
+                # Find closing `
+                closing = line.find('`', i + 1)
+                if closing != -1:
+                    # Extract code text
+                    code_text = line[i+1:closing]
+                    self.style_guides_text.insert(tk.END, code_text, 'code')
+                    i = closing + 1
+                    continue
+            
+            # Regular character - insert as-is
+            self.style_guides_text.insert(tk.END, line[i])
+            i += 1
 
 
 # --- Find and Replace Dialog ---
