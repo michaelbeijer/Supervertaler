@@ -905,6 +905,9 @@ class Supervertaler:
         # Load prompts after UI is ready (so logging works)
         self.prompt_library.load_all_prompts()
         
+        # Load style guides after UI is ready
+        self.style_guide_library.load_all_guides()
+        
         # Status
         self.log("Supervertaler v3.6.8-beta ready. Import a DOCX file to begin.")
         self.log(f"✨ LLM APIs: OpenAI={OPENAI_AVAILABLE}, Claude={ANTHROPIC_AVAILABLE}, Gemini={GEMINI_AVAILABLE}")
