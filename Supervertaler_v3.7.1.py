@@ -17391,6 +17391,9 @@ Author: https://michaelbeijer.co.uk/
         self.style_guides_tree.pack(side='left', fill='both', expand=True)
         list_scroll.config(command=self.style_guides_tree.yview)
         
+        # Bind selection event to auto-load guide content
+        self.style_guides_tree.bind('<<ListboxSelect>>', lambda e: self._on_style_guide_select())
+        
         # Populate language list
         if hasattr(self, 'style_guide_library'):
             for language in self.style_guide_library.get_all_languages():
@@ -17400,8 +17403,8 @@ Author: https://michaelbeijer.co.uk/
         list_btn_frame = tk.Frame(left_panel)
         list_btn_frame.pack(fill='x', pady=5)
         
-        tk.Button(list_btn_frame, text="Load", font=('Segoe UI', 8),
-                 command=self._on_style_guide_select).pack(fill='x', pady=2)
+        tk.Button(list_btn_frame, text="Reload All", font=('Segoe UI', 8),
+                 command=self._pl_load_style_guides).pack(fill='x', pady=2)
         
         # CENTER PANEL: Guide Editor
         center_panel = tk.LabelFrame(main_frame, text="📝 Edit Guide", padx=5, pady=5)
