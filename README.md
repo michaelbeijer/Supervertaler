@@ -112,14 +112,14 @@ Supervertaler is a **professional Computer-Aided Translation (CAT) editor** desi
 
 ### Installation - Choose Your Method
 
-Supervertaler v3.7.1 is available in **three ways**:
+Supervertaler v3.7.2 is available in **three ways**:
 
 #### **1️⃣ Windows Executable (Easiest - Recommended for Most Users)**
 
 No Python installation required!
 
 1. **Download**: Get the latest release from [GitHub Releases](https://github.com/michaelbeijer/Supervertaler/releases)
-2. **Extract**: Unzip `Supervertaler-v3.7.1.zip` to any folder
+2. **Extract**: Unzip `Supervertaler-v3.7.2.zip` to any folder
 3. **Run**: Double-click `Supervertaler/Supervertaler.exe`
 4. **Configure**: Add your API keys and start translating!
 
