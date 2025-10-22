@@ -29,7 +29,7 @@ Supervertaler is a context-aware, LLM-powered translation and proofreading tool 
 
 **Supervertaler** is Dutch for "super translator" (*super* = super, *vertaler* = translator). 
 
-The name reflects the creator's Dutch-American heritage and adds a bit of international flair to a tool designed for translators worldwide. It's also delightfully straightforward—no clever acronyms, no marketing gymnastics, just a Dutch word that does exactly what it says on the tin: translates, superbly.
+The name reflects the creator's Dutch-American heritage and adds a bit of international flair to a tool designed for translators worldwide. It's also delightfully straightforward – no clever acronyms, no marketing gymnastics, just a Dutch word that does exactly what it says on the tin: translates, superbly.
 
 Plus, it's fun to say. Try it: *"Soo-per-ver-TAH-ler"*. See? You're smiling already. 😊
 
