@@ -79,6 +79,57 @@ The development process showcases the potential of AI-assisted software developm
 - ✅ **Modern UI**: Clean, responsive interface with multiple view modes
 - ⚠️ **Complementary tool**: Works *with* CAT tools via bilingual DOCX, not as replacement
 
+### What makes Supervertaler different? (The AI-First Philosophy)
+
+**Traditional CAT tools** rely heavily on rule-based systems:
+- Complex regex patterns for text processing
+- Rigid QA rules that must be manually configured
+- Fixed workflows that require technical knowledge to customize
+- Limited by what developers anticipated users would need
+
+**Supervertaler's AI-First Approach**:
+Instead of writing countless rules, we simply ask the AI in natural language:
+
+- **QA Example**: Instead of configuring dozens of QA rules, just ask: *"Run QA on my translation. Check for consistency, terminology accuracy, and formatting issues."*
+  
+- **Text Processing Example**: Instead of writing complex regex patterns, describe what you want: *"Extract all figure references and create a numbered list"* or *"Convert all product codes to uppercase and add hyphens every 4 characters"*
+
+- **Custom Workflows Example**: Instead of being limited to predefined features, describe your need: *"Flag all segments containing measurements and suggest metric conversions"* or *"Identify segments with legal terminology and mark them for expert review"*
+
+**The Power of Natural Language Control**:
+- 🎯 **Intuitive**: Describe tasks in plain English instead of learning rule syntax
+- 🚀 **Flexible**: Adapt workflows on-the-fly without software updates
+- 🧠 **Contextual**: AI understands nuance and context that rigid rules miss
+- ⚡ **Efficient**: Accomplish complex tasks with simple instructions
+
+**Example - Traditional vs AI-First**:
+
+*Traditional CAT Tool QA*:
+```
+✗ Configure: Number consistency check
+✗ Configure: Terminology variance check  
+✗ Configure: Tag presence validation
+✗ Configure: Punctuation matching
+✗ Configure: Length ratio limits
+... (dozens more rules)
+```
+
+*Supervertaler AI-First QA*:
+```
+✓ "Run comprehensive QA on this translation. Focus on:
+   - Consistency with translation memory
+   - Proper use of client terminology
+   - Tag preservation and formatting
+   - Natural flow in target language
+   - Technical accuracy for patent content"
+```
+
+The AI understands the intent, applies contextual judgment, and adapts to your specific project needs—all without rigid rule configuration.
+
+This philosophy extends beyond QA to every aspect of translation work: prompt engineering replaces rule configuration, natural language replaces regex, and AI reasoning replaces rigid algorithms.
+
+---
+
 **vs. AI Translation Plugins**:
 - ✅ **Standalone**: No subscription to specific CAT tool required
 - ✅ **Multi-provider**: Not locked into one AI service

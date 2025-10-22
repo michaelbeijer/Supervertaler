@@ -1,5 +1,5 @@
-"""
-Supervertaler v3.7.1
+"""  
+Supervertaler v3.7.2
 Unified Professional AI-Powered Computer-Aided Translation ToolFeatures:
 - 🤖 Multiple AI Providers (OpenAI GPT-4, Anthropic Claude, Google Gemini)
 - 📄 PDF Rescue - AI-Powered OCR Tool (GPT-4 Vision)
@@ -26,7 +26,7 @@ License: MIT - Open Source and Free
 """
 
 # Version constant
-APP_VERSION = "3.7.1"
+APP_VERSION = "3.7.2"
 
 # --- Private Features Flag ---
 # Check for .supervertaler.local file to enable private features (for developers only)
@@ -1125,6 +1125,16 @@ class Supervertaler:
         # Grid View display options
         self.grid_style_colors_enabled = True  # Toggle for style-based font colors
         
+        # Divider positions for remembering split between left pane and assistance panel
+        self.start_divider_ratio = None  # Save start screen divider ratio
+        self.grid_divider_ratio = None  # Save grid divider ratio when switching views
+        self.document_divider_ratio = None  # Save document divider ratio when switching views
+        self.split_divider_ratio = None  # Save split view divider ratio when switching views
+        
+        # Remember selected tabs when switching views
+        self.saved_assist_tab_index = 0  # Remember which assistance panel tab was selected
+        self.saved_prompt_subtab_index = 0  # Remember which Prompt Manager sub-tab was selected
+        
         # Dual text selection state (for Grid View)
         self.dual_selection_row = None  # Currently active row index
         self.dual_selection_source = None  # Source Text widget with selection
@@ -1356,6 +1366,10 @@ class Supervertaler:
         
         # Right side: Assistance panel (with settings access)
         self.create_assistance_panel(parent_paned=self.start_paned)
+        
+        # Restore start screen divider position if saved
+        if self.start_divider_ratio:
+            self.root.after(500, lambda: self.restore_divider_position(self.start_paned, self.start_divider_ratio))
     
     def show_import_bilingual_menu(self):
         """Show popup menu for bilingual import options"""
@@ -1401,6 +1415,16 @@ class Supervertaler:
     
     def switch_from_start_to_grid(self):
         """Switch from Start Screen to Grid View when document is loaded"""
+        # Save start screen divider position before destroying
+        if hasattr(self, 'start_paned') and self.start_paned.winfo_exists():
+            try:
+                total_width = self.start_paned.winfo_width()
+                if total_width > 0:
+                    divider_pos = self.start_paned.sashpos(0)
+                    self.start_divider_ratio = divider_pos / total_width
+            except:
+                pass
+        
         # Clear content frame
         for widget in self.content_frame.winfo_children():
             widget.destroy()
@@ -1675,6 +1699,11 @@ class Supervertaler:
         
         # Right side: Assistance panel (MT, TM, Glossary, etc.)
         self.create_assistance_panel()
+        
+        # Restore divider position (use grid ratio if available, otherwise use start screen ratio)
+        divider_ratio = self.grid_divider_ratio if self.grid_divider_ratio else self.start_divider_ratio
+        if divider_ratio:
+            self.root.after(500, lambda: self.restore_divider_position(self.grid_paned, divider_ratio))
     
     def create_grid_editor_panel(self):
         """Create the editor panel for Grid View"""
@@ -2246,10 +2275,21 @@ class Supervertaler:
         
         # Build tab buttons and determine which ones fit
         self.assist_current_tab = 0
+        # Restore previously selected tab if available, otherwise show first tab
+        tab_to_show = getattr(self, 'saved_assist_tab_index', 0)
+        if tab_to_show >= len(self.assist_tabs):
+            tab_to_show = 0
+        self._show_assist_tab(tab_to_show)
+        
+        # Build tab buttons AFTER selecting the tab, so the selected tab is prioritized for visibility
         self._build_assist_tab_buttons()
         
-        # Show first tab
-        self._show_assist_tab(0)
+        # Automatically refresh tabs ONLY when explicitly switching between views
+        # The _switching_view flag is set by switch_layout() when user changes views
+        # This prevents auto-refresh during: startup, document import, or project load
+        if getattr(self, '_switching_view', False):
+            self.assist_tab_buttons_frame.after(150, self.refresh_assist_tabs)
+            self._switching_view = False
     
     def _build_assist_tab_buttons(self):
         """Build tab buttons and overflow menu based on available space"""
@@ -2296,30 +2336,42 @@ class Supervertaler:
             total_width = 0
             overflow_index = len(self.assist_tabs)  # All fit by default
             
+            # IMPORTANT: Always ensure the currently selected tab is visible
+            selected_tab_index = getattr(self, 'assist_current_tab', 0)
+            
             for i, tab in enumerate(self.assist_tabs):
                 if tab['button'] and tab['button'].winfo_exists():
                     btn_width = tab['button'].winfo_width() + 2  # +2 for padding
                     total_width += btn_width
                     
                     if total_width > usable_width and overflow_index == len(self.assist_tabs):
-                        # This button doesn't fit
-                        overflow_index = i
+                        # This button doesn't fit, but check if it's the selected tab
+                        if i == selected_tab_index:
+                            # Selected tab must always be visible, continue to next tab
+                            continue
+                        else:
+                            # This button doesn't fit and it's not selected
+                            overflow_index = i
             
             # If some tabs don't fit, move them to overflow menu
             if overflow_index < len(self.assist_tabs):
-                # Hide overflow buttons
+                # Hide overflow buttons (but never hide the selected tab)
                 for i in range(overflow_index, len(self.assist_tabs)):
-                    if self.assist_tabs[i]['button']:
+                    if i != selected_tab_index and self.assist_tabs[i]['button']:
                         self.assist_tabs[i]['button'].pack_forget()
                 
                 # Rebuild overflow menu
                 self.assist_overflow_menu.delete(0, 'end')
                 for i in range(overflow_index, len(self.assist_tabs)):
-                    tab = self.assist_tabs[i]
-                    self.assist_overflow_menu.add_command(
-                        label=tab['name'],
-                        command=lambda idx=i: self._show_assist_tab(idx)
-                    )
+                    if i != selected_tab_index:  # Don't add selected tab to overflow
+                        tab = self.assist_tabs[i]
+                        self.assist_overflow_menu.add_command(
+                            label=tab['name'],
+                            command=lambda idx=i: self._show_assist_tab(idx)
+                        )
+                
+                # Show overflow button
+                self.assist_overflow_btn.pack(side='right', padx=2, pady=2)
                 
                 # Show overflow button
                 self.assist_overflow_btn.pack(side='right', padx=2, pady=2)
@@ -2339,6 +2391,13 @@ class Supervertaler:
         for tab in self.assist_tabs:
             if tab['frame']:
                 tab['frame'].pack_forget()
+        
+        # Make sure the selected tab button is visible (not in overflow)
+        if hasattr(self, 'assist_tabs') and index < len(self.assist_tabs):
+            selected_btn = self.assist_tabs[index].get('button')
+            if selected_btn and not selected_btn.winfo_ismapped():
+                # Tab button is hidden (in overflow menu), rebuild tabs to make it visible
+                self._build_assist_tab_buttons()
         
         # Update button styles
         for i, tab in enumerate(self.assist_tabs):
@@ -2629,6 +2688,12 @@ class Supervertaler:
         list_notebook = ttk.Notebook(left_panel, style='PromptManager.TNotebook')
         list_notebook.pack(fill='both', expand=True, padx=2, pady=2)
         
+        # Store reference for later tab restoration
+        self.pl_list_notebook = list_notebook
+        
+        # Bind tab change to save selection
+        list_notebook.bind('<<NotebookTabChanged>>', lambda e: self.on_prompt_subtab_changed())
+        
         # --- System Prompts Tab ---
         system_tab = tk.Frame(list_notebook, bg='#E3F2FD', relief='solid', borderwidth=1)
         list_notebook.add(system_tab, text='🎯 System Prompts')
@@ -2850,6 +2915,14 @@ class Supervertaler:
         # Create the Prompt Assistant content directly in this tab
         self.create_prompt_assistant_content(assistant_tab)
         
+        # Restore previously selected sub-tab after all tabs are created
+        if hasattr(self, 'saved_prompt_subtab_index'):
+            try:
+                # Schedule restoration after widget is fully rendered
+                list_notebook.after(100, lambda: list_notebook.select(self.saved_prompt_subtab_index))
+            except:
+                pass
+        
         # ===== RIGHT PANEL: Editor =====
         editor_panel = tk.LabelFrame(main_container, text="Prompt Editor", padx=5, pady=5)
         main_container.add(editor_panel, weight=2)
@@ -2926,6 +2999,14 @@ class Supervertaler:
         self._pl_load_style_guides()
     
     # ===== PROMPT MANAGER TAB HELPER FUNCTIONS =====
+    
+    def on_prompt_subtab_changed(self):
+        """Track which Prompt Manager sub-tab is selected"""
+        if hasattr(self, 'pl_list_notebook'):
+            try:
+                self.saved_prompt_subtab_index = self.pl_list_notebook.index(self.pl_list_notebook.select())
+            except:
+                pass
     
     def _pl_load_system_prompts(self):
         """Load system prompts into the tree"""
@@ -4441,11 +4522,8 @@ Professional style guidelines for translating into {language}.
         
         self.project_tree.pack(fill='both', expand=True)
         
-        # Add current project if loaded
-        if self.project_file:
-            self.project_tree.insert('', 'end', 
-                                    text=os.path.basename(self.project_file),
-                                    values=('Today', len(self.segments)))
+        # Populate with recent projects
+        self.populate_project_tree()
         
         # Action buttons
         button_frame = tk.Frame(parent)
@@ -4453,6 +4531,84 @@ Professional style guidelines for translating into {language}.
         
         tk.Button(button_frame, text="📂 Browse Projects", command=self.load_project,
                  bg='#4CAF50', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
+    
+    def populate_project_tree(self):
+        """Populate the project tree with recent projects"""
+        if not hasattr(self, 'project_tree'):
+            return
+        
+        # Clear existing items
+        for item in self.project_tree.get_children():
+            self.project_tree.delete(item)
+        
+        # Add current project if loaded
+        if self.project_file:
+            project_name = os.path.basename(self.project_file)
+            modified = "Current"
+            segments = len(self.segments) if hasattr(self, 'segments') else 0
+            self.project_tree.insert('', 'end', 
+                                    text=project_name,
+                                    values=(modified, segments),
+                                    tags=('current',))
+        
+        # Add recent projects
+        for project_path in self.recent_projects:
+            if project_path != self.project_file and os.path.exists(project_path):
+                project_name = os.path.basename(project_path)
+                try:
+                    # Get modification time
+                    mod_time = os.path.getmtime(project_path)
+                    from datetime import datetime
+                    mod_date = datetime.fromtimestamp(mod_time)
+                    
+                    # Format based on how recent
+                    now = datetime.now()
+                    if mod_date.date() == now.date():
+                        modified = "Today"
+                    elif (now - mod_date).days == 1:
+                        modified = "Yesterday"
+                    elif (now - mod_date).days < 7:
+                        modified = f"{(now - mod_date).days}d ago"
+                    else:
+                        modified = mod_date.strftime("%Y-%m-%d")
+                    
+                    # Try to get segment count from project file
+                    segments = "?"
+                    try:
+                        with open(project_path, 'r', encoding='utf-8') as f:
+                            import json
+                            data = json.load(f)
+                            if 'segments' in data:
+                                segments = len(data['segments'])
+                    except:
+                        pass
+                    
+                    self.project_tree.insert('', 'end',
+                                            text=project_name,
+                                            values=(modified, segments))
+                except:
+                    pass  # Skip if can't read file info
+        
+        # Make project tree items double-clickable to load
+        self.project_tree.bind('<Double-1>', self.on_project_tree_doubleclick)
+    
+    def on_project_tree_doubleclick(self, event):
+        """Handle double-click on project tree item"""
+        selection = self.project_tree.selection()
+        if selection:
+            item = selection[0]
+            project_name = self.project_tree.item(item, 'text')
+            
+            # Find the full path
+            if self.project_file and os.path.basename(self.project_file) == project_name:
+                # Current project - already loaded
+                return
+            
+            # Search in recent projects
+            for project_path in self.recent_projects:
+                if os.path.basename(project_path) == project_name:
+                    self.load_project_from_path(project_path)
+                    break
     
     def create_tm_manager_tab(self, parent):
         """Create TM Manager tab - Load, view, and configure Translation Memory"""
@@ -8166,6 +8322,9 @@ Use this feature AFTER translation to:
         
         self.log(f"Switching to {new_mode} layout...")
         
+        # Set flag to enable auto-refresh of tabs after switching
+        self._switching_view = True
+        
         # Save current segment if editing
         if hasattr(self, 'current_edit_widget') and self.current_edit_widget:
             try:
@@ -8181,6 +8340,44 @@ Use this feature AFTER translation to:
                 self.save_doc_segment()
             except:
                 pass  # Widget already destroyed
+        
+        # Save current divider positions before destroying layout
+        # Also save selected tab indices
+        if hasattr(self, 'assist_current_tab'):
+            self.saved_assist_tab_index = self.assist_current_tab
+        if hasattr(self, 'pl_list_notebook'):
+            try:
+                self.saved_prompt_subtab_index = self.pl_list_notebook.index(self.pl_list_notebook.select())
+            except:
+                pass
+        
+        if self.layout_mode == LayoutMode.GRID and hasattr(self, 'grid_paned'):
+            try:
+                self.grid_paned.update_idletasks()
+                total_width = self.grid_paned.winfo_width()
+                divider_pos = self.grid_paned.sashpos(0)
+                if divider_pos and total_width > 0:
+                    self.grid_divider_ratio = divider_pos / total_width
+            except Exception as e:
+                pass  # Silently ignore divider save errors
+        elif self.layout_mode == LayoutMode.DOCUMENT and hasattr(self, 'main_paned'):
+            try:
+                self.main_paned.update_idletasks()
+                total_width = self.main_paned.winfo_width()
+                divider_pos = self.main_paned.sashpos(0)
+                if divider_pos and total_width > 0:
+                    self.document_divider_ratio = divider_pos / total_width
+            except Exception as e:
+                pass
+        elif self.layout_mode == LayoutMode.SPLIT and hasattr(self, 'main_paned'):
+            try:
+                self.main_paned.update_idletasks()
+                total_width = self.main_paned.winfo_width()
+                divider_pos = self.main_paned.sashpos(0)
+                if divider_pos and total_width > 0:
+                    self.split_divider_ratio = divider_pos / total_width
+            except Exception as e:
+                pass
         
         # Remember current selection from any view mode
         current_seg_id = None
@@ -8204,6 +8401,9 @@ Use this feature AFTER translation to:
         # Rebuild UI based on layout mode
         if new_mode == LayoutMode.GRID:
             self.create_grid_layout()
+            # Restore divider position after layout creation
+            if self.grid_divider_ratio:
+                self.root.after(500, lambda: self.restore_divider_position(self.grid_paned, self.grid_divider_ratio))
             self.load_segments_to_grid()
             # Restore selection
             if current_seg_id:
@@ -8213,6 +8413,9 @@ Use this feature AFTER translation to:
                         break
         elif new_mode == LayoutMode.SPLIT:
             self.create_split_layout()
+            # Restore divider position after layout creation
+            if self.split_divider_ratio:
+                self.root.after(500, lambda: self.restore_divider_position(self.main_paned, self.split_divider_ratio))
             self.load_segments_to_tree()
             # Restore selection
             if current_seg_id:
@@ -8225,6 +8428,9 @@ Use this feature AFTER translation to:
                         break
         elif new_mode == LayoutMode.DOCUMENT:
             self.create_document_layout()
+            # Restore divider position after layout creation
+            if self.document_divider_ratio:
+                self.root.after(500, lambda: self.restore_divider_position(self.main_paned, self.document_divider_ratio))
             self.load_segments_to_document()
             # Restore selection by clicking first segment
             if current_seg_id and current_seg_id in self.doc_segment_widgets:
@@ -8239,6 +8445,19 @@ Use this feature AFTER translation to:
             LayoutMode.DOCUMENT: "Document View (Flow)"
         }
         self.log(f"✓ Switched to {mode_names.get(new_mode, new_mode)}")
+    
+    def restore_divider_position(self, paned_window, ratio):
+        """Restore divider position in a PanedWindow based on ratio"""
+        try:
+            if paned_window and paned_window.winfo_exists():
+                paned_window.update()
+                total_width = paned_window.winfo_width()
+                if total_width > 0 and ratio:
+                    new_pos = int(total_width * ratio)
+                    paned_window.sashpos(0, new_pos)
+                    paned_window.update()
+        except Exception as e:
+            pass  # Silently ignore restoration errors
     
     def update_layout_buttons(self):
         """Update layout button visual states"""
@@ -12346,15 +12565,12 @@ Use this feature AFTER translation to:
             if self.original_docx and os.path.exists(self.original_docx):
                 self.docx_handler.import_docx(self.original_docx)
             
-            # Load to grid
-            self.load_segments_to_grid()
-            
-            # Switch from Start Screen to Grid View if needed
+            # Switch from Start Screen to Grid View if needed (BEFORE loading to grid)
             if hasattr(self, 'start_paned'):
                 self.switch_from_start_to_grid()
-            else:
-                # Refresh display if already in grid view
-                self.refresh_display()
+            
+            # Load to grid (AFTER switching from start screen)
+            self.load_segments_to_grid()
             
             self.modified = False
             self.log(f"✓ Project loaded: {os.path.basename(file_path)}")
@@ -12421,6 +12637,10 @@ Use this feature AFTER translation to:
         # Save and update menu
         self.save_recent_projects()
         self.update_recent_projects_menu()
+        
+        # Also update the project tree if it exists
+        if hasattr(self, 'project_tree'):
+            self.populate_project_tree()
     
     def update_recent_projects_menu(self):
         """Update the Recent Projects menu"""

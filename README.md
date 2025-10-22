@@ -1,8 +1,8 @@
-# Supervertaler v3.7.1
+# Supervertaler v3.7.2
 
 🎯 **Context-aware, LLM-powered CAT editor for professional translators** — Revolutionary segment-based translation tool with AI-enhanced prompts, PDF Rescue OCR, and seamless CAT tool integration.
 
-**Latest Version**: v3.7.1 (October 20, 2025)
+**Latest Version**: v3.7.2 (October 22, 2025)
 
 ---
 
@@ -21,9 +21,18 @@ Supervertaler is a **professional Computer-Aided Translation (CAT) editor** desi
 
 ---
 
-## 🚀 Current Version: v3.7.1
+## 🚀 Current Version: v3.7.2
 
 **File**: `Supervertaler_v3.7.1.py`
+
+### 📌 What's New in v3.7.2
+
+🎨 **UX Polish & Memory Updates** (v3.7.2 - October 22, 2025):
+- **Divider Position Memory** - All paned window dividers remember their position (start screen, grid, document, split views)
+- **Tab Memory System** - Selected assistance panel tab and Prompt Manager sub-tab preserved when switching views
+- **Project List Display** - Projects tab shows all recent projects (not just current)
+- **Auto-Refresh Tabs** - Automatically maximizes visible tabs when switching views
+- **Bug Fixes** - Fixed grid blanking on project load, tab overflow logic, auto-refresh loop
 
 ### 📌 What's New in v3.7.1
 

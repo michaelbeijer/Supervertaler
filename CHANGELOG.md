@@ -1,10 +1,45 @@
 # Supervertaler - Complete Changelog
 
-**Latest Version**: v3.7.1 (2025-10-20)  
+**Latest Version**: v3.7.2 (2025-10-22)  
 **Product**: Unified Supervertaler (v3.x CAT Edition)  
 **Status**: Active Development
 
 > As of v3.7.1, Supervertaler is a unified product focusing exclusively on the CAT (Computer-Aided Translation) editor experience. The previous Classic Edition (v2.x) is archived for reference but no longer actively developed.
+
+---
+
+## [3.7.2] - 2025-10-22 🎨 UX POLISH & MEMORY UPDATE
+
+### ✨ USER EXPERIENCE IMPROVEMENTS
+
+**Layout Memory Enhancements**:
+- **🔲 Divider Position Memory** - All paned window dividers now remember their position:
+  - Start screen divider (splash screen ↔ assistance panel)
+  - Grid view divider (grid ↔ assistance panel)
+  - Document view divider (document ↔ assistance panel)
+  - Split view divider (list ↔ assistance panel)
+  - Positions preserved when switching views and across app restarts
+  - Uses ratio-based storage for proper scaling across window sizes
+
+**Tab Memory System**:
+- **📑 Assistance Panel Tab Memory** - Selected tab remembered when switching views
+- **📚 Prompt Manager Sub-Tab Memory** - Sub-tab selection (System Prompts, Custom Instructions, etc.) preserved
+- **📂 Project List Display** - Projects tab now shows ALL recent projects (not just current)
+- **🔄 Auto-Refresh Tabs** - Automatically maximizes visible tabs when switching views (no manual "Refresh Tabs" click needed)
+
+**Bug Fixes**:
+- **🐛 Fixed Grid Blanking on Project Load** - Corrected operation order in `load_project_from_path()` (switch to grid BEFORE loading segments)
+- **🐛 Fixed Tab Overflow Logic** - Selected tab always visible after view switch (never hidden in overflow menu)
+- **🐛 Fixed Auto-Refresh Loop** - Auto-refresh only triggers during explicit view switches (not on startup or document import)
+
+**Technical Details**:
+- Divider positions stored as ratios (position ÷ total width) for proper scaling
+- 500ms delay before restoration to allow UI rendering
+- `_switching_view` flag ensures auto-refresh only during user-initiated view changes
+- Prompt Manager sub-tab restoration uses `ttk.Notebook.select()` with 100ms delay
+
+### 📝 Files Modified
+- `Supervertaler_v3.7.1.py` - Enhanced layout memory, tab restoration, project tree population
 
 ---
 
