@@ -565,6 +565,13 @@ body {
     opacity: 0.9;
 }
 
+.about-name-note {
+    font-size: 0.95rem !important;
+    opacity: 0.7 !important;
+    margin-top: 1.5rem !important;
+    font-style: italic;
+}
+
 /* =============================================
    AI-First Philosophy Section
    ============================================= */

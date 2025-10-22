@@ -25,6 +25,14 @@
 
 Supervertaler is a context-aware, LLM-powered translation and proofreading tool designed specifically for professional translators. It leverages multiple AI providers (OpenAI GPT-4, Anthropic Claude, Google Gemini) and multiple context sources (translation memory, tracked changes, custom instructions, full document context) to deliver highly accurate translations that maintain consistency and domain expertise.
 
+### What does "Supervertaler" mean?
+
+**Supervertaler** is Dutch for "super translator" (*super* = super, *vertaler* = translator). 
+
+The name reflects the creator's Dutch-American heritage and adds a bit of international flair to a tool designed for translators worldwide. It's also delightfully straightforward—no clever acronyms, no marketing gymnastics, just a Dutch word that does exactly what it says on the tin: translates, superbly.
+
+Plus, it's fun to say. Try it: *"Soo-per-ver-TAH-ler"*. See? You're smiling already. 😊
+
 ### Who created Supervertaler?
 
 Supervertaler was created by **Michael Beijer**, a professional translator and language technology enthusiast, with assistance from AI coding assistants. The project represents a collaboration between human expertise in translation workflows and AI capabilities in software development.
