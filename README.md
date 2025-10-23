@@ -1,8 +1,8 @@
-# Supervertaler v3.7.3
+# Supervertaler v3.7.4
 
 🎯 **Context-aware, LLM-powered CAT editor for professional translators** — Revolutionary segment-based translation tool with AI-enhanced prompts, PDF Rescue OCR, and seamless CAT tool integration.
 
-**Latest Version**: v3.7.3 (October 23, 2025)
+**Latest Version**: v3.7.4 (October 23, 2025)
 
 ---
 
@@ -21,9 +21,27 @@ Supervertaler is a **professional Computer-Aided Translation (CAT) editor** desi
 
 ---
 
-## 🚀 Current Version: v3.7.2
+## 🚀 Current Version: v3.7.4
 
-**File**: `Supervertaler_v3.7.1.py`
+**File**: `Supervertaler_v3.7.4.py`
+
+### 📌 What's New in v3.7.4
+
+🎯 **CAT Tool Features & Performance** (v3.7.4 - October 23, 2025):
+- **Keep Segment in Middle** - Optional CAT tool mode keeps active segment centered in grid (like memoQ)
+- **Smart Pagination** - Fast navigation to next untranslated segment across pages (optimized for 500+ segments)
+- **Ctrl+Enter Page Jumping** - Inline editing now jumps to untranslated segments on any page
+- **List View Fixed** - Resolved widget destruction errors when switching views
+- **UI Preferences System** - All settings (view options, auto-exports) now saved and restored
+- **Settings Consolidation** - View settings now available in Settings pane alongside export options
+
+### 📌 What's New in v3.7.3
+
+🗄️ **Database Backend & TM Enhancements** (v3.7.3 - October 23, 2025):
+- **SQLite Database Backend** - Replaced pickle with SQLite for TM storage (faster, more reliable)
+- **FTS5 Full-Text Search** - Lightning-fast concordance search with word-level highlighting
+- **Delete TM Entries** - Right-click context menu to remove unwanted TM entries
+- **Project Cleanup** - Reorganized repository structure for better development workflow
 
 ### 📌 What's New in v3.7.2
 

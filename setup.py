@@ -15,15 +15,15 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 # Read version from main module
 def get_version():
-    """Extract version from Supervertaler_v3.7.3.py"""
+    """Extract version from Supervertaler_v3.7.4.py"""
     try:
-        with open("Supervertaler_v3.7.3.py", "r", encoding="utf-8") as f:
+        with open("Supervertaler_v3.7.4.py", "r", encoding="utf-8") as f:
             for line in f:
                 if line.startswith("APP_VERSION"):
                     return line.split("=")[1].strip().strip('"')
     except FileNotFoundError:
         pass
-    return "3.7.3"
+    return "3.7.4"
 
 setup(
     name="Supervertaler",

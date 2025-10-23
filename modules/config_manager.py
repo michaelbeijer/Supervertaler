@@ -388,6 +388,35 @@ class ConfigManager:
         except Exception as e:
             return False, f"User data path is not writable: {e}"
     
+    def get_preferences_path(self) -> str:
+        """Get the path to the UI preferences file."""
+        user_data_path = self.get_user_data_path()
+        return os.path.join(user_data_path, 'ui_preferences.json')
+    
+    def load_preferences(self) -> dict:
+        """Load UI preferences from file."""
+        prefs_path = self.get_preferences_path()
+        if os.path.exists(prefs_path):
+            try:
+                with open(prefs_path, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            except (json.JSONDecodeError, IOError) as e:
+                print(f"[Config] Error loading preferences: {e}")
+        return {}
+    
+    def save_preferences(self, preferences: dict) -> bool:
+        """Save UI preferences to file."""
+        prefs_path = self.get_preferences_path()
+        try:
+            # Ensure directory exists
+            os.makedirs(os.path.dirname(prefs_path), exist_ok=True)
+            with open(prefs_path, 'w', encoding='utf-8') as f:
+                json.dump(preferences, f, indent=2, ensure_ascii=False)
+            return True
+        except IOError as e:
+            print(f"[Config] Error saving preferences: {e}")
+            return False
+    
     def get_all_config_info(self) -> dict:
         """Get all configuration information for debugging."""
         return {

@@ -1,5 +1,5 @@
-"""  
-Supervertaler v3.7.3
+"""
+Supervertaler v3.7.4
 Unified Professional AI-Powered Computer-Aided Translation ToolFeatures:
 - 🤖 Multiple AI Providers (OpenAI GPT-4, Anthropic Claude, Google Gemini)
 - 📄 PDF Rescue - AI-Powered OCR Tool (GPT-4 Vision)
@@ -763,7 +763,7 @@ class Supervertaler:
         migrate_old_folder_structure()
         
         self.root = root
-        self.root.title("Supervertaler v3.7.3 - AI-Powered CAT Tool")
+        self.root.title("Supervertaler v3.7.4 - AI-Powered CAT Tool")
         self.root.geometry("1200x800")
         
         # Layout mode
@@ -789,6 +789,12 @@ class Supervertaler:
         self.filtered_segments = []
         self.filter_active = False
         self.filter_mode = 'filter'  # 'filter' or 'highlight' - initialized early to prevent AttributeError
+        
+        # Load UI preferences
+        self.ui_preferences = self.load_ui_preferences()
+        
+        # Grid view settings
+        self.keep_segment_centered = tk.BooleanVar(value=self.ui_preferences.get('keep_segment_centered', False))  # CAT tool: keep active segment in middle
         
         # Components
         self.segmenter = SimpleSegmenter()
@@ -1061,7 +1067,7 @@ class Supervertaler:
         self.style_guide_library.load_all_guides()
         
         # Status
-        self.log("Supervertaler v3.7.3 ready. Import a DOCX file to begin.")
+        self.log("Supervertaler v3.7.4 ready. Import a DOCX file to begin.")
         self.log(f"✨ LLM APIs: OpenAI={OPENAI_AVAILABLE}, Claude={ANTHROPIC_AVAILABLE}, Gemini={GEMINI_AVAILABLE}")
         self.log("✨ Layout modes available: Grid (memoQ-style), List, Document")
     
@@ -1207,6 +1213,8 @@ class Supervertaler:
         view_menu.add_separator()
         view_menu.add_command(label="Grid columns...", command=self.show_column_visibility_dialog)
         view_menu.add_command(label="Toggle style colors", command=self.toggle_grid_style_colors)
+        view_menu.add_separator()
+        view_menu.add_checkbutton(label="Keep segment in middle", variable=self.keep_segment_centered, command=self.save_ui_preferences)
         view_menu.add_separator()
         
         # Assistant panel layout submenu
@@ -1485,7 +1493,7 @@ class Supervertaler:
         tk.Label(center_frame, text="Supervertaler", 
                 font=('Segoe UI', 32, 'bold'), bg='#f5f5f5', fg='#2196F3').pack(pady=(0, 5))
         
-        tk.Label(center_frame, text="v3.7.3", 
+        tk.Label(center_frame, text="v3.7.4", 
                 font=('Segoe UI', 14), bg='#f5f5f5', fg='#666').pack(pady=(0, 20))
         
         # Subtitle
@@ -2057,23 +2065,42 @@ class Supervertaler:
         current_id = self.current_segment.id
         next_untranslated = None
         
-        for seg in self.segments:
+        # Use filtered segments if filter is active, otherwise all segments
+        segments_to_search = self.filtered_segments if self.filter_active else self.segments
+        
+        for seg in segments_to_search:
             if seg.id > current_id and seg.status == 'untranslated':
                 next_untranslated = seg
                 break
         
-        # If found, navigate to it
+        # If found, navigate to it (layout-aware)
         if next_untranslated:
-            # Find the tree item with this segment ID
-            for item in self.tree.get_children():
-                values = self.tree.item(item, 'values')
-                if int(values[0]) == next_untranslated.id:
-                    self.tree.selection_set(item)
-                    self.tree.see(item)
-                    self.select_grid_row(self.tree.index(item))
-                    break
+            if self.layout_mode == LayoutMode.GRID:
+                # Grid View: Find in grid_rows (current page) or load the page containing it
+                found_in_current_page = False
+                for idx, row_data in enumerate(self.grid_rows):
+                    if row_data['segment'].id == next_untranslated.id:
+                        self.select_grid_row(idx)
+                        found_in_current_page = True
+                        break
+                
+                if not found_in_current_page:
+                    # Segment is on a different page - use the optimized reload with target
+                    self.reload_grid_with_filters(target_segment_id=next_untranslated.id)
+                    
+            elif self.layout_mode == LayoutMode.SPLIT:
+                # List View: Find in tree
+                for item in self.tree.get_children():
+                    values = self.tree.item(item, 'values')
+                    if int(values[0]) == next_untranslated.id:
+                        self.tree.selection_set(item)
+                        self.tree.see(item)
+                        break
+            elif self.layout_mode == LayoutMode.DOCUMENT:
+                # Document View: Navigate to segment
+                self.jump_to_segment_in_document(next_untranslated.id)
         else:
-            self.log("No more untranslated segments")
+            self.log("✓ No more untranslated segments")
     
     def load_segment_to_grid_editor(self, segment):
         """Load a segment into the grid editor panel"""
@@ -6641,6 +6668,15 @@ Available features you can recommend:
         tk.Button(lang_buttons, text="✏️ Edit Language List", command=self.edit_language_list,
                  bg='#2196F3', fg='white', font=('Segoe UI', 9)).pack(side='left')
         
+        # View Settings
+        view_frame = tk.LabelFrame(parent, text="View Settings", padx=10, pady=10)
+        view_frame.pack(fill='x', padx=5, pady=5)
+        
+        tk.Checkbutton(view_frame, text="Keep active segment in middle of grid (like memoQ)",
+                      variable=self.keep_segment_centered, font=('Segoe UI', 9), command=self.save_ui_preferences).pack(anchor='w', pady=2)
+        tk.Label(view_frame, text="  ⓘ When enabled, the grid scrolls to keep the active segment centered vertically",
+                font=('Segoe UI', 8), fg='gray').pack(anchor='w', padx=20)
+        
         # Translation Preferences
         pref_frame = tk.LabelFrame(parent, text="Translation Preferences", padx=10, pady=10)
         pref_frame.pack(fill='x', padx=5, pady=5)
@@ -6694,45 +6730,45 @@ Available features you can recommend:
         reports_subframe = tk.Frame(export_frame)
         reports_subframe.pack(anchor='w', fill='x', pady=2)
         
-        self.auto_export_session_md_var = tk.BooleanVar(value=True)
+        self.auto_export_session_md_var = tk.BooleanVar(value=self.ui_preferences.get('auto_export_session_md', True))
         tk.Checkbutton(reports_subframe, text="Session Report (.md)",
-                      variable=self.auto_export_session_md_var, font=('Segoe UI', 9)).pack(side='left', padx=(0, 20))
+                      variable=self.auto_export_session_md_var, font=('Segoe UI', 9), command=self.save_ui_preferences).pack(side='left', padx=(0, 20))
         
-        self.auto_export_session_html_var = tk.BooleanVar(value=True)
+        self.auto_export_session_html_var = tk.BooleanVar(value=self.ui_preferences.get('auto_export_session_html', True))
         tk.Checkbutton(reports_subframe, text="Session Report (.html)",
-                      variable=self.auto_export_session_html_var, font=('Segoe UI', 9)).pack(side='left')
+                      variable=self.auto_export_session_html_var, font=('Segoe UI', 9), command=self.save_ui_preferences).pack(side='left')
         
         # Translation memory and exchange formats
         tm_subframe = tk.Frame(export_frame)
         tm_subframe.pack(anchor='w', fill='x', pady=2)
         
-        self.auto_export_tmx_var = tk.BooleanVar(value=True)
+        self.auto_export_tmx_var = tk.BooleanVar(value=self.ui_preferences.get('auto_export_tmx', True))
         tk.Checkbutton(tm_subframe, text="Translation Memory (.tmx)",
-                      variable=self.auto_export_tmx_var, font=('Segoe UI', 9)).pack(side='left', padx=(0, 20))
+                      variable=self.auto_export_tmx_var, font=('Segoe UI', 9), command=self.save_ui_preferences).pack(side='left', padx=(0, 20))
         
-        self.auto_export_tsv_var = tk.BooleanVar(value=False)
+        self.auto_export_tsv_var = tk.BooleanVar(value=self.ui_preferences.get('auto_export_tsv', False))
         tk.Checkbutton(tm_subframe, text="Tab-separated (.tsv)",
-                      variable=self.auto_export_tsv_var, font=('Segoe UI', 9)).pack(side='left')
+                      variable=self.auto_export_tsv_var, font=('Segoe UI', 9), command=self.save_ui_preferences).pack(side='left')
         
         # Bilingual formats
         bilingual_subframe = tk.Frame(export_frame)
         bilingual_subframe.pack(anchor='w', fill='x', pady=2)
         
-        self.auto_export_bilingual_txt_var = tk.BooleanVar(value=False)
+        self.auto_export_bilingual_txt_var = tk.BooleanVar(value=self.ui_preferences.get('auto_export_bilingual_txt', False))
         tk.Checkbutton(bilingual_subframe, text="Bilingual Text (.txt)",
-                      variable=self.auto_export_bilingual_txt_var, font=('Segoe UI', 9)).pack(side='left', padx=(0, 20))
+                      variable=self.auto_export_bilingual_txt_var, font=('Segoe UI', 9), command=self.save_ui_preferences).pack(side='left', padx=(0, 20))
         
-        self.auto_export_xliff_var = tk.BooleanVar(value=False)
+        self.auto_export_xliff_var = tk.BooleanVar(value=self.ui_preferences.get('auto_export_xliff', False))
         tk.Checkbutton(bilingual_subframe, text="XLIFF (.xliff)",
-                      variable=self.auto_export_xliff_var, font=('Segoe UI', 9)).pack(side='left')
+                      variable=self.auto_export_xliff_var, font=('Segoe UI', 9), command=self.save_ui_preferences).pack(side='left')
         
         # Excel format
         excel_subframe = tk.Frame(export_frame)
         excel_subframe.pack(anchor='w', fill='x', pady=2)
         
-        self.auto_export_excel_var = tk.BooleanVar(value=True)
+        self.auto_export_excel_var = tk.BooleanVar(value=self.ui_preferences.get('auto_export_excel', True))
         tk.Checkbutton(excel_subframe, text="Excel Bilingual (.xlsx)",
-                      variable=self.auto_export_excel_var, font=('Segoe UI', 9)).pack(side='left')
+                      variable=self.auto_export_excel_var, font=('Segoe UI', 9), command=self.save_ui_preferences).pack(side='left')
         
         tk.Label(export_frame, text="  ⓘ Exports will be saved in the same directory as your primary export",
                 font=('Segoe UI', 8), fg='gray').pack(anchor='w', pady=(5, 0))
@@ -7801,7 +7837,7 @@ Use this feature AFTER translation to:
                  bg='#4CAF50', fg='white', font=('Segoe UI', 8, 'bold')).pack(side='right')
         
         # Right side: Assistance panel
-        self.create_assistance_panel()
+        self.create_assistance_panel(self.main_paned)
     
     def create_document_layout(self):
         """Create Document View layout - shows text in document flow with clickable segments"""
@@ -8743,16 +8779,21 @@ Use this feature AFTER translation to:
             # Restore divider position after layout creation
             if self.split_divider_ratio:
                 self.root.after(500, lambda: self.restore_divider_position(self.main_paned, self.split_divider_ratio))
-            self.load_segments_to_tree()
-            # Restore selection
-            if current_seg_id:
-                for item in self.tree.get_children():
-                    if int(self.tree.item(item)['values'][0]) == current_seg_id:
-                        self.tree.selection_set(item)
-                        self.tree.see(item)
-                        # Trigger selection event to load segment in editor
-                        self.on_segment_select(None)
-                        break
+            # Ensure tree is ready before loading segments
+            self.root.update_idletasks()
+            if self.segments:  # Only load if we have segments
+                self.load_segments_to_tree()
+                # Restore selection
+                if current_seg_id:
+                    for item in self.tree.get_children():
+                        if int(self.tree.item(item)['values'][0]) == current_seg_id:
+                            self.tree.selection_set(item)
+                            self.tree.see(item)
+                            # Trigger selection event to load segment in editor
+                            self.on_segment_select(None)
+                            break
+            else:
+                self.log("⚠ No segments to display in List View")
         elif new_mode == LayoutMode.DOCUMENT:
             self.create_document_layout()
             # Restore divider position after layout creation
@@ -9424,7 +9465,7 @@ Use this feature AFTER translation to:
         # Update selection counter
         self.update_selection_counter()
         
-        # Ensure row is visible - scroll to it smoothly
+        # Ensure row is visible - scroll to it (centered if option enabled)
         try:
             self.grid_canvas.update_idletasks()
             
@@ -9438,18 +9479,26 @@ Use this feature AFTER translation to:
             if len(scroll_region) == 4:
                 total_height = float(scroll_region[3])
                 
-                # Check if row is visible
-                current_view = self.grid_canvas.yview()
-                view_top = current_view[0] * total_height
-                view_bottom = current_view[1] * total_height
-                
-                # Only scroll if row is not fully visible
-                if row_y < view_top:
-                    # Row is above viewport - scroll to show it at top
-                    self.grid_canvas.yview_moveto(row_y / total_height)
-                elif row_y + row_height > view_bottom:
-                    # Row is below viewport - scroll to show it at bottom
-                    self.grid_canvas.yview_moveto((row_y + row_height - canvas_height) / total_height)
+                if self.keep_segment_centered.get():
+                    # CAT tool mode: Keep segment centered (like memoQ)
+                    # Calculate position to center the row vertically
+                    center_position = row_y - (canvas_height / 2) + (row_height / 2)
+                    # Clamp to valid range
+                    center_position = max(0, min(center_position, total_height - canvas_height))
+                    self.grid_canvas.yview_moveto(center_position / total_height)
+                else:
+                    # Minimal scroll mode: Only scroll if row is not visible
+                    current_view = self.grid_canvas.yview()
+                    view_top = current_view[0] * total_height
+                    view_bottom = current_view[1] * total_height
+                    
+                    # Only scroll if row is not fully visible
+                    if row_y < view_top:
+                        # Row is above viewport - scroll to show it at top
+                        self.grid_canvas.yview_moveto(row_y / total_height)
+                    elif row_y + row_height > view_bottom:
+                        # Row is below viewport - scroll to show it at bottom
+                        self.grid_canvas.yview_moveto((row_y + row_height - canvas_height) / total_height)
         except (tk.TclError, ValueError, ZeroDivisionError):
             pass  # Geometry not ready or widget destroyed
         
@@ -10096,22 +10145,37 @@ Use this feature AFTER translation to:
         
         # Move to next if requested
         if go_next:
-            # Find next untranslated segment
+            # Find next untranslated segment (search ALL segments, not just current page)
             current_id = segment.id
-            next_untranslated_index = None
+            next_untranslated = None
             
-            for i in range(self.current_row_index + 1, len(self.grid_rows)):
-                if self.grid_rows[i]['segment'].status == 'untranslated':
-                    next_untranslated_index = i
+            # Use filtered segments if filter is active, otherwise all segments
+            segments_to_search = self.filtered_segments if self.filter_active else self.segments
+            
+            for seg in segments_to_search:
+                if seg.id > current_id and seg.status == 'untranslated':
+                    next_untranslated = seg
                     break
             
-            if next_untranslated_index is not None:
-                # Navigate to next untranslated segment
-                self.select_grid_row(next_untranslated_index)
-                # Automatically enter edit mode on the next segment
-                self.root.after(50, self.enter_edit_mode)  # Small delay to ensure row is selected
+            if next_untranslated:
+                # First, check if it's on the current page
+                next_index_in_page = None
+                for i in range(self.current_row_index + 1, len(self.grid_rows)):
+                    if self.grid_rows[i]['segment'].id == next_untranslated.id:
+                        next_index_in_page = i
+                        break
+                
+                if next_index_in_page is not None:
+                    # It's on current page - navigate normally
+                    self.select_grid_row(next_index_in_page)
+                    self.root.after(50, self.enter_edit_mode)
+                else:
+                    # It's on a different page - jump to that page
+                    self.reload_grid_with_filters(target_segment_id=next_untranslated.id)
+                    # Enter edit mode after page loads
+                    self.root.after(100, self.enter_edit_mode)
             else:
-                self.log("No more untranslated segments")
+                self.log("✓ No more untranslated segments")
                 self.grid_canvas.focus_set()
         else:
             # Return focus to canvas
@@ -11703,6 +11767,10 @@ Use this feature AFTER translation to:
         if not hasattr(self, 'segments') or not self.segments:
             return
         
+        # Store current segment ID before filtering (for restoration when clearing)
+        if hasattr(self, 'current_segment') and self.current_segment:
+            self.segment_before_filter = self.current_segment.id
+        
         source_filter = self.filter_source_var.get().strip().lower()
         target_filter = self.filter_target_var.get().strip().lower()
         status_filter = self.filter_status_var.get()
@@ -11768,17 +11836,22 @@ Use this feature AFTER translation to:
                 )
         
         # Reload the grid with filtered segments
-        self.reload_grid_with_filters()
+        # If we're clearing filters (no filter active) and have a stored segment, navigate to it
+        target_segment = None
+        if not self.filter_active and hasattr(self, 'segment_before_filter'):
+            target_segment = self.segment_before_filter
+            delattr(self, 'segment_before_filter')  # Clean up
+        
+        self.reload_grid_with_filters(target_segment_id=target_segment)
     
     def clear_filters(self):
-        """Clear all filters"""
+        """Clear all filters (user must click Apply to see results)"""
         self.filter_source_var.set("")
         self.filter_target_var.set("")
         self.filter_status_var.set("All")
-        self.filter_active = False
         if hasattr(self, 'filter_results_label') and self.filter_results_label.winfo_exists():
             self.filter_results_label.config(text="")
-        self.log("✓ Filters cleared")
+        self.log("✓ Filters cleared - click Apply to update view")
     
     def toggle_filter_mode(self):
         """Toggle between filter and highlight modes (Ctrl+M)"""
@@ -11845,29 +11918,55 @@ Use this feature AFTER translation to:
             
             start_pos += len(search_text)
     
-    def reload_grid_with_filters(self):
-        """Reload the current view with filtered segments"""
+    def reload_grid_with_filters(self, target_segment_id=None):
+        """Reload the current view with filtered segments
+        
+        Args:
+            target_segment_id: If provided, navigate to this segment after reload
+        """
         # Clear selection when filter changes (selected segments may not be visible)
         self.selected_segments.clear()
         self.last_selected_index = None
         self.update_selection_counter()
         
         if self.layout_mode == LayoutMode.GRID:
-            # Grid View: Clear and rebuild grid
-            self.grid_rows = []
-            for widget in self.grid_inner_frame.winfo_children():
-                widget.destroy()
-            
             # Use filtered segments if filter is active, otherwise all segments
-            segments_to_show = self.filtered_segments if self.filter_active else self.segments
+            all_segments = self.filtered_segments if self.filter_active else self.segments
             
-            # Add filtered segments to grid
-            for seg in segments_to_show:
-                self.add_grid_row(seg)
+            # OPTIMIZATION: If we have a target segment, calculate which page it's on
+            # and jump directly to that page instead of loading all segments
+            if target_segment_id and all_segments:
+                # Find the segment's index in the full list
+                target_global_index = None
+                for idx, seg in enumerate(all_segments):
+                    if seg.id == target_segment_id:
+                        target_global_index = idx
+                        break
+                
+                if target_global_index is not None:
+                    # Calculate which page this segment is on
+                    if self.page_size_var.get() == 'All':
+                        page_size = len(all_segments)
+                    else:
+                        page_size = int(self.page_size_var.get())
+                    
+                    target_page = target_global_index // page_size
+                    self.grid_current_page = target_page
+                    
+                    # Load that page using the optimized pagination system
+                    self.load_segments_to_grid()
+                    
+                    # Now find the segment in the current page and select it
+                    start_idx = target_page * page_size
+                    target_page_index = target_global_index - start_idx
+                    
+                    if target_page_index < len(self.grid_rows):
+                        self.select_grid_row(target_page_index)
+                        self.log(f"✓ Navigated to segment {target_global_index + 1} (page {target_page + 1})")
+                    return
             
-            # Select first row if available
-            if self.grid_rows:
-                self.select_grid_row(0)
+            # No target segment or not found - use standard load
+            self.load_segments_to_grid()
         
         elif self.layout_mode == LayoutMode.SPLIT:
             # List View: Reload tree
@@ -11876,8 +11975,10 @@ Use this feature AFTER translation to:
         elif self.layout_mode == LayoutMode.DOCUMENT:
             # Document View: Reload document
             self.load_segments_to_document()
+        
         # Log the filter result
         if self.filter_active:
+            segments_to_show = self.filtered_segments if self.filter_active else self.segments
             self.log(f"🔍 Filter applied: {len(segments_to_show)} segments match")
     
     def load_segments_to_grid(self):
@@ -13109,6 +13210,37 @@ Use this feature AFTER translation to:
                 json.dump({'recent': self.recent_projects}, f, indent=2)
         except Exception as e:
             self.log(f"⚠ Failed to save recent projects: {e}")
+    
+    def load_ui_preferences(self):
+        """Load UI preferences from config"""
+        try:
+            from modules.config_manager import get_config_manager
+            config = get_config_manager()
+            return config.load_preferences()
+        except:
+            return {}
+    
+    def save_ui_preferences(self):
+        """Save UI preferences to config"""
+        try:
+            from modules.config_manager import get_config_manager
+            config = get_config_manager()
+            
+            # Gather all preferences
+            preferences = {
+                'keep_segment_centered': self.keep_segment_centered.get(),
+                'auto_export_session_md': self.auto_export_session_md_var.get(),
+                'auto_export_session_html': self.auto_export_session_html_var.get(),
+                'auto_export_tmx': self.auto_export_tmx_var.get(),
+                'auto_export_tsv': self.auto_export_tsv_var.get(),
+                'auto_export_bilingual_txt': self.auto_export_bilingual_txt_var.get(),
+                'auto_export_xliff': self.auto_export_xliff_var.get(),
+                'auto_export_excel': self.auto_export_excel_var.get(),
+            }
+            
+            config.save_preferences(preferences)
+        except Exception as e:
+            print(f"Error saving preferences: {e}")
     
     def add_recent_project(self, file_path):
         """Add a project to recent projects list"""

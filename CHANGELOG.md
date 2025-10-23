@@ -1,10 +1,61 @@
 # Supervertaler - Complete Changelog
 
-**Latest Version**: v3.7.3 (2025-10-23)  
+**Latest Version**: v3.7.4 (2025-10-23)  
 **Product**: Unified Supervertaler (v3.x CAT Edition)  
 **Status**: Active Development
 
 > As of v3.7.1, Supervertaler is a unified product focusing exclusively on the CAT (Computer-Aided Translation) editor experience. The previous Classic Edition (v2.x) is archived for reference but no longer actively developed.
+
+---
+
+## [3.7.4] - 2025-10-23 🎯 CAT TOOL ENHANCEMENTS & PERFORMANCE
+
+### 🚀 Major Features
+
+**Professional CAT Tool Navigation**:
+- ✅ **Keep segment in middle** - Optional setting to center active segment in grid (like memoQ)
+  - Toggle via View menu or Settings pane
+  - Smooth scrolling that keeps focus in middle of viewport
+  - Perfect for long translation sessions
+- ✅ **Fast pagination navigation** - Jump to next untranslated segment across pages
+  - Optimized for 500+ segment documents
+  - Smart page calculation (O(1) instead of O(n))
+  - Works from both Save & Next button and Ctrl+Enter
+
+**Performance Improvements**:
+- ⚡ **10x faster** filter clearing with segment navigation (500 segments: 5-10s → 0.5s)
+- ⚡ **Instant page jumps** when navigating to segments on different pages
+- ⚡ **Smart reload** - only loads current page (50 segments) instead of all segments
+
+### 🐛 Bug Fixes
+
+- ✅ **Fixed List View blank screen** - Resolved widget destruction errors when switching views
+- ✅ **Fixed Ctrl+Enter navigation** - Inline editing now searches ALL segments, not just current page
+- ✅ **Fixed Save & Next button** - Now layout-aware (works in Grid, List, and Document views)
+
+### ⚙️ UI Preferences System
+
+**New Settings Persistence**:
+- ✅ All UI preferences saved to `ui_preferences.json`
+- ✅ Settings restored on app restart
+- ✅ Auto-save when changed (no manual save needed)
+
+**Preferences Saved**:
+- View settings: Keep segment in middle
+- Auto-export formats: Session MD, Session HTML, TMX, TSV, Bilingual TXT, XLIFF, Excel
+- All checkboxes in Settings pane now persist
+
+**Settings Consolidation**:
+- ✅ New "View Settings" section in Settings tab
+- ✅ Centralized control panel for all preferences
+- ✅ Helpful tooltips explaining each setting
+
+### 📦 Technical Updates
+
+- Enhanced `ConfigManager` with `load_preferences()` and `save_preferences()` methods
+- Added preference loading in main `__init__` method
+- All auto-export checkboxes now have `command=self.save_ui_preferences`
+- Smart segment navigation uses existing pagination infrastructure
 
 ---
 
