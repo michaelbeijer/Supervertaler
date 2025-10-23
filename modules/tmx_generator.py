@@ -12,21 +12,108 @@ from datetime import datetime
 
 
 def get_simple_lang_code(lang_name_or_code_input):
-    """Convert language name to simple 2-letter code"""
+    """
+    Convert language name or code to ISO 639-1 format (2-letter) or ISO 639-1 + region (e.g., en-US)
+    
+    Supports:
+    - Language names: "English" → "en", "Dutch" → "nl"
+    - ISO codes: "en" → "en", "nl-NL" → "nl-NL"
+    - Variants: "en-US", "nl-BE", "fr-CA" → preserved as-is
+    
+    Returns base code if no variant specified, or full code with variant if provided.
+    """
     if not lang_name_or_code_input:
-        return ""
-    lang_lower = lang_name_or_code_input.strip().lower()
+        return "en"  # Default to English
+    
+    lang_input = lang_name_or_code_input.strip()
+    lang_lower = lang_input.lower()
+    
+    # Comprehensive language name to ISO 639-1 mapping
     lang_map = {
-        "english": "en", "dutch": "nl", "german": "de", "french": "fr",
-        "spanish": "es", "italian": "it", "japanese": "ja", "chinese": "zh",
-        "russian": "ru", "portuguese": "pt",
+        # Major languages
+        "english": "en",
+        "dutch": "nl",
+        "german": "de",
+        "french": "fr",
+        "spanish": "es",
+        "italian": "it",
+        "portuguese": "pt",
+        "russian": "ru",
+        "chinese": "zh",
+        "japanese": "ja",
+        "korean": "ko",
+        "arabic": "ar",
+        
+        # European languages
+        "afrikaans": "af",
+        "albanian": "sq",
+        "armenian": "hy",
+        "basque": "eu",
+        "bengali": "bn",
+        "bulgarian": "bg",
+        "catalan": "ca",
+        "croatian": "hr",
+        "czech": "cs",
+        "danish": "da",
+        "estonian": "et",
+        "finnish": "fi",
+        "galician": "gl",
+        "georgian": "ka",
+        "greek": "el",
+        "hebrew": "he",
+        "hindi": "hi",
+        "hungarian": "hu",
+        "icelandic": "is",
+        "indonesian": "id",
+        "irish": "ga",
+        "latvian": "lv",
+        "lithuanian": "lt",
+        "macedonian": "mk",
+        "malay": "ms",
+        "norwegian": "no",
+        "persian": "fa",
+        "polish": "pl",
+        "romanian": "ro",
+        "serbian": "sr",
+        "slovak": "sk",
+        "slovenian": "sl",
+        "swahili": "sw",
+        "swedish": "sv",
+        "thai": "th",
+        "turkish": "tr",
+        "ukrainian": "uk",
+        "urdu": "ur",
+        "vietnamese": "vi",
+        "welsh": "cy",
+        
+        # Chinese variants
+        "chinese (simplified)": "zh-CN",
+        "chinese (traditional)": "zh-TW",
     }
+    
+    # Check if it's a full language name
     if lang_lower in lang_map:
         return lang_map[lang_lower]
+    
+    # Check if already ISO code (2-letter or with variant)
+    # Examples: "en", "en-US", "nl-NL", "fr-CA"
+    if '-' in lang_input or '_' in lang_input:
+        # Has variant - preserve it
+        parts = lang_input.replace('_', '-').split('-')
+        if len(parts[0]) == 2:
+            # Valid format like "en-US"
+            return f"{parts[0].lower()}-{parts[1].upper()}"
+    
+    # Extract base code if it looks like an ISO code
     base_code = lang_lower.split('-')[0].split('_')[0]
-    if len(base_code) == 2:
+    if len(base_code) == 2 and base_code.isalpha():
         return base_code
-    return lang_lower[:2]
+    
+    # Fallback: return first 2 characters or default
+    if len(lang_input) >= 2:
+        return lang_input[:2].lower()
+    
+    return "en"  # Ultimate fallback
 
 
 class TMXGenerator:

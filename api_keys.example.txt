@@ -1,18 +1,19 @@
 # ============================================================
-# API KEYS CONFIGURATION - SUPERVERTALER v2.5.0
+# API KEYS CONFIGURATION - SUPERVERTALER v3.7.2
 # ============================================================
 #
 # SECURITY NOTICE:
 # ---------------
 # This is an EXAMPLE file only. Your actual API keys should be 
-# stored in a file named "api_keys.txt" (without .example).
+# stored in: user data_private/api_keys.txt (for dev mode)
+# or: api_keys.txt (for standalone executable)
 #
 # The file "api_keys.txt" is automatically ignored by Git and 
 # will NEVER be uploaded to GitHub.
 #
 # SETUP INSTRUCTIONS:
 # ------------------
-# 1. Copy this file and rename it to: api_keys.txt
+# 1. Copy this file to: user data_private/api_keys.txt
 # 2. Remove the # symbol before each key you want to use
 # 3. Replace [YOUR_KEY_HERE] with your actual API key
 # 4. Save the file
@@ -22,22 +23,31 @@
 # ---------
 # • Never share your API keys with anyone
 # • Never commit api_keys.txt to version control
-# • Keep api_keys.txt in the same folder as Supervertaler_v2.5.0.py
+# • For dev mode: Keep api_keys.txt in user data_private/
 # • Only api_keys.example.txt should be committed to Git
 #
 # WHERE TO GET API KEYS:
 # ---------------------
-# OpenAI:    https://platform.openai.com/api-keys
-# Anthropic: https://console.anthropic.com/settings/keys  
-# Google:    https://aistudio.google.com/app/apikey
+# OpenAI:             https://platform.openai.com/api-keys
+# Anthropic (Claude): https://console.anthropic.com/settings/keys  
+# Google (Gemini):    https://aistudio.google.com/app/apikey
+# Google Translate:   https://console.cloud.google.com/apis/credentials
+#                     (Enable "Cloud Translation API" first)
+# DeepL API Pro:      https://www.deepl.com/pro-api
 #
 # ============================================================
 
 
 # Example API keys (replace with your real keys):
-openai_api_key=YOUR_OPENAI_KEY_HERE
-claude_api_key=YOUR_CLAUDE_KEY_HERE
-google_api_key=YOUR_GOOGLE_KEY_HERE
+
+# LLM APIs (for translation and prompts)
+openai = YOUR_OPENAI_KEY_HERE
+claude = YOUR_CLAUDE_KEY_HERE
+google = YOUR_GOOGLE_GEMINI_KEY_HERE
+
+# Machine Translation APIs (for MT preview)
+google_translate = YOUR_GOOGLE_CLOUD_TRANSLATE_KEY_HERE
+deepl = YOUR_DEEPL_API_PRO_KEY_HERE
 
 # NOTE: The above keys are FAKE examples for illustration only.
 #       Do NOT use them - they will not work!
@@ -45,13 +55,22 @@ google_api_key=YOUR_GOOGLE_KEY_HERE
 # TROUBLESHOOTING:
 # ---------------
 # If you see "API Key Missing" errors:
-# 1. Check that your file is named "api_keys.txt" (not .example)
+# 1. Check that your file is in: user data_private/api_keys.txt
 # 2. Make sure the # is removed from the beginning of the line
 # 3. Verify there are no extra spaces around the = sign
 # 4. Confirm your key is valid (test at the provider's website)
 #
 # If keys still don't work:
-# 1. Check Translate → API Settings to see what's loaded
-# 2. Look in the log panel for specific error messages
+# 1. Check console output to see which file was loaded
+# 2. Look for errors: "Error reading api_keys.txt"
 # 3. Restart Supervertaler after editing api_keys.txt
+#
+# DeepL Authorization Error:
+# - Your key must be for "DeepL API Pro" (not free web version)
+# - Get API key from: https://www.deepl.com/pro-api
+#
+# Google Translate Error:
+# - Enable "Cloud Translation API" in Google Cloud Console
+# - Create API key at: https://console.cloud.google.com/apis/credentials
+
 # ============================================================
