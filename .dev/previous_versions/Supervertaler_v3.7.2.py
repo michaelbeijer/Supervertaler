@@ -218,14 +218,31 @@ except ImportError as e:
 
 # --- API Key Loading ---
 def load_api_keys():
-    """Load API keys from api_keys.txt file in the same directory as the script"""
+    """Load API keys from api_keys.txt file (supports both root and user data_private locations)"""
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    api_keys_file = os.path.join(script_dir, "api_keys.txt")
+    
+    # Try user data_private first (dev mode), then fallback to root
+    possible_paths = [
+        os.path.join(script_dir, "user data_private", "api_keys.txt"),
+        os.path.join(script_dir, "api_keys.txt")
+    ]
+    
+    api_keys_file = None
+    for path in possible_paths:
+        if os.path.exists(path):
+            api_keys_file = path
+            break
+    
+    # If no file exists, use root location
+    if api_keys_file is None:
+        api_keys_file = possible_paths[1]  # Default to root
     
     api_keys = {
-        "google": "",
+        "google": "",           # For Gemini
+        "google_translate": "", # For Google Cloud Translation API
         "claude": "",
-        "openai": ""
+        "openai": "",
+        "deepl": ""
     }
     
     if os.path.exists(api_keys_file):
@@ -239,10 +256,15 @@ def load_api_keys():
                         value = value.strip()
                         if key in ["google", "google_api_key", "gemini"]:
                             api_keys["google"] = value
+                        elif key in ["google_translate", "google_translate_api_key"]:
+                            api_keys["google_translate"] = value
                         elif key in ["claude", "claude_api_key", "anthropic"]:
                             api_keys["claude"] = value
                         elif key in ["openai", "openai_api_key", "chatgpt"]:
                             api_keys["openai"] = value
+                        elif key in ["deepl", "deepl_api_key"]:
+                            api_keys["deepl"] = value
+            print(f"✓ API keys loaded from: {api_keys_file}")
         except Exception as e:
             print(f"Error reading api_keys.txt: {e}")
     else:
@@ -254,6 +276,10 @@ def load_api_keys():
                 f.write("# Remove the # at the beginning of the line to uncomment\n\n")
                 f.write("# Google API Key for Gemini models\n")
                 f.write("#google = YOUR_GOOGLE_API_KEY_HERE\n\n")
+                f.write("# Google Cloud Translation API Key (paid MT)\n")
+                f.write("#google_translate = YOUR_GOOGLE_TRANSLATE_API_KEY_HERE\n\n")
+                f.write("# DeepL API Key (paid MT)\n")
+                f.write("#deepl = YOUR_DEEPL_API_KEY_HERE\n\n")
                 f.write("# Claude API Key for Anthropic models\n")
                 f.write("#claude = YOUR_CLAUDE_API_KEY_HERE\n\n")
                 f.write("# OpenAI API Key for ChatGPT models\n")
@@ -429,40 +455,113 @@ def pil_image_to_base64_png(img):
 
 # normalize_figure_ref() and detect_figure_references() moved to modules/figure_context_manager.py
 
-def get_simple_lang_code(lang_name_or_code_input):
-    """Convert language name to simple 2-letter code"""
-    if not lang_name_or_code_input:
-        return ""
-    lang_lower = lang_name_or_code_input.strip().lower()
-    lang_map = {
-        "english": "en", "dutch": "nl", "german": "de", "french": "fr",
-        "spanish": "es", "italian": "it", "japanese": "ja", "chinese": "zh",
-        "russian": "ru", "portuguese": "pt",
-    }
-    if lang_lower in lang_map:
-        return lang_map[lang_lower]
-    base_code = lang_lower.split('-')[0].split('_')[0]
-    if len(base_code) == 2:
-        return base_code
-    return lang_lower[:2]
-
-
 # --- Tracked Changes Classes ---
 # TrackedChangesAgent and TrackedChangesBrowser classes moved to modules/tracked_changes.py for better modularity
 
 # --- Helper Functions ---
 def get_simple_lang_code(lang_name_or_code_input):
-    if not lang_name_or_code_input: return ""
-    lang_lower = lang_name_or_code_input.strip().lower()
+    """
+    Convert language name or code to ISO 639-1 format (2-letter) or ISO 639-1 + region (e.g., en-US)
+    
+    Supports:
+    - Language names: "English" → "en", "Dutch" → "nl"
+    - ISO codes: "en" → "en", "nl-NL" → "nl-NL"
+    - Variants: "en-US", "nl-BE", "fr-CA" → preserved as-is
+    
+    Returns base code if no variant specified, or full code with variant if provided.
+    """
+    if not lang_name_or_code_input:
+        return "en"  # Default to English
+    
+    lang_input = lang_name_or_code_input.strip()
+    lang_lower = lang_input.lower()
+    
+    # Comprehensive language name to ISO 639-1 mapping
     lang_map = {
-        "english": "en", "dutch": "nl", "german": "de", "french": "fr",
-        "spanish": "es", "italian": "it", "japanese": "ja", "chinese": "zh",
-        "russian": "ru", "portuguese": "pt",
+        # Major languages
+        "english": "en",
+        "dutch": "nl",
+        "german": "de",
+        "french": "fr",
+        "spanish": "es",
+        "italian": "it",
+        "portuguese": "pt",
+        "russian": "ru",
+        "chinese": "zh",
+        "japanese": "ja",
+        "korean": "ko",
+        "arabic": "ar",
+        
+        # European languages
+        "afrikaans": "af",
+        "albanian": "sq",
+        "armenian": "hy",
+        "basque": "eu",
+        "bengali": "bn",
+        "bulgarian": "bg",
+        "catalan": "ca",
+        "croatian": "hr",
+        "czech": "cs",
+        "danish": "da",
+        "estonian": "et",
+        "finnish": "fi",
+        "galician": "gl",
+        "georgian": "ka",
+        "greek": "el",
+        "hebrew": "he",
+        "hindi": "hi",
+        "hungarian": "hu",
+        "icelandic": "is",
+        "indonesian": "id",
+        "irish": "ga",
+        "latvian": "lv",
+        "lithuanian": "lt",
+        "macedonian": "mk",
+        "malay": "ms",
+        "norwegian": "no",
+        "persian": "fa",
+        "polish": "pl",
+        "romanian": "ro",
+        "serbian": "sr",
+        "slovak": "sk",
+        "slovenian": "sl",
+        "swahili": "sw",
+        "swedish": "sv",
+        "thai": "th",
+        "turkish": "tr",
+        "ukrainian": "uk",
+        "urdu": "ur",
+        "vietnamese": "vi",
+        "welsh": "cy",
+        
+        # Chinese variants
+        "chinese (simplified)": "zh-CN",
+        "chinese (traditional)": "zh-TW",
     }
-    if lang_lower in lang_map: return lang_map[lang_lower]
+    
+    # Check if it's a full language name
+    if lang_lower in lang_map:
+        return lang_map[lang_lower]
+    
+    # Check if already ISO code (2-letter or with variant)
+    # Examples: "en", "en-US", "nl-NL", "fr-CA"
+    if '-' in lang_input or '_' in lang_input:
+        # Has variant - preserve it
+        parts = lang_input.replace('_', '-').split('-')
+        if len(parts[0]) == 2:
+            # Valid format like "en-US"
+            return f"{parts[0].lower()}-{parts[1].upper()}"
+    
+    # Extract base code if it looks like an ISO code
     base_code = lang_lower.split('-')[0].split('_')[0]
-    if len(base_code) == 2: return base_code
-    return lang_lower[:2]
+    if len(base_code) == 2 and base_code.isalpha():
+        return base_code
+    
+    # Fallback: return first 2 characters or default
+    if len(lang_input) >= 2:
+        return lang_input[:2].lower()
+    
+    return "en"  # Ultimate fallback
 
 def normalize_figure_ref(ref_text):
     if not ref_text: return None
@@ -696,17 +795,61 @@ class Supervertaler:
         self.docx_handler = DOCXHandler()
         self.tag_manager = TagManager()
         
-        # Default language list (user-editable)
+        # Default language list (user-editable) with ISO codes and variants
         self.available_languages = [
-            "Afrikaans", "Albanian", "Arabic", "Armenian", "Basque", "Bengali",
-            "Bulgarian", "Catalan", "Chinese (Simplified)", "Chinese (Traditional)",
-            "Croatian", "Czech", "Danish", "Dutch", "English", "Estonian",
-            "Finnish", "French", "Galician", "Georgian", "German", "Greek",
-            "Hebrew", "Hindi", "Hungarian", "Icelandic", "Indonesian", "Irish",
-            "Italian", "Japanese", "Korean", "Latvian", "Lithuanian", "Macedonian",
-            "Malay", "Norwegian", "Persian", "Polish", "Portuguese", "Romanian",
-            "Russian", "Serbian", "Slovak", "Slovenian", "Spanish", "Swahili",
-            "Swedish", "Thai", "Turkish", "Ukrainian", "Urdu", "Vietnamese", "Welsh"
+            "English", "en-US", "en-GB", "en-CA", "en-AU",
+            "Dutch", "nl-NL", "nl-BE",
+            "German", "de-DE", "de-AT", "de-CH",
+            "French", "fr-FR", "fr-CA", "fr-BE", "fr-CH",
+            "Spanish", "es-ES", "es-MX", "es-AR",
+            "Portuguese", "pt-PT", "pt-BR",
+            "Italian", "it-IT", "it-CH",
+            "Chinese (Simplified)", "zh-CN",
+            "Chinese (Traditional)", "zh-TW", "zh-HK",
+            "Arabic", "ar",
+            "Afrikaans", "af",
+            "Albanian", "sq",
+            "Armenian", "hy",
+            "Basque", "eu",
+            "Bengali", "bn",
+            "Bulgarian", "bg",
+            "Catalan", "ca",
+            "Croatian", "hr",
+            "Czech", "cs",
+            "Danish", "da",
+            "Estonian", "et",
+            "Finnish", "fi",
+            "Galician", "gl",
+            "Georgian", "ka",
+            "Greek", "el",
+            "Hebrew", "he",
+            "Hindi", "hi",
+            "Hungarian", "hu",
+            "Icelandic", "is",
+            "Indonesian", "id",
+            "Irish", "ga",
+            "Japanese", "ja",
+            "Korean", "ko",
+            "Latvian", "lv",
+            "Lithuanian", "lt",
+            "Macedonian", "mk",
+            "Malay", "ms",
+            "Norwegian", "no",
+            "Persian", "fa",
+            "Polish", "pl",
+            "Romanian", "ro",
+            "Russian", "ru",
+            "Serbian", "sr",
+            "Slovak", "sk",
+            "Slovenian", "sl",
+            "Swahili", "sw",
+            "Swedish", "sv",
+            "Thai", "th",
+            "Turkish", "tr",
+            "Ukrainian", "uk",
+            "Urdu", "ur",
+            "Vietnamese", "vi",
+            "Welsh", "cy"
         ]
         
         # LLM settings
@@ -840,9 +983,17 @@ class Supervertaler:
         self.system_prompts_dir = get_user_data_path("Prompt_Library/System_prompts")
         os.makedirs(self.system_prompts_dir, exist_ok=True)
         
-        # Translation memory - new multi-TM architecture
-        self.tm_database = TMDatabase()
-        self.tm_agent = TMAgent()  # Legacy wrapper for backward compatibility
+        # Translation memory - new multi-TM architecture with SQLite backend
+        db_path = os.path.join(get_user_data_path("Translation_Resources"), "supervertaler.db")
+        os.makedirs(os.path.dirname(db_path), exist_ok=True)
+        
+        self.tm_database = TMDatabase(
+            source_lang=self.source_language, 
+            target_lang=self.target_language,
+            db_path=db_path,
+            log_callback=self.log
+        )
+        self.tm_agent = TMAgent(db_path=db_path)  # Legacy wrapper for backward compatibility
         self.tm_agent.tm_database = self.tm_database  # Share same database
         self.translation_memory: List[Dict[str, str]] = []  # Deprecated - keeping for backward compatibility
         self.tm_auto_search_timer = None  # Timer for automatic TM search
@@ -1075,6 +1226,7 @@ class Supervertaler:
         resources_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Resources", menu=resources_menu)
         resources_menu.add_command(label="Translation memory...", command=self.show_tm_manager)
+        resources_menu.add_command(label="🔍 Concordance Search...", command=self.show_concordance_search, accelerator="Ctrl+K")
         resources_menu.add_command(label="Load TM file...", command=self.load_tm_file)
         resources_menu.add_separator()
         resources_menu.add_command(label="📝 Load tracked changes (DOCX)...", command=self.load_tracked_changes_docx)
@@ -1100,6 +1252,7 @@ class Supervertaler:
         self.root.bind('<Control-t>', lambda e: self.translate_current_segment())
         self.root.bind('<Control-p>', lambda e: self.show_custom_prompts())  # Prompt Manager shortcut
         self.root.bind('<Control-a>', lambda e: self.select_all_segments())  # Select All Segments
+        self.root.bind('<Control-k>', lambda e: self.show_concordance_search())  # Concordance Search
         
         # Keyboard shortcuts
         self.root.bind('<Control-o>', lambda e: self.import_docx())
@@ -1107,6 +1260,10 @@ class Supervertaler:
         self.root.bind('<Control-l>', lambda e: self.load_project())
         self.root.bind('<Control-f>', lambda e: self.show_find_replace())
         self.root.bind('<Control-d>', lambda e: self.copy_source_to_target())
+        
+        # Term extraction from dual selection
+        self.root.bind('<Control-g>', lambda e: self.add_term_from_dual_selection())  # Add term to Glossary
+        self.root.bind('<Control-Shift-T>', lambda e: self.add_term_from_dual_selection(to_glossary=False))  # Add to TM only
         
         # Layout switching shortcuts
         self.root.bind('<Control-Key-1>', lambda e: self.switch_layout(LayoutMode.GRID))
@@ -1799,6 +1956,8 @@ class Supervertaler:
         left_buttons = tk.Frame(button_frame)
         left_buttons.pack(side='left', fill='x', expand=True)
         
+        tk.Button(left_buttons, text="🔍 TM Search", command=self.concordance_search_from_editor,
+                 bg='#9C27B0', fg='white', font=('Segoe UI', 8)).pack(side='left', padx=(0, 5))
         tk.Button(left_buttons, text="Copy Source → Target", command=self.copy_source_to_target_grid_editor,
                  font=('Segoe UI', 8)).pack(side='left', padx=(0, 5))
         tk.Button(left_buttons, text="Clear Target", command=self.clear_grid_target,
@@ -1841,6 +2000,27 @@ class Supervertaler:
         if hasattr(self, 'current_segment') and self.current_segment:
             self.grid_target_text.delete('1.0', 'end')
             self.grid_target_text.insert('1.0', self.current_segment.source)
+    
+    def concordance_search_from_editor(self):
+        """Open concordance search with selected text from editor or full source"""
+        query = None
+        
+        # Try to get selected text from source editor
+        try:
+            if hasattr(self, 'grid_source_text'):
+                # Enable temporarily to get selection
+                self.grid_source_text.config(state='normal')
+                query = self.grid_source_text.selection_get()
+                self.grid_source_text.config(state='disabled')
+        except:
+            pass
+        
+        # If no selection, use full source text
+        if not query and hasattr(self, 'current_segment') and self.current_segment:
+            query = self.current_segment.source
+        
+        # Open concordance search dialog
+        self.show_concordance_search(query)
     
     def save_grid_editor_segment(self):
         """Save the current segment from grid editor panel"""
@@ -6716,10 +6896,17 @@ Use this feature AFTER translation to:
         toolbar.pack(side='top', fill='x', padx=5, pady=5)
         
         tk.Label(toolbar, text="Provider:", bg='#f0f0f0', font=('Segoe UI', 9)).pack(side='left', padx=2)
+        
+        # Build MT provider list based on available API keys
+        mt_providers = ["Google Translate"]
+        if self.api_keys.get("deepl"):
+            mt_providers.append("DeepL")
+        # Future: Add other providers as they're implemented
+        # mt_providers.extend(["Microsoft Translator", "Amazon Translate", "Custom MT"])
+        
         self.mt_provider_var = tk.StringVar(value="Google Translate")
         mt_provider_combo = ttk.Combobox(toolbar, textvariable=self.mt_provider_var,
-                                        values=["Google Translate", "DeepL", "Microsoft Translator", 
-                                               "Amazon Translate", "Custom MT"],
+                                        values=mt_providers,
                                         state='readonly', width=18, font=('Segoe UI', 9))
         mt_provider_combo.pack(side='left', padx=5)
         
@@ -6854,9 +7041,19 @@ Use this feature AFTER translation to:
         
         self.tm_tree.bind('<<TreeviewSelect>>', self.on_tm_select)
         self.tm_tree.bind('<Double-Button-1>', lambda e: self.copy_suggestion_to_target())
+        self.tm_tree.bind('<Button-3>', self.show_tm_match_context_menu)
         
         # Store TM results
         self.tm_results = []
+        
+        # Buttons below TM matches
+        tm_buttons_frame = tk.Frame(matches_frame, bg='#f9f9f9')
+        tm_buttons_frame.pack(side='top', fill='x', padx=2, pady=2)
+        
+        tk.Button(tm_buttons_frame, text="🔍 Concordance Search", command=self.show_concordance_search,
+                 bg='#9C27B0', fg='white', font=('Segoe UI', 8)).pack(side='left', padx=2)
+        tk.Button(tm_buttons_frame, text="🗑 Delete Entry", command=self.delete_tm_match,
+                 bg='#F44336', fg='white', font=('Segoe UI', 8)).pack(side='left', padx=2)
         
         # === TM MANAGEMENT SECTION (BOTTOM) ===
         management_frame = tk.LabelFrame(parent, text="TM Settings & Management",
@@ -6971,19 +7168,28 @@ Use this feature AFTER translation to:
         
         self.log(f"🤖 Requesting MT from {provider}...")
         
-        # Placeholder: In real implementation, call MT API
-        # For now, show example results
-        self.mt_results = [
-            {"provider": provider, "text": f"[MT] {source_text} (translated)", "confidence": 0.95},
-            {"provider": provider, "text": f"[MT Alt] {source_text} (alternative)", "confidence": 0.85}
-        ]
-        
-        self.mt_listbox.delete(0, 'end')
-        for i, result in enumerate(self.mt_results):
-            conf_pct = int(result['confidence'] * 100)
-            self.mt_listbox.insert('end', f"{conf_pct}% - {result['text']}")
-        
-        self.log(f"✓ Received {len(self.mt_results)} MT suggestions")
+        # Call real MT API
+        try:
+            if provider == "Google Translate":
+                translation = self.call_google_translate(source_text)
+            elif provider == "DeepL":
+                translation = self.call_deepl(source_text)
+            else:
+                translation = f"[{provider}] Not implemented yet"
+            
+            self.mt_results = [
+                {"provider": provider, "text": translation, "confidence": 0.95}
+            ]
+            
+            self.mt_listbox.delete(0, 'end')
+            for result in self.mt_results:
+                conf_pct = int(result['confidence'] * 100)
+                self.mt_listbox.insert('end', f"{conf_pct}% - {result['text']}")
+            
+            self.log(f"✓ Received MT translation from {provider}")
+        except Exception as e:
+            self.log(f"✗ MT translation failed: {e}")
+            messagebox.showerror("MT Error", f"Failed to get translation from {provider}:\n{str(e)}")
     
     def get_llm_translation(self):
         """Get LLM translation for current segment"""
@@ -6997,20 +7203,114 @@ Use this feature AFTER translation to:
         
         self.log(f"✨ Requesting LLM translation from {model} with {prompt_type}...")
         
-        # Placeholder: In real implementation, call LLM API
-        # This is where Supervertaler integration will happen!
-        self.llm_results = [
-            {"model": model, "prompt": prompt_type, "text": f"[LLM] {source_text} (professional translation)", "quality": 0.98},
-            {"model": model, "prompt": prompt_type, "text": f"[LLM Alt] {source_text} (alternative phrasing)", "quality": 0.92}
-        ]
+        # Build prompt based on prompt type
+        if prompt_type == "Standard Translation":
+            prompt = f"Translate this text from {self.source_language} to {self.target_language}:\n\n{source_text}\n\nProvide ONLY the translation:"
+        else:
+            prompt = f"Translate this {prompt_type.lower()} text from {self.source_language} to {self.target_language}:\n\n{source_text}\n\nProvide ONLY the translation:"
+        
+        # Call real LLM API
+        try:
+            if "Claude" in model:
+                translation = self.call_claude_api(prompt)
+            elif "GPT" in model:
+                translation = self.call_openai_api(prompt)
+            elif "Gemini" in model:
+                translation = self.call_gemini_api(prompt)
+            else:
+                translation = f"[{model}] Not configured"
+            
+            self.llm_results = [
+                {"model": model, "prompt": prompt_type, "text": translation, "quality": 0.98}
+            ]
+            
+            self.llm_listbox.delete(0, 'end')
+            for result in self.llm_results:
+                quality_pct = int(result['quality'] * 100)
+                self.llm_listbox.insert('end', f"{quality_pct}% - {result['text']}")
+            
+            self.log(f"✓ Received LLM translation from {model}")
+        except Exception as e:
+            self.log(f"✗ LLM translation failed: {e}")
+            messagebox.showerror("LLM Error", f"Failed to get translation from {model}:\n{str(e)}")
+    
+    def auto_update_mt_preview(self):
+        """Automatically update MT preview for current segment (memoQ-style)"""
+        if not hasattr(self, 'current_segment') or not self.current_segment:
+            return
+        
+        provider = self.mt_provider_var.get()
+        source_text = self.current_segment.source
+        
+        # Call real MT API based on provider
+        try:
+            if provider == "Google Translate":
+                translation = self.call_google_translate(source_text)
+            elif provider == "DeepL":
+                translation = self.call_deepl(source_text)
+            else:
+                # Fallback for other providers
+                translation = f"[{provider}] {source_text}"
+            
+            self.mt_results = [
+                {"provider": provider, "text": translation, "confidence": 0.95}
+            ]
+        except Exception as e:
+            # Silent failure for auto-preview
+            self.mt_results = [
+                {"provider": provider, "text": f"[MT unavailable: {str(e)}]", "confidence": 0.0}
+            ]
+        
+        self.mt_listbox.delete(0, 'end')
+        for result in self.mt_results:
+            conf_pct = int(result['confidence'] * 100)
+            self.mt_listbox.insert('end', f"{conf_pct}% - {result['text']}")
+    
+    def auto_update_llm_preview(self):
+        """Automatically update LLM preview for current segment (memoQ-style)"""
+        if not hasattr(self, 'current_segment') or not self.current_segment:
+            return
+        
+        model = self.llm_model_var.get()
+        source_text = self.current_segment.source
+        
+        # Use existing Supervertaler LLM infrastructure
+        try:
+            # Build simple prompt for preview
+            prompt = f"Translate this text from {self.source_language} to {self.target_language}:\n\n{source_text}\n\nProvide ONLY the translation, no explanations:"
+            
+            # Call appropriate API based on model
+            if "Claude" in model:
+                translation = self.call_claude_api(prompt)
+            elif "GPT" in model or "OpenAI" in model:
+                translation = self.call_openai_api(prompt)
+            elif "Gemini" in model:
+                translation = self.call_gemini_api(prompt)
+            else:
+                translation = f"[{model}] {source_text}"
+            
+            self.llm_results = [
+                {"model": model, "text": translation, "quality": 0.98}
+            ]
+        except Exception as e:
+            # Silent failure for auto-preview
+            self.llm_results = [
+                {"model": model, "text": f"[LLM unavailable: {str(e)}]", "quality": 0.0}
+            ]
         
         self.llm_listbox.delete(0, 'end')
-        for i, result in enumerate(self.llm_results):
+        for result in self.llm_results:
             quality_pct = int(result['quality'] * 100)
             self.llm_listbox.insert('end', f"{quality_pct}% - {result['text']}")
+    
+    def auto_update_glossary(self):
+        """Automatically update glossary matches for current segment (memoQ-style)"""
+        if not hasattr(self, 'current_segment') or not self.current_segment:
+            return
         
-        self.log(f"✓ Received {len(self.llm_results)} LLM suggestions")
-        self.log(f"💡 Future: This will integrate with Supervertaler prompts and models")
+        # Future: Search glossary database for term matches
+        # For now, this is a placeholder
+        pass
     
     def schedule_auto_tm_search(self):
         """Schedule automatic TM search after a delay (2 seconds)"""
@@ -7021,8 +7321,35 @@ Use this feature AFTER translation to:
         
         # Schedule new search after 2 seconds (2000 ms)
         # This prevents searches when user is quickly navigating between segments
-        self.tm_auto_search_timer = self.root.after(2000, self.auto_search_tm)
-        self.log("⏱ Auto-search scheduled (2 seconds)...")
+        self.tm_auto_search_timer = self.root.after(2000, self.auto_update_all_resources)
+        self.log("⏱ Auto-update scheduled (2 seconds)...")
+    
+    def auto_update_all_resources(self):
+        """Automatically update all resource panels (memoQ-style workflow)"""
+        self.tm_auto_search_timer = None  # Clear timer reference
+        
+        if not hasattr(self, 'current_segment') or not self.current_segment:
+            self.log("⚠ Auto-update cancelled: No segment selected")
+            return
+        
+        self.log("🔄 Auto-updating resources...")
+        
+        # Update TM Matches
+        self.auto_search_tm()
+        
+        # Update MT Preview (if enabled)
+        if self.assist_visible_panels.get('mt', True) and hasattr(self, 'mt_listbox'):
+            self.auto_update_mt_preview()
+        
+        # Update LLM Preview (if enabled)  
+        if self.assist_visible_panels.get('llm', True) and hasattr(self, 'llm_listbox'):
+            self.auto_update_llm_preview()
+        
+        # Update Glossary matches (if enabled)
+        if self.assist_visible_panels.get('glossary', True):
+            self.auto_update_glossary()
+        
+        self.log("✓ Resources updated")
     
     def auto_search_tm(self):
         """Automatically search TM (called after delay)"""
@@ -7066,8 +7393,8 @@ Use this feature AFTER translation to:
             # Find matching TM by name
             tm_ids = []
             for tm in self.tm_database.get_all_tms(enabled_only=False):
-                if tm.name == tm_name:
-                    tm_ids.append(tm.tm_id)
+                if tm['name'] == tm_name:
+                    tm_ids.append(tm['tm_id'])
                     break
             
             matches = self.tm_database.search_all(source_text, tm_ids=tm_ids, enabled_only=False)
@@ -8982,9 +9309,38 @@ Use this feature AFTER translation to:
         return 'break'
     
     def on_source_right_click(self, event, row_index):
-        """Handle right-click on source - select row and show source popup"""
-        self.select_grid_row(row_index)
-        self.show_source_popup(event)
+        """Handle right-click on source - show context menu with concordance search"""
+        # Get selected text if any (before selecting row, which would clear it)
+        source_widget = self.grid_rows[row_index]['widgets']['source']
+        try:
+            selected_text = source_widget.selection_get()
+        except:
+            selected_text = None
+        
+        # Only select the row if there's no text selection
+        # This preserves text selection for concordance search
+        if not selected_text:
+            self.select_grid_row(row_index)
+        
+        # Create context menu for source
+        source_menu = tk.Menu(self.root, tearoff=0)
+        
+        if selected_text:
+            # Truncate long selections for menu display
+            display_text = selected_text[:30] + '...' if len(selected_text) > 30 else selected_text
+            source_menu.add_command(label=f"🔍 Search in TM: '{display_text}'",
+                                   command=lambda: self.show_concordance_search(selected_text))
+            source_menu.add_separator()
+        
+        source_menu.add_command(label="🔍 Concordance Search (Full Segment)",
+                               command=lambda: self.show_concordance_search(source_widget.get('1.0', 'end-1c').strip()))
+        source_menu.add_separator()
+        source_menu.add_command(label="📋 Copy", command=lambda: self.copy_to_clipboard(source_widget.get('1.0', 'end-1c')))
+        
+        source_menu.post(event.x_root, event.y_root)
+        return 'break'
+        
+        source_menu.post(event.x_root, event.y_root)
         return 'break'
     
     def on_target_right_click(self, event, row_index):
@@ -9463,6 +9819,14 @@ Use this feature AFTER translation to:
         self.context_menu.add_command(label="📄 View Source Text", 
                                      command=lambda: self.show_source_popup_from_menu())
         self.context_menu.add_separator()
+        
+        # Term extraction from dual selection
+        self.context_menu.add_command(label="📚 Add Selection to Glossary (Ctrl+G)", 
+                                     command=lambda: self.add_term_from_dual_selection(to_glossary=True))
+        self.context_menu.add_command(label="💾 Add Selection to TM (Ctrl+Shift+T)", 
+                                     command=lambda: self.add_term_from_dual_selection(to_glossary=False))
+        self.context_menu.add_separator()
+        
         self.context_menu.add_command(label="Insert <b>Bold</b> Tag (Ctrl+B)", 
                                      command=lambda: self.insert_tag_inline('b'))
         self.context_menu.add_command(label="Insert <i>Italic</i> Tag (Ctrl+I)", 
@@ -10289,6 +10653,142 @@ Use this feature AFTER translation to:
             pass
         
         return 'break'  # Prevent default behavior
+    
+    # ============================================
+    # TERM EXTRACTION FROM DUAL SELECTION
+    # ============================================
+    
+    def get_dual_selection_text(self):
+        """
+        Extract selected text from both source and target widgets
+        Returns: (source_text, target_text) or (None, None) if no valid selection
+        """
+        if self.dual_selection_row is None or self.dual_selection_row >= len(self.grid_rows):
+            return None, None
+        
+        row_data = self.grid_rows[self.dual_selection_row]
+        source_text = None
+        target_text = None
+        
+        # Get source selection
+        if 'source' in row_data['widgets']:
+            source_widget = row_data['widgets']['source']
+            try:
+                sel_start = source_widget.index(tk.SEL_FIRST)
+                sel_end = source_widget.index(tk.SEL_LAST)
+                source_text = source_widget.get(sel_start, sel_end).strip()
+            except tk.TclError:
+                # Check for custom tag
+                try:
+                    ranges = source_widget.tag_ranges('dual_sel_source')
+                    if len(ranges) >= 2:
+                        source_text = source_widget.get(ranges[0], ranges[1]).strip()
+                except:
+                    pass
+        
+        # Get target selection
+        if 'target' in row_data['widgets']:
+            target_widget = row_data['widgets']['target']
+            try:
+                sel_start = target_widget.index(tk.SEL_FIRST)
+                sel_end = target_widget.index(tk.SEL_LAST)
+                target_text = target_widget.get(sel_start, sel_end).strip()
+            except tk.TclError:
+                # Check for custom tag
+                try:
+                    ranges = target_widget.tag_ranges('dual_sel_target')
+                    if len(ranges) >= 2:
+                        target_text = target_widget.get(ranges[0], ranges[1]).strip()
+                except:
+                    pass
+        
+        return source_text, target_text
+    
+    def add_term_from_dual_selection(self, to_glossary=True):
+        """
+        Add term pair from dual selection to TM or Glossary
+        
+        Args:
+            to_glossary: If True, save to glossary (future). If False, save to TM only.
+        
+        Keyboard shortcuts:
+            Ctrl+G: Add to Glossary (default)
+            Ctrl+Shift+T: Add to TM only
+        """
+        # Get selected text from source and target
+        source_text, target_text = self.get_dual_selection_text()
+        
+        # Validate selection
+        if not source_text or not target_text:
+            self.log("⚠ Please select text in both source and target to add as term")
+            messagebox.showwarning(
+                "No Selection",
+                "To add a term:\n\n"
+                "1. Select the term in the SOURCE segment\n"
+                "2. Select the corresponding term in the TARGET segment\n"
+                "3. Press Ctrl+G (Glossary) or Ctrl+Shift+T (TM only)"
+            )
+            return
+        
+        # For now, add to Project TM (glossary functionality comes later)
+        if to_glossary:
+            # Future: Add to glossary with metadata
+            self.log(f"📝 Term pair marked for glossary: '{source_text}' → '{target_text}'")
+            self.log("ℹ Glossary support coming soon - saving to Project TM for now")
+        
+        # Add to Project TM
+        try:
+            self.tm_database.add_to_project_tm(source_text, target_text)
+            
+            # Visual feedback
+            destination = "Glossary (TM)" if to_glossary else "Project TM"
+            self.log(f"✓ Term added to {destination}: '{source_text}' → '{target_text}'")
+            
+            # Show brief confirmation
+            self.show_term_added_feedback(source_text, target_text, to_glossary)
+            
+            # Clear selection after adding
+            self.clear_dual_selection()
+            
+        except Exception as e:
+            self.log(f"✗ Error adding term: {e}")
+            messagebox.showerror("Error", f"Failed to add term:\n{e}")
+    
+    def show_term_added_feedback(self, source_text, target_text, to_glossary):
+        """
+        Show brief visual confirmation that term was added
+        Creates a temporary popup that auto-dismisses
+        """
+        # Create a small temporary window
+        feedback = tk.Toplevel(self.root)
+        feedback.title("Term Added")
+        feedback.geometry("400x150")
+        feedback.transient(self.root)
+        
+        # Center it on screen
+        feedback.update_idletasks()
+        x = self.root.winfo_x() + (self.root.winfo_width() // 2) - (400 // 2)
+        y = self.root.winfo_y() + (self.root.winfo_height() // 2) - (150 // 2)
+        feedback.geometry(f"+{x}+{y}")
+        
+        # Content
+        icon_label = tk.Label(feedback, text="✓", font=('Arial', 48), fg='#4CAF50')
+        icon_label.pack(pady=10)
+        
+        destination = "Glossary (TM for now)" if to_glossary else "Project TM"
+        msg = f"Added to {destination}:"
+        msg_label = tk.Label(feedback, text=msg, font=('Arial', 10))
+        msg_label.pack()
+        
+        term_label = tk.Label(feedback, text=f"{source_text} → {target_text}", 
+                            font=('Arial', 10, 'bold'), fg='#1976D2')
+        term_label.pack(pady=5)
+        
+        # Auto-dismiss after 2 seconds
+        feedback.after(2000, feedback.destroy)
+        
+        # Click to dismiss
+        feedback.bind('<Button-1>', lambda e: feedback.destroy())
     
     def insert_tag_inline(self, tag_type):
         """Insert tag at cursor position in inline editor"""
@@ -11445,8 +11945,9 @@ Use this feature AFTER translation to:
                 for seg in segments_to_show:
                     self.add_grid_row(seg)
                 
-                # Select first row if available
-                if self.grid_rows:
+                # Only auto-select first row if no current segment is set
+                # This prevents unwanted selection changes after translation
+                if self.grid_rows and not hasattr(self, 'current_segment'):
                     self.select_grid_row(0)
                     
             else:
@@ -12339,11 +12840,11 @@ Use this feature AFTER translation to:
                     'status_filter': self.filter_status_var.get() if hasattr(self, 'filter_status_var') else 'All',
                     'active': self.filter_active
                 },
-                # Save TM database (new multi-TM format)
-                'tm_database': self.tm_database.to_dict(),
-                # Legacy format for backwards compatibility
-                'translation_memory': {
-                    'entries': self.tm_database.project_tm.entries,
+                # Note: TM database is now stored in SQLite, not JSON
+                # Only save minimal metadata for compatibility
+                'tm_database': {
+                    'source_lang': self.tm_database.source_lang,
+                    'target_lang': self.tm_database.target_lang,
                     'fuzzy_threshold': self.tm_database.fuzzy_threshold
                 },
                 # Save LLM settings
@@ -12433,27 +12934,11 @@ Use this feature AFTER translation to:
             self.original_docx = data.get('original_docx')
             self.project_file = file_path
             
-            # Load TM database (try new format first, fall back to legacy)
-            if 'tm_database' in data:
-                # New multi-TM format
-                self.tm_database = TMDatabase.from_dict(data['tm_database'])
-                self.tm_agent.tm_database = self.tm_database  # Update legacy wrapper
-                enabled_count = self.tm_database.get_entry_count(enabled_only=True)
-                total_count = self.tm_database.get_entry_count(enabled_only=False)
-                self.log(f"✓ Loaded TM database: {total_count} total entries ({enabled_count} in active TMs)")
-            elif 'translation_memory' in data:
-                # Legacy single-TM format - migrate to new format
-                tm_data = data['translation_memory']
-                self.tm_database = TMDatabase()
-                self.tm_database.project_tm.entries = tm_data.get('entries', {})
-                self.tm_database.fuzzy_threshold = tm_data.get('fuzzy_threshold', 0.75)
-                self.tm_agent.tm_database = self.tm_database
-                self.log(f"✓ Migrated legacy TM: {len(self.tm_database.project_tm.entries)} entries to Project TM")
-            else:
-                # No TM data
-                self.tm_database = TMDatabase()
-                self.tm_agent.tm_database = self.tm_database
-                self.log("ℹ No TM data in project")
+            # TM database is already initialized at startup (shared across all projects)
+            # Just log the entry count
+            enabled_count = self.tm_database.get_entry_count(enabled_only=True)
+            total_count = self.tm_database.get_entry_count(enabled_only=False)
+            self.log(f"✓ SQLite TM database: {total_count} total entries ({enabled_count} in active TMs)")
             
             # Load LLM settings if present
             if 'llm_settings' in data:
@@ -12463,6 +12948,9 @@ Use this feature AFTER translation to:
                 self.source_language = llm_settings.get('source_language', 'English')
                 self.target_language = llm_settings.get('target_language', 'Dutch')
                 self.current_translate_prompt = llm_settings.get('custom_prompt', self.default_translate_prompt)
+                
+                # Update TM database languages
+                self.tm_database.set_tm_languages(self.source_language, self.target_language)
                 
                 # Restore active prompts
                 self.active_translate_prompt_name = llm_settings.get('active_translate_prompt_name')
@@ -14982,6 +15470,9 @@ Generated by [Supervertaler](https://supervertaler.com/) v{APP_VERSION}
             self.source_language = source_var.get()
             self.target_language = target_var.get()
             
+            # Update TM database languages
+            self.tm_database.set_tm_languages(self.source_language, self.target_language)
+            
             # Update Settings pane displays
             if hasattr(self, 'settings_source_lang_display'):
                 self.settings_source_lang_display.set(self.source_language)
@@ -16425,8 +16916,8 @@ Generated by [Supervertaler](https://supervertaler.com/) v{APP_VERSION}
         tm_options = ["All Active TMs"]
         
         for tm in self.tm_database.get_all_tms(enabled_only=False):
-            status = "✓" if tm.enabled else "✗"
-            tm_options.append(f"{status} {tm.name}")
+            status = "✓" if tm['enabled'] else "✗"
+            tm_options.append(f"{status} {tm['name']}")
         
         # Update combobox
         self.tm_source_combo['values'] = tm_options
@@ -16438,13 +16929,18 @@ Generated by [Supervertaler](https://supervertaler.com/) v{APP_VERSION}
     
     def show_tm_manager(self):
         """Show multi-TM management dialog with enable/disable controls"""
-        # Update dropdown first
-        self.update_tm_dropdown()
-        
-        dialog = tk.Toplevel(self.root)
-        dialog.title("Translation Memory Manager")
-        dialog.geometry("900x600")
-        dialog.transient(self.root)
+        try:
+            # Update dropdown first
+            self.update_tm_dropdown()
+            
+            dialog = tk.Toplevel(self.root)
+            dialog.title("Translation Memory Manager")
+            dialog.geometry("900x600")
+            dialog.transient(self.root)
+        except Exception as e:
+            self.log(f"✗ Error opening TM Manager: {e}")
+            messagebox.showerror("TM Manager Error", f"Failed to open TM Manager:\n{str(e)}")
+            return
         
         main_frame = ttk.Frame(dialog, padding=10)
         main_frame.pack(fill=tk.BOTH, expand=True)
@@ -16489,27 +16985,30 @@ Generated by [Supervertaler](https://supervertaler.com/) v{APP_VERSION}
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         
         def populate_tree():
-            """Populate tree with all TMs"""
+            """Populate tree with all TMs (database-backed version)"""
             tree.delete(*tree.get_children())
             
-            for tm in self.tm_database.get_all_tms(enabled_only=False):
-                enabled_icon = "✓" if tm.enabled else "✗"
-                entry_count = tm.get_entry_count()
+            tm_list = self.tm_database.get_tm_list(enabled_only=False)
+            
+            for tm_info in tm_list:
+                enabled_icon = "✓" if tm_info['enabled'] else "✗"
+                entry_count = tm_info['entry_count']
                 
-                src_lang = tm.metadata.get('source_lang', 'N/A')
-                tgt_lang = tm.metadata.get('target_lang', 'N/A')
+                src_lang = self.tm_database.source_lang or 'N/A'
+                tgt_lang = self.tm_database.target_lang or 'N/A'
                 lang_pair = f"{src_lang} → {tgt_lang}" if src_lang != 'N/A' else "Not set"
                 
                 # Determine type
-                if tm.tm_id == 'project':
+                tm_id = tm_info['tm_id']
+                if tm_id == 'project':
                     tm_type = "Project TM"
-                elif tm.tm_id == 'big_mama' or tm.tm_id == 'main':
+                elif tm_id == 'big_mama' or tm_id == 'main':
                     tm_type = "Big Mama"
                 else:
-                    tm_type = "Custom TM" + (" [RO]" if tm.read_only else "")
+                    tm_type = "Custom TM" + (" [RO]" if tm_info.get('read_only', False) else "")
                 
-                tree.insert("", tk.END, iid=tm.tm_id, 
-                           values=(enabled_icon, tm.name, entry_count, lang_pair, tm_type))
+                tree.insert("", tk.END, iid=tm_id, 
+                           values=(enabled_icon, tm_info['name'], entry_count, lang_pair, tm_type))
         
         populate_tree()
         
@@ -16527,13 +17026,15 @@ Generated by [Supervertaler](https://supervertaler.com/) v{APP_VERSION}
         def on_double_click(event):
             """Toggle TM enabled state"""
             item = tree.identify_row(event.y)
-            if item:
-                tm = self.tm_database.get_tm(item)
-                if tm:
-                    tm.enabled = not tm.enabled
-                    populate_tree()
-                    self.update_tm_dropdown()  # Update dropdown
-                    self.log(f"{'Enabled' if tm.enabled else 'Disabled'} TM: {tm.name}")
+            if item and item in self.tm_database.tm_metadata:
+                # Toggle enabled state in metadata
+                current_state = self.tm_database.tm_metadata[item].get('enabled', True)
+                self.tm_database.tm_metadata[item]['enabled'] = not current_state
+                populate_tree()
+                self.update_tm_dropdown()  # Update dropdown
+                enabled_state = 'Enabled' if self.tm_database.tm_metadata[item]['enabled'] else 'Disabled'
+                tm_name = self.tm_database.tm_metadata[item].get('name', item)
+                self.log(f"{enabled_state} TM: {tm_name}")
         
         tree.bind('<Double-Button-1>', on_double_click)
         
@@ -16547,11 +17048,13 @@ Generated by [Supervertaler](https://supervertaler.com/) v{APP_VERSION}
                 messagebox.showinfo("No Selection", "Please select a TM to enable/disable")
                 return
             
-            tm = self.tm_database.get_tm(selected_tm_id[0])
-            if tm:
-                tm.enabled = not tm.enabled
+            tm_id = selected_tm_id[0]
+            if tm_id in self.tm_database.tm_metadata:
+                # Toggle enabled state
+                current_state = self.tm_database.tm_metadata[tm_id].get('enabled', True)
+                self.tm_database.tm_metadata[tm_id]['enabled'] = not current_state
                 populate_tree()
-                tree.selection_set(selected_tm_id[0])
+                tree.selection_set(tm_id)
                 self.update_tm_dropdown()  # Update dropdown
         
         def view_tm():
@@ -16560,9 +17063,8 @@ Generated by [Supervertaler](https://supervertaler.com/) v{APP_VERSION}
                 messagebox.showinfo("No Selection", "Please select a TM to view")
                 return
             
-            tm = self.tm_database.get_tm(selected_tm_id[0])
-            if tm:
-                self.show_tm_entries(tm, dialog)
+            # Pass TM ID instead of TM object
+            self.show_tm_entries(selected_tm_id[0], dialog)
         
         def remove_tm():
             """Remove selected custom TM"""
@@ -16633,10 +17135,14 @@ Generated by [Supervertaler](https://supervertaler.com/) v{APP_VERSION}
         ttk.Label(help_frame, text=help_text, font=('Segoe UI', 8), 
                  foreground='gray').pack(anchor=tk.W)
     
-    def show_tm_entries(self, tm: TM, parent):
-        """Show entries in a specific TM"""
+    def show_tm_entries(self, tm_id: str, parent):
+        """Show entries in a specific TM (database-backed version)"""
+        # Get TM metadata
+        tm_meta = self.tm_database.tm_metadata.get(tm_id, {})
+        tm_name = tm_meta.get('name', tm_id)
+        
         dialog = tk.Toplevel(parent)
-        dialog.title(f"TM Entries: {tm.name}")
+        dialog.title(f"TM Entries: {tm_name}")
         dialog.geometry("800x500")
         dialog.transient(parent)
         
@@ -16647,28 +17153,31 @@ Generated by [Supervertaler](https://supervertaler.com/) v{APP_VERSION}
         header_frame = ttk.Frame(main_frame)
         header_frame.pack(fill=tk.X, pady=(0, 10))
         
-        ttk.Label(header_frame, text=f"📖 {tm.name}", 
+        ttk.Label(header_frame, text=f"📖 {tm_name}", 
                  font=('Segoe UI', 11, 'bold')).pack(anchor=tk.W)
         
-        info_text = f"Entries: {tm.get_entry_count()} | "
-        info_text += f"Status: {'Enabled' if tm.enabled else 'Disabled'} | "
-        info_text += f"Mode: {'Read-only' if tm.read_only else 'Editable'}"
+        entry_count = self.tm_database.get_entry_count(tm_id=tm_id)
+        info_text = f"Entries: {entry_count} | "
+        info_text += f"Status: {'Enabled' if tm_meta.get('enabled', True) else 'Disabled'} | "
+        info_text += f"Mode: {'Read-only' if tm_meta.get('read_only', False) else 'Editable'}"
         ttk.Label(header_frame, text=info_text).pack(anchor=tk.W)
         
         # Entries list
         list_frame = ttk.Frame(main_frame)
         list_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
         
-        columns = ("#", "source", "target")
+        columns = ("#", "source", "target", "usage")
         tree = ttk.Treeview(list_frame, columns=columns, show='headings')
         
         tree.heading("#", text="#")
         tree.heading("source", text="Source")
         tree.heading("target", text="Target")
+        tree.heading("usage", text="Used")
         
         tree.column("#", width=50, anchor=tk.CENTER)
-        tree.column("source", width=350, anchor=tk.W)
-        tree.column("target", width=350, anchor=tk.W)
+        tree.column("source", width=320, anchor=tk.W)
+        tree.column("target", width=320, anchor=tk.W)
+        tree.column("usage", width=60, anchor=tk.CENTER)
         
         scrollbar = ttk.Scrollbar(list_frame, orient=tk.VERTICAL, command=tree.yview)
         tree.configure(yscrollcommand=scrollbar.set)
@@ -16676,18 +17185,164 @@ Generated by [Supervertaler](https://supervertaler.com/) v{APP_VERSION}
         tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         
-        # Populate
-        for idx, (source, target) in enumerate(tm.entries.items(), 1):
-            tree.insert("", tk.END, values=(idx, source, target))
+        # Search frame
+        search_frame = ttk.Frame(main_frame)
+        search_frame.pack(fill=tk.X, pady=(0, 5))
+        
+        ttk.Label(search_frame, text="🔍 Search (Concordance):").pack(side=tk.LEFT, padx=(0, 5))
+        search_var = tk.StringVar()
+        search_entry = ttk.Entry(search_frame, textvariable=search_var, width=40)
+        search_entry.pack(side=tk.LEFT, padx=(0, 5))
+        
+        # Store entries for deletion
+        displayed_entries = []
+        
+        # Configure highlighting tag
+        tree.tag_configure('highlight', background='#ffff00')  # Yellow highlight
+        
+        def do_search(*args):
+            """Search TM entries (concordance search using database)"""
+            query = search_var.get().strip()
+            tree.delete(*tree.get_children())
+            displayed_entries.clear()
+            
+            if not query:
+                # Show all entries if empty
+                entries = self.tm_database.get_tm_entries(tm_id=tm_id, limit=1000)
+                for idx, entry in enumerate(entries, 1):
+                    item_id = tree.insert("", tk.END, values=(
+                        idx, 
+                        entry['source'], 
+                        entry['target'],
+                        entry.get('usage_count', 0)
+                    ))
+                    displayed_entries.append({'item_id': item_id, 'entry': entry})
+                return
+            
+            # Database concordance search
+            matches = self.tm_database.concordance_search(query=query, tm_ids=[tm_id])
+            
+            # Display results with yellow highlighting
+            for idx, match in enumerate(matches, 1):
+                item_id = tree.insert("", tk.END, values=(
+                    idx, 
+                    match['source'], 
+                    match['target'],
+                    match.get('usage_count', 0)
+                ), tags=('highlight',))
+                displayed_entries.append({'item_id': item_id, 'entry': match})
+            
+            # Update status
+            result_text = f"Found {len(matches)} match{'es' if len(matches) != 1 else ''}"
+            status_label.config(text=result_text)
+            self.log(result_text)
+        
+        search_btn = ttk.Button(search_frame, text="Search", command=do_search)
+        search_btn.pack(side=tk.LEFT, padx=(0, 5))
+        
+        clear_btn = ttk.Button(search_frame, text="Clear", 
+                               command=lambda: (search_var.set(''), do_search()))
+        clear_btn.pack(side=tk.LEFT)
+        
+        # Status label
+        status_label = ttk.Label(search_frame, text="", font=('Segoe UI', 8))
+        status_label.pack(side=tk.LEFT, padx=10)
+        
+        # Bind Enter key
+        search_entry.bind('<Return>', do_search)
+        search_entry.bind('<KeyRelease>', do_search)  # Real-time search with highlighting
+        
+        # Populate initially
+        entries = self.tm_database.get_tm_entries(tm_id=tm_id, limit=1000)
+        for idx, entry in enumerate(entries, 1):
+            item_id = tree.insert("", tk.END, values=(idx, entry['source'], entry['target'], entry.get('usage_count', 0)))
+            displayed_entries.append({'item_id': item_id, 'entry': entry})
+        
+        # Delete entry function
+        def delete_selected_entry():
+            """Delete selected entry from TM"""
+            selection = tree.selection()
+            if not selection:
+                messagebox.showwarning("No Selection", "Please select an entry to delete.")
+                return
+            
+            if tm_meta.get('read_only', False):
+                messagebox.showwarning("Read-Only", "This TM is read-only and cannot be modified.")
+                return
+            
+            item = selection[0]
+            values = tree.item(item, 'values')
+            if not values or len(values) < 3:
+                return
+            
+            _, source, target, usage = values
+            
+            # Confirm deletion
+            if not messagebox.askyesno("Confirm Delete",
+                f"Delete this entry?\n\n"
+                f"Source: {source}\n"
+                f"Target: {target}\n\n"
+                f"This cannot be undone."):
+                return
+            
+            try:
+                # Delete from database
+                self.tm_database.delete_entry(tm_id=tm_id, source=source, target=target)
+                
+                # Remove from treeview
+                tree.delete(item)
+                
+                # Remove from displayed entries
+                displayed_entries[:] = [e for e in displayed_entries if e['item_id'] != item]
+                
+                # Update entry count
+                new_count = self.tm_database.get_entry_count(tm_id=tm_id)
+                info_text = f"Entries: {new_count} | "
+                info_text += f"Status: {'Enabled' if tm_meta.get('enabled', True) else 'Disabled'} | "
+                info_text += f"Mode: {'Read-only' if tm_meta.get('read_only', False) else 'Editable'}"
+                header_frame.winfo_children()[1].config(text=info_text)
+                
+                self.log(f"✓ Deleted entry from {tm_name}")
+                
+            except Exception as e:
+                messagebox.showerror("Delete Error", f"Failed to delete entry:\n{str(e)}")
+                self.log(f"✗ Failed to delete entry: {str(e)}")
+        
+        # Context menu for entries
+        def show_entry_context_menu(event):
+            """Show context menu on right-click"""
+            item = tree.identify_row(event.y)
+            if not item:
+                return
+            
+            tree.selection_set(item)
+            
+            menu = tk.Menu(dialog, tearoff=0)
+            if not tm_meta.get('read_only', False):
+                menu.add_command(label="🗑 Delete Entry", command=delete_selected_entry)
+                menu.add_separator()
+            menu.add_command(label="📋 Copy Source", 
+                           command=lambda: self.copy_to_clipboard(tree.item(item, 'values')[1]))
+            menu.add_command(label="📋 Copy Target", 
+                           command=lambda: self.copy_to_clipboard(tree.item(item, 'values')[2]))
+            
+            menu.post(event.x_root, event.y_root)
+        
+        tree.bind('<Button-3>', show_entry_context_menu)
         
         # Buttons
         button_frame = ttk.Frame(main_frame)
         button_frame.pack(fill=tk.X)
         
+        if not tm_meta.get('read_only', False):
+            ttk.Button(button_frame, text="🗑 Delete Selected", 
+                      command=delete_selected_entry).pack(side=tk.LEFT, padx=2)
+        
         def clear_tm():
             """Clear all entries"""
-            if tm.read_only:
+            if tm_meta.get('read_only', False):
                 messagebox.showwarning("Read-Only", "This TM is read-only and cannot be modified")
+
                 return
             
             if messagebox.askyesno("Confirm Clear", 
@@ -16717,21 +17372,26 @@ Generated by [Supervertaler](https://supervertaler.com/) v{APP_VERSION}
             return
         
         try:
+            # Get languages with fallbacks and convert to ISO codes
+            src_lang_raw = tm.metadata.get('source_lang') or self.source_language or 'en'
+            tgt_lang_raw = tm.metadata.get('target_lang') or self.target_language or 'nl'
+            
+            # Convert to ISO codes (handles "English" → "en", "nl-NL" → "nl-NL", etc.)
+            src_lang = get_simple_lang_code(src_lang_raw)
+            tgt_lang = get_simple_lang_code(tgt_lang_raw)
+            
             # Create TMX structure
             tmx = ET.Element('tmx', version="1.4")
             header = ET.SubElement(tmx, 'header', 
                                   creationtool="Supervertaler",
-                                  creationtoolversion="3.0.0",
+                                  creationtoolversion="3.7.2",
                                   datatype="PlainText",
                                   segtype="sentence",
                                   adminlang="en-us",
-                                  srclang=tm.metadata.get('source_lang', 'en'),
+                                  srclang=src_lang,
                                   o_tmf="Supervertaler")
             
             body = ET.SubElement(tmx, 'body')
-            
-            src_lang = tm.metadata.get('source_lang', 'en')
-            tgt_lang = tm.metadata.get('target_lang', 'nl')
             
             for source, target in tm.entries.items():
                 tu = ET.SubElement(body, 'tu')
@@ -16760,6 +17420,334 @@ Generated by [Supervertaler](https://supervertaler.com/) v{APP_VERSION}
         except Exception as e:
             messagebox.showerror("Export Error", f"Failed to export TM:\n{str(e)}")
             self.log(f"✗ TM export failed: {str(e)}")
+    
+    def show_tm_match_context_menu(self, event):
+        """Show context menu for TM match (right-click on TM matches treeview)"""
+        # Identify clicked item
+        item = self.tm_tree.identify_row(event.y)
+        if not item:
+            return
+        
+        self.tm_tree.selection_set(item)
+        
+        menu = tk.Menu(self.root, tearoff=0)
+        menu.add_command(label="✓ Use Translation", command=self.copy_suggestion_to_target)
+        menu.add_separator()
+        menu.add_command(label="🗑 Delete Entry", command=self.delete_tm_match)
+        
+        menu.post(event.x_root, event.y_root)
+    
+    def delete_tm_match(self):
+        """Delete selected TM match entry from database"""
+        selection = self.tm_tree.selection()
+        if not selection:
+            messagebox.showwarning("No Selection", "Please select a TM match to delete.")
+            return
+        
+        # Get selected match data
+        item = selection[0]
+        values = self.tm_tree.item(item, 'values')
+        if not values:
+            return
+        
+        match_percent, translation, tm_source = values
+        
+        # Find the corresponding entry in tm_results
+        selected_match = None
+        for result in self.tm_results:
+            if result['target'] == translation:
+                selected_match = result
+                break
+        
+        if not selected_match:
+            messagebox.showerror("Error", "Could not find matching TM entry.")
+            return
+        
+        # Confirm deletion
+        if not messagebox.askyesno("Confirm Delete", 
+            f"Delete this TM entry?\n\n"
+            f"Source: {selected_match['source']}\n"
+            f"Target: {selected_match['target']}\n"
+            f"TM: {selected_match.get('tm_id', 'Unknown')}\n\n"
+            f"This cannot be undone."):
+            return
+        
+        try:
+            # Delete from database
+            self.tm_database.delete_entry(
+                tm_id=selected_match.get('tm_id'),
+                source=selected_match['source'],
+                target=selected_match['target']
+            )
+            
+            # Remove from treeview
+            self.tm_tree.delete(item)
+            
+            # Remove from results
+            self.tm_results.remove(selected_match)
+            
+            self.log(f"✓ Deleted TM entry from {selected_match.get('tm_id', 'Unknown')}")
+            
+        except Exception as e:
+            messagebox.showerror("Delete Error", f"Failed to delete TM entry:\n{str(e)}")
+            self.log(f"✗ Failed to delete TM entry: {str(e)}")
+    
+    def _highlight_text_in_range(self, text_widget, start_index, end_index, search_term):
+        """Highlight all occurrences of search_term in the given range"""
+        if not search_term:
+            return
+        
+        start_line = int(start_index.split('.')[0])
+        end_line = int(end_index.split('.')[0])
+        
+        for line_num in range(start_line, end_line + 1):
+            line_text = text_widget.get(f"{line_num}.0", f"{line_num}.end")
+            line_text_lower = line_text.lower()
+            
+            # Find all occurrences in this line
+            start_pos = 0
+            while True:
+                pos = line_text_lower.find(search_term, start_pos)
+                if pos == -1:
+                    break
+                
+                # Apply highlight tag
+                highlight_start = f"{line_num}.{pos}"
+                highlight_end = f"{line_num}.{pos + len(search_term)}"
+                text_widget.tag_add('highlight', highlight_start, highlight_end)
+                
+                start_pos = pos + len(search_term)
+    
+    def show_concordance_search(self, initial_query=None):
+        """Show concordance search dialog for searching across all TMs"""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("🔍 Concordance Search")
+        dialog.geometry("900x600")
+        
+        main_frame = ttk.Frame(dialog, padding=10)
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Header
+        header_frame = ttk.Frame(main_frame)
+        header_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        ttk.Label(header_frame, text="🔍 Concordance Search", 
+                 font=('Segoe UI', 12, 'bold')).pack(anchor=tk.W)
+        ttk.Label(header_frame, text="Search for text across all translation memories",
+                 font=('Segoe UI', 9)).pack(anchor=tk.W)
+        
+        # Search frame
+        search_frame = ttk.Frame(main_frame)
+        search_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        ttk.Label(search_frame, text="Search:").pack(side=tk.LEFT, padx=(0, 5))
+        search_var = tk.StringVar(value=initial_query or "")
+        search_entry = ttk.Entry(search_frame, textvariable=search_var, width=50, font=('Segoe UI', 10))
+        search_entry.pack(side=tk.LEFT, padx=(0, 5), fill=tk.X, expand=True)
+        
+        # Results frame
+        results_frame = ttk.Frame(main_frame)
+        results_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+        
+        # Create Text widget for displaying results with highlighting
+        scrollbar = ttk.Scrollbar(results_frame, orient=tk.VERTICAL)
+        results_text = tk.Text(results_frame, 
+                              yscrollcommand=scrollbar.set,
+                              wrap=tk.WORD,
+                              font=('Segoe UI', 9),
+                              cursor='arrow',
+                              state=tk.DISABLED)
+        scrollbar.config(command=results_text.yview)
+        
+        results_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # Configure tags for styling
+        results_text.tag_configure('highlight', background='#ffff00', foreground='#000000')  # Yellow highlight for search term
+        results_text.tag_configure('header', font=('Segoe UI', 9, 'bold'), foreground='#555555')
+        results_text.tag_configure('source', font=('Segoe UI', 9))
+        results_text.tag_configure('target', font=('Segoe UI', 9))
+        results_text.tag_configure('meta', font=('Segoe UI', 8), foreground='#888888')
+        results_text.tag_configure('separator', foreground='#cccccc')
+        results_text.tag_configure('selectable', selectbackground='#d0e8ff')
+        
+        # Raise highlight tag priority to ensure it's visible above other tags
+        results_text.tag_raise('highlight')
+        
+        # Store search results for selection/interaction
+        search_results = []  # List of dicts with 'line_start', 'line_end', 'data'
+        
+        def do_search(*args):
+            """Perform concordance search"""
+            query = search_var.get().strip()
+            search_results.clear()
+            
+            if not query:
+                results_text.config(state=tk.NORMAL)
+                results_text.delete(1.0, tk.END)
+                results_text.config(state=tk.DISABLED)
+                return
+            
+            # Search across all TMs
+            matches = self.tm_database.concordance_search(query=query)
+            
+            # Clear and populate results
+            results_text.config(state=tk.NORMAL)
+            results_text.delete(1.0, tk.END)
+            
+            # Display results with word-level highlighting
+            query_lower = query.lower()
+            
+            for idx, match in enumerate(matches):
+                tm_name = self.tm_database.tm_metadata.get(match['tm_id'], {}).get('name', match['tm_id'])
+                usage = match.get('usage_count', 0)
+                
+                line_start = results_text.index(tk.END)
+                
+                # Insert entry with formatting
+                results_text.insert(tk.END, f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n", 'separator')
+                
+                # Source
+                results_text.insert(tk.END, "Source: ", 'header')
+                source_start = results_text.index("end-1c")  # Position before newline
+                results_text.insert(tk.END, f"{match['source']}\n", 'source')
+                source_end = results_text.index("end-1c")
+                
+                # Highlight search term in source
+                self._highlight_text_in_range(results_text, source_start, source_end, query_lower)
+                
+                # Target
+                results_text.insert(tk.END, "Target: ", 'header')
+                target_start = results_text.index("end-1c")  # Position before newline
+                results_text.insert(tk.END, f"{match['target']}\n", 'target')
+                target_end = results_text.index("end-1c")
+                
+                # Highlight search term in target
+                self._highlight_text_in_range(results_text, target_start, target_end, query_lower)
+                
+                # Metadata
+                results_text.insert(tk.END, f"TM: {tm_name}  •  Used: {usage} times\n", 'meta')
+                
+                line_end = results_text.index(tk.END)
+                
+                # Store result for selection
+                search_results.append({
+                    'line_start': line_start,
+                    'line_end': line_end,
+                    'data': match
+                })
+            
+            # Ensure highlight tag has highest priority
+            results_text.tag_raise('highlight')
+            
+            results_text.config(state=tk.DISABLED)
+            
+            # Update status
+            result_text = f"Found {len(matches)} match{'es' if len(matches) != 1 else ''}"
+            status_label.config(text=result_text)
+            self.log(f"Concordance search: {result_text} for '{query}'")
+        
+        def get_clicked_result(y_pos):
+            """Find which result was clicked based on Y position"""
+            try:
+                # Get the index at the click position
+                click_index = results_text.index(f"@0,{y_pos}")
+                
+                # Find which result this belongs to
+                for result in search_results:
+                    start = result['line_start']
+                    end = result['line_end']
+                    if results_text.compare(click_index, '>=', start) and results_text.compare(click_index, '<', end):
+                        return result
+            except Exception:
+                pass
+            return None
+        
+        def delete_selected_entry(result=None):
+            """Delete selected entry from TM"""
+            if not result:
+                messagebox.showwarning("No Selection", "Please click on an entry to delete.")
+                return
+            
+            match = result['data']
+            tm_name = self.tm_database.tm_metadata.get(match['tm_id'], {}).get('name', match['tm_id'])
+            
+            # Confirm deletion
+            if not messagebox.askyesno("Confirm Delete",
+                f"Delete this TM entry?\n\n"
+                f"Source: {match['source']}\n"
+                f"Target: {match['target']}\n"
+                f"TM: {tm_name}\n\n"
+                f"This cannot be undone."):
+                return
+            
+            try:
+                # Delete from database
+                self.tm_database.delete_entry(
+                    tm_id=match['tm_id'],
+                    source=match['source'],
+                    target=match['target']
+                )
+                
+                # Refresh search to update display
+                do_search()
+                
+                self.log(f"✓ Deleted TM entry from {tm_name}")
+                
+            except Exception as e:
+                messagebox.showerror("Delete Error", f"Failed to delete entry:\n{str(e)}")
+                self.log(f"✗ Failed to delete entry: {str(e)}")
+        
+        def show_context_menu(event):
+            """Show context menu on right-click"""
+            result = get_clicked_result(event.y)
+            if not result:
+                return
+            
+            menu = tk.Menu(dialog, tearoff=0)
+            menu.add_command(label="✓ Use Translation", 
+                           command=lambda: use_translation_from_concordance(result))
+            menu.add_separator()
+            menu.add_command(label="🗑 Delete Entry", 
+                           command=lambda: delete_selected_entry(result))
+            
+            menu.post(event.x_root, event.y_root)
+        
+        def use_translation_from_concordance(result):
+            """Copy selected translation to current segment"""
+            if result and self.current_segment:
+                target_text = result['data']['target']
+                self.current_segment.target = target_text
+                self.update_current_segment_display()
+                self.log(f"✓ Applied translation from concordance search")
+                dialog.destroy()
+        
+        # Bind events
+        search_entry.bind('<Return>', do_search)
+        search_entry.bind('<KeyRelease>', lambda e: self.root.after(300, do_search))  # Debounced search
+        results_text.bind('<Button-3>', show_context_menu)
+        results_text.bind('<Double-Button-1>', 
+                         lambda e: use_translation_from_concordance(get_clicked_result(e.y)))
+        
+        # Buttons
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X)
+        
+        search_btn = ttk.Button(button_frame, text="🔍 Search", command=do_search)
+        search_btn.pack(side=tk.LEFT, padx=2)
+        
+        ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.RIGHT, padx=2)
+        
+        # Status label
+        status_label = ttk.Label(button_frame, text="Enter search term", font=('Segoe UI', 9))
+        status_label.pack(side=tk.LEFT, padx=10)
+        
+        # Focus search entry
+        search_entry.focus_set()
+        
+        # If initial query provided, trigger search
+        if initial_query:
+            do_search()
     
     # === Tracked Changes Management ===
     
@@ -17162,9 +18150,36 @@ VALIDATION: Count pipe symbols in source and target - they must match exactly (a
                 "target": segment.target
             })
             
-            # Update UI
+            # Update UI (in-place, no screen refresh - memoQ style)
             self.modified = True
-            self.load_segments_to_grid()
+            
+            # Update the target cell directly without full reload
+            if self.layout_mode == LayoutMode.GRID and hasattr(self, 'grid_rows'):
+                # Find current row and update target widget
+                for i, row in enumerate(self.grid_rows):
+                    if row['segment'].id == segment.id:
+                        target_widget = row['widgets']['target']
+                        target_widget.config(state='normal')
+                        target_widget.delete('1.0', 'end')
+                        target_widget.insert('1.0', translation.strip())
+                        target_widget.config(state='disabled')
+                        
+                        # Update status indicator
+                        status_label = row['widgets']['status']
+                        status_label.config(text='✓', bg='#4CAF50', fg='white')
+                        break
+            elif hasattr(self, 'tree'):
+                # Update treeview for split/compact modes
+                for item in self.tree.get_children():
+                    values = self.tree.item(item)['values']
+                    if values[0] == segment.id:
+                        self.tree.item(item, values=(
+                            values[0], values[1], values[2], 'Translated',
+                            self._truncate(segment.source, 75),
+                            self._truncate(segment.target, 75)
+                        ))
+                        break
+            
             self.update_progress()
             self.log(f"✓ Segment #{segment.id} translated successfully (added to TM)")
             
@@ -17383,6 +18398,93 @@ VALIDATION: Count pipe symbols in source and target - they must match exactly (a
         
         self.log(f"✓ Batch translation complete: {successful} successful, {failed} failed, {chunk_idx+1} API calls")
 
+    # ============================================
+    # MACHINE TRANSLATION API METHODS
+    # ============================================
+    
+    def call_google_translate(self, text: str) -> str:
+        """Call Google Cloud Translation API using REST API (paid service)"""
+        try:
+            import requests
+            
+            # Google Cloud Translation requires API key
+            if not self.api_keys.get("google_translate"):
+                return "[Google Cloud Translation requires API key in api_keys.txt: google_translate=YOUR_KEY]"
+            
+            # Get language codes
+            src_lang = self.get_lang_code(self.source_language)
+            tgt_lang = self.get_lang_code(self.target_language)
+            
+            # Call REST API directly
+            url = "https://translation.googleapis.com/language/translate/v2"
+            params = {
+                'key': self.api_keys["google_translate"],
+                'q': text,
+                'source': src_lang,
+                'target': tgt_lang,
+                'format': 'text'
+            }
+            
+            response = requests.post(url, params=params)
+            response.raise_for_status()
+            
+            result = response.json()
+            return result['data']['translations'][0]['translatedText']
+            
+        except ImportError:
+            return "[Google Translate requires: pip install requests]"
+        except requests.exceptions.HTTPError as e:
+            error_msg = str(e)
+            try:
+                error_details = e.response.json()
+                if 'error' in error_details:
+                    error_msg = error_details['error'].get('message', str(e))
+            except:
+                pass
+            return f"[Google Translate API error: {error_msg}]"
+        except Exception as e:
+            return f"[Google Translate error: {str(e)}]"
+    
+    def call_deepl(self, text: str) -> str:
+        """Call DeepL API"""
+        try:
+            import deepl
+            
+            # DeepL requires API key
+            if not self.api_keys.get("deepl"):
+                return "[DeepL requires API key in api_keys.txt: deepl=YOUR_KEY]"
+            
+            translator = deepl.Translator(self.api_keys["deepl"])
+            
+            # Get language codes
+            src_lang = self.get_lang_code(self.source_language).upper()
+            tgt_lang = self.get_lang_code(self.target_language).upper()
+            
+            result = translator.translate_text(text, source_lang=src_lang, target_lang=tgt_lang)
+            return result.text
+        except ImportError:
+            return "[DeepL requires: pip install deepl]"
+        except Exception as e:
+            return f"[DeepL error: {str(e)}]"
+    
+    def get_lang_code(self, language: str) -> str:
+        """Convert language name or locale code to 2-letter code for MT APIs"""
+        # Handle locale codes like "en-US", "nl-NL", etc.
+        if '-' in language or '_' in language:
+            # Extract just the language part (before - or _)
+            return language.split('-')[0].split('_')[0].lower()
+        
+        # Handle full language names
+        lang_map = {
+            "english": "en", "dutch": "nl", "german": "de", "french": "fr",
+            "spanish": "es", "italian": "it", "portuguese": "pt", "russian": "ru",
+            "chinese": "zh", "japanese": "ja", "korean": "ko", "arabic": "ar"
+        }
+        return lang_map.get(language.lower(), language.lower()[:2])
+    
+    # ============================================
+    # LLM API METHODS
+    # ============================================
     
     def call_openai_api(self, prompt: str) -> str:
         """Call OpenAI API"""
