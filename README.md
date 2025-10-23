@@ -1,8 +1,8 @@
-# Supervertaler v3.7.2
+# Supervertaler v3.7.3
 
 🎯 **Context-aware, LLM-powered CAT editor for professional translators** — Revolutionary segment-based translation tool with AI-enhanced prompts, PDF Rescue OCR, and seamless CAT tool integration.
 
-**Latest Version**: v3.7.2 (October 22, 2025)
+**Latest Version**: v3.7.3 (October 23, 2025)
 
 ---
 

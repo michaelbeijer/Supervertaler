@@ -1,10 +1,10 @@
 """
-Translation Memory Module
+Translation Memory Module - SQLite Database Backend
 
-Manages translation memory with fuzzy matching capabilities.
+Manages translation memory with fuzzy matching capabilities using SQLite.
 Supports multiple TMs: Project TM, Big Mama TM, and custom TMX files.
 
-Extracted from main Supervertaler file for better modularity.
+Migrated from in-memory dictionaries to SQLite for scalability.
 """
 
 import os
@@ -12,6 +12,7 @@ import xml.etree.ElementTree as ET
 from datetime import datetime
 from difflib import SequenceMatcher
 from typing import Dict, List, Optional, Tuple
+from modules.database_manager import DatabaseManager
 
 
 class TM:
@@ -98,112 +99,311 @@ class TM:
 
 
 class TMDatabase:
-    """Manages multiple Translation Memories"""
+    """Manages multiple Translation Memories using SQLite backend"""
     
-    def __init__(self):
-        # Core TMs
-        self.project_tm = TM(name='Project TM', tm_id='project', enabled=True, read_only=False)
-        self.big_mama_tm = TM(name='Big Mama', tm_id='big_mama', enabled=True, read_only=False)
-        
-        # Custom TMs (user-loaded TMX files)
-        self.custom_tms: Dict[str, TM] = {}
-        
-        # Global fuzzy threshold (can be overridden per TM)
-        self.fuzzy_threshold = 0.75
-    
-    def get_tm(self, tm_id: str) -> Optional[TM]:
-        """Get TM by ID"""
-        if tm_id == 'project':
-            return self.project_tm
-        elif tm_id == 'big_mama' or tm_id == 'main':  # Support legacy 'main' ID
-            return self.big_mama_tm
-        else:
-            return self.custom_tms.get(tm_id)
-    
-    def get_all_tms(self, enabled_only: bool = False) -> List[TM]:
-        """Get all TMs (optionally only enabled ones)"""
-        tms = [self.project_tm, self.big_mama_tm] + list(self.custom_tms.values())
-        if enabled_only:
-            tms = [tm for tm in tms if tm.enabled]
-        return tms
-    
-    def add_custom_tm(self, name: str, tm_id: str = None, read_only: bool = False) -> TM:
-        """Add a new custom TM"""
-        if tm_id is None:
-            tm_id = f"custom_{len(self.custom_tms)}"
-        tm = TM(name=name, tm_id=tm_id, enabled=True, read_only=read_only)
-        self.custom_tms[tm_id] = tm
-        return tm
-    
-    def remove_custom_tm(self, tm_id: str) -> bool:
-        """Remove a custom TM"""
-        if tm_id in self.custom_tms:
-            del self.custom_tms[tm_id]
-            return True
-        return False
-    
-    def search_all(self, source: str, tm_ids: List[str] = None, enabled_only: bool = True) -> List[Dict]:
+    def __init__(self, source_lang: str = None, target_lang: str = None, db_path: str = None, log_callback=None):
         """
-        Search across multiple TMs
+        Initialize TM database
+        
+        Args:
+            source_lang: Source language (e.g., "en" or "English")
+            target_lang: Target language (e.g., "nl" or "Dutch")
+            db_path: Path to SQLite database file (default: user_data/supervertaler.db)
+            log_callback: Logging function
+        """
+        self.source_lang = source_lang
+        self.target_lang = target_lang
+        self.log = log_callback if log_callback else print
+        
+        # Initialize database manager
+        self.db = DatabaseManager(db_path=db_path, log_callback=log_callback)
+        self.db.connect()
+        
+        # Set language metadata if provided
+        if source_lang and target_lang:
+            self.set_tm_languages(source_lang, target_lang)
+        
+        # Global fuzzy threshold
+        self.fuzzy_threshold = 0.75
+        
+        # TM metadata (for UI display)
+        self.tm_metadata = {
+            'project': {'name': 'Project TM', 'enabled': True, 'read_only': False},
+            'big_mama': {'name': 'Big Mama', 'enabled': True, 'read_only': False},
+        }
+    
+    def set_tm_languages(self, source_lang: str, target_lang: str):
+        """Set language pair for TMs"""
+        # Convert to ISO codes
+        from modules.tmx_generator import get_simple_lang_code
+        self.source_lang = get_simple_lang_code(source_lang)
+        self.target_lang = get_simple_lang_code(target_lang)
+    
+    def add_entry(self, source: str, target: str, tm_id: str = 'project', 
+                  context_before: str = None, context_after: str = None, notes: str = None):
+        """
+        Add translation pair to TM
+        
+        Args:
+            source: Source text
+            target: Target text
+            tm_id: TM identifier ('project', 'big_mama', or custom)
+            context_before: Previous segment for context
+            context_after: Next segment for context
+            notes: Optional notes
+        """
+        if not source or not target:
+            return
+        
+        self.db.add_translation_unit(
+            source=source.strip(),
+            target=target.strip(),
+            source_lang=self.source_lang or 'en',
+            target_lang=self.target_lang or 'nl',
+            tm_id=tm_id,
+            context_before=context_before,
+            context_after=context_after,
+            notes=notes
+        )
+    
+    def add_to_project_tm(self, source: str, target: str):
+        """Add entry to Project TM (convenience method)"""
+        self.add_entry(source, target, tm_id='project')
+    
+    def get_exact_match(self, source: str, tm_ids: List[str] = None) -> Optional[str]:
+        """
+        Get exact match from TM(s)
+        
+        Args:
+            source: Source text to match
+            tm_ids: List of TM IDs to search (None = all enabled)
+        
+        Returns: Target text or None
+        """
+        if tm_ids is None:
+            # Search all enabled TMs
+            tm_ids = [tm_id for tm_id, meta in self.tm_metadata.items() if meta.get('enabled', True)]
+        
+        match = self.db.get_exact_match(
+            source=source,
+            tm_ids=tm_ids,
+            source_lang=self.source_lang,
+            target_lang=self.target_lang
+        )
+        
+        return match['target_text'] if match else None
+    
+    def search_all(self, source: str, tm_ids: List[str] = None, enabled_only: bool = True, max_matches: int = 5) -> List[Dict]:
+        """
+        Search across multiple TMs for fuzzy matches
+        
         Args:
             source: Source text to search for
             tm_ids: Specific TM IDs to search (None = search all)
             enabled_only: Only search enabled TMs
+            max_matches: Maximum number of results
+        
         Returns:
             List of match dictionaries sorted by similarity
         """
-        all_matches = []
-        
         # Determine which TMs to search
-        if tm_ids:
-            tms = [self.get_tm(tm_id) for tm_id in tm_ids if self.get_tm(tm_id)]
+        if tm_ids is None and enabled_only:
+            tm_ids = [tm_id for tm_id, meta in self.tm_metadata.items() if meta.get('enabled', True)]
+        
+        # First try exact match
+        exact_match = self.db.get_exact_match(
+            source=source,
+            tm_ids=tm_ids,
+            source_lang=self.source_lang,
+            target_lang=self.target_lang
+        )
+        
+        if exact_match:
+            # Format as match dictionary
+            return [{
+                'source': exact_match['source_text'],
+                'target': exact_match['target_text'],
+                'similarity': 1.0,
+                'match_pct': 100,
+                'tm_name': self.tm_metadata.get(exact_match['tm_id'], {}).get('name', exact_match['tm_id']),
+                'tm_id': exact_match['tm_id']
+            }]
+        
+        # Try fuzzy matches
+        fuzzy_matches = self.db.search_fuzzy_matches(
+            source=source,
+            tm_ids=tm_ids,
+            threshold=self.fuzzy_threshold,
+            max_results=max_matches,
+            source_lang=self.source_lang,
+            target_lang=self.target_lang
+        )
+        
+        # Format matches for UI
+        formatted_matches = []
+        for match in fuzzy_matches:
+            formatted_matches.append({
+                'source': match['source_text'],
+                'target': match['target_text'],
+                'similarity': match.get('similarity', 0.85),
+                'match_pct': match.get('match_pct', 85),
+                'tm_name': self.tm_metadata.get(match['tm_id'], {}).get('name', match['tm_id']),
+                'tm_id': match['tm_id']
+            })
+        
+        return formatted_matches
+    
+    def concordance_search(self, query: str, tm_ids: List[str] = None) -> List[Dict]:
+        """
+        Search for text in both source and target
+        
+        Args:
+            query: Search query
+            tm_ids: TM IDs to search (None = all)
+        
+        Returns: List of matching entries
+        """
+        results = self.db.concordance_search(query=query, tm_ids=tm_ids)
+        
+        # Format for UI
+        formatted = []
+        for result in results:
+            formatted.append({
+                'source': result['source_text'],
+                'target': result['target_text'],
+                'tm_name': self.tm_metadata.get(result['tm_id'], {}).get('name', result['tm_id']),
+                'tm_id': result['tm_id'],
+                'created': result.get('created_date', ''),
+                'usage_count': result.get('usage_count', 0)
+            })
+        
+        return formatted
+    
+    def get_tm_entries(self, tm_id: str, limit: int = None) -> List[Dict]:
+        """
+        Get all entries from a specific TM
+        
+        Args:
+            tm_id: TM identifier
+            limit: Maximum number of entries (None = all)
+        
+        Returns: List of entry dictionaries
+        """
+        entries = self.db.get_tm_entries(tm_id=tm_id, limit=limit)
+        
+        # Format for UI
+        formatted = []
+        for entry in entries:
+            formatted.append({
+                'source': entry['source_text'],
+                'target': entry['target_text'],
+                'created': entry.get('created_date', ''),
+                'modified': entry.get('modified_date', ''),
+                'usage_count': entry.get('usage_count', 0),
+                'notes': entry.get('notes', '')
+            })
+        
+        return formatted
+    
+    def get_entry_count(self, tm_id: str = None, enabled_only: bool = False) -> int:
+        """
+        Get entry count for TM(s)
+        
+        Args:
+            tm_id: Specific TM ID (None = all)
+            enabled_only: Only count enabled TMs
+        
+        Returns: Total entry count
+        """
+        if tm_id:
+            return self.db.get_tm_count(tm_id=tm_id)
+        
+        # Count all TMs
+        if enabled_only:
+            tm_ids = [tm_id for tm_id, meta in self.tm_metadata.items() if meta.get('enabled', True)]
+            return sum(self.db.get_tm_count(tm_id) for tm_id in tm_ids)
         else:
-            tms = self.get_all_tms(enabled_only=enabled_only)
-        
-        # Search each TM
-        for tm in tms:
-            if tm and (not enabled_only or tm.enabled):
-                matches = tm.get_fuzzy_matches(source, max_matches=10)
-                all_matches.extend(matches)
-        
-        # Sort by similarity (highest first)
-        all_matches.sort(key=lambda x: x['similarity'], reverse=True)
-        return all_matches
+            return self.db.get_tm_count()
     
-    def add_to_project_tm(self, source: str, target: str):
-        """Add entry to Project TM (convenience method)"""
-        self.project_tm.add_entry(source, target)
+    def clear_tm(self, tm_id: str):
+        """Clear all entries from a TM"""
+        self.db.clear_tm(tm_id=tm_id)
     
-    def get_entry_count(self, enabled_only: bool = False) -> int:
-        """Get total entry count across all TMs"""
-        tms = self.get_all_tms(enabled_only=enabled_only)
-        return sum(tm.get_entry_count() for tm in tms)
+    def delete_entry(self, tm_id: str, source: str, target: str):
+        """Delete a specific entry from a TM"""
+        self.db.delete_entry(tm_id, source, target)
+    
+    def add_custom_tm(self, name: str, tm_id: str = None, read_only: bool = False):
+        """Register a custom TM"""
+        if tm_id is None:
+            tm_id = f"custom_{len(self.tm_metadata)}"
+        
+        self.tm_metadata[tm_id] = {
+            'name': name,
+            'enabled': True,
+            'read_only': read_only
+        }
+        
+        return tm_id
+    
+    def remove_custom_tm(self, tm_id: str) -> bool:
+        """Remove a custom TM and its entries"""
+        if tm_id in self.tm_metadata and tm_id not in ['project', 'big_mama']:
+            # Clear entries from database
+            self.clear_tm(tm_id)
+            # Remove metadata
+            del self.tm_metadata[tm_id]
+            return True
+        return False
+    
+    def get_tm_list(self, enabled_only: bool = False) -> List[Dict]:
+        """
+        Get list of all TMs with metadata
+        
+        Returns: List of TM info dictionaries
+        """
+        tm_list = []
+        for tm_id, meta in self.tm_metadata.items():
+            if enabled_only and not meta.get('enabled', True):
+                continue
+            
+            tm_list.append({
+                'tm_id': tm_id,
+                'name': meta.get('name', tm_id),
+                'enabled': meta.get('enabled', True),
+                'read_only': meta.get('read_only', False),
+                'entry_count': self.db.get_tm_count(tm_id)
+            })
+        
+        return tm_list
+    
+    def get_all_tms(self, enabled_only: bool = False) -> List[Dict]:
+        """Alias for get_tm_list() for backward compatibility"""
+        return self.get_tm_list(enabled_only=enabled_only)
     
     def load_tmx_file(self, filepath: str, src_lang: str, tgt_lang: str, 
                       tm_name: str = None, read_only: bool = False) -> tuple[str, int]:
         """
         Load TMX file into a new custom TM
+        
         Returns: (tm_id, entry_count)
         """
         if tm_name is None:
             tm_name = os.path.basename(filepath).replace('.tmx', '')
         
-        # Create new custom TM
+        # Create custom TM
         tm_id = f"custom_{os.path.basename(filepath).replace('.', '_')}"
-        tm = self.add_custom_tm(tm_name, tm_id, read_only=read_only)
+        self.add_custom_tm(tm_name, tm_id, read_only=read_only)
         
         # Load TMX content
-        loaded_count = self._load_tmx_into_tm(filepath, src_lang, tgt_lang, tm)
+        loaded_count = self._load_tmx_into_db(filepath, src_lang, tgt_lang, tm_id)
         
-        # Update metadata
-        tm.metadata['file_path'] = filepath
-        tm.metadata['source_lang'] = src_lang
-        tm.metadata['target_lang'] = tgt_lang
+        self.log(f"✓ Loaded {loaded_count} entries from {os.path.basename(filepath)}")
         
         return tm_id, loaded_count
     
-    def _load_tmx_into_tm(self, filepath: str, src_lang: str, tgt_lang: str, tm: TM) -> int:
-        """Internal: Load TMX content into specific TM"""
+    def _load_tmx_into_db(self, filepath: str, src_lang: str, tgt_lang: str, tm_id: str) -> int:
+        """Internal: Load TMX content into database"""
         loaded_count = 0
         
         try:
@@ -212,8 +412,9 @@ class TMDatabase:
             xml_ns = "http://www.w3.org/XML/1998/namespace"
             
             # Normalize language codes
-            src_lang = src_lang.split('-')[0].split('_')[0].lower()
-            tgt_lang = tgt_lang.split('-')[0].split('_')[0].lower()
+            from modules.tmx_generator import get_simple_lang_code
+            src_lang = get_simple_lang_code(src_lang)
+            tgt_lang = get_simple_lang_code(tgt_lang)
             
             for tu in root.findall('.//tu'):
                 src_text, tgt_text = None, None
@@ -223,7 +424,7 @@ class TMDatabase:
                     if not lang_attr:
                         continue
                     
-                    tmx_lang = lang_attr.split('-')[0].split('_')[0].lower()
+                    tmx_lang = get_simple_lang_code(lang_attr)
                     
                     seg_node = tuv_node.find('seg')
                     if seg_node is not None:
@@ -238,12 +439,18 @@ class TMDatabase:
                             tgt_text = text
                 
                 if src_text and tgt_text:
-                    tm.add_entry(src_text, tgt_text)
+                    self.db.add_translation_unit(
+                        source=src_text,
+                        target=tgt_text,
+                        source_lang=src_lang,
+                        target_lang=tgt_lang,
+                        tm_id=tm_id
+                    )
                     loaded_count += 1
             
             return loaded_count
         except Exception as e:
-            print(f"Error loading TMX: {e}")
+            self.log(f"✗ Error loading TMX: {e}")
             return 0
     
     def detect_tmx_languages(self, filepath: str) -> List[str]:
@@ -263,31 +470,48 @@ class TMDatabase:
         except:
             return []
     
+    def close(self):
+        """Close database connection"""
+        if self.db:
+            self.db.close()
+    
+    def __del__(self):
+        """Ensure database is closed on cleanup"""
+        self.close()
+    
+    # Legacy compatibility methods for old JSON format
     def to_dict(self) -> Dict:
-        """Serialize entire database to dictionary"""
+        """Export to legacy dictionary format (for JSON serialization)"""
+        # NOTE: This is a legacy method - new code should use database directly
+        # Exporting large databases to JSON is not recommended
+        self.log("⚠️ Warning: Exporting database to dict format. Use TMX export for large datasets.")
+        
         return {
-            'project_tm': self.project_tm.to_dict(),
-            'big_mama_tm': self.big_mama_tm.to_dict(),
-            'custom_tms': {tm_id: tm.to_dict() for tm_id, tm in self.custom_tms.items()},
+            'project_tm': {'entries': {e['source']: e['target'] for e in self.get_tm_entries('project')}},
+            'big_mama_tm': {'entries': {e['source']: e['target'] for e in self.get_tm_entries('big_mama')}},
+            'custom_tms': {},
             'fuzzy_threshold': self.fuzzy_threshold
         }
     
     @staticmethod
-    def from_dict(data: Dict) -> 'TMDatabase':
-        """Deserialize database from dictionary"""
-        db = TMDatabase()
+    def from_dict(data: Dict, db_path: str = None, log_callback=None) -> 'TMDatabase':
+        """Import from legacy dictionary format (for JSON deserialization)"""
+        # NOTE: This is a legacy method - new code should use database directly
+        db = TMDatabase(db_path=db_path, log_callback=log_callback)
         
-        if 'project_tm' in data:
-            db.project_tm = TM.from_dict(data['project_tm'])
-        if 'big_mama_tm' in data:
-            db.big_mama_tm = TM.from_dict(data['big_mama_tm'])
-        elif 'main_tm' in data:  # Legacy support
-            db.big_mama_tm = TM.from_dict(data['main_tm'])
-            db.big_mama_tm.name = 'Big Mama'  # Update name
-            db.big_mama_tm.tm_id = 'big_mama'
-        if 'custom_tms' in data:
-            db.custom_tms = {tm_id: TM.from_dict(tm_data) 
-                            for tm_id, tm_data in data['custom_tms'].items()}
+        # Import Project TM
+        if 'project_tm' in data and 'entries' in data['project_tm']:
+            for src, tgt in data['project_tm']['entries'].items():
+                db.add_entry(src, tgt, tm_id='project')
+        
+        # Import Big Mama TM
+        if 'big_mama_tm' in data and 'entries' in data['big_mama_tm']:
+            for src, tgt in data['big_mama_tm']['entries'].items():
+                db.add_entry(src, tgt, tm_id='big_mama')
+        elif 'main_tm' in data and 'entries' in data['main_tm']:  # Legacy support
+            for src, tgt in data['main_tm']['entries'].items():
+                db.add_entry(src, tgt, tm_id='big_mama')
+        
         db.fuzzy_threshold = data.get('fuzzy_threshold', 0.75)
         
         return db
@@ -296,19 +520,24 @@ class TMDatabase:
 class TMAgent:
     """Legacy wrapper for backwards compatibility - delegates to TMDatabase"""
     
-    def __init__(self):
-        self.tm_database = TMDatabase()
+    def __init__(self, db_path: str = None):
+        self.tm_database = TMDatabase(db_path=db_path)
         self.fuzzy_threshold = 0.75
     
     @property
     def tm_data(self):
-        """Legacy property - returns Project TM entries"""
-        return self.tm_database.project_tm.entries
+        """Legacy property - returns Project TM entries as dictionary"""
+        entries = self.tm_database.get_tm_entries('project')
+        return {e['source']: e['target'] for e in entries}
     
     @tm_data.setter
     def tm_data(self, value: Dict[str, str]):
-        """Legacy property setter"""
-        self.tm_database.project_tm.entries = value
+        """Legacy property setter - loads entries into Project TM"""
+        # Clear existing entries
+        self.tm_database.clear_tm('project')
+        # Add new entries
+        for source, target in value.items():
+            self.tm_database.add_entry(source, target, tm_id='project')
     
     def add_entry(self, source: str, target: str):
         """Add to Project TM"""
@@ -316,16 +545,12 @@ class TMAgent:
     
     def get_exact_match(self, source: str) -> Optional[str]:
         """Search all enabled TMs for exact match"""
-        matches = self.tm_database.search_all(source, enabled_only=True)
-        for match in matches:
-            if match['match_pct'] == 100:
-                return match['target']
-        return None
+        return self.tm_database.get_exact_match(source)
     
     def get_fuzzy_matches(self, source: str, max_matches: int = 5) -> List[Tuple[str, str, float]]:
         """Legacy format - returns tuples"""
-        matches = self.tm_database.search_all(source, enabled_only=True)
-        return [(m['source'], m['target'], m['similarity']) for m in matches[:max_matches]]
+        matches = self.tm_database.search_all(source, enabled_only=True, max_matches=max_matches)
+        return [(m['source'], m['target'], m['similarity']) for m in matches]
     
     def get_best_match(self, source: str) -> Optional[Tuple[str, str, float]]:
         """Get best match in legacy format"""
@@ -343,4 +568,8 @@ class TMAgent:
     
     def clear(self):
         """Clear Project TM only"""
-        self.tm_database.project_tm.entries.clear()
+        self.tm_database.clear_tm('project')
+    
+    def delete_entry(self, tm_id: str, source: str, target: str):
+        """Delete a specific entry from a TM"""
+        self.tm_database.delete_entry(tm_id, source, target)
