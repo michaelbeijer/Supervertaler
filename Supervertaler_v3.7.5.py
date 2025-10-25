@@ -1,5 +1,5 @@
 """
-Supervertaler v3.7.4
+Supervertaler v3.7.6
 Unified Professional AI-Powered Computer-Aided Translation ToolFeatures:
 - 🤖 Multiple AI Providers (OpenAI GPT-4, Anthropic Claude, Google Gemini)
 - 📄 PDF Rescue - AI-Powered OCR Tool (GPT-4 Vision)
@@ -26,7 +26,7 @@ License: MIT - Open Source and Free
 """
 
 # Version constant
-APP_VERSION = "3.7.5"
+APP_VERSION = "3.7.6"
 
 # --- Private Features Flag ---
 # Check for .supervertaler.local file to enable private features (for developers only)
@@ -763,7 +763,7 @@ class Supervertaler:
         migrate_old_folder_structure()
         
         self.root = root
-        self.root.title("Supervertaler v3.7.4 - AI-Powered CAT Tool")
+        self.root.title("Supervertaler v3.7.5 - AI-Powered CAT Tool")
         self.root.geometry("1200x800")
         
         # Layout mode
@@ -1067,7 +1067,7 @@ class Supervertaler:
         self.style_guide_library.load_all_guides()
         
         # Status
-        self.log("Supervertaler v3.7.4 ready. Import a DOCX file to begin.")
+        self.log("Supervertaler v3.7.5 ready. Import a DOCX file to begin.")
         self.log(f"✨ LLM APIs: OpenAI={OPENAI_AVAILABLE}, Claude={ANTHROPIC_AVAILABLE}, Gemini={GEMINI_AVAILABLE}")
         self.log("✨ Layout modes available: Grid (memoQ-style), List, Document")
     
@@ -1495,7 +1495,7 @@ class Supervertaler:
         tk.Label(center_frame, text="Supervertaler", 
                 font=('Segoe UI', 32, 'bold'), bg='#f5f5f5', fg='#2196F3').pack(pady=(0, 5))
         
-        tk.Label(center_frame, text="v3.7.4", 
+        tk.Label(center_frame, text="v3.7.5", 
                 font=('Segoe UI', 14), bg='#f5f5f5', fg='#666').pack(pady=(0, 20))
         
         # Subtitle

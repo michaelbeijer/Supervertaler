@@ -1,10 +1,129 @@
 # Supervertaler - Complete Changelog
 
-**Latest Version**: v3.7.4 (2025-10-23)  
+**Latest Version**: v3.7.6 (2025-10-25)  
 **Product**: Unified Supervertaler (v3.x CAT Edition)  
 **Status**: Active Development
 
 > As of v3.7.1, Supervertaler is a unified product focusing exclusively on the CAT (Computer-Aided Translation) editor experience. The previous Classic Edition (v2.x) is archived for reference but no longer actively developed.
+
+---
+
+## [3.7.6] - 2025-10-25 🎨 UNICODE BOLD HIGHLIGHTING
+
+### ✨ Enhancement
+
+**TMX Editor - Unicode Bold Search Highlighting**:
+- ✅ **True bold text for search terms** - Using Unicode Mathematical Bold characters
+  - Search terms now appear in actual bold: 𝐜𝐨𝐧𝐜𝐫𝐞𝐭𝐞, 𝐁𝐚𝐬𝐞, 𝐓𝐞𝐬𝐭𝟏𝟐𝟑
+  - No extra markers or special characters added
+  - Works natively in Treeview where HTML/rich text doesn't
+  - Combined with light yellow row background for dual highlighting
+- ✅ **Professional appearance** - Clean, native-looking bold
+  - Supports A-Z, a-z, 0-9 (Unicode U+1D400-U+1D7D7)
+  - Punctuation remains normal (no Unicode bold version exists)
+  - Universal Unicode support across all platforms
+- ✅ **Maintains grid functionality** - Best of both worlds
+  - Resizable columns still work
+  - Row selection still works
+  - Double-click editing still works
+  - All Treeview features preserved
+
+### 📚 Documentation
+- Added `demo_unicode_bold.py` - Interactive demonstration of Unicode bold
+- Updated `docs/TMX_DUAL_HIGHLIGHTING.md` - Comprehensive explanation of highlighting system
+- Updated CHANGELOG with Unicode bold feature details
+
+### 🔧 Technical Details
+- **Method**: `_to_unicode_bold()` converts regular text to Mathematical Alphanumeric Symbols
+- **Character Ranges**: 
+  - Uppercase: U+1D400 to U+1D419 (𝐀-𝐙)
+  - Lowercase: U+1D41A to U+1D433 (𝐚-𝐳)
+  - Digits: U+1D7CE to U+1D7D7 (𝟎-𝟗)
+- **Performance**: Minimal impact, applied during display refresh only
+
+---
+
+## [3.7.5] - 2025-10-25 📝 TMX EDITOR MODULE
+
+### 🚀 Major Features
+
+**Professional TMX Editor**:
+- ✅ **Standalone TMX Editor module** - Inspired by Heartsome TMX Editor 8
+  - Can run independently: `python modules/tmx_editor.py`
+  - Integrated in Supervertaler as assistant panel tab
+  - Also accessible via Tools menu → TMX Editor
+- ✅ **Treeview grid with resizable columns** - Professional spreadsheet-like interface
+  - **Drag column borders** to resize Source/Target columns to your preference
+  - **Click to select** individual segments (row selection)
+  - **Dual highlighting system** for search results:
+    - Light yellow background for matching rows
+    - **Search terms displayed in Unicode bold** (𝐛𝐨𝐥𝐝 𝐭𝐞𝐱𝐭)
+  - Fast pagination (50 TUs per page)
+  - Source on left, Target on right (conventional layout)
+- ✅ **Integrated edit panel** - Edit TUs directly above the grid (no popup dialogs)
+  - **Click any segment** to load it into the edit panel
+  - **Double-click** to load and focus on target for quick editing
+  - Side-by-side source/target editing
+  - Save or cancel changes with one click
+  - Word-level highlighting in edit panel shows exact search matches
+- ✅ **Advanced filtering** - Filter by source/target content
+  - Real-time search with Enter key
+  - Clear filters with one click
+  - Matching rows highlighted in light yellow
+- ✅ **Language pair management** - View any language combination
+  - Multi-language TMX support
+  - Column headers show language codes
+  - Switch language pairs on the fly
+  - "All Languages" view to see what's in file
+- ✅ **TMX header editing** - Edit metadata
+  - Creation tool, version, segment type
+  - Admin language, source language, datatype
+  - Creator ID tracking
+- ✅ **File validation** - Check TMX structure
+  - Validate header completeness
+  - Find empty segments
+  - Report issues with line numbers
+- ✅ **Full CRUD operations**
+  - Create new TMX files
+  - Open/Save/Save As
+  - Add/Edit/Delete translation units
+  - Copy source to target
+- ✅ **Statistics view** - Analyze TMX content
+  - Total TUs per language
+  - Average character count
+  - Language distribution
+
+### 🎨 Integration Points
+
+**Assistant Panel**:
+- New "📝 TMX Editor" tab in assistant panel
+- Quick actions: Open TMX, Save, Open in Window
+- Embedded view for quick edits
+
+**Tools Menu**:
+- Tools → TMX Editor (opens in separate window)
+- Full-featured standalone editor
+- Retains state when switching tabs
+
+**Standalone Mode**:
+- Run directly: `python modules/tmx_editor.py`
+- Complete standalone application
+- No dependencies on Supervertaler
+
+### 🏗️ Architecture
+
+**Design Philosophy**:
+- Based on Heartsome TMX Editor 8 concepts (Java/Eclipse RCP)
+- Rewritten in Python/Tkinter for nimbleness
+- Clean separation: can be extracted as separate tool
+- Pagination for large file performance
+
+**Technical Details**:
+- Pure Python (no Java dependencies)
+- XML parsing with ElementTree
+- Dataclass-based models (TmxFile, TmxTranslationUnit, TmxSegment)
+- TMX 1.4 format support
+- Proper XML namespaces (xml:lang)
 
 ---
 

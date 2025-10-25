@@ -1,8 +1,8 @@
-# Supervertaler v3.7.4
+# Supervertaler v3.7.6
 
 🎯 **Context-aware, LLM-powered CAT editor for professional translators** — Revolutionary segment-based translation tool with AI-enhanced prompts, PDF Rescue OCR, and seamless CAT tool integration.
 
-**Latest Version**: v3.7.4 (October 23, 2025)
+**Latest Version**: v3.7.6 (October 25, 2025)
 
 ---
 
@@ -15,15 +15,40 @@ Supervertaler is a **professional Computer-Aided Translation (CAT) editor** desi
 - 📚 **Unified Prompt Library** - System Prompts (AI role) + Custom Instructions (user preferences)
 - 🆘 **PDF Rescue** - AI-powered OCR for badly-formatted PDFs
 - ✅ **Professional CAT features** - Segment editing, grid pagination, dual selection (memoQ-style)
-- 🔗 **CAT tool integration** - memoQ, CafeTran, Trados Studio support
+- � **TMX Editor** - Professional translation memory editor (inspired by Heartsome TMX Editor 8)
+- �🔗 **CAT tool integration** - memoQ, CafeTran, Trados Studio support
 - 📊 **Smart auto-export** - Session reports, TMX, TSV, XLIFF, Excel
 - 💾 **Translation Memory** - Fuzzy matching with segment context
 
 ---
 
-## 🚀 Current Version: v3.7.4
+## 🚀 Current Version: v3.7.6
 
-**File**: `Supervertaler_v3.7.4.py`
+**File**: `Supervertaler_v3.7.6.py`
+
+### 📌 What's New in v3.7.6
+
+**TMX Editor - Unicode Bold Highlighting** 🎨
+- **True bold text** for search terms using Unicode Mathematical Bold characters
+- Example: When searching for "concrete", see **T-shaped 𝐜𝐨𝐧𝐜𝐫𝐞𝐭𝐞 base** in grid
+- No markers, no extra characters - just clean, professional bold rendering
+- Works natively in Treeview where HTML/rich text formatting doesn't
+- Combined with light yellow background for perfect visibility
+
+### 📌 What's New in v3.7.5
+
+📝 **TMX Editor Module** (v3.7.5 - October 25, 2025):
+- **Professional TMX Editor** - Standalone module inspired by legendary Heartsome TMX Editor 8
+- **Dual-Language Grid** - Edit source/target side-by-side with fast pagination (50 TUs/page)
+- **Standalone + Integrated** - Run independently OR as assistant panel tab
+- **Advanced Filtering** - Filter by source/target content with real-time search
+- **Multi-Language Support** - View any language pair, switch on the fly
+- **TMX Validation** - Check file structure, find empty segments
+- **Header Editing** - Edit creation tool, languages, metadata
+- **Statistics View** - Analyze TU count, character averages per language
+- **Full CRUD** - Create/Open/Save, Add/Edit/Delete TUs, batch operations
+- **Tools Menu Access** - Quick launch from Tools → TMX Editor
+- See: `modules/TMX_EDITOR_README.md` for full documentation
 
 ### 📌 What's New in v3.7.4
 

@@ -4,7 +4,7 @@ Update Website Version Script
 ==============================
 
 Automatically updates version references in the website to match
-the version defined in Supervertaler_v3.7.2.py
+the version defined in Supervertaler_v3.7.6.py
 
 ⚠️  IMPORTANT: This script is intentionally conservative:
     - Updates: Website HTML (docs/index.html), download links
@@ -17,7 +17,7 @@ Usage:
     python update_website_version.py
 
 This script:
-1. Reads APP_VERSION from Supervertaler_v3.7.2.py
+1. Reads APP_VERSION from Supervertaler_v3.7.6.py
 2. Updates HTML files in docs/ (version badges, hero text)
 3. Updates README.md download instructions ONLY
 4. Preserves historical records (CHANGELOG, past release notes)
