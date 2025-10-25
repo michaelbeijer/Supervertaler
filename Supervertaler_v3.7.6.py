@@ -10945,7 +10945,37 @@ Use this feature AFTER translation to:
             self.current_edit_widget.focus()
     
     def clear_target_inline(self):
-        """Clear target of currently selected segment"""
+        """Clear target of selected segment(s) - supports multiple selection"""
+        # Get all selected items in grid
+        if hasattr(self, 'tree') and self.tree:
+            selection = self.tree.selection()
+            if selection and len(selection) > 1:
+                # Multiple segments selected
+                cleared_count = 0
+                for item in selection:
+                    seg_id = int(self.tree.item(item)['values'][0])
+                    # Find segment by ID
+                    for seg in self.segments:
+                        if seg.id == seg_id:
+                            seg.target = ""
+                            seg.status = "untranslated"
+                            cleared_count += 1
+                            break
+                
+                # Refresh the grid to show changes
+                if self.layout_mode == LayoutMode.GRID:
+                    self.refresh_page()
+                else:
+                    for seg in self.segments:
+                        if seg.target == "":
+                            self.update_segment_in_grid(seg)
+                
+                self.modified = True
+                self.update_progress()
+                self.log(f"Cleared target text for {cleared_count} selected segments")
+                return
+        
+        # Single segment (fallback to original behavior)
         if self.current_segment:
             self.current_segment.target = ""
             self.current_segment.status = "untranslated"
