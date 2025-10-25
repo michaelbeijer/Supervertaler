@@ -422,10 +422,11 @@ class PromptLibrary:
             'proofread_prompt': proofread_prompt
         }
         
-        # Save to file
+        # Save to file as Markdown
         try:
-            with open(filepath, 'w', encoding='utf-8') as f:
-                json.dump(prompt_data, f, indent=2, ensure_ascii=False)
+            success = self.dict_to_markdown(prompt_data, filepath)
+            if not success:
+                return False
             
             # Add to loaded prompts
             prompt_data['_filename'] = filename
@@ -463,10 +464,11 @@ class PromptLibrary:
             'proofread_prompt': proofread_prompt
         }
         
-        # Save to file
+        # Save to file as Markdown
         try:
-            with open(filepath, 'w', encoding='utf-8') as f:
-                json.dump(prompt_data, f, indent=2, ensure_ascii=False)
+            success = self.dict_to_markdown(prompt_data, filepath)
+            if not success:
+                return False
             
             # Update loaded prompts
             prompt_data['_filename'] = filename
