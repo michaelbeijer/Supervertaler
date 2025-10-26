@@ -795,6 +795,7 @@ class Supervertaler:
         
         # Grid view settings
         self.keep_segment_centered = tk.BooleanVar(value=self.ui_preferences.get('keep_segment_centered', False))  # CAT tool: keep active segment in middle
+        self.auto_insert_100_matches = self.ui_preferences.get('auto_insert_100_matches', False)  # Auto-insert 100% TM matches
         
         # Components
         self.segmenter = SimpleSegmenter()
@@ -1107,11 +1108,11 @@ class Supervertaler:
         # Determine base prompt
         base_prompt = None
         
-        # If user has selected a custom prompt, use that
-        if hasattr(self, 'current_translate_prompt') and self.current_translate_prompt != self.single_segment_prompt:
-            base_prompt = self.current_translate_prompt
+        # Check if user activated a system prompt from Prompt Manager
+        if hasattr(self, 'active_translate_prompt') and self.active_translate_prompt:
+            base_prompt = self.active_translate_prompt
+        # Otherwise use hardcoded default based on mode
         else:
-            # Otherwise, select based on mode
             if mode == "single":
                 base_prompt = self.single_segment_prompt
             elif mode == "batch_docx":
@@ -1217,6 +1218,8 @@ class Supervertaler:
         bulk_menu.add_command(label="Unlock all segments", command=self.unlock_all_segments)
         bulk_menu.add_command(label="Lock filtered segments", command=self.lock_filtered_segments)
         bulk_menu.add_command(label="Unlock filtered segments", command=self.unlock_filtered_segments)
+        bulk_menu.add_separator()
+        bulk_menu.add_command(label="📖 Manage Translation Memories...", command=self.show_tm_manager)
         edit_menu.add_separator()
         
         # Segment operations submenu
@@ -1334,6 +1337,9 @@ class Supervertaler:
         
         # F2 to enter edit mode (works globally when segment is selected)
         self.root.bind('<F2>', lambda e: self.enter_edit_mode_global())
+        
+        # Bind window resize to update scrollbars
+        self.root.bind('<Configure>', lambda e: self.on_window_resize(e))
         
         # Toolbar
         self.toolbar = tk.Frame(self.root, bg='#f0f0f0', height=40)
@@ -2319,6 +2325,12 @@ class Supervertaler:
             if hasattr(self, 'assist_tabs') and 0 <= current_tab_index < len(self.assist_tabs):
                 self._show_assist_tab(current_tab_index)
             
+            # Update all scrollbars after rebuild
+            self.root.after(50, self.update_all_scrollbars)
+            
+            # Check tab overflow after rebuild
+            self.root.after(200, self._check_tab_overflow)
+            
             self.log("✅ Tab layout refreshed")
     
     def rebuild_assistance_layout(self):
@@ -2342,6 +2354,9 @@ class Supervertaler:
         self.assist_tab_bar = tk.Frame(tab_container, bg='#e0e0e0', height=32)
         self.assist_tab_bar.pack(side='top', fill='x')
         self.assist_tab_bar.pack_propagate(False)
+        
+        # Bind resize to check tab overflow
+        self.assist_tab_bar.bind('<Configure>', lambda e: self._schedule_overflow_check())
         
         # Container for visible tab buttons
         self.assist_tab_buttons_frame = tk.Frame(self.assist_tab_bar, bg='#e0e0e0')
@@ -2563,6 +2578,14 @@ class Supervertaler:
         
         # Schedule overflow check after widgets are rendered
         self.assist_tab_buttons_frame.after(100, self._check_tab_overflow)
+    
+    def _schedule_overflow_check(self):
+        """Schedule overflow check with debouncing"""
+        # Cancel any pending overflow check
+        if hasattr(self, '_overflow_check_id'):
+            self.root.after_cancel(self._overflow_check_id)
+        # Schedule new check after delay
+        self._overflow_check_id = self.root.after(200, self._check_tab_overflow)
     
     def _check_tab_overflow(self):
         """Check if tabs overflow and move excess to dropdown"""
@@ -2868,44 +2891,53 @@ class Supervertaler:
         active_bar = tk.Frame(parent, bg='#e3f2fd', relief='solid', borderwidth=1)
         active_bar.pack(fill='x', padx=5, pady=5)
         
+        # Title on the left
         tk.Label(active_bar, text="🎯 Prompt Manager", font=('Segoe UI', 10, 'bold'),
                 bg='#e3f2fd').pack(side='left', padx=10, pady=5)
         
-        tk.Label(active_bar, text="Active:", font=('Segoe UI', 8, 'bold'),
-                bg='#e3f2fd').pack(side='left', padx=(20, 5))
-        tk.Label(active_bar, text="Translation system prompt:", font=('Segoe UI', 8),
-                bg='#e3f2fd').pack(side='left', padx=(0, 2))
+        # Active prompts stacked vertically on the right
+        active_stack = tk.Frame(active_bar, bg='#e3f2fd')
+        active_stack.pack(side='left', fill='x', expand=True, padx=(20, 10), pady=3)
         
-        # Dynamic label for active translation prompt
+        # Translation system prompt row
+        trans_row = tk.Frame(active_stack, bg='#e3f2fd')
+        trans_row.pack(fill='x', pady=1)
+        tk.Label(trans_row, text="Translation:", font=('Segoe UI', 8, 'bold'),
+                bg='#e3f2fd', width=13, anchor='w').pack(side='left')
         trans_name = getattr(self, 'active_translate_prompt_name', 'Default')
-        self.pl_active_trans_label = tk.Label(active_bar, text=trans_name, font=('Segoe UI', 8),
-                bg='#e3f2fd', fg='#2196F3')
-        self.pl_active_trans_label.pack(side='left', padx=(0, 10))
+        self.pl_active_trans_label = tk.Label(trans_row, text=trans_name, font=('Segoe UI', 8),
+                bg='#e3f2fd', fg='#2196F3', anchor='w')
+        self.pl_active_trans_label.pack(side='left', fill='x', expand=True)
         
-        tk.Label(active_bar, text="Proofreading system prompt:", font=('Segoe UI', 8),
-                bg='#e3f2fd').pack(side='left', padx=(0, 2))
-        
-        # Dynamic label for active proofreading prompt
+        # Proofreading system prompt row
+        proof_row = tk.Frame(active_stack, bg='#e3f2fd')
+        proof_row.pack(fill='x', pady=1)
+        tk.Label(proof_row, text="Proofreading:", font=('Segoe UI', 8, 'bold'),
+                bg='#e3f2fd', width=13, anchor='w').pack(side='left')
         proof_name = getattr(self, 'active_proofread_prompt_name', 'Default')
-        self.pl_active_proof_label = tk.Label(active_bar, text=proof_name, font=('Segoe UI', 8),
-                bg='#e3f2fd', fg='#2196F3')
-        self.pl_active_proof_label.pack(side='left', padx=(0, 10))
+        self.pl_active_proof_label = tk.Label(proof_row, text=proof_name, font=('Segoe UI', 8),
+                bg='#e3f2fd', fg='#2196F3', anchor='w')
+        self.pl_active_proof_label.pack(side='left', fill='x', expand=True)
         
-        # Dynamic label for active custom instruction
-        tk.Label(active_bar, text="Custom instructions:", font=('Segoe UI', 8),
-                bg='#e3f2fd').pack(side='left', padx=(0, 2))
+        # Custom instruction row
+        custom_row = tk.Frame(active_stack, bg='#e3f2fd')
+        custom_row.pack(fill='x', pady=1)
+        tk.Label(custom_row, text="Custom instr.:", font=('Segoe UI', 8, 'bold'),
+                bg='#e3f2fd', width=13, anchor='w').pack(side='left')
         custom_name = getattr(self, 'active_custom_instruction_name', 'None')
-        self.pl_active_custom_label = tk.Label(active_bar, text=custom_name, font=('Segoe UI', 8),
-                bg='#e3f2fd', fg='#4CAF50')
-        self.pl_active_custom_label.pack(side='left', padx=(0, 10))
+        self.pl_active_custom_label = tk.Label(custom_row, text=custom_name, font=('Segoe UI', 8),
+                bg='#e3f2fd', fg='#4CAF50', anchor='w')
+        self.pl_active_custom_label.pack(side='left', fill='x', expand=True)
         
-        # Dynamic label for active style guide
-        tk.Label(active_bar, text="Style guide:", font=('Segoe UI', 8),
-                bg='#e3f2fd').pack(side='left', padx=(0, 2))
+        # Style guide row
+        style_row = tk.Frame(active_stack, bg='#e3f2fd')
+        style_row.pack(fill='x', pady=1)
+        tk.Label(style_row, text="Style guide:", font=('Segoe UI', 8, 'bold'),
+                bg='#e3f2fd', width=13, anchor='w').pack(side='left')
         style_guide_name = getattr(self, 'active_style_guide_name', 'None')
-        self.pl_active_style_label = tk.Label(active_bar, text=style_guide_name, font=('Segoe UI', 8),
-                bg='#e3f2fd', fg='#FF9800')
-        self.pl_active_style_label.pack(side='left')
+        self.pl_active_style_label = tk.Label(style_row, text=style_guide_name, font=('Segoe UI', 8),
+                bg='#e3f2fd', fg='#FF9800', anchor='w')
+        self.pl_active_style_label.pack(side='left', fill='x', expand=True)
         
         # ===== MAIN LAYOUT: Side-by-Side (List | Editor) =====
         main_container = ttk.PanedWindow(parent, orient='horizontal')
@@ -3062,20 +3094,26 @@ class Supervertaler:
         tk.Label(style_info_frame, text="Manage formatting rules and style guidelines for multiple languages (3rd level in prompt hierarchy)",
                 font=('Segoe UI', 9), bg='#e3f2fd', fg='#666').pack(anchor='w', padx=10, pady=(0, 5))
         
-        # Main container with 3 panels: List (left), Editor (center), Chat (right)
-        sg_main_frame = tk.Frame(style_tab)
+        # Main container with resizable panels using PanedWindow
+        sg_main_frame = ttk.PanedWindow(style_tab, orient='horizontal')
         sg_main_frame.pack(fill='both', expand=True, padx=5, pady=5)
         
         # LEFT PANEL: Language List
-        sg_left_panel = tk.LabelFrame(sg_main_frame, text="📚 Languages", padx=5, pady=5)
-        sg_left_panel.pack(side='left', fill='both', padx=(0, 5))
+        sg_left_panel = tk.Frame(sg_main_frame)
+        sg_main_frame.add(sg_left_panel, weight=1)
         
-        # Language list
-        sg_list_scroll = tk.Scrollbar(sg_left_panel)
+        tk.Label(sg_left_panel, text="📚 Languages", font=('Segoe UI', 9, 'bold'),
+                bg='#FFF3E0').pack(fill='x', padx=2, pady=2)
+        
+        sg_list_container = tk.Frame(sg_left_panel)
+        sg_list_container.pack(fill='both', expand=True, padx=5, pady=5)
+        
+        # Language list with scrollbar
+        sg_list_scroll = tk.Scrollbar(sg_list_container)
         sg_list_scroll.pack(side='right', fill='y')
         
-        self.style_guides_tree = tk.Listbox(sg_left_panel, yscrollcommand=sg_list_scroll.set,
-                                            font=('Segoe UI', 9), height=10, width=15)
+        self.style_guides_tree = tk.Listbox(sg_list_container, yscrollcommand=sg_list_scroll.set,
+                                            font=('Segoe UI', 9), height=10)
         self.style_guides_tree.pack(side='left', fill='both', expand=True)
         sg_list_scroll.config(command=self.style_guides_tree.yview)
         
@@ -3088,8 +3126,8 @@ class Supervertaler:
                 self.style_guides_tree.insert(tk.END, language)
         
         # List buttons
-        sg_list_btn_frame = tk.Frame(sg_left_panel)
-        sg_list_btn_frame.pack(fill='x', pady=5)
+        sg_list_btn_frame = tk.Frame(sg_left_panel, bg='#FFF3E0')
+        sg_list_btn_frame.pack(fill='x', padx=2, pady=2)
         
         tk.Button(sg_list_btn_frame, text="➕ New", font=('Segoe UI', 8),
                  command=self._pl_create_new_style_guide, bg='#2196F3', fg='white').pack(fill='x', pady=2)
@@ -3101,8 +3139,11 @@ class Supervertaler:
                  command=self._pl_load_style_guides).pack(fill='x', pady=2)
         
         # CENTER PANEL: Guide Editor
-        sg_center_panel = tk.LabelFrame(sg_main_frame, text="📝 Edit Guide", padx=5, pady=5)
-        sg_center_panel.pack(side='left', fill='both', expand=True, padx=5)
+        sg_center_panel = tk.Frame(sg_main_frame)
+        sg_main_frame.add(sg_center_panel, weight=3)
+        
+        tk.Label(sg_center_panel, text="📝 Edit Guide", font=('Segoe UI', 9, 'bold'),
+                bg='#E8F5E9').pack(fill='x', padx=2, pady=2)
         
         # View mode toggle
         sg_view_mode_frame = tk.Frame(sg_center_panel)
@@ -3288,9 +3329,21 @@ class Supervertaler:
             domain = prompt_info.get('domain', '')
             version = prompt_info.get('version', '1.0')
             
+            # Check if this is the active translate or proofread prompt
+            is_active = (name == getattr(self, 'active_translate_prompt_name', None) or
+                        name == getattr(self, 'active_proofread_prompt_name', None))
+            
+            # Use bold font tag for active items
+            item_tags = (prompt_info.get('filename'),)
+            if is_active:
+                item_tags = item_tags + ('active_bold',)
+            
             self.pl_system_tree.insert('', 'end', text=name,
                                        values=(task, domain, version),
-                                       tags=(prompt_info.get('filename'),))
+                                       tags=item_tags)
+        
+        # Configure bold font for active items
+        self.pl_system_tree.tag_configure('active_bold', font=('Segoe UI', 9, 'bold'))
     
     def _pl_load_custom_instructions(self):
         """Load custom instructions into the tree"""
@@ -3321,9 +3374,20 @@ class Supervertaler:
             domain = prompt_info.get('domain', '')
             version = prompt_info.get('version', '1.0')
             
+            # Check if this is the active custom instruction
+            is_active = (name == getattr(self, 'active_custom_instruction_name', None))
+            
+            # Use bold font tag for active items
+            item_tags = (filename,)
+            if is_active:
+                item_tags = item_tags + ('active_bold',)
+            
             self.pl_custom_tree.insert('', 'end', text=name,
                                        values=(domain, version),
-                                       tags=(filename,))
+                                       tags=item_tags)
+        
+        # Configure bold font for active items
+        self.pl_custom_tree.tag_configure('active_bold', font=('Segoe UI', 9, 'bold'))
     
     def _pl_load_style_guides(self):
         """Load style guides into the listbox"""
@@ -3341,9 +3405,14 @@ class Supervertaler:
             # Get all languages and populate Listbox
             languages = self.style_guide_library.get_all_languages()
             
-            for language in languages:
-                self.style_guides_tree.insert(tk.END, language)
-                
+            # Get active style guide language (not name - language is the key)
+            active_language = getattr(self, 'active_style_guide_language', None)
+            
+            for idx, language in enumerate(languages):
+                # Add visual indicator for active item (since Listbox doesn't support font styling)
+                display_text = f"✓ {language}" if language == active_language else f"  {language}"
+                self.style_guides_tree.insert(tk.END, display_text)
+                    
         except Exception as e:
             self.log(f"⚠ Error loading style guides: {e}")
     
@@ -3521,8 +3590,9 @@ class Supervertaler:
             messagebox.showwarning("No Selection", "Please select a Style Guide to activate.")
             return
         
-        # Get the language name from the selected item
-        language = self.style_guides_tree.get(selection[0])
+        # Get the language name from the selected item (strip the visual indicator)
+        display_text = self.style_guides_tree.get(selection[0])
+        language = display_text.replace('✓ ', '').replace('  ', '').strip()
         
         # Load the style guide
         style_guide = self.style_guide_library.get_guide(language)
@@ -3543,6 +3613,9 @@ class Supervertaler:
         if hasattr(self, 'pl_active_style_label'):
             self.pl_active_style_label.config(text=name)
         
+        # Reload list to update bold display
+        self._pl_load_style_guides()
+        
         self.log(f"✅ Activated Style Guide: {name}")
         messagebox.showinfo("Activated", 
             f"Style Guide '{name}' is now active for this project.\n\n"
@@ -3562,6 +3635,9 @@ class Supervertaler:
         # Update label
         if hasattr(self, 'pl_active_style_label'):
             self.pl_active_style_label.config(text='None')
+        
+        # Reload list to update bold display
+        self._pl_load_style_guides()
         
         self.log("✖ Cleared Style Guide")
         messagebox.showinfo("Cleared", "Style Guide has been cleared.")
@@ -4631,95 +4707,6 @@ Professional style guidelines for translating into {language}.
             except Exception as e:
                 messagebox.showerror("Export Error", f"Failed to export prompt:\n{str(e)}")
     
-    def create_prompts_tab(self, parent):
-        """DEPRECATED: Use create_prompt_library_tab instead. Kept for backward compatibility."""
-        # Info section
-        info_frame = tk.Frame(parent, bg='#e3f2fd', relief='solid', borderwidth=1)
-        info_frame.pack(fill='x', padx=5, pady=5)
-        
-        tk.Label(info_frame, text="📝 System Prompts (Global AI Behavior)", font=('Segoe UI', 10, 'bold'),
-                bg='#e3f2fd').pack(anchor='w', padx=10, pady=5)
-        tk.Label(info_frame, text="Configure how the AI handles translation and proofreading tasks",
-                font=('Segoe UI', 9), bg='#e3f2fd', fg='#666').pack(anchor='w', padx=10, pady=(0, 5))
-        
-        # Create notebook for translate/proofread tabs
-        prompts_notebook = ttk.Notebook(parent)
-        prompts_notebook.pack(fill='both', expand=True, padx=5, pady=5)
-        
-        # === TRANSLATION PROMPT TAB ===
-        translate_frame = tk.Frame(prompts_notebook, bg='white')
-        prompts_notebook.add(translate_frame, text='🌐 Translation')
-        
-        # Translation prompt text
-        translate_scroll = tk.Scrollbar(translate_frame)
-        translate_scroll.pack(side='right', fill='y')
-        
-        self.translate_prompt_text = tk.Text(translate_frame, wrap='word', height=15,
-                                            yscrollcommand=translate_scroll.set,
-                                            font=('Consolas', 9))
-        self.translate_prompt_text.pack(fill='both', expand=True, padx=5, pady=5)
-        translate_scroll.config(command=self.translate_prompt_text.yview)
-        
-        # Insert current translate prompt
-        self.translate_prompt_text.insert("1.0", self.default_translate_prompt)
-        
-        # Translation prompt buttons
-        translate_btn_frame = tk.Frame(translate_frame)
-        translate_btn_frame.pack(fill='x', padx=5, pady=5)
-        
-        tk.Button(translate_btn_frame, text="💾 Save Prompt", 
-                 command=self.save_translate_prompt,
-                 bg='#4CAF50', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
-        tk.Button(translate_btn_frame, text="🔄 Reset to Default", 
-                 command=self.reset_translate_prompt,
-                 bg='#9E9E9E', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
-        tk.Button(translate_btn_frame, text="👁️ Preview", 
-                 command=self.preview_translate_prompt,
-                 bg='#2196F3', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
-        tk.Button(translate_btn_frame, text="📚 Prompt Library", 
-                 command=self.show_custom_prompts,
-                 bg='#FF9800', fg='white', font=('Segoe UI', 9, 'bold')).pack(side='right', padx=2)
-        
-        # === PROOFREADING PROMPT TAB ===
-        proofread_frame = tk.Frame(prompts_notebook, bg='white')
-        prompts_notebook.add(proofread_frame, text='✏️ Proofreading')
-        
-        # Proofreading prompt text
-        proofread_scroll = tk.Scrollbar(proofread_frame)
-        proofread_scroll.pack(side='right', fill='y')
-        
-        self.proofread_prompt_text = tk.Text(proofread_frame, wrap='word', height=15,
-                                            yscrollcommand=proofread_scroll.set,
-                                            font=('Consolas', 9))
-        self.proofread_prompt_text.pack(fill='both', expand=True, padx=5, pady=5)
-        proofread_scroll.config(command=self.proofread_prompt_text.yview)
-        
-        # Insert current proofread prompt
-        self.proofread_prompt_text.insert("1.0", self.default_proofread_prompt)
-        
-        # Proofreading prompt buttons
-        proofread_btn_frame = tk.Frame(proofread_frame)
-        proofread_btn_frame.pack(fill='x', padx=5, pady=5)
-        
-        tk.Button(proofread_btn_frame, text="💾 Save Prompt", 
-                 command=self.save_proofread_prompt,
-                 bg='#4CAF50', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
-        tk.Button(proofread_btn_frame, text="🔄 Reset to Default", 
-                 command=self.reset_proofread_prompt,
-                 bg='#9E9E9E', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
-        tk.Button(proofread_btn_frame, text="👁️ Preview", 
-                 command=self.preview_proofread_prompt,
-                 bg='#2196F3', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
-        tk.Button(proofread_btn_frame, text="📚 Prompt Library", 
-                 command=self.show_custom_prompts,
-                 bg='#FF9800', fg='white', font=('Segoe UI', 9, 'bold')).pack(side='right', padx=2)
-        
-        # Help text
-        help_text = tk.Label(parent, 
-                           text="💡 Variables: {{SOURCE_LANGUAGE}}, {{TARGET_LANGUAGE}}, {{SOURCE_TEXT}}",
-                           font=('Segoe UI', 8), fg='#666', bg='#f5f5f5')
-        help_text.pack(fill='x', padx=5, pady=2)
-    
     def create_projects_tab(self, parent):
         """Create Project Library tab - quick access to recent projects"""
         # Info section
@@ -4748,23 +4735,39 @@ Professional style guidelines for translating into {language}.
         list_frame = tk.LabelFrame(parent, text="Recent Projects", padx=5, pady=5)
         list_frame.pack(fill='both', expand=True, padx=5, pady=5)
         
-        # Treeview for recent projects
-        tree_scroll = ttk.Scrollbar(list_frame, orient='vertical')
-        tree_scroll.pack(side='right', fill='y')
+        # Container for tree and scrollbars
+        tree_container = tk.Frame(list_frame)
+        tree_container.pack(fill='both', expand=True)
         
-        self.project_tree = ttk.Treeview(list_frame, columns=('modified', 'segments'),
-                                        show='tree headings', yscrollcommand=tree_scroll.set)
-        tree_scroll.config(command=self.project_tree.yview)
+        # Scrollbars
+        tree_scroll_y = ttk.Scrollbar(tree_container, orient='vertical')
+        tree_scroll_x = ttk.Scrollbar(tree_container, orient='horizontal')
+        
+        self.project_tree = ttk.Treeview(tree_container, columns=('modified', 'segments'),
+                                        show='tree headings', 
+                                        yscrollcommand=tree_scroll_y.set,
+                                        xscrollcommand=tree_scroll_x.set)
+        tree_scroll_y.config(command=self.project_tree.yview)
+        tree_scroll_x.config(command=self.project_tree.xview)
         
         self.project_tree.heading('#0', text='Project Name')
         self.project_tree.heading('modified', text='Modified')
         self.project_tree.heading('segments', text='Segments')
         
-        self.project_tree.column('#0', width=200)
-        self.project_tree.column('modified', width=100)
-        self.project_tree.column('segments', width=80)
+        self.project_tree.column('#0', width=200, minwidth=100)
+        self.project_tree.column('modified', width=100, minwidth=80)
+        self.project_tree.column('segments', width=80, minwidth=60)
         
-        self.project_tree.pack(fill='both', expand=True)
+        # Use grid for reliable scrollbar display
+        self.project_tree.grid(row=0, column=0, sticky='nsew')
+        tree_scroll_y.grid(row=0, column=1, sticky='ns')
+        tree_scroll_x.grid(row=1, column=0, sticky='ew')
+        
+        tree_container.grid_rowconfigure(0, weight=1)
+        tree_container.grid_columnconfigure(0, weight=1)
+        
+        # Bind resize event to ensure scrollbars update
+        tree_container.bind('<Configure>', lambda e: self.update_project_tree_scrollbars())
         
         # Populate with recent projects
         self.populate_project_tree()
@@ -4775,6 +4778,53 @@ Professional style guidelines for translating into {language}.
         
         tk.Button(button_frame, text="📂 Browse Projects", command=self.load_project,
                  bg='#4CAF50', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=2)
+    
+    def update_project_tree_scrollbars(self):
+        """Force scrollbar update after resize events"""
+        if hasattr(self, 'project_tree'):
+            self.project_tree.update_idletasks()
+    
+    def update_tm_tree_scrollbars(self):
+        """Force TM tree scrollbar update after resize events"""
+        if hasattr(self, 'tm_tree'):
+            self.tm_tree.update_idletasks()
+            # Force scrollbar geometry update
+            if hasattr(self, 'tm_tree_scrollbar_y'):
+                self.tm_tree_scrollbar_y.set(*self.tm_tree.yview())
+            if hasattr(self, 'tm_tree_scrollbar_x'):
+                self.tm_tree_scrollbar_x.set(*self.tm_tree.xview())
+    
+    def update_grid_scrollbars(self):
+        """Force main grid scrollbar update after resize events"""
+        if hasattr(self, 'tree'):
+            self.tree.update_idletasks()
+            # Force scrollbar geometry update
+            if hasattr(self, 'grid_scrollbar_v'):
+                self.grid_scrollbar_v.set(*self.tree.yview())
+            if hasattr(self, 'grid_scrollbar_h'):
+                self.grid_scrollbar_h.set(*self.tree.xview())
+    
+    def update_all_scrollbars(self):
+        """Update all treeview scrollbars to ensure visibility"""
+        # Update main grid scrollbars
+        if hasattr(self, 'tree'):
+            self.update_grid_scrollbars()
+        # Update TM tree scrollbars
+        if hasattr(self, 'tm_tree'):
+            self.update_tm_tree_scrollbars()
+        # Update project tree scrollbars
+        if hasattr(self, 'project_tree'):
+            self.update_project_tree_scrollbars()
+    
+    def on_window_resize(self, event):
+        """Handle window resize events to update scrollbars"""
+        # Only process resize events for the main window
+        if event.widget == self.root:
+            # Debounce: cancel previous scheduled update
+            if hasattr(self, '_resize_after_id'):
+                self.root.after_cancel(self._resize_after_id)
+            # Schedule scrollbar update after resize settles
+            self._resize_after_id = self.root.after(100, self.update_all_scrollbars)
     
     def populate_project_tree(self):
         """Populate the project tree with recent projects"""
@@ -6718,6 +6768,15 @@ Available features you can recommend:
         pref_frame = tk.LabelFrame(parent, text="Translation Preferences", padx=10, pady=10)
         pref_frame.pack(fill='x', padx=5, pady=5)
         
+        # Auto-insert 100% TM matches
+        self.auto_insert_100_var = tk.BooleanVar(value=getattr(self, 'auto_insert_100_matches', False))
+        tk.Checkbutton(pref_frame, text="✨ Auto-insert 100% TM matches",
+                      variable=self.auto_insert_100_var,
+                      command=self.toggle_auto_insert_100,
+                      font=('Segoe UI', 9)).pack(anchor='w', pady=2)
+        tk.Label(pref_frame, text="  ⓘ Automatically fill target with 100% matches when entering untranslated segments",
+                font=('Segoe UI', 8), fg='gray').pack(anchor='w', padx=20)
+        
         # Batch size setting (default: 100 segments per API call)
         self.chunk_size_var = tk.StringVar(value="100")
         chunk_frame = tk.Frame(pref_frame)
@@ -6756,59 +6815,73 @@ Available features you can recommend:
         tk.Checkbutton(pref_frame, text="Auto-propagate 100% TM matches",
                       variable=self.auto_propagate_var, font=('Segoe UI', 9)).pack(anchor='w', pady=2)
         
-        # Auto-Export Options
-        export_frame = tk.LabelFrame(parent, text="Auto-Export Options", padx=10, pady=10)
-        export_frame.pack(fill='x', padx=5, pady=5)
+        # Auto-Export Options (with scrollbar for when window is small)
+        export_outer = tk.LabelFrame(parent, text="Auto-Export Options", padx=2, pady=2)
+        export_outer.pack(fill='both', expand=True, padx=5, pady=5)
+        
+        # Create canvas and scrollbar for scrollable content
+        export_canvas = tk.Canvas(export_outer, height=200, bg='white', highlightthickness=0)
+        export_scrollbar = tk.Scrollbar(export_outer, orient='vertical', command=export_canvas.yview)
+        export_frame = tk.Frame(export_canvas, bg='white', padx=8, pady=8)
+        
+        # Configure canvas scrolling
+        export_frame.bind('<Configure>', lambda e: export_canvas.configure(scrollregion=export_canvas.bbox('all')))
+        export_canvas.create_window((0, 0), window=export_frame, anchor='nw')
+        export_canvas.configure(yscrollcommand=export_scrollbar.set)
+        
+        # Pack canvas and scrollbar
+        export_scrollbar.pack(side='right', fill='y')
+        export_canvas.pack(side='left', fill='both', expand=True)
         
         tk.Label(export_frame, text="Automatically export these formats alongside your primary export:",
-                font=('Segoe UI', 9), fg='#666').pack(anchor='w', pady=(0, 10))
+                font=('Segoe UI', 9), fg='#666', bg='white').pack(anchor='w', pady=(0, 10))
         
         # Session reports
-        reports_subframe = tk.Frame(export_frame)
+        reports_subframe = tk.Frame(export_frame, bg='white')
         reports_subframe.pack(anchor='w', fill='x', pady=2)
         
         self.auto_export_session_md_var = tk.BooleanVar(value=self.ui_preferences.get('auto_export_session_md', True))
         tk.Checkbutton(reports_subframe, text="Session Report (.md)",
-                      variable=self.auto_export_session_md_var, font=('Segoe UI', 9), command=self.save_ui_preferences).pack(side='left', padx=(0, 20))
+                      variable=self.auto_export_session_md_var, font=('Segoe UI', 9), command=self.save_ui_preferences, bg='white').pack(side='left', padx=(0, 20))
         
         self.auto_export_session_html_var = tk.BooleanVar(value=self.ui_preferences.get('auto_export_session_html', True))
         tk.Checkbutton(reports_subframe, text="Session Report (.html)",
-                      variable=self.auto_export_session_html_var, font=('Segoe UI', 9), command=self.save_ui_preferences).pack(side='left')
+                      variable=self.auto_export_session_html_var, font=('Segoe UI', 9), command=self.save_ui_preferences, bg='white').pack(side='left')
         
         # Translation memory and exchange formats
-        tm_subframe = tk.Frame(export_frame)
+        tm_subframe = tk.Frame(export_frame, bg='white')
         tm_subframe.pack(anchor='w', fill='x', pady=2)
         
         self.auto_export_tmx_var = tk.BooleanVar(value=self.ui_preferences.get('auto_export_tmx', True))
         tk.Checkbutton(tm_subframe, text="Translation Memory (.tmx)",
-                      variable=self.auto_export_tmx_var, font=('Segoe UI', 9), command=self.save_ui_preferences).pack(side='left', padx=(0, 20))
+                      variable=self.auto_export_tmx_var, font=('Segoe UI', 9), command=self.save_ui_preferences, bg='white').pack(side='left', padx=(0, 20))
         
         self.auto_export_tsv_var = tk.BooleanVar(value=self.ui_preferences.get('auto_export_tsv', False))
         tk.Checkbutton(tm_subframe, text="Tab-separated (.tsv)",
-                      variable=self.auto_export_tsv_var, font=('Segoe UI', 9), command=self.save_ui_preferences).pack(side='left')
+                      variable=self.auto_export_tsv_var, font=('Segoe UI', 9), command=self.save_ui_preferences, bg='white').pack(side='left')
         
         # Bilingual formats
-        bilingual_subframe = tk.Frame(export_frame)
+        bilingual_subframe = tk.Frame(export_frame, bg='white')
         bilingual_subframe.pack(anchor='w', fill='x', pady=2)
         
         self.auto_export_bilingual_txt_var = tk.BooleanVar(value=self.ui_preferences.get('auto_export_bilingual_txt', False))
         tk.Checkbutton(bilingual_subframe, text="Bilingual Text (.txt)",
-                      variable=self.auto_export_bilingual_txt_var, font=('Segoe UI', 9), command=self.save_ui_preferences).pack(side='left', padx=(0, 20))
+                      variable=self.auto_export_bilingual_txt_var, font=('Segoe UI', 9), command=self.save_ui_preferences, bg='white').pack(side='left', padx=(0, 20))
         
         self.auto_export_xliff_var = tk.BooleanVar(value=self.ui_preferences.get('auto_export_xliff', False))
         tk.Checkbutton(bilingual_subframe, text="XLIFF (.xliff)",
-                      variable=self.auto_export_xliff_var, font=('Segoe UI', 9), command=self.save_ui_preferences).pack(side='left')
+                      variable=self.auto_export_xliff_var, font=('Segoe UI', 9), command=self.save_ui_preferences, bg='white').pack(side='left')
         
         # Excel format
-        excel_subframe = tk.Frame(export_frame)
+        excel_subframe = tk.Frame(export_frame, bg='white')
         excel_subframe.pack(anchor='w', fill='x', pady=2)
         
         self.auto_export_excel_var = tk.BooleanVar(value=self.ui_preferences.get('auto_export_excel', True))
         tk.Checkbutton(excel_subframe, text="Excel Bilingual (.xlsx)",
-                      variable=self.auto_export_excel_var, font=('Segoe UI', 9), command=self.save_ui_preferences).pack(side='left')
+                      variable=self.auto_export_excel_var, font=('Segoe UI', 9), command=self.save_ui_preferences, bg='white').pack(side='left')
         
         tk.Label(export_frame, text="  ⓘ Exports will be saved in the same directory as your primary export",
-                font=('Segoe UI', 8), fg='gray').pack(anchor='w', pady=(5, 0))
+                font=('Segoe UI', 8), fg='gray', bg='white').pack(anchor='w', pady=(5, 0))
         
         # Info section
         info_frame = tk.Frame(parent, bg='#f0f0f0', relief='solid', borderwidth=1)
@@ -7090,11 +7163,18 @@ Use this feature AFTER translation to:
         tree_frame = tk.Frame(matches_frame)
         tree_frame.pack(fill='both', expand=True, padx=2, pady=2)
         
-        scrollbar = ttk.Scrollbar(tree_frame, orient='vertical')
+        # Scrollbars
+        scrollbar_y = ttk.Scrollbar(tree_frame, orient='vertical')
+        scrollbar_x = ttk.Scrollbar(tree_frame, orient='horizontal')
+        
         self.tm_tree = ttk.Treeview(tree_frame, columns=('match', 'text', 'source_tm'),
-                                   show='headings', yscrollcommand=scrollbar.set,
+                                   show='headings', 
+                                   yscrollcommand=scrollbar_y.set,
+                                   xscrollcommand=scrollbar_x.set,
                                    selectmode='browse', height=8)
-        scrollbar.config(command=self.tm_tree.yview)
+        
+        scrollbar_y.config(command=self.tm_tree.yview)
+        scrollbar_x.config(command=self.tm_tree.xview)
         
         self.tm_tree.heading('match', text='Match %', anchor='w')
         self.tm_tree.heading('text', text='Translation', anchor='w')
@@ -7104,8 +7184,20 @@ Use this feature AFTER translation to:
         self.tm_tree.column('text', width=250, minwidth=150, stretch=True)
         self.tm_tree.column('source_tm', width=120, minwidth=100, stretch=False)
         
-        self.tm_tree.pack(side='left', fill='both', expand=True)
-        scrollbar.pack(side='right', fill='y')
+        self.tm_tree.grid(row=0, column=0, sticky='nsew')
+        scrollbar_y.grid(row=0, column=1, sticky='ns')
+        scrollbar_x.grid(row=1, column=0, sticky='ew')
+        
+        tree_frame.grid_rowconfigure(0, weight=1)
+        tree_frame.grid_columnconfigure(0, weight=1)
+        
+        # Store scrollbar references for updates
+        self.tm_tree_scrollbar_y = scrollbar_y
+        self.tm_tree_scrollbar_x = scrollbar_x
+        
+        # Bind events to update scrollbars
+        tree_frame.bind('<Configure>', lambda e: self.update_tm_tree_scrollbars())
+        self.tm_tree.bind('<Configure>', lambda e: self.update_tm_tree_scrollbars())
         
         # Tag configuration for match percentage colors
         self.tm_tree.tag_configure('exact', background='#c8e6c9')  # Light green
@@ -7113,7 +7205,7 @@ Use this feature AFTER translation to:
         self.tm_tree.tag_configure('medium', background='#ffecb3') # Light orange
         
         self.tm_tree.bind('<<TreeviewSelect>>', self.on_tm_select)
-        self.tm_tree.bind('<Double-Button-1>', lambda e: self.copy_suggestion_to_target())
+        self.tm_tree.bind('<Double-Button-1>', lambda e: self.use_tm_translation())
         self.tm_tree.bind('<Button-3>', self.show_tm_match_context_menu)
         
         # Store TM results
@@ -7546,6 +7638,33 @@ Use this feature AFTER translation to:
             # Use separate column for TM source
             self.tm_tree.insert('', 'end', values=(f"{match_pct}%", result['target'], result['tm']), tags=(tag,))
         
+        # Auto-insert 100% match if enabled and segment is untranslated
+        if self.auto_insert_100_matches and self.tm_results:
+            # Get match percentage (handle both 'match' and 'match_pct' keys)
+            first_match_pct = self.tm_results[0].get('match', self.tm_results[0].get('match_pct', 0))
+            
+            if first_match_pct == 100:
+                # Check if current segment is untranslated or empty
+                if hasattr(self, 'current_segment_index') and 0 <= self.current_segment_index < len(self.segments):
+                    current_seg = self.segments[self.current_segment_index]
+                    if current_seg.status == "untranslated" or not current_seg.target.strip():
+                        # Auto-insert the 100% match
+                        target_text = self.tm_results[0]['target']
+                        current_seg.target = target_text
+                        current_seg.status = "translated"
+                        
+                        # Update grid editor if visible
+                        if hasattr(self, 'grid_target_text'):
+                            self.grid_target_text.delete('1.0', 'end')
+                            self.grid_target_text.insert('1.0', target_text)
+                        
+                        self.modified = True
+                        self.update_progress()
+                        self.log("✨ Auto-inserted 100% TM match")
+        
+        # Update scrollbars after populating tree
+        self.root.after(10, self.update_tm_tree_scrollbars)
+        
         if auto_triggered:
             self.log(f"✓ Auto-search: Populated TM tree with {len(self.tm_results)} matches")
         
@@ -7651,6 +7770,16 @@ Use this feature AFTER translation to:
         if hasattr(self, 'grid_target_text'):
             self.grid_target_text.delete('1.0', 'end')
             self.grid_target_text.insert('1.0', target_text)
+            
+            # Update the current segment's target
+            if hasattr(self, 'current_segment_index') and 0 <= self.current_segment_index < len(self.segments):
+                current_seg = self.segments[self.current_segment_index]
+                current_seg.target = target_text
+                if target_text.strip():
+                    current_seg.status = "translated"
+                self.modified = True
+                self.update_progress()
+            
             self.log("✓ Suggestion copied to target")
     
     def insert_suggestion_at_cursor(self):
@@ -7809,6 +7938,14 @@ Use this feature AFTER translation to:
         
         tree_container.grid_rowconfigure(0, weight=1)
         tree_container.grid_columnconfigure(0, weight=1)
+        
+        # Store scrollbar references for updates
+        self.grid_scrollbar_v = v_scroll
+        self.grid_scrollbar_h = h_scroll
+        
+        # Bind events to update scrollbars
+        tree_container.bind('<Configure>', lambda e: self.update_grid_scrollbars())
+        self.tree.bind('<Configure>', lambda e: self.update_grid_scrollbars())
         
         # Configure row colors
         self.tree.tag_configure('untranslated', background='#ffe6e6')
@@ -10004,9 +10141,10 @@ Use this feature AFTER translation to:
         seg_id = int(self.tree.item(item)['values'][0])
         
         # Find and set current segment
-        for seg in self.segments:
+        for idx, seg in enumerate(self.segments):
             if seg.id == seg_id:
                 self.current_segment = seg
+                self.current_segment_index = idx
                 break
     
     def on_cell_double_click(self, event):
@@ -12288,7 +12426,14 @@ Use this feature AFTER translation to:
         seg_id = int(values[0])
         
         # Find segment
-        self.current_segment = next((s for s in self.segments if s.id == seg_id), None)
+        for idx, seg in enumerate(self.segments):
+            if seg.id == seg_id:
+                self.current_segment = seg
+                self.current_segment_index = idx
+                break
+        else:
+            self.current_segment = None
+            self.current_segment_index = None
         
         if self.current_segment:
             self.log(f"✓ Segment #{self.current_segment.id} selected")  # DEBUG
@@ -13062,7 +13207,6 @@ Use this feature AFTER translation to:
                     'model': self.current_llm_model,
                     'source_language': self.source_language,
                     'target_language': self.target_language,
-                    'custom_prompt': self.current_translate_prompt,
                     # Save active prompts
                     'active_translate_prompt_name': getattr(self, 'active_translate_prompt_name', None),
                     'active_proofread_prompt_name': getattr(self, 'active_proofread_prompt_name', None),
@@ -13156,7 +13300,6 @@ Use this feature AFTER translation to:
                 self.current_llm_model = llm_settings.get('model', 'gpt-4o')
                 self.source_language = llm_settings.get('source_language', 'English')
                 self.target_language = llm_settings.get('target_language', 'Dutch')
-                self.current_translate_prompt = llm_settings.get('custom_prompt', self.default_translate_prompt)
                 
                 # Update TM database languages
                 self.tm_database.set_tm_languages(self.source_language, self.target_language)
@@ -13328,6 +13471,13 @@ Use this feature AFTER translation to:
         except:
             return {}
     
+    def toggle_auto_insert_100(self):
+        """Toggle auto-insert 100% TM matches setting"""
+        self.auto_insert_100_matches = self.auto_insert_100_var.get()
+        status = "enabled" if self.auto_insert_100_matches else "disabled"
+        self.log(f"⚙ Auto-insert 100% TM matches {status}")
+        self.save_ui_preferences()
+    
     def save_ui_preferences(self):
         """Save UI preferences to config"""
         try:
@@ -13337,6 +13487,7 @@ Use this feature AFTER translation to:
             # Gather all preferences
             preferences = {
                 'keep_segment_centered': self.keep_segment_centered.get(),
+                'auto_insert_100_matches': getattr(self, 'auto_insert_100_matches', False),
                 'auto_export_session_md': self.auto_export_session_md_var.get(),
                 'auto_export_session_html': self.auto_export_session_html_var.get(),
                 'auto_export_tmx': self.auto_export_tmx_var.get(),
@@ -14649,42 +14800,46 @@ Use this feature AFTER translation to:
                 messagebox.showerror("Error", f"Invalid table structure.\n\nExpected at least 3 rows, found {len(table.rows)}.")
                 return
             
-            # Extract source segments from column 1 (skipping header rows 0 and 1)
+            # Extract source AND target segments from columns 1 and 2 (skipping header rows 0 and 1)
             # Also extract formatting information (bold, italic, underline)
-            segments_data = []
+            segments_data = []  # List of (source, target) tuples
             formatting_map = {}  # segment_index -> list of (text, bold, italic, underline)
             
             for row_idx in range(2, len(table.rows)):
                 row = table.rows[row_idx]
                 
-                # Column 1 contains the source text
-                if len(row.cells) >= 2:
-                    cell = row.cells[1]
-                    source_text = cell.text.strip()
+                # Ensure we have at least 3 cells (0=segment#, 1=source, 2=target)
+                if len(row.cells) >= 3:
+                    source_cell = row.cells[1]
+                    target_cell = row.cells[2]
                     
-                    if source_text:  # Only add non-empty segments
-                        segment_idx = len(segments_data)
-                        segments_data.append(source_text)
-                        
-                        # Extract formatting from runs in this cell
-                        formatting_info = []
-                        for paragraph in cell.paragraphs:
-                            for run in paragraph.runs:
-                                run_text = run.text
-                                if run_text:  # Only store runs with actual text
-                                    formatting_info.append({
-                                        'text': run_text,
-                                        'bold': run.bold == True,  # Explicit True check
-                                        'italic': run.italic == True,  # Explicit True check
-                                        'underline': run.underline == True  # Explicit True check (handles WD_UNDERLINE enum)
-                                    })
-                        
-                        # Store formatting for this segment
-                        if formatting_info:
-                            formatting_map[segment_idx] = formatting_info
+                    source_text = source_cell.text.strip()
+                    target_text = target_cell.text.strip()
+                    
+                    # Always add the row to maintain alignment, even if source is empty
+                    # This prevents misalignment when image tags or empty segments appear
+                    segment_idx = len(segments_data)
+                    segments_data.append((source_text, target_text))
+                    
+                    # Extract formatting from runs in source cell
+                    formatting_info = []
+                    for paragraph in source_cell.paragraphs:
+                        for run in paragraph.runs:
+                            run_text = run.text
+                            if run_text:  # Only store runs with actual text
+                                formatting_info.append({
+                                    'text': run_text,
+                                    'bold': run.bold == True,  # Explicit True check
+                                    'italic': run.italic == True,  # Explicit True check
+                                    'underline': run.underline == True  # Explicit True check (handles WD_UNDERLINE enum)
+                                })
+                    
+                    # Store formatting for this segment
+                    if formatting_info:
+                        formatting_map[segment_idx] = formatting_info
             
             if not segments_data:
-                messagebox.showwarning("Warning", "No source segments found in the bilingual file.")
+                messagebox.showwarning("Warning", "No segments found in the bilingual file.")
                 return
             
             # Clear current segments and load new ones
@@ -14693,7 +14848,7 @@ Use this feature AFTER translation to:
             # Smart paragraph detection
             current_paragraph_id = 0
             
-            for i, source_text in enumerate(segments_data):
+            for i, (source_text, target_text) in enumerate(segments_data):
                 # Detect if this should be a new paragraph
                 should_start_new_paragraph = False
                 
@@ -14701,7 +14856,8 @@ Use this feature AFTER translation to:
                     # First segment always starts a paragraph
                     should_start_new_paragraph = True
                 else:
-                    prev_source = segments_data[i-1].strip()
+                    prev_source, prev_target = segments_data[i-1]
+                    prev_source = prev_source.strip()
                     curr_source = source_text.strip()
                     
                     # Heuristics for new paragraph:
@@ -14715,7 +14871,7 @@ Use this feature AFTER translation to:
                     
                     # 3. Previous ended with period AND current starts with capital (but not mid-paragraph continuation)
                     natural_break = (prev_source.endswith('.') and 
-                                   curr_source[0].isupper() and 
+                                   curr_source and curr_source[0].isupper() and 
                                    (prev_was_heading or is_heading))
                     
                     should_start_new_paragraph = is_heading or prev_was_heading or natural_break
@@ -14724,7 +14880,7 @@ Use this feature AFTER translation to:
                 if should_start_new_paragraph:
                     current_paragraph_id += 1
                 
-                # Create Segment object
+                # Create Segment object with source
                 # Each segment gets smart paragraph grouping for proper document view rendering
                 seg = Segment(
                     seg_id=i + 1,
@@ -14735,6 +14891,14 @@ Use this feature AFTER translation to:
                     style="Normal",
                     document_position=i
                 )
+                
+                # Set target and status after creation
+                if target_text:
+                    seg.target = target_text
+                    seg.status = "translated"
+                else:
+                    seg.status = "untranslated"
+                
                 self.segments.append(seg)
             
             # Store the original memoQ file info for export
@@ -15131,10 +15295,8 @@ Use this feature AFTER translation to:
                 except:
                     pass
             
-            # Determine prompt source
-            is_custom_prompt = (hasattr(self, 'current_translate_prompt') and 
-                              self.current_translate_prompt != self.single_segment_prompt)
-            custom_prompt_source = "Custom loaded prompt" if is_custom_prompt else "Default system prompt"
+            # Get active system prompt name for report
+            custom_prompt_source = getattr(self, 'active_translate_prompt_name', 'Default system prompt')
             
             # Build comprehensive markdown report
             report = f"""# Session Report generated by [Supervertaler](https://supervertaler.com/) v{APP_VERSION}
@@ -17440,7 +17602,7 @@ Generated by [Supervertaler](https://supervertaler.com/) v{APP_VERSION}
         list_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
         
         columns = ("#", "source", "target", "usage")
-        tree = ttk.Treeview(list_frame, columns=columns, show='headings')
+        tree = ttk.Treeview(list_frame, columns=columns, show='headings', selectmode='extended')
         
         tree.heading("#", text="#")
         tree.heading("source", text="Source")
@@ -17533,7 +17695,7 @@ Generated by [Supervertaler](https://supervertaler.com/) v{APP_VERSION}
         
         # Delete entry function
         def delete_selected_entry():
-            """Delete selected entry from TM"""
+            """Delete selected entry/entries from TM"""
             selection = tree.selection()
             if not selection:
                 messagebox.showwarning("No Selection", "Please select an entry to delete.")
@@ -17543,6 +17705,55 @@ Generated by [Supervertaler](https://supervertaler.com/) v{APP_VERSION}
                 messagebox.showwarning("Read-Only", "This TM is read-only and cannot be modified.")
                 return
             
+            # Handle multiple selections
+            if len(selection) > 1:
+                # Confirm bulk deletion
+                if not messagebox.askyesno("Confirm Bulk Delete",
+                    f"Delete {len(selection)} entries?\n\n"
+                    f"This cannot be undone."):
+                    return
+                
+                deleted_count = 0
+                failed_count = 0
+                
+                for item in selection:
+                    values = tree.item(item, 'values')
+                    if not values or len(values) < 3:
+                        continue
+                    
+                    _, source, target, usage = values
+                    
+                    try:
+                        # Delete from database
+                        self.tm_database.delete_entry(tm_id=tm_id, source=source, target=target)
+                        
+                        # Remove from treeview
+                        tree.delete(item)
+                        
+                        # Remove from displayed entries
+                        displayed_entries[:] = [e for e in displayed_entries if e['item_id'] != item]
+                        
+                        deleted_count += 1
+                        
+                    except Exception as e:
+                        failed_count += 1
+                        self.log(f"✗ Failed to delete entry: {str(e)}")
+                
+                # Update entry count
+                new_count = self.tm_database.get_entry_count(tm_id=tm_id)
+                info_text = f"Entries: {new_count} | "
+                info_text += f"Status: {'Enabled' if tm_meta.get('enabled', True) else 'Disabled'} | "
+                info_text += f"Mode: {'Read-only' if tm_meta.get('read_only', False) else 'Editable'}"
+                header_frame.winfo_children()[1].config(text=info_text)
+                
+                if deleted_count > 0:
+                    self.log(f"✓ Deleted {deleted_count} entries from {tm_name}")
+                if failed_count > 0:
+                    messagebox.showwarning("Partial Success", 
+                        f"Deleted {deleted_count} entries, {failed_count} failed.")
+                return
+            
+            # Single selection
             item = selection[0]
             values = tree.item(item, 'values')
             if not values or len(values) < 3:
@@ -17592,7 +17803,10 @@ Generated by [Supervertaler](https://supervertaler.com/) v{APP_VERSION}
             
             menu = tk.Menu(dialog, tearoff=0)
             if not tm_meta.get('read_only', False):
-                menu.add_command(label="🗑 Delete Entry", command=delete_selected_entry)
+                # Show different label if multiple selected
+                selection = tree.selection()
+                delete_label = f"🗑 Delete {len(selection)} Entries" if len(selection) > 1 else "🗑 Delete Entry"
+                menu.add_command(label=delete_label, command=delete_selected_entry)
                 menu.add_separator()
             menu.add_command(label="📋 Copy Source", 
                            command=lambda: self.copy_to_clipboard(tree.item(item, 'values')[1]))
@@ -17602,6 +17816,16 @@ Generated by [Supervertaler](https://supervertaler.com/) v{APP_VERSION}
             menu.post(event.x_root, event.y_root)
         
         tree.bind('<Button-3>', show_entry_context_menu)
+        
+        # Selection counter
+        def update_selection_count(*args):
+            """Update selection count display"""
+            selection = tree.selection()
+            count = len(selection)
+            if count > 0:
+                self.log(f"📌 {count} TM entr{'ies' if count != 1 else 'y'} selected")
+        
+        tree.bind('<<TreeviewSelect>>', update_selection_count)
         
         # Buttons
         button_frame = ttk.Frame(main_frame)
@@ -17615,17 +17839,26 @@ Generated by [Supervertaler](https://supervertaler.com/) v{APP_VERSION}
             """Clear all entries"""
             if tm_meta.get('read_only', False):
                 messagebox.showwarning("Read-Only", "This TM is read-only and cannot be modified")
-
                 return
             
+            entry_count = self.tm_database.get_entry_count(tm_id=tm_id)
             if messagebox.askyesno("Confirm Clear", 
-                f"Clear all {tm.get_entry_count()} entries from '{tm.name}'?\n\n"
+                f"Clear all {entry_count} entries from '{tm_name}'?\n\n"
                 "This cannot be undone."):
-                tm.entries.clear()
+                # Clear all entries from database
+                self.tm_database.clear_tm(tm_id=tm_id)
                 tree.delete(*tree.get_children())
-                self.log(f"Cleared TM: {tm.name}")
+                displayed_entries.clear()
+                
+                # Update entry count
+                info_text = f"Entries: 0 | "
+                info_text += f"Status: {'Enabled' if tm_meta.get('enabled', True) else 'Disabled'} | "
+                info_text += f"Mode: {'Read-only' if tm_meta.get('read_only', False) else 'Editable'}"
+                header_frame.winfo_children()[1].config(text=info_text)
+                
+                self.log(f"Cleared TM: {tm_name}")
         
-        if not tm.read_only:
+        if not tm_meta.get('read_only', False):
             ttk.Button(button_frame, text="🗑 Clear All Entries", 
                       command=clear_tm).pack(side=tk.LEFT, padx=2)
         
@@ -17704,11 +17937,45 @@ Generated by [Supervertaler](https://supervertaler.com/) v{APP_VERSION}
         self.tm_tree.selection_set(item)
         
         menu = tk.Menu(self.root, tearoff=0)
-        menu.add_command(label="✓ Use Translation", command=self.copy_suggestion_to_target)
+        menu.add_command(label="✓ Use Translation", command=self.use_tm_translation)
         menu.add_separator()
         menu.add_command(label="🗑 Delete Entry", command=self.delete_tm_match)
         
         menu.post(event.x_root, event.y_root)
+    
+    def use_tm_translation(self):
+        """Copy selected TM match to current segment target"""
+        selection = self.tm_tree.selection()
+        if not selection or not self.tm_results:
+            self.log("⚠ No TM match selected")
+            return
+        
+        # Get the selected TM match
+        idx = self.tm_tree.index(selection[0])
+        if idx >= len(self.tm_results):
+            return
+        
+        result = self.tm_results[idx]
+        target_text = result['target']
+        match_pct = result.get('match', result.get('match_pct', 0))  # Handle both key names
+        
+        # Update current segment
+        if hasattr(self, 'current_segment_index') and 0 <= self.current_segment_index < len(self.segments):
+            current_seg = self.segments[self.current_segment_index]
+            current_seg.target = target_text
+            if target_text.strip():
+                current_seg.status = "translated"
+            
+            # Update the grid editor if visible
+            if hasattr(self, 'grid_target_text'):
+                self.grid_target_text.delete('1.0', 'end')
+                self.grid_target_text.insert('1.0', target_text)
+            
+            self.modified = True
+            self.update_progress()
+            self.log(f"✓ TM translation applied ({match_pct}% match)")
+        else:
+            self.log("⚠ No current segment to apply translation to")
     
     def delete_tm_match(self):
         """Delete selected TM match entry from database"""
@@ -19292,7 +19559,9 @@ Author: https://michaelbeijer.co.uk/
         if not selection:
             return
         
-        selected_language = self.style_guides_tree.get(selection[0])
+        # Get the display text and strip the visual indicator
+        display_text = self.style_guides_tree.get(selection[0])
+        selected_language = display_text.replace('✓ ', '').replace('  ', '').strip()
         
         try:
             # Load guide content from backend
@@ -19322,7 +19591,9 @@ Author: https://michaelbeijer.co.uk/
             messagebox.showwarning("Warning", "Please select a language first")
             return
         
-        selected_language = self.style_guides_tree.get(selection[0])
+        # Get the display text and strip the visual indicator
+        display_text = self.style_guides_tree.get(selection[0])
+        selected_language = display_text.replace('✓ ', '').replace('  ', '').strip()
         
         # Get content based on view mode
         if self.style_guide_view_mode.get():
@@ -19351,7 +19622,9 @@ Author: https://michaelbeijer.co.uk/
             messagebox.showwarning("Warning", "Please select a language")
             return
         
-        selected_language = self.style_guides_tree.get(selection[0])
+        # Get the display text and strip the visual indicator
+        display_text = self.style_guides_tree.get(selection[0])
+        selected_language = display_text.replace('✓ ', '').replace('  ', '').strip()
         
         # Ask user for file location
         file_path = filedialog.asksaveasfilename(
@@ -19385,7 +19658,9 @@ Author: https://michaelbeijer.co.uk/
             messagebox.showwarning("Warning", "Please select a language first")
             return
         
-        selected_language = self.style_guides_tree.get(selection[0])
+        # Get the display text and strip the visual indicator
+        display_text = self.style_guides_tree.get(selection[0])
+        selected_language = display_text.replace('✓ ', '').replace('  ', '').strip()
         
         try:
             self.style_guide_library.import_guide(selected_language, file_path)
