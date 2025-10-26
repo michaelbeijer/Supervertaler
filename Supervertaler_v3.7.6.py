@@ -18889,18 +18889,44 @@ VALIDATION: Count pipe symbols in source and target - they must match exactly (a
                 else:
                     raise ValueError(f"Unknown provider: {self.current_llm_provider}")
                 
-                # Parse response - should be one translation per line
-                translations = [line.strip() for line in response.strip().split('\n') if line.strip()]
+                # Parse response - extract translations with their segment IDs
+                translations = {}
+                for line in response.strip().split('\n'):
+                    line = line.strip()
+                    if not line:
+                        continue
+                    
+                    # Try to extract segment ID from start of line (format: "123. translation" or "123) translation")
+                    match = re.match(r'^(\d+)[\.\)]\s*(.+)', line)
+                    if match:
+                        seg_id = int(match.group(1))
+                        translation = match.group(2).strip()
+                        translations[seg_id] = translation
+                    else:
+                        # No ID found - this is a plain translation line
+                        # We'll handle these below
+                        pass
                 
-                # Match translations to segments
+                # If we didn't get ID-based translations, fall back to line-by-line matching
+                if not translations:
+                    translation_lines = [line.strip() for line in response.strip().split('\n') if line.strip()]
+                    # Match by index
+                    for i, segment in enumerate(segments_needing_llm):
+                        if i < len(translation_lines):
+                            translation = translation_lines[i]
+                            # Clean up common formatting (remove numbers, dots at start)
+                            translation = re.sub(r'^\d+[\.\)]\s*', '', translation)
+                            translations[segment.id] = translation
+                
+                # Log what we got
+                self.log(f"📥 Received {len(translations)} translations for {len(segments_needing_llm)} segments")
                 if len(translations) != len(segments_needing_llm):
                     self.log(f"⚠ Warning: Expected {len(segments_needing_llm)} translations, got {len(translations)}")
                 
-                for i, segment in enumerate(segments_needing_llm):
-                    if i < len(translations):
-                        translation = translations[i]
-                        # Clean up common formatting (remove numbers, dots at start)
-                        translation = re.sub(r'^\d+[\.\)]\s*', '', translation)
+                # Apply translations to segments using segment ID matching
+                for segment in segments_needing_llm:
+                    if segment.id in translations:
+                        translation = translations[segment.id]
                         
                         segment.target = translation
                         segment.status = "translated"
