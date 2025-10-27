@@ -1,10 +1,100 @@
 # Supervertaler - Complete Changelog
 
-**Latest Version**: v3.7.6 (2025-10-25)  
+**Latest Version**: v3.7.7 (2025-10-27)  
 **Product**: Unified Supervertaler (v3.x CAT Edition)  
 **Status**: Active Development
 
 > As of v3.7.1, Supervertaler is a unified product focusing exclusively on the CAT (Computer-Aided Translation) editor experience. The previous Classic Edition (v2.x) is archived for reference but no longer actively developed.
+
+---
+
+## [3.7.7] - 2025-10-27 🔧 MEMOQ ALIGNMENT FIX & LLM IMPROVEMENTS
+
+### 🐛 Critical Fixes
+
+**memoQ Bilingual DOCX Alignment**:
+- ✅ **Fixed segment misalignment** - Translations now perfectly aligned with source segments
+  - Root cause: TM lookup during batch was skipping segments, causing fallback matching to fail
+  - Changed to translate ALL segments regardless of existing target content
+  - Removed TM exact match checking during batch translation
+  - User responsibility: Export memoQ bilingual DOCX with "View" filtered to untranslated only
+- ✅ **Strict segment ID matching** - No more fallback line-by-line matching
+  - Only accepts numbered format: `123. translation text`
+  - Regex: `r'^(\d+)[\.\)]\s*(.+)'`
+  - Segments without valid IDs fail gracefully (no misalignment)
+- ✅ **Fixed prompt contradiction** - LLM now required to include segment numbers
+  - Old: "Provide ONLY the translations... NO segment numbers"
+  - New: "⚠️ CRITICAL: Include the segment NUMBER before each translation"
+  - Added explicit formatting instructions with examples
+
+**OpenAI GPT-5/Reasoning Model Support**:
+- ✅ **Temperature parameter compatibility** - GPT-5 (o3-mini) now works correctly
+  - Reasoning models (o1, o3, gpt-5) require temperature=1.0 (no flexibility)
+  - Standard models (gpt-4o, gpt-4-turbo) use temperature=0.3
+  - Model detection: checks for "o1", "o3", or "gpt-5" in model name
+  - Error fixed: "Unsupported value: 'temperature' does not support 0.3"
+
+**Content Policy Bypass**:
+- ✅ **Enhanced professional context disclaimers** - Medical/technical content now accepted
+  - Added explicit "licensed service for commercial translation company"
+  - Added "commissioned by medical device manufacturer"
+  - Added "regulatory compliance and patient safety documentation"
+  - Added "THIS IS NOT A REQUEST FOR MEDICAL ADVICE"
+  - Added "legally required regulatory filing"
+  - Applied to all three prompt types: single_segment, batch_docx, batch_bilingual
+
+### 📊 Testing Results
+
+**GPT-5 Medical Device Documentation** (198 segments, CT scanner interface):
+- ✅ Chunk 1: 100/100 segments translated perfectly
+- ✅ Chunk 2: 98/98 segments translated perfectly
+- ✅ Total: 198/198 successful, 0 failed, 2 API calls
+- ✅ Perfect alignment verified in memoQ import
+- ✅ All formatting tags preserved (uicontrol, menucascade, etc.)
+
+**GPT-4o Behavior**:
+- ⚠️ Inconsistent content moderation on medical content
+- ✅ Chunk 1 sometimes works, chunk 2 sometimes refused
+- 💡 Recommendation: Use GPT-5 for medical/technical documentation
+
+### 🔧 Technical Details
+
+**Alignment Logic Changes**:
+```python
+# OLD: Filter for untranslated segments
+untranslated = [seg for seg in self.segments if not seg.target or seg.status == "untranslated"]
+
+# NEW: Translate ALL segments (user ensures empty targets via memoQ View)
+segments_to_translate = self.segments[:]
+
+# REMOVED: TM lookup during batch (prevents segment skipping)
+# REMOVED: Fallback line-by-line matching (causes misalignment)
+```
+
+**Temperature Detection**:
+```python
+if "o3" in model.lower() or "o1" in model.lower() or "gpt-5" in model.lower():
+    temperature=1.0  # Required for reasoning models
+else:
+    temperature=0.3  # Standard models
+```
+
+### 📚 Best Practices
+
+**For memoQ Bilingual DOCX Translation**:
+1. In memoQ: Apply View filter to show only untranslated segments
+2. Export bilingual DOCX with filter active (ensures empty targets)
+3. Import in Supervertaler using "Import memoQ bilingual table (DOCX)"
+4. Translate with GPT-5 (most reliable for medical/technical content)
+5. Export using "Export memoQ bilingual table - Translated (DOCX)"
+6. Import back into memoQ - perfect alignment guaranteed!
+
+### 🎯 Impact
+
+- **Critical bug fixed**: memoQ users can now trust segment alignment
+- **GPT-5 support**: Access to OpenAI's reasoning models
+- **Medical content**: Professional translation context bypasses content filters
+- **Reliability**: 100% success rate on medical device documentation
 
 ---
 

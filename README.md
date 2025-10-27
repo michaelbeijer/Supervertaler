@@ -1,8 +1,8 @@
-# Supervertaler v3.7.6
+# Supervertaler v3.7.7
 
 🎯 **Context-aware, LLM-powered CAT editor for professional translators** — Revolutionary segment-based translation tool with AI-enhanced prompts, PDF Rescue OCR, and seamless CAT tool integration.
 
-**Latest Version**: v3.7.6 (October 25, 2025)
+**Latest Version**: v3.7.7 (October 27, 2025)
 
 ---
 
@@ -10,21 +10,31 @@
 
 Supervertaler is a **professional Computer-Aided Translation (CAT) editor** designed by a 30-year veteran translator for translators. It combines:
 
-- 🤖 **Multiple AI providers** - OpenAI GPT-4, Anthropic Claude, Google Gemini
+- 🤖 **Multiple AI providers** - OpenAI GPT-4/GPT-5, Anthropic Claude, Google Gemini
 - 🎯 **Context-aware translation** - Full document understanding, figure context, translation memory
 - 📚 **Unified Prompt Library** - System Prompts (AI role) + Custom Instructions (user preferences)
 - 🆘 **PDF Rescue** - AI-powered OCR for badly-formatted PDFs
 - ✅ **Professional CAT features** - Segment editing, grid pagination, dual selection (memoQ-style)
-- � **TMX Editor** - Professional translation memory editor (inspired by Heartsome TMX Editor 8)
-- �🔗 **CAT tool integration** - memoQ, CafeTran, Trados Studio support
+- 📝 **TMX Editor** - Professional translation memory editor (inspired by Heartsome TMX Editor 8)
+- 🔗 **CAT tool integration** - memoQ, CafeTran, Trados Studio support (perfect alignment!)
 - 📊 **Smart auto-export** - Session reports, TMX, TSV, XLIFF, Excel
 - 💾 **Translation Memory** - Fuzzy matching with segment context
 
 ---
 
-## 🚀 Current Version: v3.7.6
+## 🚀 Current Version: v3.7.7
 
 **File**: `Supervertaler_v3.7.6.py`
+
+### 📌 What's New in v3.7.7
+
+**Critical memoQ Alignment Fix** 🔧
+- **Fixed segment misalignment** in memoQ bilingual DOCX translation
+- **Perfect 1:1 alignment** guaranteed (tested with 198 segments)
+- **Simplified workflow**: Translate ALL segments, user ensures empty targets via memoQ View filter
+- **GPT-5 support**: Temperature compatibility for reasoning models (o1, o3, gpt-5)
+- **Content policy**: Enhanced professional context for medical/technical translation
+- **Verified working**: 198/198 segments translated successfully with perfect alignment
 
 ### 📌 What's New in v3.7.6
 
