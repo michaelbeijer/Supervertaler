@@ -24,7 +24,7 @@ Supervertaler is a **professional Computer-Aided Translation (CAT) editor** desi
 
 ## 🚀 Current Version: v3.7.7
 
-**File**: `Supervertaler_v3.7.6.py`
+**File**: `Supervertaler_v3.7.7.py`
 
 ### 📌 What's New in v3.7.7
 
@@ -36,7 +36,14 @@ Supervertaler is a **professional Computer-Aided Translation (CAT) editor** desi
 - **Content policy**: Enhanced professional context for medical/technical translation
 - **Verified working**: 198/198 segments translated successfully with perfect alignment
 
-### 📌 What's New in v3.7.6
+### 📌 What's New in v3.7.7
+
+**🔧 Critical Fixes** (2025-10-27):
+- ✅ **memoQ Bilingual DOCX Alignment Fixed** - Perfect 1:1 segment alignment
+- ✅ **GPT-5/o3-mini Support** - Temperature parameter compatibility for reasoning models
+- ✅ **Medical Content Support** - Enhanced professional context bypasses content filters
+
+See [CHANGELOG.md](CHANGELOG.md) for complete details.
 
 **TMX Editor - Unicode Bold Highlighting** 🎨
 - **True bold text** for search terms using Unicode Mathematical Bold characters
@@ -165,14 +172,14 @@ Supervertaler is a **professional Computer-Aided Translation (CAT) editor** desi
 
 ### Installation - Choose Your Method
 
-Supervertaler v3.7.2 is available in **three ways**:
+Supervertaler v3.7.7 is available in **three ways**:
 
 #### **1️⃣ Windows Executable (Easiest - Recommended for Most Users)**
 
 No Python installation required!
 
 1. **Download**: Get the latest release from [GitHub Releases](https://github.com/michaelbeijer/Supervertaler/releases)
-2. **Extract**: Unzip `Supervertaler-v3.7.2.zip` to any folder
+2. **Extract**: Unzip `Supervertaler-v3.7.7.zip` to any folder
 3. **Run**: Double-click `Supervertaler/Supervertaler.exe`
 4. **Configure**: Add your API keys and start translating!
 

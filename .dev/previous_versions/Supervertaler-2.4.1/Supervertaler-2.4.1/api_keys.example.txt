@@ -1,0 +1,71 @@
+# ============================================================
+# API KEYS CONFIGURATION - SUPERVERTALER v2.5.0
+# ============================================================
+#
+# SECURITY NOTICE:
+# ---------------
+# This is an EXAMPLE file only. Your actual API keys should be 
+# stored in a file named "api_keys.txt" (without .example).
+#
+# The file "api_keys.txt" is automatically ignored by Git and 
+# will NEVER be uploaded to GitHub.
+#
+# SETUP INSTRUCTIONS:
+# ------------------
+# 1. Copy this file and rename it to: api_keys.txt
+# 2. Remove the # symbol before each key you want to use
+# 3. Replace [YOUR_KEY_HERE] with your actual API key
+# 4. Save the file
+# 5. Restart Supervertaler
+#
+# IMPORTANT:
+# ---------
+# • Never share your API keys with anyone
+# • Never commit api_keys.txt to version control
+# • Keep api_keys.txt in the same folder as Supervertaler_v2.5.0.py
+# • Only api_keys.example.txt should be committed to Git
+#
+# WHERE TO GET API KEYS:
+# ---------------------
+# OpenAI:    https://platform.openai.com/api-keys
+# Anthropic: https://console.anthropic.com/settings/keys  
+# Google:    https://aistudio.google.com/app/apikey
+#
+# ============================================================
+
+# OpenAI API Key (for GPT-4, GPT-4o, GPT-4-turbo, etc.)
+# Uncomment and add your key:
+#openai = YOUR_OPENAI_KEY_HERE
+
+# Anthropic Claude API Key (for Claude 3.5 Sonnet, Claude 3 Opus, etc.)
+# Uncomment and add your key:
+#claude = YOUR_CLAUDE_KEY_HERE
+
+# Google Gemini API Key (for Gemini 2.5 Pro, Gemini 1.5 Flash, etc.)
+# Uncomment and add your key:
+#google = YOUR_GOOGLE_KEY_HERE
+
+# ============================================================
+# EXAMPLE (what it should look like when configured):
+# ============================================================
+# openai = sk-proj-abc123def456ghi789jkl012mno345pqr678stu901vwx234yz
+# claude = sk-ant-api03-xyz789abc123def456ghi789jkl012mno345pqr678stu
+# google = AIzaSyD1234567890abcdefghijklmnopqrstuvwxyz
+#
+# NOTE: The above keys are FAKE examples for illustration only.
+#       Do NOT use them - they will not work!
+# ============================================================
+
+# TROUBLESHOOTING:
+# ---------------
+# If you see "API Key Missing" errors:
+# 1. Check that your file is named "api_keys.txt" (not .example)
+# 2. Make sure the # is removed from the beginning of the line
+# 3. Verify there are no extra spaces around the = sign
+# 4. Confirm your key is valid (test at the provider's website)
+#
+# If keys still don't work:
+# 1. Check Translate → API Settings to see what's loaded
+# 2. Look in the log panel for specific error messages
+# 3. Restart Supervertaler after editing api_keys.txt
+# ============================================================

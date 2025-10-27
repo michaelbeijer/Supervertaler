@@ -4,7 +4,7 @@ Update Website Version Script
 ==============================
 
 Automatically updates version references in the website to match
-the version defined in Supervertaler_v3.7.6.py
+the version defined in Supervertaler_v3.7.7.py
 
 ⚠️  IMPORTANT: This script is intentionally conservative:
     - Updates: Website HTML (docs/index.html), download links
@@ -17,7 +17,7 @@ Usage:
     python update_website_version.py
 
 This script:
-1. Reads APP_VERSION from Supervertaler_v3.7.6.py
+1. Reads APP_VERSION from Supervertaler_v3.7.7.py
 2. Updates HTML files in docs/ (version badges, hero text)
 3. Updates README.md download instructions ONLY
 4. Preserves historical records (CHANGELOG, past release notes)
@@ -34,9 +34,9 @@ from pathlib import Path
 
 
 def extract_version_from_python():
-    """Extract APP_VERSION from Supervertaler_v3.7.2.py"""
+    """Extract APP_VERSION from Supervertaler_v3.7.7.py"""
     try:
-        python_file = Path(__file__).parent / "Supervertaler_v3.7.2.py"
+        python_file = Path(__file__).parent / "Supervertaler_v3.7.7.py"
         with open(python_file, 'r', encoding='utf-8') as f:
             for line in f:
                 if line.startswith('APP_VERSION'):
