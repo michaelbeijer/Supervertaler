@@ -731,8 +731,34 @@ class SupervertalerQt(QMainWindow):
         qat = QToolBar("Quick Access")
         qat.setMovable(False)
         qat.setFloatable(False)
-        qat.setIconSize(QSize(16, 16))
+        qat.setIconSize(QSize(20, 20))
         qat.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
+        qat.setMaximumHeight(28)
+        
+        # Styling for compact appearance
+        qat.setStyleSheet("""
+            QToolBar {
+                background: transparent;
+                border: none;
+                spacing: 2px;
+                padding: 2px;
+            }
+            QToolButton {
+                background: transparent;
+                border: 1px solid transparent;
+                border-radius: 3px;
+                padding: 2px;
+                margin: 0px;
+                font-size: 14pt;
+            }
+            QToolButton:hover {
+                background: rgba(255, 255, 255, 0.1);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+            }
+            QToolButton:pressed {
+                background: rgba(0, 0, 0, 0.1);
+            }
+        """)
         
         # Add most-used actions
         from PyQt6.QtGui import QAction
@@ -773,6 +799,11 @@ class SupervertalerQt(QMainWindow):
         
         # Minimize Ribbon toggle
         minimize_action = QAction("⌃", self)
+        minimize_action.setToolTip("Minimize Ribbon")
+        minimize_action.setCheckable(True)
+        minimize_action.toggled.connect(self.toggle_ribbon_minimized)
+        qat.addAction(minimize_action)
+        self.minimize_ribbon_action = minimize_action
         minimize_action.setToolTip("Minimize Ribbon")
         minimize_action.setCheckable(True)
         minimize_action.toggled.connect(self.toggle_ribbon_minimized)
