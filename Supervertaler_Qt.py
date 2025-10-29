@@ -804,11 +804,6 @@ class SupervertalerQt(QMainWindow):
         minimize_action.toggled.connect(self.toggle_ribbon_minimized)
         qat.addAction(minimize_action)
         self.minimize_ribbon_action = minimize_action
-        minimize_action.setToolTip("Minimize Ribbon")
-        minimize_action.setCheckable(True)
-        minimize_action.toggled.connect(self.toggle_ribbon_minimized)
-        qat.addAction(minimize_action)
-        self.minimize_ribbon_action = minimize_action
         
         return qat
     
@@ -845,7 +840,7 @@ class SupervertalerQt(QMainWindow):
         nav_group.add_button(self.ribbon.create_button("Go To", "🎯", "goto", "Go to segment (Ctrl+G)"))
         home_tab.add_group(nav_group)
         
-        home_tab.add_stretch()
+        # Don't add stretch - align groups to left
         self.ribbon.add_ribbon_tab("Home", home_tab)
         
         # TRANSLATION TAB - Translation tools
@@ -863,7 +858,7 @@ class SupervertalerQt(QMainWindow):
         memory_group.add_button(self.ribbon.create_button("Lookup", "🔍", "universal_lookup", "Universal Lookup (Ctrl+Alt+L)"))
         trans_tab.add_group(memory_group)
         
-        trans_tab.add_stretch()
+        # Don't add stretch - align groups to left
         self.ribbon.add_ribbon_tab("Translation", trans_tab)
         
         # VIEW TAB - Display and appearance
@@ -881,7 +876,7 @@ class SupervertalerQt(QMainWindow):
         appearance_group.add_button(self.ribbon.create_button("Themes", "🎨", "themes", "Theme editor"))
         view_tab.add_group(appearance_group)
         
-        view_tab.add_stretch()
+        # Don't add stretch - align groups to left
         self.ribbon.add_ribbon_tab("View", view_tab)
         
         # TOOLS TAB - Utilities and automation
@@ -897,8 +892,8 @@ class SupervertalerQt(QMainWindow):
         settings_group.add_button(self.ribbon.create_button("Options", "⚙️", "options", "Application settings"))
         tools_tab.add_group(settings_group)
         
-        tools_tab.add_stretch()
-        self.ribbon.add_ribbon_tab("Tools", tools_tab)
+    # Align groups to the left (no stretch)
+    self.ribbon.add_ribbon_tab("Tools", tools_tab)
         
         # Store ribbon state
         self.ribbon_minimized = False
