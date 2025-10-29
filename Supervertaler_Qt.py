@@ -25,7 +25,7 @@ License: MIT
 
 # Version Information
 __version__ = "1.0.0"
-__phase__ = "5"
+__phase__ = "5.1"
 __release_date__ = "2025-10-29"
 __edition__ = "Qt"
 
@@ -650,6 +650,39 @@ class SupervertalerQt(QMainWindow):
         zoom_out_action.triggered.connect(self.zoom_out)
         view_menu.addAction(zoom_out_action)
         
+        view_menu.addSeparator()
+        
+        auto_resize_action = QAction("📐 &Auto-Resize Rows", self)
+        auto_resize_action.triggered.connect(self.auto_resize_rows)
+        auto_resize_action.setToolTip("Automatically resize all rows to fit content")
+        view_menu.addAction(auto_resize_action)
+        
+        view_menu.addSeparator()
+        
+        font_menu = view_menu.addMenu("&Font")
+        
+        # Font family submenu
+        font_family_menu = font_menu.addMenu("Font &Family")
+        font_families = ["Calibri", "Segoe UI", "Arial", "Consolas", "Verdana", 
+                        "Times New Roman", "Georgia", "Courier New"]
+        for font_name in font_families:
+            font_action = QAction(font_name, self)
+            font_action.triggered.connect(lambda checked, f=font_name: self.set_font_family(f))
+            font_family_menu.addAction(font_action)
+        
+        font_menu.addSeparator()
+        
+        # Font size actions
+        increase_font_action = QAction("&Increase Font Size", self)
+        increase_font_action.setShortcut("Ctrl++")
+        increase_font_action.triggered.connect(self.increase_font_size)
+        font_menu.addAction(increase_font_action)
+        
+        decrease_font_action = QAction("&Decrease Font Size", self)
+        decrease_font_action.setShortcut("Ctrl+-")
+        decrease_font_action.triggered.connect(self.decrease_font_size)
+        font_menu.addAction(decrease_font_action)
+        
         # Tools Menu
         tools_menu = menubar.addMenu("&Tools")
         
@@ -681,50 +714,12 @@ class SupervertalerQt(QMainWindow):
         help_menu.addAction(about_action)
     
     def create_toolbar(self):
-        """Create main toolbar"""
-        toolbar = QToolBar("Main Toolbar")
-        toolbar.setMovable(False)
-        self.addToolBar(toolbar)
-        
-        # Font controls
-        toolbar.addWidget(QLabel("  Font: "))
-        
-        self.font_combo = QComboBox()
-        self.font_combo.addItems([
-            "Calibri", "Segoe UI", "Arial", "Consolas", "Verdana",
-            "Times New Roman", "Georgia", "Courier New"
-        ])
-        self.font_combo.setCurrentText(self.default_font_family)
-        self.font_combo.currentTextChanged.connect(self.on_font_changed)
-        toolbar.addWidget(self.font_combo)
-        
-        toolbar.addWidget(QLabel("  Size: "))
-        
-        self.font_size_spin = QSpinBox()
-        self.font_size_spin.setRange(7, 72)
-        self.font_size_spin.setValue(self.default_font_size)
-        self.font_size_spin.valueChanged.connect(self.on_font_changed)
-        toolbar.addWidget(self.font_size_spin)
-        
-        toolbar.addSeparator()
-        
-        # Auto-resize button
-        auto_resize_btn = QPushButton("📐 Auto-Resize Rows")
-        auto_resize_btn.clicked.connect(self.auto_resize_rows)
-        toolbar.addWidget(auto_resize_btn)
-        
-        toolbar.addSeparator()
-        
-        # Translation buttons
-        translate_btn = QPushButton("🤖 Translate (Ctrl+T)")
-        translate_btn.clicked.connect(self.translate_current_segment)
-        translate_btn.setToolTip("Translate selected segment using AI")
-        toolbar.addWidget(translate_btn)
-        
-        batch_translate_btn = QPushButton("🚀 Batch Translate")
-        batch_translate_btn.clicked.connect(self.translate_batch)
-        batch_translate_btn.setToolTip("Translate multiple segments (Ctrl+Shift+T)")
-        toolbar.addWidget(batch_translate_btn)
+        """Create main toolbar - REMOVED: All functions now in menus"""
+        # Toolbar removed - all functionality accessible via menus
+        # Font controls: View > Font menu
+        # Auto-Resize: View > Auto-Resize Rows
+        # Translate: Edit menu (Ctrl+T, Ctrl+Shift+T)
+        pass
     
     def create_main_layout(self):
         """Create main application layout with tabs"""
@@ -1754,30 +1749,48 @@ class SupervertalerQt(QMainWindow):
     
     def apply_font_to_grid(self):
         """Apply selected font to all grid cells"""
-        font_family = self.font_combo.currentText()
-        font_size = self.font_size_spin.value()
-        font = QFont(font_family, font_size)
+        font = QFont(self.default_font_family, self.default_font_size)
         
         self.table.setFont(font)
         
         # Also update header font
-        header_font = QFont(font_family, font_size, QFont.Weight.Bold)
+        header_font = QFont(self.default_font_family, self.default_font_size, QFont.Weight.Bold)
         self.table.horizontalHeader().setFont(header_font)
     
-    def on_font_changed(self):
-        """Handle font change"""
+    def set_font_family(self, family_name: str):
+        """Set font family from menu"""
+        self.default_font_family = family_name
         self.apply_font_to_grid()
         self.auto_resize_rows()
+        self.log(f"✓ Font changed to {family_name}")
+    
+    def increase_font_size(self):
+        """Increase font size (Ctrl++)"""
+        self.default_font_size = min(72, self.default_font_size + 1)
+        self.apply_font_to_grid()
+        self.auto_resize_rows()
+        self.log(f"✓ Font size: {self.default_font_size}")
+    
+    def decrease_font_size(self):
+        """Decrease font size (Ctrl+-)"""
+        self.default_font_size = max(7, self.default_font_size - 1)
+        self.apply_font_to_grid()
+        self.auto_resize_rows()
+        self.log(f"✓ Font size: {self.default_font_size}")
+    
+    def on_font_changed(self):
+        """Handle font change - legacy method for compatibility"""
+        self.apply_font_to_grid()
+        self.auto_resize_rows()
+
     
     def zoom_in(self):
-        """Increase font size"""
-        current_size = self.font_size_spin.value()
-        self.font_size_spin.setValue(min(72, current_size + 1))
+        """Increase font size (same as Ctrl++)"""
+        self.increase_font_size()
     
     def zoom_out(self):
-        """Decrease font size"""
-        current_size = self.font_size_spin.value()
-        self.font_size_spin.setValue(max(7, current_size - 1))
+        """Decrease font size (same as Ctrl+-)"""
+        self.decrease_font_size()
     
     def get_status_icon(self, status: str) -> str:
         """Get status icon for display"""

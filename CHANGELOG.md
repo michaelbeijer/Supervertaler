@@ -1,7 +1,7 @@
 # Supervertaler - Complete Changelog
 
 **Latest Versions**: 
-- **Qt Edition** (`Supervertaler_Qt.py`): v1.0.0 Phase 5 (2025-10-29)
+- **Qt Edition** (`Supervertaler_Qt.py`): v1.0.0 Phase 5.1 (2025-10-29)
 - **Tkinter Edition** (`Supervertaler_tkinter.py`): v3.7.7 (2025-10-27)
 
 **Editions**: 
@@ -15,6 +15,37 @@
 > - `Supervertaler_tkinter.py` (was `Supervertaler_v3.7.7.py`)
 > 
 > Previous versioned files are archived in `previous_versions/` folder.
+
+---
+
+## [Qt v1.0.0 - Phase 5.1] - 2025-10-29 🎨 UI MODERNIZATION - MENU-DRIVEN INTERFACE
+
+**File**: `Supervertaler_Qt.py`
+
+### 🎨 Major UI Changes
+
+**Toolbar Removal - Cleaner Interface**:
+- ✅ **Removed cluttered toolbar** - Font selector, Auto-Resize, Translate buttons removed from top
+- ✅ **All functions now in menus** - More professional, streamlined appearance
+- ✅ **Enhanced View menu**:
+  - Auto-Resize Rows menu item added
+  - Font submenu with family selection (Calibri, Segoe UI, Arial, Consolas, Verdana, Times New Roman, Georgia, Courier New)
+  - Increase/Decrease Font Size with keyboard shortcuts (Ctrl++, Ctrl+-)
+- ✅ **Keyboard shortcuts preserved**:
+  - Translate: Ctrl+T
+  - Batch Translate: Ctrl+Shift+T
+  - Increase Font: Ctrl++
+  - Decrease Font: Ctrl+-
+  - Zoom In: Ctrl++ (same as font increase)
+  - Zoom Out: Ctrl+- (same as font decrease)
+
+**Benefits**:
+- More screen space for translation grid
+- Professional CAT tool appearance (similar to memoQ/Trados)
+- All functionality accessible via keyboard shortcuts
+- Cleaner, less cluttered interface
+
+**Note**: This is Phase 1 of UI modernization. Future phases will introduce ribbon-style tabs and optional left sidebar for quick access.
 
 ---
 
