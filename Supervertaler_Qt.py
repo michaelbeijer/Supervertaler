@@ -25,7 +25,7 @@ License: MIT
 
 # Version Information
 __version__ = "1.0.0"
-__phase__ = "5.2"
+__phase__ = "5.3"
 __release_date__ = "2025-10-29"
 __edition__ = "Qt"
 
@@ -683,6 +683,16 @@ class SupervertalerQt(QMainWindow):
         decrease_font_action.triggered.connect(self.decrease_font_size)
         font_menu.addAction(decrease_font_action)
         
+        view_menu.addSeparator()
+        
+        # Sidebar toggle
+        sidebar_action = QAction("Show &Quick Access Sidebar", self)
+        sidebar_action.setCheckable(True)
+        sidebar_action.setChecked(True)
+        sidebar_action.triggered.connect(self.toggle_sidebar)
+        view_menu.addAction(sidebar_action)
+        self.sidebar_action = sidebar_action
+        
         # Tools Menu
         tools_menu = menubar.addMenu("&Tools")
         
@@ -712,6 +722,64 @@ class SupervertalerQt(QMainWindow):
         about_action = QAction("&About", self)
         about_action.triggered.connect(self.show_about)
         help_menu.addAction(about_action)
+    
+    def create_quick_access_toolbar(self):
+        """Create Quick Access Toolbar above ribbon"""
+        from PyQt6.QtWidgets import QToolBar
+        from PyQt6.QtCore import QSize
+        
+        qat = QToolBar("Quick Access")
+        qat.setMovable(False)
+        qat.setFloatable(False)
+        qat.setIconSize(QSize(16, 16))
+        qat.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
+        
+        # Add most-used actions
+        from PyQt6.QtGui import QAction
+        
+        # New
+        new_action = QAction("📄", self)
+        new_action.setToolTip("New Project (Ctrl+N)")
+        new_action.triggered.connect(self.new_project)
+        qat.addAction(new_action)
+        
+        # Open
+        open_action = QAction("📂", self)
+        open_action.setToolTip("Open Project (Ctrl+O)")
+        open_action.triggered.connect(self.open_project)
+        qat.addAction(open_action)
+        
+        # Save
+        save_action = QAction("💾", self)
+        save_action.setToolTip("Save Project (Ctrl+S)")
+        save_action.triggered.connect(self.save_project)
+        qat.addAction(save_action)
+        
+        qat.addSeparator()
+        
+        # Universal Lookup
+        lookup_action = QAction("🔍", self)
+        lookup_action.setToolTip("Universal Lookup")
+        lookup_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(0))
+        qat.addAction(lookup_action)
+        
+        # Translate
+        translate_action = QAction("🤖", self)
+        translate_action.setToolTip("Translate Segment (Ctrl+T)")
+        translate_action.triggered.connect(self.translate_current_segment)
+        qat.addAction(translate_action)
+        
+        qat.addSeparator()
+        
+        # Minimize Ribbon toggle
+        minimize_action = QAction("⌃", self)
+        minimize_action.setToolTip("Minimize Ribbon")
+        minimize_action.setCheckable(True)
+        minimize_action.toggled.connect(self.toggle_ribbon_minimized)
+        qat.addAction(minimize_action)
+        self.minimize_ribbon_action = minimize_action
+        
+        return qat
     
     def create_ribbon(self):
         """Create modern ribbon interface"""
@@ -801,19 +869,69 @@ class SupervertalerQt(QMainWindow):
         tools_tab.add_stretch()
         self.ribbon.add_ribbon_tab("Tools", tools_tab)
         
-        # Add ribbon as a toolbar (dockable widget area)
+        # Store ribbon state
+        self.ribbon_minimized = False
+        
+        # Add Quick Access Toolbar and Ribbon
+        self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.create_quick_access_toolbar())
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.create_ribbon_toolbar())
     
     def create_ribbon_toolbar(self):
         """Create a toolbar to hold the ribbon"""
         from PyQt6.QtWidgets import QToolBar
         
-        toolbar = QToolBar("Ribbon")
-        toolbar.setMovable(False)
-        toolbar.setFloatable(False)
-        toolbar.addWidget(self.ribbon)
+        self.ribbon_toolbar = QToolBar("Ribbon")
+        self.ribbon_toolbar.setMovable(False)
+        self.ribbon_toolbar.setFloatable(False)
+        self.ribbon_toolbar.addWidget(self.ribbon)
         
-        return toolbar
+        return self.ribbon_toolbar
+    
+    def toggle_ribbon_minimized(self, minimized: bool):
+        """Toggle ribbon between full and minimized (tabs-only) mode"""
+        self.ribbon_minimized = minimized
+        if minimized:
+            # Show only tabs, hide button content
+            self.ribbon.setMaximumHeight(30)
+            # Make tabs clickable to show ribbon temporarily
+            self.ribbon.tabBarClicked.connect(self.show_ribbon_temporarily)
+        else:
+            # Show full ribbon
+            self.ribbon.setMaximumHeight(120)
+            try:
+                self.ribbon.tabBarClicked.disconnect(self.show_ribbon_temporarily)
+            except:
+                pass
+    
+    def show_ribbon_temporarily(self, index: int):
+        """Show ribbon temporarily when tab clicked in minimized mode"""
+        if self.ribbon_minimized:
+            # Show ribbon briefly
+            self.ribbon.setMaximumHeight(120)
+            # Will auto-hide when focus is lost (implement if needed)
+    
+    def on_main_tab_changed(self, index: int):
+        """Update ribbon when main application tab changes"""
+        # Context-sensitive ribbon: show different buttons based on active tab
+        if index == 0:  # Universal Lookup tab
+            # Switch to Translation ribbon tab
+            self.ribbon.setCurrentIndex(1)  # Translation tab
+        elif index == 1:  # Project Editor tab
+            # Switch to Home ribbon tab
+            self.ribbon.setCurrentIndex(0)  # Home tab
+    
+    def toggle_sidebar(self, visible: bool):
+        """Toggle Quick Access Sidebar visibility"""
+        if hasattr(self, 'sidebar'):
+            self.sidebar.setVisible(visible)
+            # Update action text
+            self.sidebar_action.setText("Hide &Quick Access Sidebar" if visible else "Show &Quick Access Sidebar")
+    
+    def update_sidebar_recent_files(self):
+        """Update sidebar recent files list"""
+        if hasattr(self, 'sidebar'):
+            recent = self.load_recent_projects()
+            self.sidebar.update_recent_files(recent)
     
     def handle_ribbon_action(self, action_name: str):
         """Handle ribbon button clicks"""
@@ -863,13 +981,33 @@ class SupervertalerQt(QMainWindow):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         
-        # Main layout (vertical)
-        main_layout = QVBoxLayout(central_widget)
-        main_layout.setContentsMargins(5, 5, 5, 5)
+        # Main layout with horizontal splitter for sidebar
+        from PyQt6.QtWidgets import QSplitter, QHBoxLayout
+        main_layout = QHBoxLayout(central_widget)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+        
+        # Create splitter for sidebar and main content
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        
+        # LEFT: Quick Access Sidebar
+        from modules.quick_access_sidebar import QuickAccessSidebar
+        self.sidebar = QuickAccessSidebar(self)
+        self.sidebar.action_triggered.connect(self.handle_ribbon_action)  # Reuse ribbon action handler
+        self.sidebar.file_selected.connect(self.load_project)
+        splitter.addWidget(self.sidebar)
+        
+        # RIGHT: Main content area
+        content_widget = QWidget()
+        content_layout = QVBoxLayout(content_widget)
+        content_layout.setContentsMargins(5, 5, 5, 5)
         
         # Create tab widget for main interface with HORIZONTAL tabs
         self.main_tabs = QTabWidget()
         # self.main_tabs.setTabPosition(QTabWidget.TabPosition.West)  # Uncomment for vertical tabs
+        
+        # Connect tab change to ribbon update
+        self.main_tabs.currentChanged.connect(self.on_main_tab_changed)
         
         # TAB 1: Universal Lookup (NEW - prominent position!)
         self.lookup_tab = UniversalLookupTab(self)
@@ -879,8 +1017,20 @@ class SupervertalerQt(QMainWindow):
         editor_tab = self.create_editor_tab()
         self.main_tabs.addTab(editor_tab, "📝 Project Editor")
         
-        # Add tab widget to main layout
-        main_layout.addWidget(self.main_tabs)
+        # Add tabs to content layout
+        content_layout.addWidget(self.main_tabs)
+        splitter.addWidget(content_widget)
+        
+        # Set splitter sizes (sidebar smaller)
+        splitter.setSizes([220, 1180])
+        splitter.setCollapsible(0, True)  # Sidebar can be collapsed
+        splitter.setCollapsible(1, False)  # Main content cannot be collapsed
+        
+        # Add splitter to main layout
+        main_layout.addWidget(splitter)
+        
+        # Store splitter for sidebar toggle
+        self.sidebar_splitter = splitter
     
     def create_editor_tab(self):
         """Create the project editor tab (existing grid view)"""
@@ -889,7 +1039,7 @@ class SupervertalerQt(QMainWindow):
         layout.setContentsMargins(0, 0, 0, 0)
         
         # Splitter for grid and assistance panel
-        self.main_splitter = QSplitter(Qt.Orientation.Horizontal)
+        self.editor_splitter = QSplitter(Qt.Orientation.Horizontal)
         
         # Left side: Grid container with filter boxes
         grid_container = QWidget()
@@ -966,16 +1116,16 @@ class SupervertalerQt(QMainWindow):
         self.create_translation_grid()
         grid_layout.addWidget(self.table)
         
-        self.main_splitter.addWidget(grid_container)
+        self.editor_splitter.addWidget(grid_container)
         
         # Right side: Assistance Panel (TM, terminology, notes)
         self.create_assistance_panel()
-        self.main_splitter.addWidget(self.assistance_widget)
+        self.editor_splitter.addWidget(self.assistance_widget)
         
         # Set splitter proportions (70% grid, 30% assistance)
-        self.main_splitter.setSizes([1000, 400])
+        self.editor_splitter.setSizes([1000, 400])
         
-        layout.addWidget(self.main_splitter)
+        layout.addWidget(self.editor_splitter)
         
         return tab
     
