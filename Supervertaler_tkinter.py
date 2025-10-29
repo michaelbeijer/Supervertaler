@@ -1,18 +1,23 @@
 """
-Supervertaler v3.7.7
-Unified Professional AI-Powered Computer-Aided Translation Tool
+Supervertaler Tkinter Edition
+==============================
+Professional AI-Powered Computer-Aided Translation Tool
+Classic tkinter interface with LLM integration and advanced CAT features
 
-CRITICAL FIX (2025-10-27): MemoQ Bilingual DOCX Alignment + GPT-5 Support
-- Fixed segment misalignment in memoQ bilingual DOCX translation (perfect 1:1 alignment)
-- Changed to translate ALL segments (user ensures empty targets via memoQ View filter)
-- Removed TM lookup during batch translation (prevents segment skipping)
-- Removed fallback line-by-line matching (strict segment ID parsing only)
-- Fixed prompt to require segment numbers: "123. translation text"
-- GPT-5/o3-mini temperature compatibility (reasoning models require temperature=1.0)
-- Enhanced professional context for medical/technical content (regulatory compliance framing)
-- Verified working: 198/198 segments translated successfully
+Version: 3.7.7
+Release Date: October 27, 2025
+Framework: tkinter (Python built-in)
 
-Features:
+This is the classic edition of Supervertaler using tkinter.
+For the modern Qt edition with Universal Lookup, see Supervertaler_Qt.py
+
+LATEST UPDATE (v3.7.7 - 2025-10-27):
+- Fixed memoQ bilingual DOCX alignment (perfect 1:1 matching)
+- GPT-5/o3-mini temperature compatibility (reasoning models)
+- Enhanced professional context for medical/technical content
+- Verified: 198/198 segments translated successfully
+
+Key Features:
 - 🤖 Multiple AI Providers (OpenAI GPT-4/GPT-5, Anthropic Claude, Google Gemini)
 - 📄 PDF Rescue - AI-Powered OCR Tool (GPT-4 Vision)
 - ⚡ Grid Pagination System (50 segments/page, 10x faster loading)
@@ -32,12 +37,16 @@ Features:
 - 💾 Project save/load with context preservation
 - 👥 Dev mode with parallel folder structure (user data/ vs user data_private/)
 
-Unified Product: Single version supporting all professional translation workflows
-Designer: Michael Beijer (30-year professional translator)
-License: MIT - Open Source and Free
+Author: Michael Beijer (30-year professional translator)
+License: MIT
 """
 
-# Version constant
+# Version Information
+__version__ = "3.7.7"
+__release_date__ = "2025-10-27"
+__edition__ = "tkinter"
+
+# Legacy constant for backward compatibility
 APP_VERSION = "3.7.7"
 
 # --- Private Features Flag ---

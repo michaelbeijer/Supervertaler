@@ -1,22 +1,33 @@
 """
-Supervertaler Qt v1.0.0
-=======================
+Supervertaler Qt Edition
+========================
 Professional Translation Memory & CAT Tool
-Rebuilt in PyQt6 for superior performance and UI quality
+Modern PyQt6 interface with Universal Lookup and advanced features
 
-This is a complete rebuild of Supervertaler using PyQt6 framework.
-Features will be migrated progressively from Supervertaler_v3.7.x (tkinter).
+Version: 1.0.0 (Phase 5)
+Release Date: October 29, 2025
+Framework: PyQt6
 
-Phase 1 (v1.0.0): Core Infrastructure
-- Main window with professional UI
-- Menu system (File, Edit, View, Tools, Help)
-- Translation grid with perfect auto-sizing
-- Project file loading (JSON format)
-- Basic segment display and editing
+This is the modern edition of Supervertaler using PyQt6 framework.
+For the classic tkinter edition, see Supervertaler_tkinter.py
+
+Key Features:
+- Universal Lookup with global hotkey (Ctrl+Alt+L)
+- Modern theme system (6 themes + custom editor)
+- AutoFingers automation for memoQ
+- memoQ bilingual DOCX import/export
+- SQLite-based translation memory with FTS5 search
+- Professional TMX editor
 
 Author: Michael Beijer
 License: MIT
 """
+
+# Version Information
+__version__ = "1.0.0"
+__phase__ = "5"
+__release_date__ = "2025-10-29"
+__edition__ = "Qt"
 
 import sys
 import json

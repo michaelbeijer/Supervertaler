@@ -1,32 +1,79 @@
-# Supervertaler v3.7.7
+# Supervertaler
 
-🎯 **Context-aware, LLM-powered CAT editor for professional translators** — Revolutionary segment-based translation tool with AI-enhanced prompts, PDF Rescue OCR, and seamless CAT tool integration.
+🎯 **Professional Computer-Aided Translation (CAT) Tool** — Available in two editions: Modern Qt (latest features) and Classic tkinter (proven reliability)
 
-**Latest Version**: v3.7.7 (October 27, 2025)
+---
+
+## 📦 Two Editions Available
+
+### 🆕 Qt Edition (Modern) - **Recommended**
+**File**: `Supervertaler_Qt.py`  
+**Current Version**: v1.0.0 Phase 5 (October 29, 2025)
+
+**Latest Features**:
+- 🔍 **Universal Lookup** - Search TM from anywhere (Ctrl+Alt+L)
+- 🎨 **Modern UI** - PyQt6 with 6 built-in themes + custom theme editor
+- ⚡ **Better Performance** - Faster, more responsive
+- 🎯 **Universal Lookup** - System-wide translation memory search
+- 🤖 **AutoFingers** - Automated translation pasting for memoQ
+- 📋 **memoQ Integration** - Bilingual DOCX import/export
+- 💾 **Translation Memory** - SQLite-based with FTS5 search
+- 📝 **TMX Editor** - Professional TM editing
+
+### 🔧 Tkinter Edition (Classic) - **Stable**
+**File**: `Supervertaler_tkinter.py`  
+**Current Version**: v3.7.7 (October 27, 2025)
+
+**Features**:
+- 🤖 **LLM Integration** - OpenAI GPT-4/5, Anthropic Claude, Google Gemini
+- 🎯 **Context-aware Translation** - Full document understanding
+- 📚 **Unified Prompt Library** - System Prompts + Custom Instructions
+- 🆘 **PDF Rescue** - AI-powered OCR for badly-formatted PDFs
+- ✅ **CAT Features** - Segment editing, grid pagination, dual selection
+- 📝 **TMX Editor** - Professional translation memory editor
+- 🔗 **CAT Tool Integration** - memoQ, CafeTran, Trados Studio
+- 📊 **Smart Auto-export** - TMX, TSV, XLIFF, Excel
+
+---
+
+## � Quick Start
+
+**Download Latest**:
+- **Qt Edition**: `Supervertaler_Qt.py` (Modern, recommended)
+- **Tkinter Edition**: `Supervertaler_tkinter.py` (Classic, stable)
+
+**Previous Versions**: See `previous_versions/` folder for archived releases
 
 ---
 
 ## ✨ What is Supervertaler?
 
-Supervertaler is a **professional Computer-Aided Translation (CAT) editor** designed by a 30-year veteran translator for translators. It combines:
-
-- 🤖 **Multiple AI providers** - OpenAI GPT-4/GPT-5, Anthropic Claude, Google Gemini
-- 🎯 **Context-aware translation** - Full document understanding, figure context, translation memory
-- 📚 **Unified Prompt Library** - System Prompts (AI role) + Custom Instructions (user preferences)
-- 🆘 **PDF Rescue** - AI-powered OCR for badly-formatted PDFs
-- ✅ **Professional CAT features** - Segment editing, grid pagination, dual selection (memoQ-style)
-- 📝 **TMX Editor** - Professional translation memory editor (inspired by Heartsome TMX Editor 8)
-- 🔗 **CAT tool integration** - memoQ, CafeTran, Trados Studio support (perfect alignment!)
-- 📊 **Smart auto-export** - Session reports, TMX, TSV, XLIFF, Excel
-- 💾 **Translation Memory** - Fuzzy matching with segment context
+Supervertaler is a **professional Computer-Aided Translation (CAT) editor** designed by a 30-year veteran translator for translators.
 
 ---
 
-## 🚀 Current Version: v3.7.7
+## � Qt Edition - Latest Updates (v1.0.0 Phase 5)
 
-**File**: `Supervertaler_v3.7.7.py`
+### 🔍 Universal Lookup (NEW!)
+- **Global hotkey Ctrl+Alt+L** - Search TM from any application
+- Works in memoQ, Trados, Word, browsers, any text editor
+- Non-destructive text capture (doesn't modify source)
+- Multi-monitor support
+- AutoHotkey v2 integration for reliable operation
 
-### 📌 What's New in v3.7.7
+### 🎨 Theme System (NEW!)
+- 6 predefined themes (Light, Dark, Sepia, High Contrast, etc.)
+- Custom theme editor
+- Save and load custom color schemes
+
+### � Bug Fixes
+- AutoHotkey process cleanup (no orphaned processes)
+- Fixed UI spacing issues
+- Window activation improvements
+
+---
+
+## 📌 Tkinter Edition - Latest Updates (v3.7.7)
 
 **Critical memoQ Alignment Fix** 🔧
 - **Fixed segment misalignment** in memoQ bilingual DOCX translation

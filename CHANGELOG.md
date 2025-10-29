@@ -1,16 +1,26 @@
 # Supervertaler - Complete Changelog
 
-**Latest Version**: Qt v1.0.0 Phase 5 (2025-10-29) | v3.7.7 (2025-10-27)  
-**Products**: 
-- **Supervertaler Qt v1.0.0** - Modern PyQt6 rebuild (Active Development)
-- **Supervertaler v3.7.x** - Tkinter CAT Edition (Maintenance)
-**Status**: Active Development
+**Latest Versions**: 
+- **Qt Edition** (`Supervertaler_Qt.py`): v1.0.0 Phase 5 (2025-10-29)
+- **Tkinter Edition** (`Supervertaler_tkinter.py`): v3.7.7 (2025-10-27)
 
-> Supervertaler Qt v1.0.0 is a complete rebuild using PyQt6 for superior performance and maintainability. Features are being migrated progressively from v3.7.x.
+**Editions**: 
+- **Supervertaler Qt** - Modern PyQt6 edition (Active Development)
+- **Supervertaler Tkinter** - Classic tkinter edition (Stable/Maintenance)
+
+**Status**: Dual-track development - Qt for new features, tkinter for stability
+
+> **Note**: As of October 29, 2025, Supervertaler uses framework-based naming:
+> - `Supervertaler_Qt.py` (was `Supervertaler_Qt_v1.0.0.py`)
+> - `Supervertaler_tkinter.py` (was `Supervertaler_v3.7.7.py`)
+> 
+> Previous versioned files are archived in `previous_versions/` folder.
 
 ---
 
 ## [Qt v1.0.0 - Phase 5] - 2025-10-29 🔍 UNIVERSAL LOOKUP & UI POLISH
+
+**File**: `Supervertaler_Qt.py`
 
 ### ✨ Major New Features
 
