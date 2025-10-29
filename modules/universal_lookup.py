@@ -1,0 +1,229 @@
+"""
+Universal Lookup Engine
+========================
+System-wide translation lookup that works anywhere on your computer.
+Captures text from any application and provides:
+- TM matches from Supervertaler database
+- Glossary term lookups
+- MT/AI translations
+- Web search integration
+
+Can operate in different modes:
+- memoQ mode (with CAT tool shortcuts)
+- Trados mode
+- CafeTran mode
+- Universal mode (works in any text box)
+"""
+
+import pyautogui
+import pyperclip
+import time
+from typing import Dict, List, Tuple, Optional
+from dataclasses import dataclass
+
+
+@dataclass
+class LookupResult:
+    """Single lookup result"""
+    source: str
+    target: str
+    match_percent: int
+    source_type: str  # 'tm', 'glossary', 'mt', 'ai'
+    metadata: Dict = None
+    
+    def __post_init__(self):
+        if self.metadata is None:
+            self.metadata = {}
+
+
+class UniversalLookupEngine:
+    """
+    Universal text lookup engine.
+    Captures text from any application and provides translation results.
+    """
+    
+    def __init__(self, mode='universal'):
+        """
+        Initialize the lookup engine.
+        
+        Args:
+            mode: Operating mode - 'memoq', 'trados', 'cafetran', or 'universal'
+        """
+        self.mode = mode
+        self.tm_database = None
+        self.glossary_database = None
+        self.mt_providers = []
+        
+        # Mode-specific shortcuts
+        self.mode_shortcuts = {
+            'memoq': {
+                'copy_source_to_target': ('ctrl', 'shift', 's'),
+                'select_all': ('ctrl', 'a'),
+                'copy': ('ctrl', 'c'),
+                'paste': ('ctrl', 'v'),
+            },
+            'trados': {
+                'copy_source_to_target': ('ctrl', 'insert'),  # Example - verify
+                'select_all': ('ctrl', 'a'),
+                'copy': ('ctrl', 'c'),
+                'paste': ('ctrl', 'v'),
+            },
+            'cafetran': {
+                'copy_source_to_target': ('ctrl', 'g'),  # Example - verify
+                'select_all': ('ctrl', 'a'),
+                'copy': ('ctrl', 'c'),
+                'paste': ('ctrl', 'v'),
+            },
+            'universal': {
+                'select_all': ('ctrl', 'a'),
+                'copy': ('ctrl', 'c'),
+                'paste': ('ctrl', 'v'),
+            }
+        }
+    
+    def capture_text(self) -> Optional[str]:
+        """
+        Capture text - just copy what's selected and get clipboard.
+        
+        Returns:
+            Captured text or None if failed
+        """
+        try:
+            import keyboard
+            
+            # Wait for hotkey to release before sending Ctrl+C
+            time.sleep(0.2)
+            
+            # Use keyboard library to send Ctrl+C
+            keyboard.press_and_release('ctrl+c')
+            time.sleep(0.2)
+            
+            # Get clipboard
+            text = pyperclip.paste()
+            return text if text else None
+            
+        except Exception as e:
+            print(f"Error capturing text: {e}")
+            return None
+    
+    def set_tm_database(self, tm_db):
+        """Set the TM database for lookups"""
+        self.tm_database = tm_db
+    
+    def set_glossary_database(self, glossary_db):
+        """Set the glossary database for term lookups"""
+        self.glossary_database = glossary_db
+    
+    def search_tm(self, text: str, max_results: int = 10) -> List[LookupResult]:
+        """
+        Search translation memory for matches.
+        
+        Args:
+            text: Source text to search for
+            max_results: Maximum number of results to return
+            
+        Returns:
+            List of TM match results
+        """
+        results = []
+        
+        if not self.tm_database:
+            return results
+        
+        try:
+            # Use TMDatabase's search_all method which handles both exact and fuzzy matching
+            if hasattr(self.tm_database, 'search_all'):
+                matches = self.tm_database.search_all(
+                    source=text,
+                    tm_ids=None,  # Search all TMs
+                    enabled_only=True,
+                    max_matches=max_results
+                )
+                
+                # Convert to LookupResult format
+                for match in matches:
+                    results.append(LookupResult(
+                        source=match.get('source', text),
+                        target=match.get('target', ''),
+                        match_percent=match.get('match_pct', 0),
+                        source_type='tm',
+                        metadata={
+                            'match_type': 'exact' if match.get('match_pct', 0) == 100 else 'fuzzy',
+                            'tm_name': match.get('tm_name', 'Unknown'),
+                            'similarity': match.get('similarity', 0.0)
+                        }
+                    ))
+            
+        except Exception as e:
+            print(f"Error searching TM: {e}")
+        
+        return results
+    
+    def search_glossary(self, text: str) -> List[LookupResult]:
+        """
+        Search glossary for term matches.
+        
+        Args:
+            text: Text to extract terms from and search
+            
+        Returns:
+            List of glossary term matches
+        """
+        results = []
+        
+        if not self.glossary_database:
+            return results
+        
+        try:
+            # Simple word-by-word lookup for now
+            # TODO: Implement proper term extraction
+            words = text.lower().split()
+            
+            if hasattr(self.glossary_database, 'search_terms'):
+                terms = self.glossary_database.search_terms(words)
+                for term, translation in terms:
+                    results.append(LookupResult(
+                        source=term,
+                        target=translation,
+                        match_percent=100,
+                        source_type='glossary',
+                        metadata={'context': text}
+                    ))
+            
+        except Exception as e:
+            print(f"Error searching glossary: {e}")
+        
+        return results
+    
+    def get_mt_translations(self, text: str) -> List[LookupResult]:
+        """
+        Get machine translation suggestions.
+        
+        Args:
+            text: Text to translate
+            
+        Returns:
+            List of MT results
+        """
+        results = []
+        
+        # TODO: Integrate with MT providers (DeepL, Google, OpenAI)
+        # For now, return placeholder
+        
+        return results
+    
+    def lookup_all(self, text: str) -> Dict[str, List[LookupResult]]:
+        """
+        Perform all types of lookups on the text.
+        
+        Args:
+            text: Text to look up
+            
+        Returns:
+            Dictionary with 'tm', 'glossary', 'mt' keys containing results
+        """
+        return {
+            'tm': self.search_tm(text),
+            'glossary': self.search_glossary(text),
+            'mt': self.get_mt_translations(text)
+        }

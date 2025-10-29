@@ -21,10 +21,18 @@ License: MIT
 import sys
 import json
 import os
+import subprocess
+import atexit
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 from dataclasses import dataclass, asdict
 from datetime import datetime
+import threading
+import time  # For delays in Universal Lookup
+
+# External dependencies
+import pyperclip  # For clipboard operations in Universal Lookup
+from modules.universal_lookup import UniversalLookupEngine  # Universal Lookup engine
 
 # Check for PyQt6 and offer to install if missing
 try:
@@ -34,9 +42,10 @@ try:
         QFileDialog, QMessageBox, QToolBar, QLabel, QComboBox,
         QPushButton, QSpinBox, QSplitter, QTextEdit, QStatusBar,
         QStyledItemDelegate, QInputDialog, QDialog, QLineEdit, QRadioButton,
-        QButtonGroup, QDialogButtonBox, QTabWidget, QGroupBox, QGridLayout, QCheckBox
+        QButtonGroup, QDialogButtonBox, QTabWidget, QGroupBox, QGridLayout, QCheckBox,
+        QProgressBar, QFormLayout, QTabBar
     )
-    from PyQt6.QtCore import Qt, QSize
+    from PyQt6.QtCore import Qt, QSize, QTimer, pyqtSignal, QObject
     from PyQt6.QtGui import QFont, QAction, QKeySequence, QIcon, QTextOption, QColor
 except ImportError:
     print("PyQt6 not found. Installing...")
@@ -61,6 +70,32 @@ if ENABLE_PRIVATE_FEATURES:
     print("[DEV MODE] Using 'user data_private/' folder (git-ignored)")
 else:
     print("[USER MODE] Using 'user data/' folder")
+
+
+# ============================================================================
+# GLOBAL AHK PROCESS CLEANUP
+# ============================================================================
+
+# Global variable to track AHK process
+_ahk_process = None
+
+def cleanup_ahk_process():
+    """Cleanup function to kill AHK process on exit"""
+    global _ahk_process
+    if _ahk_process:
+        try:
+            _ahk_process.terminate()
+            _ahk_process.wait(timeout=1)
+            print("[Universal Lookup] AHK process terminated on exit")
+        except:
+            try:
+                _ahk_process.kill()
+                print("[Universal Lookup] AHK process killed on exit")
+            except:
+                pass
+
+# Register cleanup function to run on Python exit
+atexit.register(cleanup_ahk_process)
 
 
 # ============================================================================
@@ -152,6 +187,16 @@ class WordWrapDelegate(QStyledItemDelegate):
             editor = QTextEdit(parent)
             editor.setWordWrapMode(QTextOption.WrapMode.WordWrap)
             editor.setAcceptRichText(False)  # Plain text only
+            editor.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+            editor.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+            
+            # Ensure the row is tall enough for editing
+            table = parent.parent()
+            if hasattr(table, 'resizeRowToContents'):
+                # Schedule row resize after editor is shown
+                from PyQt6.QtCore import QTimer
+                QTimer.singleShot(0, lambda: table.resizeRowToContents(index.row()))
+            
             return editor
         else:
             return super().createEditor(parent, option, index)
@@ -161,6 +206,10 @@ class WordWrapDelegate(QStyledItemDelegate):
         if isinstance(editor, QTextEdit):
             text = index.model().data(index, Qt.ItemDataRole.EditRole)
             editor.setPlainText(text or "")
+            # Ensure cursor is at start
+            cursor = editor.textCursor()
+            cursor.movePosition(cursor.MoveOperation.Start)
+            editor.setTextCursor(cursor)
         else:
             super().setEditorData(editor, index)
     
@@ -171,6 +220,243 @@ class WordWrapDelegate(QStyledItemDelegate):
             model.setData(index, text, Qt.ItemDataRole.EditRole)
         else:
             super().setModelData(editor, model, index)
+    
+    def updateEditorGeometry(self, editor, option, index):
+        """Set the editor geometry to match the cell size"""
+        if isinstance(editor, QTextEdit):
+            # Make the editor fill the cell properly with some padding
+            rect = option.rect
+            editor.setGeometry(rect)
+        else:
+            super().updateEditorGeometry(editor, option, index)
+
+
+# ============================================================================
+# THEME EDITOR DIALOG
+# ============================================================================
+
+class ThemeEditorDialog(QDialog):
+    """Dialog for editing and managing themes"""
+    
+    def __init__(self, parent, theme_manager):
+        super().__init__(parent)
+        self.theme_manager = theme_manager
+        self.setWindowTitle("Theme Editor")
+        self.setModal(True)
+        self.resize(700, 600)
+        
+        self.setup_ui()
+        self.load_themes()
+    
+    def setup_ui(self):
+        """Create the UI"""
+        layout = QVBoxLayout(self)
+        
+        # Theme selection
+        theme_group = QGroupBox("Select Theme")
+        theme_layout = QHBoxLayout()
+        
+        self.theme_combo = QComboBox()
+        self.theme_combo.currentTextChanged.connect(self.on_theme_selected)
+        theme_layout.addWidget(QLabel("Theme:"))
+        theme_layout.addWidget(self.theme_combo, 1)
+        
+        self.apply_btn = QPushButton("✓ Apply")
+        self.apply_btn.clicked.connect(self.apply_theme)
+        theme_layout.addWidget(self.apply_btn)
+        
+        theme_group.setLayout(theme_layout)
+        layout.addWidget(theme_group)
+        
+        # Color customization
+        colors_group = QGroupBox("Customize Colors")
+        colors_layout = QGridLayout()
+        
+        # Create color pickers for main colors
+        self.color_buttons = {}
+        color_configs = [
+            ("window_bg", "Window Background", 0, 0),
+            ("base", "Input Fields", 0, 1),
+            ("button", "Buttons", 0, 2),
+            ("text", "Text", 1, 0),
+            ("highlight", "Highlight", 1, 1),
+            ("border", "Borders", 1, 2),
+            ("grid_header", "Table Headers", 2, 0),
+            ("alternate_bg", "Alternate Rows", 2, 1),
+            ("tm_exact", "100% TM Match", 3, 0),
+            ("tm_high", "95-99% TM Match", 3, 1),
+        ]
+        
+        for attr, label, row, col in color_configs:
+            lbl = QLabel(label + ":")
+            btn = QPushButton()
+            btn.setMinimumHeight(30)
+            btn.setProperty("color_attr", attr)
+            btn.clicked.connect(lambda checked, a=attr: self.pick_color(a))
+            self.color_buttons[attr] = btn
+            
+            colors_layout.addWidget(lbl, row * 2, col)
+            colors_layout.addWidget(btn, row * 2 + 1, col)
+        
+        colors_group.setLayout(colors_layout)
+        layout.addWidget(colors_group)
+        
+        # Custom theme actions
+        custom_group = QGroupBox("Custom Themes")
+        custom_layout = QHBoxLayout()
+        
+        save_btn = QPushButton("💾 Save as Custom Theme")
+        save_btn.clicked.connect(self.save_custom_theme)
+        custom_layout.addWidget(save_btn)
+        
+        delete_btn = QPushButton("🗑️ Delete Custom Theme")
+        delete_btn.clicked.connect(self.delete_custom_theme)
+        custom_layout.addWidget(delete_btn)
+        
+        custom_group.setLayout(custom_layout)
+        layout.addWidget(custom_group)
+        
+        # Preview area
+        preview_group = QGroupBox("Preview")
+        preview_layout = QVBoxLayout()
+        
+        preview_text = QLabel("This is how text will look in the selected theme.")
+        preview_layout.addWidget(preview_text)
+        
+        preview_table = QTableWidget(3, 2)
+        preview_table.setHorizontalHeaderLabels(["Source", "Target"])
+        preview_table.setItem(0, 0, QTableWidgetItem("Sample text"))
+        preview_table.setItem(0, 1, QTableWidgetItem("Voorbeeldtekst"))
+        preview_layout.addWidget(preview_table)
+        
+        preview_group.setLayout(preview_layout)
+        layout.addWidget(preview_group)
+        
+        # Dialog buttons
+        button_box = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | 
+            QDialogButtonBox.StandardButton.Cancel
+        )
+        button_box.accepted.connect(self.accept)
+        button_box.rejected.connect(self.reject)
+        layout.addWidget(button_box)
+    
+    def load_themes(self):
+        """Load available themes into combo box"""
+        self.theme_combo.clear()
+        themes = self.theme_manager.get_all_themes()
+        for theme_name in themes.keys():
+            self.theme_combo.addItem(theme_name)
+        
+        # Select current theme
+        current_idx = self.theme_combo.findText(self.theme_manager.current_theme.name)
+        if current_idx >= 0:
+            self.theme_combo.setCurrentIndex(current_idx)
+    
+    def on_theme_selected(self, theme_name):
+        """When theme is selected from combo box"""
+        if not theme_name:
+            return
+        
+        theme = self.theme_manager.get_theme(theme_name)
+        if theme:
+            self.update_color_buttons(theme)
+    
+    def update_color_buttons(self, theme):
+        """Update color button backgrounds"""
+        for attr, btn in self.color_buttons.items():
+            color = getattr(theme, attr, "#FFFFFF")
+            btn.setStyleSheet(f"background-color: {color}; border: 1px solid #999;")
+            btn.setText(color)
+    
+    def pick_color(self, attr):
+        """Open color picker for an attribute"""
+        from PyQt6.QtWidgets import QColorDialog
+        
+        theme_name = self.theme_combo.currentText()
+        theme = self.theme_manager.get_theme(theme_name)
+        
+        if not theme:
+            return
+        
+        current_color = QColor(getattr(theme, attr))
+        color = QColorDialog.getColor(current_color, self, f"Pick {attr}")
+        
+        if color.isValid():
+            # Update button
+            hex_color = color.name()
+            self.color_buttons[attr].setStyleSheet(
+                f"background-color: {hex_color}; border: 1px solid #999;"
+            )
+            self.color_buttons[attr].setText(hex_color)
+            
+            # Update theme
+            setattr(theme, attr, hex_color)
+    
+    def apply_theme(self):
+        """Apply the selected theme"""
+        theme_name = self.theme_combo.currentText()
+        if self.theme_manager.set_theme(theme_name):
+            self.theme_manager.apply_theme(QApplication.instance())
+            QMessageBox.information(self, "Theme Applied", 
+                                   f"Theme '{theme_name}' has been applied.")
+    
+    def save_custom_theme(self):
+        """Save current settings as a custom theme"""
+        from PyQt6.QtWidgets import QInputDialog
+        
+        name, ok = QInputDialog.getText(self, "Save Theme", "Enter theme name:")
+        if ok and name:
+            # Create new theme from current settings
+            theme_name = self.theme_combo.currentText()
+            base_theme = self.theme_manager.get_theme(theme_name)
+            
+            if base_theme:
+                # Create copy with new name
+                from modules.theme_manager import Theme
+                new_theme = Theme(
+                    name=name,
+                    **{k: v for k, v in base_theme.to_dict().items() if k != 'name'}
+                )
+                
+                # Update with any modified colors
+                for attr, btn in self.color_buttons.items():
+                    color = btn.text()
+                    if color.startswith('#'):
+                        setattr(new_theme, attr, color)
+                
+                self.theme_manager.save_custom_theme(new_theme)
+                self.load_themes()
+                
+                # Select the new theme
+                idx = self.theme_combo.findText(name)
+                if idx >= 0:
+                    self.theme_combo.setCurrentIndex(idx)
+                
+                QMessageBox.information(self, "Theme Saved", 
+                                       f"Custom theme '{name}' has been saved.")
+    
+    def delete_custom_theme(self):
+        """Delete the selected custom theme"""
+        theme_name = self.theme_combo.currentText()
+        
+        # Can't delete predefined themes
+        from modules.theme_manager import ThemeManager
+        if theme_name in ThemeManager.PREDEFINED_THEMES:
+            QMessageBox.warning(self, "Cannot Delete", 
+                               "Cannot delete predefined themes.")
+            return
+        
+        reply = QMessageBox.question(self, "Delete Theme",
+                                    f"Delete custom theme '{theme_name}'?",
+                                    QMessageBox.StandardButton.Yes | 
+                                    QMessageBox.StandardButton.No)
+        
+        if reply == QMessageBox.StandardButton.Yes:
+            if self.theme_manager.delete_custom_theme(theme_name):
+                self.load_themes()
+                QMessageBox.information(self, "Theme Deleted", 
+                                       f"Theme '{theme_name}' has been deleted.")
 
 
 # ============================================================================
@@ -200,6 +486,10 @@ class SupervertalerQt(QMainWindow):
         # Translation Memory
         self.tm_database = None  # Will be initialized when project is loaded
         
+        # Theme Manager
+        from modules.theme_manager import ThemeManager
+        self.theme_manager = None  # Will be initialized after UI setup
+        
         # User data path - uses safety system to prevent private data leaks
         # If .supervertaler.local exists: uses "user data_private" (git-ignored)
         # Otherwise: uses "user data" (safe to commit)
@@ -209,6 +499,13 @@ class SupervertalerQt(QMainWindow):
         
         # Initialize UI
         self.init_ui()
+        
+        # Initialize theme manager and apply theme
+        self.theme_manager = ThemeManager(self.user_data_path)
+        self.theme_manager.apply_theme(QApplication.instance())
+        
+        # Create example API keys file on first launch (after UI is ready)
+        self.ensure_example_api_keys()
         
         self.log("Welcome to Supervertaler Qt v1.0.0")
         self.log("Professional Translation Memory & CAT Tool")
@@ -267,6 +564,21 @@ class SupervertalerQt(QMainWindow):
         
         file_menu.addSeparator()
         
+        # Import/Export submenu
+        import_menu = file_menu.addMenu("&Import")
+        
+        import_memoq_action = QAction("memoQ &Bilingual Table (DOCX)...", self)
+        import_memoq_action.triggered.connect(self.import_memoq_bilingual)
+        import_menu.addAction(import_memoq_action)
+        
+        export_menu = file_menu.addMenu("&Export")
+        
+        export_memoq_action = QAction("memoQ &Bilingual Table - Translated (DOCX)...", self)
+        export_memoq_action.triggered.connect(self.export_memoq_bilingual)
+        export_menu.addAction(export_memoq_action)
+        
+        file_menu.addSeparator()
+        
         exit_action = QAction("E&xit", self)
         exit_action.setShortcut(QKeySequence.StandardKey.Quit)
         exit_action.triggered.connect(self.close)
@@ -302,6 +614,18 @@ class SupervertalerQt(QMainWindow):
         goto_action.triggered.connect(self.show_goto_dialog)
         edit_menu.addAction(goto_action)
         
+        edit_menu.addSeparator()
+        
+        translate_action = QAction("&Translate Segment", self)
+        translate_action.setShortcut("Ctrl+T")
+        translate_action.triggered.connect(self.translate_current_segment)
+        edit_menu.addAction(translate_action)
+        
+        batch_translate_action = QAction("Translate &Multiple Segments...", self)
+        batch_translate_action.setShortcut("Ctrl+Shift+T")
+        batch_translate_action.triggered.connect(self.translate_batch)
+        edit_menu.addAction(batch_translate_action)
+        
         # View Menu
         view_menu = menubar.addMenu("&View")
         
@@ -323,7 +647,16 @@ class SupervertalerQt(QMainWindow):
         tm_manager_action.triggered.connect(self.show_tm_manager)
         tools_menu.addAction(tm_manager_action)
         
+        autofingers_action = QAction("✋ &AutoFingers - CAT Tool Automation...", self)
+        autofingers_action.setShortcut("Ctrl+Shift+A")
+        autofingers_action.triggered.connect(self.show_autofingers)
+        tools_menu.addAction(autofingers_action)
+        
         tools_menu.addSeparator()
+        
+        theme_action = QAction("🎨 &Theme Editor...", self)
+        theme_action.triggered.connect(self.show_theme_editor)
+        tools_menu.addAction(theme_action)
         
         options_action = QAction("&Options...", self)
         options_action.triggered.connect(self.show_options_dialog)
@@ -368,9 +701,22 @@ class SupervertalerQt(QMainWindow):
         auto_resize_btn = QPushButton("📐 Auto-Resize Rows")
         auto_resize_btn.clicked.connect(self.auto_resize_rows)
         toolbar.addWidget(auto_resize_btn)
+        
+        toolbar.addSeparator()
+        
+        # Translation buttons
+        translate_btn = QPushButton("🤖 Translate (Ctrl+T)")
+        translate_btn.clicked.connect(self.translate_current_segment)
+        translate_btn.setToolTip("Translate selected segment using AI")
+        toolbar.addWidget(translate_btn)
+        
+        batch_translate_btn = QPushButton("🚀 Batch Translate")
+        batch_translate_btn.clicked.connect(self.translate_batch)
+        batch_translate_btn.setToolTip("Translate multiple segments (Ctrl+Shift+T)")
+        toolbar.addWidget(batch_translate_btn)
     
     def create_main_layout(self):
-        """Create main application layout"""
+        """Create main application layout with tabs"""
         # Central widget
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -378,6 +724,27 @@ class SupervertalerQt(QMainWindow):
         # Main layout (vertical)
         main_layout = QVBoxLayout(central_widget)
         main_layout.setContentsMargins(5, 5, 5, 5)
+        
+        # Create tab widget for main interface with HORIZONTAL tabs
+        self.main_tabs = QTabWidget()
+        # self.main_tabs.setTabPosition(QTabWidget.TabPosition.West)  # Uncomment for vertical tabs
+        
+        # TAB 1: Universal Lookup (NEW - prominent position!)
+        self.lookup_tab = UniversalLookupTab(self)
+        self.main_tabs.addTab(self.lookup_tab, "🔍 Universal Lookup")
+        
+        # TAB 2: Project Editor (existing grid view)
+        editor_tab = self.create_editor_tab()
+        self.main_tabs.addTab(editor_tab, "📝 Project Editor")
+        
+        # Add tab widget to main layout
+        main_layout.addWidget(self.main_tabs)
+    
+    def create_editor_tab(self):
+        """Create the project editor tab (existing grid view)"""
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(0, 0, 0, 0)
         
         # Splitter for grid and assistance panel
         self.main_splitter = QSplitter(Qt.Orientation.Horizontal)
@@ -466,7 +833,9 @@ class SupervertalerQt(QMainWindow):
         # Set splitter proportions (70% grid, 30% assistance)
         self.main_splitter.setSizes([1000, 400])
         
-        main_layout.addWidget(self.main_splitter)
+        layout.addWidget(self.main_splitter)
+        
+        return tab
     
     def create_translation_grid(self):
         """Create the translation grid (QTableWidget)"""
@@ -752,6 +1121,27 @@ class SupervertalerQt(QMainWindow):
             if reply == QMessageBox.StandardButton.Yes:
                 self.save_project_as()
     
+    def closeEvent(self, event):
+        """Handle application close - cleanup AHK process"""
+        try:
+            # Terminate AutoHotkey process if running
+            if hasattr(self.lookup_tab, 'ahk_process') and self.lookup_tab.ahk_process:
+                try:
+                    self.lookup_tab.ahk_process.terminate()
+                    self.lookup_tab.ahk_process.wait(timeout=2)
+                    print("[Universal Lookup] AHK process terminated")
+                except:
+                    # Force kill if terminate doesn't work
+                    try:
+                        self.lookup_tab.ahk_process.kill()
+                    except:
+                        pass
+        except Exception as e:
+            print(f"[Universal Lookup] Error terminating AHK: {e}")
+        
+        # Accept the close event
+        event.accept()
+    
     def open_project(self):
         """Open a project file"""
         file_path, _ = QFileDialog.getOpenFileName(
@@ -980,6 +1370,315 @@ class SupervertalerQt(QMainWindow):
             self.log("Recent projects cleared")
     
     # ========================================================================
+    # MEMOQ BILINGUAL DOCX IMPORT/EXPORT
+    # ========================================================================
+    
+    def import_memoq_bilingual(self):
+        """Import memoQ bilingual DOCX file (table format)"""
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select memoQ Bilingual DOCX File",
+            "",
+            "Word Documents (*.docx);;All Files (*.*)"
+        )
+        
+        if not file_path:
+            return
+        
+        try:
+            from docx import Document
+            
+            # Load the bilingual DOCX
+            doc = Document(file_path)
+            
+            if not doc.tables:
+                QMessageBox.critical(
+                    self, "Error",
+                    "No table found in the DOCX file.\n\nExpected memoQ bilingual format with a table."
+                )
+                return
+            
+            table = doc.tables[0]
+            
+            # Validate table structure (should have at least 3 rows: header, column names, data)
+            if len(table.rows) < 3:
+                QMessageBox.critical(
+                    self, "Error",
+                    f"Invalid table structure.\n\nExpected at least 3 rows, found {len(table.rows)}."
+                )
+                return
+            
+            # Extract source and target segments from columns 1 and 2 (skipping header rows 0 and 1)
+            # Also extract formatting information (bold, italic, underline)
+            segments_data = []  # List of (source, target) tuples
+            formatting_map = {}  # segment_index -> list of formatting info
+            
+            for row_idx in range(2, len(table.rows)):
+                row = table.rows[row_idx]
+                
+                # Ensure we have at least 3 cells (0=segment#, 1=source, 2=target)
+                if len(row.cells) >= 3:
+                    source_cell = row.cells[1]
+                    target_cell = row.cells[2]
+                    
+                    source_text = source_cell.text.strip()
+                    target_text = target_cell.text.strip()
+                    
+                    # Always add the row to maintain alignment
+                    segment_idx = len(segments_data)
+                    segments_data.append((source_text, target_text))
+                    
+                    # Extract formatting from runs in source cell
+                    formatting_info = []
+                    for paragraph in source_cell.paragraphs:
+                        for run in paragraph.runs:
+                            run_text = run.text
+                            if run_text:  # Only store runs with actual text
+                                formatting_info.append({
+                                    'text': run_text,
+                                    'bold': run.bold == True,
+                                    'italic': run.italic == True,
+                                    'underline': run.underline == True
+                                })
+                    
+                    # Store formatting for this segment
+                    if formatting_info:
+                        formatting_map[segment_idx] = formatting_info
+            
+            if not segments_data:
+                QMessageBox.warning(self, "Warning", "No segments found in the bilingual file.")
+                return
+            
+            # Create new project with the imported segments
+            project_name = Path(file_path).stem
+            
+            # Detect languages from table header (row 1, columns 1 and 2)
+            header_row = table.rows[1]
+            source_lang = "en"  # Default
+            target_lang = "nl"  # Default
+            
+            if len(header_row.cells) >= 3:
+                source_header = header_row.cells[1].text.strip().lower()
+                target_header = header_row.cells[2].text.strip().lower()
+                
+                # Try to detect language from header
+                lang_map = {
+                    'english': 'en', 'dutch': 'nl', 'german': 'de', 'french': 'fr',
+                    'spanish': 'es', 'italian': 'it', 'portuguese': 'pt', 'polish': 'pl'
+                }
+                
+                for lang_name, lang_code in lang_map.items():
+                    if lang_name in source_header:
+                        source_lang = lang_code
+                    if lang_name in target_header:
+                        target_lang = lang_code
+            
+            # Create project
+            self.current_project = Project(
+                name=project_name,
+                source_lang=source_lang,
+                target_lang=target_lang,
+                segments=[]
+            )
+            
+            # Create segments
+            for idx, (source_text, target_text) in enumerate(segments_data):
+                segment = Segment(
+                    id=idx + 1,
+                    source=source_text,
+                    target=target_text,
+                    status="translated" if target_text else "untranslated",
+                    type="para"
+                )
+                self.current_project.segments.append(segment)
+            
+            # Store the original memoQ file info for export
+            self.memoq_source_file = file_path
+            self.memoq_formatting_map = formatting_map
+            
+            # Update UI
+            self.project_file_path = None
+            self.project_modified = True
+            self.update_window_title()
+            self.load_segments_to_grid()
+            self.initialize_tm_database()
+            
+            self.log(f"✓ Imported memoQ bilingual DOCX: {len(segments_data)} segments from {Path(file_path).name}")
+            
+            QMessageBox.information(
+                self, "Import Successful",
+                f"Imported {len(segments_data)} segment(s) from memoQ bilingual DOCX.\n\n"
+                f"File: {Path(file_path).name}\n"
+                f"Languages: {source_lang} → {target_lang}"
+            )
+            
+        except ImportError:
+            QMessageBox.critical(
+                self, "Missing Dependency",
+                "The 'python-docx' library is required for memoQ bilingual DOCX import.\n\n"
+                "Install it with: pip install python-docx"
+            )
+        except Exception as e:
+            QMessageBox.critical(self, "Import Error", f"Failed to import memoQ bilingual DOCX:\n\n{str(e)}")
+            self.log(f"✗ memoQ import failed: {str(e)}")
+            import traceback
+            traceback.print_exc()
+    
+    def export_memoq_bilingual(self):
+        """Export to memoQ bilingual DOCX format with translations"""
+        # Check if we have segments
+        if not self.current_project or not self.current_project.segments:
+            QMessageBox.warning(self, "No Data", "No segments to export")
+            return
+        
+        # Check if a memoQ source file was imported
+        if not hasattr(self, 'memoq_source_file'):
+            QMessageBox.warning(
+                self, "No memoQ Source",
+                "No memoQ bilingual file was imported.\n\n"
+                "This feature is only available after importing a memoQ bilingual DOCX file."
+            )
+            return
+        
+        try:
+            from docx import Document
+            from docx.shared import RGBColor
+            
+            # Collect translations
+            translations = [seg.target for seg in self.current_project.segments]
+            
+            if not translations or all(not t.strip() for t in translations):
+                QMessageBox.warning(self, "Warning", "No translations found to export.")
+                return
+            
+            # Load the original bilingual DOCX
+            doc = Document(self.memoq_source_file)
+            table = doc.tables[0]
+            
+            # Write translations to target column (column 2) and update status
+            segments_updated = 0
+            segments_with_formatting = 0
+            
+            for i, translation in enumerate(translations):
+                row_idx = i + 2  # Skip header rows (0 and 1)
+                
+                if row_idx < len(table.rows):
+                    row = table.rows[row_idx]
+                    
+                    # Write translation to column 2 (target) with formatting
+                    if len(row.cells) >= 3:
+                        target_cell = row.cells[2]
+                        
+                        # Get formatting info for this segment (if available)
+                        formatting_info = None
+                        if hasattr(self, 'memoq_formatting_map') and i in self.memoq_formatting_map:
+                            formatting_info = self.memoq_formatting_map[i]
+                            if any(f['bold'] or f['italic'] or f['underline'] for f in formatting_info):
+                                segments_with_formatting += 1
+                        
+                        # Apply formatting to the target cell
+                        self._apply_formatting_to_cell(target_cell, translation, formatting_info)
+                        segments_updated += 1
+                    
+                    # Update status to 'Confirmed' in column 4
+                    if len(row.cells) >= 5:
+                        row.cells[4].text = 'Confirmed'
+            
+            # Prompt user to save the updated bilingual file
+            default_name = Path(self.memoq_source_file).stem + "_translated.docx"
+            save_path, _ = QFileDialog.getSaveFileName(
+                self,
+                "Save memoQ Bilingual DOCX",
+                default_name,
+                "Word Documents (*.docx);;All Files (*.*)"
+            )
+            
+            if save_path:
+                doc.save(save_path)
+                
+                # Build success message
+                success_msg = (
+                    f"✓ Successfully exported {segments_updated} translation(s) to memoQ bilingual DOCX!\n\n"
+                    f"File saved: {Path(save_path).name}\n\n"
+                )
+                
+                if segments_with_formatting > 0:
+                    success_msg += (
+                        f"✓ Formatting preserved in {segments_with_formatting} segment(s)\n"
+                        f"  (bold, italic, underline)\n\n"
+                    )
+                
+                success_msg += (
+                    f"✓ Status updated to 'Confirmed'\n"
+                    f"✓ Table structure preserved\n\n"
+                    f"You can now import this file back into memoQ."
+                )
+                
+                self.log(f"✓ Exported {segments_updated} translations to memoQ bilingual DOCX: {Path(save_path).name}")
+                
+                QMessageBox.information(self, "Export Successful", success_msg)
+        
+        except ImportError:
+            QMessageBox.critical(
+                self, "Missing Dependency",
+                "The 'python-docx' library is required for memoQ bilingual DOCX export.\n\n"
+                "Install it with: pip install python-docx"
+            )
+        except Exception as e:
+            QMessageBox.critical(self, "Export Error", f"Failed to export memoQ bilingual DOCX:\n\n{str(e)}")
+            self.log(f"✗ memoQ export failed: {str(e)}")
+            import traceback
+            traceback.print_exc()
+    
+    def _apply_formatting_to_cell(self, cell, text, formatting_info=None):
+        """Apply formatting to a cell based on formatting info from source"""
+        # Clear existing paragraphs
+        cell._element.clear_content()
+        
+        # Add new paragraph
+        paragraph = cell.add_paragraph()
+        
+        if not formatting_info or not text:
+            # No formatting - just add plain text
+            paragraph.add_run(text)
+            return
+        
+        # Apply formatting based on source formatting
+        # Match text pieces and apply corresponding formatting
+        remaining_text = text
+        used_chars = 0
+        
+        for fmt in formatting_info:
+            source_text = fmt['text']
+            source_len = len(source_text)
+            
+            # Find corresponding text in translation (same position ratio)
+            ratio = used_chars / sum(len(f['text']) for f in formatting_info)
+            target_start = int(ratio * len(text))
+            target_len = min(source_len, len(text) - target_start)
+            
+            if target_len > 0:
+                chunk = text[target_start:target_start + target_len]
+                run = paragraph.add_run(chunk)
+                
+                if fmt['bold']:
+                    run.bold = True
+                if fmt['italic']:
+                    run.italic = True
+                if fmt['underline']:
+                    run.underline = True
+                
+                used_chars += source_len
+        
+        # If we didn't format all the text, add the rest as plain text
+        if used_chars < len(text):
+            ratio = used_chars / len(text)
+            if ratio < 0.9:  # If less than 90% formatted, just use plain text
+                cell._element.clear_content()
+                paragraph = cell.add_paragraph()
+                paragraph.add_run(text)
+    
+    # ========================================================================
     # GRID MANAGEMENT
     # ========================================================================
     
@@ -1002,8 +1701,9 @@ class SupervertalerQt(QMainWindow):
             id_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.table.setItem(row, 0, id_item)
             
-            # Type
-            type_item = QTableWidgetItem(segment.type.capitalize())
+            # Type - show segment type or just #
+            type_display = "#" if segment.type == "para" else segment.type.upper()
+            type_item = QTableWidgetItem(type_display)
             type_item.setFlags(type_item.flags() & ~Qt.ItemFlag.ItemIsEditable)  # Read-only
             type_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.table.setItem(row, 1, type_item)
@@ -1077,6 +1777,14 @@ class SupervertalerQt(QMainWindow):
             'approved': '⭐'
         }
         return icons.get(status, '⚪')
+    
+    def update_status_icon(self, row: int, status: str):
+        """Update status icon for a specific row"""
+        status_icon = self.get_status_icon(status)
+        status_item = QTableWidgetItem(status_icon)
+        status_item.setFlags(status_item.flags() & ~Qt.ItemFlag.ItemIsEditable)  # Read-only
+        status_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.table.setItem(row, 4, status_item)
     
     def on_cell_changed(self, item: QTableWidgetItem):
         """Handle cell edit"""
@@ -1164,6 +1872,10 @@ class SupervertalerQt(QMainWindow):
                 db_path=str(db_path),
                 log_callback=self.log
             )
+            
+            # Update Universal Lookup tab with TM database
+            if hasattr(self, 'lookup_tab') and self.lookup_tab:
+                self.lookup_tab.set_tm_database(self.tm_database)
             
             self.log(f"TM database initialized ({self.current_project.source_lang} → {self.current_project.target_lang})")
         except Exception as e:
@@ -1983,15 +2695,163 @@ class SupervertalerQt(QMainWindow):
         print(f"[LOG] {message}")
     
     def show_options_dialog(self):
-        """Show application options dialog"""
+        """Show application options dialog with LLM settings"""
         from PyQt6.QtWidgets import QVBoxLayout, QHBoxLayout, QCheckBox, QGroupBox, QPushButton
         
         dialog = QDialog(self)
-        dialog.setWindowTitle("Options")
-        dialog.setMinimumWidth(500)
-        dialog.setMinimumHeight(200)
+        dialog.setWindowTitle("Settings")
+        dialog.setMinimumWidth(650)
+        dialog.setMinimumHeight(500)
         
         layout = QVBoxLayout(dialog)
+        
+        # Create tabs for different settings categories
+        tabs = QTabWidget()
+        
+        # ===== TAB 1: LLM Settings =====
+        llm_tab = QWidget()
+        llm_layout = QVBoxLayout(llm_tab)
+        
+        # LLM Provider Selection
+        provider_group = QGroupBox("LLM Provider")
+        provider_layout = QVBoxLayout()
+        
+        provider_label = QLabel("Select your preferred translation provider:")
+        provider_layout.addWidget(provider_label)
+        
+        # Load current settings
+        settings = self.load_llm_settings()
+        
+        # Provider radio buttons
+        provider_button_group = QButtonGroup(dialog)
+        
+        openai_radio = QRadioButton("OpenAI (GPT-4o, GPT-5, o1, o3)")
+        openai_radio.setChecked(settings.get('provider', 'openai') == 'openai')
+        provider_button_group.addButton(openai_radio)
+        provider_layout.addWidget(openai_radio)
+        
+        claude_radio = QRadioButton("Anthropic Claude (Claude 3.5 Sonnet)")
+        claude_radio.setChecked(settings.get('provider', 'openai') == 'claude')
+        provider_button_group.addButton(claude_radio)
+        provider_layout.addWidget(claude_radio)
+        
+        gemini_radio = QRadioButton("Google Gemini (Gemini 2.0 Flash)")
+        gemini_radio.setChecked(settings.get('provider', 'openai') == 'gemini')
+        provider_button_group.addButton(gemini_radio)
+        provider_layout.addWidget(gemini_radio)
+        
+        provider_group.setLayout(provider_layout)
+        llm_layout.addWidget(provider_group)
+        
+        # Model Selection
+        model_group = QGroupBox("Model Selection")
+        model_layout = QVBoxLayout()
+        
+        model_label = QLabel("Choose the specific model to use:")
+        model_layout.addWidget(model_label)
+        
+        # OpenAI models
+        openai_model_label = QLabel("<b>OpenAI Models:</b>")
+        model_layout.addWidget(openai_model_label)
+        
+        openai_combo = QComboBox()
+        openai_combo.addItems([
+            "gpt-4o (Recommended)",
+            "gpt-4o-mini (Fast & Economical)",
+            "gpt-5 (Reasoning, Temperature 1.0)",
+            "o3-mini (Reasoning, Temperature 1.0)",
+            "o1 (Reasoning, Temperature 1.0)",
+            "gpt-4-turbo"
+        ])
+        # Set current selection
+        current_openai_model = settings.get('openai_model', 'gpt-4o')
+        for i in range(openai_combo.count()):
+            if current_openai_model in openai_combo.itemText(i).lower():
+                openai_combo.setCurrentIndex(i)
+                break
+        openai_combo.setEnabled(openai_radio.isChecked())
+        model_layout.addWidget(openai_combo)
+        
+        model_layout.addSpacing(10)
+        
+        # Claude models
+        claude_model_label = QLabel("<b>Claude Models:</b>")
+        model_layout.addWidget(claude_model_label)
+        
+        claude_combo = QComboBox()
+        claude_combo.addItems([
+            "claude-3-5-sonnet-20241022 (Recommended)",
+            "claude-3-5-haiku-20241022 (Fast)",
+            "claude-3-opus-20240229 (Powerful)"
+        ])
+        current_claude_model = settings.get('claude_model', 'claude-3-5-sonnet-20241022')
+        for i in range(claude_combo.count()):
+            if current_claude_model in claude_combo.itemText(i):
+                claude_combo.setCurrentIndex(i)
+                break
+        claude_combo.setEnabled(claude_radio.isChecked())
+        model_layout.addWidget(claude_combo)
+        
+        model_layout.addSpacing(10)
+        
+        # Gemini models
+        gemini_model_label = QLabel("<b>Gemini Models:</b>")
+        model_layout.addWidget(gemini_model_label)
+        
+        gemini_combo = QComboBox()
+        gemini_combo.addItems([
+            "gemini-2.0-flash-exp (Recommended)",
+            "gemini-1.5-pro",
+            "gemini-1.5-flash"
+        ])
+        current_gemini_model = settings.get('gemini_model', 'gemini-2.0-flash-exp')
+        for i in range(gemini_combo.count()):
+            if current_gemini_model in gemini_combo.itemText(i):
+                gemini_combo.setCurrentIndex(i)
+                break
+        gemini_combo.setEnabled(gemini_radio.isChecked())
+        model_layout.addWidget(gemini_combo)
+        
+        model_group.setLayout(model_layout)
+        llm_layout.addWidget(model_group)
+        
+        # Connect radio buttons to enable/disable combos
+        def update_combo_states():
+            openai_combo.setEnabled(openai_radio.isChecked())
+            claude_combo.setEnabled(claude_radio.isChecked())
+            gemini_combo.setEnabled(gemini_radio.isChecked())
+        
+        openai_radio.toggled.connect(update_combo_states)
+        claude_radio.toggled.connect(update_combo_states)
+        gemini_radio.toggled.connect(update_combo_states)
+        
+        # API Keys info
+        api_keys_group = QGroupBox("API Keys")
+        api_keys_layout = QVBoxLayout()
+        
+        api_keys_info = QLabel(
+            f"Configure your API keys in:<br>"
+            f"<code>{self.user_data_path / 'api_keys.txt'}</code><br><br>"
+            f"See example file for format:<br>"
+            f"<code>{self.user_data_path / 'api_keys.example.txt'}</code>"
+        )
+        api_keys_info.setWordWrap(True)
+        api_keys_layout.addWidget(api_keys_info)
+        
+        # Button to open API keys file
+        open_keys_btn = QPushButton("📝 Open API Keys File")
+        open_keys_btn.clicked.connect(lambda: self.open_api_keys_file())
+        api_keys_layout.addWidget(open_keys_btn)
+        
+        api_keys_group.setLayout(api_keys_layout)
+        llm_layout.addWidget(api_keys_group)
+        
+        llm_layout.addStretch()
+        tabs.addTab(llm_tab, "🤖 LLM Settings")
+        
+        # ===== TAB 2: General Settings =====
+        general_tab = QWidget()
+        general_layout = QVBoxLayout(general_tab)
         
         # Find & Replace settings group
         find_replace_group = QGroupBox("Find && Replace Settings")
@@ -2017,10 +2877,15 @@ class SupervertalerQt(QMainWindow):
         find_replace_layout.addWidget(warning_label)
         
         find_replace_group.setLayout(find_replace_layout)
-        layout.addWidget(find_replace_group)
+        general_layout.addWidget(find_replace_group)
+        
+        general_layout.addStretch()
+        tabs.addTab(general_tab, "⚙️ General")
+        
+        # Add tabs to main layout
+        layout.addWidget(tabs)
         
         # Buttons
-        layout.addStretch()
         button_layout = QHBoxLayout()
         button_layout.addStretch()
         
@@ -2038,9 +2903,116 @@ class SupervertalerQt(QMainWindow):
         
         # Show dialog and save settings if accepted
         if dialog.exec() == QDialog.DialogCode.Accepted:
+            # Save general settings
             self.allow_replace_in_source = allow_replace_cb.isChecked()
             self.update_warning_banner()
-            self.log(f"Settings updated: Allow replace in source = {self.allow_replace_in_source}")
+            
+            # Save LLM settings
+            new_settings = {
+                'provider': 'openai' if openai_radio.isChecked() else 
+                           'claude' if claude_radio.isChecked() else 'gemini',
+                'openai_model': openai_combo.currentText().split()[0],  # Extract model name
+                'claude_model': claude_combo.currentText().split()[0],
+                'gemini_model': gemini_combo.currentText().split()[0]
+            }
+            
+            self.save_llm_settings(new_settings)
+            self.log(f"✓ Settings saved: Provider={new_settings['provider']}")
+    
+    def open_api_keys_file(self):
+        """Open API keys file in system text editor"""
+        api_keys_file = self.user_data_path / "api_keys.txt"
+        
+        # Create file if it doesn't exist
+        if not api_keys_file.exists():
+            try:
+                # Copy from example file
+                example_file = self.user_data_path / "api_keys.example.txt"
+                if example_file.exists():
+                    import shutil
+                    shutil.copy(example_file, api_keys_file)
+                    self.log(f"✓ Created api_keys.txt from example")
+                else:
+                    # Create basic file
+                    with open(api_keys_file, 'w') as f:
+                        f.write("# Add your API keys here\n")
+                        f.write("# openai=sk-your-key\n")
+                        f.write("# claude=sk-ant-your-key\n")
+                        f.write("# gemini=your-key\n")
+            except Exception as e:
+                QMessageBox.warning(self, "Error", f"Could not create api_keys.txt: {str(e)}")
+                return
+        
+        # Open in system editor
+        try:
+            import subprocess
+            import platform
+            
+            if platform.system() == 'Windows':
+                os.startfile(api_keys_file)
+            elif platform.system() == 'Darwin':  # macOS
+                subprocess.call(['open', api_keys_file])
+            else:  # Linux
+                subprocess.call(['xdg-open', api_keys_file])
+                
+            self.log(f"✓ Opened {api_keys_file}")
+        except Exception as e:
+            QMessageBox.information(
+                self, "API Keys File",
+                f"Please edit this file manually:\n\n{api_keys_file}"
+            )
+    
+    def load_llm_settings(self) -> Dict[str, str]:
+        """Load LLM settings from user preferences"""
+        prefs_file = self.user_data_path / "ui_preferences.json"
+        
+        if not prefs_file.exists():
+            return {
+                'provider': 'openai',
+                'openai_model': 'gpt-4o',
+                'claude_model': 'claude-3-5-sonnet-20241022',
+                'gemini_model': 'gemini-2.0-flash-exp'
+            }
+        
+        try:
+            with open(prefs_file, 'r') as f:
+                prefs = json.load(f)
+                return prefs.get('llm_settings', {
+                    'provider': 'openai',
+                    'openai_model': 'gpt-4o',
+                    'claude_model': 'claude-3-5-sonnet-20241022',
+                    'gemini_model': 'gemini-2.0-flash-exp'
+                })
+        except:
+            return {
+                'provider': 'openai',
+                'openai_model': 'gpt-4o',
+                'claude_model': 'claude-3-5-sonnet-20241022',
+                'gemini_model': 'gemini-2.0-flash-exp'
+            }
+    
+    def save_llm_settings(self, settings: Dict[str, str]):
+        """Save LLM settings to user preferences"""
+        prefs_file = self.user_data_path / "ui_preferences.json"
+        
+        # Load existing preferences
+        prefs = {}
+        if prefs_file.exists():
+            try:
+                with open(prefs_file, 'r') as f:
+                    prefs = json.load(f)
+            except:
+                pass
+        
+        # Update LLM settings
+        prefs['llm_settings'] = settings
+        
+        # Save back
+        try:
+            with open(prefs_file, 'w') as f:
+                json.dump(prefs, f, indent=2)
+        except Exception as e:
+            self.log(f"⚠ Could not save LLM settings: {str(e)}")
     
     def update_warning_banner(self):
         """Show/hide warning banner based on allow_replace_in_source setting"""
@@ -2096,16 +3068,16 @@ class SupervertalerQt(QMainWindow):
             # Get TM count from database
             try:
                 # Query database for entry count
-                cursor = self.tm_database.db_manager.conn.cursor()
+                cursor = self.tm_database.db.connection.cursor()
                 cursor.execute(
-                    "SELECT COUNT(*) FROM tm_entries WHERE source_lang=? AND target_lang=?",
+                    "SELECT COUNT(*) FROM translation_units WHERE source_lang=? AND target_lang=?",
                     (self.current_project.source_lang, self.current_project.target_lang)
                 )
                 entry_count = cursor.fetchone()[0]
                 
                 stats_text = f"""<ul>
                     <li><b>Total Entries:</b> {entry_count:,}</li>
-                    <li><b>Database Path:</b> {self.tm_database.db_path}</li>
+                    <li><b>Database Path:</b> {self.tm_database.db.db_path}</li>
                     <li><b>Active Language Pair:</b> {self.current_project.source_lang} → {self.current_project.target_lang}</li>
                 </ul>"""
                 stats_label = QLabel(stats_text)
@@ -2380,6 +3352,1603 @@ class SupervertalerQt(QMainWindow):
                 event.ignore()
         else:
             event.accept()
+    
+    # =========================================================================
+    # LLM TRANSLATION INTEGRATION
+    # =========================================================================
+    
+    def translate_current_segment(self):
+        """Translate currently selected segment using LLM (Ctrl+T)"""
+        current_row = self.table.currentRow()
+        if current_row < 0 or not self.current_project:
+            QMessageBox.warning(self, "No Selection", "Please select a segment to translate.")
+            return
+        
+        segment = self.current_project.segments[current_row]
+        
+        if not segment.source.strip():
+            QMessageBox.warning(self, "Empty Source", "Cannot translate empty source text.")
+            return
+        
+        # Load API keys
+        api_keys = self.load_api_keys()
+        if not api_keys:
+            reply = QMessageBox.question(
+                self, "API Keys Missing",
+                "No API keys found. Would you like to configure them now?\n\n"
+                f"Keys should be in: {self.user_data_path / 'api_keys.txt'}",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
+            if reply == QMessageBox.StandardButton.Yes:
+                self.show_options_dialog()
+            return
+        
+        # Load LLM settings
+        settings = self.load_llm_settings()
+        provider = settings.get('provider', 'openai')
+        
+        # Get model based on provider
+        model_key = f'{provider}_model'
+        model = settings.get(model_key, 'gpt-4o')
+        
+        # Check if API key exists for selected provider
+        if provider not in api_keys:
+            reply = QMessageBox.question(
+                self, f"{provider.title()} API Key Missing",
+                f"{provider.title()} API key not found in api_keys.txt\n\n"
+                f"Would you like to configure it now?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
+            if reply == QMessageBox.StandardButton.Yes:
+                self.show_options_dialog()
+            return
+        
+        try:
+            self.status_bar.showMessage(f"Translating segment #{segment.id} with {provider} ({model})...")
+            QApplication.processEvents()  # Update UI
+            
+            # Use modular LLM client with user's settings
+            from modules.llm_clients import LLMClient
+            
+            client = LLMClient(
+                api_key=api_keys[provider],
+                provider=provider,
+                model=model
+            )
+            
+            # Translate using the module
+            translation = client.translate(
+                text=segment.source,
+                source_lang=self.current_project.source_lang,
+                target_lang=self.current_project.target_lang
+            )
+            
+            if translation:
+                # Update segment
+                segment.target = translation
+                segment.status = "draft"
+                
+                # Update grid - Column 3 is Target
+                self.table.setItem(current_row, 3, QTableWidgetItem(translation))
+                self.update_status_icon(current_row, "draft")
+                
+                # Add to Translation Memory
+                if self.tm_database:
+                    try:
+                        self.tm_database.add_to_project_tm(segment.source, translation)
+                        self.log(f"✓ Added to TM: {segment.source[:30]}... → {translation[:30]}...")
+                    except Exception as tm_error:
+                        self.log(f"⚠ Could not add to TM: {str(tm_error)}")
+                
+                # Mark project as modified
+                self.project_modified = True
+                self.update_window_title()
+                
+                self.log(f"✓ Segment #{segment.id} translated with {provider}/{model}")
+                self.status_bar.showMessage(f"✓ Segment #{segment.id} translated", 3000)
+            else:
+                self.log(f"✗ Translation failed for segment #{segment.id}")
+                QMessageBox.warning(self, "Translation Failed", "No translation received from LLM.")
+                
+        except Exception as e:
+            self.log(f"✗ Translation error: {str(e)}")
+            QMessageBox.critical(self, "Translation Error", f"Failed to translate segment:\n\n{str(e)}")
+            self.status_bar.showMessage("Translation failed", 3000)
+    
+    def translate_batch(self):
+        """Translate multiple segments with progress dialog"""
+        if not self.current_project:
+            QMessageBox.warning(self, "No Project", "Please load or create a project first.")
+            return
+        
+        # Get untranslated segments
+        untranslated_segments = [
+            (i, seg) for i, seg in enumerate(self.current_project.segments)
+            if not seg.target or seg.target.strip() == ""
+        ]
+        
+        if not untranslated_segments:
+            QMessageBox.information(
+                self, "All Translated",
+                "All segments already have translations!"
+            )
+            return
+        
+        # Show confirmation dialog
+        reply = QMessageBox.question(
+            self,
+            "Batch Translation",
+            f"Found {len(untranslated_segments)} untranslated segment(s).\n\n"
+            f"Translate all using your configured LLM provider?\n\n"
+            f"This may take several minutes and consume API credits.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        
+        # Load API keys and settings
+        api_keys = self.load_api_keys()
+        if not api_keys:
+            QMessageBox.critical(
+                self, "API Keys Missing",
+                "Please configure your API keys in Settings first."
+            )
+            return
+        
+        settings = self.load_llm_settings()
+        provider = settings.get('provider', 'openai')
+        model_key = f'{provider}_model'
+        model = settings.get(model_key, 'gpt-4o')
+        
+        if provider not in api_keys:
+            QMessageBox.critical(
+                self, f"{provider.title()} API Key Missing",
+                f"Please configure your {provider.title()} API key in Settings."
+            )
+            return
+        
+        # Create progress dialog
+        progress = QDialog(self)
+        progress.setWindowTitle("Batch Translation Progress")
+        progress.setMinimumWidth(600)
+        progress.setMinimumHeight(250)
+        progress.setModal(True)
+        
+        layout = QVBoxLayout(progress)
+        
+        # Header
+        header_label = QLabel(f"<h3>🚀 Translating {len(untranslated_segments)} segments</h3>")
+        layout.addWidget(header_label)
+        
+        # Provider info
+        info_label = QLabel(f"<b>Provider:</b> {provider.title()} | <b>Model:</b> {model}")
+        layout.addWidget(info_label)
+        
+        # Progress bar
+        progress_bar = QProgressBar()
+        progress_bar.setMaximum(len(untranslated_segments))
+        progress_bar.setValue(0)
+        layout.addWidget(progress_bar)
+        
+        # Current segment label
+        current_label = QLabel("Starting...")
+        layout.addWidget(current_label)
+        
+        # Statistics
+        stats_label = QLabel("Translated: 0 | Failed: 0 | Remaining: " + str(len(untranslated_segments)))
+        layout.addWidget(stats_label)
+        
+        # Close button (initially disabled)
+        close_btn = QPushButton("Close")
+        close_btn.setEnabled(False)
+        close_btn.clicked.connect(progress.accept)
+        layout.addWidget(close_btn)
+        
+        # Show progress dialog
+        progress.show()
+        QApplication.processEvents()
+        
+        # Translation statistics
+        translated_count = 0
+        failed_count = 0
+        
+        try:
+            # Import LLM client
+            from modules.llm_clients import LLMClient
+            
+            client = LLMClient(
+                api_key=api_keys[provider],
+                provider=provider,
+                model=model
+            )
+            
+            # Get languages from project
+            source_lang = getattr(self.current_project, 'source_lang', 'en')
+            target_lang = getattr(self.current_project, 'target_lang', 'nl')
+            
+            self.log(f"Batch translation: {source_lang} → {target_lang}")
+            
+            # Translate each segment
+            for idx, (row_index, segment) in enumerate(untranslated_segments):
+                # Update progress
+                current_label.setText(f"Translating segment #{segment.id}: {segment.source[:60]}...")
+                progress_bar.setValue(idx)
+                QApplication.processEvents()
+                
+                try:
+                    # Translate
+                    translation = client.translate(
+                        text=segment.source,
+                        source_lang=source_lang,
+                        target_lang=target_lang
+                    )
+                    
+                    if translation:
+                        # Update segment
+                        segment.target = translation
+                        segment.status = "draft"
+                        
+                        # Update grid
+                        self.table.setItem(row_index, 3, QTableWidgetItem(translation))
+                        self.update_status_icon(row_index, "draft")
+                        
+                        # Add to TM
+                        if self.tm_database:
+                            try:
+                                self.tm_database.add_to_project_tm(segment.source, translation)
+                            except:
+                                pass  # Don't fail batch on TM errors
+                        
+                        translated_count += 1
+                        self.log(f"✓ Batch: Segment #{segment.id} translated")
+                    else:
+                        failed_count += 1
+                        self.log(f"✗ Batch: Segment #{segment.id} - no translation received")
+                
+                except Exception as e:
+                    failed_count += 1
+                    self.log(f"✗ Batch: Segment #{segment.id} - {str(e)}")
+                
+                # Update statistics
+                remaining = len(untranslated_segments) - (idx + 1)
+                stats_label.setText(
+                    f"Translated: {translated_count} | Failed: {failed_count} | Remaining: {remaining}"
+                )
+                QApplication.processEvents()
+            
+            # Mark project as modified
+            if translated_count > 0:
+                self.project_modified = True
+                self.update_window_title()
+            
+            # Completion message
+            progress_bar.setValue(len(untranslated_segments))
+            current_label.setText(
+                f"<b>✓ Batch translation complete!</b><br>"
+                f"Successfully translated: {translated_count}<br>"
+                f"Failed: {failed_count}"
+            )
+            
+            # Enable close button
+            close_btn.setEnabled(True)
+            
+            self.log(f"✓ Batch translation complete: {translated_count} translated, {failed_count} failed")
+            
+        except Exception as e:
+            QMessageBox.critical(
+                progress,
+                "Batch Translation Error",
+                f"Batch translation failed:\n\n{str(e)}"
+            )
+            self.log(f"✗ Batch translation error: {str(e)}")
+            close_btn.setEnabled(True)
+        
+        # Wait for user to close
+        progress.exec()
+    
+    def load_api_keys(self) -> Dict[str, str]:
+        """Load API keys from user data folder"""
+        api_keys = {}
+        api_keys_file = self.user_data_path / "api_keys.txt"
+        
+        if not api_keys_file.exists():
+            return api_keys
+        
+        try:
+            with open(api_keys_file, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if line and '=' in line and not line.startswith('#'):
+                        key, value = line.split('=', 1)
+                        api_keys[key.strip().lower()] = value.strip()
+        except Exception as e:
+            self.log(f"⚠ Error loading API keys: {str(e)}")
+        
+        return api_keys
+    
+    def ensure_example_api_keys(self):
+        """Create example API keys file on first launch for new users"""
+        example_file = self.user_data_path / "api_keys.example.txt"
+        
+        # Only create if it doesn't exist
+        if example_file.exists():
+            return
+        
+        example_content = """# Supervertaler API Keys Configuration
+# =======================================
+# 
+# Add your API keys below. Remove the # to activate a key.
+# Never commit this file with real keys to version control!
+#
+# For actual use:
+# 1. Copy this file to "api_keys.txt" in the same folder
+# 2. Add your real API keys (remove the # from the lines you use)
+# 3. Save the file
+#
+# Available providers:
+
+# OpenAI (GPT-4, GPT-4o, GPT-5, o1, o3 models)
+# Get your key at: https://platform.openai.com/api-keys
+#openai=sk-your-openai-api-key-here
+
+# Anthropic Claude (Claude 3.5 Sonnet, etc.)
+# Get your key at: https://console.anthropic.com/
+#claude=sk-ant-your-claude-api-key-here
+
+# Google Gemini (Gemini 2.0 Flash, Pro models)
+# Get your key at: https://makersuite.google.com/app/apikey
+#gemini=your-gemini-api-key-here
+
+# Temperature settings for reasoning models:
+# - GPT-5, o1, o3: Use temperature=1.0 (automatically applied)
+# - Standard models: Use temperature=0.3 (automatically applied)
+"""
+        
+        try:
+            with open(example_file, 'w', encoding='utf-8') as f:
+                f.write(example_content)
+            self.log(f"✓ Created example API keys file: {example_file}")
+        except Exception as e:
+            self.log(f"⚠ Could not create example API keys file: {str(e)}")
+    
+    def show_autofingers(self):
+        """Show AutoFingers CAT tool automation dialog"""
+        dialog = AutoFingersDialog(self)
+        dialog.exec()
+    
+    def show_theme_editor(self):
+        """Show Theme Editor dialog"""
+        dialog = ThemeEditorDialog(self, self.theme_manager)
+        if dialog.exec():
+            # Theme may have been changed, reapply
+            self.theme_manager.apply_theme(QApplication.instance())
+
+
+# ============================================================================
+# UNIVERSAL LOOKUP TAB
+# ============================================================================
+
+class UniversalLookupTab(QWidget):
+    """
+    Universal Lookup - System-wide translation lookup
+    Works anywhere on your computer: in CAT tools, browsers, Word, any text box
+    """
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        
+        # Import lookup engine
+        try:
+            from modules.universal_lookup import UniversalLookupEngine, LookupResult
+            self.UniversalLookupEngine = UniversalLookupEngine
+            self.LookupResult = LookupResult
+        except ImportError:
+            QMessageBox.critical(
+                self,
+                "Missing Module",
+                "Could not import universal_lookup module.\nPlease ensure modules/universal_lookup.py exists."
+            )
+            self.UniversalLookupEngine = None
+            self.LookupResult = None
+            return
+        
+        # Initialize engine
+        self.engine = None
+        self.tm_database = None
+        self.hotkey_registered = False
+        
+        # UI setup
+        self.init_ui()
+        
+        # Register global hotkey
+        self.register_global_hotkey()
+    
+    def init_ui(self):
+        """Initialize the UI"""
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(10)
+        
+        # Header
+        header = QLabel("🔍 Universal Lookup")
+        header.setStyleSheet("font-size: 16pt; font-weight: bold; color: #1976D2;")
+        layout.addWidget(header)
+        
+        # Description
+        if os.name == 'nt':
+            # Windows - full functionality
+            description_text = (
+                "Look up translations anywhere on your computer.\n"
+                "Press Ctrl+Alt+L or paste text manually to search your translation memory."
+            )
+        else:
+            # Mac/Linux - manual mode only
+            description_text = (
+                "Look up translations in your translation memory.\n"
+                "⚠️ Global hotkey not available on this platform. Paste text manually to search."
+            )
+        
+        description = QLabel(description_text)
+        description.setWordWrap(True)
+        description.setStyleSheet("color: #666; padding: 5px; background-color: #E3F2FD; border-radius: 3px;")
+        layout.addWidget(description)
+        
+        # Mode selector (using label instead of group box)
+        mode_label_header = QLabel("⚙️ Operating Mode")
+        mode_label_header.setStyleSheet("font-weight: bold; font-size: 10pt; margin-top: 10px;")
+        layout.addWidget(mode_label_header)
+        
+        mode_layout = QHBoxLayout()
+        
+        mode_label = QLabel("Mode:")
+        mode_layout.addWidget(mode_label)
+        
+        self.mode_combo = QComboBox()
+        self.mode_combo.addItems(["Universal (Any Text Box)", "memoQ", "Trados", "CafeTran"])
+        self.mode_combo.currentTextChanged.connect(self.on_mode_changed)
+        mode_layout.addWidget(self.mode_combo, stretch=1)
+        
+        layout.addLayout(mode_layout)
+        
+        # Source text area (using label instead of group box)
+        source_label_header = QLabel("📝 Source Text")
+        source_label_header.setStyleSheet("font-weight: bold; font-size: 10pt; margin-top: 10px;")
+        layout.addWidget(source_label_header)
+        
+        self.source_text = QTextEdit()
+        self.source_text.setPlaceholderText("Click 'Capture Text' or paste text here to search...")
+        self.source_text.setMaximumHeight(100)
+        layout.addWidget(self.source_text)
+        
+        # Buttons
+        button_layout = QHBoxLayout()
+        
+        if os.name == 'nt':
+            # Windows - show capture button (though hotkey is preferred)
+            capture_btn = QPushButton("📥 Manual Capture")
+            capture_btn.setToolTip("Manually trigger text capture (Ctrl+Alt+L is recommended)")
+            capture_btn.setStyleSheet("background-color: #4CAF50; color: white; padding: 8px;")
+            capture_btn.clicked.connect(self.capture_text)
+            button_layout.addWidget(capture_btn)
+        
+        search_btn = QPushButton("🔍 Search")
+        search_btn.setStyleSheet("font-weight: bold; background-color: #2196F3; color: white; padding: 8px;")
+        search_btn.clicked.connect(self.perform_lookup)
+        button_layout.addWidget(search_btn)
+        
+        clear_btn = QPushButton("🗑️ Clear")
+        clear_btn.clicked.connect(self.clear_all)
+        button_layout.addWidget(clear_btn)
+        
+        layout.addLayout(button_layout)
+        
+        # Results area (with tabs for TM, Glossary, MT)
+        self.results_tabs = QTabWidget()
+        
+        # TM Results tab
+        tm_tab = self.create_tm_results_tab()
+        self.results_tabs.addTab(tm_tab, "📖 TM Matches")
+        
+        # Glossary Results tab
+        glossary_tab = self.create_glossary_results_tab()
+        self.results_tabs.addTab(glossary_tab, "📚 Glossary Terms")
+        
+        # MT Results tab
+        mt_tab = self.create_mt_results_tab()
+        self.results_tabs.addTab(mt_tab, "🤖 Machine Translation")
+        
+        layout.addWidget(self.results_tabs, stretch=1)
+        
+        # Status bar
+        self.status_label = QLabel("Ready. Select a mode and capture text to begin.")
+        self.status_label.setStyleSheet("padding: 5px; background-color: #f5f5f5; border-radius: 3px;")
+        layout.addWidget(self.status_label)
+    
+    def create_tm_results_tab(self):
+        """Create the TM results tab"""
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        
+        # Results table
+        self.tm_results_table = QTableWidget()
+        self.tm_results_table.setColumnCount(4)
+        self.tm_results_table.setHorizontalHeaderLabels(["Match %", "Source", "Target", "Type"])
+        self.tm_results_table.horizontalHeader().setStretchLastSection(False)
+        self.tm_results_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.tm_results_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        self.tm_results_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.tm_results_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.tm_results_table.doubleClicked.connect(self.on_tm_result_double_click)
+        
+        layout.addWidget(self.tm_results_table)
+        
+        # Action buttons
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+        
+        copy_btn = QPushButton("📋 Copy Target")
+        copy_btn.clicked.connect(self.copy_selected_tm_target)
+        button_layout.addWidget(copy_btn)
+        
+        insert_btn = QPushButton("📥 Insert Target")
+        insert_btn.setToolTip("Insert selected translation (Ctrl+V)")
+        insert_btn.clicked.connect(self.insert_selected_tm_target)
+        button_layout.addWidget(insert_btn)
+        
+        layout.addLayout(button_layout)
+        
+        return tab
+    
+    def create_glossary_results_tab(self):
+        """Create the glossary results tab"""
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        
+        # Results table
+        self.glossary_results_table = QTableWidget()
+        self.glossary_results_table.setColumnCount(2)
+        self.glossary_results_table.setHorizontalHeaderLabels(["Term (Source)", "Translation (Target)"])
+        self.glossary_results_table.horizontalHeader().setStretchLastSection(True)
+        self.glossary_results_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        self.glossary_results_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.glossary_results_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        
+        layout.addWidget(self.glossary_results_table)
+        
+        # Info label
+        info = QLabel("💡 Tip: Double-click a term to copy it to clipboard")
+        info.setStyleSheet("color: #666; font-size: 9pt; padding: 5px;")
+        layout.addWidget(info)
+        
+        return tab
+    
+    def create_mt_results_tab(self):
+        """Create the MT results tab"""
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        
+        # Results list
+        self.mt_results_layout = QVBoxLayout()
+        
+        # Placeholder
+        placeholder = QLabel("🤖 Machine Translation\n\nComing soon: DeepL, OpenAI, Google Translate integration")
+        placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        placeholder.setStyleSheet("color: #999; padding: 40px;")
+        self.mt_results_layout.addWidget(placeholder)
+        
+        layout.addLayout(self.mt_results_layout)
+        layout.addStretch()
+        
+        return tab
+    
+    def on_mode_changed(self, mode_text):
+        """Handle mode change"""
+        mode_map = {
+            "Universal (Any Text Box)": "universal",
+            "memoQ": "memoq",
+            "Trados": "trados",
+            "CafeTran": "cafetran"
+        }
+        
+        mode = mode_map.get(mode_text, "universal")
+        
+        if self.engine:
+            self.engine.mode = mode
+            self.status_label.setText(f"Mode changed to: {mode_text}")
+    
+    def __del__(self):
+        """Destructor - cleanup AHK process when widget is destroyed"""
+        try:
+            self.unregister_global_hotkey()
+        except:
+            pass
+    
+    def capture_text(self, delay=True):
+        """
+        Capture text from the active application
+        
+        Args:
+            delay: If True, wait 1.5 seconds before capturing (for manual button clicks)
+                   If False, capture immediately (for global hotkey)
+        """
+        if not self.UniversalLookupEngine:
+            return
+        
+        # Initialize engine if needed
+        if not self.engine:
+            mode_text = self.mode_combo.currentText()
+            mode_map = {
+                "Universal (Any Text Box)": "universal",
+                "memoQ": "memoq",
+                "Trados": "trados",
+                "CafeTran": "cafetran"
+            }
+            mode = mode_map.get(mode_text, "universal")
+            self.engine = self.UniversalLookupEngine(mode=mode)
+            
+            # Set TM database if available
+            if self.tm_database:
+                self.engine.set_tm_database(self.tm_database)
+        
+        if delay:
+            # Manual button click - give time to switch windows
+            self.status_label.setText("⏳ Capturing text... Switch to target application now!")
+            QApplication.processEvents()
+            time.sleep(1.5)
+        else:
+            # Global hotkey - capture immediately
+            self.status_label.setText("⏳ Capturing text...")
+            QApplication.processEvents()
+        
+        # Capture text
+        text = self.engine.capture_text()
+        
+        if text:
+            self.source_text.setPlainText(text)
+            self.status_label.setText(f"✓ Captured {len(text)} characters. Searching...")
+            # Auto-search after capture
+            self.perform_lookup()
+        else:
+            self.status_label.setText("✗ No text captured. Try again.")
+    
+    def perform_lookup(self):
+        """Perform lookup on the source text"""
+        text = self.source_text.toPlainText().strip()
+        
+        if not text:
+            self.status_label.setText("⚠️ No text to search. Enter or capture text first.")
+            return
+        
+        if not self.engine:
+            # Initialize engine
+            mode_text = self.mode_combo.currentText()
+            mode_map = {
+                "Universal (Any Text Box)": "universal",
+                "memoQ": "memoq",
+                "Trados": "trados",
+                "CafeTran": "cafetran"
+            }
+            mode = mode_map.get(mode_text, "universal")
+            self.engine = UniversalLookupEngine(mode=mode)
+            
+            # Set TM database if available
+            if self.tm_database:
+                self.engine.set_tm_database(self.tm_database)
+        
+        self.status_label.setText("🔍 Searching...")
+        QApplication.processEvents()
+        
+        # Perform lookups
+        results = self.engine.lookup_all(text)
+        
+        # Display TM results
+        self.display_tm_results(results.get('tm', []))
+        
+        # Display glossary results
+        self.display_glossary_results(results.get('glossary', []))
+        
+        # Display MT results
+        self.display_mt_results(results.get('mt', []))
+        
+        total_results = len(results.get('tm', [])) + len(results.get('glossary', [])) + len(results.get('mt', []))
+        self.status_label.setText(f"✓ Found {total_results} results")
+    
+    def display_tm_results(self, results):
+        """Display TM results in the table"""
+        self.tm_results_table.setRowCount(0)
+        
+        for result in results:
+            row = self.tm_results_table.rowCount()
+            self.tm_results_table.insertRow(row)
+            
+            # Match percentage
+            match_item = QTableWidgetItem(f"{result.match_percent}%")
+            if result.match_percent == 100:
+                match_item.setBackground(QColor("#C8E6C9"))  # Green for exact
+            elif result.match_percent >= 95:
+                match_item.setBackground(QColor("#FFF9C4"))  # Yellow for high
+            self.tm_results_table.setItem(row, 0, match_item)
+            
+            # Source
+            self.tm_results_table.setItem(row, 1, QTableWidgetItem(result.source))
+            
+            # Target
+            self.tm_results_table.setItem(row, 2, QTableWidgetItem(result.target))
+            
+            # Type
+            match_type = result.metadata.get('match_type', 'unknown')
+            self.tm_results_table.setItem(row, 3, QTableWidgetItem(match_type))
+        
+        self.tm_results_table.resizeRowsToContents()
+    
+    def display_glossary_results(self, results):
+        """Display glossary results"""
+        self.glossary_results_table.setRowCount(0)
+        
+        for result in results:
+            row = self.glossary_results_table.rowCount()
+            self.glossary_results_table.insertRow(row)
+            
+            self.glossary_results_table.setItem(row, 0, QTableWidgetItem(result.source))
+            self.glossary_results_table.setItem(row, 1, QTableWidgetItem(result.target))
+        
+        self.glossary_results_table.resizeRowsToContents()
+    
+    def display_mt_results(self, results):
+        """Display MT results"""
+        # Clear existing
+        while self.mt_results_layout.count():
+            item = self.mt_results_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        
+        if results:
+            for result in results:
+                label = QLabel(f"{result.metadata.get('provider', 'MT')}: {result.target}")
+                label.setWordWrap(True)
+                self.mt_results_layout.addWidget(label)
+        else:
+            placeholder = QLabel("🤖 No MT results yet\n\n(MT integration coming soon)")
+            placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            placeholder.setStyleSheet("color: #999; padding: 20px;")
+            self.mt_results_layout.addWidget(placeholder)
+    
+    def on_tm_result_double_click(self, index):
+        """Handle double-click on TM result"""
+        self.copy_selected_tm_target()
+    
+    def copy_selected_tm_target(self):
+        """Copy selected TM target to clipboard"""
+        selected = self.tm_results_table.selectedItems()
+        if selected:
+            row = selected[0].row()
+            target_item = self.tm_results_table.item(row, 2)
+            if target_item:
+                pyperclip.copy(target_item.text())
+                self.status_label.setText(f"✓ Copied to clipboard: {target_item.text()[:50]}...")
+    
+    def insert_selected_tm_target(self):
+        """Insert selected TM target into active application"""
+        selected = self.tm_results_table.selectedItems()
+        if selected:
+            row = selected[0].row()
+            target_item = self.tm_results_table.item(row, 2)
+            if target_item:
+                pyperclip.copy(target_item.text())
+                self.status_label.setText("✓ Copied to clipboard. Press Ctrl+V to paste.")
+                # Could auto-paste here if we wanted to be aggressive
+                # pyautogui.hotkey('ctrl', 'v')
+    
+    def clear_all(self):
+        """Clear all text and results"""
+        self.source_text.clear()
+        self.tm_results_table.setRowCount(0)
+        self.glossary_results_table.setRowCount(0)
+        self.status_label.setText("Cleared. Ready for new lookup.")
+    
+    def set_tm_database(self, tm_db):
+        """Set TM database (called from main window)"""
+        self.tm_database = tm_db
+        if self.engine:
+            self.engine.set_tm_database(tm_db)
+    
+    def register_global_hotkey(self):
+        """Register global hotkey for Universal Lookup"""
+        global _ahk_process
+        try:
+            # Kill any existing instances of the AHK script first
+            if os.name == 'nt':
+                try:
+                    subprocess.run(['taskkill', '/F', '/FI', 'WINDOWTITLE eq universal_lookup_hotkey.ahk*'],
+                                 capture_output=True, creationflags=subprocess.CREATE_NO_WINDOW)
+                except:
+                    pass
+            
+            # Find AutoHotkey executable
+            username = os.environ.get('USERNAME', '')
+            ahk_paths = [
+                r"C:\Program Files\AutoHotkey\v2\AutoHotkey.exe",
+                r"C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe",
+                r"C:\Program Files\AutoHotkey\AutoHotkey.exe",
+                r"C:\Program Files (x86)\AutoHotkey\AutoHotkey.exe",
+                fr"C:\Users\{username}\AppData\Local\Programs\AutoHotkey\AutoHotkey.exe"
+            ]
+            
+            ahk_exe = None
+            for path in ahk_paths:
+                if os.path.exists(path):
+                    ahk_exe = path
+                    break
+            
+            if not ahk_exe:
+                print("[Universal Lookup] AutoHotkey not found. Please install from https://www.autohotkey.com/")
+                print("[Universal Lookup] Searched paths:", ahk_paths)
+                self.hotkey_registered = False
+                return
+            
+            ahk_script = Path(__file__).parent / "universal_lookup_hotkey.ahk"
+            if ahk_script.exists():
+                # Start AHK script in background (hidden)
+                self.ahk_process = subprocess.Popen([ahk_exe, str(ahk_script)],
+                                                   creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0)
+                # Store in global variable for atexit cleanup
+                _ahk_process = self.ahk_process
+                print(f"[Universal Lookup] AHK hotkey registered: Ctrl+Alt+L")
+                
+                # Start file watcher
+                self.start_file_watcher()
+                self.hotkey_registered = True
+            else:
+                print(f"[Universal Lookup] AHK script not found: {ahk_script}")
+                self.hotkey_registered = False
+        except Exception as e:
+            print(f"[Universal Lookup] Could not start AHK hotkey: {e}")
+            self.hotkey_registered = False
+    
+    def start_file_watcher(self):
+        """Watch for signal file from AHK"""
+        self.signal_file = Path(__file__).parent / "lookup_signal.txt"
+        self.capture_file = Path(__file__).parent / "temp_capture.txt"
+        
+        # Create timer to check for signal file
+        self.file_check_timer = QTimer()
+        self.file_check_timer.timeout.connect(self.check_for_signal)
+        self.file_check_timer.start(100)  # Check every 100ms
+    
+    def check_for_signal(self):
+        """Check if AHK wrote a signal file"""
+        if self.signal_file.exists():
+            try:
+                # Delete signal file
+                self.signal_file.unlink()
+                
+                # Get text from clipboard (AHK already copied it)
+                time.sleep(0.1)  # Give clipboard a moment
+                text = pyperclip.paste()
+                
+                # Trigger lookup
+                if text:
+                    self.on_ahk_capture(text)
+            except Exception as e:
+                print(f"[Universal Lookup] Error reading capture: {e}")
+    
+    def on_ahk_capture(self, text):
+        """Handle text captured by AHK"""
+        try:
+            # Bring Supervertaler to foreground
+            main_window = self.window()
+            if main_window:
+                # Check if window was maximized before restoring
+                was_maximized = main_window.isMaximized()
+                
+                # Restore if minimized or hidden
+                if main_window.isMinimized():
+                    main_window.showNormal()
+                elif main_window.isHidden():
+                    main_window.show()
+                else:
+                    # If already visible, just activate
+                    main_window.show()
+                
+                # Restore maximized state if it was maximized
+                if was_maximized:
+                    main_window.showMaximized()
+                
+                # Aggressive activation without flag manipulation
+                main_window.raise_()
+                main_window.activateWindow()
+                
+                # Windows-specific: force to foreground (multi-monitor safe)
+                if os.name == 'nt':
+                    try:
+                        import ctypes
+                        hwnd = int(main_window.winId())
+                        
+                        # Get the foreground window's thread
+                        foreground_hwnd = ctypes.windll.user32.GetForegroundWindow()
+                        foreground_thread = ctypes.windll.user32.GetWindowThreadProcessId(foreground_hwnd, None)
+                        current_thread = ctypes.windll.kernel32.GetCurrentThreadId()
+                        
+                        # Attach to foreground thread to bypass focus stealing prevention
+                        if foreground_thread != current_thread:
+                            ctypes.windll.user32.AttachThreadInput(foreground_thread, current_thread, True)
+                        
+                        # Now we can set foreground
+                        ctypes.windll.user32.SetForegroundWindow(hwnd)
+                        ctypes.windll.user32.BringWindowToTop(hwnd)
+                        
+                        # Detach thread input
+                        if foreground_thread != current_thread:
+                            ctypes.windll.user32.AttachThreadInput(foreground_thread, current_thread, False)
+                    except Exception as e:
+                        print(f"[Universal Lookup] Window activation error: {e}")
+                
+                if hasattr(main_window, 'main_tabs'):
+                    main_window.main_tabs.setCurrentIndex(0)
+            
+            # Paste into search box
+            if text:
+                self.source_text.setPlainText(text)
+                self.status_label.setText(f"✓ Captured {len(text)} characters. Searching...")
+                QApplication.processEvents()
+                self.perform_lookup()
+            else:
+                self.status_label.setText("✗ No text captured.")
+        except Exception as e:
+            print(f"[Universal Lookup] Error: {e}")
+            self.status_label.setText(f"✗ Error: {e}")
+    
+    def unregister_global_hotkey(self):
+        """Unregister global hotkey and terminate AHK process"""
+        global _ahk_process
+        if self.hotkey_registered:
+            try:
+                # Stop file watcher
+                if hasattr(self, 'file_check_timer'):
+                    self.file_check_timer.stop()
+                
+                # Terminate AHK process
+                if hasattr(self, 'ahk_process') and self.ahk_process:
+                    try:
+                        self.ahk_process.terminate()
+                        self.ahk_process.wait(timeout=2)
+                        print("[Universal Lookup] AHK process terminated")
+                    except Exception as e:
+                        # Force kill if terminate doesn't work
+                        try:
+                            self.ahk_process.kill()
+                            print("[Universal Lookup] AHK process killed")
+                        except:
+                            pass
+                    finally:
+                        _ahk_process = None  # Clear global reference
+                
+                self.hotkey_registered = False
+                print("[Universal Lookup] AHK hotkey unregistered")
+            except Exception as e:
+                print(f"[Universal Lookup] Error unregistering: {e}")
+                pass
+    
+    def restore_window_flags(self, window):
+        """Restore normal window flags after showing on top"""
+        try:
+            window.setWindowFlags(window.windowFlags() & ~Qt.WindowType.WindowStaysOnTopHint)
+            window.show()
+        except:
+            pass
+
+
+# ============================================================================
+# AUTOFINGERS DIALOG
+# ============================================================================
+
+class AutoFingersDialog(QDialog):
+    """
+    AutoFingers - CAT Tool Automation Dialog
+    Provides UI for translation automation in tools like memoQ
+    """
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("✋ AutoFingers - CAT Tool Automation")
+        self.setMinimumSize(700, 600)
+        
+        # Import AutoFingers engine
+        try:
+            from modules.autofingers_engine import AutoFingersEngine
+            self.AutoFingersEngine = AutoFingersEngine
+        except ImportError:
+            QMessageBox.critical(
+                self,
+                "Import Error",
+                "Could not import AutoFingers engine.\n"
+                "Make sure modules/autofingers_engine.py exists."
+            )
+            self.close()
+            return
+        
+        # Initialize engine
+        self.engine = None
+        self.is_running = False
+        
+        # Get default TMX path from user data
+        if ENABLE_PRIVATE_FEATURES:
+            default_tmx = "user data_private/autofingers_tm.tmx"
+        else:
+            default_tmx = "user data/autofingers_tm.tmx"
+        
+        self.tmx_file = default_tmx
+        
+        self.setup_ui()
+        self.load_settings()
+        
+    def setup_ui(self):
+        """Setup the user interface"""
+        layout = QVBoxLayout(self)
+        
+        # Header
+        header = QLabel("🤖 <b>AutoFingers</b> - Automated Translation Pasting for memoQ")
+        header.setStyleSheet("font-size: 14pt; padding: 10px;")
+        layout.addWidget(header)
+        
+        # Info box
+        info = QLabel(
+            "AutoFingers automates translation insertion in CAT tools like memoQ.\n"
+            "It reads from a TMX file and pastes translations automatically."
+        )
+        info.setWordWrap(True)
+        info.setStyleSheet("background-color: #E3F2FD; padding: 10px; border-radius: 5px;")
+        layout.addWidget(info)
+        
+        # Tabs
+        tabs = QTabWidget()
+        
+        # TAB 1: Control Panel
+        control_tab = self.create_control_tab()
+        tabs.addTab(control_tab, "🎮 Control Panel")
+        
+        # TAB 2: Settings
+        settings_tab = self.create_settings_tab()
+        tabs.addTab(settings_tab, "⚙️ Settings")
+        
+        # TAB 3: TMX Manager
+        tmx_tab = self.create_tmx_tab()
+        tabs.addTab(tmx_tab, "📚 TMX Manager")
+        
+        layout.addWidget(tabs)
+        
+        # Status/Log area
+        log_group = QGroupBox("📋 Activity Log")
+        log_layout = QVBoxLayout()
+        
+        self.log_text = QTextEdit()
+        self.log_text.setReadOnly(True)
+        self.log_text.setMaximumHeight(150)
+        self.log_text.setStyleSheet("""
+            font-family: 'Consolas', monospace;
+            padding: 8px;
+            line-height: 1.4;
+        """)
+        log_layout.addWidget(self.log_text)
+        
+        log_group.setLayout(log_layout)
+        layout.addWidget(log_group)
+        
+        # Close button
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+        
+        close_btn = QPushButton("Close")
+        close_btn.clicked.connect(self.close)
+        button_layout.addWidget(close_btn)
+        
+        layout.addLayout(button_layout)
+        
+        # Setup global keyboard shortcuts (matching AutoHotkey version)
+        self.setup_shortcuts()
+    
+    def setup_shortcuts(self):
+        """Setup GLOBAL keyboard shortcuts for AutoFingers actions"""
+        import keyboard
+        
+        try:
+            # Store hotkey references for later removal
+            self.hotkeys = []
+            
+            # Register global hotkeys that work even when memoQ has focus
+            # Ctrl+Alt+P - Process single segment
+            self.hotkeys.append(keyboard.add_hotkey('ctrl+alt+p', self.process_single_safe))
+            
+            # Ctrl+Shift+L - Toggle loop mode
+            self.hotkeys.append(keyboard.add_hotkey('ctrl+shift+l', self.toggle_loop_safe))
+            
+            # Ctrl+Alt+S - Stop loop
+            self.hotkeys.append(keyboard.add_hotkey('ctrl+alt+s', self.stop_loop_safe))
+            
+            # Ctrl+Alt+R - Reload TMX
+            self.hotkeys.append(keyboard.add_hotkey('ctrl+alt+r', self.reload_tmx_safe))
+            
+            self.log("✓ Global hotkeys registered: Ctrl+Alt+P (single), Ctrl+Shift+L (loop), Ctrl+Alt+S (stop), Ctrl+Alt+R (reload)")
+            self.log("ℹ️ Hotkeys work globally - even when memoQ has focus!")
+            
+        except Exception as e:
+            self.log(f"⚠️ Could not register global hotkeys: {str(e)}")
+            self.log("ℹ️ You may need to run as Administrator for global hotkeys")
+    
+    def process_single_safe(self):
+        """Safe wrapper for process_single (called from global hotkey)"""
+        try:
+            self.process_single()
+        except Exception as e:
+            print(f"Error in process_single: {e}")
+    
+    def toggle_loop_safe(self):
+        """Safe wrapper for toggle_loop (called from global hotkey)"""
+        try:
+            self.toggle_loop()
+        except Exception as e:
+            print(f"Error in toggle_loop: {e}")
+    
+    def stop_loop_safe(self):
+        """Safe wrapper for stop_loop (called from global hotkey)"""
+        try:
+            self.stop_loop()
+        except Exception as e:
+            print(f"Error in stop_loop: {e}")
+    
+    def reload_tmx_safe(self):
+        """Safe wrapper for reload_tmx (called from global hotkey)"""
+        try:
+            self.reload_tmx()
+        except Exception as e:
+            print(f"Error in reload_tmx: {e}")
+    
+    def closeEvent(self, event):
+        """Cleanup when dialog is closed"""
+        # Unregister ONLY AutoFingers hotkeys (not all hotkeys!)
+        try:
+            import keyboard
+            if hasattr(self, 'hotkeys'):
+                for hotkey in self.hotkeys:
+                    try:
+                        keyboard.remove_hotkey(hotkey)
+                    except:
+                        pass
+                self.log("AutoFingers hotkeys unregistered")
+        except Exception as e:
+            print(f"Error unregistering hotkeys: {e}")
+        
+        event.accept()
+    
+    def create_control_tab(self):
+        """Create the main control panel tab"""
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        
+        # TMX File Selection
+        tmx_group = QGroupBox("📁 Translation Memory File")
+        tmx_layout = QHBoxLayout()
+        
+        self.tmx_path_label = QLabel(self.tmx_file)
+        self.tmx_path_label.setStyleSheet("padding: 5px; background-color: #F5F5F5;")
+        tmx_layout.addWidget(self.tmx_path_label)
+        
+        browse_btn = QPushButton("Browse...")
+        browse_btn.clicked.connect(self.browse_tmx)
+        tmx_layout.addWidget(browse_btn)
+        
+        reload_btn = QPushButton("🔄 Reload")
+        reload_btn.clicked.connect(self.reload_tmx)
+        tmx_layout.addWidget(reload_btn)
+        
+        tmx_group.setLayout(tmx_layout)
+        layout.addWidget(tmx_group)
+        
+        # TMX Status
+        self.tmx_status_label = QLabel("No TMX loaded")
+        self.tmx_status_label.setStyleSheet("padding: 10px; font-weight: bold;")
+        layout.addWidget(self.tmx_status_label)
+        
+        # Action Buttons
+        actions_group = QGroupBox("🎯 Actions")
+        actions_layout = QVBoxLayout()
+        
+        # Single segment button
+        single_layout = QHBoxLayout()
+        single_btn = QPushButton("▶️ Process Single Segment")
+        single_btn.setMinimumHeight(50)
+        single_btn.setStyleSheet("font-size: 12pt; font-weight: bold;")
+        single_btn.clicked.connect(self.process_single)
+        single_layout.addWidget(single_btn)
+        
+        single_info = QLabel("Processes one segment in memoQ\n(Ctrl+Alt+P)")
+        single_info.setStyleSheet("color: #666; font-size: 9pt;")
+        single_layout.addWidget(single_info)
+        
+        actions_layout.addLayout(single_layout)
+        
+        # Loop mode button
+        loop_layout = QHBoxLayout()
+        self.loop_btn = QPushButton("⏯️ Start Loop Mode")
+        self.loop_btn.setMinimumHeight(50)
+        self.loop_btn.setStyleSheet("font-size: 12pt; font-weight: bold; background-color: #4CAF50; color: white;")
+        self.loop_btn.clicked.connect(self.toggle_loop)
+        loop_layout.addWidget(self.loop_btn)
+        
+        self.loop_segments_spin = QSpinBox()
+        self.loop_segments_spin.setMinimum(0)
+        self.loop_segments_spin.setMaximum(9999)
+        self.loop_segments_spin.setValue(0)
+        self.loop_segments_spin.setPrefix("Segments: ")
+        self.loop_segments_spin.setSuffix(" (0=∞)")
+        self.loop_segments_spin.setMinimumWidth(150)
+        loop_layout.addWidget(self.loop_segments_spin)
+        
+        actions_layout.addLayout(loop_layout)
+        
+        # Progress
+        self.progress_label = QLabel("Ready")
+        self.progress_label.setStyleSheet("padding: 5px; font-weight: bold;")
+        actions_layout.addWidget(self.progress_label)
+        
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setVisible(False)
+        actions_layout.addWidget(self.progress_bar)
+        
+        actions_group.setLayout(actions_layout)
+        layout.addWidget(actions_group)
+        
+        layout.addStretch()
+        
+        return tab
+    
+    def create_settings_tab(self):
+        """Create the settings tab"""
+        tab = QWidget()
+        layout = QFormLayout(tab)
+        
+        # Language settings
+        lang_group = QGroupBox("🌍 Language Settings")
+        lang_layout = QFormLayout()
+        
+        self.source_lang_edit = QLineEdit("en")
+        lang_layout.addRow("Source Language:", self.source_lang_edit)
+        
+        self.target_lang_edit = QLineEdit("nl")
+        lang_layout.addRow("Target Language:", self.target_lang_edit)
+        
+        lang_group.setLayout(lang_layout)
+        layout.addRow(lang_group)
+        
+        # Timing settings
+        timing_group = QGroupBox("⏱️ Timing Settings (milliseconds)")
+        timing_layout = QFormLayout()
+        
+        self.loop_delay_spin = QSpinBox()
+        self.loop_delay_spin.setRange(500, 10000)
+        self.loop_delay_spin.setValue(4000)
+        self.loop_delay_spin.setSuffix(" ms")
+        timing_layout.addRow("Loop Delay:", self.loop_delay_spin)
+        
+        self.confirm_delay_spin = QSpinBox()
+        self.confirm_delay_spin.setRange(100, 5000)
+        self.confirm_delay_spin.setValue(900)
+        self.confirm_delay_spin.setSuffix(" ms")
+        timing_layout.addRow("Confirm Delay:", self.confirm_delay_spin)
+        
+        timing_group.setLayout(timing_layout)
+        layout.addRow(timing_group)
+        
+        # Behavior settings
+        behavior_group = QGroupBox("⚙️ Behavior")
+        behavior_layout = QVBoxLayout()
+        
+        self.auto_confirm_check = QCheckBox("Auto-confirm segments (Ctrl+Enter)")
+        self.auto_confirm_check.setChecked(True)
+        behavior_layout.addWidget(self.auto_confirm_check)
+        
+        self.skip_no_match_check = QCheckBox("Skip segments with no translation match")
+        self.skip_no_match_check.setChecked(True)  # Default to enabled
+        behavior_layout.addWidget(self.skip_no_match_check)
+        
+        behavior_group.setLayout(behavior_layout)
+        layout.addRow(behavior_group)
+        
+        # Save button
+        save_btn = QPushButton("💾 Save Settings")
+        save_btn.clicked.connect(self.save_settings)
+        layout.addRow(save_btn)
+        
+        return tab
+    
+    def create_tmx_tab(self):
+        """Create the TMX manager tab"""
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        
+        # Info
+        info = QLabel(
+            "Manage your AutoFingers translation memory file.\n"
+            "The TMX file stores source-target translation pairs."
+        )
+        info.setWordWrap(True)
+        layout.addWidget(info)
+        
+        # Stats
+        self.tmx_stats_label = QLabel("No TMX loaded")
+        self.tmx_stats_label.setStyleSheet("padding: 10px; background-color: #F5F5F5; font-weight: bold;")
+        layout.addWidget(self.tmx_stats_label)
+        
+        # Actions
+        btn_layout = QVBoxLayout()
+        
+        create_btn = QPushButton("➕ Create New Empty TMX")
+        create_btn.clicked.connect(self.create_empty_tmx)
+        btn_layout.addWidget(create_btn)
+        
+        open_btn = QPushButton("📂 Open TMX in Editor")
+        open_btn.clicked.connect(self.open_tmx_in_editor)
+        btn_layout.addWidget(open_btn)
+        
+        import_btn = QPushButton("📥 Import from Supervertaler TM")
+        import_btn.clicked.connect(self.import_from_tm)
+        btn_layout.addWidget(import_btn)
+        
+        layout.addLayout(btn_layout)
+        layout.addStretch()
+        
+        return tab
+    
+    def log(self, message: str):
+        """Add message to activity log"""
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        self.log_text.append(f"[{timestamp}] {message}")
+        # Auto-scroll to bottom
+        self.log_text.verticalScrollBar().setValue(
+            self.log_text.verticalScrollBar().maximum()
+        )
+    
+    def browse_tmx(self):
+        """Browse for TMX file"""
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select TMX File",
+            "",
+            "TMX Files (*.tmx);;All Files (*.*)"
+        )
+        
+        if file_path:
+            self.tmx_file = file_path
+            self.tmx_path_label.setText(file_path)
+            self.reload_tmx()
+    
+    def reload_tmx(self):
+        """Reload TMX file"""
+        try:
+            self.engine = self.AutoFingersEngine(
+                tmx_file=self.tmx_file,
+                source_lang=self.source_lang_edit.text(),
+                target_lang=self.target_lang_edit.text()
+            )
+            
+            # Apply settings
+            self.engine.loop_delay = self.loop_delay_spin.value()
+            self.engine.confirm_delay = self.confirm_delay_spin.value()
+            self.engine.auto_confirm = self.auto_confirm_check.isChecked()
+            self.engine.skip_no_match = self.skip_no_match_check.isChecked()
+            
+            success, message = self.engine.load_tmx()
+            
+            if success:
+                self.log(f"✓ {message}")
+                self.tmx_status_label.setText(f"✓ {message}")
+                self.tmx_status_label.setStyleSheet("padding: 10px; font-weight: bold; color: green;")
+                self.tmx_stats_label.setText(
+                    f"📊 TMX Statistics:\n"
+                    f"  • Translation Units: {self.engine.tm_count}\n"
+                    f"  • Source Language: {self.engine.source_lang}\n"
+                    f"  • Target Language: {self.engine.target_lang}"
+                )
+            else:
+                self.log(f"✗ {message}")
+                self.tmx_status_label.setText(f"✗ {message}")
+                self.tmx_status_label.setStyleSheet("padding: 10px; font-weight: bold; color: red;")
+                
+        except Exception as e:
+            self.log(f"✗ Error: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to load TMX:\n{str(e)}")
+    
+    def sync_settings_to_engine(self):
+        """Sync current UI settings to the engine"""
+        if self.engine:
+            self.engine.loop_delay = self.loop_delay_spin.value()
+            self.engine.confirm_delay = self.confirm_delay_spin.value()
+            self.engine.auto_confirm = self.auto_confirm_check.isChecked()
+            self.engine.skip_no_match = self.skip_no_match_check.isChecked()
+    
+    def process_single(self):
+        """Process a single segment"""
+        if not self.engine:
+            QMessageBox.warning(self, "No TMX", "Please load a TMX file first.")
+            return
+        
+        # Sync current settings to engine before processing
+        self.sync_settings_to_engine()
+        
+        self.log("▶️ Processing single segment...")
+        self.progress_label.setText("Processing...")
+        
+        # Give user time to switch to memoQ
+        QApplication.processEvents()
+        import time
+        time.sleep(1)
+        
+        success, message = self.engine.process_single_segment()
+        
+        if success:
+            self.log(f"✓ {message}")
+            self.progress_label.setText("✓ Segment processed successfully")
+        else:
+            self.log(f"✗ {message}")
+            self.progress_label.setText(f"✗ {message}")
+    
+    def toggle_loop(self):
+        """Toggle loop mode on/off"""
+        if self.is_running:
+            # Stop loop
+            self.engine.stop()
+            self.is_running = False
+            self.loop_btn.setText("⏯️ Start Loop Mode")
+            self.loop_btn.setStyleSheet("font-size: 12pt; font-weight: bold; background-color: #4CAF50; color: white;")
+            self.progress_bar.setVisible(False)
+            self.log("⏹️ Loop mode stopped")
+        else:
+            # Start loop
+            if not self.engine:
+                QMessageBox.warning(self, "No TMX", "Please load a TMX file first.")
+                return
+            
+            # Sync current settings to engine before starting loop
+            self.sync_settings_to_engine()
+            
+            max_segments = self.loop_segments_spin.value()
+            self.is_running = True
+            self.loop_btn.setText("⏹️ Stop Loop")
+            self.loop_btn.setStyleSheet("font-size: 12pt; font-weight: bold; background-color: #F44336; color: white;")
+            
+            if max_segments > 0:
+                self.progress_bar.setMaximum(max_segments)
+                self.progress_bar.setValue(0)
+                self.progress_bar.setVisible(True)
+            else:
+                self.progress_bar.setVisible(False)
+            
+            self.log(f"▶️ Starting loop mode ({max_segments if max_segments > 0 else '∞'} segments)...")
+            
+            # Start loop in background thread
+            self.loop_thread = threading.Thread(target=self.run_loop, args=(max_segments,), daemon=True)
+            self.loop_thread.start()
+    
+    def run_loop(self, max_segments):
+        """Run the loop mode in background thread"""
+        import time
+        
+        segment_count = 0
+        
+        while self.is_running:
+            # Check if reached limit
+            if max_segments > 0 and segment_count >= max_segments:
+                self.is_running = False
+                QTimer.singleShot(0, lambda: self.log(f"✓ Completed {segment_count} segments"))
+                QTimer.singleShot(0, lambda: self.progress_label.setText(f"✓ Completed {segment_count} segments"))
+                QTimer.singleShot(0, self.reset_loop_ui)
+                break
+            
+            # Process one segment
+            try:
+                success, message = self.engine.process_single_segment()
+                
+                if success:
+                    segment_count += 1
+                    QTimer.singleShot(0, lambda msg=message: self.log(f"✓ {msg}"))
+                    QTimer.singleShot(0, lambda c=segment_count: self.progress_label.setText(f"Processing... ({c} completed)"))
+                    if max_segments > 0:
+                        QTimer.singleShot(0, lambda c=segment_count: self.progress_bar.setValue(c))
+                else:
+                    QTimer.singleShot(0, lambda msg=message: self.log(f"✗ {msg}"))
+                    
+                    # Stop if no match and not skipping
+                    if not self.engine.skip_no_match:
+                        self.is_running = False
+                        QTimer.singleShot(0, lambda: self.progress_label.setText(f"Stopped - no translation found"))
+                        QTimer.singleShot(0, self.reset_loop_ui)
+                        break
+                
+                # Wait between segments
+                if self.is_running:
+                    time.sleep(self.engine.loop_delay / 1000)
+                    
+            except Exception as e:
+                QTimer.singleShot(0, lambda err=str(e): self.log(f"✗ Error: {err}"))
+                self.is_running = False
+                QTimer.singleShot(0, self.reset_loop_ui)
+                break
+    
+    def reset_loop_ui(self):
+        """Reset UI after loop stops"""
+        self.loop_btn.setText("⏯️ Start Loop Mode")
+        self.loop_btn.setStyleSheet("font-size: 12pt; font-weight: bold; background-color: #4CAF50; color: white;")
+        if self.progress_bar.maximum() > 0:
+            self.progress_bar.setVisible(True)  # Keep visible to show final progress
+        else:
+            self.progress_bar.setVisible(False)
+    
+    def stop_loop(self):
+        """Stop loop mode (separate method for keyboard shortcut)"""
+        if self.is_running:
+            self.toggle_loop()  # Reuse toggle logic when running
+        else:
+            self.log("Loop mode is not running")
+    
+    def create_empty_tmx(self):
+        """Create a new empty TMX file"""
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Create New TMX File",
+            self.tmx_file,
+            "TMX Files (*.tmx)"
+        )
+        
+        if file_path:
+            temp_engine = self.AutoFingersEngine(
+                tmx_file=file_path,
+                source_lang=self.source_lang_edit.text(),
+                target_lang=self.target_lang_edit.text()
+            )
+            
+            if temp_engine.create_empty_tmx():
+                self.log(f"✓ Created empty TMX: {file_path}")
+                self.tmx_file = file_path
+                self.tmx_path_label.setText(file_path)
+                self.reload_tmx()
+            else:
+                QMessageBox.critical(self, "Error", "Failed to create TMX file")
+    
+    def open_tmx_in_editor(self):
+        """Open TMX file in external editor"""
+        import subprocess
+        try:
+            if sys.platform == 'win32':
+                os.startfile(self.tmx_file)
+            elif sys.platform == 'darwin':
+                subprocess.call(['open', self.tmx_file])
+            else:
+                subprocess.call(['xdg-open', self.tmx_file])
+            self.log(f"📂 Opened TMX in editor: {self.tmx_file}")
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Could not open TMX file:\n{str(e)}")
+    
+    def import_from_tm(self):
+        """Import translations from Supervertaler TM database"""
+        QMessageBox.information(
+            self,
+            "Feature Coming Soon",
+            "TM import functionality will be added in the next update!\n\n"
+            "For now, you can manually edit the TMX file or use the\n"
+            "AutoHotkey version to populate your translation memory."
+        )
+    
+    def load_settings(self):
+        """Load saved settings"""
+        # TODO: Implement settings persistence
+        pass
+    
+    def save_settings(self):
+        """Save current settings"""
+        # TODO: Implement settings persistence
+        self.log("💾 Settings saved")
+        QMessageBox.information(self, "Saved", "Settings saved successfully!")
 
 
 # ============================================================================

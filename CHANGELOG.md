@@ -1,10 +1,442 @@
 # Supervertaler - Complete Changelog
 
-**Latest Version**: v3.7.7 (2025-10-27)  
-**Product**: Unified Supervertaler (v3.x CAT Edition)  
+**Latest Version**: Qt v1.0.0 Phase 5 (2025-10-29) | v3.7.7 (2025-10-27)  
+**Products**: 
+- **Supervertaler Qt v1.0.0** - Modern PyQt6 rebuild (Active Development)
+- **Supervertaler v3.7.x** - Tkinter CAT Edition (Maintenance)
 **Status**: Active Development
 
-> As of v3.7.1, Supervertaler is a unified product focusing exclusively on the CAT (Computer-Aided Translation) editor experience. The previous Classic Edition (v2.x) is archived for reference but no longer actively developed.
+> Supervertaler Qt v1.0.0 is a complete rebuild using PyQt6 for superior performance and maintainability. Features are being migrated progressively from v3.7.x.
+
+---
+
+## [Qt v1.0.0 - Phase 5] - 2025-10-29 🔍 UNIVERSAL LOOKUP & UI POLISH
+
+### ✨ Major New Features
+
+**Universal Lookup - System-Wide Translation Memory Search**:
+- ✅ **Global hotkey Ctrl+Alt+L** - Look up translations from anywhere on your computer
+  - Works in any application: memoQ, Trados, Word, browsers, text editors, etc.
+  - Select text in any app → Press Ctrl+Alt+L → Instant TM lookup
+  - Non-destructive text capture (doesn't delete or modify source text)
+  - Automatic window activation with multi-monitor support
+- ✅ **AutoHotkey v2 integration** - Reliable clipboard handling on Windows
+  - Hybrid Python+AHK architecture for robust operation
+  - File-based signaling (no thread safety issues)
+  - Auto-cleanup on exit (no orphaned processes)
+  - Hidden background process
+- ✅ **Cross-platform graceful degradation**:
+  - Windows: Full global hotkey support via AutoHotkey
+  - Mac/Linux: Manual paste mode with helpful instructions
+- ✅ **Multiple search modes**:
+  - Universal (any text box)
+  - memoQ-specific
+  - Trados-specific
+  - CafeTran-specific
+- ✅ **TM/Glossary integration** - Search your translation memory and glossary terms
+- ✅ **Tab 0 position** - Universal Lookup as first tab for quick access
+
+**Theme System Enhancements**:
+- ✅ **6 predefined themes** - Light, Soft Gray, Sepia, Dark, High Contrast Blue, High Contrast Yellow
+- ✅ **Custom theme editor** - Create and save your own color schemes
+- ✅ **Improved spacing** - Fixed "squished" text in dialogs
+  - QGroupBox padding: 18px top, 10px sides/bottom
+  - QLabel padding: 3px vertical, 2px horizontal
+  - QFormLayout spacing: 8px between rows
+  - Proper title positioning in group boxes
+
+**AutoFingers Improvements**:
+- ✅ **Keyboard shortcut fix** - Changed loop mode to Ctrl+Shift+L (was Ctrl+Alt+L)
+  - Avoids conflict with Universal Lookup's Ctrl+Alt+L
+  - Avoids memoQ special character shortcuts (Ctrl+Alt+O, Ctrl+Alt+I)
+- ✅ **Updated shortcuts**:
+  - Ctrl+Alt+P - Process single segment
+  - Ctrl+Shift+L - Toggle loop mode
+  - Ctrl+Alt+S - Stop loop
+  - Ctrl+Alt+R - Reload TMX
+
+### 🐛 Bug Fixes
+
+**AutoHotkey Process Management**:
+- ✅ **Fixed orphaned AHK processes** - Proper cleanup on application exit
+  - Global `_ahk_process` tracking variable
+  - `atexit` handler for guaranteed cleanup
+  - Multiple cleanup layers: `__del__`, `closeEvent`, `unregister_global_hotkey`
+  - Kill existing instances on startup
+- ✅ **No more "script already running" popups**
+
+**Window Activation**:
+- ✅ **Multi-monitor support** - AttachThreadInput for cross-monitor focus stealing
+- ✅ **Maximized state preservation** - Detects and restores maximized windows
+- ✅ **No window flicker** - Removed WindowStaysOnTopHint approach
+
+**UI Polish**:
+- ✅ **Fixed cut-off text** in Theme Editor, AutoFingers, and Options dialogs
+- ✅ **Activity Log spacing** - Added 8px padding and 1.4 line-height
+- ✅ **Form layout spacing** - 8px vertical spacing in all forms
+
+### 🔧 Technical Implementation
+
+**Files Modified**:
+- `Supervertaler_Qt_v1.0.0.py` - Main application (4972 lines)
+  - Added `atexit` import and global AHK cleanup
+  - Universal Lookup tab as Tab 0
+  - Window `closeEvent` for AHK cleanup
+  - Multi-monitor window activation logic
+- `modules/universal_lookup.py` - Lookup engine (239 lines)
+  - Non-destructive text capture
+  - TM/Glossary search integration
+  - Multiple CAT tool modes
+- `universal_lookup_hotkey.ahk` - AutoHotkey v2 script (39 lines)
+  - Ctrl+Alt+L hotkey registration
+  - Clipboard copy with 200ms delay
+  - File-based signaling to Python
+- `modules/theme_manager.py` - Theme system (481 lines)
+  - Enhanced QGroupBox styling with proper padding
+  - QLabel padding for readability
+  - QFormLayout vertical spacing
+
+**Architecture Decisions**:
+- **Why AutoHotkey?** - Python's clipboard handling on Windows is unreliable and destructive
+- **Why file-based signaling?** - Thread-safe communication between AHK and Qt
+- **Why atexit?** - Most reliable way to ensure process cleanup on any exit condition
+- **Why Windows API AttachThreadInput?** - Only way to bypass Windows focus-stealing prevention across monitors
+
+### 📦 Dependencies
+
+**New Requirements**:
+- AutoHotkey v2 (Windows only) - For global hotkey support
+- pyperclip - For clipboard operations
+
+**Installation**:
+```bash
+pip install pyperclip
+# Download AutoHotkey v2 from https://www.autohotkey.com/
+```
+
+### 🎯 Platform Support
+
+- **Windows**: ✅ Full support (global hotkey via AutoHotkey)
+- **Mac**: ⚠️ Manual paste mode (no global hotkey)
+- **Linux**: ⚠️ Manual paste mode (no global hotkey)
+
+### 📝 Known Limitations
+
+- Global hotkey (Ctrl+Alt+L) requires AutoHotkey v2 on Windows
+- Mac/Linux users must paste text manually into Universal Lookup tab
+- AutoHotkey script runs as background process (auto-managed)
+
+---
+
+## [Qt v1.0.0 - Phase 4] - 2025-01-27 📋 MEMOQ BILINGUAL DOCX SUPPORT
+
+### ✨ New Features
+
+**memoQ Bilingual Table Import/Export**:
+- ✅ **Import memoQ bilingual DOCX** - Load bilingual tables from memoQ
+  - Reads source and target segments from table format
+  - Preserves formatting information (bold, italic, underline)
+  - Auto-detects source and target languages from column headers
+  - Maintains segment alignment (perfect 1:1 matching)
+  - Stores formatting map for export
+- ✅ **Export translated DOCX** - Save translations back to memoQ format
+  - Updates target column with translations
+  - Preserves source formatting in target text
+  - Updates status column to "Confirmed"
+  - Maintains table structure and metadata
+  - Ready to import back into memoQ
+
+**memoQ Bilingual Format Support**:
+- Table structure: Row 0 = metadata, Row 1 = headers, Row 2+ = segments
+- Column structure: 0=Segment#, 1=Source, 2=Target, 3=Comment, 4=Status
+- Formatting preservation: Bold, italic, underline maintained from source to target
+- Language detection: Auto-detects English, Dutch, German, French, Spanish, Italian, Portuguese, Polish
+
+**Workflow**:
+1. Export bilingual table from memoQ (File → Export → Bilingual)
+2. Import into Supervertaler Qt (File → Import → memoQ Bilingual Table)
+3. Translate segments (single or batch)
+4. Export translated file (File → Export → memoQ Bilingual Table - Translated)
+5. Import translated file back into memoQ
+
+**UI Integration**:
+- ✅ **Import menu** - File → Import → memoQ Bilingual Table (DOCX)...
+- ✅ **Export menu** - File → Export → memoQ Bilingual Table - Translated (DOCX)...
+- ✅ **Format validation** - Checks for valid memoQ table structure
+- ✅ **Dependency check** - Prompts to install python-docx if missing
+
+### 🔧 Technical Implementation
+
+**Import Function** (`import_memoq_bilingual()`):
+- Validates memoQ table structure (min 3 rows)
+- Extracts source/target from columns 1 and 2
+- Captures formatting info from paragraph runs
+- Auto-detects languages from column headers
+- Creates project with imported segments
+- Stores original file path and formatting map
+
+**Export Function** (`export_memoq_bilingual()`):
+- Requires prior import (needs original file structure)
+- Updates target column (col 2) with translations
+- Applies formatting from source to target
+- Updates status column (col 4) to "Confirmed"
+- Saves as new file (preserves original)
+
+**Formatting Preservation** (`_apply_formatting_to_cell()`):
+- Extracts bold/italic/underline from source runs
+- Maps formatting positions to target text
+- Applies formatting proportionally to translation
+- Falls back to plain text if mapping fails
+
+### 📚 Dependencies
+
+**Required**:
+- `python-docx` - For reading/writing DOCX files
+- Install with: `pip install python-docx`
+
+### ✅ Testing
+
+- ✅ App compiles without errors
+- ✅ Import/export menu items functional
+- ✅ Format validation working
+- ⏳ **User testing pending** - Awaiting real memoQ bilingual files
+
+### 🎯 Use Cases
+
+**Ideal For**:
+- memoQ users who want to leverage LLM translation
+- Projects with formatting requirements (bold, italic, underline)
+- Round-trip workflows (memoQ → Supervertaler → memoQ)
+- Batch translation of memoQ exports
+
+---
+
+## [Qt v1.0.0 - Phase 3] - 2025-01-27 🚀 BATCH TRANSLATION
+
+### ✨ New Features
+
+**Batch Translation System**:
+- ✅ **Multi-segment translation** - Translate all untranslated segments at once
+- ✅ **Smart detection** - Automatically finds segments with empty target text
+- ✅ **Confirmation dialog** - Shows count and API credit warning before starting
+- ✅ **Progress dialog** - Live updates during translation process
+  - Real-time progress bar
+  - Current segment display (shows ID and first 60 chars)
+  - Live statistics: Translated count, Failed count, Remaining count
+  - Time estimate based on current rate
+- ✅ **Real-time grid updates** - See translations appear as they're generated
+- ✅ **Error recovery** - Batch continues even if individual segments fail
+- ✅ **TM integration** - All translations automatically saved to Translation Memory
+- ✅ **Completion summary** - Shows final statistics and success/failure breakdown
+
+**UI Integration**:
+- ✅ **Menu item** - Edit → Translate Multiple Segments... (Ctrl+Shift+T)
+- ✅ **Toolbar button** - "🚀 Batch Translate" with visual icon
+- ✅ **Keyboard shortcut** - Ctrl+Shift+T for power users
+
+**Smart Translation Flow**:
+1. Scan project for untranslated segments
+2. Show confirmation with segment count
+3. Open progress dialog with live updates
+4. Translate segments sequentially (avoids rate limits)
+5. Update grid and TM in real-time
+6. Display completion summary with statistics
+
+### 🔧 Technical Implementation
+
+**Core Function** (`translate_batch()`):
+- ~195 lines of robust batch translation logic
+- Sequential translation (prevents API rate limits)
+- QApplication.processEvents() for responsive UI
+- Graceful error handling with continue-on-failure
+- Statistics tracking (translated, failed, remaining)
+- Time estimation and completion prediction
+
+**Progress Dialog**:
+```python
+- QProgressBar with segment-based progress
+- Current segment label (ID + preview)
+- Statistics label (updated in real-time)
+- Modal dialog (prevents accidental closure)
+- Auto-close on completion or manual close
+```
+
+**Integration Points**:
+- Uses existing LLMClient module from Phase 1
+- Respects Phase 2 provider/model settings
+- Updates Phase 1 status icons
+- Saves to Phase 1 TM database
+
+### 📚 Documentation
+
+**New Guides**:
+- ✅ `docs/specifications/QT_PHASE3_COMPLETE.md` - Complete Phase 3 documentation
+  - Feature overview
+  - Workflow diagrams
+  - Technical implementation details
+  - Usage instructions
+  - Architecture integration
+
+### 🎯 Use Cases
+
+**Ideal For**:
+- Translating entire documents in one operation
+- Pre-translation before human review
+- Batch processing of similar segments
+- Quick first-pass translation workflow
+
+**Features**:
+- **Safe**: Confirmation dialog prevents accidental batch operations
+- **Transparent**: See progress and statistics in real-time
+- **Resilient**: Continues even if individual translations fail
+- **Efficient**: Sequential processing respects API rate limits
+- **Integrated**: Works seamlessly with existing TM and UI
+
+### ✅ Testing
+
+- ✅ App compiles without errors (`python -m py_compile`)
+- ✅ Menu item and toolbar button functional
+- ✅ Progress dialog displays correctly
+- ✅ Real-time grid updates work
+- ✅ TM integration successful
+- ✅ Error recovery tested
+- ⏳ **User testing pending** - Awaiting real-world project tests
+
+### 🎯 Future Enhancements
+
+**Potential Phase 3.1 Additions** (based on user feedback):
+- Pause/Resume capability during batch
+- Cancel button to abort mid-batch
+- Custom segment selection (not just "all untranslated")
+- Auto-save checkpoint every N segments
+- Retry mechanism for failed segments
+- Parallel translation with rate limiting
+
+**Next Phase**:
+**Phase 4: Custom Prompts & Advanced Features** (Future):
+- System prompt customization
+- Context injection templates
+- Prompt library management
+- Per-segment prompt overrides
+
+---
+
+## [Qt v1.0.0 - Phase 2] - 2025-10-27 🎨 LLM PROVIDER & MODEL SELECTION
+
+### ✨ New Features
+
+**Enhanced Settings Dialog**:
+- ✅ **Tabbed settings interface** - Organized into LLM Settings and General tabs
+- ✅ **Provider selection** - Choose between OpenAI, Claude, or Gemini
+  - Radio button interface with live UI updates
+  - Model dropdowns enable/disable based on provider selection
+- ✅ **Per-provider model selection** - Choose specific models for each provider:
+  - **OpenAI**: gpt-4o, gpt-4o-mini, gpt-5, o3-mini, o1, gpt-4-turbo
+  - **Claude**: claude-3-5-sonnet, claude-3-5-haiku, claude-3-opus
+  - **Gemini**: gemini-2.0-flash-exp, gemini-1.5-pro, gemini-1.5-flash
+- ✅ **Settings persistence** - Preferences saved to `ui_preferences.json`
+- ✅ **API keys management** - One-click button to open `api_keys.txt` in system editor
+  - Auto-creates file from example if missing
+  - Cross-platform file opening (Windows/Mac/Linux)
+
+**Smart Translation Flow**:
+- ✅ **Uses saved preferences** - Translation respects provider and model choices
+- ✅ **Intelligent error handling** - Prompts to configure settings if API key missing
+- ✅ **Status messages** - Shows provider and model in translation status
+  - Example: "✓ Segment #1 translated with openai/gpt-4o"
+
+### 🏗️ Modular Architecture
+
+**LLM Clients Module** (`modules/llm_clients.py`):
+- ✅ **Independent module** - Can be imported or run standalone
+- ✅ **Multi-provider support** - OpenAI, Claude, Gemini in one client
+- ✅ **Auto temperature detection** - 1.0 for reasoning models, 0.3 for standard
+- ✅ **Type-safe** - Full type hints and dataclasses
+- ✅ **Standalone testing** - Can be run directly from command line
+
+**Settings Management**:
+- ✅ **JSON-based storage** - Clean, human-readable format
+- ✅ **Graceful degradation** - Defaults to OpenAI/gpt-4o if settings corrupt
+- ✅ **Preference preservation** - All dropdowns remember selections per provider
+
+### 📚 Documentation
+
+**New Guides**:
+- ✅ `docs/MODULAR_ARCHITECTURE_GUIDE.md` - Module creation guidelines
+- ✅ `docs/specifications/QT_PHASE2_COMPLETE.md` - Phase 2 technical details
+- ✅ `docs/guides/QT_SETTINGS_DIALOG_GUIDE.md` - Visual user guide
+
+### 🔧 Technical Details
+
+**Files Modified**:
+- `Supervertaler_Qt_v1.0.0.py`: +350 lines
+  - Enhanced settings dialog with tabs
+  - Provider and model selection UI
+  - Settings persistence functions
+  - Updated translation function
+
+**Files Created**:
+- `modules/llm_clients.py`: LLM client module (191 lines)
+- Documentation files (3 new guides)
+
+**Settings Storage**:
+```json
+{
+  "llm_settings": {
+    "provider": "openai",
+    "openai_model": "gpt-4o",
+    "claude_model": "claude-3-5-sonnet-20241022",
+    "gemini_model": "gemini-2.0-flash-exp"
+  }
+}
+```
+
+### ✅ Testing
+
+- ✅ App compiles without errors
+- ✅ Settings dialog opens and functions correctly
+- ✅ All provider/model selections work
+- ✅ Settings persist across app restarts
+- ✅ Translation uses saved preferences
+- ✅ API key validation and configuration prompts work
+
+### 🎯 Next Phase
+
+**Phase 3: Batch Translation** (Upcoming):
+- Multi-segment selection
+- Bulk translation with progress dialog
+- Chunking for large batches
+- Pause/resume capability
+
+---
+
+## [Qt v1.0.0 - Phase 1] - 2025-10-27 🚀 LLM TRANSLATION INTEGRATION
+
+### ✨ Core Features
+
+**Single Segment Translation**:
+- ✅ **Ctrl+T hotkey** - Translate currently selected segment
+- ✅ **Toolbar button** - 🤖 Translate button in main toolbar
+- ✅ **Menu integration** - Edit → Translate Segment
+- ✅ **Multi-provider ready** - OpenAI, Claude, Gemini clients implemented
+
+**LLM Integration**:
+- ✅ **Modular client** - Uses `modules/llm_clients.py` for clean architecture
+- ✅ **Temperature handling** - Automatic detection (1.0 for GPT-5/o1/o3, 0.3 for standard)
+- ✅ **API key loading** - From `user data/api_keys.txt`
+- ✅ **Status updates** - Real-time feedback during translation
+
+**First-Launch Experience**:
+- ✅ **Auto-create example file** - `api_keys.example.txt` created on first run
+- ✅ **Comprehensive instructions** - Example file includes setup guide for all providers
+- ✅ **User-friendly paths** - Files in `user data/` folder, not root
+
+### 🏗️ Architecture
+
+**File Organization**:
+- ✅ Moved `api_keys.example.txt` from root → `user data/`
+- ✅ Moved `api_keys.txt` from root → `user data_private/`
+- ✅ Clean repository structure (no sensitive files in root)
 
 ---
 

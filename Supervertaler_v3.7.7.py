@@ -777,7 +777,7 @@ class Supervertaler:
         migrate_old_folder_structure()
         
         self.root = root
-        self.root.title("Supervertaler v3.7.6 - AI-Powered CAT Tool")
+        self.root.title("Supervertaler v3.7.7 - AI-Powered CAT Tool")
         self.root.geometry("1200x800")
         
         # Layout mode
@@ -1121,7 +1121,7 @@ class Supervertaler:
         self.style_guide_library.load_all_guides()
         
         # Status
-        self.log("Supervertaler v3.7.6 ready. Import a DOCX file to begin.")
+        self.log("Supervertaler v3.7.7 ready. Import a DOCX file to begin.")
         self.log(f"✨ LLM APIs: OpenAI={OPENAI_AVAILABLE}, Claude={ANTHROPIC_AVAILABLE}, Gemini={GEMINI_AVAILABLE}")
         self.log("✨ Layout modes available: Grid (memoQ-style), List, Document")
     
@@ -1576,7 +1576,7 @@ class Supervertaler:
         tk.Label(center_frame, text="Supervertaler", 
                 font=('Segoe UI', 32, 'bold'), bg='#f5f5f5', fg='#2196F3').pack(pady=(0, 5))
         
-        tk.Label(center_frame, text="v3.7.6", 
+        tk.Label(center_frame, text="v3.7.7", 
                 font=('Segoe UI', 14), bg='#f5f5f5', fg='#666').pack(pady=(0, 20))
         
         # Subtitle
