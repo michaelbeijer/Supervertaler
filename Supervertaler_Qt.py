@@ -25,7 +25,7 @@ License: MIT
 
 # Version Information
 __version__ = "1.0.0"
-__phase__ = "5.1"
+__phase__ = "5.2"
 __release_date__ = "2025-10-29"
 __edition__ = "Qt"
 
@@ -529,8 +529,8 @@ class SupervertalerQt(QMainWindow):
         # Create menu bar
         self.create_menus()
         
-        # Create toolbar
-        self.create_toolbar()
+        # Create ribbon interface
+        self.create_ribbon()
         
         # Create main layout
         self.create_main_layout()
@@ -713,12 +713,148 @@ class SupervertalerQt(QMainWindow):
         about_action.triggered.connect(self.show_about)
         help_menu.addAction(about_action)
     
+    def create_ribbon(self):
+        """Create modern ribbon interface"""
+        from modules.ribbon_widget import RibbonWidget, RibbonTab, RibbonGroup, RibbonButton
+        
+        # Create ribbon widget
+        self.ribbon = RibbonWidget(self)
+        
+        # Connect ribbon actions to methods
+        self.ribbon.action_triggered.connect(self.handle_ribbon_action)
+        
+        # HOME TAB - Common actions
+        home_tab = RibbonTab()
+        
+        # File group
+        file_group = RibbonGroup("File")
+        file_group.add_button(self.ribbon.create_button("New", "📄", "new", "Create new project (Ctrl+N)"))
+        file_group.add_button(self.ribbon.create_button("Open", "📂", "open", "Open existing project (Ctrl+O)"))
+        file_group.add_button(self.ribbon.create_button("Save", "💾", "save", "Save project (Ctrl+S)"))
+        home_tab.add_group(file_group)
+        
+        # Clipboard group
+        clipboard_group = RibbonGroup("Clipboard")
+        clipboard_group.add_button(self.ribbon.create_button("Copy", "📋", "copy", "Copy (Ctrl+C)"))
+        clipboard_group.add_button(self.ribbon.create_button("Paste", "📄", "paste", "Paste (Ctrl+V)"))
+        home_tab.add_group(clipboard_group)
+        
+        # Navigation group
+        nav_group = RibbonGroup("Navigation")
+        nav_group.add_button(self.ribbon.create_button("Find", "🔍", "find", "Find text (Ctrl+F)"))
+        nav_group.add_button(self.ribbon.create_button("Replace", "🔄", "replace", "Find and replace (Ctrl+H)"))
+        nav_group.add_button(self.ribbon.create_button("Go To", "🎯", "goto", "Go to segment (Ctrl+G)"))
+        home_tab.add_group(nav_group)
+        
+        home_tab.add_stretch()
+        self.ribbon.add_ribbon_tab("Home", home_tab)
+        
+        # TRANSLATION TAB - Translation tools
+        trans_tab = RibbonTab()
+        
+        # Translate group
+        translate_group = RibbonGroup("Translate")
+        translate_group.add_button(self.ribbon.create_button("Translate", "🤖", "translate", "Translate segment (Ctrl+T)"))
+        translate_group.add_button(self.ribbon.create_button("Batch", "🚀", "batch_translate", "Translate multiple (Ctrl+Shift+T)"))
+        trans_tab.add_group(translate_group)
+        
+        # Memory group
+        memory_group = RibbonGroup("Translation Memory")
+        memory_group.add_button(self.ribbon.create_button("TM Manager", "🗂️", "tm_manager", "Manage TMs (Ctrl+M)"))
+        memory_group.add_button(self.ribbon.create_button("Lookup", "🔍", "universal_lookup", "Universal Lookup (Ctrl+Alt+L)"))
+        trans_tab.add_group(memory_group)
+        
+        trans_tab.add_stretch()
+        self.ribbon.add_ribbon_tab("Translation", trans_tab)
+        
+        # VIEW TAB - Display and appearance
+        view_tab = RibbonTab()
+        
+        # Display group
+        display_group = RibbonGroup("Display")
+        display_group.add_button(self.ribbon.create_button("Zoom In", "🔍+", "zoom_in", "Increase font size (Ctrl++)"))
+        display_group.add_button(self.ribbon.create_button("Zoom Out", "🔍−", "zoom_out", "Decrease font size (Ctrl+-)"))
+        display_group.add_button(self.ribbon.create_button("Auto-Resize", "📐", "auto_resize", "Resize rows to fit"))
+        view_tab.add_group(display_group)
+        
+        # Appearance group
+        appearance_group = RibbonGroup("Appearance")
+        appearance_group.add_button(self.ribbon.create_button("Themes", "🎨", "themes", "Theme editor"))
+        view_tab.add_group(appearance_group)
+        
+        view_tab.add_stretch()
+        self.ribbon.add_ribbon_tab("View", view_tab)
+        
+        # TOOLS TAB - Utilities and automation
+        tools_tab = RibbonTab()
+        
+        # Automation group
+        auto_group = RibbonGroup("Automation")
+        auto_group.add_button(self.ribbon.create_button("AutoFingers", "✋", "autofingers", "CAT automation (Ctrl+Shift+A)"))
+        tools_tab.add_group(auto_group)
+        
+        # Settings group
+        settings_group = RibbonGroup("Settings")
+        settings_group.add_button(self.ribbon.create_button("Options", "⚙️", "options", "Application settings"))
+        tools_tab.add_group(settings_group)
+        
+        tools_tab.add_stretch()
+        self.ribbon.add_ribbon_tab("Tools", tools_tab)
+        
+        # Add ribbon as a toolbar (dockable widget area)
+        self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.create_ribbon_toolbar())
+    
+    def create_ribbon_toolbar(self):
+        """Create a toolbar to hold the ribbon"""
+        from PyQt6.QtWidgets import QToolBar
+        
+        toolbar = QToolBar("Ribbon")
+        toolbar.setMovable(False)
+        toolbar.setFloatable(False)
+        toolbar.addWidget(self.ribbon)
+        
+        return toolbar
+    
+    def handle_ribbon_action(self, action_name: str):
+        """Handle ribbon button clicks"""
+        action_map = {
+            # File actions
+            "new": self.new_project,
+            "open": self.open_project,
+            "save": self.save_project,
+            
+            # Edit actions
+            "copy": lambda: None,  # Handled by Qt
+            "paste": lambda: None,  # Handled by Qt
+            "find": self.show_find_replace_dialog,
+            "replace": self.show_find_replace_dialog,
+            "goto": self.show_goto_dialog,
+            
+            # Translation actions
+            "translate": self.translate_current_segment,
+            "batch_translate": self.translate_batch,
+            "tm_manager": self.show_tm_manager,
+            "universal_lookup": lambda: self.tabs.setCurrentIndex(0),  # Switch to Universal Lookup tab
+            
+            # View actions
+            "zoom_in": self.zoom_in,
+            "zoom_out": self.zoom_out,
+            "auto_resize": self.auto_resize_rows,
+            "themes": self.show_theme_editor,
+            
+            # Tools actions
+            "autofingers": self.show_autofingers,
+            "options": self.show_options_dialog,
+        }
+        
+        action = action_map.get(action_name)
+        if action:
+            action()
+    
     def create_toolbar(self):
-        """Create main toolbar - REMOVED: All functions now in menus"""
-        # Toolbar removed - all functionality accessible via menus
-        # Font controls: View > Font menu
-        # Auto-Resize: View > Auto-Resize Rows
-        # Translate: Edit menu (Ctrl+T, Ctrl+Shift+T)
+        """Create main toolbar - REMOVED: Replaced by ribbon interface"""
+        # Toolbar removed - replaced by modern ribbon interface
+        # All functionality accessible via ribbon tabs and menus
         pass
     
     def create_main_layout(self):
