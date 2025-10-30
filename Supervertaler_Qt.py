@@ -207,13 +207,18 @@ class GridTextEditor(QTextEdit):
     
     def keyPressEvent(self, event):
         """Override to handle Ctrl+1-9, Ctrl+Up/Down shortcuts"""
-        # Ctrl+1 through Ctrl+9: Send to assistance panel
+        # Ctrl+1 through Ctrl+9: Insert match by number (global)
         if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
             if event.key() >= Qt.Key.Key_1 and event.key() <= Qt.Key.Key_9:
-                if self.assistance_panel:
-                    self.assistance_panel.keyPressEvent(event)
-                    event.accept()
-                return
+                match_num = event.key() - Qt.Key.Key_0  # Convert key to number
+                if hasattr(self, 'assistance_widget') and hasattr(self.assistance_widget, 'all_matches'):
+                    matches = self.assistance_widget.all_matches
+                    if 0 < match_num <= len(matches):
+                        match = matches[match_num - 1]
+                        # Insert the match target into current cell
+                        self.on_match_inserted(match.target)
+                        event.accept()
+                        return
             # Ctrl+Up/Down: Send to grid for grid navigation
             elif event.key() in (Qt.Key.Key_Up, Qt.Key.Key_Down):
                 if self.table_widget:
@@ -241,6 +246,97 @@ class GridTextEditor(QTextEdit):
         
         # All other keys: Handle normally (including ESC for closing editor)
         super().keyPressEvent(event)
+
+
+class TermbaseHighlightWidget(QLabel):
+    """Custom label widget that displays source text with termbase highlights and tooltips"""
+    
+    # Signal for term double-click
+    term_double_clicked = None
+    
+    def __init__(self, source_text: str, termbase_matches: Optional[Dict[str, str]] = None, parent=None):
+        """
+        Args:
+            source_text: The full source text to display
+            termbase_matches: Dict of {term: translation} for highlighted terms
+            parent: Parent widget
+        """
+        super().__init__(parent)
+        self.source_text = source_text
+        self.termbase_matches = termbase_matches if termbase_matches is not None else {}
+        self.term_ranges = {}  # Store {term: (start_pos, end_pos)}
+        self.setWordWrap(True)
+        self.setup_display()
+        self.setMouseTracking(True)
+    
+    def setup_display(self):
+        """Create rich text display with highlighted terms"""
+        html = self._create_highlighted_html()
+        self.setText(html)
+        self.setTextFormat(Qt.TextFormat.RichText)
+    
+    def _create_highlighted_html(self) -> str:
+        """Create HTML with highlighted termbase matches"""
+        text = self.source_text
+        
+        # Sort terms by length (longest first) to avoid overlaps
+        sorted_terms = sorted(self.termbase_matches.keys(), key=len, reverse=True)
+        
+        # Build HTML with highlights
+        html = text
+        offset = 0
+        
+        for term in sorted_terms:
+            # Case-insensitive search
+            search_term = term.lower()
+            search_html = html.lower()
+            
+            # Find all occurrences
+            start = 0
+            while True:
+                idx = search_html.find(search_term, start)
+                if idx == -1:
+                    break
+                
+                # Extract original casing
+                original_term = html[idx:idx + len(term)]
+                
+                # Replace with highlighted version
+                highlighted = f'<span style="color: blue; font-weight: bold; text-decoration: underline; cursor: pointer;" class="termbase-match" data-term="{term}">{original_term}</span>'
+                
+                html = html[:idx] + highlighted + html[idx + len(term):]
+                search_html = html.lower()
+                
+                start = idx + len(highlighted)
+        
+        return html
+    
+    def mouseMoveEvent(self, ev):
+        """Show tooltip when hovering over highlighted terms"""
+        # Find if cursor is over a highlighted term using text format
+        # This is a simplified approach - shows generic tooltip
+        super().mouseMoveEvent(ev)
+    
+    def mouseDoubleClickEvent(self, ev):
+        """Handle double-click on highlighted terms"""
+        # Find which term was clicked by getting the word at the position
+        # Since QLabel doesn't provide cursor position easily, we look at the click
+        # and try to extract the clicked word from the text
+        
+        # Get position in text (approximate)
+        pos = ev.pos()
+        
+        # Try to find which term is near the click point
+        # This is a simplified approach - in production would need better handling
+        for term, translation in self.termbase_matches.items():
+            # Check if this term contains the click area (very approximate)
+            if self.term_double_clicked is not None and callable(self.term_double_clicked):
+                # For now, if we get a double-click and there are matches,
+                # this is a signal to insert the first/only match
+                # Better implementation would need proper hit detection
+                pass
+        
+        super().mouseDoubleClickEvent(ev)
 
 
 class WordWrapDelegate(QStyledItemDelegate):
@@ -563,7 +659,7 @@ class SupervertalerQt(QMainWindow):
         from modules.database_manager import DatabaseManager
         self.user_data_path = Path("user data_private" if ENABLE_PRIVATE_FEATURES else "user data")
         self.db_manager = DatabaseManager(
-            db_path=str(self.user_data_path / "supervertaler.db"),
+            db_path=str(self.user_data_path / "Translation_Resources" / "supervertaler.db"),
             log_callback=self.log
         )
         self.db_manager.connect()
@@ -593,7 +689,11 @@ class SupervertalerQt(QMainWindow):
     
     def init_ui(self):
         """Initialize the user interface"""
-        self.setWindowTitle("Supervertaler Qt v1.0.1")
+        # Build window title with dev mode indicator
+        title = "Supervertaler Qt v1.0.1"
+        if ENABLE_PRIVATE_FEATURES:
+            title += " [🛠️ DEV MODE]"
+        self.setWindowTitle(title)
         self.setGeometry(100, 100, 1400, 800)
         
         # Create menu bar
@@ -710,15 +810,65 @@ class SupervertalerQt(QMainWindow):
         # View Menu
         view_menu = menubar.addMenu("&View")
         
-        zoom_in_action = QAction("Zoom &In", self)
-        zoom_in_action.setShortcut(QKeySequence.StandardKey.ZoomIn)
-        zoom_in_action.triggered.connect(self.zoom_in)
-        view_menu.addAction(zoom_in_action)
+        # Grid Text section
+        grid_zoom_menu = view_menu.addMenu("📊 &Grid Text Zoom")
         
-        zoom_out_action = QAction("Zoom &Out", self)
-        zoom_out_action.setShortcut(QKeySequence.StandardKey.ZoomOut)
-        zoom_out_action.triggered.connect(self.zoom_out)
-        view_menu.addAction(zoom_out_action)
+        grid_zoom_in = QAction("Grid Zoom &In", self)
+        grid_zoom_in.setShortcut(QKeySequence.StandardKey.ZoomIn)
+        grid_zoom_in.triggered.connect(self.zoom_in)
+        grid_zoom_menu.addAction(grid_zoom_in)
+        
+        grid_zoom_out = QAction("Grid Zoom &Out", self)
+        grid_zoom_out.setShortcut(QKeySequence.StandardKey.ZoomOut)
+        grid_zoom_out.triggered.connect(self.zoom_out)
+        grid_zoom_menu.addAction(grid_zoom_out)
+        
+        grid_zoom_menu.addSeparator()
+        
+        grid_increase_font = QAction("Grid &Increase Font Size", self)
+        grid_increase_font.setShortcut("Ctrl++")
+        grid_increase_font.triggered.connect(self.increase_font_size)
+        grid_zoom_menu.addAction(grid_increase_font)
+        
+        grid_decrease_font = QAction("Grid &Decrease Font Size", self)
+        grid_decrease_font.setShortcut("Ctrl+-")
+        grid_decrease_font.triggered.connect(self.decrease_font_size)
+        grid_zoom_menu.addAction(grid_decrease_font)
+        
+        grid_zoom_menu.addSeparator()
+        
+        grid_font_family_menu = grid_zoom_menu.addMenu("Grid Font &Family")
+        font_families = ["Calibri", "Segoe UI", "Arial", "Consolas", "Verdana", 
+                        "Times New Roman", "Georgia", "Courier New"]
+        for font_name in font_families:
+            font_action = QAction(font_name, self)
+            font_action.triggered.connect(lambda checked, f=font_name: self.set_font_family(f))
+            grid_font_family_menu.addAction(font_action)
+        
+        view_menu.addSeparator()
+        
+        # Translation Results Pane section
+        results_zoom_menu = view_menu.addMenu("📋 Translation &Results Pane")
+        
+        results_zoom_in_action = QAction("Results Zoom &In", self)
+        results_zoom_in_action.setShortcut("Ctrl+Shift+=")
+        results_zoom_in_action.triggered.connect(self.results_pane_zoom_in)
+        results_zoom_menu.addAction(results_zoom_in_action)
+        
+        results_zoom_out_action = QAction("Results Zoom &Out", self)
+        results_zoom_out_action.setShortcut("Ctrl+Shift+-")
+        results_zoom_out_action.triggered.connect(self.results_pane_zoom_out)
+        results_zoom_menu.addAction(results_zoom_out_action)
+        
+        results_zoom_reset_action = QAction("Results Zoom &Reset", self)
+        results_zoom_reset_action.triggered.connect(self.results_pane_zoom_reset)
+        results_zoom_menu.addAction(results_zoom_reset_action)
+        
+        results_zoom_menu.addSeparator()
+        
+        results_note = QAction("(Includes match list + compare boxes)", self)
+        results_note.setEnabled(False)
+        results_zoom_menu.addAction(results_note)
         
         view_menu.addSeparator()
         
@@ -726,34 +876,6 @@ class SupervertalerQt(QMainWindow):
         auto_resize_action.triggered.connect(self.auto_resize_rows)
         auto_resize_action.setToolTip("Automatically resize all rows to fit content")
         view_menu.addAction(auto_resize_action)
-        
-        view_menu.addSeparator()
-        
-        font_menu = view_menu.addMenu("&Font")
-        
-        # Font family submenu
-        font_family_menu = font_menu.addMenu("Font &Family")
-        font_families = ["Calibri", "Segoe UI", "Arial", "Consolas", "Verdana", 
-                        "Times New Roman", "Georgia", "Courier New"]
-        for font_name in font_families:
-            font_action = QAction(font_name, self)
-            font_action.triggered.connect(lambda checked, f=font_name: self.set_font_family(f))
-            font_family_menu.addAction(font_action)
-        
-        font_menu.addSeparator()
-        
-        # Font size actions
-        increase_font_action = QAction("&Increase Font Size", self)
-        increase_font_action.setShortcut("Ctrl++")
-        increase_font_action.triggered.connect(self.increase_font_size)
-        font_menu.addAction(increase_font_action)
-        
-        decrease_font_action = QAction("&Decrease Font Size", self)
-        decrease_font_action.setShortcut("Ctrl+-")
-        decrease_font_action.triggered.connect(self.decrease_font_size)
-        font_menu.addAction(decrease_font_action)
-        
-        view_menu.addSeparator()
         
         # Tools Menu
         tools_menu = menubar.addMenu("&Tools")
@@ -1692,9 +1814,9 @@ class SupervertalerQt(QMainWindow):
         # Pass assistance_panel and table so keyboard shortcuts can be forwarded
         self.table.setItemDelegate(WordWrapDelegate(self.assistance_widget, self.table))
         
-        # Row behavior
+        # Row behavior - Select items (not full rows) to allow custom highlighting of segment numbers only
         self.table.verticalHeader().setVisible(False)
-        self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectItems)
         self.table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
         
         # Alternating row colors
@@ -2557,7 +2679,7 @@ class SupervertalerQt(QMainWindow):
     # ========================================================================
     
     def load_segments_to_grid(self):
-        """Load segments into the grid"""
+        """Load segments into the grid with termbase highlighting"""
         if not self.current_project or not self.current_project.segments:
             self.clear_grid()
             return
@@ -2565,7 +2687,7 @@ class SupervertalerQt(QMainWindow):
         self.table.setRowCount(len(self.current_project.segments))
         
         for row, segment in enumerate(self.current_project.segments):
-            # Clear any cell widgets (from highlighting) - use items instead
+            # Clear any previous cell widgets
             self.table.removeCellWidget(row, 2)  # Source
             self.table.removeCellWidget(row, 3)  # Target
             
@@ -2573,6 +2695,7 @@ class SupervertalerQt(QMainWindow):
             id_item = QTableWidgetItem(str(segment.id))
             id_item.setFlags(id_item.flags() & ~Qt.ItemFlag.ItemIsEditable)  # Read-only
             id_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            # Highlight segment number in orange when selected (like memoQ)
             self.table.setItem(row, 0, id_item)
             
             # Type - show segment type or just #
@@ -2582,10 +2705,30 @@ class SupervertalerQt(QMainWindow):
             type_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.table.setItem(row, 1, type_item)
             
-            # Source
+            # Source - Display with termbase matches stored for later use
             source_item = QTableWidgetItem(segment.source)
             source_item.setFlags(source_item.flags() & ~Qt.ItemFlag.ItemIsEditable)  # Read-only
             self.table.setItem(row, 2, source_item)
+            
+            # Find and store termbase matches (will be used when segment is selected)
+            try:
+                if hasattr(self, 'db_manager') and self.db_manager:
+                    termbase_matches = self.find_termbase_matches_in_source(segment.source)
+                    if termbase_matches:
+                        self.log(f"📍 Row {row + 1}: Found {len(termbase_matches)} termbase matches")
+                        # Store matches in a custom attribute for later use in on_cell_selected
+                        source_item.termbase_matches = termbase_matches
+                    else:
+                        self.log(f"📍 Row {row + 1}: No termbase matches found")
+                        source_item.termbase_matches = {}
+                else:
+                    self.log(f"📍 Row {row + 1}: db_manager not available")
+                    source_item.termbase_matches = {}
+            except Exception as e:
+                self.log(f"❌ Error finding termbase matches for row {row + 1}: {e}")
+                import traceback
+                self.log(f"Traceback: {traceback.format_exc()}")
+                source_item.termbase_matches = {}
             
             # Target (editable)
             target_item = QTableWidgetItem(segment.target)
@@ -2604,7 +2747,9 @@ class SupervertalerQt(QMainWindow):
         # Auto-resize rows
         self.auto_resize_rows()
         
-        self.log(f"Loaded {len(self.current_project.segments)} segments to grid")
+        self.log(f"✓ Loaded {len(self.current_project.segments)} segments to grid")
+
+
     
     def clear_grid(self):
         """Clear all rows from grid"""
@@ -2660,6 +2805,21 @@ class SupervertalerQt(QMainWindow):
         """Decrease font size (same as Ctrl+-)"""
         self.decrease_font_size()
     
+    def results_pane_zoom_in(self):
+        """Increase font size in translation results pane"""
+        if hasattr(self, 'assistance_widget') and hasattr(self.assistance_widget, 'zoom_in'):
+            self.assistance_widget.zoom_in()
+    
+    def results_pane_zoom_out(self):
+        """Decrease font size in translation results pane"""
+        if hasattr(self, 'assistance_widget') and hasattr(self.assistance_widget, 'zoom_out'):
+            self.assistance_widget.zoom_out()
+    
+    def results_pane_zoom_reset(self):
+        """Reset font size in translation results pane to default"""
+        if hasattr(self, 'assistance_widget') and hasattr(self.assistance_widget, 'reset_zoom'):
+            self.assistance_widget.reset_zoom()
+    
     def get_status_icon(self, status: str) -> str:
         """Get status icon for display"""
         icons = {
@@ -2707,6 +2867,20 @@ class SupervertalerQt(QMainWindow):
     def on_cell_selected(self, current_row, current_col, previous_row, previous_col):
         """Handle cell selection change"""
         try:
+            # Clear previous highlighting
+            if previous_row >= 0 and previous_row < self.table.rowCount():
+                prev_id_item = self.table.item(previous_row, 0)
+                if prev_id_item:
+                    prev_id_item.setBackground(QColor())  # Reset background to default
+                    prev_id_item.setForeground(QColor("black"))  # Reset text color to black
+            
+            # Highlight current segment number in orange (like memoQ)
+            if current_row >= 0 and current_row < self.table.rowCount():
+                current_id_item = self.table.item(current_row, 0)
+                if current_id_item:
+                    current_id_item.setBackground(QColor("#FFA500"))  # Orange background
+                    current_id_item.setForeground(QColor("white"))    # White text for contrast
+            
             if not self.current_project or current_row < 0:
                 return
             
@@ -2761,6 +2935,32 @@ class SupervertalerQt(QMainWindow):
                                     matches_dict["TM"].append(match_obj)
                             except Exception as e:
                                 self.log(f"Error loading TM matches: {e}")
+                        
+                        # Add termbase matches to the results panel
+                        try:
+                            if hasattr(self, 'db_manager') and self.db_manager:
+                                # Get termbase matches from the source item if available
+                                source_item = self.table.item(current_row, 2)
+                                if source_item and hasattr(source_item, 'termbase_matches'):
+                                    termbase_matches = source_item.termbase_matches
+                                    if termbase_matches:
+                                        self.log(f"Adding {len(termbase_matches)} termbase matches to panel")
+                                        for source_term, target_term in termbase_matches.items():
+                                            match_obj = TranslationMatch(
+                                                source=source_term,
+                                                target=target_term,
+                                                relevance=100,  # Exact matches from termbase
+                                                metadata={
+                                                    'context': 'Termbase match',
+                                                    'tm_name': 'Termbase',
+                                                    'timestamp': ''
+                                                },
+                                                match_type='Termbase',
+                                                compare_source=source_term
+                                            )
+                                            matches_dict["Termbases"].append(match_obj)
+                        except Exception as e:
+                            self.log(f"Error adding termbase matches: {e}")
                         
                         self.assistance_widget.set_matches(matches_dict)
                     except Exception as e:
@@ -2891,34 +3091,47 @@ class SupervertalerQt(QMainWindow):
                                 source_lang = self.current_project.source_lang if hasattr(self.current_project, 'source_lang') else None
                                 target_lang = self.current_project.target_lang if hasattr(self.current_project, 'target_lang') else None
                             
-                            # Search termbases
-                            tb_results = self.db_manager.search_termbases(
-                                source_text,
-                                source_lang=source_lang,
-                                target_lang=target_lang,
-                                project_id=project_id,
-                                min_length=0
-                            )
+                            # Search for individual words in the source text
+                            words = source_text.split()
+                            searched_terms = set()  # Track what we've already searched
                             
-                            # Convert termbase results to TranslationMatch objects
-                            for tb_match in tb_results:
-                                termbase_match = TranslationMatch(
-                                    source=tb_match.get('source_term', ''),
-                                    target=tb_match.get('target_term', ''),
-                                    relevance=100 - tb_match.get('priority', 99),  # Lower priority = higher relevance
-                                    metadata={
-                                        'termbase_id': tb_match.get('termbase_id'),
-                                        'priority': tb_match.get('priority', 99),
-                                        'definition': tb_match.get('definition', ''),
-                                        'domain': tb_match.get('domain', ''),
-                                        'forbidden': tb_match.get('forbidden', False)
-                                    },
-                                    match_type='Termbase',
-                                    compare_source=tb_match.get('source_term', '')
+                            for word in words:
+                                # Remove punctuation
+                                clean_word = word.strip('.,!?;:')
+                                if len(clean_word) < 2 or clean_word in searched_terms:
+                                    continue
+                                
+                                searched_terms.add(clean_word)
+                                
+                                # Search termbases for this word
+                                tb_results = self.db_manager.search_termbases(
+                                    clean_word,
+                                    source_lang=source_lang,
+                                    target_lang=target_lang,
+                                    project_id=project_id,
+                                    min_length=2
                                 )
-                                termbase_matches.append(termbase_match)
+                                
+                                # Convert termbase results to TranslationMatch objects
+                                for tb_match in tb_results:
+                                    termbase_match = TranslationMatch(
+                                        source=tb_match.get('source_term', ''),
+                                        target=tb_match.get('target_term', ''),
+                                        relevance=100 - tb_match.get('priority', 99),  # Lower priority = higher relevance
+                                        metadata={
+                                            'termbase_id': tb_match.get('termbase_id'),
+                                            'priority': tb_match.get('priority', 99),
+                                            'definition': tb_match.get('definition', ''),
+                                            'domain': tb_match.get('domain', ''),
+                                            'forbidden': tb_match.get('forbidden', False)
+                                        },
+                                        match_type='Termbase',
+                                        compare_source=tb_match.get('source_term', '')
+                                    )
+                                    termbase_matches.append(termbase_match)
                     except Exception as e:
                         self.log(f"Error searching termbases: {e}")
+
                     
                     # Update the panel with both TM and Termbase matches
                     matches_dict = {}
@@ -3025,6 +3238,132 @@ class SupervertalerQt(QMainWindow):
                 html_parts.append(f'<span style="color: #22c55e; text-decoration: underline; font-weight: bold;">{current_chunk}</span>')
         
         return ''.join(html_parts)
+    
+    # ========================================================================
+    # TERMBASE HIGHLIGHTING & MATCHING
+    # ========================================================================
+    
+    def find_termbase_matches_in_source(self, source_text: str) -> Dict[str, str]:
+        """
+        Find all termbase matches in source text
+        Returns dict of {term: translation} for all matches found
+        """
+        if not source_text or not hasattr(self, 'db_manager') or not self.db_manager:
+            return {}
+        
+        try:
+            source_lang = self.current_project.source_lang if self.current_project else None
+            target_lang = self.current_project.target_lang if self.current_project else None
+            
+            # Debug logging
+            self.log(f"🔍 Searching termbases for: '{source_text}' ({source_lang} → {target_lang})")
+            
+            # First, check if we have any termbases at all
+            query = "SELECT COUNT(*) FROM termbase_terms"
+            self.db_manager.cursor.execute(query)
+            total_terms = self.db_manager.cursor.fetchone()[0]
+            self.log(f"  Total terms in database: {total_terms}")
+            
+            if total_terms == 0:
+                self.log(f"  ⚠️  No termbases loaded in database")
+                return {}
+            
+            # Search termbases for all terms that appear in the source text
+            # Split source text into words and search for each one
+            words = source_text.split()
+            matches = {}
+            
+            for word in words:
+                # Remove punctuation and search
+                clean_word = word.strip('.,!?;:')
+                if len(clean_word) < 2:  # Skip short words
+                    continue
+                
+                termbase_results = self.db_manager.search_termbases(
+                    clean_word,
+                    source_lang=source_lang,
+                    target_lang=target_lang,
+                    min_length=2
+                )
+                
+                if termbase_results:
+                    self.log(f"  ✓ Found {len(termbase_results)} match(es) for '{clean_word}'")
+                    for result in termbase_results:
+                        source_term = result.get('source_term', '').strip()
+                        target_term = result.get('target_term', '').strip()
+                        if source_term and target_term:
+                            matches[source_term] = target_term
+                            self.log(f"    → {source_term} = {target_term}")
+            
+            self.log(f"🔍 Total unique matches: {len(matches)}")
+            return matches
+            
+        except Exception as e:
+            self.log(f"❌ Error finding termbase matches: {e}")
+            import traceback
+            self.log(f"Traceback: {traceback.format_exc()}")
+            return {}
+    
+    def highlight_source_with_termbase(self, row: int, source_text: str):
+        """
+        Highlight termbase matches in the source column of the grid
+        Creates a custom widget with clickable term highlights
+        """
+        if not self.table or row < 0:
+            return
+        
+        try:
+            # Find termbase matches
+            termbase_matches = self.find_termbase_matches_in_source(source_text)
+            
+            if not termbase_matches:
+                # No matches - display plain text
+                return
+            
+            # Create highlighted widget
+            widget = TermbaseHighlightWidget(source_text, termbase_matches, parent=self.table)
+            
+            # Store reference to insert translation on double-click
+            def on_term_clicked(term, translation):
+                self.insert_term_translation(row, translation)
+            
+            widget.term_double_clicked = on_term_clicked
+            
+            # Set the widget in the source column (column 2)
+            self.table.setCellWidget(row, 2, widget)
+            
+        except Exception as e:
+            self.log(f"Error highlighting termbase matches: {e}")
+    
+    def insert_term_translation(self, row: int, translation: str):
+        """
+        Double-click handler: insert termbase translation into target cell
+        """
+        if not self.table or row < 0 or row >= len(self.current_project.segments):
+            return
+        
+        try:
+            # Get the target cell
+            target_item = self.table.item(row, 3)
+            if not target_item:
+                return
+            
+            # Insert translation
+            segment = self.current_project.segments[row]
+            segment.target = translation
+            target_item.setText(translation)
+            
+            # Update status
+            if segment.status == 'untranslated':
+                segment.status = 'draft'
+                self.update_status_icon(row, 'draft')
+            
+            self.project_modified = True
+            self.update_window_title()
+            self.log(f"✓ Term translation inserted in segment {row + 1}")
+            
+        except Exception as e:
+            self.log(f"Error inserting term translation: {e}")
     
     # ========================================================================
     # NAVIGATION & SEARCH
@@ -3712,6 +4051,8 @@ class SupervertalerQt(QMainWindow):
     def update_window_title(self):
         """Update window title with project name and modified state"""
         title = "Supervertaler Qt v1.0.1"
+        if ENABLE_PRIVATE_FEATURES:
+            title += " [🛠️ DEV MODE]"
         if self.current_project:
             title += f" - {self.current_project.name}"
             if self.project_modified:
@@ -3911,6 +4252,73 @@ class SupervertalerQt(QMainWindow):
         
         general_layout.addStretch()
         tabs.addTab(general_tab, "⚙️ General")
+        
+        # ===== TAB 3: View/Display Settings =====
+        view_tab = QWidget()
+        view_layout = QVBoxLayout(view_tab)
+        
+        # Grid Text Font Size section
+        grid_group = QGroupBox("📊 Grid Text Font Size")
+        grid_layout = QVBoxLayout()
+        
+        grid_size_label = QLabel("Current Grid Font Size: 9pt")
+        grid_layout.addWidget(grid_size_label)
+        
+        grid_size_info = QLabel(
+            "Use View menu → Grid Text Zoom to adjust:\n"
+            "• Ctrl++ or Ctrl+= : Increase Font Size\n"
+            "• Ctrl+- : Decrease Font Size"
+        )
+        grid_size_info.setStyleSheet("font-size: 8pt; color: #666; padding: 8px; background-color: #f3f4f6; border-radius: 2px;")
+        grid_size_info.setWordWrap(True)
+        grid_layout.addWidget(grid_size_info)
+        
+        grid_group.setLayout(grid_layout)
+        view_layout.addWidget(grid_group)
+        
+        # Translation Results Pane Font Size section
+        results_group = QGroupBox("📋 Translation Results Pane Font Size")
+        results_layout = QVBoxLayout()
+        
+        results_size_label = QLabel("Match List & Compare Boxes")
+        results_layout.addWidget(results_size_label)
+        
+        results_size_info = QLabel(
+            "Use View menu → Translation Results Pane to adjust:\n"
+            "• Ctrl+Shift++ or Ctrl+Shift+= : Increase Font Size\n"
+            "• Ctrl+Shift+- : Decrease Font Size\n"
+            "• Both match list AND compare boxes zoom together"
+        )
+        results_size_info.setStyleSheet("font-size: 8pt; color: #666; padding: 8px; background-color: #f3f4f6; border-radius: 2px;")
+        results_size_info.setWordWrap(True)
+        results_layout.addWidget(results_size_info)
+        
+        results_group.setLayout(results_layout)
+        view_layout.addWidget(results_group)
+        
+        # Quick Reference section
+        reference_group = QGroupBox("⌨️ Font Size Quick Reference")
+        reference_layout = QVBoxLayout()
+        
+        reference_text = QLabel(
+            "<b>All Zoom Controls:</b><br>"
+            "View → Grid Text Zoom<br>"
+            "• Ctrl++ (NumPad +) - Increase<br>"
+            "• Ctrl+- (NumPad -) - Decrease<br><br>"
+            "View → Translation Results Pane<br>"
+            "• Ctrl+Shift++ (Ctrl+Shift+=) - Increase<br>"
+            "• Ctrl+Shift+- - Decrease<br>"
+            "• Results Zoom Reset - Back to default (9pt)<br>"
+        )
+        reference_text.setTextFormat(Qt.TextFormat.RichText)
+        reference_text.setWordWrap(True)
+        reference_layout.addWidget(reference_text)
+        
+        reference_group.setLayout(reference_layout)
+        view_layout.addWidget(reference_group)
+        
+        view_layout.addStretch()
+        tabs.addTab(view_tab, "🔍 View/Display")
         
         # Add tabs to main layout
         layout.addWidget(tabs)
@@ -5391,198 +5799,6 @@ class UniversalLookupTab(QWidget):
 
 
 # ============================================================================
-# TM MATCH PANE (for AutoFingers)
-# ============================================================================
-
-class TMMatchPane(QWidget):
-    """
-    Translation Memory Match Pane for AutoFingers
-    Displays TM matches similar to memoQ's translator panel
-    Shows source/target pairs with highlighting and match percentages
-    """
-    
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.current_source = ""
-        self.current_match = None
-        self.setup_ui()
-    
-    def setup_ui(self):
-        """Setup the UI for the match pane"""
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(5, 5, 5, 5)
-        
-        # Header
-        header = QLabel("📊 Current Match")
-        header.setStyleSheet("font-weight: bold; font-size: 11pt; padding: 5px;")
-        layout.addWidget(header)
-        
-        # Current segment info
-        info_group = QGroupBox("Source Segment")
-        info_layout = QVBoxLayout()
-        
-        self.source_display = QTextEdit()
-        self.source_display.setReadOnly(True)
-        self.source_display.setMaximumHeight(80)
-        self.source_display.setStyleSheet("""
-            QTextEdit {
-                background-color: #F5F5F5;
-                border: 1px solid #CCC;
-                padding: 5px;
-                font-size: 10pt;
-            }
-        """)
-        info_layout.addWidget(self.source_display)
-        info_group.setLayout(info_layout)
-        layout.addWidget(info_group)
-        
-        # Match info
-        match_group = QGroupBox("TM Match Found")
-        match_layout = QVBoxLayout()
-        
-        # Match percentage and type (combined, no badge redundancy)
-        self.match_pct_label = QLabel("Match: —")
-        self.match_pct_label.setStyleSheet("font-weight: bold; font-size: 10pt; padding: 5px;")
-        match_layout.addWidget(self.match_pct_label)
-        
-        # Target translation
-        target_label = QLabel("Target Translation:")
-        target_label.setStyleSheet("font-weight: bold; font-size: 10pt; padding: 5px 5px 2px 5px;")
-        match_layout.addWidget(target_label)
-        
-        self.target_display = QTextEdit()
-        self.target_display.setReadOnly(True)
-        self.target_display.setMaximumHeight(100)
-        self.target_display.setStyleSheet("""
-            QTextEdit {
-                background-color: #E8F5E9;
-                border: 1px solid #4CAF50;
-                padding: 5px;
-                font-size: 10pt;
-            }
-        """)
-        match_layout.addWidget(self.target_display)
-        
-        match_group.setLayout(match_layout)
-        layout.addWidget(match_group)
-        
-        # No match state
-        self.no_match_label = QLabel(
-            "⏳ Waiting for segment...\n\n"
-            "When AutoFingers processes a segment,\n"
-            "matching translations will appear here."
-        )
-        self.no_match_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.no_match_label.setStyleSheet("""
-            padding: 40px 20px;
-            color: #999;
-            font-style: italic;
-            font-size: 11pt;
-            background-color: #F9F9F9;
-            border: 2px dashed #DDD;
-            border-radius: 5px;
-            min-height: 150px;
-        """)
-        layout.addWidget(self.no_match_label)
-        
-        # Hide match info initially
-        match_group.hide()
-        self.match_group = match_group
-        
-        layout.addStretch()
-    
-    def display_match(self, source_text: str, match_result):
-        """
-        Display a TM match
-        
-        Args:
-            source_text: The source text being matched
-            match_result: TranslationMatch namedtuple with translation, match_type, match_percent
-        """
-        self.current_source = source_text
-        self.current_match = match_result
-        
-        if not match_result:
-            self.show_no_match()
-            return
-        
-        # Hide "no match" label
-        self.no_match_label.hide()
-        self.match_group.show()
-        
-        # Display source
-        self.source_display.setText(source_text)
-        
-        # Display match percentage and type
-        match_pct = match_result.match_percent
-        match_type = match_result.match_type
-        
-        if match_type == "exact":
-            self.match_pct_label.setText(f"✓ Match: {match_pct}% (EXACT)")
-            self.match_pct_label.setStyleSheet(
-                "font-weight: bold; font-size: 10pt; padding: 5px; color: #22C55E;"
-            )
-        elif match_type == "fuzzy":
-            self.match_pct_label.setText(f"~ Match: {match_pct}% (FUZZY)")
-            self.match_pct_label.setStyleSheet(
-                "font-weight: bold; font-size: 10pt; padding: 5px; color: #FF9800;"
-            )
-        else:
-            self.match_pct_label.setText("✗ No Match")
-            self.match_pct_label.setStyleSheet(
-                "font-weight: bold; font-size: 10pt; padding: 5px; color: #F44336;"
-            )
-        
-        # Display target translation
-        self.target_display.setText(match_result.translation)
-        
-        # Highlight target background based on match type
-        if match_type == "exact":
-            bg_color = "#E8F5E9"  # Light green
-            border_color = "#4CAF50"
-        elif match_type == "fuzzy":
-            bg_color = "#FFF3E0"  # Light orange
-            border_color = "#FF9800"
-        else:
-            bg_color = "#FFEBEE"  # Light red
-            border_color = "#F44336"
-        
-        self.target_display.setStyleSheet(f"""
-            QTextEdit {{
-                background-color: {bg_color};
-                border: 2px solid {border_color};
-                padding: 5px;
-                font-size: 10pt;
-            }}
-        """)
-    
-    def show_no_match(self):
-        """Show 'no match' state"""
-        self.match_group.hide()
-        self.no_match_label.show()
-        self.no_match_label.setText(
-            "⏳ No Match\n\n"
-            "The current segment has no TM match.\n"
-            "(Check skip/pause settings)"
-        )
-        self.current_match = None
-    
-    def clear(self):
-        """Clear the pane"""
-        self.source_display.clear()
-        self.target_display.clear()
-        self.match_group.hide()
-        self.no_match_label.show()
-        self.no_match_label.setText(
-            "⏳ Waiting for segment...\n\n"
-            "When AutoFingers processes a segment,\n"
-            "matching translations will appear here."
-        )
-        self.current_source = ""
-        self.current_match = None
-
-
-# ============================================================================
 # AUTOFINGERS DIALOG
 # ============================================================================
 
@@ -5612,7 +5828,6 @@ class AutoFingersWidget(QWidget):
         # Initialize engine
         self.engine = None
         self.is_running = False
-        self.match_pane = None  # Will be created in create_control_tab()
         
         # Get default TMX path from user data
         if ENABLE_PRIVATE_FEATURES:
@@ -5646,18 +5861,13 @@ class AutoFingersWidget(QWidget):
         # Tabs
         tabs = QTabWidget()
         
-        # TAB 1: Control Panel
+        # TAB 1: Control Panel (with integrated settings)
         control_tab = self.create_control_tab()
         tabs.addTab(control_tab, "🎮 Control Panel")
         
-        # TAB 2: Settings
-        settings_tab = self.create_settings_tab()
-        tabs.addTab(settings_tab, "⚙️ Settings")
-        
-        # TAB 3: TMX Manager
+        # TAB 2: TMX Manager
         tmx_tab = self.create_tmx_tab()
         tabs.addTab(tmx_tab, "📚 TMX Manager")
-        
         
         layout.addWidget(tabs)
         
@@ -5748,163 +5958,198 @@ class AutoFingersWidget(QWidget):
             print(f"Error unregistering hotkeys: {e}")
     
     def create_control_tab(self):
-        """Create the main control panel tab with actions left, match pane + log right (resizable)"""
+        """Create the main control panel with horizontal layout"""
         tab = QWidget()
         main_layout = QVBoxLayout(tab)
-        main_layout.setContentsMargins(5, 5, 5, 5)
+        main_layout.setContentsMargins(8, 8, 8, 8)
+        main_layout.setSpacing(8)
         
-        # HORIZONTAL LAYOUT: Actions (compact) on left, Match Pane + Log (resizable splitter) on right
-        content_layout = QHBoxLayout()
-        content_layout.setContentsMargins(0, 0, 0, 0)
-        content_layout.setSpacing(5)
+        # TOP ROW: Actions and TMX File side by side
+        top_row = QHBoxLayout()
+        top_row.setSpacing(8)
         
-        # LEFT SIDE: Compact Action Buttons + TMX selector (vertical stack)
-        left_widget = QWidget()
-        left_layout = QVBoxLayout(left_widget)
-        left_layout.setContentsMargins(0, 0, 0, 0)
-        left_layout.setSpacing(3)
-        
-        # Actions group
+        # === LEFT: ACTIONS GROUP ===
         actions_group = QGroupBox("🎯 Actions")
-        actions_group.setStyleSheet("font-size: 9pt;")
-        actions_layout = QVBoxLayout()
-        actions_layout.setContentsMargins(3, 5, 3, 3)
-        actions_layout.setSpacing(3)
+        actions_layout = QHBoxLayout()
+        actions_layout.setSpacing(8)
         
-        # Single segment button (compact)
+        # Single button
+        single_col = QVBoxLayout()
         single_btn = QPushButton("▶️ Single")
-        single_btn.setMinimumHeight(32)
-        single_btn.setMaximumWidth(120)
-        single_btn.setStyleSheet("font-size: 9pt; font-weight: bold; padding: 2px;")
+        single_btn.setMinimumHeight(40)
+        single_btn.setMinimumWidth(100)
+        single_btn.setStyleSheet("font-size: 10pt; font-weight: bold;")
         single_btn.clicked.connect(self.process_single)
-        single_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)  # Prevent focus to avoid accidental triggers
-        
-        single_info = QLabel("Process one\nsegment in memoQ\n(Ctrl+Alt+P)")
-        single_info.setStyleSheet("color: #666; font-size: 7pt; text-align: center;")
+        single_col.addWidget(single_btn)
+        single_info = QLabel("(Ctrl+Alt+P)")
+        single_info.setStyleSheet("color: #666; font-size: 8pt;")
         single_info.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        single_info.setMaximumHeight(40)
+        single_col.addWidget(single_info)
+        actions_layout.addLayout(single_col)
         
-        single_widget = QWidget()
-        single_widget_layout = QVBoxLayout(single_widget)
-        single_widget_layout.setContentsMargins(0, 0, 0, 0)
-        single_widget_layout.setSpacing(2)
-        single_widget_layout.addWidget(single_btn)
-        single_widget_layout.addWidget(single_info)
-        actions_layout.addWidget(single_widget)
-        
-        # Loop mode button (compact)
+        # Loop button
+        loop_col = QVBoxLayout()
         self.loop_btn = QPushButton("▶ Loop Mode")
-        self.loop_btn.setMinimumHeight(32)
-        self.loop_btn.setMaximumWidth(120)
-        self.loop_btn.setStyleSheet("font-size: 9pt; font-weight: bold; background-color: #4CAF50; color: white; padding: 2px;")
+        self.loop_btn.setMinimumHeight(40)
+        self.loop_btn.setMinimumWidth(110)
+        self.loop_btn.setStyleSheet("font-size: 10pt; font-weight: bold; background-color: #4CAF50; color: white;")
         self.loop_btn.clicked.connect(self.toggle_loop)
-        self.loop_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)  # Prevent focus to avoid accidental triggers
-        
-        loop_info = QLabel("Run continuously\n(Ctrl+Shift+L)\nStop: Ctrl+Alt+S")
-        loop_info.setStyleSheet("color: #666; font-size: 7pt; text-align: center;")
+        loop_col.addWidget(self.loop_btn)
+        loop_info = QLabel("(Ctrl+Shift+L)")
+        loop_info.setStyleSheet("color: #666; font-size: 8pt;")
         loop_info.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        loop_info.setMaximumHeight(40)
+        loop_col.addWidget(loop_info)
+        actions_layout.addLayout(loop_col)
         
+        # Segments spin
+        segs_col = QVBoxLayout()
+        segs_label = QLabel("Segments:")
+        segs_label.setStyleSheet("font-size: 9pt; font-weight: bold;")
+        segs_col.addWidget(segs_label)
         self.loop_segments_spin = QSpinBox()
         self.loop_segments_spin.setMinimum(0)
         self.loop_segments_spin.setMaximum(9999)
         self.loop_segments_spin.setValue(0)
-        self.loop_segments_spin.setPrefix("Segs: ")
         self.loop_segments_spin.setSuffix(" (0=∞)")
-        self.loop_segments_spin.setMaximumWidth(120)
-        self.loop_segments_spin.setMaximumHeight(22)
-        self.loop_segments_spin.setStyleSheet("font-size: 8pt;")
+        self.loop_segments_spin.setMinimumHeight(28)
+        self.loop_segments_spin.setStyleSheet("font-size: 9pt;")
+        segs_col.addWidget(self.loop_segments_spin)
+        actions_layout.addLayout(segs_col)
         
-        loop_widget = QWidget()
-        loop_widget_layout = QVBoxLayout(loop_widget)
-        loop_widget_layout.setContentsMargins(0, 0, 0, 0)
-        loop_widget_layout.setSpacing(2)
-        loop_widget_layout.addWidget(self.loop_btn)
-        loop_widget_layout.addWidget(loop_info)
-        loop_widget_layout.addWidget(self.loop_segments_spin)
-        actions_layout.addWidget(loop_widget)
-        
-        # Progress (compact)
+        # Progress
+        progress_col = QVBoxLayout()
         self.progress_label = QLabel("Ready")
-        self.progress_label.setStyleSheet("padding: 2px; font-weight: bold; font-size: 8pt;")
-        self.progress_label.setMaximumHeight(18)
-        actions_layout.addWidget(self.progress_label)
-        
+        self.progress_label.setStyleSheet("font-weight: bold; font-size: 9pt;")
+        progress_col.addWidget(self.progress_label)
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
-        self.progress_bar.setMaximumHeight(18)
-        self.progress_bar.setStyleSheet("font-size: 7pt;")
-        actions_layout.addWidget(self.progress_bar)
+        self.progress_bar.setMinimumHeight(28)
+        progress_col.addWidget(self.progress_bar)
+        actions_layout.addLayout(progress_col)
         
-        actions_layout.addStretch()
         actions_group.setLayout(actions_layout)
-        actions_group.setMaximumWidth(140)
-        left_layout.addWidget(actions_group)
+        top_row.addWidget(actions_group, 2)
         
-        # TMX File selector (bottom-left, under actions)
+        # === RIGHT: TMX FILE GROUP ===
         tmx_group = QGroupBox("📁 TMX File")
-        tmx_group.setStyleSheet("font-size: 8pt;")
         tmx_layout = QVBoxLayout()
-        tmx_layout.setContentsMargins(3, 3, 3, 3)
-        tmx_layout.setSpacing(2)
+        tmx_layout.setSpacing(4)
         
-        # TMX Path and buttons row
+        # File path row
         path_row = QHBoxLayout()
-        path_row.setContentsMargins(0, 0, 0, 0)
-        path_row.setSpacing(2)
-        
         self.tmx_path_label = QLabel(self.tmx_file)
-        self.tmx_path_label.setStyleSheet("padding: 2px; background-color: #F5F5F5; font-size: 7pt;")
+        self.tmx_path_label.setStyleSheet("padding: 4px; background-color: #F5F5F5; font-size: 8pt;")
         path_row.addWidget(self.tmx_path_label, 1)
         
         browse_btn = QPushButton("Browse")
-        browse_btn.setMaximumWidth(60)
-        browse_btn.setMaximumHeight(20)
-        browse_btn.setStyleSheet("font-size: 7pt; padding: 1px;")
+        browse_btn.setMaximumWidth(70)
         browse_btn.clicked.connect(self.browse_tmx)
         path_row.addWidget(browse_btn)
         
         reload_btn = QPushButton("Reload")
-        reload_btn.setMaximumWidth(55)
-        reload_btn.setMaximumHeight(20)
-        reload_btn.setStyleSheet("font-size: 7pt; padding: 1px;")
+        reload_btn.setMaximumWidth(70)
         reload_btn.clicked.connect(self.reload_tmx)
         path_row.addWidget(reload_btn)
         
         tmx_layout.addLayout(path_row)
         
-        # TMX Status
+        # Status
         self.tmx_status_label = QLabel("No TMX loaded")
-        self.tmx_status_label.setStyleSheet("padding: 2px; font-weight: bold; font-size: 7pt;")
-        self.tmx_status_label.setMaximumHeight(16)
+        self.tmx_status_label.setStyleSheet("padding: 4px; font-weight: bold; font-size: 9pt;")
         tmx_layout.addWidget(self.tmx_status_label)
         
         tmx_group.setLayout(tmx_layout)
-        left_layout.addWidget(tmx_group)
+        top_row.addWidget(tmx_group, 1)
         
-        content_layout.addWidget(left_widget)
+        main_layout.addLayout(top_row)
         
-        # RIGHT SIDE: Splitter between Match Pane (left) and Activity Log (right) - HORIZONTAL
-        splitter = QSplitter(Qt.Orientation.Horizontal)
-        splitter.setStyleSheet("QSplitter::handle { background-color: #CCCCCC; width: 4px; } QSplitter::handle:hover { background-color: #999999; }")
+        # MIDDLE ROW: Settings in a horizontal layout
+        settings_group = QGroupBox("⚙️ Settings")
+        settings_layout = QHBoxLayout()
+        settings_layout.setSpacing(15)
         
-        # Match Pane (left of splitter)
-        self.match_pane = TMMatchPane()
-        self.match_pane.setMinimumWidth(300)
-        splitter.addWidget(self.match_pane)
+        # Languages
+        lang_col = QVBoxLayout()
+        lang_label = QLabel("Languages:")
+        lang_label.setStyleSheet("font-weight: bold; font-size: 9pt;")
+        lang_col.addWidget(lang_label)
+        lang_inputs = QHBoxLayout()
+        lang_inputs.addWidget(QLabel("Source:"))
+        self.source_lang_edit = QLineEdit("en")
+        self.source_lang_edit.setMaximumWidth(50)
+        lang_inputs.addWidget(self.source_lang_edit)
+        lang_inputs.addWidget(QLabel("Target:"))
+        self.target_lang_edit = QLineEdit("nl")
+        self.target_lang_edit.setMaximumWidth(50)
+        lang_inputs.addWidget(self.target_lang_edit)
+        lang_col.addLayout(lang_inputs)
+        settings_layout.addLayout(lang_col)
         
-        # Activity Log (right of splitter)
-        log_widget = QWidget()
-        log_layout = QVBoxLayout(log_widget)
-        log_layout.setContentsMargins(0, 0, 0, 0)
+        # Timing
+        timing_col = QVBoxLayout()
+        timing_label = QLabel("Timing (ms):")
+        timing_label.setStyleSheet("font-weight: bold; font-size: 9pt;")
+        timing_col.addWidget(timing_label)
+        timing_inputs = QHBoxLayout()
+        timing_inputs.addWidget(QLabel("Loop:"))
+        self.loop_delay_spin = QSpinBox()
+        self.loop_delay_spin.setRange(500, 10000)
+        self.loop_delay_spin.setValue(4000)
+        self.loop_delay_spin.setSuffix(" ms")
+        self.loop_delay_spin.setMaximumWidth(90)
+        timing_inputs.addWidget(self.loop_delay_spin)
+        timing_inputs.addWidget(QLabel("Confirm:"))
+        self.confirm_delay_spin = QSpinBox()
+        self.confirm_delay_spin.setRange(100, 5000)
+        self.confirm_delay_spin.setValue(900)
+        self.confirm_delay_spin.setSuffix(" ms")
+        self.confirm_delay_spin.setMaximumWidth(90)
+        timing_inputs.addWidget(self.confirm_delay_spin)
+        timing_col.addLayout(timing_inputs)
+        settings_layout.addLayout(timing_col)
         
-        log_header = QLabel("📋 Activity Log")
-        log_header.setStyleSheet("font-weight: bold; font-size: 9pt; padding: 3px;")
-        log_layout.addWidget(log_header)
+        # Behavior checkboxes
+        behavior_col = QVBoxLayout()
+        behavior_label = QLabel("Behavior:")
+        behavior_label.setStyleSheet("font-weight: bold; font-size: 9pt;")
+        behavior_col.addWidget(behavior_label)
+        self.auto_confirm_check = QCheckBox("Auto-confirm")
+        self.auto_confirm_check.setChecked(True)
+        self.auto_confirm_check.setStyleSheet("font-size: 9pt;")
+        behavior_col.addWidget(self.auto_confirm_check)
+        self.skip_no_match_check = QCheckBox("Skip no match")
+        self.skip_no_match_check.setChecked(True)
+        self.skip_no_match_check.setStyleSheet("font-size: 9pt;")
+        behavior_col.addWidget(self.skip_no_match_check)
+        self.use_down_arrow_check = QCheckBox("Use Alt+N")
+        self.use_down_arrow_check.setChecked(False)
+        self.use_down_arrow_check.setStyleSheet("font-size: 9pt;")
+        self.use_down_arrow_check.setToolTip("Leave segments unconfirmed (Alt+N) instead of Ctrl+Enter")
+        behavior_col.addWidget(self.use_down_arrow_check)
+        settings_layout.addLayout(behavior_col)
+        
+        # Save button
+        save_col = QVBoxLayout()
+        save_col.addStretch()
+        save_btn = QPushButton("💾 Save Settings")
+        save_btn.setMinimumHeight(35)
+        save_btn.setStyleSheet("font-size: 9pt; font-weight: bold;")
+        save_btn.clicked.connect(self.save_settings)
+        save_col.addWidget(save_btn)
+        save_col.addStretch()
+        settings_layout.addLayout(save_col)
+        
+        settings_group.setLayout(settings_layout)
+        main_layout.addWidget(settings_group)
+        
+        # BOTTOM ROW: Activity Log
+        log_group = QGroupBox("📋 Activity Log")
+        log_layout = QVBoxLayout()
+        log_layout.setContentsMargins(5, 5, 5, 5)
         
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)
-        self.log_text.setMinimumWidth(250)
+        self.log_text.setMaximumHeight(150)  # Limit height, not width
         self.log_text.setStyleSheet("""
             font-family: 'Consolas', monospace;
             padding: 4px;
@@ -5913,90 +6158,8 @@ class AutoFingersWidget(QWidget):
         """)
         log_layout.addWidget(self.log_text)
         
-        splitter.addWidget(log_widget)
-        
-        # Set splitter proportions: 60% match pane, 40% log
-        splitter.setSizes([600, 400])
-        splitter.setCollapsible(0, False)
-        splitter.setCollapsible(1, False)
-        
-        content_layout.addWidget(splitter, 1)
-        
-        main_layout.addLayout(content_layout, 1)
-        
-        return tab
-    
-    def create_settings_tab(self):
-        """Create the settings tab"""
-        tab = QWidget()
-        layout = QFormLayout(tab)
-        
-        # Language settings
-        lang_group = QGroupBox("🌍 Language Settings")
-        lang_layout = QFormLayout()
-        
-        self.source_lang_edit = QLineEdit("en")
-        lang_layout.addRow("Source Language:", self.source_lang_edit)
-        
-        self.target_lang_edit = QLineEdit("nl")
-        lang_layout.addRow("Target Language:", self.target_lang_edit)
-        
-        lang_group.setLayout(lang_layout)
-        layout.addRow(lang_group)
-        
-        # Timing settings
-        timing_group = QGroupBox("⏱️ Timing Settings (milliseconds)")
-        timing_layout = QFormLayout()
-        
-        self.loop_delay_spin = QSpinBox()
-        self.loop_delay_spin.setRange(500, 10000)
-        self.loop_delay_spin.setValue(4000)
-        self.loop_delay_spin.setSuffix(" ms")
-        timing_layout.addRow("Loop Delay:", self.loop_delay_spin)
-        
-        self.confirm_delay_spin = QSpinBox()
-        self.confirm_delay_spin.setRange(100, 5000)
-        self.confirm_delay_spin.setValue(900)
-        self.confirm_delay_spin.setSuffix(" ms")
-        timing_layout.addRow("Confirm Delay:", self.confirm_delay_spin)
-        
-        timing_group.setLayout(timing_layout)
-        layout.addRow(timing_group)
-        
-        # Behavior settings
-        behavior_group = QGroupBox("⚙️ Behavior")
-        behavior_layout = QVBoxLayout()
-        
-        self.auto_confirm_check = QCheckBox("Auto-confirm segments (Ctrl+Enter)")
-        self.auto_confirm_check.setChecked(True)
-        behavior_layout.addWidget(self.auto_confirm_check)
-        
-        self.skip_no_match_check = QCheckBox("Skip segments with no translation match")
-        self.skip_no_match_check.setChecked(True)  # Default to enabled
-        behavior_layout.addWidget(self.skip_no_match_check)
-        
-        self.use_down_arrow_check = QCheckBox("Leave segments unconfirmed (Alt+N) instead of Ctrl+Enter in loop")
-        self.use_down_arrow_check.setChecked(False)  # Default to disabled
-        self.use_down_arrow_check.setToolTip(
-            "When enabled, AutoFingers will:\n"
-            "• Insert the translation\n"
-            "• Leave the segment UNCONFIRMED\n"
-            "• Move to next segment with Alt+N (Go to Next)\n\n"
-            "When disabled (default), AutoFingers will:\n"
-            "• Insert the translation\n"
-            "• Confirm the segment with Ctrl+Enter\n"
-            "• Move to next segment automatically\n\n"
-            "Note: Alt+N is memoQ's native 'Go to Next Segment' command"
-        )
-        behavior_layout.addWidget(self.use_down_arrow_check)
-        
-        behavior_group.setLayout(behavior_layout)
-        layout.addRow(behavior_group)
-        
-        # Save button
-        save_btn = QPushButton("💾 Save Settings")
-        save_btn.clicked.connect(self.save_settings)
-        layout.addRow(save_btn)
+        log_group.setLayout(log_layout)
+        main_layout.addWidget(log_group)
         
         return tab
     
@@ -6137,8 +6300,6 @@ class AutoFingersWidget(QWidget):
         
         self.log("▶️ Processing single segment...")
         self.progress_label.setText("Processing...")
-        if self.match_pane:  # Safety check
-            self.match_pane.show_no_match()  # Reset match pane to waiting state
         
         # Give user time to switch to memoQ
         QApplication.processEvents()
@@ -6148,11 +6309,10 @@ class AutoFingersWidget(QWidget):
         try:
             success, message = self.engine.process_single_segment()
             
-            # Display match result in the match pane (single mode is synchronous, so no threading issues)
-            if self.match_pane and self.engine.last_source and self.engine.last_match:
-                self.match_pane.display_match(self.engine.last_source, self.engine.last_match)
-                self.log(f"✓ Match displayed: {self.engine.last_match.match_type} ({self.engine.last_match.match_percent}%)")
-            elif self.match_pane:
+            # Log match result
+            if self.engine.last_source and self.engine.last_match:
+                self.log(f"✓ Match: {self.engine.last_match.match_type} ({self.engine.last_match.match_percent}%)")
+            else:
                 self.log(f"⚠️ No match found for segment")
             
             if success:
@@ -6221,12 +6381,6 @@ class AutoFingersWidget(QWidget):
             # Process one segment
             try:
                 success, message = self.engine.process_single_segment()
-                
-                # Update match pane with current match result (temporarily disabled due to threading)
-                # if self.match_pane and self.engine.last_source and self.engine.last_match:
-                #     src = self.engine.last_source
-                #     mtch = self.engine.last_match
-                #     QTimer.singleShot(0, lambda s=src, m=mtch: self.match_pane.display_match(s, m))
                 
                 if success:
                     segment_count += 1

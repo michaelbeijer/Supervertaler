@@ -35,96 +35,98 @@ class TranslationMatch:
 
 
 class CompactMatchItem(QFrame):
-    """Compact match display (like memoQ compact view) with match number on same line"""
+    """Compact match display (like memoQ) with source and target in separate columns"""
     
     match_selected = pyqtSignal(TranslationMatch)
+    
+    # Class variable for font size (can be changed globally)
+    font_size_pt = 9
     
     def __init__(self, match: TranslationMatch, match_number: int = 0, parent=None):
         super().__init__(parent)
         self.match = match
         self.match_number = match_number
         self.is_selected = False
-        self.setFrameStyle(QFrame.Shape.Panel | QFrame.Shadow.Raised)
-        self.update_styling()
+        self.num_label_ref = None  # Initialize FIRST before update_styling()
+        self.source_label = None
+        self.target_label = None
         
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(4, 2, 4, 2)
-        layout.setSpacing(1)
+        self.setFrameStyle(QFrame.Shape.NoFrame)  # No frame border
+        self.setMinimumHeight(20)  # Minimum height (can expand)
+        self.setMaximumHeight(100)  # Allow up to 100px if text wraps
         
-        # Source and Target side-by-side with number on left
-        content_layout = QHBoxLayout()
-        content_layout.setSpacing(4)
-        content_layout.setContentsMargins(0, 0, 0, 0)
+        # Vertical layout with 2 rows: number+relevance on left, then source and target on right
+        main_layout = QHBoxLayout(self)
+        main_layout.setContentsMargins(2, 1, 2, 1)  # Minimal padding
+        main_layout.setSpacing(3)
         
-        # Match number (left)
+        # Left side: Match number box (small colored box)
         if match_number > 0:
-            num_label = QLabel(f"#{match_number}")
-            num_label.setStyleSheet("font-weight: bold; font-size: 9px; min-width: 20px;")
-            num_label.setAlignment(Qt.AlignmentFlag.AlignTop)
-            content_layout.addWidget(num_label)
+            num_label = QLabel(f"{match_number}")
+            num_label.setStyleSheet("""
+                QLabel {
+                    font-weight: bold;
+                    font-size: 9px;
+                    padding: 1px;
+                    border-radius: 2px;
+                    margin: 0px;
+                }
+            """)
+            num_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            num_label.setFixedWidth(22)
+            num_label.setFixedHeight(18)
+            self.num_label_ref = num_label  # Set BEFORE calling update_styling()
+            main_layout.addWidget(num_label, 0, Qt.AlignmentFlag.AlignTop)
         
-        # Source (light blue, left)
-        source_frame = QFrame()
-        source_frame.setStyleSheet("""
-            QFrame {
-                background-color: #e8f4f8;
-                border: none;
-                padding: 2px;
-            }
-        """)
-        source_layout = QVBoxLayout(source_frame)
-        source_layout.setContentsMargins(3, 1, 3, 1)
-        source_layout.setSpacing(0)
-        
-        source_text = QLabel(match.source)
-        source_text.setWordWrap(True)
-        source_text.setMinimumHeight(30)  # Min height but allow expansion
-        source_font = QFont()
-        source_font.setPointSize(8)
-        source_text.setFont(source_font)
-        source_layout.addWidget(source_text)
-        
-        # Target (light green, right)
-        target_frame = QFrame()
-        target_frame.setStyleSheet("""
-            QFrame {
-                background-color: #e8f8e8;
-                border: none;
-                padding: 2px;
-            }
-        """)
-        target_layout = QVBoxLayout(target_frame)
-        target_layout.setContentsMargins(3, 1, 3, 1)
-        target_layout.setSpacing(0)
-        
-        target_text = QLabel(match.target)
-        target_text.setWordWrap(True)
-        target_text.setMinimumHeight(30)  # Min height but allow expansion
-        target_font = QFont()
-        target_font.setPointSize(8)
-        target_text.setFont(target_font)
-        target_layout.addWidget(target_text)
-        
-        content_layout.addWidget(source_frame, 1)
-        content_layout.addWidget(target_frame, 1)
-        layout.addLayout(content_layout)
-        
-        # Relevance % on same line (compact)
-        rel_layout = QHBoxLayout()
-        rel_layout.setContentsMargins(0, 0, 0, 0)
-        rel_layout.setSpacing(0)
-        rel_layout.addStretch()
-        
+        # Middle: Relevance % (vertical)
         rel_label = QLabel(f"{match.relevance}%")
-        rel_label.setStyleSheet("font-size: 8px; color: #888;")
-        rel_layout.addWidget(rel_label)
+        rel_label.setStyleSheet("font-size: 7px; color: #666; padding: 0px; margin: 0px;")
+        rel_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        rel_label.setFixedWidth(32)
+        rel_label.setFixedHeight(18)
+        main_layout.addWidget(rel_label, 0, Qt.AlignmentFlag.AlignTop)
         
-        layout.addLayout(rel_layout)
+        # Right side: Source and Target in a horizontal layout (like spreadsheet columns)
+        content_layout = QHBoxLayout()
+        content_layout.setContentsMargins(0, 0, 0, 0)
+        content_layout.setSpacing(6)
+        
+        # Source column - NO truncation, allow wrapping
+        self.source_label = QLabel(match.source)
+        self.source_label.setWordWrap(True)  # Allow wrapping
+        self.source_label.setStyleSheet(f"font-size: {self.font_size_pt}px; color: #333; padding: 0px; margin: 0px;")
+        self.source_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+        self.source_label.setMinimumWidth(150)  # Much wider minimum
+        content_layout.addWidget(self.source_label, 1)
+        
+        # Target column - NO truncation, allow wrapping
+        self.target_label = QLabel(match.target)
+        self.target_label.setWordWrap(True)  # Allow wrapping
+        self.target_label.setStyleSheet(f"font-size: {self.font_size_pt}px; color: #555; padding: 0px; margin: 0px;")
+        self.target_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+        self.target_label.setMinimumWidth(150)  # Much wider minimum
+        content_layout.addWidget(self.target_label, 1)
+        
+        main_layout.addLayout(content_layout, 1)  # Expand to fill remaining space
         
         self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-        self.mousePressEvent = self._on_click
+        
+        # NOW call update_styling() after num_label_ref is set
+        self.update_styling()
     
-    def _on_click(self, event):
+    @classmethod
+    def set_font_size(cls, size: int):
+        """Set the font size for all match items"""
+        cls.font_size_pt = size
+    
+    def update_font_size(self):
+        """Update font size for this item"""
+        if self.source_label:
+            self.source_label.setStyleSheet(f"font-size: {self.font_size_pt}px; color: #333; padding: 0px; margin: 0px;")
+        if self.target_label:
+            self.target_label.setStyleSheet(f"font-size: {self.font_size_pt}px; color: #555; padding: 0px; margin: 0px;")
+    
+    def mousePressEvent(self, event):
         """Emit signal when clicked"""
         self.match_selected.emit(self.match)
         self.select()
@@ -151,38 +153,52 @@ class CompactMatchItem(QFrame):
         
         type_color = type_color_map.get(self.match.match_type, "#adb5bd")
         
-        if self.is_selected:
-            # Selected: darker shade of type color with contrast text
-            darker_color = self._darken_color(type_color)
-            self.setStyleSheet(f"""
-                CompactMatchItem {{
-                    background-color: {type_color};
-                    border: 2px solid {darker_color};
-                    border-radius: 2px;
-                    margin: 1px;
-                    padding: 3px;
-                }}
-                QLabel {{
-                    color: #000000;
-                    font-weight: bold;
-                }}
-            """)
-        else:
-            # Unselected: light background with subtle type color border
-            light_color = self._lighten_color(type_color, 0.9)
-            self.setStyleSheet(f"""
-                CompactMatchItem {{
-                    background-color: {light_color};
-                    border: 1px solid {type_color};
-                    border-radius: 2px;
-                    margin: 1px;
-                    padding: 3px;
-                }}
-                CompactMatchItem:hover {{
-                    background-color: {self._lighten_color(type_color, 0.8)};
-                    border: 1px solid {type_color};
-                }}
-            """)
+        # Update styling only for the number label, not the entire item
+        if hasattr(self, 'num_label_ref') and self.num_label_ref:
+            if self.is_selected:
+                # Selected: darker shade of type color with white text
+                darker_color = self._darken_color(type_color)
+                self.num_label_ref.setStyleSheet(f"""
+                    QLabel {{
+                        background-color: {darker_color};
+                        color: white;
+                        font-weight: bold;
+                        font-size: 9px;
+                        min-width: 20px;
+                        padding: 2px;
+                        border-radius: 2px;
+                    }}
+                """)
+                # Add background to the entire item only when selected
+                self.setStyleSheet(f"""
+                    CompactMatchItem {{
+                        background-color: {self._lighten_color(type_color, 0.95)};
+                        border: 1px solid {type_color};
+                    }}
+                """)
+            else:
+                # Unselected: type color background with white text (for number only)
+                self.num_label_ref.setStyleSheet(f"""
+                    QLabel {{
+                        background-color: {type_color};
+                        color: white;
+                        font-weight: bold;
+                        font-size: 9px;
+                        min-width: 20px;
+                        padding: 1px;
+                        border-radius: 2px;
+                    }}
+                """)
+                # No background for item when unselected
+                self.setStyleSheet("""
+                    CompactMatchItem {
+                        background-color: white;
+                        border: none;
+                    }
+                    CompactMatchItem:hover {
+                        background-color: #f5f5f5;
+                    }
+                """)
     
     @staticmethod
     def _lighten_color(hex_color: str, factor: float) -> str:
@@ -220,13 +236,14 @@ class MatchSection(QWidget):
     
     match_selected = pyqtSignal(TranslationMatch)
     
-    def __init__(self, title: str, matches: List[TranslationMatch], parent=None):
+    def __init__(self, title: str, matches: List[TranslationMatch], parent=None, global_number_start: int = 1):
         super().__init__(parent)
         self.title = title
         self.matches = matches
         self.is_expanded = True
         self.match_items = []
         self.selected_index = -1
+        self.global_number_start = global_number_start  # For global numbering across sections
         
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -239,8 +256,8 @@ class MatchSection(QWidget):
         # Matches container
         self.matches_container = QWidget()
         self.matches_layout = QVBoxLayout(self.matches_container)
-        self.matches_layout.setContentsMargins(2, 2, 2, 2)
-        self.matches_layout.setSpacing(2)
+        self.matches_layout.setContentsMargins(0, 0, 0, 0)  # No margins
+        self.matches_layout.setSpacing(0)  # No spacing between matches
         
         # Populate with matches
         self._populate_matches()
@@ -285,10 +302,11 @@ class MatchSection(QWidget):
         return header
     
     def _populate_matches(self):
-        """Populate section with matches"""
-        for idx, match in enumerate(self.matches, 1):
-            item = CompactMatchItem(match, match_number=idx)
-            item.match_selected.connect(lambda m, i=idx-1: self._on_match_selected(m, i))
+        """Populate section with matches using global numbering"""
+        for local_idx, match in enumerate(self.matches):
+            global_number = self.global_number_start + local_idx
+            item = CompactMatchItem(match, match_number=global_number)
+            item.match_selected.connect(lambda m, i=local_idx: self._on_match_selected(m, i))
             self.matches_layout.addWidget(item)
             self.match_items.append(item)
         
@@ -341,10 +359,14 @@ class TranslationResultsPanel(QWidget):
     - Quick insert by number: Ctrl+1 through Ctrl+9 (1-based index)
     - Vertical compare boxes with resizable splitter
     - Match numbering display
+    - Zoom controls for both match list and compare boxes
     """
     
     match_selected = pyqtSignal(TranslationMatch)
     match_inserted = pyqtSignal(str)  # Emitted when user wants to insert match into target
+    
+    # Class variables for font sizes
+    compare_box_font_size = 9
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -352,6 +374,9 @@ class TranslationResultsPanel(QWidget):
         self.current_selection: Optional[TranslationMatch] = None
         self.all_matches: List[TranslationMatch] = []
         self.match_sections: Dict[str, MatchSection] = {}
+        self.match_items: List[CompactMatchItem] = []
+        self.selected_index = -1
+        self.compare_text_edits = []  # Track compare boxes for font size updates
         self.setup_ui()
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)  # Ensure widget receives keyboard events
 
@@ -491,43 +516,68 @@ class TranslationResultsPanel(QWidget):
                 background-color: {bg_color};
                 border: 1px solid #ccc;
                 border-radius: 2px;
-                font-size: 8px;
+                font-size: {self.compare_box_font_size}px;
                 padding: 4px;
                 margin: 0px;
             }}
         """)
         layout.addWidget(text_edit)
         
+        # Track this text edit for font size updates
+        self.compare_text_edits.append(text_edit)
+        
         return (container, text_edit)
     
     def set_matches(self, matches_dict: Dict[str, List[TranslationMatch]]):
         """
-        Set matches from different sources
+        Set matches from different sources in unified flat list with GLOBAL consecutive numbering
+        (memoQ-style: single grid, color coding only identifies match type)
         
         Args:
             matches_dict: Dict with keys like "NT", "MT", "TM", "Termbases"
         """
         self.matches_by_type = matches_dict
         self.all_matches = []
-        self.match_sections = {}
+        self.match_items = []  # Track all match items for navigation
+        self.selected_index = -1
         
-        # Clear existing sections
+        # Clear existing matches
         while self.main_layout.count() > 0:
             item = self.main_layout.takeAt(0)
             if item and item.widget():
                 item.widget().deleteLater()
         
-        # Add sections for each match type in order
+        # Build flat list of all matches with global numbering
+        global_number = 1
         order = ["NT", "MT", "TM", "Termbases"]
+        
         for match_type in order:
             if match_type in matches_dict and matches_dict[match_type]:
-                section = MatchSection(match_type, matches_dict[match_type])
-                section.match_selected.connect(self._on_match_selected)
-                self.main_layout.addWidget(section)
-                self.match_sections[match_type] = section
-                self.all_matches.extend(matches_dict[match_type])
+                for match in matches_dict[match_type]:
+                    self.all_matches.append(match)
+                    
+                    # Create match item with global number
+                    item = CompactMatchItem(match, match_number=global_number)
+                    item.match_selected.connect(lambda m, idx=len(self.match_items): self._on_match_item_selected(m, idx))
+                    self.main_layout.addWidget(item)
+                    self.match_items.append(item)
+                    
+                    global_number += 1
         
         self.main_layout.addStretch()
+    
+    def _on_match_item_selected(self, match: TranslationMatch, index: int):
+        """Handle match item selection"""
+        # Deselect previous
+        if 0 <= self.selected_index < len(self.match_items):
+            self.match_items[self.selected_index].deselect()
+        
+        # Select new
+        self.selected_index = index
+        if 0 <= index < len(self.match_items):
+            self.match_items[index].select()
+        
+        self._on_match_selected(match)
     
     def _on_match_selected(self, match: TranslationMatch):
         """Handle match selection"""
@@ -564,6 +614,68 @@ class TranslationResultsPanel(QWidget):
     def get_selected_match(self) -> Optional[TranslationMatch]:
         """Get currently selected match"""
         return self.current_selection
+    
+    def set_font_size(self, size: int):
+        """Set font size for all match items (for zoom control)"""
+        CompactMatchItem.set_font_size(size)
+        # Update all currently displayed items
+        for item in self.match_items:
+            item.update_font_size()
+            item.adjustSize()
+        self.matches_scroll.update()
+    
+    def set_compare_box_font_size(self, size: int):
+        """Set font size for compare boxes"""
+        TranslationResultsPanel.compare_box_font_size = size
+        for text_edit in self.compare_text_edits:
+            text_edit.setStyleSheet(f"""
+                QTextEdit {{
+                    background-color: {self._get_box_color(text_edit)};
+                    border: 1px solid #ccc;
+                    border-radius: 2px;
+                    font-size: {size}px;
+                    padding: 4px;
+                    margin: 0px;
+                }}
+            """)
+    
+    def _get_box_color(self, text_edit) -> str:
+        """Get background color for a compare box (mapping hack)"""
+        # This is a workaround - in production, store colors with the widgets
+        colors = ["#e3f2fd", "#fff3cd", "#d4edda"]
+        if text_edit in self.compare_text_edits:
+            return colors[self.compare_text_edits.index(text_edit) % len(colors)]
+        return "#fafafa"
+    
+    def zoom_in(self):
+        """Increase font size for both match list and compare boxes"""
+        new_size = CompactMatchItem.font_size_pt + 1
+        if new_size <= 16:  # Max 16pt
+            self.set_font_size(new_size)
+            # Also increase compare boxes
+            compare_size = TranslationResultsPanel.compare_box_font_size + 1
+            if compare_size <= 14:
+                self.set_compare_box_font_size(compare_size)
+            return new_size
+        return CompactMatchItem.font_size_pt
+    
+    def zoom_out(self):
+        """Decrease font size for both match list and compare boxes"""
+        new_size = CompactMatchItem.font_size_pt - 1
+        if new_size >= 7:  # Min 7pt
+            self.set_font_size(new_size)
+            # Also decrease compare boxes
+            compare_size = TranslationResultsPanel.compare_box_font_size - 1
+            if compare_size >= 7:
+                self.set_compare_box_font_size(compare_size)
+            return new_size
+        return CompactMatchItem.font_size_pt
+    
+    def reset_zoom(self):
+        """Reset font size to defaults"""
+        self.set_font_size(9)
+        self.set_compare_box_font_size(9)
+        return 9
     
     def keyPressEvent(self, event):
         """
