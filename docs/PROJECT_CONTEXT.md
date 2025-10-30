@@ -1,102 +1,197 @@
 # Supervertaler Project Context
 
-**Last Updated:** October 29, 2025  
-**Project Status:** Active Development (v1.0.0-Qt, v2.5.0-CLASSIC & v3.1.1-beta)  
-**Current Version:** v1.0.1-Qt
-
----
-
-## 📝 Current Focus: Termbases Feature - Terminology Standardization & Bug Fixes Complete ✅
-
-**Status:** Termbases fully implemented with standardized terminology (v1.0.1-Qt)
-
-**Session Summary (Oct 29, Afternoon):**
-- ✅ **Terminology Standardization:** Replaced all "glossary" references with "termbase" throughout codebase
-- ✅ **Database Schema Fixed:**
-  - Table: `glossary_terms` → `termbase_terms`
-  - Column: `glossary_id` → `termbase_id`  
-  - Changed `source_lang` and `target_lang` from NOT NULL → DEFAULT 'unknown'
-  - Fixed NOT NULL constraint errors preventing term creation
-- ✅ **Code Updates:** 
-  - Method: `create_glossaries_tab()` → `create_termbases_tab()`
-  - Method: `create_glossary_results_tab()` → `create_termbase_results_tab()`
-  - UI Label: "Term Bases" → "Termbases" (one word, consistent)
-  - All Project object attribute access fixed (.id instead of .get('id'))
-- ✅ **Bug Fixes:**
-  - Fixed method call: `create_glossary_results_tab()` → `create_termbase_results_tab()`
-  - Fixed Project object access pattern (was using dict .get() on object)
-  - Database migration: Updated `user_data_private/supervertaler.db` with correct schema
-- ✅ **Sample Data:** Created 3 test termbases with 48 terms (Medical, Legal, Technical)
-- ✅ **Testing:** All syntax verified, application launches successfully
-
-**Architecture Status:**
-- **Tab Structure:** ✅ Complete - Termbases tab fully functional
-- **Database:** ✅ Termbases tables (termbases, termbase_terms, termbase_activation)
-- **UI Labels:** ✅ Consistent "Termbases" terminology throughout
-- **Error Handling:** ✅ Fixed NOT NULL constraints, Project object access
-
-**Next Phase:** 
-- Implement Terminology Search (Ctrl+P)
-- Implement Concordance Search (Ctrl+K)
-- Test create/edit termbase dialogs in full app
+**Last Updated:** October 30, 2025  
+**Repository:** https://github.com/michaelbeijer/Supervertaler  
+**Maintainer:** Michael Beijer
 
 ---
 
 ## 🎯 Project Overview
 
-**Supervertaler** is a multi-platform AI-powered translation tool for professional translators working with various LLM providers and CAT workflows.
+**Supervertaler** is a dual-platform AI-powered translation tool for professional translators. Currently maintaining two active versions during transition to Qt as primary platform.
 
-### Three Active Versions
+### Two Active Versions
 
-| Version | Name | Architecture | Status | Use Case |
-|---------|------|--------------|--------|----------|
-| **v1.0.1-Qt** | Qt Edition | Modern PyQt6 CAT interface | Active Development | Professional CAT workflow with advanced translation memory features |
-| **v2.5.0-CLASSIC** | CLASSIC Edition | DOCX-based workflow | Production-ready | Professional translators using CAT tools (memoQ, CafeTran) |
-| **v3.1.1-beta** | CAT Edition | Segment-based CAT editor | Beta/Experimental | Early adopters, new feature testing |
+| Aspect | Qt Edition | Tkinter Edition (Classic) |
+|--------|-----------|---------------------------|
+| **File** | `Supervertaler_Qt.py` | `Supervertaler_tkinter.py` |
+| **Version** | v1.0.1+ (Active Development) | v2.5.0+ (Maintenance) |
+| **Framework** | PyQt6 | Tkinter |
+| **Status** | Primary (new features) | Legacy (feature parity) |
+| **UI** | Modern ribbon + compact panels | Tabbed interface |
+| **Database** | SQLite (shared schema) | SQLite (shared schema) |
+| **Changelog** | `CHANGELOG_Qt.md` | `CHANGELOG_Tkinter.md` |
+
+**Migration Strategy:** Move all tkinter functionality to Qt version, then deprecate tkinter in v2.0.0
 
 ---
 
-## 📝 Development Approach
+## 📁 Repository Structure (Lean)
 
-- **Minimal Documentation During Development:** Extensive guides are created only when features stabilize. Active code changes are tested iteratively rather than documented extensively, as the codebase evolves frequently. This keeps workflow lean and documentation maintainable.
+```
+/
+├── Supervertaler_Qt.py              # Qt Edition (PRIMARY)
+├── Supervertaler_tkinter.py         # Tkinter Edition (legacy)
+├── README.md                         # Repository overview
+├── CHANGELOG_Qt.md                   # Qt version history
+├── CHANGELOG_Tkinter.md              # Tkinter version history
+├── RELEASE_NOTES.md                  # Current release info
+│
+├── modules/                          # Shared modules
+│   ├── database_manager.py           # SQLite backend
+│   ├── termbase_manager.py           # Termbases CRUD
+│   ├── project_home_panel.py         # Project home UI (Qt)
+│   ├── translation_results_panel.py  # Results UI (Qt)
+│   ├── autofingers_engine.py         # Auto-fingers feature
+│   ├── config_manager.py             # Settings/config
+│   └── [other modules]
+│
+├── docs/
+│   ├── PROJECT_CONTEXT.md            # ← THIS FILE (Single source of truth)
+│   ├── QUICK_START.md                # Getting started
+│   ├── ARCHITECTURE.md               # System design
+│   ├── DATABASE.md                   # Database schema
+│   ├── sessions/                     # Archived session summaries
+│   ├── guides/                       # How-to guides
+│   └── archive/                      # Old documentation (reference)
+│
+├── user_data/                        # User projects & database
+├── user_data_private/                # Dev database (gitignored)
+├── tests/                            # Unit tests
+└── assets/                           # Icons, images
+```
 
 ---
 
-## 🏗️ Architecture & Infrastructure
+## 🔑 Key Features (Both Versions)
 
-### Private/Public Data System
+### Translation Memory (TM)
+- SQLite-based persistent storage
+- Full-text search with fuzzy matching
+- TM matches with relevance scores
+- Context-aware suggestions
+- Import/export (TMX format)
 
-**Implementation:** Parallel folder structure with `.supervertaler.local` feature flag
+### Termbases
+- Multiple termbases per project
+- Global and project-specific scopes
+- Term search with filtering
+- Priority-based matching
+- Sample data: 3 termbases (Medical, Legal, Technical) with 48 terms
 
-- **Development mode** (`.supervertaler.local` present):
-  - All data auto-routes to `user data_private/` folder
-  - Red "🔒 DEV MODE" banner visible in app
-  - Complete isolation of private data
-  
-- **User mode** (no `.supervertaler.local`):
-  - All data saved to public `user data/` folder
-  - No UI clutter or private option visibility
-  - Clean experience for end users
+### CAT Functionality
+- Segment-based translation editing
+- Translation memory integration
+- Match insertion (keyboard shortcuts)
+- Project management
+- Auto-fingers support
 
-**Benefits:**
-- ✅ Single codebase for both public and private use
-- ✅ No confusing UI for users
-- ✅ Simple `.gitignore` (one line: `user data_private/`)
-- ✅ Easy mode switching for developers
+### AI Integration
+- OpenAI GPT support
+- Claude support (configurable)
+- API key management
 
-**Migration:** Completed - uses parallel folder structure:
+---
+
+## 🗄️ Database Schema (SQLite)
+
+### Core Tables
+- **translation_units** - TM entries (source_text, target_text, language pairs)
+- **termbases** - Termbase definitions (name, source_lang, target_lang, project_id)
+- **termbase_terms** - Individual terms (source_term, target_term, domain, priority)
+- **termbase_activation** - Project termbase activation tracking
+- **non_translatables** - Locked terms
+- **projects** - Translation projects
+
+### Important Constraints
+- `termbase_terms.source_lang` DEFAULT 'unknown' (NOT NULL removed)
+- `termbase_terms.target_lang` DEFAULT 'unknown' (NOT NULL removed)
+- Never use `glossary_terms` table (renamed to `termbase_terms`)
+- Never use `glossary_id` column (renamed to `termbase_id`)
+
+---
+
+## ⚙️ Current Status (v1.0.1-Qt)
+
+**Completed (Oct 29-30, 2025):**
+✅ Termbases feature complete  
+✅ Terminology standardized ("termbase" everywhere)  
+✅ Database schema fixed (NOT NULL constraints)  
+✅ Bug fixes: method names, Project object access  
+✅ Sample data: 3 termbases with 48 terms  
+
+**In Progress:**
+- [ ] Terminology Search (Ctrl+P)
+- [ ] Concordance Search (Ctrl+K)
+- [ ] Test create/edit dialogs
+
+**Known Issues:** None
+
+---
+
+## 📝 Naming Conventions
+
+**ALWAYS USE:**
+- ✅ "Termbase" (one word, lowercase)
+- ✅ "Qt Edition" / "Tkinter Edition"
+- ✅ "Translation Memory" or "TM"
+
+**NEVER USE:**
+- ❌ "Glossary" (replaced with "Termbase")
+- ❌ "Term Base" (two words - always one word)
+- ❌ `glossary_terms` or `glossary_id` (renamed to termbase_*)
+
+---
+
+## 🚀 Running Applications
+
+### Qt Edition
+```bash
+python Supervertaler_Qt.py
 ```
-user data/              (public)
-user data_private/      (dev only, gitignored)
+
+### Tkinter Edition
+```bash
+python Supervertaler_tkinter.py
 ```
 
-### Repository Structure
+---
 
-**Root directory** (clean for users):
-- `Supervertaler_v2.5.0-CLASSIC.py` - Main CLASSIC executable
-- `Supervertaler_v3.1.1-beta_CAT.py` - Main CAT executable
-- `modules/` - Core functionality (needed by v3.1.1)
-- Documentation files (README, CHANGELOG, etc.)
+## 📚 Key Reference Files
+
+| File | Purpose |
+|------|---------|
+| `docs/PROJECT_CONTEXT.md` | This file - source of truth |
+| `CHANGELOG_Qt.md` | Qt version history |
+| `CHANGELOG_Tkinter.md` | Tkinter version history |
+| `RELEASE_NOTES.md` | Current release |
+| `modules/database_manager.py` | Database layer |
+| `modules/termbase_manager.py` | Termbase operations |
+
+---
+
+## 🔍 Before Starting Work
+
+1. **Consult this document first** - It's your source of truth
+2. Understand which version you're working on (Qt vs Tkinter)
+3. Check naming conventions (Termbase, never Glossary)
+4. Review current focus items above
+5. Verify database table/column names are correct
+
+---
+
+## 💡 Repository Philosophy
+
+**Lean = Efficient:**
+- ✅ Only essential source code
+- ✅ Current documentation in `docs/`
+- ✅ Old docs archived, summarized in PROJECT_CONTEXT.md
+- ✅ Smaller repo = faster AI operations = lower costs
+
+---
+
+**Last Updated:** October 30, 2025
+**Next Review:** Start of development sprint
 
 **Hidden folders** (.gitignored):
 - `.dev/` - Tests, scripts, backup files, documentation tools

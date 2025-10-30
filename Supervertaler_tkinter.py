@@ -1340,7 +1340,7 @@ class Supervertaler:
         self.root.bind('<Control-d>', lambda e: self.copy_source_to_target())
         
         # Term extraction from dual selection
-        self.root.bind('<Control-g>', lambda e: self.add_term_from_dual_selection())  # Add term to Glossary
+        self.root.bind('<Control-g>', lambda e: self.add_term_from_dual_selection())  # Add term to termbase
         self.root.bind('<Control-Shift-T>', lambda e: self.add_term_from_dual_selection(to_glossary=False))  # Add to TM only
         
         # Layout switching shortcuts
@@ -1954,7 +1954,7 @@ class Supervertaler:
         self.grid_editor_visible = True
         self.create_grid_editor_panel()
         
-        # Right side: Assistance panel (MT, TM, Glossary, etc.)
+        # Right side: Assistance panel (MT, TM, termbase, etc.)
         self.create_assistance_panel()
         
         # Restore divider position (use grid ratio if available, otherwise use start screen ratio)
@@ -2342,7 +2342,7 @@ class Supervertaler:
             'llm': True,               # LLM Translation
             'tm': True,                # Translation Memory (matches + management)
             'tmx_editor': True,        # TMX Editor (edit translation memories)
-            'glossary': True,          # Glossary
+            'termbase': True,          # Termbase
             'reference_images': True,  # Reference images for context
             'pdf_rescue': True,        # PDF Rescue (AI OCR)
             'nontrans': True,          # Non-translatables
@@ -2504,14 +2504,14 @@ class Supervertaler:
                 'create_func': self.create_tmx_editor_tab
             })
         
-        if self.assist_visible_panels.get('glossary', True):
+        if self.assist_visible_panels.get('termbase', True):
             self.assist_tabs.append({
-                'key': 'glossary',
-                'name': '📚 Glossary',
-                'short': 'Glossary',
+                'key': 'termbase',
+                'name': '📚 termbase',
+                'short': 'termbase',
                 'frame': None,
                 'button': None,
-                'create_func': self.create_glossary_tab
+                'create_func': self.create_termbase_tab
             })
         
         if self.assist_visible_panels.get('reference_images', True):
@@ -2766,9 +2766,9 @@ class Supervertaler:
             self.assist_stacked_paned.add(tm_container, weight=1)
             panel_weights.append(1)
         
-        if self.assist_visible_panels.get('glossary', True):
-            glossary_container = self.create_collapsible_panel_resizable('📚 Glossary', 'glossary',
-                                                                         self.create_glossary_tab, expanded=False)
+        if self.assist_visible_panels.get('termbase', True):
+            glossary_container = self.create_collapsible_panel_resizable('📚 termbase', 'termbase',
+                                                                         self.create_termbase_tab, expanded=False)
             self.assist_stacked_paned.add(glossary_container, weight=1)
             panel_weights.append(1)
         
@@ -3908,7 +3908,7 @@ Professional style guidelines for translating into {language}.
 
 ### Consistency
 - Use consistent terminology throughout
-- Refer to project glossary when available
+- Refer to project termbase when available
 
 ### Formality
 - Maintain appropriate level of formality
@@ -5286,7 +5286,7 @@ The user is translating a document and needs your help with terminology and tran
 
 Your analysis should be comprehensive and practical for professional translation work. Adapt your approach based on the document type you identify."""
 
-            user_prompt = f"""Please analyze this document carefully, examining its content, structure, and terminology. Provide me with a detailed high-level summary and a comprehensive bilingual glossary of key terms. I will use your response to help configure an AI-powered translation tool for sentence-by-sentence translation.
+            user_prompt = f"""Please analyze this document carefully, examining its content, structure, and terminology. Provide me with a detailed high-level summary and a comprehensive bilingual termbase of key terms. I will use your response to help configure an AI-powered translation tool for sentence-by-sentence translation.
 
 **Document text ({source_lang}):**
 
@@ -5304,12 +5304,12 @@ Your analysis should be comprehensive and practical for professional translation
    - Document types: patent, medical report, legal contract, technical manual, user guide, marketing material, scientific paper, regulatory document, etc.
    - Technical domains: civil engineering, medical devices, pharmaceuticals, software, mechanical engineering, legal/regulatory, finance, etc.
 
-3. **Bilingual glossary of key technical terms** in markdown table format:
+3. **Bilingual termbase of key technical terms** in markdown table format:
 
 | {source_lang} term | {target_lang} equivalent | Notes / context |
 |-------------------|------------------------|------------------|
 
-**CRITICAL GLOSSARY INSTRUCTIONS:**
+**CRITICAL termbase INSTRUCTIONS:**
 - Extract 25-40 of the most important domain-specific terms (not exhaustive, focus on quality)
 - IGNORE common words: articles (de, het, een), pronouns (deze, dit), prepositions (van, in, op)
 - IGNORE section headers like "DESCRIPTION", "FIGURES", "INTRODUCTION" unless they're technical terms
@@ -5353,7 +5353,7 @@ Your response will help configure an AI translation tool for professional-qualit
                         {"role": "user", "content": user_prompt}
                     ],
                     temperature=0.3,  # Lower temperature for more focused analysis
-                    max_tokens=2000   # Need more tokens for glossary
+                    max_tokens=2000   # Need more tokens for termbase
                 )
                 answer = response.choices[0].message.content
             
@@ -5573,27 +5573,27 @@ Your task is to generate TWO separate, ready-to-use prompts for the translator:
    - Include specific translation strategies for this document type
    - Make it GENERIC and REUSABLE for similar documents in this domain
    - Should be 3-5 paragraphs, comprehensive but focused
-   - Do NOT include specific glossary terms - keep it general
+   - Do NOT include specific termbase terms - keep it general
    - Use {source_lang} and {target_lang} placeholders, NOT specific language names
 
 2. **CUSTOM INSTRUCTIONS** (Project-specific guidance - goes in "Custom Instructions" tab)
    - Start with 2-3 paragraphs of SPECIFIC guidance for THIS document
    - Then include the KEY TERMINOLOGY section
    
-   **CRITICAL: GLOSSARY TABLE REQUIREMENTS**
-   - You MUST copy the ENTIRE bilingual glossary table from the analysis above
+   **CRITICAL: termbase TABLE REQUIREMENTS**
+   - You MUST copy the ENTIRE bilingual termbase table from the analysis above
    - Copy it VERBATIM - every single row, word-for-word
    - The table header must be: | Dutch term | English equivalent | Notes / context |
    - Include the separator line: |------------|--------------------|-----------------| 
-   - Then copy EVERY SINGLE ROW from the analysis glossary
+   - Then copy EVERY SINGLE ROW from the analysis termbase
    - If there are 33 terms in the analysis, there must be 33 rows in your output
-   - DO NOT STOP until you've copied the LAST row of the glossary
+   - DO NOT STOP until you've copied the LAST row of the termbase
    - After the complete table, add 2-3 paragraphs with specific examples
    
    Reference specific key terms with translation examples
    Mention specific challenges identified in the analysis
    Include domain-specific requirements (e.g., for patents: maintain claim structure, legal accuracy)
-   List terminology consistency rules with concrete examples from the glossary
+   List terminology consistency rules with concrete examples from the termbase
    Highlight any special handling needed (measurements, figures, technical processes)
 
 Format your response EXACTLY like this:
@@ -5630,14 +5630,14 @@ Provide the two prompts in the specified format."""
                         {"role": "user", "content": user_prompt}
                     ],
                     temperature=0.4,
-                    max_tokens=8000  # Increased to ensure complete glossary (33 terms = ~6000 tokens)
+                    max_tokens=8000  # Increased to ensure complete termbase (33 terms = ~6000 tokens)
                 )
                 answer = response.choices[0].message.content
                 finish_reason = response.choices[0].finish_reason
                 if finish_reason == 'length':
                     self.log("⚠️ WARNING: Response truncated due to token limit!", "WARNING")
                     self.add_assistant_chat_message('warning', 
-                        "⚠️ Response was truncated! Glossary may be incomplete. Try using a different model.")
+                        "⚠️ Response was truncated! termbase may be incomplete. Try using a different model.")
             
             elif self.current_llm_provider == "claude":
                 import anthropic
@@ -5645,7 +5645,7 @@ Provide the two prompts in the specified format."""
                 
                 response = client.messages.create(
                     model=self.current_llm_model,
-                    max_tokens=8000,  # Increased to ensure complete glossary (33 terms = ~6000 tokens)
+                    max_tokens=8000,  # Increased to ensure complete termbase (33 terms = ~6000 tokens)
                     temperature=0.4,
                     system=system_prompt,
                     messages=[{"role": "user", "content": user_prompt}]
@@ -5654,7 +5654,7 @@ Provide the two prompts in the specified format."""
                 if response.stop_reason == 'max_tokens':
                     self.log("⚠️ WARNING: Response truncated due to token limit!", "WARNING")
                     self.add_assistant_chat_message('warning', 
-                        "⚠️ Response was truncated! Glossary may be incomplete. Try using a different model.")
+                        "⚠️ Response was truncated! termbase may be incomplete. Try using a different model.")
             
             elif self.current_llm_provider == "gemini":
                 import google.generativeai as genai
@@ -5666,7 +5666,7 @@ Provide the two prompts in the specified format."""
                     combined,
                     generation_config=genai.types.GenerationConfig(
                         temperature=0.4,
-                        max_output_tokens=8000  # Increased to ensure complete glossary (33 terms = ~6000 tokens)
+                        max_output_tokens=8000  # Increased to ensure complete termbase (33 terms = ~6000 tokens)
                     )
                 )
                 answer = response.text
@@ -5676,13 +5676,13 @@ Provide the two prompts in the specified format."""
                     if finish_reason == 1:  # FINISH_REASON_MAX_TOKENS
                         self.log("⚠️ WARNING: Response truncated due to token limit!", "WARNING")
                         self.add_assistant_chat_message('warning', 
-                            "⚠️ Response was truncated! Glossary may be incomplete. Try using a different model.")
+                            "⚠️ Response was truncated! termbase may be incomplete. Try using a different model.")
             
             # Parse the response and create an interactive dialog
             # Check if response might be truncated
             if len(answer) > 3500 and not answer.rstrip().endswith(('---', '.')):
                 self.add_assistant_chat_message('warning', 
-                    "⚠️ Response may be truncated - if glossary is incomplete, try re-generating.")
+                    "⚠️ Response may be truncated - if termbase is incomplete, try re-generating.")
             
             self.show_generated_prompts_dialog(answer, source_lang, target_lang)
             
@@ -6244,7 +6244,7 @@ Document Analysis Results:
 Previous Analysis:
 {analysis_text}
 
-You have already analyzed this document and provided a summary with bilingual glossary.
+You have already analyzed this document and provided a summary with bilingual termbase.
 Reference this analysis when answering questions. The terminology and domain information above is accurate and complete."""
             
             # Build conversation with context
@@ -7361,49 +7361,49 @@ Use this feature AFTER translation to:
                     fg='red', font=('Segoe UI', 9)).pack(pady=20)
             self.log(f"❌ TMX Editor error: {str(e)}")
     
-    def create_glossary_tab(self, parent):
-        """Create Glossary/Termbase tab content"""
+    def create_termbase_tab(self, parent):
+        """Create Termbase tab content"""
         # Toolbar
         toolbar = tk.Frame(parent, bg='#f0f0f0')
         toolbar.pack(side='top', fill='x', padx=5, pady=5)
         
-        tk.Label(toolbar, text="Glossary:", bg='#f0f0f0', font=('Segoe UI', 9)).pack(side='left', padx=2)
-        self.glossary_source_var = tk.StringVar(value="Project Glossary")
-        glossary_combo = ttk.Combobox(toolbar, textvariable=self.glossary_source_var,
-                                     values=["Project Glossary", "Main Termbase",
-                                            "Domain Glossary", "All Glossaries"],
+        tk.Label(toolbar, text="Termbase:", bg='#f0f0f0', font=('Segoe UI', 9)).pack(side='left', padx=2)
+        self.termbase_source_var = tk.StringVar(value="Project Termbase")
+        termbase_combo = ttk.Combobox(toolbar, textvariable=self.termbase_source_var,
+                                     values=["Project Termbase", "Main Termbase",
+                                            "Domain Termbase", "All Termbases"],
                                      state='readonly', width=18, font=('Segoe UI', 9))
-        glossary_combo.pack(side='left', padx=5)
+        termbase_combo.pack(side='left', padx=5)
         
         tk.Button(toolbar, text="🔍 Search", command=self.search_glossary,
                  bg='#FF9800', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=5)
         
-        # Treeview for glossary matches
+        # Treeview for termbase matches
         tree_frame = tk.Frame(parent)
         tree_frame.pack(fill='both', expand=True, padx=5, pady=5)
         
         scrollbar = ttk.Scrollbar(tree_frame, orient='vertical')
-        self.glossary_tree = ttk.Treeview(tree_frame, columns=('source_term', 'target_term', 'domain'),
+        self.termbase_tree = ttk.Treeview(tree_frame, columns=('source_term', 'target_term', 'domain'),
                                          show='headings', yscrollcommand=scrollbar.set,
                                          selectmode='browse', height=10)
-        scrollbar.config(command=self.glossary_tree.yview)
+        scrollbar.config(command=self.termbase_tree.yview)
         
-        self.glossary_tree.heading('source_term', text='Source Term')
-        self.glossary_tree.heading('target_term', text='Target Term')
-        self.glossary_tree.heading('domain', text='Domain')
+        self.termbase_tree.heading('source_term', text='Source Term')
+        self.termbase_tree.heading('target_term', text='Target Term')
+        self.termbase_tree.heading('domain', text='Domain')
         
-        self.glossary_tree.column('source_term', width=120, minwidth=80, stretch=True)
-        self.glossary_tree.column('target_term', width=120, minwidth=80, stretch=True)
-        self.glossary_tree.column('domain', width=80, minwidth=60, stretch=False)
+        self.termbase_tree.column('source_term', width=120, minwidth=80, stretch=True)
+        self.termbase_tree.column('target_term', width=120, minwidth=80, stretch=True)
+        self.termbase_tree.column('domain', width=80, minwidth=60, stretch=False)
         
-        self.glossary_tree.pack(side='left', fill='both', expand=True)
+        self.termbase_tree.pack(side='left', fill='both', expand=True)
         scrollbar.pack(side='right', fill='y')
         
-        self.glossary_tree.bind('<<TreeviewSelect>>', self.on_glossary_select)
-        self.glossary_tree.bind('<Double-Button-1>', lambda e: self.insert_suggestion_at_cursor())
+        self.termbase_tree.bind('<<TreeviewSelect>>', self.on_glossary_select)
+        self.termbase_tree.bind('<Double-Button-1>', lambda e: self.insert_suggestion_at_cursor())
         
-        # Store glossary results
-        self.glossary_results = []
+        # Store termbase results
+        self.termbase_results = []
     
     def create_nontrans_tab(self, parent):
         """Create Non-translatables tab content"""
@@ -7581,11 +7581,11 @@ Use this feature AFTER translation to:
             self.llm_listbox.insert('end', f"{quality_pct}% - {result['text']}")
     
     def auto_update_glossary(self):
-        """Automatically update glossary matches for current segment (memoQ-style)"""
+        """Automatically update termbase matches for current segment (memoQ-style)"""
         if not hasattr(self, 'current_segment') or not self.current_segment:
             return
         
-        # Future: Search glossary database for term matches
+        # Future: Search termbase database for term matches
         # For now, this is a placeholder
         pass
     
@@ -7622,8 +7622,8 @@ Use this feature AFTER translation to:
         if self.assist_visible_panels.get('llm', True) and hasattr(self, 'llm_listbox'):
             self.auto_update_llm_preview()
         
-        # Update Glossary matches (if enabled)
-        if self.assist_visible_panels.get('glossary', True):
+        # Update termbase matches (if enabled)
+        if self.assist_visible_panels.get('termbase', True):
             self.auto_update_glossary()
         
         self.log("✓ Resources updated")
@@ -7742,37 +7742,37 @@ Use this feature AFTER translation to:
         if not auto_triggered:  # Only log if manually triggered
             self.log(f"✓ Found {len(self.tm_results)} TM matches")
     
-    def search_glossary(self):
-        """Search glossary/termbase for terms"""
+    def search_termbase(self):
+        """Search termbase/termbase for terms"""
         if not hasattr(self, 'current_segment') or not self.current_segment:
             self.log("⚠ No segment selected")
             return
         
-        glossary = self.glossary_source_var.get()
+        termbase = self.termbase_source_var.get()
         source_text = self.current_segment.source
         
-        self.log(f"📚 Searching {glossary}...")
+        self.log(f"📚 Searching {termbase}...")
         
-        # Placeholder: In real implementation, search glossary database
+        # Placeholder: In real implementation, search termbase database
         # Extract potential terms from source
-        self.glossary_results = [
+        self.termbase_results = [
             {"source_term": "pivot point", "target_term": "draaipunt", "domain": "Technical"},
             {"source_term": "coupling bar", "target_term": "koppelstang", "domain": "Technical"},
             {"source_term": "frame", "target_term": "frame", "domain": "General"}
         ]
         
         # Clear and populate tree
-        for item in self.glossary_tree.get_children():
-            self.glossary_tree.delete(item)
+        for item in self.termbase_tree.get_children():
+            self.termbase_tree.delete(item)
         
-        for result in self.glossary_results:
-            self.glossary_tree.insert('', 'end', values=(
+        for result in self.termbase_results:
+            self.termbase_tree.insert('', 'end', values=(
                 result['source_term'],
                 result['target_term'],
                 result['domain']
             ))
         
-        self.log(f"✓ Found {len(self.glossary_results)} glossary terms")
+        self.log(f"✓ Found {len(self.termbase_results)} termbase terms")
     
     def on_mt_select(self, event):
         """Handle MT suggestion selection"""
@@ -7801,11 +7801,11 @@ Use this feature AFTER translation to:
             self.update_suggestion_detail(result['source'], result['target'])
     
     def on_glossary_select(self, event):
-        """Handle glossary term selection"""
-        selection = self.glossary_tree.selection()
-        if selection and self.glossary_results:
-            idx = self.glossary_tree.index(selection[0])
-            result = self.glossary_results[idx]
+        """Handle termbase term selection"""
+        selection = self.termbase_tree.selection()
+        if selection and self.termbase_results:
+            idx = self.termbase_tree.index(selection[0])
+            result = self.termbase_results[idx]
             self.update_suggestion_detail(result['source_term'], result['target_term'])
     
     def on_nontrans_select(self, event):
@@ -10253,7 +10253,7 @@ Use this feature AFTER translation to:
         self.context_menu.add_separator()
         
         # Term extraction from dual selection
-        self.context_menu.add_command(label="📚 Add Selection to Glossary (Ctrl+G)", 
+        self.context_menu.add_command(label="📚 Add Selection to termbase (Ctrl+G)", 
                                      command=lambda: self.add_term_from_dual_selection(to_glossary=True))
         self.context_menu.add_command(label="💾 Add Selection to TM (Ctrl+Shift+T)", 
                                      command=lambda: self.add_term_from_dual_selection(to_glossary=False))
@@ -11189,13 +11189,13 @@ Use this feature AFTER translation to:
     
     def add_term_from_dual_selection(self, to_glossary=True):
         """
-        Add term pair from dual selection to TM or Glossary
+        Add term pair from dual selection to TM or termbase
         
         Args:
-            to_glossary: If True, save to glossary (future). If False, save to TM only.
+            to_glossary: If True, save to termbase (future). If False, save to TM only.
         
         Keyboard shortcuts:
-            Ctrl+G: Add to Glossary (default)
+            Ctrl+G: Add to termbase (default)
             Ctrl+Shift+T: Add to TM only
         """
         # Get selected text from source and target
@@ -11209,22 +11209,22 @@ Use this feature AFTER translation to:
                 "To add a term:\n\n"
                 "1. Select the term in the SOURCE segment\n"
                 "2. Select the corresponding term in the TARGET segment\n"
-                "3. Press Ctrl+G (Glossary) or Ctrl+Shift+T (TM only)"
+                "3. Press Ctrl+G (termbase) or Ctrl+Shift+T (TM only)"
             )
             return
         
-        # For now, add to Project TM (glossary functionality comes later)
+        # For now, add to Project TM (termbase functionality comes later)
         if to_glossary:
-            # Future: Add to glossary with metadata
-            self.log(f"📝 Term pair marked for glossary: '{source_text}' → '{target_text}'")
-            self.log("ℹ Glossary support coming soon - saving to Project TM for now")
+            # Future: Add to termbase with metadata
+            self.log(f"📝 Term pair marked for termbase: '{source_text}' → '{target_text}'")
+            self.log("ℹ termbase support coming soon - saving to Project TM for now")
         
         # Add to Project TM
         try:
             self.tm_database.add_to_project_tm(source_text, target_text)
             
             # Visual feedback
-            destination = "Glossary (TM)" if to_glossary else "Project TM"
+            destination = "termbase (TM)" if to_glossary else "Project TM"
             self.log(f"✓ Term added to {destination}: '{source_text}' → '{target_text}'")
             
             # Show brief confirmation
@@ -11258,7 +11258,7 @@ Use this feature AFTER translation to:
         icon_label = tk.Label(feedback, text="✓", font=('Arial', 48), fg='#4CAF50')
         icon_label.pack(pady=10)
         
-        destination = "Glossary (TM for now)" if to_glossary else "Project TM"
+        destination = "termbase (TM for now)" if to_glossary else "Project TM"
         msg = f"Added to {destination}:"
         msg_label = tk.Label(feedback, text=msg, font=('Arial', 10))
         msg_label.pack()

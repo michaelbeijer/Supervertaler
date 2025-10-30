@@ -114,6 +114,7 @@ class QuickAccessSidebar(QWidget):
     # Signals
     action_triggered = pyqtSignal(str)  # Emits action name
     file_selected = pyqtSignal(str)  # Emits file path
+    project_home_clicked = pyqtSignal()  # Emits when Project Home button clicked
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -163,6 +164,39 @@ class QuickAccessSidebar(QWidget):
     
     def build_default_sections(self):
         """Build default sidebar sections"""
+        # Project Home button (top, always visible)
+        project_home_btn = QuickActionButton("🏠", "Project Home")
+        project_home_btn.clicked.connect(self.project_home_clicked.emit)
+        project_home_btn.setStyleSheet("""
+            QPushButton {
+                text-align: left;
+                padding: 8px 12px;
+                border: none;
+                border-radius: 4px;
+                background: rgba(59, 130, 246, 0.15);
+                font-size: 11pt;
+                font-weight: bold;
+                border-left: 3px solid #3B82F6;
+            }
+            QPushButton:hover {
+                background: rgba(59, 130, 246, 0.25);
+            }
+            QPushButton:pressed {
+                background: rgba(59, 130, 246, 0.35);
+            }
+        """)
+        
+        # Get the main layout and add Project Home button at top
+        main_layout = self.layout()
+        # Find where to insert (after title)
+        main_layout.insertWidget(1, project_home_btn)
+        
+        # Add separator
+        separator = QFrame()
+        separator.setFrameShape(QFrame.Shape.HLine)
+        separator.setFrameShadow(QFrame.Shadow.Sunken)
+        main_layout.insertWidget(2, separator)
+        
         # Quick Actions section
         quick_actions = SidebarSection("Quick Actions")
         

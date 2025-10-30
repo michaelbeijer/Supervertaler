@@ -6,7 +6,7 @@ Replaces in-memory JSON-based storage with efficient database storage.
 
 Schema includes:
 - Translation units (TM entries)
-- Glossary terms
+- Termbase terms
 - Non-translatables
 - Segmentation rules
 - Project metadata
@@ -161,17 +161,70 @@ class DatabaseManager:
         """)
         
         # ============================================
-        # GLOSSARY TABLES
+        # TERMBASE TABLES
         # ============================================
         
+        # Termbases container table (terminology, never "termbase")
         self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS glossary_terms (
+            CREATE TABLE IF NOT EXISTS termbases (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                description TEXT,
+                source_lang TEXT,
+                target_lang TEXT,
+                project_id INTEGER,  -- NULL = global, set = project-specific
+                is_global BOOLEAN DEFAULT 1,
+                created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                modified_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        # Legacy support: create glossaries as alias for termbases
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS glossaries (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                description TEXT,
+                source_lang TEXT,
+                target_lang TEXT,
+                project_id INTEGER,
+                created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                modified_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        # Termbase activation (tracks which termbases are active for which projects)
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS termbase_activation (
+                termbase_id INTEGER NOT NULL,
+                project_id INTEGER NOT NULL,
+                is_active BOOLEAN DEFAULT 1,
+                activated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (termbase_id, project_id),
+                FOREIGN KEY (termbase_id) REFERENCES termbases(id) ON DELETE CASCADE
+            )
+        """)
+        
+        # Legacy support: termbase_project_activation as alias
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS termbase_project_activation (
+                termbase_id INTEGER NOT NULL,
+                project_id INTEGER NOT NULL,
+                activated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (termbase_id, project_id),
+                FOREIGN KEY (termbase_id) REFERENCES glossaries(id) ON DELETE CASCADE
+            )
+        """)
+        
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS termbase_terms (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 source_term TEXT NOT NULL,
                 target_term TEXT NOT NULL,
-                source_lang TEXT NOT NULL,
-                target_lang TEXT NOT NULL,
-                glossary_id TEXT NOT NULL,
+                source_lang TEXT DEFAULT 'unknown',
+                target_lang TEXT DEFAULT 'unknown',
+                termbase_id TEXT NOT NULL,
+                priority INTEGER DEFAULT 99,
                 project_id TEXT,
                 
                 -- Terminology-specific fields
@@ -197,35 +250,35 @@ class DatabaseManager:
             )
         """)
         
-        # Indexes for glossary_terms
+        # Indexes for termbase_terms
         self.cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_gt_source_term 
-            ON glossary_terms(source_term)
+            ON termbase_terms(source_term)
         """)
         
         self.cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_gt_glossary_id 
-            ON glossary_terms(glossary_id)
+            CREATE INDEX IF NOT EXISTS idx_gt_termbase_id 
+            ON termbase_terms(termbase_id)
         """)
         
         self.cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_gt_project_id 
-            ON glossary_terms(project_id)
+            ON termbase_terms(project_id)
         """)
         
         self.cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_gt_domain 
-            ON glossary_terms(domain)
+            ON termbase_terms(domain)
         """)
         
-        # Full-text search for glossary
+        # Full-text search for termbase
         self.cursor.execute("""
-            CREATE VIRTUAL TABLE IF NOT EXISTS glossary_terms_fts 
+            CREATE VIRTUAL TABLE IF NOT EXISTS termbase_terms_fts 
             USING fts5(
                 source_term,
                 target_term,
                 definition,
-                content=glossary_terms,
+                content=termbase_terms,
                 content_rowid=id
             )
         """)
@@ -302,7 +355,7 @@ class DatabaseManager:
                 
                 -- Linked resources (JSON arrays)
                 active_tm_ids TEXT,
-                active_glossary_ids TEXT,
+                active_termbase_ids TEXT,
                 active_prompt_file TEXT,
                 active_style_guide TEXT,
                 
@@ -640,15 +693,62 @@ class DatabaseManager:
         return [dict(row) for row in self.cursor.fetchall()]
     
     # ============================================
-    # GLOSSARY METHODS (Placeholder for Phase 3)
+    # termbase METHODS (Placeholder for Phase 3)
     # ============================================
     
-    def add_glossary_term(self, source_term: str, target_term: str,
+    def add_termbase_term(self, source_term: str, target_term: str,
                          source_lang: str, target_lang: str,
-                         glossary_id: str = 'main', **kwargs) -> int:
-        """Add term to glossary (Phase 3)"""
+                         termbase_id: str = 'main', **kwargs) -> int:
+        """Add term to termbase (Phase 3)"""
         # TODO: Implement in Phase 3
         pass
+    
+    def search_termbases(self, search_term: str, source_lang: str = None, 
+                        target_lang: str = None, project_id: str = None,
+                        min_length: int = 0) -> List[Dict]:
+        """
+        Search termbases for matching source terms
+        
+        Args:
+            search_term: Source term to search for
+            source_lang: Filter by source language (optional)
+            target_lang: Filter by target language (optional)
+            project_id: Filter by project (optional)
+            min_length: Minimum term length to return
+            
+        Returns:
+            List of termbase hits, sorted by priority (lower = higher priority)
+        """
+        # Build query with filters
+        query = """
+            SELECT id, source_term, target_term, termbase_id, priority, 
+                   forbidden, source_lang, target_lang, definition, domain
+            FROM termbase_terms
+            WHERE source_term LIKE ?
+        """
+        params = [f"%{search_term}%"]
+        
+        if source_lang:
+            query += " AND source_lang = ?"
+            params.append(source_lang)
+        
+        if target_lang:
+            query += " AND target_lang = ?"
+            params.append(target_lang)
+        
+        if project_id:
+            query += " AND (project_id = ? OR project_id IS NULL)"
+            params.append(project_id)
+        
+        if min_length > 0:
+            query += f" AND LENGTH(source_term) >= {min_length}"
+        
+        # Sort by priority (lower number = higher priority)
+        query += " ORDER BY priority ASC, source_term ASC"
+        
+        self.cursor.execute(query, params)
+        results = [dict(row) for row in self.cursor.fetchall()]
+        return results
     
     # ============================================
     # UTILITY METHODS

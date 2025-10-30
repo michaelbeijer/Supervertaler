@@ -38,31 +38,32 @@ class RibbonButton(QToolButton):
         self.setText(display_text)
         self.setToolTip(text)
         
-        # Styling
-        self.setMinimumSize(QSize(90, 50))
-        self.setMaximumHeight(55)
+        # Reduced sizing for more compact ribbon
+        self.setMinimumSize(QSize(80, 40))
+        self.setMaximumHeight(44)
         self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         
         # Font for emoji + text
         font = QFont()
-        font.setPointSize(10)
+        font.setPointSize(9)
         self.setFont(font)
         
         # Make button look modern
         self.setAutoRaise(True)
         self.setStyleSheet("""
             QToolButton {
-                border: 1px solid transparent;
+                border: 1px solid #999999;
                 border-radius: 3px;
-                padding: 4px 8px;
+                padding: 3px 6px;
                 background: transparent;
             }
             QToolButton:hover {
-                background: rgba(255, 255, 255, 0.1);
-                border: 1px solid rgba(255, 255, 255, 0.2);
+                background: rgba(255, 255, 255, 0.15);
+                border: 1px solid #666666;
             }
             QToolButton:pressed {
-                background: rgba(0, 0, 0, 0.1);
+                background: rgba(0, 0, 0, 0.15);
+                border: 1px solid #333333;
             }
         """)
 
@@ -77,10 +78,10 @@ class RibbonGroup(QFrame):
         self.setFrameShape(QFrame.Shape.StyledPanel)
         self.setFrameShadow(QFrame.Shadow.Raised)
         
-        # Styling
+        # Styling - darker border for visibility
         self.setStyleSheet("""
             RibbonGroup {
-                border: 1px solid rgba(200, 200, 200, 0.3);
+                border: 1px solid #CCCCCC;
                 border-radius: 4px;
                 margin: 2px;
                 padding: 4px;
@@ -89,8 +90,8 @@ class RibbonGroup(QFrame):
         
         # Layout
         layout = QVBoxLayout(self)
-        layout.setSpacing(3)
-        layout.setContentsMargins(6, 6, 6, 4)
+        layout.setSpacing(2)
+        layout.setContentsMargins(3, 3, 3, 2)
         
         # Buttons area
         self.buttons_layout = QHBoxLayout()
@@ -126,8 +127,8 @@ class RibbonTab(QWidget):
         super().__init__(parent)
         
         layout = QHBoxLayout(self)
-        layout.setSpacing(6)
-        layout.setContentsMargins(4, 4, 4, 4)
+        layout.setSpacing(4)
+        layout.setContentsMargins(2, 2, 2, 2)
         layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
         
         self.groups = []
@@ -151,11 +152,27 @@ class RibbonWidget(QTabWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         
-        # Styling
+        # Styling - compact ribbon
         self.setDocumentMode(True)
         self.setTabPosition(QTabWidget.TabPosition.North)
-        self.setMaximumHeight(120)
+        self.setMaximumHeight(90)  # Reduced from 120
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.setStyleSheet("""
+            QTabWidget::pane {
+                border: none;
+                margin: 0px;
+                padding: 0px;
+            }
+            QTabBar {
+                background-color: transparent;
+                margin: 0px;
+                padding: 0px;
+            }
+            QTabBar::tab {
+                padding: 6px 12px;
+                margin: 0px;
+            }
+        """)
         
         # Store tabs by name for easy access
         self.ribbon_tabs = {}

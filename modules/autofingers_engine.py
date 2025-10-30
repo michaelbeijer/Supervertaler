@@ -6,7 +6,8 @@ Automates translation pasting in memoQ from TMX translation memory
 
 import time
 import xml.etree.ElementTree as ET
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, NamedTuple
+from difflib import SequenceMatcher
 import pyperclip
 import pyautogui
 import re
@@ -16,11 +17,11 @@ try:
     from ahk import AHK
     HAS_AHK = True
     _ahk_instance = None  # Lazy initialization
-    print("✓ AHK library imported successfully")
+    print("[OK] AHK library imported successfully")
 except ImportError as e:
     HAS_AHK = False
     _ahk_instance = None
-    print(f"✗ AHK library not available: {e}")
+    print(f"[WARN] AHK library not available: {e}")
 
 
 def get_ahk():
@@ -34,6 +35,13 @@ def get_ahk():
             print(f"✗ AHK instance creation failed: {e}")
             return None
     return _ahk_instance
+
+
+class TranslationMatch(NamedTuple):
+    """Result of a translation lookup"""
+    translation: str
+    match_type: str  # "exact", "fuzzy", or None
+    match_percent: int  # 100 for exact, 0-99 for fuzzy
 
 
 class AutoFingersEngine:
@@ -70,9 +78,17 @@ class AutoFingersEngine:
         self.auto_confirm = True
         self.skip_no_match = False
         
+        # Fuzzy matching settings
+        self.enable_fuzzy_matching = True
+        self.fuzzy_threshold = 0.80  # 80% similarity threshold
+        self.auto_confirm_fuzzy = False  # Don't auto-confirm fuzzy matches (translator needs to review)
+        
         # State tracking
         self.is_running = False
         self.segments_processed = 0
+        self.last_match_type = None  # "exact", "fuzzy", or None
+        self.last_source = None  # Track last source text for UI display
+        self.last_match = None  # Track last match result for UI display
         
     def load_tmx(self) -> Tuple[bool, str]:
         """
@@ -138,27 +154,79 @@ class AutoFingersEngine:
         text = text.replace('−', '-')  # Minus sign
         return text
     
-    def lookup_translation(self, source_text: str) -> Optional[str]:
+    def lookup_translation(self, source_text: str) -> Optional[TranslationMatch]:
         """
         Look up translation for source text in TM database.
+        First tries exact match, then fuzzy if enabled.
         
         Args:
             source_text: Source text to translate
             
         Returns:
-            Translation if found, None otherwise
+            TranslationMatch with translation, match_type, and match_percent
+            Returns None if no match found
         """
         if not source_text:
             return None
         
         # Normalize and lookup
         normalized = self._normalize_dashes(source_text.strip())
-        return self.tm_database.get(normalized)
+        
+        # Try exact match first (100%)
+        if normalized in self.tm_database:
+            translation = self.tm_database[normalized]
+            self.last_match_type = "exact"
+            return TranslationMatch(translation, "exact", 100)
+        
+        # Try fuzzy match if enabled
+        if self.enable_fuzzy_matching:
+            fuzzy_match = self._find_fuzzy_match(normalized)
+            if fuzzy_match:
+                translation, similarity = fuzzy_match
+                match_percent = int(similarity * 100)
+                self.last_match_type = "fuzzy"
+                return TranslationMatch(translation, "fuzzy", match_percent)
+        
+        # No match found
+        self.last_match_type = None
+        return None
+    
+    def _find_fuzzy_match(self, source_text: str) -> Optional[Tuple[str, float]]:
+        """
+        Find best fuzzy match in TM database.
+        
+        Args:
+            source_text: Source text to match (normalized)
+            
+        Returns:
+            Tuple of (target_translation, similarity_ratio) or None if no match above threshold
+        """
+        best_match = None
+        best_similarity = 0.0
+        
+        for tm_source, tm_target in self.tm_database.items():
+            # Calculate similarity using SequenceMatcher
+            similarity = SequenceMatcher(None, source_text.lower(), tm_source.lower()).ratio()
+            
+            # Update if this is the best match so far and above threshold
+            if similarity >= self.fuzzy_threshold and similarity > best_similarity:
+                best_match = tm_target
+                best_similarity = similarity
+        
+        if best_match and best_similarity >= self.fuzzy_threshold:
+            return best_match, best_similarity
+        
+        return None
     
     def process_single_segment(self) -> Tuple[bool, str]:
         """
         Process a single translation segment in memoQ.
         Automates: copy source to target, lookup translation, paste, confirm.
+        
+        Behavior for fuzzy matches:
+        - If fuzzy match found: paste it but DON'T auto-confirm
+        - Translator can then review and press Ctrl+Enter to confirm
+        - AutoFingers automatically moves to next segment
         
         Returns:
             Tuple of (success: bool, message: str)
@@ -186,10 +254,15 @@ class AutoFingersEngine:
             if not source_text:
                 return False, "Empty source text"
             
-            # Step 5: Look up translation
-            translation = self.lookup_translation(source_text)
+            # Step 5: Look up translation (tries exact first, then fuzzy)
+            match_result = self.lookup_translation(source_text)
             
-            if not translation:
+            # Track for UI display
+            self.last_source = source_text
+            self.last_match = match_result
+            
+            if not match_result:
+                # No translation found (exact or fuzzy)
                 if self.skip_no_match:
                     # Clear target box
                     pyautogui.hotkey('ctrl', 'a')  # Select all
@@ -208,20 +281,42 @@ class AutoFingersEngine:
                     return False, f"No translation found. Paused at: {source_text[:50]}..."
             
             # Step 6: Copy translation to clipboard and paste
+            translation = match_result.translation
             pyperclip.copy(translation)
             time.sleep(0.4)
             
             pyautogui.hotkey('ctrl', 'v')
             time.sleep(self.paste_delay / 1000)
             
-            # Step 7: Confirm and move to next (Ctrl+Enter)
-            if self.auto_confirm:
+            # Step 7: Confirm based on match type
+            is_exact = match_result.match_type == "exact"
+            is_fuzzy = match_result.match_type == "fuzzy"
+            should_auto_confirm = (is_exact and self.auto_confirm) or (is_fuzzy and self.auto_confirm_fuzzy)
+            
+            if should_auto_confirm:
+                # Auto-confirm exact matches or fuzzy matches (if enabled)
                 time.sleep(self.confirm_delay / 1000)
                 pyautogui.hotkey('ctrl', 'enter')
                 time.sleep(self.confirm_enter_delay / 1000)
+            else:
+                # For fuzzy matches: pause briefly to show the insertion, then continue
+                # This gives translator a moment to see what was pasted
+                time.sleep(self.confirm_delay / 1000)
+                
+                # Use Alt+N (Go to Next) in memoQ - continues without confirmation
+                if is_fuzzy:
+                    pyautogui.hotkey('alt', 'n')
+                    time.sleep(self.confirm_delay / 1000)
             
             self.segments_processed += 1
-            return True, f"Processed: {source_text[:30]}... → {translation[:30]}..."
+            
+            # Format match info for logging
+            if is_exact:
+                match_info = "100% exact"
+            else:
+                match_info = f"{match_result.match_percent}% fuzzy (unconfirmed)"
+            
+            return True, f"[{match_info}] {source_text[:30]}... → {translation[:30]}..."
             
         except Exception as e:
             self.is_running = False
@@ -329,6 +424,12 @@ if __name__ == "__main__":
         target_lang="nl"
     )
     
+    # Configure fuzzy matching (optional)
+    engine.enable_fuzzy_matching = True          # Enable fuzzy matching fallback
+    engine.fuzzy_threshold = 0.80                # 80% similarity threshold
+    engine.auto_confirm_fuzzy = False            # Don't auto-confirm fuzzy (translator reviews)
+    engine.skip_no_match = True                  # Skip segments with no match instead of pausing
+    
     # Load TMX
     success, message = engine.load_tmx()
     print(message)
@@ -339,5 +440,14 @@ if __name__ == "__main__":
         print("Switch to memoQ window in 3 seconds...")
         time.sleep(3)
         
-        success, msg = engine.process_single_segment()
-        print(msg)
+        match = engine.process_single_segment()
+        if match[0]:
+            print(f"✓ {match[1]}")
+        else:
+            print(f"✗ {match[1]}")
+        
+        # Example: process multiple segments
+        # print("\nProcessing multiple segments...")
+        # engine.segments_processed = 0
+        # count, msg = engine.process_multiple_segments(max_segments=10)
+        # print(f"Processed {count} segments: {msg}")

@@ -1,6 +1,122 @@
 # Supervertaler
 
-🎯 **Professional Computer-Aided Translation (CAT) Tool** — Available in two editions: Modern Qt (latest features) and Classic tkinter (proven reliability)
+# Supervertaler
+
+🎯 **Professional Computer-Aided Translation (CAT) Tool** — Available in two editions: Modern Qt (active development) and Classic Tkinter (maintenance mode).
+
+---
+
+## 📚 Documentation
+
+**⭐ START HERE:** [PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md) — Complete project reference  
+**📝 Release Info:** [RELEASE_NOTES.md](RELEASE_NOTES.md) — Current v1.0.1-Qt release details
+
+### Edition Changelogs
+- **Qt Edition:** [CHANGELOG_Qt.md](CHANGELOG_Qt.md) — v1.0.1+ (primary development)
+- **Tkinter Edition:** [CHANGELOG_Tkinter.md](CHANGELOG_Tkinter.md) — v2.5.0+ (maintenance mode)
+
+### Additional Resources
+- **Architecture:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- **Database Schema:** [docs/DATABASE.md](docs/DATABASE.md)
+- **Quick Start:** [docs/QUICK_START.md](docs/QUICK_START.md)
+
+---
+
+## 📦 Two Editions
+
+### 🆕 Qt Edition (Modern) - **PRIMARY**
+**File:** `Supervertaler_Qt.py`  
+**Version:** v1.0.1 (October 29, 2025)  
+**Framework:** PyQt6  
+**Status:** Active Development
+
+```bash
+python Supervertaler_Qt.py
+```
+
+**Features:**
+- 🎨 Modern Qt interface with ribbon navigation
+- 💾 Translation Memory (TM) with fuzzy matching
+- 📚 Multiple termbases (glossaries) per project
+- 🤖 AI Integration (OpenAI, Claude)
+- ⚡ Auto-fingers support
+- 🔍 Universal Lookup (system-wide search)
+
+### 🔧 Tkinter Edition (Classic) - **LEGACY**
+**File:** `Supervertaler_tkinter.py`  
+**Version:** v2.5.0 (October 30, 2025)  
+**Framework:** Tkinter  
+**Status:** Maintenance Mode
+
+```bash
+python Supervertaler_tkinter.py
+```
+
+**Features:**
+- ✅ Stable, production-ready interface
+- 💾 Full Translation Memory support
+- 📚 Professional termbase management
+- 🤖 AI integration (OpenAI, Claude, local LLMs)
+- 📝 TMX editor
+- 🔗 CAT tool integration (memoQ, CafeTran, Trados)
+
+---
+
+## ⚠️ Important Notes
+
+- **Primary Development:** Qt Edition (v1.0.1+) is where new features are developed
+- **Maintenance:** Tkinter Edition (v2.5.0+) receives only critical bug fixes
+- **Migration Path:** Users are encouraged to migrate from Tkinter to Qt Edition
+- **Data Compatibility:** Projects, TM, and termbases are compatible between editions
+
+---
+
+## System Requirements
+
+- **Python:** 3.8+
+- **OS:** Windows, macOS, Linux
+- **Database:** SQLite (built-in)
+
+### Qt Edition Additional Requirements
+- **PyQt6** - Modern GUI framework
+
+### Tkinter Edition
+- **Tkinter** - Usually included with Python
+
+---
+
+## 🚀 Running the Application
+
+### Qt Edition
+```bash
+python Supervertaler_Qt.py
+```
+
+### Tkinter Edition
+```bash
+python Supervertaler_tkinter.py
+```
+
+---
+
+## 💡 Repository Philosophy
+
+This repository follows a **lean structure** optimized for efficiency:
+- ✅ Only essential source code included
+- ✅ Current documentation in `docs/`
+- ✅ Historical documentation archived in `docs/archive/`
+- ✅ Smaller repo = faster AI processing = lower costs
+
+---
+
+## 📖 Learn More
+
+For comprehensive project information, see [docs/PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md).
+
+---
+
+**Last Updated:** October 30, 2025  
+**Latest Version:** v1.0.1-Qt (October 29, 2025)
 
 ---
 
