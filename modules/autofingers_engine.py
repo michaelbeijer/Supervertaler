@@ -77,6 +77,7 @@ class AutoFingersEngine:
         # Behavior settings
         self.auto_confirm = True
         self.skip_no_match = False
+        self.use_down_arrow = False  # If True, use Down Arrow instead of Ctrl+Enter for navigation
         
         # Fuzzy matching settings
         self.enable_fuzzy_matching = True
@@ -288,23 +289,28 @@ class AutoFingersEngine:
             pyautogui.hotkey('ctrl', 'v')
             time.sleep(self.paste_delay / 1000)
             
-            # Step 7: Confirm based on match type
+            # Step 7: Confirm and navigate to next segment
             is_exact = match_result.match_type == "exact"
             is_fuzzy = match_result.match_type == "fuzzy"
             should_auto_confirm = (is_exact and self.auto_confirm) or (is_fuzzy and self.auto_confirm_fuzzy)
             
-            if should_auto_confirm:
-                # Auto-confirm exact matches or fuzzy matches (if enabled)
+            if should_auto_confirm and not self.use_down_arrow:
+                # Auto-confirm exact matches or fuzzy matches (if enabled) with Ctrl+Enter
                 time.sleep(self.confirm_delay / 1000)
                 pyautogui.hotkey('ctrl', 'enter')
                 time.sleep(self.confirm_enter_delay / 1000)
             else:
-                # For fuzzy matches: pause briefly to show the insertion, then continue
-                # This gives translator a moment to see what was pasted
+                # Either NOT auto-confirming OR use_down_arrow is enabled:
+                # - For use_down_arrow: leave segment unconfirmed and move with Down Arrow
+                # - For non-auto-confirm: leave unconfirmed and move with Alt+N or Down Arrow
                 time.sleep(self.confirm_delay / 1000)
                 
-                # Use Alt+N (Go to Next) in memoQ - continues without confirmation
-                if is_fuzzy:
+                if self.use_down_arrow:
+                    # Use Down Arrow to move to next segment WITHOUT confirming
+                    pyautogui.press('down')
+                    time.sleep(self.confirm_delay / 1000)
+                else:
+                    # Use Alt+N (Go to Next) in memoQ - continues without confirmation
                     pyautogui.hotkey('alt', 'n')
                     time.sleep(self.confirm_delay / 1000)
             

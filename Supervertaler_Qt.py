@@ -5975,6 +5975,20 @@ class AutoFingersWidget(QWidget):
         self.skip_no_match_check.setChecked(True)  # Default to enabled
         behavior_layout.addWidget(self.skip_no_match_check)
         
+        self.use_down_arrow_check = QCheckBox("Use Down Arrow (leave unconfirmed) instead of Ctrl+Enter in loop")
+        self.use_down_arrow_check.setChecked(False)  # Default to disabled
+        self.use_down_arrow_check.setToolTip(
+            "When enabled, AutoFingers will:\n"
+            "• Insert the translation\n"
+            "• Leave the segment UNCONFIRMED\n"
+            "• Move to next segment with Down Arrow\n\n"
+            "When disabled (default), AutoFingers will:\n"
+            "• Insert the translation\n"
+            "• Confirm the segment (Ctrl+Enter)\n"
+            "• Move to next segment automatically"
+        )
+        behavior_layout.addWidget(self.use_down_arrow_check)
+        
         behavior_group.setLayout(behavior_layout)
         layout.addRow(behavior_group)
         
@@ -6079,6 +6093,7 @@ class AutoFingersWidget(QWidget):
             self.engine.confirm_delay = self.confirm_delay_spin.value()
             self.engine.auto_confirm = self.auto_confirm_check.isChecked()
             self.engine.skip_no_match = self.skip_no_match_check.isChecked()
+            self.engine.use_down_arrow = self.use_down_arrow_check.isChecked()
             
             success, message = self.engine.load_tmx()
             
@@ -6108,6 +6123,7 @@ class AutoFingersWidget(QWidget):
             self.engine.confirm_delay = self.confirm_delay_spin.value()
             self.engine.auto_confirm = self.auto_confirm_check.isChecked()
             self.engine.skip_no_match = self.skip_no_match_check.isChecked()
+            self.engine.use_down_arrow = self.use_down_arrow_check.isChecked()
     
     def process_single(self):
         """Process a single segment"""
@@ -6302,15 +6318,46 @@ class AutoFingersWidget(QWidget):
         )
     
     def load_settings(self):
-        """Load saved settings"""
-        # TODO: Implement settings persistence
-        pass
+        """Load saved settings from file"""
+        try:
+            settings_file = Path("user data_private" if ENABLE_PRIVATE_FEATURES else "user data") / "autofingers_settings.json"
+            if settings_file.exists():
+                with open(settings_file, 'r', encoding='utf-8') as f:
+                    settings = json.load(f)
+                
+                # Apply settings to UI
+                self.loop_delay_spin.setValue(settings.get('loop_delay', 4000))
+                self.confirm_delay_spin.setValue(settings.get('confirm_delay', 900))
+                self.auto_confirm_check.setChecked(settings.get('auto_confirm', True))
+                self.skip_no_match_check.setChecked(settings.get('skip_no_match', True))
+                self.use_down_arrow_check.setChecked(settings.get('use_down_arrow', False))
+                
+                self.log("✓ Settings loaded")
+        except Exception as e:
+            self.log(f"⚠️ Could not load settings: {e}")
     
     def save_settings(self):
-        """Save current settings"""
-        # TODO: Implement settings persistence
-        self.log("💾 Settings saved")
-        QMessageBox.information(self, "Saved", "Settings saved successfully!")
+        """Save current settings to file"""
+        try:
+            settings = {
+                'loop_delay': self.loop_delay_spin.value(),
+                'confirm_delay': self.confirm_delay_spin.value(),
+                'auto_confirm': self.auto_confirm_check.isChecked(),
+                'skip_no_match': self.skip_no_match_check.isChecked(),
+                'use_down_arrow': self.use_down_arrow_check.isChecked()
+            }
+            
+            settings_file = Path("user data_private" if ENABLE_PRIVATE_FEATURES else "user data") / "autofingers_settings.json"
+            settings_file.parent.mkdir(parents=True, exist_ok=True)
+            
+            with open(settings_file, 'w', encoding='utf-8') as f:
+                json.dump(settings, f, indent=2)
+            
+            self.log("💾 Settings saved")
+            QMessageBox.information(self, "Saved", "Settings saved successfully!")
+        except Exception as e:
+            self.log(f"⚠️ Could not save settings: {e}")
+            QMessageBox.critical(self, "Error", f"Failed to save settings:\n{str(e)}")
 
 
 # ============================================================================
