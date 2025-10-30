@@ -1,0 +1,12 @@
+* text=auto eol=lf
+
+# Preserve binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+
+
