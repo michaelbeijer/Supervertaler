@@ -5975,17 +5975,18 @@ class AutoFingersWidget(QWidget):
         self.skip_no_match_check.setChecked(True)  # Default to enabled
         behavior_layout.addWidget(self.skip_no_match_check)
         
-        self.use_down_arrow_check = QCheckBox("Use Down Arrow (leave unconfirmed) instead of Ctrl+Enter in loop")
+        self.use_down_arrow_check = QCheckBox("Leave segments unconfirmed (Alt+N) instead of Ctrl+Enter in loop")
         self.use_down_arrow_check.setChecked(False)  # Default to disabled
         self.use_down_arrow_check.setToolTip(
             "When enabled, AutoFingers will:\n"
             "• Insert the translation\n"
             "• Leave the segment UNCONFIRMED\n"
-            "• Move to next segment with Down Arrow\n\n"
+            "• Move to next segment with Alt+N (Go to Next)\n\n"
             "When disabled (default), AutoFingers will:\n"
             "• Insert the translation\n"
-            "• Confirm the segment (Ctrl+Enter)\n"
-            "• Move to next segment automatically"
+            "• Confirm the segment with Ctrl+Enter\n"
+            "• Move to next segment automatically\n\n"
+            "Note: Alt+N is memoQ's native 'Go to Next Segment' command"
         )
         behavior_layout.addWidget(self.use_down_arrow_check)
         

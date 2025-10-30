@@ -1,5 +1,9 @@
 """
 Test the new use_down_arrow feature in AutoFingers
+
+Note: Despite the variable name 'use_down_arrow', we actually use Alt+N 
+because pyautogui has issues with arrow keys in memoQ. Alt+N is memoQ's 
+native "Go to Next Segment" command.
 """
 
 # Quick verification that the logic is correct
@@ -10,13 +14,13 @@ print("=" * 60)
 scenarios = [
     # (is_exact, auto_confirm, auto_confirm_fuzzy, use_down_arrow, expected_behavior)
     (True, True, False, False, "Ctrl+Enter (exact match, auto-confirm ON, down arrow OFF)"),
-    (True, True, False, True, "Down Arrow (exact match, auto-confirm ON, down arrow ON)"),
+    (True, True, False, True, "Alt+N (exact match, auto-confirm ON, down arrow ON)"),
     (True, False, False, False, "Alt+N (exact match, auto-confirm OFF, down arrow OFF)"),
-    (True, False, False, True, "Down Arrow (exact match, auto-confirm OFF, down arrow ON)"),
+    (True, False, False, True, "Alt+N (exact match, auto-confirm OFF, down arrow ON)"),
     (False, True, True, False, "Ctrl+Enter (fuzzy match, auto-confirm fuzzy ON, down arrow OFF)"),
-    (False, True, True, True, "Down Arrow (fuzzy match, auto-confirm fuzzy ON, down arrow ON)"),
+    (False, True, True, True, "Alt+N (fuzzy match, auto-confirm fuzzy ON, down arrow ON)"),
     (False, True, False, False, "Alt+N (fuzzy match, auto-confirm fuzzy OFF, down arrow OFF)"),
-    (False, True, False, True, "Down Arrow (fuzzy match, auto-confirm fuzzy OFF, down arrow ON)"),
+    (False, True, False, True, "Alt+N (fuzzy match, auto-confirm fuzzy OFF, down arrow ON)"),
 ]
 
 for is_exact, auto_confirm, auto_confirm_fuzzy, use_down_arrow, expected in scenarios:
@@ -25,9 +29,10 @@ for is_exact, auto_confirm, auto_confirm_fuzzy, use_down_arrow, expected in scen
     
     if should_auto_confirm and not use_down_arrow:
         action = "Ctrl+Enter"
-    elif use_down_arrow:
-        action = "Down Arrow"
     else:
+        # Always use Alt+N when:
+        # - use_down_arrow is enabled (leave unconfirmed)
+        # - OR when not auto-confirming (leave unconfirmed)
         action = "Alt+N"
     
     match_type = "Exact" if is_exact else "Fuzzy"
@@ -38,6 +43,9 @@ for is_exact, auto_confirm, auto_confirm_fuzzy, use_down_arrow, expected in scen
 print("\n" + "=" * 60)
 print("Logic verification complete!")
 print("\nKey behaviors:")
-print("1. When use_down_arrow=True: ALWAYS uses Down Arrow (leaves unconfirmed)")
-print("2. When use_down_arrow=False: Uses Ctrl+Enter for auto-confirm, Alt+N for fuzzy")
+print("1. When use_down_arrow=True: ALWAYS uses Alt+N (leaves unconfirmed)")
+print("2. When use_down_arrow=False: Uses Ctrl+Enter for auto-confirm, Alt+N otherwise")
 print("3. This gives translator full control over confirmation workflow")
+print("\nNote: We use Alt+N instead of Down Arrow because pyautogui has issues")
+print("with arrow keys in memoQ. Alt+N is memoQ's native 'Go to Next' command.")
+
