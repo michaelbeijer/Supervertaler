@@ -63,11 +63,11 @@ class DatabaseManager:
             # Create tables
             self._create_tables()
             
-            self.log(f"✓ Database connected: {os.path.basename(self.db_path)}")
+            self.log(f"[OK] Database connected: {os.path.basename(self.db_path)}")
             return True
             
         except Exception as e:
-            self.log(f"✗ Database connection failed: {e}")
+            self.log(f"[ERROR] Database connection failed: {e}")
             return False
     
     def _create_tables(self):
@@ -206,13 +206,14 @@ class DatabaseManager:
         """)
         
         # Legacy support: termbase_project_activation as alias
+        # Note: Foreign key now references termbases for consistency with Qt version
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS termbase_project_activation (
                 termbase_id INTEGER NOT NULL,
                 project_id INTEGER NOT NULL,
                 activated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (termbase_id, project_id),
-                FOREIGN KEY (termbase_id) REFERENCES glossaries(id) ON DELETE CASCADE
+                FOREIGN KEY (termbase_id) REFERENCES termbases(id) ON DELETE CASCADE
             )
         """)
         
@@ -382,6 +383,96 @@ class DatabaseManager:
                 last_used TIMESTAMP,
                 use_count INTEGER DEFAULT 0
             )
+        """)
+        
+        # ============================================
+        # TMX EDITOR TABLES (for database-backed TMX files)
+        # ============================================
+        
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS tmx_files (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                file_path TEXT NOT NULL UNIQUE,
+                file_name TEXT NOT NULL,
+                original_file_path TEXT,  -- Original file path when imported
+                load_mode TEXT NOT NULL,  -- 'ram' or 'database'
+                file_size INTEGER,  -- File size in bytes
+                
+                -- Header metadata (JSON)
+                header_data TEXT NOT NULL,
+                
+                -- Statistics
+                tu_count INTEGER DEFAULT 0,
+                languages TEXT,  -- JSON array of language codes
+                
+                -- Timestamps
+                created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_accessed TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_modified TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS tmx_translation_units (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tmx_file_id INTEGER NOT NULL,
+                tu_id INTEGER NOT NULL,  -- Original TU ID from TMX file
+                
+                -- System attributes
+                creation_date TEXT,
+                creation_id TEXT,
+                change_date TEXT,
+                change_id TEXT,
+                srclang TEXT,
+                
+                -- Custom attributes (JSON)
+                custom_attributes TEXT,
+                
+                -- Comments (JSON array)
+                comments TEXT,
+                
+                FOREIGN KEY (tmx_file_id) REFERENCES tmx_files(id) ON DELETE CASCADE,
+                UNIQUE(tmx_file_id, tu_id)
+            )
+        """)
+        
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS tmx_segments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tu_id INTEGER NOT NULL,  -- References tmx_translation_units.id
+                lang TEXT NOT NULL,
+                text TEXT NOT NULL,
+                
+                -- Language-specific attributes
+                creation_date TEXT,
+                creation_id TEXT,
+                change_date TEXT,
+                change_id TEXT,
+                
+                FOREIGN KEY (tu_id) REFERENCES tmx_translation_units(id) ON DELETE CASCADE,
+                UNIQUE(tu_id, lang)
+            )
+        """)
+        
+        # Indexes for TMX tables
+        self.cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_tmx_tu_file_id 
+            ON tmx_translation_units(tmx_file_id)
+        """)
+        
+        self.cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_tmx_tu_tu_id 
+            ON tmx_translation_units(tu_id)
+        """)
+        
+        self.cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_tmx_seg_tu_id 
+            ON tmx_segments(tu_id)
+        """)
+        
+        self.cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_tmx_seg_lang 
+            ON tmx_segments(lang)
         """)
         
         self.cursor.execute("""
@@ -803,6 +894,300 @@ class DatabaseManager:
         """Optimize database (VACUUM)"""
         self.cursor.execute("VACUUM")
         self.connection.commit()
+    
+    # ============================================
+    # TMX EDITOR METHODS (database-backed TMX files)
+    # ============================================
+    
+    def tmx_store_file(self, file_path: str, file_name: str, original_file_path: str,
+                       load_mode: str, file_size: int, header_data: dict,
+                       tu_count: int, languages: List[str]) -> int:
+        """
+        Store TMX file metadata in database
+        
+        Returns:
+            tmx_file_id (int)
+        """
+        languages_json = json.dumps(languages)
+        header_json = json.dumps(header_data)
+        
+        # Check if file already exists
+        self.cursor.execute("SELECT id FROM tmx_files WHERE file_path = ?", (file_path,))
+        existing = self.cursor.fetchone()
+        
+        if existing:
+            # Update existing
+            self.cursor.execute("""
+                UPDATE tmx_files 
+                SET file_name = ?, original_file_path = ?, load_mode = ?, file_size = ?,
+                    header_data = ?, tu_count = ?, languages = ?, last_accessed = CURRENT_TIMESTAMP
+                WHERE id = ?
+            """, (file_name, original_file_path, load_mode, file_size, header_json,
+                  tu_count, languages_json, existing['id']))
+            self.connection.commit()
+            return existing['id']
+        else:
+            # Insert new
+            self.cursor.execute("""
+                INSERT INTO tmx_files 
+                (file_path, file_name, original_file_path, load_mode, file_size,
+                 header_data, tu_count, languages)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (file_path, file_name, original_file_path, load_mode, file_size,
+                  header_json, tu_count, languages_json))
+            self.connection.commit()
+            return self.cursor.lastrowid
+    
+    def tmx_store_translation_unit(self, tmx_file_id: int, tu_id: int,
+                                   creation_date: str = None, creation_id: str = None,
+                                   change_date: str = None, change_id: str = None,
+                                   srclang: str = None, custom_attributes: dict = None,
+                                   comments: List[str] = None, commit: bool = True) -> int:
+        """
+        Store a translation unit in database
+        
+        Args:
+            commit: If False, don't commit (for batch operations)
+        
+        Returns:
+            Internal TU ID (for referencing segments)
+        """
+        custom_attrs_json = json.dumps(custom_attributes) if custom_attributes else None
+        comments_json = json.dumps(comments) if comments else None
+        
+        self.cursor.execute("""
+            INSERT OR REPLACE INTO tmx_translation_units
+            (tmx_file_id, tu_id, creation_date, creation_id, change_date, change_id,
+             srclang, custom_attributes, comments)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (tmx_file_id, tu_id, creation_date, creation_id, change_date, change_id,
+              srclang, custom_attrs_json, comments_json))
+        if commit:
+            self.connection.commit()
+        return self.cursor.lastrowid
+    
+    def tmx_store_segment(self, tu_db_id: int, lang: str, text: str,
+                         creation_date: str = None, creation_id: str = None,
+                         change_date: str = None, change_id: str = None,
+                         commit: bool = True):
+        """
+        Store a segment (language variant) for a translation unit
+        
+        Args:
+            commit: If False, don't commit (for batch operations)
+        """
+        self.cursor.execute("""
+            INSERT OR REPLACE INTO tmx_segments
+            (tu_id, lang, text, creation_date, creation_id, change_date, change_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (tu_db_id, lang, text, creation_date, creation_id, change_date, change_id))
+        if commit:
+            self.connection.commit()
+    
+    def tmx_get_file_id(self, file_path: str) -> Optional[int]:
+        """Get TMX file ID by file path"""
+        self.cursor.execute("SELECT id FROM tmx_files WHERE file_path = ?", (file_path,))
+        row = self.cursor.fetchone()
+        return row['id'] if row else None
+    
+    def tmx_get_translation_units(self, tmx_file_id: int, offset: int = 0,
+                                  limit: int = 50, src_lang: str = None,
+                                  tgt_lang: str = None, src_filter: str = None,
+                                  tgt_filter: str = None, ignore_case: bool = True) -> List[Dict]:
+        """
+        Get translation units with pagination and filtering
+        
+        Returns:
+            List of dicts with TU data including segments
+        """
+        # Build base query
+        query = """
+            SELECT tu.id as tu_db_id, tu.tu_id, tu.creation_date, tu.creation_id,
+                   tu.change_date, tu.change_id, tu.srclang, tu.custom_attributes, tu.comments
+            FROM tmx_translation_units tu
+            WHERE tu.tmx_file_id = ?
+        """
+        params = [tmx_file_id]
+        
+        # Add filters
+        if src_filter or tgt_filter:
+            query += """
+                AND EXISTS (
+                    SELECT 1 FROM tmx_segments seg1
+                    WHERE seg1.tu_id = tu.id
+            """
+            if src_lang:
+                query += " AND seg1.lang = ?"
+                params.append(src_lang)
+            if src_filter:
+                if ignore_case:
+                    query += " AND LOWER(seg1.text) LIKE LOWER(?)"
+                    params.append(f"%{src_filter}%")
+                else:
+                    query += " AND seg1.text LIKE ?"
+                    params.append(f"%{src_filter}%")
+            
+            if tgt_filter:
+                query += """
+                    AND EXISTS (
+                        SELECT 1 FROM tmx_segments seg2
+                        WHERE seg2.tu_id = tu.id
+                """
+                if tgt_lang:
+                    query += " AND seg2.lang = ?"
+                    params.append(tgt_lang)
+                if ignore_case:
+                    query += " AND LOWER(seg2.text) LIKE LOWER(?)"
+                    params.append(f"%{tgt_filter}%")
+                else:
+                    query += " AND seg2.text LIKE ?"
+                    params.append(f"%{tgt_filter}%")
+                query += ")"
+            
+            query += ")"
+        
+        query += " ORDER BY tu.tu_id LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
+        
+        self.cursor.execute(query, params)
+        rows = self.cursor.fetchall()
+        
+        # Fetch segments for each TU
+        result = []
+        for row in rows:
+            tu_data = dict(row)
+            # Get segments
+            self.cursor.execute("""
+                SELECT lang, text, creation_date, creation_id, change_date, change_id
+                FROM tmx_segments
+                WHERE tu_id = ?
+            """, (tu_data['tu_db_id'],))
+            segments = {}
+            for seg_row in self.cursor.fetchall():
+                seg_dict = dict(seg_row)
+                segments[seg_dict['lang']] = seg_dict
+            
+            tu_data['segments'] = segments
+            if tu_data['custom_attributes']:
+                tu_data['custom_attributes'] = json.loads(tu_data['custom_attributes'])
+            if tu_data['comments']:
+                tu_data['comments'] = json.loads(tu_data['comments'])
+            
+            result.append(tu_data)
+        
+        return result
+    
+    def tmx_count_translation_units(self, tmx_file_id: int, src_lang: str = None,
+                                    tgt_lang: str = None, src_filter: str = None,
+                                    tgt_filter: str = None, ignore_case: bool = True) -> int:
+        """Count translation units matching filters"""
+        query = """
+            SELECT COUNT(DISTINCT tu.id)
+            FROM tmx_translation_units tu
+            WHERE tu.tmx_file_id = ?
+        """
+        params = [tmx_file_id]
+        
+        # Add same filters as tmx_get_translation_units
+        if src_filter or tgt_filter:
+            query += """
+                AND EXISTS (
+                    SELECT 1 FROM tmx_segments seg1
+                    WHERE seg1.tu_id = tu.id
+            """
+            if src_lang:
+                query += " AND seg1.lang = ?"
+                params.append(src_lang)
+            if src_filter:
+                if ignore_case:
+                    query += " AND LOWER(seg1.text) LIKE LOWER(?)"
+                    params.append(f"%{src_filter}%")
+                else:
+                    query += " AND seg1.text LIKE ?"
+                    params.append(f"%{src_filter}%")
+            
+            if tgt_filter:
+                query += """
+                    AND EXISTS (
+                        SELECT 1 FROM tmx_segments seg2
+                        WHERE seg2.tu_id = tu.id
+                """
+                if tgt_lang:
+                    query += " AND seg2.lang = ?"
+                    params.append(tgt_lang)
+                if ignore_case:
+                    query += " AND LOWER(seg2.text) LIKE LOWER(?)"
+                    params.append(f"%{tgt_filter}%")
+                else:
+                    query += " AND seg2.text LIKE ?"
+                    params.append(f"%{tgt_filter}%")
+                query += ")"
+            
+            query += ")"
+        
+        self.cursor.execute(query, params)
+        return self.cursor.fetchone()[0]
+    
+    def tmx_update_segment(self, tmx_file_id: int, tu_id: int, lang: str, text: str):
+        """Update a segment text"""
+        # Get internal TU ID
+        self.cursor.execute("""
+            SELECT tu.id FROM tmx_translation_units tu
+            WHERE tu.tmx_file_id = ? AND tu.tu_id = ?
+        """, (tmx_file_id, tu_id))
+        tu_row = self.cursor.fetchone()
+        if not tu_row:
+            return False
+        
+        tu_db_id = tu_row['id']
+        change_date = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+        
+        # Update segment
+        self.cursor.execute("""
+            UPDATE tmx_segments
+            SET text = ?, change_date = ?
+            WHERE tu_id = ? AND lang = ?
+        """, (text, change_date, tu_db_id, lang))
+        
+        # Update TU change date
+        self.cursor.execute("""
+            UPDATE tmx_translation_units
+            SET change_date = ?
+            WHERE id = ?
+        """, (change_date, tu_db_id))
+        
+        # Update file last_modified
+        self.cursor.execute("""
+            UPDATE tmx_files
+            SET last_modified = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """, (tmx_file_id,))
+        
+        self.connection.commit()
+        return True
+    
+    def tmx_delete_file(self, tmx_file_id: int):
+        """Delete TMX file and all its data (CASCADE will handle TUs and segments)"""
+        self.cursor.execute("DELETE FROM tmx_files WHERE id = ?", (tmx_file_id,))
+        self.connection.commit()
+    
+    def tmx_get_file_info(self, tmx_file_id: int) -> Optional[Dict]:
+        """Get TMX file metadata"""
+        self.cursor.execute("""
+            SELECT id, file_path, file_name, original_file_path, load_mode,
+                   file_size, header_data, tu_count, languages,
+                   created_date, last_accessed, last_modified
+            FROM tmx_files
+            WHERE id = ?
+        """, (tmx_file_id,))
+        row = self.cursor.fetchone()
+        if not row:
+            return None
+        
+        info = dict(row)
+        info['header_data'] = json.loads(info['header_data'])
+        info['languages'] = json.loads(info['languages'])
+        return info
     
     def get_database_info(self) -> Dict:
         """Get database statistics"""

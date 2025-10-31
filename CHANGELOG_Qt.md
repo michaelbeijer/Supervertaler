@@ -6,6 +6,36 @@ The Qt Edition is the **primary version** for active development and new feature
 
 ---
 
+## [1.1.0] - November 1, 2025
+
+### Added
+- **TMX Editor:** Professional translation memory editor integrated into Qt Edition
+  - **Database-Backed TMX System:** Handle massive TMX files (1GB+) with SQLite backend
+  - **Dual Loading Modes:** Choose RAM mode (fast for small files) or Database mode (handles any size)
+  - **Smart Mode Selection:** Auto mode intelligently selects best loading method based on file size
+  - **Inline Editing:** Edit source and target text directly in the grid (no popup dialogs)
+  - **Real-time Highlighting:** Search terms highlighted with green background (Heartsome-style)
+  - **Heartsome-Inspired UI:** Three-panel layout with top header (language selectors + filters), center grid, and right attributes panel
+  - **Filtering:** Advanced search with case-insensitive matching and tag filtering
+  - **Pagination:** Efficient 50 TUs per page for smooth performance
+  - **Export/Import:** Save edited TMX files and export to new files
+  - **Progress Indicators:** Clear progress bars with batch operations for fast loading
+  - **Custom Checkboxes:** Consistent green checkmark style matching AutoFingers design
+
+### Improved
+- **Database Integration:** New TMX database tables (`tmx_files`, `tmx_translation_units`, `tmx_segments`) with foreign keys and indexes
+- **Batch Operations:** Database commits every 100 TUs for 10-50x faster loading performance
+- **UI Consistency:** Mode selection dialog uses custom CheckmarkCheckBox style throughout
+- **Progress Feedback:** Immediate progress bar display with clearer blue styling
+
+### Technical
+- **Database Schema:** Added three new tables for TMX storage with proper indexing
+- **Mode Detection:** Automatic recommendation based on file size thresholds (50MB, 100MB)
+- **Transaction Management:** Optimized database operations with batch commits
+- **Memory Efficiency:** Database mode frees RAM immediately after loading
+
+---
+
 ## [1.0.2] - October 31, 2025
 
 ### Fixed

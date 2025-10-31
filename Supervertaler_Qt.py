@@ -4,8 +4,8 @@ Supervertaler Qt Edition
 Professional Translation Memory & CAT Tool
 Modern PyQt6 interface with Universal Lookup and advanced features
 
-Version: 1.0.0 (Phase 5)
-Release Date: October 29, 2025
+Version: 1.1.0 (Phase 5.5)
+Release Date: November 1, 2025
 Framework: PyQt6
 
 This is the modern edition of Supervertaler using PyQt6 framework.
@@ -24,9 +24,9 @@ License: MIT
 """
 
 # Version Information
-__version__ = "1.0.2"
-__phase__ = "5.4"
-__release_date__ = "2025-10-31"
+__version__ = "1.1.0"
+__phase__ = "5.5"
+__release_date__ = "2025-11-01"
 __edition__ = "Qt"
 
 import sys
@@ -60,7 +60,8 @@ try:
         QPushButton, QSpinBox, QSplitter, QTextEdit, QStatusBar,
         QStyledItemDelegate, QInputDialog, QDialog, QLineEdit, QRadioButton,
         QButtonGroup, QDialogButtonBox, QTabWidget, QGroupBox, QGridLayout, QCheckBox,
-        QProgressBar, QFormLayout, QTabBar, QPlainTextEdit, QAbstractItemDelegate
+        QProgressBar, QFormLayout, QTabBar, QPlainTextEdit, QAbstractItemDelegate,
+        QFrame
     )
     from PyQt6.QtCore import Qt, QSize, QTimer, pyqtSignal, QObject
     from PyQt6.QtGui import QFont, QAction, QKeySequence, QIcon, QTextOption, QColor
@@ -1257,10 +1258,40 @@ class SupervertalerQt(QMainWindow):
     
     def create_tmx_editor_tab(self) -> QWidget:
         """Create the TMX Editor tab - Edit TMs"""
-        return self._create_placeholder_tab(
-            "✏️ TMX Editor",
-            "TMX Editor - Coming Soon\n\nFeatures:\n• Edit translation memories\n• Add/remove entries\n• Batch operations"
-        )
+        from modules.tmx_editor_qt import TmxEditorUIQt
+        
+        # Create TMX Editor widget (embedded mode) - pass database manager
+        tmx_editor = TmxEditorUIQt(parent=None, standalone=False, db_manager=self.db_manager)
+        
+        # Create container widget
+        container = QWidget()
+        layout = QVBoxLayout(container)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        
+        # Info header
+        info_frame = QFrame()
+        info_frame.setStyleSheet("background-color: #e8f4f8; padding: 10px; border-bottom: 1px solid #ccc;")
+        info_layout = QVBoxLayout(info_frame)
+        info_layout.setContentsMargins(10, 5, 10, 5)
+        
+        title = QLabel("📝 TMX Editor")
+        title.setStyleSheet("font-size: 12pt; font-weight: bold;")
+        info_layout.addWidget(title)
+        
+        subtitle = QLabel("Edit translation memory files directly - inspired by Heartsome TMX Editor")
+        subtitle.setStyleSheet("color: #666; font-size: 9pt;")
+        info_layout.addWidget(subtitle)
+        
+        layout.addWidget(info_frame)
+        
+        # Add TMX Editor widget
+        layout.addWidget(tmx_editor)
+        
+        # Store reference for potential future use
+        self.tmx_editor_embedded = tmx_editor
+        
+        return container
     
     def create_reference_images_tab(self) -> QWidget:
         """Create the Reference Images tab - Visual context"""

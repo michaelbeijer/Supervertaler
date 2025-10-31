@@ -26,7 +26,7 @@
 
 ### 🆕 Qt Edition (Modern) - **PRIMARY**
 **File:** `Supervertaler_Qt.py`  
-**Version:** v1.0.2 (October 31, 2025)  
+**Version:** v1.1.0 (November 1, 2025)  
 **Framework:** PyQt6  
 **Status:** Active Development
 
@@ -41,6 +41,7 @@ python Supervertaler_Qt.py
 - 🤖 AI Integration (OpenAI, Claude)
 - ⚡ Auto-fingers support
 - 🔍 Universal Lookup (system-wide search)
+- 📝 Professional TMX Editor with database-backed large file support
 
 ### 🔧 Tkinter Edition (Classic) - **LEGACY**
 **File:** `Supervertaler_tkinter.py`  
