@@ -6,6 +6,19 @@ The Qt Edition is the **primary version** for active development and new feature
 
 ---
 
+## [1.0.2] - October 31, 2025
+
+### Fixed
+- **Broken Emoji Icons:** Fixed broken emoji characters in tab labels for Termbases (🏷️), Prompt Manager (💡), Encoding Repair (🔧), and Tracked Changes (🔄)
+- **Checkbox Rendering:** Improved checkmark visibility on small displays with better padding and scaling
+
+### Improved
+- **Checkbox Styling:** Implemented custom green checkboxes with white checkmarks (Option 1 style) for AutoFingers Behavior section - more intuitive than previous blue/white design
+- **AutoFingers Layout:** Reorganized Settings section into 2-column grid layout (Languages/Timing on left, Behavior/Save on right) for better organization
+- **Small Screen Support:** Moved Activity Log to right side of Settings for improved space utilization on laptop displays
+
+---
+
 ## [1.0.1] - October 29, 2025
 
 ### Fixed
