@@ -219,7 +219,7 @@ try:
     from modules.docx_handler import DOCXHandler
     from modules.tag_manager import TagManager
     from modules.figure_context_manager import FigureContextManager, normalize_figure_ref, pil_image_to_base64_png
-    from modules.pdf_rescue import PDFRescue
+    from modules.pdf_rescue_tkinter import PDFRescue
     from modules.prompt_library import PromptLibrary
     from modules.style_guide_manager import StyleGuideLibrary
     from modules.translation_memory import TM, TMDatabase, TMAgent

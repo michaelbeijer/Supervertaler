@@ -1267,10 +1267,37 @@ class SupervertalerQt(QMainWindow):
     
     def create_pdf_rescue_tab(self) -> QWidget:
         """Create the PDF Rescue tab - AI OCR"""
-        return self._create_placeholder_tab(
-            "📄 PDF Rescue",
-            "PDF Rescue - Coming Soon\n\nFeatures:\n• OCR extraction from PDFs\n• Text recovery\n• Format preservation"
-        )
+        from modules.pdf_rescue_Qt import PDFRescueQt
+        
+        # Create container widget
+        container = QWidget()
+        layout = QVBoxLayout(container)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        
+        # Info header
+        info_frame = QFrame()
+        info_frame.setStyleSheet("background-color: #e8f4f8; padding: 3px; border-bottom: 1px solid #ccc;")
+        info_layout = QVBoxLayout(info_frame)
+        info_layout.setContentsMargins(10, 3, 10, 3)  # Minimal top/bottom margins
+        
+        title = QLabel("🔍 PDF Rescue - AI-Powered OCR")
+        title.setStyleSheet("font-size: 12pt; font-weight: bold;")
+        info_layout.addWidget(title)
+        
+        subtitle = QLabel("Extract text from poorly formatted PDFs using AI Vision (GPT-4 Vision API)")
+        subtitle.setStyleSheet("color: #666; font-size: 9pt;")
+        info_layout.addWidget(subtitle)
+        
+        layout.addWidget(info_frame)
+        
+        # Create PDF Rescue instance and widget
+        pdf_rescue_widget = QWidget()
+        self.pdf_rescue_qt = PDFRescueQt(self)
+        self.pdf_rescue_qt.create_tab(pdf_rescue_widget)
+        layout.addWidget(pdf_rescue_widget)
+        
+        return container
     
     def create_encoding_repair_tab(self) -> QWidget:
         """Create the Encoding Repair tab - Text Encoding Tool"""
