@@ -1,6 +1,6 @@
 # Supervertaler Project Context
 
-**Last Updated:** October 30, 2025  
+**Last Updated:** November 1, 2025  
 **Repository:** https://github.com/michaelbeijer/Supervertaler  
 **Maintainer:** Michael Beijer
 
@@ -111,7 +111,13 @@
 
 ---
 
-## ⚙️ Current Status (v1.0.1-Qt)
+## ⚙️ Current Status (v1.1.1-Qt)
+
+**Completed (Nov 1, 2025):**
+✅ AutoFingers UI simplification - removed redundant "Use Alt+N" setting  
+✅ Single "Confirm segments" checkbox now controls behavior (checked = Ctrl+Enter, unchecked = Alt+N)  
+✅ Backward compatibility maintained for existing settings files  
+✅ Version bumped to 1.1.1  
 
 **Completed (Oct 29-30, 2025):**
 ✅ Termbases feature complete  
@@ -190,7 +196,7 @@ python Supervertaler_tkinter.py
 
 ---
 
-**Last Updated:** October 30, 2025
+**Last Updated:** November 1, 2025
 **Next Review:** Start of development sprint
 
 **Hidden folders** (.gitignored):
@@ -235,6 +241,9 @@ python Supervertaler_tkinter.py
    - TMX-based translation automation
    - Hotkey-driven (Ctrl+Alt+P for single, Ctrl+Shift+L for loop)
    - Thread-safe match pane display
+   - Simplified UI: Single "Confirm segments" checkbox controls behavior
+     * Checked: Uses Ctrl+Enter to confirm segment before moving to next
+     * Unchecked: Uses Alt+N to move to next without confirming
 
 5. **Universal Lookup (Ctrl+Alt+L)**
    - Global hotkey search across all resources
