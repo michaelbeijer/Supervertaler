@@ -6,6 +6,16 @@ The Qt Edition is the **primary version** for active development and new feature
 
 ---
 
+## [1.1.1] - November 1, 2025
+
+### Improved
+- **AutoFingers Settings:** Simplified behavior settings by removing redundant "Use Alt+N" checkbox
+  - Now uses single "Confirm segments" checkbox: checked = Ctrl+Enter (confirm), unchecked = Alt+N (skip confirmation)
+  - More intuitive UI with clearer label and comprehensive tooltip
+  - Maintains backward compatibility with existing settings files
+
+---
+
 ## [1.1.0] - November 1, 2025
 
 ### Added

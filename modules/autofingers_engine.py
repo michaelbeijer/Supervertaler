@@ -75,9 +75,8 @@ class AutoFingersEngine:
         self.confirm_enter_delay = 1200
         
         # Behavior settings
-        self.auto_confirm = True
+        self.auto_confirm = True  # If True, use Ctrl+Enter to confirm. If False, use Alt+N without confirming
         self.skip_no_match = False
-        self.use_down_arrow = False  # If True, use Alt+N instead of Ctrl+Enter (leave unconfirmed)
         
         # Fuzzy matching settings
         self.enable_fuzzy_matching = True
@@ -294,14 +293,13 @@ class AutoFingersEngine:
             is_fuzzy = match_result.match_type == "fuzzy"
             should_auto_confirm = (is_exact and self.auto_confirm) or (is_fuzzy and self.auto_confirm_fuzzy)
             
-            if should_auto_confirm and not self.use_down_arrow:
+            if should_auto_confirm:
                 # Auto-confirm exact matches or fuzzy matches (if enabled) with Ctrl+Enter
                 time.sleep(self.confirm_delay / 1000)
                 pyautogui.hotkey('ctrl', 'enter')
                 time.sleep(self.confirm_enter_delay / 1000)
             else:
-                # Either NOT auto-confirming OR use_down_arrow is enabled:
-                # Use Alt+N (Go to Next) in memoQ - moves to next segment WITHOUT confirming
+                # Not auto-confirming: Use Alt+N (Go to Next) in memoQ - moves to next segment WITHOUT confirming
                 # Note: We use Alt+N instead of Down Arrow because pyautogui has issues
                 # with arrow keys in memoQ. Alt+N is memoQ's native "Go to Next" command.
                 time.sleep(self.confirm_delay / 1000)

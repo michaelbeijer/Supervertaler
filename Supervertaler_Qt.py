@@ -4,7 +4,7 @@ Supervertaler Qt Edition
 Professional Translation Memory & CAT Tool
 Modern PyQt6 interface with Universal Lookup and advanced features
 
-Version: 1.1.0 (Phase 5.5)
+Version: 1.1.1 (Phase 5.5)
 Release Date: November 1, 2025
 Framework: PyQt6
 
@@ -24,7 +24,7 @@ License: MIT
 """
 
 # Version Information
-__version__ = "1.1.0"
+__version__ = "1.1.1"
 __phase__ = "5.5"
 __release_date__ = "2025-11-01"
 __edition__ = "Qt"
@@ -6483,16 +6483,13 @@ class AutoFingersWidget(QWidget):
         behavior_group.addWidget(behavior_label)
         
         # Use custom checkboxes with green background and white checkmark when checked
-        self.auto_confirm_check = CheckmarkCheckBox("Auto-confirm")
+        self.auto_confirm_check = CheckmarkCheckBox("Confirm segments")
         self.auto_confirm_check.setChecked(True)
+        self.auto_confirm_check.setToolTip("When checked: Confirm segment with Ctrl+Enter before moving to next. When unchecked: Move to next with Alt+N without confirming")
         behavior_group.addWidget(self.auto_confirm_check)
         self.skip_no_match_check = CheckmarkCheckBox("Skip no match")
         self.skip_no_match_check.setChecked(True)
         behavior_group.addWidget(self.skip_no_match_check)
-        self.use_down_arrow_check = CheckmarkCheckBox("Use Alt+N")
-        self.use_down_arrow_check.setChecked(False)
-        self.use_down_arrow_check.setToolTip("Leave segments unconfirmed (Alt+N) instead of Ctrl+Enter")
-        behavior_group.addWidget(self.use_down_arrow_check)
         right_col.addLayout(behavior_group)
         
         # Save button - centered at bottom of right column
@@ -6636,7 +6633,6 @@ class AutoFingersWidget(QWidget):
             self.engine.confirm_delay = self.confirm_delay_spin.value()
             self.engine.auto_confirm = self.auto_confirm_check.isChecked()
             self.engine.skip_no_match = self.skip_no_match_check.isChecked()
-            self.engine.use_down_arrow = self.use_down_arrow_check.isChecked()
             
             success, message = self.engine.load_tmx()
             
@@ -6666,7 +6662,6 @@ class AutoFingersWidget(QWidget):
             self.engine.confirm_delay = self.confirm_delay_spin.value()
             self.engine.auto_confirm = self.auto_confirm_check.isChecked()
             self.engine.skip_no_match = self.skip_no_match_check.isChecked()
-            self.engine.use_down_arrow = self.use_down_arrow_check.isChecked()
     
     def process_single(self):
         """Process a single segment"""
@@ -6864,7 +6859,9 @@ class AutoFingersWidget(QWidget):
                 self.confirm_delay_spin.setValue(settings.get('confirm_delay', 900))
                 self.auto_confirm_check.setChecked(settings.get('auto_confirm', True))
                 self.skip_no_match_check.setChecked(settings.get('skip_no_match', True))
-                self.use_down_arrow_check.setChecked(settings.get('use_down_arrow', False))
+                # Backward compatibility: if old settings had use_down_arrow=True, set auto_confirm=False
+                if settings.get('use_down_arrow', False):
+                    self.auto_confirm_check.setChecked(False)
                 
                 self.log("✓ Settings loaded")
         except Exception as e:
@@ -6877,8 +6874,7 @@ class AutoFingersWidget(QWidget):
                 'loop_delay': self.loop_delay_spin.value(),
                 'confirm_delay': self.confirm_delay_spin.value(),
                 'auto_confirm': self.auto_confirm_check.isChecked(),
-                'skip_no_match': self.skip_no_match_check.isChecked(),
-                'use_down_arrow': self.use_down_arrow_check.isChecked()
+                'skip_no_match': self.skip_no_match_check.isChecked()
             }
             
             settings_file = Path("user data_private" if ENABLE_PRIVATE_FEATURES else "user data") / "autofingers_settings.json"
