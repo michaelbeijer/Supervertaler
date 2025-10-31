@@ -1,6 +1,29 @@
 # Supervertaler Release Notes
 
-## Current Release: v1.0.2-Qt (October 31, 2025)
+## Current Release: v1.1.0-Qt (November 1, 2025)
+
+### What's New
+
+**TMX Editor - Professional Translation Memory Editor** 🎉
+- **Database-Backed Large File Support:** Handle massive TMX files (1GB+) efficiently with SQLite backend
+- **Dual Loading Modes:** Choose RAM mode (fast for small files) or Database mode (handles any size)
+- **Smart Auto Mode:** Intelligently selects best loading method based on file size thresholds
+- **Heartsome-Inspired UI:** Three-panel layout with top header (language selectors + filters), center grid, and right attributes panel
+- **Inline Editing:** Edit source and target text directly in the grid - no popup dialogs needed
+- **Real-time Highlighting:** Search terms highlighted with green background (Heartsome-style)
+- **Advanced Filtering:** Case-insensitive search with tag filtering support
+- **Efficient Pagination:** 50 TUs per page for smooth performance
+- **Batch Operations:** Database commits every 100 TUs for 10-50x faster loading
+- **Progress Indicators:** Clear progress bars with immediate display
+- **Custom UI:** Consistent green checkmark style matching AutoFingers design
+
+**Technical Improvements** ⚡
+- New database tables: `tmx_files`, `tmx_translation_units`, `tmx_segments` with proper indexing
+- Optimized transaction management for batch database operations
+- Memory-efficient: Database mode frees RAM immediately after loading
+- Automatic mode detection based on file size (50MB/100MB thresholds)
+
+**Previous Release (v1.0.2): UI Improvements & Bug Fixes** ✅
 
 ### What's New
 
