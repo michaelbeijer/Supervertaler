@@ -583,11 +583,39 @@ Check out:
 
 ---
 
-**Last Updated**: October 20, 2025  
-**Version**: v3.7.1  
+## 💡 Contributing & Feedback
+
+We welcome contributions and feedback from the community!
+
+### Feature Requests & Ideas
+Have an idea for a new module or feature? We'd love to hear from you!
+
+- **💬 [Start a Discussion](https://github.com/michaelbeijer/Supervertaler/discussions)** - Share ideas, ask questions, discuss features
+  - Perfect for brainstorming new modules
+  - Exploring "what if" scenarios
+  - Getting community feedback
+  - Discussing implementation approaches
+
+### Bug Reports
+Found a problem? Help us improve!
+
+- **🐛 [Report a Bug](https://github.com/michaelbeijer/Supervertaler/issues)** - Submit detailed bug reports
+  - Include steps to reproduce
+  - Specify your environment (OS, Python version)
+  - Attach screenshots if relevant
+
+### Workflow
+1. **💭 Idea** → Start in [Discussions](https://github.com/michaelbeijer/Supervertaler/discussions)
+2. **✅ Approved** → Converted to [Issue](https://github.com/michaelbeijer/Supervertaler/issues) for tracking
+3. **🚀 Implemented** → Linked to commits and released
+
+---
+
+**Last Updated**: October 31, 2025  
+**Version**: v1.1.0 (Qt Edition)  
 **Status**: Active Development  
 **License**: MIT (Open Source)  
-**Security Status**: Current - Security patches applied in v3.7.1
+**Security Status**: Current - Security patches applied
 
 ---
 
