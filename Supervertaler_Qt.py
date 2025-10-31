@@ -1225,33 +1225,29 @@ class SupervertalerQt(QMainWindow):
         """Create the TMX Editor tab - Edit TMs"""
         from modules.tmx_editor_qt import TmxEditorUIQt
         
-        # Create TMX Editor widget (embedded mode) - pass database manager
-        tmx_editor = TmxEditorUIQt(parent=None, standalone=False, db_manager=self.db_manager)
-        
-        # Create container widget
+        # Create container widget with Universal Lookup style header
         container = QWidget()
         layout = QVBoxLayout(container)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(5)  # Reduced from 10 to 5 for tighter spacing
         
-        # Info header
-        info_frame = QFrame()
-        info_frame.setStyleSheet("background-color: #e8f4f8; padding: 10px; border-bottom: 1px solid #ccc;")
-        info_layout = QVBoxLayout(info_frame)
-        info_layout.setContentsMargins(10, 5, 10, 5)
+        # Header (matches Universal Lookup / AutoFingers / PDF Rescue style)
+        header = QLabel("📝 TMX Editor")
+        header.setStyleSheet("font-size: 16pt; font-weight: bold; color: #1976D2;")
+        layout.addWidget(header, 0)  # 0 = no stretch, stays compact
         
-        title = QLabel("📝 TMX Editor")
-        title.setStyleSheet("font-size: 12pt; font-weight: bold;")
-        info_layout.addWidget(title)
+        # Description box (matches Universal Lookup / AutoFingers / PDF Rescue style)
+        description = QLabel(
+            "Edit translation memory files directly - inspired by Heartsome TMX Editor.\n"
+            "Open, edit, filter, and manage your TMX translation memories."
+        )
+        description.setWordWrap(True)
+        description.setStyleSheet("color: #666; padding: 5px; background-color: #E3F2FD; border-radius: 3px;")
+        layout.addWidget(description, 0)  # 0 = no stretch, stays compact
         
-        subtitle = QLabel("Edit translation memory files directly - inspired by Heartsome TMX Editor")
-        subtitle.setStyleSheet("color: #666; font-size: 9pt;")
-        info_layout.addWidget(subtitle)
-        
-        layout.addWidget(info_frame)
-        
-        # Add TMX Editor widget
-        layout.addWidget(tmx_editor)
+        # Create TMX Editor widget (embedded mode) - pass database manager
+        tmx_editor = TmxEditorUIQt(parent=None, standalone=False, db_manager=self.db_manager)
+        layout.addWidget(tmx_editor, 1)  # 1 = stretch factor, expands to fill space
         
         # Store reference for potential future use
         self.tmx_editor_embedded = tmx_editor
@@ -1269,37 +1265,12 @@ class SupervertalerQt(QMainWindow):
         """Create the PDF Rescue tab - AI OCR"""
         from modules.pdf_rescue_Qt import PDFRescueQt
         
-        # Create container widget
-        container = QWidget()
-        layout = QVBoxLayout(container)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
-        
-        # Info header (compact style)
-        info_frame = QFrame()
-        info_frame.setStyleSheet("background-color: #e8f4f8; padding: 10px; border-bottom: 1px solid #ccc;")
-        info_frame.setMaximumHeight(65)  # Prevent expansion on large screens
-        info_layout = QVBoxLayout(info_frame)
-        info_layout.setContentsMargins(10, 5, 10, 5)
-        info_layout.setSpacing(0)
-        
-        title = QLabel("🔍 PDF Rescue")
-        title.setStyleSheet("font-size: 12pt; font-weight: bold;")
-        info_layout.addWidget(title)
-        
-        subtitle = QLabel("Extract text from poorly formatted PDFs using AI Vision (GPT-4 Vision API)")
-        subtitle.setStyleSheet("color: #666; font-size: 9pt;")
-        info_layout.addWidget(subtitle)
-        
-        layout.addWidget(info_frame)
-        
-        # Add PDF Rescue widget
+        # Create PDF Rescue widget (embedded mode, not standalone)
         pdf_rescue_widget = QWidget()
-        self.pdf_rescue_qt = PDFRescueQt(self)
+        self.pdf_rescue_qt = PDFRescueQt(self, standalone=False)
         self.pdf_rescue_qt.create_tab(pdf_rescue_widget)
-        layout.addWidget(pdf_rescue_widget)
         
-        return container
+        return pdf_rescue_widget
     
     def create_encoding_repair_tab(self) -> QWidget:
         """Create the Encoding Repair tab - Text Encoding Tool"""
@@ -5503,12 +5474,12 @@ class UniversalLookupTab(QWidget):
         """Initialize the UI"""
         layout = QVBoxLayout(self)
         layout.setContentsMargins(10, 10, 10, 10)
-        layout.setSpacing(10)
+        layout.setSpacing(5)  # Reduced from 10 to 5 for consistency
         
         # Header
         header = QLabel("🔍 Universal Lookup")
         header.setStyleSheet("font-size: 16pt; font-weight: bold; color: #1976D2;")
-        layout.addWidget(header)
+        layout.addWidget(header, 0)  # 0 = no stretch, stays compact
         
         # Description
         if os.name == 'nt':
@@ -5527,12 +5498,12 @@ class UniversalLookupTab(QWidget):
         description = QLabel(description_text)
         description.setWordWrap(True)
         description.setStyleSheet("color: #666; padding: 5px; background-color: #E3F2FD; border-radius: 3px;")
-        layout.addWidget(description)
+        layout.addWidget(description, 0)  # 0 = no stretch, stays compact
         
         # Mode selector (using label instead of group box)
         mode_label_header = QLabel("⚙️ Operating Mode")
         mode_label_header.setStyleSheet("font-weight: bold; font-size: 10pt; margin-top: 10px;")
-        layout.addWidget(mode_label_header)
+        layout.addWidget(mode_label_header, 0)  # 0 = no stretch
         
         mode_layout = QHBoxLayout()
         
@@ -5598,7 +5569,7 @@ class UniversalLookupTab(QWidget):
         # Status bar
         self.status_label = QLabel("Ready. Select a mode and capture text to begin.")
         self.status_label.setStyleSheet("padding: 5px; background-color: #f5f5f5; border-radius: 3px;")
-        layout.addWidget(self.status_label)
+        layout.addWidget(self.status_label, 0)  # 0 = no stretch, stays compact
     
     def create_tm_results_tab(self):
         """Create the TM results tab"""
@@ -6224,20 +6195,22 @@ class AutoFingersWidget(QWidget):
     def setup_ui(self):
         """Setup the user interface"""
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(5)
         
-        # Header
-        header = QLabel("🤖 <b>AutoFingers</b> - Automated Translation Pasting for memoQ")
-        header.setStyleSheet("font-size: 14pt; padding: 10px;")
-        layout.addWidget(header)
+        # Header (matches Universal Lookup / PDF Rescue / TMX Editor style)
+        header = QLabel("🤖 AutoFingers")
+        header.setStyleSheet("font-size: 16pt; font-weight: bold; color: #1976D2;")
+        layout.addWidget(header, 0)  # 0 = no stretch, stays compact
         
-        # Info box
+        # Description box (matches Universal Lookup / PDF Rescue / TMX Editor style)
         info = QLabel(
-            "AutoFingers automates translation insertion in CAT tools like memoQ.\n"
-            "It reads from a TMX file and pastes translations automatically."
+            "Automated Translation Pasting for memoQ.\n"
+            "AutoFingers reads from a TMX file and pastes translations automatically."
         )
         info.setWordWrap(True)
-        info.setStyleSheet("background-color: #E3F2FD; padding: 10px; border-radius: 5px;")
-        layout.addWidget(info)
+        info.setStyleSheet("color: #666; padding: 5px; background-color: #E3F2FD; border-radius: 3px;")
+        layout.addWidget(info, 0)  # 0 = no stretch, stays compact
         
         # Tabs
         tabs = QTabWidget()
@@ -6250,7 +6223,7 @@ class AutoFingersWidget(QWidget):
         tmx_tab = self.create_tmx_tab()
         tabs.addTab(tmx_tab, "📚 TMX Manager")
         
-        layout.addWidget(tabs)
+        layout.addWidget(tabs, 1)  # 1 = stretch to fill space
         
         # Close button
         button_layout = QHBoxLayout()
@@ -6260,7 +6233,7 @@ class AutoFingersWidget(QWidget):
         close_btn.clicked.connect(self.close)
         button_layout.addWidget(close_btn)
         
-        layout.addLayout(button_layout)
+        layout.addLayout(button_layout, 0)  # 0 = no stretch, stays compact
         
         # Setup global keyboard shortcuts (matching AutoHotkey version)
         self.setup_shortcuts()

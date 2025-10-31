@@ -36,12 +36,15 @@ python Supervertaler_Qt.py
 
 **Features:**
 - 🎨 Modern Qt interface with ribbon navigation
+- 🎯 **Standardized tab headers** - Consistent, professional UI across all modules
+- 📱 **Responsive design** - Adapts perfectly to any screen size
 - 💾 Translation Memory (TM) with fuzzy matching
 - 📚 Multiple termbases (glossaries) per project
 - 🤖 AI Integration (OpenAI, Claude)
 - ⚡ Auto-fingers support
 - 🔍 Universal Lookup (system-wide search)
 - 📝 Professional TMX Editor with database-backed large file support
+- 🔧 PDF Rescue - AI-powered OCR for poorly formatted PDFs
 
 ### 🔧 Tkinter Edition (Classic) - **LEGACY**
 **File:** `Supervertaler_tkinter.py`  

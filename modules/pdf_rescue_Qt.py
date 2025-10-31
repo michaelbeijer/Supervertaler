@@ -114,14 +114,16 @@ class PDFRescueQt:
     Can be embedded in any PyQt6 application as a tab or panel
     """
     
-    def __init__(self, parent_app):
+    def __init__(self, parent_app, standalone=False):
         """
         Initialize PDF Rescue module
         
         Args:
             parent_app: Reference to the main application (needs .load_api_keys() method or .api_keys attribute)
+            standalone: If True, running as standalone app. If False, embedded in Supervertaler
         """
         self.parent_app = parent_app
+        self.standalone = standalone
         self.client = None
         self.image_files = []
         self.extracted_texts = {}
@@ -164,8 +166,22 @@ class PDFRescueQt:
         
         # Main layout
         main_layout = QVBoxLayout(parent)
-        main_layout.setContentsMargins(3, 0, 3, 3)  # Zero top margin to eliminate gap after header
-        main_layout.setSpacing(3)
+        main_layout.setContentsMargins(10, 10, 10, 10)
+        main_layout.setSpacing(5)  # Reduced from 10 to 5 for tighter spacing
+        
+        # Header (matches Universal Lookup / AutoFingers style)
+        header = QLabel("🔍 PDF Rescue")
+        header.setStyleSheet("font-size: 16pt; font-weight: bold; color: #1976D2;")
+        main_layout.addWidget(header, 0)  # 0 = no stretch, stays compact
+        
+        # Description box (matches Universal Lookup / AutoFingers style)
+        description = QLabel(
+            "Extract text from poorly formatted PDFs using AI Vision (GPT-4 Vision API).\n"
+            "Upload PDF files or images to extract clean, editable text."
+        )
+        description.setWordWrap(True)
+        description.setStyleSheet("color: #666; padding: 5px; background-color: #E3F2FD; border-radius: 3px;")
+        main_layout.addWidget(description, 0)  # 0 = no stretch, stays compact
         
         # Split view: Files on left, Preview on right
         splitter = QSplitter(Qt.Orientation.Horizontal)
@@ -352,11 +368,10 @@ Please:
         # Set splitter sizes (1:2 ratio)
         splitter.setSizes([300, 600])
         
-        main_layout.addWidget(splitter)
+        main_layout.addWidget(splitter, 1)  # 1 = stretch factor, expands to fill space
         
-        # Action buttons (minimal spacing from splitter)
+        # Action buttons
         action_layout = QHBoxLayout()
-        action_layout.setContentsMargins(3, 0, 3, 0)  # Zero top margin to minimize gap
         action_layout.setSpacing(5)
         
         process_selected_btn = QPushButton("🔍 Process Selected")
@@ -390,20 +405,20 @@ Please:
         action_layout.addWidget(session_report_btn)
         
         action_layout.addStretch()
-        main_layout.addLayout(action_layout)
+        main_layout.addLayout(action_layout, 0)  # 0 = no stretch, stays compact
         
         # Status
         self.status_label = QLabel("Ready - Add images to begin")
         self.status_label.setFont(QFont("Segoe UI", 9))
         self.status_label.setStyleSheet("color: #666;")
-        main_layout.addWidget(self.status_label)
+        main_layout.addWidget(self.status_label, 0)  # 0 = no stretch, stays compact
         
         # Progress bar
         self.progress = QProgressBar()
         self.progress.setMinimum(0)
         self.progress.setMaximum(100)
         self.progress.setValue(0)
-        main_layout.addWidget(self.progress)
+        main_layout.addWidget(self.progress, 0)  # 0 = no stretch, stays compact
         
         # Restore state after UI creation
         self.image_files = saved_files
@@ -1485,8 +1500,8 @@ if __name__ == "__main__":
                 )
                 # Still create UI but warn user
             
-            # Create PDF Rescue instance
-            self.pdf_rescue = PDFRescueQt(self)
+            # Create PDF Rescue instance (standalone mode)
+            self.pdf_rescue = PDFRescueQt(self, standalone=True)
             pdf_rescue_widget = QWidget()
             self.pdf_rescue.create_tab(pdf_rescue_widget)
             main_layout.addWidget(pdf_rescue_widget)
