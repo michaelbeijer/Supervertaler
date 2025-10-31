@@ -798,9 +798,13 @@ Please:
                     "- Use markdown for text formatting: **bold text**, *italic text*, __underlined text__", ""
                 )
             
-            response = self.client.chat.completions.create(
-                model=self.model_combo.currentText(),
-                messages=[
+            # Get selected model
+            model = self.model_combo.currentText()
+            
+            # Build API call parameters
+            api_params = {
+                "model": model,
+                "messages": [
                     {
                         "role": "user",
                         "content": [
@@ -816,9 +820,18 @@ Please:
                             }
                         ]
                     }
-                ],
-                max_tokens=4000
-            )
+                ]
+            }
+            
+            # Use appropriate token parameter based on model
+            # gpt-5 and o1 models use max_completion_tokens
+            # gpt-4 models use max_tokens
+            if model.startswith("gpt-5") or model.startswith("o1"):
+                api_params["max_completion_tokens"] = 4000
+            else:
+                api_params["max_tokens"] = 4000
+            
+            response = self.client.chat.completions.create(**api_params)
             
             return response.choices[0].message.content
         
