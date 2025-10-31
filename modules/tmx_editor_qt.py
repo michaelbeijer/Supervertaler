@@ -2136,3 +2136,134 @@ class TmxEditorUIQt(QWidget):
         """Set status bar message"""
         self.status_bar.setText(message)
 
+
+# === Standalone Application ===
+
+if __name__ == "__main__":
+    """Run TMX Editor as a standalone application"""
+    import sys
+    from pathlib import Path
+    
+    # Determine database path (dev vs regular mode)
+    import os
+    ENABLE_PRIVATE_FEATURES = os.path.exists(
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".supervertaler.local")
+    )
+    user_data_path = Path("user data_private" if ENABLE_PRIVATE_FEATURES else "user data")
+    db_path = user_data_path / "Translation_Resources" / "supervertaler.db"
+    
+    # Ensure database directory exists
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    # Create QApplication
+    app = QApplication(sys.argv)
+    app.setApplicationName("TMX Editor")
+    app.setOrganizationName("Supervertaler")
+    
+    # Create database manager
+    from modules.database_manager import DatabaseManager
+    
+    def log_callback(message: str):
+        """Simple log callback for standalone mode"""
+        print(f"[TMX Editor] {message}")
+    
+    db_manager = DatabaseManager(
+        db_path=str(db_path),
+        log_callback=log_callback
+    )
+    db_manager.connect()
+    
+    # Create main window
+    from PyQt6.QtWidgets import QMainWindow
+    
+    class StandaloneWindow(QMainWindow):
+        """Standalone window for TMX Editor"""
+        def __init__(self):
+            super().__init__()
+            self.setWindowTitle("TMX Editor - Professional Translation Memory Editor")
+            self.setGeometry(100, 100, 1400, 900)
+            
+            # Create TMX Editor widget with database manager
+            self.tmx_editor = TmxEditorUIQt(parent=self, standalone=True, db_manager=db_manager)
+            self.setCentralWidget(self.tmx_editor)
+            
+            # Create menu bar
+            menubar = self.menuBar()
+            
+            # File menu
+            file_menu = menubar.addMenu("File")
+            open_action = file_menu.addAction("Open TMX...")
+            open_action.setShortcut(QKeySequence.StandardKey.Open)
+            open_action.triggered.connect(self.tmx_editor.open_tmx)
+            
+            save_action = file_menu.addAction("Save")
+            save_action.setShortcut(QKeySequence.StandardKey.Save)
+            save_action.triggered.connect(self.tmx_editor.save_tmx)
+            
+            save_as_action = file_menu.addAction("Save As...")
+            save_as_action.setShortcut(QKeySequence.StandardKey.SaveAs)
+            save_as_action.triggered.connect(self.tmx_editor.save_tmx_as)
+            
+            file_menu.addSeparator()
+            
+            close_action = file_menu.addAction("Close")
+            close_action.triggered.connect(self.tmx_editor.close_tmx)
+            
+            file_menu.addSeparator()
+            
+            exit_action = file_menu.addAction("Exit")
+            exit_action.setShortcut(QKeySequence.StandardKey.Quit)
+            exit_action.triggered.connect(self.close)
+            
+            # Edit menu
+            edit_menu = menubar.addMenu("Edit")
+            add_tu_action = edit_menu.addAction("Add Translation Unit")
+            add_tu_action.triggered.connect(self.tmx_editor.add_translation_unit)
+            
+            delete_tu_action = edit_menu.addAction("Delete Selected TU")
+            delete_tu_action.triggered.connect(self.tmx_editor.delete_selected_tu)
+            
+            # View menu
+            view_menu = menubar.addMenu("View")
+            stats_action = view_menu.addAction("Statistics")
+            stats_action.triggered.connect(self.tmx_editor.show_statistics)
+            langs_action = view_menu.addAction("All Languages")
+            langs_action.triggered.connect(self.tmx_editor.show_all_languages)
+            header_action = view_menu.addAction("Header Metadata")
+            header_action.triggered.connect(self.tmx_editor.edit_header)
+            
+            # Tools menu
+            tools_menu = menubar.addMenu("Tools")
+            validate_action = tools_menu.addAction("Validate TMX")
+            validate_action.triggered.connect(self.tmx_editor.validate_tmx)
+        
+        def closeEvent(self, event):
+            """Handle window close - check for unsaved changes"""
+            if self.tmx_editor.load_mode == "ram" and self.tmx_editor.tmx_file and self.tmx_editor.tmx_file.is_modified:
+                reply = QMessageBox.question(
+                    self, "Unsaved Changes",
+                    "Current file has unsaved changes. Close without saving?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel
+                )
+                if reply == QMessageBox.StandardButton.Cancel:
+                    event.ignore()
+                    return
+                elif reply == QMessageBox.StandardButton.No:
+                    self.tmx_editor.save_tmx()
+                    if self.tmx_editor.tmx_file and self.tmx_editor.tmx_file.is_modified:
+                        event.ignore()
+                        return
+            
+            # Close database connection
+            if db_manager:
+                db_manager.close()
+            
+            event.accept()
+    
+    # Create and show window
+    window = StandaloneWindow()
+    window.show()
+    
+    # Run application
+    sys.exit(app.exec())
+

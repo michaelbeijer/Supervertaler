@@ -42,11 +42,11 @@ The TMX Editor is a specialized module that can run both **standalone** and **in
 Run the TMX Editor independently:
 
 ```bash
-# Method 1: Run module directly
-python modules/tmx_editor.py
+# Qt Edition (PyQt6) - Recommended
+python modules/tmx_editor_qt.py
 
-# Method 2: Use test script
-python test_tmx_editor.py
+# Tkinter Edition (Legacy)
+python modules/tmx_editor.py
 ```
 
 ### Within Supervertaler
