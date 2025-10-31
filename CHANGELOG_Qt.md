@@ -12,6 +12,14 @@ The Qt Edition is the **primary version** for active development and new feature
 - **Broken Emoji Icons:** Fixed broken emoji characters in tab labels for Termbases (🏷️), Prompt Manager (💡), Encoding Repair (🔧), and Tracked Changes (🔄)
 - **Checkbox Rendering:** Improved checkmark visibility on small displays with better padding and scaling
 
+### Added
+- **Startup Settings:** Added option to automatically restore last opened project on startup (Tools → Options → General → Startup Settings)
+- **Font Size Persistence:** Added font size settings panel (Tools → Options → View/Display Settings) to save and restore:
+  - Grid font size (7-72 pt)
+  - Match list font size (7-16 pt)
+  - Compare boxes font size (7-14 pt)
+- **Auto-Save Font Sizes:** Font sizes are automatically saved when adjusted via zoom controls (Ctrl++/Ctrl+- for grid, Ctrl+Shift++/Ctrl+Shift+- for results pane)
+
 ### Improved
 - **Checkbox Styling:** Implemented custom green checkboxes with white checkmarks (Option 1 style) for AutoFingers Behavior section - more intuitive than previous blue/white design
 - **AutoFingers Layout:** Reorganized Settings section into 2-column grid layout (Languages/Timing on left, Behavior/Save on right) for better organization

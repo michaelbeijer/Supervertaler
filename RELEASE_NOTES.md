@@ -10,6 +10,14 @@
 - Better small-screen support with reorganized AutoFingers layout
 - Activity Log moved to right side for improved space utilization
 
+**New Features** ✨
+- **Startup Settings:** Option to automatically restore last opened project on startup (Tools → Options → General)
+- **Font Size Persistence:** New settings panel to save and restore all font sizes:
+  - Grid font size (source/target columns)
+  - Translation results match list font size
+  - Translation results compare boxes font size
+- **Auto-Save:** Font sizes automatically saved when adjusted via zoom keyboard shortcuts
+
 **Previous Release (v1.0.1): Termbases Feature Complete** ✅
 - Full termbase CRUD operations (Create, Read, Update, Delete)
 - Multiple termbases per project with independent term sets
@@ -23,6 +31,8 @@
 
 ### Key Improvements
 
+- **User Preferences:** Font sizes and startup behavior now persist across sessions
+- **Startup Experience:** Option to automatically reopen your last project on launch
 - **UI Polish:** Custom checkbox styling for better visual feedback
 - **Layout:** 2-column grid layout for AutoFingers Settings section
 - **Responsive Design:** Improved rendering on smaller laptop displays
