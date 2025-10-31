@@ -315,26 +315,40 @@ class PDFRescueQt:
         self.instructions_text.setFont(QFont("Segoe UI", 9))
         self.instructions_text.setMinimumHeight(60)  # Reduced minimum height
         default_instructions = """Extract all text from this image. The image is a screenshot from a poorly formatted PDF.
-Please:
-- Extract all visible text accurately
-- Fix any obvious OCR errors or formatting issues
-- Remove extraneous line breaks within paragraphs
-- Preserve intentional paragraph breaks
-- Maintain the logical flow and structure of the content
-- For redacted/blacked-out text: insert a descriptive placeholder in square brackets in the document's language (e.g., [naam] for Dutch names, [name] for English names, [bedrag] for amounts, etc.)
-- For stamps, signatures, or images: insert a descriptive placeholder in square brackets in the document's language (e.g., [handtekening], [stempel], [signature], [stamp], etc.)
-- For any non-text elements that would normally appear: describe them briefly in square brackets
-- Use markdown for text formatting: **bold text**, *italic text*, __underlined text__
-- IMPORTANT: If you see any tables, format them using markdown table syntax:
-  - Use pipe characters (|) to separate columns
-  - Header row first, then a separator row with dashes (|-------|-------|)
-  - Each row on a new line with pipes separating cells
-  - Example:
-    | Column 1 | Column 2 | Column 3 |
-    |----------|----------|----------|
-    | Cell A   | Cell B   | Cell C   |
-    | Cell D   | Cell E   | Cell F   |
-- Output clean, readable text only (no commentary)"""
+
+CRITICAL ACCURACY RULES:
+- DO NOT invent, guess, or modify ANY text
+- Extract ONLY what you actually see - character by character
+- If you're uncertain about a character, use [?] but DO NOT make up words
+- Preserve exact wording - do not paraphrase or "improve" the text
+- When in doubt, be literal and exact
+
+LAYOUT AND STRUCTURE:
+- If the page has multiple columns, indicate this with: [START COLUMN 1], [END COLUMN 1], [START COLUMN 2], etc.
+- Preserve the reading order (usually left-to-right, top-to-bottom)
+- For two-column layouts, extract left column completely first, then right column
+- Maintain paragraph breaks and spacing
+- Remove extraneous line breaks WITHIN paragraphs only
+
+SPECIAL ELEMENTS:
+- For redacted/blacked-out text: [naam], [bedrag], [name], [amount] (in document's language)
+- For stamps/signatures: [handtekening], [stempel], [signature], [stamp]
+- For images/diagrams: [afbeelding: brief description], [image: brief description]
+- For non-text elements: brief description in square brackets
+
+FORMATTING (if preserve formatting is enabled):
+- Use markdown: **bold**, *italic*, __underline__
+- Tables: use markdown table syntax with | pipes
+  | Column 1 | Column 2 |
+  |----------|----------|
+  | Cell A   | Cell B   |
+
+FINAL CHECK:
+- Read through your extraction
+- Verify EVERY word matches the image EXACTLY
+- If you changed anything, change it back to match the original
+
+Output only the extracted text - no commentary, no explanations."""
         self.instructions_text.setPlainText(default_instructions)
         instructions_group_layout.addWidget(self.instructions_text)
         
@@ -915,7 +929,13 @@ Please:
         """
         Add text to document with markdown formatting parsed
         Supports: **bold**, *italic*, __underline__
+        Also handles multi-column layouts with [START COLUMN X] / [END COLUMN X] markers
         """
+        # Check if text has column markers
+        if '[START COLUMN' in text or '[COLUMN 1]' in text or '[COLUMN 2]' in text:
+            self._add_multi_column_text(doc, text)
+            return
+        
         # Split text into paragraphs
         paragraphs = text.split('\n')
         
@@ -971,6 +991,84 @@ Please:
                     if plain_text:
                         para.add_run(plain_text)
                     remaining = remaining[next_marker:]
+    
+    def _add_multi_column_text(self, doc, text):
+        """
+        Handle multi-column text layout using a Word table
+        Supports markers like [START COLUMN 1], [END COLUMN 1], etc.
+        """
+        # Parse columns from text
+        columns = {}
+        current_column = None
+        lines = text.split('\n')
+        
+        for line in lines:
+            # Check for column start marker
+            if '[START COLUMN' in line.upper() or '[COLUMN' in line.upper():
+                # Extract column number
+                import re
+                match = re.search(r'\[(?:START )?COLUMN[:\s]+(\d+)\]', line, re.IGNORECASE)
+                if match:
+                    current_column = int(match.group(1))
+                    if current_column not in columns:
+                        columns[current_column] = []
+                continue
+            
+            # Check for column end marker
+            if '[END COLUMN' in line.upper():
+                current_column = None
+                continue
+            
+            # Add line to current column
+            if current_column is not None:
+                columns[current_column].append(line)
+        
+        # If we found columns, create a table layout
+        if columns:
+            num_columns = max(columns.keys()) if columns else 2
+            table = doc.add_table(rows=1, cols=num_columns)
+            table.style = 'Table Grid'
+            
+            # Set column widths to be equal
+            from docx.shared import Inches
+            for col_idx in range(num_columns):
+                for cell in table.columns[col_idx].cells:
+                    cell.width = Inches(6.5 / num_columns)
+            
+            # Fill each column
+            for col_num in sorted(columns.keys()):
+                if col_num <= num_columns:
+                    cell = table.cell(0, col_num - 1)
+                    column_text = '\n'.join(columns[col_num])
+                    
+                    # Remove the cell's default paragraph and add formatted text
+                    cell.text = ''
+                    for para_text in column_text.split('\n'):
+                        if para_text.strip():
+                            para = cell.add_paragraph(para_text.strip())
+                            para.paragraph_format.line_spacing = 1.0
+                            para.paragraph_format.space_after = Pt(6)
+            
+            # Remove table borders for cleaner look
+            for row in table.rows:
+                for cell in row.cells:
+                    tcPr = cell._element.get_or_add_tcPr()
+                    tcBorders = tcPr.find('.//{http://schemas.openxmlformats.org/wordprocessingml/2006/main}tcBorders')
+                    if tcBorders is None:
+                        from docx.oxml import OxmlElement
+                        tcBorders = OxmlElement('w:tcBorders')
+                        tcPr.append(tcBorders)
+                    # Set all borders to none
+                    for border_name in ['top', 'left', 'bottom', 'right', 'insideH', 'insideV']:
+                        border = tcBorders.find('.//{http://schemas.openxmlformats.org/wordprocessingml/2006/main}' + border_name)
+                        if border is None:
+                            from docx.oxml import OxmlElement
+                            border = OxmlElement(f'w:{border_name}')
+                            tcBorders.append(border)
+                        border.set('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}val', 'none')
+        else:
+            # No columns found, fall back to regular formatting
+            self._add_formatted_text(doc, text)
     
     def _parse_markdown_table(self, table_lines):
         """Parse markdown table lines into rows and cells"""
