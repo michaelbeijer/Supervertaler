@@ -686,6 +686,13 @@ class SupervertalerQt(QMainWindow):
         
         self.log("Welcome to Supervertaler Qt v1.0.1")
         self.log("Professional Translation Memory & CAT Tool")
+        
+        # Restore last project if enabled in settings
+        self.restore_last_project_if_enabled()
+        
+        # Load font sizes from preferences (after UI is fully initialized)
+        QApplication.instance().processEvents()  # Allow UI to finish initializing
+        self.load_font_sizes_from_preferences()
     
     def init_ui(self):
         """Initialize the user interface"""
@@ -1173,13 +1180,13 @@ class SupervertalerQt(QMainWindow):
         self.main_tabs.addTab(tm_tab, "💾 Translation Memories")
         
         termbase_tab = self.create_termbases_tab()
-        self.main_tabs.addTab(termbase_tab, "� Termbases")
+        self.main_tabs.addTab(termbase_tab, "🏷️ Termbases")
         
         nt_tab = self.create_non_translatables_tab()
         self.main_tabs.addTab(nt_tab, "🚫 Non-Translatables")
         
         prompt_tab = self.create_prompt_manager_tab()
-        self.main_tabs.addTab(prompt_tab, "� Prompt Manager")
+        self.main_tabs.addTab(prompt_tab, "💡 Prompt Manager")
         
         # ===== GROUP 3: SPECIALIZED MODULES (Green) =====
         tmx_tab = self.create_tmx_editor_tab()
@@ -1192,13 +1199,13 @@ class SupervertalerQt(QMainWindow):
         self.main_tabs.addTab(pdf_tab, "📄 PDF Rescue")
         
         encoding_tab = self.create_encoding_repair_tab()
-        self.main_tabs.addTab(encoding_tab, "� Encoding Repair")
+        self.main_tabs.addTab(encoding_tab, "🔧 Encoding Repair")
         
         self.autofingers_tab = AutoFingersWidget(self)
         self.main_tabs.addTab(self.autofingers_tab, "✋ AutoFingers")
         
         tracked_tab = self.create_tracked_changes_tab()
-        self.main_tabs.addTab(tracked_tab, "� Tracked Changes")
+        self.main_tabs.addTab(tracked_tab, "🔄 Tracked Changes")
         
         # ===== GROUP 4: SETTINGS/LOG (Gray) =====
         settings_tab = self.create_settings_tab()
@@ -1793,7 +1800,7 @@ class SupervertalerQt(QMainWindow):
         
         # Configure columns
         self.table.setColumnCount(5)
-        self.table.setHorizontalHeaderLabels(["#", "Type", "📄 Source", "🎯 Target", "Status"])
+        self.table.setHorizontalHeaderLabels(["#", "Type", "Source", "Target", "Status"])
         
         # Column widths
         header = self.table.horizontalHeader()
@@ -2783,6 +2790,8 @@ class SupervertalerQt(QMainWindow):
         self.apply_font_to_grid()
         self.auto_resize_rows()
         self.log(f"✓ Font size: {self.default_font_size}")
+        # Save font size to preferences
+        self.save_current_font_sizes()
     
     def decrease_font_size(self):
         """Decrease font size (Ctrl+-)"""
@@ -2790,6 +2799,8 @@ class SupervertalerQt(QMainWindow):
         self.apply_font_to_grid()
         self.auto_resize_rows()
         self.log(f"✓ Font size: {self.default_font_size}")
+        # Save font size to preferences
+        self.save_current_font_sizes()
     
     def on_font_changed(self):
         """Handle font change - legacy method for compatibility"""
@@ -2809,16 +2820,151 @@ class SupervertalerQt(QMainWindow):
         """Increase font size in translation results pane"""
         if hasattr(self, 'assistance_widget') and hasattr(self.assistance_widget, 'zoom_in'):
             self.assistance_widget.zoom_in()
+            # Save font sizes to preferences
+            self.save_current_font_sizes()
     
     def results_pane_zoom_out(self):
         """Decrease font size in translation results pane"""
         if hasattr(self, 'assistance_widget') and hasattr(self.assistance_widget, 'zoom_out'):
             self.assistance_widget.zoom_out()
+            # Save font sizes to preferences
+            self.save_current_font_sizes()
     
     def results_pane_zoom_reset(self):
         """Reset font size in translation results pane to default"""
         if hasattr(self, 'assistance_widget') and hasattr(self.assistance_widget, 'reset_zoom'):
             self.assistance_widget.reset_zoom()
+            # Save font sizes to preferences
+            self.save_current_font_sizes()
+    
+    def save_current_font_sizes(self):
+        """Save current font sizes to preferences"""
+        try:
+            from modules.translation_results_panel import CompactMatchItem, TranslationResultsPanel
+            general_settings = self.load_general_settings()
+            general_settings['grid_font_size'] = self.default_font_size
+            if hasattr(CompactMatchItem, 'font_size_pt'):
+                general_settings['results_match_font_size'] = CompactMatchItem.font_size_pt
+            if hasattr(TranslationResultsPanel, 'compare_box_font_size'):
+                general_settings['results_compare_font_size'] = TranslationResultsPanel.compare_box_font_size
+            # Preserve other settings
+            if 'restore_last_project' not in general_settings:
+                general_settings['restore_last_project'] = False
+            self.save_general_settings(general_settings)
+        except Exception as e:
+            # Silently fail - don't interrupt user workflow
+            pass
+    
+    def load_general_settings(self) -> Dict[str, Any]:
+        """Load general settings from user preferences"""
+        prefs_file = self.user_data_path / "ui_preferences.json"
+        
+        defaults = {
+            'restore_last_project': False,
+            'grid_font_size': 11,
+            'results_match_font_size': 9,
+            'results_compare_font_size': 9
+        }
+        
+        if not prefs_file.exists():
+            return defaults
+        
+        try:
+            with open(prefs_file, 'r') as f:
+                prefs = json.load(f)
+                general = prefs.get('general_settings', {})
+                # Merge with defaults to ensure all keys exist
+                result = defaults.copy()
+                result.update(general)
+                return result
+        except:
+            return defaults
+    
+    def save_general_settings(self, settings: Dict[str, Any]):
+        """Save general settings to user preferences"""
+        prefs_file = self.user_data_path / "ui_preferences.json"
+        
+        # Load existing preferences
+        prefs = {}
+        if prefs_file.exists():
+            try:
+                with open(prefs_file, 'r') as f:
+                    prefs = json.load(f)
+            except:
+                pass
+        
+        # Update general settings
+        prefs['general_settings'] = settings
+        
+        # Save back
+        try:
+            with open(prefs_file, 'w') as f:
+                json.dump(prefs, f, indent=2)
+        except Exception as e:
+            self.log(f"⚠ Could not save general settings: {str(e)}")
+    
+    def load_font_sizes_from_preferences(self):
+        """Load and apply font sizes from preferences on startup"""
+        try:
+            general_settings = self.load_general_settings()
+            
+            # Load grid font size
+            grid_size = general_settings.get('grid_font_size', 11)
+            if 7 <= grid_size <= 72:
+                self.default_font_size = grid_size
+                if hasattr(self, 'table') and self.table is not None:
+                    self.apply_font_to_grid()
+            
+            # Load results pane font sizes
+            match_size = general_settings.get('results_match_font_size', 9)
+            compare_size = general_settings.get('results_compare_font_size', 9)
+            
+            if hasattr(self, 'assistance_widget') and hasattr(self.assistance_widget, 'set_font_size'):
+                if 7 <= match_size <= 16:
+                    from modules.translation_results_panel import CompactMatchItem
+                    CompactMatchItem.set_font_size(match_size)
+                    self.assistance_widget.set_font_size(match_size)
+            
+            if hasattr(self, 'assistance_widget') and hasattr(self.assistance_widget, 'set_compare_box_font_size'):
+                if 7 <= compare_size <= 14:
+                    from modules.translation_results_panel import TranslationResultsPanel
+                    TranslationResultsPanel.compare_box_font_size = compare_size
+                    self.assistance_widget.set_compare_box_font_size(compare_size)
+                    
+        except Exception as e:
+            self.log(f"⚠ Could not load font sizes: {e}")
+    
+    def restore_last_project_if_enabled(self):
+        """Restore the last opened project on startup if the setting is enabled"""
+        try:
+            # Check if setting is enabled
+            general_settings = self.load_general_settings()
+            if not general_settings.get('restore_last_project', False):
+                return
+            
+            # Get recent projects
+            recent_projects = self.load_recent_projects()
+            if not recent_projects:
+                return
+            
+            # Get the most recent project (first in the list)
+            # Recent projects are sorted by most recent first
+            last_project = recent_projects[0]
+            project_path = last_project.get('path') if isinstance(last_project, dict) else last_project
+            
+            # Verify file exists
+            if not project_path or not os.path.exists(project_path):
+                self.log(f"⚠ Last project file not found: {project_path}")
+                return
+            
+            # Load the project
+            self.log(f"🔄 Restoring last project: {Path(project_path).name}")
+            self.load_project(project_path)
+            
+        except Exception as e:
+            # Silently fail - don't block startup if restoration fails
+            self.log(f"⚠ Could not restore last project: {e}")
+    
     
     def get_status_icon(self, status: str) -> str:
         """Get status icon for display"""
@@ -4224,6 +4370,24 @@ class SupervertalerQt(QMainWindow):
         general_tab = QWidget()
         general_layout = QVBoxLayout(general_tab)
         
+        # Load current general settings
+        general_settings = self.load_general_settings()
+        
+        # Startup Settings group
+        startup_group = QGroupBox("Startup Settings")
+        startup_layout = QVBoxLayout()
+        
+        # Restore last project checkbox
+        restore_last_project_cb = QCheckBox("Restore last project on startup")
+        restore_last_project_cb.setChecked(general_settings.get('restore_last_project', False))
+        restore_last_project_cb.setToolTip(
+            "When enabled, Supervertaler will automatically open the last project you were working on when the application starts."
+        )
+        startup_layout.addWidget(restore_last_project_cb)
+        
+        startup_group.setLayout(startup_layout)
+        general_layout.addWidget(startup_group)
+        
         # Find & Replace settings group
         find_replace_group = QGroupBox("Find && Replace Settings")
         find_replace_layout = QVBoxLayout()
@@ -4257,21 +4421,32 @@ class SupervertalerQt(QMainWindow):
         view_tab = QWidget()
         view_layout = QVBoxLayout(view_tab)
         
+        # Load current font size settings
+        font_settings = self.load_general_settings()
+        
         # Grid Text Font Size section
         grid_group = QGroupBox("📊 Grid Text Font Size")
         grid_layout = QVBoxLayout()
         
-        grid_size_label = QLabel("Current Grid Font Size: 9pt")
-        grid_layout.addWidget(grid_size_label)
-        
         grid_size_info = QLabel(
-            "Use View menu → Grid Text Zoom to adjust:\n"
-            "• Ctrl++ or Ctrl+= : Increase Font Size\n"
-            "• Ctrl+- : Decrease Font Size"
+            "Set the default font size for the grid (source and target columns).\n"
+            "You can also adjust this using View menu → Grid Text Zoom."
         )
         grid_size_info.setStyleSheet("font-size: 8pt; color: #666; padding: 8px; background-color: #f3f4f6; border-radius: 2px;")
         grid_size_info.setWordWrap(True)
         grid_layout.addWidget(grid_size_info)
+        
+        grid_spin_layout = QHBoxLayout()
+        grid_spin_layout.addWidget(QLabel("Font Size:"))
+        grid_font_spin = QSpinBox()
+        grid_font_spin.setMinimum(7)
+        grid_font_spin.setMaximum(72)
+        grid_font_spin.setValue(font_settings.get('grid_font_size', 11))
+        grid_font_spin.setSuffix(" pt")
+        grid_font_spin.setToolTip("Grid font size (7-72 pt)")
+        grid_spin_layout.addWidget(grid_font_spin)
+        grid_spin_layout.addStretch()
+        grid_layout.addLayout(grid_spin_layout)
         
         grid_group.setLayout(grid_layout)
         view_layout.addWidget(grid_group)
@@ -4280,18 +4455,39 @@ class SupervertalerQt(QMainWindow):
         results_group = QGroupBox("📋 Translation Results Pane Font Size")
         results_layout = QVBoxLayout()
         
-        results_size_label = QLabel("Match List & Compare Boxes")
-        results_layout.addWidget(results_size_label)
-        
         results_size_info = QLabel(
-            "Use View menu → Translation Results Pane to adjust:\n"
-            "• Ctrl+Shift++ or Ctrl+Shift+= : Increase Font Size\n"
-            "• Ctrl+Shift+- : Decrease Font Size\n"
-            "• Both match list AND compare boxes zoom together"
+            "Set the default font sizes for the translation results pane.\n"
+            "You can also adjust these using View menu → Translation Results Pane."
         )
         results_size_info.setStyleSheet("font-size: 8pt; color: #666; padding: 8px; background-color: #f3f4f6; border-radius: 2px;")
         results_size_info.setWordWrap(True)
         results_layout.addWidget(results_size_info)
+        
+        # Match list font size
+        match_spin_layout = QHBoxLayout()
+        match_spin_layout.addWidget(QLabel("Match List Font Size:"))
+        match_font_spin = QSpinBox()
+        match_font_spin.setMinimum(7)
+        match_font_spin.setMaximum(16)
+        match_font_spin.setValue(font_settings.get('results_match_font_size', 9))
+        match_font_spin.setSuffix(" pt")
+        match_font_spin.setToolTip("Match list font size (7-16 pt)")
+        match_spin_layout.addWidget(match_font_spin)
+        match_spin_layout.addStretch()
+        results_layout.addLayout(match_spin_layout)
+        
+        # Compare boxes font size
+        compare_spin_layout = QHBoxLayout()
+        compare_spin_layout.addWidget(QLabel("Compare Boxes Font Size:"))
+        compare_font_spin = QSpinBox()
+        compare_font_spin.setMinimum(7)
+        compare_font_spin.setMaximum(14)
+        compare_font_spin.setValue(font_settings.get('results_compare_font_size', 9))
+        compare_font_spin.setSuffix(" pt")
+        compare_font_spin.setToolTip("Compare boxes font size (7-14 pt)")
+        compare_spin_layout.addWidget(compare_font_spin)
+        compare_spin_layout.addStretch()
+        results_layout.addLayout(compare_spin_layout)
         
         results_group.setLayout(results_layout)
         view_layout.addWidget(results_group)
@@ -4344,6 +4540,35 @@ class SupervertalerQt(QMainWindow):
             # Save general settings
             self.allow_replace_in_source = allow_replace_cb.isChecked()
             self.update_warning_banner()
+            
+            # Save general settings (including restore_last_project and font sizes)
+            general_settings = {
+                'restore_last_project': restore_last_project_cb.isChecked(),
+                'grid_font_size': grid_font_spin.value(),
+                'results_match_font_size': match_font_spin.value(),
+                'results_compare_font_size': compare_font_spin.value()
+            }
+            self.save_general_settings(general_settings)
+            
+            # Apply font sizes immediately
+            if self.default_font_size != grid_font_spin.value():
+                self.default_font_size = grid_font_spin.value()
+                if hasattr(self, 'table') and self.table is not None:
+                    self.apply_font_to_grid()
+                    self.auto_resize_rows()
+            
+            # Apply results pane font sizes
+            if hasattr(self, 'assistance_widget') and hasattr(self.assistance_widget, 'set_font_size'):
+                from modules.translation_results_panel import CompactMatchItem
+                if CompactMatchItem.font_size_pt != match_font_spin.value():
+                    CompactMatchItem.set_font_size(match_font_spin.value())
+                    self.assistance_widget.set_font_size(match_font_spin.value())
+            
+            if hasattr(self, 'assistance_widget') and hasattr(self.assistance_widget, 'set_compare_box_font_size'):
+                from modules.translation_results_panel import TranslationResultsPanel
+                if TranslationResultsPanel.compare_box_font_size != compare_font_spin.value():
+                    TranslationResultsPanel.compare_box_font_size = compare_font_spin.value()
+                    self.assistance_widget.set_compare_box_font_size(compare_font_spin.value())
             
             # Save LLM settings
             new_settings = {
@@ -5802,6 +6027,93 @@ class UniversalLookupTab(QWidget):
 # AUTOFINGERS DIALOG
 # ============================================================================
 
+class CheckmarkCheckBox(QCheckBox):
+    """Custom checkbox with green background and white checkmark when checked"""
+    
+    def __init__(self, text="", parent=None):
+        super().__init__(text, parent)
+        self.setStyleSheet("""
+            QCheckBox {
+                font-size: 9pt;
+                spacing: 6px;
+            }
+            QCheckBox::indicator {
+                width: 18px;
+                height: 18px;
+                border: 2px solid #999;
+                border-radius: 3px;
+                background-color: white;
+            }
+            QCheckBox::indicator:checked {
+                background-color: #4CAF50;
+                border-color: #4CAF50;
+            }
+            QCheckBox::indicator:hover {
+                border-color: #666;
+            }
+            QCheckBox::indicator:checked:hover {
+                background-color: #45a049;
+                border-color: #45a049;
+            }
+        """)
+    
+    def paintEvent(self, event):
+        """Override paint event to draw white checkmark when checked"""
+        super().paintEvent(event)
+        
+        if self.isChecked():
+            # Get the indicator rectangle using QStyle
+            from PyQt6.QtWidgets import QStyleOptionButton
+            from PyQt6.QtGui import QPainter, QPen, QColor
+            from PyQt6.QtCore import QPointF, QRect
+            
+            opt = QStyleOptionButton()
+            self.initStyleOption(opt)
+            indicator_rect = self.style().subElementRect(
+                self.style().SubElement.SE_CheckBoxIndicator,
+                opt,
+                self
+            )
+            
+            if indicator_rect.isValid():
+                # Draw white checkmark
+                painter = QPainter(self)
+                painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+                # Slightly thinner pen for better fit on smaller displays
+                pen_width = max(2.0, min(indicator_rect.width(), indicator_rect.height()) * 0.12)
+                painter.setPen(QPen(QColor(255, 255, 255), pen_width, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin))
+                painter.setBrush(QColor(255, 255, 255))
+                
+                # Draw checkmark (✓ shape) - coordinates relative to indicator
+                # Add padding to prevent clipping on smaller displays
+                x = indicator_rect.x()
+                y = indicator_rect.y()
+                w = indicator_rect.width()
+                h = indicator_rect.height()
+                
+                # Add padding (15% on all sides) to ensure checkmark doesn't get cut off on smaller displays
+                padding = min(w, h) * 0.15
+                x += padding
+                y += padding
+                w -= padding * 2
+                h -= padding * 2
+                
+                # Checkmark path: bottom-left to middle, then middle to top-right
+                # Using proportions that create a nice checkmark shape with proper padding
+                check_x1 = x + w * 0.10  # Left point (more padding from left)
+                check_y1 = y + h * 0.50  # Bottom point (centered vertically)
+                check_x2 = x + w * 0.35  # Middle-bottom point
+                check_y2 = y + h * 0.70  # Bottom point (with padding from bottom)
+                check_x3 = x + w * 0.90  # Right point (more padding from right)
+                check_y3 = y + h * 0.25  # Top point (with padding from top)
+                
+                # Draw two lines forming the checkmark
+                painter.drawLine(QPointF(check_x2, check_y2), QPointF(check_x3, check_y3))
+                painter.drawLine(QPointF(check_x1, check_y1), QPointF(check_x2, check_y2))
+                
+                painter.end()
+
+
 class AutoFingersWidget(QWidget):
     """
     AutoFingers - CAT Tool Automation Widget
@@ -6063,33 +6375,41 @@ class AutoFingersWidget(QWidget):
         
         main_layout.addLayout(top_row)
         
-        # MIDDLE ROW: Settings in a horizontal layout
+        # MIDDLE ROW: Settings in a 2-column grid layout for better organization
         settings_group = QGroupBox("⚙️ Settings")
-        settings_layout = QHBoxLayout()
+        settings_layout = QGridLayout()
         settings_layout.setSpacing(15)
+        settings_layout.setColumnStretch(0, 1)  # Left column flexible
+        settings_layout.setColumnStretch(1, 1)  # Right column flexible
         
-        # Languages
-        lang_col = QVBoxLayout()
+        # LEFT COLUMN: Languages and Timing (input fields grouped together)
+        left_col = QVBoxLayout()
+        left_col.setSpacing(12)
+        
+        # Languages section
+        lang_group = QVBoxLayout()
         lang_label = QLabel("Languages:")
         lang_label.setStyleSheet("font-weight: bold; font-size: 9pt;")
-        lang_col.addWidget(lang_label)
+        lang_group.addWidget(lang_label)
         lang_inputs = QHBoxLayout()
         lang_inputs.addWidget(QLabel("Source:"))
         self.source_lang_edit = QLineEdit("en")
         self.source_lang_edit.setMaximumWidth(50)
         lang_inputs.addWidget(self.source_lang_edit)
+        lang_inputs.addSpacing(10)
         lang_inputs.addWidget(QLabel("Target:"))
         self.target_lang_edit = QLineEdit("nl")
         self.target_lang_edit.setMaximumWidth(50)
         lang_inputs.addWidget(self.target_lang_edit)
-        lang_col.addLayout(lang_inputs)
-        settings_layout.addLayout(lang_col)
+        lang_inputs.addStretch()
+        lang_group.addLayout(lang_inputs)
+        left_col.addLayout(lang_group)
         
-        # Timing
-        timing_col = QVBoxLayout()
+        # Timing section
+        timing_group = QVBoxLayout()
         timing_label = QLabel("Timing (ms):")
         timing_label.setStyleSheet("font-weight: bold; font-size: 9pt;")
-        timing_col.addWidget(timing_label)
+        timing_group.addWidget(timing_label)
         timing_inputs = QHBoxLayout()
         timing_inputs.addWidget(QLabel("Loop:"))
         self.loop_delay_spin = QSpinBox()
@@ -6098,6 +6418,7 @@ class AutoFingersWidget(QWidget):
         self.loop_delay_spin.setSuffix(" ms")
         self.loop_delay_spin.setMaximumWidth(90)
         timing_inputs.addWidget(self.loop_delay_spin)
+        timing_inputs.addSpacing(10)
         timing_inputs.addWidget(QLabel("Confirm:"))
         self.confirm_delay_spin = QSpinBox()
         self.confirm_delay_spin.setRange(100, 5000)
@@ -6105,51 +6426,67 @@ class AutoFingersWidget(QWidget):
         self.confirm_delay_spin.setSuffix(" ms")
         self.confirm_delay_spin.setMaximumWidth(90)
         timing_inputs.addWidget(self.confirm_delay_spin)
-        timing_col.addLayout(timing_inputs)
-        settings_layout.addLayout(timing_col)
+        timing_inputs.addStretch()
+        timing_group.addLayout(timing_inputs)
+        left_col.addLayout(timing_group)
         
-        # Behavior checkboxes
-        behavior_col = QVBoxLayout()
+        left_col.addStretch()  # Push content to top
+        
+        # RIGHT COLUMN: Behavior checkboxes and Save button
+        right_col = QVBoxLayout()
+        right_col.setSpacing(12)
+        
+        # Behavior section
+        behavior_group = QVBoxLayout()
         behavior_label = QLabel("Behavior:")
         behavior_label.setStyleSheet("font-weight: bold; font-size: 9pt;")
-        behavior_col.addWidget(behavior_label)
-        self.auto_confirm_check = QCheckBox("Auto-confirm")
-        self.auto_confirm_check.setChecked(True)
-        self.auto_confirm_check.setStyleSheet("font-size: 9pt;")
-        behavior_col.addWidget(self.auto_confirm_check)
-        self.skip_no_match_check = QCheckBox("Skip no match")
-        self.skip_no_match_check.setChecked(True)
-        self.skip_no_match_check.setStyleSheet("font-size: 9pt;")
-        behavior_col.addWidget(self.skip_no_match_check)
-        self.use_down_arrow_check = QCheckBox("Use Alt+N")
-        self.use_down_arrow_check.setChecked(False)
-        self.use_down_arrow_check.setStyleSheet("font-size: 9pt;")
-        self.use_down_arrow_check.setToolTip("Leave segments unconfirmed (Alt+N) instead of Ctrl+Enter")
-        behavior_col.addWidget(self.use_down_arrow_check)
-        settings_layout.addLayout(behavior_col)
+        behavior_group.addWidget(behavior_label)
         
-        # Save button
-        save_col = QVBoxLayout()
-        save_col.addStretch()
+        # Use custom checkboxes with green background and white checkmark when checked
+        self.auto_confirm_check = CheckmarkCheckBox("Auto-confirm")
+        self.auto_confirm_check.setChecked(True)
+        behavior_group.addWidget(self.auto_confirm_check)
+        self.skip_no_match_check = CheckmarkCheckBox("Skip no match")
+        self.skip_no_match_check.setChecked(True)
+        behavior_group.addWidget(self.skip_no_match_check)
+        self.use_down_arrow_check = CheckmarkCheckBox("Use Alt+N")
+        self.use_down_arrow_check.setChecked(False)
+        self.use_down_arrow_check.setToolTip("Leave segments unconfirmed (Alt+N) instead of Ctrl+Enter")
+        behavior_group.addWidget(self.use_down_arrow_check)
+        right_col.addLayout(behavior_group)
+        
+        # Save button - centered at bottom of right column
+        right_col.addStretch()
         save_btn = QPushButton("💾 Save Settings")
         save_btn.setMinimumHeight(35)
         save_btn.setStyleSheet("font-size: 9pt; font-weight: bold;")
         save_btn.clicked.connect(self.save_settings)
-        save_col.addWidget(save_btn)
-        save_col.addStretch()
-        settings_layout.addLayout(save_col)
+        right_col.addWidget(save_btn)
+        
+        # Add columns to grid layout
+        left_widget = QWidget()
+        left_widget.setLayout(left_col)
+        right_widget = QWidget()
+        right_widget.setLayout(right_col)
+        
+        settings_layout.addWidget(left_widget, 0, 0)
+        settings_layout.addWidget(right_widget, 0, 1)
         
         settings_group.setLayout(settings_layout)
-        main_layout.addWidget(settings_group)
         
-        # BOTTOM ROW: Activity Log
+        # Create horizontal container for Settings and Activity Log side-by-side
+        settings_log_row = QHBoxLayout()
+        settings_log_row.setSpacing(15)
+        settings_log_row.addWidget(settings_group, 1)  # Settings takes flexible space
+        
+        # Activity Log on the right
         log_group = QGroupBox("📋 Activity Log")
         log_layout = QVBoxLayout()
         log_layout.setContentsMargins(5, 5, 5, 5)
         
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)
-        self.log_text.setMaximumHeight(150)  # Limit height, not width
+        self.log_text.setMinimumHeight(200)  # Give it a reasonable minimum height
         self.log_text.setStyleSheet("""
             font-family: 'Consolas', monospace;
             padding: 4px;
@@ -6159,7 +6496,9 @@ class AutoFingersWidget(QWidget):
         log_layout.addWidget(self.log_text)
         
         log_group.setLayout(log_layout)
-        main_layout.addWidget(log_group)
+        settings_log_row.addWidget(log_group, 1)  # Activity Log takes equal flexible space
+        
+        main_layout.addLayout(settings_log_row)
         
         return tab
     

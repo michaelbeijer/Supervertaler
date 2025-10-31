@@ -7,6 +7,14 @@ api_keys.txt
 # SECURITY: Private data folder - NEVER sync to GitHub
 user data_private/
 
+# SAFETY: Archive folder for deleted files - NEVER sync to GitHub
+# Located at C:\Dev\Supervertaler_Archive (outside this repo)
+# Files deleted via safe_archive.ps1 go here for recovery
+
+# Chat history logs - keep private (may contain sensitive development info)
+docs/sessions/copilot_chat_history*.txt
+docs/chat-logs/
+
 # Private system prompts folder - never sync to GitHub
 user data/System_prompts_private/
 
