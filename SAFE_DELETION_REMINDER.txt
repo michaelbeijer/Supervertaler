@@ -1,0 +1,22 @@
+⚠️ IMPORTANT: SAFE DELETION POLICY ⚠️
+=====================================
+
+NEVER delete files directly!
+Always use the safe archive system first.
+
+Archive Location: C:\Dev\Supervertaler_Archive\
+
+Quick Commands:
+--------------
+# Archive single file
+.\.dev\scripts\safe_archive.ps1 -Path "file.txt" -Reason "Why deleting"
+
+# Archive multiple files
+.\.dev\scripts\safe_archive_bulk.ps1 -Paths @("file1.txt", "file2.txt") -Reason "Cleanup"
+
+Full documentation: .dev\scripts\README_SAFE_ARCHIVE.md
+
+REMEMBER: 
+- Files go to C:\Dev\Supervertaler_Archive (OUTSIDE this workspace)
+- Include that folder in your Macrium backups!
+- All archived files include metadata for easy recovery

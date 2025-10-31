@@ -208,8 +208,8 @@ class GridTextEditor(QTextEdit):
     
     def keyPressEvent(self, event):
         """Override to handle Ctrl+1-9, Ctrl+Up/Down shortcuts"""
-        # Ctrl+1 through Ctrl+9: Insert match by number (global)
         if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
+        # Ctrl+1 through Ctrl+9: Insert match by number (global)
             if event.key() >= Qt.Key.Key_1 and event.key() <= Qt.Key.Key_9:
                 match_num = event.key() - Qt.Key.Key_0  # Convert key to number
                 if hasattr(self, 'assistance_widget') and hasattr(self.assistance_widget, 'all_matches'):
@@ -704,11 +704,11 @@ class SupervertalerQt(QMainWindow):
         self.setWindowTitle(title)
         self.setGeometry(100, 100, 1400, 800)
         
-        # Create menu bar
+        # Create menu bar (ribbon removed - using traditional menus)
         self.create_menus()
         
-        # Create ribbon interface
-        self.create_ribbon()
+        # Ribbon removed - all functionality moved to menu bar
+        # self.create_ribbon()
         
         # Create main layout
         self.create_main_layout()
@@ -750,6 +750,12 @@ class SupervertalerQt(QMainWindow):
         save_as_action.setShortcut(QKeySequence.StandardKey.SaveAs)
         save_as_action.triggered.connect(self.save_project_as)
         file_menu.addAction(save_as_action)
+        
+        file_menu.addSeparator()
+        
+        close_action = QAction("&Close Project", self)
+        close_action.triggered.connect(self.close_project)
+        file_menu.addAction(close_action)
         
         file_menu.addSeparator()
         
@@ -815,8 +821,37 @@ class SupervertalerQt(QMainWindow):
         batch_translate_action.triggered.connect(self.translate_batch)
         edit_menu.addAction(batch_translate_action)
         
+        edit_menu.addSeparator()
+        
+        # Universal Lookup
+        universal_lookup_action = QAction("🔍 &Universal Lookup...", self)
+        universal_lookup_action.setShortcut("Ctrl+Alt+L")
+        universal_lookup_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(2) if hasattr(self, 'main_tabs') else None)
+        edit_menu.addAction(universal_lookup_action)
+        
         # View Menu
         view_menu = menubar.addMenu("&View")
+        
+        # Navigation submenu
+        nav_menu = view_menu.addMenu("📑 &Navigate To")
+        
+        go_projects_action = QAction("📁 &Project Manager", self)
+        go_projects_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(0) if hasattr(self, 'main_tabs') else None)
+        nav_menu.addAction(go_projects_action)
+        
+        go_editor_action = QAction("📝 &Project Editor", self)
+        go_editor_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(1) if hasattr(self, 'main_tabs') else None)
+        nav_menu.addAction(go_editor_action)
+        
+        go_tm_action = QAction("📊 &Translation Memories", self)
+        go_tm_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(2) if hasattr(self, 'main_tabs') else None)
+        nav_menu.addAction(go_tm_action)
+        
+        go_termbases_action = QAction("🏷️ &Termbases", self)
+        go_termbases_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(3) if hasattr(self, 'main_tabs') else None)
+        nav_menu.addAction(go_termbases_action)
+        
+        view_menu.addSeparator()
         
         # Grid Text section
         grid_zoom_menu = view_menu.addMenu("📊 &Grid Text Zoom")
@@ -961,131 +996,53 @@ class SupervertalerQt(QMainWindow):
         return qat
     
     def create_ribbon(self):
-        """Create modern ribbon interface"""
-        from modules.ribbon_widget import RibbonWidget, RibbonTab, RibbonGroup, RibbonButton
+        """
+        Create modern ribbon interface - DISABLED
+        Ribbon functionality has been moved to traditional menu bar.
+        This code is kept for potential future use.
+        """
+        # Ribbon removed - all actions are now in the menu bar
+        # Keeping this method for potential future re-enablement
+        return
         
-        # Create ribbon widget
-        self.ribbon = RibbonWidget(self)
+        # from modules.ribbon_widget import RibbonWidget, RibbonTab, RibbonGroup, RibbonButton
+        # 
+        # # Create ribbon widget
+        # self.ribbon = RibbonWidget(self)
+        # 
+        # # Connect ribbon actions to methods
+        # self.ribbon.action_triggered.connect(self.handle_ribbon_action)
         
-        # Connect ribbon actions to methods
-        self.ribbon.action_triggered.connect(self.handle_ribbon_action)
-        
-        # HOME TAB - Minimal, streamlined
-        home_tab = RibbonTab()
-        
-        # Display group (kept for usefulness)
-        display_group = RibbonGroup("Display")
-        display_group.add_button(self.ribbon.create_button("Zoom In", "�+", "zoom_in", "Increase font size (Ctrl++)"))
-        display_group.add_button(self.ribbon.create_button("Zoom Out", "�−", "zoom_out", "Decrease font size (Ctrl+-)"))
-        display_group.add_button(self.ribbon.create_button("Auto-Resize", "�", "auto_resize", "Resize rows to fit"))
-        home_tab.add_group(display_group)
-        
-        # Don't add stretch - align groups to left
-        self.ribbon.add_ribbon_tab("Home", home_tab)
-        
-        # TRANSLATION TAB - Translation tools
-        trans_tab = RibbonTab()
-        
-        # Translate group
-        translate_group = RibbonGroup("Translate")
-        translate_group.add_button(self.ribbon.create_button("Translate", "🤖", "translate", "Translate segment (Ctrl+T)"))
-        translate_group.add_button(self.ribbon.create_button("Batch", "🚀", "batch_translate", "Translate multiple (Ctrl+Shift+T)"))
-        trans_tab.add_group(translate_group)
-        
-        # Memory group
-        memory_group = RibbonGroup("Translation Memory")
-        memory_group.add_button(self.ribbon.create_button("TM Manager", "🗂️", "tm_manager", "Manage TMs (Ctrl+M)"))
-        memory_group.add_button(self.ribbon.create_button("Lookup", "🔍", "universal_lookup", "Universal Lookup (Ctrl+Alt+L)"))
-        trans_tab.add_group(memory_group)
-        
-        # Don't add stretch - align groups to left
-        self.ribbon.add_ribbon_tab("Translation", trans_tab)
-        
-        # VIEW TAB - Display and appearance
-        view_tab = RibbonTab()
-        
-        # Appearance group
-        appearance_group = RibbonGroup("Appearance")
-        appearance_group.add_button(self.ribbon.create_button("Themes", "🎨", "themes", "Theme editor"))
-        view_tab.add_group(appearance_group)
-        
-        # Don't add stretch - align groups to left
-        self.ribbon.add_ribbon_tab("View", view_tab)
-        
-        # TOOLS TAB - Utilities and automation
-        tools_tab = RibbonTab()
-        
-        # Automation group
-        auto_group = RibbonGroup("Automation")
-        auto_group.add_button(self.ribbon.create_button("AutoFingers", "✋", "autofingers", "CAT automation (Ctrl+Shift+A)"))
-        tools_tab.add_group(auto_group)
-        
-        # Settings group
-        settings_group = RibbonGroup("Settings")
-        settings_group.add_button(self.ribbon.create_button("Options", "⚙️", "options", "Application settings"))
-        tools_tab.add_group(settings_group)
-        
-        # Align groups to the left (no stretch)
-        self.ribbon.add_ribbon_tab("Tools", tools_tab)
-        
-        # Store ribbon state
-        self.ribbon_minimized = False
-        
-        # Add Ribbon (Quick Access removed - will be replaced with collapsible Project Home panel)
-        self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.create_ribbon_toolbar())
+        # Ribbon code commented out - all functionality moved to menu bar
+        # HOME TAB - Project management and navigation
+        # home_tab = RibbonTab()
+        # project_group = RibbonGroup("Project")
+        # project_group.add_button(self.ribbon.create_button("New", "📄", "new", "New project (Ctrl+N)"))
+        # ... (all ribbon tab creation code commented out)
+        # All actions are now available in the traditional menu bar
     
     def create_ribbon_toolbar(self):
-        """Create a toolbar to hold the ribbon"""
-        from PyQt6.QtWidgets import QToolBar, QWidget, QHBoxLayout
-        from PyQt6.QtCore import QSize
-        
-        self.ribbon_toolbar = QToolBar("Ribbon")
-        self.ribbon_toolbar.setMovable(False)
-        self.ribbon_toolbar.setFloatable(False)
-        self.ribbon_toolbar.addWidget(self.ribbon)
-        
-        return self.ribbon_toolbar
+        """Create a toolbar to hold the ribbon - DISABLED"""
+        # Ribbon removed - using traditional menu bar instead
+        # This method kept for potential future use
+        return None
     
     def toggle_ribbon_minimized(self, minimized: bool):
-        """Toggle ribbon between full and minimized (tabs-only) mode"""
-        self.ribbon_minimized = minimized
-        if minimized:
-            # Show only tabs, hide button content
-            self.ribbon.setMaximumHeight(30)
-            # Make tabs clickable to show ribbon temporarily
-            self.ribbon.tabBarClicked.connect(self.show_ribbon_temporarily)
-        else:
-            # Show full ribbon
-            self.ribbon.setMaximumHeight(120)
-            try:
-                self.ribbon.tabBarClicked.disconnect(self.show_ribbon_temporarily)
-            except:
-                pass
+        """Toggle ribbon between full and minimized (tabs-only) mode - DISABLED"""
+        # Ribbon removed - no action needed
+        self.ribbon_minimized = minimized  # Store state for backwards compatibility
+        pass
     
     def show_ribbon_temporarily(self, index: int):
-        """Show ribbon temporarily when tab clicked in minimized mode"""
-        if self.ribbon_minimized:
-            # Show ribbon briefly
-            self.ribbon.setMaximumHeight(120)
-            # Will auto-hide when focus is lost (implement if needed)
+        """Show ribbon temporarily when tab clicked in minimized mode - DISABLED"""
+        # Ribbon removed - no action needed
+        pass
     
     def on_main_tab_changed(self, index: int):
-        """Update ribbon when main application tab changes"""
-        # New tab structure:
-        # 0-1: Project Management (orange) - HOME ribbon
-        # 2-5: Translation Resources (purple) - HOME ribbon  
-        # 6-11: Specialized Modules (green) - varies by module
-        # 12-13: Settings/Log (gray) - SETTINGS ribbon
-        # 14: Universal Lookup - TRANSLATION ribbon
-        
-        if index in (0, 1, 2, 3, 4, 5, 12, 13):  # Project, Resources, Settings
-            self.ribbon.setCurrentIndex(0)  # Home tab
-        elif index == 14:  # Universal Lookup
-            self.ribbon.setCurrentIndex(1)  # Translation tab
-        elif index == 10:  # AutoFingers
-            self.ribbon.setCurrentIndex(3)  # Tools tab
-        else:  # Other modules
-            self.ribbon.setCurrentIndex(0)  # Default to Home
+        """Handle main tab change"""
+        # Ribbon removed - menu bar remains constant across all tabs
+        # No context switching needed
+        pass
     
     def toggle_sidebar(self, visible: bool):
         """Toggle Quick Access Sidebar visibility - DEPRECATED (Quick Access removed)"""
@@ -1098,25 +1055,32 @@ class SupervertalerQt(QMainWindow):
         pass
     
     def handle_ribbon_action(self, action_name: str):
-        """Handle ribbon button clicks"""
+        """
+        Handle ribbon button clicks - DEPRECATED
+        Ribbon has been removed in favor of traditional menu bar.
+        All actions are now accessible through menus.
+        This method is kept for backwards compatibility.
+        """
+        # All ribbon actions have been moved to menu bar
+        # This method is kept in case any code still references it
         action_map = {
             # File actions
             "new": self.new_project,
             "open": self.open_project,
             "save": self.save_project,
+            "close_project": self.close_project,
             
-            # Edit actions
-            "copy": lambda: None,  # Handled by Qt
-            "paste": lambda: None,  # Handled by Qt
-            "find": self.show_find_replace_dialog,
-            "replace": self.show_find_replace_dialog,
-            "goto": self.show_goto_dialog,
+            # Navigation actions
+            "go_to_projects": lambda: self.main_tabs.setCurrentIndex(0) if hasattr(self, 'main_tabs') else None,
+            "go_to_editor": lambda: self.main_tabs.setCurrentIndex(1) if hasattr(self, 'main_tabs') else None,
+            "go_to_tm": lambda: self.main_tabs.setCurrentIndex(2) if hasattr(self, 'main_tabs') else None,
+            "go_to_termbases": lambda: self.main_tabs.setCurrentIndex(3) if hasattr(self, 'main_tabs') else None,
             
             # Translation actions
             "translate": self.translate_current_segment,
             "batch_translate": self.translate_batch,
             "tm_manager": self.show_tm_manager,
-            "universal_lookup": lambda: self.tabs.setCurrentIndex(0),  # Switch to Universal Lookup tab
+            "universal_lookup": lambda: self.main_tabs.setCurrentIndex(2) if hasattr(self, 'main_tabs') else None,
             
             # View actions
             "zoom_in": self.zoom_in,
@@ -1129,6 +1093,7 @@ class SupervertalerQt(QMainWindow):
             "options": self.show_options_dialog,
         }
         
+        # Execute action if found (for backwards compatibility)
         action = action_map.get(action_name)
         if action:
             action()
@@ -2255,6 +2220,50 @@ class SupervertalerQt(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to save project:\n{str(e)}")
             self.log(f"✗ Error saving project: {e}")
+    
+    def close_project(self):
+        """Close current project"""
+        if not self.current_project:
+            QMessageBox.information(self, "No Project", "No project is currently open")
+            return
+        
+        # Check for unsaved changes
+        if self.project_modified:
+            reply = QMessageBox.question(
+                self, "Unsaved Changes",
+                "Save current project before closing?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel
+            )
+            if reply == QMessageBox.StandardButton.Cancel:
+                return
+            elif reply == QMessageBox.StandardButton.Yes:
+                self.save_project()
+                # If save was cancelled or failed, project_modified will still be True
+                if self.project_modified:
+                    return
+        
+        # Clear project data
+        self.current_project = None
+        self.project_file_path = None
+        self.project_modified = False
+        
+        # Clear the grid
+        self.clear_grid()
+        
+        # Clear translation results if available
+        if hasattr(self, 'assistance_widget'):
+            if hasattr(self.assistance_widget, 'clear_results'):
+                self.assistance_widget.clear_results()
+            # Clear TM and termbase results tables
+            if hasattr(self.assistance_widget, 'tm_results_table'):
+                self.assistance_widget.tm_results_table.setRowCount(0)
+            if hasattr(self.assistance_widget, 'termbase_results_table'):
+                self.assistance_widget.termbase_results_table.setRowCount(0)
+        
+        # Update window title
+        self.update_window_title()
+        
+        self.log("✓ Project closed")
     
     def update_recent_menu(self):
         """Update recent projects menu"""

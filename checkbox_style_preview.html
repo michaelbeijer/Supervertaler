@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checkbox Style Options Preview</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            padding: 30px;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #555;
+            margin-top: 40px;
+            padding: 10px;
+            background: #f9f9f9;
+            border-left: 4px solid #4CAF50;
+        }
+        .section {
+            margin: 30px 0;
+            padding: 20px;
+            background: #fafafa;
+            border-radius: 5px;
+        }
+        .demo-row {
+            display: flex;
+            gap: 40px;
+            align-items: center;
+            margin: 20px 0;
+        }
+        .demo-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+        .demo-item label {
+            font-size: 12px;
+            color: #666;
+            font-weight: bold;
+        }
+        
+        /* CURRENT STYLE (Blue when checked) */
+        .current-checkbox {
+            width: 18px;
+            height: 18px;
+            border: 1px solid #ccc;
+            background: white;
+            appearance: none;
+            -webkit-appearance: none;
+            cursor: pointer;
+            position: relative;
+        }
+        .current-checkbox:checked {
+            background: #2196F3;
+            border-color: #2196F3;
+        }
+        
+        /* OPTION 1: Checkmark-style (Recommended) */
+        .option1-checkbox {
+            width: 18px;
+            height: 18px;
+            border: 2px solid #999;
+            background: white;
+            appearance: none;
+            -webkit-appearance: none;
+            cursor: pointer;
+            position: relative;
+            border-radius: 3px;
+        }
+        .option1-checkbox:checked {
+            background: #4CAF50;
+            border-color: #4CAF50;
+        }
+        .option1-checkbox:checked::after {
+            content: '✓';
+            position: absolute;
+            top: -2px;
+            left: 2px;
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        /* OPTION 2: Toggle Switch Style */
+        .option2-toggle {
+            width: 44px;
+            height: 24px;
+            background: #ccc;
+            border-radius: 12px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.3s;
+            border: none;
+        }
+        .option2-toggle::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: white;
+            top: 2px;
+            left: 2px;
+            transition: left 0.3s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .option2-toggle.checked {
+            background: #4CAF50;
+        }
+        .option2-toggle.checked::after {
+            left: 22px;
+        }
+        
+        /* OPTION 3: Modern checkmark with subtle fill */
+        .option3-checkbox {
+            width: 18px;
+            height: 18px;
+            border: 2px solid #999;
+            background: rgba(0,0,0,0.05);
+            appearance: none;
+            -webkit-appearance: none;
+            cursor: pointer;
+            position: relative;
+            border-radius: 3px;
+        }
+        .option3-checkbox:checked {
+            background: #4CAF50;
+            border-color: #4CAF50;
+        }
+        .option3-checkbox:checked::after {
+            content: '✓';
+            position: absolute;
+            top: -2px;
+            left: 2px;
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        /* OPTION 4: Color-coded with text */
+        .option4-toggle {
+            width: 50px;
+            height: 26px;
+            background: #ccc;
+            border-radius: 13px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.3s;
+            border: none;
+            font-size: 10px;
+            font-weight: bold;
+            color: white;
+            text-align: center;
+            line-height: 26px;
+        }
+        .option4-toggle::before {
+            content: 'OFF';
+            position: absolute;
+            width: 100%;
+            text-align: center;
+        }
+        .option4-toggle.checked {
+            background: #4CAF50;
+        }
+        .option4-toggle.checked::before {
+            content: 'ON';
+        }
+        
+        /* OPTION 5: Windows 11 Style */
+        .option5-checkbox {
+            width: 18px;
+            height: 18px;
+            border: 1.5px solid #999;
+            background: transparent;
+            appearance: none;
+            -webkit-appearance: none;
+            cursor: pointer;
+            position: relative;
+            border-radius: 4px;
+        }
+        .option5-checkbox:checked {
+            background: #0078D4;
+            border-color: #0078D4;
+        }
+        .option5-checkbox:checked::after {
+            content: '✓';
+            position: absolute;
+            top: -3px;
+            left: 2px;
+            color: white;
+            font-size: 13px;
+            font-weight: bold;
+        }
+        
+        .description {
+            margin-top: 10px;
+            padding: 15px;
+            background: white;
+            border-left: 3px solid #4CAF50;
+            font-size: 14px;
+            color: #555;
+        }
+        .recommended {
+            background: #e8f5e9;
+            border-left-color: #4CAF50;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Checkbox Style Options Preview</h1>
+        <p style="color: #666; margin-bottom: 30px;">Visual comparison of different checkbox styling options for AutoFingers checkboxes</p>
+        
+        <!-- CURRENT STYLE -->
+        <div class="section">
+            <h2>Current Style (Blue when checked)</h2>
+            <div class="demo-row">
+                <div class="demo-item">
+                    <label>Unchecked</label>
+                    <input type="checkbox" class="current-checkbox">
+                </div>
+                <div class="demo-item">
+                    <label>Checked</label>
+                    <input type="checkbox" class="current-checkbox" checked>
+                </div>
+            </div>
+            <div class="description">
+                <strong>Current behavior:</strong> Blue square when checked, white when unchecked. 
+                <span style="color: #d32f2f;">❌ Not intuitive - no clear visual indicator of "checked" state</span>
+            </div>
+        </div>
+        
+        <!-- OPTION 1 -->
+        <div class="section">
+            <h2>Option 1: Checkmark-style <span style="color: #4CAF50;">⭐ RECOMMENDED</span></h2>
+            <div class="demo-row">
+                <div class="demo-item">
+                    <label>Unchecked</label>
+                    <input type="checkbox" class="option1-checkbox">
+                </div>
+                <div class="demo-item">
+                    <label>Checked</label>
+                    <input type="checkbox" class="option1-checkbox" checked>
+                </div>
+            </div>
+            <div class="description recommended">
+                <strong>Visual cue:</strong> Green box with white checkmark (✓) when checked<br>
+                <strong>Pros:</strong> ✅ Universal symbol for "checked" • ✅ Green = active/on • ✅ Very clear and intuitive<br>
+                <strong>Best for:</strong> Standard checkboxes with clear on/off states
+            </div>
+        </div>
+        
+        <!-- OPTION 2 -->
+        <div class="section">
+            <h2>Option 2: Toggle Switch Style</h2>
+            <div class="demo-row">
+                <div class="demo-item">
+                    <label>Unchecked (OFF)</label>
+                    <div class="option2-toggle"></div>
+                </div>
+                <div class="demo-item">
+                    <label>Checked (ON)</label>
+                    <div class="option2-toggle checked"></div>
+                </div>
+            </div>
+            <div class="description">
+                <strong>Visual cue:</strong> Circular "thumb" slides left (OFF) or right (ON)<br>
+                <strong>Pros:</strong> ✅ Modern iOS/Android style • ✅ Position clearly indicates state • ✅ Smooth animation<br>
+                <strong>Cons:</strong> ⚠️ Takes more horizontal space • ⚠️ Different from standard checkboxes
+            </div>
+        </div>
+        
+        <!-- OPTION 3 -->
+        <div class="section">
+            <h2>Option 3: Modern Checkmark with Subtle Fill</h2>
+            <div class="demo-row">
+                <div class="demo-item">
+                    <label>Unchecked</label>
+                    <input type="checkbox" class="option3-checkbox">
+                </div>
+                <div class="demo-item">
+                    <label>Checked</label>
+                    <input type="checkbox" class="option3-checkbox" checked>
+                </div>
+            </div>
+            <div class="description">
+                <strong>Visual cue:</strong> Green fill + white checkmark when checked, subtle gray fill when unchecked<br>
+                <strong>Pros:</strong> ✅ Less stark than completely empty • ✅ Still has clear checkmark • ✅ Modern look<br>
+                <strong>Cons:</strong> ⚠️ Unchecked state might be less visible
+            </div>
+        </div>
+        
+        <!-- OPTION 4 -->
+        <div class="section">
+            <h2>Option 4: Color-coded with Text (ON/OFF)</h2>
+            <div class="demo-row">
+                <div class="demo-item">
+                    <label>Unchecked</label>
+                    <div class="option4-toggle"></div>
+                </div>
+                <div class="demo-item">
+                    <label>Checked</label>
+                    <div class="option4-toggle checked"></div>
+                </div>
+            </div>
+            <div class="description">
+                <strong>Visual cue:</strong> Text "ON" or "OFF" inside colored button<br>
+                <strong>Pros:</strong> ✅ Explicit text label • ✅ Very clear state indication<br>
+                <strong>Cons:</strong> ⚠️ Takes more space • ⚠️ Less compact than checkboxes
+            </div>
+        </div>
+        
+        <!-- OPTION 5 -->
+        <div class="section">
+            <h2>Option 5: Windows 11 Style</h2>
+            <div class="demo-row">
+                <div class="demo-item">
+                    <label>Unchecked</label>
+                    <input type="checkbox" class="option5-checkbox">
+                </div>
+                <div class="demo-item">
+                    <label>Checked</label>
+                    <input type="checkbox" class="option5-checkbox" checked>
+                </div>
+            </div>
+            <div class="description">
+                <strong>Visual cue:</strong> Rounded square, blue fill with white checkmark when checked<br>
+                <strong>Pros:</strong> ✅ Familiar Windows 11 look • ✅ Rounded corners modern • ✅ Clear checkmark<br>
+                <strong>Cons:</strong> ⚠️ Uses blue instead of green (less "active" feeling)
+            </div>
+        </div>
+        
+        <div style="margin-top: 40px; padding: 20px; background: #e3f2fd; border-radius: 5px;">
+            <h3 style="margin-top: 0; color: #1976D2;">💡 Recommendation</h3>
+            <p style="font-size: 16px; color: #555;">
+                <strong>Option 1 (Checkmark-style)</strong> is recommended because:
+            </p>
+            <ul style="font-size: 15px; color: #555;">
+                <li>✅ Universal ✓ symbol is instantly recognizable</li>
+                <li>✅ Green color clearly signals "active/enabled"</li>
+                <li>✅ Maintains standard checkbox shape (familiar UX)</li>
+                <li>✅ Works well in all contexts (settings, forms, etc.)</li>
+                <li>✅ Accessible and screen-reader friendly</li>
+            </ul>
+        </div>
+    </div>
+    
+    <script>
+        // Make toggle switches interactive
+        document.querySelectorAll('.option2-toggle').forEach(toggle => {
+            toggle.addEventListener('click', function() {
+                this.classList.toggle('checked');
+            });
+        });
+        
+        document.querySelectorAll('.option4-toggle').forEach(toggle => {
+            toggle.addEventListener('click', function() {
+                this.classList.toggle('checked');
+            });
+        });
+    </script>
+</body>
+</html>

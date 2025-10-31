@@ -286,7 +286,10 @@ def load_api_keys():
                             api_keys["openai"] = value
                         elif key in ["deepl", "deepl_api_key"]:
                             api_keys["deepl"] = value
-            print(f"✓ API keys loaded from: {api_keys_file}")
+            try:
+                print(f"✓ API keys loaded from: {api_keys_file}")
+            except UnicodeEncodeError:
+                print(f"[OK] API keys loaded from: {api_keys_file}")
         except Exception as e:
             print(f"Error reading api_keys.txt: {e}")
     else:
@@ -1341,7 +1344,7 @@ class Supervertaler:
         
         # Term extraction from dual selection
         self.root.bind('<Control-g>', lambda e: self.add_term_from_dual_selection())  # Add term to termbase
-        self.root.bind('<Control-Shift-T>', lambda e: self.add_term_from_dual_selection(to_glossary=False))  # Add to TM only
+        self.root.bind('<Control-Shift-T>', lambda e: self.add_term_from_dual_selection(to_termbase=False))  # Add to TM only
         
         # Layout switching shortcuts
         self.root.bind('<Control-Key-1>', lambda e: self.switch_layout(LayoutMode.GRID))
@@ -2767,9 +2770,9 @@ class Supervertaler:
             panel_weights.append(1)
         
         if self.assist_visible_panels.get('termbase', True):
-            glossary_container = self.create_collapsible_panel_resizable('📚 termbase', 'termbase',
+            termbase_container = self.create_collapsible_panel_resizable('📚 termbase', 'termbase',
                                                                          self.create_termbase_tab, expanded=False)
-            self.assist_stacked_paned.add(glossary_container, weight=1)
+            self.assist_stacked_paned.add(termbase_container, weight=1)
             panel_weights.append(1)
         
         if self.assist_visible_panels.get('nontrans', True):
@@ -7375,7 +7378,7 @@ Use this feature AFTER translation to:
                                      state='readonly', width=18, font=('Segoe UI', 9))
         termbase_combo.pack(side='left', padx=5)
         
-        tk.Button(toolbar, text="🔍 Search", command=self.search_glossary,
+        tk.Button(toolbar, text="🔍 Search", command=self.search_termbase,
                  bg='#FF9800', fg='white', font=('Segoe UI', 9)).pack(side='left', padx=5)
         
         # Treeview for termbase matches
@@ -7399,7 +7402,7 @@ Use this feature AFTER translation to:
         self.termbase_tree.pack(side='left', fill='both', expand=True)
         scrollbar.pack(side='right', fill='y')
         
-        self.termbase_tree.bind('<<TreeviewSelect>>', self.on_glossary_select)
+        self.termbase_tree.bind('<<TreeviewSelect>>', self.on_termbase_select)
         self.termbase_tree.bind('<Double-Button-1>', lambda e: self.insert_suggestion_at_cursor())
         
         # Store termbase results
@@ -7580,7 +7583,7 @@ Use this feature AFTER translation to:
             quality_pct = int(result['quality'] * 100)
             self.llm_listbox.insert('end', f"{quality_pct}% - {result['text']}")
     
-    def auto_update_glossary(self):
+    def auto_update_termbase(self):
         """Automatically update termbase matches for current segment (memoQ-style)"""
         if not hasattr(self, 'current_segment') or not self.current_segment:
             return
@@ -7624,7 +7627,7 @@ Use this feature AFTER translation to:
         
         # Update termbase matches (if enabled)
         if self.assist_visible_panels.get('termbase', True):
-            self.auto_update_glossary()
+            self.auto_update_termbase()
         
         self.log("✓ Resources updated")
     
@@ -7800,7 +7803,7 @@ Use this feature AFTER translation to:
             result = self.tm_results[idx]
             self.update_suggestion_detail(result['source'], result['target'])
     
-    def on_glossary_select(self, event):
+    def on_termbase_select(self, event):
         """Handle termbase term selection"""
         selection = self.termbase_tree.selection()
         if selection and self.termbase_results:
@@ -8929,15 +8932,29 @@ Use this feature AFTER translation to:
         timestamp = datetime.now().strftime("%H:%M:%S")
         formatted_message = f"[{timestamp}] {message}\n"
         
+        # Replace Unicode characters with ASCII equivalents to avoid encoding issues
+        safe_message = formatted_message.replace('✓', '[OK]').replace('✗', '[ERROR]')
+        
         # Update main log window (check if widget exists - may not during early initialization)
         if hasattr(self, 'log_text'):
-            self.log_text.config(state='normal')
-            self.log_text.insert('end', formatted_message)
-            self.log_text.see('end')
-            self.log_text.config(state='disabled')
+            try:
+                self.log_text.config(state='normal')
+                self.log_text.insert('end', formatted_message)  # Use original with Unicode for GUI
+                self.log_text.see('end')
+                self.log_text.config(state='disabled')
+            except Exception:
+                pass  # Silently fail if widget is not ready
         else:
             # During early initialization, just print to console
-            print(formatted_message.strip())
+            # Handle encoding errors on Windows console (cp1252 can't handle Unicode)
+            try:
+                print(safe_message.strip())
+            except UnicodeEncodeError:
+                # Fallback: try to encode with errors='replace'
+                try:
+                    print(safe_message.strip().encode('ascii', errors='replace').decode('ascii'))
+                except Exception:
+                    pass  # Silently fail if all else fails
         
         # Also update log tab if it exists (Translation Workspace)
         if hasattr(self, 'log_tab_text'):
@@ -10254,9 +10271,9 @@ Use this feature AFTER translation to:
         
         # Term extraction from dual selection
         self.context_menu.add_command(label="📚 Add Selection to termbase (Ctrl+G)", 
-                                     command=lambda: self.add_term_from_dual_selection(to_glossary=True))
+                                     command=lambda: self.add_term_from_dual_selection(to_termbase=True))
         self.context_menu.add_command(label="💾 Add Selection to TM (Ctrl+Shift+T)", 
-                                     command=lambda: self.add_term_from_dual_selection(to_glossary=False))
+                                     command=lambda: self.add_term_from_dual_selection(to_termbase=False))
         self.context_menu.add_separator()
         
         self.context_menu.add_command(label="Insert <b>Bold</b> Tag (Ctrl+B)", 
@@ -11187,12 +11204,12 @@ Use this feature AFTER translation to:
         
         return source_text, target_text
     
-    def add_term_from_dual_selection(self, to_glossary=True):
+    def add_term_from_dual_selection(self, to_termbase=True):
         """
         Add term pair from dual selection to TM or termbase
         
         Args:
-            to_glossary: If True, save to termbase (future). If False, save to TM only.
+            to_termbase: If True, save to termbase (future). If False, save to TM only.
         
         Keyboard shortcuts:
             Ctrl+G: Add to termbase (default)
@@ -11214,7 +11231,7 @@ Use this feature AFTER translation to:
             return
         
         # For now, add to Project TM (termbase functionality comes later)
-        if to_glossary:
+        if to_termbase:
             # Future: Add to termbase with metadata
             self.log(f"📝 Term pair marked for termbase: '{source_text}' → '{target_text}'")
             self.log("ℹ termbase support coming soon - saving to Project TM for now")
@@ -11224,11 +11241,11 @@ Use this feature AFTER translation to:
             self.tm_database.add_to_project_tm(source_text, target_text)
             
             # Visual feedback
-            destination = "termbase (TM)" if to_glossary else "Project TM"
+            destination = "termbase (TM)" if to_termbase else "Project TM"
             self.log(f"✓ Term added to {destination}: '{source_text}' → '{target_text}'")
             
             # Show brief confirmation
-            self.show_term_added_feedback(source_text, target_text, to_glossary)
+            self.show_term_added_feedback(source_text, target_text, to_termbase)
             
             # Clear selection after adding
             self.clear_dual_selection()
@@ -11237,7 +11254,7 @@ Use this feature AFTER translation to:
             self.log(f"✗ Error adding term: {e}")
             messagebox.showerror("Error", f"Failed to add term:\n{e}")
     
-    def show_term_added_feedback(self, source_text, target_text, to_glossary):
+    def show_term_added_feedback(self, source_text, target_text, to_termbase):
         """
         Show brief visual confirmation that term was added
         Creates a temporary popup that auto-dismisses
@@ -11258,7 +11275,7 @@ Use this feature AFTER translation to:
         icon_label = tk.Label(feedback, text="✓", font=('Arial', 48), fg='#4CAF50')
         icon_label.pack(pady=10)
         
-        destination = "termbase (TM for now)" if to_glossary else "Project TM"
+        destination = "termbase (TM for now)" if to_termbase else "Project TM"
         msg = f"Added to {destination}:"
         msg_label = tk.Label(feedback, text=msg, font=('Arial', 10))
         msg_label.pack()
