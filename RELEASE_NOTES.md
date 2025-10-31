@@ -1,10 +1,16 @@
 # Supervertaler Release Notes
 
-## Current Release: v1.0.1-Qt (October 29, 2025)
+## Current Release: v1.0.2-Qt (October 31, 2025)
 
 ### What's New
 
-**Termbases Feature Complete** ✅
+**UI Improvements & Bug Fixes** ✅
+- Fixed broken emoji icons in tab labels (Termbases 🏷️, Prompt Manager 💡, Encoding Repair 🔧, Tracked Changes 🔄)
+- Improved checkbox styling with custom green checkboxes and white checkmarks
+- Better small-screen support with reorganized AutoFingers layout
+- Activity Log moved to right side for improved space utilization
+
+**Previous Release (v1.0.1): Termbases Feature Complete** ✅
 - Full termbase CRUD operations (Create, Read, Update, Delete)
 - Multiple termbases per project with independent term sets
 - Global and project-specific termbase scopes
@@ -17,9 +23,11 @@
 
 ### Key Improvements
 
-- **Database:** Fixed NOT NULL constraint errors on language fields
+- **UI Polish:** Custom checkbox styling for better visual feedback
+- **Layout:** 2-column grid layout for AutoFingers Settings section
+- **Responsive Design:** Improved rendering on smaller laptop displays
+- **Database:** Fixed NOT NULL constraint errors on language fields (v1.0.1)
 - **Code Quality:** Fixed method naming and Project object access patterns
-- **Testing:** All modules compile without syntax errors
 
 ### System Requirements
 
@@ -32,7 +40,7 @@
 
 ## Known Issues
 
-- None reported for v1.0.1
+- None reported for v1.0.2
 
 ---
 
@@ -49,6 +57,10 @@ None in this release.
 ---
 
 ## Upgrading
+
+### From v1.0.1 to v1.0.2
+
+No database migration required. Simply install the new version:
 
 ### From v1.0.0 to v1.0.1
 
@@ -86,4 +98,4 @@ For questions or bug reports, see [PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md) 
 
 **Documentation:** See [docs/PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md) for complete project information.
 
-**Last Updated:** October 30, 2025
+**Last Updated:** October 31, 2025

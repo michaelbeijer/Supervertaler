@@ -9,10 +9,10 @@
 ## 📚 Documentation
 
 **⭐ START HERE:** [PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md) — Complete project reference  
-**📝 Release Info:** [RELEASE_NOTES.md](RELEASE_NOTES.md) — Current v1.0.1-Qt release details
+**📝 Release Info:** [RELEASE_NOTES.md](RELEASE_NOTES.md) — Current v1.0.2-Qt release details
 
 ### Edition Changelogs
-- **Qt Edition:** [CHANGELOG_Qt.md](CHANGELOG_Qt.md) — v1.0.1+ (primary development)
+- **Qt Edition:** [CHANGELOG_Qt.md](CHANGELOG_Qt.md) — v1.0.2+ (primary development)
 - **Tkinter Edition:** [CHANGELOG_Tkinter.md](CHANGELOG_Tkinter.md) — v2.5.0+ (maintenance mode)
 
 ### Additional Resources
@@ -26,7 +26,7 @@
 
 ### 🆕 Qt Edition (Modern) - **PRIMARY**
 **File:** `Supervertaler_Qt.py`  
-**Version:** v1.0.1 (October 29, 2025)  
+**Version:** v1.0.2 (October 31, 2025)  
 **Framework:** PyQt6  
 **Status:** Active Development
 
@@ -64,7 +64,7 @@ python Supervertaler_tkinter.py
 
 ## ⚠️ Important Notes
 
-- **Primary Development:** Qt Edition (v1.0.1+) is where new features are developed
+- **Primary Development:** Qt Edition (v1.0.2+) is where new features are developed
 - **Maintenance:** Tkinter Edition (v2.5.0+) receives only critical bug fixes
 - **Migration Path:** Users are encouraged to migrate from Tkinter to Qt Edition
 - **Data Compatibility:** Projects, TM, and termbases are compatible between editions
@@ -116,7 +116,7 @@ For comprehensive project information, see [docs/PROJECT_CONTEXT.md](docs/PROJEC
 ---
 
 **Last Updated:** October 30, 2025  
-**Latest Version:** v1.0.1-Qt (October 29, 2025)
+**Latest Version:** v1.0.2-Qt (October 31, 2025)
 
 ---
 

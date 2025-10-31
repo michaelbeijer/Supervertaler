@@ -229,4 +229,4 @@ Supervertaler Qt uses semantic versioning:
 - **PATCH** - Bug fixes and improvements
 - **PHASE** - Development phase tracking (Phase 5+)
 
-**Current**: v1.0.1 (Phase 5.4)
+**Current**: v1.0.2 (Phase 5.4)

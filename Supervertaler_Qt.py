@@ -684,7 +684,7 @@ class SupervertalerQt(QMainWindow):
         # Create example API keys file on first launch (after UI is ready)
         self.ensure_example_api_keys()
         
-        self.log("Welcome to Supervertaler Qt v1.0.1")
+        self.log("Welcome to Supervertaler Qt v1.0.2")
         self.log("Professional Translation Memory & CAT Tool")
         
         # Restore last project if enabled in settings
@@ -697,7 +697,7 @@ class SupervertalerQt(QMainWindow):
     def init_ui(self):
         """Initialize the user interface"""
         # Build window title with dev mode indicator
-        title = "Supervertaler Qt v1.0.1"
+        title = "Supervertaler Qt v1.0.2"
         if ENABLE_PRIVATE_FEATURES:
             title += " [🛠️ DEV MODE]"
         self.setWindowTitle(title)
@@ -4196,7 +4196,7 @@ class SupervertalerQt(QMainWindow):
     
     def update_window_title(self):
         """Update window title with project name and modified state"""
-        title = "Supervertaler Qt v1.0.1"
+        title = "Supervertaler Qt v1.0.2"
         if ENABLE_PRIVATE_FEATURES:
             title += " [🛠️ DEV MODE]"
         if self.current_project:
@@ -4984,13 +4984,13 @@ class SupervertalerQt(QMainWindow):
         QMessageBox.about(
             self,
             "About Supervertaler Qt",
-            "<h2>Supervertaler Qt v1.0.1</h2>"
+            "<h2>Supervertaler Qt v1.0.2</h2>"
             "<p>Professional Translation Memory & CAT Tool</p>"
             "<p>Rebuilt with PyQt6 for superior performance and UI quality.</p>"
             "<p><b>Author:</b> Michael Beijer</p>"
             "<p><b>License:</b> MIT</p>"
             "<hr>"
-            "<p><i>v1.0.1 - Termbases Feature & Bug Fixes</i></p>"
+            "<p><i>v1.0.2 - UI Improvements & Bug Fixes</i></p>"
             "<p>Features are being migrated progressively from Supervertaler v3.7.x (tkinter).</p>"
         )
     
