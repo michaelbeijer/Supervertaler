@@ -1275,13 +1275,15 @@ class SupervertalerQt(QMainWindow):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         
-        # Info header
+        # Info header (compact style)
         info_frame = QFrame()
-        info_frame.setStyleSheet("background-color: #e8f4f8; padding: 3px; border-bottom: 1px solid #ccc;")
+        info_frame.setStyleSheet("background-color: #e8f4f8; padding: 10px; border-bottom: 1px solid #ccc;")
+        info_frame.setMaximumHeight(65)  # Prevent expansion on large screens
         info_layout = QVBoxLayout(info_frame)
-        info_layout.setContentsMargins(10, 3, 10, 3)  # Minimal top/bottom margins
+        info_layout.setContentsMargins(10, 5, 10, 5)
+        info_layout.setSpacing(0)
         
-        title = QLabel("🔍 PDF Rescue - AI-Powered OCR")
+        title = QLabel("🔍 PDF Rescue")
         title.setStyleSheet("font-size: 12pt; font-weight: bold;")
         info_layout.addWidget(title)
         
@@ -1291,7 +1293,7 @@ class SupervertalerQt(QMainWindow):
         
         layout.addWidget(info_frame)
         
-        # Create PDF Rescue instance and widget
+        # Add PDF Rescue widget
         pdf_rescue_widget = QWidget()
         self.pdf_rescue_qt = PDFRescueQt(self)
         self.pdf_rescue_qt.create_tab(pdf_rescue_widget)
