@@ -1,7 +1,7 @@
 """
 PDF Rescue Module - Qt Edition
 Embeddable version of the AI-powered OCR tool for extracting text from poorly formatted PDFs
-Uses OpenAI's GPT-4 Vision API
+Supports multiple AI providers: OpenAI GPT-4 Vision, Anthropic Claude Vision, Google Gemini Vision
 
 This module can be embedded in the main Supervertaler Qt application as a tab.
 Can also be run independently as a standalone application.
@@ -18,7 +18,6 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, QTimer, QPointF, QRect
 from PyQt6.QtGui import QFont, QTextOption, QPainter, QPen, QColor
-from openai import OpenAI
 from docx import Document
 from docx.shared import Pt
 import fitz  # PyMuPDF
@@ -124,27 +123,58 @@ class PDFRescueQt:
         """
         self.parent_app = parent_app
         self.standalone = standalone
-        self.client = None
+        self.clients = {}  # Dictionary to store clients for different providers
         self.image_files = []
         self.extracted_texts = {}
         
-        # Initialize OpenAI client
-        api_key = None
+        # Load API keys for all providers
+        self.api_keys = {}
         if hasattr(parent_app, 'load_api_keys'):
             # Supervertaler_Qt style
-            api_keys = parent_app.load_api_keys()
-            api_key = api_keys.get('openai') or api_keys.get('openai_api_key')
+            self.api_keys = parent_app.load_api_keys()
         elif hasattr(parent_app, 'api_keys'):
             # Direct api_keys dict
-            api_key = parent_app.api_keys.get('openai')
-        elif hasattr(parent_app, 'api_key'):
-            api_key = parent_app.api_key
-            
-        if api_key:
+            self.api_keys = parent_app.api_keys
+        
+        # Initialize clients for available providers
+        self._initialize_clients()
+    
+    def _initialize_clients(self):
+        """Initialize API clients for all available providers"""
+        # OpenAI
+        openai_key = self.api_keys.get('openai') or self.api_keys.get('openai_api_key')
+        if openai_key:
             try:
-                self.client = OpenAI(api_key=api_key)
+                from openai import OpenAI
+                self.clients['openai'] = OpenAI(api_key=openai_key)
+                self.log_message("✓ OpenAI client initialized")
             except Exception as e:
-                print(f"Failed to initialize OpenAI client: {e}")
+                self.log_message(f"⚠ Failed to initialize OpenAI: {e}")
+        
+        # Anthropic Claude
+        claude_key = self.api_keys.get('claude') or self.api_keys.get('anthropic')
+        if claude_key:
+            try:
+                import anthropic
+                self.clients['claude'] = anthropic.Anthropic(api_key=claude_key)
+                self.log_message("✓ Claude client initialized")
+            except ImportError:
+                self.log_message("⚠ Claude requested but 'anthropic' library not installed. Run: pip install anthropic")
+            except Exception as e:
+                self.log_message(f"⚠ Failed to initialize Claude: {e}")
+        
+        # Google Gemini
+        gemini_key = self.api_keys.get('gemini') or self.api_keys.get('google')
+        if gemini_key:
+            try:
+                import google.generativeai as genai
+                genai.configure(api_key=gemini_key)
+                self.clients['gemini'] = genai
+                self.log_message("✓ Gemini client initialized")
+            except ImportError:
+                self.log_message("⚠ Gemini requested but 'google-generativeai' library not installed. Run: pip install google-generativeai")
+            except Exception as e:
+                self.log_message(f"⚠ Failed to initialize Gemini: {e}")
     
     def log_message(self, message: str):
         """Log a message to the parent app's log if available"""
@@ -240,15 +270,32 @@ class PDFRescueQt:
         # Model selection and formatting option
         model_layout = QHBoxLayout()
         
-        model_label = QLabel("Model:")
+        model_label = QLabel("AI Model:")
         model_label.setFont(QFont("Segoe UI", 9))
         model_layout.addWidget(model_label)
         
         self.model_combo = QComboBox()
+        # Organize models by provider with separators
+        self.model_combo.addItem("--- OpenAI ---")
         self.model_combo.addItems(["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-4", "gpt-5"])
+        self.model_combo.addItem("--- Claude (Anthropic) ---")
+        self.model_combo.addItems(["claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-opus-20240229"])
+        self.model_combo.addItem("--- Gemini (Google) ---")
+        self.model_combo.addItems(["gemini-2.0-flash-exp", "gemini-1.5-pro-002", "gemini-1.5-flash-002"])
+        
+        # Set default and disable separator items
         self.model_combo.setCurrentText("gpt-4o")
+        # Disable separator items in the dropdown so they can't be selected
+        from PyQt6.QtCore import Qt as QtCore
+        combo_model = self.model_combo.model()
+        if combo_model:
+            for i in range(self.model_combo.count()):
+                if self.model_combo.itemText(i).startswith("---"):
+                    index = combo_model.index(i, 0)
+                    combo_model.setData(index, 0, QtCore.ItemIsEnabled)
+        
         self.model_combo.setEditable(False)
-        self.model_combo.setToolTip("Select OpenAI model for OCR processing")
+        self.model_combo.setToolTip("Select AI model for vision OCR processing (OpenAI, Claude, or Gemini)")
         model_layout.addWidget(self.model_combo)
         
         model_layout.addSpacing(20)
@@ -792,12 +839,8 @@ Output only the extracted text - no commentary, no explanations."""
             return base64.b64encode(image_file.read()).decode('utf-8')
     
     def _extract_text_from_image(self, image_path):
-        """Use GPT-4 Vision to extract text from image"""
-        if not self.client:
-            return "[ERROR: OpenAI client not initialized. Check API key.]"
-        
+        """Use AI Vision to extract text from image (supports OpenAI, Claude, Gemini)"""
         try:
-            base64_image = self._encode_image(image_path)
             instructions = self.instructions_text.toPlainText().strip()
             
             # Add or remove formatting instruction based on checkbox
@@ -815,42 +858,128 @@ Output only the extracted text - no commentary, no explanations."""
             # Get selected model
             model = self.model_combo.currentText()
             
-            # Build API call parameters
-            api_params = {
-                "model": model,
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": instructions
-                            },
-                            {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": f"data:image/jpeg;base64,{base64_image}"
-                                }
-                            }
-                        ]
-                    }
-                ]
-            }
+            # Skip separator items
+            if model.startswith("---"):
+                return "[ERROR: Please select a valid model, not a separator]"
             
-            # Use appropriate token parameter based on model
-            # gpt-5 and o1 models use max_completion_tokens
-            # gpt-4 models use max_tokens
-            if model.startswith("gpt-5") or model.startswith("o1"):
-                api_params["max_completion_tokens"] = 4000
+            # Determine provider from model name
+            provider = self._get_provider_from_model(model)
+            
+            if provider not in self.clients:
+                return f"[ERROR: {provider.title()} client not initialized. Check API key in api_keys.txt]"
+            
+            # Call appropriate provider
+            if provider == "openai":
+                return self._extract_with_openai(image_path, model, instructions)
+            elif provider == "claude":
+                return self._extract_with_claude(image_path, model, instructions)
+            elif provider == "gemini":
+                return self._extract_with_gemini(image_path, model, instructions)
             else:
-                api_params["max_tokens"] = 4000
-            
-            response = self.client.chat.completions.create(**api_params)
-            
-            return response.choices[0].message.content
+                return f"[ERROR: Unknown provider: {provider}]"
         
         except Exception as e:
             return f"[ERROR extracting text: {str(e)}]"
+    
+    def _get_provider_from_model(self, model):
+        """Determine provider from model name"""
+        if model.startswith("gpt") or model.startswith("o1") or model.startswith("o3"):
+            return "openai"
+        elif model.startswith("claude"):
+            return "claude"
+        elif model.startswith("gemini"):
+            return "gemini"
+        else:
+            return "unknown"
+    
+    def _extract_with_openai(self, image_path, model, instructions):
+        """Extract text using OpenAI Vision API"""
+        base64_image = self._encode_image(image_path)
+        
+        api_params = {
+            "model": model,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": instructions},
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}
+                        }
+                    ]
+                }
+            ]
+        }
+        
+        # Use appropriate token parameter based on model
+        if model.startswith("gpt-5") or model.startswith("o1"):
+            api_params["max_completion_tokens"] = 4000
+        else:
+            api_params["max_tokens"] = 4000
+        
+        response = self.clients['openai'].chat.completions.create(**api_params)
+        return response.choices[0].message.content
+    
+    def _extract_with_claude(self, image_path, model, instructions):
+        """Extract text using Claude Vision API"""
+        import base64
+        
+        # Read image and encode to base64
+        with open(image_path, "rb") as image_file:
+            image_data = base64.standard_b64encode(image_file.read()).decode("utf-8")
+        
+        # Determine media type from file extension
+        ext = os.path.splitext(image_path)[1].lower()
+        media_type_map = {
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.png': 'image/png',
+            '.gif': 'image/gif',
+            '.webp': 'image/webp'
+        }
+        media_type = media_type_map.get(ext, 'image/jpeg')
+        
+        response = self.clients['claude'].messages.create(
+            model=model,
+            max_tokens=4000,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image",
+                            "source": {
+                                "type": "base64",
+                                "media_type": media_type,
+                                "data": image_data,
+                            },
+                        },
+                        {
+                            "type": "text",
+                            "text": instructions
+                        }
+                    ],
+                }
+            ],
+        )
+        
+        return response.content[0].text
+    
+    def _extract_with_gemini(self, image_path, model, instructions):
+        """Extract text using Gemini Vision API"""
+        from PIL import Image
+        
+        # Load image
+        img = Image.open(image_path)
+        
+        # Create model instance
+        gemini_model = self.clients['gemini'].GenerativeModel(model)
+        
+        # Generate content with image and prompt
+        response = gemini_model.generate_content([instructions, img])
+        
+        return response.text
     
     def _process_selected(self):
         """Process currently selected image"""
@@ -866,8 +995,12 @@ Output only the extracted text - no commentary, no explanations."""
         file = self.image_files[idx]
         filename = os.path.basename(file)
         
-        self.log_message(f"Processing selected image: {filename}")
-        self.status_label.setText(f"Processing {filename}...")
+        # Get provider info for status display
+        model = self.model_combo.currentText()
+        provider = self._get_provider_from_model(model).title()
+        
+        self.log_message(f"Processing selected image with {provider} ({model}): {filename}")
+        self.status_label.setText(f"Processing with {provider}... {filename}")
         QApplication.processEvents()
         
         text = self._extract_text_from_image(file)
@@ -877,7 +1010,7 @@ Output only the extracted text - no commentary, no explanations."""
         
         self._update_listbox()
         self.log_message(f"Successfully processed: {filename}")
-        self.status_label.setText(f"✓ Processed {filename}")
+        self.status_label.setText(f"✓ Processed {filename} with {provider}")
     
     def _process_all(self):
         """Process all images in the list"""
@@ -885,23 +1018,27 @@ Output only the extracted text - no commentary, no explanations."""
             QMessageBox.warning(None, "No Files", "Please add images first")
             return
         
+        # Get provider info for confirmation
+        model = self.model_combo.currentText()
+        provider = self._get_provider_from_model(model).title()
+        
         reply = QMessageBox.question(
             None,
             "Process All",
-            f"Process all {len(self.image_files)} images?\n\n"
+            f"Process all {len(self.image_files)} images with {provider} ({model})?\n\n"
             "This will use API credits and may take several minutes.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
         if reply != QMessageBox.StandardButton.Yes:
             return
         
-        self.log_message(f"Starting batch processing: {len(self.image_files)} images")
+        self.log_message(f"Starting batch processing with {provider}: {len(self.image_files)} images")
         self.progress.setMaximum(len(self.image_files))
         self.progress.setValue(0)
         
         for i, file in enumerate(self.image_files, 1):
             filename = os.path.basename(file)
-            self.status_label.setText(f"Processing {i}/{len(self.image_files)}: {filename}...")
+            self.status_label.setText(f"[{provider}] Processing {i}/{len(self.image_files)}: {filename}...")
             QApplication.processEvents()
             
             if file not in self.extracted_texts:
@@ -915,11 +1052,11 @@ Output only the extracted text - no commentary, no explanations."""
             self._update_listbox()
         
         self.log_message(f"Batch processing complete: {len(self.image_files)} images processed")
-        self.status_label.setText(f"✓ Processed all {len(self.image_files)} images!")
+        self.status_label.setText(f"✓ Processed all {len(self.image_files)} images with {provider}!")
         QMessageBox.information(
             None,
             "Complete",
-            f"Successfully processed {len(self.image_files)} images!\n\n"
+            f"Successfully processed {len(self.image_files)} images with {provider}!\n\n"
             "Click 'Save DOCX' to export the text."
         )
     
