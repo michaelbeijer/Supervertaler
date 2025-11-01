@@ -17,7 +17,7 @@ from PyQt6.QtWidgets import (
     QStyleOptionButton
 )
 from PyQt6.QtCore import Qt, QTimer, QPointF, QRect
-from PyQt6.QtGui import QFont, QTextOption, QPainter, QPen, QColor
+from PyQt6.QtGui import QFont, QTextOption, QPainter, QPen, QColor, QStandardItemModel, QStandardItem
 from docx import Document
 from docx.shared import Pt
 import fitz  # PyMuPDF
@@ -287,8 +287,6 @@ class PDFRescueQt:
         self.model_combo.setCurrentText("gpt-4o")
         
         # Make separator items non-selectable by disabling them
-        from PyQt6.QtCore import Qt
-        from PyQt6.QtGui import QStandardItemModel, QStandardItem
         combo_model = self.model_combo.model()
         if isinstance(combo_model, QStandardItemModel):
             for i in range(self.model_combo.count()):
