@@ -200,14 +200,14 @@ class PDFRescueQt:
         main_layout.setSpacing(5)  # Reduced from 10 to 5 for tighter spacing
         
         # Header (matches Universal Lookup / AutoFingers style)
-        header = QLabel("🔍 PDF Rescue")
+        header = QLabel("🔍 PDF Rescue - AI-Powered OCR")
         header.setStyleSheet("font-size: 16pt; font-weight: bold; color: #1976D2;")
         main_layout.addWidget(header, 0)  # 0 = no stretch, stays compact
         
         # Description box (matches Universal Lookup / AutoFingers style)
         description = QLabel(
-            "Extract text from PDFs: Use OCR mode for image-based PDFs, or Text Extraction for PDFs with accessible text.\n"
-            "Choose the appropriate mode based on your PDF type for best results."
+            "Extract text from image-based PDFs using AI vision OCR. Designed for scanned documents, screenshots, "
+            "and PDFs without accessible text. Not recommended for PDFs with selectable text - use professional tools like Adobe Acrobat instead."
         )
         description.setWordWrap(True)
         description.setStyleSheet("color: #666; padding: 5px; background-color: #E3F2FD; border-radius: 3px;")
@@ -267,34 +267,7 @@ class PDFRescueQt:
         options_layout.setContentsMargins(8, 8, 8, 3)  # Minimal bottom margin
         options_layout.setSpacing(3)  # Reduced spacing
         
-        # === MODE SELECTOR ===
-        mode_layout = QHBoxLayout()
-        mode_label = QLabel("Mode:")
-        mode_label.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
-        mode_layout.addWidget(mode_label)
-        
-        self.mode_combo = QComboBox()
-        self.mode_combo.addItems([
-            "🤖 OCR Mode (image-based PDFs)",
-            "📄 Text Extraction (accessible PDFs)"
-        ])
-        self.mode_combo.setCurrentIndex(0)  # Default to OCR mode
-        self.mode_combo.setToolTip(
-            "OCR Mode: Use AI vision for image-based PDFs (scanned documents)\n"
-            "Text Extraction: Extract existing text from accessible PDFs (faster, more accurate)"
-        )
-        self.mode_combo.currentIndexChanged.connect(self._on_mode_changed)
-        mode_layout.addWidget(self.mode_combo, 1)
-        
-        options_layout.addLayout(mode_layout)
-        options_layout.addSpacing(5)
-        
-        # === OCR-SPECIFIC OPTIONS (only visible in OCR mode) ===
-        self.ocr_options_widget = QWidget()
-        ocr_options_layout = QVBoxLayout(self.ocr_options_widget)
-        ocr_options_layout.setContentsMargins(0, 0, 0, 0)
-        ocr_options_layout.setSpacing(3)
-        
+        # === MODEL SELECTOR ===
         # Model selection and formatting option
         model_layout = QHBoxLayout()
         
@@ -338,12 +311,12 @@ class PDFRescueQt:
         model_layout.addWidget(self.preserve_formatting_check)
         
         model_layout.addStretch()
-        ocr_options_layout.addLayout(model_layout)
+        options_layout.addLayout(model_layout)
         
         # Model descriptions (prominent display in left panel)
         model_desc_label = QLabel("Model Capabilities:")
         model_desc_label.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
-        ocr_options_layout.addWidget(model_desc_label)
+        options_layout.addWidget(model_desc_label)
         
         self.model_descriptions_text = QPlainTextEdit()
         self.model_descriptions_text.setFont(QFont("Segoe UI", 9))
@@ -355,10 +328,7 @@ class PDFRescueQt:
 • gpt-4: Classic, reliable baseline; consistent quality; good for standard documents, though slower than gpt-4o
 • gpt-5 (Advanced Reasoning): Reasoning model; may improve table extraction and complex layouts; slower and more expensive; best for: complex tables, technical documents, structured data extraction"""
         self.model_descriptions_text.setPlainText(model_descriptions)
-        ocr_options_layout.addWidget(self.model_descriptions_text)
-        
-        # Add OCR options widget to main options layout
-        options_layout.addWidget(self.ocr_options_widget)
+        options_layout.addWidget(self.model_descriptions_text)
         
         left_layout.addWidget(options_group)
         
@@ -396,40 +366,17 @@ class PDFRescueQt:
         self.instructions_text.setFont(QFont("Segoe UI", 9))
         self.instructions_text.setMinimumHeight(60)  # Reduced minimum height
         default_instructions = """Extract all text from this image. The image is a screenshot from a poorly formatted PDF.
-
-CRITICAL ACCURACY RULES:
-- DO NOT invent, guess, or modify ANY text
-- Extract ONLY what you actually see - character by character
-- If you're uncertain about a character, use [?] but DO NOT make up words
-- Preserve exact wording - do not paraphrase or "improve" the text
-- When in doubt, be literal and exact
-
-LAYOUT AND STRUCTURE:
-- If the page has multiple columns, indicate this with: [START COLUMN 1], [END COLUMN 1], [START COLUMN 2], etc.
-- Preserve the reading order (usually left-to-right, top-to-bottom)
-- For two-column layouts, extract left column completely first, then right column
-- Maintain paragraph breaks and spacing
-- Remove extraneous line breaks WITHIN paragraphs only
-
-SPECIAL ELEMENTS:
-- For redacted/blacked-out text: [naam], [bedrag], [name], [amount] (in document's language)
-- For stamps/signatures: [handtekening], [stempel], [signature], [stamp]
-- For images/diagrams: [afbeelding: brief description], [image: brief description]
-- For non-text elements: brief description in square brackets
-
-FORMATTING (if preserve formatting is enabled):
-- Use markdown: **bold**, *italic*, __underline__
-- Tables: use markdown table syntax with | pipes
-  | Column 1 | Column 2 |
-  |----------|----------|
-  | Cell A   | Cell B   |
-
-FINAL CHECK:
-- Read through your extraction
-- Verify EVERY word matches the image EXACTLY
-- If you changed anything, change it back to match the original
-
-Output only the extracted text - no commentary, no explanations."""
+Please:
+- Extract all visible text accurately
+- Fix any obvious OCR errors or formatting issues
+- Remove extraneous line breaks within paragraphs
+- Preserve intentional paragraph breaks
+- Maintain the logical flow and structure of the content
+- For redacted/blacked-out text: insert a descriptive placeholder in square brackets in the document's language (e.g., [naam] for Dutch names, [name] for English names, [bedrag] for amounts, etc.)
+- For stamps, signatures, or images: insert a descriptive placeholder in square brackets in the document's language (e.g., [handtekening], [stempel], [signature], [stamp], etc.)
+- For any non-text elements that would normally appear: describe them briefly in square brackets
+- Use markdown for text formatting: **bold text**, *italic text*, __underlined text__
+- Output clean, readable text only (no commentary)"""
         self.instructions_text.setPlainText(default_instructions)
         instructions_group_layout.addWidget(self.instructions_text)
         
@@ -524,7 +471,7 @@ Output only the extracted text - no commentary, no explanations."""
     # === File Management Methods ===
     
     def _import_from_pdf(self):
-        """Import from PDF - either as images (OCR mode) or extract text directly (Text mode)"""
+        """Import images directly from a PDF file (simple OCR-only version)"""
         pdf_file, _ = QFileDialog.getOpenFileName(
             parent=None,
             caption="Select PDF File",
@@ -534,356 +481,6 @@ Output only the extracted text - no commentary, no explanations."""
         if not pdf_file:
             return
         
-        # Check which mode we're in
-        is_ocr_mode = (self.mode_combo.currentIndex() == 0)
-        
-        # Smart detection: If in OCR mode but PDF has text, offer to switch
-        if is_ocr_mode:
-            try:
-                doc = fitz.open(pdf_file)
-                if self._pdf_has_extractable_text(doc):
-                    pdf_path = Path(pdf_file)
-                    reply = QMessageBox.question(
-                        None,
-                        "💡 Text Detected in PDF",
-                        f"This PDF has extractable text!\n\n"
-                        f"📄 {pdf_path.name}\n"
-                        f"📑 {len(doc)} page(s)\n\n"
-                        f"Recommended: Extract text directly instead of OCR\n\n"
-                        f"✅ Direct extraction:\n"
-                        f"   • FREE (no API credits)\n"
-                        f"   • INSTANT (no processing time)\n"
-                        f"   • ACCURATE (preserves original text)\n\n"
-                        f"❌ OCR mode:\n"
-                        f"   • Costs API credits (~$0.02-0.10)\n"
-                        f"   • Takes 10-30 seconds\n"
-                        f"   • May have minor errors\n\n"
-                        f"Use direct text extraction?",
-                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                        QMessageBox.StandardButton.Yes  # Default to Yes
-                    )
-                    doc.close()
-                    
-                    if reply == QMessageBox.StandardButton.Yes:
-                        # Auto-switch to text extraction mode
-                        self.mode_combo.setCurrentIndex(1)
-                        self._extract_text_from_pdf(pdf_file)
-                        return
-                    # else: continue with OCR as requested
-                else:
-                    doc.close()
-            except Exception as e:
-                self.log_message(f"⚠ Text detection failed: {e}")
-            
-            # Continue with OCR mode
-            self._import_pdf_as_images(pdf_file)
-        else:
-            # Text extraction mode
-            self._extract_text_from_pdf(pdf_file)
-    
-    def _pdf_has_extractable_text(self, doc):
-        """
-        Check if PDF has extractable text (not just scanned images)
-        Tests first 3 pages for meaningful text content
-        """
-        for page_num in range(min(3, len(doc))):
-            page = doc[page_num]
-            text = page.get_text().strip()
-            # If we find substantial text (>100 chars), PDF is text-based
-            if len(text) > 100:
-                self.log_message(f"✓ Text detected on page {page_num + 1}: {len(text)} characters")
-                return True
-        return False
-    
-    def _extract_text_from_pdf(self, pdf_file):
-        """Extract accessible text directly from PDF (Text Extraction mode)"""
-        try:
-            # Open PDF
-            doc = fitz.open(pdf_file)
-            total_pages = len(doc)
-            
-            if total_pages == 0:
-                QMessageBox.warning(None, "Empty PDF", "The selected PDF has no pages.")
-                return
-            
-            pdf_path = Path(pdf_file)
-            pdf_name = pdf_path.stem
-            
-            # Log start
-            self.log_message(f"Starting PDF text extraction with layout preservation: {pdf_path.name}")
-            self.log_message(f"Total pages: {total_pages}")
-            self.log_message(f"Mode: Text Extraction (accessible PDFs)")
-            
-            # Extract text from each page using enhanced method
-            self.progress.setMaximum(total_pages)
-            self.progress.setValue(0)
-            
-            extracted_count = self._extract_text_directly_from_pdf(doc, pdf_name)
-            
-            doc.close()
-            
-            # Update UI
-            self._update_listbox()
-            
-            # Show first extracted text in preview
-            if self.extracted_texts:
-                first_text = list(self.extracted_texts.values())[0]
-                self.preview_text.setPlainText(first_text)
-            
-            # Log completion
-            self.log_message(f"Text extraction complete: {extracted_count}/{total_pages} pages extracted")
-            
-            if extracted_count == 0:
-                QMessageBox.warning(
-                    None,
-                    "No Text Found",
-                    f"No accessible text found in: {pdf_path.name}\n\n"
-                    f"This PDF appears to be image-based (scanned document).\n\n"
-                    f"Please switch to 'OCR Mode' and try again."
-                )
-                self.status_label.setText("No text found - try OCR mode for image-based PDFs")
-            elif extracted_count < total_pages:
-                QMessageBox.information(
-                    None,
-                    "Partial Text Extraction",
-                    f"Extracted text from {extracted_count}/{total_pages} pages.\n\n"
-                    f"{total_pages - extracted_count} page(s) had no accessible text (may be images).\n\n"
-                    f"If needed, switch to 'OCR Mode' to process image-based pages."
-                )
-                self.status_label.setText(f"✓ Extracted text from {extracted_count}/{total_pages} pages")
-            else:
-                QMessageBox.information(
-                    None,
-                    "Text Extraction Complete",
-                    f"Successfully extracted text from all {total_pages} pages!\n\n"
-                    f"File: {pdf_path.name}\n\n"
-                    f"✓ Layout preserved (columns detected automatically)\n"
-                    f"✓ Encoding issues fixed (° µ symbols)\n\n"
-                    f"You can now export to Markdown/Word."
-                )
-                self.status_label.setText(f"✓ Extracted text from all {total_pages} pages")
-            
-        except Exception as e:
-            QMessageBox.critical(None, "Text Extraction Error", f"Failed to extract text from PDF:\n\n{str(e)}")
-            self.status_label.setText("Text extraction failed")
-    
-    def _extract_text_directly_from_pdf(self, doc, pdf_name):
-        """
-        Extract text directly from PDF with layout preservation
-        - Detects multi-column layouts
-        - Preserves reading order
-        - Fixes encoding issues (Â°, Âµ, etc.)
-        - Compatible with existing _add_multi_column_text() for Word export
-        """
-        extracted_count = 0
-        
-        for page_num in range(len(doc)):
-            page = doc[page_num]
-            
-            # Get text blocks with position information
-            blocks = page.get_text("blocks")
-            
-            if not blocks:
-                # Fallback to simple text extraction if blocks fail
-                text = page.get_text()
-                formatted_text = self._fix_text_encoding(text)
-            else:
-                # Process blocks with layout awareness
-                formatted_text = self._process_blocks_with_layout(blocks, page)
-            
-            # Store extracted text
-            virtual_path = f"{pdf_name}_page_{page_num + 1:03d}.pdf"
-            
-            if virtual_path not in self.image_files:
-                self.image_files.append(virtual_path)
-                self.extracted_texts[virtual_path] = formatted_text
-                extracted_count += 1
-                
-                # Check if columns were detected
-                has_columns = "[START COLUMN" in formatted_text
-                layout_info = "multi-column" if has_columns else "single-column"
-                self.log_message(f"  Page {page_num + 1}/{len(doc)} extracted ({layout_info}, {len(formatted_text)} chars)")
-            
-            # Update progress
-            self.status_label.setText(f"Extracting text from page {page_num + 1}/{len(doc)}...")
-            QApplication.processEvents()
-        
-        return extracted_count
-    
-    def _process_blocks_with_layout(self, blocks, page):
-        """
-        Process text blocks with column detection and layout preservation
-        Returns formatted text with [START COLUMN X] markers if columns detected
-        """
-        if not blocks:
-            return ""
-        
-        # Filter text blocks only (type 0 = text)
-        text_blocks = [b for b in blocks if b[6] == 0 and b[4].strip()]
-        
-        if not text_blocks:
-            return ""
-        
-        # Sort blocks by position (top-to-bottom, left-to-right)
-        text_blocks = sorted(text_blocks, key=lambda b: (round(b[1] / 10) * 10, b[0]))
-        
-        # Detect if page has multi-column layout
-        page_width = page.rect.width
-        x_positions = [b[0] for b in text_blocks]  # Left edge positions
-        
-        # Check for column layout: significant clustering of x-positions
-        has_columns = self._detect_columns(x_positions, page_width)
-        
-        if has_columns:
-            # Process as multi-column layout
-            return self._format_multicolumn_blocks(text_blocks, page_width)
-        else:
-            # Process as single column
-            return self._format_singlecolumn_blocks(text_blocks)
-    
-    def _detect_columns(self, x_positions, page_width):
-        """
-        Detect if text has multi-column layout
-        Returns True if columns detected
-        """
-        if len(x_positions) < 10:  # Need enough blocks to detect pattern
-            return False
-        
-        # Calculate approximate column boundaries
-        left_margin = min(x_positions)
-        right_margin = max(x_positions)
-        usable_width = right_margin - left_margin
-        mid_point = left_margin + (usable_width / 2)
-        
-        # Count blocks in left vs right half
-        left_count = sum(1 for x in x_positions if x < mid_point)
-        right_count = sum(1 for x in x_positions if x >= mid_point)
-        
-        # If substantial content in both halves, it's multi-column
-        total = len(x_positions)
-        left_ratio = left_count / total
-        right_ratio = right_count / total
-        
-        # Both columns should have at least 20% of content
-        return left_ratio >= 0.2 and right_ratio >= 0.2
-    
-    def _format_multicolumn_blocks(self, blocks, page_width):
-        """
-        Format blocks as multi-column text with column markers
-        Compatible with existing _add_multi_column_text() method
-        """
-        # Calculate column boundary
-        x_positions = [b[0] for b in blocks]
-        left_margin = min(x_positions)
-        right_margin = max(x_positions)
-        usable_width = right_margin - left_margin
-        mid_point = left_margin + (usable_width / 2)
-        
-        # Tolerance for column assignment (10% of usable width)
-        tolerance = usable_width * 0.1
-        
-        # Separate blocks into columns
-        left_column = []
-        right_column = []
-        
-        for block in blocks:
-            x0, y0, x1, y1, text, block_no, block_type = block
-            text = self._fix_text_encoding(text.strip())
-            
-            if not text:
-                continue
-            
-            # Assign to column based on x-position
-            if x0 < (mid_point - tolerance):
-                left_column.append((y0, text))
-            elif x0 > (mid_point + tolerance):
-                right_column.append((y0, text))
-            else:
-                # Block spans both columns or is centered - add to left
-                left_column.append((y0, text))
-        
-        # Sort each column by y-position
-        left_column.sort(key=lambda item: item[0])
-        right_column.sort(key=lambda item: item[0])
-        
-        # Format with column markers (compatible with _add_multi_column_text)
-        result = []
-        
-        if left_column:
-            result.append("[START COLUMN 1]")
-            result.extend([text for y, text in left_column])
-            result.append("[END COLUMN 1]")
-        
-        if right_column:
-            result.append("[START COLUMN 2]")
-            result.extend([text for y, text in right_column])
-            result.append("[END COLUMN 2]")
-        
-        return "\n\n".join(result)
-    
-    def _format_singlecolumn_blocks(self, blocks):
-        """Format blocks as single-column text"""
-        result = []
-        
-        for block in blocks:
-            x0, y0, x1, y1, text, block_no, block_type = block
-            text = self._fix_text_encoding(text.strip())
-            
-            if text:
-                result.append(text)
-        
-        return "\n\n".join(result)
-    
-    def _fix_text_encoding(self, text):
-        """
-        Fix common encoding issues from PDF text extraction
-        """
-        # Common encoding fixes
-        replacements = {
-            'Â°': '°',      # Degree symbol
-            'Âµ': 'µ',      # Micro symbol
-            'â€ˆ': ' ',     # Various space characters
-            'â€‚': ' ',
-            'â€ƒ': ' ',
-            'â€‰': ' ',
-            'â€Š': ' ',
-            'â€': '"',      # Smart quotes
-            'â€™': "'",
-            'â€œ': '"',
-            'â€': '"',
-            'â€"': '-',     # Em dash
-            'â€"': '-',     # En dash
-            'Ã©': 'é',      # Accented characters
-            'Ã¨': 'è',
-            'Ã ': 'à',
-            'Ã´': 'ô',
-            'Ã§': 'ç',
-            'Ã«': 'ë',
-            'Ã¯': 'ï',
-            'Ã¼': 'ü',
-            'Ã¶': 'ö',
-            'Ã¤': 'ä',
-            'Ã±': 'ñ',
-            'â„': '¼',      # Fractions
-            'Â½': '½',
-            'Â¾': '¾',
-            'â„–': '№',     # Numero sign
-            'Â±': '±',      # Plus-minus
-            'Ã—': '×',      # Multiplication
-            'Ã·': '÷',      # Division
-            'â‰¤': '≤',     # Less than or equal
-            'â‰¥': '≥',     # Greater than or equal
-            'â‰ ': '≠',     # Not equal
-            'â‰ˆ': '≈',     # Approximately equal
-        }
-        
-        for wrong, right in replacements.items():
-            text = text.replace(wrong, right)
-        
-        return text
-    
-    def _import_pdf_as_images(self, pdf_file):
-        """Import images from PDF for OCR processing (OCR mode)"""
         try:
             # Open PDF
             doc = fitz.open(pdf_file)
@@ -903,33 +500,25 @@ Output only the extracted text - no commentary, no explanations."""
             temp_dir = str(images_folder)
             
             # Log start
-            self.log_message(f"Starting PDF import: {Path(pdf_file).name}")
+            self.log_message(f"Starting PDF import: {pdf_path.name}")
             self.log_message(f"Total pages: {total_pages}")
             
             # Extract each page as an image
             extracted_count = 0
-            self.status_label.setText("Extracting pages from PDF...")
+            self.status_label.setText(f"Extracting pages from PDF...")
             QApplication.processEvents()
             
             for page_num in range(total_pages):
                 page = doc[page_num]
                 
-                # Render page to high-quality pixmap for optimal AI vision processing
-                # 3x zoom = 300 DPI (professional print quality)
-                # This ensures AI models get crisp, clear text for accurate OCR
-                zoom = 3.0
+                # Render page to pixmap (image) at 2x resolution for better quality
+                zoom = 2.0
                 mat = fitz.Matrix(zoom, zoom)
+                pix = page.get_pixmap(matrix=mat)
                 
-                # Use alpha=False for smaller file size (no transparency needed)
-                # colorspace="rgb" ensures proper color representation
-                pix = page.get_pixmap(matrix=mat, alpha=False, colorspace="rgb")
-                
-                # Save as high-quality PNG with optimization
+                # Save as PNG
                 img_filename = f"{pdf_name}_page_{page_num + 1:03d}.png"
                 img_path = os.path.join(temp_dir, img_filename)
-                
-                # PyMuPDF's save() method for PNG automatically uses good compression
-                # while preserving quality (lossless compression)
                 pix.save(img_path)
                 
                 # Add to image list
@@ -937,39 +526,37 @@ Output only the extracted text - no commentary, no explanations."""
                     self.image_files.append(img_path)
                     extracted_count += 1
                     
-                    # Log with image dimensions for quality verification
-                    self.log_message(
-                        f"  Page {page_num + 1}/{total_pages} extracted: {img_filename} "
-                        f"({pix.width}x{pix.height}px @ 300 DPI)"
-                    )
+                    # Log each page
+                    self.log_message(f"  Page {page_num + 1}/{total_pages} extracted: {img_filename}")
                 
                 # Update progress
-                self.status_label.setText(f"Extracting page {page_num + 1}/{total_pages}...")
+                self.status_label.setText(
+                    f"Extracting page {page_num + 1}/{total_pages}..."
+                )
+                self.progress.setValue(page_num + 1)
+                self.progress.setMaximum(total_pages)
                 QApplication.processEvents()
             
             doc.close()
             
-            # Update UI
+            # Update list
             self._update_listbox()
-            self.status_label.setText(f"Imported {extracted_count} page(s) from PDF")
             
             # Log completion
-            self.log_message(f"PDF import complete: {extracted_count} pages extracted at 300 DPI")
-            self.log_message(f"Temporary folder: {temp_dir}")
+            self.log_message(f"PDF import complete: {extracted_count} pages extracted to {images_folder}")
+            self.status_label.setText(f"✓ Imported {extracted_count} pages from PDF")
             
             QMessageBox.information(
                 None,
                 "PDF Import Complete",
-                f"Successfully extracted {extracted_count} page(s) from:\n{Path(pdf_file).name}\n\n"
-                f"Images saved to folder:\n{temp_dir}\n\n"
-                f"Quality: 300 DPI (professional print quality)\n"
-                f"Optimized for AI vision models (OpenAI, Claude, Gemini)\n\n"
-                f"These images are kept for your reference and can be useful for the end client.\n\n"
-                f"You can now process these pages with AI OCR."
+                f"Successfully extracted {extracted_count} pages from PDF!\n\n"
+                f"Images saved to:\n{images_folder}\n\n"
+                f"You can now process them with AI OCR."
             )
             
         except Exception as e:
-            QMessageBox.critical(None, "PDF Import Error", f"Failed to import PDF:\n{str(e)}")
+            QMessageBox.critical(None, "PDF Import Error", f"Failed to import PDF:\n\n{str(e)}")
+            self.log_message(f"ERROR importing PDF: {str(e)}")
             self.status_label.setText("PDF import failed")
     
     def _add_files(self):
@@ -986,6 +573,7 @@ Output only the extracted text - no commentary, no explanations."""
                     self.image_files.append(file)
             self._update_listbox()
             self.status_label.setText(f"Added {len(files)} file(s)")
+            self.log_message(f"Added {len(files)} image file(s)")
     
     def _add_folder(self):
         """Add all images from a folder"""
@@ -1008,6 +596,7 @@ Output only the extracted text - no commentary, no explanations."""
             self.image_files.extend(files)
             self._update_listbox()
             self.status_label.setText(f"Added {len(files)} file(s) from folder")
+            self.log_message(f"Added {len(files)} file(s) from folder: {folder}")
     
     def _clear_list(self):
         """Clear all files"""
@@ -1026,38 +615,12 @@ Output only the extracted text - no commentary, no explanations."""
                 self.status_label.setText("List cleared")
     
     def _update_listbox(self):
-        """Update file listbox with visual indicators for text vs image sources"""
+        """Update file listbox with checkmarks for processed items"""
         self.file_listbox.clear()
         for i, file in enumerate(self.image_files, 1):
             filename = os.path.basename(file)
-            
-            # Different icons for PDF text extraction vs OCR images
-            if file.endswith('.pdf'):
-                # PDF text extraction (no image file)
-                icon = "📄"
-                status = "✓ " if file in self.extracted_texts else ""
-            else:
-                # OCR from image
-                icon = "🖼️"
-                status = "✓ " if file in self.extracted_texts else ""
-            
-            self.file_listbox.addItem(f"{status}{icon} {i:2d}. {filename}")
-    
-    
-    def _on_mode_changed(self, index):
-        """Handle mode change between OCR and Text Extraction"""
-        is_ocr_mode = (index == 0)
-        
-        # Show/hide OCR-specific options
-        self.ocr_options_widget.setVisible(is_ocr_mode)
-        
-        # Update status message
-        if is_ocr_mode:
-            self.status_label.setText("OCR Mode: Use AI vision to extract text from image-based PDFs")
-        else:
-            self.status_label.setText("Text Extraction Mode: Extract accessible text directly from PDFs")
-        
-        self.log_message(f"Mode changed to: {'OCR' if is_ocr_mode else 'Text Extraction'}")
+            status = "✓ " if file in self.extracted_texts else ""
+            self.file_listbox.addItem(f"{status}{i:2d}. {filename}")
     
     def _on_file_select(self):
         """Show extracted text when file is selected"""
@@ -1496,16 +1059,20 @@ Output only the extracted text - no commentary, no explanations."""
             self._add_multi_column_text(doc, text)
             return
         
-        # Split text into paragraphs
-        paragraphs = text.split('\n')
+        # Split text into paragraphs (separated by double newlines or more)
+        # This prevents treating every single line as a paragraph
+        paragraphs = re.split(r'\n\s*\n', text)
         
         for para_text in paragraphs:
             if not para_text.strip():
                 continue
             
+            # Replace single newlines within paragraph with spaces (removes extraneous line breaks)
+            para_text = para_text.replace('\n', ' ').strip()
+            
             para = doc.add_paragraph()
             para.paragraph_format.line_spacing = 1.15
-            para.paragraph_format.space_after = Pt(12)
+            para.paragraph_format.space_after = Pt(6)  # Reduced from 12 to 6 for tighter spacing
             
             # Parse markdown formatting using regex
             remaining = para_text
@@ -2041,12 +1608,52 @@ Output only the extracted text - no commentary, no explanations."""
             title = doc.add_heading('Extracted Text from Images', 0)
             title.runs[0].font.size = Pt(16)
             
-            # Add branding
+            # Add branding with hyperlink to Supervertaler
+            from docx.oxml import OxmlElement
+            from docx.oxml.ns import qn
+            
+            def add_hyperlink(paragraph, text, url):
+                """Add a hyperlink to a paragraph"""
+                # Get the paragraph element
+                part = paragraph.part
+                r_id = part.relate_to(url, 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink', is_external=True)
+                
+                # Create the hyperlink element
+                hyperlink = OxmlElement('w:hyperlink')
+                hyperlink.set(qn('r:id'), r_id)
+                
+                # Create a new run element
+                new_run = OxmlElement('w:r')
+                rPr = OxmlElement('w:rPr')
+                
+                # Add hyperlink style
+                rStyle = OxmlElement('w:rStyle')
+                rStyle.set(qn('w:val'), 'Hyperlink')
+                rPr.append(rStyle)
+                new_run.append(rPr)
+                
+                # Add the text
+                new_run.text = text
+                hyperlink.append(new_run)
+                
+                # Add hyperlink to paragraph
+                paragraph._p.append(hyperlink)
+                return hyperlink
+            
             branding_para = doc.add_paragraph()
-            branding_run = branding_para.add_run('Generated by PDF Rescue (a Supervertaler module)')
-            branding_run.font.size = Pt(9)
-            branding_run.italic = True
-            branding_run.font.color.rgb = None  # Use default gray color
+            
+            # Add text before hyperlink
+            run1 = branding_para.add_run('Generated by PDF Rescue (a ')
+            run1.font.size = Pt(9)
+            run1.italic = True
+            
+            # Add hyperlink
+            add_hyperlink(branding_para, 'Supervertaler', 'https://supervertaler.com/')
+            
+            # Add text after hyperlink
+            run2 = branding_para.add_run(' module)')
+            run2.font.size = Pt(9)
+            run2.italic = True
             
             # Add spacing
             doc.add_paragraph()
@@ -2063,9 +1670,16 @@ Output only the extracted text - no commentary, no explanations."""
                     if self.preserve_formatting_check.isChecked():
                         self._add_formatted_text(doc, text)
                     else:
-                        para = doc.add_paragraph(text)
-                        para.paragraph_format.line_spacing = 1.15
-                        para.paragraph_format.space_after = Pt(12)
+                        # Split by double newlines to preserve paragraph breaks
+                        # Replace single newlines with spaces to remove extraneous line breaks
+                        paragraphs = re.split(r'\n\s*\n', text)
+                        for para_text in paragraphs:
+                            if para_text.strip():
+                                # Replace single newlines within paragraph with spaces
+                                para_text = para_text.replace('\n', ' ').strip()
+                                para = doc.add_paragraph(para_text)
+                                para.paragraph_format.line_spacing = 1.15
+                                para.paragraph_format.space_after = Pt(6)
                     
                     # Page break except for last
                     if i < len(self.image_files):

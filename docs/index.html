@@ -29,8 +29,8 @@
             </button>
             <ul class="nav-menu">
                 <li><a href="#about">About</a></li>
-                <li><a href="#ai-first">AI-First</a></li>
                 <li><a href="#features">Features</a></li>
+                <li><a href="#modules">Modules</a></li>
                 <li><a href="#privacy">Privacy</a></li>
                 <li><a href="#download">Download</a></li>
                 <li><a href="#documentation">Docs</a></li>
@@ -62,7 +62,7 @@
                     </a>
                 </div>
                 <div class="hero-badges">
-                    <span class="badge badge-cat">Qt Edition v1.1.0 - Modern Interface</span>
+                    <span class="badge badge-cat">Qt Edition v1.1.2 - Modern Interface</span>
                     <span class="badge badge-cat">Tkinter Edition v3.7.7 - Stable & Feature-Rich</span>
                 </div>
             </div>
@@ -155,99 +155,6 @@
                     <p><strong>Built by a translator, for translators.</strong></p>
                     <p>Open source, transparent, and designed to make AI-powered translation actually useful.</p>
                     <p class="about-name-note">🇳🇱 <em>Supervertaler</em> = Dutch for "super translator" (because straightforward names are the best kind)</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- AI-First Philosophy Section -->
-    <section id="ai-first" class="ai-philosophy">
-        <div class="container">
-            <h2 class="section-title">The AI-First Philosophy</h2>
-            <p class="section-subtitle">Why Supervertaler works differently from traditional CAT tools</p>
-            
-            <div class="philosophy-content">
-                <div class="philosophy-comparison">
-                    <div class="comparison-column traditional">
-                        <h3>❌ Traditional CAT Tools</h3>
-                        <p class="comparison-intro">Rely on rigid, rule-based systems:</p>
-                        <ul class="comparison-list">
-                            <li>Complex regex patterns for text processing</li>
-                            <li>Dozens of QA rules requiring manual configuration</li>
-                            <li>Fixed workflows needing technical knowledge to customize</li>
-                            <li>Limited by what developers anticipated</li>
-                        </ul>
-                        <div class="example-box">
-                            <p class="example-title">QA Configuration Example:</p>
-                            <code class="example-code">
-✗ Configure: Number consistency check
-✗ Configure: Terminology variance check
-✗ Configure: Tag presence validation
-✗ Configure: Punctuation matching
-✗ Configure: Length ratio limits
-<span style="opacity: 0.6;">... (dozens more rules)</span>
-                            </code>
-                        </div>
-                    </div>
-                    
-                    <div class="comparison-column ai-first">
-                        <h3>✅ Supervertaler's AI-First Approach</h3>
-                        <p class="comparison-intro">Natural language replaces rigid rules:</p>
-                        <ul class="comparison-list">
-                            <li><strong>Intuitive:</strong> Describe tasks in plain English</li>
-                            <li><strong>Flexible:</strong> Adapt workflows on-the-fly</li>
-                            <li><strong>Contextual:</strong> AI understands nuance</li>
-                            <li><strong>Efficient:</strong> Complex tasks, simple instructions</li>
-                        </ul>
-                        <div class="example-box highlight">
-                            <p class="example-title">AI-Powered QA Example:</p>
-                            <code class="example-code">
-✓ "Run comprehensive QA on this translation.
-&nbsp;&nbsp;Focus on:
-&nbsp;&nbsp;- Consistency with translation memory
-&nbsp;&nbsp;- Proper use of client terminology
-&nbsp;&nbsp;- Tag preservation and formatting
-&nbsp;&nbsp;- Natural flow in target language
-&nbsp;&nbsp;- Technical accuracy for patent content"
-                            </code>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="philosophy-examples">
-                    <h3>AI-First in Action</h3>
-                    <div class="examples-grid">
-                        <div class="example-card">
-                            <div class="example-icon">🔍</div>
-                            <h4>Quality Assurance</h4>
-                            <p class="example-before"><strong>Traditional:</strong> Configure dozens of individual QA rules</p>
-                            <p class="example-after"><strong>AI-First:</strong> "Run QA on my translation. Check for consistency, terminology, and formatting."</p>
-                        </div>
-                        
-                        <div class="example-card">
-                            <div class="example-icon">✂️</div>
-                            <h4>Text Processing</h4>
-                            <p class="example-before"><strong>Traditional:</strong> Write complex regex: <code>(?&lt;=\d{4})-(?=\d{4})</code></p>
-                            <p class="example-after"><strong>AI-First:</strong> "Add hyphens between every 4 digits in product codes"</p>
-                        </div>
-                        
-                        <div class="example-card">
-                            <div class="example-icon">🎯</div>
-                            <h4>Custom Workflows</h4>
-                            <p class="example-before"><strong>Traditional:</strong> Limited to predefined features</p>
-                            <p class="example-after"><strong>AI-First:</strong> "Flag all segments with measurements and suggest metric conversions"</p>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="philosophy-conclusion">
-                    <p class="conclusion-text">
-                        <strong>The Power of Natural Language Control:</strong> Instead of learning rule syntax and fighting with regex, 
-                        you describe what you need in plain language. The AI understands context, applies judgment, and adapts to your 
-                        specific project needs—no rigid configuration required.
-                    </p>
-                    <p class="conclusion-cta">This philosophy extends to every aspect: prompt engineering replaces rule configuration, 
-                        natural language replaces regex, and AI reasoning replaces rigid algorithms.</p>
                 </div>
             </div>
         </div>
@@ -398,7 +305,7 @@
                 <div class="feature-card">
                     <div class="feature-icon">📝</div>
                     <h3>TMX Editor</h3>
-                    <p>Professional translation memory editor with database-backed large file support. Inspired by Heartsome TMX Editor 8. <span class="badge-new">v1.1.0-Qt</span></p>
+                    <p>Professional translation memory editor with database-backed large file support. Inspired by Heartsome TMX Editor 8. <span class="badge-new">v1.1.2-Qt</span></p>
                     <ul class="feature-list">
                         <li>Handle massive files (1GB+) with SQLite backend</li>
                         <li>Dual loading modes: RAM (fast) or Database (huge files)</li>
@@ -587,7 +494,7 @@
                     
                     <!-- Qt Edition -->
                     <div class="download-card featured" style="border: 3px solid #2196F3;">
-                        <div class="download-badge" style="background: #2196F3;">NEW - v1.1.0</div>
+                        <div class="download-badge" style="background: #2196F3;">NEW - v1.1.2</div>
                         <h3>🎨 Qt Edition</h3>
                         <p class="download-description" style="font-weight: 600; color: #2196F3; margin-bottom: 10px;">
                             Modern Interface

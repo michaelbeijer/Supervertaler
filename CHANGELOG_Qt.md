@@ -6,6 +6,44 @@ The Qt Edition is the **primary version** for active development and new feature
 
 ---
 
+## [1.1.2] - November 1, 2025
+
+### Improved
+- **PDF Rescue:** Simplified to OCR-only mode (removed dual-mode complexity)
+  - Removed text extraction mode and 504 lines of complex layout detection code
+  - Reverted to simple, reliable image-based OCR workflow
+  - Updated UI description to clarify OCR-only purpose
+  - Better results with simpler approach
+
+### Fixed
+- **PDF Rescue Prompt:** Restored original concise prompt that produced better OCR results
+  - Removed verbose "CRITICAL ACCURACY RULES" that degraded performance
+  - Simplified instructions for clearer AI guidance
+  - Improved OCR accuracy with focused prompts
+
+- **PDF Rescue DOCX Export:** Fixed excessive line breaks in Word documents
+  - Changed paragraph detection from single newlines to double newlines
+  - Single newlines now treated as spaces within paragraphs
+  - Reduced paragraph spacing from 12pt to 6pt for tighter layout
+  - Applied fix to both formatted and non-formatted export modes
+
+### Added
+- **PDF Rescue Branding:** Added clickable hyperlink in DOCX exports
+  - "Supervertaler" text now links to https://supervertaler.com/
+  - Professional branding with working hyperlinks in Word documents
+
+- **Website Navigation:** Added "Modules" link to header navigation
+  - Appears after "Features" in main menu
+  - Provides direct access to modules documentation
+
+### Removed
+- **Website:** Removed "AI-First Philosophy" section (93 lines)
+  - Streamlined website content
+  - Removed from navigation menu
+  - Content deemed redundant with other sections
+
+---
+
 ## [1.1.1] - November 1, 2025
 
 ### Improved
