@@ -5,6 +5,15 @@ All notable changes to Supervertaler will be documented in this file.
 ## [Unreleased]
 
 ### Added - 2025-11-01
+- **Dual-mode operation in PDF Rescue** - Smart handling of both PDF types
+  - **OCR Mode**: AI vision for image-based/scanned PDFs (existing functionality)
+  - **Text Extraction Mode**: Direct text extraction from accessible PDFs (NEW)
+  - Mode selector dropdown with emoji indicators
+  - Automatic text extraction with per-page progress tracking
+  - Smart warnings if no text found (suggests switching to OCR mode)
+  - Partial extraction support (mix of text and image pages)
+  - Zero API cost for text extraction mode
+  - Updated UI description to explain both modes
 - **High-quality PDF extraction in PDF Rescue** - Upgraded from 200 DPI to 300 DPI
   - PDF pages now extracted at professional print quality (3x zoom factor)
   - Optimized colorspace (RGB, no alpha) for smaller file sizes
@@ -12,6 +21,11 @@ All notable changes to Supervertaler will be documented in this file.
   - Enhanced completion messages showing DPI and optimization details
 
 ### Changed - 2025-11-01
+- **PDF Rescue intelligence** - Now detects and handles PDF type appropriately
+  - Text Extraction: Instant, free, 100% accurate for accessible PDFs
+  - OCR: AI-powered for when text extraction isn't possible
+  - Mode-specific UI: OCR options hide when in Text Extraction mode
+  - Smarter PDF import routing based on selected mode
 - **PDF to image conversion quality** improved by 50% (2x → 3x zoom)
   - Better text clarity for AI vision models
   - Reduces hallucinations and character recognition errors

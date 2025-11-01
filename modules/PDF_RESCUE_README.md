@@ -1,8 +1,97 @@
-# PDF Rescue - Multi-Provider AI Vision OCR
+# PDF Rescue - Multi-Provider AI Vision OCR & Text Extraction
 
 ## Overview
 
-PDF Rescue is an AI-powered OCR tool that extracts clean, editable text from poorly formatted PDFs and images. It supports multiple AI vision providers for maximum flexibility and accuracy.
+PDF Rescue is a dual-mode PDF text extraction tool that intelligently handles both image-based and text-based PDFs:
+
+- **OCR Mode**: AI-powered vision OCR for scanned/image-based PDFs
+- **Text Extraction Mode**: Fast, accurate direct text extraction from accessible PDFs
+
+## Processing Modes
+
+### 🤖 OCR Mode (Image-Based PDFs)
+
+**When to use:**
+- Scanned documents
+- PDFs created from images
+- Screenshots saved as PDF
+- PDFs with no selectable text
+- Poorly formatted PDFs where text extraction fails
+
+**How it works:**
+1. Converts PDF pages to 300 DPI images
+2. Sends images to AI vision model (OpenAI/Claude/Gemini)
+3. AI extracts and structures the text
+4. Supports formatting preservation and multi-column layouts
+
+**Pros:**
+- Works on any PDF, even pure images
+- Can handle complex layouts, tables, columns
+- Preserves formatting (bold, italic, underline)
+- Fixes poor formatting in original
+
+**Cons:**
+- Uses API credits (costs money)
+- Slower than text extraction
+- Can have occasional AI hallucinations
+- Requires good image quality
+
+### 📄 Text Extraction Mode (Accessible PDFs)
+
+**When to use:**
+- PDFs with selectable text
+- Digital PDFs (not scanned)
+- PDFs exported from Word, InDesign, etc.
+- When you need 100% accuracy
+- When you want instant results
+
+**How it works:**
+1. Opens PDF and reads embedded text directly
+2. Extracts text from each page
+3. No AI processing needed
+
+**Pros:**
+- ✅ **FREE** - no API costs
+- ✅ **FAST** - instant extraction
+- ✅ **ACCURATE** - no hallucinations, exact text
+- ✅ **PRESERVES** - keeps original text exactly
+- ✅ **SIMPLE** - one-click extraction
+
+**Cons:**
+- Only works if PDF has embedded text
+- No formatting preservation
+- No layout restructuring
+- Won't work on scanned documents
+
+## Usage
+
+### Quick Start
+
+1. **Select Mode**:
+   - **OCR Mode**: For scanned/image PDFs
+   - **Text Extraction**: For PDFs with selectable text (try selecting text in PDF viewer first)
+
+2. **Import PDF**:
+   - Click "📄 Import PDF"
+   - In **OCR Mode**: Creates 300 DPI images for AI processing
+   - In **Text Mode**: Extracts text directly
+
+3. **Process**:
+   - **OCR Mode**: Click "Process All" to send to AI (uses API credits)
+   - **Text Mode**: Already extracted! Skip to export.
+
+4. **Export**:
+   - Click "💾 Export Markdown & Word"
+   - Saves as .md and .docx files
+
+### Choosing the Right Mode
+
+**Not sure which mode? Try this:**
+
+1. Open your PDF in a PDF viewer
+2. Try to select some text with your mouse
+3. **If you can select text** → Use **Text Extraction Mode** (faster, free, accurate)
+4. **If you can't select text** → Use **OCR Mode** (image-based PDF)
 
 ## Supported Providers
 
