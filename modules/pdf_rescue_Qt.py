@@ -610,56 +610,28 @@ Output only the extracted text - no commentary, no explanations."""
             pdf_name = pdf_path.stem
             
             # Log start
-            self.log_message(f"Starting PDF text extraction: {pdf_path.name}")
+            self.log_message(f"Starting PDF text extraction with layout preservation: {pdf_path.name}")
             self.log_message(f"Total pages: {total_pages}")
             self.log_message(f"Mode: Text Extraction (accessible PDFs)")
             
-            # Extract text from each page
-            extracted_count = 0
-            all_text = []
-            
+            # Extract text from each page using enhanced method
             self.progress.setMaximum(total_pages)
             self.progress.setValue(0)
             
-            for page_num in range(total_pages):
-                page = doc[page_num]
-                
-                # Extract text from page
-                page_text = page.get_text("text")
-                
-                # Check if page has text
-                has_text = bool(page_text.strip())
-                
-                if has_text:
-                    # Store text with page marker
-                    page_marker = f"--- Page {page_num + 1} ---\n\n"
-                    all_text.append(page_marker + page_text.strip())
-                    extracted_count += 1
-                    self.log_message(f"  Page {page_num + 1}/{total_pages}: {len(page_text.strip())} characters extracted")
-                else:
-                    self.log_message(f"  Page {page_num + 1}/{total_pages}: No accessible text found (may be image-based)")
-                
-                # Update progress
-                self.status_label.setText(f"Extracting text from page {page_num + 1}/{total_pages}...")
-                self.progress.setValue(page_num + 1)
-                QApplication.processEvents()
+            extracted_count = self._extract_text_directly_from_pdf(doc, pdf_name)
             
             doc.close()
             
-            # Combine all text
-            combined_text = "\n\n".join(all_text)
-            
-            # Store as a single "file" entry
-            virtual_file = f"{pdf_name}.pdf"
-            self.image_files.append(virtual_file)
-            self.extracted_texts[virtual_file] = combined_text
-            
             # Update UI
             self._update_listbox()
-            self.preview_text.setPlainText(combined_text)
+            
+            # Show first extracted text in preview
+            if self.extracted_texts:
+                first_text = list(self.extracted_texts.values())[0]
+                self.preview_text.setPlainText(first_text)
             
             # Log completion
-            self.log_message(f"Text extraction complete: {extracted_count}/{total_pages} pages had accessible text")
+            self.log_message(f"Text extraction complete: {extracted_count}/{total_pages} pages extracted")
             
             if extracted_count == 0:
                 QMessageBox.warning(
@@ -685,6 +657,8 @@ Output only the extracted text - no commentary, no explanations."""
                     "Text Extraction Complete",
                     f"Successfully extracted text from all {total_pages} pages!\n\n"
                     f"File: {pdf_path.name}\n\n"
+                    f"✓ Layout preserved (columns detected automatically)\n"
+                    f"✓ Encoding issues fixed (° µ symbols)\n\n"
                     f"You can now export to Markdown/Word."
                 )
                 self.status_label.setText(f"✓ Extracted text from all {total_pages} pages")
@@ -692,6 +666,221 @@ Output only the extracted text - no commentary, no explanations."""
         except Exception as e:
             QMessageBox.critical(None, "Text Extraction Error", f"Failed to extract text from PDF:\n\n{str(e)}")
             self.status_label.setText("Text extraction failed")
+    
+    def _extract_text_directly_from_pdf(self, doc, pdf_name):
+        """
+        Extract text directly from PDF with layout preservation
+        - Detects multi-column layouts
+        - Preserves reading order
+        - Fixes encoding issues (Â°, Âµ, etc.)
+        - Compatible with existing _add_multi_column_text() for Word export
+        """
+        extracted_count = 0
+        
+        for page_num in range(len(doc)):
+            page = doc[page_num]
+            
+            # Get text blocks with position information
+            blocks = page.get_text("blocks")
+            
+            if not blocks:
+                # Fallback to simple text extraction if blocks fail
+                text = page.get_text()
+                formatted_text = self._fix_text_encoding(text)
+            else:
+                # Process blocks with layout awareness
+                formatted_text = self._process_blocks_with_layout(blocks, page)
+            
+            # Store extracted text
+            virtual_path = f"{pdf_name}_page_{page_num + 1:03d}.pdf"
+            
+            if virtual_path not in self.image_files:
+                self.image_files.append(virtual_path)
+                self.extracted_texts[virtual_path] = formatted_text
+                extracted_count += 1
+                
+                # Check if columns were detected
+                has_columns = "[START COLUMN" in formatted_text
+                layout_info = "multi-column" if has_columns else "single-column"
+                self.log_message(f"  Page {page_num + 1}/{len(doc)} extracted ({layout_info}, {len(formatted_text)} chars)")
+            
+            # Update progress
+            self.status_label.setText(f"Extracting text from page {page_num + 1}/{len(doc)}...")
+            QApplication.processEvents()
+        
+        return extracted_count
+    
+    def _process_blocks_with_layout(self, blocks, page):
+        """
+        Process text blocks with column detection and layout preservation
+        Returns formatted text with [START COLUMN X] markers if columns detected
+        """
+        if not blocks:
+            return ""
+        
+        # Filter text blocks only (type 0 = text)
+        text_blocks = [b for b in blocks if b[6] == 0 and b[4].strip()]
+        
+        if not text_blocks:
+            return ""
+        
+        # Sort blocks by position (top-to-bottom, left-to-right)
+        text_blocks = sorted(text_blocks, key=lambda b: (round(b[1] / 10) * 10, b[0]))
+        
+        # Detect if page has multi-column layout
+        page_width = page.rect.width
+        x_positions = [b[0] for b in text_blocks]  # Left edge positions
+        
+        # Check for column layout: significant clustering of x-positions
+        has_columns = self._detect_columns(x_positions, page_width)
+        
+        if has_columns:
+            # Process as multi-column layout
+            return self._format_multicolumn_blocks(text_blocks, page_width)
+        else:
+            # Process as single column
+            return self._format_singlecolumn_blocks(text_blocks)
+    
+    def _detect_columns(self, x_positions, page_width):
+        """
+        Detect if text has multi-column layout
+        Returns True if columns detected
+        """
+        if len(x_positions) < 10:  # Need enough blocks to detect pattern
+            return False
+        
+        # Calculate approximate column boundaries
+        left_margin = min(x_positions)
+        right_margin = max(x_positions)
+        usable_width = right_margin - left_margin
+        mid_point = left_margin + (usable_width / 2)
+        
+        # Count blocks in left vs right half
+        left_count = sum(1 for x in x_positions if x < mid_point)
+        right_count = sum(1 for x in x_positions if x >= mid_point)
+        
+        # If substantial content in both halves, it's multi-column
+        total = len(x_positions)
+        left_ratio = left_count / total
+        right_ratio = right_count / total
+        
+        # Both columns should have at least 20% of content
+        return left_ratio >= 0.2 and right_ratio >= 0.2
+    
+    def _format_multicolumn_blocks(self, blocks, page_width):
+        """
+        Format blocks as multi-column text with column markers
+        Compatible with existing _add_multi_column_text() method
+        """
+        # Calculate column boundary
+        x_positions = [b[0] for b in blocks]
+        left_margin = min(x_positions)
+        right_margin = max(x_positions)
+        usable_width = right_margin - left_margin
+        mid_point = left_margin + (usable_width / 2)
+        
+        # Tolerance for column assignment (10% of usable width)
+        tolerance = usable_width * 0.1
+        
+        # Separate blocks into columns
+        left_column = []
+        right_column = []
+        
+        for block in blocks:
+            x0, y0, x1, y1, text, block_no, block_type = block
+            text = self._fix_text_encoding(text.strip())
+            
+            if not text:
+                continue
+            
+            # Assign to column based on x-position
+            if x0 < (mid_point - tolerance):
+                left_column.append((y0, text))
+            elif x0 > (mid_point + tolerance):
+                right_column.append((y0, text))
+            else:
+                # Block spans both columns or is centered - add to left
+                left_column.append((y0, text))
+        
+        # Sort each column by y-position
+        left_column.sort(key=lambda item: item[0])
+        right_column.sort(key=lambda item: item[0])
+        
+        # Format with column markers (compatible with _add_multi_column_text)
+        result = []
+        
+        if left_column:
+            result.append("[START COLUMN 1]")
+            result.extend([text for y, text in left_column])
+            result.append("[END COLUMN 1]")
+        
+        if right_column:
+            result.append("[START COLUMN 2]")
+            result.extend([text for y, text in right_column])
+            result.append("[END COLUMN 2]")
+        
+        return "\n\n".join(result)
+    
+    def _format_singlecolumn_blocks(self, blocks):
+        """Format blocks as single-column text"""
+        result = []
+        
+        for block in blocks:
+            x0, y0, x1, y1, text, block_no, block_type = block
+            text = self._fix_text_encoding(text.strip())
+            
+            if text:
+                result.append(text)
+        
+        return "\n\n".join(result)
+    
+    def _fix_text_encoding(self, text):
+        """
+        Fix common encoding issues from PDF text extraction
+        """
+        # Common encoding fixes
+        replacements = {
+            'Â°': '°',      # Degree symbol
+            'Âµ': 'µ',      # Micro symbol
+            'â€ˆ': ' ',     # Various space characters
+            'â€‚': ' ',
+            'â€ƒ': ' ',
+            'â€‰': ' ',
+            'â€Š': ' ',
+            'â€': '"',      # Smart quotes
+            'â€™': "'",
+            'â€œ': '"',
+            'â€': '"',
+            'â€"': '-',     # Em dash
+            'â€"': '-',     # En dash
+            'Ã©': 'é',      # Accented characters
+            'Ã¨': 'è',
+            'Ã ': 'à',
+            'Ã´': 'ô',
+            'Ã§': 'ç',
+            'Ã«': 'ë',
+            'Ã¯': 'ï',
+            'Ã¼': 'ü',
+            'Ã¶': 'ö',
+            'Ã¤': 'ä',
+            'Ã±': 'ñ',
+            'â„': '¼',      # Fractions
+            'Â½': '½',
+            'Â¾': '¾',
+            'â„–': '№',     # Numero sign
+            'Â±': '±',      # Plus-minus
+            'Ã—': '×',      # Multiplication
+            'Ã·': '÷',      # Division
+            'â‰¤': '≤',     # Less than or equal
+            'â‰¥': '≥',     # Greater than or equal
+            'â‰ ': '≠',     # Not equal
+            'â‰ˆ': '≈',     # Approximately equal
+        }
+        
+        for wrong, right in replacements.items():
+            text = text.replace(wrong, right)
+        
+        return text
     
     def _import_pdf_as_images(self, pdf_file):
         """Import images from PDF for OCR processing (OCR mode)"""
