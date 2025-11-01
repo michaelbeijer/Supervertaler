@@ -283,16 +283,21 @@ class PDFRescueQt:
         self.model_combo.addItem("--- Gemini (Google) ---")
         self.model_combo.addItems(["gemini-2.0-flash-exp", "gemini-1.5-pro-002", "gemini-1.5-flash-002"])
         
-        # Set default and disable separator items
+        # Set default and style separator items
         self.model_combo.setCurrentText("gpt-4o")
-        # Disable separator items in the dropdown so they can't be selected
-        from PyQt6.QtCore import Qt as QtCore
+        
+        # Make separator items non-selectable by disabling them
+        from PyQt6.QtCore import Qt
+        from PyQt6.QtGui import QStandardItemModel, QStandardItem
         combo_model = self.model_combo.model()
-        if combo_model:
+        if isinstance(combo_model, QStandardItemModel):
             for i in range(self.model_combo.count()):
                 if self.model_combo.itemText(i).startswith("---"):
-                    index = combo_model.index(i, 0)
-                    combo_model.setData(index, 0, QtCore.ItemIsEnabled)
+                    item = combo_model.item(i)
+                    if item:
+                        item.setEnabled(False)
+                        # Make separators visually distinct (gray, centered)
+                        item.setFlags(Qt.ItemFlag.NoItemFlags)
         
         self.model_combo.setEditable(False)
         self.model_combo.setToolTip("Select AI model for vision OCR processing (OpenAI, Claude, or Gemini)")
