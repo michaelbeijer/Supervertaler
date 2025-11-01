@@ -206,8 +206,8 @@ class PDFRescueQt:
         
         # Description box (matches Universal Lookup / AutoFingers style)
         description = QLabel(
-            "Extract text from poorly formatted PDFs using AI Vision (GPT-4 Vision API).\n"
-            "Upload PDF files or images to extract clean, editable text."
+            "Extract text from PDFs: Use OCR mode for image-based PDFs, or Text Extraction for PDFs with accessible text.\n"
+            "Choose the appropriate mode based on your PDF type for best results."
         )
         description.setWordWrap(True)
         description.setStyleSheet("color: #666; padding: 5px; background-color: #E3F2FD; border-radius: 3px;")
@@ -267,6 +267,34 @@ class PDFRescueQt:
         options_layout.setContentsMargins(8, 8, 8, 3)  # Minimal bottom margin
         options_layout.setSpacing(3)  # Reduced spacing
         
+        # === MODE SELECTOR ===
+        mode_layout = QHBoxLayout()
+        mode_label = QLabel("Mode:")
+        mode_label.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
+        mode_layout.addWidget(mode_label)
+        
+        self.mode_combo = QComboBox()
+        self.mode_combo.addItems([
+            "🤖 OCR Mode (image-based PDFs)",
+            "📄 Text Extraction (accessible PDFs)"
+        ])
+        self.mode_combo.setCurrentIndex(0)  # Default to OCR mode
+        self.mode_combo.setToolTip(
+            "OCR Mode: Use AI vision for image-based PDFs (scanned documents)\n"
+            "Text Extraction: Extract existing text from accessible PDFs (faster, more accurate)"
+        )
+        self.mode_combo.currentIndexChanged.connect(self._on_mode_changed)
+        mode_layout.addWidget(self.mode_combo, 1)
+        
+        options_layout.addLayout(mode_layout)
+        options_layout.addSpacing(5)
+        
+        # === OCR-SPECIFIC OPTIONS (only visible in OCR mode) ===
+        self.ocr_options_widget = QWidget()
+        ocr_options_layout = QVBoxLayout(self.ocr_options_widget)
+        ocr_options_layout.setContentsMargins(0, 0, 0, 0)
+        ocr_options_layout.setSpacing(3)
+        
         # Model selection and formatting option
         model_layout = QHBoxLayout()
         
@@ -310,12 +338,12 @@ class PDFRescueQt:
         model_layout.addWidget(self.preserve_formatting_check)
         
         model_layout.addStretch()
-        options_layout.addLayout(model_layout)
+        ocr_options_layout.addLayout(model_layout)
         
         # Model descriptions (prominent display in left panel)
         model_desc_label = QLabel("Model Capabilities:")
         model_desc_label.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
-        options_layout.addWidget(model_desc_label)
+        ocr_options_layout.addWidget(model_desc_label)
         
         self.model_descriptions_text = QPlainTextEdit()
         self.model_descriptions_text.setFont(QFont("Segoe UI", 9))
@@ -327,7 +355,10 @@ class PDFRescueQt:
 • gpt-4: Classic, reliable baseline; consistent quality; good for standard documents, though slower than gpt-4o
 • gpt-5 (Advanced Reasoning): Reasoning model; may improve table extraction and complex layouts; slower and more expensive; best for: complex tables, technical documents, structured data extraction"""
         self.model_descriptions_text.setPlainText(model_descriptions)
-        options_layout.addWidget(self.model_descriptions_text)
+        ocr_options_layout.addWidget(self.model_descriptions_text)
+        
+        # Add OCR options widget to main options layout
+        options_layout.addWidget(self.ocr_options_widget)
         
         left_layout.addWidget(options_group)
         
@@ -493,7 +524,7 @@ Output only the extracted text - no commentary, no explanations."""
     # === File Management Methods ===
     
     def _import_from_pdf(self):
-        """Import images directly from a PDF file"""
+        """Import from PDF - either as images (OCR mode) or extract text directly (Text mode)"""
         pdf_file, _ = QFileDialog.getOpenFileName(
             parent=None,
             caption="Select PDF File",
@@ -503,6 +534,114 @@ Output only the extracted text - no commentary, no explanations."""
         if not pdf_file:
             return
         
+        # Check which mode we're in
+        is_ocr_mode = (self.mode_combo.currentIndex() == 0)
+        
+        if is_ocr_mode:
+            self._import_pdf_as_images(pdf_file)
+        else:
+            self._extract_text_from_pdf(pdf_file)
+    
+    def _extract_text_from_pdf(self, pdf_file):
+        """Extract accessible text directly from PDF (Text Extraction mode)"""
+        try:
+            # Open PDF
+            doc = fitz.open(pdf_file)
+            total_pages = len(doc)
+            
+            if total_pages == 0:
+                QMessageBox.warning(None, "Empty PDF", "The selected PDF has no pages.")
+                return
+            
+            pdf_path = Path(pdf_file)
+            pdf_name = pdf_path.stem
+            
+            # Log start
+            self.log_message(f"Starting PDF text extraction: {pdf_path.name}")
+            self.log_message(f"Total pages: {total_pages}")
+            self.log_message(f"Mode: Text Extraction (accessible PDFs)")
+            
+            # Extract text from each page
+            extracted_count = 0
+            all_text = []
+            
+            self.progress.setMaximum(total_pages)
+            self.progress.setValue(0)
+            
+            for page_num in range(total_pages):
+                page = doc[page_num]
+                
+                # Extract text from page
+                page_text = page.get_text("text")
+                
+                # Check if page has text
+                has_text = bool(page_text.strip())
+                
+                if has_text:
+                    # Store text with page marker
+                    page_marker = f"--- Page {page_num + 1} ---\n\n"
+                    all_text.append(page_marker + page_text.strip())
+                    extracted_count += 1
+                    self.log_message(f"  Page {page_num + 1}/{total_pages}: {len(page_text.strip())} characters extracted")
+                else:
+                    self.log_message(f"  Page {page_num + 1}/{total_pages}: No accessible text found (may be image-based)")
+                
+                # Update progress
+                self.status_label.setText(f"Extracting text from page {page_num + 1}/{total_pages}...")
+                self.progress.setValue(page_num + 1)
+                QApplication.processEvents()
+            
+            doc.close()
+            
+            # Combine all text
+            combined_text = "\n\n".join(all_text)
+            
+            # Store as a single "file" entry
+            virtual_file = f"{pdf_name}.pdf"
+            self.image_files.append(virtual_file)
+            self.extracted_texts[virtual_file] = combined_text
+            
+            # Update UI
+            self._update_listbox()
+            self.preview_text.setPlainText(combined_text)
+            
+            # Log completion
+            self.log_message(f"Text extraction complete: {extracted_count}/{total_pages} pages had accessible text")
+            
+            if extracted_count == 0:
+                QMessageBox.warning(
+                    None,
+                    "No Text Found",
+                    f"No accessible text found in: {pdf_path.name}\n\n"
+                    f"This PDF appears to be image-based (scanned document).\n\n"
+                    f"Please switch to 'OCR Mode' and try again."
+                )
+                self.status_label.setText("No text found - try OCR mode for image-based PDFs")
+            elif extracted_count < total_pages:
+                QMessageBox.information(
+                    None,
+                    "Partial Text Extraction",
+                    f"Extracted text from {extracted_count}/{total_pages} pages.\n\n"
+                    f"{total_pages - extracted_count} page(s) had no accessible text (may be images).\n\n"
+                    f"If needed, switch to 'OCR Mode' to process image-based pages."
+                )
+                self.status_label.setText(f"✓ Extracted text from {extracted_count}/{total_pages} pages")
+            else:
+                QMessageBox.information(
+                    None,
+                    "Text Extraction Complete",
+                    f"Successfully extracted text from all {total_pages} pages!\n\n"
+                    f"File: {pdf_path.name}\n\n"
+                    f"You can now export to Markdown/Word."
+                )
+                self.status_label.setText(f"✓ Extracted text from all {total_pages} pages")
+            
+        except Exception as e:
+            QMessageBox.critical(None, "Text Extraction Error", f"Failed to extract text from PDF:\n\n{str(e)}")
+            self.status_label.setText("Text extraction failed")
+    
+    def _import_pdf_as_images(self, pdf_file):
+        """Import images from PDF for OCR processing (OCR mode)"""
         try:
             # Open PDF
             doc = fitz.open(pdf_file)
@@ -651,6 +790,22 @@ Output only the extracted text - no commentary, no explanations."""
             filename = os.path.basename(file)
             status = "✓ " if file in self.extracted_texts else ""
             self.file_listbox.addItem(f"{status}{i:2d}. {filename}")
+    
+    
+    def _on_mode_changed(self, index):
+        """Handle mode change between OCR and Text Extraction"""
+        is_ocr_mode = (index == 0)
+        
+        # Show/hide OCR-specific options
+        self.ocr_options_widget.setVisible(is_ocr_mode)
+        
+        # Update status message
+        if is_ocr_mode:
+            self.status_label.setText("OCR Mode: Use AI vision to extract text from image-based PDFs")
+        else:
+            self.status_label.setText("Text Extraction Mode: Extract accessible text directly from PDFs")
+        
+        self.log_message(f"Mode changed to: {'OCR' if is_ocr_mode else 'Text Extraction'}")
     
     def _on_file_select(self):
         """Show extracted text when file is selected"""
