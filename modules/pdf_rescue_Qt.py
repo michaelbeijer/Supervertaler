@@ -537,10 +537,63 @@ Output only the extracted text - no commentary, no explanations."""
         # Check which mode we're in
         is_ocr_mode = (self.mode_combo.currentIndex() == 0)
         
+        # Smart detection: If in OCR mode but PDF has text, offer to switch
         if is_ocr_mode:
+            try:
+                doc = fitz.open(pdf_file)
+                if self._pdf_has_extractable_text(doc):
+                    pdf_path = Path(pdf_file)
+                    reply = QMessageBox.question(
+                        None,
+                        "💡 Text Detected in PDF",
+                        f"This PDF has extractable text!\n\n"
+                        f"📄 {pdf_path.name}\n"
+                        f"📑 {len(doc)} page(s)\n\n"
+                        f"Recommended: Extract text directly instead of OCR\n\n"
+                        f"✅ Direct extraction:\n"
+                        f"   • FREE (no API credits)\n"
+                        f"   • INSTANT (no processing time)\n"
+                        f"   • ACCURATE (preserves original text)\n\n"
+                        f"❌ OCR mode:\n"
+                        f"   • Costs API credits (~$0.02-0.10)\n"
+                        f"   • Takes 10-30 seconds\n"
+                        f"   • May have minor errors\n\n"
+                        f"Use direct text extraction?",
+                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                        QMessageBox.StandardButton.Yes  # Default to Yes
+                    )
+                    doc.close()
+                    
+                    if reply == QMessageBox.StandardButton.Yes:
+                        # Auto-switch to text extraction mode
+                        self.mode_combo.setCurrentIndex(1)
+                        self._extract_text_from_pdf(pdf_file)
+                        return
+                    # else: continue with OCR as requested
+                else:
+                    doc.close()
+            except Exception as e:
+                self.log_message(f"⚠ Text detection failed: {e}")
+            
+            # Continue with OCR mode
             self._import_pdf_as_images(pdf_file)
         else:
+            # Text extraction mode
             self._extract_text_from_pdf(pdf_file)
+    
+    def _pdf_has_extractable_text(self, doc):
+        """
+        Check if PDF has extractable text (not just scanned images)
+        Tests first 3 pages for meaningful text content
+        """
+        for page_num in range(min(3, len(doc))):
+            page = doc[page_num]
+            text = page.get_text().strip()
+            # If we find substantial text (>100 chars), PDF is text-based
+            if len(text) > 100:
+                self.log_message(f"✓ Text detected on page {page_num + 1}: {len(text)} characters")
+                return True
+        return False
     
     def _extract_text_from_pdf(self, pdf_file):
         """Extract accessible text directly from PDF (Text Extraction mode)"""
@@ -784,12 +837,22 @@ Output only the extracted text - no commentary, no explanations."""
                 self.status_label.setText("List cleared")
     
     def _update_listbox(self):
-        """Update file listbox"""
+        """Update file listbox with visual indicators for text vs image sources"""
         self.file_listbox.clear()
         for i, file in enumerate(self.image_files, 1):
             filename = os.path.basename(file)
-            status = "✓ " if file in self.extracted_texts else ""
-            self.file_listbox.addItem(f"{status}{i:2d}. {filename}")
+            
+            # Different icons for PDF text extraction vs OCR images
+            if file.endswith('.pdf'):
+                # PDF text extraction (no image file)
+                icon = "📄"
+                status = "✓ " if file in self.extracted_texts else ""
+            else:
+                # OCR from image
+                icon = "🖼️"
+                status = "✓ " if file in self.extracted_texts else ""
+            
+            self.file_listbox.addItem(f"{status}{icon} {i:2d}. {filename}")
     
     
     def _on_mode_changed(self, index):
