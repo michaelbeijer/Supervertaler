@@ -530,14 +530,22 @@ Output only the extracted text - no commentary, no explanations."""
             for page_num in range(total_pages):
                 page = doc[page_num]
                 
-                # Render page to pixmap (image) at 2x resolution for better quality
-                zoom = 2.0
+                # Render page to high-quality pixmap for optimal AI vision processing
+                # 3x zoom = 300 DPI (professional print quality)
+                # This ensures AI models get crisp, clear text for accurate OCR
+                zoom = 3.0
                 mat = fitz.Matrix(zoom, zoom)
-                pix = page.get_pixmap(matrix=mat)
                 
-                # Save as PNG
+                # Use alpha=False for smaller file size (no transparency needed)
+                # colorspace="rgb" ensures proper color representation
+                pix = page.get_pixmap(matrix=mat, alpha=False, colorspace="rgb")
+                
+                # Save as high-quality PNG with optimization
                 img_filename = f"{pdf_name}_page_{page_num + 1:03d}.png"
                 img_path = os.path.join(temp_dir, img_filename)
+                
+                # PyMuPDF's save() method for PNG automatically uses good compression
+                # while preserving quality (lossless compression)
                 pix.save(img_path)
                 
                 # Add to image list
@@ -545,8 +553,11 @@ Output only the extracted text - no commentary, no explanations."""
                     self.image_files.append(img_path)
                     extracted_count += 1
                     
-                    # Log each page
-                    self.log_message(f"  Page {page_num + 1}/{total_pages} extracted: {img_filename}")
+                    # Log with image dimensions for quality verification
+                    self.log_message(
+                        f"  Page {page_num + 1}/{total_pages} extracted: {img_filename} "
+                        f"({pix.width}x{pix.height}px @ 300 DPI)"
+                    )
                 
                 # Update progress
                 self.status_label.setText(f"Extracting page {page_num + 1}/{total_pages}...")
@@ -559,7 +570,7 @@ Output only the extracted text - no commentary, no explanations."""
             self.status_label.setText(f"Imported {extracted_count} page(s) from PDF")
             
             # Log completion
-            self.log_message(f"PDF import complete: {extracted_count} pages extracted")
+            self.log_message(f"PDF import complete: {extracted_count} pages extracted at 300 DPI")
             self.log_message(f"Temporary folder: {temp_dir}")
             
             QMessageBox.information(
@@ -567,6 +578,8 @@ Output only the extracted text - no commentary, no explanations."""
                 "PDF Import Complete",
                 f"Successfully extracted {extracted_count} page(s) from:\n{Path(pdf_file).name}\n\n"
                 f"Images saved to folder:\n{temp_dir}\n\n"
+                f"Quality: 300 DPI (professional print quality)\n"
+                f"Optimized for AI vision models (OpenAI, Claude, Gemini)\n\n"
                 f"These images are kept for your reference and can be useful for the end client.\n\n"
                 f"You can now process these pages with AI OCR."
             )

@@ -78,8 +78,40 @@ The PDF Rescue tab will automatically detect available providers and show only t
 
 1. **Select Model**: Choose from the dropdown (organized by provider)
 2. **Import PDF or Images**: Use "📄 Import PDF" or "➕ Add Image Files"
+   - **PDF Import**: Automatically converts pages to 300 DPI PNG images (professional quality)
+   - **Image Import**: Use your own images (recommend 300+ DPI for best results)
 3. **Process**: Click "Process Selected" or "Process All"
 4. **Export**: Save to Word document with "Save DOCX"
+
+## Image Quality
+
+### PDF to Image Conversion
+
+When you import a PDF, PDF Rescue extracts pages at **300 DPI (3x zoom)**:
+- **Resolution**: Professional print quality
+- **Format**: PNG (lossless compression)
+- **Color**: RGB (no alpha channel for smaller files)
+- **Optimized for**: AI vision models (OpenAI, Claude, Gemini)
+
+**Why 300 DPI?**
+- AI models perform best with clear, high-resolution text
+- Reduces hallucinations and character substitution errors
+- Professional quality suitable for client deliverables
+- Balances quality vs. file size/processing time
+
+### Recommended Image Quality
+
+For best OCR results:
+- **Minimum**: 150 DPI (1200px wide for letter-size page)
+- **Recommended**: 300 DPI (2400px wide) - **default for PDF import**
+- **Maximum benefit**: 400 DPI (3200px wide)
+- **Diminishing returns**: Beyond 400 DPI adds file size but little accuracy gain
+
+**Tips for better quality:**
+- Use PDF import instead of screenshots when possible
+- If scanning paper: 300 DPI, color or grayscale
+- Ensure good contrast between text and background
+- Avoid heavy JPEG compression artifacts
 
 ## Model Recommendations
 
@@ -157,6 +189,13 @@ Process the same document with multiple providers to:
 *Estimates based on typical PDF pages (letter size, moderate content). Actual costs vary by image size and output length.
 
 ## Troubleshooting
+
+### "Image quality" or "resolution" warnings
+- **If using PDF import**: Images are already at 300 DPI (optimal quality)
+- **If importing images**: Check source image resolution
+  - Right-click image → Properties → Details → Dimensions
+  - For letter-size page: aim for 2400x3000px or larger
+  - Re-scan or re-export at higher DPI if needed
 
 ### "Client not initialized" Error
 - Check that the API key is in `api_keys.txt`

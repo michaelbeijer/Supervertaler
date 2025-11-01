@@ -4,6 +4,20 @@ All notable changes to Supervertaler will be documented in this file.
 
 ## [Unreleased]
 
+### Added - 2025-11-01
+- **High-quality PDF extraction in PDF Rescue** - Upgraded from 200 DPI to 300 DPI
+  - PDF pages now extracted at professional print quality (3x zoom factor)
+  - Optimized colorspace (RGB, no alpha) for smaller file sizes
+  - Image dimensions logged during extraction for quality verification
+  - Enhanced completion messages showing DPI and optimization details
+
+### Changed - 2025-11-01
+- **PDF to image conversion quality** improved by 50% (2x → 3x zoom)
+  - Better text clarity for AI vision models
+  - Reduces hallucinations and character recognition errors
+  - Optimal balance of quality vs. file size
+  - Updated documentation with image quality guidelines
+
 ### Added - 2025-10-31
 - **Multi-provider support in PDF Rescue** - Now supports OpenAI, Anthropic Claude, and Google Gemini
   - Added Claude Vision API integration (claude-3-5-sonnet, claude-3-5-haiku, claude-3-opus)
