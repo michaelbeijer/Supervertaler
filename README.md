@@ -211,7 +211,7 @@ Supervertaler is a **professional Computer-Aided Translation (CAT) editor** desi
 - ✅ **GPT-5/o3-mini Support** - Temperature parameter compatibility for reasoning models
 - ✅ **Medical Content Support** - Enhanced professional context bypasses content filters
 
-See [CHANGELOG.md](CHANGELOG.md) for complete details.
+See [CHANGELOG_Qt.md](CHANGELOG_Qt.md) for complete details.
 
 **TMX Editor - Unicode Bold Highlighting** 🎨
 - **True bold text** for search terms using Unicode Mathematical Bold characters
@@ -428,7 +428,7 @@ python Supervertaler_v3.7.1.py
 - **CAT Tool Integration**:
   - [CafeTran Integration](.dev/docs/features/CAFETRAN_SUPPORT.md)
   - [memoQ Integration](.dev/docs/features/MEMOQ_SUPPORT.md)
-- **Changelog**: [CHANGELOG.md](CHANGELOG.md)
+- **Changelogs**: [CHANGELOG_Qt.md](CHANGELOG_Qt.md) (Qt Edition) | [CHANGELOG_Tkinter.md](CHANGELOG_Tkinter.md) (Tkinter Edition)
 - **Website**: [supervertaler.com](https://supervertaler.com)
 
 ---
@@ -577,9 +577,10 @@ We're looking for:
 
 Check out:
 1. **README.md** (this file) - Overview
-2. **[CHANGELOG.md](CHANGELOG.md)** - What's new
-3. **[USER_GUIDE.md](USER_GUIDE.md)** - Detailed usage instructions
-4. **GitHub Issues** - Common questions
+2. **[CHANGELOG_Qt.md](CHANGELOG_Qt.md)** - Qt Edition changes
+3. **[CHANGELOG_Tkinter.md](CHANGELOG_Tkinter.md)** - Tkinter Edition changes
+4. **[USER_GUIDE.md](USER_GUIDE.md)** - Detailed usage instructions
+5. **GitHub Issues** - Common questions
 5. **Website Documentation** - tutorials and guides
 
 ---
