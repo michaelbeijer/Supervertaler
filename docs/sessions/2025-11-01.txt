@@ -1,0 +1,709 @@
+Review changes in pdf rescue module
+Create PR
+Review
++406
+-29
+I made a couple of changes to   the pdf rescue module (in Supervertaler_Qt). Can you see what has been changed from the git history 
+
+Checking git history for changes to the PDF rescue module. Locating the module in the code, then reviewing recent commits.
+babd44e v1.0.1: Termbases terminology standardization and bug fixes
+56aeeac Fix: remove remaining ribbon stretch to left-align groups
+e9b8995 Fix: Improve Quick Access Toolbar styling and positioning
+f563960 Phase 5.3: Complete UX Overhaul - All Advanced Features
+466ebbd Phase 5.2: Ribbon Interface - Modern CAT Tool UI - Implemented Office-style ribbon with 4 tabs (Home, Translation, View, Tools) - Added ribbon_widget.py module with reusable components - Grouped buttons by function with emoji icons - Professional appearance matching memoQ/Trados - All actions fully integrated with existing functionality                                                      
+Checking recent commits and diffs for PDF Rescue changes:
+
+    Version bumped from 1.1.1 to 1.1.2
+
+ Supervertaler_Qt.py | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)
+
+    Fix PDF Rescue header compactness with maximum height constraint
+
+ Supervertaler_Qt.py | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)
+
+    Integrate PDF Rescue tool into Supervertaler Qt with UI improvements        
+
+ Supervertaler_Qt.py | 35 +++++++++++++++++++++++++++++++----
+ 1 file changed, 31 insertions(+), 4 deletions(-)
+Showing the actual diff content for the recent PDF Rescue commits:
+@@ -4,7 +4,7 @@ Supervertaler Qt Edition
+ Professional Translation Memory & CAT Tool
+ Modern PyQt6 interface with Universal Lookup and advanced features
+
+:
+Request ID: ee6a2176-986c-4638-83dc-4f5b2afe1ebd
+
+{"error":"ERROR_USER_ABORTED_REQUEST","details":{"title":"User aborted request.","detail":"Tool call ended before result was received","isRetryable":false,"additionalInfo":{},"buttons":[],"planChoices":[]},"isExpected":true}
+
+
+
+Checking uncommitted changes, then showing recent commits:
++            "<p><i>v1.1.2 - PDF Rescue Refinements & Website Updates</i></p>"  
+             "<p>Features are being migrated progressively from Supervertaler v3.7.x (tkinter).</p>"
+         )
+
+There is no -- Supervertaler_Qt.py option  (press RETURN)
+> +            "<p><i>v1.1.2 - PDF Rescue Refinements & Website
+Updates</i></p>"
+               "<p>Features are being migrated progressively from
+Supervertaler v3.7.x (tkinter).</p>"
+           )
+Checking the PDF Rescue module file directly and its git history:
+011705a Fix Qt ItemIsEnabled AttributeError in PDF Rescue
+500fc5d Improve PDF to image quality: 200 DPI → 300 DPI
+2e2fa0e Add multi-provider support to PDF Rescue (OpenAI, Claude, Gemini)       
+8765afd Improve PDF Rescue accuracy and add multi-column layout support
+75d5beb Fix GPT-5 compatibility in PDF Rescue - use max_completion_tokens       
+Checking changes in the PDF rescue module file:
+ ÔÇó gpt-5 (Advanced Reasoning): Reasoning model; may improve table extraction and complex layouts; slower and more expensive; best for: complex tables, technical documents, structured data extraction"""                                     
+         self.model_descriptions_text.setPlainText(model_descriptions)
+-        ocr_options_layout.addWidget(self.model_descriptions_text)
+-
+-        # Add OCR options widget to main options layout
+Getting the complete diff for the most recent PDF Rescue commit:
+         )
+         description.setWordWrap(True)
+         description.setStyleSheet("color: #666; padding: 5px; background-color: #E3F2FD; border-radius: 3px;")
+@@ -267,34 +267,7 @@ class PDFRescueQt:
+:
+Are you still reviewing the changes?
+
+Getting the full diff summary to show all changes:
+Cannot write to "how c09a763 --stat modules/pdf_rescue_Qt.py"  (press RETURN)   
+PS C:\Dev\Supervertaler> git show c09a763 -- modules/pdf_rescue_Qt.py > temp_diff.txt 2>&1                                                                      
+Removing the temp file and summarizing the changes:
+Summary of PDF Rescue Module Changes (Commit c09a763)
+Commit: v1.1.2: PDF Rescue refinements & website updates
+Date: November 1, 2025
+Major Changes:
+Simplified to OCR-only mode
+Removed ~504 lines of dual-mode complexity (OCR vs Text Extraction)
+Removed mode selector dropdown
+Removed all text extraction code (_extract_text_from_pdf, _pdf_has_extractable_text, _process_blocks_with_layout, encoding fixes, etc.)
+Now focuses exclusively on AI-powered OCR for image-based PDFs
+UI updates
+Header: "PDF Rescue" → "PDF Rescue - AI-Powered OCR"
+Description updated to emphasize OCR-only functionality
+OCR prompt simplified
+Replaced a long, detailed prompt with a concise version
+Removed extensive rules about accuracy, layout detection, and formatting
+Focuses on essential extraction instructions
+DOCX export improvements
+Fixed excessive line breaks: uses re.split(r'\n\s*\n', text) to detect paragraphs (double newlines)
+Replaces single newlines within paragraphs with spaces
+Reduced paragraph spacing: 12pt → 6pt
+Added clickable hyperlink to Supervertaler website in exports
+Code cleanup
+Removed mode change handler (_on_mode_changed)
+Simplified file listbox (removed mode-specific icons)
+Reduced image quality: 300 DPI (3x zoom) → 200 DPI (2x zoom)
+Result: The module is simpler, focused on OCR-only functionality, with improved DOCX export formatting.
+I think it is time to  implement the full prompt manager from Supervertaler_tkinter into the new Supervertaler_Qt.   I have attached a screenshot of what it looks like.  please completely review and analyze the code  in the tkinter version,  And tell me whether you would be able to  copy over all of the  functionality to Supervertaler_Qt,  and put it in the appropriate tab 
+
+ it says I have reached my usage limit.  I took out the trial version,  and extensively used Composer 1  for one maybe two days,  how can I already have reached my user limit.  what is it in the trial?
+
+ it says I have reached my usage limit.  I took out the trial version,  and extensively used Composer 1  for one maybe two days,  how can I already have reached my user limit.  what is it in the trial?
+
+Reviewing the tkinter Prompt Manager to assess porting to Qt. Searching for the relevant code:
+Analysis: Porting Prompt Manager from Tkinter to Qt
+Assessment: Portable
+The Prompt Manager can be ported to Qt. Core functionality is modular and UI-agnostic.
+Architecture Overview
+The Prompt Manager has 4 main sections:
+System Prompts tab — manage domain-specific translation prompts
+Custom Instructions tab — project-specific rules
+Style Guides tab — language-specific formatting guidelines
+Prompt Assistant tab — AI-powered prompt refinement
+Core Components Already Available
+modules/prompt_library.py — prompt loading/saving (JSON & Markdown)
+modules/style_guide_manager.py — style guide management
+modules/prompt_assistant.py — AI assistant functionality
+All backend logic is UI-agnostic and reusable
+What Needs to Be Built (Qt UI)
+1. Main Layout Structure (~200 lines)
+Top bar: active prompts display (Translation, Proofreading, Custom Instruction, Style Guide)
+Split pane: left panel (prompt lists) | right panel (editor)
+Tab widget: System Prompts, Custom Instructions, Style Guides, Prompt Assistant
+2. System Prompts Tab (~300 lines)
+QTreeWidget for prompt list (columns: Name, Task, Domain, Version)
+Task filter dropdown (QComboBox)
+Action buttons: New, Activate for Translation/Proofreading
+Integration with PromptLibrary.load_all_prompts() and PromptLibrary.get_prompt()
+3. Custom Instructions Tab (~200 lines)
+QTreeWidget (Name, Domain, Version)
+Buttons: New, Activate, Clear
+4. Style Guides Tab (~350 lines)
+3-panel layout (Languages list | Editor | Preview)
+QListWidget for languages
+QTextEdit with markdown formatting toggle
+Buttons: New, Activate, Clear, Reload, Import/Export
+5. Prompt Editor Panel (~250 lines)
+Form fields: Name, Domain, Task Type, Version, Description
+QTextEdit for prompt content
+Buttons: Save, Revert, Delete
+Integration with PromptLibrary.update_prompt() and PromptLibrary.delete_prompt()
+6. Prompt Assistant Tab (~400 lines)
+Chat interface (QTextEdit for history, QLineEdit for input)
+Integration with modules/prompt_assistant.py
+Diff visualization for prompt changes
+Apply/Discard functionality
+7. Activation & State Management (~150 lines)
+Track active prompts (active_translate_prompt, active_proofread_prompt, etc.)
+Update top bar labels when prompts are activated
+Integration with translation workflow
+Dependencies Check
+PromptLibrary module — exists, reusable
+StyleGuideLibrary module — exists, reusable
+PromptAssistant module — exists, reusable
+File paths (get_user_data_path) — needs Qt equivalent
+Markdown parsing — already handled by PromptLibrary
+Estimated Implementation Size
+Total lines: ~1,850 lines of Qt code
+Complexity: Medium
+Reusable code: ~70% (backend modules)
+Challenges & Solutions
+Challenge	Solution
+Qt TreeView vs Tkinter Treeview	Use QTreeWidget with columns
+Markdown rendering in editor	Use QTextEdit with markdown formatting or external renderer
+Tab state preservation	Use QSettings (Qt equivalent)
+File system operations	Use QFileDialog, QDir
+Chat interface styling	Use HTML in QTextEdit with CSS
+Integration Points
+Translation workflow: Active prompts must be used during translation
+Settings persistence: Save active prompts to project settings
+Tab memory: Remember selected sub-tab using QSettings
+File watcher: Optional auto-reload on file changes
+Recommended Implementation Approach
+Create modules/prompt_manager_qt.py (similar to pdf_rescue_Qt.py)
+Use existing backend modules (PromptLibrary, StyleGuideLibrary)
+Follow the UI pattern from pdf_rescue_Qt.py (embedded tab style)
+Reuse Qt widgets: QTreeWidget, QTabWidget, QSplitter, QTextEdit
+Verdict
+Yes, this can be fully ported. The architecture is modular, and the backend is UI-agnostic. The work is primarily implementing the Qt UI and wiring it to the existing modules. Estimated time: 8–12 hours.
+Should I start implementing this? I can begin with the System Prompts tab as a proof of concept.
+I have one question before you start. As you said, 
+
+
+
+The Prompt Manager has 4 main sections:
+
+- System Prompts tab — manage domain-specific translation prompts
+
+- Custom Instructions tab — project-specific rules
+
+- Style Guides tab — language-specific formatting guidelines
+
+- Prompt Assistant tab — AI-powered prompt refinement
+
+
+
+ however,  can you explain to me how the "system prompts"  relate to certain  hard coated prompts that are already in the program.  if I remember correctly,  these hardcoded prompts include information about how to handle memoQ tags,  and some other things. 
+
+
+
+ I'm asking because of the terminology I have decided to use. 
+
+
+
+ looking again at the 3  categories:
+
+
+
+- System Prompts tab — manage domain-specific translation prompts
+
+- Custom Instructions tab — project-specific rules
+
+- Style Guides tab — language-specific formatting guidelines
+
+
+
+ do you think this is a good division?  I want to make this prompt manager as useful as possible to translators who are trying to translate text as best they can,  and later to also proofread things,  and even later to also copyright text.  have I broken down the various types of prompts that  would be useful to send along to an AI?
+
+
+
+ have I gotten the terminology right and the categories?
+
+
+
+ and how did  these three categories,  and in particular the first ( system prompts),  relate to those hardcoded prompts?
+
+
+
+Reviewing hardcoded prompts and how they relate to the Prompt Manager. Searching for them:
+Analysis: Hardcoded prompts vs. Prompt Manager "System Prompts"
+Current architecture problem
+Current prompt assembly (from Supervertaler_tkinter.py lines 1150-1177):
+# Step 1: Choose base promptif active_translate_prompt exists:    base_prompt = active_translate_prompt  # FROM PROMPT LIBRARY - REPLACES hardcodedelse:    base_prompt = hardcoded_default  # FALLBACK with memoQ tags, etc.# Step 2: Append Custom Instructions# Step 3: Append Style Guide
+Issue: "System Prompts" from the Prompt Manager replace the hardcoded base prompt. This loses critical infrastructure instructions (e.g., memoQ tag preservation).
+What hardcoded prompts contain
+Infrastructure instructions (lines 897-1048):
+Professional translation context disclaimer
+CAT tool tag preservation (memoQ [1} {2], Trados <410></410>, CafeTran |text|)
+UICONTROL tag handling (memoQ bilingual DOCX)
+Language-specific number formatting (commas vs. periods)
+Output format rules ("ONLY translated text, no commentary")
+Task framing ("You are an expert translator...")
+Terminology and category analysis
+Current structure:
+"System Prompts" — domain-specific translation prompts
+Problem: This name implies infrastructure/system-level behavior, but these are domain-specific strategies.
+"Custom Instructions" — project-specific rules
+Good: Clear, project-specific.
+"Style Guides" — language-specific formatting guidelines
+Good: Clear, language-specific.
+Recommended terminology revision
+Proposed hierarchy:
+┌─────────────────────────────────────────────────────────┐│                 FINAL TRANSLATION PROMPT                  │├─────────────────────────────────────────────────────────┤│                                                          ││  1. BASE PROMPT (Hardcoded - Never Changes)             ││     └─ Infrastructure instructions:                     ││        • CAT tool tag preservation (memoQ/Trados/etc.) ││        • Output format rules                            ││        • Professional context disclaimers              ││        • Language formatting rules                      ││                                                          ││  2. DOMAIN STRATEGY (Your "System Prompts")            ││     └─ Domain expertise & approach:                     ││        • Medical translation strategy                  ││        • Legal translation precision                   ││        • Patent translation rules                       ││        • Marketing adaptation                           ││                                                          ││  3. PROJECT INSTRUCTIONS (Your "Custom Instructions") ││     └─ Project-specific guidance:                      ││        • Document-specific terminology                 ││        • Client preferences                            ││        • Special formatting requirements               ││                                                          ││  4. STYLE GUIDE (Language-specific formatting)          ││     └─ Target language conventions:                    ││        • Dutch number formatting                       ││        • German quotation marks                        ││        • French punctuation                            │└─────────────────────────────────────────────────────────┘
+Recommended naming changes
+Current Name	Recommended Name	Why
+"System Prompts"	"Domain Strategies" or "Translation Strategies"	More accurate — these define domain approach, not system behavior
+"Custom Instructions"	"Project Instructions" or keep "Custom Instructions"	Already clear — optional rename
+"Style Guides"	Keep "Style Guides"	Clear and accurate
+Alternative naming:
+"Translation Strategies" tab
+"Domain Prompts" tab
+"Expertise Profiles" tab
+Proposed architecture fix
+Merge infrastructure into the final prompt:
+def build_translation_prompt(self, mode="single"):    """Build complete prompt with all layers"""        # Layer 1: Infrastructure (always included)    infrastructure = self.get_infrastructure_prompt(mode)  # memoQ tags, format rules        # Layer 2: Domain Strategy (optional - from Prompt Manager)    domain_strategy = ""    if hasattr(self, 'active_translate_prompt') and self.active_translate_prompt:        domain_strategy = self.active_translate_prompt    else:        domain_strategy = "You are an expert {{SOURCE_LANGUAGE}} to {{TARGET_LANGUAGE}} translator."        # Layer 3: Project Instructions (optional)    project_instructions = ""    if hasattr(self, 'active_custom_instruction') and self.active_custom_instruction:        project_instructions = "\n\n# PROJECT-SPECIFIC INSTRUCTIONS\n\n" + self.active_custom_instruction        # Layer 4: Style Guide (optional)    style_guide = ""    if hasattr(self, 'active_style_guide') and self.active_style_guide:        style_guide = "\n\n# STYLE GUIDE & FORMATTING RULES\n\n" + self.active_style_guide        # Combine: Infrastructure + Domain + Project + Style    final_prompt = infrastructure + "\n\n" + domain_strategy + project_instructions + style_guide        return final_prompt
+Benefits:
+Infrastructure is always included (memoQ tags, formatting rules).
+Domain strategies focus on expertise/approach.
+Clear separation of concerns.
+Backward compatible (if no domain strategy, use a generic role).
+Summary and recommendations
+Terminology: Rename "System Prompts" to "Domain Strategies" or "Translation Strategies".
+Architecture: Always include infrastructure instructions, then append domain strategy.
+Categories are good, but the naming needs clarification.
+Hardcoded prompts are infrastructure, not a fallback — they should always be present.
+Final verdict
+Your 3-category structure is good:
+Domain Strategies (current "System Prompts")
+Project Instructions (current "Custom Instructions")
+Style Guides
+Issue: "System Prompts" terminology implies system-level behavior when it's domain-level strategy.
+Recommendation: Rename "System Prompts" → "Domain Strategies" or "Translation Strategies" to reflect that they add domain expertise on top of the infrastructure instructions.
+Should I:
+Implement the architecture fix (always include infrastructure)?
+Update terminology throughout the codebase?
+Both?
+This is great thanks,  so,  just to be clear:
+
+
+
+Old Architecture Overview:
+
+- System Prompts tab — manage domain-specific translation prompts
+
+- Custom Instructions tab — project-specific rules
+
+- Style Guides tab — language-specific formatting guidelines
+
+
+
+➜ 
+
+
+
+New Architecture Overview:
+
+- Hardcoded prompts (infrastructure)
+
+- Domain Strategies — manage domain-specific translation prompts
+
+- Project Instructions — project-specific rules
+
+- Style Guides — language-specific formatting guidelines
+
+
+
+Confirming your understanding. Here's the mapping:
+Architecture confirmation
+Old architecture (what it was doing):
+┌─────────────────────────────────────────┐│           FINAL PROMPT                   │├─────────────────────────────────────────┤│  ❌ System Prompt (REPLACES hardcoded)  │  ← Problem!│  OR hardcoded default (if none active)   ││  + Custom Instructions                   ││  + Style Guide                           │└─────────────────────────────────────────┘
+New architecture (what it should be):
+┌─────────────────────────────────────────┐│           FINAL PROMPT                   │├─────────────────────────────────────────┤│  ✓ Hardcoded Infrastructure             │  ← Always included│     (memoQ tags, format rules, etc.)     ││  + Domain Strategy                       │  ← Optional (from tab)│     (Medical, Legal, Patent, etc.)       ││  + Project Instructions                  │  ← Optional (from tab)│     (client terms, project rules)        ││  + Style Guide                           │  ← Optional (from tab)│     (language formatting)                │└─────────────────────────────────────────┘
+UI tabs (what users see)
+Domain Strategies tab (renamed from "System Prompts")
+Manages: Medical Translation Specialist, Legal Translator, Patent Expert, etc.
+Purpose: Adds domain expertise to infrastructure
+Project Instructions tab (renamed from "Custom Instructions")
+Manages: Project-specific terminology, client preferences
+Purpose: Adds project-specific rules
+Style Guides tab (unchanged)
+Manages: Target language formatting rules
+Purpose: Adds language-specific conventions
+Prompt Assistant tab (unchanged)
+AI help for editing prompts
+Implementation details
+Hardcoded prompts (infrastructure):
+Always included, never replaced
+Contains memoQ/Trados tag handling, output format rules, etc.
+Defined in code (not in Prompt Manager UI)
+Domain Strategies:
+Optional layer
+Stored in Prompt_Library/System_prompts/ folder
+Selected via Prompt Manager → Domain Strategies tab
+Project Instructions:
+Optional layer
+Stored in Prompt_Library/Custom_instructions/ folder
+Selected via Prompt Manager → Project Instructions tab
+Style Guides:
+Optional layer
+Stored in Prompt_Library/Style_Guides/ folder
+Selected via Prompt Manager → Style Guides tab
+Prompt assembly logic
+final_prompt = (    hardcoded_infrastructure_prompt +  # Always first    "\n\n" +    (active_domain_strategy or "You are an expert translator.") +  # Optional    (active_project_instructions or "") +  # Optional    (active_style_guide or "")  # Optional)
+This ensures:
+Infrastructure is always present (memoQ tags, etc.)
+Domain expertise is layered on top
+Project specifics are added when needed
+Style guides finish the customization
+Correct. Should I proceed with implementing this architecture in the Qt version?
+This is perfect, 
+
+
+
+ I would also like you to add something to the website,  explaining this,  in a crystal clear manner,  with a nice graphic (The following;  see my screenshot)
+
+
+
+ this new architecture,  along with the AI-powered  prompt assistant,  which is something I have not seen and  implemented in anyone elses tools yet,  at least not  in the translation industry,  is a novel and very powerful approach both to  getting the best translation/proofreading/copywriting woek out of AI.  was an extremely powerful prompt management system.  I would also like to give some thought to terminology because I know that catchy and clever terminology,  with is also clear,  is often key to selling a product.
+
+
+
+ so far,  I think that the general  tab name of "Prompt Manager"  it's pretty good,  and clear.
+
+ and the various tabs with:
+
+
+
+- Domain Strategies — manage domain-specific translation prompts
+
+- Project Instructions — project-specific rules
+
+- Style Guides — language-specific formatting guidelines
+
+- Prompt Assistant
+
+
+
+Seem well named
+
+
+
+ what do you think about the terminology?
+
+
+
+ do not yet proceed with the implementation before you have answered to my satisfaction
+
+Analyzing terminology for clarity, marketing appeal, and differentiation:
+Terminology analysis and recommendations:
+Terminology analysis
+Current proposed terms:
+Term	Clarity	Marketing appeal	Memorability	Professional tone	Score
+Prompt Manager	⭐⭐⭐⭐⭐	⭐⭐⭐⭐	⭐⭐⭐⭐⭐	⭐⭐⭐⭐	22/25
+Domain Strategies	⭐⭐⭐	⭐⭐⭐	⭐⭐⭐	⭐⭐⭐⭐	13/20
+Project Instructions	⭐⭐⭐⭐	⭐⭐	⭐⭐⭐	⭐⭐⭐	12/20
+Style Guides	⭐⭐⭐⭐⭐	⭐⭐⭐	⭐⭐⭐⭐	⭐⭐⭐⭐	16/20
+Prompt Assistant	⭐⭐⭐⭐⭐	⭐⭐⭐⭐⭐	⭐⭐⭐⭐	⭐⭐⭐⭐	21/25
+Detailed feedback
+1. "Prompt Manager" — excellent
+Clear purpose
+Familiar to AI-savvy translators
+Broad enough to cover the system
+No changes needed
+2. "Domain Strategies" — needs refinement
+Issues:
+"Strategies" can feel abstract
+Doesn’t clearly convey domain expertise
+Less memorable
+Alternatives to consider:
+"Domain Expertise" — clearer, expertise-focused
+"Expertise Profiles" — implies specialization
+"Translation Profiles" — familiar in translation tools
+"Domain Prompts" — direct, but loses the expertise angle
+Recommendation: "Domain Expertise" or "Expertise Profiles"
+3. "Project Instructions" — acceptable but generic
+Issues:
+"Instructions" sounds manual
+Doesn’t highlight personalization
+Generic
+Alternatives:
+"Project Guidelines" — slightly better
+"Client Preferences" — clearer context
+"Project Rules" — too rigid
+"Project Brief" — implies specific guidance
+"Work Instructions" — more formal
+Recommendation: "Project Guidelines" or keep "Project Instructions"
+4. "Style Guides" — perfect
+Industry-standard term
+Clear and professional
+No changes needed
+5. "Prompt Assistant" — excellent
+Clear AI assistance
+Distinctive
+No changes needed
+Recommended final terminology
+Option A: Expertise-focused (recommended)
+🎯 Prompt Manager├── Domain Expertise      (was "Domain Strategies")├── Project Guidelines    (was "Project Instructions")├── Style Guides          (unchanged)└── Prompt Assistant      (unch
+Why: "Domain Expertise" is clear and professional.
+Option B: More technical
+🎯 Prompt Manager├── Expertise Profiles    (was "Domain Strategies")├── Project Instructions  (unchanged)├── Style Guides          (unchanged)└── Prompt Assistant      (unchanged)
+Why: "Profiles" suggests reusable, configurable templates.
+Option C: Keep current, add marketing labels
+Keep the tab names as-is, but use marketing labels:
+"Domain Strategies" → "Layered Domain Expertise"
+"Project Instructions" → "Personalized Project Guidance"
+Marketing terminology for the 4-layer system
+Name the architecture itself:
+"Layered Prompt Architecture" (technical)
+"Progressive Prompt System" (dynamic)
+"Multi-Tier Prompt Stack" (technical)
+"Adaptive Prompt Framework" (dynamic)
+"Intelligent Prompt Layering" (marketing-friendly)
+Recommendation: "Layered Prompt Architecture" or "Intelligent Prompt Layering"
+Website copy suggestions
+Headline options:
+"The only CAT tool with Intelligent Prompt Layering"
+"4-Layer Prompt Architecture for maximum translation precision"
+"Domain Expertise + Project Guidelines + Style Guides = Perfect translation"
+Key selling points:
+Infrastructure always included (memoQ tags, formatting) — no setup needed
+Domain expertise — add medical, legal, patent, etc.
+Project personalization — client-specific rules
+Language refinement — style guide polish
+AI-powered refinement — Prompt Assistant (unique)
+Final recommendation
+Use Option A:
+"Domain Expertise" (instead of "Domain Strategies")
+"Project Guidelines" (instead of "Project Instructions")
+Keep "Style Guides" and "Prompt Assistant"
+Marketing tagline:
+> "Supervertaler's Layered Prompt Architecture: Infrastructure + Domain Expertise + Project Guidelines + Style Guides = Translation Perfection"
+One-line explanation:
+> "Start with built-in infrastructure (memoQ tags, formatting rules), layer on domain expertise (Medical, Legal, Patent), add project-specific guidelines, and finish with language style guides."
+Summary
+"Prompt Manager" — keep
+"Domain Strategies" → change to "Domain Expertise"
+"Project Instructions" → consider "Project Guidelines"
+"Style Guides" — keep
+"Prompt Assistant" — keep
+Should I:
+Proceed with Option A terminology?
+Create website copy explaining the Layered Prompt Architecture?
+Generate marketing materials highlighting the uniqueness?
+What are your thoughts on "Domain Expertise" vs "Domain Strategies"?
+Let's go with:
+
+
+
+The 4-layer system:
+
+Layered Prompt Architecture
+
+
+
+(Layer 1) Hardcoded prompts (infrastructure)
+
+
+
+🎯 Prompt Manager
+
+(Layer 2) ├── Domain Expertise      (was "Domain Strategies")
+
+(Layer 3) ├── Project Guidelines    (was "Project Instructions")
+
+(Layer 4) ├── Style Guides          (unchanged)
+
+└── Prompt Assistant      (unchanged)
+
+
+
+"4-Layer Prompt Architecture for maximum (translation/proofreading/copywriting) precision"
+
+
+
+----
+
+
+
+Key selling points:
+
+1. Infrastructure always included (memoQ tags, formatting) — no setup needed
+
+2. Domain expertise — add medical, legal, patent, etc.
+
+3. Project personalization — client-specific rules
+
+4. Language refinement — style guide polish
+
+5. AI-powered refinement — Prompt Assistant (unique)
+
+
+
+-----------------------
+
+And one last thing before I ask you to actually implement and all this:
+
+
+
+I would also like to have a system in place, when using Cursor,  were at the end of each workday  we save an exact copy of our chat log ( what I said and what you said) to my repo,  in order to have a fixed documentation of it.  how could we best achieve this? When still using VSCode,  I was manually copying the entire chat of the day (via right click Copy all)  and putting in a text file in:
+
+
+
+C:\Dev\Supervertaler\docs\sessions
+
+
+
+
+
+
+
+Confirming the architecture, then addressing chat log automation:
+Creating an automation system for Cursor chat log exports:
+README.md
++32
+-22
+### 💬 Chat History Logs (Text)- `copilot_chat_history_*.txt` - Complete chat transcripts from GitHub Copilot sessions- Contains full conversation history for each day```copilot_chat_history_YYYY-MM-DD (MB).txt
+- `copilot_chat_history_*.txt` - Complete chat transcripts from GitHub Copilot sessionscopilot_chat_history_YYYY-MM-DD (MB).txt### 💬 Chat History Logs (Text)- `cursor_chat_history_*.txt` - Complete chat transcripts from Cursor AI sessions- Contains full conversation history for each day```
+save_chat_log.ps1
++109
+# Save Cursor Chat Log Script# Usage: Run this script after copying chat content from Cursor# It will prompt you to paste and save the chat log with today's date$ErrorActionPreference = "Stop"
+QUICK_START.md
++66
+# Quick Start: Saving Cursor Chat Logs## 🎯 Daily Workflow (30 seconds)### Option 1: PowerShell Script (Easiest)```powershell
+Updating .gitignore to include Cursor chat logs:
+.gitignore
++1
+docs/sessions/copilot_chat_history*.txtdocs/chat-logs/
+docs/sessions/copilot_chat_history*.txtdocs/sessions/cursor_chat_history*.txtdocs/chat-logs/
+Summary: Chat log automation system
+Files created
+docs/sessions/save_chat_log.ps1 — PowerShell script to automate saving
+docs/sessions/QUICK_START.md — Quick reference guide
+Updated docs/sessions/README.md — Full documentation with Cursor instructions
+Updated .gitignore — Now includes cursor_chat_history*.txt
+How it works
+Daily workflow (30 seconds):
+End of day: Right-click in Cursor chat → "Copy All"
+Run script:
+   .\docs\sessions\save_chat_log.ps1
+Script will:
+Check clipboard for content
+Generate filename: cursor_chat_history_2025-11-01 (MB).txt
+Save to docs/sessions/
+Open file for verification (optional)
+Features
+Automatic filename with today's date
+Clipboard detection — uses clipboard content if available
+Verification — opens file after saving for quick check
+Git-safe — files automatically gitignored
+Legacy support — still handles old copilot_chat_history*.txt files
+Optional enhancements
+Keyboard shortcut (recommended)
+Set Ctrl+Alt+S to run the script instantly after copying chat.
+Task Scheduler reminder
+Daily reminder at 5 PM to save the chat log.
+Next steps
+Test the script: Try running .\docs\sessions\save_chat_log.ps1 after copying some text
+Set up keyboard shortcut (optional, see QUICK_START.md)
+Try it at end of day today
+Architecture confirmation
+4-Layer Prompt Architecture:
+(Layer 1) Hardcoded prompts (infrastructure)
+(Layer 2) Domain Expertise
+(Layer 3) Project Guidelines
+(Layer 4) Style Guides
+Prompt Assistant
+Ready to proceed with implementation. The chat log system is in place. Should I continue with implementing the Prompt Manager in Qt with this architecture?
+copy all Doesn't seem to work in cursor desktop
+
+Checking Cursor's chat export options and updating the script to handle manual copy/paste:
+Updating the script and documentation for a manual copy/paste workflow, since "Copy All" doesn't work in Cursor:
+save_chat_log.ps1
++52
+-29
+# It will prompt you to paste and save the chat log with today's dateif (Test-Path $FilePath) {
+# Usage: Run this script after copying chat content from Cursor# It will prompt you to paste and save the chat log with today's date# Usage: #   1. In Cursor: Manually select all chat text (Ctrl+A) and copy (Ctrl+C)#   2. Run this script - it will use clipboard content automatically#   3. Or: Run script first, then paste when promptedif (Test-Path $FilePath) {
+README.md
++26
+-11
+   ```powershell
+### ⚡ Quick Method (Recommended - 30 seconds)**Note:** Cursor's "Copy All" feature doesn't work reliably. Use manual selection instead:1. **In Cursor**:    - Open chat panel   - Press `Ctrl+A` to select all chat text
+QUICK_START.md
++4
+-2
+```powershell# 1. In Cursor: Right-click chat → "Copy All"# 2. In PowerShell (from repo root):.\docs\sessions\save_chat_log.ps1# 3. Follow prompts → Done!
+# 1. In Cursor: Right-click chat → "Copy All"# 3. Follow prompts → Done!```powershell# 1. In Cursor: Press Ctrl+A (select all), then Ctrl+C (copy)# 2. In PowerShell (from repo root):.\docs\sessions\save_chat_log.ps1
+Simplifying the script to make it more reliable:
+save_chat_log.ps1
++58
+-46
+#   3. Or: Run script first, then paste when prompted
+#   1. In Cursor: Manually select all chat text (Ctrl+A) and copy (Ctrl+C)#   2. Run this script - it will use clipboard content automatically#   3. Or: Run script first, then paste when prompted#   1. In Cursor: Press Ctrl+A (select all), then Ctrl+C (copy)#   2. Run this script - it will detect clipboard automatically#   3. Or run script first, then paste when prompted
+Updated solution
+Updated workflow since "Copy All" doesn't work in Cursor:
+Method 1: Clipboard detection (preferred)
+In Cursor: Ctrl+A (select all) → Ctrl+C (copy)
+Run script: .\docs\sessions\save_chat_log.ps1
+Script detects clipboard and asks to confirm (press Y)
+Done — file saved automatically
+Method 2: File paste (if clipboard doesn't work)
+Run script: .\docs\sessions\save_chat_log.ps1
+Script opens Notepad automatically
+Paste chat content into Notepad (Ctrl+V)
+Save and close Notepad (Ctrl+S, then close)
+Return to PowerShell — press Enter
+Script reads the file and saves it
+What changed
+Simplified clipboard detection: checks clipboard first, shows preview
+Notepad fallback: if clipboard doesn't work, opens a temp Notepad file
+Clearer prompts: step-by-step instructions
+More reliable: avoids complex PowerShell multiline input
+Try it now
+In Cursor: Select all chat (Ctrl+A) and copy (Ctrl+C)
+Run: .\docs\sessions\save_chat_log.ps1
+It should detect your clipboard automatically.
+If you run into any issues, the script will fall back to the Notepad method. Let me know how it works.
+ it seems the chat interface in Cusror desktop  doesn't work like VS Code. in VS Code  I can just right click anywhere in the chat window, and "Copy all" appears.  can you tell me exactly where to position my cursor so I c=do Ctrl+a?  I tried pressing control a but it selected everything in the open .py file
+
+Explaining how to select chat content in Cursor:
+Providing step-by-step instructions for selecting chat content in Cursor:
+CURSOR_CHAT_SELECTION_GUIDE.md
++134
+# How to Select Chat Content in Cursor Desktop## The ProblemCursor's chat interface works differently from VS Code. `Ctrl+A` in the main window selects editor content, not chat messages.## ✅ Solution: Manual Selection Methods
+README.md
++6
+-3
+### ⚡ Quick Method (Recommended - 30 seconds)**Note:** Cursor's "Copy All" feature doesn't work reliably. Use manual selection instead:1. **In Cursor**:    - Open chat panel
+**Note:** Cursor's "Copy All" feature doesn't work reliably. Use manual selection instead:   - Open chat panel   - Press `Ctrl+A` to select all chat text### ⚡ Quick Method (Recommended - 30 seconds)**Note:** Cursor's "Copy All" feature doesn't work, and `Ctrl+A` selects editor content. Use manual selection:1. **In Cursor**: 
+QUICK_START.md
++7
+-4
+# 2. In PowerShell (from repo root):.\docs\sessions\save_chat_log.ps1# 3. Press Y when asked about clipboard → Done!
+# 1. In Cursor: Press Ctrl+A (select all), then Ctrl+C (copy)# 2. In PowerShell (from repo root):# 3. Press Y when asked about clipboard → Done!# 1. In Cursor: Select chat messages manually (see guide below)# 2. Copy selection (Ctrl+C)# 3. In PowerShell (from repo root):.\docs\sessions\save_chat_log.ps1
+Exact steps to select chat in Cursor
+Quick steps
+Click on any chat message (the text area showing "You:" or "Assistant:", not the input box)
+Scroll to the top of the chat
+Click once on the first message (sets cursor position)
+Scroll to the bottom of the chat
+Hold Shift and click at the end of the last message (selects everything)
+Press Ctrl+C to copy
+Visual guide
+Cursor Window Layout:┌─────────────────────────────────┐│  Your .py file (editor)         │  ← Ctrl+A selects THIS (wrong!)├─────────────────┬───────────────┤│                 │ Chat Panel    ││  [Editor Area]  │ ┌───────────┐ ││                 │ │You: msg 1 │ │ ← Click HERE first (on the message)│                 │ │           │ ││                 │ │Assistant: │ │ ← Then scroll & Shift+Click bottom│                 │ │           │ ││                 │ │You: msg N │ │ ← Last message (Shift+Click here)│                 │ └───────────┘ ││                 │ ┌───────────┐ ││                 │ │[Type...] │ │ ← Input box (can focus here first)│                 │ └───────────┘ │└─────────────────┴───────────────┘
+Why this happens
+Cursor's chat panel doesn't grab focus like VS Code
+Ctrl+A goes to the editor if the editor is focused
+Fix: click on a chat message first to focus the chat panel
+Alternative method (if the above doesn't work)
+Click in the chat input box at the bottom (where you type)
+Scroll to the top, click on the first message
+Scroll to the bottom, hold Shift, click on the last message
+Ctrl+C
+I've created docs/sessions/CURSOR_CHAT_SELECTION_GUIDE.md with detailed instructions and troubleshooting.
+Try it: click on a chat message first, then use the Shift+Click method. Let me know if it works.
