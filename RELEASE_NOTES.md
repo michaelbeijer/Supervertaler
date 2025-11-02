@@ -1,10 +1,20 @@
 # Supervertaler Release Notes
 
-## Current Release: v1.1.0-Qt (November 1, 2025)
+## Current Release: v1.1.3-Qt (November 2, 2025)
 
 ### What's New
 
-**TMX Editor - Professional Translation Memory Editor** 🎉
+**4-Layer Prompt Architecture** 🎯 (NEW!)
+- **Revolutionary Prompt Management:** Unique layered approach for maximum translation precision
+- **Layer 1 - System Prompts:** Editable infrastructure (CAT tags, formatting rules, language conventions)
+- **Layer 2 - Domain Prompts:** Domain-specific expertise (Legal, Medical, Technical, Financial, etc.)
+- **Layer 3 - Project Prompts:** Client and project-specific instructions
+- **Layer 4 - Style Guides:** Language-specific formatting guidelines
+- **Prompt Assistant:** AI-powered prompt refinement using natural language (unique to Supervertaler!)
+- **Beautiful UI:** Color-coded layer interface with activation system and preview
+- **Full Integration:** Standardized headers matching other modules (TMX Editor, PDF Rescue)
+
+**Previous Release (v1.1.0): TMX Editor - Professional Translation Memory Editor** 🎉
 - **Database-Backed Large File Support:** Handle massive TMX files (1GB+) efficiently with SQLite backend
 - **Dual Loading Modes:** Choose RAM mode (fast for small files) or Database mode (handles any size)
 - **Smart Auto Mode:** Intelligently selects best loading method based on file size thresholds
@@ -131,4 +141,4 @@ For questions or bug reports, see [PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md) 
 
 **Documentation:** See [docs/PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md) for complete project information.
 
-**Last Updated:** October 31, 2025
+**Last Updated:** November 2, 2025

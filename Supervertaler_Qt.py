@@ -4,14 +4,15 @@ Supervertaler Qt Edition
 Professional Translation Memory & CAT Tool
 Modern PyQt6 interface with Universal Lookup and advanced features
 
-Version: 1.1.2 (Phase 5.5)
-Release Date: November 1, 2025
+Version: 1.1.3 (Phase 5.6)
+Release Date: November 2, 2025
 Framework: PyQt6
 
 This is the modern edition of Supervertaler using PyQt6 framework.
 For the classic tkinter edition, see Supervertaler_tkinter.py
 
 Key Features:
+- 4-Layer Prompt Architecture (System, Domain, Project, Style Guides + Prompt Assistant)
 - Universal Lookup with global hotkey (Ctrl+Alt+L)
 - Modern theme system (6 themes + custom editor)
 - AutoFingers automation for memoQ
@@ -24,9 +25,9 @@ License: MIT
 """
 
 # Version Information
-__version__ = "1.1.2"
-__phase__ = "5.5"
-__release_date__ = "2025-11-01"
+__version__ = "1.1.3"
+__phase__ = "5.6"
+__release_date__ = "2025-11-02"
 __edition__ = "Qt"
 
 import sys

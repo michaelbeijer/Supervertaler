@@ -26,7 +26,7 @@
 
 ### 🆕 Qt Edition (Modern) - **PRIMARY**
 **File:** `Supervertaler_Qt.py`  
-**Version:** v1.1.0 (November 1, 2025)  
+**Version:** v1.1.3 (November 2, 2025)  
 **Framework:** PyQt6  
 **Status:** Active Development
 
@@ -35,6 +35,7 @@ python Supervertaler_Qt.py
 ```
 
 **Features:**
+- 🎯 **4-Layer Prompt Architecture** - System, Domain, Project Prompts, Style Guides + AI Prompt Assistant
 - 🎨 Modern Qt interface with ribbon navigation
 - 🎯 **Standardized tab headers** - Consistent, professional UI across all modules
 - 📱 **Responsive design** - Adapts perfectly to any screen size

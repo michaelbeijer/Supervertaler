@@ -6,6 +6,34 @@ The Qt Edition is the **primary version** for active development and new feature
 
 ---
 
+## [1.1.3] - November 2, 2025
+
+### Added
+- **Prompt Manager:** Complete 4-Layer Prompt Architecture system integrated into Qt Edition
+  - **Layer 1 - System Prompts:** Editable infrastructure prompts (CAT tags, formatting rules, language conventions)
+  - **Layer 2 - Domain Prompts:** Domain-specific translation expertise (Legal, Medical, Technical, Financial, etc.)
+  - **Layer 3 - Project Prompts:** Client and project-specific instructions and rules
+  - **Layer 4 - Style Guides:** Language-specific formatting guidelines (numbers, dates, typography)
+  - **Prompt Assistant:** AI-powered prompt refinement using natural language (unique to Supervertaler!)
+  - **Full UI Integration:** Beautiful tab interface with activation system and preview
+  - **Standardized Headers:** Consistent UI/UX matching other modules (TMX Editor, PDF Rescue, AutoFingers)
+  - **Import/Export:** Save, reset, import, and export prompts for sharing and backup
+
+### Website
+- **4-Layer Architecture Documentation:** Comprehensive new section on website explaining the unique approach
+- **Visual Design:** Color-coded layer cards with detailed explanations
+- **Navigation:** Added dedicated navigation link for Architecture section
+- **Hero Section:** Updated badges and feature highlights to showcase new architecture
+- **Footer Links:** Integrated architecture documentation into site navigation
+
+### Technical
+- **Terminology Standardization:** Renamed all infrastructure/Custom Instructions references to System/Project Prompts
+- **Code Quality:** Systematic refactoring with consistent naming conventions throughout
+- **Module Architecture:** `prompt_manager_qt.py` created as standalone, reusable module
+- **Backward Compatibility:** Maintained compatibility with existing prompt library files
+
+---
+
 ## [1.1.2] - November 1, 2025
 
 ### Improved
