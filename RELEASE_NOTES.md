@@ -1,10 +1,20 @@
 # Supervertaler Release Notes
 
-## Current Release: v1.1.3-Qt (November 2, 2025)
+## Current Release: v1.1.4-Qt (November 2, 2025)
 
 ### What's New
 
-**4-Layer Prompt Architecture** 🎯 (NEW!)
+**Encoding Repair Tool** 🔧 (NEW!)
+- **Full Port from Tkinter:** Complete encoding corruption detection and repair functionality
+- **Detect & Fix Mojibake:** Automatically repairs UTF-8 text incorrectly decoded as Latin-1/Windows-1252
+- **File & Folder Support:** Scan single files or entire folders recursively
+- **Automatic Backups:** Creates `.backup` files before repair to ensure safety
+- **Standalone Mode:** Run independently with `python modules/encoding_repair_Qt.py`
+- **Embedded Mode:** Integrated as a tab in Supervertaler Qt
+- **Test File Available:** `docs/tests/test_encoding_corruption.txt` for user testing
+- **Clean Qt Interface:** Matches PDF Rescue and TMX Editor design patterns
+
+**4-Layer Prompt Architecture** 🎯 (Previous Release - v1.1.3)
 - **Revolutionary Prompt Management:** Unique layered approach for maximum translation precision
 - **Layer 1 - System Prompts:** Editable infrastructure (CAT tags, formatting rules, language conventions)
 - **Layer 2 - Domain Prompts:** Domain-specific expertise (Legal, Medical, Technical, Financial, etc.)

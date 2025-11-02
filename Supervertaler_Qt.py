@@ -4,7 +4,7 @@ Supervertaler Qt Edition
 Professional Translation Memory & CAT Tool
 Modern PyQt6 interface with Universal Lookup and advanced features
 
-Version: 1.1.3 (Phase 5.6)
+Version: 1.1.4 (Phase 5.7)
 Release Date: November 2, 2025
 Framework: PyQt6
 
@@ -25,8 +25,8 @@ License: MIT
 """
 
 # Version Information
-__version__ = "1.1.3"
-__phase__ = "5.6"
+__version__ = "1.1.4"
+__phase__ = "5.7"
 __release_date__ = "2025-11-02"
 __edition__ = "Qt"
 
@@ -64,8 +64,8 @@ try:
         QProgressBar, QFormLayout, QTabBar, QPlainTextEdit, QAbstractItemDelegate,
         QFrame
     )
-    from PyQt6.QtCore import Qt, QSize, QTimer, pyqtSignal, QObject
-    from PyQt6.QtGui import QFont, QAction, QKeySequence, QIcon, QTextOption, QColor
+    from PyQt6.QtCore import Qt, QSize, QTimer, pyqtSignal, QObject, QUrl
+    from PyQt6.QtGui import QFont, QAction, QKeySequence, QIcon, QTextOption, QColor, QDesktopServices
 except ImportError:
     print("PyQt6 not found. Installing...")
     import subprocess
@@ -686,7 +686,7 @@ class SupervertalerQt(QMainWindow):
         # Create example API keys file on first launch (after UI is ready)
         self.ensure_example_api_keys()
         
-        self.log("Welcome to Supervertaler Qt v1.1.2")
+        self.log("Welcome to Supervertaler Qt v1.1.4")
         self.log("Professional Translation Memory & CAT Tool")
         
         # Restore last project if enabled in settings
@@ -699,7 +699,7 @@ class SupervertalerQt(QMainWindow):
     def init_ui(self):
         """Initialize the user interface"""
         # Build window title with dev mode indicator
-        title = "Supervertaler Qt v1.1.2"
+        title = "Supervertaler Qt v1.1.4"
         if ENABLE_PRIVATE_FEATURES:
             title += " [🛠️ DEV MODE]"
         self.setWindowTitle(title)
@@ -1279,10 +1279,14 @@ class SupervertalerQt(QMainWindow):
     
     def create_encoding_repair_tab(self) -> QWidget:
         """Create the Encoding Repair tab - Text Encoding Tool"""
-        return self._create_placeholder_tab(
-            "🔧 Encoding Repair",
-            "Encoding Repair - Coming Soon\n\nFeatures:\n• Fix mojibake/encoding issues\n• Auto-detect encoding\n• Batch repair"
-        )
+        from modules.encoding_repair_Qt import EncodingRepairQt
+        
+        # Create Encoding Repair widget (embedded mode, not standalone)
+        encoding_repair_widget = QWidget()
+        self.encoding_repair_qt = EncodingRepairQt(self, standalone=False)
+        self.encoding_repair_qt.create_tab(encoding_repair_widget)
+        
+        return encoding_repair_widget
     
     def create_tracked_changes_tab(self) -> QWidget:
         """Create the Tracked Changes tab - Post-Translation Analysis"""
@@ -4241,7 +4245,7 @@ class SupervertalerQt(QMainWindow):
     
     def update_window_title(self):
         """Update window title with project name and modified state"""
-        title = "Supervertaler Qt v1.1.2"
+        title = "Supervertaler Qt v1.1.4"
         if ENABLE_PRIVATE_FEATURES:
             title += " [🛠️ DEV MODE]"
         if self.current_project:
@@ -5025,19 +5029,59 @@ class SupervertalerQt(QMainWindow):
         dialog.exec()
     
     def show_about(self):
-        """Show about dialog"""
-        QMessageBox.about(
-            self,
-            "About Supervertaler Qt",
-            "<h2>Supervertaler Qt v1.1.2</h2>"
-            "<p>Professional Translation Memory & CAT Tool</p>"
+        """Show about dialog with clickable website link"""
+        dialog = QDialog(self)
+        dialog.setWindowTitle("About Supervertaler Qt")
+        dialog.setMinimumWidth(400)
+        
+        layout = QVBoxLayout(dialog)
+        layout.setSpacing(10)
+        layout.setContentsMargins(20, 20, 20, 20)
+        
+        # Title
+        title = QLabel("<h2>Supervertaler Qt v1.1.4</h2>")
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(title)
+        
+        # Description
+        desc = QLabel("<p><b>AI-powered tool for translators & writers</b></p>")
+        desc.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(desc)
+        
+        # Website link
+        website_label = QLabel(
+            '<p style="text-align: center;">'
+            '<a href="https://supervertaler.com/" style="color: #1976D2; text-decoration: none;">'
+            'https://supervertaler.com/'
+            '</a></p>'
+        )
+        website_label.setOpenExternalLinks(True)
+        website_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(website_label)
+        
+        # Additional info
+        info = QLabel(
             "<p>Rebuilt with PyQt6 for superior performance and UI quality.</p>"
             "<p><b>Author:</b> Michael Beijer</p>"
             "<p><b>License:</b> MIT</p>"
             "<hr>"
-            "<p><i>v1.1.2 - PDF Rescue Refinements & Website Updates</i></p>"
+            "<p><i>v1.1.4 - Encoding Repair Tool & UI Improvements</i></p>"
             "<p>Features are being migrated progressively from Supervertaler v3.7.x (tkinter).</p>"
         )
+        info.setWordWrap(True)
+        layout.addWidget(info)
+        
+        # OK button
+        ok_btn = QPushButton("OK")
+        ok_btn.clicked.connect(dialog.accept)
+        ok_btn.setDefault(True)
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+        button_layout.addWidget(ok_btn)
+        button_layout.addStretch()
+        layout.addLayout(button_layout)
+        
+        dialog.exec()
     
     def closeEvent(self, event):
         """Handle window close event"""

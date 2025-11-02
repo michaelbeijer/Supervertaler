@@ -22,9 +22,26 @@ Text files get corrupted when they're:
 
 ## Using the Encoding Repair Tool
 
-The Encoding Repair Tool is built directly into Supervertaler and can be accessed from the **Tools** menu.
+The Encoding Repair Tool is built directly into Supervertaler and can be accessed from the **Tools** menu or run independently.
 
-### Basic Operations
+### Standalone Mode
+
+The Encoding Repair Tool can also be run as a standalone application:
+
+```bash
+python modules/encoding_repair_Qt.py
+```
+
+This opens a separate window with the full Encoding Repair functionality, useful for quick repairs without launching the main application.
+
+### Test File
+
+A test file with sample encoding corruption is available for testing the tool:
+- **Location:** `docs/tests/test_encoding_corruption.txt`
+- Contains various corruption patterns (en/em dashes, quotes, ellipsis, etc.)
+- Use this file to verify the tool is working correctly
+
+### Basic Operations (Embedded Mode)
 
 #### 1. **Scan a Single File**
 - Click **Select File** and choose your text file

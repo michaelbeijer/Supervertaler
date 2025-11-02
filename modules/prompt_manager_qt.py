@@ -100,6 +100,7 @@ class PromptManagerQt:
         
         # Current selection
         self.current_filename = None
+        self.current_system_prompt_mode = "single"  # Track current System Prompt mode
         
         # System prompts storage (Layer 1 - loaded from file, with defaults)
         self.system_prompts = {}  # Layer 1: System Prompts
@@ -271,7 +272,7 @@ class PromptManagerQt:
         """Save tab selection and hide/show editor as needed"""
         self.settings.setValue("selected_tab", index)
         
-        # Hide editor on Prompt Assistant, Style Guides, and System Prompts tabs
+        # Hide editor on Prompt Assistant and Style Guides tabs
         tab_text = self.list_tabs.tabText(index)
         if "Prompt Assistant" in tab_text:
             self.editor_panel.setVisible(False)
@@ -279,10 +280,12 @@ class PromptManagerQt:
             # Style Guides has its own editor
             self.editor_panel.setVisible(False)
         elif "System Prompts" in tab_text:
-            # System Prompts has its own editor
-            self.editor_panel.setVisible(False)
+            # System Prompts uses shared editor but hide metadata fields
+            self.editor_panel.setVisible(True)
+            self._configure_editor_for_system_prompts()
         else:
             self.editor_panel.setVisible(True)
+            self._configure_editor_for_normal_prompts()
     
     def _create_system_prompts_tab(self) -> QWidget:
         """Create System Prompts (Layer 1) tab for viewing/editing base prompts"""
@@ -291,46 +294,16 @@ class PromptManagerQt:
         layout.setContentsMargins(5, 5, 5, 5)
         layout.setSpacing(5)
         
-        # Info bar
-        info_frame = QFrame()
-        info_frame.setStyleSheet("background-color: #FFE0B2; border: 1px solid #FFCCBC; border-radius: 3px;")
-        info_layout = QVBoxLayout(info_frame)
-        info_layout.setContentsMargins(8, 5, 8, 5)
+        # System Prompts list (similar to Domain Prompts tree)
+        self.system_prompts_tree = QTreeWidget()
+        self.system_prompts_tree.setHeaderLabels(["System Prompt", "Mode", "Status"])
+        self.system_prompts_tree.setColumnWidth(0, 250)
+        self.system_prompts_tree.setColumnWidth(1, 150)
+        self.system_prompts_tree.setColumnWidth(2, 100)
+        self.system_prompts_tree.itemSelectionChanged.connect(self._on_system_prompt_select)
+        layout.addWidget(self.system_prompts_tree, 1)
         
-        info_title = QLabel("⚙️ Layer 1: System Prompts")
-        info_title.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
-        info_layout.addWidget(info_title)
-        
-        info_desc = QLabel(
-            "These System Prompts are ALWAYS included in every translation (Layer 1). "
-            "They contain critical instructions for CAT tool tag preservation, formatting rules, and language conventions. "
-            "⚠️ Edit with caution - incorrect changes may break tag preservation."
-        )
-        info_desc.setWordWrap(True)
-        info_desc.setStyleSheet("color: #666;")
-        info_layout.addWidget(info_desc)
-        
-        layout.addWidget(info_frame)
-        
-        # Mode selector
-        mode_frame = QHBoxLayout()
-        mode_label = QLabel("Translation Mode:")
-        mode_label.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
-        mode_frame.addWidget(mode_label)
-        
-        self.system_prompts_mode = QComboBox()
-        self.system_prompts_mode.addItems(["Single Segment", "Batch DOCX", "Batch Bilingual"])
-        self.system_prompts_mode.currentTextChanged.connect(self._on_system_prompts_mode_change)
-        mode_frame.addWidget(self.system_prompts_mode, 1)
-        mode_frame.addStretch()
-        layout.addLayout(mode_frame)
-        
-        # Editor
-        self.system_prompts_editor = QPlainTextEdit()
-        self.system_prompts_editor.setFont(QFont("Consolas", 9))
-        layout.addWidget(self.system_prompts_editor, 1)
-        
-        # Buttons
+        # Buttons (similar to Domain Prompts)
         btn_frame = QFrame()
         btn_frame.setStyleSheet("background-color: #FFE0B2; border: 1px solid #FFCCBC; border-radius: 3px;")
         btn_layout = QHBoxLayout(btn_frame)
@@ -358,6 +331,9 @@ class PromptManagerQt:
         
         btn_layout.addStretch()
         layout.addWidget(btn_frame)
+        
+        # Load system prompts list
+        self._load_system_prompts_list()
         
         return tab
     
@@ -772,7 +748,56 @@ class PromptManagerQt:
         btn_layout.addStretch()
         layout.addLayout(btn_layout)
         
+        # Store references to editor components for System Prompts mode switching
+        self.editor_meta_group = meta_group
+        self.editor_desc_label = desc_label
+        self.editor_description_widget = self.editor_description
+        
         return panel
+    
+    def _configure_editor_for_system_prompts(self):
+        """Configure editor panel for System Prompts mode"""
+        # Hide metadata fields and description
+        if hasattr(self, 'editor_meta_group'):
+            self.editor_meta_group.setVisible(False)
+        if hasattr(self, 'editor_desc_label'):
+            self.editor_desc_label.setVisible(False)
+        if hasattr(self, 'editor_description_widget'):
+            self.editor_description_widget.setVisible(False)
+        
+        # Update title
+        if hasattr(self, 'editor_panel'):
+            layout = self.editor_panel.layout()
+            if layout:
+                for i in range(layout.count()):
+                    item = layout.itemAt(i)
+                    if item and hasattr(item, 'widget') and item.widget():
+                        widget = item.widget()
+                        if isinstance(widget, QLabel) and widget.text() == "Prompt Editor":
+                            widget.setText("System Prompt Editor")
+                            break
+    
+    def _configure_editor_for_normal_prompts(self):
+        """Configure editor panel for normal prompts (Domain/Project)"""
+        # Show metadata fields and description
+        if hasattr(self, 'editor_meta_group'):
+            self.editor_meta_group.setVisible(True)
+        if hasattr(self, 'editor_desc_label'):
+            self.editor_desc_label.setVisible(True)
+        if hasattr(self, 'editor_description_widget'):
+            self.editor_description_widget.setVisible(True)
+        
+        # Update title
+        if hasattr(self, 'editor_panel'):
+            layout = self.editor_panel.layout()
+            if layout:
+                for i in range(layout.count()):
+                    item = layout.itemAt(i)
+                    if item and hasattr(item, 'widget') and item.widget():
+                        widget = item.widget()
+                        if isinstance(widget, QLabel) and "System Prompt" in widget.text():
+                            widget.setText("Prompt Editor")
+                            break
     
     # ===== Data Loading Methods =====
     
@@ -1435,6 +1460,12 @@ Professional style guidelines for translating into {language}.
     
     def _save_prompt(self):
         """Save changes to current prompt"""
+        # Check if we're in System Prompts mode
+        tab_text = self.list_tabs.tabText(self.list_tabs.currentIndex()) if hasattr(self, 'list_tabs') else ""
+        if "System Prompts" in tab_text:
+            self._save_system_prompt()
+            return
+        
         if not self.current_filename:
             self._show_message(QMessageBox.Icon.Warning, "No Prompt", "No prompt selected to save.")
             return
@@ -1462,6 +1493,12 @@ Professional style guidelines for translating into {language}.
     
     def _revert_prompt(self):
         """Revert changes by reloading from file"""
+        # Check if we're in System Prompts mode
+        tab_text = self.list_tabs.tabText(self.list_tabs.currentIndex()) if hasattr(self, 'list_tabs') else ""
+        if "System Prompts" in tab_text:
+            self._reset_system_prompt()
+            return
+        
         if not self.current_filename:
             return
         
@@ -1475,6 +1512,12 @@ Professional style guidelines for translating into {language}.
     
     def _delete_prompt(self):
         """Delete current prompt"""
+        # System Prompts cannot be deleted, only reset
+        tab_text = self.list_tabs.tabText(self.list_tabs.currentIndex()) if hasattr(self, 'list_tabs') else ""
+        if "System Prompts" in tab_text:
+            self._show_message(QMessageBox.Icon.Information, "Cannot Delete", "System Prompts cannot be deleted. Use 'Reset to Default' to restore default values.")
+            return
+        
         if not self.current_filename:
             self._show_message(QMessageBox.Icon.Warning, "No Prompt", "No prompt selected to delete.")
             return
@@ -1620,9 +1663,7 @@ Professional style guidelines for translating into {language}.
             self.system_prompts = default_prompts
             self._save_system_prompts_file()
         
-        # Update editor if it exists
-        if hasattr(self, 'system_prompts_editor'):
-            self._on_system_prompts_mode_change()
+        # List will be loaded when tab is created
     
     def _save_system_prompts_file(self):
         """Save System Prompts (Layer 1) to file"""
@@ -1695,37 +1736,117 @@ If the text refers to figures (e.g., 'Figure 1A'), relevant images may be provid
         # For other modes, return same as single for now
         return self._get_default_system_prompt("single")
     
-    def _on_system_prompts_mode_change(self):
-        """Handle System Prompt mode selection change"""
-        if not hasattr(self, 'system_prompts_editor'):
+    def _load_system_prompts_list(self):
+        """Load System Prompts (Layer 1) into the tree list"""
+        if not hasattr(self, 'system_prompts_tree'):
             return
         
-        mode_text = self.system_prompts_mode.currentText()
-        mode_key = "single"
-        if mode_text == "Batch DOCX":
-            mode_key = "batch_docx"
-        elif mode_text == "Batch Bilingual":
-            mode_key = "batch_bilingual"
+        # Preserve current selection if available
+        current_mode_key = self.current_system_prompt_mode
         
-        # Get current prompt for this mode
+        self.system_prompts_tree.clear()
+        
+        # Ensure system prompts are loaded
+        if not self.system_prompts:
+            self._load_system_prompts()
+        
+        # Define the modes
+        modes = [
+            ("Single Segment", "single", "⚙️ System Prompt - Single Segment"),
+            ("Batch DOCX", "batch_docx", "⚙️ System Prompt - Batch DOCX"),
+            ("Batch Bilingual", "batch_bilingual", "⚙️ System Prompt - Batch Bilingual")
+        ]
+        
+        selected_item = None
+        for mode_text, mode_key, display_name in modes:
+            # Check if prompt exists and is customized
+            prompt = self.system_prompts.get(mode_key, None)
+            default_prompt = self._get_default_system_prompt(mode_key)
+            
+            # Determine status
+            if prompt is None:
+                status = "Not Loaded"
+            elif prompt == default_prompt:
+                status = "Default"
+            else:
+                status = "Customized"
+            
+            # Create item
+            item = QTreeWidgetItem([display_name, mode_text, status])
+            item.setData(0, Qt.ItemDataRole.UserRole, mode_key)  # Store mode key for selection
+            
+            # Bold if customized
+            if status == "Customized":
+                font = item.font(0)
+                font.setBold(True)
+                item.setFont(0, font)
+            
+            self.system_prompts_tree.addTopLevelItem(item)
+            
+            # Remember if this is the currently selected item
+            if mode_key == current_mode_key:
+                selected_item = item
+        
+        # Select preserved item or first item by default
+        if selected_item:
+            self.system_prompts_tree.setCurrentItem(selected_item)
+            # Don't call _on_system_prompt_select() to avoid changing the editor unnecessarily
+        elif self.system_prompts_tree.topLevelItemCount() > 0:
+            first_item = self.system_prompts_tree.topLevelItem(0)
+            self.system_prompts_tree.setCurrentItem(first_item)
+            if current_mode_key is None:  # Only auto-select on initial load
+                self._on_system_prompt_select()
+    
+    def _on_system_prompt_select(self):
+        """Handle System Prompt selection from list"""
+        if not hasattr(self, 'system_prompts_tree'):
+            return
+        
+        items = self.system_prompts_tree.selectedItems()
+        if not items:
+            return
+        
+        item = items[0]
+        if not item:
+            return
+        
+        mode_key = item.data(0, Qt.ItemDataRole.UserRole)
+        if not mode_key:
+            return
+        
+        # Store current mode
+        self.current_system_prompt_mode = mode_key
+        
+        # Load the prompt for this mode
         prompt = self.system_prompts.get(mode_key, self._get_default_system_prompt(mode_key))
-        self.system_prompts_editor.setPlainText(prompt)
+        if hasattr(self, 'editor_content'):
+            self.editor_content.setPlainText(prompt)
+    
+    def _on_system_prompts_mode_change(self):
+        """Handle System Prompt mode selection change - this method is no longer used but kept for compatibility"""
+        # Mode selection is now handled by clicking items in the list
+        pass
     
     def _save_system_prompt(self):
         """Save current System Prompt (Layer 1)"""
-        if not hasattr(self, 'system_prompts_editor'):
+        if not hasattr(self, 'editor_content'):
+            self._show_message(QMessageBox.Icon.Warning, "Error", "Editor not available.")
             return
         
-        mode_text = self.system_prompts_mode.currentText()
-        mode_key = "single"
-        if mode_text == "Batch DOCX":
-            mode_key = "batch_docx"
-        elif mode_text == "Batch Bilingual":
-            mode_key = "batch_bilingual"
+        mode_key = self.current_system_prompt_mode
+        mode_map = {
+            "single": "Single Segment",
+            "batch_docx": "Batch DOCX",
+            "batch_bilingual": "Batch Bilingual"
+        }
+        mode_text = mode_map.get(mode_key, "Single Segment")
         
-        content = self.system_prompts_editor.toPlainText()
+        content = self.editor_content.toPlainText()
         self.system_prompts[mode_key] = content
         self._save_system_prompts_file()
+        
+        # Refresh the list to update status
+        self._load_system_prompts_list()
         
         self.log_message(f"Saved System Prompt for {mode_text}")
         self._show_message(QMessageBox.Icon.Information, "Saved", f"System Prompt for '{mode_text}' saved successfully.")
@@ -1742,25 +1863,30 @@ If the text refers to figures (e.g., 'Figure 1A'), relevant images may be provid
         if reply != QMessageBox.StandardButton.Yes:
             return
         
-        mode_text = self.system_prompts_mode.currentText()
-        mode_key = "single"
-        if mode_text == "Batch DOCX":
-            mode_key = "batch_docx"
-        elif mode_text == "Batch Bilingual":
-            mode_key = "batch_bilingual"
+        mode_key = self.current_system_prompt_mode
+        mode_map = {
+            "single": "Single Segment",
+            "batch_docx": "Batch DOCX",
+            "batch_bilingual": "Batch Bilingual"
+        }
+        mode_text = mode_map.get(mode_key, "Single Segment")
         
         # Reset to default
         default = self._get_default_system_prompt(mode_key)
         self.system_prompts[mode_key] = default
-        self.system_prompts_editor.setPlainText(default)
+        if hasattr(self, 'editor_content'):
+            self.editor_content.setPlainText(default)
         self._save_system_prompts_file()
+        
+        # Refresh the list to update status
+        self._load_system_prompts_list()
         
         self.log_message(f"Reset System Prompt for {mode_text} to default")
         self._show_message(QMessageBox.Icon.Information, "Reset", f"System Prompt for '{mode_text}' reset to default.")
     
     def _export_system_prompt(self):
         """Export current System Prompt (Layer 1) to file"""
-        if not hasattr(self, 'system_prompts_editor'):
+        if not hasattr(self, 'editor_content'):
             return
         
         file_path, _ = QFileDialog.getSaveFileName(
@@ -1771,7 +1897,7 @@ If the text refers to figures (e.g., 'Figure 1A'), relevant images may be provid
             return
         
         try:
-            Path(file_path).write_text(self.system_prompts_editor.toPlainText(), encoding='utf-8')
+            Path(file_path).write_text(self.editor_content.toPlainText(), encoding='utf-8')
             self.log_message(f"Exported System Prompt to: {Path(file_path).name}")
             self._show_message(QMessageBox.Icon.Information, "Exported", "System Prompt exported successfully.")
         except Exception as e:
@@ -1788,7 +1914,8 @@ If the text refers to figures (e.g., 'Figure 1A'), relevant images may be provid
         
         try:
             content = Path(file_path).read_text(encoding='utf-8')
-            self.system_prompts_editor.setPlainText(content)
+            if hasattr(self, 'editor_content'):
+                self.editor_content.setPlainText(content)
             self.log_message(f"Imported System Prompt from: {Path(file_path).name}")
         except Exception as e:
             self._show_message(QMessageBox.Icon.Critical, "Error", f"Failed to import System Prompt:\n{str(e)}")

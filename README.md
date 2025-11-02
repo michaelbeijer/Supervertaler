@@ -26,7 +26,7 @@
 
 ### 🆕 Qt Edition (Modern) - **PRIMARY**
 **File:** `Supervertaler_Qt.py`  
-**Version:** v1.1.3 (November 2, 2025)  
+**Version:** v1.1.4 (November 2, 2025)  
 **Framework:** PyQt6  
 **Status:** Active Development
 
@@ -46,6 +46,7 @@ python Supervertaler_Qt.py
 - 🔍 Universal Lookup (system-wide search)
 - 📝 Professional TMX Editor with database-backed large file support
 - 🔧 PDF Rescue - AI-powered OCR for poorly formatted PDFs
+- 🔧 Encoding Repair Tool - Detect and fix text encoding corruption (mojibake)
 
 ### 🔧 Tkinter Edition (Classic) - **LEGACY**
 **File:** `Supervertaler_tkinter.py`  

@@ -6,6 +6,38 @@ The Qt Edition is the **primary version** for active development and new feature
 
 ---
 
+## [1.1.4] - November 2, 2025
+
+### Added
+- **Encoding Repair Tool:** Full port from tkinter edition with standalone capability
+  - Detect and fix text encoding corruption (mojibake) in translation files
+  - Scan single files or entire folders recursively
+  - Automatic backup creation (.backup files) before repair
+  - Supports common corruption patterns (en/em dashes, quotes, ellipsis, bullets, etc.)
+  - Clean Qt interface matching other modules (PDF Rescue, TMX Editor style)
+  - **Standalone Mode:** Run independently with `python modules/encoding_repair_Qt.py`
+  - **Embedded Mode:** Integrated as a tab in Supervertaler Qt
+  - Test file available at `docs/tests/test_encoding_corruption.txt` for user testing
+
+### Improved
+- **Prompt Manager:** Fixed System Prompts tab to show list widget (matching Domain Prompts layout)
+  - Added proper list/editor splitter layout for consistency
+  - System Prompts now use shared editor panel with metadata fields hidden
+  - Better visual consistency across all prompt tabs
+
+### Fixed
+- **About Dialog:** Updated with clickable website link (https://supervertaler.com/)
+  - Changed description from "Professional Translation Memory & CAT Tool" to "AI-powered tool for translators & writers"
+  - Improved dialog layout with better formatting
+
+### Technical
+- **Module Architecture:** Created `encoding_repair_Qt.py` as standalone, reusable module
+  - Uses existing `encoding_repair.py` backend (shared with tkinter version)
+  - Proper path handling for standalone execution
+  - Consistent with other Qt modules (PDF Rescue, TMX Editor patterns)
+
+---
+
 ## [1.1.3] - November 2, 2025
 
 ### Added

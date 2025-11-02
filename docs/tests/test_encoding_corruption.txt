@@ -1,0 +1,48 @@
+Test file for Encoding Repair Tool
+=====================================
+
+This file contains intentional encoding corruption (mojibake) that the Encoding Repair tool should be able to detect and fix.
+
+Common corruption patterns:
+--------------------------
+
+En dash: young concrete\u00e2\u20ac\u201cjong beton
+Em dash: aggregate \u00e2\u20ac\u201d chemical impurities\u00e2\u20ac\u201ctoeslagmateriaal
+Hyphen: Poisson\u00e2\u20ac\u2122s ratio\u00e2\u20ac\u201ccoëfficiënt van Poisson
+
+Double quotes: "Hello world" should appear as \u00e2\u20ac\u0153Hello world\u00e2\u20ac\u009d
+Single quotes: It\u00e2\u20ac\u0099s working perfectly!
+
+Ellipsis: Continue reading\u00e2\u20ac\u00a6
+Bullet point: \u00e2\u20ac\u00a2 First item
+Non-breaking space: 17\u00c2\u00a0cm
+Degree symbol: 25\u00c2\u00b0C
+
+Example corrupted text:
+----------------------
+
+The document\u00e2\u20ac\u2122s formatting\u00e2\u20ac\u201cwhile generally correct\u00e2\u20ac\u201dneeds some adjustments.
+
+This sentence contains\u00e2\u20ac\u00a6multiple issues that should be fixed.
+
+Temperature: 23.5\u00c2\u00b0C
+Distance: 5.2\u00c2\u00a0km
+Price: €\u00e2\u20ac\u0098100
+
+Special characters that might be corrupted:
+- Apostrophe: don\u00e2\u20ac\u2122t
+- Left quote: \u00e2\u20ac\u0153quoted text\u00e2\u20ac\u009d
+- Right quote: \u00e2\u20ac\u0099quoted\u00e2\u20ac\u0099
+
+Expected fixes:
+--------------
+After repair, these should become:
+- En dash: –
+- Em dash: —
+- Quotes: "quoted text"
+- Ellipsis: …
+- Bullet: •
+- Non-breaking space: (space)
+- Degree: °
+
+This file is intentionally corrupted for testing purposes.
