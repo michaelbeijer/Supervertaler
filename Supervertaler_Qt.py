@@ -1138,6 +1138,9 @@ class SupervertalerQt(QMainWindow):
         projects_tab = self.create_projects_manager_tab()
         self.main_tabs.addTab(projects_tab, "📁 Project Manager")
         
+        prompt_tab = self.create_prompt_manager_tab()
+        self.main_tabs.addTab(prompt_tab, "💡 Prompt Manager")
+        
         editor_tab = self.create_editor_tab()
         self.main_tabs.addTab(editor_tab, "📝 Project Editor")
         
@@ -1150,9 +1153,6 @@ class SupervertalerQt(QMainWindow):
         
         nt_tab = self.create_non_translatables_tab()
         self.main_tabs.addTab(nt_tab, "🚫 Non-Translatables")
-        
-        prompt_tab = self.create_prompt_manager_tab()
-        self.main_tabs.addTab(prompt_tab, "💡 Prompt Manager")
         
         # ===== GROUP 3: SPECIALIZED MODULES (Green) =====
         tmx_tab = self.create_tmx_editor_tab()
@@ -1215,11 +1215,15 @@ class SupervertalerQt(QMainWindow):
         )
     
     def create_prompt_manager_tab(self) -> QWidget:
-        """Create the Prompt Manager tab - System Prompts"""
-        return self._create_placeholder_tab(
-            "📚 Prompt Manager",
-            "Prompt Manager - Coming Soon\n\nFeatures:\n• Manage system prompts\n• Domain-specific translations\n• Custom instructions"
-        )
+        """Create the Prompt Manager tab - 4-Layer Prompt Architecture"""
+        from modules.prompt_manager_qt import PromptManagerQt
+        
+        # Create Prompt Manager widget (embedded mode, not standalone)
+        prompt_widget = QWidget()
+        self.prompt_manager_qt = PromptManagerQt(self, standalone=False)
+        self.prompt_manager_qt.create_tab(prompt_widget)
+        
+        return prompt_widget
     
     def create_tmx_editor_tab(self) -> QWidget:
         """Create the TMX Editor tab - Edit TMs"""

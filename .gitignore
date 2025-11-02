@@ -13,6 +13,7 @@ user data_private/
 
 # Chat history logs - keep private (may contain sensitive development info)
 docs/sessions/copilot_chat_history*.txt
+docs/sessions/cursor_chat_history*.txt
 docs/chat-logs/
 
 # Private system prompts folder - never sync to GitHub
