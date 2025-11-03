@@ -222,3 +222,7 @@ cython_debug/
 
 # Release artifacts folder (build scripts, release guides, etc.)
 .release_artifacts/
+
+# SpecStory auto-generated chat files (exclude from git, but allow manual inclusion)
+.specstory/
+docs/SpecStory/
