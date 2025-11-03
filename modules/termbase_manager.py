@@ -84,10 +84,10 @@ class TermbaseManager:
             cursor.execute("""
                 SELECT 
                     t.id, t.name, t.source_lang, t.target_lang, t.project_id,
-                    t.description, t.is_global, t.created_date, t.modified_date,
+                    t.description, t.is_global, t.priority, t.created_date, t.modified_date,
                     COUNT(gt.id) as term_count
                 FROM termbases t
-                LEFT JOIN termbase_terms gt ON t.id = gt.termbase_id
+                LEFT JOIN termbase_terms gt ON CAST(t.id AS TEXT) = gt.termbase_id
                 GROUP BY t.id
                 ORDER BY t.is_global DESC, t.name ASC
             """)
@@ -102,9 +102,10 @@ class TermbaseManager:
                     'project_id': row[4],
                     'description': row[5],
                     'is_global': row[6],
-                    'created_date': row[7],
-                    'modified_date': row[8],
-                    'term_count': row[9] or 0
+                    'priority': row[7] or 50,  # Default to 50 if NULL
+                    'created_date': row[8],
+                    'modified_date': row[9],
+                    'term_count': row[10] or 0
                 })
             
             return termbases

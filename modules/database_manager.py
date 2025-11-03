@@ -174,10 +174,19 @@ class DatabaseManager:
                 target_lang TEXT,
                 project_id INTEGER,  -- NULL = global, set = project-specific
                 is_global BOOLEAN DEFAULT 1,
+                priority INTEGER DEFAULT 50,  -- Termbase priority: 1-99, lower = higher priority (affects color shading)
                 created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 modified_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        
+        # Migration: Add priority column if it doesn't exist (for existing databases)
+        try:
+            self.cursor.execute("ALTER TABLE termbases ADD COLUMN priority INTEGER DEFAULT 50")
+            self.connection.commit()
+        except Exception:
+            # Column already exists, ignore
+            pass
         
         # Legacy support: create glossaries as alias for termbases
         self.cursor.execute("""
@@ -810,32 +819,41 @@ class DatabaseManager:
         Returns:
             List of termbase hits, sorted by priority (lower = higher priority)
         """
-        # Build query with filters
+        # Build query with filters - include termbase name via JOIN
+        # Note: termbase_id is stored as TEXT in termbase_terms but INTEGER in termbases
+        # Use CAST to ensure proper comparison
         query = """
-            SELECT id, source_term, target_term, termbase_id, priority, 
-                   forbidden, source_lang, target_lang, definition, domain
-            FROM termbase_terms
-            WHERE source_term LIKE ?
+            SELECT 
+                t.id, t.source_term, t.target_term, t.termbase_id, t.priority, 
+                t.forbidden, t.source_lang, t.target_lang, t.definition, t.domain,
+                tb.name as termbase_name
+            FROM termbase_terms t
+            LEFT JOIN termbases tb ON CAST(t.termbase_id AS INTEGER) = tb.id
+            WHERE t.source_term LIKE ?
         """
         params = [f"%{search_term}%"]
         
+        # Language filters are optional - if not provided, don't filter by language
+        # This allows finding termbase matches regardless of language settings
         if source_lang:
-            query += " AND source_lang = ?"
+            query += " AND (t.source_lang = ? OR t.source_lang IS NULL OR t.source_lang = 'unknown')"
             params.append(source_lang)
         
         if target_lang:
-            query += " AND target_lang = ?"
+            query += " AND (t.target_lang = ? OR t.target_lang IS NULL OR t.target_lang = 'unknown')"
             params.append(target_lang)
         
+        # Project filter: match project-specific terms OR global terms (project_id IS NULL)
         if project_id:
-            query += " AND (project_id = ? OR project_id IS NULL)"
+            query += " AND (t.project_id = ? OR t.project_id IS NULL)"
             params.append(project_id)
         
         if min_length > 0:
-            query += f" AND LENGTH(source_term) >= {min_length}"
+            query += f" AND LENGTH(t.source_term) >= {min_length}"
         
         # Sort by priority (lower number = higher priority)
-        query += " ORDER BY priority ASC, source_term ASC"
+        # Use t.priority (term priority) not tb.priority (termbase priority)
+        query += " ORDER BY t.priority ASC, t.source_term ASC"
         
         self.cursor.execute(query, params)
         results = [dict(row) for row in self.cursor.fetchall()]

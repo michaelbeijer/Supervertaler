@@ -46,8 +46,47 @@ claude = YOUR_CLAUDE_KEY_HERE
 google = YOUR_GOOGLE_GEMINI_KEY_HERE
 
 # Machine Translation APIs (for MT preview)
+# Supervertaler will use MT providers in this priority order (first available):
+# 1. Google Translate
+# 2. DeepL
+# 3. Microsoft Translator
+# 4. Amazon Translate
+# 5. ModernMT
+# 6. MyMemory (free fallback, works without key)
+
+# Google Cloud Translation API (Priority: Highest)
+# Get your key at: https://console.cloud.google.com/apis/credentials
+# Enable "Cloud Translation API" first, then create API key
 google_translate = YOUR_GOOGLE_CLOUD_TRANSLATE_KEY_HERE
+
+# DeepL API Pro
+# Get your key at: https://www.deepl.com/pro-api
+# Note: Free DeepL web version keys don't work, you need API Pro
 deepl = YOUR_DEEPL_API_PRO_KEY_HERE
+
+# Microsoft Azure Translator
+# Get your key at: https://azure.microsoft.com/en-us/services/cognitive-services/translator/
+# Requires Azure subscription
+microsoft_translate = YOUR_AZURE_TRANSLATOR_KEY
+microsoft_translate_region = global
+# (Region examples: "global", "eastus", "westus")
+
+# Amazon Translate (AWS)
+# Get your keys at: https://aws.amazon.com/translate/
+# Requires AWS account
+amazon_translate = YOUR_AWS_ACCESS_KEY_ID
+amazon_translate_secret = YOUR_AWS_SECRET_ACCESS_KEY
+amazon_translate_region = us-east-1
+# (AWS region examples: "us-east-1", "eu-west-1", etc.)
+
+# ModernMT
+# Get your key at: https://www.modernmt.com/api
+modernmt = YOUR_MODERNMT_API_KEY
+
+# MyMemory Translation (Free tier available, no key required)
+# Get API key (optional, for higher limits): https://mymemory.translated.net/
+# Works without key but with lower rate limits
+mymemory = YOUR_MYMEMORY_KEY
 
 # NOTE: The above keys are FAKE examples for illustration only.
 #       Do NOT use them - they will not work!

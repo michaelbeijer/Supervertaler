@@ -6,6 +6,32 @@ The Qt Edition is the **primary version** for active development and new feature
 
 ---
 
+## [1.1.5] - November 2, 2025
+
+### Added
+- **Multiple View Modes:** Three different ways to view and edit your translation project
+  - **Grid View (Ctrl+1):** Spreadsheet-like table view - perfect for quick segment-by-segment editing
+  - **List View (Ctrl+2):** Segment list on left, editor panel on right - ideal for focused translation work
+  - **Document View (Ctrl+3):** Natural document flow with clickable segments - great for review and context
+  - View switcher toolbar with quick access buttons
+  - All views share the same translation results pane (TM, LLM, MT, Termbase matches)
+  - All views stay synchronized - changes in one view instantly reflected in others
+  - Keyboard shortcuts (Ctrl+1/2/3) for rapid view switching
+
+### Improved
+- **Translation Results Pane:** Now visible and functional in all three view modes
+  - Properly integrated into Grid, List, and Document views
+  - Dynamic reparenting when switching between views
+  - Consistent assistance panel across all view modes
+
+### Technical
+- **View Management:** Implemented QStackedWidget architecture for seamless view switching
+  - Each view maintains its own splitter layout
+  - Shared assistance widget dynamically moved between views
+  - Clean separation of view-specific logic
+
+---
+
 ## [1.1.4] - November 2, 2025
 
 ### Added

@@ -1,6 +1,20 @@
 # Supervertaler Release Notes
 
-## Current Release: v1.1.4-Qt (November 2, 2025)
+## Current Release: v1.1.5-Qt (November 2, 2025)
+
+### What's New
+
+**Multiple View Modes** 🎨 (NEW!)
+- **Three Ways to Work:** Choose the view that fits your workflow
+  - **Grid View (Ctrl+1):** Spreadsheet-style table - perfect for fast segment-by-segment editing
+  - **List View (Ctrl+2):** Segments list with dedicated editor panel - ideal for focused translation
+  - **Document View (Ctrl+3):** Natural document flow with clickable segments - great for review
+- **View Switcher Toolbar:** Quick buttons to switch between views instantly
+- **Keyboard Shortcuts:** Ctrl+1, Ctrl+2, Ctrl+3 for rapid view switching
+- **Synchronized Views:** All three views share the same project data - changes in one view instantly appear in others
+- **Translation Results Pane:** Now available in all views - TM, LLM, MT, and Termbase matches always accessible
+
+**Previous Release (v1.1.4): Encoding Repair Tool** 🔧
 
 ### What's New
 

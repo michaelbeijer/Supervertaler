@@ -30,8 +30,9 @@ class TranslationMatch:
     target: str
     relevance: int  # 0-100
     metadata: Dict[str, Any]  # Context, domain, timestamp, etc.
-    match_type: str  # "NT", "MT", "TM", "Termbase"
+    match_type: str  # "NT", "MT", "TM", "Termbase", "LLM"
     compare_source: Optional[str] = None  # For TM compare boxes
+    provider_code: Optional[str] = None  # Provider code: "GT", "AT", "MMT", "CL", "GPT", "GEM", etc.
 
 
 class CompactMatchItem(QFrame):
@@ -75,6 +76,18 @@ class CompactMatchItem(QFrame):
             num_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             num_label.setFixedWidth(22)
             num_label.setFixedHeight(18)
+            
+            # Add tooltip based on match type
+            match_type_tooltips = {
+                "LLM": "LLM Translation (AI-generated)",
+                "TM": "Translation Memory (Previously approved)",
+                "Termbase": "Termbase",
+                "MT": "Machine Translation",
+                "NT": "New Translation"
+            }
+            tooltip_text = match_type_tooltips.get(match.match_type, "Translation Match")
+            num_label.setToolTip(tooltip_text)
+            
             self.num_label_ref = num_label  # Set BEFORE calling update_styling()
             main_layout.addWidget(num_label, 0, Qt.AlignmentFlag.AlignTop)
         
@@ -106,6 +119,32 @@ class CompactMatchItem(QFrame):
         self.target_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
         self.target_label.setMinimumWidth(150)  # Much wider minimum
         content_layout.addWidget(self.target_label, 1)
+        
+        # Provider code column (tiny, after target text) - always reserve space for alignment
+        provider_label = QLabel(match.provider_code if match.provider_code else "")
+        provider_label.setStyleSheet("font-size: 7px; color: #888; padding: 0px; margin: 0px; font-weight: normal;")
+        provider_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        provider_label.setFixedWidth(28)  # Tiny column, just wide enough for "GPT", "MMT", etc.
+        provider_label.setFixedHeight(18)
+        # Add tooltip with full provider name (only if code exists)
+        if match.provider_code:
+            provider_tooltips = {
+                "GT": "Google Translate",
+                "AT": "Amazon Translate",
+                "MMT": "ModernMT",
+                "DL": "DeepL",
+                "MS": "Microsoft Translator",
+                "MM": "MyMemory",
+                "CL": "Claude",
+                "GPT": "OpenAI",
+                "GEM": "Gemini"
+            }
+            # Add any custom termbase codes to tooltips (they'll show termbase name from metadata)
+            if match.match_type == 'Termbase' and match.metadata.get('termbase_name'):
+                provider_tooltips[match.provider_code] = match.metadata.get('termbase_name', match.provider_code)
+            full_name = provider_tooltips.get(match.provider_code, match.provider_code)
+            provider_label.setToolTip(full_name)
+        content_layout.addWidget(provider_label, 0, Qt.AlignmentFlag.AlignTop)
         
         main_layout.addLayout(content_layout, 1)  # Expand to fill remaining space
         
@@ -143,15 +182,28 @@ class CompactMatchItem(QFrame):
     
     def update_styling(self):
         """Update visual styling based on selection state and match type"""
-        # Color code by match type: TM=red, Termbase=blue, MT=green, NT=gray
-        type_color_map = {
+        # Color code by match type: LLM=purple, TM=red, Termbase=blue, MT=orange, NT=gray
+        base_color_map = {
+            "LLM": "#9c27b0",  # Purple for LLM translations
             "TM": "#ff6b6b",
-            "Termbase": "#4d94ff",
-            "MT": "#51cf66",
+            "Termbase": "#4d94ff",  # Base blue for termbase (will be shaded by priority)
+            "MT": "#ff9800",  # Orange for Machine Translation
             "NT": "#adb5bd"
         }
         
-        type_color = type_color_map.get(self.match.match_type, "#adb5bd")
+        base_color = base_color_map.get(self.match.match_type, "#adb5bd")
+        
+        # For termbase matches, apply priority-based shading (darker = higher priority/lower number)
+        if self.match.match_type == "Termbase":
+            # Get termbase priority from metadata (default 50 if not set)
+            termbase_priority = self.match.metadata.get('termbase_priority', 50)
+            # Priority range: 1-99, lower = higher priority = darker blue
+            # Convert priority to shade factor: 1 (highest) = darkest, 99 (lowest) = lightest
+            # Scale: priority 1 → factor 1.0 (no darkening), priority 99 → factor 0.6 (lightest)
+            priority_factor = 1.0 - ((termbase_priority - 1) / 98.0) * 0.4  # Range: 0.6 to 1.0
+            type_color = self._darken_color(base_color, priority_factor)
+        else:
+            type_color = base_color
         
         # Update styling only for the number label, not the entire item
         if hasattr(self, 'num_label_ref') and self.num_label_ref:
@@ -549,7 +601,7 @@ class TranslationResultsPanel(QWidget):
         
         # Build flat list of all matches with global numbering
         global_number = 1
-        order = ["NT", "MT", "TM", "Termbases"]
+        order = ["LLM", "NT", "MT", "TM", "Termbases"]  # LLM appears first (top)
         
         for match_type in order:
             if match_type in matches_dict and matches_dict[match_type]:

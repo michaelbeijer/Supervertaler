@@ -4,7 +4,7 @@ Supervertaler Qt Edition
 Professional Translation Memory & CAT Tool
 Modern PyQt6 interface with Universal Lookup and advanced features
 
-Version: 1.1.4 (Phase 5.7)
+Version: 1.1.5 (Phase 5.8)
 Release Date: November 2, 2025
 Framework: PyQt6
 
@@ -25,8 +25,8 @@ License: MIT
 """
 
 # Version Information
-__version__ = "1.1.4"
-__phase__ = "5.7"
+__version__ = "1.1.5"
+__phase__ = "5.8"
 __release_date__ = "2025-11-02"
 __edition__ = "Qt"
 
@@ -62,7 +62,8 @@ try:
         QStyledItemDelegate, QInputDialog, QDialog, QLineEdit, QRadioButton,
         QButtonGroup, QDialogButtonBox, QTabWidget, QGroupBox, QGridLayout, QCheckBox,
         QProgressBar, QFormLayout, QTabBar, QPlainTextEdit, QAbstractItemDelegate,
-        QFrame
+        QFrame, QListWidget, QListWidgetItem, QStackedWidget, QTreeWidget, QTreeWidgetItem,
+        QScrollArea
     )
     from PyQt6.QtCore import Qt, QSize, QTimer, pyqtSignal, QObject, QUrl
     from PyQt6.QtGui import QFont, QAction, QKeySequence, QIcon, QTextOption, QColor, QDesktopServices
@@ -115,6 +116,17 @@ def cleanup_ahk_process():
 
 # Register cleanup function to run on Python exit
 atexit.register(cleanup_ahk_process)
+
+
+# ============================================================================
+# ENUMS
+# ============================================================================
+
+class LayoutMode:
+    """Layout/view modes for the Project Editor"""
+    GRID = "grid"       # Spreadsheet-like table (default)
+    LIST = "list"       # List view with editor panel
+    DOCUMENT = "document"  # Document flow view with clickable segments
 
 
 # ============================================================================
@@ -653,6 +665,13 @@ class SupervertalerQt(QMainWindow):
         
         # Application settings
         self.allow_replace_in_source = False  # Safety: don't allow replace in source by default
+        self.auto_propagate_exact_matches = True  # Auto-fill 100% TM matches for empty segments
+        
+        # View mode tracking
+        self.current_view_mode = LayoutMode.GRID  # Default to Grid view
+        
+        # Universal Lookup detached window
+        self.lookup_detached_window = None
         
         # Translation Memory
         self.tm_database = None  # Will be initialized when project is loaded
@@ -686,8 +705,11 @@ class SupervertalerQt(QMainWindow):
         # Create example API keys file on first launch (after UI is ready)
         self.ensure_example_api_keys()
         
-        self.log("Welcome to Supervertaler Qt v1.1.4")
+        self.log("Welcome to Supervertaler Qt v1.1.5")
         self.log("Professional Translation Memory & CAT Tool")
+        
+        # Load general settings (including auto-propagation)
+        self.load_general_settings()
         
         # Restore last project if enabled in settings
         self.restore_last_project_if_enabled()
@@ -699,7 +721,7 @@ class SupervertalerQt(QMainWindow):
     def init_ui(self):
         """Initialize the user interface"""
         # Build window title with dev mode indicator
-        title = "Supervertaler Qt v1.1.4"
+        title = "Supervertaler Qt v1.1.5"
         if ENABLE_PRIVATE_FEATURES:
             title += " [🛠️ DEV MODE]"
         self.setWindowTitle(title)
@@ -836,21 +858,39 @@ class SupervertalerQt(QMainWindow):
         # Navigation submenu
         nav_menu = view_menu.addMenu("📑 &Navigate To")
         
-        go_projects_action = QAction("📁 &Project Manager", self)
-        go_projects_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(0) if hasattr(self, 'main_tabs') else None)
-        nav_menu.addAction(go_projects_action)
+        go_home_action = QAction("🏠 &Home", self)
+        go_home_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(0) if hasattr(self, 'main_tabs') else None)
+        nav_menu.addAction(go_home_action)
         
-        go_editor_action = QAction("📝 &Project Editor", self)
-        go_editor_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(1) if hasattr(self, 'main_tabs') else None)
+        go_prompt_action = QAction("💡 &Prompt Manager", self)
+        go_prompt_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(1) if hasattr(self, 'main_tabs') else None)
+        nav_menu.addAction(go_prompt_action)
+        
+        go_editor_action = QAction("📝 &Editor", self)
+        go_editor_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(2) if hasattr(self, 'main_tabs') else None)
         nav_menu.addAction(go_editor_action)
         
-        go_tm_action = QAction("📊 &Translation Memories", self)
-        go_tm_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(2) if hasattr(self, 'main_tabs') else None)
-        nav_menu.addAction(go_tm_action)
+        go_settings_action = QAction("⚙️ &Settings", self)
+        go_settings_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(5) if hasattr(self, 'main_tabs') else None)
+        nav_menu.addAction(go_settings_action)
         
-        go_termbases_action = QAction("🏷️ &Termbases", self)
-        go_termbases_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(3) if hasattr(self, 'main_tabs') else None)
-        nav_menu.addAction(go_termbases_action)
+        view_menu.addSeparator()
+        
+        # View mode switcher
+        grid_view_action = QAction("📊 &Grid View", self)
+        grid_view_action.setShortcut("Ctrl+1")
+        grid_view_action.triggered.connect(lambda: self.switch_view_mode(LayoutMode.GRID))
+        view_menu.addAction(grid_view_action)
+        
+        list_view_action = QAction("📋 &List View", self)
+        list_view_action.setShortcut("Ctrl+2")
+        list_view_action.triggered.connect(lambda: self.switch_view_mode(LayoutMode.LIST))
+        view_menu.addAction(list_view_action)
+        
+        document_view_action = QAction("📄 &Document View", self)
+        document_view_action.setShortcut("Ctrl+3")
+        document_view_action.triggered.connect(lambda: self.switch_view_mode(LayoutMode.DOCUMENT))
+        view_menu.addAction(document_view_action)
         
         view_menu.addSeparator()
         
@@ -940,9 +980,9 @@ class SupervertalerQt(QMainWindow):
         theme_action.triggered.connect(self.show_theme_editor)
         tools_menu.addAction(theme_action)
         
-        options_action = QAction("&Options...", self)
-        options_action.triggered.connect(self.show_options_dialog)
-        tools_menu.addAction(options_action)
+        settings_action = QAction("&Settings...", self)
+        settings_action.triggered.connect(lambda: self._go_to_settings_tab())
+        tools_menu.addAction(settings_action)
         
         # Help Menu
         help_menu = menubar.addMenu("&Help")
@@ -1072,16 +1112,15 @@ class SupervertalerQt(QMainWindow):
             "close_project": self.close_project,
             
             # Navigation actions
-            "go_to_projects": lambda: self.main_tabs.setCurrentIndex(0) if hasattr(self, 'main_tabs') else None,
-            "go_to_editor": lambda: self.main_tabs.setCurrentIndex(1) if hasattr(self, 'main_tabs') else None,
-            "go_to_tm": lambda: self.main_tabs.setCurrentIndex(2) if hasattr(self, 'main_tabs') else None,
-            "go_to_termbases": lambda: self.main_tabs.setCurrentIndex(3) if hasattr(self, 'main_tabs') else None,
+            "go_to_home": lambda: self.main_tabs.setCurrentIndex(0) if hasattr(self, 'main_tabs') else None,
+            "go_to_editor": lambda: self.main_tabs.setCurrentIndex(2) if hasattr(self, 'main_tabs') else None,
+            "go_to_settings": lambda: self.main_tabs.setCurrentIndex(4) if hasattr(self, 'main_tabs') else None,
             
             # Translation actions
             "translate": self.translate_current_segment,
             "batch_translate": self.translate_batch,
             "tm_manager": self.show_tm_manager,
-            "universal_lookup": lambda: self.main_tabs.setCurrentIndex(2) if hasattr(self, 'main_tabs') else None,
+            "universal_lookup": lambda: self._go_to_universal_lookup() if hasattr(self, 'main_tabs') else None,
             
             # View actions
             "zoom_in": self.zoom_in,
@@ -1091,7 +1130,7 @@ class SupervertalerQt(QMainWindow):
             
             # Tools actions
             "autofingers": self.show_autofingers,
-            "options": self.show_options_dialog,
+            "options": self._go_to_settings_tab,
         }
         
         # Execute action if found (for backwards compatibility)
@@ -1135,55 +1174,31 @@ class SupervertalerQt(QMainWindow):
             QTabBar::tab { padding: 8px 15px; }
         """)
         
-        # ===== GROUP 1: PROJECT MANAGEMENT (Orange) =====
-        projects_tab = self.create_projects_manager_tab()
-        self.main_tabs.addTab(projects_tab, "📁 Project Manager")
+        # ===== NEW ORGANIZED STRUCTURE =====
         
+        # 1. HOME (First screen - welcome + projects)
+        home_tab = self.create_home_tab()
+        self.main_tabs.addTab(home_tab, "🏠 Home")
+        
+        # 2. PROMPT MANAGER
         prompt_tab = self.create_prompt_manager_tab()
         self.main_tabs.addTab(prompt_tab, "💡 Prompt Manager")
         
+        # 3. EDITOR (formerly Project Editor)
         editor_tab = self.create_editor_tab()
-        self.main_tabs.addTab(editor_tab, "📝 Project Editor")
+        self.main_tabs.addTab(editor_tab, "📝 Editor")
         
-        # ===== GROUP 2: TRANSLATION RESOURCES (Purple) =====
-        tm_tab = self.create_translation_memories_tab()
-        self.main_tabs.addTab(tm_tab, "💾 Translation Memories")
+        # 4. RESOURCES (nested tabs)
+        resources_tab = self.create_resources_tab()
+        self.main_tabs.addTab(resources_tab, "📚 Resources")
         
-        termbase_tab = self.create_termbases_tab()
-        self.main_tabs.addTab(termbase_tab, "🏷️ Termbases")
+        # 5. MODULES (nested tabs - renamed from Specialised Modules)
+        modules_tab = self.create_specialised_modules_tab()
+        self.main_tabs.addTab(modules_tab, "🧩 Modules")
         
-        nt_tab = self.create_non_translatables_tab()
-        self.main_tabs.addTab(nt_tab, "🚫 Non-Translatables")
-        
-        # ===== GROUP 3: SPECIALIZED MODULES (Green) =====
-        tmx_tab = self.create_tmx_editor_tab()
-        self.main_tabs.addTab(tmx_tab, "✏️ TMX Editor")
-        
-        ref_tab = self.create_reference_images_tab()
-        self.main_tabs.addTab(ref_tab, "🖼️ Reference Images")
-        
-        pdf_tab = self.create_pdf_rescue_tab()
-        self.main_tabs.addTab(pdf_tab, "📄 PDF Rescue")
-        
-        encoding_tab = self.create_encoding_repair_tab()
-        self.main_tabs.addTab(encoding_tab, "🔧 Encoding Repair")
-        
-        self.autofingers_tab = AutoFingersWidget(self)
-        self.main_tabs.addTab(self.autofingers_tab, "✋ AutoFingers")
-        
-        tracked_tab = self.create_tracked_changes_tab()
-        self.main_tabs.addTab(tracked_tab, "🔄 Tracked Changes")
-        
-        # ===== GROUP 4: SETTINGS/LOG (Gray) =====
+        # 6. SETTINGS (moved from Tools > Options, includes Log)
         settings_tab = self.create_settings_tab()
         self.main_tabs.addTab(settings_tab, "⚙️ Settings")
-        
-        log_tab = self.create_log_tab()
-        self.main_tabs.addTab(log_tab, "📋 Log")
-        
-        # ===== UTILITIES =====
-        self.lookup_tab = UniversalLookupTab(self)
-        self.main_tabs.addTab(self.lookup_tab, "🔍 Universal Lookup")
         
         # Add tabs to content layout
         content_layout.addWidget(self.main_tabs)
@@ -1306,52 +1321,413 @@ class SupervertalerQt(QMainWindow):
         self.session_log.setReadOnly(True)
         self.session_log.setStyleSheet("""
             QPlainTextEdit {
-                background: #1e1e1e;
-                color: #00ff00;
-                font-family: 'Courier New', monospace;
-                font-size: 10px;
+                background-color: #ffffff;
+                color: #000000;
+                font-family: 'Consolas', 'Courier New', monospace;
+                font-size: 9px;
+                border: 1px solid #ccc;
             }
         """)
         layout.addWidget(self.session_log)
         
+        # Initialize with welcome message
+        self.session_log.setPlainText("Session Log - Ready\n" + "="*50 + "\n")
+        
         return tab
     
+    def create_home_tab(self):
+        """Create the Home tab - first screen with integrated About in header, Resources, Projects, and Universal Lookup"""
+        from PyQt6.QtWidgets import QSplitter, QPushButton, QLabel, QFrame, QScrollArea
+        
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(15, 15, 15, 15)
+        layout.setSpacing(15)
+        
+        # Use splitter for left/right division
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        
+        # ===== LEFT SIDE =====
+        left_widget = QWidget()
+        left_layout = QVBoxLayout(left_widget)
+        left_layout.setContentsMargins(10, 10, 10, 10)
+        left_layout.setSpacing(15)
+        
+        # Header with integrated About info
+        header_frame = QFrame()
+        header_frame.setStyleSheet("background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; padding: 20px;")
+        header_layout = QVBoxLayout(header_frame)
+        header_layout.setSpacing(8)
+        
+        title = QLabel("🌐 Supervertaler")
+        title.setStyleSheet("font-size: 24px; font-weight: bold; color: white;")
+        header_layout.addWidget(title)
+        
+        subtitle = QLabel("AI-Powered Translation Tool")
+        subtitle.setStyleSheet("font-size: 20px; color: #9d4edd; font-weight: bold;")
+        header_layout.addWidget(subtitle)
+        
+        version_label = QLabel(f"v{__version__} ({__phase__})")
+        version_label.setStyleSheet("font-size: 18px; color: #9d4edd; font-weight: bold;")
+        header_layout.addWidget(version_label)
+        
+        # Separator line
+        separator = QFrame()
+        separator.setFrameShape(QFrame.Shape.HLine)
+        separator.setStyleSheet("background-color: rgba(255,255,255,0.3); max-height: 1px; margin: 8px 0px;")
+        header_layout.addWidget(separator)
+        
+        # About text integrated into header
+        about_text = QLabel(
+            "Supervertaler is an AI-powered translation tool designed for professional translators and writers. "
+            "It combines translation memory, terminology management, and cutting-edge AI models (GPT-4, Claude, Gemini) "
+            "to deliver accurate, context-aware translations."
+        )
+        about_text.setWordWrap(True)
+        about_text.setStyleSheet("font-size: 11pt; line-height: 1.5; color: #000000; font-weight: normal; padding: 5px 0px;")  # Black text for visibility
+        header_layout.addWidget(about_text)
+        
+        left_layout.addWidget(header_frame)
+        
+        # Resources & Support section
+        links_frame = QFrame()
+        links_frame.setStyleSheet("background: white; border: 1px solid #dee2e6; border-radius: 8px; padding: 15px;")
+        links_layout = QVBoxLayout(links_frame)
+        links_layout.setSpacing(10)
+        
+        links_title = QLabel("🔗 Resources & Support")
+        links_title.setStyleSheet("font-size: 14px; font-weight: bold; color: #333; margin-bottom: 5px;")
+        links_layout.addWidget(links_title)
+        
+        # Links grid
+        links_grid = QGridLayout()
+        links_grid.setSpacing(8)
+        
+        links_data = [
+            ("🌐 Website", "https://supervertaler.com/", 0, 0),
+            ("💬 Discussion Forum", "https://github.com/michaelbeijer/Supervertaler/discussions", 0, 1),
+            ("📖 User Guide", "https://github.com/michaelbeijer/Supervertaler/blob/main/docs/guides/USER_GUIDE.md", 1, 0),
+            ("❓ FAQ", "https://github.com/michaelbeijer/Supervertaler/blob/main/FAQ.md", 1, 1),
+            ("🐛 Report Issue", "https://github.com/michaelbeijer/Supervertaler/issues", 2, 0),
+            ("📋 Changelog", "https://github.com/michaelbeijer/Supervertaler/blob/main/CHANGELOG_Qt.md", 2, 1),
+        ]
+        
+        for text, url, row, col in links_data:
+            link_btn = QPushButton(text)
+            link_btn.setStyleSheet("text-align: left; padding: 6px 12px; font-size: 9pt; color: #333;")
+            link_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            link_btn.clicked.connect(lambda checked, u=url: QDesktopServices.openUrl(QUrl(u)))
+            links_grid.addWidget(link_btn, row, col)
+        
+        links_layout.addLayout(links_grid)
+        left_layout.addWidget(links_frame)
+        
+        # Projects section at bottom (with different background color)
+        projects_frame = QFrame()
+        projects_frame.setStyleSheet("background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 15px;")  # Different background
+        projects_layout = QVBoxLayout(projects_frame)
+        projects_layout.setSpacing(10)
+        
+        projects_title = QLabel("📁 Projects")
+        projects_title.setStyleSheet("font-size: 14px; font-weight: bold; color: #333; margin-bottom: 5px;")
+        projects_layout.addWidget(projects_title)
+        
+        # Projects buttons
+        projects_buttons = QVBoxLayout()
+        projects_buttons.setSpacing(8)
+        
+        new_btn = QPushButton("➕ New Project")
+        new_btn.setMinimumHeight(35)
+        new_btn.clicked.connect(self.new_project)
+        new_btn.setStyleSheet("font-weight: bold; padding: 6px 15px;")
+        projects_buttons.addWidget(new_btn)
+        
+        open_btn = QPushButton("📂 Open Project")
+        open_btn.setMinimumHeight(35)
+        open_btn.clicked.connect(self.open_project)
+        open_btn.setStyleSheet("font-weight: bold; padding: 6px 15px;")
+        projects_buttons.addWidget(open_btn)
+        
+        projects_layout.addLayout(projects_buttons)
+        
+        # Project info
+        projects_info = QLabel("Recent projects will appear here")
+        projects_info.setStyleSheet("color: #666; font-style: italic; font-size: 9pt; padding: 8px 0px;")
+        projects_layout.addWidget(projects_info)
+        
+        left_layout.addWidget(projects_frame)
+        left_layout.addStretch()
+        
+        # ===== RIGHT SIDE =====
+        right_widget = QWidget()
+        right_layout = QVBoxLayout(right_widget)
+        right_layout.setContentsMargins(10, 10, 10, 10)
+        right_layout.setSpacing(0)
+        
+        # Universal Lookup module
+        # Create a wrapper with detach button
+        lookup_header = QFrame()
+        lookup_header.setStyleSheet("background: white; border: 1px solid #dee2e6; border-bottom: none; border-radius: 8px 8px 0 0; padding: 10px;")
+        lookup_header_layout = QHBoxLayout(lookup_header)
+        lookup_header_layout.setContentsMargins(10, 5, 10, 5)
+        
+        lookup_title = QLabel("🔍 Universal Lookup")
+        lookup_title.setStyleSheet("font-size: 14px; font-weight: bold; color: #333;")
+        lookup_header_layout.addWidget(lookup_title)
+        
+        lookup_header_layout.addStretch()
+        
+        # Detach button
+        detach_btn = QPushButton("📤 Detach")
+        detach_btn.setToolTip("Open Universal Lookup in a separate window (useful for second screen)")
+        detach_btn.setStyleSheet("font-size: 9pt; padding: 4px 12px;")
+        detach_btn.clicked.connect(self.detach_universal_lookup)  # Direct connection without lambda
+        lookup_header_layout.addWidget(detach_btn)
+        
+        right_layout.addWidget(lookup_header)
+        
+        # Create Universal Lookup widget
+        self.home_lookup_widget = UniversalLookupTab(self)
+        self.home_lookup_widget.setStyleSheet("background: white; border: 1px solid #dee2e6; border-top: none; border-radius: 0 0 8px 8px;")
+        right_layout.addWidget(self.home_lookup_widget, stretch=1)
+        
+        # Add to splitter
+        splitter.addWidget(left_widget)
+        splitter.addWidget(right_widget)
+        splitter.setStretchFactor(0, 1)
+        splitter.setStretchFactor(1, 1)
+        splitter.setSizes([450, 550])  # Initial sizes
+        
+        layout.addWidget(splitter)
+        
+        return tab
+    
+    def detach_universal_lookup(self):
+        """Detach Universal Lookup into a separate window for second screen use"""
+        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QPushButton
+        
+        try:
+            # If already detached, just show the window
+            if hasattr(self, 'lookup_detached_window') and self.lookup_detached_window and self.lookup_detached_window.isVisible():
+                self.lookup_detached_window.raise_()
+                self.lookup_detached_window.activateWindow()
+                return
+            
+            # Create detached window
+            self.lookup_detached_window = QDialog(self)
+            self.lookup_detached_window.setWindowTitle("🔍 Universal Lookup - Supervertaler")
+            self.lookup_detached_window.setMinimumSize(600, 700)
+            self.lookup_detached_window.resize(700, 800)
+            
+            # Set window flags to ensure it appears as a proper window
+            self.lookup_detached_window.setWindowFlags(
+                Qt.WindowType.Window | 
+                Qt.WindowType.WindowCloseButtonHint | 
+                Qt.WindowType.WindowMinimizeButtonHint |
+                Qt.WindowType.WindowMaximizeButtonHint
+            )
+            
+            # Position window to the right of main window, or center on same screen if no space
+            main_geometry = self.geometry()
+            
+            # Get the screen that contains the main window (handles multi-monitor setups)
+            app = QApplication.instance()
+            screen = app.screenAt(main_geometry.center())
+            if not screen:
+                # Fallback to primary screen
+                screen = app.primaryScreen()
+            
+            screen_geometry = screen.geometry()
+            
+            # Try to place to the right of main window
+            new_x = main_geometry.right() + 20
+            new_y = main_geometry.top()
+            
+            # If window would go off-screen to the right, center it on the main window's screen
+            if new_x + 700 > screen_geometry.right():
+                # Center horizontally on screen, place above main window
+                new_x = screen_geometry.left() + (screen_geometry.width() - 700) // 2
+                new_y = max(screen_geometry.top() + 50, main_geometry.top() - 100)
+                
+            # Ensure window stays on screen
+            new_x = max(screen_geometry.left() + 10, min(new_x, screen_geometry.right() - 710))
+            new_y = max(screen_geometry.top() + 10, min(new_y, screen_geometry.bottom() - 810))
+            
+            self.lookup_detached_window.move(int(new_x), int(new_y))
+            
+            # Make sure window is raised and activated - use QTimer to ensure it's after window is shown
+            QTimer.singleShot(100, lambda: (
+                self.lookup_detached_window.raise_(),
+                self.lookup_detached_window.activateWindow(),
+                self.lookup_detached_window.setFocus()
+            ))
+            
+            layout = QVBoxLayout(self.lookup_detached_window)
+            layout.setContentsMargins(10, 10, 10, 10)
+            layout.setSpacing(5)
+            
+            # Header with reattach button
+            header_layout = QVBoxLayout()
+            
+            header_title = QLabel("🔍 Universal Lookup")
+            header_title.setStyleSheet("font-size: 16px; font-weight: bold; color: #333;")
+            header_layout.addWidget(header_title)
+            
+            button_layout = QVBoxLayout()
+            reattach_btn = QPushButton("📥 Attach to Main Window")
+            reattach_btn.setToolTip("Re-attach Universal Lookup to the Home tab")
+            reattach_btn.setStyleSheet("font-size: 9pt; padding: 4px 12px; max-width: 200px;")
+            reattach_btn.clicked.connect(self.reattach_universal_lookup)
+            button_layout.addWidget(reattach_btn, alignment=Qt.AlignmentFlag.AlignRight)
+            header_layout.addLayout(button_layout)
+            
+            layout.addLayout(header_layout)
+            
+            # Create new Universal Lookup instance for detached window
+            # Or move the existing one - better to create new to avoid widget parenting issues
+            detached_lookup = UniversalLookupTab(self.lookup_detached_window)
+            
+            # Copy TM database reference if available
+            if hasattr(self, 'tm_database') and self.tm_database:
+                detached_lookup.tm_database = self.tm_database
+                if detached_lookup.engine:
+                    detached_lookup.engine.set_tm_database(self.tm_database)
+            
+            # Copy home lookup state if it exists
+            if hasattr(self, 'home_lookup_widget') and self.home_lookup_widget:
+                # Copy source text
+                source_text = self.home_lookup_widget.source_text.toPlainText()
+                detached_lookup.source_text.setPlainText(source_text)
+                
+                # Copy mode
+                mode = self.home_lookup_widget.mode_combo.currentText()
+                detached_lookup.mode_combo.setCurrentText(mode)
+                
+                # Copy TM database reference
+                if hasattr(self.home_lookup_widget, 'tm_database'):
+                    detached_lookup.tm_database = self.home_lookup_widget.tm_database
+            
+            layout.addWidget(detached_lookup, stretch=1)
+            
+            # Store reference for cleanup
+            self.lookup_detached_widget = detached_lookup
+            
+            # Handle window close
+            def on_close():
+                self.lookup_detached_window = None
+                self.lookup_detached_widget = None
+            
+            self.lookup_detached_window.finished.connect(on_close)
+            
+            # Show window (non-modal)
+            self.lookup_detached_window.setWindowModality(Qt.WindowModality.NonModal)
+            self.lookup_detached_window.show()
+            self.log("Universal Lookup detached to separate window")
+        except Exception as e:
+            import traceback
+            error_msg = f"Error detaching Universal Lookup: {str(e)}\n{traceback.format_exc()}"
+            self.log(error_msg)
+            QMessageBox.warning(self, "Error", f"Could not detach Universal Lookup:\n{str(e)}")
+    
+    def reattach_universal_lookup(self):
+        """Re-attach Universal Lookup to the Home tab"""
+        if not self.lookup_detached_window:
+            return
+        
+        # Copy state back to home widget if it exists
+        if (hasattr(self, 'home_lookup_widget') and self.home_lookup_widget and 
+            hasattr(self, 'lookup_detached_widget') and self.lookup_detached_widget):
+            # Copy source text
+            source_text = self.lookup_detached_widget.source_text.toPlainText()
+            self.home_lookup_widget.source_text.setPlainText(source_text)
+            
+            # Copy mode
+            mode = self.lookup_detached_widget.mode_combo.currentText()
+            self.home_lookup_widget.mode_combo.setCurrentText(mode)
+        
+        # Close detached window
+        self.lookup_detached_window.close()
+        self.lookup_detached_window = None
+        if hasattr(self, 'lookup_detached_widget'):
+            self.lookup_detached_widget = None
+        
+        self.log("Universal Lookup re-attached to Home tab")
+    
     def create_projects_manager_tab(self):
-        """Create the Projects Manager tab - manage projects, attach TMs and glossaries"""
-        from PyQt6.QtWidgets import QSplitter, QPushButton, QLabel, QFrame
+        """Create the Projects Manager tab - manage projects, attach TMs and glossaries (legacy - content moved to Home)"""
+        # This method is kept for backwards compatibility but content is now in Home tab
+        return self.create_home_tab()
+    
+    def create_resources_tab(self):
+        """Create the Resources tab with nested sub-tabs"""
+        from PyQt6.QtWidgets import QTabWidget
         
         tab = QWidget()
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         
-        # Header with controls
-        header = QFrame()
-        header.setStyleSheet("background: #f0f0f0; border-bottom: 1px solid #ddd;")
-        header_layout = QHBoxLayout(header)
-        header_layout.setContentsMargins(10, 8, 10, 8)
-        header_layout.setSpacing(8)
+        # Create nested tab widget
+        resources_tabs = QTabWidget()
+        self.resources_tabs = resources_tabs  # Store for navigation
         
-        header_layout.addWidget(QLabel("📁 Project Manager"))
-        header_layout.addStretch()
+        # Add nested tabs
+        tm_tab = self.create_translation_memories_tab()
+        resources_tabs.addTab(tm_tab, "💾 Translation Memories")
         
-        new_btn = QPushButton("➕ New Project")
-        new_btn.setMaximumWidth(120)
-        new_btn.clicked.connect(self.new_project)
-        header_layout.addWidget(new_btn)
+        termbase_tab = self.create_termbases_tab()
+        resources_tabs.addTab(termbase_tab, "🏷️ Termbases")
         
-        open_btn = QPushButton("📂 Open Project")
-        open_btn.setMaximumWidth(120)
-        open_btn.clicked.connect(self.open_project)
-        header_layout.addWidget(open_btn)
+        nt_tab = self.create_non_translatables_tab()
+        resources_tabs.addTab(nt_tab, "🚫 Non-Translatables")
         
-        layout.addWidget(header)
+        # Segmentation Rules (placeholder for now)
+        seg_tab = self._create_placeholder_tab(
+            "📏 Segmentation Rules",
+            "Segmentation Rules - Coming Soon\n\nFeatures:\n• Define custom segmentation rules\n• Import/export segmentation rules\n• Language-specific segmentation"
+        )
+        resources_tabs.addTab(seg_tab, "📏 Segmentation Rules")
         
-        # TODO: Add project list on left, project details on right
-        placeholder = QLabel("Projects Manager - Coming Soon\n\nFeatures:\n• Create new projects\n• Browse past projects\n• Edit project settings\n• Attach TMs and glossaries")
-        placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        placeholder.setStyleSheet("color: #888; font-size: 12px;")
-        layout.addWidget(placeholder, stretch=1)
+        ref_tab = self.create_reference_images_tab()
+        resources_tabs.addTab(ref_tab, "🖼️ Reference Images")
+        
+        layout.addWidget(resources_tabs)
+        
+        return tab
+    
+    def create_specialised_modules_tab(self):
+        """Create the Specialised Modules tab with nested sub-tabs"""
+        from PyQt6.QtWidgets import QTabWidget
+        
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        
+        # Create nested tab widget
+        modules_tabs = QTabWidget()
+        self.modules_tabs = modules_tabs  # Store for navigation
+        
+        # Add nested tabs
+        tmx_tab = self.create_tmx_editor_tab()
+        modules_tabs.addTab(tmx_tab, "✏️ TMX Editor")
+        
+        pdf_tab = self.create_pdf_rescue_tab()
+        modules_tabs.addTab(pdf_tab, "📄 PDF Rescue")
+        
+        autofingers_tab = AutoFingersWidget(self)
+        modules_tabs.addTab(autofingers_tab, "✋ AutoFingers")
+        
+        encoding_tab = self.create_encoding_repair_tab()
+        modules_tabs.addTab(encoding_tab, "🔧 Text Encoding Repair")
+        
+        tracked_tab = self.create_tracked_changes_tab()
+        modules_tabs.addTab(tracked_tab, "🔄 Tracked Changes")
+        
+        lookup_tab = UniversalLookupTab(self)
+        modules_tabs.addTab(lookup_tab, "🔍 Universal Lookup")
+        
+        layout.addWidget(modules_tabs)
         
         return tab
     
@@ -1401,6 +1777,7 @@ class SupervertalerQt(QMainWindow):
         # Import here to avoid issues if database not available
         from modules.termbase_manager import TermbaseManager
         termbase_mgr = TermbaseManager(self.db_manager, self.log)
+        self.termbase_mgr = termbase_mgr  # Store for later use in get_termbase_code
         
         # Search bar
         search_layout = QHBoxLayout()
@@ -1413,14 +1790,15 @@ class SupervertalerQt(QMainWindow):
         
         # Termbase list with table
         termbase_table = QTableWidget()
-        termbase_table.setColumnCount(5)
-        termbase_table.setHorizontalHeaderLabels(["Active", "Name", "Languages", "Terms", "Scope"])
+        termbase_table.setColumnCount(6)
+        termbase_table.setHorizontalHeaderLabels(["Active", "Name", "Languages", "Terms", "Priority", "Scope"])
         termbase_table.horizontalHeader().setStretchLastSection(False)
         termbase_table.setColumnWidth(0, 60)
         termbase_table.setColumnWidth(1, 200)
         termbase_table.setColumnWidth(2, 150)
         termbase_table.setColumnWidth(3, 80)
-        termbase_table.setColumnWidth(4, 100)
+        termbase_table.setColumnWidth(4, 70)  # Priority column
+        termbase_table.setColumnWidth(5, 100)
         
         # Get current project
         current_project = self.current_project if hasattr(self, 'current_project') else None
@@ -1458,9 +1836,65 @@ class SupervertalerQt(QMainWindow):
                 # Term count
                 termbase_table.setItem(row, 3, QTableWidgetItem(str(tb['term_count'])))
                 
+                # Priority (editable)
+                priority = tb.get('priority', 50)  # Default 50 if not set
+                priority_item = QTableWidgetItem(str(priority))
+                priority_item.setFlags(priority_item.flags() | Qt.ItemFlag.ItemIsEditable)
+                termbase_table.setItem(row, 4, priority_item)
+                
                 # Scope
                 scope = "Global" if tb['is_global'] else "Project"
-                termbase_table.setItem(row, 4, QTableWidgetItem(scope))
+                termbase_table.setItem(row, 5, QTableWidgetItem(scope))
+        
+        # Handle priority changes - only process changes to Priority column (column 4)
+        priority_changing = False  # Flag to prevent recursion
+        
+        def on_priority_changed(item: QTableWidgetItem):
+            """Update termbase priority when edited"""
+            # Only process Priority column (column 4)
+            if item.column() != 4:
+                return
+            
+            # Prevent recursion
+            nonlocal priority_changing
+            if priority_changing:
+                return
+            
+            row = item.row()
+            termbases_list = termbase_mgr.get_all_termbases()
+            if row < len(termbases_list):
+                termbase_id = termbases_list[row]['id']
+                try:
+                    new_priority = int(item.text())
+                    # Clamp to valid range 1-99
+                    new_priority = max(1, min(99, new_priority))
+                    
+                    # Temporarily disconnect to prevent recursion when setting text
+                    priority_changing = True
+                    termbase_table.itemChanged.disconnect(on_priority_changed)
+                    item.setText(str(new_priority))
+                    termbase_table.itemChanged.connect(on_priority_changed)
+                    priority_changing = False
+                    
+                    # Update in database
+                    cursor = self.db_manager.cursor
+                    cursor.execute("UPDATE termbases SET priority = ?, modified_date = CURRENT_TIMESTAMP WHERE id = ?",
+                                 (new_priority, termbase_id))
+                    self.db_manager.connection.commit()
+                    self.log(f"✓ Updated priority for termbase {termbase_id} to {new_priority}")
+                except ValueError:
+                    # Invalid input, revert to original value
+                    priority_changing = True
+                    termbase_table.itemChanged.disconnect(on_priority_changed)
+                    termbases_list = termbase_mgr.get_all_termbases()
+                    if row < len(termbases_list):
+                        original_priority = termbases_list[row].get('priority', 50)
+                        item.setText(str(original_priority))
+                    termbase_table.itemChanged.connect(on_priority_changed)
+                    priority_changing = False
+                    self.log(f"⚠ Invalid priority value, reverted to original")
+        
+        termbase_table.itemChanged.connect(on_priority_changed)
         
         refresh_termbase_list()
         layout.addWidget(termbase_table, stretch=1)
@@ -1684,28 +2118,737 @@ class SupervertalerQt(QMainWindow):
         dialog.exec()
     
     def create_settings_tab(self):
-        """Create the Settings tab - general application settings"""
+        """Create the Settings tab - moved from Tools > Options dialog"""
+        from PyQt6.QtWidgets import QTabWidget, QScrollArea
+        
         tab = QWidget()
         layout = QVBoxLayout(tab)
-        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
         
-        # Header
-        header = QLabel("⚙️ General Settings")
-        header.setStyleSheet("font-size: 14px; font-weight: bold; margin-bottom: 10px;")
-        layout.addWidget(header)
+        # Create nested tab widget
+        settings_tabs = QTabWidget()
+        self.settings_tabs = settings_tabs  # Store for reference
         
-        # TODO: Add general settings controls (same as Tools > Options)
-        placeholder = QLabel("General Settings - Coming Soon\n\nFeatures:\n• AI Provider settings\n• Display settings\n• Keyboard shortcuts\n• Default languages\n• Export options")
-        placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        placeholder.setStyleSheet("color: #888; font-size: 12px;")
-        layout.addWidget(placeholder, stretch=1)
+        # Scroll area wrapper for each tab (for long content)
+        scroll_area_wrapper = lambda widget: self._wrap_in_scroll(widget)
+        
+        # ===== TAB 1: LLM Settings =====
+        llm_tab = self._create_llm_settings_tab()
+        settings_tabs.addTab(scroll_area_wrapper(llm_tab), "🤖 LLM Settings")
+        
+        # ===== TAB 2: MT Settings =====
+        mt_tab = self._create_mt_settings_tab()
+        settings_tabs.addTab(scroll_area_wrapper(mt_tab), "🌐 MT Settings")
+        
+        # ===== TAB 3: General Settings =====
+        general_tab = self._create_general_settings_tab()
+        settings_tabs.addTab(scroll_area_wrapper(general_tab), "⚙️ General")
+        
+        # ===== TAB 4: View/Display Settings =====
+        view_tab = self._create_view_settings_tab()
+        settings_tabs.addTab(scroll_area_wrapper(view_tab), "🔍 View/Display")
+        
+        # ===== TAB 5: Log (moved from main tabs) =====
+        log_tab = self.create_log_tab()
+        settings_tabs.addTab(log_tab, "📋 Log")
+        
+        layout.addWidget(settings_tabs)
         
         return tab
     
-    def create_editor_tab(self):
-        """Create the project editor tab (existing grid view)"""
+    def _wrap_in_scroll(self, widget):
+        """Wrap a widget in a scroll area"""
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setWidget(widget)
+        scroll.setStyleSheet("QScrollArea { border: none; }")
+        return scroll
+    
+    def _create_llm_settings_tab(self):
+        """Create LLM Settings tab content"""
+        from PyQt6.QtWidgets import QCheckBox, QGroupBox, QPushButton
+        
         tab = QWidget()
         layout = QVBoxLayout(tab)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
+        
+        # Load current settings
+        settings = self.load_llm_settings()
+        enabled_providers = self.load_provider_enabled_states()
+        
+        # LLM Provider Selection
+        provider_group = QGroupBox("LLM Provider")
+        provider_layout = QVBoxLayout()
+        
+        provider_label = QLabel("Select your preferred translation provider:")
+        provider_layout.addWidget(provider_label)
+        
+        # Provider radio buttons
+        provider_button_group = QButtonGroup(tab)
+        
+        openai_radio = QRadioButton("OpenAI (GPT-4o, GPT-5, o1, o3)")
+        openai_radio.setChecked(settings.get('provider', 'openai') == 'openai')
+        provider_button_group.addButton(openai_radio)
+        provider_layout.addWidget(openai_radio)
+        
+        claude_radio = QRadioButton("Anthropic Claude (Claude 3.5 Sonnet)")
+        claude_radio.setChecked(settings.get('provider', 'openai') == 'claude')
+        provider_button_group.addButton(claude_radio)
+        provider_layout.addWidget(claude_radio)
+        
+        gemini_radio = QRadioButton("Google Gemini (Gemini 2.0 Flash)")
+        gemini_radio.setChecked(settings.get('provider', 'openai') == 'gemini')
+        provider_button_group.addButton(gemini_radio)
+        provider_layout.addWidget(gemini_radio)
+        
+        provider_group.setLayout(provider_layout)
+        layout.addWidget(provider_group)
+        
+        # Model Selection
+        model_group = QGroupBox("Model Selection")
+        model_layout = QVBoxLayout()
+        
+        model_label = QLabel("Choose the specific model to use:")
+        model_layout.addWidget(model_label)
+        
+        # OpenAI models
+        openai_model_label = QLabel("<b>OpenAI Models:</b>")
+        model_layout.addWidget(openai_model_label)
+        
+        openai_combo = QComboBox()
+        openai_combo.addItems([
+            "gpt-4o (Recommended)",
+            "gpt-4o-mini (Fast & Economical)",
+            "gpt-5 (Reasoning, Temperature 1.0)",
+            "o3-mini (Reasoning, Temperature 1.0)",
+            "o1 (Reasoning, Temperature 1.0)",
+            "gpt-4-turbo"
+        ])
+        # Set current selection
+        current_openai_model = settings.get('openai_model', 'gpt-4o')
+        for i in range(openai_combo.count()):
+            if current_openai_model in openai_combo.itemText(i).lower():
+                openai_combo.setCurrentIndex(i)
+                break
+        openai_combo.setEnabled(openai_radio.isChecked())
+        model_layout.addWidget(openai_combo)
+        
+        model_layout.addSpacing(10)
+        
+        # Claude models
+        claude_model_label = QLabel("<b>Claude Models:</b>")
+        model_layout.addWidget(claude_model_label)
+        
+        claude_combo = QComboBox()
+        claude_combo.addItems([
+            "claude-3-5-sonnet-20241022 (Recommended)",
+            "claude-3-5-haiku-20241022 (Fast)",
+            "claude-3-opus-20240229 (Powerful)"
+        ])
+        current_claude_model = settings.get('claude_model', 'claude-3-5-sonnet-20241022')
+        for i in range(claude_combo.count()):
+            if current_claude_model in claude_combo.itemText(i):
+                claude_combo.setCurrentIndex(i)
+                break
+        claude_combo.setEnabled(claude_radio.isChecked())
+        model_layout.addWidget(claude_combo)
+        
+        model_layout.addSpacing(10)
+        
+        # Gemini models
+        gemini_model_label = QLabel("<b>Gemini Models:</b>")
+        model_layout.addWidget(gemini_model_label)
+        
+        gemini_combo = QComboBox()
+        gemini_combo.addItems([
+            "gemini-2.0-flash-exp (Recommended)",
+            "gemini-1.5-pro",
+            "gemini-1.5-flash"
+        ])
+        current_gemini_model = settings.get('gemini_model', 'gemini-2.0-flash-exp')
+        for i in range(gemini_combo.count()):
+            if current_gemini_model in gemini_combo.itemText(i):
+                gemini_combo.setCurrentIndex(i)
+                break
+        gemini_combo.setEnabled(gemini_radio.isChecked())
+        model_layout.addWidget(gemini_combo)
+        
+        # Connect radio buttons to enable/disable combos
+        def update_combo_states():
+            openai_combo.setEnabled(openai_radio.isChecked())
+            claude_combo.setEnabled(claude_radio.isChecked())
+            gemini_combo.setEnabled(gemini_radio.isChecked())
+        
+        openai_radio.toggled.connect(update_combo_states)
+        claude_radio.toggled.connect(update_combo_states)
+        gemini_radio.toggled.connect(update_combo_states)
+        
+        model_group.setLayout(model_layout)
+        layout.addWidget(model_group)
+        
+        # Enable/Disable Providers
+        provider_enable_group = QGroupBox("Enable/Disable LLM Providers")
+        provider_enable_layout = QVBoxLayout()
+        
+        provider_enable_info = QLabel(
+            "Uncheck providers you don't want to use. Only enabled providers will be available for translation."
+        )
+        provider_enable_info.setWordWrap(True)
+        provider_enable_info.setStyleSheet("font-size: 9pt; color: #666; padding: 5px;")
+        provider_enable_layout.addWidget(provider_enable_info)
+        
+        openai_enable_cb = QCheckBox("Enable OpenAI")
+        openai_enable_cb.setChecked(enabled_providers.get('llm_openai', True))
+        provider_enable_layout.addWidget(openai_enable_cb)
+        
+        claude_enable_cb = QCheckBox("Enable Claude")
+        claude_enable_cb.setChecked(enabled_providers.get('llm_claude', True))
+        provider_enable_layout.addWidget(claude_enable_cb)
+        
+        gemini_enable_cb = QCheckBox("Enable Gemini")
+        gemini_enable_cb.setChecked(enabled_providers.get('llm_gemini', True))
+        provider_enable_layout.addWidget(gemini_enable_cb)
+        
+        provider_enable_group.setLayout(provider_enable_layout)
+        layout.addWidget(provider_enable_group)
+        
+        # API Keys info
+        api_keys_group = QGroupBox("API Keys")
+        api_keys_layout = QVBoxLayout()
+        
+        api_keys_info = QLabel(
+            f"Configure your API keys in:<br>"
+            f"<code>{self.user_data_path / 'api_keys.txt'}</code><br><br>"
+            f"See example file for format:<br>"
+            f"<code>{self.user_data_path / 'api_keys.example.txt'}</code>"
+        )
+        api_keys_info.setWordWrap(True)
+        api_keys_layout.addWidget(api_keys_info)
+        
+        # Button to open API keys file
+        open_keys_btn = QPushButton("📝 Open API Keys File")
+        open_keys_btn.clicked.connect(lambda: self.open_api_keys_file())
+        api_keys_layout.addWidget(open_keys_btn)
+        
+        api_keys_group.setLayout(api_keys_layout)
+        layout.addWidget(api_keys_group)
+        
+        # Save button
+        save_btn = QPushButton("💾 Save LLM Settings")
+        save_btn.setStyleSheet("font-weight: bold; padding: 8px;")
+        save_btn.clicked.connect(lambda: self._save_llm_settings_from_ui(
+            openai_radio, claude_radio, gemini_radio, 
+            openai_combo, claude_combo, gemini_combo,
+            openai_enable_cb, claude_enable_cb, gemini_enable_cb
+        ))
+        layout.addWidget(save_btn)
+        
+        layout.addStretch()
+        
+        return tab
+    
+    def _create_mt_settings_tab(self):
+        """Create MT Settings tab content"""
+        from PyQt6.QtWidgets import QCheckBox, QGroupBox, QPushButton
+        
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
+        
+        enabled_providers = self.load_provider_enabled_states()
+        
+        # Enable/Disable MT Providers
+        mt_provider_group = QGroupBox("Machine Translation Providers")
+        mt_provider_layout = QVBoxLayout()
+        
+        mt_info = QLabel(
+            "Enable or disable individual MT providers. Supervertaler will use the first available enabled provider in priority order:\n"
+            "1. Google Translate, 2. DeepL, 3. Microsoft Translator, 4. Amazon Translate, 5. ModernMT, 6. MyMemory"
+        )
+        mt_info.setWordWrap(True)
+        mt_info.setStyleSheet("font-size: 9pt; color: #666; padding: 5px;")
+        mt_provider_layout.addWidget(mt_info)
+        
+        google_translate_enable_cb = QCheckBox("Enable Google Translate")
+        google_translate_enable_cb.setChecked(enabled_providers.get('mt_google_translate', True))
+        mt_provider_layout.addWidget(google_translate_enable_cb)
+        
+        deepl_enable_cb = QCheckBox("Enable DeepL")
+        deepl_enable_cb.setChecked(enabled_providers.get('mt_deepl', True))
+        mt_provider_layout.addWidget(deepl_enable_cb)
+        
+        microsoft_enable_cb = QCheckBox("Enable Microsoft Translator")
+        microsoft_enable_cb.setChecked(enabled_providers.get('mt_microsoft', True))
+        mt_provider_layout.addWidget(microsoft_enable_cb)
+        
+        amazon_enable_cb = QCheckBox("Enable Amazon Translate")
+        amazon_enable_cb.setChecked(enabled_providers.get('mt_amazon', True))
+        mt_provider_layout.addWidget(amazon_enable_cb)
+        
+        modernmt_enable_cb = QCheckBox("Enable ModernMT")
+        modernmt_enable_cb.setChecked(enabled_providers.get('mt_modernmt', True))
+        mt_provider_layout.addWidget(modernmt_enable_cb)
+        
+        mymemory_enable_cb = QCheckBox("Enable MyMemory (Free tier)")
+        mymemory_enable_cb.setChecked(enabled_providers.get('mt_mymemory', True))
+        mt_provider_layout.addWidget(mymemory_enable_cb)
+        
+        mt_provider_group.setLayout(mt_provider_layout)
+        layout.addWidget(mt_provider_group)
+        
+        # API Keys info for MT
+        mt_api_keys_group = QGroupBox("API Keys")
+        mt_api_keys_layout = QVBoxLayout()
+        
+        mt_api_keys_info = QLabel(
+            f"Configure your MT API keys in:<br>"
+            f"<code>{self.user_data_path / 'api_keys.txt'}</code><br><br>"
+            f"See example file for format:<br>"
+            f"<code>{self.user_data_path / 'api_keys.example.txt'}</code>"
+        )
+        mt_api_keys_info.setWordWrap(True)
+        mt_api_keys_layout.addWidget(mt_api_keys_info)
+        
+        # Button to open API keys file
+        mt_open_keys_btn = QPushButton("📝 Open API Keys File")
+        mt_open_keys_btn.clicked.connect(lambda: self.open_api_keys_file())
+        mt_api_keys_layout.addWidget(mt_open_keys_btn)
+        
+        mt_api_keys_group.setLayout(mt_api_keys_layout)
+        layout.addWidget(mt_api_keys_group)
+        
+        # Save button
+        save_btn = QPushButton("💾 Save MT Settings")
+        save_btn.setStyleSheet("font-weight: bold; padding: 8px;")
+        save_btn.clicked.connect(lambda: self._save_mt_settings_from_ui(
+            google_translate_enable_cb, deepl_enable_cb, microsoft_enable_cb,
+            amazon_enable_cb, modernmt_enable_cb, mymemory_enable_cb
+        ))
+        layout.addWidget(save_btn)
+        
+        layout.addStretch()
+        
+        return tab
+    
+    def _create_general_settings_tab(self):
+        """Create General Settings tab content"""
+        from PyQt6.QtWidgets import QCheckBox, QGroupBox, QPushButton
+        
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
+        
+        general_settings = self.load_general_settings()
+        
+        # Startup Settings group
+        startup_group = QGroupBox("Startup Settings")
+        startup_layout = QVBoxLayout()
+        
+        restore_last_project_cb = QCheckBox("Restore last project on startup")
+        restore_last_project_cb.setChecked(general_settings.get('restore_last_project', False))
+        restore_last_project_cb.setToolTip(
+            "When enabled, Supervertaler will automatically open the last project you were working on when the application starts."
+        )
+        startup_layout.addWidget(restore_last_project_cb)
+        
+        startup_group.setLayout(startup_layout)
+        layout.addWidget(startup_group)
+        
+        # Translation Memory settings group
+        tm_group = QGroupBox("Translation Memory Settings")
+        tm_layout = QVBoxLayout()
+        
+        auto_propagate_cb = QCheckBox("Auto-propagate exact TM matches (100%)")
+        auto_propagate_cb.setChecked(general_settings.get('auto_propagate_exact_matches', True))
+        auto_propagate_cb.setToolTip(
+            "Automatically fill target with 100% TM matches when a segment is selected and empty.\n"
+            "This saves time by applying exact matches without manual confirmation."
+        )
+        tm_layout.addWidget(auto_propagate_cb)
+        
+        tm_group.setLayout(tm_layout)
+        layout.addWidget(tm_group)
+        
+        # Find & Replace settings group
+        find_replace_group = QGroupBox("Find && Replace Settings")
+        find_replace_layout = QVBoxLayout()
+        
+        allow_replace_cb = QCheckBox("Allow Replace in Source Text")
+        allow_replace_cb.setChecked(self.allow_replace_in_source)
+        allow_replace_cb.setToolTip(
+            "⚠️ WARNING: Enabling this allows replacing text in the source column.\n"
+            "This can be dangerous as it modifies your original source text.\n"
+            "Use with extreme caution!"
+        )
+        find_replace_layout.addWidget(allow_replace_cb)
+        
+        # Add warning label
+        warning_label = QLabel(
+            "⚠️ <b>Warning:</b> Replacing in source text modifies your original content.\n"
+            "This feature is disabled by default for safety."
+        )
+        warning_label.setWordWrap(True)
+        warning_label.setStyleSheet("color: #d97706; padding: 10px; background-color: #fef3c7; border-radius: 3px;")
+        find_replace_layout.addWidget(warning_label)
+        
+        find_replace_group.setLayout(find_replace_layout)
+        layout.addWidget(find_replace_group)
+        
+        # Save button
+        save_btn = QPushButton("💾 Save General Settings")
+        save_btn.setStyleSheet("font-weight: bold; padding: 8px;")
+        save_btn.clicked.connect(lambda: self._save_general_settings_from_ui(
+            restore_last_project_cb, auto_propagate_cb, allow_replace_cb
+        ))
+        layout.addWidget(save_btn)
+        
+        layout.addStretch()
+        
+        return tab
+    
+    def _create_view_settings_tab(self):
+        """Create View/Display Settings tab content"""
+        from PyQt6.QtWidgets import QGroupBox, QPushButton
+        
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
+        
+        font_settings = self.load_general_settings()
+        
+        # Grid Text Font Size section
+        grid_group = QGroupBox("📊 Grid Text Font Size")
+        grid_layout = QVBoxLayout()
+        
+        grid_size_info = QLabel(
+            "Set the default font size for the grid (source and target columns).\n"
+            "You can also adjust this using View menu → Grid Text Zoom."
+        )
+        grid_size_info.setStyleSheet("font-size: 8pt; color: #666; padding: 8px; background-color: #f3f4f6; border-radius: 2px;")
+        grid_size_info.setWordWrap(True)
+        grid_layout.addWidget(grid_size_info)
+        
+        grid_spin_layout = QHBoxLayout()
+        grid_spin_layout.addWidget(QLabel("Font Size:"))
+        grid_font_spin = QSpinBox()
+        grid_font_spin.setMinimum(7)
+        grid_font_spin.setMaximum(72)
+        grid_font_spin.setValue(font_settings.get('grid_font_size', 11))
+        grid_font_spin.setSuffix(" pt")
+        grid_font_spin.setToolTip("Grid font size (7-72 pt)")
+        grid_spin_layout.addWidget(grid_font_spin)
+        grid_spin_layout.addStretch()
+        grid_layout.addLayout(grid_spin_layout)
+        
+        grid_group.setLayout(grid_layout)
+        layout.addWidget(grid_group)
+        
+        # Translation Results Pane Font Size section
+        results_group = QGroupBox("📋 Translation Results Pane Font Size")
+        results_layout = QVBoxLayout()
+        
+        results_size_info = QLabel(
+            "Set the default font sizes for the translation results pane.\n"
+            "You can also adjust these using View menu → Translation Results Pane."
+        )
+        results_size_info.setStyleSheet("font-size: 8pt; color: #666; padding: 8px; background-color: #f3f4f6; border-radius: 2px;")
+        results_size_info.setWordWrap(True)
+        results_layout.addWidget(results_size_info)
+        
+        # Match list font size
+        match_spin_layout = QHBoxLayout()
+        match_spin_layout.addWidget(QLabel("Match List Font Size:"))
+        match_font_spin = QSpinBox()
+        match_font_spin.setMinimum(7)
+        match_font_spin.setMaximum(16)
+        match_font_spin.setValue(font_settings.get('results_match_font_size', 9))
+        match_font_spin.setSuffix(" pt")
+        match_font_spin.setToolTip("Match list font size (7-16 pt)")
+        match_spin_layout.addWidget(match_font_spin)
+        match_spin_layout.addStretch()
+        results_layout.addLayout(match_spin_layout)
+        
+        # Compare boxes font size
+        compare_spin_layout = QHBoxLayout()
+        compare_spin_layout.addWidget(QLabel("Compare Boxes Font Size:"))
+        compare_font_spin = QSpinBox()
+        compare_font_spin.setMinimum(7)
+        compare_font_spin.setMaximum(14)
+        compare_font_spin.setValue(font_settings.get('results_compare_font_size', 9))
+        compare_font_spin.setSuffix(" pt")
+        compare_font_spin.setToolTip("Compare boxes font size (7-14 pt)")
+        compare_spin_layout.addWidget(compare_font_spin)
+        compare_spin_layout.addStretch()
+        results_layout.addLayout(compare_spin_layout)
+        
+        results_group.setLayout(results_layout)
+        layout.addWidget(results_group)
+        
+        # Quick Reference section
+        reference_group = QGroupBox("⌨️ Font Size Quick Reference")
+        reference_layout = QVBoxLayout()
+        
+        reference_text = QLabel(
+            "<b>All Zoom Controls:</b><br>"
+            "View → Grid Text Zoom<br>"
+            "• Ctrl++ (NumPad +) - Increase<br>"
+            "• Ctrl+- (NumPad -) - Decrease<br><br>"
+            "View → Translation Results Pane<br>"
+            "• Ctrl+Shift++ (Ctrl+Shift+=) - Increase<br>"
+            "• Ctrl+Shift+- - Decrease<br>"
+            "• Results Zoom Reset - Back to default (9pt)<br>"
+        )
+        reference_text.setTextFormat(Qt.TextFormat.RichText)
+        reference_text.setWordWrap(True)
+        reference_layout.addWidget(reference_text)
+        
+        reference_group.setLayout(reference_layout)
+        layout.addWidget(reference_group)
+        
+        # Save button
+        save_btn = QPushButton("💾 Save View Settings")
+        save_btn.setStyleSheet("font-weight: bold; padding: 8px;")
+        save_btn.clicked.connect(lambda: self._save_view_settings_from_ui(
+            grid_font_spin, match_font_spin, compare_font_spin
+        ))
+        layout.addWidget(save_btn)
+        
+        layout.addStretch()
+        
+        return tab
+    
+    def _save_llm_settings_from_ui(self, openai_radio, claude_radio, gemini_radio,
+                                   openai_combo, claude_combo, gemini_combo,
+                                   openai_enable_cb, claude_enable_cb, gemini_enable_cb):
+        """Save LLM settings from UI"""
+        new_settings = {
+            'provider': 'openai' if openai_radio.isChecked() else 
+                       'claude' if claude_radio.isChecked() else 'gemini',
+            'openai_model': openai_combo.currentText().split()[0],
+            'claude_model': claude_combo.currentText().split()[0],
+            'gemini_model': gemini_combo.currentText().split()[0]
+        }
+        self.save_llm_settings(new_settings)
+        
+        enabled_states = {
+            'llm_openai': openai_enable_cb.isChecked(),
+            'llm_claude': claude_enable_cb.isChecked(),
+            'llm_gemini': gemini_enable_cb.isChecked()
+        }
+        # Merge with existing MT settings
+        existing = self.load_provider_enabled_states()
+        enabled_states.update({k: v for k, v in existing.items() if k.startswith('mt_')})
+        self.save_provider_enabled_states(enabled_states)
+        
+        self.log(f"✓ LLM settings saved: Provider={new_settings['provider']}")
+        QMessageBox.information(self, "Settings Saved", "LLM settings have been saved successfully.")
+    
+    def _save_mt_settings_from_ui(self, google_cb, deepl_cb, microsoft_cb, amazon_cb, modernmt_cb, mymemory_cb):
+        """Save MT settings from UI"""
+        enabled_states = {
+            'mt_google_translate': google_cb.isChecked(),
+            'mt_deepl': deepl_cb.isChecked(),
+            'mt_microsoft': microsoft_cb.isChecked(),
+            'mt_amazon': amazon_cb.isChecked(),
+            'mt_modernmt': modernmt_cb.isChecked(),
+            'mt_mymemory': mymemory_cb.isChecked()
+        }
+        # Merge with existing LLM settings
+        existing = self.load_provider_enabled_states()
+        enabled_states.update({k: v for k, v in existing.items() if k.startswith('llm_')})
+        self.save_provider_enabled_states(enabled_states)
+        
+        self.log("✓ MT settings saved")
+        QMessageBox.information(self, "Settings Saved", "MT settings have been saved successfully.")
+    
+    def _save_general_settings_from_ui(self, restore_cb, auto_propagate_cb, allow_replace_cb):
+        """Save general settings from UI"""
+        self.allow_replace_in_source = allow_replace_cb.isChecked()
+        self.update_warning_banner()
+        
+        general_settings = {
+            'restore_last_project': restore_cb.isChecked(),
+            'auto_propagate_exact_matches': auto_propagate_cb.isChecked(),
+            'grid_font_size': self.default_font_size,  # Keep existing or update separately
+            'results_match_font_size': 9,  # Keep existing
+            'results_compare_font_size': 9  # Keep existing
+        }
+        self.save_general_settings(general_settings)
+        self.auto_propagate_exact_matches = auto_propagate_cb.isChecked()
+        
+        self.log("✓ General settings saved")
+        QMessageBox.information(self, "Settings Saved", "General settings have been saved successfully.")
+    
+    def _save_view_settings_from_ui(self, grid_spin, match_spin, compare_spin):
+        """Save view settings from UI"""
+        general_settings = {
+            'restore_last_project': self.load_general_settings().get('restore_last_project', False),
+            'auto_propagate_exact_matches': self.auto_propagate_exact_matches,
+            'grid_font_size': grid_spin.value(),
+            'results_match_font_size': match_spin.value(),
+            'results_compare_font_size': compare_spin.value()
+        }
+        self.save_general_settings(general_settings)
+        
+        # Apply font sizes immediately
+        if self.default_font_size != grid_spin.value():
+            self.default_font_size = grid_spin.value()
+            if hasattr(self, 'table') and self.table is not None:
+                self.apply_font_to_grid()
+                self.auto_resize_rows()
+        
+        # Apply results pane font sizes
+        if hasattr(self, 'assistance_widget') and hasattr(self.assistance_widget, 'set_font_size'):
+            from modules.translation_results_panel import CompactMatchItem
+            if CompactMatchItem.font_size_pt != match_spin.value():
+                CompactMatchItem.set_font_size(match_spin.value())
+                self.assistance_widget.set_font_size(match_spin.value())
+        
+        if hasattr(self, 'assistance_widget') and hasattr(self.assistance_widget, 'set_compare_box_font_size'):
+            from modules.translation_results_panel import TranslationResultsPanel
+            if TranslationResultsPanel.compare_box_font_size != compare_spin.value():
+                TranslationResultsPanel.compare_box_font_size = compare_spin.value()
+                self.assistance_widget.set_compare_box_font_size(compare_spin.value())
+        
+        self.log("✓ View settings saved and applied")
+        QMessageBox.information(self, "Settings Saved", "View settings have been saved and applied successfully.")
+    
+    def create_editor_tab(self):
+        """Create the project editor tab with view switching (Grid/List/Document)"""
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(0, 0, 0, 0)
+        
+        # View switcher toolbar
+        view_toolbar = QWidget()
+        view_toolbar_layout = QHBoxLayout(view_toolbar)
+        view_toolbar_layout.setContentsMargins(5, 5, 5, 5)
+        view_toolbar_layout.setSpacing(5)
+        
+        view_label = QLabel("View:")
+        view_label.setStyleSheet("font-weight: bold;")
+        view_toolbar_layout.addWidget(view_label)
+        
+        self.grid_view_btn = QPushButton("📊 Grid")
+        self.grid_view_btn.setCheckable(True)
+        self.grid_view_btn.setChecked(True)
+        self.grid_view_btn.clicked.connect(lambda: self.switch_view_mode(LayoutMode.GRID))
+        view_toolbar_layout.addWidget(self.grid_view_btn)
+        
+        self.list_view_btn = QPushButton("📋 List")
+        self.list_view_btn.setCheckable(True)
+        self.list_view_btn.clicked.connect(lambda: self.switch_view_mode(LayoutMode.LIST))
+        view_toolbar_layout.addWidget(self.list_view_btn)
+        
+        self.document_view_btn = QPushButton("📄 Document")
+        self.document_view_btn.setCheckable(True)
+        self.document_view_btn.clicked.connect(lambda: self.switch_view_mode(LayoutMode.DOCUMENT))
+        view_toolbar_layout.addWidget(self.document_view_btn)
+        
+        view_toolbar_layout.addStretch()
+        
+        layout.addWidget(view_toolbar)
+        
+        # Create assistance panel (shared across all views)
+        self.create_assistance_panel()
+        
+        # Stacked widget to hold different views
+        self.view_stack = QStackedWidget()
+        
+        # Create all three views
+        self.grid_view_widget = self.create_grid_view_widget()
+        self.list_view_widget = self.create_list_view_widget()
+        self.document_view_widget = self.create_document_view_widget()
+        
+        # Add views to stack
+        self.view_stack.addWidget(self.grid_view_widget)
+        self.view_stack.addWidget(self.list_view_widget)
+        self.view_stack.addWidget(self.document_view_widget)
+        
+        layout.addWidget(self.view_stack)
+        
+        return tab
+    
+    def switch_view_mode(self, mode: str):
+        """Switch between Grid/List/Document views"""
+        self.current_view_mode = mode
+        
+        # Update button states
+        self.grid_view_btn.setChecked(mode == LayoutMode.GRID)
+        self.list_view_btn.setChecked(mode == LayoutMode.LIST)
+        self.document_view_btn.setChecked(mode == LayoutMode.DOCUMENT)
+        
+        # Ensure assistance widget is visible
+        if hasattr(self, 'assistance_widget'):
+            self.assistance_widget.setVisible(True)
+        
+        # Switch stack widget
+        if mode == LayoutMode.GRID:
+            self.view_stack.setCurrentIndex(0)
+            # Ensure assistance widget is in grid splitter
+            if hasattr(self, 'editor_splitter') and hasattr(self, 'assistance_widget'):
+                # Check if widget is already in this splitter
+                widget_in_splitter = False
+                for i in range(self.editor_splitter.count()):
+                    if self.editor_splitter.widget(i) == self.assistance_widget:
+                        widget_in_splitter = True
+                        break
+                
+                # If not in splitter, add it (Qt will automatically remove from old parent)
+                if not widget_in_splitter:
+                    self.editor_splitter.addWidget(self.assistance_widget)
+                
+                self.editor_splitter.setSizes([1000, 400])
+        elif mode == LayoutMode.LIST:
+            self.view_stack.setCurrentIndex(1)
+            # Ensure assistance widget is in list splitter
+            if hasattr(self, 'list_splitter') and hasattr(self, 'assistance_widget'):
+                # Check if widget is already in this splitter
+                widget_in_splitter = False
+                for i in range(self.list_splitter.count()):
+                    if self.list_splitter.widget(i) == self.assistance_widget:
+                        widget_in_splitter = True
+                        break
+                
+                # If not in splitter, add it (Qt will automatically remove from old parent)
+                if not widget_in_splitter:
+                    self.list_splitter.addWidget(self.assistance_widget)
+                
+                self.list_splitter.setSizes([1000, 400])
+            # Refresh list view when switching to it
+            if hasattr(self, 'list_tree') and self.current_project:
+                self.refresh_list_view()
+        elif mode == LayoutMode.DOCUMENT:
+            self.view_stack.setCurrentIndex(2)
+            # Ensure assistance widget is in document splitter
+            if hasattr(self, 'doc_splitter') and hasattr(self, 'assistance_widget'):
+                # Check if widget is already in this splitter
+                widget_in_splitter = False
+                for i in range(self.doc_splitter.count()):
+                    if self.doc_splitter.widget(i) == self.assistance_widget:
+                        widget_in_splitter = True
+                        break
+                
+                # If not in splitter, add it (Qt will automatically remove from old parent)
+                if not widget_in_splitter:
+                    self.doc_splitter.addWidget(self.assistance_widget)
+                
+                self.doc_splitter.setSizes([1000, 400])
+            # Refresh document view when switching to it
+            if hasattr(self, 'document_container') and self.current_project:
+                self.refresh_document_view()
+        
+        self.log(f"Switched to {mode} view")
+    
+    def create_grid_view_widget(self):
+        """Create the Grid View widget (existing grid functionality)"""
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
         layout.setContentsMargins(0, 0, 0, 0)
         
         # Splitter for grid and assistance panel
@@ -1743,7 +2886,7 @@ class SupervertalerQt(QMainWindow):
             "border: 1px solid white; padding: 4px 12px; border-radius: 3px; font-weight: bold;"
         )
         settings_link.setCursor(Qt.CursorShape.PointingHandCursor)
-        settings_link.clicked.connect(self.show_options_dialog)
+        settings_link.clicked.connect(self._go_to_settings_tab)
         warning_layout.addWidget(settings_link)
         
         grid_layout.addWidget(self.warning_banner)
@@ -1782,22 +2925,267 @@ class SupervertalerQt(QMainWindow):
         
         grid_layout.addWidget(filter_panel)
         
-        # Create assistance panel FIRST so it can be passed to grid editor
-        self.create_assistance_panel()
-        
         # Translation Grid
         self.create_translation_grid()
         grid_layout.addWidget(self.table)
         
         self.editor_splitter.addWidget(grid_container)
-        self.editor_splitter.addWidget(self.assistance_widget)
+        # Only add assistance widget if it's not already in another splitter
+        # (It will be reparented when switching views)
+        if hasattr(self, 'assistance_widget'):
+            parent = self.assistance_widget.parent()
+            if not isinstance(parent, QSplitter):
+                self.editor_splitter.addWidget(self.assistance_widget)
         
         # Set splitter proportions (70% grid, 30% assistance)
         self.editor_splitter.setSizes([1000, 400])
         
         layout.addWidget(self.editor_splitter)
         
-        return tab
+        return widget
+    
+    def create_list_view_widget(self):
+        """Create the List View widget (segment list with editor panel)"""
+        widget = QWidget()
+        main_layout = QHBoxLayout(widget)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Main splitter: List/Editor on left, Assistance on right
+        self.list_splitter = QSplitter(Qt.Orientation.Horizontal)
+        
+        # Left side: List and Editor (vertical split)
+        left_splitter = QSplitter(Qt.Orientation.Vertical)
+        
+        # Top: Segment list
+        list_container = QWidget()
+        list_layout = QVBoxLayout(list_container)
+        list_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Filter panel
+        filter_panel = QWidget()
+        filter_layout = QHBoxLayout(filter_panel)
+        filter_layout.setContentsMargins(5, 5, 5, 5)
+        
+        source_filter_label = QLabel("Filter Source:")
+        self.list_source_filter = QLineEdit()
+        self.list_source_filter.setPlaceholderText("Type to filter...")
+        self.list_source_filter.textChanged.connect(self.apply_list_filters)
+        
+        target_filter_label = QLabel("Filter Target:")
+        self.list_target_filter = QLineEdit()
+        self.list_target_filter.setPlaceholderText("Type to filter...")
+        self.list_target_filter.textChanged.connect(self.apply_list_filters)
+        
+        clear_btn = QPushButton("Clear")
+        clear_btn.clicked.connect(self.clear_list_filters)
+        clear_btn.setMaximumWidth(60)
+        
+        filter_layout.addWidget(source_filter_label)
+        filter_layout.addWidget(self.list_source_filter, stretch=1)
+        filter_layout.addWidget(target_filter_label)
+        filter_layout.addWidget(self.list_target_filter, stretch=1)
+        filter_layout.addWidget(clear_btn)
+        
+        list_layout.addWidget(filter_panel)
+        
+        # Segment tree (QTreeWidget for list view)
+        self.list_tree = QTreeWidget()
+        self.list_tree.setHeaderLabels(["#", "Type", "Status", "Source", "Target"])
+        self.list_tree.setAlternatingRowColors(True)
+        self.list_tree.setRootIsDecorated(False)
+        self.list_tree.setSelectionMode(QTreeWidget.SelectionMode.SingleSelection)
+        
+        # Column widths
+        header = self.list_tree.header()
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)  # ID
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)  # Type
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)  # Status
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)  # Source
+        header.setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)  # Target
+        
+        self.list_tree.setColumnWidth(0, 50)
+        self.list_tree.setColumnWidth(1, 80)
+        self.list_tree.setColumnWidth(2, 80)
+        
+        # Connect selection
+        self.list_tree.itemSelectionChanged.connect(self.on_list_segment_selected)
+        self.list_tree.itemDoubleClicked.connect(lambda: self.focus_list_target_editor())
+        
+        list_layout.addWidget(self.list_tree)
+        
+        left_splitter.addWidget(list_container)
+        
+        # Bottom: Editor panel
+        editor_container = QGroupBox("Segment Editor")
+        editor_layout = QVBoxLayout(editor_container)
+        editor_layout.setContentsMargins(10, 10, 10, 10)
+        
+        # Segment info
+        info_layout = QHBoxLayout()
+        self.list_seg_info = QLabel("No segment selected")
+        self.list_seg_info.setStyleSheet("font-weight: bold;")
+        info_layout.addWidget(self.list_seg_info, stretch=1)
+        
+        # Status selector
+        status_label = QLabel("Status:")
+        self.list_status_combo = QComboBox()
+        self.list_status_combo.addItems(["untranslated", "translated", "approved"])
+        self.list_status_combo.currentTextChanged.connect(self.on_list_status_change)
+        info_layout.addWidget(status_label)
+        info_layout.addWidget(self.list_status_combo)
+        
+        editor_layout.addLayout(info_layout)
+        
+        # Source (read-only)
+        source_label = QLabel("Source:")
+        source_label.setStyleSheet("font-weight: bold;")
+        editor_layout.addWidget(source_label)
+        self.list_source_editor = QTextEdit()
+        self.list_source_editor.setReadOnly(True)
+        self.list_source_editor.setMaximumHeight(100)
+        self.list_source_editor.setStyleSheet("background-color: #f5f5f5;")
+        editor_layout.addWidget(self.list_source_editor)
+        
+        # Target (editable)
+        target_label = QLabel("Target:")
+        target_label.setStyleSheet("font-weight: bold;")
+        editor_layout.addWidget(target_label)
+        self.list_target_editor = QTextEdit()
+        self.list_target_editor.setMaximumHeight(100)
+        self.list_target_editor.textChanged.connect(self.on_list_target_change)
+        editor_layout.addWidget(self.list_target_editor)
+        
+        # Action buttons
+        button_layout = QHBoxLayout()
+        copy_btn = QPushButton("Copy Source → Target")
+        copy_btn.clicked.connect(self.copy_source_to_list_target)
+        clear_target_btn = QPushButton("Clear Target")
+        clear_target_btn.clicked.connect(self.clear_list_target)
+        save_next_btn = QPushButton("Save & Next (Ctrl+Enter)")
+        save_next_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold;")
+        save_next_btn.clicked.connect(self.save_list_segment_and_next)
+        
+        button_layout.addWidget(copy_btn)
+        button_layout.addWidget(clear_target_btn)
+        button_layout.addStretch()
+        button_layout.addWidget(save_next_btn)
+        
+        editor_layout.addLayout(button_layout)
+        
+        left_splitter.addWidget(editor_container)
+        left_splitter.setSizes([400, 200])
+        
+        self.list_splitter.addWidget(left_splitter)
+        # Don't add assistance widget here - it will be added when switching to this view
+        # (The widget can only be in one splitter at a time)
+        self.list_splitter.setSizes([1000, 400])
+        
+        main_layout.addWidget(self.list_splitter)
+        
+        # Store current selected segment for list view
+        self.list_current_segment_id = None
+        
+        return widget
+    
+    def create_document_view_widget(self):
+        """Create the Document View widget (natural document flow)"""
+        widget = QWidget()
+        main_layout = QVBoxLayout(widget)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Main splitter: Document/Editor on left, Assistance on right
+        self.doc_splitter = QSplitter(Qt.Orientation.Horizontal)
+        
+        # Left side: Document and Editor (vertical split)
+        left_splitter = QSplitter(Qt.Orientation.Vertical)
+        
+        # Top: Document flow area
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setStyleSheet("background-color: white;")
+        
+        self.document_container = QWidget()
+        self.document_layout = QVBoxLayout(self.document_container)
+        self.document_layout.setContentsMargins(20, 20, 20, 20)
+        self.document_layout.setSpacing(10)
+        self.document_layout.addStretch()  # Stretch at bottom
+        
+        scroll_area.setWidget(self.document_container)
+        
+        left_splitter.addWidget(scroll_area)
+        
+        # Bottom: Editor panel (same as list view)
+        editor_container = QGroupBox("Segment Editor")
+        editor_layout = QVBoxLayout(editor_container)
+        editor_layout.setContentsMargins(10, 10, 10, 10)
+        
+        # Segment info
+        info_layout = QHBoxLayout()
+        self.doc_seg_info = QLabel("Click on any segment in the document to edit")
+        self.doc_seg_info.setStyleSheet("font-weight: bold;")
+        info_layout.addWidget(self.doc_seg_info, stretch=1)
+        
+        # Status selector
+        status_label = QLabel("Status:")
+        self.doc_status_combo = QComboBox()
+        self.doc_status_combo.addItems(["untranslated", "translated", "approved"])
+        self.doc_status_combo.currentTextChanged.connect(self.on_doc_status_change)
+        info_layout.addWidget(status_label)
+        info_layout.addWidget(self.doc_status_combo)
+        
+        editor_layout.addLayout(info_layout)
+        
+        # Source (read-only)
+        source_label = QLabel("Source:")
+        source_label.setStyleSheet("font-weight: bold;")
+        editor_layout.addWidget(source_label)
+        self.doc_source_editor = QTextEdit()
+        self.doc_source_editor.setReadOnly(True)
+        self.doc_source_editor.setMaximumHeight(100)
+        self.doc_source_editor.setStyleSheet("background-color: #f5f5f5;")
+        editor_layout.addWidget(self.doc_source_editor)
+        
+        # Target (editable)
+        target_label = QLabel("Target:")
+        target_label.setStyleSheet("font-weight: bold;")
+        editor_layout.addWidget(target_label)
+        self.doc_target_editor = QTextEdit()
+        self.doc_target_editor.setMaximumHeight(100)
+        self.doc_target_editor.textChanged.connect(self.on_doc_target_change)
+        editor_layout.addWidget(self.doc_target_editor)
+        
+        # Action buttons
+        button_layout = QHBoxLayout()
+        copy_btn = QPushButton("Copy Source → Target")
+        copy_btn.clicked.connect(self.copy_source_to_doc_target)
+        clear_target_btn = QPushButton("Clear Target")
+        clear_target_btn.clicked.connect(self.clear_doc_target)
+        save_next_btn = QPushButton("Save & Next (Ctrl+Enter)")
+        save_next_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold;")
+        save_next_btn.clicked.connect(self.save_doc_segment_and_next)
+        
+        button_layout.addWidget(copy_btn)
+        button_layout.addWidget(clear_target_btn)
+        button_layout.addStretch()
+        button_layout.addWidget(save_next_btn)
+        
+        editor_layout.addLayout(button_layout)
+        
+        left_splitter.addWidget(editor_container)
+        left_splitter.setSizes([600, 200])
+        
+        self.doc_splitter.addWidget(left_splitter)
+        # Don't add assistance widget here - it will be added when switching to this view
+        # (The widget can only be in one splitter at a time)
+        self.doc_splitter.setSizes([1000, 400])
+        
+        main_layout.addWidget(self.doc_splitter)
+        
+        # Store segment widgets and current selection
+        self.doc_segment_widgets = {}
+        self.doc_current_segment_id = None
+        
+        return widget
     
     def create_translation_grid(self):
         """Create the translation grid (QTableWidget)"""
@@ -2805,7 +4193,139 @@ class SupervertalerQt(QMainWindow):
         
         self.log(f"✓ Loaded {len(self.current_project.segments)} segments to grid")
 
-
+        # Also refresh List and Document views if they exist
+        if hasattr(self, 'list_tree'):
+            self.refresh_list_view()
+        if hasattr(self, 'document_container'):
+            self.refresh_document_view()
+    
+    def refresh_list_view(self):
+        """Refresh the List View with current segments"""
+        if not hasattr(self, 'list_tree') or not self.current_project:
+            return
+        
+        self.list_tree.clear()
+        
+        if not self.current_project.segments:
+            return
+        
+        # Apply filters if any
+        source_filter = self.list_source_filter.text().lower() if hasattr(self, 'list_source_filter') else ""
+        target_filter = self.list_target_filter.text().lower() if hasattr(self, 'list_target_filter') else ""
+        
+        for segment in self.current_project.segments:
+            # Filter segments
+            if source_filter and source_filter not in segment.source.lower():
+                continue
+            if target_filter and target_filter not in segment.target.lower():
+                continue
+            
+            item = QTreeWidgetItem([
+                str(segment.id),
+                segment.type.upper() if segment.type != "para" else "#",
+                segment.status,
+                segment.source[:100] + "..." if len(segment.source) > 100 else segment.source,
+                segment.target[:100] + "..." if len(segment.target) > 100 else segment.target
+            ])
+            item.setData(0, Qt.ItemDataRole.UserRole, segment.id)  # Store segment ID
+            
+            # Color coding by status
+            if segment.status == "untranslated":
+                item.setBackground(2, QColor("#ffe6e6"))
+            elif segment.status == "translated":
+                item.setBackground(2, QColor("#e6ffe6"))
+            elif segment.status == "approved":
+                item.setBackground(2, QColor("#e6f3ff"))
+            
+            self.list_tree.addTopLevelItem(item)
+        
+        self.log(f"✓ Refreshed List View with {self.list_tree.topLevelItemCount()} segments")
+    
+    def refresh_document_view(self):
+        """Refresh the Document View with current segments"""
+        if not hasattr(self, 'document_container') or not self.current_project:
+            return
+        
+        # Clear existing widgets (except the stretch)
+        while self.document_layout.count() > 1:  # Keep the stretch
+            item = self.document_layout.itemAt(0)
+            if item:
+                widget = item.widget()
+                if widget:
+                    widget.deleteLater()
+                self.document_layout.removeItem(item)
+        
+        self.doc_segment_widgets.clear()
+        
+        if not self.current_project.segments:
+            return
+        
+        # Apply filters if any
+        source_filter = self.source_filter.text().lower() if hasattr(self, 'source_filter') else ""
+        target_filter = self.target_filter.text().lower() if hasattr(self, 'target_filter') else ""
+        
+        for segment in self.current_project.segments:
+            # Filter segments
+            if source_filter and source_filter not in segment.source.lower():
+                continue
+            if target_filter and target_filter not in segment.target.lower():
+                continue
+            
+            # Create segment widget (clickable frame)
+            segment_frame = QFrame()
+            segment_frame.setFrameStyle(QFrame.Shape.Box)
+            segment_frame.setStyleSheet(
+                f"""
+                QFrame {{
+                    border: 2px solid #ddd;
+                    border-radius: 5px;
+                    padding: 10px;
+                    margin: 5px;
+                    background-color: {"#ffe6e6" if segment.status == "untranslated" else "#e6ffe6" if segment.status == "translated" else "#e6f3ff"};
+                }}
+                QFrame:hover {{
+                    border-color: #2196F3;
+                    background-color: {"#ffcccc" if segment.status == "untranslated" else "#ccffcc" if segment.status == "translated" else "#cce6ff"};
+                }}
+                """
+            )
+            segment_frame.setCursor(Qt.CursorShape.PointingHandCursor)
+            # Store segment ID and create click handler
+            seg_id = segment.id
+            def make_click_handler(sid):
+                return lambda event: self.on_doc_segment_clicked(sid)
+            segment_frame.mousePressEvent = make_click_handler(seg_id)
+            
+            segment_layout = QVBoxLayout(segment_frame)
+            segment_layout.setContentsMargins(10, 10, 10, 10)
+            
+            # Segment ID and status
+            header = QLabel(f"Segment {segment.id} - {segment.status.upper()}")
+            header.setStyleSheet("font-weight: bold; font-size: 11px; color: #666;")
+            segment_layout.addWidget(header)
+            
+            # Source text
+            source_label = QLabel(f"<b>Source:</b> {segment.source}")
+            source_label.setWordWrap(True)
+            source_label.setTextFormat(Qt.TextFormat.RichText)
+            segment_layout.addWidget(source_label)
+            
+            # Target text (if exists)
+            if segment.target:
+                target_label = QLabel(f"<b>Target:</b> {segment.target}")
+                target_label.setWordWrap(True)
+                target_label.setTextFormat(Qt.TextFormat.RichText)
+                target_label.setStyleSheet("color: #0066cc;")
+                segment_layout.addWidget(target_label)
+            else:
+                empty_label = QLabel("<i>Not translated</i>")
+                empty_label.setStyleSheet("color: #999; font-style: italic;")
+                segment_layout.addWidget(empty_label)
+            
+            self.document_layout.insertWidget(self.document_layout.count() - 1, segment_frame)
+            self.doc_segment_widgets[segment.id] = segment_frame
+        
+        self.log(f"✓ Refreshed Document View with {len(self.doc_segment_widgets)} segments")
     
     def clear_grid(self):
         """Clear all rows from grid"""
@@ -2905,11 +4425,20 @@ class SupervertalerQt(QMainWindow):
             pass
     
     def load_general_settings(self) -> Dict[str, Any]:
+        """Load general application settings"""
+        # Initialize auto-propagation from loaded settings
+        settings = self._load_general_settings_from_file()
+        if 'auto_propagate_exact_matches' in settings:
+            self.auto_propagate_exact_matches = settings['auto_propagate_exact_matches']
+        return settings
+    
+    def _load_general_settings_from_file(self) -> Dict[str, Any]:
         """Load general settings from user preferences"""
         prefs_file = self.user_data_path / "ui_preferences.json"
         
         defaults = {
             'restore_last_project': False,
+            'auto_propagate_exact_matches': True,
             'grid_font_size': 11,
             'results_match_font_size': 9,
             'results_compare_font_size': 9
@@ -3104,6 +4633,7 @@ class SupervertalerQt(QMainWindow):
                         from modules.translation_results_panel import TranslationMatch
                         
                         matches_dict = {
+                            "LLM": [],     # LLM Translation (appears first)
                             "NT": [],      # No Translation
                             "MT": [],      # Machine Translation
                             "TM": [],      # Translation Memory
@@ -3134,29 +4664,146 @@ class SupervertalerQt(QMainWindow):
                         # Add termbase matches to the results panel
                         try:
                             if hasattr(self, 'db_manager') and self.db_manager:
-                                # Get termbase matches from the source item if available
-                                source_item = self.table.item(current_row, 2)
-                                if source_item and hasattr(source_item, 'termbase_matches'):
-                                    termbase_matches = source_item.termbase_matches
-                                    if termbase_matches:
-                                        self.log(f"Adding {len(termbase_matches)} termbase matches to panel")
-                                        for source_term, target_term in termbase_matches.items():
+                                # Search termbases directly to get full information including termbase_id
+                                source_lang = getattr(self.current_project, 'source_lang', None) if self.current_project else None
+                                target_lang = getattr(self.current_project, 'target_lang', None) if self.current_project else None
+                                project_id_raw = getattr(self.current_project, 'id', None) if (self.current_project and hasattr(self.current_project, 'id')) else None
+                                
+                                # Convert project_id to string if needed (database stores as TEXT)
+                                project_id = str(project_id_raw) if project_id_raw is not None else None
+                                
+                                # Search for all terms in the source text
+                                if segment.source:
+                                    # First try exact phrase match, then fall back to word-by-word
+                                    termbase_results_by_term = {}
+                                    
+                                    # Try exact phrase match first (whole source text)
+                                    try:
+                                        exact_results = self.db_manager.search_termbases(
+                                            segment.source.strip(),
+                                            source_lang=source_lang,
+                                            target_lang=target_lang,
+                                            project_id=project_id,
+                                            min_length=len(segment.source.strip())
+                                        )
+                                        for tb_match in exact_results:
+                                            source_term = tb_match.get('source_term', '').strip()
+                                            target_term = tb_match.get('target_term', '').strip()
+                                            termbase_id_raw = tb_match.get('termbase_id')
+                                            
+                                            try:
+                                                termbase_id = int(termbase_id_raw) if termbase_id_raw else None
+                                            except (ValueError, TypeError):
+                                                termbase_id = termbase_id_raw
+                                            
+                                            if source_term and target_term and termbase_id:
+                                                key = (source_term, target_term, termbase_id)
+                                                if key not in termbase_results_by_term:
+                                                    termbase_results_by_term[key] = tb_match
+                                    except Exception as exact_error:
+                                        self.log(f"Error in exact phrase search: {exact_error}")
+                                    
+                                    # Then search word-by-word for partial matches
+                                    words = segment.source.split()
+                                    for word in words:
+                                        clean_word = word.strip('.,!?;:')
+                                        if len(clean_word) < 2:
+                                            continue
+                                        
+                                        try:
+                                            tb_results = self.db_manager.search_termbases(
+                                                clean_word,
+                                                source_lang=source_lang,
+                                                target_lang=target_lang,
+                                                project_id=project_id,
+                                                min_length=2
+                                            )
+                                            
+                                            for tb_match in tb_results:
+                                                source_term = tb_match.get('source_term', '').strip()
+                                                target_term = tb_match.get('target_term', '').strip()
+                                                termbase_id_raw = tb_match.get('termbase_id')
+                                                
+                                                # Convert termbase_id to int if it's stored as string
+                                                try:
+                                                    termbase_id = int(termbase_id_raw) if termbase_id_raw else None
+                                                except (ValueError, TypeError):
+                                                    termbase_id = termbase_id_raw  # Keep as-is if conversion fails
+                                                
+                                                if source_term and target_term and termbase_id:
+                                                    # Store with termbase_id as key to avoid duplicates
+                                                    key = (source_term, target_term, termbase_id)
+                                                    if key not in termbase_results_by_term:
+                                                        termbase_results_by_term[key] = tb_match
+                                        except Exception as search_error:
+                                            self.log(f"Error searching termbases for '{clean_word}': {search_error}")
+                                            continue
+                                    
+                                    # Get termbase names for IDs found
+                                    termbase_code_map = self.get_termbase_code_map()
+                                    
+                                    # Create TranslationMatch objects
+                                    for (source_term, target_term, termbase_id), tb_match in termbase_results_by_term.items():
+                                        try:
+                                            # Get termbase code (or generate from name)
+                                            termbase_code = self.get_termbase_code(termbase_id, termbase_code_map)
+                                            
+                                            # Get termbase priority (termbase-level, not term-level)
+                                            # We need to query the termbase table for this
+                                            termbase_priority = 50  # Default
+                                            try:
+                                                if self.db_manager and self.db_manager.cursor:
+                                                    cursor = self.db_manager.cursor
+                                                    cursor.execute("SELECT priority FROM termbases WHERE id = ?", (termbase_id,))
+                                                    row = cursor.fetchone()
+                                                    if row and row[0] is not None:
+                                                        termbase_priority = row[0]
+                                            except Exception as prio_error:
+                                                self.log(f"Warning: Could not fetch termbase priority for {termbase_id}: {prio_error}")
+                                                # Continue with default priority
+                                            
                                             match_obj = TranslationMatch(
                                                 source=source_term,
                                                 target=target_term,
-                                                relevance=100,  # Exact matches from termbase
+                                                relevance=100 - tb_match.get('priority', 99),  # Lower priority = higher relevance
                                                 metadata={
-                                                    'context': 'Termbase match',
-                                                    'tm_name': 'Termbase',
-                                                    'timestamp': ''
+                                                    'termbase_id': termbase_id,
+                                                    'termbase_name': tb_match.get('termbase_name', 'Unknown'),
+                                                    'termbase_priority': termbase_priority,  # Termbase-level priority for color shading
+                                                    'term_priority': tb_match.get('priority', 99),  # Term-level priority for sorting
+                                                    'definition': tb_match.get('definition', ''),
+                                                    'domain': tb_match.get('domain', '')
                                                 },
                                                 match_type='Termbase',
-                                                compare_source=source_term
+                                                compare_source=source_term,
+                                                provider_code=termbase_code
                                             )
                                             matches_dict["Termbases"].append(match_obj)
+                                        except Exception as match_error:
+                                            import traceback
+                                            self.log(f"❌ Error creating termbase match: {match_error}")
+                                            self.log(f"Traceback: {traceback.format_exc()}")
+                                            continue
+                                    
+                                    if termbase_results_by_term:
+                                        num_created = len(matches_dict["Termbases"])
+                                        self.log(f"✓ Found {len(termbase_results_by_term)} termbase matches, created {num_created} TranslationMatch objects")
+                                    else:
+                                        self.log(f"ℹ️ No termbase matches found for segment: '{segment.source[:50]}...'")
+                                else:
+                                    self.log("⚠️ No source text in segment for termbase search")
                         except Exception as e:
-                            self.log(f"Error adding termbase matches: {e}")
+                            import traceback
+                            self.log(f"❌ Error adding termbase matches: {e}")
+                            self.log(f"Traceback: {traceback.format_exc()}")
                         
+                        # Fetch LLM translation for current segment (async, updates panel when ready)
+                        self._fetch_llm_translation_async(segment.source, segment, current_row)
+                        
+                        # Fetch MT translation for current segment (async, updates panel when ready)
+                        self._fetch_mt_translation_async(segment.source, segment, current_row)
+                        
+                        # Display matches (LLM and MT will be added when ready)
                         self.assistance_widget.set_matches(matches_dict)
                     except Exception as e:
                         self.log(f"Error updating TranslationResultsPanel: {e}")
@@ -3241,6 +4888,43 @@ class SupervertalerQt(QMainWindow):
         try:
             # Search for matches
             matches = self.tm_database.search_all(source_text, max_matches=5)
+            
+            # Auto-propagate exact match if enabled
+            if matches and self.auto_propagate_exact_matches:
+                first_match = matches[0]
+                match_pct = first_match.get('match_pct', 0)
+                
+                # Check if we have a 100% match
+                if match_pct == 100:
+                    # Check if current segment is empty/untranslated
+                    if hasattr(self, 'table') and hasattr(self, 'current_project'):
+                        current_row = self.table.currentRow()
+                        if current_row >= 0 and current_row < len(self.current_project.segments):
+                            segment = self.current_project.segments[current_row]
+                            
+                            # Only auto-propagate if segment is empty or untranslated
+                            if (not segment.target or not segment.target.strip() or 
+                                segment.status in ["untranslated", "not_started", ""]):
+                                
+                                # Fill the segment
+                                segment.target = first_match.get('target', '')
+                                segment.status = "translated"
+                                segment.modified = True
+                                self.project_modified = True
+                                
+                                # Update grid
+                                target_item = self.table.item(current_row, 3)  # Target column (0=ID, 1=Status, 2=Source, 3=Target)
+                                if target_item:
+                                    target_item.setText(segment.target)
+                                
+                                # Update status column
+                                status_item = self.table.item(current_row, 1)
+                                if status_item:
+                                    status_item.setText("Translated")
+                                    status_item.setBackground(QColor("#d1fae5"))  # Light green for translated
+                                
+                                # Update project modified status (progress is handled by status bar)
+                                self.log(f"✨ Auto-propagated 100% TM match for segment #{current_row + 1}")
             
             if not matches:
                 if hasattr(self, 'tm_display'):
@@ -3437,6 +5121,102 @@ class SupervertalerQt(QMainWindow):
     # ========================================================================
     # TERMBASE HIGHLIGHTING & MATCHING
     # ========================================================================
+    
+    def get_termbase_code_map(self) -> Dict[int, str]:
+        """Get mapping of termbase_id to custom codes (from user preferences)"""
+        prefs_file = self.user_data_path / "ui_preferences.json"
+        
+        if not prefs_file.exists():
+            return {}
+        
+        try:
+            with open(prefs_file, 'r') as f:
+                prefs = json.load(f)
+                return prefs.get('termbase_code_map', {})  # {termbase_id: "CODE"}
+        except:
+            return {}
+    
+    def save_termbase_code_map(self, code_map: Dict[int, str]):
+        """Save termbase code mappings to user preferences"""
+        prefs_file = self.user_data_path / "ui_preferences.json"
+        
+        # Load existing preferences
+        prefs = {}
+        if prefs_file.exists():
+            try:
+                with open(prefs_file, 'r') as f:
+                    prefs = json.load(f)
+            except:
+                pass
+        
+        # Update termbase code map
+        prefs['termbase_code_map'] = code_map
+        
+        # Save back
+        try:
+            with open(prefs_file, 'w') as f:
+                json.dump(prefs, f, indent=2)
+        except Exception as e:
+            self.log(f"⚠ Could not save termbase code map: {str(e)}")
+    
+    def get_termbase_code(self, termbase_id: int, code_map: Optional[Dict[int, str]] = None) -> str:
+        """
+        Get code for a termbase (custom code or auto-generated from name)
+        
+        Args:
+            termbase_id: The termbase ID
+            code_map: Optional pre-loaded code map (for performance)
+            
+        Returns:
+            Code string (e.g., "MED", "LEG", "TECH") or empty string
+        """
+        if code_map is None:
+            code_map = self.get_termbase_code_map()
+        
+        # Check if user has set a custom code
+        if termbase_id in code_map:
+            return code_map[termbase_id]
+        
+        # Auto-generate code from termbase name
+        try:
+            termbase_name = None
+            
+            if hasattr(self, 'termbase_mgr') and self.termbase_mgr:
+                termbase = self.termbase_mgr.get_termbase(termbase_id)
+                if termbase:
+                    termbase_name = termbase.get('name', '') if isinstance(termbase, dict) else getattr(termbase, 'name', '')
+            
+            # Fallback: query database directly
+            if not termbase_name and hasattr(self, 'db_manager') and self.db_manager:
+                cursor = self.db_manager.cursor
+                cursor.execute("SELECT name FROM termbases WHERE id = ?", (termbase_id,))
+                row = cursor.fetchone()
+                if row:
+                    termbase_name = row[0]
+            
+            if not termbase_name:
+                return ""
+            
+            # Generate code from name: take first 3-4 uppercase letters
+            # Examples: "Medical Dictionary" -> "MED", "Legal Terms" -> "LEG", "Technical Glossary" -> "TECH"
+            words = termbase_name.split()
+            if len(words) >= 2:
+                # Take first letter of first two words, then add more if needed
+                code = (words[0][0] + words[1][0]).upper()
+                if len(code) < 3 and len(words[0]) >= 2:
+                    code = words[0][:3].upper()
+            else:
+                # Single word: take first 3 uppercase letters
+                code = termbase_name[:3].upper()
+            
+            # Ensure code is 2-4 characters
+            if len(code) > 4:
+                code = code[:4]
+            
+            return code
+        except Exception as e:
+            self.log(f"Error generating termbase code: {e}")
+            return ""
     
     def find_termbase_matches_in_source(self, source_text: str) -> Dict[str, str]:
         """
@@ -3837,7 +5617,7 @@ class SupervertalerQt(QMainWindow):
                 self.find_replace_dialog,
                 "Replace in Source Disabled",
                 "Replacing in source text is disabled for safety.\n\n"
-                "To enable this feature, go to Tools > Options and check 'Allow Replace in Source Text'."
+                "To enable this feature, go to Settings > General and check 'Allow Replace in Source Text'."
             )
             return
         
@@ -3900,7 +5680,7 @@ class SupervertalerQt(QMainWindow):
                 "Replace in Source Disabled",
                 "Replacing in source text is disabled for safety.\n\n"
                 "Only target text will be replaced.\n\n"
-                "To enable replacing in source, go to Tools > Options and check 'Allow Replace in Source Text'.",
+                "To enable replacing in source, go to Settings > General and check 'Allow Replace in Source Text'.",
                 QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel
             )
             if reply == QMessageBox.StandardButton.Cancel:
@@ -4240,12 +6020,246 @@ class SupervertalerQt(QMainWindow):
         self.log("Filters cleared")
     
     # ========================================================================
+    # LIST VIEW METHODS
+    # ========================================================================
+    
+    def apply_list_filters(self):
+        """Apply filters to List View"""
+        self.refresh_list_view()
+    
+    def clear_list_filters(self):
+        """Clear List View filters"""
+        if hasattr(self, 'list_source_filter'):
+            self.list_source_filter.clear()
+        if hasattr(self, 'list_target_filter'):
+            self.list_target_filter.clear()
+        self.refresh_list_view()
+    
+    def on_list_segment_selected(self):
+        """Handle segment selection in List View"""
+        selected_items = self.list_tree.selectedItems()
+        if not selected_items:
+            self.list_current_segment_id = None
+            self.list_seg_info.setText("No segment selected")
+            self.list_source_editor.clear()
+            self.list_target_editor.clear()
+            return
+        
+        item = selected_items[0]
+        segment_id = item.data(0, Qt.ItemDataRole.UserRole)
+        self.list_current_segment_id = segment_id
+        
+        # Find segment
+        segment = next((s for s in self.current_project.segments if s.id == segment_id), None)
+        if not segment:
+            return
+        
+        # Update editor
+        self.list_seg_info.setText(f"Segment {segment.id}")
+        self.list_source_editor.setPlainText(segment.source)
+        self.list_target_editor.setPlainText(segment.target)
+        self.list_status_combo.setCurrentText(segment.status)
+        
+        # Trigger assistance panel update (same as grid view)
+        # Find row index for on_cell_selected
+        row = next((i for i, s in enumerate(self.current_project.segments) if s.id == segment_id), -1)
+        if row >= 0:
+            # Temporarily select in grid to trigger assistance panel
+            if hasattr(self, 'table') and self.table.rowCount() > row:
+                self.table.selectRow(row)
+                # Call on_cell_selected manually
+                self.on_cell_selected(row, 3, -1, -1)
+    
+    def on_list_status_change(self, status: str):
+        """Handle status change in List View"""
+        if not self.list_current_segment_id:
+            return
+        
+        segment = next((s for s in self.current_project.segments if s.id == self.list_current_segment_id), None)
+        if segment:
+            segment.status = status
+            self.project_modified = True
+            self.refresh_list_view()
+    
+    def on_list_target_change(self):
+        """Handle target text change in List View"""
+        if not self.list_current_segment_id:
+            return
+        
+        segment = next((s for s in self.current_project.segments if s.id == self.list_current_segment_id), None)
+        if segment:
+            new_target = self.list_target_editor.toPlainText()
+            if segment.target != new_target:
+                segment.target = new_target
+                self.project_modified = True
+    
+    def copy_source_to_list_target(self):
+        """Copy source to target in List View"""
+        source_text = self.list_source_editor.toPlainText()
+        self.list_target_editor.setPlainText(source_text)
+        self.on_list_target_change()
+    
+    def clear_list_target(self):
+        """Clear target in List View"""
+        self.list_target_editor.clear()
+        self.on_list_target_change()
+    
+    def focus_list_target_editor(self):
+        """Focus the target editor in List View"""
+        if hasattr(self, 'list_target_editor'):
+            self.list_target_editor.setFocus()
+    
+    def save_list_segment_and_next(self):
+        """Save current segment and move to next in List View"""
+        if not self.list_current_segment_id:
+            return
+        
+        # Find current item
+        current_item = self.list_tree.currentItem()
+        if not current_item:
+            return
+        
+        # Find next item
+        current_index = self.list_tree.indexOfTopLevelItem(current_item)
+        next_index = current_index + 1
+        
+        if next_index < self.list_tree.topLevelItemCount():
+            next_item = self.list_tree.topLevelItem(next_index)
+            self.list_tree.setCurrentItem(next_item)
+            self.list_tree.scrollToItem(next_item)
+        else:
+            self.log("✓ Last segment - no next segment")
+    
+    # ========================================================================
+    # DOCUMENT VIEW METHODS
+    # ========================================================================
+    
+    def on_doc_segment_clicked(self, segment_id: int):
+        """Handle segment click in Document View"""
+        self.doc_current_segment_id = segment_id
+        
+        # Find segment
+        segment = next((s for s in self.current_project.segments if s.id == segment_id), None)
+        if not segment:
+            return
+        
+        # Update editor
+        self.doc_seg_info.setText(f"Segment {segment.id}")
+        self.doc_source_editor.setPlainText(segment.source)
+        self.doc_target_editor.setPlainText(segment.target)
+        self.doc_status_combo.setCurrentText(segment.status)
+        
+        # Highlight clicked segment
+        for seg_id, widget in self.doc_segment_widgets.items():
+            if seg_id == segment_id:
+                # Highlight
+                style = widget.styleSheet()
+                if "border: 3px solid #2196F3;" not in style:
+                    widget.setStyleSheet(style.replace("border: 2px solid #ddd;", "border: 3px solid #2196F3;"))
+            else:
+                # Remove highlight
+                style = widget.styleSheet()
+                if "border: 3px solid #2196F3;" in style:
+                    widget.setStyleSheet(style.replace("border: 3px solid #2196F3;", "border: 2px solid #ddd;"))
+        
+        # Trigger assistance panel update
+        row = next((i for i, s in enumerate(self.current_project.segments) if s.id == segment_id), -1)
+        if row >= 0:
+            if hasattr(self, 'table') and self.table.rowCount() > row:
+                self.table.selectRow(row)
+                self.on_cell_selected(row, 3, -1, -1)
+    
+    def on_doc_status_change(self, status: str):
+        """Handle status change in Document View"""
+        if not self.doc_current_segment_id:
+            return
+        
+        segment = next((s for s in self.current_project.segments if s.id == self.doc_current_segment_id), None)
+        if segment:
+            segment.status = status
+            self.project_modified = True
+            self.refresh_document_view()
+            # Reselect segment after refresh
+            if self.doc_current_segment_id and self.doc_current_segment_id in self.doc_segment_widgets:
+                seg_id = self.doc_current_segment_id  # Store in local variable for lambda
+                QTimer.singleShot(100, lambda: self.on_doc_segment_clicked(seg_id))
+    
+    def on_doc_target_change(self):
+        """Handle target text change in Document View"""
+        if not self.doc_current_segment_id:
+            return
+        
+        segment = next((s for s in self.current_project.segments if s.id == self.doc_current_segment_id), None)
+        if segment:
+            new_target = self.doc_target_editor.toPlainText()
+            if segment.target != new_target:
+                segment.target = new_target
+                self.project_modified = True
+                # Update document view display
+                if self.doc_current_segment_id in self.doc_segment_widgets:
+                    widget = self.doc_segment_widgets[self.doc_current_segment_id]
+                    layout = widget.layout()
+                    if layout:
+                        for i in range(layout.count()):
+                            item = layout.itemAt(i)
+                            if item and item.widget():
+                                w = item.widget()
+                                if isinstance(w, QLabel) and "Target:" in w.text():
+                                    if new_target:
+                                        w.setText(f"<b>Target:</b> {new_target}")
+                                        w.setStyleSheet("color: #0066cc;")
+                                    else:
+                                        w.setText("<i>Not translated</i>")
+                                        w.setStyleSheet("color: #999; font-style: italic;")
+                                    break
+    
+    def copy_source_to_doc_target(self):
+        """Copy source to target in Document View"""
+        source_text = self.doc_source_editor.toPlainText()
+        self.doc_target_editor.setPlainText(source_text)
+        self.on_doc_target_change()
+    
+    def clear_doc_target(self):
+        """Clear target in Document View"""
+        self.doc_target_editor.clear()
+        self.on_doc_target_change()
+    
+    def save_doc_segment_and_next(self):
+        """Save current segment and move to next in Document View"""
+        if not self.doc_current_segment_id:
+            return
+        
+        # Find current segment index
+        current_idx = next((i for i, s in enumerate(self.current_project.segments) if s.id == self.doc_current_segment_id), -1)
+        if current_idx < 0:
+            return
+        
+        # Find next segment
+        next_idx = current_idx + 1
+        if next_idx < len(self.current_project.segments):
+            next_segment = self.current_project.segments[next_idx]
+            # Scroll to and select next segment
+            if next_segment.id in self.doc_segment_widgets:
+                self.on_doc_segment_clicked(next_segment.id)
+                # Scroll to widget
+                widget = self.doc_segment_widgets[next_segment.id]
+                # Navigate up to find QScrollArea
+                parent = widget.parent()
+                while parent and not isinstance(parent, QScrollArea):
+                    parent = parent.parent()
+                if isinstance(parent, QScrollArea):
+                    parent.ensureWidgetVisible(widget)
+            self.log(f"✓ Moved to segment {next_segment.id}")
+        else:
+            self.log("✓ Last segment - no next segment")
+    
+    # ========================================================================
     # UTILITY
     # ========================================================================
     
     def update_window_title(self):
         """Update window title with project name and modified state"""
-        title = "Supervertaler Qt v1.1.4"
+        title = "Supervertaler Qt v1.1.5"
         if ENABLE_PRIVATE_FEATURES:
             title += " [🛠️ DEV MODE]"
         if self.current_project:
@@ -4255,381 +6269,84 @@ class SupervertalerQt(QMainWindow):
         self.setWindowTitle(title)
     
     def log(self, message: str):
-        """Log message to status bar"""
+        """Log message to status bar and session log"""
         if hasattr(self, 'status_bar'):
             self.status_bar.showMessage(message)
         print(f"[LOG] {message}")
+        
+        # Also append to session log tab if it exists
+        if hasattr(self, 'session_log') and self.session_log:
+            from datetime import datetime
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            formatted_message = f"[{timestamp}] {message}\n"
+            try:
+                self.session_log.appendPlainText(formatted_message)
+                # Auto-scroll to bottom
+                scrollbar = self.session_log.verticalScrollBar()
+                if scrollbar:
+                    scrollbar.setValue(scrollbar.maximum())
+            except Exception:
+                pass  # Silently fail if widget not ready
     
     def show_options_dialog(self):
-        """Show application options dialog with LLM settings"""
-        from PyQt6.QtWidgets import QVBoxLayout, QHBoxLayout, QCheckBox, QGroupBox, QPushButton
+        """Show application options dialog - DEPRECATED: Redirects to Settings tab for backwards compatibility"""
+        # Redirect to Settings tab instead of showing dialog
+        self._go_to_settings_tab()
+    
+    def open_api_keys_file(self):
+        """Open API keys file in system text editor"""
+        api_keys_file = self.user_data_path / "api_keys.txt"
         
-        dialog = QDialog(self)
-        dialog.setWindowTitle("Settings")
-        dialog.setMinimumWidth(650)
-        dialog.setMinimumHeight(500)
+        # Create file if it doesn't exist
+        if not api_keys_file.exists():
+            try:
+                # Copy from example file
+                example_file = self.user_data_path / "api_keys.example.txt"
+                if example_file.exists():
+                    import shutil
+                    shutil.copy(example_file, api_keys_file)
+                    self.log(f"✓ Created api_keys.txt from example")
+                else:
+                    # Create basic file
+                    with open(api_keys_file, 'w') as f:
+                        f.write("# Add your API keys here\n")
+                        f.write("# openai=sk-your-key\n")
+                        f.write("# claude=sk-ant-your-key\n")
+                        f.write("# gemini=your-key\n")
+            except Exception as e:
+                QMessageBox.warning(self, "Error", f"Could not create api_keys.txt: {str(e)}")
+                return
         
-        layout = QVBoxLayout(dialog)
-        
-        # Create tabs for different settings categories
-        tabs = QTabWidget()
-        
-        # ===== TAB 1: LLM Settings =====
-        llm_tab = QWidget()
-        llm_layout = QVBoxLayout(llm_tab)
-        
-        # LLM Provider Selection
-        provider_group = QGroupBox("LLM Provider")
-        provider_layout = QVBoxLayout()
-        
-        provider_label = QLabel("Select your preferred translation provider:")
-        provider_layout.addWidget(provider_label)
-        
-        # Load current settings
-        settings = self.load_llm_settings()
-        
-        # Provider radio buttons
-        provider_button_group = QButtonGroup(dialog)
-        
-        openai_radio = QRadioButton("OpenAI (GPT-4o, GPT-5, o1, o3)")
-        openai_radio.setChecked(settings.get('provider', 'openai') == 'openai')
-        provider_button_group.addButton(openai_radio)
-        provider_layout.addWidget(openai_radio)
-        
-        claude_radio = QRadioButton("Anthropic Claude (Claude 3.5 Sonnet)")
-        claude_radio.setChecked(settings.get('provider', 'openai') == 'claude')
-        provider_button_group.addButton(claude_radio)
-        provider_layout.addWidget(claude_radio)
-        
-        gemini_radio = QRadioButton("Google Gemini (Gemini 2.0 Flash)")
-        gemini_radio.setChecked(settings.get('provider', 'openai') == 'gemini')
-        provider_button_group.addButton(gemini_radio)
-        provider_layout.addWidget(gemini_radio)
-        
-        provider_group.setLayout(provider_layout)
-        llm_layout.addWidget(provider_group)
-        
-        # Model Selection
-        model_group = QGroupBox("Model Selection")
-        model_layout = QVBoxLayout()
-        
-        model_label = QLabel("Choose the specific model to use:")
-        model_layout.addWidget(model_label)
-        
-        # OpenAI models
-        openai_model_label = QLabel("<b>OpenAI Models:</b>")
-        model_layout.addWidget(openai_model_label)
-        
-        openai_combo = QComboBox()
-        openai_combo.addItems([
-            "gpt-4o (Recommended)",
-            "gpt-4o-mini (Fast & Economical)",
-            "gpt-5 (Reasoning, Temperature 1.0)",
-            "o3-mini (Reasoning, Temperature 1.0)",
-            "o1 (Reasoning, Temperature 1.0)",
-            "gpt-4-turbo"
-        ])
-        # Set current selection
-        current_openai_model = settings.get('openai_model', 'gpt-4o')
-        for i in range(openai_combo.count()):
-            if current_openai_model in openai_combo.itemText(i).lower():
-                openai_combo.setCurrentIndex(i)
-                break
-        openai_combo.setEnabled(openai_radio.isChecked())
-        model_layout.addWidget(openai_combo)
-        
-        model_layout.addSpacing(10)
-        
-        # Claude models
-        claude_model_label = QLabel("<b>Claude Models:</b>")
-        model_layout.addWidget(claude_model_label)
-        
-        claude_combo = QComboBox()
-        claude_combo.addItems([
-            "claude-3-5-sonnet-20241022 (Recommended)",
-            "claude-3-5-haiku-20241022 (Fast)",
-            "claude-3-opus-20240229 (Powerful)"
-        ])
-        current_claude_model = settings.get('claude_model', 'claude-3-5-sonnet-20241022')
-        for i in range(claude_combo.count()):
-            if current_claude_model in claude_combo.itemText(i):
-                claude_combo.setCurrentIndex(i)
-                break
-        claude_combo.setEnabled(claude_radio.isChecked())
-        model_layout.addWidget(claude_combo)
-        
-        model_layout.addSpacing(10)
-        
-        # Gemini models
-        gemini_model_label = QLabel("<b>Gemini Models:</b>")
-        model_layout.addWidget(gemini_model_label)
-        
-        gemini_combo = QComboBox()
-        gemini_combo.addItems([
-            "gemini-2.0-flash-exp (Recommended)",
-            "gemini-1.5-pro",
-            "gemini-1.5-flash"
-        ])
-        current_gemini_model = settings.get('gemini_model', 'gemini-2.0-flash-exp')
-        for i in range(gemini_combo.count()):
-            if current_gemini_model in gemini_combo.itemText(i):
-                gemini_combo.setCurrentIndex(i)
-                break
-        gemini_combo.setEnabled(gemini_radio.isChecked())
-        model_layout.addWidget(gemini_combo)
-        
-        model_group.setLayout(model_layout)
-        llm_layout.addWidget(model_group)
-        
-        # Connect radio buttons to enable/disable combos
-        def update_combo_states():
-            openai_combo.setEnabled(openai_radio.isChecked())
-            claude_combo.setEnabled(claude_radio.isChecked())
-            gemini_combo.setEnabled(gemini_radio.isChecked())
-        
-        openai_radio.toggled.connect(update_combo_states)
-        claude_radio.toggled.connect(update_combo_states)
-        gemini_radio.toggled.connect(update_combo_states)
-        
-        # API Keys info
-        api_keys_group = QGroupBox("API Keys")
-        api_keys_layout = QVBoxLayout()
-        
-        api_keys_info = QLabel(
-            f"Configure your API keys in:<br>"
-            f"<code>{self.user_data_path / 'api_keys.txt'}</code><br><br>"
-            f"See example file for format:<br>"
-            f"<code>{self.user_data_path / 'api_keys.example.txt'}</code>"
-        )
-        api_keys_info.setWordWrap(True)
-        api_keys_layout.addWidget(api_keys_info)
-        
-        # Button to open API keys file
-        open_keys_btn = QPushButton("📝 Open API Keys File")
-        open_keys_btn.clicked.connect(lambda: self.open_api_keys_file())
-        api_keys_layout.addWidget(open_keys_btn)
-        
-        api_keys_group.setLayout(api_keys_layout)
-        llm_layout.addWidget(api_keys_group)
-        
-        llm_layout.addStretch()
-        tabs.addTab(llm_tab, "🤖 LLM Settings")
-        
-        # ===== TAB 2: General Settings =====
-        general_tab = QWidget()
-        general_layout = QVBoxLayout(general_tab)
-        
-        # Load current general settings
-        general_settings = self.load_general_settings()
-        
-        # Startup Settings group
-        startup_group = QGroupBox("Startup Settings")
-        startup_layout = QVBoxLayout()
-        
-        # Restore last project checkbox
-        restore_last_project_cb = QCheckBox("Restore last project on startup")
-        restore_last_project_cb.setChecked(general_settings.get('restore_last_project', False))
-        restore_last_project_cb.setToolTip(
-            "When enabled, Supervertaler will automatically open the last project you were working on when the application starts."
-        )
-        startup_layout.addWidget(restore_last_project_cb)
-        
-        startup_group.setLayout(startup_layout)
-        general_layout.addWidget(startup_group)
-        
-        # Find & Replace settings group
-        find_replace_group = QGroupBox("Find && Replace Settings")
-        find_replace_layout = QVBoxLayout()
-        
-        # Allow replace in source checkbox
-        allow_replace_cb = QCheckBox("Allow Replace in Source Text")
-        allow_replace_cb.setChecked(self.allow_replace_in_source)
-        allow_replace_cb.setToolTip(
-            "⚠️ WARNING: Enabling this allows replacing text in the source column.\n"
-            "This can be dangerous as it modifies your original source text.\n"
-            "Use with extreme caution!"
-        )
-        find_replace_layout.addWidget(allow_replace_cb)
-        
-        # Add warning label
-        warning_label = QLabel(
-            "⚠️ <b>Warning:</b> Replacing in source text modifies your original content.\n"
-            "This feature is disabled by default for safety."
-        )
-        warning_label.setWordWrap(True)
-        warning_label.setStyleSheet("color: #d97706; padding: 10px; background-color: #fef3c7; border-radius: 3px;")
-        find_replace_layout.addWidget(warning_label)
-        
-        find_replace_group.setLayout(find_replace_layout)
-        general_layout.addWidget(find_replace_group)
-        
-        general_layout.addStretch()
-        tabs.addTab(general_tab, "⚙️ General")
-        
-        # ===== TAB 3: View/Display Settings =====
-        view_tab = QWidget()
-        view_layout = QVBoxLayout(view_tab)
-        
-        # Load current font size settings
-        font_settings = self.load_general_settings()
-        
-        # Grid Text Font Size section
-        grid_group = QGroupBox("📊 Grid Text Font Size")
-        grid_layout = QVBoxLayout()
-        
-        grid_size_info = QLabel(
-            "Set the default font size for the grid (source and target columns).\n"
-            "You can also adjust this using View menu → Grid Text Zoom."
-        )
-        grid_size_info.setStyleSheet("font-size: 8pt; color: #666; padding: 8px; background-color: #f3f4f6; border-radius: 2px;")
-        grid_size_info.setWordWrap(True)
-        grid_layout.addWidget(grid_size_info)
-        
-        grid_spin_layout = QHBoxLayout()
-        grid_spin_layout.addWidget(QLabel("Font Size:"))
-        grid_font_spin = QSpinBox()
-        grid_font_spin.setMinimum(7)
-        grid_font_spin.setMaximum(72)
-        grid_font_spin.setValue(font_settings.get('grid_font_size', 11))
-        grid_font_spin.setSuffix(" pt")
-        grid_font_spin.setToolTip("Grid font size (7-72 pt)")
-        grid_spin_layout.addWidget(grid_font_spin)
-        grid_spin_layout.addStretch()
-        grid_layout.addLayout(grid_spin_layout)
-        
-        grid_group.setLayout(grid_layout)
-        view_layout.addWidget(grid_group)
-        
-        # Translation Results Pane Font Size section
-        results_group = QGroupBox("📋 Translation Results Pane Font Size")
-        results_layout = QVBoxLayout()
-        
-        results_size_info = QLabel(
-            "Set the default font sizes for the translation results pane.\n"
-            "You can also adjust these using View menu → Translation Results Pane."
-        )
-        results_size_info.setStyleSheet("font-size: 8pt; color: #666; padding: 8px; background-color: #f3f4f6; border-radius: 2px;")
-        results_size_info.setWordWrap(True)
-        results_layout.addWidget(results_size_info)
-        
-        # Match list font size
-        match_spin_layout = QHBoxLayout()
-        match_spin_layout.addWidget(QLabel("Match List Font Size:"))
-        match_font_spin = QSpinBox()
-        match_font_spin.setMinimum(7)
-        match_font_spin.setMaximum(16)
-        match_font_spin.setValue(font_settings.get('results_match_font_size', 9))
-        match_font_spin.setSuffix(" pt")
-        match_font_spin.setToolTip("Match list font size (7-16 pt)")
-        match_spin_layout.addWidget(match_font_spin)
-        match_spin_layout.addStretch()
-        results_layout.addLayout(match_spin_layout)
-        
-        # Compare boxes font size
-        compare_spin_layout = QHBoxLayout()
-        compare_spin_layout.addWidget(QLabel("Compare Boxes Font Size:"))
-        compare_font_spin = QSpinBox()
-        compare_font_spin.setMinimum(7)
-        compare_font_spin.setMaximum(14)
-        compare_font_spin.setValue(font_settings.get('results_compare_font_size', 9))
-        compare_font_spin.setSuffix(" pt")
-        compare_font_spin.setToolTip("Compare boxes font size (7-14 pt)")
-        compare_spin_layout.addWidget(compare_font_spin)
-        compare_spin_layout.addStretch()
-        results_layout.addLayout(compare_spin_layout)
-        
-        results_group.setLayout(results_layout)
-        view_layout.addWidget(results_group)
-        
-        # Quick Reference section
-        reference_group = QGroupBox("⌨️ Font Size Quick Reference")
-        reference_layout = QVBoxLayout()
-        
-        reference_text = QLabel(
-            "<b>All Zoom Controls:</b><br>"
-            "View → Grid Text Zoom<br>"
-            "• Ctrl++ (NumPad +) - Increase<br>"
-            "• Ctrl+- (NumPad -) - Decrease<br><br>"
-            "View → Translation Results Pane<br>"
-            "• Ctrl+Shift++ (Ctrl+Shift+=) - Increase<br>"
-            "• Ctrl+Shift+- - Decrease<br>"
-            "• Results Zoom Reset - Back to default (9pt)<br>"
-        )
-        reference_text.setTextFormat(Qt.TextFormat.RichText)
-        reference_text.setWordWrap(True)
-        reference_layout.addWidget(reference_text)
-        
-        reference_group.setLayout(reference_layout)
-        view_layout.addWidget(reference_group)
-        
-        view_layout.addStretch()
-        tabs.addTab(view_tab, "🔍 View/Display")
-        
-        # Add tabs to main layout
-        layout.addWidget(tabs)
-        
-        # Buttons
-        button_layout = QHBoxLayout()
-        button_layout.addStretch()
-        
-        ok_button = QPushButton("OK")
-        ok_button.setMinimumWidth(100)
-        ok_button.clicked.connect(dialog.accept)
-        button_layout.addWidget(ok_button)
-        
-        cancel_button = QPushButton("Cancel")
-        cancel_button.setMinimumWidth(100)
-        cancel_button.clicked.connect(dialog.reject)
-        button_layout.addWidget(cancel_button)
-        
-        layout.addLayout(button_layout)
-        
-        # Show dialog and save settings if accepted
-        if dialog.exec() == QDialog.DialogCode.Accepted:
-            # Save general settings
-            self.allow_replace_in_source = allow_replace_cb.isChecked()
-            self.update_warning_banner()
-            
-            # Save general settings (including restore_last_project and font sizes)
-            general_settings = {
-                'restore_last_project': restore_last_project_cb.isChecked(),
-                'grid_font_size': grid_font_spin.value(),
-                'results_match_font_size': match_font_spin.value(),
-                'results_compare_font_size': compare_font_spin.value()
-            }
-            self.save_general_settings(general_settings)
-            
-            # Apply font sizes immediately
-            if self.default_font_size != grid_font_spin.value():
-                self.default_font_size = grid_font_spin.value()
-                if hasattr(self, 'table') and self.table is not None:
-                    self.apply_font_to_grid()
-                    self.auto_resize_rows()
-            
-            # Apply results pane font sizes
-            if hasattr(self, 'assistance_widget') and hasattr(self.assistance_widget, 'set_font_size'):
-                from modules.translation_results_panel import CompactMatchItem
-                if CompactMatchItem.font_size_pt != match_font_spin.value():
-                    CompactMatchItem.set_font_size(match_font_spin.value())
-                    self.assistance_widget.set_font_size(match_font_spin.value())
-            
-            if hasattr(self, 'assistance_widget') and hasattr(self.assistance_widget, 'set_compare_box_font_size'):
-                from modules.translation_results_panel import TranslationResultsPanel
-                if TranslationResultsPanel.compare_box_font_size != compare_font_spin.value():
-                    TranslationResultsPanel.compare_box_font_size = compare_font_spin.value()
-                    self.assistance_widget.set_compare_box_font_size(compare_font_spin.value())
-            
-            # Save LLM settings
-            new_settings = {
-                'provider': 'openai' if openai_radio.isChecked() else 
-                           'claude' if claude_radio.isChecked() else 'gemini',
-                'openai_model': openai_combo.currentText().split()[0],  # Extract model name
-                'claude_model': claude_combo.currentText().split()[0],
-                'gemini_model': gemini_combo.currentText().split()[0]
-            }
-            
-            self.save_llm_settings(new_settings)
-            self.log(f"✓ Settings saved: Provider={new_settings['provider']}")
+        # Open in system editor
+        try:
+            import subprocess
+            import platform
+            if platform.system() == 'Windows':
+                os.startfile(api_keys_file)  # type: ignore
+            elif platform.system() == 'Darwin':  # macOS
+                subprocess.run(['open', str(api_keys_file)])
+            else:  # Linux
+                subprocess.run(['xdg-open', str(api_keys_file)])
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Could not open api_keys.txt: {str(e)}")
+    
+    def _go_to_settings_tab(self):
+        """Navigate to Settings tab (from menu)"""
+        if hasattr(self, 'main_tabs'):
+            self.main_tabs.setCurrentIndex(5)  # Settings is at index 5
+    
+    def _go_to_universal_lookup(self):
+        """Navigate to Universal Lookup in Modules tab"""
+        if hasattr(self, 'main_tabs'):
+            # Find Modules tab (should be index 4)
+            self.main_tabs.setCurrentIndex(4)
+            # Then switch to Universal Lookup sub-tab
+            if hasattr(self, 'modules_tabs'):
+                # Find Universal Lookup index in modules tabs
+                for i in range(self.modules_tabs.count()):
+                    if "Universal Lookup" in self.modules_tabs.tabText(i):
+                        self.modules_tabs.setCurrentIndex(i)
+                        break
     
     def open_api_keys_file(self):
         """Open API keys file in system text editor"""
@@ -4725,6 +6442,75 @@ class SupervertalerQt(QMainWindow):
                 json.dump(prefs, f, indent=2)
         except Exception as e:
             self.log(f"⚠ Could not save LLM settings: {str(e)}")
+    
+    def load_provider_enabled_states(self) -> Dict[str, bool]:
+        """Load provider enable/disable states from user preferences"""
+        prefs_file = self.user_data_path / "ui_preferences.json"
+        
+        if not prefs_file.exists():
+            # Default: all providers enabled
+            return {
+                'llm_openai': True,
+                'llm_claude': True,
+                'llm_gemini': True,
+                'mt_google_translate': True,
+                'mt_deepl': True,
+                'mt_microsoft': True,
+                'mt_amazon': True,
+                'mt_modernmt': True,
+                'mt_mymemory': True
+            }
+        
+        try:
+            with open(prefs_file, 'r') as f:
+                prefs = json.load(f)
+                return prefs.get('provider_enabled_states', {
+                    'llm_openai': True,
+                    'llm_claude': True,
+                    'llm_gemini': True,
+                    'mt_google_translate': True,
+                    'mt_deepl': True,
+                    'mt_microsoft': True,
+                    'mt_amazon': True,
+                    'mt_modernmt': True,
+                    'mt_mymemory': True
+                })
+        except:
+            # Default: all providers enabled
+            return {
+                'llm_openai': True,
+                'llm_claude': True,
+                'llm_gemini': True,
+                'mt_google_translate': True,
+                'mt_deepl': True,
+                'mt_microsoft': True,
+                'mt_amazon': True,
+                'mt_modernmt': True,
+                'mt_mymemory': True
+            }
+    
+    def save_provider_enabled_states(self, states: Dict[str, bool]):
+        """Save provider enable/disable states to user preferences"""
+        prefs_file = self.user_data_path / "ui_preferences.json"
+        
+        # Load existing preferences
+        prefs = {}
+        if prefs_file.exists():
+            try:
+                with open(prefs_file, 'r') as f:
+                    prefs = json.load(f)
+            except:
+                pass
+        
+        # Update provider enabled states
+        prefs['provider_enabled_states'] = states
+        
+        # Save back
+        try:
+            with open(prefs_file, 'w') as f:
+                json.dump(prefs, f, indent=2)
+        except Exception as e:
+            self.log(f"⚠ Could not save provider enabled states: {str(e)}")
     
     def update_warning_banner(self):
         """Show/hide warning banner based on allow_replace_in_source setting"""
@@ -5039,7 +6825,7 @@ class SupervertalerQt(QMainWindow):
         layout.setContentsMargins(20, 20, 20, 20)
         
         # Title
-        title = QLabel("<h2>Supervertaler Qt v1.1.4</h2>")
+        title = QLabel("<h2>Supervertaler Qt v1.1.5</h2>")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title)
         
@@ -5061,12 +6847,10 @@ class SupervertalerQt(QMainWindow):
         
         # Additional info
         info = QLabel(
-            "<p>Rebuilt with PyQt6 for superior performance and UI quality.</p>"
             "<p><b>Author:</b> Michael Beijer</p>"
             "<p><b>License:</b> MIT</p>"
             "<hr>"
-            "<p><i>v1.1.4 - Encoding Repair Tool & UI Improvements</i></p>"
-            "<p>Features are being migrated progressively from Supervertaler v3.7.x (tkinter).</p>"
+            "<p><i>v1.1.5 - Multiple View Modes (Grid/List/Document) & UI Improvements</i></p>"
         )
         info.setWordWrap(True)
         layout.addWidget(info)
@@ -5132,7 +6916,7 @@ class SupervertalerQt(QMainWindow):
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
             )
             if reply == QMessageBox.StandardButton.Yes:
-                self.show_options_dialog()
+                self._go_to_settings_tab()
             return
         
         # Load LLM settings
@@ -5152,7 +6936,7 @@ class SupervertalerQt(QMainWindow):
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
             )
             if reply == QMessageBox.StandardButton.Yes:
-                self.show_options_dialog()
+                self._go_to_settings_tab()
             return
         
         try:
@@ -5399,6 +7183,452 @@ class SupervertalerQt(QMainWindow):
         # Wait for user to close
         progress.exec()
     
+    def _fetch_llm_translation_async(self, source_text: str, segment, row_index: int):
+        """Fetch LLM translation asynchronously and add to results panel"""
+        if not source_text or not source_text.strip():
+            return
+        
+        # Check if we have API keys and LLM settings configured
+        api_keys = self.load_api_keys()
+        if not api_keys:
+            return  # No API keys configured, skip LLM
+
+        settings = self.load_llm_settings()
+        provider = settings.get('provider', 'openai')
+        
+        # Check if provider is enabled
+        enabled_providers = self.load_provider_enabled_states()
+        provider_enabled_map = {
+            "openai": "llm_openai",
+            "claude": "llm_claude",
+            "gemini": "llm_gemini"
+        }
+        enabled_key = provider_enabled_map.get(provider)
+        if not enabled_providers.get(enabled_key, True):
+            return  # Provider is disabled, skip LLM
+        
+        provider_key_map = {
+            "openai": "openai",
+            "claude": "claude",
+            "gemini": "gemini"
+        }
+        api_key_name = provider_key_map.get(provider)
+        if not api_keys.get(api_key_name):
+            return  # No API key for selected provider
+        
+        # Get model based on provider
+        model_map = {
+            "openai": settings.get('openai_model', 'gpt-4o'),
+            "claude": settings.get('claude_model', 'claude-3-5-sonnet-20241022'),
+            "gemini": settings.get('gemini_model', 'gemini-2.0-flash-exp')
+        }
+        model = model_map.get(provider, 'gpt-4o')
+        
+        # Get languages
+        source_lang = getattr(self.current_project, 'source_lang', 'en')
+        target_lang = getattr(self.current_project, 'target_lang', 'nl')
+        
+        # Use QTimer to run in background (non-blocking)
+        def fetch_and_update():
+            try:
+                from modules.llm_clients import LLMClient
+                from modules.translation_results_panel import TranslationMatch
+                
+                client = LLMClient(
+                    api_key=api_keys[api_key_name],
+                    provider=provider,
+                    model=model
+                )
+                
+                translation = client.translate(
+                    text=source_text,
+                    source_lang=source_lang,
+                    target_lang=target_lang
+                )
+                
+                if translation and hasattr(self, 'assistance_widget') and self.assistance_widget:
+                    # Check if this segment is still selected
+                    current_row = self.table.currentRow()
+                    if current_row == row_index:
+                        # Map provider to code
+                        provider_code_map = {
+                            'openai': 'GPT',
+                            'claude': 'CL',
+                            'gemini': 'GEM'
+                        }
+                        provider_code = provider_code_map.get(provider, 'LLM')
+                        
+                        # Create LLM match
+                        llm_match = TranslationMatch(
+                            source=source_text,
+                            target=translation,
+                            relevance=98,  # High relevance for LLM
+                            metadata={
+                                'model': model,
+                                'provider': provider,
+                                'timestamp': datetime.now().isoformat()
+                            },
+                            match_type='LLM',
+                            compare_source=source_text,
+                            provider_code=provider_code
+                        )
+                        
+                        # Get current matches and add LLM
+                        current_matches = self.assistance_widget.matches_by_type.copy()
+                        if "LLM" not in current_matches:
+                            current_matches["LLM"] = []
+                        current_matches["LLM"] = [llm_match]  # Replace with new result
+                        
+                        # Update panel
+                        self.assistance_widget.set_matches(current_matches)
+                        self.log(f"✓ LLM translation added to results pane")
+            except Exception as e:
+                # Silently fail - don't interrupt workflow
+                self.log(f"LLM translation failed (silent): {str(e)}")
+        
+        # Use QTimer to run async (small delay to avoid blocking)
+        QTimer.singleShot(100, fetch_and_update)
+    
+    def _fetch_mt_translation_async(self, source_text: str, segment, row_index: int):
+        """Fetch Machine Translation asynchronously and add to results panel"""
+        if not source_text or not source_text.strip():
+            return
+        
+        # Check if we have MT API keys configured
+        api_keys = self.load_api_keys()
+        if not api_keys:
+            return  # No API keys configured, skip MT
+        
+        # Check enabled providers
+        enabled_providers = self.load_provider_enabled_states()
+        
+        # Try MT providers in priority order (first available and enabled wins)
+        # Priority: Google Translate > DeepL > Microsoft > Amazon > ModernMT > MyMemory
+        mt_provider = None
+        mt_api_key = None
+        
+        if enabled_providers.get('mt_google_translate', True) and api_keys.get('google_translate'):
+            mt_provider = 'google_translate'
+            mt_api_key = api_keys['google_translate']
+        elif enabled_providers.get('mt_deepl', True) and api_keys.get('deepl'):
+            mt_provider = 'deepl'
+            mt_api_key = api_keys['deepl']
+        elif enabled_providers.get('mt_microsoft', True) and (api_keys.get('microsoft_translate') or api_keys.get('azure_translate')):
+            mt_provider = 'microsoft'
+            mt_api_key = api_keys.get('microsoft_translate') or api_keys.get('azure_translate')
+        elif enabled_providers.get('mt_amazon', True) and (api_keys.get('amazon_translate') or api_keys.get('aws_translate')):
+            mt_provider = 'amazon'
+            mt_api_key = api_keys.get('amazon_translate') or api_keys.get('aws_translate')
+        elif enabled_providers.get('mt_modernmt', True) and api_keys.get('modernmt'):
+            mt_provider = 'modernmt'
+            mt_api_key = api_keys['modernmt']
+        elif enabled_providers.get('mt_mymemory', True) and api_keys.get('mymemory'):
+            mt_provider = 'mymemory'
+            mt_api_key = api_keys.get('mymemory')  # Optional, MyMemory works without key
+        # Note: MyMemory can work without a key, but we only use it if explicitly configured
+        else:
+            return  # No MT API keys available or all providers disabled
+        
+        # Get languages
+        source_lang = getattr(self.current_project, 'source_lang', 'en')
+        target_lang = getattr(self.current_project, 'target_lang', 'nl')
+        
+        # Use QTimer to run in background (non-blocking)
+        def fetch_and_update():
+            try:
+                from modules.translation_results_panel import TranslationMatch
+                
+                # Call appropriate MT service
+                if mt_provider == 'google_translate':
+                    translation = self.call_google_translate(source_text, source_lang, target_lang, mt_api_key)
+                    provider_name = 'Google Translate'
+                elif mt_provider == 'deepl':
+                    translation = self.call_deepl(source_text, source_lang, target_lang, mt_api_key)
+                    provider_name = 'DeepL'
+                elif mt_provider == 'microsoft':
+                    translation = self.call_microsoft_translate(source_text, source_lang, target_lang, mt_api_key)
+                    provider_name = 'Microsoft Translator'
+                elif mt_provider == 'amazon':
+                    # Amazon requires region, check for amazon_translate_region or use default
+                    region = api_keys.get('amazon_translate_region', 'us-east-1')
+                    translation = self.call_amazon_translate(source_text, source_lang, target_lang, mt_api_key, region)
+                    provider_name = 'Amazon Translate'
+                elif mt_provider == 'modernmt':
+                    translation = self.call_modernmt(source_text, source_lang, target_lang, mt_api_key)
+                    provider_name = 'ModernMT'
+                elif mt_provider == 'mymemory':
+                    translation = self.call_mymemory(source_text, source_lang, target_lang, mt_api_key)
+                    provider_name = 'MyMemory'
+                else:
+                    return
+                
+                if translation and not translation.startswith('['):  # Skip error messages
+                    if hasattr(self, 'assistance_widget') and self.assistance_widget:
+                        # Check if this segment is still selected
+                        current_row = self.table.currentRow()
+                        if current_row == row_index:
+                            # Map provider to code
+                            provider_code_map = {
+                                'Google Translate': 'GT',
+                                'DeepL': 'DL',
+                                'Microsoft Translator': 'MS',
+                                'Amazon Translate': 'AT',
+                                'ModernMT': 'MMT',
+                                'MyMemory': 'MM'
+                            }
+                            provider_code = provider_code_map.get(provider_name, 'MT')
+                            
+                            # Create MT match
+                            mt_match = TranslationMatch(
+                                source=source_text,
+                                target=translation,
+                                relevance=95,  # High relevance for MT
+                                metadata={
+                                    'provider': provider_name,
+                                    'timestamp': datetime.now().isoformat()
+                                },
+                                match_type='MT',
+                                compare_source=source_text,
+                                provider_code=provider_code
+                            )
+                            
+                            # Get current matches and add MT
+                            current_matches = self.assistance_widget.matches_by_type.copy()
+                            if "MT" not in current_matches:
+                                current_matches["MT"] = []
+                            current_matches["MT"] = [mt_match]  # Replace with new result
+                            
+                            # Update panel
+                            self.assistance_widget.set_matches(current_matches)
+                            self.log(f"✓ MT translation ({provider_name}) added to results pane")
+            except Exception as e:
+                # Silently fail - don't interrupt workflow
+                self.log(f"MT translation failed (silent): {str(e)}")
+        
+        # Use QTimer to run async (small delay to avoid blocking, slightly after LLM)
+        QTimer.singleShot(150, fetch_and_update)
+    
+    def call_google_translate(self, text: str, source_lang: str, target_lang: str, api_key: str = None) -> str:
+        """Call Google Cloud Translation API using REST API"""
+        try:
+            import requests
+            
+            if not api_key:
+                api_keys = self.load_api_keys()
+                api_key = api_keys.get("google_translate")
+            
+            if not api_key:
+                return "[Google Cloud Translation requires API key]"
+            
+            # Convert language codes (handle locale codes like "en-US" -> "en")
+            src_code = source_lang.split('-')[0].split('_')[0].lower()
+            tgt_code = target_lang.split('-')[0].split('_')[0].lower()
+            
+            # Call REST API directly
+            url = "https://translation.googleapis.com/language/translate/v2"
+            params = {
+                'key': api_key,
+                'q': text,
+                'source': src_code,
+                'target': tgt_code,
+                'format': 'text'
+            }
+            
+            response = requests.post(url, params=params, timeout=10)
+            response.raise_for_status()
+            
+            result = response.json()
+            return result['data']['translations'][0]['translatedText']
+            
+        except ImportError:
+            return "[Google Translate requires: pip install requests]"
+        except Exception as e:
+            return f"[Google Translate error: {str(e)}]"
+    
+    def call_deepl(self, text: str, source_lang: str, target_lang: str, api_key: str = None) -> str:
+        """Call DeepL API"""
+        try:
+            import deepl
+            
+            if not api_key:
+                api_keys = self.load_api_keys()
+                api_key = api_keys.get("deepl")
+            
+            if not api_key:
+                return "[DeepL requires API key]"
+            
+            translator = deepl.Translator(api_key)
+            
+            # Convert language codes (DeepL uses uppercase)
+            src_code = source_lang.split('-')[0].split('_')[0].upper()
+            tgt_code = target_lang.split('-')[0].split('_')[0].upper()
+            
+            result = translator.translate_text(text, source_lang=src_code, target_lang=tgt_code)
+            return result.text
+            
+        except ImportError:
+            return "[DeepL requires: pip install deepl]"
+        except Exception as e:
+            return f"[DeepL error: {str(e)}]"
+    
+    def call_microsoft_translate(self, text: str, source_lang: str, target_lang: str, api_key: str = None, region: str = None) -> str:
+        """Call Microsoft Azure Translator API"""
+        try:
+            import requests
+            
+            api_keys = self.load_api_keys()
+            if not api_key:
+                api_key = api_keys.get("microsoft_translate") or api_keys.get("azure_translate")
+            if not region:
+                region = api_keys.get("microsoft_translate_region") or api_keys.get("azure_region") or "global"
+            
+            if not api_key:
+                return "[Microsoft Translator requires API key]"
+            
+            # Convert language codes (Azure uses standard codes)
+            src_code = source_lang.split('-')[0].split('_')[0].lower()
+            tgt_code = target_lang.split('-')[0].split('_')[0].lower()
+            
+            # Microsoft Translator API v3.0
+            endpoint = f"https://api.cognitive.microsofttranslator.com/translate"
+            params = {
+                'api-version': '3.0',
+                'from': src_code,
+                'to': tgt_code
+            }
+            headers = {
+                'Ocp-Apim-Subscription-Key': api_key,
+                'Ocp-Apim-Subscription-Region': region,
+                'Content-Type': 'application/json'
+            }
+            body = [{'text': text}]
+            
+            response = requests.post(endpoint, params=params, headers=headers, json=body, timeout=10)
+            response.raise_for_status()
+            
+            result = response.json()
+            return result[0]['translations'][0]['text']
+            
+        except ImportError:
+            return "[Microsoft Translator requires: pip install requests]"
+        except Exception as e:
+            return f"[Microsoft Translator error: {str(e)}]"
+    
+    def call_amazon_translate(self, text: str, source_lang: str, target_lang: str, api_key: str = None, region: str = 'us-east-1') -> str:
+        """Call Amazon Translate API (AWS)"""
+        try:
+            import boto3
+            from botocore.exceptions import ClientError
+            
+            api_keys = self.load_api_keys()
+            if not api_key:
+                api_key = api_keys.get("amazon_translate") or api_keys.get("aws_translate")
+            
+            # AWS also needs secret key
+            secret_key = api_keys.get("amazon_translate_secret") or api_keys.get("aws_secret_key")
+            
+            if not api_key or not secret_key:
+                return "[Amazon Translate requires API key and secret key]"
+            
+            # Convert language codes (AWS uses standard codes)
+            src_code = source_lang.split('-')[0].split('_')[0]
+            tgt_code = target_lang.split('-')[0].split('_')[0]
+            
+            translate_client = boto3.client(
+                'translate',
+                aws_access_key_id=api_key,
+                aws_secret_access_key=secret_key,
+                region_name=region
+            )
+            
+            result = translate_client.translate_text(
+                Text=text,
+                SourceLanguageCode=src_code,
+                TargetLanguageCode=tgt_code
+            )
+            
+            return result['TranslatedText']
+            
+        except ImportError:
+            return "[Amazon Translate requires: pip install boto3]"
+        except Exception as e:
+            return f"[Amazon Translate error: {str(e)}]"
+    
+    def call_modernmt(self, text: str, source_lang: str, target_lang: str, api_key: str = None) -> str:
+        """Call ModernMT API"""
+        try:
+            import requests
+            
+            api_keys = self.load_api_keys()
+            if not api_key:
+                api_key = api_keys.get("modernmt")
+            
+            if not api_key:
+                return "[ModernMT requires API key]"
+            
+            # Convert language codes
+            src_code = source_lang.split('-')[0].split('_')[0]
+            tgt_code = target_lang.split('-')[0].split('_')[0]
+            
+            # ModernMT API endpoint
+            url = "https://api.modernmt.com/translate"
+            headers = {
+                'MMT-ApiKey': api_key,
+                'Content-Type': 'application/json'
+            }
+            data = {
+                'q': text,
+                'source': src_code,
+                'target': tgt_code
+            }
+            
+            response = requests.post(url, headers=headers, json=data, timeout=10)
+            response.raise_for_status()
+            
+            result = response.json()
+            return result['data']['translation']
+            
+        except ImportError:
+            return "[ModernMT requires: pip install requests]"
+        except Exception as e:
+            return f"[ModernMT error: {str(e)}]"
+    
+    def call_mymemory(self, text: str, source_lang: str, target_lang: str, api_key: str = None) -> str:
+        """Call MyMemory Translation API (free tier available, simple REST API)"""
+        try:
+            import requests
+            
+            # MyMemory is free, but API key provides higher limits
+            api_keys = self.load_api_keys()
+            api_key = api_key or api_keys.get("mymemory")  # Optional, works without key
+            
+            # Convert language codes (MyMemory uses 2-letter codes)
+            src_code = source_lang.split('-')[0].split('_')[0].lower()
+            tgt_code = target_lang.split('-')[0].split('_')[0].lower()
+            
+            # MyMemory API endpoint
+            url = "https://api.mymemory.translated.net/get"
+            params = {
+                'q': text,
+                'langpair': f"{src_code}|{tgt_code}"
+            }
+            if api_key:
+                params['key'] = api_key
+            
+            response = requests.get(url, params=params, timeout=10)
+            response.raise_for_status()
+            
+            result = response.json()
+            if result.get('responseStatus') == 200:
+                return result['responseData']['translatedText']
+            else:
+                return f"[MyMemory error: {result.get('responseDetails', 'Unknown error')}]"
+            
+        except ImportError:
+            return "[MyMemory requires: pip install requests]"
+        except Exception as e:
+            return f"[MyMemory error: {str(e)}]"
+    
     def load_api_keys(self) -> Dict[str, str]:
         """Load API keys from user data folder"""
         api_keys = {}
@@ -5442,19 +7672,86 @@ class SupervertalerQt(QMainWindow):
 
 # OpenAI (GPT-4, GPT-4o, GPT-5, o1, o3 models)
 # Get your key at: https://platform.openai.com/api-keys
-#openai=sk-your-openai-api-key-here
+#openai = YOUR_OPENAI_KEY_HERE
 
 # Anthropic Claude (Claude 3.5 Sonnet, etc.)
-# Get your key at: https://console.anthropic.com/
-#claude=sk-ant-your-claude-api-key-here
+# Get your key at: https://console.anthropic.com/settings/keys
+#claude = YOUR_CLAUDE_KEY_HERE
 
 # Google Gemini (Gemini 2.0 Flash, Pro models)
-# Get your key at: https://makersuite.google.com/app/apikey
-#gemini=your-gemini-api-key-here
+# Get your key at: https://aistudio.google.com/app/apikey
+#google = YOUR_GOOGLE_GEMINI_KEY_HERE
+
+# ===== Machine Translation APIs (for MT preview) =====
+
+# Supervertaler will use MT providers in this priority order (first available):
+# 1. Google Translate
+# 2. DeepL
+# 3. Microsoft Translator
+# 4. Amazon Translate
+# 5. ModernMT
+# 6. MyMemory (free fallback, works without key)
+
+# Google Cloud Translation API (Priority: Highest)
+# Get your key at: https://console.cloud.google.com/apis/credentials
+# Enable "Cloud Translation API" first, then create API key
+#google_translate = YOUR_GOOGLE_CLOUD_TRANSLATE_API_KEY
+
+# DeepL API Pro
+# Get your key at: https://www.deepl.com/pro-api
+# Note: Free DeepL web version keys don't work, you need API Pro
+#deepl = YOUR_DEEPL_API_PRO_KEY
+
+# Microsoft Azure Translator
+# Get your key at: https://azure.microsoft.com/en-us/services/cognitive-services/translator/
+# Requires Azure subscription
+#microsoft_translate = YOUR_AZURE_TRANSLATOR_KEY
+#microsoft_translate_region = global
+# (Region examples: "global", "eastus", "westus")
+
+# Amazon Translate (AWS)
+# Get your keys at: https://aws.amazon.com/translate/
+# Requires AWS account
+#amazon_translate = YOUR_AWS_ACCESS_KEY_ID
+#amazon_translate_secret = YOUR_AWS_SECRET_ACCESS_KEY
+#amazon_translate_region = us-east-1
+# (AWS region examples: "us-east-1", "eu-west-1", etc.)
+
+# ModernMT
+# Get your key at: https://www.modernmt.com/api
+#modernmt = YOUR_MODERNMT_API_KEY
+
+# MyMemory Translation (Free tier available, no key required)
+# Get API key (optional, for higher limits): https://mymemory.translated.net/
+# Works without key but with lower rate limits
+#mymemory = YOUR_MYMEMORY_KEY
+
+# ===== NOTES =====
 
 # Temperature settings for reasoning models:
 # - GPT-5, o1, o3: Use temperature=1.0 (automatically applied)
 # - Standard models: Use temperature=0.3 (automatically applied)
+
+# TROUBLESHOOTING:
+# ---------------
+# If you see "API Key Missing" errors:
+# 1. Check that your file is named "api_keys.txt" (not "api_keys.example.txt")
+# 2. Make sure the # is removed from the beginning of the line
+# 3. Verify there are no extra spaces around the = sign
+# 4. Confirm your key is valid (test at the provider's website)
+#
+# If keys still don't work:
+# 1. Check console output to see which file was loaded
+# 2. Look for errors: "Error reading api_keys.txt"
+# 3. Restart Supervertaler after editing api_keys.txt
+#
+# DeepL Authorization Error:
+# - Your key must be for "DeepL API Pro" (not free web version)
+# - Get API key from: https://www.deepl.com/pro-api
+#
+# Google Translate Error:
+# - Enable "Cloud Translation API" in Google Cloud Console
+# - Create API key at: https://console.cloud.google.com/apis/credentials
 """
         
         try:
