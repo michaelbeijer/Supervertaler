@@ -9,6 +9,25 @@ The Qt Edition is the **primary version** for active development and new feature
 ## [1.1.5] - November 2, 2025
 
 ### Added
+- **🏠 New Home Tab:** Brand new first-screen experience
+  - Integrated About section with version info and purple gradient header
+  - Quick access to resources (Website, GitHub, Discussions, Documentation)
+  - Project management panel for recent projects
+  - Embedded Universal Lookup for instant translations
+  - Clean, modern design with proper visual hierarchy
+  
+- **Major UI Reorganization:** Complete restructuring of main interface
+  - **Tab Order Redesigned:** 
+    1. 🏠 Home (NEW - welcome screen)
+    2. 💡 Prompt Manager (moved up from #5)
+    3. 📝 Editor (renamed from "Project Editor")
+    4. 📚 Resources (organized nested tabs)
+    5. 🧩 Modules (renamed from "Specialised Modules")
+    6. ⚙️ Settings (moved from Tools menu, includes Log)
+  - **Navigation Menu:** Added "Go to Home" action (🏠 Home menu item)
+  - **Removed Quick Access Sidebar:** Functionality integrated into Home tab
+  - Cleaner, more intuitive workflow with logical feature grouping
+
 - **Multiple View Modes:** Three different ways to view and edit your translation project
   - **Grid View (Ctrl+1):** Spreadsheet-like table view - perfect for quick segment-by-segment editing
   - **List View (Ctrl+2):** Segment list on left, editor panel on right - ideal for focused translation work
