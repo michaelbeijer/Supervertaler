@@ -25,9 +25,9 @@ License: MIT
 """
 
 # Version Information
-__version__ = "1.1.5"
-__phase__ = "5.8"
-__release_date__ = "2025-11-02"
+__version__ = "1.1.6"
+__phase__ = "5.9"
+__release_date__ = "2025-11-03"
 __edition__ = "Qt"
 
 import sys

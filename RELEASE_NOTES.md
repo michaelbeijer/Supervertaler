@@ -1,10 +1,21 @@
 # Supervertaler Release Notes
 
-## Current Release: v1.1.5-Qt (November 2, 2025)
+## Current Release: v1.1.6-Qt (November 3, 2025)
 
 ### What's New
 
-**Multiple View Modes** 🎨 (NEW!)
+**Detachable Universal Lookup** 🔍 (NEW!)
+- **Multi-Screen Support:** Open Universal Lookup in a separate window for multi-monitor workflows
+- **Flexible Workflow:** Keep your translation project on one screen while using Universal Lookup on another
+- **Easy Detach/Reattach:** One-click detach button on Home tab, seamless reattach functionality
+- **Smart Positioning:** Automatic window positioning that works correctly with multiple monitors
+- **Improved Home Tab:** Universal Lookup prominently featured on Home screen for instant access
+
+**Previous Release (v1.1.5): Multiple View Modes** 🎨
+
+### What's New
+
+**Multiple View Modes** 🎨
 - **Three Ways to Work:** Choose the view that fits your workflow
   - **Grid View (Ctrl+1):** Spreadsheet-style table - perfect for fast segment-by-segment editing
   - **List View (Ctrl+2):** Segments list with dedicated editor panel - ideal for focused translation

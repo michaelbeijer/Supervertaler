@@ -6,6 +6,37 @@ The Qt Edition is the **primary version** for active development and new feature
 
 ---
 
+## [1.1.6] - November 3, 2025
+
+### Added
+- **🔍 Detachable Universal Lookup:** Multi-screen support for Universal Lookup module
+  - Detach button on Home tab to open Universal Lookup in separate window
+  - Perfect for multi-monitor workflows - move lookup to second screen while translating
+  - Proper window positioning and multi-monitor detection
+  - Reattach functionality to return to embedded mode
+
+### Improved
+- **🏠 Home Tab Enhancements:**
+  - Integrated About section directly into header with improved visibility
+  - Better text styling with purple gradient for subtitle and version (larger, bold)
+  - Reorganized layout: About in header, Resources & Support next, Projects at bottom
+  - Projects section with distinct background color for visual separation
+  - Universal Lookup prominently featured on right side of Home tab
+
+### Fixed
+- **Multi-Monitor Support:** Fixed window positioning for detached Universal Lookup
+  - Correct screen detection using `QApplication.screenAt()` API
+  - Proper window activation and focus handling
+  - Window flags configured for proper minimize/maximize behavior
+  - Improved error handling for window detachment process
+
+### Technical
+- Updated window positioning logic for Qt6 compatibility
+- Enhanced screen detection for multi-monitor setups
+- Improved window activation using QTimer for reliable focus management
+
+---
+
 ## [1.1.5] - November 2, 2025
 
 ### Added
