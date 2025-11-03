@@ -1,8 +1,11 @@
-C:\Dev\Supervertaler\user data_private\Private tools# Ignore Windows metadata
+# Ignore Windows metadata
 desktop.ini
 
 # API keys
 api_keys.txt
+
+# Dev mode flag - local developer file only
+.supervertaler.local
 
 # SECURITY: Private data folder - NEVER sync to GitHub
 user data_private/
