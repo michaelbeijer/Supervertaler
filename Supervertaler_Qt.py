@@ -861,7 +861,7 @@ class SupervertalerQt(QMainWindow):
         universal_lookup_action = QAction("🔍 &Universal Lookup...", self)
         universal_lookup_action.setShortcut("Ctrl+Alt+L")
         # Tab indices: Home=0, Resources=1, Modules=2, Settings=3 (Prompt Manager and Editor removed)
-        universal_lookup_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(2) if hasattr(self, 'main_tabs') else None)
+        universal_lookup_action.triggered.connect(lambda: self.right_tabs.setCurrentIndex(2) if hasattr(self, 'right_tabs') else None)  # Modules tab
         edit_menu.addAction(universal_lookup_action)
         
         # View Menu
@@ -871,7 +871,7 @@ class SupervertalerQt(QMainWindow):
         nav_menu = view_menu.addMenu("📑 &Navigate To")
         
         go_home_action = QAction("🏠 &Home", self)
-        go_home_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(0) if hasattr(self, 'main_tabs') else None)
+        go_home_action.triggered.connect(lambda: self.right_tabs.setCurrentIndex(0) if hasattr(self, 'right_tabs') else None)  # Prompt Manager tab
         nav_menu.addAction(go_home_action)
         
         # Prompt Manager tab removed - it's now integrated in the Home tab
@@ -886,7 +886,7 @@ class SupervertalerQt(QMainWindow):
         
         go_settings_action = QAction("⚙️ &Settings", self)
         # Tab indices shifted: Resources=1, Modules=2, Settings=3 (Home=0, Prompt Manager and Editor removed)
-        go_settings_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(3) if hasattr(self, 'main_tabs') else None)
+        go_settings_action.triggered.connect(lambda: self.right_tabs.setCurrentIndex(3) if hasattr(self, 'right_tabs') else None)  # Settings tab
         nav_menu.addAction(go_settings_action)
         
         view_menu.addSeparator()
@@ -1124,17 +1124,14 @@ class SupervertalerQt(QMainWindow):
             "close_project": self.close_project,
             
             # Navigation actions
-            "go_to_home": lambda: self.main_tabs.setCurrentIndex(0) if hasattr(self, 'main_tabs') else None,
-            # Editor tab removed - functionality moved to Home tab
-            # "go_to_editor": lambda: self.main_tabs.setCurrentIndex(2) if hasattr(self, 'main_tabs') else None,
-            # Tab indices: Home=0, Resources=1, Modules=2, Settings=3 (Prompt Manager and Editor removed)
-            "go_to_settings": lambda: self.main_tabs.setCurrentIndex(3) if hasattr(self, 'main_tabs') else None,
+            "go_to_home": lambda: self.right_tabs.setCurrentIndex(0) if hasattr(self, 'right_tabs') else None,  # Prompt Manager tab
+            "go_to_settings": lambda: self.right_tabs.setCurrentIndex(3) if hasattr(self, 'right_tabs') else None,  # Settings tab
             
             # Translation actions
             "translate": self.translate_current_segment,
             "batch_translate": self.translate_batch,
             "tm_manager": self.show_tm_manager,
-            "universal_lookup": lambda: self._go_to_universal_lookup() if hasattr(self, 'main_tabs') else None,
+            "universal_lookup": lambda: self._go_to_universal_lookup() if hasattr(self, 'right_tabs') else None,
             
             # View actions
             "zoom_in": self.zoom_in,
@@ -1176,44 +1173,52 @@ class SupervertalerQt(QMainWindow):
         content_layout = QVBoxLayout(content_widget)
         content_layout.setContentsMargins(5, 5, 5, 5)
         
-        # Create tab widget for main interface with HORIZONTAL tabs
-        self.main_tabs = QTabWidget()
-        # self.main_tabs.setTabPosition(QTabWidget.TabPosition.West)  # Uncomment for vertical tabs
+        # ===== NEW RESTRUCTURED UI =====
+        # Left: Editor (always visible, no tabs)
+        # Right: Tab widget with Prompt Manager, Resources, Modules, Settings
+        from modules.prompt_manager_qt import PromptManagerQt
         
-        # Connect tab change to ribbon update
-        self.main_tabs.currentChanged.connect(self.on_main_tab_changed)
+        # Main horizontal splitter: Editor (left) and Right-side tabs (right)
+        main_splitter = QSplitter(Qt.Orientation.Horizontal)
         
-        # Style tabs with color coding by function group
-        self.main_tabs.setStyleSheet("""
+        # ===== LEFT SIDE: Editor (no tabs, always visible) =====
+        editor_widget = self.create_editor_widget()
+        main_splitter.addWidget(editor_widget)
+        
+        # ===== RIGHT SIDE: Tab widget with Prompt Manager, Resources, Modules, Settings =====
+        self.right_tabs = QTabWidget()
+        self.right_tabs.setStyleSheet("""
             QTabBar::tab { padding: 8px 15px; }
         """)
         
-        # ===== NEW ORGANIZED STRUCTURE =====
+        # Connect tab change for navigation tracking
+        self.right_tabs.currentChanged.connect(self.on_right_tab_changed)
         
-        # 1. HOME (First screen - welcome + projects)
-        home_tab = self.create_home_tab()
-        self.main_tabs.addTab(home_tab, "🏠 Home")
+        # 1. PROMPT MANAGER (first tab)
+        prompt_widget = QWidget()
+        self.prompt_manager_qt = PromptManagerQt(self, standalone=False)
+        self.prompt_manager_qt.create_tab(prompt_widget)
+        self.right_tabs.addTab(prompt_widget, "🤖 Prompt Manager")
         
-        # 2. PROMPT MANAGER - REMOVED (functionality moved to Home tab)
-        # Prompt Manager tab removed - it's now integrated in the Home tab on the right side
-        
-        # 3. EDITOR - REMOVED (functionality moved to Home tab)
-        # Editor tab removed - grid is now displayed in Home tab with Prompt Manager
-        
-        # 4. RESOURCES (nested tabs)
+        # 2. RESOURCES
         resources_tab = self.create_resources_tab()
-        self.main_tabs.addTab(resources_tab, "📚 Resources")
+        self.right_tabs.addTab(resources_tab, "📚 Resources")
         
-        # 5. MODULES (nested tabs - renamed from Specialised Modules)
+        # 3. MODULES
         modules_tab = self.create_specialised_modules_tab()
-        self.main_tabs.addTab(modules_tab, "🧩 Modules")
+        self.right_tabs.addTab(modules_tab, "🧩 Modules")
         
-        # 6. SETTINGS (moved from Tools > Options, includes Log)
+        # 4. SETTINGS
         settings_tab = self.create_settings_tab()
-        self.main_tabs.addTab(settings_tab, "⚙️ Settings")
+        self.right_tabs.addTab(settings_tab, "⚙️ Settings")
         
-        # Add tabs to content layout
-        content_layout.addWidget(self.main_tabs)
+        main_splitter.addWidget(self.right_tabs)
+        
+        # Set splitter proportions (60% editor, 40% right tabs)
+        main_splitter.setSizes([1200, 800])
+        
+        # Add splitter to content layout
+        content_layout.addWidget(main_splitter)
         
         # Add content directly to main layout
         main_layout.addWidget(content_widget)
@@ -1347,24 +1352,14 @@ class SupervertalerQt(QMainWindow):
         
         return tab
     
-    def create_home_tab(self):
-        """Create the Home tab - Editor (grid/list/document) on left, Prompt Manager on right"""
-        from PyQt6.QtWidgets import QSplitter, QPushButton, QLabel, QStackedWidget
-        from modules.prompt_manager_qt import PromptManagerQt
+    def create_editor_widget(self):
+        """Create the Editor widget (left side, always visible, no tabs)"""
+        from PyQt6.QtWidgets import QPushButton, QLabel, QStackedWidget
         
-        tab = QWidget()
-        layout = QVBoxLayout(tab)
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
-        
-        # Main horizontal splitter: Editor (left) and Prompt Manager (right)
-        home_splitter = QSplitter(Qt.Orientation.Horizontal)
-        
-        # ===== LEFT SIDE: Editor with Grid/List/Document views =====
-        editor_container = QWidget()
-        editor_layout = QVBoxLayout(editor_container)
-        editor_layout.setContentsMargins(0, 0, 0, 0)
-        editor_layout.setSpacing(0)
         
         # View switcher toolbar
         view_toolbar = QWidget()
@@ -1395,7 +1390,7 @@ class SupervertalerQt(QMainWindow):
         
         view_toolbar_layout.addStretch()
         
-        editor_layout.addWidget(view_toolbar)
+        layout.addWidget(view_toolbar)
         
         # Create assistance panel FIRST (create_grid_view_widget_for_home needs it)
         if not hasattr(self, 'assistance_widget') or self.assistance_widget is None:
@@ -1415,21 +1410,18 @@ class SupervertalerQt(QMainWindow):
         doc_view_widget = self.create_document_view_widget_for_home()
         self.home_view_stack.addWidget(doc_view_widget)
         
-        editor_layout.addWidget(self.home_view_stack)
-        home_splitter.addWidget(editor_container)
+        layout.addWidget(self.home_view_stack)
         
-        # ===== RIGHT SIDE: Prompt Manager =====
-        prompt_widget = QWidget()
-        self.prompt_manager_qt = PromptManagerQt(self, standalone=False)
-        self.prompt_manager_qt.create_tab(prompt_widget)
-        home_splitter.addWidget(prompt_widget)
-        
-        # Set splitter proportions (60% editor, 40% prompt manager)
-        home_splitter.setSizes([1200, 800])
-        
-        layout.addWidget(home_splitter)
-        
-        return tab
+        return widget
+    
+    def create_home_tab(self):
+        """DEPRECATED: Replaced by create_editor_widget() - kept for backwards compatibility"""
+        return self.create_editor_widget()
+    
+    def on_right_tab_changed(self, index: int):
+        """Handle right-side tab changes"""
+        # This can be used for navigation tracking if needed
+        pass
     
     def detach_universal_lookup(self):
         """Detach Universal Lookup into a separate window for second screen use"""
@@ -7062,15 +7054,15 @@ class SupervertalerQt(QMainWindow):
     
     def _go_to_settings_tab(self):
         """Navigate to Settings tab (from menu)"""
-        if hasattr(self, 'main_tabs'):
-            # Tab indices: Home=0, Resources=1, Modules=2, Settings=3 (Prompt Manager and Editor removed)
-            self.main_tabs.setCurrentIndex(3)
+        if hasattr(self, 'right_tabs'):
+            # Right tabs: Prompt Manager=0, Resources=1, Modules=2, Settings=3
+            self.right_tabs.setCurrentIndex(3)
     
     def _go_to_universal_lookup(self):
         """Navigate to Universal Lookup in Modules tab"""
-        if hasattr(self, 'main_tabs'):
-            # Tab indices: Home=0, Resources=1, Modules=2, Settings=3 (Prompt Manager and Editor removed)
-            self.main_tabs.setCurrentIndex(2)
+        if hasattr(self, 'right_tabs'):
+            # Right tabs: Prompt Manager=0, Resources=1, Modules=2, Settings=3
+            self.right_tabs.setCurrentIndex(2)  # Switch to Modules tab
             # Then switch to Universal Lookup sub-tab
             if hasattr(self, 'modules_tabs'):
                 # Find Universal Lookup index in modules tabs
@@ -8541,10 +8533,15 @@ class SupervertalerQt(QMainWindow):
     def show_autofingers(self):
         """Show AutoFingers by switching to the AutoFingers tab"""
         # Find the AutoFingers tab index and activate it
-        for i in range(self.main_tabs.count()):
-            if self.main_tabs.tabText(i) == "✋ AutoFingers":
-                self.main_tabs.setCurrentIndex(i)
-                break
+        # AutoFingers is in Modules tab (right_tabs index 2)
+        if hasattr(self, 'right_tabs'):
+            self.right_tabs.setCurrentIndex(2)  # Switch to Modules tab
+            # Then switch to AutoFingers sub-tab
+            if hasattr(self, 'modules_tabs'):
+                for i in range(self.modules_tabs.count()):
+                    if "AutoFingers" in self.modules_tabs.tabText(i):
+                        self.modules_tabs.setCurrentIndex(i)
+                        break
     
     def show_theme_editor(self):
         """Show Theme Editor dialog"""
@@ -9131,8 +9128,8 @@ class UniversalLookupTab(QWidget):
                     except Exception as e:
                         print(f"[Universal Lookup] Window activation error: {e}")
                 
-                if hasattr(main_window, 'main_tabs'):
-                    main_window.main_tabs.setCurrentIndex(0)
+                if hasattr(main_window, 'right_tabs'):
+                    main_window.right_tabs.setCurrentIndex(0)  # Switch to Prompt Manager tab
             
             # Paste into search box
             if text:
