@@ -2299,17 +2299,9 @@ Your task is to generate TWO separate, ready-to-use prompts for the translator:
      - Keep tags with their content, adjust position for natural target language word order
      - Never translate, omit, or modify the tags themselves - only reposition them
      - Include MULTIPLE examples but use GENERIC examples that work for ANY language pair
-     - Examples should show structure/format, NOT specific language pairs (e.g., '[1}}Source Text{{2}}' → '[1}}Target Text{{2}}')
-   
-   g) **SPECIAL RULE FOR UICONTROL TAGS** (memoQ bilingual DOCX - CRITICAL):
-     - Text in [uicontrol id="GUID"}}Original Text{{uicontrol] tags must keep original + add translation in parentheses
-     - Structure: [uicontrol id="GUID"}}Original {{SOURCE_LANGUAGE}} Text{{uicontrol]: Description
-     - Format: [uicontrol id="GUID"}}Original {{SOURCE_LANGUAGE}} Text ({{TARGET_LANGUAGE}} Translation){{uicontrol]: {{TARGET_LANGUAGE}} Description
-     - Keep original {{SOURCE_LANGUAGE}} text unchanged, add {{TARGET_LANGUAGE}} translation in parentheses
-     - Include GENERIC example using placeholders or structure only (e.g., [uicontrol id="GUID-X"}}Original Text{{uicontrol]: Description → [uicontrol id="GUID-X"}}Original Text (Translation){{uicontrol]: Translated Description)
-     - DO NOT hardcode specific language pairs (e.g., English→Dutch) - must work for ANY direction
-   
-   h) **LANGUAGE-SPECIFIC NUMBER FORMATTING**:
+   - Examples should show structure/format, NOT specific language pairs (e.g., '[1}}Source Text{{2}}' → '[1}}Target Text{{2}}')
+  
+  g) **LANGUAGE-SPECIFIC NUMBER FORMATTING**:
      - For Dutch/French/German/Italian/Spanish (continental European): use comma as decimal separator, space or non-breaking space before unit (e.g., 17,1 cm)
      - For English/Irish: use period as decimal separator, no space before unit (e.g., 17.1 cm)
      - Always follow the number formatting conventions of the target language
@@ -2845,15 +2837,6 @@ You are an expert {{SOURCE_LANGUAGE}} to {{TARGET_LANGUAGE}} translator with dee
   • Trados: '<410>De uitvoer van machines</410>' → '<410>Exports of machinery</410>'
   • CafeTran: 'He debuted against |Juventus FC| in 2001' → 'Hij debuteerde tegen |Juventus FC| in 2001'
   • Multiple: '[1}De uitvoer{2] [3}stelt niets voor{4]' → '[1}Exports{2] [3}mean nothing{4]'
-
-**SPECIAL RULE FOR UICONTROL TAGS** (memoQ bilingual DOCX):
-- Text wrapped in [uicontrol...{uicontrol] tags must be translated with the original text followed by translation in parentheses
-- Structure: [uicontrol id="GUID"}Original English Text{uicontrol]: Description
-- Translation format: [uicontrol id="GUID"}Original English Text (Translation){uicontrol]: Translated Description
-- Example:
-  • Source: [uicontrol id="GUID-D82B8555-1166-4740-AFD1-78FCA44BF83A"}Turn on the positioning mode{uicontrol]: Enabling the function of camera-aided positioning.
-  • Target: [uicontrol id="GUID-D82B8555-1166-4740-AFD1-78FCA44BF83A"}Turn on the positioning mode (Schakel de positioneringsmodus in){uicontrol]: Het inschakelen van de functie voor camera-ondersteunde positionering.
-- CRITICAL: Keep the original English text unchanged, add translation in parentheses after it
 
 **LANGUAGE-SPECIFIC NUMBER FORMATTING**:
 - If the target language is **Dutch**, **French**, **German**, **Italian**, **Spanish**, or another **continental European language**, use a **comma** as the decimal separator and a **space or non-breaking space** between the number and unit (e.g., 17,1 cm).

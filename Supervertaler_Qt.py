@@ -854,7 +854,7 @@ class SupervertalerQt(QMainWindow):
         batch_translate_action.setShortcut("Ctrl+Shift+T")
         batch_translate_action.triggered.connect(self.translate_batch)
         edit_menu.addAction(batch_translate_action)
-
+        
         edit_menu.addSeparator()
         
         # Universal Lookup
@@ -3266,13 +3266,10 @@ class SupervertalerQt(QMainWindow):
         main_layout = QVBoxLayout(widget)
         main_layout.setContentsMargins(0, 0, 0, 0)
         
-        # Vertical splitter: List/Editor on top, Assistance at bottom
+        # Vertical splitter: List on top, Editor in middle, Assistance at bottom
         home_list_splitter = QSplitter(Qt.Orientation.Vertical)
         
-        # Top: List and Editor (horizontal split)
-        top_splitter = QSplitter(Qt.Orientation.Horizontal)
-        
-        # Left: Segment list
+        # Top: Segment list
         list_container = QWidget()
         list_layout = QVBoxLayout(list_container)
         list_layout.setContentsMargins(0, 0, 0, 0)
@@ -3331,9 +3328,9 @@ class SupervertalerQt(QMainWindow):
             self.list_tree.itemDoubleClicked.connect(lambda: self.focus_list_target_editor())
         
         list_layout.addWidget(self.list_tree)
-        top_splitter.addWidget(list_container)
+        home_list_splitter.addWidget(list_container)
         
-        # Right: Editor panel
+        # Middle: Editor panel
         editor_container = QGroupBox("Segment Editor")
         editor_layout = QVBoxLayout(editor_container)
         editor_layout.setContentsMargins(10, 10, 10, 10)
@@ -3394,17 +3391,16 @@ class SupervertalerQt(QMainWindow):
         
         editor_layout.addLayout(button_layout)
         
-        top_splitter.addWidget(editor_container)
-        top_splitter.setSizes([600, 400])
-        
-        home_list_splitter.addWidget(top_splitter)
+        home_list_splitter.addWidget(editor_container)
         
         # Bottom: Assistance panel (reuse existing widget)
         if hasattr(self, 'assistance_widget') and self.assistance_widget:
             home_list_splitter.addWidget(self.assistance_widget)
-        
-        # Set splitter proportions (70% list/editor, 30% assistance)
-        home_list_splitter.setSizes([1000, 400])
+            # Set splitter proportions (list, editor, assistance)
+            home_list_splitter.setSizes([600, 250, 400])
+        else:
+            # Just list and editor
+            home_list_splitter.setSizes([600, 250])
         
         main_layout.addWidget(home_list_splitter)
         
@@ -3420,13 +3416,10 @@ class SupervertalerQt(QMainWindow):
         main_layout = QVBoxLayout(widget)
         main_layout.setContentsMargins(0, 0, 0, 0)
         
-        # Vertical splitter: Document/Editor on top, Assistance at bottom
+        # Vertical splitter: Document on top, Editor in middle, Assistance at bottom
         home_doc_splitter = QSplitter(Qt.Orientation.Vertical)
         
-        # Top: Document and Editor (horizontal split)
-        top_splitter = QSplitter(Qt.Orientation.Horizontal)
-        
-        # Left: Document flow area
+        # Top: Document flow area
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
         scroll_area.setStyleSheet("background-color: white;")
@@ -3439,9 +3432,9 @@ class SupervertalerQt(QMainWindow):
             self.document_layout.addStretch()  # Stretch at bottom
         
         scroll_area.setWidget(self.document_container)
-        top_splitter.addWidget(scroll_area)
+        home_doc_splitter.addWidget(scroll_area)
         
-        # Right: Editor panel
+        # Middle: Editor panel
         editor_container = QGroupBox("Segment Editor")
         editor_layout = QVBoxLayout(editor_container)
         editor_layout.setContentsMargins(10, 10, 10, 10)
@@ -3502,17 +3495,16 @@ class SupervertalerQt(QMainWindow):
         
         editor_layout.addLayout(button_layout)
         
-        top_splitter.addWidget(editor_container)
-        top_splitter.setSizes([600, 400])
-        
-        home_doc_splitter.addWidget(top_splitter)
+        home_doc_splitter.addWidget(editor_container)
         
         # Bottom: Assistance panel (reuse existing widget)
         if hasattr(self, 'assistance_widget') and self.assistance_widget:
             home_doc_splitter.addWidget(self.assistance_widget)
-        
-        # Set splitter proportions (70% document/editor, 30% assistance)
-        home_doc_splitter.setSizes([1000, 400])
+            # Set splitter proportions (document, editor, assistance)
+            home_doc_splitter.setSizes([600, 250, 400])
+        else:
+            # Just document and editor
+            home_doc_splitter.setSizes([600, 250])
         
         main_layout.addWidget(home_doc_splitter)
         
@@ -3521,14 +3513,11 @@ class SupervertalerQt(QMainWindow):
     def create_list_view_widget(self):
         """Create the List View widget (segment list with editor panel)"""
         widget = QWidget()
-        main_layout = QHBoxLayout(widget)
+        main_layout = QVBoxLayout(widget)
         main_layout.setContentsMargins(0, 0, 0, 0)
         
-        # Main splitter: List/Editor on left, Assistance on right
-        self.list_splitter = QSplitter(Qt.Orientation.Horizontal)
-        
-        # Left side: List and Editor (vertical split)
-        left_splitter = QSplitter(Qt.Orientation.Vertical)
+        # Main vertical splitter: List on top, Editor at bottom
+        self.list_splitter = QSplitter(Qt.Orientation.Vertical)
         
         # Top: Segment list
         list_container = QWidget()
@@ -3587,7 +3576,7 @@ class SupervertalerQt(QMainWindow):
         
         list_layout.addWidget(self.list_tree)
         
-        left_splitter.addWidget(list_container)
+        self.list_splitter.addWidget(list_container)
         
         # Bottom: Editor panel
         editor_container = QGroupBox("Segment Editor")
@@ -3646,13 +3635,8 @@ class SupervertalerQt(QMainWindow):
         
         editor_layout.addLayout(button_layout)
         
-        left_splitter.addWidget(editor_container)
-        left_splitter.setSizes([400, 200])
-        
-        self.list_splitter.addWidget(left_splitter)
-        # Don't add assistance widget here - it will be added when switching to this view
-        # (The widget can only be in one splitter at a time)
-        self.list_splitter.setSizes([1000, 400])
+        self.list_splitter.addWidget(editor_container)
+        self.list_splitter.setSizes([600, 250])
         
         main_layout.addWidget(self.list_splitter)
         
@@ -3667,11 +3651,8 @@ class SupervertalerQt(QMainWindow):
         main_layout = QVBoxLayout(widget)
         main_layout.setContentsMargins(0, 0, 0, 0)
         
-        # Main splitter: Document/Editor on left, Assistance on right
-        self.doc_splitter = QSplitter(Qt.Orientation.Horizontal)
-        
-        # Left side: Document and Editor (vertical split)
-        left_splitter = QSplitter(Qt.Orientation.Vertical)
+        # Main vertical splitter: Document on top, Editor at bottom
+        self.doc_splitter = QSplitter(Qt.Orientation.Vertical)
         
         # Top: Document flow area
         scroll_area = QScrollArea()
@@ -3686,7 +3667,7 @@ class SupervertalerQt(QMainWindow):
         
         scroll_area.setWidget(self.document_container)
         
-        left_splitter.addWidget(scroll_area)
+        self.doc_splitter.addWidget(scroll_area)
         
         # Bottom: Editor panel (same as list view)
         editor_container = QGroupBox("Segment Editor")
@@ -3745,13 +3726,8 @@ class SupervertalerQt(QMainWindow):
         
         editor_layout.addLayout(button_layout)
         
-        left_splitter.addWidget(editor_container)
-        left_splitter.setSizes([600, 200])
-        
-        self.doc_splitter.addWidget(left_splitter)
-        # Don't add assistance widget here - it will be added when switching to this view
-        # (The widget can only be in one splitter at a time)
-        self.doc_splitter.setSizes([1000, 400])
+        self.doc_splitter.addWidget(editor_container)
+        self.doc_splitter.setSizes([600, 250])
         
         main_layout.addWidget(self.doc_splitter)
         
@@ -10136,10 +10112,10 @@ def main():
     app = QApplication(sys.argv)
     app.setApplicationName("Supervertaler Qt")
     app.setOrganizationName("Supervertaler")
-
+    
     window = SupervertalerQt()
     window.show()
-
+    
     sys.exit(app.exec())
 
 
