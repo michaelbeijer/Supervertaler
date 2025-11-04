@@ -11383,27 +11383,27 @@ Use this feature AFTER translation to:
         """Clear target of selected segment(s) - supports multiple selection"""
         # Check if multiple segments are selected using the new selection system
         if hasattr(self, 'selected_segments') and len(self.selected_segments) > 1:
-            # Multiple segments selected
-            cleared_count = 0
+                # Multiple segments selected
+                cleared_count = 0
             for seg_id in self.selected_segments:
-                # Find segment by ID
-                for seg in self.segments:
-                    if seg.id == seg_id:
-                        seg.target = ""
-                        seg.status = "untranslated"
+                    # Find segment by ID
+                    for seg in self.segments:
+                        if seg.id == seg_id:
+                            seg.target = ""
+                            seg.status = "untranslated"
                         seg.modified = True
-                        cleared_count += 1
-                        break
-            
-            # Refresh the grid to show changes
+                            cleared_count += 1
+                            break
+                
+                # Refresh the grid to show changes
             self.modified = True
-            if self.layout_mode == LayoutMode.GRID:
+                if self.layout_mode == LayoutMode.GRID:
                 self.load_segments_to_grid()
             elif hasattr(self, 'tree') and self.tree:
-                for seg in self.segments:
-                    if seg.target == "":
-                        self.update_segment_in_grid(seg)
-            
+                    for seg in self.segments:
+                        if seg.target == "":
+                            self.update_segment_in_grid(seg)
+                
             self.update_progress()
             self.log(f"✓ Cleared target text for {cleared_count} selected segments")
             messagebox.showinfo("Complete", f"✓ Cleared {cleared_count} targets")
