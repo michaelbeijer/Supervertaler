@@ -203,6 +203,14 @@ class PromptManagerQt:
         active_grid.addWidget(self.active_style_label, 1)
         
         active_bar_layout.addLayout(active_grid)
+        
+        # Preview combined prompt button (like tkinter)
+        preview_combined_btn = QPushButton("🧪 Preview Combined Prompt")
+        preview_combined_btn.setToolTip("Preview the exact combined prompt (all layers) that will be sent to AI with current segment")
+        preview_combined_btn.setStyleSheet("background-color: #9C27B0; color: white; font-weight: bold; padding: 6px 12px;")
+        preview_combined_btn.clicked.connect(self._preview_combined_prompt)
+        active_bar_layout.addWidget(preview_combined_btn)
+        
         main_layout.addWidget(active_bar, 0)  # 0 = no stretch, stays compact
         
         # ===== MAIN LAYOUT: Split (Lists | Editor) =====
@@ -217,7 +225,11 @@ class PromptManagerQt:
         self.list_tabs = QTabWidget()
         self.list_tabs.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
         
-        # System Prompts tab (Layer 1 - first tab since it's the base layer)
+        # Prompt Assistant tab (moved to first position)
+        assistant_tab = self._create_prompt_assistant_tab()
+        self.list_tabs.addTab(assistant_tab, "🤖 Prompt Assistant")
+        
+        # System Prompts tab (Layer 1)
         system_prompts_tab = self._create_system_prompts_tab()
         self.list_tabs.addTab(system_prompts_tab, "⚙️ System Prompts")
         
@@ -232,10 +244,6 @@ class PromptManagerQt:
         # Style Guides tab
         style_tab = self._create_style_guides_tab()
         self.list_tabs.addTab(style_tab, "🎨 Style Guides")
-        
-        # Prompt Assistant tab
-        assistant_tab = self._create_prompt_assistant_tab()
-        self.list_tabs.addTab(assistant_tab, "🤖 Prompt Assistant")
         
         # Restore saved tab selection
         saved_tab = self.settings.value("selected_tab", 0, type=int)
@@ -401,6 +409,29 @@ class PromptManagerQt:
         proof_btn.setStyleSheet("background-color: #FF9800; color: white; padding: 4px 8px;")
         btn_layout.addWidget(proof_btn)
         
+        btn_layout.addSpacing(10)
+        
+        deactivate_label = QLabel("✖ Deactivate:")
+        deactivate_label.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
+        btn_layout.addWidget(deactivate_label)
+        
+        deactivate_trans_btn = QPushButton("✖ Translation")
+        deactivate_trans_btn.clicked.connect(lambda: self._deactivate_domain_expertise('translate'))
+        deactivate_trans_btn.setStyleSheet("background-color: #f44336; color: white; padding: 4px 8px;")
+        btn_layout.addWidget(deactivate_trans_btn)
+        
+        deactivate_proof_btn = QPushButton("✖ Proofreading")
+        deactivate_proof_btn.clicked.connect(lambda: self._deactivate_domain_expertise('proofread'))
+        deactivate_proof_btn.setStyleSheet("background-color: #f44336; color: white; padding: 4px 8px;")
+        btn_layout.addWidget(deactivate_proof_btn)
+        
+        btn_layout.addSpacing(10)
+        
+        preview_btn = QPushButton("🧪 Preview Prompt")
+        preview_btn.clicked.connect(self._preview_domain_prompt)
+        preview_btn.setStyleSheet("background-color: #9C27B0; color: white; padding: 4px 8px;")
+        btn_layout.addWidget(preview_btn)
+        
         btn_layout.addStretch()
         layout.addWidget(btn_frame)
         
@@ -456,10 +487,17 @@ class PromptManagerQt:
         activate_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 4px 8px;")
         btn_layout.addWidget(activate_btn)
         
-        clear_btn = QPushButton("✖ Clear")
+        clear_btn = QPushButton("✖ Deactivate")
         clear_btn.clicked.connect(self._clear_project_guideline)
         clear_btn.setStyleSheet("background-color: #f44336; color: white; padding: 4px 8px;")
         btn_layout.addWidget(clear_btn)
+        
+        btn_layout.addSpacing(10)
+        
+        preview_btn = QPushButton("🧪 Preview Prompt")
+        preview_btn.clicked.connect(self._preview_project_prompt)
+        preview_btn.setStyleSheet("background-color: #9C27B0; color: white; padding: 4px 8px;")
+        btn_layout.addWidget(preview_btn)
         
         btn_layout.addStretch()
         layout.addWidget(btn_frame)
@@ -1110,6 +1148,290 @@ class PromptManagerQt:
         
         self._update_active_display()
         self._load_domain_expertise()  # Refresh to show bold
+    
+    def _deactivate_domain_expertise(self, slot):
+        """Deactivate Domain Prompt for translation or proofreading"""
+        if slot == 'translate':
+            if not self.active_translate_prompt:
+                self._show_message(QMessageBox.Icon.Information, "No Active Prompt", "No Domain Prompt is currently active for Translation.")
+                return
+            self.active_translate_prompt = None
+            self.active_translate_prompt_name = None
+            self.log_message("Deactivated Domain Prompt for Translation")
+        elif slot == 'proofread':
+            if not self.active_proofread_prompt:
+                self._show_message(QMessageBox.Icon.Information, "No Active Prompt", "No Domain Prompt is currently active for Proofreading.")
+                return
+            self.active_proofread_prompt = None
+            self.active_proofread_prompt_name = None
+            self.log_message("Deactivated Domain Prompt for Proofreading")
+        
+        self._update_active_display()
+        self._load_domain_expertise()  # Refresh to remove bold
+    
+    def _preview_domain_prompt(self):
+        """Preview the exact prompt that will be sent to AI for Domain Prompts"""
+        items = self.domain_tree.selectedItems()
+        if not items:
+            self._show_message(QMessageBox.Icon.Warning, "No Selection", "Please select a Domain Prompt to preview.")
+            return
+        
+        item = items[0]
+        filename = item.data(0, Qt.ItemDataRole.UserRole)
+        if not filename:
+            return
+        
+        prompt_data = self.prompt_library.get_prompt(filename)
+        if not prompt_data:
+            return
+        
+        # Get the prompt content
+        prompt_text = prompt_data.get('translate_prompt', '')
+        if not prompt_text:
+            self._show_message(QMessageBox.Icon.Warning, "No Prompt", "Selected prompt has no content.")
+            return
+        
+        # Build the full prompt that would be sent (without actual source text)
+        source_lang = "English"  # Default
+        target_lang = "Dutch"  # Default
+        
+        # Try to get from parent app if available
+        if hasattr(self.parent_app, 'current_project'):
+            if self.parent_app.current_project:
+                source_lang = getattr(self.parent_app.current_project, 'source_lang', source_lang)
+                target_lang = getattr(self.parent_app.current_project, 'target_lang', target_lang)
+        
+        # Build final prompt
+        full_prompt = self.build_final_prompt(
+            source_text="[Source text will appear here]",
+            source_lang=source_lang,
+            target_lang=target_lang,
+            mode="single"
+        )
+        
+        # Show preview dialog
+        self._show_prompt_preview_dialog(full_prompt, f"Domain Prompt: {prompt_data.get('name', 'Unnamed')}", source_lang, target_lang)
+    
+    def _preview_project_prompt(self):
+        """Preview the exact prompt that will be sent to AI for Project Prompts"""
+        items = self.project_tree.selectedItems()
+        if not items:
+            self._show_message(QMessageBox.Icon.Warning, "No Selection", "Please select a Project Prompt to preview.")
+            return
+        
+        item = items[0]
+        filename = item.data(0, Qt.ItemDataRole.UserRole)
+        if not filename:
+            return
+        
+        prompt_data = self.prompt_library.get_prompt(filename)
+        if not prompt_data:
+            return
+        
+        # Get the prompt content
+        prompt_text = prompt_data.get('translate_prompt', '') or prompt_data.get('content', '')
+        if not prompt_text:
+            self._show_message(QMessageBox.Icon.Warning, "No Prompt", "Selected prompt has no content.")
+            return
+        
+        # Build the full prompt that would be sent (without actual source text)
+        source_lang = "English"  # Default
+        target_lang = "Dutch"  # Default
+        
+        # Try to get from parent app if available
+        if hasattr(self.parent_app, 'current_project'):
+            if self.parent_app.current_project:
+                source_lang = getattr(self.parent_app.current_project, 'source_lang', source_lang)
+                target_lang = getattr(self.parent_app.current_project, 'target_lang', target_lang)
+        
+        # Temporarily activate this prompt to build the full prompt
+        old_active = self.active_project_prompt
+        self.active_project_prompt = prompt_text
+        
+        try:
+            full_prompt = self.build_final_prompt(
+                source_text="[Source text will appear here]",
+                source_lang=source_lang,
+                target_lang=target_lang,
+                mode="single"
+            )
+        finally:
+            self.active_project_prompt = old_active
+        
+        # Show preview dialog
+        self._show_prompt_preview_dialog(full_prompt, f"Project Prompt: {prompt_data.get('name', 'Unnamed')}", source_lang, target_lang)
+    
+    def _show_prompt_preview_dialog(self, prompt_text, title, source_lang, target_lang):
+        """Show a dialog with the exact prompt that will be sent to AI"""
+        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QTextEdit, QPushButton, QDialogButtonBox, QApplication
+        from PyQt6.QtGui import QFont
+        
+        dialog = QDialog()
+        dialog.setWindowTitle("🧪 Prompt Preview - What AI Will Receive")
+        dialog.resize(900, 700)
+        
+        layout = QVBoxLayout(dialog)
+        
+        # Header
+        header_label = QLabel(f"<h3>{title}</h3>")
+        header_label.setStyleSheet("background-color: #2196F3; color: white; padding: 10px; border-radius: 3px;")
+        layout.addWidget(header_label)
+        
+        # Info
+        info_label = QLabel(f"<b>Languages:</b> {source_lang} → {target_lang}<br><b>This is the EXACT prompt that will be sent to the AI</b>")
+        info_label.setStyleSheet("background-color: #E3F2FD; padding: 8px; border-radius: 3px; margin: 5px 0;")
+        info_label.setWordWrap(True)
+        layout.addWidget(info_label)
+        
+        # Prompt text
+        prompt_text_edit = QTextEdit()
+        prompt_text_edit.setPlainText(prompt_text)
+        prompt_text_edit.setReadOnly(True)
+        prompt_text_edit.setFont(QFont("Consolas", 9))
+        prompt_text_edit.setStyleSheet("background-color: #f5f5f5; border: 1px solid #ccc; padding: 5px;")
+        layout.addWidget(prompt_text_edit, 1)
+        
+        # Buttons
+        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Copy)
+        copy_btn = button_box.button(QDialogButtonBox.StandardButton.Copy)
+        copy_btn.setText("📋 Copy to Clipboard")
+        copy_btn.clicked.connect(lambda: QApplication.clipboard().setText(prompt_text))
+        button_box.accepted.connect(dialog.accept)
+        layout.addWidget(button_box)
+        
+        dialog.exec()
+    
+    def _preview_combined_prompt(self):
+        """Preview the complete combined prompt (all layers) with current segment - like tkinter"""
+        # Check if project is loaded and has segments
+        if not hasattr(self.parent_app, 'current_project') or not self.parent_app.current_project:
+            self._show_message(
+                QMessageBox.Icon.Warning,
+                "No Project",
+                "Please load a project with segments first.\n\nThe preview shows the exact prompt that will be sent to the AI for the currently selected segment."
+            )
+            return
+        
+        # Get current segment from grid
+        current_segment = None
+        if hasattr(self.parent_app, 'table') and self.parent_app.table:
+            current_row = self.parent_app.table.currentRow()
+            if current_row >= 0:
+                # Map display row to actual segment index (handles pagination)
+                if hasattr(self.parent_app, 'grid_row_to_segment_index') and current_row in self.parent_app.grid_row_to_segment_index:
+                    actual_index = self.parent_app.grid_row_to_segment_index[current_row]
+                    if actual_index < len(self.parent_app.current_project.segments):
+                        current_segment = self.parent_app.current_project.segments[actual_index]
+        
+        if not current_segment:
+            self._show_message(
+                QMessageBox.Icon.Information,
+                "No Segment Selected",
+                "Please select a segment in the grid to preview the prompt.\n\nThe preview will show how all prompt layers (System, Domain, Project, Style Guide) are combined for that segment."
+            )
+            return
+        
+        # Get languages
+        source_lang = getattr(self.parent_app.current_project, 'source_lang', 'English')
+        target_lang = getattr(self.parent_app.current_project, 'target_lang', 'Dutch')
+        
+        # Build the FULL combined prompt using build_final_prompt
+        full_prompt = self.build_final_prompt(
+            source_text=current_segment.source,
+            source_lang=source_lang,
+            target_lang=target_lang,
+            mode="single"
+        )
+        
+        # Build composition breakdown
+        composition_parts = []
+        composition_parts.append(f"• System Prompt (Layer 1): {len(self.get_system_prompt('single'))} characters")
+        
+        if self.active_translate_prompt:
+            composition_parts.append(f"• Domain Prompt (Layer 2 - {self.active_translate_prompt_name}): {len(self.active_translate_prompt)} characters")
+        else:
+            composition_parts.append("• Domain Prompt (Layer 2): Default")
+        
+        if self.active_project_prompt:
+            composition_parts.append(f"• Project Prompt (Layer 3 - {self.active_project_prompt_name}): {len(self.active_project_prompt)} characters")
+        else:
+            composition_parts.append("• Project Prompt (Layer 3): None")
+        
+        if self.active_style_guide:
+            style_name = self.active_style_guide_name or "Active"
+            composition_parts.append(f"• Style Guide (Layer 4 - {style_name}): {len(self.active_style_guide)} characters")
+        else:
+            composition_parts.append("• Style Guide (Layer 4): None")
+        
+        composition_parts.append(f"• Total prompt length: {len(full_prompt)} characters")
+        composition_text = "\n".join(composition_parts)
+        
+        # Show preview dialog with full combined prompt
+        self._show_combined_prompt_preview_dialog(
+            full_prompt,
+            f"{source_lang} → {target_lang} | Segment #{current_segment.id}",
+            composition_text,
+            current_segment.source
+        )
+    
+    def _show_combined_prompt_preview_dialog(self, prompt_text, header_text, composition_text, source_text):
+        """Show dialog with combined prompt preview - matches tkinter style"""
+        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QTextEdit, QPushButton, QDialogButtonBox, QApplication
+        from PyQt6.QtGui import QFont, QTextCharFormat, QTextCursor
+        from PyQt6.QtCore import Qt
+        
+        dialog = QDialog()
+        dialog.setWindowTitle("🧪 Complete Prompt Preview - What AI Will Receive")
+        dialog.resize(900, 700)
+        
+        layout = QVBoxLayout(dialog)
+        
+        # Header (blue background like tkinter)
+        header_label = QLabel(f"<h3>🧪 Complete Prompt Preview</h3><p>{header_text}</p>")
+        header_label.setStyleSheet("background-color: #2196F3; color: white; padding: 15px; border-radius: 3px;")
+        header_label.setWordWrap(True)
+        layout.addWidget(header_label)
+        
+        # Info panel (light blue like tkinter)
+        info_label = QLabel(f"💡 <b>This is the EXACT prompt that will be sent to the AI</b><br><br>📋 <b>Composition:</b><br>{composition_text.replace(chr(10), '<br>')}")
+        info_label.setStyleSheet("background-color: #E3F2FD; padding: 10px; border-radius: 3px; margin: 5px 0;")
+        info_label.setWordWrap(True)
+        layout.addWidget(info_label)
+        
+        # Prompt text area
+        prompt_text_edit = QTextEdit()
+        prompt_text_edit.setPlainText(prompt_text)
+        prompt_text_edit.setReadOnly(True)
+        prompt_text_edit.setFont(QFont("Consolas", 9))
+        prompt_text_edit.setStyleSheet("background-color: #f5f5f5; border: 1px solid #ccc; padding: 5px;")
+        
+        # Highlight source text (like tkinter)
+        if source_text and source_text in prompt_text:
+            cursor = prompt_text_edit.textCursor()
+            format = QTextCharFormat()
+            format.setBackground(Qt.GlobalColor.yellow)
+            format.setFontWeight(QFont.Weight.Bold)
+            
+            # Find and highlight source text
+            text = prompt_text_edit.toPlainText()
+            start_pos = text.find(source_text)
+            if start_pos >= 0:
+                cursor.setPosition(start_pos)
+                cursor.setPosition(start_pos + len(source_text), QTextCursor.MoveMode.KeepAnchor)
+                cursor.setCharFormat(format)
+                prompt_text_edit.setTextCursor(cursor)
+        
+        layout.addWidget(prompt_text_edit, 1)
+        
+        # Buttons
+        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Copy)
+        copy_btn = button_box.button(QDialogButtonBox.StandardButton.Copy)
+        copy_btn.setText("📋 Copy to Clipboard")
+        copy_btn.clicked.connect(lambda: QApplication.clipboard().setText(prompt_text))
+        button_box.accepted.connect(dialog.accept)
+        layout.addWidget(button_box)
+        
+        dialog.exec()
     
     def _activate_project_guideline(self):
         """Activate selected Project Prompt (Layer 3)"""
@@ -1823,15 +2145,20 @@ Your response will help configure an AI translation tool for professional-qualit
                 full_custom_prompt = f"{system_prompt}\n\n{user_prompt}"
                 
                 # Call LLM - pass custom prompt
+                # Use a placeholder text since translate() expects text parameter
+                # The actual analysis request is in the custom_prompt
                 analysis_text = client.translate(
-                    text="",  # Empty text, analysis is in the prompt itself
+                    text="Analyze this document.",  # Placeholder - actual request is in custom_prompt
                     source_lang=source_lang,
                     target_lang=target_lang,
                     custom_prompt=full_custom_prompt
                 )
                 
+                # Clean the response to remove any prompt remnants
+                analysis_text = client._clean_translation_response(analysis_text, full_custom_prompt)
+                
                 # Store result
-                self.doc_analysis_result = {
+                analysis_result['result'] = {
                     'success': True,
                     'analysis': analysis_text,
                     'segment_count': len(project.segments),
@@ -1839,6 +2166,7 @@ Your response will help configure an AI translation tool for professional-qualit
                     'source_lang': source_lang,
                     'target_lang': target_lang
                 }
+                analysis_result['completed'] = True
                 
                 # Update status (thread-safe UI update)
                 QTimer.singleShot(0, lambda: self.doc_analysis_status.setText(
@@ -1852,13 +2180,38 @@ Your response will help configure an AI translation tool for professional-qualit
             except Exception as e:
                 import traceback
                 traceback.print_exc()
+                analysis_result['error'] = str(e)
+                analysis_result['completed'] = True
                 # Update status (thread-safe UI update)
                 QTimer.singleShot(0, lambda: self.doc_analysis_status.setText(f"❌ Error: {str(e)}"))
                 QTimer.singleShot(0, lambda: self.doc_analysis_status.setStyleSheet("color: #D32F2F; padding: 5px;"))
                 QTimer.singleShot(0, lambda: self._add_chat_message("error", f"Error during analysis: {str(e)}"))
         
         # Run in background thread to avoid blocking UI
-        threading.Thread(target=perform_analysis, daemon=True).start()
+        analysis_thread = threading.Thread(target=perform_analysis, daemon=True)
+        analysis_thread.start()
+        
+        # Set up timeout mechanism (120 seconds = 2 minutes)
+        def check_timeout():
+            import time
+            start_time = time.time()
+            timeout_seconds = 120
+            
+            while not analysis_result['completed']:
+                import time
+                if time.time() - start_time > timeout_seconds:
+                    # Timeout occurred
+                    analysis_result['completed'] = True
+                    analysis_result['error'] = f"Analysis timed out after {timeout_seconds} seconds. The document may be too large or the API is slow."
+                    QTimer.singleShot(0, lambda: self.doc_analysis_status.setText(f"❌ Timeout: Analysis took longer than {timeout_seconds} seconds"))
+                    QTimer.singleShot(0, lambda: self.doc_analysis_status.setStyleSheet("color: #D32F2F; padding: 5px;"))
+                    QTimer.singleShot(0, lambda: self._add_chat_message("error", f"Document analysis timed out after {timeout_seconds} seconds. Try with a smaller document or check your API connection."))
+                    break
+                import time
+                time.sleep(1)  # Check every second
+        
+        # Start timeout checker in separate thread
+        threading.Thread(target=check_timeout, daemon=True).start()
     
     def _generate_translation_prompts(self):
         """Generate ready-to-use System Prompt and Custom Instructions based on document analysis"""
@@ -2765,6 +3118,10 @@ If the text refers to figures (e.g., 'Figure 1A'), relevant images may be provid
         
         # Combine all layers
         final_prompt = system_prompt + "\n\n" + domain_prompt + project_prompt + style_guide
+        
+        # Add clear delimiter to mark where translation should start
+        # This prevents the LLM from translating the prompt itself
+        final_prompt += "\n\n**YOUR TRANSLATION (provide ONLY the translated text, no numbering or labels):**\n"
         
         return final_prompt
 

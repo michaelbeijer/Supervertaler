@@ -67,6 +67,188 @@ class LLMClient:
         # Auto-detect temperature based on model
         self.temperature = self._get_temperature()
     
+    def _clean_translation_response(self, translation: str, prompt: str) -> str:
+        """
+        Clean translation response to remove any prompt remnants.
+        
+        Sometimes LLMs translate the entire prompt instead of just the source text.
+        This method attempts to extract only the actual translation.
+        
+        Args:
+            translation: Raw translation response from LLM
+            prompt: Original prompt sent to LLM
+        
+        Returns:
+            Cleaned translation text
+        """
+        if not translation:
+            return translation
+        
+        # First, try to find the delimiter we added ("**YOUR TRANSLATION**")
+        # Everything after this delimiter should be the actual translation
+        delimiter_markers = [
+            "**YOUR TRANSLATION (provide ONLY the translated text, no numbering or labels):**",
+            "**YOUR TRANSLATION**",
+            "**YOUR TRANSLATION (provide ONLY",
+            "**JOUW VERTALING**",
+            "**TRANSLATION**",
+            "**VERTALING**",
+            "Translation:",
+            "Vertaling:",
+            "YOUR TRANSLATION",
+            "JOUW VERTALING",
+        ]
+        
+        # Try to split on delimiter first (most reliable)
+        import re
+        for marker in delimiter_markers:
+            # Use word boundary or newline before marker for better matching
+            pattern = re.escape(marker)
+            # Try with newline before it
+            pattern_with_newline = r'\n\s*' + pattern
+            match = re.search(pattern_with_newline, translation, re.IGNORECASE | re.MULTILINE)
+            if not match:
+                # Try without newline requirement
+                match = re.search(pattern, translation, re.IGNORECASE)
+            
+            if match:
+                result = translation[match.end():].strip()
+                # Clean up any leading/trailing newlines, colons, or whitespace
+                result = re.sub(r'^[::\s\n\r]+', '', result)
+                result = result.strip()
+                if result:
+                    # Additional cleanup: remove any remaining prompt patterns
+                    result = self._remove_prompt_patterns(result)
+                    if result and len(result) < len(translation) * 0.9:  # Must be significantly shorter
+                        return result
+        
+        # Common patterns that indicate the prompt was translated
+        # These are translations of common prompt phrases
+        prompt_patterns = [
+            # Dutch translations of prompt instructions
+            "Als een professionele",
+            "Als professionele",
+            "U bent een expert",
+            "Uw taak is om",
+            "Tijdens het vertaalproces",
+            "De output moet uitsluitend bestaan",
+            "Waarschuwingsinformatie:",
+            "⚠️ PROFESSIONELE VERTAALCONTEXT:",
+            "vertaler",
+            "handleidingen",
+            "regelgeving",
+            "naleving",
+            "medische apparaten",
+            "professionele doeleinden",
+            "medisch advies",
+            "volledige documentcontext",
+            "tekstsegmenten",
+            "CAT-tool tags",
+            "memoQ-tags",
+            "Trados Studio-tags",
+            "CafeTran-tags",
+            # English patterns (in case language is mixed)
+            "As a professional",
+            "You are an expert",
+            "Your task is to",
+            "During the translation process",
+            "The output must consist exclusively",
+            "⚠️ PROFESSIONAL TRANSLATION CONTEXT:",
+            "professional translation",
+            "technical manuals",
+            "regulatory compliance",
+            "medical devices",
+            "professional purposes",
+            "medical advice",
+            "full document context",
+            "text segments",
+            "CAT tool tags",
+            "memoQ tags",
+            "Trados Studio tags",
+            "CafeTran tags",
+        ]
+        
+        # Check if translation contains prompt patterns - if so, it's likely a translated prompt
+        translation_lower = translation.lower()
+        prompt_pattern_count = sum(1 for pattern in prompt_patterns if pattern.lower() in translation_lower)
+        
+        # If translation is suspiciously long and contains many prompt patterns, it's likely a translated prompt
+        if len(translation) > 300 and prompt_pattern_count >= 3:
+            # Try to find where actual translation starts
+            # Look for the end of the last prompt-like sentence
+            lines = translation.split('\n')
+            cleaned_lines = []
+            found_actual_translation = False
+            
+            for i, line in enumerate(lines):
+                line_stripped = line.strip()
+                if not line_stripped:
+                    if found_actual_translation:
+                        cleaned_lines.append(line)
+                    continue
+                
+                # Check if this line looks like prompt instruction
+                is_prompt = any(pattern.lower() in line_stripped.lower() for pattern in prompt_patterns)
+                
+                # Also check if it's a very long line (likely prompt instructions)
+                if len(line_stripped) > 200:
+                    prompt_phrases = sum(1 for pattern in prompt_patterns if pattern.lower() in line_stripped.lower())
+                    if prompt_phrases >= 2:
+                        is_prompt = True
+                
+                if is_prompt:
+                    # Skip prompt lines
+                    continue
+                else:
+                    # This might be actual translation
+                    found_actual_translation = True
+                    cleaned_lines.append(line)
+            
+            result = '\n'.join(cleaned_lines).strip()
+            if result and len(result) < len(translation) * 0.7:  # Significantly shorter = likely cleaned correctly
+                return self._remove_prompt_patterns(result)
+        
+        # Final cleanup: remove any remaining prompt patterns
+        cleaned = self._remove_prompt_patterns(translation)
+        
+        # If cleaned version is much shorter, it was likely cleaned correctly
+        if cleaned != translation and len(cleaned) < len(translation) * 0.8:
+            return cleaned
+        
+        return translation
+    
+    def _remove_prompt_patterns(self, text: str) -> str:
+        """Remove prompt-like patterns from text"""
+        prompt_patterns = [
+            "Als een professionele", "Als professionele", "U bent een expert",
+            "Uw taak is om", "Tijdens het vertaalproces", "De output moet",
+            "Waarschuwingsinformatie:", "⚠️ PROFESSIONELE", "vertaler",
+            "handleidingen", "regelgeving", "naleving", "medische apparaten",
+            "professionele doeleinden", "medisch advies", "volledige documentcontext",
+            "tekstsegmenten", "CAT-tool tags", "memoQ-tags", "Trados Studio-tags",
+            "CafeTran-tags", "As a professional", "You are an expert",
+            "Your task is to", "During the translation process",
+            "The output must consist exclusively", "⚠️ PROFESSIONAL",
+            "professional translation", "technical manuals", "regulatory compliance",
+            "medical devices", "professional purposes", "medical advice",
+            "full document context", "text segments", "CAT tool tags",
+            "memoQ tags", "Trados Studio tags", "CafeTran tags",
+        ]
+        
+        lines = text.split('\n')
+        cleaned_lines = []
+        
+        for line in lines:
+            line_lower = line.lower()
+            # Skip lines that contain prompt patterns
+            has_prompt = any(pattern.lower() in line_lower for pattern in prompt_patterns)
+            # Also skip very long lines that might be prompt instructions
+            if not has_prompt and (len(line.strip()) < 300 or len(line.strip().split()) < 50):
+                cleaned_lines.append(line)
+        
+        result = '\n'.join(cleaned_lines).strip()
+        return result if result else text
+    
     def _get_temperature(self) -> float:
         """Determine optimal temperature for model"""
         model_lower = self.model.lower()
@@ -136,7 +318,12 @@ class LLMClient:
             temperature=self.temperature
         )
         
-        return response.choices[0].message.content.strip()
+        translation = response.choices[0].message.content.strip()
+        
+        # Clean up translation: remove any prompt remnants
+        translation = self._clean_translation_response(translation, prompt)
+        
+        return translation
     
     def _call_claude(self, prompt: str) -> str:
         """Call Anthropic Claude API"""
@@ -155,7 +342,12 @@ class LLMClient:
             messages=[{"role": "user", "content": prompt}]
         )
         
-        return response.content[0].text.strip()
+        translation = response.content[0].text.strip()
+        
+        # Clean up translation: remove any prompt remnants
+        translation = self._clean_translation_response(translation, prompt)
+        
+        return translation
     
     def _call_gemini(self, prompt: str) -> str:
         """Call Google Gemini API"""
@@ -170,7 +362,12 @@ class LLMClient:
         model = genai.GenerativeModel(self.model)
         
         response = model.generate_content(prompt)
-        return response.text.strip()
+        translation = response.text.strip()
+        
+        # Clean up translation: remove any prompt remnants
+        translation = self._clean_translation_response(translation, prompt)
+        
+        return translation
 
 
 # ============================================================================

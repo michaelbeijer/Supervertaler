@@ -674,6 +674,13 @@ class SupervertalerQt(QMainWindow):
         # View mode tracking
         self.current_view_mode = LayoutMode.GRID  # Default to Grid view
         
+        # Document view state (initialized early to prevent AttributeError during project loading)
+        self.doc_segment_widgets = {}
+        self.doc_current_segment_id = None
+        
+        # List view state (initialized early to prevent AttributeError during project loading)
+        self.list_current_segment_id = None
+        
         # Universal Lookup detached window
         self.lookup_detached_window = None
         
@@ -853,6 +860,7 @@ class SupervertalerQt(QMainWindow):
         # Universal Lookup
         universal_lookup_action = QAction("🔍 &Universal Lookup...", self)
         universal_lookup_action.setShortcut("Ctrl+Alt+L")
+        # Tab indices: Home=0, Resources=1, Modules=2, Settings=3 (Prompt Manager and Editor removed)
         universal_lookup_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(2) if hasattr(self, 'main_tabs') else None)
         edit_menu.addAction(universal_lookup_action)
         
@@ -866,16 +874,19 @@ class SupervertalerQt(QMainWindow):
         go_home_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(0) if hasattr(self, 'main_tabs') else None)
         nav_menu.addAction(go_home_action)
         
-        go_prompt_action = QAction("💡 &Prompt Manager", self)
-        go_prompt_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(1) if hasattr(self, 'main_tabs') else None)
-        nav_menu.addAction(go_prompt_action)
+        # Prompt Manager tab removed - it's now integrated in the Home tab
+        # go_prompt_action = QAction("💡 &Prompt Manager", self)
+        # go_prompt_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(1) if hasattr(self, 'main_tabs') else None)
+        # nav_menu.addAction(go_prompt_action)
         
-        go_editor_action = QAction("📝 &Editor", self)
-        go_editor_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(2) if hasattr(self, 'main_tabs') else None)
-        nav_menu.addAction(go_editor_action)
+        # Editor tab removed - functionality moved to Home tab
+        # go_editor_action = QAction("📝 &Editor", self)
+        # go_editor_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(2) if hasattr(self, 'main_tabs') else None)
+        # nav_menu.addAction(go_editor_action)
         
         go_settings_action = QAction("⚙️ &Settings", self)
-        go_settings_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(5) if hasattr(self, 'main_tabs') else None)
+        # Tab indices shifted: Resources=1, Modules=2, Settings=3 (Home=0, Prompt Manager and Editor removed)
+        go_settings_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(3) if hasattr(self, 'main_tabs') else None)
         nav_menu.addAction(go_settings_action)
         
         view_menu.addSeparator()
@@ -1114,8 +1125,10 @@ class SupervertalerQt(QMainWindow):
             
             # Navigation actions
             "go_to_home": lambda: self.main_tabs.setCurrentIndex(0) if hasattr(self, 'main_tabs') else None,
-            "go_to_editor": lambda: self.main_tabs.setCurrentIndex(2) if hasattr(self, 'main_tabs') else None,
-            "go_to_settings": lambda: self.main_tabs.setCurrentIndex(4) if hasattr(self, 'main_tabs') else None,
+            # Editor tab removed - functionality moved to Home tab
+            # "go_to_editor": lambda: self.main_tabs.setCurrentIndex(2) if hasattr(self, 'main_tabs') else None,
+            # Tab indices: Home=0, Resources=1, Modules=2, Settings=3 (Prompt Manager and Editor removed)
+            "go_to_settings": lambda: self.main_tabs.setCurrentIndex(3) if hasattr(self, 'main_tabs') else None,
             
             # Translation actions
             "translate": self.translate_current_segment,
@@ -1181,13 +1194,11 @@ class SupervertalerQt(QMainWindow):
         home_tab = self.create_home_tab()
         self.main_tabs.addTab(home_tab, "🏠 Home")
         
-        # 2. PROMPT MANAGER
-        prompt_tab = self.create_prompt_manager_tab()
-        self.main_tabs.addTab(prompt_tab, "💡 Prompt Manager")
+        # 2. PROMPT MANAGER - REMOVED (functionality moved to Home tab)
+        # Prompt Manager tab removed - it's now integrated in the Home tab on the right side
         
-        # 3. EDITOR (formerly Project Editor)
-        editor_tab = self.create_editor_tab()
-        self.main_tabs.addTab(editor_tab, "📝 Editor")
+        # 3. EDITOR - REMOVED (functionality moved to Home tab)
+        # Editor tab removed - grid is now displayed in Home tab with Prompt Manager
         
         # 4. RESOURCES (nested tabs)
         resources_tab = self.create_resources_tab()
@@ -1337,183 +1348,86 @@ class SupervertalerQt(QMainWindow):
         return tab
     
     def create_home_tab(self):
-        """Create the Home tab - first screen with integrated About in header, Resources, Projects, and Universal Lookup"""
-        from PyQt6.QtWidgets import QSplitter, QPushButton, QLabel, QFrame, QScrollArea
+        """Create the Home tab - Editor (grid/list/document) on left, Prompt Manager on right"""
+        from PyQt6.QtWidgets import QSplitter, QPushButton, QLabel, QStackedWidget
+        from modules.prompt_manager_qt import PromptManagerQt
         
         tab = QWidget()
         layout = QVBoxLayout(tab)
-        layout.setContentsMargins(15, 15, 15, 15)
-        layout.setSpacing(15)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
         
-        # Use splitter for left/right division
-        splitter = QSplitter(Qt.Orientation.Horizontal)
+        # Main horizontal splitter: Editor (left) and Prompt Manager (right)
+        home_splitter = QSplitter(Qt.Orientation.Horizontal)
         
-        # ===== LEFT SIDE =====
-        left_widget = QWidget()
-        left_layout = QVBoxLayout(left_widget)
-        left_layout.setContentsMargins(10, 10, 10, 10)
-        left_layout.setSpacing(15)
+        # ===== LEFT SIDE: Editor with Grid/List/Document views =====
+        editor_container = QWidget()
+        editor_layout = QVBoxLayout(editor_container)
+        editor_layout.setContentsMargins(0, 0, 0, 0)
+        editor_layout.setSpacing(0)
         
-        # Header with integrated About info
-        header_frame = QFrame()
-        header_frame.setStyleSheet("background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; padding: 20px;")
-        header_layout = QVBoxLayout(header_frame)
-        header_layout.setSpacing(8)
+        # View switcher toolbar
+        view_toolbar = QWidget()
+        view_toolbar.setStyleSheet("background-color: #f8f9fa; padding: 5px;")
+        view_toolbar_layout = QHBoxLayout(view_toolbar)
+        view_toolbar_layout.setContentsMargins(10, 5, 10, 5)
+        view_toolbar_layout.setSpacing(5)
         
-        title = QLabel("🌐 Supervertaler")
-        title.setStyleSheet("font-size: 24px; font-weight: bold; color: white;")
-        header_layout.addWidget(title)
+        view_label = QLabel("View:")
+        view_label.setStyleSheet("font-weight: bold;")
+        view_toolbar_layout.addWidget(view_label)
         
-        subtitle = QLabel("AI-Powered Translation Tool")
-        subtitle.setStyleSheet("font-size: 20px; color: #9d4edd; font-weight: bold;")
-        header_layout.addWidget(subtitle)
+        self.home_grid_view_btn = QPushButton("📊 Grid")
+        self.home_grid_view_btn.setCheckable(True)
+        self.home_grid_view_btn.setChecked(True)
+        self.home_grid_view_btn.clicked.connect(lambda: self.switch_home_view_mode("grid"))
+        view_toolbar_layout.addWidget(self.home_grid_view_btn)
         
-        version_label = QLabel(f"v{__version__} ({__phase__})")
-        version_label.setStyleSheet("font-size: 18px; color: #9d4edd; font-weight: bold;")
-        header_layout.addWidget(version_label)
+        self.home_list_view_btn = QPushButton("📋 List")
+        self.home_list_view_btn.setCheckable(True)
+        self.home_list_view_btn.clicked.connect(lambda: self.switch_home_view_mode("list"))
+        view_toolbar_layout.addWidget(self.home_list_view_btn)
         
-        # Separator line
-        separator = QFrame()
-        separator.setFrameShape(QFrame.Shape.HLine)
-        separator.setStyleSheet("background-color: rgba(255,255,255,0.3); max-height: 1px; margin: 8px 0px;")
-        header_layout.addWidget(separator)
+        self.home_document_view_btn = QPushButton("📄 Document")
+        self.home_document_view_btn.setCheckable(True)
+        self.home_document_view_btn.clicked.connect(lambda: self.switch_home_view_mode("document"))
+        view_toolbar_layout.addWidget(self.home_document_view_btn)
         
-        # About text integrated into header
-        about_text = QLabel(
-            "Supervertaler is an AI-powered translation tool designed for professional translators and writers. "
-            "It combines translation memory, terminology management, and cutting-edge AI models (GPT-4, Claude, Gemini) "
-            "to deliver accurate, context-aware translations."
-        )
-        about_text.setWordWrap(True)
-        about_text.setStyleSheet("font-size: 11pt; line-height: 1.5; color: #000000; font-weight: normal; padding: 5px 0px;")  # Black text for visibility
-        header_layout.addWidget(about_text)
+        view_toolbar_layout.addStretch()
         
-        left_layout.addWidget(header_frame)
+        editor_layout.addWidget(view_toolbar)
         
-        # Resources & Support section
-        links_frame = QFrame()
-        links_frame.setStyleSheet("background: white; border: 1px solid #dee2e6; border-radius: 8px; padding: 15px;")
-        links_layout = QVBoxLayout(links_frame)
-        links_layout.setSpacing(10)
+        # Create assistance panel FIRST (create_grid_view_widget_for_home needs it)
+        if not hasattr(self, 'assistance_widget') or self.assistance_widget is None:
+            self.create_assistance_panel()
         
-        links_title = QLabel("🔗 Resources & Support")
-        links_title.setStyleSheet("font-size: 14px; font-weight: bold; color: #333; margin-bottom: 5px;")
-        links_layout.addWidget(links_title)
+        # Stacked widget for different views
+        self.home_view_stack = QStackedWidget()
         
-        # Links grid
-        links_grid = QGridLayout()
-        links_grid.setSpacing(8)
+        # Create grid view widget with assistance panel at bottom (vertical layout)
+        grid_view_widget = self.create_grid_view_widget_for_home()
+        self.home_view_stack.addWidget(grid_view_widget)
         
-        links_data = [
-            ("🌐 Website", "https://supervertaler.com/", 0, 0),
-            ("💬 Discussion Forum", "https://github.com/michaelbeijer/Supervertaler/discussions", 0, 1),
-            ("📖 User Guide", "https://github.com/michaelbeijer/Supervertaler/blob/main/docs/guides/USER_GUIDE.md", 1, 0),
-            ("❓ FAQ", "https://github.com/michaelbeijer/Supervertaler/blob/main/FAQ.md", 1, 1),
-            ("🐛 Report Issue", "https://github.com/michaelbeijer/Supervertaler/issues", 2, 0),
-            ("📋 Changelog", "https://github.com/michaelbeijer/Supervertaler/blob/main/CHANGELOG_Qt.md", 2, 1),
-        ]
+        # List and Document views - create adapted versions for home tab
+        list_view_widget = self.create_list_view_widget_for_home()
+        self.home_view_stack.addWidget(list_view_widget)
         
-        for text, url, row, col in links_data:
-            link_btn = QPushButton(text)
-            link_btn.setStyleSheet("text-align: left; padding: 6px 12px; font-size: 9pt; color: #333;")
-            link_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            link_btn.clicked.connect(lambda checked, u=url: QDesktopServices.openUrl(QUrl(u)))
-            links_grid.addWidget(link_btn, row, col)
+        doc_view_widget = self.create_document_view_widget_for_home()
+        self.home_view_stack.addWidget(doc_view_widget)
         
-        links_layout.addLayout(links_grid)
-        left_layout.addWidget(links_frame)
+        editor_layout.addWidget(self.home_view_stack)
+        home_splitter.addWidget(editor_container)
         
-        # Projects section at bottom (with different background color)
-        projects_frame = QFrame()
-        projects_frame.setStyleSheet("background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 15px;")  # Different background
-        projects_layout = QVBoxLayout(projects_frame)
-        projects_layout.setSpacing(10)
+        # ===== RIGHT SIDE: Prompt Manager =====
+        prompt_widget = QWidget()
+        self.prompt_manager_qt = PromptManagerQt(self, standalone=False)
+        self.prompt_manager_qt.create_tab(prompt_widget)
+        home_splitter.addWidget(prompt_widget)
         
-        projects_title = QLabel("📁 Projects")
-        projects_title.setStyleSheet("font-size: 14px; font-weight: bold; color: #333; margin-bottom: 5px;")
-        projects_layout.addWidget(projects_title)
+        # Set splitter proportions (60% editor, 40% prompt manager)
+        home_splitter.setSizes([1200, 800])
         
-        # Projects buttons
-        projects_buttons = QVBoxLayout()
-        projects_buttons.setSpacing(8)
-        
-        new_btn = QPushButton("➕ New Project")
-        new_btn.setMinimumHeight(35)
-        new_btn.clicked.connect(self.new_project)
-        new_btn.setStyleSheet("font-weight: bold; padding: 6px 15px;")
-        projects_buttons.addWidget(new_btn)
-        
-        open_btn = QPushButton("📂 Open Project")
-        open_btn.setMinimumHeight(35)
-        open_btn.clicked.connect(self.open_project)
-        open_btn.setStyleSheet("font-weight: bold; padding: 6px 15px;")
-        projects_buttons.addWidget(open_btn)
-        
-        projects_layout.addLayout(projects_buttons)
-        
-        # Recent projects list
-        recent_projects_scroll = QScrollArea()
-        recent_projects_scroll.setWidgetResizable(True)
-        recent_projects_scroll.setMinimumHeight(150)
-        recent_projects_scroll.setMaximumHeight(300)
-        recent_projects_scroll.setStyleSheet("background: white; border: 1px solid #dee2e6; border-radius: 5px;")
-        
-        # Container widget for recent projects
-        self.recent_projects_container = QWidget()
-        self.recent_projects_layout = QVBoxLayout(self.recent_projects_container)
-        self.recent_projects_layout.setContentsMargins(5, 5, 5, 5)
-        self.recent_projects_layout.setSpacing(5)
-        
-        # Populate recent projects
-        self.update_recent_projects_display()
-        
-        recent_projects_scroll.setWidget(self.recent_projects_container)
-        projects_layout.addWidget(recent_projects_scroll)
-        
-        left_layout.addWidget(projects_frame)
-        left_layout.addStretch()
-        
-        # ===== RIGHT SIDE =====
-        right_widget = QWidget()
-        right_layout = QVBoxLayout(right_widget)
-        right_layout.setContentsMargins(10, 10, 10, 10)
-        right_layout.setSpacing(0)
-        
-        # Universal Lookup module
-        # Create a wrapper with detach button
-        lookup_header = QFrame()
-        lookup_header.setStyleSheet("background: white; border: 1px solid #dee2e6; border-bottom: none; border-radius: 8px 8px 0 0; padding: 10px;")
-        lookup_header_layout = QHBoxLayout(lookup_header)
-        lookup_header_layout.setContentsMargins(10, 5, 10, 5)
-        
-        lookup_title = QLabel("🔍 Universal Lookup")
-        lookup_title.setStyleSheet("font-size: 14px; font-weight: bold; color: #333;")
-        lookup_header_layout.addWidget(lookup_title)
-        
-        lookup_header_layout.addStretch()
-        
-        # Detach button
-        detach_btn = QPushButton("📤 Detach")
-        detach_btn.setToolTip("Open Universal Lookup in a separate window (useful for second screen)")
-        detach_btn.setStyleSheet("font-size: 9pt; padding: 4px 12px;")
-        detach_btn.clicked.connect(self.detach_universal_lookup)  # Direct connection without lambda
-        lookup_header_layout.addWidget(detach_btn)
-        
-        right_layout.addWidget(lookup_header)
-        
-        # Create Universal Lookup widget
-        self.home_lookup_widget = UniversalLookupTab(self)
-        self.home_lookup_widget.setStyleSheet("background: white; border: 1px solid #dee2e6; border-top: none; border-radius: 0 0 8px 8px;")
-        right_layout.addWidget(self.home_lookup_widget, stretch=1)
-        
-        # Add to splitter
-        splitter.addWidget(left_widget)
-        splitter.addWidget(right_widget)
-        splitter.setStretchFactor(0, 1)
-        splitter.setStretchFactor(1, 1)
-        splitter.setSizes([450, 550])  # Initial sizes
-        
-        layout.addWidget(splitter)
+        layout.addWidget(home_splitter)
         
         return tab
     
@@ -2285,20 +2199,20 @@ class SupervertalerQt(QMainWindow):
         provider_label = QLabel("Select your preferred translation provider:")
         provider_layout.addWidget(provider_label)
         
-        # Provider radio buttons
+        # Provider radio buttons (custom styled)
         provider_button_group = QButtonGroup(tab)
         
-        openai_radio = QRadioButton("OpenAI (GPT-4o, GPT-5, o1, o3)")
+        openai_radio = CustomRadioButton("OpenAI (GPT-4o, GPT-5, o1, o3)")
         openai_radio.setChecked(settings.get('provider', 'openai') == 'openai')
         provider_button_group.addButton(openai_radio)
         provider_layout.addWidget(openai_radio)
         
-        claude_radio = QRadioButton("Anthropic Claude (Claude 3.5 Sonnet)")
+        claude_radio = CustomRadioButton("Anthropic Claude (Claude 3.5 Sonnet)")
         claude_radio.setChecked(settings.get('provider', 'openai') == 'claude')
         provider_button_group.addButton(claude_radio)
         provider_layout.addWidget(claude_radio)
         
-        gemini_radio = QRadioButton("Google Gemini (Gemini 2.0 Flash)")
+        gemini_radio = CustomRadioButton("Google Gemini (Gemini 2.0 Flash)")
         gemini_radio.setChecked(settings.get('provider', 'openai') == 'gemini')
         provider_button_group.addButton(gemini_radio)
         provider_layout.addWidget(gemini_radio)
@@ -2399,15 +2313,15 @@ class SupervertalerQt(QMainWindow):
         provider_enable_info.setStyleSheet("font-size: 9pt; color: #666; padding: 5px;")
         provider_enable_layout.addWidget(provider_enable_info)
         
-        openai_enable_cb = QCheckBox("Enable OpenAI")
+        openai_enable_cb = CheckmarkCheckBox("Enable OpenAI")
         openai_enable_cb.setChecked(enabled_providers.get('llm_openai', True))
         provider_enable_layout.addWidget(openai_enable_cb)
         
-        claude_enable_cb = QCheckBox("Enable Claude")
+        claude_enable_cb = CheckmarkCheckBox("Enable Claude")
         claude_enable_cb.setChecked(enabled_providers.get('llm_claude', True))
         provider_enable_layout.addWidget(claude_enable_cb)
         
-        gemini_enable_cb = QCheckBox("Enable Gemini")
+        gemini_enable_cb = CheckmarkCheckBox("Enable Gemini")
         gemini_enable_cb.setChecked(enabled_providers.get('llm_gemini', True))
         provider_enable_layout.addWidget(gemini_enable_cb)
         
@@ -3044,6 +2958,566 @@ class SupervertalerQt(QMainWindow):
         
         return widget
     
+    def create_grid_view_widget_for_home(self):
+        """Create Grid View widget adapted for home tab (assistance panel at bottom)"""
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Vertical splitter: Grid on top, Assistance at bottom
+        self.home_grid_splitter = QSplitter(Qt.Orientation.Vertical)
+        
+        # Top: Grid container with filter boxes
+        grid_container = QWidget()
+        grid_layout = QVBoxLayout(grid_container)
+        grid_layout.setContentsMargins(0, 0, 0, 0)
+        grid_layout.setSpacing(5)
+        
+        # Warning banner for replace in source (hidden by default)
+        if not hasattr(self, 'warning_banner'):
+            self.warning_banner = QWidget()
+            self.warning_banner.setStyleSheet(
+                "background-color: #dc2626; color: white; padding: 8px; border-radius: 4px;"
+            )
+            warning_layout = QHBoxLayout(self.warning_banner)
+            warning_layout.setContentsMargins(10, 5, 10, 5)
+            
+            warning_icon = QLabel("⚠️")
+            warning_icon.setStyleSheet("font-size: 16px; background: transparent;")
+            warning_layout.addWidget(warning_icon)
+            
+            warning_text = QLabel(
+                "<b>WARNING:</b> Replace in Source Text is ENABLED. "
+                "This allows modifying your original source segments. Use with extreme caution!"
+            )
+            warning_text.setStyleSheet("background: transparent; font-weight: bold;")
+            warning_text.setWordWrap(True)
+            warning_layout.addWidget(warning_text, stretch=1)
+            
+            settings_link = QPushButton("⚙️ Disable in Options")
+            settings_link.setStyleSheet(
+                "background-color: rgba(255, 255, 255, 0.2); color: white; "
+                "border: 1px solid white; padding: 4px 12px; border-radius: 3px; font-weight: bold;"
+            )
+            settings_link.setCursor(Qt.CursorShape.PointingHandCursor)
+            settings_link.clicked.connect(self._go_to_settings_tab)
+            warning_layout.addWidget(settings_link)
+        
+        grid_layout.addWidget(self.warning_banner)
+        self.warning_banner.hide()  # Hidden by default
+        
+        # Filter panel (like memoQ)
+        filter_panel = QWidget()
+        filter_layout = QHBoxLayout(filter_panel)
+        filter_layout.setContentsMargins(0, 0, 0, 0)
+        filter_layout.setSpacing(10)
+        
+        # Source filter
+        source_filter_label = QLabel("Filter Source:")
+        if not hasattr(self, 'source_filter'):
+            self.source_filter = QLineEdit()
+        self.source_filter.setPlaceholderText("Type to filter source segments... (Press Enter or click Filter)")
+        self.source_filter.returnPressed.connect(self.apply_filters)
+        
+        # Target filter
+        target_filter_label = QLabel("Filter Target:")
+        if not hasattr(self, 'target_filter'):
+            self.target_filter = QLineEdit()
+        self.target_filter.setPlaceholderText("Type to filter target segments... (Press Enter or click Filter)")
+        self.target_filter.returnPressed.connect(self.apply_filters)
+        
+        # Filter button (activates the filter)
+        apply_filter_btn = QPushButton("Filter")
+        apply_filter_btn.clicked.connect(self.apply_filters)
+        apply_filter_btn.setMaximumWidth(80)
+        apply_filter_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold;")
+        
+        # Clear filters button
+        clear_filters_btn = QPushButton("Clear Filters")
+        clear_filters_btn.clicked.connect(self.clear_filters)
+        clear_filters_btn.setMaximumWidth(100)
+        
+        filter_layout.addWidget(source_filter_label)
+        filter_layout.addWidget(self.source_filter, stretch=1)
+        filter_layout.addWidget(target_filter_label)
+        filter_layout.addWidget(self.target_filter, stretch=1)
+        filter_layout.addWidget(apply_filter_btn)
+        filter_layout.addWidget(clear_filters_btn)
+        
+        grid_layout.addWidget(filter_panel)
+        
+        # Pagination controls (like Tkinter version)
+        pagination_panel = QWidget()
+        pagination_panel.setStyleSheet("background-color: #f8f8f8; padding: 5px;")
+        pagination_layout = QHBoxLayout(pagination_panel)
+        pagination_layout.setContentsMargins(10, 5, 10, 5)
+        pagination_layout.setSpacing(10)
+        
+        # Pagination label (left side)
+        if not hasattr(self, 'pagination_label'):
+            self.pagination_label = QLabel("Segments 1-50 of 0")
+        self.pagination_label.setStyleSheet("color: #555;")
+        pagination_layout.addWidget(self.pagination_label)
+        
+        pagination_layout.addStretch()
+        
+        # Pagination controls (right side)
+        # First page button
+        if not hasattr(self, 'first_page_btn'):
+            self.first_page_btn = QPushButton("⏮ First")
+            self.first_page_btn.setMaximumWidth(70)
+            if hasattr(self, 'go_to_first_page'):
+                self.first_page_btn.clicked.connect(self.go_to_first_page)
+        pagination_layout.addWidget(self.first_page_btn)
+        
+        # Previous page button
+        if not hasattr(self, 'prev_page_btn'):
+            self.prev_page_btn = QPushButton("◀ Prev")
+            self.prev_page_btn.setMaximumWidth(70)
+            if hasattr(self, 'go_to_prev_page'):
+                self.prev_page_btn.clicked.connect(self.go_to_prev_page)
+        pagination_layout.addWidget(self.prev_page_btn)
+        
+        # Page number input
+        page_label = QLabel("Page:")
+        pagination_layout.addWidget(page_label)
+        
+        if not hasattr(self, 'page_number_input'):
+            self.page_number_input = QLineEdit()
+            self.page_number_input.setMaximumWidth(50)
+            self.page_number_input.setText("1")
+            if hasattr(self, 'go_to_page'):
+                self.page_number_input.returnPressed.connect(self.go_to_page)
+        pagination_layout.addWidget(self.page_number_input)
+        
+        if not hasattr(self, 'total_pages_label'):
+            self.total_pages_label = QLabel("of 1")
+        pagination_layout.addWidget(self.total_pages_label)
+        
+        # Next page button
+        if not hasattr(self, 'next_page_btn'):
+            self.next_page_btn = QPushButton("Next ▶")
+            self.next_page_btn.setMaximumWidth(70)
+            if hasattr(self, 'go_to_next_page'):
+                self.next_page_btn.clicked.connect(self.go_to_next_page)
+        pagination_layout.addWidget(self.next_page_btn)
+        
+        # Last page button
+        if not hasattr(self, 'last_page_btn'):
+            self.last_page_btn = QPushButton("Last ⏭")
+            self.last_page_btn.setMaximumWidth(70)
+            if hasattr(self, 'go_to_last_page'):
+                self.last_page_btn.clicked.connect(self.go_to_last_page)
+        pagination_layout.addWidget(self.last_page_btn)
+        
+        # Page size selector
+        page_size_label = QLabel("Per page:")
+        pagination_layout.addWidget(page_size_label)
+        
+        if not hasattr(self, 'page_size_combo'):
+            self.page_size_combo = QComboBox()
+            self.page_size_combo.addItems(["25", "50", "100", "200", "All"])
+            if not hasattr(self, 'grid_page_size'):
+                self.grid_page_size = 50
+            self.page_size_combo.setCurrentText(str(self.grid_page_size) if self.grid_page_size != 999999 else "All")
+            if hasattr(self, 'on_page_size_changed'):
+                self.page_size_combo.currentTextChanged.connect(self.on_page_size_changed)
+        self.page_size_combo.setMaximumWidth(80)
+        pagination_layout.addWidget(self.page_size_combo)
+        
+        grid_layout.addWidget(pagination_panel)
+        
+        # Note: Pagination methods (go_to_first_page, go_to_prev_page, etc.) will be implemented
+        # when pagination functionality is fully added. For now, buttons are created but won't work.
+        
+        # Create assistance panel FIRST (create_translation_grid needs it)
+        if not hasattr(self, 'assistance_widget') or self.assistance_widget is None:
+            self.create_assistance_panel()
+        
+        # Translation Grid (needs assistance_widget to exist)
+        if not hasattr(self, 'table') or self.table is None:
+            self.create_translation_grid()
+        grid_layout.addWidget(self.table)
+        
+        # Add grid container to splitter (top)
+        self.home_grid_splitter.addWidget(grid_container)
+        
+        # Add assistance widget to splitter (bottom) - compact form
+        if hasattr(self, 'assistance_widget') and self.assistance_widget:
+            # CRITICAL: Remove from any existing parent/splitter first
+            # Qt widgets can only have one parent at a time
+            current_parent = self.assistance_widget.parent()
+            if current_parent:
+                # If it's in a splitter (editor_splitter, list_splitter, doc_splitter, etc.)
+                # QSplitter doesn't have removeWidget - just set parent to None
+                # Qt will automatically remove it from the splitter
+                self.assistance_widget.setParent(None)
+            
+            # Set height constraints for compact bottom panel
+            # Compact form: smaller height for bottom placement (horizontal layout)
+            self.assistance_widget.setMaximumHeight(200)  # Compact: 200px max height
+            self.assistance_widget.setMinimumHeight(100)  # Minimum to show at least some content
+            
+            # Make sure it's visible
+            self.assistance_widget.show()
+            
+            # Add to vertical splitter at bottom (will be below grid)
+            self.home_grid_splitter.addWidget(self.assistance_widget)
+        
+        # Set splitter proportions (90% grid, 10% assistance for compact bottom panel)
+        # Most space for grid, minimal space for compact assistance panel at bottom
+        self.home_grid_splitter.setSizes([1800, 200])
+        
+        layout.addWidget(self.home_grid_splitter)
+        
+        return widget
+    
+    def switch_home_view_mode(self, mode: str):
+        """Switch between Grid/List/Document views in Home tab"""
+        if not hasattr(self, 'home_view_stack'):
+            return
+        
+        # Update button states
+        if hasattr(self, 'home_grid_view_btn'):
+            self.home_grid_view_btn.setChecked(mode == "grid")
+        if hasattr(self, 'home_list_view_btn'):
+            self.home_list_view_btn.setChecked(mode == "list")
+        if hasattr(self, 'home_document_view_btn'):
+            self.home_document_view_btn.setChecked(mode == "document")
+        
+        # Switch stack
+        if mode == "grid":
+            self.home_view_stack.setCurrentIndex(0)
+        elif mode == "list":
+            self.home_view_stack.setCurrentIndex(1)
+        elif mode == "document":
+            self.home_view_stack.setCurrentIndex(2)
+        
+        self.log(f"Switched to {mode} view in Home tab")
+    
+    # Pagination methods (stubs for now - will be fully implemented later)
+    def go_to_first_page(self):
+        """Navigate to first page - stub implementation"""
+        if not hasattr(self, 'grid_current_page'):
+            self.grid_current_page = 0
+        else:
+            self.grid_current_page = 0
+        # TODO: Implement full pagination logic
+        pass
+    
+    def go_to_prev_page(self):
+        """Navigate to previous page - stub implementation"""
+        if not hasattr(self, 'grid_current_page'):
+            self.grid_current_page = 0
+        if self.grid_current_page > 0:
+            self.grid_current_page -= 1
+        # TODO: Implement full pagination logic
+        pass
+    
+    def go_to_next_page(self):
+        """Navigate to next page - stub implementation"""
+        if not hasattr(self, 'grid_current_page'):
+            self.grid_current_page = 0
+        self.grid_current_page += 1
+        # TODO: Implement full pagination logic
+        pass
+    
+    def go_to_last_page(self):
+        """Navigate to last page - stub implementation"""
+        if not hasattr(self, 'grid_current_page'):
+            self.grid_current_page = 0
+        # TODO: Calculate total pages and set to last
+        pass
+    
+    def go_to_page(self):
+        """Navigate to specific page - stub implementation"""
+        if not hasattr(self, 'page_number_input'):
+            return
+        try:
+            page_num = int(self.page_number_input.text())
+            if not hasattr(self, 'grid_current_page'):
+                self.grid_current_page = 0
+            self.grid_current_page = max(0, page_num - 1)  # Convert to 0-indexed
+        except ValueError:
+            pass
+        # TODO: Implement full pagination logic
+    
+    def on_page_size_changed(self, text: str):
+        """Handle page size change - stub implementation"""
+        if not hasattr(self, 'grid_page_size'):
+            self.grid_page_size = 50
+        if text == "All":
+            self.grid_page_size = 999999
+        else:
+            try:
+                self.grid_page_size = int(text)
+            except ValueError:
+                self.grid_page_size = 50
+        # Reset to first page
+        if not hasattr(self, 'grid_current_page'):
+            self.grid_current_page = 0
+        else:
+            self.grid_current_page = 0
+        # TODO: Implement full pagination logic with reload
+    
+    def create_list_view_widget_for_home(self):
+        """Create List View widget adapted for home tab (assistance panel at bottom)"""
+        widget = QWidget()
+        main_layout = QVBoxLayout(widget)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Vertical splitter: List/Editor on top, Assistance at bottom
+        home_list_splitter = QSplitter(Qt.Orientation.Vertical)
+        
+        # Top: List and Editor (horizontal split)
+        top_splitter = QSplitter(Qt.Orientation.Horizontal)
+        
+        # Left: Segment list
+        list_container = QWidget()
+        list_layout = QVBoxLayout(list_container)
+        list_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Filter panel
+        filter_panel = QWidget()
+        filter_layout = QHBoxLayout(filter_panel)
+        filter_layout.setContentsMargins(5, 5, 5, 5)
+        
+        source_filter_label = QLabel("Filter Source:")
+        if not hasattr(self, 'list_source_filter'):
+            self.list_source_filter = QLineEdit()
+        self.list_source_filter.setPlaceholderText("Type to filter...")
+        self.list_source_filter.textChanged.connect(self.apply_list_filters)
+        
+        target_filter_label = QLabel("Filter Target:")
+        if not hasattr(self, 'list_target_filter'):
+            self.list_target_filter = QLineEdit()
+        self.list_target_filter.setPlaceholderText("Type to filter...")
+        self.list_target_filter.textChanged.connect(self.apply_list_filters)
+        
+        clear_btn = QPushButton("Clear")
+        clear_btn.clicked.connect(self.clear_list_filters)
+        clear_btn.setMaximumWidth(60)
+        
+        filter_layout.addWidget(source_filter_label)
+        filter_layout.addWidget(self.list_source_filter, stretch=1)
+        filter_layout.addWidget(target_filter_label)
+        filter_layout.addWidget(self.list_target_filter, stretch=1)
+        filter_layout.addWidget(clear_btn)
+        
+        list_layout.addWidget(filter_panel)
+        
+        # Segment tree (QTreeWidget for list view)
+        if not hasattr(self, 'list_tree'):
+            self.list_tree = QTreeWidget()
+            self.list_tree.setHeaderLabels(["#", "Type", "Status", "Source", "Target"])
+            self.list_tree.setAlternatingRowColors(True)
+            self.list_tree.setRootIsDecorated(False)
+            self.list_tree.setSelectionMode(QTreeWidget.SelectionMode.SingleSelection)
+            
+            # Column widths
+            header = self.list_tree.header()
+            header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)  # ID
+            header.setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)  # Type
+            header.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)  # Status
+            header.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)  # Source
+            header.setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)  # Target
+            
+            self.list_tree.setColumnWidth(0, 50)
+            self.list_tree.setColumnWidth(1, 80)
+            self.list_tree.setColumnWidth(2, 80)
+            
+            # Connect selection
+            self.list_tree.itemSelectionChanged.connect(self.on_list_segment_selected)
+            self.list_tree.itemDoubleClicked.connect(lambda: self.focus_list_target_editor())
+        
+        list_layout.addWidget(self.list_tree)
+        top_splitter.addWidget(list_container)
+        
+        # Right: Editor panel
+        editor_container = QGroupBox("Segment Editor")
+        editor_layout = QVBoxLayout(editor_container)
+        editor_layout.setContentsMargins(10, 10, 10, 10)
+        
+        # Segment info
+        info_layout = QHBoxLayout()
+        if not hasattr(self, 'list_seg_info'):
+            self.list_seg_info = QLabel("No segment selected")
+        self.list_seg_info.setStyleSheet("font-weight: bold;")
+        info_layout.addWidget(self.list_seg_info, stretch=1)
+        
+        # Status selector
+        status_label = QLabel("Status:")
+        if not hasattr(self, 'list_status_combo'):
+            self.list_status_combo = QComboBox()
+            self.list_status_combo.addItems(["untranslated", "translated", "approved"])
+            self.list_status_combo.currentTextChanged.connect(self.on_list_status_change)
+        info_layout.addWidget(status_label)
+        info_layout.addWidget(self.list_status_combo)
+        
+        editor_layout.addLayout(info_layout)
+        
+        # Source (read-only)
+        source_label = QLabel("Source:")
+        source_label.setStyleSheet("font-weight: bold;")
+        editor_layout.addWidget(source_label)
+        if not hasattr(self, 'list_source_editor'):
+            self.list_source_editor = QTextEdit()
+            self.list_source_editor.setReadOnly(True)
+            self.list_source_editor.setMaximumHeight(100)
+            self.list_source_editor.setStyleSheet("background-color: #f5f5f5;")
+        editor_layout.addWidget(self.list_source_editor)
+        
+        # Target (editable)
+        target_label = QLabel("Target:")
+        target_label.setStyleSheet("font-weight: bold;")
+        editor_layout.addWidget(target_label)
+        if not hasattr(self, 'list_target_editor'):
+            self.list_target_editor = QTextEdit()
+            self.list_target_editor.setMaximumHeight(100)
+            self.list_target_editor.textChanged.connect(self.on_list_target_change)
+        editor_layout.addWidget(self.list_target_editor)
+        
+        # Action buttons
+        button_layout = QHBoxLayout()
+        copy_btn = QPushButton("Copy Source → Target")
+        copy_btn.clicked.connect(self.copy_source_to_list_target)
+        clear_target_btn = QPushButton("Clear Target")
+        clear_target_btn.clicked.connect(self.clear_list_target)
+        save_next_btn = QPushButton("Save & Next (Ctrl+Enter)")
+        save_next_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold;")
+        save_next_btn.clicked.connect(self.save_list_segment_and_next)
+        
+        button_layout.addWidget(copy_btn)
+        button_layout.addWidget(clear_target_btn)
+        button_layout.addStretch()
+        button_layout.addWidget(save_next_btn)
+        
+        editor_layout.addLayout(button_layout)
+        
+        top_splitter.addWidget(editor_container)
+        top_splitter.setSizes([600, 400])
+        
+        home_list_splitter.addWidget(top_splitter)
+        
+        # Bottom: Assistance panel (reuse existing widget)
+        if hasattr(self, 'assistance_widget') and self.assistance_widget:
+            home_list_splitter.addWidget(self.assistance_widget)
+        
+        # Set splitter proportions (70% list/editor, 30% assistance)
+        home_list_splitter.setSizes([1000, 400])
+        
+        main_layout.addWidget(home_list_splitter)
+        
+        # Store current selected segment for list view
+        if not hasattr(self, 'list_current_segment_id'):
+            self.list_current_segment_id = None
+        
+        return widget
+    
+    def create_document_view_widget_for_home(self):
+        """Create Document View widget adapted for home tab (assistance panel at bottom)"""
+        widget = QWidget()
+        main_layout = QVBoxLayout(widget)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Vertical splitter: Document/Editor on top, Assistance at bottom
+        home_doc_splitter = QSplitter(Qt.Orientation.Vertical)
+        
+        # Top: Document and Editor (horizontal split)
+        top_splitter = QSplitter(Qt.Orientation.Horizontal)
+        
+        # Left: Document flow area
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setStyleSheet("background-color: white;")
+        
+        if not hasattr(self, 'document_container'):
+            self.document_container = QWidget()
+            self.document_layout = QVBoxLayout(self.document_container)
+            self.document_layout.setContentsMargins(20, 20, 20, 20)
+            self.document_layout.setSpacing(10)
+            self.document_layout.addStretch()  # Stretch at bottom
+        
+        scroll_area.setWidget(self.document_container)
+        top_splitter.addWidget(scroll_area)
+        
+        # Right: Editor panel
+        editor_container = QGroupBox("Segment Editor")
+        editor_layout = QVBoxLayout(editor_container)
+        editor_layout.setContentsMargins(10, 10, 10, 10)
+        
+        # Segment info
+        info_layout = QHBoxLayout()
+        if not hasattr(self, 'doc_seg_info'):
+            self.doc_seg_info = QLabel("Click on any segment in the document to edit")
+        self.doc_seg_info.setStyleSheet("font-weight: bold;")
+        info_layout.addWidget(self.doc_seg_info, stretch=1)
+        
+        # Status selector
+        status_label = QLabel("Status:")
+        if not hasattr(self, 'doc_status_combo'):
+            self.doc_status_combo = QComboBox()
+            self.doc_status_combo.addItems(["untranslated", "translated", "approved"])
+            self.doc_status_combo.currentTextChanged.connect(self.on_doc_status_change)
+        info_layout.addWidget(status_label)
+        info_layout.addWidget(self.doc_status_combo)
+        
+        editor_layout.addLayout(info_layout)
+        
+        # Source (read-only)
+        source_label = QLabel("Source:")
+        source_label.setStyleSheet("font-weight: bold;")
+        editor_layout.addWidget(source_label)
+        if not hasattr(self, 'doc_source_editor'):
+            self.doc_source_editor = QTextEdit()
+            self.doc_source_editor.setReadOnly(True)
+            self.doc_source_editor.setMaximumHeight(100)
+            self.doc_source_editor.setStyleSheet("background-color: #f5f5f5;")
+        editor_layout.addWidget(self.doc_source_editor)
+        
+        # Target (editable)
+        target_label = QLabel("Target:")
+        target_label.setStyleSheet("font-weight: bold;")
+        editor_layout.addWidget(target_label)
+        if not hasattr(self, 'doc_target_editor'):
+            self.doc_target_editor = QTextEdit()
+            self.doc_target_editor.setMaximumHeight(100)
+            self.doc_target_editor.textChanged.connect(self.on_doc_target_change)
+        editor_layout.addWidget(self.doc_target_editor)
+        
+        # Action buttons
+        button_layout = QHBoxLayout()
+        copy_btn = QPushButton("Copy Source → Target")
+        copy_btn.clicked.connect(self.copy_source_to_doc_target)
+        clear_target_btn = QPushButton("Clear Target")
+        clear_target_btn.clicked.connect(self.clear_doc_target)
+        save_next_btn = QPushButton("Save & Next (Ctrl+Enter)")
+        save_next_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold;")
+        save_next_btn.clicked.connect(self.save_doc_segment_and_next)
+        
+        button_layout.addWidget(copy_btn)
+        button_layout.addWidget(clear_target_btn)
+        button_layout.addStretch()
+        button_layout.addWidget(save_next_btn)
+        
+        editor_layout.addLayout(button_layout)
+        
+        top_splitter.addWidget(editor_container)
+        top_splitter.setSizes([600, 400])
+        
+        home_doc_splitter.addWidget(top_splitter)
+        
+        # Bottom: Assistance panel (reuse existing widget)
+        if hasattr(self, 'assistance_widget') and self.assistance_widget:
+            home_doc_splitter.addWidget(self.assistance_widget)
+        
+        # Set splitter proportions (70% document/editor, 30% assistance)
+        home_doc_splitter.setSizes([1000, 400])
+        
+        main_layout.addWidget(home_doc_splitter)
+        
+        return widget
+    
     def create_list_view_widget(self):
         """Create the List View widget (segment list with editor panel)"""
         widget = QWidget()
@@ -3319,12 +3793,32 @@ class SupervertalerQt(QMainWindow):
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectItems)
         self.table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
         
-        # Alternating row colors
+        # Alternating row colors (simplified view)
         self.table.setAlternatingRowColors(True)
         
-        # Enable editing for Target column only
-        self.table.setEditTriggers(QTableWidget.EditTrigger.DoubleClicked |
-                                   QTableWidget.EditTrigger.EditKeyPressed)
+        # Simplified grid styling - more subtle, review-focused (companion tool philosophy)
+        self.table.setStyleSheet("""
+            QTableWidget {
+                border: 1px solid #ddd;
+                background-color: white;
+                gridline-color: #e0e0e0;
+            }
+            QTableWidget::item {
+                padding: 4px;
+                border: none;
+            }
+            QTableWidget::item:selected {
+                background-color: #e3f2fd;  /* Light blue instead of bright blue */
+                color: black;
+            }
+            QTableWidget::item:focus {
+                border: 1px solid #2196F3;
+            }
+        """)
+        
+        # Simplified editing: Double-click only (no F2 key) - companion tool philosophy
+        # Grid is primarily for viewing/reviewing, with minor edits allowed
+        self.table.setEditTriggers(QTableWidget.EditTrigger.DoubleClicked)
         
         # Connect signals
         self.table.itemChanged.connect(self.on_cell_changed)
@@ -4282,11 +4776,13 @@ class SupervertalerQt(QMainWindow):
             self.table.removeCellWidget(row, 2)  # Source
             self.table.removeCellWidget(row, 3)  # Target
             
-            # ID
+            # ID - Segment number (starts with black foreground, will be highlighted orange when selected)
             id_item = QTableWidgetItem(str(segment.id))
             id_item.setFlags(id_item.flags() & ~Qt.ItemFlag.ItemIsEditable)  # Read-only
             id_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            # Highlight segment number in orange when selected (like memoQ)
+            # Explicitly set black foreground for all segment numbers (will be changed to orange when selected)
+            id_item.setForeground(QColor("black"))
+            id_item.setBackground(QColor())  # Default (white) background
             self.table.setItem(row, 0, id_item)
             
             # Type - show segment type or just #
@@ -4345,6 +4841,34 @@ class SupervertalerQt(QMainWindow):
             self.refresh_list_view()
         if hasattr(self, 'document_container'):
             self.refresh_document_view()
+        
+        # Ensure assistance widget is visible and properly positioned at bottom (home tab)
+        if hasattr(self, 'assistance_widget') and self.assistance_widget:
+            self.assistance_widget.setVisible(True)
+            # Check if we're on home tab and assistance widget should be at bottom
+            if hasattr(self, 'home_grid_splitter') and self.home_grid_splitter:
+                # Verify assistance widget is in the splitter
+                widget_in_splitter = False
+                for i in range(self.home_grid_splitter.count()):
+                    if self.home_grid_splitter.widget(i) == self.assistance_widget:
+                        widget_in_splitter = True
+                        break
+                
+                if not widget_in_splitter:
+                    # Re-add if not present (Qt widget reparenting)
+                    # QSplitter doesn't have removeWidget - just set parent to None
+                    # Qt will automatically remove it from any splitter
+                    if self.assistance_widget.parent():
+                        self.assistance_widget.setParent(None)
+                    
+                    # Set compact dimensions for bottom placement
+                    self.assistance_widget.setMaximumHeight(200)
+                    self.assistance_widget.setMinimumHeight(100)
+                    self.assistance_widget.show()
+                    
+                    # Add to vertical splitter at bottom
+                    self.home_grid_splitter.addWidget(self.assistance_widget)
+                    self.home_grid_splitter.setSizes([1800, 200])
     
     def refresh_list_view(self):
         """Refresh the List View with current segments"""
@@ -6166,6 +6690,13 @@ class SupervertalerQt(QMainWindow):
         if not self.current_project:
             return
         
+        # Safety check: ensure table and filter widgets exist
+        if not hasattr(self, 'table') or self.table is None:
+            return
+        
+        if not hasattr(self, 'source_filter') or not hasattr(self, 'target_filter'):
+            return
+        
         source_filter_text = self.source_filter.text().strip()
         target_filter_text = self.target_filter.text().strip()
         
@@ -6177,9 +6708,18 @@ class SupervertalerQt(QMainWindow):
         # Clear previous highlights by reloading
         self.load_segments_to_grid()
         
+        # Safety check: ensure table has correct number of rows after reload
+        if self.table.rowCount() != len(self.current_project.segments):
+            self.log("⚠ Warning: Table row count mismatch after reload")
+            return
+        
         visible_count = 0
         
         for row, segment in enumerate(self.current_project.segments):
+            # Safety check: ensure row is valid
+            if row >= self.table.rowCount():
+                break
+                
             source_match = not source_filter_text or source_filter_text.lower() in segment.source.lower()
             target_match = not target_filter_text or target_filter_text.lower() in segment.target.lower()
             
@@ -6204,6 +6744,10 @@ class SupervertalerQt(QMainWindow):
     
     def clear_filters(self):
         """Clear all filter boxes, highlighting, and show all rows"""
+        # Safety check: ensure filter widgets exist
+        if not hasattr(self, 'source_filter') or not hasattr(self, 'target_filter'):
+            return
+        
         # Block signals to prevent recursion
         self.source_filter.blockSignals(True)
         self.target_filter.blockSignals(True)
@@ -6217,6 +6761,10 @@ class SupervertalerQt(QMainWindow):
         
         # Reload grid to remove all highlighting
         if self.current_project:
+            # Safety check: ensure table exists
+            if not hasattr(self, 'table') or self.table is None:
+                return
+                
             self.load_segments_to_grid()
             
             # Explicitly show all rows (unhide them)
@@ -6539,13 +7087,14 @@ class SupervertalerQt(QMainWindow):
     def _go_to_settings_tab(self):
         """Navigate to Settings tab (from menu)"""
         if hasattr(self, 'main_tabs'):
-            self.main_tabs.setCurrentIndex(5)  # Settings is at index 5
+            # Tab indices: Home=0, Resources=1, Modules=2, Settings=3 (Prompt Manager and Editor removed)
+            self.main_tabs.setCurrentIndex(3)
     
     def _go_to_universal_lookup(self):
         """Navigate to Universal Lookup in Modules tab"""
         if hasattr(self, 'main_tabs'):
-            # Find Modules tab (should be index 4)
-            self.main_tabs.setCurrentIndex(4)
+            # Tab indices: Home=0, Resources=1, Modules=2, Settings=3 (Prompt Manager and Editor removed)
+            self.main_tabs.setCurrentIndex(2)
             # Then switch to Universal Lookup sub-tab
             if hasattr(self, 'modules_tabs'):
                 # Find Universal Lookup index in modules tabs
@@ -8670,6 +9219,8 @@ class CheckmarkCheckBox(QCheckBox):
     
     def __init__(self, text="", parent=None):
         super().__init__(text, parent)
+        self.setCheckable(True)
+        self.setEnabled(True)
         self.setStyleSheet("""
             QCheckBox {
                 font-size: 9pt;
@@ -8709,6 +9260,92 @@ class CheckmarkCheckBox(QCheckBox):
             self.initStyleOption(opt)
             indicator_rect = self.style().subElementRect(
                 self.style().SubElement.SE_CheckBoxIndicator,
+                opt,
+                self
+            )
+            
+            if indicator_rect.isValid():
+                # Draw white checkmark
+                painter = QPainter(self)
+                painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+                pen_width = max(2.0, min(indicator_rect.width(), indicator_rect.height()) * 0.12)
+                painter.setPen(QPen(QColor(255, 255, 255), pen_width, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin))
+                painter.setBrush(QColor(255, 255, 255))
+                
+                # Draw checkmark (✓ shape) - coordinates relative to indicator
+                x = indicator_rect.x()
+                y = indicator_rect.y()
+                w = indicator_rect.width()
+                h = indicator_rect.height()
+                
+                # Add padding (15% on all sides)
+                padding = min(w, h) * 0.15
+                x += padding
+                y += padding
+                w -= padding * 2
+                h -= padding * 2
+                
+                # Checkmark path
+                check_x1 = x + w * 0.10
+                check_y1 = y + h * 0.50
+                check_x2 = x + w * 0.35
+                check_y2 = y + h * 0.70
+                check_x3 = x + w * 0.90
+                check_y3 = y + h * 0.25
+                
+                # Draw two lines forming the checkmark
+                painter.drawLine(QPointF(check_x2, check_y2), QPointF(check_x3, check_y3))
+                painter.drawLine(QPointF(check_x1, check_y1), QPointF(check_x2, check_y2))
+                
+                painter.end()
+
+
+class CustomRadioButton(QRadioButton):
+    """Custom radio button with square indicator, green when checked, white checkmark"""
+    
+    def __init__(self, text="", parent=None):
+        super().__init__(text, parent)
+        self.setCheckable(True)
+        self.setEnabled(True)
+        self.setStyleSheet("""
+            QRadioButton {
+                font-size: 9pt;
+                spacing: 6px;
+            }
+            QRadioButton::indicator {
+                width: 18px;
+                height: 18px;
+                border: 2px solid #999;
+                border-radius: 3px;
+                background-color: white;
+            }
+            QRadioButton::indicator:checked {
+                background-color: #4CAF50;
+                border-color: #4CAF50;
+            }
+            QRadioButton::indicator:hover {
+                border-color: #666;
+            }
+            QRadioButton::indicator:checked:hover {
+                background-color: #45a049;
+                border-color: #45a049;
+            }
+        """)
+    
+    def paintEvent(self, event):
+        """Override paint event to draw white checkmark when checked"""
+        super().paintEvent(event)
+        
+        if self.isChecked():
+            # Get the indicator rectangle using QStyle
+            from PyQt6.QtWidgets import QStyleOptionButton
+            from PyQt6.QtGui import QPainter, QPen, QColor
+            from PyQt6.QtCore import QPointF, QRect
+            
+            opt = QStyleOptionButton()
+            self.initStyleOption(opt)
+            indicator_rect = self.style().subElementRect(
+                self.style().SubElement.SE_RadioButtonIndicator,
                 opt,
                 self
             )

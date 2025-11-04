@@ -426,15 +426,126 @@ Compare original and revised text and identify EXACTLY what changed.
 
 ---
 
+## 🎯 Strategic Refocus: Companion Tool Philosophy (November 2025)
+
+### Vision Shift
+
+**Original Goal:** Build a full-featured CAT tool with grid editing, TM/termbase matching, and comprehensive translation workflows.
+
+**New Focus:** **Companion Tool** - Work alongside existing CAT tools (memoQ, Trados, CafeTran, Wordfast, etc.) rather than replacing them.
+
+### Rationale
+
+1. **Complexity Management:** Building a fully functional CAT tool grid, TM matching, and termbase integration is beyond scope and duplicates existing professional tools.
+2. **Play to Strengths:** Supervertaler excels at AI-powered features and specialized modules that CAT tools don't offer.
+3. **User Value:** Translators can continue using their trusted CAT tools while leveraging Supervertaler's unique capabilities.
+
+### Core Strengths to Preserve
+
+✅ **AI-Powered Translation/Proofreading/Localization**
+- Comprehensive prompt management system
+- Multi-layer prompts (System, Domain, Project, Style Guide)
+- Multiple LLM providers (OpenAI, Claude, Gemini)
+
+✅ **Specialized Modules**
+- **AutoFingers** - Get translations back into CAT tools via TMX
+- **PDF Rescue** - Extract text from images using AI OCR
+- **Omni-Lookup** - Universal search across all resources
+- **Text Encoding Repair** - Fix encoding issues
+- **Tracked Changes Review** - Analyze editing patterns
+
+✅ **CAT Tool Integration**
+- TMX export/import for seamless workflow
+- Compatible with memoQ, Trados, CafeTran, Wordfast formats
+
+### Simplification Strategy
+
+#### Grid View - Simplified to Review Tool
+
+**Keep:**
+- ✅ View-only with minor editing capability (quick fixes allowed)
+- ✅ All filtering capabilities (essential for quality review)
+- ✅ Comprehensive find & replace system
+- ✅ Multiple views (Grid/List/Document) + extensibility for future views
+- ✅ Translation quality review tools
+
+**Simplify/Remove:**
+- ❌ Full editing capabilities (reduce to minor edits only)
+- ❌ Complex segment editing workflows
+- ❌ Advanced CAT features that duplicate CAT tool functionality
+
+#### TM/Termbase Matching - Optional Feature
+
+**Implementation:**
+- ✅ Add **toggle switch** to enable/disable TM/termbase matching
+- ✅ When disabled: Hide assistance panel or show only AI translations
+- ✅ When enabled: Show matches as read-only reference (no insertion workflows)
+
+**What "Complex Lookup/Insert Workflows" Means:**
+- Automatic TM/termbase search when selecting segments
+- Click-to-insert matches from assistance panel
+- Keyboard shortcuts (Ctrl+1-9) to insert matches by number
+- Drag-and-drop match insertion
+- Auto-population of target fields from matches
+
+**Simplified Approach:**
+- Keep matching as **optional read-only reference**
+- Remove insertion workflows (let CAT tool handle that)
+- Focus on **quality review** rather than active editing
+
+#### AutoFingers - Keep As-Is
+
+- ✅ Leave AutoFingers functionality unchanged
+- ✅ Continue TMX-based translation automation
+- ✅ Maintain hotkey-driven workflow (Ctrl+Alt+P, Ctrl+Shift+L)
+
+### Updated Feature Priorities
+
+**High Priority (Core Companion Features):**
+1. AI translation/proofreading with prompt management
+2. Grid view for quality review (simplified)
+3. All specialized modules (AutoFingers, PDF Rescue, etc.)
+4. TMX export/import
+
+**Medium Priority (Quality of Life):**
+1. Optional TM/termbase matching (toggle)
+2. Find & replace
+3. Multiple view modes
+
+**Low Priority (Future):**
+1. Advanced grid editing features
+2. Full CAT tool duplication features
+
+### Migration Path
+
+**Phase 1: Add Toggle for TM/Termbase Matching**
+- Add settings option to enable/disable matching
+- Update assistance panel to respect toggle
+- Keep code but make it optional
+
+**Phase 2: Simplify Grid Editing**
+- Reduce editing capabilities to "minor edits only"
+- Remove complex insertion workflows
+- Keep view and filtering intact
+
+**Phase 3: Documentation Update**
+- Update user guides to reflect companion tool philosophy
+- Emphasize integration with CAT tools
+- Highlight unique AI-powered features
+
+---
+
 ## 🚀 Next Steps / Roadmap
 
-### Immediate (Ready to implement)
-- [ ] Port Tracked Changes feature to v3.1.1-beta
-- [ ] Implement CAT-tool-specific tracked changes parsers
-- [ ] Add batch size persistence (save user preference)
+### Immediate (Refocus Implementation)
+- [ ] Add toggle switch for TM/termbase matching (Settings → View/Display)
+- [ ] Simplify grid editing to allow only minor edits
+- [ ] Remove complex match insertion workflows (keep as read-only reference)
+- [ ] Update documentation to reflect companion tool philosophy
 
 ### Short-term
-- [ ] User manual updates
+- [ ] User manual updates (companion tool workflow)
+- [ ] Integration guides for memoQ/Trados/CafeTran
 - [ ] API key security improvements
 - [ ] Performance optimization for large files
 
@@ -442,7 +553,7 @@ Compare original and revised text and identify EXACTLY what changed.
 - [ ] Multi-language UI support
 - [ ] Custom model parameter tuning
 - [ ] Export to additional formats (Excel, PDF)
-- [ ] Collaborative features (shared TMs, glossaries)
+- [ ] Enhanced CAT tool integration features
 
 ---
 
