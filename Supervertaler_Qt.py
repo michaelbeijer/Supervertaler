@@ -667,14 +667,15 @@ class SupervertalerQt(QMainWindow):
         self.allow_replace_in_source = False  # Safety: don't allow replace in source by default
         self.auto_propagate_exact_matches = True  # Auto-fill 100% TM matches for empty segments
         
+        # Global language settings (defaults)
+        self.source_language = "English"
+        self.target_language = "Dutch"
+        
         # View mode tracking
         self.current_view_mode = LayoutMode.GRID  # Default to Grid view
         
         # Universal Lookup detached window
         self.lookup_detached_window = None
-        
-        # Translation Memory
-        self.tm_database = None  # Will be initialized when project is loaded
         
         # Database Manager for Termbases
         from modules.database_manager import DatabaseManager
@@ -710,6 +711,9 @@ class SupervertalerQt(QMainWindow):
         
         # Load general settings (including auto-propagation)
         self.load_general_settings()
+        
+        # Load language settings
+        self.load_language_settings()
         
         # Restore last project if enabled in settings
         self.restore_last_project_if_enabled()
@@ -843,7 +847,7 @@ class SupervertalerQt(QMainWindow):
         batch_translate_action.setShortcut("Ctrl+Shift+T")
         batch_translate_action.triggered.connect(self.translate_batch)
         edit_menu.addAction(batch_translate_action)
-        
+
         edit_menu.addSeparator()
         
         # Universal Lookup
@@ -878,17 +882,14 @@ class SupervertalerQt(QMainWindow):
         
         # View mode switcher
         grid_view_action = QAction("📊 &Grid View", self)
-        grid_view_action.setShortcut("Ctrl+1")
         grid_view_action.triggered.connect(lambda: self.switch_view_mode(LayoutMode.GRID))
         view_menu.addAction(grid_view_action)
         
         list_view_action = QAction("📋 &List View", self)
-        list_view_action.setShortcut("Ctrl+2")
         list_view_action.triggered.connect(lambda: self.switch_view_mode(LayoutMode.LIST))
         view_menu.addAction(list_view_action)
         
         document_view_action = QAction("📄 &Document View", self)
-        document_view_action.setShortcut("Ctrl+3")
         document_view_action.triggered.connect(lambda: self.switch_view_mode(LayoutMode.DOCUMENT))
         view_menu.addAction(document_view_action)
         
@@ -1450,10 +1451,24 @@ class SupervertalerQt(QMainWindow):
         
         projects_layout.addLayout(projects_buttons)
         
-        # Project info
-        projects_info = QLabel("Recent projects will appear here")
-        projects_info.setStyleSheet("color: #666; font-style: italic; font-size: 9pt; padding: 8px 0px;")
-        projects_layout.addWidget(projects_info)
+        # Recent projects list
+        recent_projects_scroll = QScrollArea()
+        recent_projects_scroll.setWidgetResizable(True)
+        recent_projects_scroll.setMinimumHeight(150)
+        recent_projects_scroll.setMaximumHeight(300)
+        recent_projects_scroll.setStyleSheet("background: white; border: 1px solid #dee2e6; border-radius: 5px;")
+        
+        # Container widget for recent projects
+        self.recent_projects_container = QWidget()
+        self.recent_projects_layout = QVBoxLayout(self.recent_projects_container)
+        self.recent_projects_layout.setContentsMargins(5, 5, 5, 5)
+        self.recent_projects_layout.setSpacing(5)
+        
+        # Populate recent projects
+        self.update_recent_projects_display()
+        
+        recent_projects_scroll.setWidget(self.recent_projects_container)
+        projects_layout.addWidget(recent_projects_scroll)
         
         left_layout.addWidget(projects_frame)
         left_layout.addStretch()
@@ -2133,23 +2148,27 @@ class SupervertalerQt(QMainWindow):
         # Scroll area wrapper for each tab (for long content)
         scroll_area_wrapper = lambda widget: self._wrap_in_scroll(widget)
         
-        # ===== TAB 1: LLM Settings =====
-        llm_tab = self._create_llm_settings_tab()
-        settings_tabs.addTab(scroll_area_wrapper(llm_tab), "🤖 LLM Settings")
-        
-        # ===== TAB 2: MT Settings =====
-        mt_tab = self._create_mt_settings_tab()
-        settings_tabs.addTab(scroll_area_wrapper(mt_tab), "🌐 MT Settings")
-        
-        # ===== TAB 3: General Settings =====
+        # ===== TAB 1: General Settings =====
         general_tab = self._create_general_settings_tab()
         settings_tabs.addTab(scroll_area_wrapper(general_tab), "⚙️ General")
         
-        # ===== TAB 4: View/Display Settings =====
+        # ===== TAB 2: LLM Settings =====
+        llm_tab = self._create_llm_settings_tab()
+        settings_tabs.addTab(scroll_area_wrapper(llm_tab), "🤖 LLM Settings")
+        
+        # ===== TAB 3: Language Pair Settings =====
+        lang_tab = self._create_language_pair_tab()
+        settings_tabs.addTab(scroll_area_wrapper(lang_tab), "🌐 Language Pair")
+        
+        # ===== TAB 4: MT Settings =====
+        mt_tab = self._create_mt_settings_tab()
+        settings_tabs.addTab(scroll_area_wrapper(mt_tab), "🌐 MT Settings")
+        
+        # ===== TAB 5: View/Display Settings =====
         view_tab = self._create_view_settings_tab()
         settings_tabs.addTab(scroll_area_wrapper(view_tab), "🔍 View/Display")
         
-        # ===== TAB 5: Log (moved from main tabs) =====
+        # ===== TAB 6: Log (moved from main tabs) =====
         log_tab = self.create_log_tab()
         settings_tabs.addTab(log_tab, "📋 Log")
         
@@ -2164,6 +2183,87 @@ class SupervertalerQt(QMainWindow):
         scroll.setWidget(widget)
         scroll.setStyleSheet("QScrollArea { border: none; }")
         return scroll
+    
+    def _create_language_pair_tab(self):
+        """Create Language Pair Settings tab content"""
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
+        
+        # Language Pair Settings group
+        lang_group = QGroupBox("Translation Language Pair")
+        lang_layout = QVBoxLayout()
+        
+        info_label = QLabel(
+            "Set your default source and target languages for translation projects."
+        )
+        info_label.setWordWrap(True)
+        info_label.setStyleSheet("font-size: 9pt; color: #666; padding: 8px; background-color: #f3f4f6; border-radius: 3px;")
+        lang_layout.addWidget(info_label)
+        
+        # Language selection layout
+        lang_select_layout = QHBoxLayout()
+        
+        # Source language
+        source_label = QLabel("Source Language:")
+        source_combo = QComboBox()
+        
+        # Available languages (from Tkinter version)
+        available_languages = [
+            "Afrikaans", "Albanian", "Arabic", "Armenian", "Basque", "Bengali",
+            "Bulgarian", "Catalan", "Chinese (Simplified)", "Chinese (Traditional)",
+            "Croatian", "Czech", "Danish", "Dutch", "English", "Estonian",
+            "Finnish", "French", "Galician", "Georgian", "German", "Greek",
+            "Hebrew", "Hindi", "Hungarian", "Icelandic", "Indonesian", "Irish",
+            "Italian", "Japanese", "Korean", "Latvian", "Lithuanian", "Macedonian",
+            "Malay", "Norwegian", "Persian", "Polish", "Portuguese", "Romanian",
+            "Russian", "Serbian", "Slovak", "Slovenian", "Spanish", "Swahili",
+            "Swedish", "Thai", "Turkish", "Ukrainian", "Urdu", "Vietnamese", "Welsh"
+        ]
+        source_combo.addItems(available_languages)
+        source_combo.setCurrentText(self.source_language)
+        
+        lang_select_layout.addWidget(source_label)
+        lang_select_layout.addWidget(source_combo, 1)
+        
+        # Swap button
+        swap_btn = QPushButton("🔄 Swap")
+        swap_btn.setToolTip("Swap source and target languages")
+        lang_select_layout.addWidget(swap_btn)
+        
+        # Target language
+        target_label = QLabel("Target Language:")
+        target_combo = QComboBox()
+        target_combo.addItems(available_languages)
+        target_combo.setCurrentText(self.target_language)
+        
+        lang_select_layout.addWidget(target_label)
+        lang_select_layout.addWidget(target_combo, 1)
+        
+        lang_layout.addLayout(lang_select_layout)
+        
+        # Swap functionality
+        def on_swap():
+            source_val = source_combo.currentText()
+            target_val = target_combo.currentText()
+            source_combo.setCurrentText(target_val)
+            target_combo.setCurrentText(source_val)
+        
+        swap_btn.clicked.connect(on_swap)
+        
+        lang_group.setLayout(lang_layout)
+        layout.addWidget(lang_group)
+        
+        # Save button
+        save_btn = QPushButton("💾 Save Language Settings")
+        save_btn.setStyleSheet("font-weight: bold; padding: 8px;")
+        save_btn.clicked.connect(lambda: self._save_language_settings_from_ui(source_combo, target_combo))
+        layout.addWidget(save_btn)
+        
+        layout.addStretch()
+        
+        return tab
     
     def _create_llm_settings_tab(self):
         """Create LLM Settings tab content"""
@@ -3352,7 +3452,17 @@ class SupervertalerQt(QMainWindow):
         target_lang_combo = QComboBox()
         for lang_name, lang_code in common_langs:
             target_lang_combo.addItem(lang_name, lang_code)
-        target_lang_combo.setCurrentIndex(1)  # Default to Dutch
+        
+        # Set defaults based on global language settings (if in common_langs)
+        try:
+            for lang_name, lang_code in common_langs:
+                if lang_name == self.source_language:
+                    source_lang_combo.setCurrentText(lang_name)
+                if lang_name == self.target_language:
+                    target_lang_combo.setCurrentText(lang_name)
+        except:
+            target_lang_combo.setCurrentIndex(1)  # Fallback to Dutch
+        
         settings_layout.addRow("Target Language:", target_lang_combo)
         
         settings_group.setLayout(settings_layout)
@@ -3725,8 +3835,9 @@ class SupervertalerQt(QMainWindow):
         # Save back to file
         self.save_recent_projects(recent_projects)
         
-        # Update menu
+        # Update menu and home display
         self.update_recent_menu()
+        self.update_recent_projects_display()
     
     def load_recent_projects(self) -> List[Dict[str, str]]:
         """Load recent projects from file"""
@@ -3795,6 +3906,40 @@ class SupervertalerQt(QMainWindow):
         except Exception as e:
             self.log(f"Error saving recent projects: {e}")
     
+    def update_recent_projects_display(self):
+        """Update the recent projects display on the home screen"""
+        if not hasattr(self, 'recent_projects_layout'):
+            return
+        
+        # Clear existing widgets
+        for i in reversed(range(self.recent_projects_layout.count())):
+            item = self.recent_projects_layout.itemAt(i)
+            if item and item.widget():
+                item.widget().deleteLater()
+        
+        # Load recent projects
+        recent_projects = self.load_recent_projects()
+        
+        if not recent_projects:
+            no_recent = QLabel("No recent projects")
+            no_recent.setStyleSheet("color: #888; font-style: italic; padding: 10px;")
+            no_recent.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.recent_projects_layout.addWidget(no_recent)
+            return
+        
+        # Add project buttons
+        for project_info in recent_projects[:5]:  # Show max 5 on home screen
+            path = project_info['path']
+            name = project_info.get('name', Path(path).stem)
+            
+            btn = QPushButton(f"📄 {name}")
+            btn.setStyleSheet("text-align: left; padding: 8px; background: white; border: 1px solid #ddd; border-radius: 3px;")
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn.clicked.connect(lambda checked, p=path: self.load_project(p))
+            self.recent_projects_layout.addWidget(btn)
+        
+        self.recent_projects_layout.addStretch()
+    
     def clear_recent_projects(self):
         """Clear all recent projects"""
         reply = QMessageBox.question(
@@ -3807,6 +3952,8 @@ class SupervertalerQt(QMainWindow):
         if reply == QMessageBox.StandardButton.Yes:
             self.save_recent_projects([])
             self.update_recent_menu()
+            if hasattr(self, 'recent_projects_layout'):
+                self.update_recent_projects_display()
             self.log("Recent projects cleared")
     
     # ========================================================================
@@ -4480,6 +4627,65 @@ class SupervertalerQt(QMainWindow):
                 json.dump(prefs, f, indent=2)
         except Exception as e:
             self.log(f"⚠ Could not save general settings: {str(e)}")
+    
+    def load_language_settings(self):
+        """Load language settings from preferences"""
+        prefs_file = self.user_data_path / "ui_preferences.json"
+        
+        defaults = {
+            'source_language': 'English',
+            'target_language': 'Dutch'
+        }
+        
+        if not prefs_file.exists():
+            return
+        
+        try:
+            with open(prefs_file, 'r') as f:
+                prefs = json.load(f)
+                lang_settings = prefs.get('language_settings', {})
+                self.source_language = lang_settings.get('source_language', defaults['source_language'])
+                self.target_language = lang_settings.get('target_language', defaults['target_language'])
+        except:
+            pass
+    
+    def save_language_settings(self, source_lang: str, target_lang: str):
+        """Save language settings to preferences"""
+        prefs_file = self.user_data_path / "ui_preferences.json"
+        
+        # Load existing preferences
+        prefs = {}
+        if prefs_file.exists():
+            try:
+                with open(prefs_file, 'r') as f:
+                    prefs = json.load(f)
+            except:
+                pass
+        
+        # Update language settings
+        prefs['language_settings'] = {
+            'source_language': source_lang,
+            'target_language': target_lang
+        }
+        
+        # Save back
+        try:
+            with open(prefs_file, 'w') as f:
+                json.dump(prefs, f, indent=2)
+        except Exception as e:
+            self.log(f"⚠ Could not save language settings: {str(e)}")
+    
+    def _save_language_settings_from_ui(self, source_combo, target_combo):
+        """Save language settings from UI"""
+        self.source_language = source_combo.currentText()
+        self.target_language = target_combo.currentText()
+        self.save_language_settings(self.source_language, self.target_language)
+        
+        self.log(f"✓ Language settings saved: {self.source_language} → {self.target_language}")
+        QMessageBox.information(self, "Settings Saved", 
+                              f"Language settings have been saved:\n\n"
+                              f"Source: {self.source_language}\n"
+                              f"Target: {self.target_language}")
     
     def load_font_sizes_from_preferences(self):
         """Load and apply font sizes from preferences on startup"""
@@ -6952,11 +7158,25 @@ class SupervertalerQt(QMainWindow):
                 model=model
             )
             
+            # Build full prompt using prompt manager (includes UICONTROL tags, etc.)
+            custom_prompt = None
+            if hasattr(self, 'prompt_manager_qt') and self.prompt_manager_qt:
+                try:
+                    custom_prompt = self.prompt_manager_qt.build_final_prompt(
+                        source_text=segment.source,
+                        source_lang=self.current_project.source_lang,
+                        target_lang=self.current_project.target_lang,
+                        mode="single"
+                    )
+                except Exception as e:
+                    self.log(f"⚠ Could not build prompt from manager: {e}")
+            
             # Translate using the module
             translation = client.translate(
                 text=segment.source,
                 source_lang=self.current_project.source_lang,
-                target_lang=self.current_project.target_lang
+                target_lang=self.current_project.target_lang,
+                custom_prompt=custom_prompt
             )
             
             if translation:
@@ -7105,6 +7325,8 @@ class SupervertalerQt(QMainWindow):
             
             self.log(f"Batch translation: {source_lang} → {target_lang}")
             
+            # Note: Build prompt per segment for accuracy with batch translation
+            
             # Translate each segment
             for idx, (row_index, segment) in enumerate(untranslated_segments):
                 # Update progress
@@ -7113,11 +7335,25 @@ class SupervertalerQt(QMainWindow):
                 QApplication.processEvents()
                 
                 try:
+                    # Build custom prompt per segment if prompt manager available
+                    segment_prompt = None
+                    if hasattr(self, 'prompt_manager_qt') and self.prompt_manager_qt:
+                        try:
+                            segment_prompt = self.prompt_manager_qt.build_final_prompt(
+                                source_text=segment.source,
+                                source_lang=source_lang,
+                                target_lang=target_lang,
+                                mode="single"
+                            )
+                        except:
+                            pass
+                    
                     # Translate
                     translation = client.translate(
                         text=segment.source,
                         source_lang=source_lang,
-                        target_lang=target_lang
+                        target_lang=target_lang,
+                        custom_prompt=segment_prompt
                     )
                     
                     if translation:
@@ -7240,10 +7476,26 @@ class SupervertalerQt(QMainWindow):
                     model=model
                 )
                 
+                # Build full prompt using prompt manager
+                custom_prompt = None
+                try:
+                    # Access parent through closure
+                    parent = self
+                    if hasattr(parent, 'prompt_manager_qt') and parent.prompt_manager_qt:
+                        custom_prompt = parent.prompt_manager_qt.build_final_prompt(
+                            source_text=source_text,
+                            source_lang=source_lang,
+                            target_lang=target_lang,
+                            mode="single"
+                        )
+                except Exception as e:
+                    self.log(f"⚠ Could not build LLM prompt from manager: {e}")
+                
                 translation = client.translate(
                     text=source_text,
                     source_lang=source_lang,
-                    target_lang=target_lang
+                    target_lang=target_lang,
+                    custom_prompt=custom_prompt
                 )
                 
                 if translation and hasattr(self, 'assistance_widget') and self.assistance_widget:
@@ -9247,10 +9499,10 @@ def main():
     app = QApplication(sys.argv)
     app.setApplicationName("Supervertaler Qt")
     app.setOrganizationName("Supervertaler")
-    
+
     window = SupervertalerQt()
     window.show()
-    
+
     sys.exit(app.exec())
 
 

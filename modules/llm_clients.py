@@ -83,7 +83,8 @@ class LLMClient:
         text: str,
         source_lang: str = "en",
         target_lang: str = "nl",
-        context: Optional[str] = None
+        context: Optional[str] = None,
+        custom_prompt: Optional[str] = None
     ) -> str:
         """
         Translate text using configured LLM
@@ -93,15 +94,20 @@ class LLMClient:
             source_lang: Source language code
             target_lang: Target language code
             context: Optional context for translation
+            custom_prompt: Optional custom prompt (overrides default simple prompt)
         
         Returns:
             Translated text
         """
-        # Build prompt
-        prompt = f"Translate the following text from {source_lang} to {target_lang}:\n\n{text}"
-        
-        if context:
-            prompt = f"Context: {context}\n\n{prompt}"
+        # Use custom prompt if provided, otherwise build simple prompt
+        if custom_prompt:
+            prompt = custom_prompt
+        else:
+            # Build prompt
+            prompt = f"Translate the following text from {source_lang} to {target_lang}:\n\n{text}"
+            
+            if context:
+                prompt = f"Context: {context}\n\n{prompt}"
         
         # Call appropriate provider
         if self.provider == "openai":

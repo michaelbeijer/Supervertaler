@@ -18,9 +18,9 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTreeWidget, QTreeWidgetItem,
     QComboBox, QTextEdit, QPlainTextEdit, QSplitter, QTabWidget, QGroupBox,
     QMessageBox, QFileDialog, QInputDialog, QLineEdit, QListWidget, QListWidgetItem,
-    QFrame, QDialog, QDialogButtonBox, QApplication
+    QFrame, QDialog, QDialogButtonBox, QApplication, QCheckBox
 )
-from PyQt6.QtCore import Qt, QSettings
+from PyQt6.QtCore import Qt, QSettings, QTimer
 from PyQt6.QtGui import QFont, QColor
 
 from modules.prompt_library import PromptLibrary
@@ -595,7 +595,7 @@ class PromptManagerQt:
         return tab
     
     def _create_prompt_assistant_tab(self) -> QWidget:
-        """Create Prompt Assistant tab with chat interface"""
+        """Create Prompt Assistant tab with document analysis and chat interface"""
         tab = QWidget()
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(5, 5, 5, 5)
@@ -607,12 +607,52 @@ class PromptManagerQt:
         layout.addWidget(header_label)
         
         # Info
-        info_label = QLabel("AI-powered prompt refinement through natural language conversation")
+        info_label = QLabel("AI-powered document analysis and prompt generation")
         info_label.setWordWrap(True)
         info_label.setStyleSheet("color: #666; padding: 5px; background-color: #E8F5E9; border-radius: 3px;")
         layout.addWidget(info_label)
         
+        # Document Analysis Section
+        analysis_group = QGroupBox("📊 Document Analysis")
+        analysis_layout = QVBoxLayout(analysis_group)
+        
+        self.doc_analysis_status = QLabel("No analysis performed yet")
+        self.doc_analysis_status.setStyleSheet("color: #999; padding: 5px;")
+        analysis_layout.addWidget(self.doc_analysis_status)
+        
+        analysis_btn_layout = QHBoxLayout()
+        
+        analyze_btn = QPushButton("🔍 Analyze Document")
+        analyze_btn.clicked.connect(self._analyze_current_document)
+        analyze_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 6px 12px;")
+        analysis_btn_layout.addWidget(analyze_btn)
+        
+        generate_btn = QPushButton("🎯 Generate Prompts")
+        generate_btn.clicked.connect(self._generate_translation_prompts)
+        generate_btn.setStyleSheet("background-color: #2196F3; color: white; font-weight: bold; padding: 6px 12px;")
+        analysis_btn_layout.addWidget(generate_btn)
+        
+        clear_btn = QPushButton("🗑️ Clear")
+        clear_btn.clicked.connect(self._clear_analysis)
+        clear_btn.setStyleSheet("background-color: #757575; color: white; padding: 4px 8px;")
+        analysis_btn_layout.addWidget(clear_btn)
+        
+        analysis_btn_layout.addStretch()
+        analysis_layout.addLayout(analysis_btn_layout)
+        
+        layout.addWidget(analysis_group)
+        
+        # Separator
+        separator = QFrame()
+        separator.setFrameShape(QFrame.Shape.HLine)
+        separator.setStyleSheet("color: #ddd;")
+        layout.addWidget(separator)
+        
         # Chat history area
+        chat_label = QLabel("💬 AI Assistant Chat")
+        chat_label.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
+        layout.addWidget(chat_label)
+        
         self.assistant_chat = QPlainTextEdit()
         self.assistant_chat.setReadOnly(True)
         self.assistant_chat.setFont(QFont("Segoe UI", 9))
@@ -636,14 +676,18 @@ class PromptManagerQt:
         # Add welcome message
         self.assistant_chat.setPlainText(
             "Welcome to Prompt Assistant!\n\n"
-            "I can help you improve your translation prompts using natural language.\n\n"
-            "First, select a prompt from Domain Prompts or Project Prompts tabs, "
-            "then come back here to refine it.\n\n"
+            "I can help you understand your document and optimize your translation settings.\n\n"
+            "📊 Document Analysis: Click 'Analyze Document' to get AI-powered analysis of your loaded document.\n"
+            "🎯 Generate Prompts: After analysis, click 'Generate Prompts' to create optimized System Prompt and Project Prompt.\n\n"
+            "Or ask me questions about your prompts!\n"
             "Try asking:\n"
             "- 'Make it more formal'\n"
             "- 'Add emphasis on terminology consistency'\n"
             "- 'Simplify the language'\n"
         )
+        
+        # Initialize state
+        self.doc_analysis_result = None
         
         return tab
     
@@ -1632,6 +1676,741 @@ Professional style guidelines for translating into {language}.
         self.assistant_chat.appendPlainText(
             "Assistant: Prompt Assistant integration coming soon.\n"
             "This will help you refine your prompts using AI.\n"
+        )
+    
+    def _analyze_current_document(self):
+        """Analyze the currently loaded document"""
+        # Check if project is loaded
+        if not hasattr(self.parent_app, 'current_project') or not self.parent_app.current_project:
+            QMessageBox.warning(
+                self.parent_app if self.parent_app else None,
+                "No Document",
+                "Please load a document or create a project first"
+            )
+            return
+        
+        # Check if LLM is configured
+        if not hasattr(self.parent_app, 'load_api_keys'):
+            QMessageBox.critical(
+                self.parent_app if self.parent_app else None,
+                "Configuration Error",
+                "Cannot access API keys. Please check application configuration."
+            )
+            return
+        
+        api_keys = self.parent_app.load_api_keys()
+        
+        # Get LLM settings
+        if not hasattr(self.parent_app, 'load_llm_settings'):
+            QMessageBox.critical(
+                self.parent_app if self.parent_app else None,
+                "Configuration Error",
+                "Cannot access LLM settings. Please check application configuration."
+            )
+            return
+        
+        settings = self.parent_app.load_llm_settings()
+        provider = settings.get('provider', 'openai')
+        
+        # Map provider to API key name
+        api_key_map = {
+            'openai': 'openai',
+            'claude': 'claude',
+            'gemini': 'google'
+        }
+        api_key_name = api_key_map.get(provider)
+        
+        if not api_keys.get(api_key_name):
+            QMessageBox.warning(
+                self.parent_app if self.parent_app else None,
+                "API Key Missing",
+                f"Please configure {provider.upper()} API key in Settings → LLM Settings first."
+            )
+            return
+        
+        # Update status
+        self.doc_analysis_status.setText("⏳ Analyzing document with AI...")
+        self.doc_analysis_status.setStyleSheet("color: #FF9800; padding: 5px;")
+        
+        # Get segments
+        project = self.parent_app.current_project
+        source_texts = [seg.source for seg in project.segments if seg.source]
+        
+        if not source_texts:
+            QMessageBox.warning(
+                self.parent_app if self.parent_app else None,
+                "No Content",
+                "No source text found in the document."
+            )
+            self.doc_analysis_status.setText("❌ No content to analyze")
+            self.doc_analysis_status.setStyleSheet("color: #D32F2F; padding: 5px;")
+            return
+        
+        full_text = "\n".join(source_texts)
+        
+        # Truncate if too long (roughly 10000 tokens = 7500 words)
+        words = full_text.split()
+        if len(words) > 8000:
+            full_text = " ".join(words[:8000]) + "\n\n[...document continues...]"
+        
+        # Get languages
+        source_lang = project.source_lang or "English"
+        target_lang = project.target_lang or "Dutch"
+        
+        # Show message in chat
+        self._add_chat_message("system", f"🤔 Analyzing {len(words)} words with {provider.upper()}...")
+        
+        # Import threading to run async
+        import threading
+        
+        def perform_analysis():
+            try:
+                # Build intelligent analysis prompt (fully domain-agnostic, works for ALL document types)
+                system_prompt = f"""You are a professional translator working between {source_lang} and {target_lang}.
+
+The user is translating a document and needs your help with terminology and translation questions.
+
+Your analysis should be comprehensive and practical for professional translation work. Adapt your approach based on the document type you identify."""
+
+                user_prompt = f"""Please analyze this document carefully, examining its content, structure, and terminology. Provide me with a detailed high-level summary and a comprehensive bilingual termbase of key terms. I will use your response to help configure an AI-powered translation tool for sentence-by-sentence translation.
+
+**Document text ({source_lang}):**
+
+{full_text}
+
+**Please provide:**
+
+1. **High-level summary** (2-4 paragraphs):
+   - What is the main subject/topic?
+   - What problems does it address or what is its purpose?
+   - What are the key features, components, concepts, or methods described?
+   - What is the overall significance or application?
+
+2. **Document type and technical domain**: First identify the document type, then specify the domain:
+   - Document types: patent, medical report, legal contract, technical manual, user guide, marketing material, scientific paper, regulatory document, etc.
+   - Technical domains: civil engineering, medical devices, pharmaceuticals, software, mechanical engineering, legal/regulatory, finance, etc.
+
+3. **Bilingual termbase of key technical terms** in markdown table format:
+
+| {source_lang} term | {target_lang} equivalent | Notes / context |
+|-------------------|------------------------|------------------|
+
+**CRITICAL termbase INSTRUCTIONS:**
+- Extract 25-40 of the most important domain-specific terms (not exhaustive, focus on quality)
+- IGNORE common words: articles (de, het, een), pronouns (deze, dit), prepositions (van, in, op)
+- IGNORE section headers like "DESCRIPTION", "FIGURES", "INTRODUCTION" unless they're technical terms
+- Focus on: specialized terminology, key concepts, technical components, processes, legal/medical/technical jargon
+- For patents: emphasize claimed elements, structural components, technical features, materials, methods
+- For medical: focus on anatomical terms, procedures, medications, conditions, measurements
+- For legal: emphasize legal terms, clauses, obligations, definitions, regulatory references
+- For technical manuals: focus on components, operations, specifications, safety terms
+- Include compound terms and multi-word technical expressions
+- Provide helpful context notes for each term (usage, synonyms, technical meaning, register)
+- When multiple translations exist, list them separated by / (e.g., "joint plate / expansion joint plate")
+
+Your response will help configure an AI translation tool for professional-quality sentence-by-sentence translation."""
+                
+                # Call LLM using parent app's LLM client
+                from modules.llm_clients import LLMClient
+                
+                client = LLMClient(
+                    api_key=api_keys[api_key_name],
+                    provider=provider,
+                    model=settings.get(f'{provider}_model', 'gpt-4o')
+                )
+                
+                # Build custom prompt with system and user parts
+                full_custom_prompt = f"{system_prompt}\n\n{user_prompt}"
+                
+                # Call LLM - pass custom prompt
+                analysis_text = client.translate(
+                    text="",  # Empty text, analysis is in the prompt itself
+                    source_lang=source_lang,
+                    target_lang=target_lang,
+                    custom_prompt=full_custom_prompt
+                )
+                
+                # Store result
+                self.doc_analysis_result = {
+                    'success': True,
+                    'analysis': analysis_text,
+                    'segment_count': len(project.segments),
+                    'word_count': len(words),
+                    'source_lang': source_lang,
+                    'target_lang': target_lang
+                }
+                
+                # Update status (thread-safe UI update)
+                QTimer.singleShot(0, lambda: self.doc_analysis_status.setText(
+                    f"✓ Analysis complete: {len(project.segments)} segments analyzed with AI"
+                ))
+                QTimer.singleShot(0, lambda: self.doc_analysis_status.setStyleSheet("color: #388E3C; padding: 5px;"))
+                
+                # Add to chat (thread-safe UI update)
+                QTimer.singleShot(0, lambda: self._add_chat_message("assistant", f"**Document Analysis Complete**\n\n{analysis_text}"))
+                
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                # Update status (thread-safe UI update)
+                QTimer.singleShot(0, lambda: self.doc_analysis_status.setText(f"❌ Error: {str(e)}"))
+                QTimer.singleShot(0, lambda: self.doc_analysis_status.setStyleSheet("color: #D32F2F; padding: 5px;"))
+                QTimer.singleShot(0, lambda: self._add_chat_message("error", f"Error during analysis: {str(e)}"))
+        
+        # Run in background thread to avoid blocking UI
+        threading.Thread(target=perform_analysis, daemon=True).start()
+    
+    def _generate_translation_prompts(self):
+        """Generate ready-to-use System Prompt and Custom Instructions based on document analysis"""
+        if not self.doc_analysis_result:
+            QMessageBox.information(
+                self.parent_app if self.parent_app else None,
+                "Analyze First",
+                "Please analyze the document first by clicking 'Analyze Document'"
+            )
+            return
+        
+        # Check if LLM is configured
+        api_keys = self.parent_app.load_api_keys()
+        settings = self.parent_app.load_llm_settings()
+        provider = settings.get('provider', 'openai')
+        
+        api_key_map = {
+            'openai': 'openai',
+            'claude': 'claude',
+            'gemini': 'google'
+        }
+        api_key_name = api_key_map.get(provider)
+        
+        if not api_keys.get(api_key_name):
+            QMessageBox.warning(
+                self.parent_app if self.parent_app else None,
+                "API Key Missing",
+                f"Please configure {provider.upper()} API key in Settings → LLM Settings first."
+            )
+            return
+        
+        # Show thinking indicator
+        self._add_chat_message("system", "🤔 Generating optimized prompts based on your document analysis...")
+        
+        # Get the previous analysis
+        analysis_text = self.doc_analysis_result.get('analysis', '')
+        source_lang = self.doc_analysis_result.get('source_lang', 'English')
+        target_lang = self.doc_analysis_result.get('target_lang', 'Dutch')
+        segment_count = self.doc_analysis_result.get('segment_count', 0)
+        
+        # Build prompt to generate actionable System Prompt + Custom Instructions
+        system_prompt = f"""You are an expert translation workflow consultant helping configure a CAT tool.
+
+The user has just analyzed their document and received the following analysis:
+
+{analysis_text}
+
+Your task is to generate TWO separate, ready-to-use prompts for the translator:
+
+1. **SYSTEM PROMPT** (Global translation strategy - goes in "System Prompts" section)
+   - This should be a COMPLETE, ready-to-use prompt that defines HOW to translate
+   - Include the translation direction using PLACEHOLDERS: {{SOURCE_LANGUAGE}} → {{TARGET_LANGUAGE}}
+   - Specify the domain, tone, register, terminology handling GENERALLY (not document-specific)
+   - Include specific translation strategies for this document type
+   - Make it GENERIC and REUSABLE for similar documents in this domain
+   - Should be 3-5 paragraphs, comprehensive but focused
+   - Do NOT include specific termbase terms - keep it general
+   - Use {{SOURCE_LANGUAGE}} and {{TARGET_LANGUAGE}} placeholders, NOT specific language names
+   
+   **CRITICAL REQUIREMENTS - You MUST include ALL of these in your System Prompt:**
+   
+   **LANGUAGE AGNOSTIC RULE**: All examples and instructions must use {{SOURCE_LANGUAGE}} and {{TARGET_LANGUAGE}} placeholders. NEVER hardcode specific language pairs (like English→Dutch). The prompt must work for ANY translation direction.
+   
+   a) **Professional Context**: Explain this is professional translation work for regulatory compliance, medical/technical terminology for legitimate professional purposes, NOT medical advice
+   
+   b) **Translation Role**: Define yourself as an expert {{SOURCE_LANGUAGE}} to {{TARGET_LANGUAGE}} translator with deep understanding of context and nuance
+   
+   c) **Context Availability**: Mention that full document context may be provided for reference
+   
+   d) **Task Definition**: Clearly specify the translation task (translate ONLY specified text, not full document)
+   
+   e) **Output Format**: 
+     - Provide ONLY the translated text
+     - Do NOT include numbering, labels, or commentary
+     - Do NOT repeat the source text
+     - Maintain accuracy and natural fluency
+   
+   f) **CAT TOOL TAG PRESERVATION** (CRITICAL - preserve ALL of these):
+     - memoQ tags: [1}}, {{2}}, [3}}, {{4}} (asymmetric bracket-brace pairs)
+     - Trados Studio tags: <410>text</410>, <434>text</434> (XML-style opening/closing tags)
+     - CafeTran tags: |formatted text| (pipe symbols mark formatted text - bold, italic, underline, etc.)
+     - Other CAT tools: various bracketed or special character sequences
+     - These are placeholder tags representing formatting (bold, italic, links, etc.)
+     - PRESERVE ALL tags - if source has N tags, target must have exactly N tags
+     - Keep tags with their content, adjust position for natural target language word order
+     - Never translate, omit, or modify the tags themselves - only reposition them
+     - Include MULTIPLE examples but use GENERIC examples that work for ANY language pair
+     - Examples should show structure/format, NOT specific language pairs (e.g., '[1}}Source Text{{2}}' → '[1}}Target Text{{2}}')
+   
+   g) **SPECIAL RULE FOR UICONTROL TAGS** (memoQ bilingual DOCX - CRITICAL):
+     - Text in [uicontrol id="GUID"}}Original Text{{uicontrol] tags must keep original + add translation in parentheses
+     - Structure: [uicontrol id="GUID"}}Original {{SOURCE_LANGUAGE}} Text{{uicontrol]: Description
+     - Format: [uicontrol id="GUID"}}Original {{SOURCE_LANGUAGE}} Text ({{TARGET_LANGUAGE}} Translation){{uicontrol]: {{TARGET_LANGUAGE}} Description
+     - Keep original {{SOURCE_LANGUAGE}} text unchanged, add {{TARGET_LANGUAGE}} translation in parentheses
+     - Include GENERIC example using placeholders or structure only (e.g., [uicontrol id="GUID-X"}}Original Text{{uicontrol]: Description → [uicontrol id="GUID-X"}}Original Text (Translation){{uicontrol]: Translated Description)
+     - DO NOT hardcode specific language pairs (e.g., English→Dutch) - must work for ANY direction
+   
+   h) **LANGUAGE-SPECIFIC NUMBER FORMATTING**:
+     - For Dutch/French/German/Italian/Spanish (continental European): use comma as decimal separator, space or non-breaking space before unit (e.g., 17,1 cm)
+     - For English/Irish: use period as decimal separator, no space before unit (e.g., 17.1 cm)
+     - Always follow the number formatting conventions of the target language
+   
+   i) **Optional: Figure References**: If applicable, mention figures (e.g., 'Figure 1A') may have relevant images provided for visual context
+
+2. **CUSTOM INSTRUCTIONS** (Project-specific guidance - goes in "Custom Instructions" tab)
+   - Start with 2-3 paragraphs of SPECIFIC guidance for THIS document
+   - Then include the KEY TERMINOLOGY section
+   
+   **CRITICAL: termbase TABLE REQUIREMENTS**
+   - You MUST copy the ENTIRE bilingual termbase table from the analysis above
+   - Copy it VERBATIM - every single row, word-for-word
+   - The table header must be: | {source_lang} term | {target_lang} equivalent | Notes / context |
+   - Include the separator line: |------------|--------------------|-----------------| 
+   - Then copy EVERY SINGLE ROW from the analysis termbase
+   - If there are 33 terms in the analysis, there must be 33 rows in your output
+   - DO NOT STOP until you've copied the LAST row of the termbase
+   - After the complete table, add 2-3 paragraphs with specific examples
+   
+   Reference specific key terms with translation examples
+   Mention specific challenges identified in the analysis
+   Include domain-specific requirements (e.g., for patents: maintain claim structure, legal accuracy)
+   List terminology consistency rules with concrete examples from the termbase
+   Highlight any special handling needed (measurements, figures, technical processes)
+
+Format your response EXACTLY like this:
+
+---SYSTEM PROMPT---
+[Full system prompt text here, ready to copy-paste]
+
+---CUSTOM INSTRUCTIONS---
+[Full custom instructions text here, ready to copy-paste]
+
+---
+
+Be specific, practical, and actionable. The translator should be able to copy these directly into Supervertaler."""
+
+        user_prompt = f"""Based on the document analysis above, generate optimized translation prompts.
+
+Document context:
+- Source: {source_lang}
+- Target: {target_lang}
+- {segment_count} segments to translate
+
+Provide the two prompts in the specified format."""
+        
+        # Import threading to run async
+        import threading
+        
+        def perform_generation():
+            try:
+                # Call LLM
+                from modules.llm_clients import LLMClient
+                
+                client = LLMClient(
+                    api_key=api_keys[api_key_name],
+                    provider=provider,
+                    model=settings.get(f'{provider}_model', 'gpt-4o')
+                )
+                
+                # Build custom prompt
+                full_custom_prompt = f"{system_prompt}\n\n{user_prompt}"
+                
+                # Call LLM - pass custom prompt (use empty text, analysis is in prompt)
+                ai_response = client.translate(
+                    text="",  # Empty text, generation is in the prompt itself
+                    source_lang=source_lang,
+                    target_lang=target_lang,
+                    custom_prompt=full_custom_prompt
+                )
+                
+                # Show generated prompts dialog (thread-safe UI update)
+                QTimer.singleShot(0, lambda: self._show_generated_prompts_dialog(ai_response, source_lang, target_lang))
+                
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                QTimer.singleShot(0, lambda: self._add_chat_message("error", f"Error generating prompts: {str(e)}"))
+                QTimer.singleShot(0, lambda: QMessageBox.critical(
+                    self.parent_app if self.parent_app else None,
+                    "Generation Error",
+                    f"Failed to generate prompts:\n\n{str(e)}"
+                ))
+        
+        # Run in background thread
+        threading.Thread(target=perform_generation, daemon=True).start()
+    
+    def _clear_analysis(self):
+        """Clear analysis results and chat history"""
+        self.doc_analysis_result = None
+        self.doc_analysis_status.setText("No analysis performed yet")
+        self.doc_analysis_status.setStyleSheet("color: #999; padding: 5px;")
+        self.assistant_chat.setPlainText(
+            "Welcome to Prompt Assistant!\n\n"
+            "I can help you understand your document and optimize your translation settings.\n\n"
+            "📊 Document Analysis: Click 'Analyze Document' to get AI-powered analysis of your loaded document.\n"
+            "🎯 Generate Prompts: After analysis, click 'Generate Prompts' to create optimized System Prompt and Project Prompt.\n\n"
+            "Or ask me questions about your prompts!\n"
+            "Try asking:\n"
+            "- 'Make it more formal'\n"
+            "- 'Add emphasis on terminology consistency'\n"
+            "- 'Simplify the language'\n"
+        )
+        self.log_message("Analysis results and chat history cleared")
+    
+    def _add_chat_message(self, role: str, message: str):
+        """Add a message to the chat display"""
+        prefix = {
+            'system': '🤖 System',
+            'assistant': '🤖 Assistant',
+            'error': '❌ Error',
+            'warning': '⚠️ Warning'
+        }.get(role, '💬')
+        
+        self.assistant_chat.appendPlainText(f"\n{prefix}: {message}\n")
+    
+    def _show_generated_prompts_dialog(self, ai_response, source_lang, target_lang):
+        """Display generated prompts in an interactive dialog with copy/apply actions"""
+        # Parse the AI response to extract System Prompt and Custom Instructions
+        try:
+            # Split by the main delimiters
+            if "---SYSTEM PROMPT---" in ai_response and "---CUSTOM INSTRUCTIONS---" in ai_response:
+                parts = ai_response.split("---SYSTEM PROMPT---")
+                remainder = parts[1].split("---CUSTOM INSTRUCTIONS---")
+                system_prompt_text = remainder[0].strip()
+                # DON'T split on --- again - take everything after ---CUSTOM INSTRUCTIONS---
+                custom_instructions_text = remainder[1].strip()
+                # Only remove trailing --- if it exists at the very end
+                if custom_instructions_text.endswith("---"):
+                    custom_instructions_text = custom_instructions_text[:-3].strip()
+            else:
+                # Fallback: try to parse without delimiters
+                system_prompt_text = ai_response[:len(ai_response)//2]
+                custom_instructions_text = ai_response[len(ai_response)//2:]
+        except Exception as e:
+            self.log_message(f"⚠️ Error parsing AI response: {str(e)}")
+            system_prompt_text = ai_response
+            custom_instructions_text = "See System Prompt above for complete guidance."
+        
+        # Store generated prompts in project for later retrieval
+        from datetime import datetime
+        self.generated_prompts = {
+            'system_prompt': system_prompt_text,
+            'custom_instructions': custom_instructions_text,
+            'source_lang': source_lang,
+            'target_lang': target_lang,
+            'generated_at': datetime.now().isoformat()
+        }
+        self.log_message("💾 Generated prompts stored")
+        
+        # Create dialog
+        dialog = QDialog(self.parent_app if self.parent_app else None)
+        dialog.setWindowTitle(f"Generated Translation Prompts - {source_lang} → {target_lang}")
+        dialog.setMinimumSize(950, 800)
+        
+        layout = QVBoxLayout(dialog)
+        
+        # Header
+        header_label = QLabel("🎯 Ready-to-Use Translation Prompts")
+        header_label.setStyleSheet("font-size: 12pt; font-weight: bold; color: #2E7D32; padding: 10px; background-color: #E8F5E9; border-radius: 3px;")
+        layout.addWidget(header_label)
+        
+        info_label = QLabel(
+            "Generated based on your document analysis. Copy or apply directly to your translation setup."
+        )
+        info_label.setWordWrap(True)
+        info_label.setStyleSheet("color: #666; padding: 5px;")
+        layout.addWidget(info_label)
+        
+        # Tab widget
+        tabs = QTabWidget()
+        
+        # System Prompt Tab
+        sys_tab = QWidget()
+        sys_layout = QVBoxLayout(sys_tab)
+        
+        sys_info = QLabel(
+            "This prompt will be saved as a Domain Prompt in your Prompt Library"
+        )
+        sys_info.setWordWrap(True)
+        sys_info.setStyleSheet("color: #1976D2; padding: 5px; background-color: #E3F2FD; border-radius: 3px;")
+        sys_layout.addWidget(sys_info)
+        
+        sys_text = QTextEdit()
+        sys_text.setPlainText(system_prompt_text)
+        sys_text.setReadOnly(True)
+        sys_layout.addWidget(sys_text, 1)
+        
+        sys_btn_layout = QHBoxLayout()
+        
+        auto_activate_sys = QCheckBox("✓ Automatically activate for this project")
+        auto_activate_sys.setChecked(True)
+        sys_btn_layout.addWidget(auto_activate_sys)
+        sys_btn_layout.addStretch()
+        
+        def save_system_prompt():
+            """Save System Prompt as Domain Prompt"""
+            # Ask for filename
+            doc_type = "Custom"
+            if "patent" in system_prompt_text.lower():
+                doc_type = "Patent"
+            elif "medical" in system_prompt_text.lower():
+                doc_type = "Medical"
+            elif "legal" in system_prompt_text.lower():
+                doc_type = "Legal"
+            elif "technical" in system_prompt_text.lower():
+                doc_type = "Technical"
+            
+            name, ok = QInputDialog.getText(
+                dialog,
+                "Save System Prompt",
+                f"Enter a name for this System Prompt:\n(will be saved as Domain Prompt):",
+                text=f"{doc_type}_{source_lang}_to_{target_lang}"
+            )
+            
+            if not ok or not name:
+                return
+            
+            # Determine domain
+            domain_map = {
+                "Patent": "Intellectual Property",
+                "Medical": "Medical/Healthcare",
+                "Legal": "Legal/Regulatory",
+                "Technical": "Technical/Engineering"
+            }
+            domain = domain_map.get(doc_type, "General")
+            
+            # Replace language names with placeholders
+            prompt_with_placeholders = system_prompt_text.replace(source_lang, "{source_lang}").replace(target_lang, "{target_lang}")
+            
+            # Create prompt data
+            prompt_data = {
+                "name": name,
+                "description": f"AI-generated system prompt for translation in {doc_type.lower()} domain",
+                "domain": domain,
+                "version": "1.0",
+                "task_type": "Translation",
+                "created": datetime.now().strftime("%Y-%m-%d"),
+                "modified": datetime.now().strftime("%Y-%m-%d"),
+                "translate_prompt": prompt_with_placeholders,
+                "proofread_prompt": ""
+            }
+            
+            # Save file as Markdown
+            try:
+                # Use prompt library's dict_to_markdown
+                system_prompts_dir = self.user_data_path / "Prompt_Library" / "System_prompts"
+                filename = f"{name} (system prompt).md"
+                filepath = system_prompts_dir / filename
+                
+                self.prompt_library.dict_to_markdown(prompt_data, str(filepath))
+                
+                self.log_message(f"✓ Saved System Prompt to: {filepath}")
+                
+                # Reload prompt library
+                self.prompt_library.load_all_prompts()
+                self._load_domain_expertise()  # Refresh Domain Prompts list
+                
+                # Auto-activate if checked
+                if auto_activate_sys.isChecked():
+                    # Find the prompt in the domain tree and activate it
+                    # We need to select it in the tree first
+                    for i in range(self.domain_tree.topLevelItemCount()):
+                        item = self.domain_tree.topLevelItem(i)
+                        if item and item.data(0, Qt.ItemDataRole.UserRole) == filename:
+                            self.domain_tree.setCurrentItem(item)
+                            self._activate_domain_expertise('translate')
+                            self.log_message("✅ System Prompt automatically activated")
+                            break
+                
+                QMessageBox.information(
+                    self.parent_app if self.parent_app else None,
+                    "Saved!",
+                    f"System Prompt saved as:\n{filename}\n\n"
+                    f"Location: {system_prompts_dir}\n\n"
+                    f"It will now appear in your Prompt Manager → Domain Prompts section."
+                )
+                
+            except Exception as e:
+                QMessageBox.critical(
+                    self.parent_app if self.parent_app else None,
+                    "Error",
+                    f"Failed to save:\n{str(e)}"
+                )
+        
+        def copy_system_prompt():
+            clipboard = QApplication.clipboard()
+            if clipboard:
+                clipboard.setText(system_prompt_text)
+            QMessageBox.information(
+                self.parent_app if self.parent_app else None,
+                "Copied!",
+                "System Prompt copied to clipboard!"
+            )
+        
+        save_sys_btn = QPushButton("💾 Save as Domain Prompt")
+        save_sys_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 6px 12px;")
+        save_sys_btn.clicked.connect(save_system_prompt)
+        sys_btn_layout.addWidget(save_sys_btn)
+        
+        copy_sys_btn = QPushButton("📋 Copy to Clipboard")
+        copy_sys_btn.setStyleSheet("background-color: #2196F3; color: white; padding: 6px 12px;")
+        copy_sys_btn.clicked.connect(copy_system_prompt)
+        sys_btn_layout.addWidget(copy_sys_btn)
+        
+        sys_layout.addLayout(sys_btn_layout)
+        tabs.addTab(sys_tab, "📋 System Prompt (Global Strategy)")
+        
+        # Custom Instructions Tab
+        custom_tab = QWidget()
+        custom_layout = QVBoxLayout(custom_tab)
+        
+        custom_info = QLabel(
+            "These custom instructions will be saved as a Project Prompt in your Prompt Library"
+        )
+        custom_info.setWordWrap(True)
+        custom_info.setStyleSheet("color: #F57C00; padding: 5px; background-color: #FFF3E0; border-radius: 3px;")
+        custom_layout.addWidget(custom_info)
+        
+        custom_text = QTextEdit()
+        custom_text.setPlainText(custom_instructions_text)
+        custom_text.setReadOnly(True)
+        custom_layout.addWidget(custom_text, 1)
+        
+        custom_btn_layout = QHBoxLayout()
+        
+        auto_activate_custom = QCheckBox("✓ Automatically activate for this project")
+        auto_activate_custom.setChecked(True)
+        custom_btn_layout.addWidget(auto_activate_custom)
+        custom_btn_layout.addStretch()
+        
+        def save_custom_instructions():
+            """Save custom instructions as Project Prompt"""
+            # Ask for name
+            name, ok = QInputDialog.getText(
+                dialog,
+                "Save Custom Instructions",
+                "Enter a name for these custom instructions:",
+                text=f"{source_lang} to {target_lang} - Custom Instructions"
+            )
+            
+            if not ok or not name:
+                return
+            
+            # Extract domain from analysis if available
+            domain = "General"
+            if self.doc_analysis_result:
+                analysis_text = self.doc_analysis_result.get('analysis', '').lower()
+                if 'patent' in analysis_text:
+                    domain = "Legal/Patents"
+                elif 'medical' in analysis_text or 'clinical' in analysis_text:
+                    domain = "Medical"
+                elif 'technical' in analysis_text or 'engineering' in analysis_text:
+                    domain = "Technical"
+                elif 'legal' in analysis_text:
+                    domain = "Legal"
+                elif 'marketing' in analysis_text:
+                    domain = "Marketing"
+            
+            # Create prompt data
+            custom_data = {
+                "name": name,
+                "description": "AI-generated custom instructions",
+                "domain": domain,
+                "version": "1.0",
+                "created": datetime.now().strftime("%Y-%m-%d"),
+                "translate_prompt": custom_instructions_text,
+                "proofread_prompt": custom_instructions_text
+            }
+            
+            # Save to Custom Instructions folder
+            custom_instructions_dir = self.user_data_path / "Prompt_Library" / "Custom_instructions"
+            custom_instructions_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Sanitize filename and add descriptor
+            safe_filename = "".join(c for c in name if c.isalnum() or c in (' ', '-', '_')).strip()
+            filename = f"{safe_filename} (custom instructions).md"
+            filepath = custom_instructions_dir / filename
+            
+            try:
+                # Save as Markdown
+                self.prompt_library.dict_to_markdown(custom_data, str(filepath))
+                
+                self.log_message(f"✅ Custom Instructions saved: {filename}")
+                
+                # Reload prompt library
+                self.prompt_library.load_all_prompts()
+                self._load_project_guidelines()  # Refresh Project Prompts list
+                
+                # Auto-activate if checked
+                if auto_activate_custom.isChecked():
+                    self.active_project_prompt = custom_instructions_text
+                    self.active_project_prompt_name = name
+                    self._update_active_display()
+                    self.log_message("✅ Custom Instructions automatically activated")
+                
+                QMessageBox.information(
+                    self.parent_app if self.parent_app else None,
+                    "Saved!",
+                    f"Custom Instructions saved as:\n\n{filename}\n\n"
+                    f"Location: {custom_instructions_dir}"
+                )
+                
+            except Exception as e:
+                QMessageBox.critical(
+                    self.parent_app if self.parent_app else None,
+                    "Error",
+                    f"Failed to save custom instructions:\n\n{str(e)}"
+                )
+        
+        def copy_custom_instructions():
+            clipboard = QApplication.clipboard()
+            if clipboard:
+                clipboard.setText(custom_instructions_text)
+            QMessageBox.information(
+                self.parent_app if self.parent_app else None,
+                "Copied!",
+                "Custom Instructions copied to clipboard!"
+            )
+        
+        save_custom_btn = QPushButton("💾 Save as Project Prompt")
+        save_custom_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 6px 12px;")
+        save_custom_btn.clicked.connect(save_custom_instructions)
+        custom_btn_layout.addWidget(save_custom_btn)
+        
+        copy_custom_btn = QPushButton("📋 Copy to Clipboard")
+        copy_custom_btn.setStyleSheet("background-color: #2196F3; color: white; padding: 6px 12px;")
+        copy_custom_btn.clicked.connect(copy_custom_instructions)
+        custom_btn_layout.addWidget(copy_custom_btn)
+        
+        custom_layout.addLayout(custom_btn_layout)
+        tabs.addTab(custom_tab, "📝 Custom Instructions (Project-Specific)")
+        
+        layout.addWidget(tabs, 1)
+        
+        # Close button
+        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        button_box.rejected.connect(dialog.accept)
+        layout.addWidget(button_box)
+        
+        # Show dialog
+        dialog.exec()
+        
+        # Add to chat for reference
+        self._add_chat_message(
+            'assistant',
+            f"✅ **Generated Translation Prompts**\n\n"
+            f"I've created optimized System Prompt and Custom Instructions based on your document analysis.\n\n"
+            f"**Next steps:**\n"
+            f"1. Review the prompts in the dialog window\n"
+            f"2. Save System Prompt → Add to Domain Prompts library\n"
+            f"3. Save/Apply Custom Instructions → Add to Project Prompts\n"
+            f"4. Start translating with optimized settings!"
         )
     
     # ===== System Prompt Methods (Layer 1) =====

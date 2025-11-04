@@ -816,6 +816,11 @@ class Supervertaler:
         self.filter_active = False
         self.filter_mode = 'filter'  # 'filter' or 'highlight' - initialized early to prevent AttributeError
         
+        # Filter variables - initialize early to prevent AttributeError when loading projects
+        self.filter_source_var = tk.StringVar()
+        self.filter_target_var = tk.StringVar()
+        self.filter_status_var = tk.StringVar(value="All")
+        
         # Load UI preferences
         self.ui_preferences = self.load_ui_preferences()
         
@@ -825,6 +830,9 @@ class Supervertaler:
         
         # Components
         self.segmenter = SimpleSegmenter()
+        
+        # Window references
+        self.prompt_manager_window = None  # Reference to detached Prompt Manager window
         self.docx_handler = DOCXHandler()
         self.tag_manager = TagManager()
         
@@ -1151,6 +1159,7 @@ class Supervertaler:
         
         # Check if user activated a system prompt from Prompt Manager
         if hasattr(self, 'active_translate_prompt') and self.active_translate_prompt:
+            # Use activated prompt as base
             base_prompt = self.active_translate_prompt
         # Otherwise use hardcoded default based on mode
         else:
@@ -1245,12 +1254,15 @@ class Supervertaler:
         edit_menu.add_command(label="Copy source to target (all segments)", command=self.copy_source_to_target_all)
         edit_menu.add_command(label="Clear target", command=self.clear_target)
         edit_menu.add_separator()
+        edit_menu.add_command(label="💬 Ask AI...", command=self.show_ask_ai_dialog, accelerator="Ctrl+Shift+I")
+        edit_menu.add_separator()
         
         # Bulk operations submenu
         bulk_menu = tk.Menu(edit_menu, tearoff=0)
         edit_menu.add_cascade(label="Bulk operations", menu=bulk_menu)
         bulk_menu.add_command(label="Select all segments", command=self.select_all_segments, accelerator="Ctrl+A")
         bulk_menu.add_command(label="Clear all targets...", command=self.clear_all_targets)
+        bulk_menu.add_command(label="Clear filtered targets...", command=self.clear_filtered_targets)
         bulk_menu.add_separator()
         bulk_menu.add_command(label="Change status (all)...", command=self.change_status_all)
         bulk_menu.add_command(label="Change status (filtered)...", command=self.change_status_filtered)
@@ -1317,7 +1329,8 @@ class Supervertaler:
         resources_menu.add_command(label="📤 Extract images from DOCX...", command=self.extract_images_from_docx)
         resources_menu.add_command(label="🗑️ Clear figure context", command=self.clear_figure_context)
         resources_menu.add_separator()
-        resources_menu.add_command(label="📚 Prompt Manager", command=self.show_custom_prompts, accelerator="Ctrl+P")
+        resources_menu.add_command(label="📚 Prompt Manager", command=self._show_prompt_manager_detached, accelerator="Ctrl+P")
+        resources_menu.add_command(label="📚 Prompt Manager (Embedded Tab)", command=self.show_custom_prompts)
         resources_menu.add_command(label="🎭 System prompts", command=self.show_system_prompts)
         resources_menu.add_command(label="📝 Custom instructions", command=self.show_custom_instructions)
         
@@ -1331,7 +1344,7 @@ class Supervertaler:
         
         # Keyboard shortcuts (translate)
         self.root.bind('<Control-t>', lambda e: self.translate_current_segment())
-        self.root.bind('<Control-p>', lambda e: self.show_custom_prompts())  # Prompt Manager shortcut
+        self.root.bind('<Control-p>', lambda e: self._show_prompt_manager_detached())  # Prompt Manager shortcut (detached window)
         self.root.bind('<Control-a>', lambda e: self.select_all_segments())  # Select All Segments
         self.root.bind('<Control-k>', lambda e: self.show_concordance_search())  # Concordance Search
         
@@ -1356,6 +1369,9 @@ class Supervertaler:
         self.root.bind('<Control-m>', lambda e: self.toggle_filter_mode())  # Toggle filter mode
         self.root.bind('<Control-Shift-F>', lambda e: self.focus_filter_source())  # Focus source filter
         self.root.bind('<Control-Shift-A>', lambda e: self.apply_filters())  # Apply filters
+        
+        # AI chat shortcut
+        self.root.bind('<Control-Shift-I>', lambda e: self.show_ask_ai_dialog())  # Ask AI dialog
         
         # Navigation shortcuts
         self.root.bind('<Control-Down>', lambda e: self.navigate_segment('next'))
@@ -1736,30 +1752,27 @@ class Supervertaler:
         tk.Label(filter_frame, text="│", bg='#f0f0f0', fg='#ccc',
                 font=('Segoe UI', 10)).pack(side='left', padx=5)
         
-        # Source filter
+        # Source filter (use existing vars initialized in __init__)
         tk.Label(filter_frame, text="Source:", bg='#f0f0f0', 
                 font=('Segoe UI', 9)).pack(side='left', padx=(10, 2))
-        self.filter_source_var = tk.StringVar()
         source_filter_entry = tk.Entry(filter_frame, textvariable=self.filter_source_var,
                                       font=('Segoe UI', 9), width=25, relief='solid', borderwidth=1)
         source_filter_entry.pack(side='left', padx=2, pady=3)
         # Bind Enter key to apply filters
         source_filter_entry.bind('<Return>', lambda e: self.apply_filters())
         
-        # Target filter
+        # Target filter (use existing vars initialized in __init__)
         tk.Label(filter_frame, text="Target:", bg='#f0f0f0', 
                 font=('Segoe UI', 9)).pack(side='left', padx=(10, 2))
-        self.filter_target_var = tk.StringVar()
         target_filter_entry = tk.Entry(filter_frame, textvariable=self.filter_target_var,
                                       font=('Segoe UI', 9), width=25, relief='solid', borderwidth=1)
         target_filter_entry.pack(side='left', padx=2, pady=3)
         # Bind Enter key to apply filters
         target_filter_entry.bind('<Return>', lambda e: self.apply_filters())
         
-        # Status filter
+        # Status filter (use existing vars initialized in __init__)
         tk.Label(filter_frame, text="Status:", bg='#f0f0f0', 
                 font=('Segoe UI', 9)).pack(side='left', padx=(10, 2))
-        self.filter_status_var = tk.StringVar(value="All")
         status_filter_combo = ttk.Combobox(filter_frame, textvariable=self.filter_status_var,
                                           values=["All", "untranslated", "draft", "translated", "approved"],
                                           state='readonly', width=12, font=('Segoe UI', 9))
@@ -2957,6 +2970,25 @@ class Supervertaler:
         # Title on the left
         tk.Label(active_bar, text="🎯 Prompt Manager", font=('Segoe UI', 10, 'bold'),
                 bg='#e3f2fd').pack(side='left', padx=10, pady=5)
+        
+        # Detach/Attach button on the right
+        def toggle_detach():
+            """Detach or attach the Prompt Manager window"""
+            # Check if we're in a detached window or embedded
+            current_window = parent.winfo_toplevel()
+            is_detached = isinstance(current_window, tk.Toplevel) and current_window != self.root
+            
+            if is_detached:
+                # Currently detached - close detached window and open embedded
+                messagebox.showinfo("Info", "To use embedded view, close this window and use the 'Prompt Manager (Embedded Tab)' menu item or open it from the Assistant panel.")
+            else:
+                # Currently embedded - create detached window
+                self._show_prompt_manager_detached()
+        
+        detach_btn = tk.Button(active_bar, text="⊟ Detach", command=toggle_detach,
+                              bg='#ff9800', fg='white', font=('Segoe UI', 8, 'bold'),
+                              relief='raised', padx=8, pady=2, cursor='hand2')
+        detach_btn.pack(side='right', padx=5, pady=5)
         
         # Active prompts stacked vertically on the right
         active_stack = tk.Frame(active_bar, bg='#e3f2fd')
@@ -5578,6 +5610,51 @@ Your task is to generate TWO separate, ready-to-use prompts for the translator:
    - Should be 3-5 paragraphs, comprehensive but focused
    - Do NOT include specific termbase terms - keep it general
    - Use {source_lang} and {target_lang} placeholders, NOT specific language names
+   
+   **CRITICAL REQUIREMENTS - You MUST include ALL of these in your System Prompt:**
+   
+   **LANGUAGE AGNOSTIC RULE**: All examples and instructions must use {{SOURCE_LANGUAGE}} and {{TARGET_LANGUAGE}} placeholders. NEVER hardcode specific language pairs (like English→Dutch). The prompt must work for ANY translation direction.
+   
+   a) **Professional Context**: Explain this is professional translation work for regulatory compliance, medical/technical terminology for legitimate professional purposes, NOT medical advice
+   
+   b) **Translation Role**: Define yourself as an expert {{SOURCE_LANGUAGE}} to {{TARGET_LANGUAGE}} translator with deep understanding of context and nuance
+   
+   c) **Context Availability**: Mention that full document context may be provided for reference
+   
+   d) **Task Definition**: Clearly specify the translation task (translate ONLY specified text, not full document)
+   
+   e) **Output Format**: 
+     - Provide ONLY the translated text
+     - Do NOT include numbering, labels, or commentary
+     - Do NOT repeat the source text
+     - Maintain accuracy and natural fluency
+   
+   f) **CAT TOOL TAG PRESERVATION** (CRITICAL - preserve ALL of these):
+     - memoQ tags: [1}}, {{2}}, [3}}, {{4}} (asymmetric bracket-brace pairs)
+     - Trados Studio tags: <410>text</410>, <434>text</434> (XML-style opening/closing tags)
+     - CafeTran tags: |formatted text| (pipe symbols mark formatted text - bold, italic, underline, etc.)
+     - Other CAT tools: various bracketed or special character sequences
+     - These are placeholder tags representing formatting (bold, italic, links, etc.)
+     - PRESERVE ALL tags - if source has N tags, target must have exactly N tags
+     - Keep tags with their content, adjust position for natural target language word order
+     - Never translate, omit, or modify the tags themselves - only reposition them
+     - Include MULTIPLE examples but use GENERIC examples that work for ANY language pair
+     - Examples should show structure/format, NOT specific language pairs (e.g., '[1}}Source Text{{2}}' → '[1}}Target Text{{2}}')
+   
+   g) **SPECIAL RULE FOR UICONTROL TAGS** (memoQ bilingual DOCX - CRITICAL):
+     - Text in [uicontrol id="GUID"}}Original Text{{uicontrol] tags must keep original + add translation in parentheses
+     - Structure: [uicontrol id="GUID"}}Original {{SOURCE_LANGUAGE}} Text{{uicontrol]: Description
+     - Format: [uicontrol id="GUID"}}Original {{SOURCE_LANGUAGE}} Text ({{TARGET_LANGUAGE}} Translation){{uicontrol]: {{TARGET_LANGUAGE}} Description
+     - Keep original {{SOURCE_LANGUAGE}} text unchanged, add {{TARGET_LANGUAGE}} translation in parentheses
+     - Include GENERIC example using placeholders or structure only (e.g., [uicontrol id="GUID-X"}}Original Text{{uicontrol]: Description → [uicontrol id="GUID-X"}}Original Text (Translation){{uicontrol]: Translated Description)
+     - DO NOT hardcode specific language pairs (e.g., English→Dutch) - must work for ANY direction
+   
+   h) **LANGUAGE-SPECIFIC NUMBER FORMATTING**:
+     - For Dutch/French/German/Italian/Spanish (continental European): use comma as decimal separator, space or non-breaking space before unit (e.g., 17,1 cm)
+     - For English/Irish: use period as decimal separator, no space before unit (e.g., 17.1 cm)
+     - Always follow the number formatting conventions of the target language
+   
+   i) **Optional: Figure References**: If applicable, mention figures (e.g., 'Figure 1A') may have relevant images provided for visual context
 
 2. **CUSTOM INSTRUCTIONS** (Project-specific guidance - goes in "Custom Instructions" tab)
    - Start with 2-3 paragraphs of SPECIFIC guidance for THIS document
@@ -11304,11 +11381,39 @@ Use this feature AFTER translation to:
     
     def clear_target_inline(self):
         """Clear target of selected segment(s) - supports multiple selection"""
-        # Get all selected items in grid
+        # Check if multiple segments are selected using the new selection system
+        if hasattr(self, 'selected_segments') and len(self.selected_segments) > 1:
+            # Multiple segments selected
+            cleared_count = 0
+            for seg_id in self.selected_segments:
+                # Find segment by ID
+                for seg in self.segments:
+                    if seg.id == seg_id:
+                        seg.target = ""
+                        seg.status = "untranslated"
+                        seg.modified = True
+                        cleared_count += 1
+                        break
+            
+            # Refresh the grid to show changes
+            self.modified = True
+            if self.layout_mode == LayoutMode.GRID:
+                self.load_segments_to_grid()
+            elif hasattr(self, 'tree') and self.tree:
+                for seg in self.segments:
+                    if seg.target == "":
+                        self.update_segment_in_grid(seg)
+            
+            self.update_progress()
+            self.log(f"✓ Cleared target text for {cleared_count} selected segments")
+            messagebox.showinfo("Complete", f"✓ Cleared {cleared_count} targets")
+            return
+        
+        # Fallback: check treeview selection (for backwards compatibility)
         if hasattr(self, 'tree') and self.tree:
             selection = self.tree.selection()
             if selection and len(selection) > 1:
-                # Multiple segments selected
+                # Multiple segments selected via treeview
                 cleared_count = 0
                 for item in selection:
                     seg_id = int(self.tree.item(item)['values'][0])
@@ -11317,26 +11422,23 @@ Use this feature AFTER translation to:
                         if seg.id == seg_id:
                             seg.target = ""
                             seg.status = "untranslated"
+                            seg.modified = True
                             cleared_count += 1
                             break
                 
                 # Refresh the grid to show changes
-                if self.layout_mode == LayoutMode.GRID:
-                    self.refresh_page()
-                else:
-                    for seg in self.segments:
-                        if seg.target == "":
-                            self.update_segment_in_grid(seg)
-                
                 self.modified = True
+                self.refresh_current_view()
                 self.update_progress()
-                self.log(f"Cleared target text for {cleared_count} selected segments")
+                self.log(f"✓ Cleared target text for {cleared_count} selected segments")
+                messagebox.showinfo("Complete", f"✓ Cleared {cleared_count} targets")
                 return
         
         # Single segment (fallback to original behavior)
         if self.current_segment:
             self.current_segment.target = ""
             self.current_segment.status = "untranslated"
+            self.current_segment.modified = True
             
             if self.layout_mode == LayoutMode.GRID:
                 # Update custom grid
@@ -11348,7 +11450,7 @@ Use this feature AFTER translation to:
             
             self.modified = True
             self.update_progress()
-            self.log(f"Segment #{self.current_segment.id} target cleared")
+            self.log(f"✓ Segment #{self.current_segment.id} target cleared")
     
     def set_status_inline(self, status):
         """Set status of currently selected segment"""
@@ -13027,6 +13129,60 @@ Use this feature AFTER translation to:
         
         self.update_progress()
         self.log(f"✓ Cleared targets for {cleared_count} segments")
+        messagebox.showinfo("Complete", f"✓ Cleared {cleared_count} targets")
+    
+    def clear_filtered_targets(self):
+        """Clear target text for filtered/visible segments only"""
+        if not self.segments:
+            messagebox.showwarning("No Segments", "No segments loaded.")
+            return
+        
+        # Get segments to clear (filtered or all, depending on filter status)
+        segments_to_clear = self.filtered_segments if self.filter_active else self.segments
+        
+        if not segments_to_clear:
+            messagebox.showwarning("No Segments", "No segments match current filter.")
+            return
+        
+        # Count segments with targets
+        segments_with_targets = sum(1 for seg in segments_to_clear if seg.target and seg.target.strip())
+        
+        if segments_with_targets == 0:
+            messagebox.showinfo("Nothing to Clear", "All filtered targets are already empty.")
+            return
+        
+        filter_info = "filtered" if self.filter_active else "visible"
+        # Confirm action
+        if not messagebox.askyesno(
+            "Clear Filtered Targets",
+            f"Clear target text for {len(segments_to_clear)} {filter_info} segments?\n\n"
+            f"{segments_with_targets} segments have targets that will be deleted.\n\n"
+            f"⚠️ This action cannot be undone!"
+        ):
+            return
+        
+        # Clear filtered targets
+        cleared_count = 0
+        for segment in segments_to_clear:
+            if segment.target and segment.target.strip():
+                segment.target = ""
+                segment.status = "untranslated"
+                segment.modified = True
+                cleared_count += 1
+        
+        # Update UI
+        self.modified = True
+        if self.layout_mode == LayoutMode.GRID:
+            self.load_segments_to_grid()
+        elif self.layout_mode == LayoutMode.SPLIT:
+            self.load_segments_to_list()
+            if self.current_segment and hasattr(self, 'target_text'):
+                self.target_text.delete('1.0', 'end')
+        elif self.layout_mode == LayoutMode.DOCUMENT:
+            self.load_segments_to_document_view()
+        
+        self.update_progress()
+        self.log(f"✓ Cleared targets for {cleared_count} {filter_info} segments")
         messagebox.showinfo("Complete", f"✓ Cleared {cleared_count} targets")
     
     def change_status_all(self):
@@ -15974,6 +16130,63 @@ Generated by [Supervertaler](https://supervertaler.com/) v{APP_VERSION}
         
         self.log(f"🔄 Languages swapped: {self.source_language} → {self.target_language}")
     
+    def _show_prompt_manager_detached(self, initial_filter="all"):
+        """Open Prompt Manager as a separate detachable window"""
+        try:
+            # Check if window already exists
+            if hasattr(self, 'prompt_manager_window') and self.prompt_manager_window:
+                try:
+                    if self.prompt_manager_window.winfo_exists():
+                        # Window already exists, just raise it
+                        self.prompt_manager_window.lift()
+                        self.prompt_manager_window.focus_force()
+                        self.log("✓ Prompt Manager window raised")
+                        return
+                except tk.TclError:
+                    # Window was destroyed, clear reference
+                    self.prompt_manager_window = None
+            
+            # Create new detached window
+            window = tk.Toplevel(self.root)
+            window.title("🎯 Prompt Manager - Detached")
+            window.geometry("1200x800")
+            # Don't use transient() so it can stay open independently
+            
+            # Store reference
+            self.prompt_manager_window = window
+            
+            # Create the Prompt Manager content in this window
+            main_frame = tk.Frame(window)
+            main_frame.pack(fill='both', expand=True, padx=0, pady=0)
+            
+            # Create the prompt library tab content
+            try:
+                self.create_prompt_library_tab(main_frame)
+            except Exception as e:
+                self.log(f"✗ Error creating Prompt Manager content: {e}")
+                import traceback
+                traceback.print_exc()
+                messagebox.showerror("Error", f"Failed to create Prompt Manager:\n{str(e)}")
+                window.destroy()
+                return
+            
+            # Handle window close
+            def on_close():
+                # Clear reference when window is closed
+                if hasattr(self, 'prompt_manager_window'):
+                    self.prompt_manager_window = None
+                window.destroy()
+            
+            window.protocol("WM_DELETE_WINDOW", on_close)
+            
+            self.log("✓ Prompt Manager opened in detached window")
+            
+        except Exception as e:
+            self.log(f"✗ Error opening Prompt Manager: {e}")
+            import traceback
+            traceback.print_exc()
+            messagebox.showerror("Error", f"Failed to open Prompt Manager:\n{str(e)}")
+    
     def edit_language_list(self):
         """Edit the custom language list"""
         dialog = tk.Toplevel(self.root)
@@ -17450,6 +17663,197 @@ Generated by [Supervertaler](https://supervertaler.com/) v{APP_VERSION}
         thread = threading.Thread(target=load_in_thread, daemon=True)
         thread.start()
     
+    def show_ask_ai_dialog(self):
+        """Quick access dialog to send current segment to AI and insert response into target"""
+        if not self.current_segment:
+            messagebox.showinfo("No Segment", "Please select a segment first.")
+            return
+        
+        # Create streamlined dialog
+        dialog = tk.Toplevel(self.root)
+        dialog.title("💬 Ask AI - Quick Chat")
+        dialog.geometry("700x550")
+        dialog.transient(self.root)
+        dialog.grab_set()
+        
+        # Get current source text
+        source_text = self.current_segment.source or ""
+        
+        # Main container
+        main_frame = tk.Frame(dialog, padx=15, pady=15)
+        main_frame.pack(fill='both', expand=True)
+        
+        # Text to send (editable)
+        tk.Label(main_frame, text="Text to send:", font=('Segoe UI', 9, 'bold')).pack(anchor='w', pady=(0, 5))
+        source_text_widget = tk.Text(main_frame, height=3, wrap='word', font=('Segoe UI', 10))
+        source_text_widget.pack(fill='x', pady=(0, 10))
+        source_text_widget.insert('1.0', source_text)
+        
+        # Question/Prompt (editable, pre-filled)
+        tk.Label(main_frame, text="Your question:", font=('Segoe UI', 9, 'bold')).pack(anchor='w', pady=(0, 5))
+        prompt_text_widget = tk.Text(main_frame, height=2, wrap='word', font=('Segoe UI', 10))
+        prompt_text_widget.pack(fill='x', pady=(0, 10))
+        prompt_text_widget.insert('1.0', f"Translate this from {self.source_language} to {self.target_language}:")
+        prompt_text_widget.focus()
+        prompt_text_widget.select_range('1.0', 'end')
+        
+        # LLM selection
+        provider_frame = tk.Frame(main_frame)
+        provider_frame.pack(fill='x', pady=(0, 10))
+        
+        tk.Label(provider_frame, text="Use:", font=('Segoe UI', 9, 'bold')).pack(side='left', padx=(0, 10))
+        provider_var = tk.StringVar(value="openai")
+        provider_combo = ttk.Combobox(provider_frame, textvariable=provider_var,
+                                     values=["openai", "claude", "gemini"],
+                                     state='readonly', width=12)
+        provider_combo.pack(side='left', padx=(0, 15))
+        
+        model_var = tk.StringVar(value="gpt-4o")
+        model_combo = ttk.Combobox(provider_frame, textvariable=model_var, width=30)
+        model_combo.pack(side='left')
+        
+        # Update models based on provider
+        def update_models(*args):
+            provider = provider_var.get()
+            if provider == "openai":
+                model_combo['values'] = ("gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-4")
+                model_var.set("gpt-4o")
+            elif provider == "claude":
+                model_combo['values'] = ("claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-opus-20240229")
+                model_var.set("claude-3-5-sonnet-20241022")
+            elif provider == "gemini":
+                model_combo['values'] = ("gemini-2.0-flash-exp", "gemini-1.5-pro-002", "gemini-1.5-flash-002")
+                model_var.set("gemini-2.0-flash-exp")
+        
+        provider_var.trace('w', update_models)
+        update_models()
+        
+        # Response area
+        tk.Label(main_frame, text="AI Response:", font=('Segoe UI', 9, 'bold')).pack(anchor='w', pady=(0, 5))
+        response_text_widget = tk.Text(main_frame, height=10, wrap='word', font=('Segoe UI', 10), state='disabled')
+        response_text_widget.pack(fill='both', expand=True, pady=(0, 10))
+        
+        # Buttons
+        button_frame = tk.Frame(main_frame)
+        button_frame.pack(fill='x')
+        
+        def send_to_ai():
+            """Send to AI"""
+            text_to_send = source_text_widget.get('1.0', 'end-1c').strip()
+            user_prompt = prompt_text_widget.get('1.0', 'end-1c').strip()
+            
+            if not text_to_send:
+                messagebox.showwarning("Empty Text", "Please enter text to send to AI.")
+                return
+            
+            provider = provider_var.get()
+            model = model_var.get()
+            
+            full_prompt = f"{user_prompt}\n\n{text_to_send}"
+            
+            send_btn.config(state='disabled')
+            response_text_widget.config(state='normal')
+            response_text_widget.delete('1.0', 'end')
+            response_text_widget.insert('1.0', "⏳ Sending to AI...")
+            response_text_widget.config(state='disabled')
+            dialog.update()
+            
+            try:
+                api_key = self.api_keys.get(provider)
+                if not api_key:
+                    raise ValueError(f"API key for {provider} not found. Please configure it in api_keys.txt")
+                
+                response_text = None
+                
+                if provider == "openai":
+                    from openai import OpenAI
+                    client = OpenAI(api_key=api_key)
+                    response = client.chat.completions.create(
+                        model=model,
+                        messages=[{"role": "user", "content": full_prompt}],
+                        temperature=0.7,
+                        max_tokens=2000
+                    )
+                    response_text = response.choices[0].message.content
+                
+                elif provider == "claude":
+                    import anthropic
+                    client = anthropic.Anthropic(api_key=api_key)
+                    response = client.messages.create(
+                        model=model,
+                        max_tokens=2000,
+                        temperature=0.7,
+                        messages=[{"role": "user", "content": full_prompt}]
+                    )
+                    response_text = response.content[0].text
+                
+                elif provider == "gemini":
+                    import google.generativeai as genai
+                    genai.configure(api_key=api_key)
+                    gemini_model = genai.GenerativeModel(model)
+                    response = gemini_model.generate_content(
+                        full_prompt,
+                        generation_config=genai.types.GenerationConfig(
+                            temperature=0.7,
+                            max_output_tokens=2000
+                        )
+                    )
+                    response_text = response.text
+                
+                response_text_widget.config(state='normal')
+                response_text_widget.delete('1.0', 'end')
+                response_text_widget.insert('1.0', response_text)
+                response_text_widget.config(state='disabled')
+                self.log(f"✓ Got response from {provider}/{model}")
+                
+            except Exception as e:
+                error_msg = f"Error: {str(e)}"
+                response_text_widget.config(state='normal')
+                response_text_widget.delete('1.0', 'end')
+                response_text_widget.insert('1.0', error_msg)
+                response_text_widget.config(state='disabled')
+                self.log(f"✗ Error: {e}")
+                messagebox.showerror("AI Error", f"Failed to get response:\n{str(e)}")
+            finally:
+                send_btn.config(state='normal')
+        
+        def insert_into_target():
+            """Insert AI response into target segment"""
+            response_text = response_text_widget.get('1.0', 'end-1c').strip()
+            
+            if not response_text or response_text.startswith("⏳") or response_text.startswith("Error:"):
+                messagebox.showwarning("No Response", "Please get a response from AI first.")
+                return
+            
+            if hasattr(self, 'target_text') and self.target_text:
+                self.target_text.delete('1.0', 'end')
+                self.target_text.insert('1.0', response_text)
+                self.on_target_change(None)
+                self.log("✓ Inserted AI response into target")
+                dialog.destroy()
+            else:
+                messagebox.showerror("Error", "Target editor not available.")
+        
+        send_btn = tk.Button(button_frame, text="📤 Send to AI", command=send_to_ai,
+                           bg='#2196F3', fg='white', font=('Segoe UI', 9, 'bold'),
+                           relief='raised', cursor='hand2')
+        send_btn.pack(side='left', padx=(0, 10))
+        
+        insert_btn = tk.Button(button_frame, text="✅ Insert into Target", command=insert_into_target,
+                              bg='#4CAF50', fg='white', font=('Segoe UI', 9, 'bold'),
+                              relief='raised', cursor='hand2')
+        insert_btn.pack(side='left', padx=(0, 10))
+        
+        cancel_btn = tk.Button(button_frame, text="Close", command=dialog.destroy,
+                              font=('Segoe UI', 9))
+        cancel_btn.pack(side='left')
+        
+        # Bind Ctrl+Enter in prompt field to send
+        prompt_text_widget.bind('<Control-Return>', lambda e: send_to_ai())
+        
+        # Focus on prompt field
+        dialog.after(100, lambda: prompt_text_widget.focus())
+    
     def show_tmx_language_selector(self, filepath: str, detected_langs: List[str]) -> tuple:
         """
         Show dialog for selecting source/target languages from TMX
@@ -18696,6 +19100,13 @@ Examples:
 • Multiple: "[1}De uitvoer{2] [3}stelt niets voor{4]" → "[1}Exports{2] [3}mean nothing{4]"
 • Nested: "[1}De [3}belangrijke{4] uitvoer{2]" → "[1}The [3}important{4] exports{2]"
 
+**SPECIAL RULE FOR UICONTROL TAGS** (memoQ bilingual DOCX):
+• Text wrapped in [uicontrol...{uicontrol] tags must be translated with the original text followed by translation in parentheses
+• Structure: [uicontrol id="GUID"}Original English Text{uicontrol]: Description
+• Translation format: [uicontrol id="GUID"}Original English Text (Translation){uicontrol]: Translated Description
+• Example: [uicontrol id="GUID-X"}Turn on{uicontrol] → [uicontrol id="GUID-X"}Turn on (Schakel in){uicontrol]
+• CRITICAL: Keep the original English text unchanged, add translation in parentheses after it
+
 VALIDATION: Count opening [N} and closing {N] tags - they must match source exactly!
 """
         
@@ -18949,37 +19360,25 @@ VALIDATION: Count pipe symbols in source and target - they must match exactly (a
             self.log(f"✗ Translation failed: {e}")
     
     def translate_all_untranslated(self):
-        """Translate ALL segments using CHUNKED batch processing
+        """Translate only untranslated segments using CHUNKED batch processing
         
-        CRITICAL FOR MEMOQ BILINGUAL FILES:
-        - Translates EVERY segment in the document, regardless of target content
-        - User must import memoQ bilingual DOCX with empty targets (use "View" with untranslated segments)
-        - Maintains strict segment ID alignment
-        - Ignores any existing target content (treats all as empty)
+        Filters segments to only translate those marked as "untranslated" status.
         """
         import math
         
-        # SIMPLIFIED: Translate ALL segments (ignore existing target content completely)
-        # User is responsible for ensuring memoQ export has empty targets
-        segments_to_translate = self.segments[:]  # All segments
+        # Filter to only untranslated segments
+        segments_to_translate = [seg for seg in self.segments if seg.status == "untranslated"]
         
         if not segments_to_translate:
-            messagebox.showinfo("No Segments", "No segments found in document!")
+            messagebox.showinfo("No Segments", "No untranslated segments found in document!")
             return
         
-        # Count how many already have targets (informational only)
-        already_filled = sum(1 for seg in segments_to_translate if seg.target and seg.target.strip())
-        
         # Confirm with user
-        confirm_msg = f"Translate ALL {len(segments_to_translate)} segments?\n\n"
-        if already_filled > 0:
-            confirm_msg += f"⚠️ WARNING: {already_filled} segments already have target text.\n"
-            confirm_msg += f"These will be OVERWRITTEN.\n\n"
-            confirm_msg += f"For memoQ bilingual files: Export with 'View' filtered to untranslated segments only.\n\n"
+        confirm_msg = f"Translate {len(segments_to_translate)} untranslated segments?\n\n"
+        confirm_msg += f"Provider: {self.current_llm_provider}/{self.current_llm_model}\n"
+        confirm_msg += f"This may take several minutes."
         
-        if not messagebox.askyesno("Confirm Translation", confirm_msg + 
-                                   f"Provider: {self.current_llm_provider}/{self.current_llm_model}\n"
-                                   f"This may take several minutes."):
+        if not messagebox.askyesno("Confirm Translation", confirm_msg):
             return
         
         # Check API key
@@ -19069,17 +19468,28 @@ VALIDATION: Count pipe symbols in source and target - they must match exactly (a
                 system_prompt = system_prompt.replace("{{TARGET_LANGUAGE}}", self.target_language)
                 prompt_parts.append(system_prompt)
                 
+                # DEBUG: Check what system prompt was used
+                if hasattr(self, 'active_translate_prompt') and self.active_translate_prompt:
+                    self.log(f"📌 Using active_translate_prompt as system prompt ({len(self.active_translate_prompt)} chars)")
+                else:
+                    self.log(f"📌 Using hardcoded batch_docx_prompt as system prompt")
+                
                 # Custom instructions - use the new Prompt Manager system
                 custom_instructions = None
                 if hasattr(self, 'active_custom_instruction') and self.active_custom_instruction:
                     custom_instructions = self.active_custom_instruction
+                    self.log(f"📌 Using active_custom_instruction ({len(custom_instructions)} chars)")
                 elif hasattr(self, 'custom_instructions_text'):
                     # Fallback to old text widget if it exists
                     custom_instructions = self.custom_instructions_text.get('1.0', tk.END).strip()
+                    self.log(f"📌 Using custom_instructions_text widget ({len(custom_instructions)} chars)")
                 
                 if custom_instructions and (not hasattr(self, 'is_custom_instructions_placeholder') or not self.is_custom_instructions_placeholder(custom_instructions)):
                     prompt_parts.append("\n**SPECIAL INSTRUCTIONS FOR THIS PROJECT:**")
                     prompt_parts.append(custom_instructions)
+                    self.log(f"✓ Added custom instructions to batch prompt")
+                else:
+                    self.log(f"⚠ No custom instructions added (empty or placeholder)")
                 
                 # CAT-tool-specific tag handling (automatic based on source file)
                 cat_tag_instructions = self.get_cat_tool_tag_instructions()
@@ -19105,6 +19515,9 @@ VALIDATION: Count pipe symbols in source and target - they must match exactly (a
                 prompt_parts.append("Example: 42. De vertaling van segment 42\n")
                 
                 prompt = "\n".join(prompt_parts)
+                
+                # DEBUG: Log prompt preview to verify UICONTROL is included
+                self.log(f"📝 Prompt preview (first 1000 chars): {prompt[:1000]}...")
                 
                 # Call API
                 self.log(f"🤖 Translating chunk {chunk_idx+1}/{num_chunks} ({len(segments_needing_llm)} segments)...")
