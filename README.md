@@ -26,7 +26,7 @@
 
 ### 🆕 Qt Edition (Modern) - **PRIMARY**
 **File:** `Supervertaler_Qt.py`  
-**Version:** v1.1.5 (November 2, 2025)  
+**Version:** v1.1.7 (November 4, 2025)  
 **Framework:** PyQt6  
 **Status:** Active Development
 

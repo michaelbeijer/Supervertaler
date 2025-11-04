@@ -6,6 +6,55 @@ The Qt Edition is the **primary version** for active development and new feature
 
 ---
 
+## [1.1.7] - November 4, 2025
+
+### Major Changes
+- **🏠 Home Screen Redesign:** Complete restructuring of the primary workspace
+  - Editor (Grid/List/Document views) on the left with Prompt Manager on the right
+  - Resizable horizontal splitter between editor and prompt manager
+  - Translation results panel moved to bottom of grid in compact form
+  - Real-time prompt tweaking while viewing changes in the grid
+  - Removed separate Editor and Prompt Manager tabs (integrated into Home)
+
+### Strategic Refocus
+- **🎯 Companion Tool Philosophy:** Pivoted from full CAT tool to companion tool
+  - Grid simplified for viewing/reviewing (minor edits only)
+  - Focus on AI-powered features and specialized modules
+  - Documentation updated to reflect companion tool approach
+
+### Added
+- **Custom Styled Widgets:** Beautiful checkboxes and radio buttons with white checkmarks
+  - `CheckmarkCheckBox` class for all checkboxes
+  - `CustomRadioButton` class for LLM Provider selection
+  - Square indicators with green background when checked, white checkmark overlay
+- **Prompt Manager Enhancements:**
+  - Preview Combined Prompt button shows exact prompt sent to AI
+  - Deactivate buttons for Domain and Project prompts
+  - Prompt Assistant tab moved to first position
+
+### Improved
+- **Grid Simplification:**
+  - Double-click only editing (removed F2 key) - companion tool philosophy
+  - Simplified styling with subtle colors for review-focused interface
+  - Light blue selection highlight instead of bright blue
+- **Segment Number Styling:**
+  - All segment numbers start with black foreground
+  - Only selected segment number highlighted in orange (like memoQ)
+  - Fixed black numbers issue after navigation
+
+### Fixed
+- **Filter Crash:** Added safety checks for table and filter widgets
+- **removeWidget Error:** Fixed QSplitter widget removal (use setParent instead)
+- **Project Loading:** Fixed doc_segment_widgets AttributeError
+- **Translation Results Panel:** Now properly visible at bottom of grid
+
+### Technical
+- Improved widget reparenting logic for splitter management
+- Enhanced error handling in filter operations
+- Better initialization of view state variables
+
+---
+
 ## [1.1.6] - November 3, 2025
 
 ### Added
