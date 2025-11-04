@@ -1,7 +1,7 @@
 """
 Supervertaler Qt Edition
 ========================
-Professional Translation Memory & CAT Tool
+The ultimate companion tool for translators and writers.
 Modern PyQt6 interface with Universal Lookup and advanced features
 
 Version: 1.1.7 (Phase 5.10)
