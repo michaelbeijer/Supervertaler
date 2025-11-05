@@ -6,6 +6,35 @@ The Qt Edition is the **primary version** for active development and new feature
 
 ---
 
+## [1.1.8] - November 5, 2025
+
+### Fixed
+- **🎯 Prompt Generation (CRITICAL FIX):** Fixed incomplete prompt generation in Prompt Assistant
+  - **Root Cause:** Using `client.translate()` for text generation instead of proper chat completion API
+  - **Solution:** Switched to direct LLM API calls (OpenAI/Claude/Gemini) with proper message structure
+  - Domain Prompts now generate complete 3-5 paragraph prompts (was 2 sentences)
+  - Project Prompts now include full termbase tables + intro/closing paragraphs (was partial/truncated)
+  - Added truncation detection and warnings for all providers
+  - Temperature set to 0.4 for creative generation (was 0.3)
+  - Max tokens set to 8000 (with full flexibility, not constrained by translation wrapper)
+- **Documentation:** Added complete debugging session documentation (docs/2025-11-05.md)
+
+### Technical Details
+- Removed hybrid approach (programmatic termbase extraction + AI generation)
+- Reverted to pure AI-only approach matching working tkinter version
+- Direct API calls now match tkinter implementation exactly:
+  - OpenAI: `chat.completions.create()` with system/user messages
+  - Claude: `messages.create()` with proper system parameter
+  - Gemini: `generate_content()` with combined prompt
+- All providers now check `finish_reason`/`stop_reason` for truncation
+
+### Impact
+- **Generate Prompts** feature now works perfectly, producing complete professional prompts
+- Critical feature that was broken is now fully functional
+- Matches quality and completeness of tkinter version
+
+---
+
 ## [1.1.7] - November 4, 2025
 
 ### Major Changes

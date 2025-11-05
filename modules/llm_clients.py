@@ -48,7 +48,7 @@ class LLMClient:
     # Reasoning models that require temperature=1.0
     REASONING_MODELS = ["gpt-5", "o1", "o3"]
     
-    def __init__(self, api_key: str, provider: str = "openai", model: Optional[str] = None):
+    def __init__(self, api_key: str, provider: str = "openai", model: Optional[str] = None, max_tokens: int = 4096):
         """
         Initialize LLM client
         
@@ -56,10 +56,12 @@ class LLMClient:
             api_key: API key for the provider
             provider: "openai", "claude", or "gemini"
             model: Model name (uses default if None)
+            max_tokens: Maximum tokens for responses (default: 4096)
         """
         self.provider = provider.lower()
         self.api_key = api_key
         self.model = model or self.DEFAULT_MODELS.get(self.provider)
+        self.max_tokens = max_tokens
         
         if not self.model:
             raise ValueError(f"Unknown provider: {provider}")
@@ -266,7 +268,8 @@ class LLMClient:
         source_lang: str = "en",
         target_lang: str = "nl",
         context: Optional[str] = None,
-        custom_prompt: Optional[str] = None
+        custom_prompt: Optional[str] = None,
+        max_tokens: Optional[int] = None
     ) -> str:
         """
         Translate text using configured LLM
@@ -293,15 +296,15 @@ class LLMClient:
         
         # Call appropriate provider
         if self.provider == "openai":
-            return self._call_openai(prompt)
+            return self._call_openai(prompt, max_tokens=max_tokens)
         elif self.provider == "claude":
-            return self._call_claude(prompt)
+            return self._call_claude(prompt, max_tokens=max_tokens)
         elif self.provider == "gemini":
-            return self._call_gemini(prompt)
+            return self._call_gemini(prompt, max_tokens=max_tokens)
         else:
             raise ValueError(f"Unsupported provider: {self.provider}")
     
-    def _call_openai(self, prompt: str) -> str:
+    def _call_openai(self, prompt: str, max_tokens: Optional[int] = None) -> str:
         """Call OpenAI API"""
         try:
             from openai import OpenAI
@@ -310,12 +313,17 @@ class LLMClient:
                 "OpenAI library not installed. Install with: pip install openai"
             )
         
-        client = OpenAI(api_key=self.api_key)
+        client = OpenAI(api_key=self.api_key, timeout=120.0)  # 2 minute timeout
+        
+        # Use provided max_tokens or default
+        tokens_to_use = max_tokens if max_tokens is not None else self.max_tokens
         
         response = client.chat.completions.create(
             model=self.model,
             messages=[{"role": "user", "content": prompt}],
-            temperature=self.temperature
+            temperature=self.temperature,
+            max_tokens=tokens_to_use,
+            timeout=120.0  # Explicit timeout
         )
         
         translation = response.choices[0].message.content.strip()
@@ -325,7 +333,7 @@ class LLMClient:
         
         return translation
     
-    def _call_claude(self, prompt: str) -> str:
+    def _call_claude(self, prompt: str, max_tokens: Optional[int] = None) -> str:
         """Call Anthropic Claude API"""
         try:
             import anthropic
@@ -334,12 +342,16 @@ class LLMClient:
                 "Anthropic library not installed. Install with: pip install anthropic"
             )
         
-        client = anthropic.Anthropic(api_key=self.api_key)
+        client = anthropic.Anthropic(api_key=self.api_key, timeout=120.0)  # 2 minute timeout
+        
+        # Use provided max_tokens or default (Claude uses 4096 as default)
+        tokens_to_use = max_tokens if max_tokens is not None else self.max_tokens
         
         response = client.messages.create(
             model=self.model,
-            max_tokens=4096,
-            messages=[{"role": "user", "content": prompt}]
+            max_tokens=tokens_to_use,
+            messages=[{"role": "user", "content": prompt}],
+            timeout=120.0  # Explicit timeout
         )
         
         translation = response.content[0].text.strip()
@@ -349,7 +361,7 @@ class LLMClient:
         
         return translation
     
-    def _call_gemini(self, prompt: str) -> str:
+    def _call_gemini(self, prompt: str, max_tokens: Optional[int] = None) -> str:
         """Call Google Gemini API"""
         try:
             import google.generativeai as genai

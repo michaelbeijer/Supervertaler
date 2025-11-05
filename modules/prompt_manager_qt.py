@@ -18,13 +18,25 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTreeWidget, QTreeWidgetItem,
     QComboBox, QTextEdit, QPlainTextEdit, QSplitter, QTabWidget, QGroupBox,
     QMessageBox, QFileDialog, QInputDialog, QLineEdit, QListWidget, QListWidgetItem,
-    QFrame, QDialog, QDialogButtonBox, QApplication, QCheckBox
+    QFrame, QDialog, QDialogButtonBox, QApplication, QCheckBox, QSizePolicy
 )
-from PyQt6.QtCore import Qt, QSettings, QTimer
+from PyQt6.QtCore import Qt, QSettings, QTimer, QObject, pyqtSignal, QEvent
 from PyQt6.QtGui import QFont, QColor
 
 from modules.prompt_library import PromptLibrary
 from modules.style_guide_manager import StyleGuideLibrary
+
+
+class AnalysisUpdateEvent(QEvent):
+    """Custom event for updating UI after analysis completes"""
+    # Use a unique event type (User + 100 to avoid conflicts)
+    EVENT_TYPE = QEvent.Type(QEvent.Type.User + 100)
+    
+    def __init__(self, status_text, status_style, chat_message):
+        super().__init__(AnalysisUpdateEvent.EVENT_TYPE)
+        self.status_text = status_text
+        self.status_style = status_style
+        self.chat_message = chat_message
 
 
 class PromptManagerQt:
@@ -254,11 +266,24 @@ class PromptManagerQt:
         self.list_tabs.currentChanged.connect(self._on_tab_changed)
         
         left_layout.addWidget(self.list_tabs)
+        # Set minimum width and size policy on left panel to allow gradual resizing
+        # Without explicit minimum, Qt calculates from content and prevents gradual resizing
+        # Using a smaller value (150px) allows gradual resizing - columns will scroll if needed
+        left_panel.setMinimumWidth(150)
+        # Allow the panel to shrink below its preferred size for smooth resizing
+        left_panel.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
         main_splitter.addWidget(left_panel)
         
         # ===== RIGHT PANEL: Editor =====
         self.editor_panel = self._create_editor_panel()
+        # Set minimum width to allow resizing further to the left
+        self.editor_panel.setMinimumWidth(200)
         main_splitter.addWidget(self.editor_panel)
+        
+        # Configure splitter for smooth resizing
+        main_splitter.setChildrenCollapsible(False)  # Prevent panels from collapsing completely
+        main_splitter.setHandleWidth(8)  # Make handle more visible
+        main_splitter.setOpaqueResize(True)  # Enable real-time resizing for smoother experience
         
         # Set splitter proportions (40% left, 60% right)
         main_splitter.setStretchFactor(0, 1)
@@ -305,9 +330,11 @@ class PromptManagerQt:
         # System Prompts list (similar to Domain Prompts tree)
         self.system_prompts_tree = QTreeWidget()
         self.system_prompts_tree.setHeaderLabels(["System Prompt", "Mode", "Status"])
-        self.system_prompts_tree.setColumnWidth(0, 250)
-        self.system_prompts_tree.setColumnWidth(1, 150)
-        self.system_prompts_tree.setColumnWidth(2, 100)
+        # Set smaller initial column widths to allow smoother resizing
+        # Columns are resizable by user, so they can expand if needed
+        self.system_prompts_tree.setColumnWidth(0, 200)
+        self.system_prompts_tree.setColumnWidth(1, 100)
+        self.system_prompts_tree.setColumnWidth(2, 80)
         self.system_prompts_tree.itemSelectionChanged.connect(self._on_system_prompt_select)
         layout.addWidget(self.system_prompts_tree, 1)
         
@@ -375,10 +402,12 @@ class PromptManagerQt:
         # Prompt list tree
         self.domain_tree = QTreeWidget()
         self.domain_tree.setHeaderLabels(["Prompt Name", "Task", "Domain", "Ver"])
-        self.domain_tree.setColumnWidth(0, 250)
-        self.domain_tree.setColumnWidth(1, 120)
-        self.domain_tree.setColumnWidth(2, 150)
-        self.domain_tree.setColumnWidth(3, 50)
+        # Set smaller initial column widths to allow smoother resizing
+        # Columns are resizable by user, so they can expand if needed
+        self.domain_tree.setColumnWidth(0, 200)
+        self.domain_tree.setColumnWidth(1, 100)
+        self.domain_tree.setColumnWidth(2, 120)
+        self.domain_tree.setColumnWidth(3, 40)
         self.domain_tree.itemSelectionChanged.connect(self._on_domain_select)
         layout.addWidget(self.domain_tree, 1)
         
@@ -459,9 +488,11 @@ class PromptManagerQt:
         # Guidelines list tree
         self.project_tree = QTreeWidget()
         self.project_tree.setHeaderLabels(["Project Prompt Name", "Domain", "Ver"])
-        self.project_tree.setColumnWidth(0, 300)
-        self.project_tree.setColumnWidth(1, 200)
-        self.project_tree.setColumnWidth(2, 50)
+        # Set smaller initial column widths to allow smoother resizing
+        # Columns are resizable by user, so they can expand if needed
+        self.project_tree.setColumnWidth(0, 250)
+        self.project_tree.setColumnWidth(1, 150)
+        self.project_tree.setColumnWidth(2, 40)
         self.project_tree.itemSelectionChanged.connect(self._on_project_select)
         layout.addWidget(self.project_tree, 1)
         
@@ -634,7 +665,97 @@ class PromptManagerQt:
     
     def _create_prompt_assistant_tab(self) -> QWidget:
         """Create Prompt Assistant tab with document analysis and chat interface"""
-        tab = QWidget()
+        # Create a custom widget that can handle custom events
+        class AssistantTabWidget(QWidget):
+            def __init__(self, manager):
+                super().__init__()
+                self.manager = manager
+            
+            def event(self, event):
+                """Handle custom events from background threads"""
+                if event.type() == AnalysisUpdateEvent.EVENT_TYPE:
+                    try:
+                        analysis_event = event  # It's already an AnalysisUpdateEvent
+                        log_msg = "[DOC ANALYSIS] Processing custom event to update UI..."
+                        print(log_msg)
+                        if hasattr(self.manager.parent_app, 'log'):
+                            self.manager.parent_app.log(log_msg)
+                        
+                        # Update status label
+                        if hasattr(self.manager, 'doc_analysis_status') and self.manager.doc_analysis_status:
+                            self.manager.doc_analysis_status.setText(analysis_event.status_text)
+                            self.manager.doc_analysis_status.setStyleSheet(analysis_event.status_style)
+                        
+                        # Add chat message
+                        self.manager._add_chat_message("assistant", analysis_event.chat_message)
+                        
+                        log_msg = "[DOC ANALYSIS] ✓ UI updated via custom event"
+                        print(log_msg)
+                        if hasattr(self.manager.parent_app, 'log'):
+                            self.manager.parent_app.log(log_msg)
+                        return True  # Event handled
+                    except Exception as e:
+                        log_msg = f"[DOC ANALYSIS] ✗ Custom event error: {str(e)}"
+                        print(log_msg)
+                        import traceback
+                        print(traceback.format_exc())
+                        if hasattr(self.manager.parent_app, 'log'):
+                            self.manager.parent_app.log(log_msg)
+                            self.manager.parent_app.log(traceback.format_exc())
+                        return True  # Event handled (even if error occurred)
+                elif event.type() == QEvent.Type(QEvent.Type.User + 101):  # PromptGenCompleteEvent
+                    try:
+                        log_msg = "[PROMPT GEN] Processing completion event..."
+                        print(log_msg)
+                        if hasattr(self.manager.parent_app, 'log'):
+                            self.manager.parent_app.log(log_msg)
+                        
+                        self.manager._show_generated_prompts_dialog(
+                            event.ai_response,
+                            event.source_lang,
+                            event.target_lang
+                        )
+                        
+                        log_msg = "[PROMPT GEN] ✓ Dialog shown via custom event"
+                        print(log_msg)
+                        if hasattr(self.manager.parent_app, 'log'):
+                            self.manager.parent_app.log(log_msg)
+                        return True
+                    except Exception as e:
+                        log_msg = f"[PROMPT GEN] ✗ Completion event error: {str(e)}"
+                        print(log_msg)
+                        import traceback
+                        print(traceback.format_exc())
+                        if hasattr(self.manager.parent_app, 'log'):
+                            self.manager.parent_app.log(log_msg)
+                            self.manager.parent_app.log(traceback.format_exc())
+                        return True
+                elif event.type() == QEvent.Type(QEvent.Type.User + 102):  # PromptGenErrorEvent
+                    try:
+                        log_msg = "[PROMPT GEN] Processing error event..."
+                        print(log_msg)
+                        if hasattr(self.manager.parent_app, 'log'):
+                            self.manager.parent_app.log(log_msg)
+                        
+                        self.manager._add_chat_message("error", f"Error generating prompts: {event.error_msg}")
+                        QMessageBox.critical(
+                            self.manager.parent_app if self.manager.parent_app else None,
+                            "Generation Error",
+                            f"Failed to generate prompts:\n\n{event.error_msg}"
+                        )
+                        return True
+                    except Exception as e:
+                        log_msg = f"[PROMPT GEN] ✗ Error event handler failed: {str(e)}"
+                        print(log_msg)
+                        import traceback
+                        print(traceback.format_exc())
+                        if hasattr(self.manager.parent_app, 'log'):
+                            self.manager.parent_app.log(log_msg)
+                            self.manager.parent_app.log(traceback.format_exc())
+                        return True
+                return super().event(event)  # Handle other events normally
+        
+        tab = AssistantTabWidget(self)
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(5, 5, 5, 5)
         layout.setSpacing(5)
@@ -2002,8 +2123,13 @@ Professional style guidelines for translating into {language}.
     
     def _analyze_current_document(self):
         """Analyze the currently loaded document"""
+        print("[DOC ANALYSIS] ===== Document Analysis Started =====")
+        if hasattr(self.parent_app, 'log'):
+            self.parent_app.log("[DOC ANALYSIS] ===== Document Analysis Started =====")
+        
         # Check if project is loaded
         if not hasattr(self.parent_app, 'current_project') or not self.parent_app.current_project:
+            print("[DOC ANALYSIS] ✗ No project loaded")
             QMessageBox.warning(
                 self.parent_app if self.parent_app else None,
                 "No Document",
@@ -2013,6 +2139,7 @@ Professional style guidelines for translating into {language}.
         
         # Check if LLM is configured
         if not hasattr(self.parent_app, 'load_api_keys'):
+            print("[DOC ANALYSIS] ✗ Cannot access load_api_keys method")
             QMessageBox.critical(
                 self.parent_app if self.parent_app else None,
                 "Configuration Error",
@@ -2021,9 +2148,11 @@ Professional style guidelines for translating into {language}.
             return
         
         api_keys = self.parent_app.load_api_keys()
+        print(f"[DOC ANALYSIS] Loaded API keys: {list(api_keys.keys())}")
         
         # Get LLM settings
         if not hasattr(self.parent_app, 'load_llm_settings'):
+            print("[DOC ANALYSIS] ✗ Cannot access load_llm_settings method")
             QMessageBox.critical(
                 self.parent_app if self.parent_app else None,
                 "Configuration Error",
@@ -2033,6 +2162,7 @@ Professional style guidelines for translating into {language}.
         
         settings = self.parent_app.load_llm_settings()
         provider = settings.get('provider', 'openai')
+        print(f"[DOC ANALYSIS] Provider: {provider}")
         
         # Map provider to API key name
         api_key_map = {
@@ -2043,12 +2173,15 @@ Professional style guidelines for translating into {language}.
         api_key_name = api_key_map.get(provider)
         
         if not api_keys.get(api_key_name):
+            print(f"[DOC ANALYSIS] ✗ API key missing for {provider}")
             QMessageBox.warning(
                 self.parent_app if self.parent_app else None,
                 "API Key Missing",
                 f"Please configure {provider.upper()} API key in Settings → LLM Settings first."
             )
             return
+        
+        print(f"[DOC ANALYSIS] ✓ API key found for {provider}")
         
         # Update status
         self.doc_analysis_status.setText("⏳ Analyzing document with AI...")
@@ -2085,8 +2218,24 @@ Professional style guidelines for translating into {language}.
         # Import threading to run async
         import threading
         
+        # Create shared result dictionary for thread communication
+        analysis_result = {
+            'completed': False,
+            'result': None,
+            'error': None
+        }
+        
         def perform_analysis():
+            import time
+            start_time = time.time()
+            
             try:
+                # Log start
+                log_msg = f"[DOC ANALYSIS] Starting analysis: {len(words)} words, {len(project.segments)} segments"
+                print(log_msg)
+                if hasattr(self.parent_app, 'log'):
+                    self.parent_app.log(log_msg)
+                
                 # Build intelligent analysis prompt (fully domain-agnostic, works for ALL document types)
                 system_prompt = f"""You are a professional translator working between {source_lang} and {target_lang}.
 
@@ -2132,33 +2281,91 @@ Your analysis should be comprehensive and practical for professional translation
 
 Your response will help configure an AI translation tool for professional-quality sentence-by-sentence translation."""
                 
+                # Build custom prompt with system and user parts
+                full_custom_prompt = f"{system_prompt}\n\n{user_prompt}"
+                prompt_size = len(full_custom_prompt)
+                
+                log_msg = f"[DOC ANALYSIS] Built prompt: {prompt_size} characters ({prompt_size/4:.0f} estimated tokens)"
+                print(log_msg)
+                if hasattr(self.parent_app, 'log'):
+                    self.parent_app.log(log_msg)
+                
                 # Call LLM using parent app's LLM client
                 from modules.llm_clients import LLMClient
+                
+                model_name = settings.get(f'{provider}_model', 'gpt-4o')
+                log_msg = f"[DOC ANALYSIS] Initializing LLM client: {provider}/{model_name}"
+                print(log_msg)
+                if hasattr(self.parent_app, 'log'):
+                    self.parent_app.log(log_msg)
                 
                 client = LLMClient(
                     api_key=api_keys[api_key_name],
                     provider=provider,
-                    model=settings.get(f'{provider}_model', 'gpt-4o')
+                    model=model_name
                 )
                 
-                # Build custom prompt with system and user parts
-                full_custom_prompt = f"{system_prompt}\n\n{user_prompt}"
+                # Log before API call
+                api_start_time = time.time()
+                log_msg = f"[DOC ANALYSIS] About to call {provider.upper()} API (timeout: 120s)..."
+                print(log_msg)
+                if hasattr(self.parent_app, 'log'):
+                    self.parent_app.log(log_msg)
                 
                 # Call LLM - pass custom prompt
                 # Use a placeholder text since translate() expects text parameter
                 # The actual analysis request is in the custom_prompt
-                analysis_text = client.translate(
-                    text="Analyze this document.",  # Placeholder - actual request is in custom_prompt
-                    source_lang=source_lang,
-                    target_lang=target_lang,
-                    custom_prompt=full_custom_prompt
-                )
+                try:
+                    log_msg = f"[DOC ANALYSIS] Executing client.translate() now..."
+                    print(log_msg)
+                    if hasattr(self.parent_app, 'log'):
+                        self.parent_app.log(log_msg)
+                    
+                    analysis_text = client.translate(
+                        text="Analyze this document.",  # Placeholder - actual request is in custom_prompt
+                        source_lang=source_lang,
+                        target_lang=target_lang,
+                        custom_prompt=full_custom_prompt
+                    )
+                    
+                    api_duration = time.time() - api_start_time
+                    log_msg = f"[DOC ANALYSIS] ✓ API call returned after {api_duration:.1f} seconds"
+                    print(log_msg)
+                    if hasattr(self.parent_app, 'log'):
+                        self.parent_app.log(log_msg)
+                        
+                except Exception as api_error:
+                    api_duration = time.time() - api_start_time
+                    import traceback
+                    api_trace = traceback.format_exc()
+                    log_msg = f"[DOC ANALYSIS] ✗ API call failed after {api_duration:.1f} seconds: {str(api_error)}"
+                    print(log_msg)
+                    print(f"[DOC ANALYSIS] API Error Traceback:\n{api_trace}")
+                    if hasattr(self.parent_app, 'log'):
+                        self.parent_app.log(log_msg)
+                        self.parent_app.log(f"[DOC ANALYSIS] API Error Traceback:\n{api_trace}")
+                    raise  # Re-raise to be caught by outer exception handler
+                
+                if not analysis_text:
+                    raise ValueError("Empty response from API")
+                
+                log_msg = f"[DOC ANALYSIS] Received response: {len(analysis_text)} characters"
+                print(log_msg)
+                if hasattr(self.parent_app, 'log'):
+                    self.parent_app.log(log_msg)
                 
                 # Clean the response to remove any prompt remnants
                 analysis_text = client._clean_translation_response(analysis_text, full_custom_prompt)
                 
+                cleaned_size = len(analysis_text)
+                log_msg = f"[DOC ANALYSIS] Cleaned response: {cleaned_size} characters"
+                print(log_msg)
+                if hasattr(self.parent_app, 'log'):
+                    self.parent_app.log(log_msg)
+                
                 # Store result
-                analysis_result['result'] = {
+                total_duration = time.time() - start_time
+                result_data = {
                     'success': True,
                     'analysis': analysis_text,
                     'segment_count': len(project.segments),
@@ -2166,26 +2373,130 @@ Your response will help configure an AI translation tool for professional-qualit
                     'source_lang': source_lang,
                     'target_lang': target_lang
                 }
+                analysis_result['result'] = result_data
                 analysis_result['completed'] = True
                 
-                # Update status (thread-safe UI update)
-                QTimer.singleShot(0, lambda: self.doc_analysis_status.setText(
-                    f"✓ Analysis complete: {len(project.segments)} segments analyzed with AI"
-                ))
-                QTimer.singleShot(0, lambda: self.doc_analysis_status.setStyleSheet("color: #388E3C; padding: 5px;"))
+                log_msg = f"[DOC ANALYSIS] ✓ Analysis complete! Total time: {total_duration:.1f} seconds"
+                print(log_msg)
+                if hasattr(self.parent_app, 'log'):
+                    self.parent_app.log(log_msg)
                 
-                # Add to chat (thread-safe UI update)
-                QTimer.singleShot(0, lambda: self._add_chat_message("assistant", f"**Document Analysis Complete**\n\n{analysis_text}"))
+                # Store result in instance variable immediately (safe from background thread)
+                self.doc_analysis_result = result_data
+                
+                # Store data needed for UI update
+                status_text = f"✓ Analysis complete: {len(project.segments)} segments analyzed with AI ({total_duration:.1f}s)"
+                chat_message = f"**Document Analysis Complete**\n\n{analysis_text}"
+                
+                # Update UI using a method that will be called from main thread
+                # Use QApplication.postEvent or a timer on a main-thread widget
+                # The safest approach: create a QTimer on a widget that exists in the main thread
+                def update_ui_from_main_thread():
+                    try:
+                        log_msg = "[DOC ANALYSIS] Updating UI with analysis result..."
+                        print(log_msg)
+                        if hasattr(self.parent_app, 'log'):
+                            self.parent_app.log(log_msg)
+                        
+                        # Update status label
+                        if hasattr(self, 'doc_analysis_status') and self.doc_analysis_status:
+                            self.doc_analysis_status.setText(status_text)
+                            self.doc_analysis_status.setStyleSheet("color: #388E3C; padding: 5px;")
+                        
+                        # Add chat message
+                        self._add_chat_message("assistant", chat_message)
+                        
+                        log_msg = "[DOC ANALYSIS] ✓ UI updated successfully"
+                        print(log_msg)
+                        if hasattr(self.parent_app, 'log'):
+                            self.parent_app.log(log_msg)
+                    except Exception as ui_error:
+                        log_msg = f"[DOC ANALYSIS] ✗ UI update error: {str(ui_error)}"
+                        print(log_msg)
+                        import traceback
+                        print(traceback.format_exc())
+                        if hasattr(self.parent_app, 'log'):
+                            self.parent_app.log(log_msg)
+                            self.parent_app.log(traceback.format_exc())
+                
+                # Use QApplication.postEvent to post custom event to main thread
+                # This is the most reliable way to update UI from background thread
+                try:
+                    if hasattr(self, 'doc_analysis_status') and self.doc_analysis_status:
+                        # Find the parent widget (AssistantTabWidget) - it should be a QWidget with event() override
+                        parent_widget = self.doc_analysis_status.parent()
+                        # Walk up the parent chain to find AssistantTabWidget (or any QWidget)
+                        # The doc_analysis_status is inside analysis_group which is inside the tab
+                        while parent_widget:
+                            # Check if this widget is the AssistantTabWidget (has manager attribute)
+                            if hasattr(parent_widget, 'manager') and parent_widget.manager == self:
+                                break
+                            parent_widget = parent_widget.parent()
+                        
+                        if parent_widget:
+                            # Post custom event to the widget
+                            event = AnalysisUpdateEvent(
+                                status_text=status_text,
+                                status_style="color: #388E3C; padding: 5px;",
+                                chat_message=chat_message
+                            )
+                            QApplication.postEvent(parent_widget, event)
+                            log_msg = "[DOC ANALYSIS] Posted custom event to main thread"
+                            print(log_msg)
+                            if hasattr(self.parent_app, 'log'):
+                                self.parent_app.log(log_msg)
+                        else:
+                            # Fallback: use timer approach
+                            log_msg = "[DOC ANALYSIS] ⚠ Parent widget not found, using timer fallback"
+                            print(log_msg)
+                            if hasattr(self.parent_app, 'log'):
+                                self.parent_app.log(log_msg)
+                            timer = QTimer(self.doc_analysis_status)
+                            timer.setSingleShot(True)
+                            timer.timeout.connect(update_ui_from_main_thread)
+                            timer.start(10)
+                    else:
+                        # Last resort: try static method
+                        log_msg = "[DOC ANALYSIS] ⚠ doc_analysis_status not found, using static timer"
+                        print(log_msg)
+                        if hasattr(self.parent_app, 'log'):
+                            self.parent_app.log(log_msg)
+                        QTimer.singleShot(10, update_ui_from_main_thread)
+                except Exception as event_error:
+                    log_msg = f"[DOC ANALYSIS] ✗ Event posting error: {str(event_error)}"
+                    print(log_msg)
+                    import traceback
+                    print(traceback.format_exc())
+                    if hasattr(self.parent_app, 'log'):
+                        self.parent_app.log(log_msg)
+                        self.parent_app.log(traceback.format_exc())
+                    # Last resort: try static method
+                    QTimer.singleShot(10, update_ui_from_main_thread)
                 
             except Exception as e:
                 import traceback
-                traceback.print_exc()
+                total_duration = time.time() - start_time
+                error_trace = traceback.format_exc()
+                
+                log_msg = f"[DOC ANALYSIS] ✗ Error after {total_duration:.1f} seconds: {str(e)}"
+                print(log_msg)
+                print(f"[DOC ANALYSIS] Traceback:\n{error_trace}")
+                if hasattr(self.parent_app, 'log'):
+                    self.parent_app.log(log_msg)
+                    self.parent_app.log(f"[DOC ANALYSIS] Traceback:\n{error_trace}")
+                
                 analysis_result['error'] = str(e)
                 analysis_result['completed'] = True
+                
+                # Clear result on error
+                def update_ui_error():
+                    self.doc_analysis_result = None
+                    self.doc_analysis_status.setText(f"❌ Error: {str(e)}")
+                    self.doc_analysis_status.setStyleSheet("color: #D32F2F; padding: 5px;")
+                    self._add_chat_message("error", f"Error during analysis: {str(e)}\n\nTime elapsed: {total_duration:.1f} seconds")
+                
                 # Update status (thread-safe UI update)
-                QTimer.singleShot(0, lambda: self.doc_analysis_status.setText(f"❌ Error: {str(e)}"))
-                QTimer.singleShot(0, lambda: self.doc_analysis_status.setStyleSheet("color: #D32F2F; padding: 5px;"))
-                QTimer.singleShot(0, lambda: self._add_chat_message("error", f"Error during analysis: {str(e)}"))
+                QTimer.singleShot(0, update_ui_error)
         
         # Run in background thread to avoid blocking UI
         analysis_thread = threading.Thread(target=perform_analysis, daemon=True)
@@ -2194,27 +2505,42 @@ Your response will help configure an AI translation tool for professional-qualit
         # Set up timeout mechanism (120 seconds = 2 minutes)
         def check_timeout():
             import time
-            start_time = time.time()
+            timeout_start = time.time()
             timeout_seconds = 120
+            last_log_time = timeout_start
             
             while not analysis_result['completed']:
-                import time
-                if time.time() - start_time > timeout_seconds:
+                elapsed = time.time() - timeout_start
+                
+                # Log progress every 10 seconds
+                if elapsed - (last_log_time - timeout_start) >= 10:
+                    log_msg = f"[DOC ANALYSIS] Still waiting... {elapsed:.0f} seconds elapsed (timeout: {timeout_seconds}s)"
+                    print(log_msg)
+                    if hasattr(self.parent_app, 'log'):
+                        self.parent_app.log(log_msg)
+                    last_log_time = time.time()
+                
+                if elapsed > timeout_seconds:
                     # Timeout occurred
+                    log_msg = f"[DOC ANALYSIS] ✗ TIMEOUT after {elapsed:.1f} seconds"
+                    print(log_msg)
+                    if hasattr(self.parent_app, 'log'):
+                        self.parent_app.log(log_msg)
+                    
                     analysis_result['completed'] = True
                     analysis_result['error'] = f"Analysis timed out after {timeout_seconds} seconds. The document may be too large or the API is slow."
                     QTimer.singleShot(0, lambda: self.doc_analysis_status.setText(f"❌ Timeout: Analysis took longer than {timeout_seconds} seconds"))
                     QTimer.singleShot(0, lambda: self.doc_analysis_status.setStyleSheet("color: #D32F2F; padding: 5px;"))
                     QTimer.singleShot(0, lambda: self._add_chat_message("error", f"Document analysis timed out after {timeout_seconds} seconds. Try with a smaller document or check your API connection."))
                     break
-                import time
+                
                 time.sleep(1)  # Check every second
         
         # Start timeout checker in separate thread
         threading.Thread(target=check_timeout, daemon=True).start()
     
     def _generate_translation_prompts(self):
-        """Generate ready-to-use System Prompt and Custom Instructions based on document analysis"""
+        """Generate ready-to-use Domain Prompt and Project Prompt based on document analysis"""
         if not self.doc_analysis_result:
             QMessageBox.information(
                 self.parent_app if self.parent_app else None,
@@ -2252,7 +2578,7 @@ Your response will help configure an AI translation tool for professional-qualit
         target_lang = self.doc_analysis_result.get('target_lang', 'Dutch')
         segment_count = self.doc_analysis_result.get('segment_count', 0)
         
-        # Build prompt to generate actionable System Prompt + Custom Instructions
+        # Build prompt to generate actionable Domain Prompt + Project Prompt
         system_prompt = f"""You are an expert translation workflow consultant helping configure a CAT tool.
 
 The user has just analyzed their document and received the following analysis:
@@ -2261,35 +2587,39 @@ The user has just analyzed their document and received the following analysis:
 
 Your task is to generate TWO separate, ready-to-use prompts for the translator:
 
-1. **SYSTEM PROMPT** (Global translation strategy - goes in "System Prompts" section)
-   - This should be a COMPLETE, ready-to-use prompt that defines HOW to translate
+1. **DOMAIN PROMPT** (Domain-specific translation strategy - goes in "Domain Prompts" section, Layer 2)
+   
+   **CRITICAL: This must be a COMPLETE, comprehensive prompt (3-5 FULL paragraphs minimum).**
+   
+   The Domain Prompt should:
+   - Be a COMPLETE, ready-to-use prompt that defines HOW to translate
    - Include the translation direction using PLACEHOLDERS: {{SOURCE_LANGUAGE}} → {{TARGET_LANGUAGE}}
    - Specify the domain, tone, register, terminology handling GENERALLY (not document-specific)
    - Include specific translation strategies for this document type
    - Make it GENERIC and REUSABLE for similar documents in this domain
-   - Should be 3-5 paragraphs, comprehensive but focused
+   - Should be 3-5 FULL paragraphs, comprehensive but focused
    - Do NOT include specific termbase terms - keep it general
    - Use {{SOURCE_LANGUAGE}} and {{TARGET_LANGUAGE}} placeholders, NOT specific language names
    
-   **CRITICAL REQUIREMENTS - You MUST include ALL of these in your System Prompt:**
+   **MANDATORY SECTIONS - You MUST include ALL of these in your Domain Prompt (expand each into full sentences/paragraphs):**
    
    **LANGUAGE AGNOSTIC RULE**: All examples and instructions must use {{SOURCE_LANGUAGE}} and {{TARGET_LANGUAGE}} placeholders. NEVER hardcode specific language pairs (like English→Dutch). The prompt must work for ANY translation direction.
    
-   a) **Professional Context**: Explain this is professional translation work for regulatory compliance, medical/technical terminology for legitimate professional purposes, NOT medical advice
+   a) **Professional Context** (1-2 sentences): Explain this is professional translation work for regulatory compliance, medical/technical terminology for legitimate professional purposes, NOT medical advice
    
-   b) **Translation Role**: Define yourself as an expert {{SOURCE_LANGUAGE}} to {{TARGET_LANGUAGE}} translator with deep understanding of context and nuance
+   b) **Translation Role** (1-2 sentences): Define yourself as an expert {{SOURCE_LANGUAGE}} to {{TARGET_LANGUAGE}} translator with deep understanding of context and nuance, specializing in [DOMAIN FROM ANALYSIS]
    
-   c) **Context Availability**: Mention that full document context may be provided for reference
+   c) **Context Availability** (1 sentence): Mention that full document context may be provided for reference
    
-   d) **Task Definition**: Clearly specify the translation task (translate ONLY specified text, not full document)
+   d) **Task Definition** (1-2 sentences): Clearly specify the translation task (translate ONLY specified text, not full document)
    
-   e) **Output Format**: 
+   e) **Output Format** (3-4 sentences): 
      - Provide ONLY the translated text
      - Do NOT include numbering, labels, or commentary
      - Do NOT repeat the source text
      - Maintain accuracy and natural fluency
    
-   f) **CAT TOOL TAG PRESERVATION** (CRITICAL - preserve ALL of these):
+   f) **CAT TOOL TAG PRESERVATION** (CRITICAL - preserve ALL of these - write 3-4 sentences with examples):
      - memoQ tags: [1}}, {{2}}, [3}}, {{4}} (asymmetric bracket-brace pairs)
      - Trados Studio tags: <410>text</410>, <434>text</434> (XML-style opening/closing tags)
      - CafeTran tags: |formatted text| (pipe symbols mark formatted text - bold, italic, underline, etc.)
@@ -2299,16 +2629,20 @@ Your task is to generate TWO separate, ready-to-use prompts for the translator:
      - Keep tags with their content, adjust position for natural target language word order
      - Never translate, omit, or modify the tags themselves - only reposition them
      - Include MULTIPLE examples but use GENERIC examples that work for ANY language pair
-   - Examples should show structure/format, NOT specific language pairs (e.g., '[1}}Source Text{{2}}' → '[1}}Target Text{{2}}')
+     - Examples should show structure/format, NOT specific language pairs (e.g., '[1}}Source Text{{2}}' → '[1}}Target Text{{2}}')
   
-  g) **LANGUAGE-SPECIFIC NUMBER FORMATTING**:
+  g) **LANGUAGE-SPECIFIC NUMBER FORMATTING** (2-3 sentences with examples):
      - For Dutch/French/German/Italian/Spanish (continental European): use comma as decimal separator, space or non-breaking space before unit (e.g., 17,1 cm)
      - For English/Irish: use period as decimal separator, no space before unit (e.g., 17.1 cm)
      - Always follow the number formatting conventions of the target language
    
-   i) **Optional: Figure References**: If applicable, mention figures (e.g., 'Figure 1A') may have relevant images provided for visual context
+   h) **Domain-Specific Guidelines** (1-2 sentences): Based on the analysis, mention key considerations for this domain (e.g., medical imaging: maintain technical precision, use standardized terminology)
+   
+   i) **Optional: Figure References** (1 sentence): If applicable, mention figures (e.g., 'Figure 1A') may have relevant images provided for visual context
+   
+   **DO NOT** write just 2-3 sentences. Write a FULL, comprehensive prompt with all sections expanded into proper paragraphs.
 
-2. **CUSTOM INSTRUCTIONS** (Project-specific guidance - goes in "Custom Instructions" tab)
+2. **PROJECT PROMPT** (Project-specific guidance - goes in "Project Prompts" section, Layer 3)
    - Start with 2-3 paragraphs of SPECIFIC guidance for THIS document
    - Then include the KEY TERMINOLOGY section
    
@@ -2318,25 +2652,27 @@ Your task is to generate TWO separate, ready-to-use prompts for the translator:
    - The table header must be: | {source_lang} term | {target_lang} equivalent | Notes / context |
    - Include the separator line: |------------|--------------------|-----------------| 
    - Then copy EVERY SINGLE ROW from the analysis termbase
-   - If there are 33 terms in the analysis, there must be 33 rows in your output
+   - If there are 36 terms in the analysis, there must be 36 rows in your output
    - DO NOT STOP until you've copied the LAST row of the termbase
    - After the complete table, add 2-3 paragraphs with specific examples
    
    Reference specific key terms with translation examples
    Mention specific challenges identified in the analysis
-   Include domain-specific requirements (e.g., for patents: maintain claim structure, legal accuracy)
+   Include domain-specific requirements (e.g., for medical imaging: maintain technical precision, use standardized terminology)
    List terminology consistency rules with concrete examples from the termbase
    Highlight any special handling needed (measurements, figures, technical processes)
 
 Format your response EXACTLY like this:
 
 ---SYSTEM PROMPT---
-[Full system prompt text here, ready to copy-paste]
+[Full Domain Prompt text here, ready to copy-paste]
 
 ---CUSTOM INSTRUCTIONS---
-[Full custom instructions text here, ready to copy-paste]
+[Full Project Prompt text here, ready to copy-paste]
 
 ---
+
+Note: Even though the delimiters say "SYSTEM PROMPT" and "CUSTOM INSTRUCTIONS" (for backward compatibility), the first section should contain the Domain Prompt (Layer 2) and the second section should contain the Project Prompt (Layer 3).
 
 Be specific, practical, and actionable. The translator should be able to copy these directly into Supervertaler."""
 
@@ -2351,41 +2687,237 @@ Provide the two prompts in the specified format."""
         
         # Import threading to run async
         import threading
+        import time
+        
+        print("[PROMPT GEN] ===== Prompt Generation Started =====")
+        if hasattr(self.parent_app, 'log'):
+            self.parent_app.log("[PROMPT GEN] ===== Prompt Generation Started =====")
         
         def perform_generation():
+            start_time = time.time()
             try:
+                log_msg = "[PROMPT GEN] Initializing LLM client..."
+                print(log_msg)
+                if hasattr(self.parent_app, 'log'):
+                    self.parent_app.log(log_msg)
+                
                 # Call LLM
                 from modules.llm_clients import LLMClient
+                
+                model_name = settings.get(f'{provider}_model', 'gpt-4o')
+                log_msg = f"[PROMPT GEN] Provider: {provider}, Model: {model_name}"
+                print(log_msg)
+                if hasattr(self.parent_app, 'log'):
+                    self.parent_app.log(log_msg)
                 
                 client = LLMClient(
                     api_key=api_keys[api_key_name],
                     provider=provider,
-                    model=settings.get(f'{provider}_model', 'gpt-4o')
+                    model=model_name
                 )
                 
                 # Build custom prompt
                 full_custom_prompt = f"{system_prompt}\n\n{user_prompt}"
+                prompt_size = len(full_custom_prompt)
+                log_msg = f"[PROMPT GEN] Built prompt: {prompt_size} characters ({prompt_size/4:.0f} estimated tokens)"
+                print(log_msg)
+                if hasattr(self.parent_app, 'log'):
+                    self.parent_app.log(log_msg)
                 
-                # Call LLM - pass custom prompt (use empty text, analysis is in prompt)
-                ai_response = client.translate(
-                    text="",  # Empty text, generation is in the prompt itself
-                    source_lang=source_lang,
-                    target_lang=target_lang,
-                    custom_prompt=full_custom_prompt
-                )
+                # Call LLM directly like tkinter version (not via translate wrapper)
+                # This gives us full control over the generation task
+                api_start_time = time.time()
+                log_msg = f"[PROMPT GEN] Calling {provider.upper()} API directly... (this may take 30-60 seconds)"
+                print(log_msg)
+                if hasattr(self.parent_app, 'log'):
+                    self.parent_app.log(log_msg)
                 
-                # Show generated prompts dialog (thread-safe UI update)
-                QTimer.singleShot(0, lambda: self._show_generated_prompts_dialog(ai_response, source_lang, target_lang))
+                ai_response = None
+                
+                if provider == "openai":
+                    from openai import OpenAI
+                    openai_client = OpenAI(api_key=api_keys.get('openai'))
+                    
+                    response = openai_client.chat.completions.create(
+                        model=model_name,
+                        messages=[
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_prompt}
+                        ],
+                        temperature=0.4,
+                        max_tokens=8000
+                    )
+                    ai_response = response.choices[0].message.content
+                    finish_reason = response.choices[0].finish_reason
+                    if finish_reason == 'length':
+                        log_msg = "⚠️ WARNING: Response truncated due to token limit!"
+                        print(log_msg)
+                        if hasattr(self.parent_app, 'log'):
+                            self.parent_app.log(log_msg)
+                
+                elif provider == "claude":
+                    import anthropic
+                    claude_client = anthropic.Anthropic(api_key=api_keys.get('claude'))
+                    
+                    response = claude_client.messages.create(
+                        model=model_name,
+                        max_tokens=8000,
+                        temperature=0.4,
+                        system=system_prompt,
+                        messages=[{"role": "user", "content": user_prompt}]
+                    )
+                    ai_response = response.content[0].text
+                    if response.stop_reason == 'max_tokens':
+                        log_msg = "⚠️ WARNING: Response truncated due to token limit!"
+                        print(log_msg)
+                        if hasattr(self.parent_app, 'log'):
+                            self.parent_app.log(log_msg)
+                
+                elif provider == "gemini":
+                    import google.generativeai as genai
+                    genai.configure(api_key=api_keys.get('google'))
+                    gemini_model = genai.GenerativeModel(model_name)
+                    
+                    combined = system_prompt + "\n\n" + user_prompt
+                    response = gemini_model.generate_content(
+                        combined,
+                        generation_config=genai.types.GenerationConfig(
+                            temperature=0.4,
+                            max_output_tokens=8000
+                        )
+                    )
+                    ai_response = response.text
+                    if hasattr(response, 'candidates') and response.candidates:
+                        finish_reason = response.candidates[0].finish_reason
+                        if finish_reason == 1:  # FINISH_REASON_MAX_TOKENS
+                            log_msg = "⚠️ WARNING: Response truncated due to token limit!"
+                            print(log_msg)
+                            if hasattr(self.parent_app, 'log'):
+                                self.parent_app.log(log_msg)
+                
+                if not ai_response:
+                    raise ValueError(f"No response from {provider} API")
+                
+                # Check if response might be truncated (if we can detect it)
+                # Note: LLMClient.translate() doesn't currently return metadata, but we can check response length
+                if len(ai_response) < 500:
+                    log_msg = "[PROMPT GEN] ⚠ Response seems very short - may be truncated"
+                    print(log_msg)
+                    if hasattr(self.parent_app, 'log'):
+                        self.parent_app.log(log_msg)
+                
+                api_duration = time.time() - api_start_time
+                total_duration = time.time() - start_time
+                log_msg = f"[PROMPT GEN] ✓ API call completed in {api_duration:.1f} seconds (total: {total_duration:.1f}s)"
+                print(log_msg)
+                if hasattr(self.parent_app, 'log'):
+                    self.parent_app.log(log_msg)
+                
+                if not ai_response:
+                    raise ValueError("Empty response from API")
+                
+                response_size = len(ai_response)
+                log_msg = f"[PROMPT GEN] Received response: {response_size} characters"
+                print(log_msg)
+                if hasattr(self.parent_app, 'log'):
+                    self.parent_app.log(log_msg)
+                
+                # Log first 500 chars and last 500 chars to see structure
+                if response_size > 1000:
+                    log_msg = f"[PROMPT GEN] Response start (first 500 chars):\n{ai_response[:500]}"
+                    print(log_msg)
+                    if hasattr(self.parent_app, 'log'):
+                        self.parent_app.log(log_msg)
+                    log_msg = f"[PROMPT GEN] Response end (last 500 chars):\n{ai_response[-500:]}"
+                    print(log_msg)
+                    if hasattr(self.parent_app, 'log'):
+                        self.parent_app.log(log_msg)
+                else:
+                    log_msg = f"[PROMPT GEN] Full response:\n{ai_response}"
+                    print(log_msg)
+                    if hasattr(self.parent_app, 'log'):
+                        self.parent_app.log(log_msg)
+                
+                # Show generated prompts dialog using custom event (thread-safe UI update)
+                if hasattr(self, 'doc_analysis_status') and self.doc_analysis_status:
+                    # Find the parent widget (AssistantTabWidget)
+                    parent_widget = self.doc_analysis_status.parent()
+                    while parent_widget:
+                        if hasattr(parent_widget, 'manager') and parent_widget.manager == self:
+                            break
+                        parent_widget = parent_widget.parent()
+                    
+                    if parent_widget:
+                        # Create a custom event for showing the dialog
+                        class PromptGenCompleteEvent(QEvent):
+                            EVENT_TYPE = QEvent.Type(QEvent.Type.User + 101)
+                            
+                            def __init__(self, ai_response, source_lang, target_lang):
+                                super().__init__(PromptGenCompleteEvent.EVENT_TYPE)
+                                self.ai_response = ai_response
+                                self.source_lang = source_lang
+                                self.target_lang = target_lang
+                        
+                        event = PromptGenCompleteEvent(ai_response, source_lang, target_lang)
+                        QApplication.postEvent(parent_widget, event)
+                        log_msg = "[PROMPT GEN] Posted completion event to main thread"
+                        print(log_msg)
+                        if hasattr(self.parent_app, 'log'):
+                            self.parent_app.log(log_msg)
+                    else:
+                        # Fallback: use timer
+                        log_msg = "[PROMPT GEN] ⚠ Parent widget not found, using timer fallback"
+                        print(log_msg)
+                        if hasattr(self.parent_app, 'log'):
+                            self.parent_app.log(log_msg)
+                        QTimer.singleShot(10, lambda: self._show_generated_prompts_dialog(ai_response, source_lang, target_lang))
+                else:
+                    # Fallback: use timer
+                    QTimer.singleShot(10, lambda: self._show_generated_prompts_dialog(ai_response, source_lang, target_lang))
                 
             except Exception as e:
                 import traceback
-                traceback.print_exc()
-                QTimer.singleShot(0, lambda: self._add_chat_message("error", f"Error generating prompts: {str(e)}"))
-                QTimer.singleShot(0, lambda: QMessageBox.critical(
-                    self.parent_app if self.parent_app else None,
-                    "Generation Error",
-                    f"Failed to generate prompts:\n\n{str(e)}"
-                ))
+                total_duration = time.time() - start_time
+                error_trace = traceback.format_exc()
+                
+                log_msg = f"[PROMPT GEN] ✗ Error after {total_duration:.1f} seconds: {str(e)}"
+                print(log_msg)
+                print(f"[PROMPT GEN] Traceback:\n{error_trace}")
+                if hasattr(self.parent_app, 'log'):
+                    self.parent_app.log(log_msg)
+                    self.parent_app.log(f"[PROMPT GEN] Traceback:\n{error_trace}")
+                
+                # Post error event or use timer
+                def show_error():
+                    self._add_chat_message("error", f"Error generating prompts: {str(e)}")
+                    QMessageBox.critical(
+                        self.parent_app if self.parent_app else None,
+                        "Generation Error",
+                        f"Failed to generate prompts:\n\n{str(e)}"
+                    )
+                
+                if hasattr(self, 'doc_analysis_status') and self.doc_analysis_status:
+                    parent_widget = self.doc_analysis_status.parent()
+                    while parent_widget:
+                        if hasattr(parent_widget, 'manager') and parent_widget.manager == self:
+                            break
+                        parent_widget = parent_widget.parent()
+                    
+                    if parent_widget:
+                        # Create error event
+                        class PromptGenErrorEvent(QEvent):
+                            EVENT_TYPE = QEvent.Type(QEvent.Type.User + 102)
+                            
+                            def __init__(self, error_msg):
+                                super().__init__(PromptGenErrorEvent.EVENT_TYPE)
+                                self.error_msg = error_msg
+                        
+                        event = PromptGenErrorEvent(str(e))
+                        QApplication.postEvent(parent_widget, event)
+                    else:
+                        QTimer.singleShot(10, show_error)
+                else:
+                    QTimer.singleShot(10, show_error)
         
         # Run in background thread
         threading.Thread(target=perform_generation, daemon=True).start()
@@ -2421,32 +2953,179 @@ Provide the two prompts in the specified format."""
     
     def _show_generated_prompts_dialog(self, ai_response, source_lang, target_lang):
         """Display generated prompts in an interactive dialog with copy/apply actions"""
-        # Parse the AI response to extract System Prompt and Custom Instructions
+        # Parse the AI response to extract Domain Prompt and Project Prompt
+        log_msg = f"[PROMPT GEN] Parsing AI response ({len(ai_response)} characters)..."
+        print(log_msg)
+        if hasattr(self.parent_app, 'log'):
+            self.parent_app.log(log_msg)
+        
         try:
-            # Split by the main delimiters
-            if "---SYSTEM PROMPT---" in ai_response and "---CUSTOM INSTRUCTIONS---" in ai_response:
-                parts = ai_response.split("---SYSTEM PROMPT---")
-                remainder = parts[1].split("---CUSTOM INSTRUCTIONS---")
-                system_prompt_text = remainder[0].strip()
-                # DON'T split on --- again - take everything after ---CUSTOM INSTRUCTIONS---
-                custom_instructions_text = remainder[1].strip()
-                # Only remove trailing --- if it exists at the very end
-                if custom_instructions_text.endswith("---"):
-                    custom_instructions_text = custom_instructions_text[:-3].strip()
-            else:
-                # Fallback: try to parse without delimiters
-                system_prompt_text = ai_response[:len(ai_response)//2]
-                custom_instructions_text = ai_response[len(ai_response)//2:]
+            # Look for the delimiters as specified in the prompt
+            # The prompt asks for: ---SYSTEM PROMPT--- and ---CUSTOM INSTRUCTIONS---
+            domain_prompt_text = ""
+            project_prompt_text = ""
+            
+            # Try multiple delimiter variations
+            delimiter_patterns = [
+                ("---SYSTEM PROMPT---", "---CUSTOM INSTRUCTIONS---"),
+                ("---SYSTEM PROMPT---", "---CUSTOM INSTRUCTIONS---"),
+                ("SYSTEM PROMPT", "CUSTOM INSTRUCTIONS"),
+                ("**SYSTEM PROMPT**", "**CUSTOM INSTRUCTIONS**"),
+            ]
+            
+            found = False
+            for sys_delim, custom_delim in delimiter_patterns:
+                if sys_delim in ai_response and custom_delim in ai_response:
+                    log_msg = f"[PROMPT GEN] Found delimiters: '{sys_delim}' and '{custom_delim}'"
+                    print(log_msg)
+                    if hasattr(self.parent_app, 'log'):
+                        self.parent_app.log(log_msg)
+                    
+                    # Split exactly like tkinter version - simple and reliable
+                    parts = ai_response.split(sys_delim, 1)
+                    if len(parts) > 1:
+                        # parts[0] is everything BEFORE the first delimiter (should be empty or intro text)
+                        # parts[1] is everything AFTER the first delimiter
+                        remainder = parts[1].split(custom_delim, 1)
+                        domain_prompt_text = remainder[0].strip()
+                        
+                        # Log what we extracted
+                        log_msg = f"[PROMPT GEN] Extracted Domain Prompt (before cleanup): {len(domain_prompt_text)} chars"
+                        print(log_msg)
+                        if hasattr(self.parent_app, 'log'):
+                            self.parent_app.log(log_msg)
+                        
+                        if len(remainder) > 1:
+                            project_prompt_text = remainder[1].strip()
+                            # Remove trailing delimiters if present (like "---" at the end)
+                            if project_prompt_text.endswith("---"):
+                                project_prompt_text = project_prompt_text[:-3].strip()
+                            # Also remove any leading "---" if present
+                            if project_prompt_text.startswith("---"):
+                                project_prompt_text = project_prompt_text[3:].strip()
+                            
+                            log_msg = f"[PROMPT GEN] Extracted Project Prompt (before cleanup): {len(project_prompt_text)} chars"
+                            print(log_msg)
+                            if hasattr(self.parent_app, 'log'):
+                                self.parent_app.log(log_msg)
+                        else:
+                            # If custom delimiter not found after system delimiter, something's wrong
+                            log_msg = "[PROMPT GEN] ⚠ Custom delimiter not found after system delimiter"
+                            print(log_msg)
+                            if hasattr(self.parent_app, 'log'):
+                                self.parent_app.log(log_msg)
+                            project_prompt_text = ""
+                        found = True
+                        break
+                    else:
+                        # Split found delimiter but parts[1] doesn't exist - shouldn't happen
+                        log_msg = f"[PROMPT GEN] ⚠ Split on '{sys_delim}' but parts[1] missing"
+                        print(log_msg)
+                        if hasattr(self.parent_app, 'log'):
+                            self.parent_app.log(log_msg)
+            
+            if not found:
+                log_msg = "[PROMPT GEN] ⚠ Delimiters not found, trying fallback parsing..."
+                print(log_msg)
+                if hasattr(self.parent_app, 'log'):
+                    self.parent_app.log(log_msg)
+                
+                # Fallback: try to split by common patterns
+                # Look for any section markers
+                import re
+                # Try to find sections marked with headers
+                sections = re.split(r'(?i)(?:^|\n)(?:---|##|#)\s*(?:SYSTEM|DOMAIN)', ai_response)
+                if len(sections) >= 2:
+                    domain_prompt_text = sections[1].split("CUSTOM INSTRUCTIONS", 1)[0].strip()
+                    if "CUSTOM INSTRUCTIONS" in sections[1]:
+                        project_prompt_text = sections[1].split("CUSTOM INSTRUCTIONS", 1)[1].strip()
+                    else:
+                        project_prompt_text = ai_response[len(domain_prompt_text):].strip()
+                else:
+                    # Last resort: split in half
+                    domain_prompt_text = ai_response[:len(ai_response)//2].strip()
+                    project_prompt_text = ai_response[len(ai_response)//2:].strip()
+            
+            # Clean up extracted text - remove any remaining delimiter markers and variations
+            # Remove delimiters that might appear anywhere in the text
+            import re
+            cleanup_patterns = [
+                r'---SYSTEM PROMPT---',
+                r'---CUSTOM INSTRUCTIONS---',
+                r'--SYSTEM PROMPT--',
+                r'--CUSTOM INSTRUCTIONS--',
+                r'\*\*SYSTEM PROMPT\*\*',
+                r'\*\*CUSTOM INSTRUCTIONS\*\*',
+                r'##\s*SYSTEM PROMPT',
+                r'##\s*CUSTOM INSTRUCTIONS',
+                r'#\s*SYSTEM PROMPT',
+                r'#\s*CUSTOM INSTRUCTIONS',
+            ]
+            for pattern in cleanup_patterns:
+                domain_prompt_text = re.sub(pattern, '', domain_prompt_text, flags=re.IGNORECASE)
+                project_prompt_text = re.sub(pattern, '', project_prompt_text, flags=re.IGNORECASE)
+            
+            # Remove any standalone "---" lines
+            domain_prompt_text = re.sub(r'^---+$', '', domain_prompt_text, flags=re.MULTILINE)
+            project_prompt_text = re.sub(r'^---+$', '', project_prompt_text, flags=re.MULTILINE)
+            
+            # Final strip
+            domain_prompt_text = domain_prompt_text.strip()
+            project_prompt_text = project_prompt_text.strip()
+            
+            log_msg = f"[PROMPT GEN] Parsed Domain Prompt: {len(domain_prompt_text)} chars, Project Prompt: {len(project_prompt_text)} chars"
+            print(log_msg)
+            if hasattr(self.parent_app, 'log'):
+                self.parent_app.log(log_msg)
+            
+            # Debug: show first 200 chars of each
+            if domain_prompt_text:
+                log_msg = f"[PROMPT GEN] Domain Prompt preview: {domain_prompt_text[:200]}..."
+                print(log_msg)
+                if hasattr(self.parent_app, 'log'):
+                    self.parent_app.log(log_msg)
+            if project_prompt_text:
+                log_msg = f"[PROMPT GEN] Project Prompt preview: {project_prompt_text[:200]}..."
+                print(log_msg)
+                if hasattr(self.parent_app, 'log'):
+                    self.parent_app.log(log_msg)
+            
+            if not domain_prompt_text or len(domain_prompt_text) < 50:
+                log_msg = "[PROMPT GEN] ⚠ Domain Prompt seems empty or too short, checking full response..."
+                print(log_msg)
+                if hasattr(self.parent_app, 'log'):
+                    self.parent_app.log(log_msg)
+                # If domain prompt is empty, maybe the AI put everything in one section
+                # Try to extract meaningful content
+                if project_prompt_text and len(project_prompt_text) > 100:
+                    # Maybe the AI reversed them or put everything in custom instructions
+                    # But don't do this automatically - log a warning instead
+                    log_msg = "[PROMPT GEN] ⚠ Domain Prompt empty but Project Prompt has content - may need manual review"
+                    print(log_msg)
+                    if hasattr(self.parent_app, 'log'):
+                        self.parent_app.log(log_msg)
+                elif not domain_prompt_text:
+                    domain_prompt_text = ai_response
+                    project_prompt_text = "See Domain Prompt above for complete guidance."
+                    
         except Exception as e:
-            self.log_message(f"⚠️ Error parsing AI response: {str(e)}")
-            system_prompt_text = ai_response
-            custom_instructions_text = "See System Prompt above for complete guidance."
+            import traceback
+            error_trace = traceback.format_exc()
+            log_msg = f"[PROMPT GEN] ✗ Error parsing AI response: {str(e)}"
+            print(log_msg)
+            print(f"[PROMPT GEN] Traceback:\n{error_trace}")
+            if hasattr(self.parent_app, 'log'):
+                self.parent_app.log(log_msg)
+                self.parent_app.log(error_trace)
+            
+            domain_prompt_text = ai_response
+            project_prompt_text = "See Domain Prompt above for complete guidance."
         
         # Store generated prompts in project for later retrieval
         from datetime import datetime
         self.generated_prompts = {
-            'system_prompt': system_prompt_text,
-            'custom_instructions': custom_instructions_text,
+            'domain_prompt': domain_prompt_text,
+            'project_prompt': project_prompt_text,
             'source_lang': source_lang,
             'target_lang': target_lang,
             'generated_at': datetime.now().isoformat()
@@ -2475,46 +3154,46 @@ Provide the two prompts in the specified format."""
         # Tab widget
         tabs = QTabWidget()
         
-        # System Prompt Tab
-        sys_tab = QWidget()
-        sys_layout = QVBoxLayout(sys_tab)
+        # Domain Prompt Tab (Layer 2)
+        domain_tab = QWidget()
+        domain_layout = QVBoxLayout(domain_tab)
         
-        sys_info = QLabel(
-            "This prompt will be saved as a Domain Prompt in your Prompt Library"
+        domain_info = QLabel(
+            "This Domain Prompt will be saved in your Prompt Library (Layer 2: Domain-Specific Prompts)"
         )
-        sys_info.setWordWrap(True)
-        sys_info.setStyleSheet("color: #1976D2; padding: 5px; background-color: #E3F2FD; border-radius: 3px;")
-        sys_layout.addWidget(sys_info)
+        domain_info.setWordWrap(True)
+        domain_info.setStyleSheet("color: #1976D2; padding: 5px; background-color: #E3F2FD; border-radius: 3px;")
+        domain_layout.addWidget(domain_info)
         
-        sys_text = QTextEdit()
-        sys_text.setPlainText(system_prompt_text)
-        sys_text.setReadOnly(True)
-        sys_layout.addWidget(sys_text, 1)
+        domain_text = QTextEdit()
+        domain_text.setPlainText(domain_prompt_text)
+        domain_text.setReadOnly(True)
+        domain_layout.addWidget(domain_text, 1)
         
-        sys_btn_layout = QHBoxLayout()
+        domain_btn_layout = QHBoxLayout()
         
-        auto_activate_sys = QCheckBox("✓ Automatically activate for this project")
-        auto_activate_sys.setChecked(True)
-        sys_btn_layout.addWidget(auto_activate_sys)
-        sys_btn_layout.addStretch()
+        auto_activate_domain = QCheckBox("✓ Automatically activate for this project")
+        auto_activate_domain.setChecked(True)
+        domain_btn_layout.addWidget(auto_activate_domain)
+        domain_btn_layout.addStretch()
         
-        def save_system_prompt():
-            """Save System Prompt as Domain Prompt"""
+        def save_domain_prompt():
+            """Save Domain Prompt"""
             # Ask for filename
             doc_type = "Custom"
-            if "patent" in system_prompt_text.lower():
+            if "patent" in domain_prompt_text.lower():
                 doc_type = "Patent"
-            elif "medical" in system_prompt_text.lower():
+            elif "medical" in domain_prompt_text.lower():
                 doc_type = "Medical"
-            elif "legal" in system_prompt_text.lower():
+            elif "legal" in domain_prompt_text.lower():
                 doc_type = "Legal"
-            elif "technical" in system_prompt_text.lower():
+            elif "technical" in domain_prompt_text.lower():
                 doc_type = "Technical"
             
             name, ok = QInputDialog.getText(
                 dialog,
-                "Save System Prompt",
-                f"Enter a name for this System Prompt:\n(will be saved as Domain Prompt):",
+                "Save Domain Prompt",
+                f"Enter a name for this Domain Prompt:",
                 text=f"{doc_type}_{source_lang}_to_{target_lang}"
             )
             
@@ -2531,12 +3210,12 @@ Provide the two prompts in the specified format."""
             domain = domain_map.get(doc_type, "General")
             
             # Replace language names with placeholders
-            prompt_with_placeholders = system_prompt_text.replace(source_lang, "{source_lang}").replace(target_lang, "{target_lang}")
+            prompt_with_placeholders = domain_prompt_text.replace(source_lang, "{source_lang}").replace(target_lang, "{target_lang}")
             
             # Create prompt data
             prompt_data = {
                 "name": name,
-                "description": f"AI-generated system prompt for translation in {doc_type.lower()} domain",
+                "description": f"AI-generated domain prompt for translation in {doc_type.lower()} domain",
                 "domain": domain,
                 "version": "1.0",
                 "task_type": "Translation",
@@ -2550,19 +3229,19 @@ Provide the two prompts in the specified format."""
             try:
                 # Use prompt library's dict_to_markdown
                 system_prompts_dir = self.user_data_path / "Prompt_Library" / "System_prompts"
-                filename = f"{name} (system prompt).md"
+                filename = f"{name} (domain prompt).md"
                 filepath = system_prompts_dir / filename
                 
                 self.prompt_library.dict_to_markdown(prompt_data, str(filepath))
                 
-                self.log_message(f"✓ Saved System Prompt to: {filepath}")
+                self.log_message(f"✓ Saved Domain Prompt to: {filepath}")
                 
                 # Reload prompt library
                 self.prompt_library.load_all_prompts()
                 self._load_domain_expertise()  # Refresh Domain Prompts list
                 
                 # Auto-activate if checked
-                if auto_activate_sys.isChecked():
+                if auto_activate_domain.isChecked():
                     # Find the prompt in the domain tree and activate it
                     # We need to select it in the tree first
                     for i in range(self.domain_tree.topLevelItemCount()):
@@ -2570,13 +3249,13 @@ Provide the two prompts in the specified format."""
                         if item and item.data(0, Qt.ItemDataRole.UserRole) == filename:
                             self.domain_tree.setCurrentItem(item)
                             self._activate_domain_expertise('translate')
-                            self.log_message("✅ System Prompt automatically activated")
+                            self.log_message("✅ Domain Prompt automatically activated")
                             break
                 
                 QMessageBox.information(
                     self.parent_app if self.parent_app else None,
                     "Saved!",
-                    f"System Prompt saved as:\n{filename}\n\n"
+                    f"Domain Prompt saved as:\n{filename}\n\n"
                     f"Location: {system_prompts_dir}\n\n"
                     f"It will now appear in your Prompt Manager → Domain Prompts section."
                 )
@@ -2588,60 +3267,60 @@ Provide the two prompts in the specified format."""
                     f"Failed to save:\n{str(e)}"
                 )
         
-        def copy_system_prompt():
+        def copy_domain_prompt():
             clipboard = QApplication.clipboard()
             if clipboard:
-                clipboard.setText(system_prompt_text)
+                clipboard.setText(domain_prompt_text)
             QMessageBox.information(
                 self.parent_app if self.parent_app else None,
                 "Copied!",
-                "System Prompt copied to clipboard!"
+                "Domain Prompt copied to clipboard!"
             )
         
-        save_sys_btn = QPushButton("💾 Save as Domain Prompt")
-        save_sys_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 6px 12px;")
-        save_sys_btn.clicked.connect(save_system_prompt)
-        sys_btn_layout.addWidget(save_sys_btn)
+        save_domain_btn = QPushButton("💾 Save as Domain Prompt")
+        save_domain_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 6px 12px;")
+        save_domain_btn.clicked.connect(save_domain_prompt)
+        domain_btn_layout.addWidget(save_domain_btn)
         
-        copy_sys_btn = QPushButton("📋 Copy to Clipboard")
-        copy_sys_btn.setStyleSheet("background-color: #2196F3; color: white; padding: 6px 12px;")
-        copy_sys_btn.clicked.connect(copy_system_prompt)
-        sys_btn_layout.addWidget(copy_sys_btn)
+        copy_domain_btn = QPushButton("📋 Copy to Clipboard")
+        copy_domain_btn.setStyleSheet("background-color: #2196F3; color: white; padding: 6px 12px;")
+        copy_domain_btn.clicked.connect(copy_domain_prompt)
+        domain_btn_layout.addWidget(copy_domain_btn)
         
-        sys_layout.addLayout(sys_btn_layout)
-        tabs.addTab(sys_tab, "📋 System Prompt (Global Strategy)")
+        domain_layout.addLayout(domain_btn_layout)
+        tabs.addTab(domain_tab, "🎯 Domain Prompt (Layer 2)")
         
-        # Custom Instructions Tab
-        custom_tab = QWidget()
-        custom_layout = QVBoxLayout(custom_tab)
+        # Project Prompt Tab (Layer 3)
+        project_tab = QWidget()
+        project_layout = QVBoxLayout(project_tab)
         
-        custom_info = QLabel(
-            "These custom instructions will be saved as a Project Prompt in your Prompt Library"
+        project_info = QLabel(
+            "This Project Prompt will be saved in your Prompt Library (Layer 3: Project-Specific Prompts)"
         )
-        custom_info.setWordWrap(True)
-        custom_info.setStyleSheet("color: #F57C00; padding: 5px; background-color: #FFF3E0; border-radius: 3px;")
-        custom_layout.addWidget(custom_info)
+        project_info.setWordWrap(True)
+        project_info.setStyleSheet("color: #F57C00; padding: 5px; background-color: #FFF3E0; border-radius: 3px;")
+        project_layout.addWidget(project_info)
         
-        custom_text = QTextEdit()
-        custom_text.setPlainText(custom_instructions_text)
-        custom_text.setReadOnly(True)
-        custom_layout.addWidget(custom_text, 1)
+        project_text = QTextEdit()
+        project_text.setPlainText(project_prompt_text)
+        project_text.setReadOnly(True)
+        project_layout.addWidget(project_text, 1)
         
-        custom_btn_layout = QHBoxLayout()
+        project_btn_layout = QHBoxLayout()
         
-        auto_activate_custom = QCheckBox("✓ Automatically activate for this project")
-        auto_activate_custom.setChecked(True)
-        custom_btn_layout.addWidget(auto_activate_custom)
-        custom_btn_layout.addStretch()
+        auto_activate_project = QCheckBox("✓ Automatically activate for this project")
+        auto_activate_project.setChecked(True)
+        project_btn_layout.addWidget(auto_activate_project)
+        project_btn_layout.addStretch()
         
-        def save_custom_instructions():
-            """Save custom instructions as Project Prompt"""
+        def save_project_prompt():
+            """Save Project Prompt"""
             # Ask for name
             name, ok = QInputDialog.getText(
                 dialog,
-                "Save Custom Instructions",
-                "Enter a name for these custom instructions:",
-                text=f"{source_lang} to {target_lang} - Custom Instructions"
+                "Save Project Prompt",
+                "Enter a name for this Project Prompt:",
+                text=f"{source_lang} to {target_lang} - Project Prompt"
             )
             
             if not ok or not name:
@@ -2663,46 +3342,46 @@ Provide the two prompts in the specified format."""
                     domain = "Marketing"
             
             # Create prompt data
-            custom_data = {
+            project_data = {
                 "name": name,
-                "description": "AI-generated custom instructions",
+                "description": "AI-generated project prompt",
                 "domain": domain,
                 "version": "1.0",
                 "created": datetime.now().strftime("%Y-%m-%d"),
-                "translate_prompt": custom_instructions_text,
-                "proofread_prompt": custom_instructions_text
+                "translate_prompt": project_prompt_text,
+                "proofread_prompt": project_prompt_text
             }
             
-            # Save to Custom Instructions folder
+            # Save to Custom Instructions folder (which stores Project Prompts)
             custom_instructions_dir = self.user_data_path / "Prompt_Library" / "Custom_instructions"
             custom_instructions_dir.mkdir(parents=True, exist_ok=True)
             
             # Sanitize filename and add descriptor
             safe_filename = "".join(c for c in name if c.isalnum() or c in (' ', '-', '_')).strip()
-            filename = f"{safe_filename} (custom instructions).md"
+            filename = f"{safe_filename} (project prompt).md"
             filepath = custom_instructions_dir / filename
             
             try:
                 # Save as Markdown
-                self.prompt_library.dict_to_markdown(custom_data, str(filepath))
+                self.prompt_library.dict_to_markdown(project_data, str(filepath))
                 
-                self.log_message(f"✅ Custom Instructions saved: {filename}")
+                self.log_message(f"✅ Project Prompt saved: {filename}")
                 
                 # Reload prompt library
                 self.prompt_library.load_all_prompts()
                 self._load_project_guidelines()  # Refresh Project Prompts list
                 
                 # Auto-activate if checked
-                if auto_activate_custom.isChecked():
-                    self.active_project_prompt = custom_instructions_text
+                if auto_activate_project.isChecked():
+                    self.active_project_prompt = project_prompt_text
                     self.active_project_prompt_name = name
                     self._update_active_display()
-                    self.log_message("✅ Custom Instructions automatically activated")
+                    self.log_message("✅ Project Prompt automatically activated")
                 
                 QMessageBox.information(
                     self.parent_app if self.parent_app else None,
                     "Saved!",
-                    f"Custom Instructions saved as:\n\n{filename}\n\n"
+                    f"Project Prompt saved as:\n\n{filename}\n\n"
                     f"Location: {custom_instructions_dir}"
                 )
                 
@@ -2710,31 +3389,31 @@ Provide the two prompts in the specified format."""
                 QMessageBox.critical(
                     self.parent_app if self.parent_app else None,
                     "Error",
-                    f"Failed to save custom instructions:\n\n{str(e)}"
+                    f"Failed to save Project Prompt:\n\n{str(e)}"
                 )
         
-        def copy_custom_instructions():
+        def copy_project_prompt():
             clipboard = QApplication.clipboard()
             if clipboard:
-                clipboard.setText(custom_instructions_text)
+                clipboard.setText(project_prompt_text)
             QMessageBox.information(
                 self.parent_app if self.parent_app else None,
                 "Copied!",
-                "Custom Instructions copied to clipboard!"
+                "Project Prompt copied to clipboard!"
             )
         
-        save_custom_btn = QPushButton("💾 Save as Project Prompt")
-        save_custom_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 6px 12px;")
-        save_custom_btn.clicked.connect(save_custom_instructions)
-        custom_btn_layout.addWidget(save_custom_btn)
+        save_project_btn = QPushButton("💾 Save as Project Prompt")
+        save_project_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 6px 12px;")
+        save_project_btn.clicked.connect(save_project_prompt)
+        project_btn_layout.addWidget(save_project_btn)
         
-        copy_custom_btn = QPushButton("📋 Copy to Clipboard")
-        copy_custom_btn.setStyleSheet("background-color: #2196F3; color: white; padding: 6px 12px;")
-        copy_custom_btn.clicked.connect(copy_custom_instructions)
-        custom_btn_layout.addWidget(copy_custom_btn)
+        copy_project_btn = QPushButton("📋 Copy to Clipboard")
+        copy_project_btn.setStyleSheet("background-color: #2196F3; color: white; padding: 6px 12px;")
+        copy_project_btn.clicked.connect(copy_project_prompt)
+        project_btn_layout.addWidget(copy_project_btn)
         
-        custom_layout.addLayout(custom_btn_layout)
-        tabs.addTab(custom_tab, "📝 Custom Instructions (Project-Specific)")
+        project_layout.addLayout(project_btn_layout)
+        tabs.addTab(project_tab, "📝 Project Prompt (Layer 3)")
         
         layout.addWidget(tabs, 1)
         

@@ -1,6 +1,47 @@
 # Supervertaler Release Notes
 
-## Current Release: v1.1.6-Qt (November 3, 2025)
+## Current Release: v1.1.8-Qt (November 5, 2025)
+
+### Critical Bug Fix 🐛
+
+**Prompt Generation Fixed** 🎯
+- **CRITICAL FIX:** "Generate Prompts" feature in Prompt Assistant now works perfectly
+- **Problem:** Was producing incomplete prompts (Domain: 2 sentences, Project: partial termbase)
+- **Root Cause:** Using translation method for text generation (fundamentally wrong approach)
+- **Solution:** Switched to direct LLM API calls with proper chat completion structure
+- **Result:** Complete professional prompts with full termbase tables (36+ terms)
+- **Impact:** Critical feature that was broken is now fully functional
+
+**Technical Details:**
+- Direct API calls to OpenAI/Claude/Gemini (not via translation wrapper)
+- Proper system/user message separation
+- Temperature 0.4 for creative generation
+- Max tokens 8000 with truncation detection
+- Matches working tkinter implementation exactly
+
+This was a critical fix for a core feature - the Prompt Assistant's "Generate Prompts" functionality is now production-ready.
+
+---
+
+## Previous Release: v1.1.7-Qt (November 4, 2025)
+
+### What's New
+
+**Home Screen Redesign** 🏠
+- Complete restructuring of primary workspace
+- Editor (Grid/List/Document) on left, Prompt Manager on right
+- Resizable horizontal splitter for flexible layout
+- Real-time prompt tweaking while viewing changes
+- Translation results panel in compact form at bottom
+
+**Strategic Refocus** 🎯
+- Pivoted to companion tool philosophy (not full CAT tool)
+- Grid simplified for viewing/reviewing
+- Focus on AI-powered features and specialized modules
+
+---
+
+## Previous Release: v1.1.6-Qt (November 3, 2025)
 
 ### What's New
 
