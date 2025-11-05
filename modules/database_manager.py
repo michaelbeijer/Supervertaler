@@ -38,7 +38,7 @@ class DatabaseManager:
         
         # Set default database path if not provided
         if db_path is None:
-            # Will be set by application - defaults to user data folder
+            # Will be set by application - defaults to user_data folder
             self.db_path = "supervertaler.db"
         else:
             self.db_path = db_path

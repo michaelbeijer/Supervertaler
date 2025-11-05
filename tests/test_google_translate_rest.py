@@ -12,7 +12,7 @@ def test_google_translate_rest():
         
         # Load API key from file
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        api_keys_file = os.path.join(script_dir, "user data_private", "api_keys.txt")
+        api_keys_file = os.path.join(script_dir, "user_data_private", "api_keys.txt")
         
         google_translate_key = None
         if os.path.exists(api_keys_file):
@@ -67,7 +67,7 @@ def test_google_translate_rest():
                     pass
         else:
             print("✗ API key not found in api_keys.txt")
-            print("\nAdd to user data_private/api_keys.txt:")
+            print("\nAdd to user_data_private/api_keys.txt:")
             print("  google_translate = YOUR_API_KEY_HERE")
         
     except ImportError as e:

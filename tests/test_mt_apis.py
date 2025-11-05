@@ -39,7 +39,7 @@ def test_deepl():
         
         # Load API keys
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        api_keys_file = os.path.join(script_dir, "user data_private", "api_keys.txt")
+        api_keys_file = os.path.join(script_dir, "user_data_private", "api_keys.txt")
         
         deepl_key = None
         if os.path.exists(api_keys_file):

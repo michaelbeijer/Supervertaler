@@ -5,7 +5,7 @@ import sqlite3
 print("DEV DATABASE SCHEMA")
 print("="*70)
 
-conn = sqlite3.connect('user data_private/Translation_Resources/supervertaler.db')
+conn = sqlite3.connect('user_data_private/Translation_Resources/supervertaler.db')
 cursor = conn.cursor()
 
 # Check if termbases table exists
@@ -40,7 +40,7 @@ print("\n" + "="*70)
 print("NORMAL DATABASE SCHEMA")
 print("="*70)
 
-conn = sqlite3.connect('user data/Translation_Resources/supervertaler.db')
+conn = sqlite3.connect('user_data/Translation_Resources/supervertaler.db')
 cursor = conn.cursor()
 
 print("\nTERMBASES table columns:")

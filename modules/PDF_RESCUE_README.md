@@ -141,7 +141,7 @@ pip install google-generativeai pillow
 
 ### 2. Add API Keys
 
-Edit `user data_private/api_keys.txt` (or `api_keys.txt` in production):
+Edit `user_data_private/api_keys.txt` (or `api_keys.txt` in production):
 
 ```
 # OpenAI

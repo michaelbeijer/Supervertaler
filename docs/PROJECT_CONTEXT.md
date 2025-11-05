@@ -665,7 +665,7 @@ Ready to integrate into TranslationResultsPanel's compare boxes.
 - **Chat logs:** `/docs/chat-logs/` folder
 - **Development tools:** `/.dev/` folder
 - **Core modules:** `/modules/` folder
-- **User data:** `/user data/` (public), `/user data_private/` (dev only)
+- **User data:** `/user_data/` (public), `/user_data_private/` (dev only)
 
 ---
 

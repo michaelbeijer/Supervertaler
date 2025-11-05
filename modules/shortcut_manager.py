@@ -286,7 +286,7 @@ class ShortcutManager:
         Args:
             settings_file: Path to JSON file for storing custom shortcuts
         """
-        self.settings_file = settings_file or Path("user data/shortcuts.json")
+        self.settings_file = settings_file or Path("user_data/shortcuts.json")
         self.custom_shortcuts = {}
         self.load_shortcuts()
     

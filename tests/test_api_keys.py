@@ -6,12 +6,12 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 def load_api_keys():
-    """Load API keys from api_keys.txt file (supports both root and user data_private locations)"""
+    """Load API keys from api_keys.txt file (supports both root and user_data_private locations)"""
     script_dir = os.path.dirname(os.path.abspath(__file__))
     
-    # Try user data_private first (dev mode), then fallback to root
+    # Try user_data_private first (dev mode), then fallback to root
     possible_paths = [
-        os.path.join(script_dir, "user data_private", "api_keys.txt"),
+        os.path.join(script_dir, "user_data_private", "api_keys.txt"),
         os.path.join(script_dir, "api_keys.txt")
     ]
     

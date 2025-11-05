@@ -8,7 +8,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from modules.database_manager import DatabaseManager
 
-db_path = Path(__file__).parent / "user data" / "Translation_Resources" / "supervertaler.db"
+db_path = Path(__file__).parent / "user_data" / "Translation_Resources" / "supervertaler.db"
 db = DatabaseManager(db_path=str(db_path))
 db.connect()
 

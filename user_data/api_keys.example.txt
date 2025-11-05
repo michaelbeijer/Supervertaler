@@ -5,7 +5,7 @@
 # SECURITY NOTICE:
 # ---------------
 # This is an EXAMPLE file only. Your actual API keys should be 
-# stored in: user data_private/api_keys.txt (for dev mode)
+# stored in: user_data_private/api_keys.txt (for dev mode)
 # or: api_keys.txt (for standalone executable)
 #
 # The file "api_keys.txt" is automatically ignored by Git and 
@@ -13,7 +13,7 @@
 #
 # SETUP INSTRUCTIONS:
 # ------------------
-# 1. Copy this file to: user data_private/api_keys.txt
+# 1. Copy this file to: user_data_private/api_keys.txt
 # 2. Remove the # symbol before each key you want to use
 # 3. Replace [YOUR_KEY_HERE] with your actual API key
 # 4. Save the file
@@ -23,7 +23,7 @@
 # ---------
 # • Never share your API keys with anyone
 # • Never commit api_keys.txt to version control
-# • For dev mode: Keep api_keys.txt in user data_private/
+# • For dev mode: Keep api_keys.txt in user_data_private/
 # • Only api_keys.example.txt should be committed to Git
 #
 # WHERE TO GET API KEYS:
@@ -94,7 +94,7 @@ mymemory = YOUR_MYMEMORY_KEY
 # TROUBLESHOOTING:
 # ---------------
 # If you see "API Key Missing" errors:
-# 1. Check that your file is in: user data_private/api_keys.txt
+# 1. Check that your file is in: user_data_private/api_keys.txt
 # 2. Make sure the # is removed from the beginning of the line
 # 3. Verify there are no extra spaces around the = sign
 # 4. Confirm your key is valid (test at the provider's website)

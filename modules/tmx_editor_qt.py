@@ -2149,7 +2149,7 @@ if __name__ == "__main__":
     ENABLE_PRIVATE_FEATURES = os.path.exists(
         os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".supervertaler.local")
     )
-    user_data_path = Path("user data_private" if ENABLE_PRIVATE_FEATURES else "user data")
+    user_data_path = Path("user_data_private" if ENABLE_PRIVATE_FEATURES else "user_data")
     db_path = user_data_path / "Translation_Resources" / "supervertaler.db"
     
     # Ensure database directory exists

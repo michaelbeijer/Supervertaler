@@ -1,6 +1,6 @@
 """
 Configuration Manager for Supervertaler
-Handles user data folder location, first-time setup, and configuration persistence.
+Handles user_data folder location, first-time setup, and configuration persistence.
 
 Author: Michael Beijer
 License: MIT
@@ -15,14 +15,14 @@ from typing import Optional, Tuple
 
 class ConfigManager:
     """
-    Manages Supervertaler configuration and user data paths.
+    Manages Supervertaler configuration and user_data paths.
     
     MODES:
-    - Dev mode: .supervertaler.local exists → uses user data_private/ folder (git-ignored)
+    - Dev mode: .supervertaler.local exists → uses user_data_private/ folder (git-ignored)
     - User mode: No .supervertaler.local → uses ~/.supervertaler_config.json to store path
     
     Stores configuration in home directory as .supervertaler_config.json
-    Allows users to choose their own user data folder location.
+    Allows users to choose their own user_data folder location.
     """
     
     CONFIG_FILENAME = ".supervertaler_config.json"
@@ -31,11 +31,12 @@ class ConfigManager:
     API_KEYS_EXAMPLE_FILENAME = "api_keys.example.txt"
     API_KEYS_FILENAME = "api_keys.txt"
     
-    # Folder structure that must exist in user data directory
+    # Folder structure that must exist in user_data directory
     REQUIRED_FOLDERS = [
-        "Prompt_Library/System_prompts",
-        "Prompt_Library/Custom_instructions",
-        "Translation_Resources/Style_Guides",
+        "Prompt_Library/1_System_Prompts",
+        "Prompt_Library/2_Domain_Prompts",
+        "Prompt_Library/3_Project_Prompts",
+        "Prompt_Library/4_Style_Guides",
         "Translation_Resources/Glossaries",
         "Translation_Resources/TMs",
         "Translation_Resources/Non-translatables",
@@ -62,7 +63,7 @@ class ConfigManager:
         """
         Get the full path to the config file.
         
-        Dev mode: No config file needed (uses user data_private/)
+        Dev mode: No config file needed (uses user_data_private/)
         User mode: ~/.supervertaler_config.json
         """
         if self.dev_mode:
@@ -72,7 +73,7 @@ class ConfigManager:
     
     @staticmethod
     def _get_default_user_data_path() -> str:
-        """Get the default suggested user data path."""
+        """Get the default suggested user_data path."""
         home = str(Path.home())
         return os.path.join(home, ConfigManager.DEFAULT_USER_DATA_FOLDER)
     
@@ -110,7 +111,7 @@ class ConfigManager:
     
     def is_first_launch(self) -> bool:
         """
-        Check if this is the first launch (no user data path set).
+        Check if this is the first launch (no user_data path set).
         
         Dev mode: Always False (dev doesn't need first-launch wizard)
         User mode: True if no path in config
@@ -121,18 +122,18 @@ class ConfigManager:
     
     def get_user_data_path(self) -> str:
         """
-        Get the current user data path.
+        Get the current user_data path.
         
-        Dev mode: Returns ./user data_private/ (in repo root)
+        Dev mode: Returns ./user_data_private/ (in repo root)
         User mode: Returns configured path from ~/.supervertaler_config.json
         
         If not configured, returns default suggestion (doesn't create it).
         Use ensure_user_data_exists() to create the folder.
         """
         if self.dev_mode:
-            # Dev mode: use user data_private folder
+            # Dev mode: use user_data_private folder
             repo_root = os.path.dirname(self.script_dir)
-            return os.path.join(repo_root, "user data_private")
+            return os.path.join(repo_root, "user_data_private")
         
         # User mode: use configured path
         if 'user_data_path' in self.config and self.config['user_data_path']:
@@ -141,10 +142,10 @@ class ConfigManager:
     
     def set_user_data_path(self, path: str) -> Tuple[bool, str]:
         """
-        Set the user data path and save configuration.
+        Set the user_data path and save configuration.
         
         Args:
-            path: Full path to user data folder
+            path: Full path to user_data folder
             
         Returns:
             Tuple of (success: bool, message: str)
@@ -169,7 +170,7 @@ class ConfigManager:
     @staticmethod
     def _validate_path(path: str) -> Tuple[bool, str]:
         """
-        Validate that a path is suitable for user data.
+        Validate that a path is suitable for user_data.
         
         Returns:
             Tuple of (is_valid: bool, error_message: str)
@@ -196,7 +197,7 @@ class ConfigManager:
     
     def ensure_user_data_exists(self, user_data_path: Optional[str] = None) -> Tuple[bool, str]:
         """
-        Ensure user data folder exists with proper structure.
+        Ensure user_data folder exists with proper structure.
         
         Creates all required subdirectories if they don't exist.
         Also copies api_keys.example.txt → api_keys.txt if not present.
@@ -211,7 +212,7 @@ class ConfigManager:
             user_data_path = self.get_user_data_path()
         
         try:
-            # Create root user data folder
+            # Create root user_data folder
             Path(user_data_path).mkdir(parents=True, exist_ok=True)
             
             # Create all required subdirectories
@@ -224,11 +225,11 @@ class ConfigManager:
             
             return True, f"User data folder structure created at: {user_data_path}"
         except Exception as e:
-            return False, f"Failed to create user data structure: {e}"
+            return False, f"Failed to create user_data structure: {e}"
     
     def _setup_api_keys(self, user_data_path: str) -> Tuple[bool, str]:
         """
-        Copy api_keys.example.txt to api_keys.txt in user data folder.
+        Copy api_keys.example.txt to api_keys.txt in user_data folder.
         
         Only creates if api_keys.txt doesn't already exist.
         """
@@ -263,7 +264,7 @@ class ConfigManager:
     
     def get_subfolder_path(self, subfolder: str) -> str:
         """
-        Get the full path to a subfolder in user data.
+        Get the full path to a subfolder in user_data.
         
         Example:
             config.get_subfolder_path('Translation_Resources/TMs')
@@ -279,12 +280,12 @@ class ConfigManager:
     
     def get_existing_user_data_folder(self) -> Optional[str]:
         """
-        Detect if there's existing user data in the script directory (from development).
+        Detect if there's existing user_data in the script directory (from development).
         
         Returns path if found, None otherwise.
         """
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        old_user_data_path = os.path.join(script_dir, "user data")
+        old_user_data_path = os.path.join(script_dir, "user_data")
         
         if os.path.exists(old_user_data_path) and os.path.isdir(old_user_data_path):
             # Check if it has any content
@@ -295,13 +296,13 @@ class ConfigManager:
     
     def migrate_user_data(self, old_path: str, new_path: str) -> Tuple[bool, str]:
         """
-        Migrate user data from old location to new location.
+        Migrate user_data from old location to new location.
         
         Also handles migration of api_keys.txt if it exists in old location.
         
         Args:
-            old_path: Current user data location
-            new_path: New user data location
+            old_path: Current user_data location
+            new_path: New user_data location
             
         Returns:
             Tuple of (success: bool, message: str)
@@ -340,12 +341,12 @@ class ConfigManager:
     
     def migrate_api_keys_from_installation(self, user_data_path: str) -> Tuple[bool, str]:
         """
-        Migrate api_keys.txt from installation folder to user data folder if it exists.
+        Migrate api_keys.txt from installation folder to user_data folder if it exists.
         
         This handles migration for users upgrading from older versions.
         
         Args:
-            user_data_path: Target user data folder
+            user_data_path: Target user_data folder
             
         Returns:
             Tuple of (success: bool, message: str)
@@ -359,7 +360,7 @@ class ConfigManager:
             if os.path.exists(old_api_keys) and not os.path.exists(new_api_keys):
                 shutil.copy2(old_api_keys, new_api_keys)
                 print(f"[Migration] Migrated api_keys.txt to {new_api_keys}")
-                return True, f"Migrated api_keys.txt to user data folder"
+                return True, f"Migrated api_keys.txt to user_data folder"
             
             return True, "api_keys.txt migration not needed"
         except Exception as e:

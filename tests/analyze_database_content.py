@@ -76,16 +76,16 @@ def analyze_database(db_path):
 
 # Analyze dev database (most complete)
 print("\n" + "="*70)
-print("ANALYZING: user data_private/Translation_Resources/supervertaler.db")
+print("ANALYZING: user_data_private/Translation_Resources/supervertaler.db")
 print("="*70)
 
-result_dev = analyze_database("user data_private/Translation_Resources/supervertaler.db")
+result_dev = analyze_database("user_data_private/Translation_Resources/supervertaler.db")
 
 print("\n" + "="*70)
-print("ANALYZING: user data/Translation_Resources/supervertaler.db")
+print("ANALYZING: user_data/Translation_Resources/supervertaler.db")
 print("="*70)
 
-result_normal = analyze_database("user data/Translation_Resources/supervertaler.db")
+result_normal = analyze_database("user_data/Translation_Resources/supervertaler.db")
 
 # Summary
 print("\n" + "="*70)
@@ -105,8 +105,8 @@ The database contains ONLY translation-related tables:
 NO preferences, UI settings, or non-translation data are stored here.
 
 UI preferences (themes.json, ui_preferences.json) are stored separately in:
-  - user data/
-  - user data_private/
+  - user_data/
+  - user_data_private/
   (At the root level, NOT in Translation_Resources)
 
 CONCLUSION: ✅ Translation_Resources IS the right place!

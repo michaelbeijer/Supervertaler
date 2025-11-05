@@ -265,8 +265,8 @@ See [CHANGELOG_Qt.md](CHANGELOG_Qt.md) for complete details.
 ### 📌 What's New in v3.7.1
 
 🔒 **Security & Configuration Updates** (v3.7.1 - October 20, 2025):
-- 🛡️ **Data Folder Security** - Reorganised user data handling to separate dev and user environments
-- 🔐 **API Keys Protection** - Moved `api_keys.txt` to user data folder (never committed to git)
+- 🛡️ **Data Folder Security** - Reorganised user_data handling to separate dev and user environments
+- 🔐 **API Keys Protection** - Moved `api_keys.txt` to user_data folder (never committed to git)
 - 📁 **Configurable Data Folders** - Users can now choose where to store projects and resources on first launch
 - ⚙️ **Settings Menu** - Added "Change Data Folder" option to Settings tab
 - 🐛 **Bug Fixes** - Fixed Tkinter error in Prompt Library tab switching
@@ -279,8 +279,10 @@ See [CHANGELOG_Qt.md](CHANGELOG_Qt.md) for complete details.
 - Simplified repository and documentation
 
 📁 **Folder Structure Reorganization** (v3.7.1):
-- `Prompt_Library/System_prompts/` - Domain-specific prompts (19 files)
-- `Prompt_Library/Custom_instructions/` - User preferences (8 files)
+- `Prompt_Library/1_System_Prompts/` - Infrastructure prompts (CAT tags, formatting rules)
+- `Prompt_Library/2_Domain_Prompts/` - Domain-specific expertise (medical, legal, technical)
+- `Prompt_Library/3_Project_Prompts/` - Project/client-specific instructions
+- `Prompt_Library/4_Style_Guides/` - Language-specific formatting conventions
 - `Translation_Resources/Glossaries/` - Terminology databases
 - `Translation_Resources/TMs/` - Translation Memory files
 - `Translation_Resources/Non-translatables/` - Non-translatable lists
@@ -332,7 +334,7 @@ See [CHANGELOG_Qt.md](CHANGELOG_Qt.md) for complete details.
 - 💾 Project save/load with full context preservation
 - 📁 Organised folder structure (Prompt_Library, Translation_Resources, Projects)
 - 🔄 Automatic backup capability
-- 👥 Dev mode with parallel folder structure (`user data/` vs `user data_private/`)
+- 👥 Dev mode with parallel folder structure (`user_data/` vs `user_data_private/`)
 
 ---
 

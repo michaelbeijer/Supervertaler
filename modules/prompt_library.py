@@ -22,7 +22,7 @@ from tkinter import messagebox
 
 def get_user_data_path(subfolder):
     """
-    Get path to user data folder, handling DEV_MODE.
+    Get path to user_data folder, handling DEV_MODE.
     This is imported from the main module's implementation.
     """
     # Import from parent if needed, or accept as parameter

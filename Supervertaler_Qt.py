@@ -80,16 +80,16 @@ except ImportError:
 # ============================================================================
 
 # Check for .supervertaler.local file to enable private features (for developers only)
-# This ensures that private data (API keys, personal projects, etc.) stays in user data_private/
+# This ensures that private data (API keys, personal projects, etc.) stays in user_data_private/
 # which is .gitignored, preventing accidental upload to GitHub
 ENABLE_PRIVATE_FEATURES = os.path.exists(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), ".supervertaler.local")
 )
 if ENABLE_PRIVATE_FEATURES:
     print("[DEV MODE] Private features enabled (.supervertaler.local found)")
-    print("[DEV MODE] Using 'user data_private/' folder (git-ignored)")
+    print("[DEV MODE] Using 'user_data_private/' folder (git-ignored)")
 else:
-    print("[USER MODE] Using 'user data/' folder")
+    print("[USER MODE] Using 'user_data/' folder")
 
 
 # ============================================================================
@@ -829,7 +829,7 @@ class SupervertalerQt(QMainWindow):
         
         # Database Manager for Termbases
         from modules.database_manager import DatabaseManager
-        self.user_data_path = Path("user data_private" if ENABLE_PRIVATE_FEATURES else "user data")
+        self.user_data_path = Path("user_data_private" if ENABLE_PRIVATE_FEATURES else "user_data")
         self.db_manager = DatabaseManager(
             db_path=str(self.user_data_path / "Translation_Resources" / "supervertaler.db"),
             log_callback=self.log
@@ -841,9 +841,9 @@ class SupervertalerQt(QMainWindow):
         self.theme_manager = None  # Will be initialized after UI setup
         
         # User data path - uses safety system to prevent private data leaks
-        # If .supervertaler.local exists: uses "user data_private" (git-ignored)
-        # Otherwise: uses "user data" (safe to commit)
-        base_folder = "user data_private" if ENABLE_PRIVATE_FEATURES else "user data"
+        # If .supervertaler.local exists: uses "user_data_private" (git-ignored)
+        # Otherwise: uses "user_data" (safe to commit)
+        base_folder = "user_data_private" if ENABLE_PRIVATE_FEATURES else "user_data"
         self.recent_projects_file = self.user_data_path / "recent_projects.json"
         
         # Initialize UI
@@ -9252,7 +9252,7 @@ class SupervertalerQt(QMainWindow):
             return f"[MyMemory error: {str(e)}]"
     
     def load_api_keys(self) -> Dict[str, str]:
-        """Load API keys from user data folder"""
+        """Load API keys from user_data folder"""
         api_keys = {}
         api_keys_file = self.user_data_path / "api_keys.txt"
         
@@ -10242,11 +10242,11 @@ class AutoFingersWidget(QWidget):
         self.engine = None
         self.is_running = False
         
-        # Get default TMX path from user data
+        # Get default TMX path from user_data
         if ENABLE_PRIVATE_FEATURES:
-            default_tmx = "user data_private/autofingers_tm.tmx"
+            default_tmx = "user_data_private/autofingers_tm.tmx"
         else:
-            default_tmx = "user data/autofingers_tm.tmx"
+            default_tmx = "user_data/autofingers_tm.tmx"
         
         self.tmx_file = default_tmx
         
@@ -10912,7 +10912,7 @@ class AutoFingersWidget(QWidget):
     def load_settings(self):
         """Load saved settings from file"""
         try:
-            settings_file = Path("user data_private" if ENABLE_PRIVATE_FEATURES else "user data") / "autofingers_settings.json"
+            settings_file = Path("user_data_private" if ENABLE_PRIVATE_FEATURES else "user_data") / "autofingers_settings.json"
             if settings_file.exists():
                 with open(settings_file, 'r', encoding='utf-8') as f:
                     settings = json.load(f)
@@ -10940,7 +10940,7 @@ class AutoFingersWidget(QWidget):
                 'skip_no_match': self.skip_no_match_check.isChecked()
             }
             
-            settings_file = Path("user data_private" if ENABLE_PRIVATE_FEATURES else "user data") / "autofingers_settings.json"
+            settings_file = Path("user_data_private" if ENABLE_PRIVATE_FEATURES else "user_data") / "autofingers_settings.json"
             settings_file.parent.mkdir(parents=True, exist_ok=True)
             
             with open(settings_file, 'w', encoding='utf-8') as f:

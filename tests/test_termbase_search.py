@@ -10,7 +10,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from modules.database_manager import DatabaseManager
 
 # Initialize database
-db_path = Path(__file__).parent / "user data" / "Translation_Resources" / "supervertaler.db"
+db_path = Path(__file__).parent / "user_data" / "Translation_Resources" / "supervertaler.db"
 print(f"Database path: {db_path}")
 print(f"Database exists: {db_path.exists()}")
 

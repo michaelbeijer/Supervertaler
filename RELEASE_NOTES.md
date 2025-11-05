@@ -21,7 +21,7 @@
 **Technical Implementation:**
 - Modular architecture: `modules/shortcut_manager.py` + `modules/keyboard_shortcuts_widget.py`
 - Context-aware shortcuts (editor vs. grid vs. match panel)
-- Persistent storage in `user data/shortcuts.json`
+- Persistent storage in `user_data/shortcuts.json`
 - Foundation for future dynamic shortcut updates
 
 **Access:** Settings → ⌨️ Keyboard Shortcuts

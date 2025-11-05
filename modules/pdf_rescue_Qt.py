@@ -1763,8 +1763,8 @@ if __name__ == "__main__":
             self.api_keys = {}
             api_file = Path("api_keys.txt")
             if not api_file.exists():
-                # Try user data folder
-                api_file = Path("user data_private" if os.path.exists(".supervertaler.local") else "user data") / "api_keys.txt"
+                # Try user_data folder
+                api_file = Path("user_data_private" if os.path.exists(".supervertaler.local") else "user_data") / "api_keys.txt"
             
             if api_file.exists():
                 with open(api_file, 'r', encoding='utf-8') as f:
@@ -1781,7 +1781,7 @@ if __name__ == "__main__":
                     "API Key Missing",
                     "Could not find OpenAI API key in api_keys.txt\n\n"
                     "Please add a line like:\nOPENAI_API_KEY=your-key-here\n\n"
-                    "Or place api_keys.txt in the user data folder."
+                    "Or place api_keys.txt in the user_data folder."
                 )
                 # Still create UI but warn user
             

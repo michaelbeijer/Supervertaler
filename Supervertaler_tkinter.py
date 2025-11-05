@@ -35,7 +35,7 @@ Key Features:
 - 🔍 Find/Replace functionality
 - ✅ Status tracking and progress monitoring
 - 💾 Project save/load with context preservation
-- 👥 Dev mode with parallel folder structure (user data/ vs user data_private/)
+- 👥 Dev mode with parallel folder structure (user_data/ vs user_data_private/)
 
 Author: Michael Beijer (30-year professional translator)
 License: MIT
@@ -62,19 +62,19 @@ del _os_temp
 
 def get_user_data_path(folder_name):
     """
-    Get the appropriate user data path.
+    Get the appropriate user_data path.
     
     UPDATED: Now uses ConfigManager for user-configurable paths.
     Falls back to relative paths for backward compatibility during dev.
     
     In dev mode (with .supervertaler.local file):
-        Returns: user data_private/<folder_name>
+        Returns: user_data_private/<folder_name>
     In user mode (pip install or normal launch):
         Returns: /user/configured/path/Supervertaler_Data/<folder_name>
     
     Examples:
-        Dev mode:  get_user_data_path('Prompt_Library/System_prompts') 
-                -> 'user data_private/Prompt_Library/System_prompts'
+        Dev mode:  get_user_data_path('Prompt_Library/2_Domain_Prompts') 
+                -> 'user_data_private/Prompt_Library/2_Domain_Prompts'
         User mode: get_user_data_path('Translation_Resources/TMs') 
                 -> '/home/user/Supervertaler_Data/Translation_Resources/TMs'
     """
@@ -90,10 +90,10 @@ def get_user_data_path(folder_name):
         
         if ENABLE_PRIVATE_FEATURES:
             # Dev mode: use parallel private structure
-            return os.path.join(script_dir, "user data_private", folder_name)
+            return os.path.join(script_dir, "user_data_private", folder_name)
         else:
             # User mode fallback: use script directory
-            return os.path.join(script_dir, "user data", folder_name)
+            return os.path.join(script_dir, "user_data", folder_name)
 
 
 def migrate_old_folder_structure():
@@ -102,15 +102,15 @@ def migrate_old_folder_structure():
     
     This function detects if old folders exist (System_prompts, Custom_instructions, etc.)
     at the top level and moves them to the new hierarchical structure:
-    - user data/Prompt_Library/System_prompts/
-    - user data/Prompt_Library/Custom_instructions/
-    - user data/Translation_Resources/Glossaries/
+    - user_data/Prompt_Library/2_Domain_Prompts/
+    - user_data/Prompt_Library/3_Project_Prompts/
+    - user_data/Translation_Resources/Glossaries/
     - etc.
     
     Respects dev mode (.supervertaler.local file).
     """
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    base_dir = "user data_private" if ENABLE_PRIVATE_FEATURES else "user data"
+    base_dir = "user_data_private" if ENABLE_PRIVATE_FEATURES else "user_data"
     base_path = os.path.join(script_dir, base_dir)
     
     if not os.path.exists(base_path):
@@ -118,9 +118,9 @@ def migrate_old_folder_structure():
     
     # Define migration mappings: old_folder -> new_folder
     migrations = {
-        "System_prompts": "Prompt_Library/System_prompts",
-        "Custom_instructions": "Prompt_Library/Custom_instructions",
-        "Translation_Resources/Style_Guides": "Prompt_Library/Style_Guides",  # v3.7.1: Move to Prompt_Library
+        "System_prompts": "Prompt_Library/2_Domain_Prompts",
+        "Custom_instructions": "Prompt_Library/3_Project_Prompts",
+        "Translation_Resources/Style_Guides": "Prompt_Library/4_Style_Guides",  # v3.7.1: Move to Prompt_Library
         "Glossaries": "Translation_Resources/Glossaries",
         "TMs": "Translation_Resources/TMs",
         "Non-translatables (NTs)": "Translation_Resources/Non-translatables",
@@ -240,12 +240,12 @@ except ImportError as e:
 
 # --- API Key Loading ---
 def load_api_keys():
-    """Load API keys from api_keys.txt file (supports both root and user data_private locations)"""
+    """Load API keys from api_keys.txt file (supports both root and user_data_private locations)"""
     script_dir = os.path.dirname(os.path.abspath(__file__))
     
-    # Try user data_private first (dev mode), then fallback to root
+    # Try user_data_private first (dev mode), then fallback to root
     possible_paths = [
-        os.path.join(script_dir, "user data_private", "api_keys.txt"),
+        os.path.join(script_dir, "user_data_private", "api_keys.txt"),
         os.path.join(script_dir, "api_keys.txt")
     ]
     
@@ -1060,7 +1060,7 @@ class Supervertaler:
         self.current_proofread_prompt = self.default_proofread_prompt
         
         # System prompts directory (uses path resolver for dev mode support)
-        self.system_prompts_dir = get_user_data_path("Prompt_Library/System_prompts")
+        self.system_prompts_dir = get_user_data_path("Prompt_Library/2_Domain_Prompts")
         os.makedirs(self.system_prompts_dir, exist_ok=True)
         
         # Translation memory - new multi-TM architecture with SQLite backend
@@ -1097,8 +1097,8 @@ class Supervertaler:
             except Exception as e:
                 self.log(f"⚠ Could not configure LLM client: {e}")
         
-        system_prompts_dir = get_user_data_path("Prompt_Library/System_prompts")
-        custom_instructions_dir = get_user_data_path("Prompt_Library/Custom_instructions")
+        system_prompts_dir = get_user_data_path("Prompt_Library/2_Domain_Prompts")
+        custom_instructions_dir = get_user_data_path("Prompt_Library/3_Project_Prompts")
         self.prompt_library = PromptLibrary(
             system_prompts_dir=system_prompts_dir,
             custom_instructions_dir=custom_instructions_dir, 
@@ -1106,7 +1106,7 @@ class Supervertaler:
         )
         
         # Style guide manager (translation style guides for different languages)
-        style_guides_dir = get_user_data_path("Prompt_Library/Style_Guides")
+        style_guides_dir = get_user_data_path("Prompt_Library/4_Style_Guides")
         self.style_guide_library = StyleGuideLibrary(
             style_guides_dir=style_guides_dir,
             log_callback=self.log
@@ -3411,8 +3411,8 @@ class Supervertaler:
             if prompt_info.get('_type', 'system_prompt') != 'system_prompt':
                 continue
             
-            # Skip if in Custom_instructions folder (backward compatibility)
-            if 'Custom_instructions' in prompt_info.get('filename', ''):
+            # Skip if in 3_Project_Prompts folder
+            if '3_Project_Prompts' in prompt_info.get('filename', ''):
                 continue
             
             # Filter by task type
@@ -3459,10 +3459,10 @@ class Supervertaler:
             # Only show custom instructions
             filename = prompt_info.get('filename', '')
             is_system = prompt_info.get('_type', 'system_prompt') == 'system_prompt'
-            is_in_custom_folder = 'Custom_instructions' in filename
+            is_in_project_folder = '3_Project_Prompts' in filename
             
-            # Show if explicitly custom OR in Custom_instructions folder
-            if is_system and not is_in_custom_folder:
+            # Show if explicitly Project Prompts OR in 3_Project_Prompts folder
+            if is_system and not is_in_project_folder:
                 continue
             
             name = prompt_info.get('name', 'Unnamed')
@@ -3752,7 +3752,7 @@ class Supervertaler:
         filename = f"{base_filename} (system prompt).md"
         
         # Check if file already exists
-        system_prompts_dir = get_user_data_path("Prompt_Library/System_prompts")
+        system_prompts_dir = get_user_data_path("Prompt_Library/2_Domain_Prompts")
         filepath = os.path.join(system_prompts_dir, filename)
         
         if os.path.exists(filepath):
@@ -3829,7 +3829,7 @@ Add your translation guidelines here...
         filename = f"{base_filename} (custom instruction).md"
         
         # Check if file already exists
-        custom_dir = get_user_data_path("Prompt_Library/Custom_instructions")
+        custom_dir = get_user_data_path("Prompt_Library/3_Project_Prompts")
         filepath = os.path.join(custom_dir, filename)
         
         if os.path.exists(filepath):
@@ -3966,7 +3966,7 @@ Professional style guidelines for translating into {language}.
         
         try:
             # Create the file with standardized naming
-            style_guides_dir = get_user_data_path("Prompt_Library/Style_Guides")
+            style_guides_dir = get_user_data_path("Prompt_Library/4_Style_Guides")
             os.makedirs(style_guides_dir, exist_ok=True)
             
             base_filename = language.lower().replace(' ', '_')
@@ -4516,9 +4516,9 @@ Professional style guidelines for translating into {language}.
         
         # Determine directory
         if is_system:
-            target_dir = get_user_data_path("Prompt_Library/System_prompts")
+            target_dir = get_user_data_path("Prompt_Library/2_Domain_Prompts")
         else:
-            target_dir = get_user_data_path("Prompt_Library/Custom_instructions")
+            target_dir = get_user_data_path("Prompt_Library/3_Project_Prompts")
         
         os.makedirs(target_dir, exist_ok=True)
         target_file = os.path.join(target_dir, new_filename)
@@ -5839,7 +5839,7 @@ Provide the two prompts in the specified format."""
                 text="System_prompts folder",
                 font=('Segoe UI', 9, 'bold', 'underline'), fg='#0D47A1', bg='#e3f2fd', cursor='hand2')
         sys_folder_link.pack(side='left')
-        sys_folder_link.bind('<Button-1>', lambda e: self._open_folder_in_explorer(get_user_data_path('Prompt_Library/System_prompts')))
+        sys_folder_link.bind('<Button-1>', lambda e: self._open_folder_in_explorer(get_user_data_path('Prompt_Library/2_Domain_Prompts')))
         
         system_text = scrolledtext.ScrolledText(system_frame, wrap='word', font=('Segoe UI', 10), height=20)
         system_text.pack(fill='both', expand=True, padx=5, pady=5)
@@ -5887,7 +5887,7 @@ Provide the two prompts in the specified format."""
                     filename = filename.replace('.md', ' (system prompt).md')
                 
                 # Get System_prompts directory
-                system_prompts_dir = get_user_data_path("Prompt_Library/System_prompts")
+                system_prompts_dir = get_user_data_path("Prompt_Library/2_Domain_Prompts")
                 filepath = os.path.join(system_prompts_dir, filename)
                 
                 # Determine domain from doc_type
@@ -5974,7 +5974,7 @@ Provide the two prompts in the specified format."""
                 text="Custom_instructions folder",
                 font=('Segoe UI', 9, 'bold', 'underline'), fg='#E65100', bg='#fff3e0', cursor='hand2')
         custom_folder_link.pack(side='left')
-        custom_folder_link.bind('<Button-1>', lambda e: self._open_folder_in_explorer(get_user_data_path('Prompt_Library/Custom_instructions')))
+        custom_folder_link.bind('<Button-1>', lambda e: self._open_folder_in_explorer(get_user_data_path('Prompt_Library/3_Project_Prompts')))
         
         custom_text = scrolledtext.ScrolledText(custom_frame, wrap='word', font=('Segoe UI', 10), height=20)
         custom_text.pack(fill='both', expand=True, padx=5, pady=5)
@@ -6040,7 +6040,7 @@ Provide the two prompts in the specified format."""
             }
             
             # Save to Custom Instructions folder (respects dev mode)
-            custom_instructions_dir = get_user_data_path('Prompt_Library/Custom_instructions')
+            custom_instructions_dir = get_user_data_path('Prompt_Library/3_Project_Prompts')
             os.makedirs(custom_instructions_dir, exist_ok=True)
             
             # Sanitize filename and add descriptor
@@ -13807,7 +13807,7 @@ Use this feature AFTER translation to:
             config_path = os.path.join(user_data_path, 'recent_projects.json')
         except:
             # Fallback for backward compatibility
-            config_path = os.path.join(os.path.dirname(__file__), 'user data', 'recent_projects.json')
+            config_path = os.path.join(os.path.dirname(__file__), 'user_data', 'recent_projects.json')
         
         if os.path.exists(config_path):
             try:
@@ -13828,7 +13828,7 @@ Use this feature AFTER translation to:
             config_path = os.path.join(user_data_path, 'recent_projects.json')
         except:
             # Fallback for backward compatibility
-            config_path = os.path.join(os.path.dirname(__file__), 'user data', 'recent_projects.json')
+            config_path = os.path.join(os.path.dirname(__file__), 'user_data', 'recent_projects.json')
         
         try:
             # Ensure directory exists
@@ -17428,7 +17428,7 @@ Generated by [Supervertaler](https://supervertaler.com/) v{APP_VERSION}
         # Note about auto-routing in dev mode
         if ENABLE_PRIVATE_FEATURES:
             dev_note = ttk.Label(meta_frame, 
-                               text="🔒 DEV MODE: All prompts auto-save to private folders (user data_private/)",
+                               text="🔒 DEV MODE: All prompts auto-save to private folders (user_data_private/)",
                                font=('Segoe UI', 7), foreground='#cc6600')
             dev_note.grid(row=6, column=1, sticky=tk.W, pady=5, padx=(5, 0))
         

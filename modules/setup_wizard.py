@@ -1,6 +1,6 @@
 """
 Setup Wizard for Supervertaler First Launch
-Guides new users to select their user data folder location.
+Guides new users to select their user_data folder location.
 
 Author: Michael Beijer
 License: MIT
@@ -81,8 +81,10 @@ class SetupWizard:
                 f"{self.selected_path}\n"
                 f"  ├── api_keys.txt\n"
                 f"  ├── Prompt_Library/\n"
-                f"  │   ├── System_prompts/\n"
-                f"  │   └── Custom_instructions/\n"
+                f"  │   ├── 1_System_Prompts/\n"
+                f"  │   ├── 2_Domain_Prompts/\n"
+                f"  │   ├── 3_Project_Prompts/\n"
+                f"  │   └── 4_Style_Guides/\n"
                 f"  ├── Translation_Resources/\n"
                 f"  │   ├── TMs/\n"
                 f"  │   ├── Glossaries/\n"
@@ -199,7 +201,7 @@ class SetupWizard:
         Ask user if they want to migrate existing data.
         
         Args:
-            existing_data_path: Path to existing user data
+            existing_data_path: Path to existing user_data
             
         Returns:
             True if user wants to migrate, False otherwise

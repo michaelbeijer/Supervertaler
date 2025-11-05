@@ -8,10 +8,10 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 # Check all possible database locations
 db_locations = [
-    Path("user data") / "supervertaler.db",
-    Path("user data") / "Translation_Resources" / "supervertaler.db",
-    Path("user data_private") / "supervertaler.db",
-    Path("user data_private") / "Translation_Resources" / "supervertaler.db",
+    Path("user_data") / "supervertaler.db",
+    Path("user_data") / "Translation_Resources" / "supervertaler.db",
+    Path("user_data_private") / "supervertaler.db",
+    Path("user_data_private") / "Translation_Resources" / "supervertaler.db",
 ]
 
 print("="*70)
@@ -62,8 +62,8 @@ print("RECOMMENDATION")
 print("="*70)
 print("""
 The correct database file location should be:
-  user data/Translation_Resources/supervertaler.db (normal mode)
-  user data_private/Translation_Resources/supervertaler.db (dev mode)
+  user_data/Translation_Resources/supervertaler.db (normal mode)
+  user_data_private/Translation_Resources/supervertaler.db (dev mode)
 
 This is because:
 1. All translation resources (TMs, termbases, glossaries) go in Translation_Resources/

@@ -8,7 +8,7 @@ sys.path.insert(0, str(Path(__file__).parent / "modules"))
 from translation_memory import TMDatabase
 
 # Create TM database
-db_path = r"user data_private\Translation_Resources\supervertaler.db"
+db_path = r"user_data_private\Translation_Resources\supervertaler.db"
 tm_db = TMDatabase(source_lang="en", target_lang="nl", db_path=db_path)
 
 print("=" * 60)

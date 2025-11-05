@@ -27,7 +27,7 @@ def test_google_translate_with_locales():
         
         # Load API key
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        api_keys_file = os.path.join(script_dir, "user data_private", "api_keys.txt")
+        api_keys_file = os.path.join(script_dir, "user_data_private", "api_keys.txt")
         
         google_translate_key = None
         if os.path.exists(api_keys_file):

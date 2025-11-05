@@ -9,14 +9,14 @@ import sys
 sys.path.insert(0, os.path.dirname(__file__))
 
 def get_user_data_path(folder_name):
-    """Get path to user data folder"""
+    """Get path to user_data folder"""
     script_dir = os.path.dirname(os.path.abspath(__file__))
     # Check for dev mode marker
     dev_marker = os.path.join(script_dir, ".supervertaler.local")
     if os.path.exists(dev_marker):
-        return os.path.join(script_dir, "user data_private", folder_name)
+        return os.path.join(script_dir, "user_data_private", folder_name)
     else:
-        return os.path.join(script_dir, "user data", folder_name)
+        return os.path.join(script_dir, "user_data", folder_name)
 
 # Test database
 db_path = os.path.join(get_user_data_path("Translation_Resources"), "supervertaler.db")

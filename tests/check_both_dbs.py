@@ -10,8 +10,8 @@ from modules.database_manager import DatabaseManager
 
 # Check both databases
 db_paths = [
-    Path(__file__).parent / "user data" / "Translation_Resources" / "supervertaler.db",
-    Path(__file__).parent / "user data_private" / "Translation_Resources" / "supervertaler.db",
+    Path(__file__).parent / "user_data" / "Translation_Resources" / "supervertaler.db",
+    Path(__file__).parent / "user_data_private" / "Translation_Resources" / "supervertaler.db",
 ]
 
 for db_path in db_paths:

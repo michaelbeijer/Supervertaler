@@ -161,7 +161,7 @@ class ThemeManager:
         Initialize theme manager
         
         Args:
-            user_data_path: Path to user data folder for saving custom themes
+            user_data_path: Path to user_data folder for saving custom themes
         """
         self.user_data_path = user_data_path
         self.themes_file = user_data_path / "themes.json"

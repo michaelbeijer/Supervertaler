@@ -17,7 +17,7 @@ print("TERMBASE HIGHLIGHTING TEST")
 print("="*70)
 
 # Test database connection
-db_path = "user data_private/Translation_Resources/supervertaler.db"
+db_path = "user_data_private/Translation_Resources/supervertaler.db"
 print(f"\n1. Connecting to database: {db_path}")
 
 try:

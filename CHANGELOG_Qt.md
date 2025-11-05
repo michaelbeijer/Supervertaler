@@ -27,7 +27,7 @@ The Qt Edition is the **primary version** for active development and new feature
 - **KeySequenceEdit** - Custom widget for capturing key presses
 - **Conflict detection** - Real-time warnings for duplicate shortcuts
 - **Context-aware shortcuts** - Different contexts (editor, grid, match panel) to prevent conflicts
-- Data stored in `user data/shortcuts.json`
+- Data stored in `user_data/shortcuts.json`
 
 ### Documentation
 - Added `Keyboard_Shortcuts_Implementation.md` in development docs

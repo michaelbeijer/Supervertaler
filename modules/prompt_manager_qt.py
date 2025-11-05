@@ -56,12 +56,12 @@ class PromptManagerQt:
         self.parent_app = parent_app
         self.standalone = standalone
         
-        # Get user data path from parent app
+        # Get user_data path from parent app
         if hasattr(parent_app, 'user_data_path'):
             self.user_data_path = Path(parent_app.user_data_path)
         else:
             # Fallback
-            self.user_data_path = Path("user data")
+            self.user_data_path = Path("user_data")
         
         # Initialize logging
         self.log = parent_app.log if hasattr(parent_app, 'log') else print
@@ -69,21 +69,20 @@ class PromptManagerQt:
         # Helper for QMessageBox (PyQt6 uses instances, not static methods)
         self._msg_box = None
         
-        # Initialize prompt library
-        # Note: Directory names kept for backward compatibility, but content maps to new terminology:
-        # - System_prompts folder → contains Layer 2: Domain Prompts
-        # - Custom_instructions folder → contains Layer 3: Project Prompts
-        system_prompts_dir = self.user_data_path / "Prompt_Library" / "System_prompts"
-        custom_instructions_dir = self.user_data_path / "Prompt_Library" / "Custom_instructions"
+        # Initialize prompt library (4-layer architecture)
+        # - 2_Domain_Prompts folder → Layer 2: Domain expertise (medical, legal, technical)
+        # - 3_Project_Prompts folder → Layer 3: Project/client-specific instructions
+        domain_prompts_dir = self.user_data_path / "Prompt_Library" / "2_Domain_Prompts"
+        project_prompts_dir = self.user_data_path / "Prompt_Library" / "3_Project_Prompts"
         
         self.prompt_library = PromptLibrary(
-            system_prompts_dir=str(system_prompts_dir),
-            custom_instructions_dir=str(custom_instructions_dir),
+            system_prompts_dir=str(domain_prompts_dir),
+            custom_instructions_dir=str(project_prompts_dir),
             log_callback=self.log
         )
         
         # Initialize style guide library
-        style_guides_dir = self.user_data_path / "Prompt_Library" / "Style_Guides"
+        style_guides_dir = self.user_data_path / "Prompt_Library" / "4_Style_Guides"
         self.style_guide_library = StyleGuideLibrary(
             style_guides_dir=str(style_guides_dir),
             log_callback=self.log
@@ -114,9 +113,9 @@ class PromptManagerQt:
         self.current_filename = None
         self.current_system_prompt_mode = "single"  # Track current System Prompt mode
         
-        # System prompts storage (Layer 1 - loaded from file, with defaults)
-        self.system_prompts = {}  # Layer 1: System Prompts
-        self.system_prompts_file = self.user_data_path / "Prompt_Library" / "system_prompts_layer1.json"
+        # System prompts storage (Layer 1 - loaded from folder, with hardcoded defaults)
+        self.system_prompts = {}  # Layer 1: Infrastructure prompts (CAT tags, formatting)
+        self.system_prompts_dir = self.user_data_path / "Prompt_Library" / "1_System_Prompts"
         
         # Settings for tab memory
         self.settings = QSettings("Supervertaler", "PromptManager")
@@ -1019,12 +1018,12 @@ class PromptManagerQt:
         
         for prompt_info in prompts:
             # Only show Domain Prompts (Layer 2)
-            # Note: stored in System_prompts folder but are Layer 2 Domain Prompts
+            # Note: stored in Domain_Prompts folder (Layer 2)
             if prompt_info.get('_type', 'system_prompt') != 'system_prompt':
                 continue
             
-            # Skip if in Custom_instructions folder (those are Layer 3 Project Prompts)
-            if 'Custom_instructions' in prompt_info.get('filename', ''):
+            # Skip if in 3_Project_Prompts folder (those are Layer 3 Project Prompts)
+            if '3_Project_Prompts' in prompt_info.get('filename', ''):
                 continue
             
             # Filter by task type
@@ -1066,10 +1065,10 @@ class PromptManagerQt:
             # Only show Project Prompts (Layer 3)
             filename = prompt_info.get('filename', '')
             is_system = prompt_info.get('_type', 'system_prompt') == 'system_prompt'
-            is_in_custom_folder = 'Custom_instructions' in filename
+            is_in_project_folder = '3_Project_Prompts' in filename
             
-            # Show if explicitly Project Prompts OR in Custom_instructions folder
-            if is_system and not is_in_custom_folder:
+            # Show if explicitly Project Prompts OR in 3_Project_Prompts folder
+            if is_system and not is_in_project_folder:
                 continue
             
             name = prompt_info.get('name', 'Unnamed')
@@ -1695,8 +1694,8 @@ class PromptManagerQt:
         filename = f"{base_filename} (system prompt).md"
         
         # Check if exists
-        system_prompts_dir = self.user_data_path / "Prompt_Library" / "System_prompts"
-        filepath = system_prompts_dir / filename
+        domain_prompts_dir = self.user_data_path / "Prompt_Library" / "2_Domain_Prompts"
+        filepath = domain_prompts_dir / filename
         
         if filepath.exists():
             self._show_message(
@@ -1775,8 +1774,8 @@ Add your translation guidelines here...
         filename = f"{base_filename} (project_prompt).md"
         
         # Check if exists
-        custom_dir = self.user_data_path / "Prompt_Library" / "Custom_instructions"
-        filepath = custom_dir / filename
+        project_dir = self.user_data_path / "Prompt_Library" / "3_Project_Prompts"
+        filepath = project_dir / filename
         
         if filepath.exists():
             self._show_message(
@@ -3228,9 +3227,9 @@ Provide the two prompts in the specified format."""
             # Save file as Markdown
             try:
                 # Use prompt library's dict_to_markdown
-                system_prompts_dir = self.user_data_path / "Prompt_Library" / "System_prompts"
+                domain_prompts_dir = self.user_data_path / "Prompt_Library" / "2_Domain_Prompts"
                 filename = f"{name} (domain prompt).md"
-                filepath = system_prompts_dir / filename
+                filepath = domain_prompts_dir / filename
                 
                 self.prompt_library.dict_to_markdown(prompt_data, str(filepath))
                 
@@ -3352,14 +3351,14 @@ Provide the two prompts in the specified format."""
                 "proofread_prompt": project_prompt_text
             }
             
-            # Save to Custom Instructions folder (which stores Project Prompts)
-            custom_instructions_dir = self.user_data_path / "Prompt_Library" / "Custom_instructions"
-            custom_instructions_dir.mkdir(parents=True, exist_ok=True)
+            # Save to 3_Project_Prompts folder (which stores Project Prompts)
+            project_prompts_dir = self.user_data_path / "Prompt_Library" / "3_Project_Prompts"
+            project_prompts_dir.mkdir(parents=True, exist_ok=True)
             
             # Sanitize filename and add descriptor
             safe_filename = "".join(c for c in name if c.isalnum() or c in (' ', '-', '_')).strip()
             filename = f"{safe_filename} (project prompt).md"
-            filepath = custom_instructions_dir / filename
+            filepath = project_prompts_dir / filename
             
             try:
                 # Save as Markdown
@@ -3440,43 +3439,66 @@ Provide the two prompts in the specified format."""
     # ===== System Prompt Methods (Layer 1) =====
     
     def _load_system_prompts(self):
-        """Load System Prompts (Layer 1) from file, or use defaults"""
-        import json
-        
-        # Default prompts
+        """Load System Prompts (Layer 1) from markdown files"""
+        # Default prompts (hardcoded fallbacks)
         default_prompts = {
             "single": self._get_default_system_prompt("single"),
-            "batch_docx": self._get_default_system_prompt("single"),  # Same for now
-            "batch_bilingual": self._get_default_system_prompt("single")  # Same for now
+            "batch_docx": self._get_default_system_prompt("batch_docx"),
+            "batch_bilingual": self._get_default_system_prompt("batch_bilingual"),
+            "proofread": self._get_default_system_prompt("proofread")
         }
         
-        # Try to load from file
-        if self.system_prompts_file.exists():
+        # Try to load from markdown files in 1_System_Prompts folder
+        self.system_prompts = {}
+        
+        if self.system_prompts_dir.exists():
             try:
-                with open(self.system_prompts_file, 'r', encoding='utf-8') as f:
-                    loaded = json.load(f)
-                    # Merge with defaults (in case new modes are added)
-                    self.system_prompts = {**default_prompts, **loaded}
-                self.log_message("Loaded System Prompts from file")
+                # Map filenames to mode keys
+                file_map = {
+                    "Single Segment Translation (system prompt).md": "single",
+                    "Batch DOCX Translation (system prompt).md": "batch_docx",
+                    "Batch Bilingual Translation (system prompt).md": "batch_bilingual",
+                    "Proofreading (system prompt).md": "proofread"
+                }
+                
+                for filename, mode in file_map.items():
+                    filepath = self.system_prompts_dir / filename
+                    if filepath.exists():
+                        with open(filepath, 'r', encoding='utf-8') as f:
+                            self.system_prompts[mode] = f.read()
+                
+                self.log_message(f"Loaded {len(self.system_prompts)} System Prompts from files")
             except Exception as e:
                 self.log_message(f"Error loading System Prompts: {e}, using defaults")
                 self.system_prompts = default_prompts
-        else:
-            # Use defaults and save them
-            self.system_prompts = default_prompts
-            self._save_system_prompts_file()
+        
+        # Fill in any missing with defaults
+        for mode, default_prompt in default_prompts.items():
+            if mode not in self.system_prompts:
+                self.system_prompts[mode] = default_prompt
         
         # List will be loaded when tab is created
     
-    def _save_system_prompts_file(self):
-        """Save System Prompts (Layer 1) to file"""
-        import json
-        
+    def _save_system_prompts(self):
+        """Save System Prompts (Layer 1) to markdown files"""
         try:
-            self.system_prompts_file.parent.mkdir(parents=True, exist_ok=True)
-            with open(self.system_prompts_file, 'w', encoding='utf-8') as f:
-                json.dump(self.system_prompts, f, indent=2, ensure_ascii=False)
-            self.log_message("Saved System Prompts to file")
+            self.system_prompts_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Map mode keys to filenames
+            file_map = {
+                "single": "Single Segment Translation (system prompt).md",
+                "batch_docx": "Batch DOCX Translation (system prompt).md",
+                "batch_bilingual": "Batch Bilingual Translation (system prompt).md",
+                "proofread": "Proofreading (system prompt).md"
+            }
+            
+            for mode, filename in file_map.items():
+                if mode in self.system_prompts:
+                    filepath = self.system_prompts_dir / filename
+                    with open(filepath, 'w', encoding='utf-8') as f:
+                        f.write(self.system_prompts[mode])
+            
+            self.log_message("Saved System Prompts to files")
         except Exception as e:
             self.log_message(f"Error saving System Prompts: {e}")
     
@@ -3637,7 +3659,7 @@ If the text refers to figures (e.g., 'Figure 1A'), relevant images may be provid
         
         content = self.editor_content.toPlainText()
         self.system_prompts[mode_key] = content
-        self._save_system_prompts_file()
+        self._save_system_prompts()
         
         # Refresh the list to update status
         self._load_system_prompts_list()
@@ -3670,7 +3692,7 @@ If the text refers to figures (e.g., 'Figure 1A'), relevant images may be provid
         self.system_prompts[mode_key] = default
         if hasattr(self, 'editor_content'):
             self.editor_content.setPlainText(default)
-        self._save_system_prompts_file()
+        self._save_system_prompts()
         
         # Refresh the list to update status
         self._load_system_prompts_list()
