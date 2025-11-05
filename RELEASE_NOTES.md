@@ -1,6 +1,34 @@
 # Supervertaler Release Notes
 
-## Current Release: v1.1.8-Qt (November 5, 2025)
+## Current Release: v1.1.9-Qt (November 6, 2025)
+
+### New Feature: Keyboard Shortcuts Manager ⌨️
+
+**Comprehensive Keyboard Shortcuts System**
+- **View all shortcuts** - See all 40+ keyboard shortcuts in one organized table
+- **Categories**: File, Edit, Translation, View, Resources, Match Insertion, Navigation, Editor
+- **Search/Filter** - Quickly find shortcuts by action, category, or key combination
+- **Edit shortcuts** - Double-click to customize any shortcut with key capture widget
+- **Conflict detection** - Real-time warnings if shortcuts overlap
+- **Reset options** - Reset individual shortcuts or all to defaults
+- **Export/Import JSON** - Share shortcut configurations with your team
+- **📄 Export HTML Cheatsheet** - Generate beautiful, printable keyboard reference
+  - Professional styling with color-coded shortcuts
+  - Organized by category
+  - Print-friendly layout
+  - Auto-open in browser
+
+**Technical Implementation:**
+- Modular architecture: `modules/shortcut_manager.py` + `modules/keyboard_shortcuts_widget.py`
+- Context-aware shortcuts (editor vs. grid vs. match panel)
+- Persistent storage in `user data/shortcuts.json`
+- Foundation for future dynamic shortcut updates
+
+**Access:** Settings → ⌨️ Keyboard Shortcuts
+
+---
+
+## Previous Release: v1.1.8-Qt (November 5, 2025)
 
 ### Critical Bug Fix 🐛
 

@@ -6,6 +6,39 @@ The Qt Edition is the **primary version** for active development and new feature
 
 ---
 
+## [1.1.9] - November 6, 2025
+
+### Added
+- **⌨️ Keyboard Shortcuts Manager** - Comprehensive keyboard shortcuts management system
+  - New Settings tab: "⌨️ Keyboard Shortcuts"
+  - View all 40+ keyboard shortcuts organized by category (File, Edit, Translation, View, Resources, Match Insertion, etc.)
+  - Search/filter shortcuts by action, category, or key combination
+  - Edit shortcuts with custom key capture widget
+  - Conflict detection with warnings
+  - Reset individual shortcuts or all shortcuts to defaults
+  - Export shortcuts to JSON (share with team)
+  - Import shortcuts from JSON
+  - **Export HTML Cheatsheet** - Beautiful, printable keyboard reference with professional styling
+  - Modular architecture: `modules/shortcut_manager.py` and `modules/keyboard_shortcuts_widget.py`
+
+### Technical Details
+- **ShortcutManager** class - Backend logic for managing shortcuts
+- **KeyboardShortcutsWidget** - Full-featured UI for Settings tab
+- **KeySequenceEdit** - Custom widget for capturing key presses
+- **Conflict detection** - Real-time warnings for duplicate shortcuts
+- **Context-aware shortcuts** - Different contexts (editor, grid, match panel) to prevent conflicts
+- Data stored in `user data/shortcuts.json`
+
+### Documentation
+- Added `Keyboard_Shortcuts_Implementation.md` in development docs
+- Added `Competitive_Analysis_CotranslatorAI.md` in development docs
+
+### Improved
+- **Repository Philosophy** - Continued modular architecture to keep main file maintainable
+- **AI-Friendly Codebase** - Complex features extracted to focused modules (easier for AI agents to understand)
+
+---
+
 ## [1.1.8] - November 5, 2025
 
 ### Fixed

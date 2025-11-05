@@ -4,8 +4,8 @@ Supervertaler Qt Edition
 The ultimate companion tool for translators and writers.
 Modern PyQt6 interface with Universal Lookup and advanced features
 
-Version: 1.1.8 (Phase 5.11)
-Release Date: November 5, 2025
+Version: 1.1.9 (Phase 5.12)
+Release Date: November 6, 2025
 Framework: PyQt6
 
 This is the modern edition of Supervertaler using PyQt6 framework.
@@ -25,7 +25,7 @@ License: MIT
 """
 
 # Version Information
-__version__ = "1.1.8"
+__version__ = "1.1.9"
 __phase__ = "5.10"
 __release_date__ = "2025-11-04"
 __edition__ = "Qt"
@@ -2253,7 +2253,12 @@ class SupervertalerQt(QMainWindow):
         view_tab = self._create_view_settings_tab()
         settings_tabs.addTab(scroll_area_wrapper(view_tab), "🔍 View/Display")
         
-        # ===== TAB 6: Log (moved from main tabs) =====
+        # ===== TAB 6: Keyboard Shortcuts =====
+        from modules.keyboard_shortcuts_widget import KeyboardShortcutsWidget
+        shortcuts_tab = KeyboardShortcutsWidget(self)
+        settings_tabs.addTab(shortcuts_tab, "⌨️ Keyboard Shortcuts")
+        
+        # ===== TAB 7: Log (moved from main tabs) =====
         log_tab = self.create_log_tab()
         settings_tabs.addTab(log_tab, "📋 Log")
         
