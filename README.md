@@ -2,7 +2,7 @@
 
 # Supervertaler
 
-🎯 **Professional Computer-Aided Translation (CAT) Tool** — Available in two editions: Modern Qt (active development) and Classic Tkinter (maintenance mode).
+🎯 **The Ultimate Companion Tool for Translators and Writers** — Context-aware AI with unique 4-Layer Prompt Architecture and specialized modules. Available in two editions: Modern Qt (active development) and Classic Tkinter (maintenance mode).
 
 ---
 
@@ -35,18 +35,17 @@ python Supervertaler_Qt.py
 ```
 
 **Features:**
-- 🎯 **4-Layer Prompt Architecture** - System, Domain, Project Prompts, Style Guides + AI Prompt Assistant
-- 🎨 Modern Qt interface with ribbon navigation
-- 🎯 **Standardized tab headers** - Consistent, professional UI across all modules
-- 📱 **Responsive design** - Adapts perfectly to any screen size
-- 💾 Translation Memory (TM) with fuzzy matching
-- 📚 Multiple termbases (glossaries) per project
-- 🤖 AI Integration (OpenAI, Claude)
-- ⚡ Auto-fingers support
-- 🔍 Universal Lookup (system-wide search)
-- 📝 Professional TMX Editor with database-backed large file support
-- 🔧 PDF Rescue - AI-powered OCR for poorly formatted PDFs
-- 🔧 Encoding Repair Tool - Detect and fix text encoding corruption (mojibake)
+- 🎯 **4-Layer Prompt Architecture** - System, Domain, Project Prompts, Style Guides + AI Prompt Assistant (unique!)
+- 🧠 **Context-aware AI** - Leverages full document context, images, TM, and termbases
+- 🔄 **CAT Tool Integration** - Import/export with memoQ, Trados, CafeTran
+- 📊 **Bilingual Review Interface** - Grid, List, and Document views for reviewing translations
+- 🤖 **Multiple AI Providers** - OpenAI GPT-4, Claude 3.5 Sonnet, Google Gemini
+- 🔍 **Universal Lookup** - System-wide search with global hotkey (Ctrl+Alt+L)
+- 📝 **TMX Editor** - Professional translation memory editor with database-backed large file support
+- 🔧 **PDF Rescue** - AI-powered OCR for poorly formatted PDFs
+- 🔧 **Encoding Repair Tool** - Detect and fix text encoding corruption (mojibake)
+- 💾 **Translation Memory** - Fuzzy matching with TMX import/export
+- 📚 **Multiple Termbases** - Glossary support per project
 
 ### 🔧 Tkinter Edition (Classic) - **LEGACY**
 **File:** `Supervertaler_tkinter.py`  
