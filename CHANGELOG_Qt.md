@@ -6,6 +6,54 @@ The Qt Edition is the **primary version** for active development and new feature
 
 ---
 
+## [1.2.2] - November 6, 2025
+
+### 🎨 Major Enhancement: Translation Results, Document Formatting & Tag System
+
+**Fixed translation results display, enhanced document view with formatting, and activated the tag system!**
+
+### Fixed
+- **🐛 Translation Results Panels Not Working** - CRITICAL FIX
+  - Removed lingering `assistance_widget` references that blocked match processing
+  - Fixed termbase, TM, MT, and LLM matches not displaying in panels
+  - Updated all 6 locations where matches were being set to use `results_panels`
+  - All three views (Grid, List, Document) now show matches correctly
+
+- **🐛 Menu Bar Blocked by Error Indicator** 
+  - Removed 15+ obsolete `assistance_widget` references causing Qt errors
+  - Fixed red error triangle that blocked File and Edit menus
+  - Updated zoom functions, font settings, and close project cleanup
+
+### Added
+- **✅ Document View Formatting**
+  - Renders inline formatting tags: `<b>bold</b>`, `<i>italic</i>`, `<u>underline</u>`, `<bi>bold+italic</bi>`
+  - New list item tag: `<li>content</li>` renders with orange bullet (•)
+  - Proper QTextCharFormat application for bold, italic, underline
+  - Tag parsing with formatting stack for nested tags
+
+- **✅ Enhanced Type Column**
+  - Shows **H1, H2, H3, H4** for heading levels (blue background)
+  - Shows **Title** for document titles
+  - Shows **Sub** for subtitles
+  - Shows **li** for list items (green background)
+  - Shows **¶** for regular paragraphs
+  - Color-coded for easy document structure visualization
+
+- **✅ List Item Tag System**
+  - DOCX import detects bullets and numbered lists
+  - Automatically wraps list items in `<li>` tags
+  - Detection works on Word numbering format, bullet characters, and numbered prefixes
+  - Tags preserved through translation and export workflow
+
+### Technical
+- Updated `tag_manager.py` to support `<li>` tag (TAG_PATTERN regex)
+- Enhanced `docx_handler.py` to detect and tag list items during import
+- Document view parses tags and renders with proper formatting
+- Type column detects `<li>` tags, heading styles, and text patterns
+- Tag colors: Bold=#CC0000, Italic=#0066CC, Underline=#009900, BoldItalic=#CC00CC, ListItem=#FF6600
+
+---
+
 ## [1.2.1] - November 6, 2025
 
 ### 🎨 UI Enhancement: Unified Tabbed Interface

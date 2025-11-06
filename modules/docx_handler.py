@@ -111,6 +111,28 @@ class DOCXHandler:
                             if extract_formatting and self.tag_manager:
                                 runs = self.tag_manager.extract_runs(para)
                                 text_with_tags = self.tag_manager.runs_to_tagged_text(runs)
+                                
+                                # Check if this is a list item (bullet or numbered)
+                                # Look for list numbering in paragraph
+                                is_list_item = False
+                                try:
+                                    # Check if paragraph has numbering format (bullets or numbers)
+                                    numPr = para._element.pPr.numPr if hasattr(para._element, 'pPr') and para._element.pPr is not None else None
+                                    if numPr is not None:
+                                        is_list_item = True
+                                    # Also detect common bullet characters at start
+                                    elif text_with_tags.lstrip().startswith(('• ', '· ', '- ', '* ')):
+                                        is_list_item = True
+                                    # Detect numbered lists like "1. " or "1) "
+                                    elif len(text_with_tags) > 2 and text_with_tags[0].isdigit() and text_with_tags[1:3] in ('. ', ') '):
+                                        is_list_item = True
+                                except:
+                                    pass
+                                
+                                # Wrap list items in <li> tag
+                                if is_list_item:
+                                    text_with_tags = f"<li>{text_with_tags}</li>"
+                                
                                 paragraphs.append(text_with_tags)
                             else:
                                 paragraphs.append(text)
@@ -147,6 +169,23 @@ class DOCXHandler:
                                         if extract_formatting and self.tag_manager:
                                             runs = self.tag_manager.extract_runs(para)
                                             text_with_tags = self.tag_manager.runs_to_tagged_text(runs)
+                                            
+                                            # Check if this is a list item (even in tables)
+                                            is_list_item = False
+                                            try:
+                                                numPr = para._element.pPr.numPr if hasattr(para._element, 'pPr') and para._element.pPr is not None else None
+                                                if numPr is not None:
+                                                    is_list_item = True
+                                                elif text_with_tags.lstrip().startswith(('• ', '· ', '- ', '* ')):
+                                                    is_list_item = True
+                                                elif len(text_with_tags) > 2 and text_with_tags[0].isdigit() and text_with_tags[1:3] in ('. ', ') '):
+                                                    is_list_item = True
+                                            except:
+                                                pass
+                                            
+                                            if is_list_item:
+                                                text_with_tags = f"<li>{text_with_tags}</li>"
+                                            
                                             paragraphs.append(text_with_tags)
                                         else:
                                             paragraphs.append(text)

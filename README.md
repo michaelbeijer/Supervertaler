@@ -26,7 +26,7 @@
 
 ### 🆕 Qt Edition (Modern) - **PRIMARY**
 **File:** `Supervertaler_Qt.py`  
-**Version:** v1.2.1 (November 6, 2025)  
+**Version:** v1.2.2 (November 6, 2025)  
 **Framework:** PyQt6  
 **Status:** Active Development
 
@@ -34,7 +34,13 @@
 python Supervertaler_Qt.py
 ```
 
-**NEW in v1.2.1 - Unified Tabbed Interface:**
+**NEW in v1.2.2 - Translation Results, Document Formatting & Tag System:**
+- ✅ **Translation Results Panels Now Working** - CRITICAL FIX: All match types display correctly
+- ✅ **Document View Formatting** - Renders bold, italic, underline, and list item tags
+- ✅ **Enhanced Type Column** - Shows H1, H2, H3, H4, Title, Sub, li, ¶ with color coding
+- ✅ **List Item Tag System** - Automatic detection and tagging of bullets/numbered lists
+
+**v1.2.1 Features - Unified Tabbed Interface:**
 - ✅ **Tabbed Panel in Grid View** - Translation Results | Segment Editor | Notes
 - ✅ **Tabbed Panel in List View** - Same 3-tab structure for consistency
 - ✅ **Synchronized Updates** - All panels update across all views simultaneously

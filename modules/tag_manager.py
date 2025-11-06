@@ -44,15 +44,16 @@ class FormattingRun:
 class TagManager:
     """Manage inline formatting tags"""
     
-    # Tag patterns
-    TAG_PATTERN = re.compile(r'<(/?)([biu]|bi)>')
+    # Tag patterns - now includes list item tag
+    TAG_PATTERN = re.compile(r'<(/?)([biu]|bi|li)>')
     
     def __init__(self):
         self.tag_colors = {
             'b': '#CC0000',    # Red for bold
             'i': '#0066CC',    # Blue for italic
             'u': '#009900',    # Green for underline
-            'bi': '#CC00CC'    # Purple for bold+italic
+            'bi': '#CC00CC',   # Purple for bold+italic
+            'li': '#FF6600'    # Orange for list items
         }
     
     def extract_runs(self, paragraph) -> List[FormattingRun]:

@@ -28,7 +28,7 @@ License: MIT
 """
 
 # Version Information
-__version__ = "1.2.1"
+__version__ = "1.2.2"
 __phase__ = "6.1"
 __release_date__ = "2025-11-06"
 __edition__ = "Qt"
@@ -69,7 +69,7 @@ try:
         QScrollArea, QSizePolicy
     )
     from PyQt6.QtCore import Qt, QSize, QTimer, pyqtSignal, QObject, QUrl
-    from PyQt6.QtGui import QFont, QAction, QKeySequence, QIcon, QTextOption, QColor, QDesktopServices
+    from PyQt6.QtGui import QFont, QAction, QKeySequence, QIcon, QTextOption, QColor, QDesktopServices, QTextCharFormat, QTextCursor
 except ImportError:
     print("PyQt6 not found. Installing...")
     import subprocess
@@ -137,6 +137,7 @@ class LayoutMode:
 # ============================================================================
 
 @dataclass
+@dataclass
 class Segment:
     """Translation segment (matches tkinter version format)"""
     id: int
@@ -146,6 +147,21 @@ class Segment:
     type: str = "para"  # para, heading, list_item, table_cell
     notes: str = ""
     locked: bool = False  # For compatibility with tkinter version
+    paragraph_id: int = 0  # Group segments by paragraph for document flow
+    style: str = "Normal"  # Heading 1, Heading 2, Title, Subtitle, Normal, etc.
+    document_position: int = 0  # Position in original document
+    is_table_cell: bool = False  # Whether this segment is in a table
+    table_info: Optional[tuple] = None  # (table_idx, row_idx, cell_idx) if is_table_cell
+    modified: bool = False  # Track if segment has been edited
+    created_at: str = ""  # Creation timestamp
+    modified_at: str = ""  # Last modification timestamp
+    
+    def __post_init__(self):
+        """Initialize timestamps if not provided"""
+        if not self.created_at:
+            self.created_at = datetime.now().isoformat()
+        if not self.modified_at:
+            self.modified_at = datetime.now().isoformat()
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization"""
@@ -236,17 +252,11 @@ class GridTextEditor(QTextEdit):
     def keyPressEvent(self, event):
         """Override to handle Ctrl+1-9, Ctrl+Up/Down shortcuts"""
         if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
-        # Ctrl+1 through Ctrl+9: Insert match by number (global)
+            # Ctrl+1 through Ctrl+9: Insert match by number
+            # TODO: Update to work with new results_panels system
             if event.key() >= Qt.Key.Key_1 and event.key() <= Qt.Key.Key_9:
-                match_num = event.key() - Qt.Key.Key_0  # Convert key to number
-                if hasattr(self, 'assistance_widget') and hasattr(self.assistance_widget, 'all_matches'):
-                    matches = self.assistance_widget.all_matches
-                    if 0 < match_num <= len(matches):
-                        match = matches[match_num - 1]
-                        # Insert the match target into current cell
-                        self.on_match_inserted(match.target)
-                        event.accept()
-                        return
+                # Disabled for now - needs update to work with results_panels
+                pass
             # Ctrl+Up/Down: Send to grid for grid navigation
             elif event.key() in (Qt.Key.Key_Up, Qt.Key.Key_Down):
                 if self.table_widget:
@@ -964,7 +974,7 @@ class SupervertalerQt(QMainWindow):
         # Create example API keys file on first launch (after UI is ready)
         self.ensure_example_api_keys()
         
-        self.log("Welcome to Supervertaler Qt v1.1.7")
+        self.log("Welcome to Supervertaler Qt v1.2.2")
         self.log("Professional Translation Memory & CAT Tool")
         
         # Load general settings (including auto-propagation)
@@ -983,7 +993,7 @@ class SupervertalerQt(QMainWindow):
     def init_ui(self):
         """Initialize the user interface"""
         # Build window title with dev mode indicator
-        title = "Supervertaler Qt v1.1.7"
+        title = "Supervertaler Qt v1.2.2"
         if ENABLE_PRIVATE_FEATURES:
             title += " [🛠️ DEV MODE]"
         self.setWindowTitle(title)
@@ -3671,18 +3681,21 @@ class SupervertalerQt(QMainWindow):
                 self.apply_font_to_grid()
                 self.auto_resize_rows()
         
-        # Apply results pane font sizes
-        if hasattr(self, 'assistance_widget') and hasattr(self.assistance_widget, 'set_font_size'):
+        # Apply results pane font sizes to all panels
+        if hasattr(self, 'results_panels'):
             from modules.translation_results_panel import CompactMatchItem
             if CompactMatchItem.font_size_pt != match_spin.value():
                 CompactMatchItem.set_font_size(match_spin.value())
-                self.assistance_widget.set_font_size(match_spin.value())
+                for panel in self.results_panels:
+                    if hasattr(panel, 'set_font_size'):
+                        panel.set_font_size(match_spin.value())
         
-        if hasattr(self, 'assistance_widget') and hasattr(self.assistance_widget, 'set_compare_box_font_size'):
             from modules.translation_results_panel import TranslationResultsPanel
             if TranslationResultsPanel.compare_box_font_size != compare_spin.value():
                 TranslationResultsPanel.compare_box_font_size = compare_spin.value()
-                self.assistance_widget.set_compare_box_font_size(compare_spin.value())
+                for panel in self.results_panels:
+                    if hasattr(panel, 'set_compare_box_font_size'):
+                        panel.set_compare_box_font_size(compare_spin.value())
         
         self.log("✓ View settings saved and applied")
         QMessageBox.information(self, "Settings Saved", "View settings have been saved and applied successfully.")
@@ -3752,76 +3765,18 @@ class SupervertalerQt(QMainWindow):
         self.list_view_btn.setChecked(mode == LayoutMode.LIST)
         self.document_view_btn.setChecked(mode == LayoutMode.DOCUMENT)
         
-        # Ensure assistance widget is visible
-        if hasattr(self, 'assistance_widget'):
-            self.assistance_widget.setVisible(True)
-        
         # Switch stack widget
         if mode == LayoutMode.GRID:
             self.view_stack.setCurrentIndex(0)
-            # Ensure assistance widget is in grid splitter
-            if hasattr(self, 'editor_splitter') and hasattr(self, 'assistance_widget'):
-                # Check if widget is already in this splitter
-                widget_in_splitter = False
-                for i in range(self.editor_splitter.count()):
-                    if self.editor_splitter.widget(i) == self.assistance_widget:
-                        widget_in_splitter = True
-                        break
-                
-                # If not in splitter, add it at position 1 (LEFT side, grid is at 0 = RIGHT)
-                if not widget_in_splitter:
-                    self.editor_splitter.insertWidget(1, self.assistance_widget)
-                
-                self.editor_splitter.setSizes([1000, 400])  # Swapped for RIGHT-LEFT ordering
+        
         elif mode == LayoutMode.LIST:
-            print("\n" + "="*80)
-            print("DEBUG: Switching to LIST VIEW")
-            print(f"DEBUG: list_view_widget exists: {hasattr(self, 'list_view_widget')}")
-            if hasattr(self, 'list_view_widget'):
-                print(f"DEBUG: list_view_widget type: {type(self.list_view_widget)}")
-            print(f"DEBUG: list_editor_tabs exists: {hasattr(self, 'list_editor_tabs')}")
-            if hasattr(self, 'list_editor_tabs'):
-                print(f"DEBUG: list_editor_tabs type: {type(self.list_editor_tabs)}")
-                print(f"DEBUG: list_editor_tabs count: {self.list_editor_tabs.count()}")
-                print(f"DEBUG: list_editor_tabs visible: {self.list_editor_tabs.isVisible()}")
-                print(f"DEBUG: Tab bar visible: {self.list_editor_tabs.tabBar().isVisible()}")
-                for i in range(self.list_editor_tabs.count()):
-                    print(f"DEBUG:   Tab {i}: '{self.list_editor_tabs.tabText(i)}'")
-            print("="*80 + "\n")
             self.view_stack.setCurrentIndex(1)
-            # Ensure assistance widget is in list splitter
-            if hasattr(self, 'list_splitter') and hasattr(self, 'assistance_widget'):
-                # Check if widget is already in this splitter
-                widget_in_splitter = False
-                for i in range(self.list_splitter.count()):
-                    if self.list_splitter.widget(i) == self.assistance_widget:
-                        widget_in_splitter = True
-                        break
-                
-                # If not in splitter, add it at position 1 (LEFT side)
-                if not widget_in_splitter:
-                    self.list_splitter.insertWidget(1, self.assistance_widget)
-                
-                self.list_splitter.setSizes([1000, 400])  # Swapped for RIGHT-LEFT ordering
             # Refresh list view when switching to it
             if hasattr(self, 'list_tree') and self.current_project:
                 self.refresh_list_view()
+        
         elif mode == LayoutMode.DOCUMENT:
             self.view_stack.setCurrentIndex(2)
-            # Ensure assistance widget is in document splitter
-            if hasattr(self, 'doc_splitter') and hasattr(self, 'assistance_widget'):
-                # Check if widget is already in this splitter
-                widget_in_splitter = False
-                for i in range(self.doc_splitter.count()):
-                    if self.doc_splitter.widget(i) == self.assistance_widget:
-                        widget_in_splitter = True
-                        break
-                
-                # If not in splitter, add it at position 1 (LEFT side)
-                if not widget_in_splitter:
-                    self.doc_splitter.insertWidget(1, self.assistance_widget)
-                
-                self.doc_splitter.setSizes([1000, 400])  # Swapped for RIGHT-LEFT ordering
             # Refresh document view when switching to it
             if hasattr(self, 'document_container') and self.current_project:
                 self.refresh_document_view()
@@ -3912,13 +3867,8 @@ class SupervertalerQt(QMainWindow):
         self.create_translation_grid()
         grid_layout.addWidget(self.table)
         
-        # Add grid container FIRST (will be RIGHT), then assistance widget SECOND (will be LEFT)
+        # Add grid container to splitter
         self.editor_splitter.addWidget(grid_container)
-        
-        if hasattr(self, 'assistance_widget'):
-            parent = self.assistance_widget.parent()
-            if not isinstance(parent, QSplitter):
-                self.editor_splitter.addWidget(self.assistance_widget)
         
         # Set splitter proportions - Qt displays RIGHT to LEFT
         # Position 0 (grid/RIGHT) gets 1000, Position 1 (assistance/LEFT) gets 400
@@ -4100,32 +4050,10 @@ class SupervertalerQt(QMainWindow):
         # Note: Pagination methods (go_to_first_page, go_to_prev_page, etc.) will be implemented
         # when pagination functionality is fully added. For now, buttons are created but won't work.
         
-        # Create assistance panel FIRST (create_translation_grid needs it)
-        if not hasattr(self, 'assistance_widget') or self.assistance_widget is None:
-            self.create_assistance_panel()
-        
-        # Translation Grid (needs assistance_widget to exist)
+        # Translation Grid (create it if it doesn't exist)
         if not hasattr(self, 'table') or self.table is None:
             self.create_translation_grid()
         grid_layout.addWidget(self.table)
-        
-        # Prepare assistance widget (remove from any existing parent first)
-        if hasattr(self, 'assistance_widget') and self.assistance_widget:
-            # CRITICAL: Remove from any existing parent/splitter first
-            current_parent = self.assistance_widget.parent()
-            if current_parent:
-                self.assistance_widget.setParent(None)
-            
-            # Set height constraints for bottom panel
-            self.assistance_widget.setMaximumHeight(16777215)  # Qt's max height
-            self.assistance_widget.setMinimumHeight(200)  # Minimum height to show content
-            
-            # Remove width constraints - use full width at bottom
-            self.assistance_widget.setMinimumWidth(0)
-            self.assistance_widget.setMaximumWidth(16777215)  # Qt's max width
-            
-            # Make sure it's visible
-            self.assistance_widget.show()
         
         # Add grid container to top of vertical splitter
         self.home_grid_splitter.addWidget(grid_container)  # Grid on top
@@ -4175,8 +4103,15 @@ class SupervertalerQt(QMainWindow):
             self.home_view_stack.setCurrentIndex(0)
         elif mode == "list":
             self.home_view_stack.setCurrentIndex(1)
+            # Refresh list view when switching to it
+            if hasattr(self, 'list_tree') and self.current_project:
+                self.refresh_list_view()
         elif mode == "document":
             self.home_view_stack.setCurrentIndex(2)
+            # CRITICAL: Refresh document view to render styles!
+            if hasattr(self, 'document_container') and self.current_project:
+                print(f"DEBUG: Refreshing document view from home tab switch...")
+                self.refresh_document_view()
         
         self.log(f"Switched to {mode} view in Home tab")
     
@@ -4341,12 +4276,12 @@ class SupervertalerQt(QMainWindow):
         return widget
     
     def create_document_view_widget_for_home(self):
-        """Create Document View widget adapted for home tab (assistance panel at bottom)"""
+        """Create Document View widget adapted for home tab (tabbed panel at bottom)"""
         widget = QWidget()
         main_layout = QVBoxLayout(widget)
         main_layout.setContentsMargins(0, 0, 0, 0)
         
-        # Vertical splitter: Document on top, Editor in middle, Assistance at bottom
+        # Vertical splitter: Document on top, Tabbed panel at bottom
         home_doc_splitter = QSplitter(Qt.Orientation.Vertical)
         
         # Top: Document flow area
@@ -4357,86 +4292,30 @@ class SupervertalerQt(QMainWindow):
         if not hasattr(self, 'document_container'):
             self.document_container = QWidget()
             self.document_layout = QVBoxLayout(self.document_container)
-            self.document_layout.setContentsMargins(20, 20, 20, 20)
-            self.document_layout.setSpacing(10)
-            self.document_layout.addStretch()  # Stretch at bottom
+            self.document_layout.setContentsMargins(0, 0, 0, 0)  # No margins - text widget has padding
+            self.document_layout.setSpacing(0)  # No spacing - content adds its own
         
         scroll_area.setWidget(self.document_container)
         home_doc_splitter.addWidget(scroll_area)
         
-        # Middle: Editor panel
-        editor_container = QGroupBox("Segment Editor")
-        editor_layout = QVBoxLayout(editor_container)
-        editor_layout.setContentsMargins(10, 10, 10, 10)
+        # Bottom: Tabbed panel (Translation Results | Segment Editor | Notes)
+        self.home_doc_tabbed_panel = self.create_tabbed_assistance_panel()
+        home_doc_splitter.addWidget(self.home_doc_tabbed_panel)
         
-        # Segment info
-        info_layout = QHBoxLayout()
-        if not hasattr(self, 'doc_seg_info'):
-            self.doc_seg_info = QLabel("Click on any segment in the document to edit")
-        self.doc_seg_info.setStyleSheet("font-weight: bold;")
-        info_layout.addWidget(self.doc_seg_info, stretch=1)
+        home_doc_splitter.setSizes([600, 250])
         
-        # Status selector
-        status_label = QLabel("Status:")
-        if not hasattr(self, 'doc_status_combo'):
-            self.doc_status_combo = QComboBox()
-            self.doc_status_combo.addItems(["untranslated", "translated", "approved"])
-            self.doc_status_combo.currentTextChanged.connect(self.on_doc_status_change)
-        info_layout.addWidget(status_label)
-        info_layout.addWidget(self.doc_status_combo)
-        
-        editor_layout.addLayout(info_layout)
-        
-        # Source (read-only)
-        source_label = QLabel("Source:")
-        source_label.setStyleSheet("font-weight: bold;")
-        editor_layout.addWidget(source_label)
-        if not hasattr(self, 'doc_source_editor'):
-            self.doc_source_editor = QTextEdit()
-            self.doc_source_editor.setReadOnly(True)
-            self.doc_source_editor.setMaximumHeight(100)
-            self.doc_source_editor.setStyleSheet("background-color: #f5f5f5;")
-        editor_layout.addWidget(self.doc_source_editor)
-        
-        # Target (editable)
-        target_label = QLabel("Target:")
-        target_label.setStyleSheet("font-weight: bold;")
-        editor_layout.addWidget(target_label)
-        if not hasattr(self, 'doc_target_editor'):
-            self.doc_target_editor = QTextEdit()
-            self.doc_target_editor.setMaximumHeight(100)
-            self.doc_target_editor.textChanged.connect(self.on_doc_target_change)
-        editor_layout.addWidget(self.doc_target_editor)
-        
-        # Action buttons
-        button_layout = QHBoxLayout()
-        copy_btn = QPushButton("Copy Source → Target")
-        copy_btn.clicked.connect(self.copy_source_to_doc_target)
-        clear_target_btn = QPushButton("Clear Target")
-        clear_target_btn.clicked.connect(self.clear_doc_target)
-        save_next_btn = QPushButton("Save & Next (Ctrl+Enter)")
-        save_next_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold;")
-        save_next_btn.clicked.connect(self.save_doc_segment_and_next)
-        
-        button_layout.addWidget(copy_btn)
-        button_layout.addWidget(clear_target_btn)
-        button_layout.addStretch()
-        button_layout.addWidget(save_next_btn)
-        
-        editor_layout.addLayout(button_layout)
-        
-        home_doc_splitter.addWidget(editor_container)
-        
-        # Bottom: Assistance panel (reuse existing widget)
-        if hasattr(self, 'assistance_widget') and self.assistance_widget:
-            home_doc_splitter.addWidget(self.assistance_widget)
-            # Set splitter proportions (document, editor, assistance)
-            home_doc_splitter.setSizes([600, 250, 400])
-        else:
-            # Just document and editor
-            home_doc_splitter.setSizes([600, 250])
+        print(f"DEBUG: Document view - Added tabbed panel to splitter")
+        print(f"DEBUG: Tabbed panel has {self.home_doc_tabbed_panel.count()} tabs")
+        for i in range(self.home_doc_tabbed_panel.count()):
+            print(f"DEBUG:   Tab {i}: '{self.home_doc_tabbed_panel.tabText(i)}'")
         
         main_layout.addWidget(home_doc_splitter)
+        
+        # Store segment widgets for document view
+        if not hasattr(self, 'doc_segment_widgets'):
+            self.doc_segment_widgets = {}
+        if not hasattr(self, 'doc_current_segment_id'):
+            self.doc_current_segment_id = None
         
         return widget
     
@@ -4514,103 +4393,11 @@ class SupervertalerQt(QMainWindow):
         
         self.list_splitter.addWidget(list_container)
         
-        # Bottom: Tabbed editor panel (Segment Editor + Translation Results)
-        self.list_editor_tabs = QTabWidget()
-        self.list_editor_tabs.setTabPosition(QTabWidget.TabPosition.North)
-        self.list_editor_tabs.setDocumentMode(False)  # Ensure tabs are clearly visible
+        # Bottom: Tabbed assistance panel (Translation Results | Segment Editor | Notes)
+        # Use the same tabbed panel approach as Grid View for consistency
+        self.list_tabbed_panel = self.create_tabbed_assistance_panel()
+        self.list_splitter.addWidget(self.list_tabbed_panel)
         
-        # Debug: Check assistance widget
-        print(f"DEBUG: Creating list view tabs...")
-        print(f"DEBUG: assistance_widget exists: {hasattr(self, 'assistance_widget')}")
-        if hasattr(self, 'assistance_widget'):
-            print(f"DEBUG: assistance_widget is: {self.assistance_widget}")
-        
-        # Tab 1: Segment Editor
-        editor_container = QWidget()
-        editor_layout = QVBoxLayout(editor_container)
-        editor_layout.setContentsMargins(10, 10, 10, 10)
-        
-        # Segment info
-        info_layout = QHBoxLayout()
-        self.list_seg_info = QLabel("No segment selected")
-        self.list_seg_info.setStyleSheet("font-weight: bold;")
-        info_layout.addWidget(self.list_seg_info, stretch=1)
-        
-        # Status selector
-        status_label = QLabel("Status:")
-        self.list_status_combo = QComboBox()
-        self.list_status_combo.addItems(["untranslated", "translated", "approved"])
-        self.list_status_combo.currentTextChanged.connect(self.on_list_status_change)
-        info_layout.addWidget(status_label)
-        info_layout.addWidget(self.list_status_combo)
-        
-        editor_layout.addLayout(info_layout)
-        
-        # Source (read-only)
-        source_label = QLabel("Source:")
-        source_label.setStyleSheet("font-weight: bold;")
-        editor_layout.addWidget(source_label)
-        self.list_source_editor = QTextEdit()
-        self.list_source_editor.setReadOnly(True)
-        self.list_source_editor.setMaximumHeight(100)
-        self.list_source_editor.setStyleSheet("background-color: #f5f5f5;")
-        editor_layout.addWidget(self.list_source_editor)
-        
-        # Target (editable)
-        target_label = QLabel("Target:")
-        target_label.setStyleSheet("font-weight: bold;")
-        editor_layout.addWidget(target_label)
-        self.list_target_editor = QTextEdit()
-        self.list_target_editor.setMaximumHeight(100)
-        self.list_target_editor.textChanged.connect(self.on_list_target_change)
-        editor_layout.addWidget(self.list_target_editor)
-        
-        # Action buttons
-        button_layout = QHBoxLayout()
-        copy_btn = QPushButton("Copy Source → Target")
-        copy_btn.clicked.connect(self.copy_source_to_list_target)
-        clear_target_btn = QPushButton("Clear Target")
-        clear_target_btn.clicked.connect(self.clear_list_target)
-        save_next_btn = QPushButton("Save & Next (Ctrl+Enter)")
-        save_next_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold;")
-        save_next_btn.clicked.connect(self.save_list_segment_and_next)
-        
-        button_layout.addWidget(copy_btn)
-        button_layout.addWidget(clear_target_btn)
-        button_layout.addStretch()
-        button_layout.addWidget(save_next_btn)
-        
-        editor_layout.addLayout(button_layout)
-        
-        # Add Segment Editor tab
-        self.list_editor_tabs.addTab(editor_container, "📝 Segment Editor")
-        print(f"DEBUG: Added Segment Editor tab. Tab count: {self.list_editor_tabs.count()}")
-        
-        # Tab 2: Translation Results Panel (using the main assistance_widget if available)
-        if hasattr(self, 'assistance_widget') and self.assistance_widget:
-            # Reuse the existing assistance widget from grid view
-            self.list_editor_tabs.addTab(self.assistance_widget, "🔍 Translation Results")
-            print(f"DEBUG: Added Translation Results tab. Tab count: {self.list_editor_tabs.count()}")
-        else:
-            # If no assistance widget exists yet, create a simple placeholder
-            placeholder = QWidget()
-            placeholder_layout = QVBoxLayout(placeholder)
-            placeholder_label = QLabel("Translation Results Panel unavailable\n(Load a project to enable this feature)")
-            placeholder_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            placeholder_layout.addWidget(placeholder_label)
-            self.list_editor_tabs.addTab(placeholder, "🔍 Translation Results")
-            print(f"DEBUG: Added placeholder tab. Tab count: {self.list_editor_tabs.count()}")
-        
-        print(f"DEBUG: Final tab count: {self.list_editor_tabs.count()}")
-        print(f"DEBUG: Tab bar visible: {self.list_editor_tabs.tabBar().isVisible()}")
-        
-        # Wrap tabs in a group box for better visibility
-        tabs_group = QGroupBox("Editor")
-        tabs_layout = QVBoxLayout(tabs_group)
-        tabs_layout.setContentsMargins(0, 5, 0, 0)
-        tabs_layout.addWidget(self.list_editor_tabs)
-        
-        self.list_splitter.addWidget(tabs_group)
         self.list_splitter.setSizes([600, 250])
         
         main_layout.addWidget(self.list_splitter)
@@ -4626,7 +4413,7 @@ class SupervertalerQt(QMainWindow):
         main_layout = QVBoxLayout(widget)
         main_layout.setContentsMargins(0, 0, 0, 0)
         
-        # Main vertical splitter: Document on top, Editor at bottom
+        # Main vertical splitter: Document on top, Tabbed panel at bottom
         self.doc_splitter = QSplitter(Qt.Orientation.Vertical)
         
         # Top: Document flow area
@@ -4636,72 +4423,18 @@ class SupervertalerQt(QMainWindow):
         
         self.document_container = QWidget()
         self.document_layout = QVBoxLayout(self.document_container)
-        self.document_layout.setContentsMargins(20, 20, 20, 20)
-        self.document_layout.setSpacing(10)
-        self.document_layout.addStretch()  # Stretch at bottom
+        self.document_layout.setContentsMargins(0, 0, 0, 0)  # No margins - text widget has padding
+        self.document_layout.setSpacing(0)  # No spacing - content will add its own
         
         scroll_area.setWidget(self.document_container)
         
         self.doc_splitter.addWidget(scroll_area)
         
-        # Bottom: Editor panel (same as list view)
-        editor_container = QGroupBox("Segment Editor")
-        editor_layout = QVBoxLayout(editor_container)
-        editor_layout.setContentsMargins(10, 10, 10, 10)
+        # Bottom: Tabbed panel (Translation Results | Segment Editor | Notes)
+        # Create tabbed assistance panel for document view
+        self.doc_tabbed_panel = self.create_tabbed_assistance_panel()
+        self.doc_splitter.addWidget(self.doc_tabbed_panel)
         
-        # Segment info
-        info_layout = QHBoxLayout()
-        self.doc_seg_info = QLabel("Click on any segment in the document to edit")
-        self.doc_seg_info.setStyleSheet("font-weight: bold;")
-        info_layout.addWidget(self.doc_seg_info, stretch=1)
-        
-        # Status selector
-        status_label = QLabel("Status:")
-        self.doc_status_combo = QComboBox()
-        self.doc_status_combo.addItems(["untranslated", "translated", "approved"])
-        self.doc_status_combo.currentTextChanged.connect(self.on_doc_status_change)
-        info_layout.addWidget(status_label)
-        info_layout.addWidget(self.doc_status_combo)
-        
-        editor_layout.addLayout(info_layout)
-        
-        # Source (read-only)
-        source_label = QLabel("Source:")
-        source_label.setStyleSheet("font-weight: bold;")
-        editor_layout.addWidget(source_label)
-        self.doc_source_editor = QTextEdit()
-        self.doc_source_editor.setReadOnly(True)
-        self.doc_source_editor.setMaximumHeight(100)
-        self.doc_source_editor.setStyleSheet("background-color: #f5f5f5;")
-        editor_layout.addWidget(self.doc_source_editor)
-        
-        # Target (editable)
-        target_label = QLabel("Target:")
-        target_label.setStyleSheet("font-weight: bold;")
-        editor_layout.addWidget(target_label)
-        self.doc_target_editor = QTextEdit()
-        self.doc_target_editor.setMaximumHeight(100)
-        self.doc_target_editor.textChanged.connect(self.on_doc_target_change)
-        editor_layout.addWidget(self.doc_target_editor)
-        
-        # Action buttons
-        button_layout = QHBoxLayout()
-        copy_btn = QPushButton("Copy Source → Target")
-        copy_btn.clicked.connect(self.copy_source_to_doc_target)
-        clear_target_btn = QPushButton("Clear Target")
-        clear_target_btn.clicked.connect(self.clear_doc_target)
-        save_next_btn = QPushButton("Save & Next (Ctrl+Enter)")
-        save_next_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold;")
-        save_next_btn.clicked.connect(self.save_doc_segment_and_next)
-        
-        button_layout.addWidget(copy_btn)
-        button_layout.addWidget(clear_target_btn)
-        button_layout.addStretch()
-        button_layout.addWidget(save_next_btn)
-        
-        editor_layout.addLayout(button_layout)
-        
-        self.doc_splitter.addWidget(editor_container)
         self.doc_splitter.setSizes([600, 250])
         
         main_layout.addWidget(self.doc_splitter)
@@ -4740,8 +4473,8 @@ class SupervertalerQt(QMainWindow):
         self.table.setWordWrap(True)
         
         # Apply custom delegate for word wrap in edit mode
-        # Pass assistance_panel and table so keyboard shortcuts can be forwarded
-        self.table.setItemDelegate(WordWrapDelegate(self.assistance_widget, self.table))
+        # Pass None for assistance_panel (keyboard shortcuts disabled for now)
+        self.table.setItemDelegate(WordWrapDelegate(None, self.table))
         
         # Row behavior - Enable multi-selection with full row selection (memoQ-style)
         self.table.verticalHeader().setVisible(False)
@@ -4791,43 +4524,17 @@ class SupervertalerQt(QMainWindow):
         self.log("🔌 Table signals connected: currentCellChanged, itemClicked, itemSelectionChanged")
     
     def create_assistance_panel(self):
-        """Create right-side assistance panel with TranslationResultsPanel"""
-        try:
-            from modules.translation_results_panel import TranslationResultsPanel
-            self.assistance_widget = TranslationResultsPanel(self)
-            self.assistance_widget.match_selected.connect(self.on_match_selected)
-            self.assistance_widget.match_inserted.connect(self.on_match_inserted)
-        except ImportError as e:
-            # Fallback to simple panel if import fails
-            print(f"Warning: Could not import TranslationResultsPanel: {e}")
-            self.assistance_widget = QWidget()
-            layout = QVBoxLayout(self.assistance_widget)
-            
-            # Translation Memory section
-            tm_label = QLabel("📚 Translation Memory")
-            tm_label.setStyleSheet("font-weight: bold; font-size: 12pt;")
-            layout.addWidget(tm_label)
-            
-            self.tm_display = QTextEdit()
-            self.tm_display.setReadOnly(True)
-            self.tm_display.setPlaceholderText("Translation memory matches will appear here...")
-            layout.addWidget(self.tm_display, stretch=2)
-            
-            # Notes section
-            notes_label = QLabel("📝 Notes")
-            notes_label.setStyleSheet("font-weight: bold; font-size: 12pt;")
-            layout.addWidget(notes_label)
-            
-            self.notes_edit = QTextEdit()
-            self.notes_edit.setPlaceholderText("Segment notes...")
-            layout.addWidget(self.notes_edit, stretch=1)
+        """DEPRECATED: Old assistance panel creation - now using create_tabbed_assistance_panel"""
+        # This function is kept for backward compatibility but is no longer used
+        # The new system uses multiple results panels in tabs
+        pass
     
-    def create_tabbed_assistance_panel(self):
+    def create_tabbed_assistance_panel(self, parent=None):
         """
         Create a tabbed panel with Translation Results, Segment Editor, and Notes
         This is used in both Grid and List views for consistency
         """
-        tabs = QTabWidget()
+        tabs = QTabWidget(parent)
         tabs.setTabPosition(QTabWidget.TabPosition.North)
         tabs.setDocumentMode(False)
         
@@ -5593,15 +5300,15 @@ class SupervertalerQt(QMainWindow):
         # Clear the grid
         self.clear_grid()
         
-        # Clear translation results if available
-        if hasattr(self, 'assistance_widget'):
-            if hasattr(self.assistance_widget, 'clear_results'):
-                self.assistance_widget.clear_results()
-            # Clear TM and termbase results tables
-            if hasattr(self.assistance_widget, 'tm_results_table'):
-                self.assistance_widget.tm_results_table.setRowCount(0)
-            if hasattr(self.assistance_widget, 'termbase_results_table'):
-                self.assistance_widget.termbase_results_table.setRowCount(0)
+        # Clear translation results in all panels
+        if hasattr(self, 'results_panels'):
+            for panel in self.results_panels:
+                if hasattr(panel, 'clear_results'):
+                    panel.clear_results()
+                if hasattr(panel, 'tm_results_table'):
+                    panel.tm_results_table.setRowCount(0)
+                if hasattr(panel, 'termbase_results_table'):
+                    panel.termbase_results_table.setRowCount(0)
         
         # Update window title
         self.update_window_title()
@@ -5906,7 +5613,12 @@ class SupervertalerQt(QMainWindow):
                     target=imported_seg.target,
                     status=imported_seg.status,
                     notes=imported_seg.notes,
-                    type="para"  # Default type for DOCX imports
+                    type=imported_seg.type,  # Use actual type from import
+                    paragraph_id=imported_seg.para_id if imported_seg.para_id else 0,
+                    style=imported_seg.style,  # CRITICAL: Preserve style for heading detection!
+                    document_position=imported_seg.doc_position,
+                    is_table_cell=imported_seg.is_table,
+                    table_info=imported_seg.table_info
                 )
                 segments.append(segment)
             
@@ -6348,11 +6060,50 @@ class SupervertalerQt(QMainWindow):
             id_item.setBackground(QColor())  # Default (white) background
             self.table.setItem(row, 0, id_item)
             
-            # Type - show segment type or just #
-            type_display = "#" if segment.type == "para" else segment.type.upper()
+            # Type - show segment type based on style and content
+            # Determine type display from style attribute and segment type
+            style = getattr(segment, 'style', 'Normal')
+            
+            # Check for list items (bullets/numbering or <li> tags)
+            source_text = segment.source.strip()
+            is_list_item = (
+                source_text.startswith('<li>') or  # Tagged list item
+                source_text.lstrip().startswith(('• ', '- ', '* ', '· ')) or
+                (len(source_text) > 2 and source_text[0].isdigit() and source_text[1:3] in ('. ', ') '))
+            )
+            
+            # Determine type display
+            if 'Title' in style:
+                type_display = "Title"
+            elif 'Heading 1' in style or 'Heading1' in style:
+                type_display = "H1"
+            elif 'Heading 2' in style or 'Heading2' in style:
+                type_display = "H2"
+            elif 'Heading 3' in style or 'Heading3' in style:
+                type_display = "H3"
+            elif 'Heading 4' in style or 'Heading4' in style:
+                type_display = "H4"
+            elif 'Subtitle' in style:
+                type_display = "Sub"
+            elif is_list_item:
+                type_display = "li"
+            elif segment.type and segment.type != "para":
+                type_display = segment.type.upper()
+            else:
+                type_display = "¶"  # Paragraph symbol
+            
             type_item = QTableWidgetItem(type_display)
             type_item.setFlags(type_item.flags() & ~Qt.ItemFlag.ItemIsEditable)  # Read-only
             type_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            
+            # Color-code by type for better visibility
+            if type_display in ("H1", "H2", "H3", "H4", "Title"):
+                type_item.setForeground(QColor("#003366"))  # Dark blue for headings
+                type_item.setBackground(QColor("#e6f3ff"))  # Light blue background
+            elif type_display == "li":
+                type_item.setForeground(QColor("#006600"))  # Dark green for list items
+                type_item.setBackground(QColor("#f0f8f0"))  # Light green background
+            
             self.table.setItem(row, 1, type_item)
             
             # Source - Use read-only QTextEdit widget for easy text selection
@@ -6426,37 +6177,6 @@ class SupervertalerQt(QMainWindow):
             self.refresh_list_view()
         if hasattr(self, 'document_container'):
             self.refresh_document_view()
-        
-
-        
-        # Ensure assistance widget is visible and properly positioned on left (home tab)
-        if hasattr(self, 'assistance_widget') and self.assistance_widget:
-            self.assistance_widget.setVisible(True)
-            # Check if we're on home tab and assistance widget should be on left
-            if hasattr(self, 'home_grid_splitter') and self.home_grid_splitter:
-                # Verify assistance widget is in the splitter
-                # Check if assistance widget is in the HOME grid splitter
-                # Note: We now use tabbed panels, so don't add assistance_widget directly
-                # The tabbed panel contains the assistance widget as one of its tabs
-                widget_in_splitter = False
-                for i in range(self.home_grid_splitter.count()):
-                    widget = self.home_grid_splitter.widget(i)
-                    # Check if it's our tabbed panel (QTabWidget)
-                    if isinstance(widget, QTabWidget):
-                        widget_in_splitter = True
-                        break
-                
-                if not widget_in_splitter:
-                    # Add tabbed panel if not present
-                    print("DEBUG (load_segments): Tabbed panel not found, recreating...")
-                    self.home_tabbed_panel = self.create_tabbed_assistance_panel()
-                    self.home_grid_splitter.addWidget(self.home_tabbed_panel)
-                    self.home_grid_splitter.setSizes([700, 300])
-                    print(f"DEBUG (load_segments): Added tabbed panel")
-                    print(f"DEBUG (load_segments): home_grid_splitter now has {self.home_grid_splitter.count()} widgets")
-                    for i in range(self.home_grid_splitter.count()):
-                        child_widget = self.home_grid_splitter.widget(i)
-                        print(f"  Position {i}: {child_widget.__class__.__name__}")
     
     def refresh_list_view(self):
         """Refresh the List View with current segments"""
@@ -6501,12 +6221,12 @@ class SupervertalerQt(QMainWindow):
         self.log(f"✓ Refreshed List View with {self.list_tree.topLevelItemCount()} segments")
     
     def refresh_document_view(self):
-        """Refresh the Document View with current segments"""
+        """Refresh the Document View with current segments (Natural document flow like Tkinter)"""
         if not hasattr(self, 'document_container') or not self.current_project:
             return
         
-        # Clear existing widgets (except the stretch)
-        while self.document_layout.count() > 1:  # Keep the stretch
+        # Clear existing widgets
+        while self.document_layout.count() > 0:
             item = self.document_layout.itemAt(0)
             if item:
                 widget = item.widget()
@@ -6523,68 +6243,238 @@ class SupervertalerQt(QMainWindow):
         source_filter = self.source_filter.text().lower() if hasattr(self, 'source_filter') else ""
         target_filter = self.target_filter.text().lower() if hasattr(self, 'target_filter') else ""
         
-        for segment in self.current_project.segments:
-            # Filter segments
-            if source_filter and source_filter not in segment.source.lower():
-                continue
-            if target_filter and target_filter not in segment.target.lower():
-                continue
-            
-            # Create segment widget (clickable frame)
-            segment_frame = QFrame()
-            segment_frame.setFrameStyle(QFrame.Shape.Box)
-            segment_frame.setStyleSheet(
-                f"""
-                QFrame {{
-                    border: 2px solid #ddd;
-                    border-radius: 5px;
-                    padding: 10px;
-                    margin: 5px;
-                    background-color: {"#ffe6e6" if segment.status == "untranslated" else "#e6ffe6" if segment.status == "translated" else "#e6f3ff"};
-                }}
-                QFrame:hover {{
-                    border-color: #2196F3;
-                    background-color: {"#ffcccc" if segment.status == "untranslated" else "#ccffcc" if segment.status == "translated" else "#cce6ff"};
-                }}
-                """
-            )
-            segment_frame.setCursor(Qt.CursorShape.PointingHandCursor)
-            # Store segment ID and create click handler
-            seg_id = segment.id
-            def make_click_handler(sid):
-                return lambda event: self.on_doc_segment_clicked(sid)
-            segment_frame.mousePressEvent = make_click_handler(seg_id)
-            
-            segment_layout = QVBoxLayout(segment_frame)
-            segment_layout.setContentsMargins(10, 10, 10, 10)
-            
-            # Segment ID and status
-            header = QLabel(f"Segment {segment.id} - {segment.status.upper()}")
-            header.setStyleSheet("font-weight: bold; font-size: 11px; color: #666;")
-            segment_layout.addWidget(header)
-            
-            # Source text
-            source_label = QLabel(f"<b>Source:</b> {segment.source}")
-            source_label.setWordWrap(True)
-            source_label.setTextFormat(Qt.TextFormat.RichText)
-            segment_layout.addWidget(source_label)
-            
-            # Target text (if exists)
-            if segment.target:
-                target_label = QLabel(f"<b>Target:</b> {segment.target}")
-                target_label.setWordWrap(True)
-                target_label.setTextFormat(Qt.TextFormat.RichText)
-                target_label.setStyleSheet("color: #0066cc;")
-                segment_layout.addWidget(target_label)
-            else:
-                empty_label = QLabel("<i>Not translated</i>")
-                empty_label.setStyleSheet("color: #999; font-style: italic;")
-                segment_layout.addWidget(empty_label)
-            
-            self.document_layout.insertWidget(self.document_layout.count() - 1, segment_frame)
-            self.doc_segment_widgets[segment.id] = segment_frame
+        # Create a single QTextEdit for the entire document (exactly like Tkinter's Text widget)
+        doc_text = QTextEdit()
+        doc_text.setReadOnly(True)
         
-        self.log(f"✓ Refreshed Document View with {len(self.doc_segment_widgets)} segments")
+        # Simple styling - let it fill space naturally
+        doc_text.setStyleSheet("""
+            QTextEdit {
+                background-color: white;
+                border: none;
+                padding: 30px 40px;
+                font-size: 11pt;
+            }
+        """)
+        
+        # CRITICAL: Let the widget expand to fill available space (like Tkinter's pack(fill='both', expand=True))
+        doc_text.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        
+        cursor = doc_text.textCursor()
+        cursor.movePosition(QTextCursor.MoveOperation.Start)
+        
+        # Smart paragraph grouping: Use paragraph_id if available, otherwise use heuristics
+        paragraphs = {}
+        current_para = 0
+        prev_seg = None
+        
+        for seg in self.current_project.segments:
+            # Check if segment has explicit paragraph_id
+            if hasattr(seg, 'paragraph_id') and seg.paragraph_id > 0:
+                para_id = seg.paragraph_id
+            else:
+                # Use heuristics to detect paragraph breaks
+                if prev_seg:
+                    prev_text = prev_seg.source.strip()
+                    curr_text = seg.source.strip()
+                    style = getattr(seg, 'style', 'Normal')
+                    
+                    # Check for paragraph break indicators
+                    is_new_paragraph = (
+                        (prev_text and prev_text[-1] in '.!?' and curr_text and curr_text[0].isupper()) or
+                        'Heading' in style or
+                        'Title' in style
+                    )
+                    
+                    if is_new_paragraph:
+                        current_para += 1
+                    
+                para_id = current_para
+            
+            if para_id not in paragraphs:
+                paragraphs[para_id] = []
+            paragraphs[para_id].append(seg)
+            prev_seg = seg
+        
+        # Render each paragraph
+        prev_para_id = None
+        for para_id in sorted(paragraphs.keys()):
+            para_segments = paragraphs[para_id]
+            
+            # Add paragraph break (double newline) between paragraphs
+            if prev_para_id is not None:
+                cursor.insertText("\n\n")
+            prev_para_id = para_id
+            
+            # Check if this is a heading or special style
+            first_seg = para_segments[0]
+            style = getattr(first_seg, 'style', 'Normal')
+            
+            # DEBUG: Log first few paragraph styles to BOTH console and log
+            if para_id < 5:
+                debug_msg = f"DEBUG: Para {para_id} - Style: '{style}' - Text: {first_seg.source[:50]}..."
+                print(debug_msg)
+                self.log(debug_msg)
+            
+            # Determine formatting based on style
+            char_format = QTextCharFormat()
+            char_format.setFontFamily(self.default_font_family)
+            
+            if 'Heading 1' in style or 'Title' in style:
+                char_format.setFontPointSize(16)
+                char_format.setFontWeight(QFont.Weight.Bold)
+                char_format.setForeground(QColor('#003366'))
+            elif 'Heading 2' in style:
+                char_format.setFontPointSize(14)
+                char_format.setFontWeight(QFont.Weight.Bold)
+                char_format.setForeground(QColor('#0066cc'))
+            elif 'Heading 3' in style:
+                char_format.setFontPointSize(12)
+                char_format.setFontWeight(QFont.Weight.Bold)
+                char_format.setForeground(QColor('#3399ff'))
+            elif 'Subtitle' in style:
+                char_format.setFontPointSize(12)
+                char_format.setFontItalic(True)
+                char_format.setForeground(QColor('#663399'))
+            else:
+                char_format.setFontPointSize(11)
+                char_format.setForeground(QColor('#000000'))
+            
+            # Insert each segment in the paragraph
+            for i, seg in enumerate(para_segments):
+                # Apply filters
+                if source_filter and source_filter not in seg.source.lower():
+                    continue
+                if target_filter and target_filter not in seg.target.lower():
+                    continue
+                
+                # Add space between sentences (except for first in paragraph)
+                if i > 0:
+                    cursor.insertText(" ")
+                
+                # Determine what text to display
+                if seg.target and seg.target.strip():
+                    display_text = seg.target
+                elif seg.source:
+                    display_text = seg.source
+                else:
+                    display_text = f"[Segment {seg.id} - Empty]"
+                
+                # Set background color based on status
+                if seg.status == 'untranslated':
+                    char_format.setBackground(QColor('#ffe6e6'))
+                elif seg.status == 'translated':
+                    char_format.setBackground(QColor('#e6ffe6'))
+                elif seg.status == 'approved':
+                    char_format.setBackground(QColor('#e6f3ff'))
+                else:
+                    char_format.setBackground(QColor('white'))
+                
+                # Store position for click handling
+                start_pos = cursor.position()
+                
+                # Parse and render inline formatting tags (<b>, <i>, <u>, <bi>, <li>)
+                import re
+                
+                # Pattern to match formatting tags: <b>, </b>, <i>, </i>, <u>, </u>, <bi>, </bi>, <li>, </li>
+                tag_pattern = re.compile(r'<(/?)([biu]|bi|li)>')
+                
+                # Check for list item tag at the start
+                list_item_match = re.match(r'^<li>(.*)</li>$', display_text, re.DOTALL)
+                if list_item_match:
+                    # This is a list item - insert bullet and extract content
+                    bullet_format = QTextCharFormat(char_format)
+                    bullet_format.setFontWeight(QFont.Weight.Bold)
+                    bullet_format.setForeground(QColor('#FF6600'))  # Orange bullet
+                    cursor.insertText("• ", bullet_format)
+                    
+                    # Process the content inside <li> tags
+                    display_text = list_item_match.group(1)
+                
+                # Split text into parts (text and tags)
+                parts = []
+                last_end = 0
+                formatting_stack = []  # Stack to track nested formatting
+                
+                for match in tag_pattern.finditer(display_text):
+                    # Add text before tag
+                    if match.start() > last_end:
+                        text_part = display_text[last_end:match.start()]
+                        parts.append(('text', text_part, formatting_stack.copy()))
+                    
+                    # Process tag
+                    is_closing = match.group(1) == '/'
+                    tag_type = match.group(2)
+                    
+                    if is_closing:
+                        # Remove from stack if present
+                        if tag_type in formatting_stack:
+                            formatting_stack.remove(tag_type)
+                    else:
+                        # Add to stack
+                        if tag_type not in formatting_stack:
+                            formatting_stack.append(tag_type)
+                    
+                    last_end = match.end()
+                
+                # Add remaining text
+                if last_end < len(display_text):
+                    parts.append(('text', display_text[last_end:], formatting_stack.copy()))
+                
+                # If no tags found, render as plain text
+                if not parts:
+                    cursor.insertText(display_text, char_format)
+                else:
+                    # Render each part with appropriate formatting
+                    for part_type, text, format_tags in parts:
+                        if part_type == 'text' and text:
+                            # Create format with current formatting
+                            part_format = QTextCharFormat(char_format)
+                            
+                            # Apply formatting based on tags
+                            if 'bi' in format_tags or ('b' in format_tags and 'i' in format_tags):
+                                part_format.setFontWeight(QFont.Weight.Bold)
+                                part_format.setFontItalic(True)
+                            elif 'b' in format_tags:
+                                part_format.setFontWeight(QFont.Weight.Bold)
+                            elif 'i' in format_tags:
+                                part_format.setFontItalic(True)
+                            
+                            if 'u' in format_tags:
+                                part_format.setFontUnderline(True)
+                            
+                            cursor.insertText(text, part_format)
+                
+                end_pos = cursor.position()
+                
+                # Store segment info for click handling
+                self.doc_segment_widgets[seg.id] = {
+                    'start': start_pos,
+                    'end': end_pos,
+                    'segment': seg
+                }
+        
+        # Enable mouse tracking for click handling
+        doc_text.setMouseTracking(True)
+        doc_text.viewport().setCursor(Qt.CursorShape.PointingHandCursor)
+        
+        # Connect mouse click event
+        def handle_click(event):
+            cursor = doc_text.cursorForPosition(event.pos())
+            pos = cursor.position()
+            
+            # Find which segment was clicked
+            for seg_id, info in self.doc_segment_widgets.items():
+                if info['start'] <= pos <= info['end']:
+                    self.on_doc_segment_clicked(seg_id)
+                    break
+        
+        doc_text.mousePressEvent = handle_click
+        
+        # Add the text widget to the layout - it will expand to fill available space
+        self.document_layout.addWidget(doc_text)
+        
+        self.log(f"✓ Refreshed Document View with {len(self.doc_segment_widgets)} segments (natural flow)")
     
     def clear_grid(self):
         """Clear all rows from grid"""
@@ -6695,22 +6585,28 @@ class SupervertalerQt(QMainWindow):
     
     def results_pane_zoom_in(self):
         """Increase font size in translation results pane"""
-        if hasattr(self, 'assistance_widget') and hasattr(self.assistance_widget, 'zoom_in'):
-            self.assistance_widget.zoom_in()
+        if hasattr(self, 'results_panels'):
+            for panel in self.results_panels:
+                if hasattr(panel, 'zoom_in'):
+                    panel.zoom_in()
             # Save font sizes to preferences
             self.save_current_font_sizes()
     
     def results_pane_zoom_out(self):
         """Decrease font size in translation results pane"""
-        if hasattr(self, 'assistance_widget') and hasattr(self.assistance_widget, 'zoom_out'):
-            self.assistance_widget.zoom_out()
+        if hasattr(self, 'results_panels'):
+            for panel in self.results_panels:
+                if hasattr(panel, 'zoom_out'):
+                    panel.zoom_out()
             # Save font sizes to preferences
             self.save_current_font_sizes()
     
     def results_pane_zoom_reset(self):
         """Reset font size in translation results pane to default"""
-        if hasattr(self, 'assistance_widget') and hasattr(self.assistance_widget, 'reset_zoom'):
-            self.assistance_widget.reset_zoom()
+        if hasattr(self, 'results_panels'):
+            for panel in self.results_panels:
+                if hasattr(panel, 'reset_zoom'):
+                    panel.reset_zoom()
             # Save font sizes to preferences
             self.save_current_font_sizes()
     
@@ -6868,17 +6764,21 @@ class SupervertalerQt(QMainWindow):
             match_size = general_settings.get('results_match_font_size', 9)
             compare_size = general_settings.get('results_compare_font_size', 9)
             
-            if hasattr(self, 'assistance_widget') and hasattr(self.assistance_widget, 'set_font_size'):
+            # Apply to all results panels
+            if hasattr(self, 'results_panels'):
                 if 7 <= match_size <= 16:
                     from modules.translation_results_panel import CompactMatchItem
                     CompactMatchItem.set_font_size(match_size)
-                    self.assistance_widget.set_font_size(match_size)
-            
-            if hasattr(self, 'assistance_widget') and hasattr(self.assistance_widget, 'set_compare_box_font_size'):
+                    for panel in self.results_panels:
+                        if hasattr(panel, 'set_font_size'):
+                            panel.set_font_size(match_size)
+                
                 if 7 <= compare_size <= 14:
                     from modules.translation_results_panel import TranslationResultsPanel
                     TranslationResultsPanel.compare_box_font_size = compare_size
-                    self.assistance_widget.set_compare_box_font_size(compare_size)
+                    for panel in self.results_panels:
+                        if hasattr(panel, 'set_compare_box_font_size'):
+                            panel.set_compare_box_font_size(compare_size)
                     
         except Exception as e:
             self.log(f"⚠ Could not load font sizes: {e}")
@@ -6979,20 +6879,6 @@ class SupervertalerQt(QMainWindow):
                         notes=segment.notes
                     )
                 
-                # Update notes immediately (no delay needed)
-                if hasattr(self.assistance_widget, 'notes_edit'):
-                    try:
-                        self.assistance_widget.notes_edit.setText(segment.notes)
-                    except Exception as e:
-                        self.log(f"Error updating notes: {e}")
-                
-                # Update segment info immediately
-                if hasattr(self, 'assistance_widget') and hasattr(self.assistance_widget, 'set_segment_info'):
-                    try:
-                        self.assistance_widget.set_segment_info(current_row + 1, segment.source)
-                    except Exception as e:
-                        self.log(f"Error updating segment info: {e}")
-                
                 # Get termbase matches (from cache or search on-demand)
                 matches_dict = None  # Initialize at the top level
                 try:
@@ -7021,7 +6907,7 @@ class SupervertalerQt(QMainWindow):
                     if source_widget and hasattr(source_widget, 'termbase_matches'):
                         source_widget.termbase_matches = stored_matches
                     
-                    if stored_matches and hasattr(self, 'assistance_widget'):
+                    if stored_matches:
                         # Convert stored matches to TranslationMatch objects
                         from modules.translation_results_panel import TranslationMatch
                         matches_dict = {
@@ -7061,9 +6947,6 @@ class SupervertalerQt(QMainWindow):
                         # Show immediate termbase matches, delay expensive TM/MT/LLM searches
                         self.log(f"🚀 Immediate display: {len(matches_dict['Termbases'])} termbase matches")
                         
-                        # Update main assistance widget
-                        self.assistance_widget.set_matches(matches_dict)
-                        
                         # Update all tabbed results panels
                         if hasattr(self, 'results_panels'):
                             for panel in self.results_panels:
@@ -7078,7 +6961,7 @@ class SupervertalerQt(QMainWindow):
                     
                 # Schedule expensive searches (TM, MT, LLM) with debouncing to prevent UI blocking
                 # Pass the termbase matches to preserve them in delayed search
-                if matches_dict and hasattr(self, 'assistance_widget'):
+                if matches_dict:
                     termbase_matches = matches_dict.get('Termbases', [])
                     self._schedule_mt_and_llm_matches(segment, termbase_matches)
         except Exception as e:
@@ -7613,13 +7496,17 @@ class SupervertalerQt(QMainWindow):
                                 for i, match in enumerate(matches[:3]):  # Show first 3 for debugging
                                     self.log(f"    [{i}] {match.source} → {match.target} (relevance: {match.relevance})")
                     
-                    # Debug assistance_widget
-                    if hasattr(self, 'assistance_widget') and self.assistance_widget:
-                        self.log(f"✅ assistance_widget exists: {type(self.assistance_widget)}")
-                        self.assistance_widget.set_matches(matches_dict)
-                        self.log(f"✅ set_matches() called successfully")
+                    # Update all tabbed results panels
+                    if hasattr(self, 'results_panels') and self.results_panels:
+                        self.log(f"✅ Updating {len(self.results_panels)} results panels")
+                        for panel in self.results_panels:
+                            try:
+                                panel.set_matches(matches_dict)
+                            except Exception as e:
+                                self.log(f"Error updating panel: {e}")
+                        self.log(f"✅ All panels updated successfully")
                     else:
-                        self.log(f"❌ assistance_widget missing or None: {getattr(self, 'assistance_widget', 'NOT_SET')}")
+                        self.log(f"❌ results_panels missing or empty: {getattr(self, 'results_panels', 'NOT_SET')}")
                 except Exception as e:
                     self.log(f"Error updating TranslationResultsPanel: {e}")
         except Exception as e:
@@ -7867,8 +7754,12 @@ class SupervertalerQt(QMainWindow):
                     if termbase_matches:
                         matches_dict['Termbases'] = termbase_matches
                     
-                    if matches_dict:
-                        self.assistance_widget.set_matches(matches_dict)
+                    if matches_dict and hasattr(self, 'results_panels'):
+                        for panel in self.results_panels:
+                            try:
+                                panel.set_matches(matches_dict)
+                            except Exception as e:
+                                self.log(f"Error updating panel: {e}")
                     return
                 except Exception as e:
                     self.log(f"Error populating TranslationResultsPanel: {e}")
@@ -8945,9 +8836,15 @@ class SupervertalerQt(QMainWindow):
         selected_items = self.list_tree.selectedItems()
         if not selected_items:
             self.list_current_segment_id = None
-            self.list_seg_info.setText("No segment selected")
-            self.list_source_editor.clear()
-            self.list_target_editor.clear()
+            # Update tab segment editor to show nothing selected
+            if hasattr(self, 'update_tab_segment_editor'):
+                self.update_tab_segment_editor(
+                    segment_id=None,
+                    source_text="",
+                    target_text="",
+                    status="untranslated",
+                    notes=""
+                )
             return
         
         item = selected_items[0]
@@ -8959,74 +8856,49 @@ class SupervertalerQt(QMainWindow):
         if not segment:
             return
         
-        # Update old list editor (if it exists - for backwards compatibility)
-        if hasattr(self, 'list_seg_info'):
-            self.list_seg_info.setText(f"Segment {segment.id}")
-        if hasattr(self, 'list_source_editor'):
-            self.list_source_editor.setPlainText(segment.source)
-        if hasattr(self, 'list_target_editor'):
-            self.list_target_editor.setPlainText(segment.target)
-        if hasattr(self, 'list_status_combo'):
-            self.list_status_combo.setCurrentText(segment.status)
-        
-        # Update tab segment editor
+        # Update tab segment editor with new tabbed panel approach
         if hasattr(self, 'update_tab_segment_editor'):
             self.update_tab_segment_editor(
                 segment_id=segment.id,
                 source_text=segment.source,
                 target_text=segment.target,
                 status=segment.status,
-                notes=segment.notes
+                notes=segment.notes if hasattr(segment, 'notes') else ""
             )
         
         # Trigger assistance panel update (same as grid view)
         # Find row index for on_cell_selected
         row = next((i for i, s in enumerate(self.current_project.segments) if s.id == segment_id), -1)
         if row >= 0:
-            # Temporarily select in grid to trigger assistance panel
-            if hasattr(self, 'table') and self.table.rowCount() > row:
-                self.table.selectRow(row)
-                # Call on_cell_selected manually
-                self.on_cell_selected(row, 3, -1, -1)
+            # Call on_cell_selected to update translation results
+            self.on_cell_selected(row, 3, -1, -1)
     
     def on_list_status_change(self, status: str):
-        """Handle status change in List View"""
-        if not self.list_current_segment_id:
-            return
-        
-        segment = next((s for s in self.current_project.segments if s.id == self.list_current_segment_id), None)
-        if segment:
-            segment.status = status
-            self.project_modified = True
-            self.refresh_list_view()
+        """Handle status change in List View (deprecated - now handled by tab editor)"""
+        # This is kept for backwards compatibility but actual editing is done in tab panel
+        pass
     
     def on_list_target_change(self):
-        """Handle target text change in List View"""
-        if not self.list_current_segment_id:
-            return
-        
-        segment = next((s for s in self.current_project.segments if s.id == self.list_current_segment_id), None)
-        if segment:
-            new_target = self.list_target_editor.toPlainText()
-            if segment.target != new_target:
-                segment.target = new_target
-                self.project_modified = True
+        """Handle target text change in List View (deprecated - now handled by tab editor)"""
+        # This is kept for backwards compatibility but actual editing is done in tab panel
+        pass
     
     def copy_source_to_list_target(self):
-        """Copy source to target in List View"""
-        source_text = self.list_source_editor.toPlainText()
-        self.list_target_editor.setPlainText(source_text)
-        self.on_list_target_change()
+        """Copy source to target in List View (deprecated - now handled by tab editor)"""
+        # This is kept for backwards compatibility but actual editing is done in tab panel
+        pass
     
     def clear_list_target(self):
-        """Clear target in List View"""
-        self.list_target_editor.clear()
-        self.on_list_target_change()
+        """Clear target in List View (deprecated - now handled by tab editor)"""
+        # This is kept for backwards compatibility but actual editing is done in tab panel
+        pass
     
     def focus_list_target_editor(self):
         """Focus the target editor in List View"""
-        if hasattr(self, 'list_target_editor'):
-            self.list_target_editor.setFocus()
+        # Focus the tab segment editor instead
+        if hasattr(self, 'list_tabbed_panel'):
+            # Switch to Segment Editor tab
+            self.list_tabbed_panel.setCurrentIndex(1)  # Index 1 is Segment Editor
     
     def save_list_segment_and_next(self):
         """Save current segment and move to next in List View"""
@@ -9246,31 +9118,21 @@ class SupervertalerQt(QMainWindow):
         if not segment:
             return
         
-        # Update editor
-        self.doc_seg_info.setText(f"Segment {segment.id}")
-        self.doc_source_editor.setPlainText(segment.source)
-        self.doc_target_editor.setPlainText(segment.target)
-        self.doc_status_combo.setCurrentText(segment.status)
+        # Update all tabbed panels (like Grid and List views)
+        self.update_tab_segment_editor(
+            segment_id=segment.id,
+            source_text=segment.source,
+            target_text=segment.target,
+            status=segment.status,
+            notes=segment.notes if hasattr(segment, 'notes') else ""
+        )
         
-        # Highlight clicked segment
-        for seg_id, widget in self.doc_segment_widgets.items():
-            if seg_id == segment_id:
-                # Highlight
-                style = widget.styleSheet()
-                if "border: 3px solid #2196F3;" not in style:
-                    widget.setStyleSheet(style.replace("border: 2px solid #ddd;", "border: 3px solid #2196F3;"))
-            else:
-                # Remove highlight
-                style = widget.styleSheet()
-                if "border: 3px solid #2196F3;" in style:
-                    widget.setStyleSheet(style.replace("border: 3px solid #2196F3;", "border: 2px solid #ddd;"))
-        
-        # Trigger assistance panel update
+        # Also update main assistance widget with translation matches
+        # Trigger assistance panel update (search for matches)
         row = next((i for i, s in enumerate(self.current_project.segments) if s.id == segment_id), -1)
         if row >= 0:
-            if hasattr(self, 'table') and self.table.rowCount() > row:
-                self.table.selectRow(row)
-                self.on_cell_selected(row, 3, -1, -1)
+            # Trigger the match search like we do in grid/list view
+            self.on_cell_selected(row, 3, -1, -1)
     
     def on_doc_status_change(self, status: str):
         """Handle status change in Document View"""
@@ -9362,7 +9224,7 @@ class SupervertalerQt(QMainWindow):
     
     def update_window_title(self):
         """Update window title with project name and modified state"""
-        title = "Supervertaler Qt v1.1.7"
+        title = "Supervertaler Qt v1.2.2"
         if ENABLE_PRIVATE_FEATURES:
             title += " [🛠️ DEV MODE]"
         if self.current_project:
@@ -9929,7 +9791,7 @@ class SupervertalerQt(QMainWindow):
         layout.setContentsMargins(20, 20, 20, 20)
         
         # Title
-        title = QLabel("<h2>Supervertaler Qt v1.1.7</h2>")
+        title = QLabel("<h2>Supervertaler Qt v1.2.2</h2>")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title)
         
@@ -9954,7 +9816,7 @@ class SupervertalerQt(QMainWindow):
             "<p><b>Author:</b> Michael Beijer</p>"
             "<p><b>License:</b> MIT</p>"
             "<hr>"
-            "<p><i>v1.1.7 - Home Screen Redesign & Companion Tool Refocus</i></p>"
+            "<p><i>v1.2.2 - Translation Results Panels, Document Formatting & Tag System</i></p>"
         )
         info.setWordWrap(True)
         layout.addWidget(info)
@@ -10617,14 +10479,20 @@ class SupervertalerQt(QMainWindow):
                             provider_code=provider_code
                         )
                         
-                        # Get current matches and add LLM
-                        current_matches = self.assistance_widget.matches_by_type.copy()
-                        if "LLM" not in current_matches:
-                            current_matches["LLM"] = []
-                        current_matches["LLM"] = [llm_match]  # Replace with new result
-                        
-                        # Update panel
-                        self.assistance_widget.set_matches(current_matches)
+                        # Update all results panels with LLM match
+                        if hasattr(self, 'results_panels'):
+                            current_matches = {"LLM": [llm_match]}
+                            for panel in self.results_panels:
+                                try:
+                                    # Get current matches and add LLM
+                                    if hasattr(panel, 'matches_by_type'):
+                                        existing_matches = panel.matches_by_type.copy()
+                                        existing_matches["LLM"] = [llm_match]
+                                        panel.set_matches(existing_matches)
+                                    else:
+                                        panel.set_matches(current_matches)
+                                except Exception as e:
+                                    self.log(f"Error updating panel with LLM: {e}")
                         self.log(f"✓ LLM translation added to results pane")
             except Exception as e:
                 # Silently fail - don't interrupt workflow
@@ -10736,14 +10604,20 @@ class SupervertalerQt(QMainWindow):
                                 provider_code=provider_code
                             )
                             
-                            # Get current matches and add MT
-                            current_matches = self.assistance_widget.matches_by_type.copy()
-                            if "MT" not in current_matches:
-                                current_matches["MT"] = []
-                            current_matches["MT"] = [mt_match]  # Replace with new result
-                            
-                            # Update panel
-                            self.assistance_widget.set_matches(current_matches)
+                            # Update all results panels with MT match
+                            if hasattr(self, 'results_panels'):
+                                current_matches = {"MT": [mt_match]}
+                                for panel in self.results_panels:
+                                    try:
+                                        # Get current matches and add MT
+                                        if hasattr(panel, 'matches_by_type'):
+                                            existing_matches = panel.matches_by_type.copy()
+                                            existing_matches["MT"] = [mt_match]
+                                            panel.set_matches(existing_matches)
+                                        else:
+                                            panel.set_matches(current_matches)
+                                    except Exception as e:
+                                        self.log(f"Error updating panel with MT: {e}")
                             self.log(f"✓ MT translation ({provider_name}) added to results pane")
             except Exception as e:
                 # Silently fail - don't interrupt workflow
@@ -11262,7 +11136,14 @@ class SupervertalerQt(QMainWindow):
             total_new_matches = len(matches_dict["TM"]) + len(matches_dict["MT"]) + len(matches_dict["LLM"])
             if total_new_matches > 0:
                 self.log(f"🚀 DELAYED SEARCH COMPLETE: Added {len(matches_dict['TM'])} TM + {len(matches_dict['MT'])} MT + {len(matches_dict['LLM'])} LLM matches")
-                self.assistance_widget.set_matches(matches_dict)
+                # Update all results panels
+                if hasattr(self, 'results_panels') and self.results_panels:
+                    self.log(f"✅ Updating {len(self.results_panels)} results panels with delayed matches")
+                    for panel in self.results_panels:
+                        try:
+                            panel.set_matches(matches_dict)
+                        except Exception as e:
+                            self.log(f"Error updating panel: {e}")
             else:
                 self.log("🚀 DELAYED SEARCH COMPLETE: No TM, MT or LLM matches found")
                 
