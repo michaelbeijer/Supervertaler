@@ -11,7 +11,7 @@ Supported Providers:
 - Google (Gemini 2.0 Flash, Pro)
 
 Temperature Handling:
-- Reasoning models (GPT-5, o1, o3): temperature=1.0
+- Reasoning models (GPT-5, o1, o3): temperature parameter OMITTED (not supported)
 - Standard models: temperature=0.3
 
 Usage:
@@ -21,8 +21,55 @@ Usage:
     response = client.translate("Hello world", source_lang="en", target_lang="nl")
 """
 
+import os
 from typing import Dict, Optional, Literal
 from dataclasses import dataclass
+
+
+def load_api_keys() -> Dict[str, str]:
+    """Load API keys from api_keys.txt file (supports both root and user_data_private locations)"""
+    script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    
+    # Try user_data_private first (dev mode), then fallback to root
+    possible_paths = [
+        os.path.join(script_dir, "user_data_private", "api_keys.txt"),
+        os.path.join(script_dir, "api_keys.txt")
+    ]
+    
+    api_keys_file = None
+    for path in possible_paths:
+        if os.path.exists(path):
+            api_keys_file = path
+            break
+    
+    # If no file exists, use root location
+    if api_keys_file is None:
+        api_keys_file = possible_paths[1]  # Default to root
+    
+    api_keys = {
+        "google": "",           # For Gemini
+        "google_translate": "", # For Google Cloud Translation API
+        "claude": "",
+        "openai": "",
+        "deepl": "",
+        "mymemory": ""
+    }
+    
+    if os.path.exists(api_keys_file):
+        try:
+            with open(api_keys_file, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith('#') and '=' in line:
+                        key, value = line.split('=', 1)
+                        key = key.strip()
+                        value = value.strip()
+                        if key in api_keys:
+                            api_keys[key] = value
+        except Exception as e:
+            print(f"Error loading API keys: {e}")
+    
+    return api_keys
 
 
 @dataclass
@@ -45,7 +92,7 @@ class LLMClient:
         "gemini": "gemini-2.0-flash-exp"
     }
     
-    # Reasoning models that require temperature=1.0
+    # Reasoning models that don't support temperature parameter (must be omitted)
     REASONING_MODELS = ["gpt-5", "o1", "o3"]
     
     def __init__(self, api_key: str, provider: str = "openai", model: Optional[str] = None, max_tokens: int = 4096):
@@ -251,13 +298,13 @@ class LLMClient:
         result = '\n'.join(cleaned_lines).strip()
         return result if result else text
     
-    def _get_temperature(self) -> float:
-        """Determine optimal temperature for model"""
+    def _get_temperature(self) -> Optional[float]:
+        """Determine optimal temperature for model (None means omit parameter)"""
         model_lower = self.model.lower()
         
-        # Reasoning models require temperature=1.0
+        # Reasoning models don't support temperature parameter - return None to omit it
         if any(reasoning in model_lower for reasoning in self.REASONING_MODELS):
-            return 1.0
+            return None
         
         # Standard models use 0.3 for consistency
         return 0.3
@@ -305,7 +352,7 @@ class LLMClient:
             raise ValueError(f"Unsupported provider: {self.provider}")
     
     def _call_openai(self, prompt: str, max_tokens: Optional[int] = None) -> str:
-        """Call OpenAI API"""
+        """Call OpenAI API with GPT-5/o1/o3 reasoning model support"""
         try:
             from openai import OpenAI
         except ImportError:
@@ -318,13 +365,31 @@ class LLMClient:
         # Use provided max_tokens or default
         tokens_to_use = max_tokens if max_tokens is not None else self.max_tokens
         
-        response = client.chat.completions.create(
-            model=self.model,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=self.temperature,
-            max_tokens=tokens_to_use,
-            timeout=120.0  # Explicit timeout
-        )
+        # Detect if this is a reasoning model (GPT-5, o1, o3)
+        model_lower = self.model.lower()
+        is_reasoning_model = any(x in model_lower for x in ["gpt-5", "o1", "o3"])
+        
+        # Build API call parameters
+        api_params = {
+            "model": self.model,
+            "messages": [{"role": "user", "content": prompt}],
+            "timeout": 120.0
+        }
+        
+        if is_reasoning_model:
+            # Reasoning models (gpt-5, o1, o3-mini) require specific parameters
+            # - Use max_completion_tokens instead of max_tokens
+            # - DO NOT include temperature parameter (it's not supported)
+            # - Add reasoning_effort parameter to control thinking
+            api_params["max_completion_tokens"] = tokens_to_use
+            # Note: Temperature parameter is OMITTED for reasoning models (not supported)
+            api_params["reasoning_effort"] = "low"  # Use less reasoning to save tokens
+        else:
+            # Standard models (gpt-4o, gpt-4-turbo, etc.)
+            api_params["max_tokens"] = tokens_to_use
+            api_params["temperature"] = self.temperature
+        
+        response = client.chat.completions.create(**api_params)
         
         translation = response.choices[0].message.content.strip()
         
@@ -408,6 +473,231 @@ def main():
     
     print(f"\nOriginal: {text}")
     print(f"Translation: {result}")
+
+
+# Wrapper functions for easy integration with Supervertaler
+def get_openai_translation(text: str, source_lang: str, target_lang: str, context: str = "") -> Dict:
+    """
+    Get OpenAI translation with metadata
+    
+    Args:
+        text: Text to translate
+        source_lang: Source language name
+        target_lang: Target language name
+        context: Optional context for better translation
+    
+    Returns:
+        Dict with translation, model, and metadata
+    """
+    try:
+        print(f"🔍 [DEBUG] OpenAI: Starting translation for '{text[:30]}...'")
+        
+        # Load API key from config
+        api_key = _load_api_key('openai')
+        print(f"🔍 [DEBUG] OpenAI: API key loaded: {'Yes' if api_key else 'No'}")
+        if not api_key:
+            raise ValueError("OpenAI API key not found in api_keys.txt")
+            
+        # Create LLM client and get real translation
+        print(f"🔍 [DEBUG] OpenAI: Creating LLMClient...")
+        client = LLMClient(api_key=api_key, provider="openai")
+        print(f"🔍 [DEBUG] OpenAI: Client created, calling translate...")
+        
+        translation = client.translate(
+            text=text,
+            source_lang=_convert_lang_name_to_code(source_lang),
+            target_lang=_convert_lang_name_to_code(target_lang),
+            context=context if context else None
+        )
+        
+        print(f"🔍 [DEBUG] OpenAI: Translation received: '{translation[:30]}...'")
+        return {
+            'translation': translation,
+            'model': client.model,
+            'explanation': f"Translation provided with context: {context[:50]}..." if context else "Translation completed",
+            'success': True
+        }
+    except Exception as e:
+        print(f"🔍 [DEBUG] OpenAI: ERROR - {str(e)}")
+        return {
+            'translation': None,
+            'error': str(e),
+            'success': False
+        }
+
+
+def get_claude_translation(text: str, source_lang: str, target_lang: str, context: str = "") -> Dict:
+    """
+    Get Claude translation with metadata
+    
+    Args:
+        text: Text to translate
+        source_lang: Source language name
+        target_lang: Target language name
+        context: Optional context for better translation
+    
+    Returns:
+        Dict with translation, model, and metadata
+    """
+    try:
+        print(f"🔍 [DEBUG] Claude: Starting translation for '{text[:30]}...'")
+        
+        # Load API key from config
+        api_key = _load_api_key('claude')
+        print(f"🔍 [DEBUG] Claude: API key loaded: {'Yes' if api_key else 'No'}")
+        if not api_key:
+            raise ValueError("Claude API key not found in api_keys.txt")
+            
+        # Create LLM client and get real translation
+        print(f"🔍 [DEBUG] Claude: Creating LLMClient...")
+        client = LLMClient(api_key=api_key, provider="claude")
+        print(f"🔍 [DEBUG] Claude: Client created, calling translate...")
+        
+        translation = client.translate(
+            text=text,
+            source_lang=_convert_lang_name_to_code(source_lang),
+            target_lang=_convert_lang_name_to_code(target_lang),
+            context=context if context else None
+        )
+        
+        print(f"🔍 [DEBUG] Claude: Translation received: '{translation[:30]}...'")
+        return {
+            'translation': translation,
+            'model': client.model,
+            'reasoning': f"High-quality translation considering context: {context[:50]}..." if context else "Translation completed",
+            'success': True
+        }
+    except Exception as e:
+        print(f"🔍 [DEBUG] Claude: ERROR - {str(e)}")
+        return {
+            'translation': None,
+            'error': str(e),
+            'success': False
+        }
+
+
+def _load_api_key(provider: str) -> str:
+    """Load API key from api_keys.txt file"""
+    try:
+        import os
+        api_keys_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'api_keys.txt')
+        
+        if not os.path.exists(api_keys_path):
+            return None
+            
+        with open(api_keys_path, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#') and '=' in line:
+                    key_name, key_value = line.split('=', 1)
+                    if key_name.strip().lower() == provider.lower():
+                        return key_value.strip()
+        return None
+    except Exception:
+        return None
+
+def _convert_lang_name_to_code(lang_name: str) -> str:
+    """Convert language names to codes for LLM API"""
+    lang_map = {
+        'Dutch': 'nl',
+        'English': 'en', 
+        'German': 'de',
+        'French': 'fr',
+        'Spanish': 'es',
+        'Italian': 'it',
+        'Portuguese': 'pt',
+        'Chinese': 'zh',
+        'Japanese': 'ja',
+        'Korean': 'ko'
+    }
+    return lang_map.get(lang_name, lang_name.lower()[:2])
+
+def get_google_translation(text: str, source_lang: str, target_lang: str) -> Dict:
+    """
+    Get Google Cloud Translation API translation with metadata
+    
+    Args:
+        text: Text to translate
+        source_lang: Source language code (e.g., 'en', 'nl', 'auto')
+        target_lang: Target language code (e.g., 'en', 'nl')
+    
+    Returns:
+        Dict with translation, confidence, and metadata
+    """
+    try:
+        # Load API key from api_keys.txt
+        api_keys = load_api_keys()
+        # Try both 'google_translate' and 'google' for backward compatibility
+        google_api_key = api_keys.get('google_translate') or api_keys.get('google')
+        
+        if not google_api_key:
+            return {
+                'translation': None,
+                'error': 'Google Translate API key not found in api_keys.txt (looking for "google_translate" or "google")',
+                'success': False
+            }
+        
+        # Use Google Cloud Translation API (Basic/v2) via REST
+        try:
+            import requests
+            
+            # Use REST API directly with API key
+            url = "https://translation.googleapis.com/language/translate/v2"
+            
+            # Handle 'auto' source language
+            params = {
+                'key': google_api_key,
+                'q': text,
+                'target': target_lang
+            }
+            
+            if source_lang and source_lang != 'auto':
+                params['source'] = source_lang
+            
+            # Make API request
+            response = requests.post(url, params=params)
+            
+            if response.status_code == 200:
+                result = response.json()
+                if 'data' in result and 'translations' in result['data']:
+                    translation_data = result['data']['translations'][0]
+                    return {
+                        'translation': translation_data['translatedText'],
+                        'confidence': 'High',
+                        'detected_source_language': translation_data.get('detectedSourceLanguage', source_lang),
+                        'provider': 'Google Cloud Translation',
+                        'success': True,
+                        'metadata': {
+                            'model': 'nmt',  # Neural Machine Translation
+                            'input': text
+                        }
+                    }
+                else:
+                    return {
+                        'translation': None,
+                        'error': f'Unexpected Google API response format: {result}',
+                        'success': False
+                    }
+            else:
+                return {
+                    'translation': None,
+                    'error': f'Google API error: {response.status_code} - {response.text}',
+                    'success': False
+                }
+                
+        except ImportError:
+            # Fallback if requests is not installed
+            return {
+                'translation': None,
+                'error': 'Requests library not installed. Install: pip install requests',
+                'success': False
+            }
+    except Exception as e:
+        return {
+            'translation': None,
+            'error': f'Google Translate error: {str(e)}',
+            'success': False
+        }
 
 
 if __name__ == "__main__":

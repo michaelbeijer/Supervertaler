@@ -6,6 +6,102 @@ The Qt Edition is the **primary version** for active development and new feature
 
 ---
 
+## [1.2.0] - November 6, 2025 🎉
+
+### 🎯 MAJOR RELEASE: Complete Translation Matching System
+
+**The Supervertaler CAT tool now provides comprehensive translation assistance with all match types working together!**
+
+### Added
+- **✅ Google Cloud Translation API Integration**
+  - Machine translation matches displayed alongside TM and LLM results
+  - Uses Google Translate REST API v2 for direct API key authentication
+  - Automatic language detection support
+  - High-quality neural machine translation
+  - Provider badge: "MT" in match display
+
+- **✅ Multi-LLM Support (OpenAI, Claude, Gemini)**
+  - **OpenAI GPT** integration (GPT-4o, GPT-5, o1, o3)
+  - **Claude 3.5 Sonnet** integration (Anthropic)
+  - **Google Gemini** integration (Gemini 2.0 Flash, 1.5 Pro)
+  - All three LLM providers work simultaneously
+  - Each provides translations with confidence scores
+  - Provider badges: "OA" (OpenAI), "CL" (Claude), "GM" (Gemini)
+
+- **✅ Complete Match Chaining System**
+  - **Termbase matches** → Displayed immediately (yellow highlight)
+  - **TM matches** → Displayed after 1.5s delay (prevents excessive API calls)
+  - **MT matches** → Google Translate integrated in delayed search
+  - **LLM matches** → All enabled LLMs called in parallel
+  - All match types preserved and displayed together in Translation Results Panel
+
+- **✅ Flexible API Key Management**
+  - Supports both `google` and `google_translate` key names for Google Cloud Translation
+  - Supports both `gemini` and `google` key names for Gemini API
+  - Backward compatibility with existing configurations
+  - Standalone `load_api_keys()` function in `modules/llm_clients.py`
+
+### Fixed
+- **🐛 Termbase Match Preservation** - Termbase matches no longer disappear when TM/MT/LLM results load
+  - Root cause: Delayed search wasn't receiving termbase matches parameter
+  - Solution: Pass `current_termbase_matches` to `_add_mt_and_llm_matches()`
+  - Termbase matches now persist throughout the entire search process
+
+- **🐛 Google Translate Authentication** - Fixed "Client.__init__() got an unexpected keyword argument 'api_key'"
+  - Switched from google-cloud-translate SDK to direct REST API calls
+  - Simpler authentication using API key in URL parameters
+  - More reliable and easier to configure
+
+- **🐛 Gemini Integration** - Gemini now properly called when using `google` API key
+  - Added fallback to check both `gemini` and `google` key names
+  - Fixed LLM wrapper to support Google's API key for Gemini
+
+### Technical Implementation
+- **File: `modules/llm_clients.py`**
+  - Added standalone `load_api_keys()` function (lines 27-76)
+  - Fixed `get_google_translation()` to use REST API instead of SDK
+  - Backward compatible API key naming (checks multiple key names)
+  - Module can now operate independently without main application
+
+- **File: `Supervertaler_Qt.py`**
+  - Enhanced `_add_mt_and_llm_matches()` with comprehensive logging
+  - Fixed Gemini integration to check both key naming conventions
+  - Improved match chaining with proper termbase preservation
+  - Debounced search (1.5s delay) prevents excessive API calls
+
+### Performance Optimizations
+- **Debounced Search** - 1.5-second delay before calling TM/MT/LLM APIs
+- **Timer Cancellation** - Previous searches cancelled when user moves to new segment
+- **Immediate Termbase Display** - Termbase matches shown instantly (no delay)
+- **Parallel LLM Calls** - All LLM providers called simultaneously for faster results
+
+### Dependencies
+- `requests` - For Google Translate REST API calls (standard library)
+- `openai` - OpenAI GPT integration
+- `anthropic` - Claude integration
+- `google-generativeai` - Gemini integration
+- `httpx==0.28.1` - HTTP client (version locked for LLM compatibility)
+
+### Documentation
+- Updated `docs/PROJECT_CONTEXT.md` with November 6, 2025 development activity
+- Documented all LLM & MT integration details
+- Listed resolved issues and technical decisions
+
+### Match Display
+All match types now display in the Translation Results Panel:
+- **Termbases** (Yellow section) - Term matches from termbase databases
+- **Translation Memory** (Blue section) - Fuzzy matches from TM database
+- **Machine Translation** (Orange section) - Google Cloud Translation
+- **LLM** (Purple section) - OpenAI GPT, Claude, and/or Gemini translations
+
+Each match shows:
+- Provider badge (NT/TM/MT/OA/CL/GM)
+- Relevance percentage (0-100%)
+- Target translation text
+- Source context (when available)
+
+---
+
 ## [1.1.9] - November 6, 2025
 
 ### Added

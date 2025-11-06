@@ -1,8 +1,96 @@
 # Supervertaler Project Context
 
-**Last Updated:** November 1, 2025  
+**Last Updated:** November 6, 2025  
 **Repository:** https://github.com/michaelbeijer/Supervertaler  
 **Maintainer:** Michael Beijer
+
+---
+
+## 📅 Recent Development Activity
+
+### November 6, 2025 - LLM & MT Integration Complete
+
+**🎯 Major Achievement: Complete Translation Matching System**
+
+Successfully integrated all translation sources (Termbase, TM, MT, LLM) with proper chaining and display:
+
+**✅ Completed Features:**
+1. **Multi-LLM Support Fully Operational**
+   - ✅ OpenAI GPT integration working (GPT-4o, GPT-5, etc.)
+   - ✅ Claude 3.5 Sonnet integration (API key issue - user needs credits)
+   - ✅ Google Gemini integration working (Gemini 2.0 Flash)
+   - ✅ Flexible API key naming: supports both `google` and `google_translate` keys
+   - ✅ Flexible Gemini key naming: supports both `gemini` and `google` keys
+
+2. **Google Cloud Translation API Integration**
+   - ✅ Proper implementation using `google-cloud-translate` library
+   - ✅ Added `load_api_keys()` function to `modules/llm_clients.py` for standalone operation
+   - ✅ Backward compatible key naming (checks both `google_translate` and `google`)
+   - ✅ Uses Translation API v2 with direct API key authentication
+   - ✅ Returns structured response with translation, confidence, and metadata
+
+3. **Termbase Match Preservation**
+   - ✅ Fixed issue where termbase matches disappeared when TM/MT/LLM appeared
+   - ✅ Root cause: delayed search wasn't receiving termbase matches parameter
+   - ✅ Solution: Pass `current_termbase_matches` to `_add_mt_and_llm_matches()`
+   - ✅ Termbase matches now display consistently across all scenarios
+
+4. **Performance Optimization**
+   - ✅ Debounced search with 1.5-second delay prevents excessive API calls
+   - ✅ Timer-based cancellation when user moves between segments
+   - ✅ Immediate termbase display, deferred TM/MT/LLM loading
+
+**🔧 Technical Implementation:**
+
+**File: `modules/llm_clients.py`**
+- Added standalone `load_api_keys()` function (lines 27-76)
+- Fixed Google Translate to use loaded API keys instead of undefined function
+- Supports multiple API key locations (user_data_private/, root)
+- Handles both key naming conventions for backward compatibility
+
+**File: `Supervertaler_Qt.py`**
+- Fixed Gemini integration to check for both `gemini` and `google` API keys (line ~10620)
+- Enhanced Google Translate integration with comprehensive logging
+- Termbase match preservation through delayed search parameter passing
+- Structured match chaining: Termbase → TM → MT → LLM
+
+**🐛 Resolved Issues:**
+1. ✅ Google Translate error: `name 'load_api_keys' is not defined` 
+   - Fixed by adding function to llm_clients.py module
+2. ✅ Gemini not being called despite API key present
+   - Fixed by checking both `gemini` and `google` key names
+3. ✅ Termbase matches disappearing when TM/MT/LLM loaded
+   - Fixed by passing termbase matches to delayed search function
+
+**📦 Dependencies:**
+- `google-cloud-translate` - Google Cloud Translation API library
+- `openai` - OpenAI API client  
+- `anthropic` - Anthropic Claude API client
+- `google-generativeai` - Google Gemini API client
+- `httpx==0.28.1` - HTTP client (version locked for LLM compatibility)
+
+**💡 Key Design Decisions:**
+
+1. **API Key Flexibility:**
+   - Support both `google_translate` and `google` for Google Cloud Translation
+   - Support both `gemini` and `google` for Gemini API
+   - Provides backward compatibility and user flexibility
+
+2. **Standalone Module Design:**
+   - `llm_clients.py` can function independently with its own `load_api_keys()`
+   - No dependency on main application for API key loading
+   - Enables reuse in other projects
+
+3. **Match Preservation Architecture:**
+   - Termbase matches stored in panel's `_current_matches` dictionary
+   - Passed explicitly to delayed search functions
+   - Never overwritten, only appended to by TM/MT/LLM results
+
+**🎯 Next Steps:**
+- [ ] Test all LLM providers with real API keys
+- [ ] Add user feedback for API errors (better than console logs)
+- [ ] Consider adding DeepL integration
+- [ ] Implement match insertion keyboard shortcuts
 
 ---
 

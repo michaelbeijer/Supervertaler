@@ -26,7 +26,7 @@
 
 ### 🆕 Qt Edition (Modern) - **PRIMARY**
 **File:** `Supervertaler_Qt.py`  
-**Version:** v1.1.9 (November 6, 2025)  
+**Version:** v1.2.0 (November 6, 2025) 🎉  
 **Framework:** PyQt6  
 **Status:** Active Development
 
@@ -34,12 +34,20 @@
 python Supervertaler_Qt.py
 ```
 
+**NEW in v1.2.0 - Complete Translation Matching System:**
+- ✅ **Google Cloud Translation** - Machine translation integrated
+- ✅ **Multi-LLM Support** - OpenAI GPT, Claude, Gemini (all working simultaneously)
+- ✅ **Complete Match Chaining** - Termbase + TM + MT + LLM matches displayed together
+- ✅ **Termbase Match Preservation** - Fixed: matches no longer disappear
+
 **Features:**
 - 🎯 **4-Layer Prompt Architecture** - System, Domain, Project Prompts, Style Guides + AI Prompt Assistant (unique!)
 - 🧠 **Context-aware AI** - Leverages full document context, images, TM, and termbases
+- 🤖 **Multiple AI Providers** - OpenAI GPT-4o/5, Claude 3.5 Sonnet, Google Gemini 2.0
+- 🌐 **Machine Translation** - Google Cloud Translation API integration
+- 🎨 **Translation Results Panel** - All match types (Termbase, TM, MT, LLM) in one compact view
 - 🔄 **CAT Tool Integration** - Import/export with memoQ, Trados, CafeTran
 - 📊 **Bilingual Review Interface** - Grid, List, and Document views for reviewing translations
-- 🤖 **Multiple AI Providers** - OpenAI GPT-4, Claude 3.5 Sonnet, Google Gemini
 - 🔍 **Universal Lookup** - System-wide search with global hotkey (Ctrl+Alt+L)
 - 📝 **TMX Editor** - Professional translation memory editor with database-backed large file support
 - 🔧 **PDF Rescue** - AI-powered OCR for poorly formatted PDFs

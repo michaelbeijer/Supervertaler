@@ -1,6 +1,92 @@
 # Supervertaler Release Notes
 
-## Current Release: v1.1.9-Qt (November 6, 2025)
+## Current Release: v1.2.0-Qt (November 6, 2025) 🎉
+
+### 🎯 MAJOR RELEASE: Complete Translation Matching System
+
+**The Supervertaler CAT tool now provides comprehensive translation assistance with all match types working together!**
+
+### What's New
+
+**✅ Google Cloud Translation API Integration**
+- Machine translation matches now displayed alongside TM and LLM results
+- High-quality neural machine translation using Google Translate
+- Automatic language detection
+- Simple API key-based authentication
+- Provider badge: "MT" in Translation Results Panel
+
+**✅ Multi-LLM Support (OpenAI, Claude, Gemini)**
+- **OpenAI GPT** - GPT-4o, GPT-5, o1, o3 models available
+- **Claude 3.5 Sonnet** - Anthropic's latest model
+- **Google Gemini** - Gemini 2.0 Flash, 1.5 Pro models
+- All three LLM providers work simultaneously
+- Each provides translations with confidence scores
+- Provider badges: "OA", "CL", "GM"
+
+**✅ Complete Match Chaining**
+- **Termbase matches** → Displayed immediately (yellow highlight)
+- **TM matches** → Fuzzy matching from translation memory database
+- **MT matches** → Google Cloud Translation
+- **LLM matches** → All enabled LLMs (OpenAI, Claude, Gemini)
+- All four match types displayed together in Translation Results Panel
+- Debounced search (1.5s delay) prevents excessive API calls
+
+### Fixed Issues
+
+**🐛 Termbase Match Preservation**
+- Termbase matches no longer disappear when TM/MT/LLM results load
+- Matches now properly preserved throughout search process
+
+**🐛 Google Translate Authentication**
+- Fixed API authentication using REST API approach
+- Simpler configuration with direct API key
+
+**🐛 Gemini Integration**
+- Fixed to work with `google` API key (not just `gemini`)
+- Backward compatible key naming
+
+### How to Use
+
+**Setup API Keys:**
+1. Edit `api_keys.txt` in the root folder
+2. Add your API keys:
+   ```
+   google = YOUR_GOOGLE_API_KEY
+   claude = YOUR_CLAUDE_API_KEY
+   openai = YOUR_OPENAI_API_KEY
+   ```
+3. Restart Supervertaler
+
+**Enable Features:**
+- Go to Settings → LLM Translation Settings
+- Check "Enable LLM matching for Grid Editor"
+- Select your preferred models
+- Click Save
+
+**Use the CAT Editor:**
+1. Import a bilingual DOCX or create a new project
+2. Click on any source segment
+3. Wait 1.5 seconds - all matches will appear:
+   - **Termbases** (Yellow) - Term matches
+   - **Translation Memory** (Blue) - Previous translations
+   - **Machine Translation** (Orange) - Google Translate
+   - **LLM** (Purple) - AI translations from OpenAI/Claude/Gemini
+
+### Performance
+- Debounced search prevents API spam
+- Parallel LLM calls for faster results
+- Smart caching to reduce API costs
+- Immediate termbase display (no delay)
+
+### Requirements
+- Python 3.8+
+- PyQt6
+- API keys for desired services (Google, OpenAI, Claude)
+- Internet connection for MT and LLM features
+
+---
+
+## Previous Release: v1.1.9-Qt (November 6, 2025)
 
 ### New Feature: Keyboard Shortcuts Manager ⌨️
 

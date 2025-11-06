@@ -2,9 +2,9 @@
 Supervertaler Qt Edition
 ========================
 The ultimate companion tool for translators and writers.
-Modern PyQt6 interface with Universal Lookup and advanced features
+Modern PyQt6 interface with specialised modules to handle any problem.
 
-Version: 1.1.9 (Phase 5.12)
+Version: 1.2.0 (Complete Translation Matching System)
 Release Date: November 6, 2025
 Framework: PyQt6
 
@@ -12,6 +12,9 @@ This is the modern edition of Supervertaler using PyQt6 framework.
 For the classic tkinter edition, see Supervertaler_tkinter.py
 
 Key Features:
+- Complete Translation Matching: Termbase + TM + MT + Multi-LLM
+- Google Cloud Translation API integration
+- Multi-LLM Support: OpenAI GPT, Claude, Google Gemini
 - 4-Layer Prompt Architecture (System, Domain, Project, Style Guides + Prompt Assistant)
 - Universal Lookup with global hotkey (Ctrl+Alt+L)
 - Modern theme system (6 themes + custom editor)
@@ -25,9 +28,9 @@ License: MIT
 """
 
 # Version Information
-__version__ = "1.1.9"
-__phase__ = "5.10"
-__release_date__ = "2025-11-04"
+__version__ = "1.2.0"
+__phase__ = "6.0"
+__release_date__ = "2025-11-06"
 __edition__ = "Qt"
 
 import sys
@@ -286,15 +289,18 @@ class ReadOnlyGridTextEditor(QTextEdit):
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         
         # Style to look like a normal cell with subtle selection
+        # IMPORTANT: Use light gray background instead of transparent to avoid text visibility issues
         self.setStyleSheet("""
             QTextEdit {
                 border: none;
-                background-color: transparent;
+                background-color: #f5f5f5;
                 padding: 0px;
+                color: black;
             }
             QTextEdit:focus {
                 border: 1px solid #2196F3;
                 background-color: white;
+                color: black;
             }
             QTextEdit::selection {
                 background-color: #D0E7FF;
@@ -330,20 +336,64 @@ class ReadOnlyGridTextEditor(QTextEdit):
         return QSize(current_width, height)
     
     def mousePressEvent(self, event):
-        """Allow text selection on click"""
+        """Allow text selection on click and trigger row selection"""
         super().mousePressEvent(event)
+        
+        # Find the table and row number by checking which row this widget belongs to
+        if self.parent():
+            try:
+                table = self.parent()
+                # Find which row this widget is in
+                for row in range(table.rowCount()):
+                    if table.cellWidget(row, 2) == self:  # Source is column 2
+                        table.selectRow(row)
+                        table.setCurrentCell(row, 2)
+                        
+                        # CRITICAL: Manually trigger on_cell_selected since signals aren't firing
+                        # Find the main window and call the method directly
+                        main_window = table.parent()
+                        while main_window and not hasattr(main_window, 'on_cell_selected'):
+                            main_window = main_window.parent()
+                        if main_window and hasattr(main_window, 'on_cell_selected'):
+                            main_window.on_cell_selected(row, 2, -1, -1)
+                        break
+            except Exception as e:
+                print(f"Error triggering manual cell selection: {e}")
     
     def focusInEvent(self, event):
-        """Select text when focused for easy copying"""
+        """Select text when focused for easy copying and trigger row selection"""
         super().focusInEvent(event)
         # Don't auto-select - let user select manually
+        
+        # Find the table and row number by checking which row this widget belongs to
+        if self.parent():
+            try:
+                table = self.parent()
+                # Find which row this widget is in
+                for row in range(table.rowCount()):
+                    if table.cellWidget(row, 2) == self:  # Source is column 2
+                        table.selectRow(row)
+                        table.setCurrentCell(row, 2)
+                        
+                        # CRITICAL: Manually trigger on_cell_selected since signals aren't firing
+                        # Find the main window and call the method directly
+                        main_window = table.parent()
+                        while main_window and not hasattr(main_window, 'on_cell_selected'):
+                            main_window = main_window.parent()
+                        if main_window and hasattr(main_window, 'on_cell_selected'):
+                            main_window.on_cell_selected(row, 2, -1, -1)
+                        break
+            except Exception as e:
+                print(f"Error triggering manual cell selection: {e}")
 
 
 class EditableGridTextEditor(QTextEdit):
     """Editable QTextEdit for target cells - allows text selection and editing"""
     
-    def __init__(self, text: str = "", parent=None):
+    def __init__(self, text: str = "", parent=None, row: int = -1, table=None):
         super().__init__(parent)
+        self.row = row  # Store row number for auto-selection
+        self.table = table  # Store table reference
         self.setReadOnly(False)
         self.setPlainText(text)
         self.setWordWrapMode(QTextOption.WrapMode.WordWrap)
@@ -352,15 +402,18 @@ class EditableGridTextEditor(QTextEdit):
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         
         # Style to look like a normal cell with subtle selection
+        # IMPORTANT: Use white background instead of transparent to avoid text visibility issues
         self.setStyleSheet("""
             QTextEdit {
                 border: none;
-                background-color: transparent;
+                background-color: white;
                 padding: 0px;
+                color: black;
             }
             QTextEdit:focus {
                 border: 1px solid #2196F3;
                 background-color: white;
+                color: black;
             }
             QTextEdit::selection {
                 background-color: #D0E7FF;
@@ -393,8 +446,45 @@ class EditableGridTextEditor(QTextEdit):
         return QSize(current_width, height)
     
     def mousePressEvent(self, event):
-        """Allow text selection on click"""
+        """Allow text selection on click and auto-select row"""
         super().mousePressEvent(event)
+        # Auto-select the row when clicking in the target cell
+        if self.table and self.row >= 0:
+            self.table.selectRow(self.row)
+            self.table.setCurrentCell(self.row, 3)  # Column 3 is Target
+            
+            # CRITICAL: Manually trigger on_cell_selected since signals aren't firing
+            # Find the main window and call the method directly
+            try:
+                main_window = self.table.parent()
+                while main_window and not hasattr(main_window, 'on_cell_selected'):
+                    main_window = main_window.parent()
+                if main_window and hasattr(main_window, 'on_cell_selected'):
+                    main_window.on_cell_selected(self.row, 3, -1, -1)
+            except Exception as e:
+                print(f"Error triggering manual cell selection: {e}")
+    
+    def focusInEvent(self, event):
+        """Ensure text remains visible when focused and auto-select row"""
+        super().focusInEvent(event)
+        # Ensure the widget is properly visible
+        self.setVisible(True)
+        self.show()
+        # Auto-select the row when focusing the target cell
+        if self.table and self.row >= 0:
+            self.table.selectRow(self.row)
+            self.table.setCurrentCell(self.row, 3)  # Column 3 is Target
+            
+            # CRITICAL: Manually trigger on_cell_selected since signals aren't firing
+            # Find the main window and call the method directly
+            try:
+                main_window = self.table.parent()
+                while main_window and not hasattr(main_window, 'on_cell_selected'):
+                    main_window = main_window.parent()
+                if main_window and hasattr(main_window, 'on_cell_selected'):
+                    main_window.on_cell_selected(self.row, 3, -1, -1)
+            except Exception as e:
+                print(f"Error triggering manual cell selection: {e}")
 
 
 class TermbaseHighlightWidget(QLabel):
@@ -805,6 +895,14 @@ class SupervertalerQt(QMainWindow):
         # TM and Termbase matching toggle (default: enabled)
         self.enable_tm_matching = True
         self.enable_termbase_matching = True
+        self.enable_mt_matching = True  # Machine Translation enabled
+        self.enable_llm_matching = True  # LLM Translation enabled
+        
+        # Translation service availability flags (would be set from config/API keys)
+        self.google_translate_enabled = True  # For demo purposes
+        self.deepl_enabled = False  # Not implemented yet
+        self.openai_enabled = True  # For demo purposes
+        self.claude_enabled = True  # For demo purposes
         
         # Timer for delayed lookup (cancel if user moves to another segment)
         self.lookup_timer = None
@@ -941,6 +1039,11 @@ class SupervertalerQt(QMainWindow):
         
         # Import/Export submenu
         import_menu = file_menu.addMenu("&Import")
+        
+        import_docx_action = QAction("&Monolingual Document (DOCX)...", self)
+        import_docx_action.triggered.connect(self.import_docx)
+        import_docx_action.setShortcut("Ctrl+O")
+        import_menu.addAction(import_docx_action)
         
         import_memoq_action = QAction("memoQ &Bilingual Table (DOCX)...", self)
         import_memoq_action.triggered.connect(self.import_memoq_bilingual)
@@ -1332,26 +1435,19 @@ class SupervertalerQt(QMainWindow):
         content_layout.setContentsMargins(5, 5, 5, 5)
         
         # ===== NEW RESTRUCTURED UI =====
-        # Left: Editor (always visible, no tabs)
-        # Right: Tab widget with Prompt Manager, Resources, Modules, Settings
+        # Left: Tab widget with Prompt Manager, Resources, Modules, Settings
+        # Right: Editor (always visible, no tabs) 
         from modules.prompt_manager_qt import PromptManagerQt
         
-        # Main horizontal splitter: Editor (left) and Right-side tabs (right)
+        # Main horizontal splitter: Left-side tabs (left) and Editor (right)
         self.main_splitter = QSplitter(Qt.Orientation.Horizontal)
         
-        # ===== LEFT SIDE: Editor (no tabs, always visible) =====
-        editor_widget = self.create_editor_widget()
-        # Ensure editor widget can be resized (splitter handles this automatically, but explicit policy helps)
-        from PyQt6.QtWidgets import QSizePolicy
-        editor_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        self.main_splitter.addWidget(editor_widget)
-        
-        # ===== RIGHT SIDE: Tab widget with Prompt Manager, Resources, Modules, Settings =====
+        # ===== LEFT SIDE: Tab widget with Prompt Manager, Resources, Modules, Settings =====
         self.right_tabs = QTabWidget()
         self.right_tabs.setStyleSheet("""
             QTabBar::tab { padding: 8px 15px; }
         """)
-        # Ensure right tabs can be resized
+        # Ensure left tabs can be resized
         self.right_tabs.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         
         # Connect tab change for navigation tracking
@@ -1377,23 +1473,30 @@ class SupervertalerQt(QMainWindow):
         
         self.main_splitter.addWidget(self.right_tabs)
         
+        # ===== RIGHT SIDE: Editor (no tabs, always visible) =====
+        editor_widget = self.create_editor_widget()
+        # Ensure editor widget can be resized (splitter handles this automatically, but explicit policy helps)
+        from PyQt6.QtWidgets import QSizePolicy
+        editor_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.main_splitter.addWidget(editor_widget)
+        
         # Ensure splitter is resizable
         self.main_splitter.setChildrenCollapsible(False)  # Prevent collapsing completely
         self.main_splitter.setHandleWidth(8)  # Make the splitter handle more visible
         self.main_splitter.setOpaqueResize(True)  # Enable real-time resizing
         
         # Set minimum sizes for widgets to allow resizing below default sizes
+        self.right_tabs.setMinimumWidth(200)  # Allow left tabs to shrink to 200px
         editor_widget.setMinimumWidth(200)  # Allow editor to shrink to 200px
-        self.right_tabs.setMinimumWidth(200)  # Allow right tabs to shrink to 200px
         
-        # Set initial splitter sizes - give more space to translation grid (left panel)
-        # Better default: ~60% left (grid), ~40% right (Prompt Manager)
-        # For a typical 1920px wide window: ~1150px left, ~770px right
-        self.main_splitter.setSizes([1150, 770])  # Initial sizes: more space for grid, reasonable space for Prompt Manager
+        # Set initial splitter sizes - give more space to translation grid (right panel)
+        # Better default: ~40% left (Prompt Manager), ~60% right (grid)
+        # For a typical 1920px wide window: ~770px left, ~1150px right
+        self.main_splitter.setSizes([770, 1150])  # Initial sizes: reasonable space for Prompt Manager, more space for grid
         
-        # Set stretch factors for proportional resizing (left gets more space)
-        self.main_splitter.setStretchFactor(0, 3)  # Editor widget: stretch factor 3
-        self.main_splitter.setStretchFactor(1, 2)  # Right tabs: stretch factor 2
+        # Set stretch factors for proportional resizing (right gets more space)
+        self.main_splitter.setStretchFactor(0, 2)  # Left tabs: stretch factor 2
+        self.main_splitter.setStretchFactor(1, 3)  # Editor widget: stretch factor 3
         
         # Add splitter to content layout with stretch to fill available space
         content_layout.addWidget(self.main_splitter, 1)  # Stretch factor 1
@@ -1781,11 +1884,8 @@ class SupervertalerQt(QMainWindow):
         nt_tab = self.create_non_translatables_tab()
         resources_tabs.addTab(nt_tab, "🚫 Non-Translatables")
         
-        # Segmentation Rules (placeholder for now)
-        seg_tab = self._create_placeholder_tab(
-            "📏 Segmentation Rules",
-            "Segmentation Rules - Coming Soon\n\nFeatures:\n• Define custom segmentation rules\n• Import/export segmentation rules\n• Language-specific segmentation"
-        )
+        # Segmentation Rules
+        seg_tab = self.create_segmentation_rules_tab()
         resources_tabs.addTab(seg_tab, "📏 Segmentation Rules")
         
         ref_tab = self.create_reference_images_tab()
@@ -1842,13 +1942,307 @@ class SupervertalerQt(QMainWindow):
         header.setStyleSheet("font-size: 14px; font-weight: bold; margin-bottom: 10px;")
         layout.addWidget(header)
         
-        # TODO: Add TM list with activate/deactivate, properties, import/export
-        placeholder = QLabel("Translation Memories Manager - Coming Soon\n\nFeatures:\n• View all available TMs\n• Activate/deactivate for current project\n• Import new TMs\n• Export TMs\n• Manage TM properties")
-        placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        placeholder.setStyleSheet("color: #888; font-size: 12px;")
-        layout.addWidget(placeholder, stretch=1)
+        # Description
+        desc = QLabel("Manage translation memories for project matching. View statistics and import/export TMs.")
+        desc.setStyleSheet("color: #666; font-size: 11px; margin-bottom: 10px;")
+        layout.addWidget(desc)
+        
+        # Check if TM database is available
+        if not hasattr(self, 'tm_database') or not self.tm_database:
+            placeholder = QLabel("Translation Memories\n\nTM database not initialized.\nLoad a project to initialize TM system.")
+            placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            placeholder.setStyleSheet("color: #888; font-size: 12px;")
+            layout.addWidget(placeholder, stretch=1)
+            return tab
+        
+        # TM Statistics
+        stats_group = QGroupBox("TM Statistics")
+        stats_layout = QVBoxLayout()
+        
+        try:
+            # Get TM stats from database
+            import sqlite3
+            db_path = self.user_data_path / "Translation_Resources" / "supervertaler.db"
+            conn = sqlite3.connect(str(db_path))
+            cursor = conn.cursor()
+            
+            # Count total entries
+            cursor.execute("SELECT COUNT(*) FROM translation_units")
+            total_entries = cursor.fetchone()[0]
+            
+            # Count by TM ID
+            cursor.execute("SELECT tm_id, COUNT(*) FROM translation_units GROUP BY tm_id")
+            tm_stats = cursor.fetchall()
+            
+            conn.close()
+            
+            # Display stats
+            stats_info = QLabel(f"Total Translation Units: {total_entries}")
+            stats_info.setStyleSheet("font-weight: bold; color: #2563eb;")
+            stats_layout.addWidget(stats_info)
+            
+            if tm_stats:
+                stats_layout.addWidget(QLabel("TM Breakdown:"))
+                for tm_id, count in tm_stats:
+                    tm_label = QLabel(f"  • {tm_id}: {count} entries")
+                    tm_label.setStyleSheet("margin-left: 15px; color: #555;")
+                    stats_layout.addWidget(tm_label)
+            
+        except Exception as e:
+            error_label = QLabel(f"Error loading TM statistics: {e}")
+            error_label.setStyleSheet("color: #dc2626;")
+            stats_layout.addWidget(error_label)
+        
+        stats_group.setLayout(stats_layout)
+        layout.addWidget(stats_group)
+        
+        # TM Management Buttons
+        buttons_group = QGroupBox("TM Management")
+        buttons_layout = QVBoxLayout()
+        
+        # Import TMX button
+        import_btn = QPushButton("📥 Import TMX File")
+        import_btn.setToolTip("Import translation memory from TMX file")
+        import_btn.clicked.connect(self.import_tmx_file)
+        buttons_layout.addWidget(import_btn)
+        
+        # Export TMX button
+        export_btn = QPushButton("📤 Export TM as TMX")
+        export_btn.setToolTip("Export current translation memory to TMX file")
+        export_btn.clicked.connect(self.export_tm_as_tmx)
+        buttons_layout.addWidget(export_btn)
+        
+        # Clear TM button (with warning)
+        clear_btn = QPushButton("🗑️ Clear All TM Entries")
+        clear_btn.setToolTip("WARNING: This will delete all translation memory entries!")
+        clear_btn.setStyleSheet("color: #dc2626; font-weight: bold;")
+        clear_btn.clicked.connect(self.clear_tm_entries)
+        buttons_layout.addWidget(clear_btn)
+        
+        buttons_group.setLayout(buttons_layout)
+        layout.addWidget(buttons_group)
+        
+        layout.addStretch()
         
         return tab
+    
+    def import_tmx_file(self):
+        """Import TMX file into translation memory"""
+        try:
+            file_path, _ = QFileDialog.getOpenFileName(
+                self, 
+                "Import TMX File", 
+                "", 
+                "TMX Files (*.tmx);;All Files (*.*)"
+            )
+            
+            if file_path and self.tm_database:
+                # Import TMX using the TM database
+                self.tm_database.import_tmx(file_path)
+                self.log(f"Successfully imported TMX file: {file_path}")
+                QMessageBox.information(self, "Import Complete", f"TMX file imported successfully!\n\nFile: {file_path}")
+            
+        except Exception as e:
+            self.log(f"Error importing TMX file: {e}")
+            QMessageBox.critical(self, "Import Error", f"Failed to import TMX file:\n\n{e}")
+    
+    def export_tm_as_tmx(self):
+        """Export translation memory as TMX file"""
+        try:
+            file_path, _ = QFileDialog.getSaveFileName(
+                self, 
+                "Export TM as TMX", 
+                "supervertaler_tm.tmx", 
+                "TMX Files (*.tmx);;All Files (*.*)"
+            )
+            
+            if file_path and self.tm_database:
+                # Export TMX using the TM database
+                self.tm_database.export_tmx(file_path)
+                self.log(f"Successfully exported TM to TMX file: {file_path}")
+                QMessageBox.information(self, "Export Complete", f"Translation memory exported successfully!\n\nFile: {file_path}")
+            
+        except Exception as e:
+            self.log(f"Error exporting TMX file: {e}")
+            QMessageBox.critical(self, "Export Error", f"Failed to export TMX file:\n\n{e}")
+    
+    def clear_tm_entries(self):
+        """Clear all translation memory entries (with confirmation)"""
+        try:
+            reply = QMessageBox.question(
+                self, 
+                "Clear Translation Memory", 
+                "⚠️ WARNING: This will permanently delete ALL translation memory entries!\n\nThis action cannot be undone. Are you sure?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No
+            )
+            
+            if reply == QMessageBox.StandardButton.Yes:
+                # Double confirmation
+                reply2 = QMessageBox.question(
+                    self, 
+                    "Final Confirmation", 
+                    "Last chance! Are you absolutely sure you want to delete all TM entries?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.No
+                )
+                
+                if reply2 == QMessageBox.StandardButton.Yes and self.tm_database:
+                    # Clear TM entries
+                    import sqlite3
+                    db_path = self.user_data_path / "Translation_Resources" / "supervertaler.db"
+                    conn = sqlite3.connect(str(db_path))
+                    cursor = conn.cursor()
+                    cursor.execute("DELETE FROM translation_units")
+                    conn.commit()
+                    conn.close()
+                    
+                    self.log("All translation memory entries cleared")
+                    QMessageBox.information(self, "TM Cleared", "All translation memory entries have been deleted.")
+            
+        except Exception as e:
+            self.log(f"Error clearing TM entries: {e}")
+            QMessageBox.critical(self, "Clear Error", f"Failed to clear TM entries:\n\n{e}")
+    
+    def create_segmentation_rules_tab(self):
+        """Create Segmentation Rules management tab"""
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(10, 10, 10, 10)
+        
+        # Header
+        header = QLabel("📏 Segmentation Rules")
+        header.setStyleSheet("font-size: 14px; font-weight: bold; margin-bottom: 10px;")
+        layout.addWidget(header)
+        
+        # Description
+        desc = QLabel("Manage language-specific segmentation rules for accurate sentence/segment boundaries.")
+        desc.setStyleSheet("color: #666; font-size: 11px; margin-bottom: 10px;")
+        layout.addWidget(desc)
+        
+        # Language Selection
+        lang_group = QGroupBox("Select Language")
+        lang_layout = QHBoxLayout()
+        
+        lang_combo = QComboBox()
+        languages = ["English (en)", "Dutch (nl)", "German (de)", "French (fr)", "Spanish (es)", "Italian (it)", "Portuguese (pt)", "Chinese (zh)", "Japanese (ja)", "Arabic (ar)"]
+        lang_combo.addItems(languages)
+        lang_layout.addWidget(QLabel("Language:"))
+        lang_layout.addWidget(lang_combo, 1)
+        
+        lang_group.setLayout(lang_layout)
+        layout.addWidget(lang_group)
+        
+        # Segmentation Rules
+        rules_group = QGroupBox("Segmentation Rules")
+        rules_layout = QVBoxLayout()
+        
+        # Current implementation info
+        current_info = QLabel(
+            "Current Implementation: SimpleSegmenter (language-agnostic)\n\n"
+            "• Segments on: . ! ? (followed by space/newline)\n"
+            "• Handles basic abbreviations: Mr. Dr. etc.\n"
+            "• Preserves paragraph breaks\n"
+            "• Treats each table cell as separate segment"
+        )
+        current_info.setStyleSheet("background-color: #f3f4f6; padding: 10px; border-radius: 4px; font-family: monospace;")
+        rules_layout.addWidget(current_info)
+        
+        # Future implementation section
+        future_label = QLabel("🚧 Language-Specific Rules (Planned):")
+        future_label.setStyleSheet("font-weight: bold; margin-top: 15px;")
+        rules_layout.addWidget(future_label)
+        
+        future_info = QLabel(
+            "• German: Handle compound sentences, different abbreviations\n"
+            "• Chinese/Japanese: Word boundary detection, different punctuation\n"
+            "• Arabic: Right-to-left text handling\n"
+            "• French: Quotation mark handling, spacing rules\n"
+            "• Custom: User-defined regex patterns and exceptions"
+        )
+        future_info.setStyleSheet("color: #666; margin-left: 20px;")
+        rules_layout.addWidget(future_info)
+        
+        rules_group.setLayout(rules_layout)
+        layout.addWidget(rules_group)
+        
+        # Management buttons (for future implementation)
+        buttons_group = QGroupBox("Rule Management")
+        buttons_layout = QVBoxLayout()
+        
+        # Test segmentation button
+        test_btn = QPushButton("🧪 Test Segmentation")
+        test_btn.setToolTip("Test current segmentation rules on sample text")
+        test_btn.clicked.connect(self.test_segmentation_rules)
+        buttons_layout.addWidget(test_btn)
+        
+        # Import/Export buttons (disabled for now)
+        import_btn = QPushButton("📥 Import Rules")
+        import_btn.setToolTip("Import segmentation rules from file (Coming Soon)")
+        import_btn.setEnabled(False)
+        buttons_layout.addWidget(import_btn)
+        
+        export_btn = QPushButton("📤 Export Rules")
+        export_btn.setToolTip("Export current segmentation rules (Coming Soon)")
+        export_btn.setEnabled(False)
+        buttons_layout.addWidget(export_btn)
+        
+        buttons_group.setLayout(buttons_layout)
+        layout.addWidget(buttons_group)
+        
+        layout.addStretch()
+        
+        return tab
+    
+    def test_segmentation_rules(self):
+        """Test current segmentation rules with sample text"""
+        from PyQt6.QtWidgets import QInputDialog
+        
+        sample_text = (
+            "Hello world. This is a test! How are you? "
+            "Mr. Smith went to Dr. Jones. "
+            "The U.S.A. is great. "
+            "What about this... and that? "
+            "End of test."
+        )
+        
+        text, ok = QInputDialog.getMultiLineText(
+            self, 
+            "Test Segmentation", 
+            "Enter text to test segmentation:\n(Default sample text provided)",
+            sample_text
+        )
+        
+        if ok and text:
+            try:
+                # Test with current segmenter
+                from modules.simple_segmenter import SimpleSegmenter
+                segmenter = SimpleSegmenter()
+                
+                # Create fake paragraph list for testing
+                paragraphs = [(0, text)]
+                segments = segmenter.segment_paragraphs(paragraphs)
+                
+                # Show results
+                result_text = f"Input text:\n{text}\n\n"
+                result_text += f"Segmentation results ({len(segments)} segments):\n"
+                result_text += "=" * 50 + "\n"
+                
+                for i, (para_id, segment_text) in enumerate(segments, 1):
+                    result_text += f"{i}. {segment_text}\n"
+                
+                QMessageBox.information(
+                    self,
+                    "Segmentation Test Results",
+                    result_text
+                )
+                
+            except Exception as e:
+                QMessageBox.critical(
+                    self,
+                    "Segmentation Test Error",
+                    f"Error testing segmentation:\n\n{e}"
+                )
     
     def create_termbases_tab(self):
         """Create the Termbases tab - manage all termbases (global and project-specific)"""
@@ -2609,6 +3003,27 @@ class SupervertalerQt(QMainWindow):
         auto_propagate_cb.setChecked(auto_propagate_100)
         prefs_layout.addWidget(auto_propagate_cb)
         
+        prefs_layout.addSpacing(5)
+        
+        # TM/Termbase lookup delay
+        lookup_delay = general_prefs.get('lookup_delay', 1500)  # Default 1.5 seconds
+        delay_layout = QHBoxLayout()
+        delay_label = QLabel("TM/Termbase lookup delay:")
+        delay_layout.addWidget(delay_label)
+        delay_spin = QSpinBox()
+        delay_spin.setMinimum(0)
+        delay_spin.setMaximum(10000)
+        delay_spin.setSingleStep(100)
+        delay_spin.setValue(lookup_delay)
+        delay_spin.setSuffix(" ms")
+        delay_spin.setToolTip("Delay before searching TM/Termbase when selecting segment (prevents searches while navigating quickly)")
+        delay_layout.addWidget(delay_spin)
+        delay_layout.addStretch()
+        prefs_layout.addLayout(delay_layout)
+        delay_info = QLabel("  ⓘ Prevents searches while navigating quickly. 0 = instant, 1500 = 1.5 seconds")
+        delay_info.setStyleSheet("font-size: 9pt; color: #666; padding-left: 20px;")
+        prefs_layout.addWidget(delay_info)
+        
         prefs_group.setLayout(prefs_layout)
         layout.addWidget(prefs_group)
         
@@ -2620,7 +3035,8 @@ class SupervertalerQt(QMainWindow):
             openai_combo, claude_combo, gemini_combo,
             openai_enable_cb, claude_enable_cb, gemini_enable_cb,
             batch_size_spin, surrounding_spin, full_context_cb,
-            auto_insert_cb, check_tm_cb, auto_propagate_cb
+            auto_insert_cb, check_tm_cb, auto_propagate_cb,
+            delay_spin
         ))
         layout.addWidget(save_btn)
         
@@ -2919,7 +3335,8 @@ class SupervertalerQt(QMainWindow):
                                    openai_combo, claude_combo, gemini_combo,
                                    openai_enable_cb, claude_enable_cb, gemini_enable_cb,
                                    batch_size_spin, surrounding_spin, full_context_cb,
-                                   auto_insert_cb, check_tm_cb, auto_propagate_cb):
+                                   auto_insert_cb, check_tm_cb, auto_propagate_cb,
+                                   delay_spin):
         """Save LLM settings from UI"""
         new_settings = {
             'provider': 'openai' if openai_radio.isChecked() else 
@@ -2948,6 +3365,7 @@ class SupervertalerQt(QMainWindow):
         general_prefs['auto_insert_100'] = auto_insert_cb.isChecked()
         general_prefs['check_tm_before_api'] = check_tm_cb.isChecked()
         general_prefs['auto_propagate_100'] = auto_propagate_cb.isChecked()
+        general_prefs['lookup_delay'] = delay_spin.value()
         self.save_general_settings(general_prefs)
         
         self.log(f"✓ LLM settings saved: Provider={new_settings['provider']}, Batch Size={batch_size_spin.value()}")
@@ -3107,11 +3525,11 @@ class SupervertalerQt(QMainWindow):
                         widget_in_splitter = True
                         break
                 
-                # If not in splitter, add it (Qt will automatically remove from old parent)
+                # If not in splitter, add it at position 1 (LEFT side, grid is at 0 = RIGHT)
                 if not widget_in_splitter:
-                    self.editor_splitter.addWidget(self.assistance_widget)
+                    self.editor_splitter.insertWidget(1, self.assistance_widget)
                 
-                self.editor_splitter.setSizes([1000, 400])
+                self.editor_splitter.setSizes([1000, 400])  # Swapped for RIGHT-LEFT ordering
         elif mode == LayoutMode.LIST:
             self.view_stack.setCurrentIndex(1)
             # Ensure assistance widget is in list splitter
@@ -3123,11 +3541,11 @@ class SupervertalerQt(QMainWindow):
                         widget_in_splitter = True
                         break
                 
-                # If not in splitter, add it (Qt will automatically remove from old parent)
+                # If not in splitter, add it at position 1 (LEFT side)
                 if not widget_in_splitter:
-                    self.list_splitter.addWidget(self.assistance_widget)
+                    self.list_splitter.insertWidget(1, self.assistance_widget)
                 
-                self.list_splitter.setSizes([1000, 400])
+                self.list_splitter.setSizes([1000, 400])  # Swapped for RIGHT-LEFT ordering
             # Refresh list view when switching to it
             if hasattr(self, 'list_tree') and self.current_project:
                 self.refresh_list_view()
@@ -3142,11 +3560,11 @@ class SupervertalerQt(QMainWindow):
                         widget_in_splitter = True
                         break
                 
-                # If not in splitter, add it (Qt will automatically remove from old parent)
+                # If not in splitter, add it at position 1 (LEFT side)
                 if not widget_in_splitter:
-                    self.doc_splitter.addWidget(self.assistance_widget)
+                    self.doc_splitter.insertWidget(1, self.assistance_widget)
                 
-                self.doc_splitter.setSizes([1000, 400])
+                self.doc_splitter.setSizes([1000, 400])  # Swapped for RIGHT-LEFT ordering
             # Refresh document view when switching to it
             if hasattr(self, 'document_container') and self.current_project:
                 self.refresh_document_view()
@@ -3237,15 +3655,16 @@ class SupervertalerQt(QMainWindow):
         self.create_translation_grid()
         grid_layout.addWidget(self.table)
         
+        # Add grid container FIRST (will be RIGHT), then assistance widget SECOND (will be LEFT)
         self.editor_splitter.addWidget(grid_container)
-        # Only add assistance widget if it's not already in another splitter
-        # (It will be reparented when switching views)
+        
         if hasattr(self, 'assistance_widget'):
             parent = self.assistance_widget.parent()
             if not isinstance(parent, QSplitter):
                 self.editor_splitter.addWidget(self.assistance_widget)
         
-        # Set splitter proportions (70% grid, 30% assistance)
+        # Set splitter proportions - Qt displays RIGHT to LEFT
+        # Position 0 (grid/RIGHT) gets 1000, Position 1 (assistance/LEFT) gets 400
         self.editor_splitter.setSizes([1000, 400])
         
         layout.addWidget(self.editor_splitter)
@@ -3253,12 +3672,12 @@ class SupervertalerQt(QMainWindow):
         return widget
     
     def create_grid_view_widget_for_home(self):
-        """Create Grid View widget adapted for home tab (assistance panel at bottom)"""
+        """Create Grid View widget with translation results panel at bottom"""
         widget = QWidget()
         layout = QVBoxLayout(widget)
         layout.setContentsMargins(0, 0, 0, 0)
         
-        # Vertical splitter: Grid on top, Assistance at bottom
+        # Main vertical splitter: Grid area (top) and Translation Results (bottom)
         self.home_grid_splitter = QSplitter(Qt.Orientation.Vertical)
         
         # Top: Grid container with filter boxes
@@ -3433,34 +3852,54 @@ class SupervertalerQt(QMainWindow):
             self.create_translation_grid()
         grid_layout.addWidget(self.table)
         
-        # Add grid container to splitter (top)
-        self.home_grid_splitter.addWidget(grid_container)
-        
-        # Add assistance widget to splitter (bottom) - compact form
+        # Prepare assistance widget (remove from any existing parent first)
         if hasattr(self, 'assistance_widget') and self.assistance_widget:
             # CRITICAL: Remove from any existing parent/splitter first
-            # Qt widgets can only have one parent at a time
             current_parent = self.assistance_widget.parent()
             if current_parent:
-                # If it's in a splitter (editor_splitter, list_splitter, doc_splitter, etc.)
-                # QSplitter doesn't have removeWidget - just set parent to None
-                # Qt will automatically remove it from the splitter
                 self.assistance_widget.setParent(None)
             
-            # Set height constraints for compact bottom panel
-            # Compact form: smaller height for bottom placement (horizontal layout)
-            self.assistance_widget.setMaximumHeight(200)  # Compact: 200px max height
-            self.assistance_widget.setMinimumHeight(100)  # Minimum to show at least some content
+            # Set height constraints for bottom panel
+            self.assistance_widget.setMaximumHeight(16777215)  # Qt's max height
+            self.assistance_widget.setMinimumHeight(200)  # Minimum height to show content
+            
+            # Remove width constraints - use full width at bottom
+            self.assistance_widget.setMinimumWidth(0)
+            self.assistance_widget.setMaximumWidth(16777215)  # Qt's max width
             
             # Make sure it's visible
             self.assistance_widget.show()
-            
-            # Add to vertical splitter at bottom (will be below grid)
-            self.home_grid_splitter.addWidget(self.assistance_widget)
         
-        # Set splitter proportions (90% grid, 10% assistance for compact bottom panel)
-        # Most space for grid, minimal space for compact assistance panel at bottom
-        self.home_grid_splitter.setSizes([1800, 200])
+        # Add grid container to top of vertical splitter
+        self.home_grid_splitter.addWidget(grid_container)  # Grid on top
+        
+        # Prepare assistance widget (remove from any existing parent first)
+        if hasattr(self, 'assistance_widget') and self.assistance_widget:
+            # Remove from any existing parent first
+            current_parent = self.assistance_widget.parent()
+            if current_parent:
+                self.assistance_widget.setParent(None)
+            
+            # Reset size constraints for bottom panel
+            self.assistance_widget.setMinimumHeight(200)  # Minimum height to show content
+            self.assistance_widget.setMaximumHeight(16777215)  # No max height limit
+            self.assistance_widget.setMinimumWidth(0)
+            self.assistance_widget.setMaximumWidth(16777215)  # Use full width
+            
+            self.home_grid_splitter.addWidget(self.assistance_widget)  # Translation results at bottom
+        
+        # Set splitter proportions - Top to Bottom
+        # Position 0 (grid) gets 700, Position 1 (translation results) gets 300
+        self.home_grid_splitter.setSizes([700, 300])
+        
+        print(f"DEBUG: Final splitter has {self.home_grid_splitter.count()} widgets:")
+        for i in range(self.home_grid_splitter.count()):
+            child_widget = self.home_grid_splitter.widget(i)
+            print(f"  Position {i}: {child_widget.__class__.__name__}")
+        
+        # Ensure splitter handles are visible
+        self.home_grid_splitter.setHandleWidth(8)
+        self.home_grid_splitter.setChildrenCollapsible(False)
         
         layout.addWidget(self.home_grid_splitter)
         
@@ -3608,17 +4047,20 @@ class SupervertalerQt(QMainWindow):
             self.list_tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
             self.list_tree.customContextMenuRequested.connect(self.show_list_context_menu)
             
-            # Column widths
+            # Column widths - all resizable
             header = self.list_tree.header()
-            header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)  # ID
-            header.setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)  # Type
-            header.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)  # Status
-            header.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)  # Source
-            header.setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)  # Target
+            header.setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)  # ID - resizable
+            header.setSectionResizeMode(1, QHeaderView.ResizeMode.Interactive)  # Type - resizable
+            header.setSectionResizeMode(2, QHeaderView.ResizeMode.Interactive)  # Status - resizable
+            header.setSectionResizeMode(3, QHeaderView.ResizeMode.Interactive)  # Source - resizable
+            header.setSectionResizeMode(4, QHeaderView.ResizeMode.Interactive)  # Target - resizable
             
             self.list_tree.setColumnWidth(0, 50)
             self.list_tree.setColumnWidth(1, 80)
             self.list_tree.setColumnWidth(2, 80)
+            # Set default widths for Source and Target columns
+            self.list_tree.setColumnWidth(3, 400)
+            self.list_tree.setColumnWidth(4, 400)
             
             # Connect selection
             self.list_tree.itemSelectionChanged.connect(self.on_list_segment_selected)
@@ -3855,17 +4297,20 @@ class SupervertalerQt(QMainWindow):
         self.list_tree.setRootIsDecorated(False)
         self.list_tree.setSelectionMode(QTreeWidget.SelectionMode.SingleSelection)
         
-        # Column widths
+        # Column widths - all resizable
         header = self.list_tree.header()
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)  # ID
-        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)  # Type
-        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)  # Status
-        header.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)  # Source
-        header.setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)  # Target
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)  # ID - resizable
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Interactive)  # Type - resizable
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Interactive)  # Status - resizable
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.Interactive)  # Source - resizable
+        header.setSectionResizeMode(4, QHeaderView.ResizeMode.Interactive)  # Target - resizable
         
         self.list_tree.setColumnWidth(0, 50)
         self.list_tree.setColumnWidth(1, 80)
         self.list_tree.setColumnWidth(2, 80)
+        # Set default widths for Source and Target columns
+        self.list_tree.setColumnWidth(3, 400)
+        self.list_tree.setColumnWidth(4, 400)
         
         # Connect selection
         self.list_tree.itemSelectionChanged.connect(self.on_list_segment_selected)
@@ -4101,10 +4546,16 @@ class SupervertalerQt(QMainWindow):
         self.table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.table.customContextMenuRequested.connect(self.show_grid_context_menu)
         
-        # Connect signals
+        # Connect signals for debugging
         self.table.itemChanged.connect(self.on_cell_changed)
         self.table.currentCellChanged.connect(self.on_cell_selected)
         self.table.itemClicked.connect(self.on_cell_clicked)
+        
+        # Add additional selection signal for row-based selection mode
+        self.table.itemSelectionChanged.connect(self.on_selection_changed)
+        
+        # Debug: Confirm signal connections
+        self.log("🔌 Table signals connected: currentCellChanged, itemClicked, itemSelectionChanged")
     
     def create_assistance_panel(self):
         """Create right-side assistance panel with TranslationResultsPanel"""
@@ -4762,6 +5213,165 @@ class SupervertalerQt(QMainWindow):
     # MEMOQ BILINGUAL DOCX IMPORT/EXPORT
     # ========================================================================
     
+    def import_docx(self):
+        """Import a monolingual DOCX document"""
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select DOCX File",
+            "",
+            "Word Documents (*.docx);;All Files (*.*)"
+        )
+        
+        if not file_path:
+            return
+        
+        self.import_docx_from_path(file_path)
+    
+    def import_docx_from_path(self, file_path):
+        """Import a monolingual DOCX document from a given path"""
+        try:
+            self.log(f"Importing: {os.path.basename(file_path)}")
+            
+            # Import DOCX using the existing docx_handler
+            if not hasattr(self, 'docx_handler'):
+                from modules.docx_handler import DOCXHandler
+                self.docx_handler = DOCXHandler()
+            
+            # Detect document language automatically
+            detected_lang = self._detect_docx_language(file_path)
+            if detected_lang:
+                self.log(f"📍 Detected document language: {detected_lang.upper()}")
+            
+            paragraphs = self.docx_handler.import_docx(file_path)
+            self.original_docx = file_path
+            
+            # Segment paragraphs
+            self.log("Segmenting text...")
+            
+            # Use simple segmenter if available, otherwise create segments from paragraphs
+            if hasattr(self, 'segmenter'):
+                segmented = self.segmenter.segment_paragraphs(paragraphs)
+            else:
+                # Simple fallback segmentation
+                from modules.simple_segmenter import SimpleSegmenter
+                segmenter = SimpleSegmenter()
+                segmented = segmenter.segment_paragraphs(paragraphs)
+            
+            # Create new project with the imported segments
+            from dataclasses import dataclass
+            from typing import List, Dict, Any, Optional
+            from datetime import datetime
+            
+            @dataclass
+            class ImportedSegment:
+                id: int
+                source: str
+                target: str = ""
+                status: str = "untranslated"
+                notes: str = ""
+                para_id: Optional[int] = None
+                is_table: bool = False
+                table_info: Optional[tuple] = None
+                style: str = "Normal"
+                doc_position: int = 0
+                type: str = "#"  # Default segment type
+            
+            # Convert segments
+            imported_segments = []
+            for seg_id, (para_id, text) in enumerate(segmented, 1):
+                # Get paragraph info if available
+                para_info = None
+                if hasattr(self.docx_handler, '_get_para_info'):
+                    para_info = self.docx_handler._get_para_info(para_id)
+                
+                is_table = False
+                table_info = None
+                style = "Normal"
+                doc_position = para_id if para_id else seg_id
+                
+                if para_info:
+                    style = para_info.style or "Normal"
+                    doc_position = getattr(para_info, 'document_position', para_id)
+                    if getattr(para_info, 'is_table_cell', False):
+                        is_table = True
+                        table_info = (
+                            getattr(para_info, 'table_index', 0),
+                            getattr(para_info, 'row_index', 0),
+                            getattr(para_info, 'cell_index', 0)
+                        )
+                
+                segment = ImportedSegment(
+                    id=seg_id,
+                    source=text,
+                    target="",
+                    status="untranslated",
+                    notes="",
+                    para_id=para_id,
+                    is_table=is_table,
+                    table_info=table_info,
+                    style=style,
+                    doc_position=doc_position
+                )
+                imported_segments.append(segment)
+            
+            # Convert ImportedSegment objects to proper Segment objects
+            segments = []
+            for imported_seg in imported_segments:
+                segment = Segment(
+                    id=imported_seg.id,
+                    source=imported_seg.source,
+                    target=imported_seg.target,
+                    status=imported_seg.status,
+                    notes=imported_seg.notes,
+                    type="para"  # Default type for DOCX imports
+                )
+                segments.append(segment)
+            
+            # Create new project using the proper Project class
+            # Use detected language if available, otherwise use defaults
+            detected_source = detected_lang if detected_lang else getattr(self, 'source_language', 'en')
+            target_lang = getattr(self, 'target_language', 'nl')
+            
+            project = Project(
+                name=f"DOCX Import - {os.path.basename(file_path)}",
+                source_lang=detected_source,
+                target_lang=target_lang,
+                segments=segments
+            )
+            
+            # Set as current project and load into grid
+            self.current_project = project
+            self.load_segments_to_grid()
+            
+            # Initialize TM for this project
+            self.initialize_tm_database()
+            
+            # Update status
+            self.log(f"✓ Loaded {len(segments)} segments from {len(paragraphs)} paragraphs")
+            self.log(f"📍 Project language pair: {project.source_lang.upper()} → {project.target_lang.upper()}")
+            self.update_window_title()  # Update window title to show project is loaded
+            
+            # Build success message with language info
+            lang_info = ""
+            if detected_lang:
+                lang_info = f"\n\n📍 Detected document language: {detected_lang.upper()}"
+                if detected_lang != 'en':
+                    lang_info += f"\n🔄 Language pair: {detected_lang.upper()} → {project.target_lang.upper()}"
+            
+            QMessageBox.information(
+                self, 
+                "Import Complete", 
+                f"Successfully imported {len(segments)} segments from:\n{os.path.basename(file_path)}{lang_info}"
+            )
+            
+        except Exception as e:
+            self.log(f"✗ Import failed: {str(e)}")
+            QMessageBox.critical(
+                self, 
+                "Import Error", 
+                f"Failed to import DOCX:\n\n{str(e)}"
+            )
+    
     def import_memoq_bilingual(self):
         """Import memoQ bilingual DOCX file (table format)"""
         file_path, _ = QFileDialog.getOpenFileName(
@@ -4913,6 +5523,84 @@ class SupervertalerQt(QMainWindow):
             import traceback
             traceback.print_exc()
     
+    def _detect_docx_language(self, docx_path):
+        """
+        Detect language from DOCX file metadata and content
+        Returns detected language code (e.g., 'nl', 'en') or None
+        """
+        try:
+            import zipfile
+            import xml.etree.ElementTree as ET
+            
+            languages_found = set()
+            
+            with zipfile.ZipFile(docx_path, 'r') as docx:
+                # Method 1: Check document.xml for language attributes
+                try:
+                    doc_xml = docx.read('word/document.xml')
+                    root = ET.fromstring(doc_xml)
+                    
+                    # Define XML namespace
+                    namespaces = {
+                        'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
+                    }
+                    
+                    # Look for w:lang elements with val attribute
+                    for lang_elem in root.findall('.//w:lang', namespaces):
+                        val = lang_elem.get('val')
+                        if val and val != 'none':
+                            # Extract language code (e.g., "nl-NL" -> "nl")
+                            lang_code = val.split('-')[0].lower()
+                            if len(lang_code) == 2 and lang_code.isalpha():
+                                languages_found.add(lang_code)
+                    
+                    # Look for eastAsia and bidi attributes too
+                    for lang_elem in root.findall('.//w:lang', namespaces):
+                        for attr in ['eastAsia', 'bidi']:
+                            val = lang_elem.get(attr)
+                            if val and val != 'none':
+                                lang_code = val.split('-')[0].lower()
+                                if len(lang_code) == 2 and lang_code.isalpha():
+                                    languages_found.add(lang_code)
+                                    
+                except Exception as e:
+                    self.log(f"Language detection warning (document.xml): {e}")
+                
+                # Method 2: Check settings.xml for default language
+                try:
+                    settings_xml = docx.read('word/settings.xml')
+                    root = ET.fromstring(settings_xml)
+                    
+                    namespaces = {
+                        'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
+                    }
+                    
+                    # Look for default language settings
+                    for lang_elem in root.findall('.//w:themeFontLang', namespaces):
+                        val = lang_elem.get('val')
+                        if val and val != 'none':
+                            lang_code = val.split('-')[0].lower()
+                            if len(lang_code) == 2 and lang_code.isalpha():
+                                languages_found.add(lang_code)
+                                
+                except Exception as e:
+                    self.log(f"Language detection warning (settings.xml): {e}")
+            
+            # Return the most common language found, or None if none detected
+            if languages_found:
+                # Remove 'en' if other languages are found (often default fallback)
+                if len(languages_found) > 1 and 'en' in languages_found:
+                    languages_found.discard('en')
+                
+                detected = list(languages_found)[0]  # Take first available
+                return detected
+            
+            return None
+            
+        except Exception as e:
+            self.log(f"Language detection error: {e}")
+            return None
+    
     def export_memoq_bilingual(self):
         """Export to memoQ bilingual DOCX format with translations"""
         # Check if we have segments
@@ -5033,39 +5721,23 @@ class SupervertalerQt(QMainWindow):
             return
         
         # Apply formatting based on source formatting
-        # Match text pieces and apply corresponding formatting
-        remaining_text = text
-        used_chars = 0
+        # For simplicity and safety, just apply the first formatting style found to the entire text
+        # This prevents text truncation issues that can occur with complex formatting algorithms
         
-        for fmt in formatting_info:
-            source_text = fmt['text']
-            source_len = len(source_text)
-            
-            # Find corresponding text in translation (same position ratio)
-            ratio = used_chars / sum(len(f['text']) for f in formatting_info)
-            target_start = int(ratio * len(text))
-            target_len = min(source_len, len(text) - target_start)
-            
-            if target_len > 0:
-                chunk = text[target_start:target_start + target_len]
-                run = paragraph.add_run(chunk)
-                
-                if fmt['bold']:
-                    run.bold = True
-                if fmt['italic']:
-                    run.italic = True
-                if fmt['underline']:
-                    run.underline = True
-                
-                used_chars += source_len
+        # Check if we have any formatting at all
+        has_bold = any(fmt.get('bold', False) for fmt in formatting_info)
+        has_italic = any(fmt.get('italic', False) for fmt in formatting_info)
+        has_underline = any(fmt.get('underline', False) for fmt in formatting_info)
         
-        # If we didn't format all the text, add the rest as plain text
-        if used_chars < len(text):
-            ratio = used_chars / len(text)
-            if ratio < 0.9:  # If less than 90% formatted, just use plain text
-                cell._element.clear_content()
-                paragraph = cell.add_paragraph()
-                paragraph.add_run(text)
+        # Add the full text with formatting
+        run = paragraph.add_run(text)
+        
+        if has_bold:
+            run.bold = True
+        if has_italic:
+            run.italic = True
+        if has_underline:
+            run.underline = True
     
     # ========================================================================
     # GRID MANAGEMENT
@@ -5106,6 +5778,7 @@ class SupervertalerQt(QMainWindow):
             # Find and store termbase matches (will be used when segment is selected)
             try:
                 if hasattr(self, 'db_manager') and self.db_manager:
+                    self.log("🔵 TERMBASE CALL: From table population (populate_table)")
                     termbase_matches = self.find_termbase_matches_in_source(segment.source)
                     if termbase_matches:
                         self.log(f"📍 Row {row + 1}: Found {len(termbase_matches)} termbase matches")
@@ -5136,26 +5809,29 @@ class SupervertalerQt(QMainWindow):
             self.table.setItem(row, 2, source_item)
             
             # Target - Use editable QTextEdit widget for easy text selection and editing
-            target_editor = EditableGridTextEditor(segment.target, self.table)
+            target_editor = EditableGridTextEditor(segment.target, self.table, row, self.table)
             target_editor.setFont(font)
             
             # Connect text changes to update segment
-            def on_target_text_changed():
-                new_text = target_editor.toPlainText()
-                if row < len(self.current_project.segments):
-                    segment.target = new_text
-                    # Update status if translation was added
-                    if segment.target and segment.status == 'untranslated':
-                        segment.status = 'draft'
-                        status_item = self.table.item(row, 4)
-                        if status_item:
-                            status_item.setText(self.get_status_icon('draft'))
-                    self.project_modified = True
-                    self.update_window_title()
-                    # Auto-resize the row
-                    self.table.resizeRowToContents(row)
+            # Use a factory function to create a proper closure that captures the current row, segment, and editor
+            def make_target_changed_handler(target_row, target_segment, editor_widget):
+                def on_target_text_changed():
+                    new_text = editor_widget.toPlainText()
+                    if target_row < len(self.current_project.segments):
+                        target_segment.target = new_text
+                        # Update status if translation was added
+                        if target_segment.target and target_segment.status == 'untranslated':
+                            target_segment.status = 'draft'
+                            status_item = self.table.item(target_row, 4)
+                            if status_item:
+                                status_item.setText(self.get_status_icon('draft'))
+                        self.project_modified = True
+                        self.update_window_title()
+                        # Auto-resize the row
+                        self.table.resizeRowToContents(target_row)
+                return on_target_text_changed
             
-            target_editor.textChanged.connect(on_target_text_changed)
+            target_editor.textChanged.connect(make_target_changed_handler(row, segment, target_editor))
             
             # Set as cell widget
             self.table.setCellWidget(row, 3, target_editor)
@@ -5186,10 +5862,12 @@ class SupervertalerQt(QMainWindow):
         if hasattr(self, 'document_container'):
             self.refresh_document_view()
         
-        # Ensure assistance widget is visible and properly positioned at bottom (home tab)
+
+        
+        # Ensure assistance widget is visible and properly positioned on left (home tab)
         if hasattr(self, 'assistance_widget') and self.assistance_widget:
             self.assistance_widget.setVisible(True)
-            # Check if we're on home tab and assistance widget should be at bottom
+            # Check if we're on home tab and assistance widget should be on left
             if hasattr(self, 'home_grid_splitter') and self.home_grid_splitter:
                 # Verify assistance widget is in the splitter
                 widget_in_splitter = False
@@ -5205,14 +5883,21 @@ class SupervertalerQt(QMainWindow):
                     if self.assistance_widget.parent():
                         self.assistance_widget.setParent(None)
                     
-                    # Set compact dimensions for bottom placement
-                    self.assistance_widget.setMaximumHeight(200)
-                    self.assistance_widget.setMinimumHeight(100)
+                    # Set dimensions for side placement (full height, limited width)
+                    self.assistance_widget.setMaximumHeight(16777215)  # Qt's max height
+                    self.assistance_widget.setMinimumHeight(0)
+                    self.assistance_widget.setMinimumWidth(300)
                     self.assistance_widget.show()
                     
-                    # Add to vertical splitter at bottom
-                    self.home_grid_splitter.addWidget(self.assistance_widget)
-                    self.home_grid_splitter.setSizes([1800, 200])
+                    # Add to horizontal splitter - Qt displays RIGHT to LEFT
+                    # Insert at position 1 to put assistance on LEFT (grid is at position 0 = RIGHT)
+                    self.home_grid_splitter.insertWidget(1, self.assistance_widget)
+                    self.home_grid_splitter.setSizes([1000, 400])  # Swapped: pos 0 (grid/RIGHT) = 1000, pos 1 (assistance/LEFT) = 400
+                    print(f"DEBUG (load_segments): Inserted assistance_widget at position 1")
+                    print(f"DEBUG (load_segments): home_grid_splitter now has {self.home_grid_splitter.count()} widgets")
+                    for i in range(self.home_grid_splitter.count()):
+                        child_widget = self.home_grid_splitter.widget(i)
+                        print(f"  Position {i}: {child_widget.__class__.__name__}")
     
     def refresh_list_view(self):
         """Refresh the List View with current segments"""
@@ -5359,21 +6044,27 @@ class SupervertalerQt(QMainWindow):
             source_widget = self.table.cellWidget(row, 2)
             if source_widget and isinstance(source_widget, ReadOnlyGridTextEditor):
                 doc = source_widget.document()
-                col_width = self.table.columnWidth(2)
-                if col_width > 0:
-                    doc.setTextWidth(col_width)
-                    height = int(doc.size().height())
-                    max_height = max(max_height, height)
+                if doc:  # Safety check
+                    col_width = self.table.columnWidth(2)
+                    if col_width > 0:
+                        doc.setTextWidth(col_width)
+                        size = doc.size()
+                        if size.isValid():  # Safety check
+                            height = int(size.height())
+                            max_height = max(max_height, height)
             
             # Check target cell (column 3)
             target_widget = self.table.cellWidget(row, 3)
             if target_widget and isinstance(target_widget, EditableGridTextEditor):
                 doc = target_widget.document()
-                col_width = self.table.columnWidth(3)
-                if col_width > 0:
-                    doc.setTextWidth(col_width)
-                    height = int(doc.size().height())
-                    max_height = max(max_height, height)
+                if doc:  # Safety check
+                    col_width = self.table.columnWidth(3)
+                    if col_width > 0:
+                        doc.setTextWidth(col_width)
+                        size = doc.size()
+                        if size.isValid():  # Safety check
+                            height = int(size.height())
+                            max_height = max(max_height, height)
             
             # Set row height with minimal padding (2px total)
             compact_height = max(max_height + 2, 20)  # Minimum 20px for readability
@@ -5692,6 +6383,12 @@ class SupervertalerQt(QMainWindow):
     
     def on_cell_selected(self, current_row, current_col, previous_row, previous_col):
         """Handle cell selection change"""
+        self.log(f"🎯 on_cell_selected called: row {current_row}, col {current_col}")
+        
+        # DEBUG: Also log all connected signals for this table
+        self.log(f"🔗 Table currentCellChanged signal connected: {self.table.currentCellChanged}")
+        self.log(f"🔗 Table itemClicked signal connected: {self.table.itemClicked}")
+        self.log(f"🔗 Table itemSelectionChanged signal connected: {self.table.itemSelectionChanged}")
         try:
             # Clear previous highlighting
             if previous_row >= 0 and previous_row < self.table.rowCount():
@@ -5727,10 +6424,94 @@ class SupervertalerQt(QMainWindow):
                     except Exception as e:
                         self.log(f"Error updating segment info: {e}")
                 
-                # Schedule delayed lookup (cancel if user moves to another segment)
-                self._schedule_delayed_lookup(segment, current_row)
+                # Get stored termbase matches from the source editor widget
+                try:
+                    source_widget = self.table.cellWidget(current_row, 2)  # Source column is column 2
+                    if source_widget and hasattr(source_widget, 'termbase_matches'):
+                        stored_matches = source_widget.termbase_matches
+                        self.log(f"📋 Retrieved stored termbase matches: {len(stored_matches)} matches")
+                        
+                        if stored_matches and hasattr(self, 'assistance_widget'):
+                            # Convert stored matches to TranslationMatch objects
+                            from modules.translation_results_panel import TranslationMatch
+                            matches_dict = {
+                                "LLM": [],
+                                "NT": [],
+                                "MT": [],
+                                "TM": [],
+                                "Termbases": []
+                            }
+                            
+                            for source_term, target_term in stored_matches.items():
+                                match_obj = TranslationMatch(
+                                    source=source_term,
+                                    target=target_term,
+                                    relevance=95,  # High relevance for termbase matches
+                                    metadata={
+                                        'termbase_name': 'Default',
+                                        'definition': '',
+                                        'domain': ''
+                                    },
+                                    match_type='Termbase',
+                                    compare_source=source_term,
+                                    provider_code='TB'
+                                )
+                                matches_dict["Termbases"].append(match_obj)
+                            
+                            # Get current project languages for all translation services
+                            source_lang = getattr(self.current_project, 'source_lang', None) if self.current_project else None
+                            target_lang = getattr(self.current_project, 'target_lang', None) if self.current_project else None
+                            
+                            # Convert language names to codes if needed
+                            if source_lang:
+                                source_lang_code = self._convert_language_to_code(source_lang)
+                            if target_lang:
+                                target_lang_code = self._convert_language_to_code(target_lang)
+                            
+                            # Show immediate termbase matches, delay expensive TM/MT/LLM searches
+                            self.log(f"🚀 Immediate display: {len(matches_dict['Termbases'])} termbase matches")
+                            self.assistance_widget.set_matches(matches_dict)
+                        else:
+                            self.log("📋 No stored termbase matches found")
+                    else:
+                        self.log("📋 Source widget has no termbase_matches attribute")
+                except Exception as e:
+                    self.log(f"Error retrieving stored termbase matches: {e}")
+                    
+                # Schedule expensive searches (TM, MT, LLM) with debouncing to prevent UI blocking
+                # Pass the termbase matches to preserve them in delayed search
+                if hasattr(self, 'assistance_widget'):
+                    termbase_matches = matches_dict.get('Termbases', [])
+                    self._schedule_mt_and_llm_matches(segment, termbase_matches)
         except Exception as e:
             self.log(f"Critical error in on_cell_selected: {e}")
+    
+    def on_selection_changed(self):
+        """Handle selection change for row-based selection mode"""
+        try:
+            # Get currently selected row
+            current_row = self.table.currentRow()
+            current_col = self.table.currentColumn()
+            
+            self.log(f"🔄 on_selection_changed called: row {current_row}, col {current_col}")
+            
+            # If we have a valid row selection, trigger the same logic as on_cell_selected
+            if current_row >= 0:
+                # Call on_cell_selected with appropriate parameters
+                self.on_cell_selected(current_row, current_col, -1, -1)
+        except Exception as e:
+            self.log(f"Error in on_selection_changed: {e}")
+    
+    def test_cell_selection(self):
+        """Test method to manually trigger cell selection for debugging"""
+        self.log("🧪 TEST: Manually triggering cell selection for row 0")
+        if self.table.rowCount() > 0:
+            # Try to programmatically select first row
+            self.table.selectRow(0)
+            self.table.setCurrentCell(0, 2)  # Select source column
+            self.on_cell_selected(0, 2, -1, -1)  # Manually trigger
+        else:
+            self.log("🧪 TEST: No rows available for testing")
     
     def get_selected_segments_from_grid(self):
         """Get list of selected segments from grid view"""
@@ -5923,6 +6704,8 @@ class SupervertalerQt(QMainWindow):
     
     def _schedule_delayed_lookup(self, segment, current_row):
         """Schedule TM and termbase lookup with delay (cancel if user moves to another segment)"""
+        self.log(f"🚀 _schedule_delayed_lookup called for segment {current_row + 1}: '{segment.source[:50]}...'")
+        
         # Cancel any pending lookup
         if self.lookup_timer:
             self.lookup_timer.stop()
@@ -5933,21 +6716,35 @@ class SupervertalerQt(QMainWindow):
         self.current_lookup_segment_id = segment_id
         
         # If matching is disabled, skip
+        self.log(f"🔧 SCHEDULING CHECK: TM enabled={self.enable_tm_matching}, Termbase enabled={self.enable_termbase_matching}")
         if not (self.enable_tm_matching or self.enable_termbase_matching):
+            self.log(f"🔧 SCHEDULING BLOCKED: Both TM and termbase matching are disabled")
             return
+        self.log(f"🔧 SCHEDULING OK: At least one matching type is enabled")
         
-        # Schedule lookup after 1.5 seconds (allows user to navigate quickly without triggering searches)
+        # Get user-configured delay (default 1.5 seconds)
+        general_prefs = self.load_general_settings()
+        lookup_delay = general_prefs.get('lookup_delay', 1500)
+        
+        # Schedule lookup after user-configured delay (allows user to navigate quickly without triggering searches)
         from PyQt6.QtCore import QTimer
         self.lookup_timer = QTimer()
         self.lookup_timer.setSingleShot(True)
         self.lookup_timer.timeout.connect(lambda: self._perform_delayed_lookup(segment, current_row, segment_id))
-        self.lookup_timer.start(1500)  # 1.5 second delay
+        self.lookup_timer.start(lookup_delay)
+        self.log(f"🚀 _schedule_delayed_lookup: Will search segment {current_row + 1} in {lookup_delay}ms")
     
     def _perform_delayed_lookup(self, segment, current_row, expected_segment_id):
         """Perform TM and termbase lookup after delay (only if user is still on same segment)"""
+        self.log(f"� DELAYED LOOKUP STARTED for segment {current_row + 1}: '{segment.source[:50]}...'")
+        self.log(f"🚨 DELAYED LOOKUP: expected_id={expected_segment_id}, current_id={self.current_lookup_segment_id}")
+        
         # Check if user moved to another segment
         if self.current_lookup_segment_id != expected_segment_id:
+            self.log(f"� DELAYED LOOKUP CANCELLED: User moved to different segment")
             return  # User moved away, cancel lookup
+            
+        self.log(f"🚨 DELAYED LOOKUP CONTINUING: User still on same segment")
         
         # Check if still on the same row
         if current_row < 0 or current_row >= self.table.rowCount():
@@ -5979,11 +6776,63 @@ class SupervertalerQt(QMainWindow):
                         "Termbases": [] # Terminology
                     }
                     
-                    # Generate sample matches from database if available (and enabled)
-                    if self.enable_tm_matching and self.tm_database:
+                    # Generate TM matches from database if available (and enabled)
+                    self.log(f"� DEBUG: Reached TM search section in _perform_delayed_lookup")
+                    self.log(f"�🔍 TM SEARCH CHECK: TM enabled={self.enable_tm_matching}, has_db_manager={hasattr(self, 'db_manager')}, db_manager_valid={self.db_manager is not None if hasattr(self, 'db_manager') else False}")
+                    if self.enable_tm_matching and hasattr(self, 'db_manager') and self.db_manager:
                         try:
-                            tm_matches = self.tm_database.search_all(segment.source, max_matches=10)
-                            for match in tm_matches:
+                            self.log(f"🟢 TM SEARCH: Searching for matches for '{segment.source[:50]}...'")
+                            
+                            # Get current project languages
+                            source_lang = getattr(self.current_project, 'source_lang', None) if self.current_project else None
+                            target_lang = getattr(self.current_project, 'target_lang', None) if self.current_project else None
+                            
+                            # Convert language names to codes if needed
+                            if source_lang:
+                                source_lang = self._convert_language_to_code(source_lang)
+                            if target_lang:
+                                target_lang = self._convert_language_to_code(target_lang)
+                            
+                            self.log(f"🟢 TM SEARCH: Project languages: {source_lang} → {target_lang}")
+                            
+                            # Search in primary direction (current project direction)
+                            tm_matches = self.db_manager.search_all(segment.source, max_results=10)
+                            
+                            # Also search in reverse direction (bidirectional TM matching)
+                            # This is crucial for reusing TM in opposite direction
+                            reverse_matches = []
+                            if source_lang and target_lang and source_lang != target_lang:
+                                try:
+                                    # Search for segment.source as target text in reverse direction
+                                    reverse_query = """
+                                        SELECT source_text, target_text, source_lang, target_lang, tm_id, usage_count
+                                        FROM translation_units 
+                                        WHERE target_text = ? AND source_lang = ? AND target_lang = ?
+                                        ORDER BY usage_count DESC
+                                        LIMIT 5
+                                    """
+                                    self.db_manager.cursor.execute(reverse_query, (segment.source, target_lang, source_lang))
+                                    reverse_rows = self.db_manager.cursor.fetchall()
+                                    
+                                    for row in reverse_rows:
+                                        reverse_matches.append({
+                                            'source': row['target_text'],  # Swap source/target for reverse match
+                                            'target': row['source_text'],
+                                            'match_pct': 95,  # High relevance for reverse exact match
+                                            'tm_name': f"{row['tm_id'].replace('_', ' ').title()} (Reverse)",
+                                            'tm_id': row['tm_id']
+                                        })
+                                    
+                                    self.log(f"🟢 TM SEARCH: Found {len(reverse_matches)} reverse matches")
+                                except Exception as e:
+                                    self.log(f"Error in reverse TM search: {e}")
+                            
+                            # Combine primary and reverse matches
+                            all_tm_matches = tm_matches + reverse_matches
+                            
+                            self.log(f"🟢 TM SEARCH: Total matches found: {len(all_tm_matches)} ({len(tm_matches)} primary + {len(reverse_matches)} reverse)")
+                            
+                            for match in all_tm_matches:
                                 match_obj = TranslationMatch(
                                     source=match.get('source', ''),
                                     target=match.get('target', ''),
@@ -5991,10 +6840,12 @@ class SupervertalerQt(QMainWindow):
                                     metadata={
                                         'context': match.get('context', ''),
                                         'tm_name': match.get('tm_name', ''),
-                                        'timestamp': match.get('created_at', '')
+                                        'timestamp': match.get('created_at', ''),
+                                        'direction': 'reverse' if 'Reverse' in match.get('tm_name', '') else 'primary'
                                     },
                                     match_type='TM',
-                                    compare_source=match.get('source', '')
+                                    compare_source=match.get('source', ''),
+                                    provider_code='TM'
                                 )
                                 matches_dict["TM"].append(match_obj)
                         except Exception as e:
@@ -6005,8 +6856,12 @@ class SupervertalerQt(QMainWindow):
                         try:
                             if hasattr(self, 'db_manager') and self.db_manager:
                                 # Search termbases directly to get full information including termbase_id
-                                source_lang = getattr(self.current_project, 'source_lang', None) if self.current_project else None
-                                target_lang = getattr(self.current_project, 'target_lang', None) if self.current_project else None
+                                source_lang = getattr(self.current_project, 'source_lang', None) if self.current_project else 'en'  # Default to English
+                                target_lang = getattr(self.current_project, 'target_lang', None) if self.current_project else 'nl'  # Default to Dutch
+                                
+                                # Debug logging
+                                self.log(f"🔍 Termbase matching: segment='{segment.source}', langs={source_lang}->{target_lang}, project={self.current_project is not None}")
+                                self.log(f"🔍 TM matching enabled: {self.enable_tm_matching}, TM database: {hasattr(self, 'tm_database') and self.tm_database is not None}")
                                 project_id_raw = getattr(self.current_project, 'id', None) if (self.current_project and hasattr(self.current_project, 'id')) else None
                                 
                                 # Convert project_id to string if needed (database stores as TEXT)
@@ -6019,6 +6874,8 @@ class SupervertalerQt(QMainWindow):
                                     
                                     # Try exact phrase match first (whole source text)
                                     try:
+                                        self.log("🟢 TERMBASE CALL: From delayed lookup (_delayed_lookup)")
+                                        self.log(f"🔍 Searching termbases for exact phrase: '{segment.source.strip()}'")
                                         exact_results = self.db_manager.search_termbases(
                                             segment.source.strip(),
                                             source_lang=source_lang,
@@ -6026,6 +6883,7 @@ class SupervertalerQt(QMainWindow):
                                             project_id=project_id,
                                             min_length=len(segment.source.strip())
                                         )
+                                        self.log(f"🔍 Exact phrase results: {len(exact_results)} matches")
                                         for tb_match in exact_results:
                                             source_term = tb_match.get('source_term', '').strip()
                                             target_term = tb_match.get('target_term', '').strip()
@@ -6132,10 +6990,14 @@ class SupervertalerQt(QMainWindow):
                                         self.log(f"ℹ️ No termbase matches found for segment: '{segment.source[:50]}...'")
                                 else:
                                     self.log("⚠️ No source text in segment for termbase search")
+                        
+                            self.log("🎯 CHECKPOINT: Termbase search completed, about to continue to set_matches...")
                         except Exception as e:
                             import traceback
                             self.log(f"❌ Error adding termbase matches: {e}")
                             self.log(f"Traceback: {traceback.format_exc()}")
+                    
+                    self.log("🎯 CHECKPOINT: About to fetch LLM and MT, then call set_matches...")
                     
                     # Fetch LLM translation for current segment (async, updates panel when ready)
                     self._fetch_llm_translation_async(segment.source, segment, current_row)
@@ -6144,7 +7006,22 @@ class SupervertalerQt(QMainWindow):
                     self._fetch_mt_translation_async(segment.source, segment, current_row)
                     
                     # Display matches (LLM and MT will be added when ready)
-                    self.assistance_widget.set_matches(matches_dict)
+                    total_matches = sum(len(matches) for matches in matches_dict.values())
+                    self.log(f"🔍 Calling set_matches() with {total_matches} total matches:")
+                    for match_type, matches in matches_dict.items():
+                        if matches:
+                            self.log(f"  {match_type}: {len(matches)} matches")
+                            if match_type == "Termbases" and matches:
+                                for i, match in enumerate(matches[:3]):  # Show first 3 for debugging
+                                    self.log(f"    [{i}] {match.source} → {match.target} (relevance: {match.relevance})")
+                    
+                    # Debug assistance_widget
+                    if hasattr(self, 'assistance_widget') and self.assistance_widget:
+                        self.log(f"✅ assistance_widget exists: {type(self.assistance_widget)}")
+                        self.assistance_widget.set_matches(matches_dict)
+                        self.log(f"✅ set_matches() called successfully")
+                    else:
+                        self.log(f"❌ assistance_widget missing or None: {getattr(self, 'assistance_widget', 'NOT_SET')}")
                 except Exception as e:
                     self.log(f"Error updating TranslationResultsPanel: {e}")
         except Exception as e:
@@ -6180,6 +7057,7 @@ class SupervertalerQt(QMainWindow):
     
     def on_cell_clicked(self, item: QTableWidgetItem):
         """Handle cell click - allows toggling status by clicking Status column"""
+        self.log(f"🖱️ on_cell_clicked called: row {item.row()}, col {item.column()}")
         if not self.current_project:
             return
         
@@ -6236,6 +7114,7 @@ class SupervertalerQt(QMainWindow):
     
     def search_and_display_tm_matches(self, source_text: str):
         """Search TM and Termbases and display matches with visual diff for fuzzy matches"""
+        self.log(f"🚨 search_and_display_tm_matches called with source_text: '{source_text[:50]}...'")
         if not source_text or not source_text.strip():
             if hasattr(self, 'tm_display'):
                 self.tm_display.clear()
@@ -6283,10 +7162,10 @@ class SupervertalerQt(QMainWindow):
                                 segment.modified = True
                                 self.project_modified = True
                                 
-                                # Update grid
-                                target_item = self.table.item(current_row, 3)  # Target column (0=ID, 1=Status, 2=Source, 3=Target)
-                                if target_item:
-                                    target_item.setText(segment.target)
+                                # Update grid (using cell widget)
+                                target_widget = self.table.cellWidget(current_row, 3)
+                                if target_widget and isinstance(target_widget, EditableGridTextEditor):
+                                    target_widget.setPlainText(segment.target)
                                 
                                 # Update status column
                                 status_item = self.table.item(current_row, 1)
@@ -6589,6 +7468,24 @@ class SupervertalerQt(QMainWindow):
             self.log(f"Error generating termbase code: {e}")
             return ""
     
+    def _convert_language_to_code(self, language: str) -> str:
+        """Convert full language name to language code for termbase search"""
+        language_map = {
+            'Dutch': 'nl',
+            'English': 'en', 
+            'French': 'fr',
+            'German': 'de',
+            'Spanish': 'es',
+            'Italian': 'it',
+            'Portuguese': 'pt',
+            'Russian': 'ru',
+            'Chinese': 'zh',
+            'Japanese': 'ja',
+            'Korean': 'ko',
+            'Arabic': 'ar'
+        }
+        return language_map.get(language, language.lower() if language else None)
+
     def find_termbase_matches_in_source(self, source_text: str) -> Dict[str, str]:
         """
         Find all termbase matches in source text
@@ -6596,13 +7493,21 @@ class SupervertalerQt(QMainWindow):
         """
         if not source_text or not hasattr(self, 'db_manager') or not self.db_manager:
             return {}
-        
+
         try:
             source_lang = self.current_project.source_lang if self.current_project else None
             target_lang = self.current_project.target_lang if self.current_project else None
             
-            # Debug logging
+            # Convert language names to codes for termbase search
+            source_lang_code = self._convert_language_to_code(source_lang) if source_lang else None
+            target_lang_code = self._convert_language_to_code(target_lang) if target_lang else None            # Debug logging
             self.log(f"🔍 Searching termbases for: '{source_text}' ({source_lang} → {target_lang})")
+            if self.current_project:
+                self.log(f"  ✓ Current project: {self.current_project.name}")
+                self.log(f"  ✓ Project languages: {self.current_project.source_lang} → {self.current_project.target_lang}")
+                self.log(f"  ✓ Language codes for search: {source_lang_code} → {target_lang_code}")
+            else:
+                self.log(f"  ❌ No current project loaded!")
             
             # First, check if we have any termbases at all
             query = "SELECT COUNT(*) FROM termbase_terms"
@@ -6618,17 +7523,21 @@ class SupervertalerQt(QMainWindow):
             # Split source text into words and search for each one
             words = source_text.split()
             matches = {}
+            self.log(f"  Processing {len(words)} words: {words[:10]}{'...' if len(words) > 10 else ''}")
             
             for word in words:
                 # Remove punctuation and search
                 clean_word = word.strip('.,!?;:')
                 if len(clean_word) < 2:  # Skip short words
+                    self.log(f"    Skipping short word: '{clean_word}'")
                     continue
+                
+                self.log(f"    Searching for: '{clean_word}'")
                 
                 termbase_results = self.db_manager.search_termbases(
                     clean_word,
-                    source_lang=source_lang,
-                    target_lang=target_lang,
+                    source_lang=source_lang_code,
+                    target_lang=target_lang_code,
                     min_length=2
                 )
                 
@@ -6660,6 +7569,7 @@ class SupervertalerQt(QMainWindow):
         
         try:
             # Find termbase matches
+            self.log("🟡 TERMBASE CALL: From highlighting (highlight_termbase_matches)")
             termbase_matches = self.find_termbase_matches_in_source(source_text)
             
             if not termbase_matches:
@@ -6694,10 +7604,12 @@ class SupervertalerQt(QMainWindow):
             if not target_item:
                 return
             
-            # Insert translation
+            # Insert translation (using cell widget)
             segment = self.current_project.segments[row]
             segment.target = translation
-            target_item.setText(translation)
+            target_widget = self.table.cellWidget(row, 3)
+            if target_widget and isinstance(target_widget, EditableGridTextEditor):
+                target_widget.setPlainText(translation)
             
             # Update status
             if segment.status == 'untranslated':
@@ -8371,8 +9283,13 @@ class SupervertalerQt(QMainWindow):
                 self.project_modified = True
                 self.update_window_title()
                 
-                # Update grid
-                self.table.setItem(current_row, 3, QTableWidgetItem(tm_match))
+                # Update grid (using cell widget)
+                target_widget = self.table.cellWidget(current_row, 3)
+                if target_widget and isinstance(target_widget, EditableGridTextEditor):
+                    target_widget.setPlainText(tm_match)
+                else:
+                    # Fallback if widget doesn't exist
+                    self.table.setItem(current_row, 3, QTableWidgetItem(tm_match))
                 self.update_status_icon(current_row, "translated")
                 
                 # Add to TM if not already there
@@ -8453,8 +9370,13 @@ class SupervertalerQt(QMainWindow):
                 segment.target = translation
                 segment.status = "draft"
                 
-                # Update grid - Column 3 is Target
-                self.table.setItem(current_row, 3, QTableWidgetItem(translation))
+                # Update grid - Column 3 is Target (using cell widget)
+                target_widget = self.table.cellWidget(current_row, 3)
+                if target_widget and isinstance(target_widget, EditableGridTextEditor):
+                    target_widget.setPlainText(translation)
+                else:
+                    # Fallback: create new widget if none exists
+                    self.table.setItem(current_row, 3, QTableWidgetItem(translation))
                 self.update_status_icon(current_row, "draft")
                 
                 # Add to Translation Memory
@@ -8713,9 +9635,13 @@ class SupervertalerQt(QMainWindow):
                                 segment.target = translation
                                 segment.status = "draft"
                                 
-                                # Update grid
+                                # Update grid (using cell widget)
                                 if row_index < self.table.rowCount():
-                                    self.table.setItem(row_index, 3, QTableWidgetItem(translation))
+                                    target_widget = self.table.cellWidget(row_index, 3)
+                                    if target_widget and isinstance(target_widget, EditableGridTextEditor):
+                                        target_widget.setPlainText(translation)
+                                    else:
+                                        self.table.setItem(row_index, 3, QTableWidgetItem(translation))
                                     self.update_status_icon(row_index, "draft")
                                 
                                 # Add to TM
@@ -9351,7 +10277,7 @@ class SupervertalerQt(QMainWindow):
 # ===== NOTES =====
 
 # Temperature settings for reasoning models:
-# - GPT-5, o1, o3: Use temperature=1.0 (automatically applied)
+# - GPT-5, o1, o3: Temperature parameter OMITTED (not supported by these models)
 # - Standard models: Use temperature=0.3 (automatically applied)
 
 # TROUBLESHOOTING:
@@ -9402,6 +10328,342 @@ class SupervertalerQt(QMainWindow):
         if dialog.exec():
             # Theme may have been changed, reapply
             self.theme_manager.apply_theme(QApplication.instance())
+    
+    def _schedule_mt_and_llm_matches(self, segment, termbase_matches=None):
+        """Schedule MT and LLM matches with debouncing - only call APIs when user stops clicking"""
+        try:
+            # Cancel any previous MT/LLM requests
+            if hasattr(self, '_mt_llm_timer'):
+                self._mt_llm_timer.stop()
+                self.log("🚀 Cancelled previous MT/LLM request (user moved to new segment)")
+            
+            # Store segment and termbase matches for delayed lookup
+            self._pending_mt_llm_segment = segment
+            self._pending_termbase_matches = termbase_matches or []
+            
+            # Start debounced timer - only call APIs after user stops clicking for 1.5 seconds
+            from PyQt6.QtCore import QTimer
+            self._mt_llm_timer = QTimer()
+            self._mt_llm_timer.setSingleShot(True)
+            self._mt_llm_timer.timeout.connect(lambda: self._execute_mt_llm_lookup())
+            self._mt_llm_timer.start(1500)  # Wait 1.5 seconds of inactivity
+            
+            self.log(f"🚀 Scheduled MT/LLM lookup for '{segment.source[:50]}...' (will execute in 1.5s if user doesn't move)")
+                
+        except Exception as e:
+            self.log(f"Error scheduling MT/LLM search: {e}")
+    
+    def _execute_mt_llm_lookup(self):
+        """Execute the actual MT/LLM lookup after debounce delay"""
+        try:
+            if not hasattr(self, '_pending_mt_llm_segment'):
+                self.log("🚀 DELAYED LOOKUP CANCELLED: No _pending_mt_llm_segment attribute")
+                return
+                
+            segment = self._pending_mt_llm_segment
+            self.log(f"🚀 EXECUTING delayed MT/LLM lookup for '{segment.source[:50]}...'")
+            self.log(f"🚀 DELAYED LOOKUP: LLM matching enabled: {self.enable_llm_matching}")
+            self.log(f"🚀 DELAYED LOOKUP: MT matching enabled: {self.enable_mt_matching}")
+            
+            # Call the actual lookup method (now includes TM, MT, and LLM)
+            self._search_mt_and_llm_matches(segment)
+                
+        except Exception as e:
+            self.log(f"Error executing MT/LLM lookup: {e}")
+            import traceback
+            self.log(f"Delayed lookup error traceback: {traceback.format_exc()}")
+    
+    def _search_mt_and_llm_matches(self, segment):
+        """Search for TM, MT and LLM matches - called only after debounce delay"""
+        try:
+            from modules.translation_results_panel import TranslationMatch
+            
+            # Get current project languages for all translation services
+            source_lang = getattr(self.current_project, 'source_lang', None) if self.current_project else None
+            target_lang = getattr(self.current_project, 'target_lang', None) if self.current_project else None
+            
+            # Convert language names to codes if needed
+            source_lang_code = None
+            target_lang_code = None
+            if source_lang:
+                source_lang_code = self._convert_language_to_code(source_lang)
+            if target_lang:
+                target_lang_code = self._convert_language_to_code(target_lang)
+            
+            # Prepare matches dict - use the stored termbase matches from immediate display
+            matches_dict = {
+                "LLM": [],
+                "NT": [],
+                "MT": [],
+                "TM": [],
+                "Termbases": getattr(self, '_pending_termbase_matches', [])
+            }
+            
+            # 🔥 DELAYED TM SEARCH: Search TM database (moved from UI thread to prevent blocking)
+            if self.enable_tm_matching and hasattr(self, 'db_manager') and self.db_manager:
+                try:
+                    self.log(f"🚀 DELAYED TM SEARCH: Searching for '{segment.source[:50]}...'")
+                    self.log(f"🚀 DELAYED TM SEARCH: Project languages: {source_lang_code} → {target_lang_code}")
+                    
+                    # Search in primary direction (current project direction)
+                    tm_matches = self.db_manager.search_all(segment.source, max_results=10)
+                    
+                    # Also search in reverse direction (bidirectional TM matching)
+                    reverse_matches = []
+                    if source_lang_code and target_lang_code and source_lang_code != target_lang_code:
+                        try:
+                            # Search for text as target text in reverse direction
+                            reverse_query = """
+                                SELECT source_text, target_text, source_lang, target_lang, tm_id, usage_count
+                                FROM translation_units 
+                                WHERE target_text = ? AND source_lang = ? AND target_lang = ?
+                                ORDER BY usage_count DESC
+                                LIMIT 5
+                            """
+                            self.db_manager.cursor.execute(reverse_query, (segment.source, target_lang_code, source_lang_code))
+                            reverse_rows = self.db_manager.cursor.fetchall()
+                            
+                            for row in reverse_rows:
+                                reverse_matches.append({
+                                    'source': row['target_text'],  # Swap source/target for reverse match
+                                    'target': row['source_text'],
+                                    'match_pct': 95,  # High relevance for reverse exact match
+                                    'tm_name': f"{row['tm_id'].replace('_', ' ').title()} (Reverse)",
+                                    'tm_id': row['tm_id']
+                                })
+                            
+                            self.log(f"🚀 DELAYED TM SEARCH: Found {len(reverse_matches)} reverse matches")
+                        except Exception as e:
+                            self.log(f"Error in reverse TM search: {e}")
+                    
+                    # Combine primary and reverse matches
+                    all_tm_matches = tm_matches + reverse_matches
+                    self.log(f"🚀 DELAYED TM SEARCH: Total matches found: {len(all_tm_matches)} ({len(tm_matches)} primary + {len(reverse_matches)} reverse)")
+                    
+                    for match in all_tm_matches:
+                        match_obj = TranslationMatch(
+                            source=match.get('source', ''),
+                            target=match.get('target', ''),
+                            relevance=match.get('match_pct', 0),
+                            metadata={
+                                'context': match.get('context', ''),
+                                'tm_name': match.get('tm_name', ''),
+                                'timestamp': match.get('created_at', ''),
+                                'direction': 'reverse' if 'Reverse' in match.get('tm_name', '') else 'primary'
+                            },
+                            match_type='TM',
+                            compare_source=match.get('source', ''),
+                            provider_code='TM'
+                        )
+                        matches_dict["TM"].append(match_obj)
+                except Exception as e:
+                    self.log(f"Error in delayed TM search: {e}")
+            
+            # Add MT and LLM matches
+            self._add_mt_and_llm_matches(segment, matches_dict, source_lang, target_lang, source_lang_code, target_lang_code)
+            
+            # Update display with all delayed matches (TM, MT, LLM)
+            total_new_matches = len(matches_dict["TM"]) + len(matches_dict["MT"]) + len(matches_dict["LLM"])
+            if total_new_matches > 0:
+                self.log(f"🚀 DELAYED SEARCH COMPLETE: Added {len(matches_dict['TM'])} TM + {len(matches_dict['MT'])} MT + {len(matches_dict['LLM'])} LLM matches")
+                self.assistance_widget.set_matches(matches_dict)
+            else:
+                self.log("🚀 DELAYED SEARCH COMPLETE: No TM, MT or LLM matches found")
+                
+        except Exception as e:
+            self.log(f"Error in MT/LLM search: {e}")
+    def _add_mt_and_llm_matches(self, segment, matches_dict, source_lang, target_lang, source_lang_code, target_lang_code):
+        """Add MT and LLM matches to the matches dictionary"""
+        from modules.translation_results_panel import TranslationMatch
+        
+        # 🤖 DIRECT MT SEARCH: Machine Translation matches
+        if self.enable_mt_matching:
+            try:
+                self.log(f"🤖 DIRECT MT SEARCH: Getting machine translation for '{segment.source[:50]}...'")
+                
+                # Use Google Translate via the wrapper function
+                from modules.llm_clients import get_google_translation
+                
+                self.log(f"🤖 DIRECT MT SEARCH: Calling get_google_translation with source_lang='{source_lang_code or 'auto'}', target_lang='{target_lang_code or 'en'}'")
+                
+                google_result = get_google_translation(
+                    segment.source, 
+                    source_lang_code or 'auto',  # Auto-detect if no source lang 
+                    target_lang_code or 'en'     # Default to English if no target lang
+                )
+                
+                self.log(f"🤖 DIRECT MT SEARCH: Google Translate result: {google_result}")
+                
+                if google_result and google_result.get('translation'):
+                    match = TranslationMatch(
+                        source=segment.source,
+                        target=google_result['translation'],
+                        relevance=95,  # High confidence for MT
+                        metadata=google_result.get('metadata', {}),
+                        match_type="MT",
+                        provider_code='GT'
+                    )
+                    matches_dict["MT"].append(match)
+                    self.log(f"✓ Added Google Translate match: {google_result['translation'][:50]}...")
+                elif google_result and google_result.get('error'):
+                    self.log(f"⚠ Google Translate error: {google_result.get('error')}")
+                else:
+                    self.log(f"⚠ Google Translate returned no translation")
+                    
+            except Exception as e:
+                self.log(f"⚠ Error getting Google Translate: {e}")
+                import traceback
+                self.log(f"⚠ Traceback: {traceback.format_exc()}")
+        
+        # 🧠 DIRECT LLM SEARCH: Large Language Model matches  
+        if self.enable_llm_matching:
+            try:
+                self.log(f"🧠 DIRECT LLM SEARCH: Getting LLM translations for '{segment.source[:50]}...'")
+                self.log(f"🧠 DIRECT LLM SEARCH: LLM matching is enabled: {self.enable_llm_matching}")
+                
+                # Import LLM wrapper functions
+                from modules.llm_clients import get_openai_translation, get_claude_translation
+                self.log("🧠 DIRECT LLM SEARCH: Successfully imported LLM wrapper functions")
+                
+                # Use existing LLM infrastructure from Prompt Manager
+                api_keys = self.load_api_keys()
+                self.log(f"🧠 DIRECT LLM SEARCH: Loaded API keys: {list(api_keys.keys()) if api_keys else 'None'}")
+                if not api_keys:
+                    self.log("⚠ No API keys found for LLM translation")
+                    return
+                
+                settings = self.load_llm_settings()
+                
+                # Check if we should use prompts for grid translations (configurable)
+                use_prompts_in_grid = settings.get('use_prompts_in_grid', False)  # Default: simple translations
+                self.log(f"🧠 LLM Grid Translations - Use Prompts: {use_prompts_in_grid}")
+                
+                # Get OpenAI translation using existing infrastructure
+                if 'openai' in api_keys:
+                    try:
+                        self.log("🧠 DIRECT LLM SEARCH: Attempting OpenAI translation...")
+                        from modules.llm_clients import LLMClient
+                        self.log("🧠 DIRECT LLM SEARCH: LLMClient imported for OpenAI")
+                        
+                        openai_model = settings.get('openai_model', 'gpt-4o')
+                        self.log(f"🧠 DIRECT LLM SEARCH: Using OpenAI model: {openai_model}")
+                        client = LLMClient(
+                            api_key=api_keys['openai'],
+                            provider='openai',
+                            model=openai_model
+                        )
+                        self.log("🧠 DIRECT LLM SEARCH: LLMClient initialized for OpenAI")
+                        
+                        translation = client.translate(
+                            text=segment.source,
+                            source_lang=source_lang_code or 'nl',
+                            target_lang=target_lang_code or 'en'
+                        )
+                        self.log(f"🧠 DIRECT LLM SEARCH: OpenAI translation result: {translation[:100] if translation else 'None'}...")
+                        
+                        if translation and translation.strip():
+                            match = TranslationMatch(
+                                source=segment.source,
+                                target=translation.strip(),
+                                relevance=88,  # Good confidence for LLM
+                                metadata={'model': openai_model, 'provider': 'OpenAI'},
+                                match_type="LLM",
+                                compare_source=segment.source,
+                                provider_code='OA'
+                            )
+                            matches_dict["LLM"].append(match)
+                            self.log(f"✓ Added OpenAI match: {translation[:50]}...")
+                        else:
+                            self.log("⚠ OpenAI translation was empty or None")
+                            
+                    except Exception as e:
+                        self.log(f"⚠ Error getting OpenAI translation: {e}")
+                        import traceback
+                        self.log(f"⚠ OpenAI error traceback: {traceback.format_exc()}")
+                
+                # Get Claude translation using existing infrastructure
+                if 'claude' in api_keys:
+                    try:
+                        from modules.llm_clients import LLMClient
+                        
+                        claude_model = settings.get('claude_model', 'claude-3-5-sonnet-20241022')
+                        client = LLMClient(
+                            api_key=api_keys['claude'],
+                            provider='claude',
+                            model=claude_model
+                        )
+                        
+                        translation = client.translate(
+                            text=segment.source,
+                            source_lang=source_lang_code or 'nl',
+                            target_lang=target_lang_code or 'en'
+                        )
+                        
+                        if translation and translation.strip():
+                            match = TranslationMatch(
+                                source=segment.source,
+                                target=translation.strip(),
+                                relevance=90,  # High confidence for Claude
+                                metadata={'model': claude_model, 'provider': 'Claude'},
+                                match_type="LLM",
+                                compare_source=segment.source,
+                                provider_code='CL'
+                            )
+                            matches_dict["LLM"].append(match)
+                            self.log(f"✓ Added Claude match: {translation[:50]}...")
+                            
+                    except Exception as e:
+                        self.log(f"⚠ Error getting Claude translation: {e}")
+                
+                # Get Gemini translation using existing infrastructure
+                # Check for both 'gemini' and 'google' keys for backward compatibility
+                gemini_api_key = api_keys.get('gemini') or api_keys.get('google')
+                if gemini_api_key:
+                    try:
+                        self.log("🧠 DIRECT LLM SEARCH: Attempting Gemini translation...")
+                        from modules.llm_clients import LLMClient
+                        self.log("🧠 DIRECT LLM SEARCH: LLMClient imported for Gemini")
+                        
+                        gemini_model = settings.get('gemini_model', 'gemini-2.0-flash-exp')
+                        self.log(f"🧠 DIRECT LLM SEARCH: Using Gemini model: {gemini_model}")
+                        client = LLMClient(
+                            api_key=gemini_api_key,
+                            provider='gemini',
+                            model=gemini_model
+                        )
+                        self.log("🧠 DIRECT LLM SEARCH: LLMClient initialized for Gemini")
+                        
+                        translation = client.translate(
+                            text=segment.source,
+                            source_lang=source_lang_code or 'nl',
+                            target_lang=target_lang_code or 'en'
+                        )
+                        
+                        if translation and translation.strip():
+                            match = TranslationMatch(
+                                source=segment.source,
+                                target=translation.strip(),
+                                relevance=85,  # Good confidence for Gemini
+                                metadata={'model': gemini_model, 'provider': 'Gemini'},
+                                match_type="LLM",
+                                compare_source=segment.source,
+                                provider_code='GM'
+                            )
+                            matches_dict["LLM"].append(match)
+                            self.log(f"✓ Added Gemini match: {translation[:50]}...")
+                            
+                    except Exception as e:
+                        self.log(f"⚠ Error getting Gemini translation: {e}")
+                    
+            except Exception as e:
+                self.log(f"⚠ Error in LLM translation process: {e}")
+    
+    def _clean_provider_prefix(self, translation):
+        """Remove provider prefixes like [OpenAI], [Claude], etc. from translations"""
+        import re
+        # Remove patterns like [OpenAI], [Claude], [ChatGPT], [Anthropic] at the start
+        cleaned = re.sub(r'^\[(?:OpenAI|Claude|ChatGPT|Anthropic|GPT-\d+)\]\s*', '', translation.strip())
+        return cleaned
 
 
 # ============================================================================
@@ -9951,89 +11213,40 @@ class UniversalLookupTab(QWidget):
                 # Restore maximized state if it was maximized
                 if was_maximized:
                     main_window.showMaximized()
-                
-                # Aggressive activation without flag manipulation
+                    
+                # Bring to front and activate
                 main_window.raise_()
                 main_window.activateWindow()
                 
-                # Windows-specific: force to foreground (multi-monitor safe)
-                if os.name == 'nt':
-                    try:
-                        import ctypes
-                        hwnd = int(main_window.winId())
-                        
-                        # Get the foreground window's thread
-                        foreground_hwnd = ctypes.windll.user32.GetForegroundWindow()
-                        foreground_thread = ctypes.windll.user32.GetWindowThreadProcessId(foreground_hwnd, None)
-                        current_thread = ctypes.windll.kernel32.GetCurrentThreadId()
-                        
-                        # Attach to foreground thread to bypass focus stealing prevention
-                        if foreground_thread != current_thread:
-                            ctypes.windll.user32.AttachThreadInput(foreground_thread, current_thread, True)
-                        
-                        # Now we can set foreground
-                        ctypes.windll.user32.SetForegroundWindow(hwnd)
-                        ctypes.windll.user32.BringWindowToTop(hwnd)
-                        
-                        # Detach thread input
-                        if foreground_thread != current_thread:
-                            ctypes.windll.user32.AttachThreadInput(foreground_thread, current_thread, False)
-                    except Exception as e:
-                        print(f"[Universal Lookup] Window activation error: {e}")
-                
-                if hasattr(main_window, 'right_tabs'):
-                    main_window.right_tabs.setCurrentIndex(0)  # Switch to Prompt Manager tab
+            # Show universal lookup dialog
+            self.show_universal_lookup(text)
             
-            # Paste into search box
-            if text:
-                self.source_text.setPlainText(text)
-                self.status_label.setText(f"✓ Captured {len(text)} characters. Searching...")
-                QApplication.processEvents()
-                self.perform_lookup()
-            else:
-                self.status_label.setText("✗ No text captured.")
         except Exception as e:
-            print(f"[Universal Lookup] Error: {e}")
-            self.status_label.setText(f"✗ Error: {e}")
+            print(f"[Universal Lookup] Error handling capture: {e}")
     
-    def unregister_global_hotkey(self):
-        """Unregister global hotkey and terminate AHK process"""
-        global _ahk_process
-        if self.hotkey_registered:
-            try:
-                # Stop file watcher
-                if hasattr(self, 'file_check_timer'):
-                    self.file_check_timer.stop()
-                
-                # Terminate AHK process
-                if hasattr(self, 'ahk_process') and self.ahk_process:
-                    try:
-                        self.ahk_process.terminate()
-                        self.ahk_process.wait(timeout=2)
-                        print("[Universal Lookup] AHK process terminated")
-                    except Exception as e:
-                        # Force kill if terminate doesn't work
-                        try:
-                            self.ahk_process.kill()
-                            print("[Universal Lookup] AHK process killed")
-                        except:
-                            pass
-                    finally:
-                        _ahk_process = None  # Clear global reference
-                
-                self.hotkey_registered = False
-                print("[Universal Lookup] AHK hotkey unregistered")
-            except Exception as e:
-                print(f"[Universal Lookup] Error unregistering: {e}")
-                pass
-    
-    def restore_window_flags(self, window):
-        """Restore normal window flags after showing on top"""
+    def show_universal_lookup(self, text):
+        """Show universal lookup with pre-filled text"""
         try:
-            window.setWindowFlags(window.windowFlags() & ~Qt.WindowType.WindowStaysOnTopHint)
-            window.show()
-        except:
-            pass
+            # Switch to Universal Lookup tab
+            if hasattr(self, 'right_tabs'):
+                # Find Universal Lookup tab
+                for i in range(self.right_tabs.count()):
+                    if "Universal Lookup" in self.right_tabs.tabText(i):
+                        self.right_tabs.setCurrentIndex(i)
+                        break
+            
+            # Fill in text if Universal Lookup tab exists
+            universal_lookup_tab = getattr(self, 'universal_lookup_tab', None)
+            if universal_lookup_tab and hasattr(universal_lookup_tab, 'input_text'):
+                universal_lookup_tab.input_text.setPlainText(text)
+                # Trigger lookup
+                if hasattr(universal_lookup_tab, 'lookup_button'):
+                    universal_lookup_tab.lookup_button.click()
+                    
+        except Exception as e:
+            print(f"[Universal Lookup] Error showing lookup: {e}")
+
+
 
 
 # ============================================================================
