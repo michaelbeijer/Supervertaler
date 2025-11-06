@@ -1,6 +1,71 @@
 # Supervertaler Release Notes
 
-## Current Release: v1.2.0-Qt (November 6, 2025) 🎉
+## Current Release: v1.2.1-Qt (November 6, 2025)
+
+### 🎨 UI Enhancement: Unified Tabbed Interface
+
+**Added consistent tabbed panel structure to both Grid and List views for improved workflow!**
+
+### What's New
+
+**✅ Tabbed Panel in Grid View**
+- **Tab 1: Translation Results** - View all match types (Termbase, TM, MT, LLM)
+- **Tab 2: Segment Editor** - Edit source and target text, change status
+- **Tab 3: Notes** - Add and edit segment notes
+- Enables segment editing directly in Grid View (matching Tkinter edition functionality)
+
+**✅ Tabbed Panel in List View**
+- Same 3-tab structure for consistency across views
+- Translation Results | Segment Editor | Notes
+- Replaces single-panel layout with flexible tabbed interface
+
+**✅ Synchronized Panel Updates**
+- Clicking a segment in any view updates ALL tabs in ALL views
+- Editing in any panel automatically syncs to other panels
+- Changes saved to project data in real-time
+- Smooth workflow with no manual synchronization needed
+
+### Technical Improvements
+
+**🔧 Robust Widget Architecture**
+- Separate widget instances for Grid and List views (Qt single-parent compliance)
+- Widget reference storage pattern for flexible access
+- Centralized update function for consistent behavior
+- Signal blocking prevents infinite update loops
+
+### Fixed Issues
+
+**🐛 Widget Parenting Crashes**
+- Fixed Qt single-parent constraint violations
+- Created independent TranslationResultsPanel instances per view
+
+**🐛 Signal Handler Errors**
+- Fixed AttributeError when editing segments in tabs
+- Handlers now properly iterate all panels
+- Graceful error handling per panel
+
+### How to Use
+
+**Grid View:**
+1. Load a project
+2. Select Grid View from "View:" dropdown
+3. Click any segment to load it
+4. Use tabs at bottom to switch between Translation Results, Segment Editor, and Notes
+
+**List View:**
+1. Select List View from "View:" dropdown
+2. Click any segment
+3. Same 3-tab interface available
+
+**Benefits:**
+- Edit segments without switching to Document view
+- View translation matches while editing
+- Add notes without changing tabs
+- Consistent interface across both views
+
+---
+
+## Previous Release: v1.2.0-Qt (November 6, 2025) 🎉
 
 ### 🎯 MAJOR RELEASE: Complete Translation Matching System
 

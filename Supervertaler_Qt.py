@@ -4,7 +4,7 @@ Supervertaler Qt Edition
 The ultimate companion tool for translators and writers.
 Modern PyQt6 interface with specialised modules to handle any problem.
 
-Version: 1.2.0 (Complete Translation Matching System)
+Version: 1.2.1 (Unified Tabbed Interface)
 Release Date: November 6, 2025
 Framework: PyQt6
 
@@ -28,8 +28,8 @@ License: MIT
 """
 
 # Version Information
-__version__ = "1.2.0"
-__phase__ = "6.0"
+__version__ = "1.2.1"
+__phase__ = "6.1"
 __release_date__ = "2025-11-06"
 __edition__ = "Qt"
 
@@ -884,6 +884,9 @@ class SupervertalerQt(QMainWindow):
         self.project_file_path: Optional[str] = None
         self.project_modified = False
         
+        # memoQ bilingual DOCX import tracking
+        self.memoq_source_file = None
+        
         # UI Configuration
         self.default_font_family = "Calibri"
         self.default_font_size = 11
@@ -907,6 +910,13 @@ class SupervertalerQt(QMainWindow):
         # Timer for delayed lookup (cancel if user moves to another segment)
         self.lookup_timer = None
         self.current_lookup_segment_id = None
+        
+        # Termbase cache for performance optimization
+        # Maps segment ID → {term: translation} dictionary
+        self.termbase_cache = {}
+        self.termbase_cache_lock = threading.Lock()  # Thread-safe cache access
+        self.termbase_batch_worker_thread = None  # Background worker thread
+        self.termbase_batch_stop_event = threading.Event()  # Signal to stop background worker
         
         # Global language settings (defaults)
         self.source_language = "English"
@@ -1054,6 +1064,20 @@ class SupervertalerQt(QMainWindow):
         export_memoq_action = QAction("memoQ &Bilingual Table - Translated (DOCX)...", self)
         export_memoq_action.triggered.connect(self.export_memoq_bilingual)
         export_menu.addAction(export_memoq_action)
+        
+        export_menu.addSeparator()
+        
+        export_grid_action = QAction("TMX from &Grid (all segments)...", self)
+        export_grid_action.triggered.connect(self.export_tmx_from_grid)
+        export_menu.addAction(export_grid_action)
+        
+        export_selected_action = QAction("TMX from &Selected Segments...", self)
+        export_selected_action.triggered.connect(self.export_tmx_from_selected)
+        export_menu.addAction(export_selected_action)
+        
+        export_tm_action = QAction("TMX from &TM(s) for Current Project...", self)
+        export_tm_action.triggered.connect(self.export_tmx_from_tm_database)
+        export_menu.addAction(export_tm_action)
         
         file_menu.addSeparator()
         
@@ -2046,25 +2070,244 @@ class SupervertalerQt(QMainWindow):
             self.log(f"Error importing TMX file: {e}")
             QMessageBox.critical(self, "Import Error", f"Failed to import TMX file:\n\n{e}")
     
-    def export_tm_as_tmx(self):
-        """Export translation memory as TMX file"""
+    def export_tmx_from_grid(self):
+        """Export all segments from current project grid as TMX file"""
         try:
+            if not self.current_project or not self.current_project.segments:
+                QMessageBox.warning(self, "No Project", "Please open a project first")
+                return
+            
             file_path, _ = QFileDialog.getSaveFileName(
                 self, 
-                "Export TM as TMX", 
-                "supervertaler_tm.tmx", 
+                "Export Grid as TMX", 
+                "supervertaler_grid.tmx", 
                 "TMX Files (*.tmx);;All Files (*.*)"
             )
             
-            if file_path and self.tm_database:
-                # Export TMX using the TM database
-                self.tm_database.export_tmx(file_path)
-                self.log(f"Successfully exported TM to TMX file: {file_path}")
-                QMessageBox.information(self, "Export Complete", f"Translation memory exported successfully!\n\nFile: {file_path}")
+            if not file_path:
+                return
+            
+            source_segments = []
+            target_segments = []
+            entry_count = 0
+            
+            # Export all segments from grid (including empty translations)
+            self.log("Exporting all segments from grid...")
+            for segment in self.current_project.segments:
+                source_text = segment.source
+                target_text = segment.target if segment.target else ""
+                
+                if source_text:
+                    source_segments.append(source_text)
+                    target_segments.append(target_text)
+                    entry_count += 1
+            
+            self.log(f"Found {entry_count} segments in grid")
+            
+            if entry_count == 0:
+                QMessageBox.warning(self, "No Data", "No segments found in grid")
+                return
+            
+            # Generate and save TMX
+            from modules.tmx_generator import TMXGenerator
+            tmx_generator = TMXGenerator(log_callback=self.log)
+            
+            source_lang = self.current_project.source_lang or "en"
+            target_lang = self.current_project.target_lang or "nl"
+            
+            tmx_tree = tmx_generator.generate_tmx(
+                source_segments=source_segments,
+                target_segments=target_segments,
+                source_lang=source_lang,
+                target_lang=target_lang
+            )
+            
+            if tmx_generator.save_tmx(tmx_tree, file_path):
+                self.log(f"✓ Exported TMX from grid: {file_path} ({entry_count} segments)")
+                QMessageBox.information(
+                    self, 
+                    "Export Complete", 
+                    f"Grid exported to TMX successfully!\n\n"
+                    f"File: {file_path}\n"
+                    f"Segments: {entry_count}\n"
+                    f"Language pair: {source_lang} → {target_lang}"
+                )
+            else:
+                QMessageBox.warning(self, "Export Error", "Failed to save TMX file")
             
         except Exception as e:
-            self.log(f"Error exporting TMX file: {e}")
-            QMessageBox.critical(self, "Export Error", f"Failed to export TMX file:\n\n{e}")
+            self.log(f"✗ Error exporting grid as TMX: {e}")
+            import traceback
+            self.log(traceback.format_exc())
+            QMessageBox.critical(self, "Export Error", f"Failed to export:\n\n{str(e)}")
+    
+    def export_tmx_from_selected(self):
+        """Export only selected segments from grid as TMX file"""
+        try:
+            if not self.current_project or not self.current_project.segments:
+                QMessageBox.warning(self, "No Project", "Please open a project first")
+                return
+            
+            # Get selected rows from table
+            selected_rows = set()
+            for index in self.table.selectedIndexes():
+                selected_rows.add(index.row())
+            
+            if not selected_rows:
+                QMessageBox.warning(
+                    self, 
+                    "No Selection", 
+                    "Please select one or more rows in the grid first.\n\n"
+                    "Click on row numbers or use Ctrl+Click to select multiple rows."
+                )
+                return
+            
+            file_path, _ = QFileDialog.getSaveFileName(
+                self, 
+                "Export Selected Segments as TMX", 
+                "supervertaler_selected.tmx", 
+                "TMX Files (*.tmx);;All Files (*.*)"
+            )
+            
+            if not file_path:
+                return
+            
+            source_segments = []
+            target_segments = []
+            entry_count = 0
+            
+            # Export only selected segments
+            self.log(f"Exporting {len(selected_rows)} selected segments...")
+            for row in sorted(selected_rows):
+                if row < len(self.current_project.segments):
+                    segment = self.current_project.segments[row]
+                    source_text = segment.source
+                    target_text = segment.target if segment.target else ""
+                    
+                    if source_text:
+                        source_segments.append(source_text)
+                        target_segments.append(target_text)
+                        entry_count += 1
+            
+            self.log(f"Selected {entry_count} segments to export")
+            
+            if entry_count == 0:
+                QMessageBox.warning(self, "No Data", "No valid segments selected")
+                return
+            
+            # Generate and save TMX
+            from modules.tmx_generator import TMXGenerator
+            tmx_generator = TMXGenerator(log_callback=self.log)
+            
+            source_lang = self.current_project.source_lang or "en"
+            target_lang = self.current_project.target_lang or "nl"
+            
+            tmx_tree = tmx_generator.generate_tmx(
+                source_segments=source_segments,
+                target_segments=target_segments,
+                source_lang=source_lang,
+                target_lang=target_lang
+            )
+            
+            if tmx_generator.save_tmx(tmx_tree, file_path):
+                self.log(f"✓ Exported TMX from selected: {file_path} ({entry_count} segments)")
+                QMessageBox.information(
+                    self, 
+                    "Export Complete", 
+                    f"Selected segments exported to TMX successfully!\n\n"
+                    f"File: {file_path}\n"
+                    f"Segments: {entry_count}\n"
+                    f"Language pair: {source_lang} → {target_lang}"
+                )
+            else:
+                QMessageBox.warning(self, "Export Error", "Failed to save TMX file")
+            
+        except Exception as e:
+            self.log(f"✗ Error exporting selected segments as TMX: {e}")
+            import traceback
+            self.log(traceback.format_exc())
+            QMessageBox.critical(self, "Export Error", f"Failed to export:\n\n{str(e)}")
+    
+    def export_tmx_from_tm_database(self):
+        """Export translation memory entries as TMX file"""
+        try:
+            if not self.tm_database:
+                QMessageBox.warning(self, "Error", "Translation memory database not available")
+                return
+            
+            # Get TM entries from database
+            tm_entries = self.tm_database.get_tm_entries(tm_id=None, limit=None)
+            if not tm_entries:
+                QMessageBox.warning(
+                    self, 
+                    "No Data", 
+                    "No translation units in Translation Memory database.\n\n"
+                    "Please import a TM or save translations to the TM first."
+                )
+                return
+            
+            file_path, _ = QFileDialog.getSaveFileName(
+                self, 
+                "Export TM Database as TMX", 
+                "supervertaler_tm_database.tmx", 
+                "TMX Files (*.tmx);;All Files (*.*)"
+            )
+            
+            if not file_path:
+                return
+            
+            source_segments = []
+            target_segments = []
+            
+            # Extract segments from TM entries
+            self.log(f"Exporting {len(tm_entries)} entries from TM database...")
+            for entry in tm_entries:
+                source_segments.append(entry.get('source_text', entry.get('source', '')))
+                target_segments.append(entry.get('target_text', entry.get('target', '')))
+            
+            # Generate and save TMX
+            from modules.tmx_generator import TMXGenerator
+            tmx_generator = TMXGenerator(log_callback=self.log)
+            
+            # Use project languages or defaults
+            source_lang = "en"
+            target_lang = "nl"
+            if self.current_project:
+                source_lang = self.current_project.source_lang or "en"
+                target_lang = self.current_project.target_lang or "nl"
+            
+            tmx_tree = tmx_generator.generate_tmx(
+                source_segments=source_segments,
+                target_segments=target_segments,
+                source_lang=source_lang,
+                target_lang=target_lang
+            )
+            
+            if tmx_generator.save_tmx(tmx_tree, file_path):
+                self.log(f"✓ Exported TMX from TM database: {file_path} ({len(tm_entries)} entries)")
+                QMessageBox.information(
+                    self, 
+                    "Export Complete", 
+                    f"Translation Memory exported to TMX successfully!\n\n"
+                    f"File: {file_path}\n"
+                    f"Entries: {len(tm_entries)}\n"
+                    f"Language pair: {source_lang} → {target_lang}"
+                )
+            else:
+                QMessageBox.warning(self, "Export Error", "Failed to save TMX file")
+            
+        except Exception as e:
+            self.log(f"✗ Error exporting TM database as TMX: {e}")
+            import traceback
+            self.log(traceback.format_exc())
+            QMessageBox.critical(self, "Export Error", f"Failed to export:\n\n{str(e)}")
+    
+    def export_tm_as_tmx(self):
+        """Legacy function - exports grid segments (for backward compatibility)"""
+        self.export_tmx_from_grid()
+    
+    
+    
     
     def clear_tm_entries(self):
         """Clear all translation memory entries (with confirmation)"""
@@ -3531,6 +3774,20 @@ class SupervertalerQt(QMainWindow):
                 
                 self.editor_splitter.setSizes([1000, 400])  # Swapped for RIGHT-LEFT ordering
         elif mode == LayoutMode.LIST:
+            print("\n" + "="*80)
+            print("DEBUG: Switching to LIST VIEW")
+            print(f"DEBUG: list_view_widget exists: {hasattr(self, 'list_view_widget')}")
+            if hasattr(self, 'list_view_widget'):
+                print(f"DEBUG: list_view_widget type: {type(self.list_view_widget)}")
+            print(f"DEBUG: list_editor_tabs exists: {hasattr(self, 'list_editor_tabs')}")
+            if hasattr(self, 'list_editor_tabs'):
+                print(f"DEBUG: list_editor_tabs type: {type(self.list_editor_tabs)}")
+                print(f"DEBUG: list_editor_tabs count: {self.list_editor_tabs.count()}")
+                print(f"DEBUG: list_editor_tabs visible: {self.list_editor_tabs.isVisible()}")
+                print(f"DEBUG: Tab bar visible: {self.list_editor_tabs.tabBar().isVisible()}")
+                for i in range(self.list_editor_tabs.count()):
+                    print(f"DEBUG:   Tab {i}: '{self.list_editor_tabs.tabText(i)}'")
+            print("="*80 + "\n")
             self.view_stack.setCurrentIndex(1)
             # Ensure assistance widget is in list splitter
             if hasattr(self, 'list_splitter') and hasattr(self, 'assistance_widget'):
@@ -3873,23 +4130,18 @@ class SupervertalerQt(QMainWindow):
         # Add grid container to top of vertical splitter
         self.home_grid_splitter.addWidget(grid_container)  # Grid on top
         
-        # Prepare assistance widget (remove from any existing parent first)
-        if hasattr(self, 'assistance_widget') and self.assistance_widget:
-            # Remove from any existing parent first
-            current_parent = self.assistance_widget.parent()
-            if current_parent:
-                self.assistance_widget.setParent(None)
-            
-            # Reset size constraints for bottom panel
-            self.assistance_widget.setMinimumHeight(200)  # Minimum height to show content
-            self.assistance_widget.setMaximumHeight(16777215)  # No max height limit
-            self.assistance_widget.setMinimumWidth(0)
-            self.assistance_widget.setMaximumWidth(16777215)  # Use full width
-            
-            self.home_grid_splitter.addWidget(self.assistance_widget)  # Translation results at bottom
+        # Add tabbed assistance panel at bottom (Translation Results, Segment Editor, Notes)
+        # Always create fresh to avoid stale widget issues
+        self.home_tabbed_panel = self.create_tabbed_assistance_panel()
+        self.home_grid_splitter.addWidget(self.home_tabbed_panel)  # Tabs at bottom
+        
+        print(f"DEBUG: Grid view - Added tabbed panel to splitter")
+        print(f"DEBUG: Tabbed panel has {self.home_tabbed_panel.count()} tabs")
+        for i in range(self.home_tabbed_panel.count()):
+            print(f"DEBUG:   Tab {i}: '{self.home_tabbed_panel.tabText(i)}'")
         
         # Set splitter proportions - Top to Bottom
-        # Position 0 (grid) gets 700, Position 1 (translation results) gets 300
+        # Position 0 (grid) gets 700, Position 1 (tabbed panel) gets 300
         self.home_grid_splitter.setSizes([700, 300])
         
         print(f"DEBUG: Final splitter has {self.home_grid_splitter.count()} widgets:")
@@ -4069,77 +4321,16 @@ class SupervertalerQt(QMainWindow):
         list_layout.addWidget(self.list_tree)
         home_list_splitter.addWidget(list_container)
         
-        # Middle: Editor panel
-        editor_container = QGroupBox("Segment Editor")
-        editor_layout = QVBoxLayout(editor_container)
-        editor_layout.setContentsMargins(10, 10, 10, 10)
+        # Bottom: Add tabbed assistance panel (Translation Results, Segment Editor, Notes)
+        # Create separate instance for list view (can't share widgets between views)
+        self.home_list_tabbed_panel = self.create_tabbed_assistance_panel()
+        home_list_splitter.addWidget(self.home_list_tabbed_panel)
+        home_list_splitter.setSizes([600, 400])
         
-        # Segment info
-        info_layout = QHBoxLayout()
-        if not hasattr(self, 'list_seg_info'):
-            self.list_seg_info = QLabel("No segment selected")
-        self.list_seg_info.setStyleSheet("font-weight: bold;")
-        info_layout.addWidget(self.list_seg_info, stretch=1)
-        
-        # Status selector
-        status_label = QLabel("Status:")
-        if not hasattr(self, 'list_status_combo'):
-            self.list_status_combo = QComboBox()
-            self.list_status_combo.addItems(["untranslated", "translated", "approved"])
-            self.list_status_combo.currentTextChanged.connect(self.on_list_status_change)
-        info_layout.addWidget(status_label)
-        info_layout.addWidget(self.list_status_combo)
-        
-        editor_layout.addLayout(info_layout)
-        
-        # Source (read-only)
-        source_label = QLabel("Source:")
-        source_label.setStyleSheet("font-weight: bold;")
-        editor_layout.addWidget(source_label)
-        if not hasattr(self, 'list_source_editor'):
-            self.list_source_editor = QTextEdit()
-            self.list_source_editor.setReadOnly(True)
-            self.list_source_editor.setMaximumHeight(100)
-            self.list_source_editor.setStyleSheet("background-color: #f5f5f5;")
-        editor_layout.addWidget(self.list_source_editor)
-        
-        # Target (editable)
-        target_label = QLabel("Target:")
-        target_label.setStyleSheet("font-weight: bold;")
-        editor_layout.addWidget(target_label)
-        if not hasattr(self, 'list_target_editor'):
-            self.list_target_editor = QTextEdit()
-            self.list_target_editor.setMaximumHeight(100)
-            self.list_target_editor.textChanged.connect(self.on_list_target_change)
-        editor_layout.addWidget(self.list_target_editor)
-        
-        # Action buttons
-        button_layout = QHBoxLayout()
-        copy_btn = QPushButton("Copy Source → Target")
-        copy_btn.clicked.connect(self.copy_source_to_list_target)
-        clear_target_btn = QPushButton("Clear Target")
-        clear_target_btn.clicked.connect(self.clear_list_target)
-        save_next_btn = QPushButton("Save & Next (Ctrl+Enter)")
-        save_next_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold;")
-        save_next_btn.clicked.connect(self.save_list_segment_and_next)
-        
-        button_layout.addWidget(copy_btn)
-        button_layout.addWidget(clear_target_btn)
-        button_layout.addStretch()
-        button_layout.addWidget(save_next_btn)
-        
-        editor_layout.addLayout(button_layout)
-        
-        home_list_splitter.addWidget(editor_container)
-        
-        # Bottom: Assistance panel (reuse existing widget)
-        if hasattr(self, 'assistance_widget') and self.assistance_widget:
-            home_list_splitter.addWidget(self.assistance_widget)
-            # Set splitter proportions (list, editor, assistance)
-            home_list_splitter.setSizes([600, 250, 400])
-        else:
-            # Just list and editor
-            home_list_splitter.setSizes([600, 250])
+        print(f"DEBUG: List view - Added tabbed panel to splitter")
+        print(f"DEBUG: Tabbed panel has {self.home_list_tabbed_panel.count()} tabs")
+        for i in range(self.home_list_tabbed_panel.count()):
+            print(f"DEBUG:   Tab {i}: '{self.home_list_tabbed_panel.tabText(i)}'")
         
         main_layout.addWidget(home_list_splitter)
         
@@ -4251,6 +4442,9 @@ class SupervertalerQt(QMainWindow):
     
     def create_list_view_widget(self):
         """Create the List View widget (segment list with editor panel)"""
+        print("="*80)
+        print("DEBUG: *** create_list_view_widget() CALLED ***")
+        print("="*80)
         widget = QWidget()
         main_layout = QVBoxLayout(widget)
         main_layout.setContentsMargins(0, 0, 0, 0)
@@ -4320,8 +4514,19 @@ class SupervertalerQt(QMainWindow):
         
         self.list_splitter.addWidget(list_container)
         
-        # Bottom: Editor panel
-        editor_container = QGroupBox("Segment Editor")
+        # Bottom: Tabbed editor panel (Segment Editor + Translation Results)
+        self.list_editor_tabs = QTabWidget()
+        self.list_editor_tabs.setTabPosition(QTabWidget.TabPosition.North)
+        self.list_editor_tabs.setDocumentMode(False)  # Ensure tabs are clearly visible
+        
+        # Debug: Check assistance widget
+        print(f"DEBUG: Creating list view tabs...")
+        print(f"DEBUG: assistance_widget exists: {hasattr(self, 'assistance_widget')}")
+        if hasattr(self, 'assistance_widget'):
+            print(f"DEBUG: assistance_widget is: {self.assistance_widget}")
+        
+        # Tab 1: Segment Editor
+        editor_container = QWidget()
         editor_layout = QVBoxLayout(editor_container)
         editor_layout.setContentsMargins(10, 10, 10, 10)
         
@@ -4377,7 +4582,35 @@ class SupervertalerQt(QMainWindow):
         
         editor_layout.addLayout(button_layout)
         
-        self.list_splitter.addWidget(editor_container)
+        # Add Segment Editor tab
+        self.list_editor_tabs.addTab(editor_container, "📝 Segment Editor")
+        print(f"DEBUG: Added Segment Editor tab. Tab count: {self.list_editor_tabs.count()}")
+        
+        # Tab 2: Translation Results Panel (using the main assistance_widget if available)
+        if hasattr(self, 'assistance_widget') and self.assistance_widget:
+            # Reuse the existing assistance widget from grid view
+            self.list_editor_tabs.addTab(self.assistance_widget, "🔍 Translation Results")
+            print(f"DEBUG: Added Translation Results tab. Tab count: {self.list_editor_tabs.count()}")
+        else:
+            # If no assistance widget exists yet, create a simple placeholder
+            placeholder = QWidget()
+            placeholder_layout = QVBoxLayout(placeholder)
+            placeholder_label = QLabel("Translation Results Panel unavailable\n(Load a project to enable this feature)")
+            placeholder_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            placeholder_layout.addWidget(placeholder_label)
+            self.list_editor_tabs.addTab(placeholder, "🔍 Translation Results")
+            print(f"DEBUG: Added placeholder tab. Tab count: {self.list_editor_tabs.count()}")
+        
+        print(f"DEBUG: Final tab count: {self.list_editor_tabs.count()}")
+        print(f"DEBUG: Tab bar visible: {self.list_editor_tabs.tabBar().isVisible()}")
+        
+        # Wrap tabs in a group box for better visibility
+        tabs_group = QGroupBox("Editor")
+        tabs_layout = QVBoxLayout(tabs_group)
+        tabs_layout.setContentsMargins(0, 5, 0, 0)
+        tabs_layout.addWidget(self.list_editor_tabs)
+        
+        self.list_splitter.addWidget(tabs_group)
         self.list_splitter.setSizes([600, 250])
         
         main_layout.addWidget(self.list_splitter)
@@ -4588,6 +4821,144 @@ class SupervertalerQt(QMainWindow):
             self.notes_edit = QTextEdit()
             self.notes_edit.setPlaceholderText("Segment notes...")
             layout.addWidget(self.notes_edit, stretch=1)
+    
+    def create_tabbed_assistance_panel(self):
+        """
+        Create a tabbed panel with Translation Results, Segment Editor, and Notes
+        This is used in both Grid and List views for consistency
+        """
+        tabs = QTabWidget()
+        tabs.setTabPosition(QTabWidget.TabPosition.North)
+        tabs.setDocumentMode(False)
+        
+        # Tab 1: Translation Results - Create a NEW instance for this panel
+        # (Can't reuse widgets - they can only have one parent)
+        try:
+            from modules.translation_results_panel import TranslationResultsPanel
+            results_panel = TranslationResultsPanel(self)
+            results_panel.match_selected.connect(self.on_match_selected)
+            results_panel.match_inserted.connect(self.on_match_inserted)
+            tabs.addTab(results_panel, "🔍 Translation Results")
+            
+            # Store reference so we can update it when segments are selected
+            if not hasattr(self, 'results_panels'):
+                self.results_panels = []
+            self.results_panels.append(results_panel)
+        except ImportError as e:
+            print(f"Warning: Could not import TranslationResultsPanel: {e}")
+            placeholder = QWidget()
+            tabs.addTab(placeholder, "🔍 Translation Results")
+        
+        # Tab 2: Segment Editor
+        editor_widget = QWidget()
+        editor_layout = QVBoxLayout(editor_widget)
+        editor_layout.setContentsMargins(10, 10, 10, 10)
+        
+        # Segment info header
+        info_layout = QHBoxLayout()
+        tab_seg_info = QLabel("Select a segment to edit")
+        tab_seg_info.setStyleSheet("font-weight: bold; font-size: 11pt;")
+        info_layout.addWidget(tab_seg_info, stretch=1)
+        
+        # Status selector
+        status_label = QLabel("Status:")
+        tab_status_combo = QComboBox()
+        tab_status_combo.addItems(["untranslated", "translated", "approved"])
+        tab_status_combo.currentTextChanged.connect(self.on_tab_segment_status_change)
+        info_layout.addWidget(status_label)
+        info_layout.addWidget(tab_status_combo)
+        editor_layout.addLayout(info_layout)
+        
+        # Source text (read-only)
+        source_label = QLabel("Source:")
+        source_label.setStyleSheet("font-weight: bold;")
+        editor_layout.addWidget(source_label)
+        tab_source_editor = QTextEdit()
+        tab_source_editor.setReadOnly(True)
+        tab_source_editor.setMaximumHeight(100)
+        tab_source_editor.setStyleSheet("background-color: #f5f5f5;")
+        editor_layout.addWidget(tab_source_editor)
+        
+        # Target text (editable)
+        target_label = QLabel("Target:")
+        target_label.setStyleSheet("font-weight: bold;")
+        editor_layout.addWidget(target_label)
+        tab_target_editor = QTextEdit()
+        tab_target_editor.setMaximumHeight(100)
+        tab_target_editor.textChanged.connect(self.on_tab_target_change)
+        editor_layout.addWidget(tab_target_editor)
+        
+        # Store references to THIS panel's widgets so we can update them
+        editor_widget.seg_info_label = tab_seg_info
+        editor_widget.source_editor = tab_source_editor
+        editor_widget.target_editor = tab_target_editor
+        editor_widget.status_combo = tab_status_combo
+        
+        # Action buttons
+        button_layout = QHBoxLayout()
+        copy_btn = QPushButton("📋 Copy Source → Target")
+        copy_btn.clicked.connect(self.copy_source_to_tab_target)
+        clear_btn = QPushButton("🗑️ Clear Target")
+        clear_btn.clicked.connect(self.clear_tab_target)
+        save_btn = QPushButton("💾 Save")
+        save_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold;")
+        save_btn.clicked.connect(self.save_tab_segment)
+        save_next_btn = QPushButton("💾 Save & Next (Ctrl+Enter)")
+        save_next_btn.setStyleSheet("background-color: #2196F3; color: white; font-weight: bold;")
+        save_next_btn.clicked.connect(self.save_tab_segment_and_next)
+        
+        button_layout.addWidget(copy_btn)
+        button_layout.addWidget(clear_btn)
+        button_layout.addStretch()
+        button_layout.addWidget(save_btn)
+        button_layout.addWidget(save_next_btn)
+        editor_layout.addLayout(button_layout)
+        
+        editor_layout.addStretch()
+        tabs.addTab(editor_widget, "📝 Segment Editor")
+        
+        # Tab 3: Notes Editor
+        notes_widget = QWidget()
+        notes_layout = QVBoxLayout(notes_widget)
+        notes_layout.setContentsMargins(10, 10, 10, 10)
+        
+        notes_header = QLabel("Segment Notes")
+        notes_header.setStyleSheet("font-weight: bold; font-size: 11pt;")
+        notes_layout.addWidget(notes_header)
+        
+        tab_notes_editor = QTextEdit()
+        tab_notes_editor.setPlaceholderText("Add notes for this segment...\n\n"
+                                            "Notes are saved per segment and can include:\n"
+                                            "• Translation context\n"
+                                            "• Client preferences\n"
+                                            "• Terminology decisions\n"
+                                            "• Questions or clarifications needed")
+        tab_notes_editor.textChanged.connect(self.on_tab_notes_change)
+        notes_layout.addWidget(tab_notes_editor)
+        
+        # Store reference to THIS panel's notes editor
+        notes_widget.notes_editor = tab_notes_editor
+        
+        notes_button_layout = QHBoxLayout()
+        save_notes_btn = QPushButton("💾 Save Notes")
+        save_notes_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold;")
+        save_notes_btn.clicked.connect(self.save_tab_notes)
+        notes_button_layout.addStretch()
+        notes_button_layout.addWidget(save_notes_btn)
+        notes_layout.addLayout(notes_button_layout)
+        
+        tabs.addTab(notes_widget, "📋 Notes")
+        
+        # Store references to tab widgets for updates
+        tabs.editor_widget = editor_widget
+        tabs.notes_widget = notes_widget
+        
+        # Keep track of all tabbed panels
+        if not hasattr(self, 'tabbed_panels'):
+            self.tabbed_panels = []
+        self.tabbed_panels.append(tabs)
+        
+        return tabs
     
     def on_match_selected(self, match):
         """Handle match selection from TranslationResultsPanel"""
@@ -4924,9 +5295,215 @@ class SupervertalerQt(QMainWindow):
             
             self.log(f"✓ Loaded project: {self.current_project.name} ({len(self.current_project.segments)} segments)")
             
+            # Start background batch processing of termbase matches for all segments
+            # This pre-fills the cache while user works on the project
+            self._start_termbase_batch_worker()
+            
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to load project:\n{str(e)}")
             self.log(f"✗ Error loading project: {e}")
+    
+    def _start_termbase_batch_worker(self):
+        """
+        Start background thread to batch-process termbase matches for all segments.
+        This pre-fills the cache while the user works on the project.
+        """
+        if not self.current_project or len(self.current_project.segments) == 0:
+            return
+        
+        # Stop any existing worker thread
+        self.termbase_batch_stop_event.set()
+        if self.termbase_batch_worker_thread and self.termbase_batch_worker_thread.is_alive():
+            self.log("⏹️  Stopping existing termbase batch worker...")
+            self.termbase_batch_worker_thread.join(timeout=2)
+        
+        # Reset stop event for new worker
+        self.termbase_batch_stop_event.clear()
+        
+        # Start new background worker thread
+        segment_count = len(self.current_project.segments)
+        self.log(f"🔄 Starting background termbase batch processor for {segment_count} segments...")
+        
+        self.termbase_batch_worker_thread = threading.Thread(
+            target=self._termbase_batch_worker_run,
+            args=(self.current_project.segments,),
+            daemon=True  # Daemon thread - won't prevent program exit
+        )
+        self.termbase_batch_worker_thread.start()
+    
+    def _termbase_batch_worker_run(self, segments):
+        """
+        Background worker thread: process all segments and populate termbase cache.
+        Runs in separate thread to not block UI.
+        
+        IMPORTANT: Creates its own database connection to avoid SQLite threading errors.
+        """
+        if not segments:
+            return
+        
+        # Create a separate database connection for this thread
+        # SQLite connections are thread-local and cannot be shared across threads
+        import sqlite3
+        try:
+            thread_db_connection = sqlite3.connect(self.db_manager.db_path)
+            thread_db_connection.row_factory = sqlite3.Row
+            thread_db_cursor = thread_db_connection.cursor()
+        except Exception as e:
+            self.log(f"❌ Failed to create database connection in batch worker: {e}")
+            return
+        
+        try:
+            processed = 0
+            cached = 0
+            start_time = time.time()
+            
+            for segment in segments:
+                # Check if stop event was signaled (user closed project or started new one)
+                if self.termbase_batch_stop_event.is_set():
+                    self.log(f"⏹️  Termbase batch worker stopped by user (processed {processed} segments)")
+                    break
+                
+                segment_id = segment.id
+                
+                # Skip if already in cache (thread-safe check)
+                with self.termbase_cache_lock:
+                    if segment_id in self.termbase_cache:
+                        cached += 1
+                        continue
+                
+                # Search termbase for this segment using thread-local database connection
+                try:
+                    # Manually query the database using thread-local connection
+                    matches = self._search_termbases_thread_safe(
+                        segment.source,
+                        thread_db_cursor,
+                        source_lang=self.current_project.source_lang if self.current_project else None,
+                        target_lang=self.current_project.target_lang if self.current_project else None
+                    )
+                    
+                    if matches:
+                        # Store in cache (thread-safe)
+                        with self.termbase_cache_lock:
+                            self.termbase_cache[segment_id] = matches
+                        
+                        processed += 1
+                        
+                        # Log progress every 100 segments
+                        if processed % 100 == 0:
+                            elapsed = time.time() - start_time
+                            rate = processed / elapsed if elapsed > 0 else 0
+                            remaining = len(segments) - processed
+                            eta_seconds = remaining / rate if rate > 0 else 0
+                            self.log(f"📊 Batch progress: {processed}/{len(segments)} cached " +
+                                   f"({rate:.1f} seg/sec, ETA: {int(eta_seconds)}s)")
+                
+                except Exception as e:
+                    self.log(f"❌ Error processing segment {segment_id} in batch worker: {e}")
+                    continue
+                
+                # Small delay to prevent CPU saturation (let UI thread work)
+                time.sleep(0.001)  # 1ms delay between segments
+            
+            elapsed = time.time() - start_time
+            total_cached = len(self.termbase_cache)
+            self.log(f"✅ Termbase batch worker complete: {processed} new + {cached} existing = " +
+                   f"{total_cached} total cached in {elapsed:.1f}s")
+            
+        except Exception as e:
+            self.log(f"❌ Termbase batch worker error: {e}")
+            import traceback
+            self.log(traceback.format_exc())
+        
+        finally:
+            # Close thread-local database connection
+            try:
+                thread_db_cursor.close()
+                thread_db_connection.close()
+                self.log("✓ Closed thread-local database connection in batch worker")
+            except:
+                pass
+    
+    def _search_termbases_thread_safe(self, source_text: str, cursor, source_lang: str = None, target_lang: str = None) -> Dict[str, str]:
+        """
+        Search termbases using a provided cursor (thread-safe for background threads).
+        This method allows background workers to query the database without SQLite threading errors.
+        
+        Args:
+            source_text: The source text to search for
+            cursor: A database cursor from a thread-local connection
+            source_lang: Source language code
+            target_lang: Target language code
+        
+        Returns:
+            Dictionary of {term: translation} matches
+        """
+        if not source_text or not cursor:
+            return {}
+        
+        try:
+            # Convert language names to codes
+            source_lang_code = self._convert_language_to_code(source_lang) if source_lang else None
+            target_lang_code = self._convert_language_to_code(target_lang) if target_lang else None
+            
+            # Split source text into words and search for each
+            words = source_text.split()
+            matches = {}
+            
+            for word in words:
+                # Remove punctuation and search
+                clean_word = word.strip('.,!?;:')
+                if len(clean_word) < 2:  # Skip short words
+                    continue
+                
+                # Search termbases in database using provided cursor
+                try:
+                    # Build query based on language constraints
+                    query = "SELECT source_term, target_term FROM termbase_terms WHERE 1=1"
+                    params = []
+                    
+                    # Add word search constraint (case-insensitive)
+                    query += " AND LOWER(source_term) LIKE ?"
+                    params.append(f"%{clean_word.lower()}%")
+                    
+                    # Add language constraints if specified
+                    if source_lang_code:
+                        query += " AND source_lang = ?"
+                        params.append(source_lang_code)
+                    
+                    if target_lang_code:
+                        query += " AND target_lang = ?"
+                        params.append(target_lang_code)
+                    
+                    # Limit results
+                    query += " LIMIT 5"
+                    
+                    # Execute using thread-local cursor
+                    cursor.execute(query, params)
+                    results = cursor.fetchall()
+                    
+                    if results:
+                        for row in results:
+                            source_term = row[0] if isinstance(row, tuple) else row['source_term']
+                            target_term = row[1] if isinstance(row, tuple) else row['target_term']
+                            if source_term and target_term:
+                                matches[source_term.strip()] = target_term.strip()
+                
+                except Exception as e:
+                    # Log but continue with other words
+                    pass
+            
+            return matches
+            
+        except Exception as e:
+            return {}
+    
+    def stop_termbase_batch_worker(self):
+        """Stop the background termbase batch worker gracefully"""
+        if self.termbase_batch_worker_thread and self.termbase_batch_worker_thread.is_alive():
+            self.log("⏹️  Stopping termbase batch worker...")
+            self.termbase_batch_stop_event.set()
+            self.termbase_batch_worker_thread.join(timeout=3)
+            self.log("✓ Termbase batch worker stopped")
     
     def save_project(self):
         """Save current project"""
@@ -5001,6 +5578,12 @@ class SupervertalerQt(QMainWindow):
                 # If save was cancelled or failed, project_modified will still be True
                 if self.project_modified:
                     return
+        
+        # Stop background batch worker
+        self.stop_termbase_batch_worker()
+        
+        # Clear termbase cache for this project
+        self.termbase_cache.clear()
         
         # Clear project data
         self.current_project = None
@@ -5775,26 +6358,8 @@ class SupervertalerQt(QMainWindow):
             # Source - Use read-only QTextEdit widget for easy text selection
             source_editor = ReadOnlyGridTextEditor(segment.source, self.table)
             
-            # Find and store termbase matches (will be used when segment is selected)
-            try:
-                if hasattr(self, 'db_manager') and self.db_manager:
-                    self.log("🔵 TERMBASE CALL: From table population (populate_table)")
-                    termbase_matches = self.find_termbase_matches_in_source(segment.source)
-                    if termbase_matches:
-                        self.log(f"📍 Row {row + 1}: Found {len(termbase_matches)} termbase matches")
-                        # Store matches in the widget for later use in on_cell_selected
-                        source_editor.termbase_matches = termbase_matches
-                    else:
-                        self.log(f"📍 Row {row + 1}: No termbase matches found")
-                        source_editor.termbase_matches = {}
-                else:
-                    self.log(f"📍 Row {row + 1}: db_manager not available")
-                    source_editor.termbase_matches = {}
-            except Exception as e:
-                self.log(f"❌ Error finding termbase matches for row {row + 1}: {e}")
-                import traceback
-                self.log(f"Traceback: {traceback.format_exc()}")
-                source_editor.termbase_matches = {}
+            # Initialize empty termbase matches (will be populated lazily on segment selection or by background worker)
+            source_editor.termbase_matches = {}
             
             # Set font to match grid
             font = QFont(self.default_font_family, self.default_font_size)
@@ -5870,30 +6435,24 @@ class SupervertalerQt(QMainWindow):
             # Check if we're on home tab and assistance widget should be on left
             if hasattr(self, 'home_grid_splitter') and self.home_grid_splitter:
                 # Verify assistance widget is in the splitter
+                # Check if assistance widget is in the HOME grid splitter
+                # Note: We now use tabbed panels, so don't add assistance_widget directly
+                # The tabbed panel contains the assistance widget as one of its tabs
                 widget_in_splitter = False
                 for i in range(self.home_grid_splitter.count()):
-                    if self.home_grid_splitter.widget(i) == self.assistance_widget:
+                    widget = self.home_grid_splitter.widget(i)
+                    # Check if it's our tabbed panel (QTabWidget)
+                    if isinstance(widget, QTabWidget):
                         widget_in_splitter = True
                         break
                 
                 if not widget_in_splitter:
-                    # Re-add if not present (Qt widget reparenting)
-                    # QSplitter doesn't have removeWidget - just set parent to None
-                    # Qt will automatically remove it from any splitter
-                    if self.assistance_widget.parent():
-                        self.assistance_widget.setParent(None)
-                    
-                    # Set dimensions for side placement (full height, limited width)
-                    self.assistance_widget.setMaximumHeight(16777215)  # Qt's max height
-                    self.assistance_widget.setMinimumHeight(0)
-                    self.assistance_widget.setMinimumWidth(300)
-                    self.assistance_widget.show()
-                    
-                    # Add to horizontal splitter - Qt displays RIGHT to LEFT
-                    # Insert at position 1 to put assistance on LEFT (grid is at position 0 = RIGHT)
-                    self.home_grid_splitter.insertWidget(1, self.assistance_widget)
-                    self.home_grid_splitter.setSizes([1000, 400])  # Swapped: pos 0 (grid/RIGHT) = 1000, pos 1 (assistance/LEFT) = 400
-                    print(f"DEBUG (load_segments): Inserted assistance_widget at position 1")
+                    # Add tabbed panel if not present
+                    print("DEBUG (load_segments): Tabbed panel not found, recreating...")
+                    self.home_tabbed_panel = self.create_tabbed_assistance_panel()
+                    self.home_grid_splitter.addWidget(self.home_tabbed_panel)
+                    self.home_grid_splitter.setSizes([700, 300])
+                    print(f"DEBUG (load_segments): Added tabbed panel")
                     print(f"DEBUG (load_segments): home_grid_splitter now has {self.home_grid_splitter.count()} widgets")
                     for i in range(self.home_grid_splitter.count()):
                         child_widget = self.home_grid_splitter.widget(i)
@@ -6410,6 +6969,16 @@ class SupervertalerQt(QMainWindow):
             if current_row < len(self.current_project.segments):
                 segment = self.current_project.segments[current_row]
                 
+                # Update tab segment editor
+                if hasattr(self, 'update_tab_segment_editor'):
+                    self.update_tab_segment_editor(
+                        segment_id=segment.id,
+                        source_text=segment.source,
+                        target_text=segment.target,
+                        status=segment.status,
+                        notes=segment.notes
+                    )
+                
                 # Update notes immediately (no delay needed)
                 if hasattr(self.assistance_widget, 'notes_edit'):
                     try:
@@ -6424,63 +6993,92 @@ class SupervertalerQt(QMainWindow):
                     except Exception as e:
                         self.log(f"Error updating segment info: {e}")
                 
-                # Get stored termbase matches from the source editor widget
+                # Get termbase matches (from cache or search on-demand)
+                matches_dict = None  # Initialize at the top level
                 try:
+                    segment_id = segment.id
                     source_widget = self.table.cellWidget(current_row, 2)  # Source column is column 2
-                    if source_widget and hasattr(source_widget, 'termbase_matches'):
-                        stored_matches = source_widget.termbase_matches
-                        self.log(f"📋 Retrieved stored termbase matches: {len(stored_matches)} matches")
+                    
+                    # Check cache first (thread-safe)
+                    stored_matches = {}
+                    with self.termbase_cache_lock:
+                        if segment_id in self.termbase_cache:
+                            stored_matches = self.termbase_cache[segment_id]
+                            self.log(f"✅ Cache HIT: Retrieved {len(stored_matches)} termbase matches for segment {segment_id}")
+                    
+                    # If not in cache, search on-demand (lazy loading)
+                    if not stored_matches and source_widget:
+                        self.log(f"🔍 Cache MISS: Searching termbases for segment {segment_id}...")
+                        stored_matches = self.find_termbase_matches_in_source(segment.source)
                         
-                        if stored_matches and hasattr(self, 'assistance_widget'):
-                            # Convert stored matches to TranslationMatch objects
-                            from modules.translation_results_panel import TranslationMatch
-                            matches_dict = {
-                                "LLM": [],
-                                "NT": [],
-                                "MT": [],
-                                "TM": [],
-                                "Termbases": []
-                            }
-                            
-                            for source_term, target_term in stored_matches.items():
-                                match_obj = TranslationMatch(
-                                    source=source_term,
-                                    target=target_term,
-                                    relevance=95,  # High relevance for termbase matches
-                                    metadata={
-                                        'termbase_name': 'Default',
-                                        'definition': '',
-                                        'domain': ''
-                                    },
-                                    match_type='Termbase',
-                                    compare_source=source_term,
-                                    provider_code='TB'
-                                )
-                                matches_dict["Termbases"].append(match_obj)
-                            
-                            # Get current project languages for all translation services
-                            source_lang = getattr(self.current_project, 'source_lang', None) if self.current_project else None
-                            target_lang = getattr(self.current_project, 'target_lang', None) if self.current_project else None
-                            
-                            # Convert language names to codes if needed
-                            if source_lang:
-                                source_lang_code = self._convert_language_to_code(source_lang)
-                            if target_lang:
-                                target_lang_code = self._convert_language_to_code(target_lang)
-                            
-                            # Show immediate termbase matches, delay expensive TM/MT/LLM searches
-                            self.log(f"🚀 Immediate display: {len(matches_dict['Termbases'])} termbase matches")
-                            self.assistance_widget.set_matches(matches_dict)
-                        else:
-                            self.log("📋 No stored termbase matches found")
+                        # Store in cache for future access (thread-safe)
+                        if stored_matches:
+                            with self.termbase_cache_lock:
+                                self.termbase_cache[segment_id] = stored_matches
+                            self.log(f"💾 Cached {len(stored_matches)} matches for segment {segment_id}")
+                    
+                    # Store in widget for backwards compatibility
+                    if source_widget and hasattr(source_widget, 'termbase_matches'):
+                        source_widget.termbase_matches = stored_matches
+                    
+                    if stored_matches and hasattr(self, 'assistance_widget'):
+                        # Convert stored matches to TranslationMatch objects
+                        from modules.translation_results_panel import TranslationMatch
+                        matches_dict = {
+                            "LLM": [],
+                            "NT": [],
+                            "MT": [],
+                            "TM": [],
+                            "Termbases": []
+                        }
+                        
+                        for source_term, target_term in stored_matches.items():
+                            match_obj = TranslationMatch(
+                                source=source_term,
+                                target=target_term,
+                                relevance=95,  # High relevance for termbase matches
+                                metadata={
+                                    'termbase_name': 'Default',
+                                    'definition': '',
+                                    'domain': ''
+                                },
+                                match_type='Termbase',
+                                compare_source=source_term,
+                                provider_code='TB'
+                            )
+                            matches_dict["Termbases"].append(match_obj)
+                        
+                        # Get current project languages for all translation services
+                        source_lang = getattr(self.current_project, 'source_lang', None) if self.current_project else None
+                        target_lang = getattr(self.current_project, 'target_lang', None) if self.current_project else None
+                        
+                        # Convert language names to codes if needed
+                        if source_lang:
+                            source_lang_code = self._convert_language_to_code(source_lang)
+                        if target_lang:
+                            target_lang_code = self._convert_language_to_code(target_lang)
+                        
+                        # Show immediate termbase matches, delay expensive TM/MT/LLM searches
+                        self.log(f"🚀 Immediate display: {len(matches_dict['Termbases'])} termbase matches")
+                        
+                        # Update main assistance widget
+                        self.assistance_widget.set_matches(matches_dict)
+                        
+                        # Update all tabbed results panels
+                        if hasattr(self, 'results_panels'):
+                            for panel in self.results_panels:
+                                try:
+                                    panel.set_matches(matches_dict)
+                                except Exception as e:
+                                    self.log(f"Error updating results panel: {e}")
                     else:
-                        self.log("📋 Source widget has no termbase_matches attribute")
+                        self.log("📋 No stored termbase matches found")
                 except Exception as e:
                     self.log(f"Error retrieving stored termbase matches: {e}")
                     
                 # Schedule expensive searches (TM, MT, LLM) with debouncing to prevent UI blocking
                 # Pass the termbase matches to preserve them in delayed search
-                if hasattr(self, 'assistance_widget'):
+                if matches_dict and hasattr(self, 'assistance_widget'):
                     termbase_matches = matches_dict.get('Termbases', [])
                     self._schedule_mt_and_llm_matches(segment, termbase_matches)
         except Exception as e:
@@ -8361,11 +8959,25 @@ class SupervertalerQt(QMainWindow):
         if not segment:
             return
         
-        # Update editor
-        self.list_seg_info.setText(f"Segment {segment.id}")
-        self.list_source_editor.setPlainText(segment.source)
-        self.list_target_editor.setPlainText(segment.target)
-        self.list_status_combo.setCurrentText(segment.status)
+        # Update old list editor (if it exists - for backwards compatibility)
+        if hasattr(self, 'list_seg_info'):
+            self.list_seg_info.setText(f"Segment {segment.id}")
+        if hasattr(self, 'list_source_editor'):
+            self.list_source_editor.setPlainText(segment.source)
+        if hasattr(self, 'list_target_editor'):
+            self.list_target_editor.setPlainText(segment.target)
+        if hasattr(self, 'list_status_combo'):
+            self.list_status_combo.setCurrentText(segment.status)
+        
+        # Update tab segment editor
+        if hasattr(self, 'update_tab_segment_editor'):
+            self.update_tab_segment_editor(
+                segment_id=segment.id,
+                source_text=segment.source,
+                target_text=segment.target,
+                status=segment.status,
+                notes=segment.notes
+            )
         
         # Trigger assistance panel update (same as grid view)
         # Find row index for on_cell_selected
@@ -8436,6 +9048,190 @@ class SupervertalerQt(QMainWindow):
             self.list_tree.scrollToItem(next_item)
         else:
             self.log("✓ Last segment - no next segment")
+    
+    # ========================================================================
+    # TABBED SEGMENT EDITOR METHODS (for Grid/List views)
+    # ========================================================================
+    
+    def on_tab_target_change(self):
+        """Handle target text change in tab editor - updates all panels"""
+        if not hasattr(self, 'tab_current_segment_id') or not self.tab_current_segment_id:
+            return
+        
+        # Get the new text from whichever panel triggered this
+        new_text = None
+        if hasattr(self, 'tabbed_panels'):
+            for panel in self.tabbed_panels:
+                try:
+                    if hasattr(panel, 'editor_widget') and hasattr(panel.editor_widget, 'target_editor'):
+                        new_text = panel.editor_widget.target_editor.toPlainText()
+                        break  # Use text from first panel found
+                except:
+                    continue
+        
+        if new_text is None:
+            return
+        
+        # Auto-save to current_project data structure
+        if self.current_project and hasattr(self.current_project, 'segments'):
+            for seg in self.current_project.segments:
+                if seg.id == self.tab_current_segment_id:
+                    seg.target = new_text
+                    self.project_modified = True
+                    
+                    # Update all other panels to keep them in sync
+                    if hasattr(self, 'tabbed_panels'):
+                        for panel in self.tabbed_panels:
+                            try:
+                                if hasattr(panel, 'editor_widget') and hasattr(panel.editor_widget, 'target_editor'):
+                                    # Temporarily disconnect to avoid infinite loop
+                                    panel.editor_widget.target_editor.blockSignals(True)
+                                    panel.editor_widget.target_editor.setPlainText(new_text)
+                                    panel.editor_widget.target_editor.blockSignals(False)
+                            except:
+                                pass
+                    break
+    
+    def on_tab_segment_status_change(self, status: str):
+        """Handle status change in tab editor - updates all panels"""
+        if not hasattr(self, 'tab_current_segment_id') or not self.tab_current_segment_id:
+            return
+        
+        if self.current_project and hasattr(self.current_project, 'segments'):
+            for seg in self.current_project.segments:
+                if seg.id == self.tab_current_segment_id:
+                    seg.status = status
+                    self.project_modified = True
+                    self.log(f"✓ Status changed to: {status}")
+                    
+                    # Update all panels to keep them in sync
+                    if hasattr(self, 'tabbed_panels'):
+                        for panel in self.tabbed_panels:
+                            try:
+                                if hasattr(panel, 'editor_widget') and hasattr(panel.editor_widget, 'status_combo'):
+                                    panel.editor_widget.status_combo.blockSignals(True)
+                                    panel.editor_widget.status_combo.setCurrentText(status)
+                                    panel.editor_widget.status_combo.blockSignals(False)
+                            except:
+                                pass
+                    break
+    
+    def on_tab_notes_change(self):
+        """Handle notes change in tab editor - updates all panels"""
+        if not hasattr(self, 'tab_current_segment_id') or not self.tab_current_segment_id:
+            return
+        
+        # Get the new notes from whichever panel triggered this
+        new_notes = None
+        if hasattr(self, 'tabbed_panels'):
+            for panel in self.tabbed_panels:
+                try:
+                    if hasattr(panel, 'notes_widget') and hasattr(panel.notes_widget, 'notes_editor'):
+                        new_notes = panel.notes_widget.notes_editor.toPlainText()
+                        break
+                except:
+                    continue
+        
+        if new_notes is None:
+            return
+        
+        if self.current_project and hasattr(self.current_project, 'segments'):
+            for seg in self.current_project.segments:
+                if seg.id == self.tab_current_segment_id:
+                    seg.notes = new_notes
+                    self.project_modified = True
+                    
+                    # Update all other panels to keep them in sync
+                    if hasattr(self, 'tabbed_panels'):
+                        for panel in self.tabbed_panels:
+                            try:
+                                if hasattr(panel, 'notes_widget') and hasattr(panel.notes_widget, 'notes_editor'):
+                                    panel.notes_widget.notes_editor.blockSignals(True)
+                                    panel.notes_widget.notes_editor.setPlainText(new_notes)
+                                    panel.notes_widget.notes_editor.blockSignals(False)
+                            except:
+                                pass
+                    break
+    
+    def copy_source_to_tab_target(self):
+        """Copy source to target in tab editor - works with all panels"""
+        if hasattr(self, 'tabbed_panels'):
+            for panel in self.tabbed_panels:
+                try:
+                    if hasattr(panel, 'editor_widget'):
+                        source_text = panel.editor_widget.source_editor.toPlainText()
+                        panel.editor_widget.target_editor.setPlainText(source_text)
+                except:
+                    pass
+    
+    def clear_tab_target(self):
+        """Clear target in tab editor - works with all panels"""
+        if hasattr(self, 'tabbed_panels'):
+            for panel in self.tabbed_panels:
+                try:
+                    if hasattr(panel, 'editor_widget'):
+                        panel.editor_widget.target_editor.clear()
+                except:
+                    pass
+    
+    def save_tab_segment(self):
+        """Save current segment in tab editor"""
+        if not hasattr(self, 'tab_current_segment_id') or not self.tab_current_segment_id:
+            return
+        self.log(f"✓ Saved segment {self.tab_current_segment_id}")
+    
+    def save_tab_segment_and_next(self):
+        """Save current segment and move to next in tab editor"""
+        self.save_tab_segment()
+        
+        # Move to next segment based on current view
+        if self.current_view_mode == LayoutMode.GRID or (hasattr(self, 'home_view_stack') and 
+                                                          self.home_view_stack.currentIndex() == 0):
+            # Grid view - move to next row in table
+            if hasattr(self, 'table') and self.table:
+                current_row = self.table.currentRow()
+                if current_row < self.table.rowCount() - 1:
+                    self.table.setCurrentCell(current_row + 1, self.table.currentColumn())
+        elif self.current_view_mode == LayoutMode.LIST or (hasattr(self, 'home_view_stack') and 
+                                                             self.home_view_stack.currentIndex() == 1):
+            # List view - move to next item in list
+            if hasattr(self, 'list_tree') and self.list_tree:
+                current_item = self.list_tree.currentItem()
+                if current_item:
+                    current_index = self.list_tree.indexOfTopLevelItem(current_item)
+                    if current_index < self.list_tree.topLevelItemCount() - 1:
+                        next_item = self.list_tree.topLevelItem(current_index + 1)
+                        self.list_tree.setCurrentItem(next_item)
+    
+    def save_tab_notes(self):
+        """Save notes in tab editor"""
+        if not hasattr(self, 'tab_current_segment_id') or not self.tab_current_segment_id:
+            return
+        self.log(f"✓ Saved notes for segment {self.tab_current_segment_id}")
+    
+    def update_tab_segment_editor(self, segment_id: int, source_text: str, target_text: str, 
+                                   status: str = "untranslated", notes: str = ""):
+        """Update the tab segment editor with current segment data"""
+        # Update ALL tabbed panels (grid view and list view)
+        if hasattr(self, 'tabbed_panels'):
+            for panel in self.tabbed_panels:
+                try:
+                    # Update segment editor tab
+                    if hasattr(panel, 'editor_widget'):
+                        editor = panel.editor_widget
+                        editor.seg_info_label.setText(f"Segment {segment_id}")
+                        editor.source_editor.setPlainText(source_text)
+                        editor.target_editor.setPlainText(target_text)
+                        editor.status_combo.setCurrentText(status)
+                    
+                    # Update notes tab
+                    if hasattr(panel, 'notes_widget'):
+                        panel.notes_widget.notes_editor.setPlainText(notes)
+                except Exception as e:
+                    self.log(f"Error updating tabbed panel: {e}")
+        
+        # Store current segment ID
+        self.tab_current_segment_id = segment_id
     
     # ========================================================================
     # DOCUMENT VIEW METHODS

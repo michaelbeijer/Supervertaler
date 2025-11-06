@@ -26,7 +26,7 @@
 
 ### 🆕 Qt Edition (Modern) - **PRIMARY**
 **File:** `Supervertaler_Qt.py`  
-**Version:** v1.2.0 (November 6, 2025) 🎉  
+**Version:** v1.2.1 (November 6, 2025)  
 **Framework:** PyQt6  
 **Status:** Active Development
 
@@ -34,7 +34,13 @@
 python Supervertaler_Qt.py
 ```
 
-**NEW in v1.2.0 - Complete Translation Matching System:**
+**NEW in v1.2.1 - Unified Tabbed Interface:**
+- ✅ **Tabbed Panel in Grid View** - Translation Results | Segment Editor | Notes
+- ✅ **Tabbed Panel in List View** - Same 3-tab structure for consistency
+- ✅ **Synchronized Updates** - All panels update across all views simultaneously
+- ✅ **Enhanced Workflow** - Segment editing now available in Grid View
+
+**v1.2.0 Features - Complete Translation Matching System:**
 - ✅ **Google Cloud Translation** - Machine translation integrated
 - ✅ **Multi-LLM Support** - OpenAI GPT, Claude, Gemini (all working simultaneously)
 - ✅ **Complete Match Chaining** - Termbase + TM + MT + LLM matches displayed together

@@ -6,6 +6,49 @@ The Qt Edition is the **primary version** for active development and new feature
 
 ---
 
+## [1.2.1] - November 6, 2025
+
+### 🎨 UI Enhancement: Unified Tabbed Interface
+
+**Added consistent tabbed panel structure to both Grid and List views for improved workflow!**
+
+### Added
+- **✅ Tabbed Panel in Grid View**
+  - Tab 1: Translation Results (TM, MT, LLM, Termbase matches)
+  - Tab 2: Segment Editor (source/target editing, status selector)
+  - Tab 3: Notes (segment notes with save functionality)
+  - Enables segment editing directly in Grid View (like Tkinter edition)
+
+- **✅ Tabbed Panel in List View**
+  - Same 3-tab structure as Grid View for consistency
+  - Translation Results | Segment Editor | Notes
+  - Replaces single-panel layout with flexible tabbed interface
+
+- **✅ Synchronized Panel Updates**
+  - Clicking segment in any view updates ALL tabs in ALL views
+  - Editing in any panel automatically syncs to other panels
+  - Prevents infinite loops with signal blocking
+  - Multiple independent widget instances for Grid/List views
+
+### Fixed
+- **🐛 Widget Parenting Issues** - Fixed Qt single-parent constraint violations
+  - Created separate TranslationResultsPanel instances for each view
+  - Stored widget references on panel objects for flexible access
+  - Maintains `results_panels` and `tabbed_panels` lists for batch updates
+
+- **🐛 Signal Handler Crashes** - Fixed AttributeError when editing segments
+  - Updated `on_tab_target_change()`, `on_tab_segment_status_change()`, `on_tab_notes_change()`
+  - Handlers now iterate all panels instead of accessing non-existent attributes
+  - Proper error handling per panel to prevent cascade failures
+
+### Technical
+- Unified panel creation via `create_tabbed_assistance_panel()`
+- Widget reference storage pattern: `panel.editor_widget.source_editor`
+- Centralized update function: `update_tab_segment_editor()` iterates all panels
+- Signal blocking prevents infinite update loops during synchronization
+
+---
+
 ## [1.2.0] - November 6, 2025 🎉
 
 ### 🎯 MAJOR RELEASE: Complete Translation Matching System
