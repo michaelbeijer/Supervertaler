@@ -826,22 +826,42 @@ class DatabaseManager:
             SELECT 
                 t.id, t.source_term, t.target_term, t.termbase_id, t.priority, 
                 t.forbidden, t.source_lang, t.target_lang, t.definition, t.domain,
-                tb.name as termbase_name
+                tb.name as termbase_name,
+                tb.source_lang as termbase_source_lang,
+                tb.target_lang as termbase_target_lang
             FROM termbase_terms t
             LEFT JOIN termbases tb ON CAST(t.termbase_id AS INTEGER) = tb.id
-            WHERE t.source_term LIKE ?
+            WHERE (
+                t.source_term = ? OR 
+                t.source_term LIKE ? OR 
+                t.source_term LIKE ? OR 
+                t.source_term LIKE ?
+            )
         """
-        params = [f"%{search_term}%"]
+        # Exact match, word at start, word at end, word in middle
+        params = [
+            search_term,
+            f"{search_term} %",
+            f"% {search_term}",
+            f"% {search_term} %"
+        ]
         
-        # Language filters are optional - if not provided, don't filter by language
-        # This allows finding termbase matches regardless of language settings
+        # Language filters - if term has no language, use termbase language for filtering
         if source_lang:
-            query += " AND (t.source_lang = ? OR t.source_lang IS NULL OR t.source_lang = 'unknown')"
-            params.append(source_lang)
+            query += """ AND (
+                t.source_lang = ? OR 
+                (t.source_lang IS NULL AND tb.source_lang = ?) OR
+                (t.source_lang IS NULL AND tb.source_lang IS NULL)
+            )"""
+            params.extend([source_lang, source_lang])
         
         if target_lang:
-            query += " AND (t.target_lang = ? OR t.target_lang IS NULL OR t.target_lang = 'unknown')"
-            params.append(target_lang)
+            query += """ AND (
+                t.target_lang = ? OR 
+                (t.target_lang IS NULL AND tb.target_lang = ?) OR
+                (t.target_lang IS NULL AND tb.target_lang IS NULL)
+            )"""
+            params.extend([target_lang, target_lang])
         
         # Project filter: match project-specific terms OR global terms (project_id IS NULL)
         if project_id:

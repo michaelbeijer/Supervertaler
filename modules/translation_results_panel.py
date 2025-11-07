@@ -588,6 +588,15 @@ class TranslationResultsPanel(QWidget):
         Args:
             matches_dict: Dict with keys like "NT", "MT", "TM", "Termbases"
         """
+        print(f"🎯 TranslationResultsPanel.set_matches() called with matches_dict keys: {list(matches_dict.keys())}")
+        for match_type, matches in matches_dict.items():
+            print(f"  {match_type}: {len(matches)} matches")
+            if match_type == "Termbases" and matches:
+                for i, match in enumerate(matches[:2]):  # Show first 2 for debugging
+                    print(f"    [{i}] {match.source} → {match.target}")
+        
+        # Store current matches for delayed search access
+        self._current_matches = matches_dict.copy()
         self.matches_by_type = matches_dict
         self.all_matches = []
         self.match_items = []  # Track all match items for navigation

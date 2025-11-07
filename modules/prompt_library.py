@@ -39,17 +39,23 @@ class PromptLibrary:
     
     Loads JSON files from appropriate folders based on dev mode.
     """
-    def __init__(self, system_prompts_dir=None, custom_instructions_dir=None, log_callback=None):
+    def __init__(self, system_prompts_dir=None, custom_instructions_dir=None, log_callback=None, domain_prompts_dir=None, project_prompts_dir=None):
         """
         Initialize the Prompt Library.
         
         Args:
-            system_prompts_dir: Path to system prompts directory (if None, must be set later)
-            custom_instructions_dir: Path to custom instructions directory (if None, must be set later)
+            domain_prompts_dir: Path to domain prompts directory (Layer 2 - preferred parameter name)
+            project_prompts_dir: Path to project prompts directory (Layer 3 - preferred parameter name)
+            system_prompts_dir: (Deprecated) Alias for domain_prompts_dir for backward compatibility
+            custom_instructions_dir: (Deprecated) Alias for project_prompts_dir for backward compatibility
             log_callback: Function to call for logging messages
         """
-        self.system_prompts_dir = system_prompts_dir
-        self.custom_instructions_dir = custom_instructions_dir
+        # Support both old and new parameter names
+        self.domain_prompts_dir = domain_prompts_dir or system_prompts_dir
+        self.project_prompts_dir = project_prompts_dir or custom_instructions_dir
+        # Keep old names for backward compatibility
+        self.system_prompts_dir = self.domain_prompts_dir
+        self.custom_instructions_dir = self.project_prompts_dir
         
         self.log = log_callback if log_callback else print
         
@@ -64,12 +70,24 @@ class PromptLibrary:
         self.active_prompt = None  # Currently selected prompt
         self.active_prompt_name = None
     
-    def set_directories(self, system_prompts_dir, custom_instructions_dir):
-        """Set the directories after initialization"""
-        self.system_prompts_dir = system_prompts_dir
-        self.custom_instructions_dir = custom_instructions_dir
-        os.makedirs(self.system_prompts_dir, exist_ok=True)
-        os.makedirs(self.custom_instructions_dir, exist_ok=True)
+    def set_directories(self, domain_prompts_dir=None, project_prompts_dir=None, system_prompts_dir=None, custom_instructions_dir=None):
+        """Set the directories after initialization
+        
+        Args:
+            domain_prompts_dir: Path to domain prompts directory (Layer 2 - preferred)
+            project_prompts_dir: Path to project prompts directory (Layer 3 - preferred)
+            system_prompts_dir: (Deprecated) Alias for domain_prompts_dir
+            custom_instructions_dir: (Deprecated) Alias for project_prompts_dir
+        """
+        # Support both old and new parameter names
+        self.domain_prompts_dir = domain_prompts_dir or system_prompts_dir
+        self.project_prompts_dir = project_prompts_dir or custom_instructions_dir
+        # Keep old names for backward compatibility
+        self.system_prompts_dir = self.domain_prompts_dir
+        self.custom_instructions_dir = self.project_prompts_dir
+        
+        os.makedirs(self.domain_prompts_dir, exist_ok=True)
+        os.makedirs(self.project_prompts_dir, exist_ok=True)
         
     def load_all_prompts(self):
         """Load all prompts (system prompts and custom instructions) from appropriate directories"""

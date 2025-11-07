@@ -76,8 +76,8 @@ class PromptManagerQt:
         project_prompts_dir = self.user_data_path / "Prompt_Library" / "3_Project_Prompts"
         
         self.prompt_library = PromptLibrary(
-            system_prompts_dir=str(domain_prompts_dir),
-            custom_instructions_dir=str(project_prompts_dir),
+            domain_prompts_dir=str(domain_prompts_dir),
+            project_prompts_dir=str(project_prompts_dir),
             log_callback=self.log
         )
         
@@ -278,6 +278,9 @@ class PromptManagerQt:
         # Set minimum width to allow resizing further to the left
         self.editor_panel.setMinimumWidth(200)
         main_splitter.addWidget(self.editor_panel)
+        
+        # NOW that editor_panel exists, trigger initial tab change handler to set correct visibility
+        self._on_tab_changed(self.list_tabs.currentIndex())
         
         # Configure splitter for smooth resizing
         main_splitter.setChildrenCollapsible(False)  # Prevent panels from collapsing completely
@@ -604,18 +607,6 @@ class PromptManagerQt:
         editor_label = QLabel("📝 Edit Guide")
         editor_label.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
         editor_layout.addWidget(editor_label)
-        
-        # View mode toggle
-        view_mode_frame = QHBoxLayout()
-        view_mode_label = QLabel("View Mode:")
-        view_mode_frame.addWidget(view_mode_label)
-        
-        self.style_view_mode = QComboBox()
-        self.style_view_mode.addItems(["Formatted", "Raw Markdown"])
-        self.style_view_mode.currentTextChanged.connect(self._on_style_view_mode_change)
-        view_mode_frame.addWidget(self.style_view_mode)
-        view_mode_frame.addStretch()
-        editor_layout.addLayout(view_mode_frame)
         
         # Editor
         self.style_editor = QPlainTextEdit()
@@ -1184,12 +1175,12 @@ class PromptManagerQt:
         if not guide:
             return
         
-        # Store raw content for toggling
+        # Store language and display raw markdown content
         self.current_style_language = language
-        self.current_style_raw_content = guide.get('content', '')
+        content = guide.get('content', '')
         
         # Display in editor
-        self.style_editor.setPlainText(self.current_style_raw_content)
+        self.style_editor.setPlainText(content)
     
     def _populate_editor(self, prompt_data):
         """Populate editor with prompt data"""
@@ -1223,6 +1214,8 @@ class PromptManagerQt:
                 content = str(content)
             else:
                 content = ''
+            
+            # Display raw markdown content
             self.editor_content.setPlainText(content)
         except Exception as e:
             self.log_message(f"Error populating editor: {str(e)}")
@@ -1422,34 +1415,50 @@ class PromptManagerQt:
         dialog.exec()
     
     def _preview_combined_prompt(self):
-        """Preview the complete combined prompt (all layers) with current segment - like tkinter"""
-        # Check if project is loaded and has segments
+        """Preview the complete combined prompt (all layers) - works with or without segment selection"""
+        # Check if project is loaded
         if not hasattr(self.parent_app, 'current_project') or not self.parent_app.current_project:
             self._show_message(
                 QMessageBox.Icon.Warning,
                 "No Project",
-                "Please load a project with segments first.\n\nThe preview shows the exact prompt that will be sent to the AI for the currently selected segment."
+                "Please load a project first to preview the prompts."
             )
             return
         
-        # Get current segment from grid
+        # Get current segment from grid if one is selected (optional now)
         current_segment = None
+        current_segment_id = "Preview"
+        
         if hasattr(self.parent_app, 'table') and self.parent_app.table:
             current_row = self.parent_app.table.currentRow()
             if current_row >= 0:
-                # Map display row to actual segment index (handles pagination)
-                if hasattr(self.parent_app, 'grid_row_to_segment_index') and current_row in self.parent_app.grid_row_to_segment_index:
-                    actual_index = self.parent_app.grid_row_to_segment_index[current_row]
-                    if actual_index < len(self.parent_app.current_project.segments):
-                        current_segment = self.parent_app.current_project.segments[actual_index]
+                # Try to map display row to actual segment index (for pagination)
+                actual_index = current_row
+                
+                if hasattr(self.parent_app, 'grid_row_to_segment_index') and self.parent_app.grid_row_to_segment_index:
+                    if current_row in self.parent_app.grid_row_to_segment_index:
+                        actual_index = self.parent_app.grid_row_to_segment_index[current_row]
+                
+                # Get segment at actual index
+                if actual_index < len(self.parent_app.current_project.segments):
+                    current_segment = self.parent_app.current_project.segments[actual_index]
+                    current_segment_id = current_segment.id
         
+        # Use a sample segment if none selected, or use default text
         if not current_segment:
-            self._show_message(
-                QMessageBox.Icon.Information,
-                "No Segment Selected",
-                "Please select a segment in the grid to preview the prompt.\n\nThe preview will show how all prompt layers (System, Domain, Project, Style Guide) are combined for that segment."
-            )
-            return
+            # If project has segments, use the first one as example
+            if len(self.parent_app.current_project.segments) > 0:
+                current_segment = self.parent_app.current_project.segments[0]
+                current_segment_id = f"Example: {current_segment.id}"
+            else:
+                # No segments - use dummy segment
+                from dataclasses import dataclass
+                @dataclass
+                class DummySegment:
+                    id: int = 0
+                    source: str = "[Example source text - no actual segment selected]"
+                current_segment = DummySegment()
+                current_segment_id = "Preview (No Segment Selected)"
         
         # Get languages
         source_lang = getattr(self.parent_app.current_project, 'source_lang', 'English')
@@ -1489,14 +1498,14 @@ class PromptManagerQt:
         # Show preview dialog with full combined prompt
         self._show_combined_prompt_preview_dialog(
             full_prompt,
-            f"{source_lang} → {target_lang} | Segment #{current_segment.id}",
+            f"{source_lang} → {target_lang} | {current_segment_id}",
             composition_text,
             current_segment.source
         )
     
     def _show_combined_prompt_preview_dialog(self, prompt_text, header_text, composition_text, source_text):
         """Show dialog with combined prompt preview - matches tkinter style"""
-        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QTextEdit, QPushButton, QDialogButtonBox, QApplication
+        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QTextEdit, QPushButton, QDialogButtonBox, QApplication, QFileDialog
         from PyQt6.QtGui import QFont, QTextCharFormat, QTextCursor
         from PyQt6.QtCore import Qt
         
@@ -1543,15 +1552,214 @@ class PromptManagerQt:
         
         layout.addWidget(prompt_text_edit, 1)
         
-        # Buttons
-        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Copy)
-        copy_btn = button_box.button(QDialogButtonBox.StandardButton.Copy)
-        copy_btn.setText("📋 Copy to Clipboard")
+        # Buttons - Create OK button, Copy button, and PDF export button
+        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok)
+        
+        # Add custom Copy button (StandardButton doesn't have Copy in PyQt6)
+        copy_btn = QPushButton("📋 Copy to Clipboard")
         copy_btn.clicked.connect(lambda: QApplication.clipboard().setText(prompt_text))
+        button_box.addButton(copy_btn, QDialogButtonBox.ButtonRole.ActionRole)
+        
+        # Add PDF export button
+        pdf_btn = QPushButton("📄 Export to PDF")
+        pdf_btn.clicked.connect(lambda: self._export_prompt_to_pdf(prompt_text, header_text, composition_text, source_text))
+        button_box.addButton(pdf_btn, QDialogButtonBox.ButtonRole.ActionRole)
+        
         button_box.accepted.connect(dialog.accept)
         layout.addWidget(button_box)
         
         dialog.exec()
+    
+    def _export_prompt_to_pdf(self, prompt_text, header_text, composition_text, source_text):
+        """Export the complete prompt to a nicely formatted PDF file"""
+        from PyQt6.QtWidgets import QFileDialog, QMessageBox
+        from datetime import datetime
+        
+        try:
+            # Import reportlab for PDF generation
+            try:
+                from reportlab.lib.pagesizes import letter, A4
+                from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+                from reportlab.lib.units import inch
+                from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Preformatted
+                from reportlab.lib import colors
+                from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_JUSTIFY
+                from reportlab.pdfgen import canvas
+            except ImportError:
+                QMessageBox.warning(
+                    self.parent_app,
+                    "Missing Dependency",
+                    "reportlab is required for PDF export.\n\n"
+                    "Install it with: pip install reportlab"
+                )
+                return
+            
+            # Get file path from user
+            file_path, _ = QFileDialog.getSaveFileName(
+                self.parent_app,
+                "Export Prompt to PDF",
+                f"prompt_preview_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+                "PDF Files (*.pdf);;All Files (*.*)"
+            )
+            
+            if not file_path:
+                return  # User cancelled
+            
+            # Create PDF document with custom page setup
+            doc = SimpleDocTemplate(
+                file_path, 
+                pagesize=letter, 
+                topMargin=0.5*inch, 
+                bottomMargin=0.5*inch,
+                leftMargin=0.5*inch,
+                rightMargin=0.5*inch
+            )
+            story = []
+            
+            # Get styles
+            styles = getSampleStyleSheet()
+            
+            title_style = ParagraphStyle(
+                'CustomTitle',
+                parent=styles['Heading1'],
+                fontSize=16,
+                textColor=colors.HexColor('#2196F3'),
+                spaceAfter=12,
+                alignment=TA_CENTER
+            )
+            
+            heading_style = ParagraphStyle(
+                'CustomHeading',
+                parent=styles['Heading2'],
+                fontSize=12,
+                textColor=colors.white,
+                backColor=colors.HexColor('#1976D2'),
+                spaceAfter=10,
+                spaceBefore=10,
+                borderPadding=8
+            )
+            
+            body_style = ParagraphStyle(
+                'CustomBody',
+                parent=styles['BodyText'],
+                fontSize=10,
+                alignment=TA_JUSTIFY,
+                spaceAfter=8,
+                leading=12
+            )
+            
+            composition_style = ParagraphStyle(
+                'Composition',
+                parent=styles['Normal'],
+                fontSize=9,
+                spaceAfter=6,
+                leading=11
+            )
+            
+            # Add title
+            title = Paragraph("🧪 Complete AI Prompt Preview", title_style)
+            story.append(title)
+            story.append(Spacer(1, 0.2*inch))
+            
+            # Add header info
+            header_para = Paragraph(f"<b>{header_text}</b>", body_style)
+            story.append(header_para)
+            story.append(Spacer(1, 0.15*inch))
+            
+            # Add composition breakdown with better formatting
+            story.append(Paragraph("📋 Prompt Composition:", heading_style))
+            for line in composition_text.split('\n'):
+                if line.strip():
+                    # Add bullet point formatting
+                    formatted_line = line.replace('• ', '&nbsp;&nbsp;• ', 1)
+                    story.append(Paragraph(formatted_line, composition_style))
+            story.append(Spacer(1, 0.2*inch))
+            
+            # Add source text
+            story.append(Paragraph("📝 Source Text:", heading_style))
+            story.append(Spacer(1, 0.1*inch))
+            
+            # Escape HTML in source text and wrap in quotes
+            source_text_escaped = source_text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+            source_para = Paragraph(f'<i>"{source_text_escaped}"</i>', body_style)
+            story.append(source_para)
+            story.append(Spacer(1, 0.25*inch))
+            
+            # Add main prompt section
+            story.append(Paragraph("✨ Complete Combined Prompt (What AI Will Receive):", heading_style))
+            story.append(Spacer(1, 0.15*inch))
+            
+            # Use Preformatted for the actual prompt to preserve formatting
+            # But we need to escape it properly
+            prompt_text_escaped = prompt_text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+            
+            # Split into smaller chunks to avoid memory issues with very long text
+            chunk_size = 2000  # Characters per chunk
+            prompt_chunks = [prompt_text_escaped[i:i+chunk_size] for i in range(0, len(prompt_text_escaped), chunk_size)]
+            
+            # Create a monospace style for the prompt
+            prompt_style = ParagraphStyle(
+                'PromptText',
+                parent=styles['Normal'],
+                fontSize=8.5,
+                leading=10,
+                fontName='Courier',
+                textColor=colors.HexColor('#333333'),
+                backColor=colors.HexColor('#F9F9F9'),
+                borderColor=colors.HexColor('#DDDDDD'),
+                borderWidth=1,
+                borderPadding=8,
+                wordWrap='CJK'  # Better word wrapping
+            )
+            
+            for chunk in prompt_chunks:
+                # Split chunk into lines to maintain some structure
+                lines = chunk.split('\n')
+                chunk_para = '<br/>'.join(lines[:20])  # Show 20 lines per chunk
+                story.append(Paragraph(chunk_para, prompt_style))
+                
+                # Add page break if we're getting long
+                if len(story) > 15:
+                    story.append(PageBreak())
+            
+            story.append(Spacer(1, 0.3*inch))
+            
+            # Add footer with metadata
+            footer_style = ParagraphStyle(
+                'Footer',
+                parent=styles['Normal'],
+                fontSize=8,
+                textColor=colors.HexColor('#999999'),
+                alignment=TA_CENTER
+            )
+            story.append(Paragraph(
+                f"<i>Generated by Supervertaler on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</i>",
+                footer_style
+            ))
+            
+            # Build PDF
+            doc.build(story)
+            
+            # Show success message
+            QMessageBox.information(
+                self.parent_app,
+                "✅ PDF Exported",
+                f"Prompt successfully exported to:\n\n{file_path}"
+            )
+            
+            if hasattr(self.parent_app, 'log'):
+                self.parent_app.log(f"✓ Exported prompt to PDF: {file_path}")
+            
+        except Exception as e:
+            QMessageBox.critical(
+                self.parent_app,
+                "❌ Export Error",
+                f"Failed to export prompt to PDF:\n\n{str(e)}"
+            )
+            if hasattr(self.parent_app, 'log'):
+                self.parent_app.log(f"✗ Error exporting to PDF: {e}")
+                import traceback
+                self.parent_app.log(traceback.format_exc())
     
     def _activate_project_guideline(self):
         """Activate selected Project Prompt (Layer 3)"""
@@ -1736,7 +1944,7 @@ Add your translation guidelines here...
 """
         
         try:
-            system_prompts_dir.mkdir(parents=True, exist_ok=True)
+            domain_prompts_dir.mkdir(parents=True, exist_ok=True)
             filepath.write_text(template, encoding='utf-8')
             
             # Reload and select
@@ -1815,7 +2023,7 @@ Add your custom rules and guidelines here...
 """
         
         try:
-            custom_dir.mkdir(parents=True, exist_ok=True)
+            project_dir.mkdir(parents=True, exist_ok=True)
             filepath.write_text(template, encoding='utf-8')
             
             # Reload and select
@@ -2094,12 +2302,6 @@ Professional style guidelines for translating into {language}.
             self._show_message(QMessageBox.Icon.Information, "Exported", "Style guide exported successfully.")
         except Exception as e:
             self._show_message(QMessageBox.Icon.Critical, "Error", f"Failed to export style guide:\n{str(e)}")
-    
-    def _on_style_view_mode_change(self, mode_text):
-        """Handle style guide view mode change"""
-        # For now, just show raw markdown
-        # Could add markdown rendering later
-        pass
     
     # ===== Prompt Assistant Methods =====
     
@@ -2737,15 +2939,30 @@ Provide the two prompts in the specified format."""
                     from openai import OpenAI
                     openai_client = OpenAI(api_key=api_keys.get('openai'))
                     
-                    response = openai_client.chat.completions.create(
-                        model=model_name,
-                        messages=[
+                    # Detect if this is a reasoning model (GPT-5, o1, o3)
+                    model_lower = model_name.lower()
+                    is_reasoning_model = any(x in model_lower for x in ["gpt-5", "o1", "o3"])
+                    
+                    # Build API parameters based on model type
+                    api_params = {
+                        "model": model_name,
+                        "messages": [
                             {"role": "system", "content": system_prompt},
                             {"role": "user", "content": user_prompt}
-                        ],
-                        temperature=0.4,
-                        max_tokens=8000
-                    )
+                        ]
+                    }
+                    
+                    if is_reasoning_model:
+                        # Reasoning models use max_completion_tokens instead of max_tokens
+                        # and don't support temperature parameter
+                        api_params["max_completion_tokens"] = 8000
+                        # Note: temperature is NOT included for reasoning models
+                    else:
+                        # Standard models use max_tokens and temperature
+                        api_params["temperature"] = 0.4
+                        api_params["max_tokens"] = 8000
+                    
+                    response = openai_client.chat.completions.create(**api_params)
                     ai_response = response.choices[0].message.content
                     finish_reason = response.choices[0].finish_reason
                     if finish_reason == 'length':
@@ -3255,7 +3472,7 @@ Provide the two prompts in the specified format."""
                     self.parent_app if self.parent_app else None,
                     "Saved!",
                     f"Domain Prompt saved as:\n{filename}\n\n"
-                    f"Location: {system_prompts_dir}\n\n"
+                    f"Location: {os.path.normpath(str(domain_prompts_dir))}\n\n"
                     f"It will now appear in your Prompt Manager → Domain Prompts section."
                 )
                 
@@ -3381,7 +3598,7 @@ Provide the two prompts in the specified format."""
                     self.parent_app if self.parent_app else None,
                     "Saved!",
                     f"Project Prompt saved as:\n\n{filename}\n\n"
-                    f"Location: {custom_instructions_dir}"
+                    f"Location: {os.path.normpath(str(project_prompts_dir))}"
                 )
                 
             except Exception as e:
