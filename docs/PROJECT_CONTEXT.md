@@ -791,9 +791,9 @@ Ready to integrate into TranslationResultsPanel's compare boxes.
 
 ## 📞 Contact / Maintenance
 
-**Active Development By:** Michael Beijer  
-**Project Started:** October 2025  
-**Last Major Update:** October 29, 2025  
+**Active Development By:** Michael Beijer
+**Project Started:** October 2025
+**Last Major Update:** November 7, 2025
 
 **Development Workflow:**
 1. Develop in workspace folder
@@ -801,4 +801,36 @@ Ready to integrate into TranslationResultsPanel's compare boxes.
 3. Update PROJECT_CONTEXT.md periodically
 4. Commit changes to GitHub
 5. Reference previous chats as needed for continuity
+
+---
+
+## Recent Updates (November 7, 2025) - v1.2.3
+
+### Status Column UI Improvements
+Fixed and enhanced the status column display in Grid view:
+
+**Visual Fixes:**
+- Fixed status column background stretching issues when using auto-resize rows
+- Removed fixed minimum height from status widgets - now adapts to row height
+- Increased minimum row height from 20px to 32px to prevent icon cutoff
+- Status widgets now properly center vertically regardless of row height
+- Match percentage label only shows when match data exists (eliminates empty gaps)
+
+**Icon Improvements:**
+- **Not started**: ❌ (red X, 11px) - matches memoQ style
+- **Pre-translated**: 🤖 (robot) - clearer indication of automatic translation
+- **Translated**: ✏️ (pencil) - matches Trados style for manual work
+- **Confirmed**: ✔ (green checkmark via CSS) - clean, consistent with ❌
+- Swapped Translated and Confirmed icons for better semantic meaning
+- Improved comment icon: 🗨️ with text-shadow for better visibility
+
+**Interaction Changes:**
+- Disabled click-to-change-status on status column (prevents visual glitches)
+- Status changes now only via Segment Editor (more intentional workflow)
+
+**Technical Changes:**
+- Background color now on table item, widget is transparent (prevents rendering issues)
+- Status icon size varies by status: 11px for ❌, 14px for others
+- Green color (#2e7d32) applied via CSS to confirmed checkmark
+- All changes in `Supervertaler_Qt.py` and `modules/statuses.py`
 

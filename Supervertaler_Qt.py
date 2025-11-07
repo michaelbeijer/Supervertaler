@@ -3,7 +3,6 @@ Supervertaler Qt Edition
 ========================
 The ultimate companion tool for translators and writers.
 Modern PyQt6 interface with specialised modules to handle any problem.
-
 Version: 1.2.1 (Unified Tabbed Interface)
 Release Date: November 6, 2025
 Framework: PyQt6
@@ -28,9 +27,9 @@ License: MIT
 """
 
 # Version Information
-__version__ = "1.2.2"
+__version__ = "1.2.3"
 __phase__ = "6.1"
-__release_date__ = "2025-11-06"
+__release_date__ = "2025-11-07"
 __edition__ = "Qt"
 
 import sys
@@ -39,11 +38,12 @@ import os
 import subprocess
 import atexit
 from pathlib import Path
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 from dataclasses import dataclass, asdict
 from datetime import datetime
 import threading
 import time  # For delays in Universal Lookup
+import re
 
 # Fix encoding for Windows console (UTF-8 support)
 if sys.platform == 'win32':
@@ -54,6 +54,30 @@ if sys.platform == 'win32':
 # External dependencies
 import pyperclip  # For clipboard operations in Universal Lookup
 from modules.universal_lookup import UniversalLookupEngine  # Universal Lookup engine
+from modules.statuses import (
+    STATUSES,
+    DEFAULT_STATUS,
+    StatusDefinition,
+    get_status,
+    match_memoq_status,
+    compose_memoq_status,
+)
+
+
+STATUS_ORDER = [
+    "not_started",
+    "pretranslated",
+    "translated",
+    "confirmed",
+    "tr_confirmed",
+    "proofread",
+    "approved",
+    "rejected",
+]
+
+STATUS_CYCLE = STATUS_ORDER
+
+TRANSLATABLE_STATUSES = {"not_started", "pretranslated", "translated"}
 
 # Check for PyQt6 and offer to install if missing
 try:
@@ -143,9 +167,11 @@ class Segment:
     id: int
     source: str
     target: str = ""
-    status: str = "untranslated"  # untranslated, draft, translated, approved
+    status: str = DEFAULT_STATUS.key
     type: str = "para"  # para, heading, list_item, table_cell
-    notes: str = ""
+    notes: str = ""  # Stored as “Comments” in UI
+    match_percent: Optional[int] = None  # memoQ match score if provided
+    memoQ_status: str = ""  # Raw memoQ status text
     locked: bool = False  # For compatibility with tkinter version
     paragraph_id: int = 0  # Group segments by paragraph for document flow
     style: str = "Normal"  # Heading 1, Heading 2, Title, Subtitle, Normal, etc.
@@ -1132,11 +1158,45 @@ class SupervertalerQt(QMainWindow):
         translate_action.setShortcut("Ctrl+T")
         translate_action.triggered.connect(self.translate_current_segment)
         edit_menu.addAction(translate_action)
-        
-        batch_translate_action = QAction("Translate &Multiple Segments...", self)
-        batch_translate_action.setShortcut("Ctrl+Shift+T")
-        batch_translate_action.triggered.connect(self.translate_batch)
-        edit_menu.addAction(batch_translate_action)
+
+        translate_menu = edit_menu.addMenu("Translate &Multiple Segments")
+
+        translate_selected_not_started_action = QAction("Translate selected not-started segments", self)
+        translate_selected_not_started_action.triggered.connect(
+            lambda checked=False: self.translate_multiple_segments("selected_not_started")
+        )
+        translate_menu.addAction(translate_selected_not_started_action)
+
+        translate_all_not_started_action = QAction("Translate all not-started segments", self)
+        translate_all_not_started_action.triggered.connect(
+            lambda checked=False: self.translate_multiple_segments("all_not_started")
+        )
+        translate_menu.addAction(translate_all_not_started_action)
+
+        translate_all_pretranslated_action = QAction("Translate all pre-translated segments", self)
+        translate_all_pretranslated_action.triggered.connect(
+            lambda checked=False: self.translate_multiple_segments("all_pretranslated")
+        )
+        translate_menu.addAction(translate_all_pretranslated_action)
+
+        translate_pending_action = QAction("Translate all not-started & pre-translated", self)
+        translate_pending_action.setShortcut("Ctrl+Shift+T")
+        translate_pending_action.triggered.connect(
+            lambda checked=False: self.translate_multiple_segments("all_not_started_pretranslated")
+        )
+        translate_menu.addAction(translate_pending_action)
+
+        translate_translatable_action = QAction("Translate all translatable segments", self)
+        translate_translatable_action.triggered.connect(
+            lambda checked=False: self.translate_multiple_segments("all_translatable")
+        )
+        translate_menu.addAction(translate_translatable_action)
+
+        translate_all_segments_action = QAction("Translate all segments (all statuses)", self)
+        translate_all_segments_action.triggered.connect(
+            lambda checked=False: self.translate_multiple_segments("all_segments")
+        )
+        translate_menu.addAction(translate_all_segments_action)
         
         edit_menu.addSeparator()
         
@@ -4238,16 +4298,18 @@ class SupervertalerQt(QMainWindow):
             header = self.list_tree.header()
             header.setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)  # ID - resizable
             header.setSectionResizeMode(1, QHeaderView.ResizeMode.Interactive)  # Type - resizable
-            header.setSectionResizeMode(2, QHeaderView.ResizeMode.Interactive)  # Status - resizable
-            header.setSectionResizeMode(3, QHeaderView.ResizeMode.Interactive)  # Source - resizable
-            header.setSectionResizeMode(4, QHeaderView.ResizeMode.Interactive)  # Target - resizable
+            header.setSectionResizeMode(2, QHeaderView.ResizeMode.Interactive)  # Match
+            header.setSectionResizeMode(3, QHeaderView.ResizeMode.Interactive)  # Status - resizable
+            header.setSectionResizeMode(4, QHeaderView.ResizeMode.Interactive)  # Source - resizable
+            header.setSectionResizeMode(5, QHeaderView.ResizeMode.Interactive)  # Target - resizable
             
             self.list_tree.setColumnWidth(0, 50)
             self.list_tree.setColumnWidth(1, 80)
             self.list_tree.setColumnWidth(2, 80)
             # Set default widths for Source and Target columns
-            self.list_tree.setColumnWidth(3, 400)
-            self.list_tree.setColumnWidth(4, 400)
+            self.list_tree.setColumnWidth(3, 80)
+            self.list_tree.setColumnWidth(4, 350)
+            self.list_tree.setColumnWidth(5, 350)
             
             # Connect selection
             self.list_tree.itemSelectionChanged.connect(self.on_list_segment_selected)
@@ -4372,18 +4434,18 @@ class SupervertalerQt(QMainWindow):
         
         # Column widths - all resizable
         header = self.list_tree.header()
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)  # ID - resizable
-        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Interactive)  # Type - resizable
-        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Interactive)  # Status - resizable
-        header.setSectionResizeMode(3, QHeaderView.ResizeMode.Interactive)  # Source - resizable
-        header.setSectionResizeMode(4, QHeaderView.ResizeMode.Interactive)  # Target - resizable
-        
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Interactive)
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Interactive)
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.Interactive)
+        header.setSectionResizeMode(4, QHeaderView.ResizeMode.Interactive)
+
         self.list_tree.setColumnWidth(0, 50)
         self.list_tree.setColumnWidth(1, 80)
-        self.list_tree.setColumnWidth(2, 80)
+        self.list_tree.setColumnWidth(2, 160)
         # Set default widths for Source and Target columns
-        self.list_tree.setColumnWidth(3, 400)
-        self.list_tree.setColumnWidth(4, 400)
+        self.list_tree.setColumnWidth(3, 360)
+        self.list_tree.setColumnWidth(4, 360)
         
         # Connect selection
         self.list_tree.itemSelectionChanged.connect(self.on_list_segment_selected)
@@ -4465,9 +4527,9 @@ class SupervertalerQt(QMainWindow):
         # Set initial column widths - give Source and Target equal space
         self.table.setColumnWidth(0, 50)   # ID
         self.table.setColumnWidth(1, 100)  # Type
-        self.table.setColumnWidth(2, 400)  # Source (wider initial width for better visibility)
-        self.table.setColumnWidth(3, 400)  # Target (equal to Source for balanced layout)
-        self.table.setColumnWidth(4, 80)   # Status
+        self.table.setColumnWidth(2, 400)  # Source
+        self.table.setColumnWidth(3, 400)  # Target
+        self.table.setColumnWidth(4, 120)  # Status
         
         # Enable word wrap in cells (both display and edit mode)
         self.table.setWordWrap(True)
@@ -4494,6 +4556,8 @@ class SupervertalerQt(QMainWindow):
             QTableWidget::item {
                 padding: 4px;
                 border: none;
+                border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+                border-right: 1px solid rgba(0, 0, 0, 0.08);
             }
             QTableWidget::item:selected {
                 background-color: #e3f2fd;  /* Light blue instead of bright blue */
@@ -4501,6 +4565,9 @@ class SupervertalerQt(QMainWindow):
             }
             QTableWidget::item:focus {
                 border: 1px solid #2196F3;
+            }
+            QTableWidget::item:last-child {
+                border-right: none;
             }
         """)
         
@@ -4570,8 +4637,10 @@ class SupervertalerQt(QMainWindow):
         # Status selector
         status_label = QLabel("Status:")
         tab_status_combo = QComboBox()
-        tab_status_combo.addItems(["untranslated", "translated", "approved"])
-        tab_status_combo.currentTextChanged.connect(self.on_tab_segment_status_change)
+        for status_key in STATUS_ORDER:
+            definition = get_status(status_key)
+            tab_status_combo.addItem(definition.label, status_key)
+        tab_status_combo.currentIndexChanged.connect(self.on_tab_status_combo_changed)
         info_layout.addWidget(status_label)
         info_layout.addWidget(tab_status_combo)
         editor_layout.addLayout(info_layout)
@@ -4624,18 +4693,18 @@ class SupervertalerQt(QMainWindow):
         editor_layout.addStretch()
         tabs.addTab(editor_widget, "📝 Segment Editor")
         
-        # Tab 3: Notes Editor
+        # Tab 3: Comments Editor
         notes_widget = QWidget()
         notes_layout = QVBoxLayout(notes_widget)
         notes_layout.setContentsMargins(10, 10, 10, 10)
         
-        notes_header = QLabel("Segment Notes")
+        notes_header = QLabel("Segment Comments")
         notes_header.setStyleSheet("font-weight: bold; font-size: 11pt;")
         notes_layout.addWidget(notes_header)
         
         tab_notes_editor = QTextEdit()
-        tab_notes_editor.setPlaceholderText("Add notes for this segment...\n\n"
-                                            "Notes are saved per segment and can include:\n"
+        tab_notes_editor.setPlaceholderText("Add comments for this segment...\n\n"
+                                            "Comments are saved per segment and can include:\n"
                                             "• Translation context\n"
                                             "• Client preferences\n"
                                             "• Terminology decisions\n"
@@ -4643,18 +4712,18 @@ class SupervertalerQt(QMainWindow):
         tab_notes_editor.textChanged.connect(self.on_tab_notes_change)
         notes_layout.addWidget(tab_notes_editor)
         
-        # Store reference to THIS panel's notes editor
+        # Store reference to THIS panel's comments editor
         notes_widget.notes_editor = tab_notes_editor
         
         notes_button_layout = QHBoxLayout()
-        save_notes_btn = QPushButton("💾 Save Notes")
+        save_notes_btn = QPushButton("💾 Save Comments")
         save_notes_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold;")
         save_notes_btn.clicked.connect(self.save_tab_notes)
         notes_button_layout.addStretch()
         notes_button_layout.addWidget(save_notes_btn)
         notes_layout.addLayout(notes_button_layout)
         
-        tabs.addTab(notes_widget, "📋 Notes")
+        tabs.addTab(notes_widget, "📋 Comments")
         
         # Store references to tab widgets for updates
         tabs.editor_widget = editor_widget
@@ -5515,6 +5584,15 @@ class SupervertalerQt(QMainWindow):
         if not file_path:
             return
         
+        QMessageBox.information(
+            self,
+            "Monolingual Import",
+            "You selected the Monolingual DOCX import workflow.\n\n"
+            "Projects created with this option can be exported as standard formats "
+            "(DOCX, plain text, etc.), but they cannot be exported as memoQ bilingual "
+            "DOCX files. If you need memoQ round-tripping, use 'Import memoQ bilingual document'."
+        )
+
         self.import_docx_from_path(file_path)
     
     def import_docx_from_path(self, file_path):
@@ -5667,6 +5745,13 @@ class SupervertalerQt(QMainWindow):
                 f"Failed to import DOCX:\n\n{str(e)}"
             )
     
+    def _interpret_memoq_status(self, status_text: str, has_target: bool) -> Tuple[str, Optional[int]]:
+        """Map memoQ status text to internal status and extract match percentage."""
+        status_def, match_percent = match_memoq_status(status_text)
+        if status_def.key == DEFAULT_STATUS.key and has_target:
+            return STATUSES["pretranslated"].key, match_percent
+        return status_def.key, match_percent
+
     def import_memoq_bilingual(self):
         """Import memoQ bilingual DOCX file (table format)"""
         file_path, _ = QFileDialog.getOpenFileName(
@@ -5679,6 +5764,15 @@ class SupervertalerQt(QMainWindow):
         if not file_path:
             return
         
+        QMessageBox.information(
+            self,
+            "memoQ Bilingual Import",
+            "You selected the memoQ Bilingual DOCX import.\n\n"
+            "This workflow is designed for memoQ round-tripping and can be exported "
+            "back to memoQ bilingual DOCX. Other export formats (such as Monolingual DOCX) "
+            "are not available for this project."
+        )
+
         try:
             from docx import Document
             
@@ -5704,7 +5798,7 @@ class SupervertalerQt(QMainWindow):
             
             # Extract source and target segments from columns 1 and 2 (skipping header rows 0 and 1)
             # Also extract formatting information (bold, italic, underline)
-            segments_data = []  # List of (source, target) tuples
+            segments_data = []  # List of dictionaries with segment metadata
             formatting_map = {}  # segment_index -> list of formatting info
             
             for row_idx in range(2, len(table.rows)):
@@ -5717,10 +5811,21 @@ class SupervertalerQt(QMainWindow):
                     
                     source_text = source_cell.text.strip()
                     target_text = target_cell.text.strip()
+
+                    comment_text = row.cells[3].text.strip() if len(row.cells) >= 4 else ""
+                    status_text = row.cells[4].text.strip() if len(row.cells) >= 5 else ""
+                    mapped_status, match_percent = self._interpret_memoq_status(status_text, bool(target_text))
                     
                     # Always add the row to maintain alignment
                     segment_idx = len(segments_data)
-                    segments_data.append((source_text, target_text))
+                    segments_data.append({
+                        'source': source_text,
+                        'target': target_text,
+                        'status': mapped_status,
+                        'memoq_status': status_text,
+                        'comment': comment_text,
+                        'match_percent': match_percent
+                    })
                     
                     # Extract formatting from runs in source cell
                     formatting_info = []
@@ -5776,13 +5881,16 @@ class SupervertalerQt(QMainWindow):
             )
             
             # Create segments
-            for idx, (source_text, target_text) in enumerate(segments_data):
+            for idx, segment_entry in enumerate(segments_data):
                 segment = Segment(
                     id=idx + 1,
-                    source=source_text,
-                    target=target_text,
-                    status="translated" if target_text else "untranslated",
-                    type="para"
+                    source=segment_entry['source'],
+                    target=segment_entry['target'],
+                    status=segment_entry['status'],
+                    type="para",
+                    notes=segment_entry.get('comment', ""),
+                    match_percent=segment_entry.get('match_percent'),
+                    memoQ_status=segment_entry.get('memoq_status', "")
                 )
                 self.current_project.segments.append(segment)
             
@@ -5916,9 +6024,9 @@ class SupervertalerQt(QMainWindow):
             from docx import Document
             from docx.shared import RGBColor
             
-            # Collect translations
-            translations = [seg.target for seg in self.current_project.segments]
-            
+            segments = list(self.current_project.segments)
+            translations = [seg.target for seg in segments]
+
             if not translations or all(not t.strip() for t in translations):
                 QMessageBox.warning(self, "Warning", "No translations found to export.")
                 return
@@ -5932,6 +6040,7 @@ class SupervertalerQt(QMainWindow):
             segments_with_formatting = 0
             
             for i, translation in enumerate(translations):
+                segment = segments[i]
                 row_idx = i + 2  # Skip header rows (0 and 1)
                 
                 if row_idx < len(table.rows):
@@ -5952,9 +6061,15 @@ class SupervertalerQt(QMainWindow):
                         self._apply_formatting_to_cell(target_cell, translation, formatting_info)
                         segments_updated += 1
                     
-                    # Update status to 'Confirmed' in column 4
+                    # Update comments in column 3
+                    if len(row.cells) >= 4:
+                        if segment.notes and segment.notes.strip():
+                            row.cells[3].text = segment.notes.strip()
+
+                    # Update status column using compose_memoq_status
                     if len(row.cells) >= 5:
-                        row.cells[4].text = 'Confirmed'
+                        existing = row.cells[4].text
+                        row.cells[4].text = compose_memoq_status(segment.status, segment.match_percent, existing)
             
             # Prompt user to save the updated bilingual file
             default_name = Path(self.memoq_source_file).stem + "_translated.docx"
@@ -6050,6 +6165,8 @@ class SupervertalerQt(QMainWindow):
             # Clear any previous cell widgets
             self.table.removeCellWidget(row, 2)  # Source
             self.table.removeCellWidget(row, 3)  # Target
+            self.table.removeCellWidget(row, 4)  # Match
+            self.table.removeCellWidget(row, 5)  # Status
             
             # ID - Segment number (starts with black foreground, will be highlighted orange when selected)
             id_item = QTableWidgetItem(str(segment.id))
@@ -6136,11 +6253,9 @@ class SupervertalerQt(QMainWindow):
                     if target_row < len(self.current_project.segments):
                         target_segment.target = new_text
                         # Update status if translation was added
-                        if target_segment.target and target_segment.status == 'untranslated':
-                            target_segment.status = 'draft'
-                            status_item = self.table.item(target_row, 4)
-                            if status_item:
-                                status_item.setText(self.get_status_icon('draft'))
+                        if target_segment.target and target_segment.status in (DEFAULT_STATUS.key, 'pretranslated', 'rejected'):
+                            target_segment.status = 'translated'
+                            self.update_status_icon(target_row, target_segment.status)
                         self.project_modified = True
                         self.update_window_title()
                         # Auto-resize the row
@@ -6156,19 +6271,22 @@ class SupervertalerQt(QMainWindow):
             target_item = QTableWidgetItem()
             target_item.setFlags(Qt.ItemFlag.NoItemFlags)  # No interaction
             self.table.setItem(row, 3, target_item)
-            
-            # Status
-            status_icon = self.get_status_icon(segment.status)
-            status_item = QTableWidgetItem(status_icon)
-            status_item.setFlags(status_item.flags() & ~Qt.ItemFlag.ItemIsEditable)  # Read-only
-            status_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.table.setItem(row, 4, status_item)
+
+            # Pre-populate status cell item so gridlines render before widget assignment
+            status_placeholder = QTableWidgetItem()
+            status_placeholder.setFlags(Qt.ItemFlag.NoItemFlags)
+            status_placeholder.setBackground(QColor(get_status(segment.status).color))
+            self.table.setItem(row, 4, status_placeholder)
+
+            # Status column (icon + match + comment)
+            self._update_status_cell(row, segment)
         
         # Apply current font
         self.apply_font_to_grid()
         
         # Auto-resize rows
         self.auto_resize_rows()
+        self._enforce_status_row_heights()
         
         self.log(f"✓ Loaded {len(self.current_project.segments)} segments to grid")
 
@@ -6177,7 +6295,123 @@ class SupervertalerQt(QMainWindow):
             self.refresh_list_view()
         if hasattr(self, 'document_container'):
             self.refresh_document_view()
-    
+
+    def _create_status_cell_widget(self, segment: Segment) -> QWidget:
+        widget = QWidget()
+        layout = QHBoxLayout(widget)
+        layout.setContentsMargins(4, 2, 4, 2)  # Slightly more vertical padding
+        layout.setSpacing(6)
+        layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)  # Center content vertically
+        # Remove fixed minimum height - let it adapt to row height
+        widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        widget.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+
+        # Make widget background transparent - let table item handle the background
+        widget.setStyleSheet("background: transparent;")
+        status_def = get_status(segment.status)
+        status_label = QLabel(status_def.icon)
+        status_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
+        status_label.setToolTip(status_def.label)
+        # Slightly smaller X for "not_started" to match other icons better
+        font_size = "10px" if segment.status == "not_started" else "14px"
+        # Make confirmed checkmark green
+        color = "color: #2e7d32;" if segment.status == "confirmed" else ""
+        status_label.setStyleSheet(f"font-size: {font_size}; {color} padding-right: 4px;")
+        layout.addWidget(status_label)
+
+        # Only add match label if there's a match percentage
+        if segment.match_percent is not None:
+            match_text = f"{segment.match_percent}%"
+            match_label = QLabel(match_text)
+            match_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            match_label.setMinimumWidth(40)
+            match_label.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Preferred)
+            if segment.match_percent >= 101:
+                match_label.setStyleSheet("color: #1b5e20; font-weight: bold; padding-left: 4px; padding-right: 4px;")
+                match_label.setToolTip("Context match from memoQ (101% or better)")
+            elif segment.match_percent >= 100:
+                match_label.setStyleSheet("color: #2e7d32; font-weight: bold; padding-left: 4px; padding-right: 4px;")
+                match_label.setToolTip("Exact match from memoQ (100%)")
+            elif segment.match_percent >= 90:
+                match_label.setStyleSheet("color: #1565C0; font-weight: bold; padding-left: 4px; padding-right: 4px;")
+                match_label.setToolTip(f"High fuzzy match {segment.match_percent}%")
+            else:
+                match_label.setStyleSheet("color: #0d47a1; padding-left: 4px; padding-right: 4px;")
+                match_label.setToolTip(f"Fuzzy match {segment.match_percent}%")
+            layout.addWidget(match_label)
+
+        # Use 🗨️ (left speech bubble) with better contrast
+        comment_label = QLabel("🗨️")
+        comment_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        # Add slight shadow/border effect for better visibility
+        if segment.notes and segment.notes.strip():
+            comment_label.setStyleSheet("""
+                color: #ff9800;
+                font-size: 14px;
+                text-shadow: 0px 0px 1px rgba(0,0,0,0.5);
+            """)
+            comment_label.setToolTip(segment.notes.strip())
+        else:
+            comment_label.setStyleSheet("""
+                color: #90A4AE;
+                font-size: 14px;
+                text-shadow: 0px 0px 1px rgba(0,0,0,0.3);
+            """)
+            comment_label.setToolTip("No comments")
+        layout.addWidget(comment_label)
+
+        layout.addStretch(1)
+
+        return widget
+
+    def _update_status_cell(self, row: int, segment: Segment):
+        status_widget = self._create_status_cell_widget(segment)
+        self.table.setCellWidget(row, 4, status_widget)
+        status_item = self.table.item(row, 4)
+        if status_item is None:
+            status_item = QTableWidgetItem()
+            self.table.setItem(row, 4, status_item)
+        status_item.setText("")
+        status_item.setFlags(Qt.ItemFlag.ItemIsSelectable | Qt.ItemFlag.ItemIsEnabled)
+        # Set background color on table item (widget is transparent)
+        status_item.setBackground(QColor(get_status(segment.status).color))
+        status_item.setData(Qt.ItemDataRole.DisplayRole, "")
+        status_widget.updateGeometry()
+
+    def _refresh_segment_status(self, segment: Segment):
+        if not self.current_project:
+            return
+        for row, seg in enumerate(self.current_project.segments):
+            if seg.id == segment.id:
+                self._update_status_cell(row, seg)
+                break
+
+        # Update list view entry in place (if visible)
+        if hasattr(self, 'list_tree') and self.list_tree:
+            matches = self.list_tree.findItems(str(segment.id), Qt.MatchFlag.MatchExactly, 0)
+            for item in matches:
+                status_def = get_status(segment.status)
+                match_text = f"{segment.match_percent}%" if segment.match_percent is not None else ""
+                display = f"{status_def.icon}"
+                if match_text:
+                    display += f"  {match_text}"
+                if segment.notes and segment.notes.strip():
+                    display += "  💬"
+                item.setText(2, display)
+                status_tooltip = status_def.label
+                if segment.match_percent is not None:
+                    status_tooltip += f" | {segment.match_percent}% match"
+                if segment.notes and segment.notes.strip():
+                    status_tooltip += f"\nComment: {segment.notes.strip()}"
+                item.setToolTip(2, status_tooltip)
+                item.setBackground(2, QColor(status_def.color))
+        self._enforce_status_row_heights()
+
+    def _enforce_status_row_heights(self):
+        """No longer needed - status widgets now adapt to row height."""
+        # This method is kept for backward compatibility but does nothing
+        pass
+
     def refresh_list_view(self):
         """Refresh the List View with current segments"""
         if not hasattr(self, 'list_tree') or not self.current_project:
@@ -6199,22 +6433,32 @@ class SupervertalerQt(QMainWindow):
             if target_filter and target_filter not in segment.target.lower():
                 continue
             
+            status_def = get_status(segment.status)
+            match_text = f"{segment.match_percent}%" if segment.match_percent is not None else ""
+            status_display = f"{status_def.icon}"
+            if match_text:
+                status_display += f"  {match_text}"
+            if segment.notes and segment.notes.strip():
+                status_display += "  💬"
             item = QTreeWidgetItem([
                 str(segment.id),
                 segment.type.upper() if segment.type != "para" else "#",
-                segment.status,
+                status_display,
                 segment.source[:100] + "..." if len(segment.source) > 100 else segment.source,
                 segment.target[:100] + "..." if len(segment.target) > 100 else segment.target
             ])
             item.setData(0, Qt.ItemDataRole.UserRole, segment.id)  # Store segment ID
             
             # Color coding by status
-            if segment.status == "untranslated":
-                item.setBackground(2, QColor("#ffe6e6"))
-            elif segment.status == "translated":
-                item.setBackground(2, QColor("#e6ffe6"))
-            elif segment.status == "approved":
-                item.setBackground(2, QColor("#e6f3ff"))
+            item.setBackground(2, QColor(status_def.color))
+
+            # Tooltip for match/status columns
+            status_tooltip = status_def.label
+            if segment.match_percent is not None:
+                status_tooltip += f" | {segment.match_percent}% match"
+            if segment.notes and segment.notes.strip():
+                status_tooltip += f"\nComment: {segment.notes.strip()}"
+            item.setToolTip(2, status_tooltip)
             
             self.list_tree.addTopLevelItem(item)
         
@@ -6516,10 +6760,12 @@ class SupervertalerQt(QMainWindow):
                             max_height = max(max_height, height)
             
             # Set row height with minimal padding (2px total)
-            compact_height = max(max_height + 2, 20)  # Minimum 20px for readability
+            # Minimum 32px to accommodate status icons (16px) + match text + padding without any cutoff
+            compact_height = max(max_height + 2, 32)
             self.table.setRowHeight(row, compact_height)
         
         self.log("✓ Auto-resized rows to fit content (compact)")
+        self._enforce_status_row_heights()
     
     def apply_font_to_grid(self):
         """Apply selected font to all grid cells"""
@@ -6817,21 +7063,15 @@ class SupervertalerQt(QMainWindow):
     
     def get_status_icon(self, status: str) -> str:
         """Get status icon for display"""
-        icons = {
-            'untranslated': '⚪',
-            'draft': '📝',
-            'translated': '✅',
-            'approved': '⭐'
-        }
-        return icons.get(status, '⚪')
+        return get_status(status).icon
     
     def update_status_icon(self, row: int, status: str):
         """Update status icon for a specific row"""
-        status_icon = self.get_status_icon(status)
-        status_item = QTableWidgetItem(status_icon)
-        status_item.setFlags(status_item.flags() & ~Qt.ItemFlag.ItemIsEditable)  # Read-only
-        status_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.table.setItem(row, 4, status_item)
+        if not self.current_project or row >= len(self.current_project.segments):
+            return
+        segment = self.current_project.segments[row]
+        segment.status = status
+        self._refresh_segment_status(segment)
     
     def on_cell_changed(self, item: QTableWidgetItem):
         """Handle cell content changes - now mainly for placeholder items"""
@@ -7541,29 +7781,19 @@ class SupervertalerQt(QMainWindow):
     
     
     def on_cell_clicked(self, item: QTableWidgetItem):
-        """Handle cell click - allows toggling status by clicking Status column"""
+        """Handle cell click - Status column clicks are disabled (use Segment Editor instead)"""
         self.log(f"🖱️ on_cell_clicked called: row {item.row()}, col {item.column()}")
         if not self.current_project:
             return
-        
+
         row = item.row()
         col = item.column()
-        
-        # Status column (4) - click to cycle through statuses
-        if col == 4 and row < len(self.current_project.segments):
-            segment = self.current_project.segments[row]
-            
-            # Cycle through statuses: untranslated → draft → translated → approved → untranslated
-            status_cycle = ['untranslated', 'draft', 'translated', 'approved']
-            current_index = status_cycle.index(segment.status) if segment.status in status_cycle else 0
-            next_status = status_cycle[(current_index + 1) % len(status_cycle)]
-            
-            segment.status = next_status
-            item.setText(self.get_status_icon(next_status))
-            
-            self.project_modified = True
-            self.update_window_title()
-            self.log(f"Segment {row + 1} status: {next_status}")
+
+        # Status column (4) - clicks disabled, use Segment Editor to change status
+        # This prevents visual issues and unwanted status changes
+        if col == 4:
+            self.log(f"Status column click ignored - use Segment Editor to change status")
+            return
     
     # ========================================================================
     # TRANSLATION MEMORY
@@ -8101,9 +8331,11 @@ class SupervertalerQt(QMainWindow):
                 target_widget.setPlainText(translation)
             
             # Update status
-            if segment.status == 'untranslated':
-                segment.status = 'draft'
-                self.update_status_icon(row, 'draft')
+            if segment.status in (DEFAULT_STATUS.key, 'pretranslated', 'rejected'):
+                segment.status = 'translated'
+                self.update_status_icon(row, 'translated')
+            else:
+                self._refresh_segment_status(segment)
             
             self.project_modified = True
             self.update_window_title()
@@ -8964,36 +9196,50 @@ class SupervertalerQt(QMainWindow):
                                 pass
                     break
     
-    def on_tab_segment_status_change(self, status: str):
+    def on_tab_status_combo_changed(self, index: int):
+        combo = self.sender()
+        if isinstance(combo, QComboBox) and index >= 0:
+            status_key = combo.itemData(index)
+            if status_key:
+                self.on_tab_segment_status_change(status_key)
+
+    def on_tab_segment_status_change(self, status_key: str):
         """Handle status change in tab editor - updates all panels"""
         if not hasattr(self, 'tab_current_segment_id') or not self.tab_current_segment_id:
             return
-        
+
+        status_key = status_key or DEFAULT_STATUS.key
+        status_def = get_status(status_key)
+
         if self.current_project and hasattr(self.current_project, 'segments'):
             for seg in self.current_project.segments:
                 if seg.id == self.tab_current_segment_id:
-                    seg.status = status
+                    seg.status = status_key
                     self.project_modified = True
-                    self.log(f"✓ Status changed to: {status}")
-                    
+                    self.log(f"✓ Status changed to: {status_def.label}")
+
                     # Update all panels to keep them in sync
                     if hasattr(self, 'tabbed_panels'):
                         for panel in self.tabbed_panels:
                             try:
                                 if hasattr(panel, 'editor_widget') and hasattr(panel.editor_widget, 'status_combo'):
-                                    panel.editor_widget.status_combo.blockSignals(True)
-                                    panel.editor_widget.status_combo.setCurrentText(status)
-                                    panel.editor_widget.status_combo.blockSignals(False)
-                            except:
-                                pass
+                                    combo = panel.editor_widget.status_combo
+                                    combo.blockSignals(True)
+                                    idx = combo.findData(status_key)
+                                    if idx >= 0:
+                                        combo.setCurrentIndex(idx)
+                                    combo.blockSignals(False)
+                            except Exception as e:
+                                self.log(f"Error syncing status combo: {e}")
+                    self._refresh_segment_status(seg)
                     break
     
     def on_tab_notes_change(self):
-        """Handle notes change in tab editor - updates all panels"""
+        """Handle comments change in tab editor - updates all panels"""
         if not hasattr(self, 'tab_current_segment_id') or not self.tab_current_segment_id:
             return
         
-        # Get the new notes from whichever panel triggered this
+        # Get the new comments from whichever panel triggered this
         new_notes = None
         if hasattr(self, 'tabbed_panels'):
             for panel in self.tabbed_panels:
@@ -9023,6 +9269,7 @@ class SupervertalerQt(QMainWindow):
                                     panel.notes_widget.notes_editor.blockSignals(False)
                             except:
                                 pass
+                    self._refresh_segment_status(seg)
                     break
     
     def copy_source_to_tab_target(self):
@@ -9076,10 +9323,10 @@ class SupervertalerQt(QMainWindow):
                         self.list_tree.setCurrentItem(next_item)
     
     def save_tab_notes(self):
-        """Save notes in tab editor"""
+        """Save comments in tab editor"""
         if not hasattr(self, 'tab_current_segment_id') or not self.tab_current_segment_id:
             return
-        self.log(f"✓ Saved notes for segment {self.tab_current_segment_id}")
+        self.log(f"✓ Saved comments for segment {self.tab_current_segment_id}")
     
     def update_tab_segment_editor(self, segment_id: int, source_text: str, target_text: str, 
                                    status: str = "untranslated", notes: str = ""):
@@ -9094,7 +9341,11 @@ class SupervertalerQt(QMainWindow):
                         editor.seg_info_label.setText(f"Segment {segment_id}")
                         editor.source_editor.setPlainText(source_text)
                         editor.target_editor.setPlainText(target_text)
-                        editor.status_combo.setCurrentText(status)
+                        idx = editor.status_combo.findData(status)
+                        if idx >= 0:
+                            editor.status_combo.blockSignals(True)
+                            editor.status_combo.setCurrentIndex(idx)
+                            editor.status_combo.blockSignals(False)
                     
                     # Update notes tab
                     if hasattr(panel, 'notes_widget'):
@@ -10026,7 +10277,7 @@ class SupervertalerQt(QMainWindow):
             if translation:
                 # Update segment
                 segment.target = translation
-                segment.status = "draft"
+                segment.status = "translated"
                 
                 # Update grid - Column 3 is Target (using cell widget)
                 target_widget = self.table.cellWidget(current_row, 3)
@@ -10035,7 +10286,7 @@ class SupervertalerQt(QMainWindow):
                 else:
                     # Fallback: create new widget if none exists
                     self.table.setItem(current_row, 3, QTableWidgetItem(translation))
-                self.update_status_icon(current_row, "draft")
+                self.update_status_icon(current_row, "translated")
                 
                 # Add to Translation Memory
                 if self.tm_database:
@@ -10060,38 +10311,154 @@ class SupervertalerQt(QMainWindow):
             QMessageBox.critical(self, "Translation Error", f"Failed to translate segment:\n\n{str(e)}")
             self.status_bar.showMessage("Translation failed", 3000)
     
-    def translate_batch(self):
+    def translate_multiple_segments(self, scope: str):
+        """Translate segments by scope (selected, status-based, or all)."""
+        if not self.current_project:
+            QMessageBox.warning(self, "No Project", "Please load or create a project first.")
+            return
+
+        segments_with_rows: List[Tuple[int, Segment]] = []
+        description = ""
+
+        if scope == "selected_not_started":
+            selected = self._get_selected_segments_with_rows()
+            if not selected:
+                QMessageBox.information(
+                    self,
+                    "No Selection",
+                    "Please select one or more segments in the grid or list view first."
+                )
+                return
+            target_statuses = {"not_started"}
+            segments_with_rows = [(idx, seg) for idx, seg in selected if seg.status in target_statuses]
+            if not segments_with_rows:
+                QMessageBox.information(
+                    self,
+                    "Nothing to Translate",
+                    "The selected segments are not marked as 'Not started'."
+                )
+                return
+            description = "selected not-started segment(s)"
+        elif scope == "all_not_started":
+            target_statuses = {"not_started"}
+            segments_with_rows = [
+                (idx, seg) for idx, seg in enumerate(self.current_project.segments)
+                if seg.status in target_statuses
+            ]
+            description = "not-started segment(s)"
+        elif scope == "all_pretranslated":
+            target_statuses = {"pretranslated"}
+            segments_with_rows = [
+                (idx, seg) for idx, seg in enumerate(self.current_project.segments)
+                if seg.status in target_statuses
+            ]
+            description = "pre-translated segment(s)"
+        elif scope == "all_not_started_pretranslated":
+            target_statuses = {"not_started", "pretranslated"}
+            segments_with_rows = [
+                (idx, seg) for idx, seg in enumerate(self.current_project.segments)
+                if seg.status in target_statuses
+            ]
+            description = "not-started and pre-translated segment(s)"
+        elif scope == "all_translatable":
+            target_statuses = TRANSLATABLE_STATUSES
+            segments_with_rows = [
+                (idx, seg) for idx, seg in enumerate(self.current_project.segments)
+                if seg.status in target_statuses
+            ]
+            labels = ", ".join(sorted({get_status(s).label for s in target_statuses}))
+            description = f"{labels} segment(s)"
+        elif scope == "all_segments":
+            segments_with_rows = list(enumerate(self.current_project.segments))
+            description = "segment(s)"
+        else:
+            return
+
+        if not segments_with_rows:
+            QMessageBox.information(
+                self,
+                "Nothing to Translate",
+                f"No {description} available for translation."
+            )
+            return
+
+        segments_with_rows = sorted(segments_with_rows, key=lambda item: item[0])
+        self.translate_batch(segments_with_rows=segments_with_rows, scope_description=description)
+
+    def _get_selected_segments_with_rows(self) -> List[Tuple[int, Segment]]:
+        """Return selected segments across active views as (row_index, segment)."""
+        if not self.current_project:
+            return []
+
+        selected_ids = set()
+
+        try:
+            for seg in self.get_selected_segments_from_grid():
+                if hasattr(seg, 'id'):
+                    selected_ids.add(seg.id)
+        except Exception:
+            pass
+
+        try:
+            for seg in self.get_selected_segments_from_list():
+                if hasattr(seg, 'id'):
+                    selected_ids.add(seg.id)
+        except Exception:
+            pass
+
+        if not selected_ids:
+            return []
+
+        segments_with_rows: List[Tuple[int, Segment]] = []
+        for idx, seg in enumerate(self.current_project.segments):
+            if seg.id in selected_ids:
+                segments_with_rows.append((idx, seg))
+
+        return segments_with_rows
+
+    def translate_batch(self, segments_with_rows: Optional[List[Tuple[int, Segment]]] = None, scope_description: Optional[str] = None):
         """Translate multiple segments with progress dialog"""
         if not self.current_project:
             QMessageBox.warning(self, "No Project", "Please load or create a project first.")
             return
-        
-        # Get untranslated segments
-        untranslated_segments = [
-            (i, seg) for i, seg in enumerate(self.current_project.segments)
-            if not seg.target or seg.target.strip() == ""
-        ]
-        
-        if not untranslated_segments:
+
+        if segments_with_rows is None:
+            segments_with_rows = [
+                (idx, seg) for idx, seg in enumerate(self.current_project.segments)
+                if seg.status == DEFAULT_STATUS.key
+            ]
+            scope_description = scope_description or "untranslated segment(s)"
+        else:
+            valid_segments: List[Tuple[int, Segment]] = []
+            for row_index, segment in segments_with_rows:
+                if 0 <= row_index < len(self.current_project.segments):
+                    valid_segments.append((row_index, segment))
+            segments_with_rows = valid_segments
+            scope_description = scope_description or "segment(s)"
+
+        if not segments_with_rows:
             QMessageBox.information(
-                self, "All Translated",
-                "All segments already have translations!"
+                self,
+                "Nothing to Translate",
+                f"No {scope_description} available for translation."
             )
             return
-        
-        # Show confirmation dialog
+
+        segments_to_translate = sorted(segments_with_rows, key=lambda item: item[0])
+        total_segments = len(segments_to_translate)
+
         reply = QMessageBox.question(
             self,
             "Batch Translation",
-            f"Found {len(untranslated_segments)} untranslated segment(s).\n\n"
-            f"Translate all using your configured LLM provider?\n\n"
+            f"Found {total_segments} {scope_description}.\n\n"
+            f"Translate them using your configured LLM provider?\n\n"
             f"This may take several minutes and consume API credits.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
-        
+
         if reply != QMessageBox.StandardButton.Yes:
             return
-        
+
         # Load API keys and settings
         api_keys = self.load_api_keys()
         if not api_keys:
@@ -10100,105 +10467,97 @@ class SupervertalerQt(QMainWindow):
                 "Please configure your API keys in Settings first."
             )
             return
-        
+
         settings = self.load_llm_settings()
         provider = settings.get('provider', 'openai')
         model_key = f'{provider}_model'
         model = settings.get(model_key, 'gpt-4o')
-        
+
         if provider not in api_keys:
             QMessageBox.critical(
                 self, f"{provider.title()} API Key Missing",
                 f"Please configure your {provider.title()} API key in Settings."
             )
             return
-        
+
         # Create progress dialog
         progress = QDialog(self)
         progress.setWindowTitle("Batch Translation Progress")
         progress.setMinimumWidth(600)
         progress.setMinimumHeight(250)
         progress.setModal(True)
-        
+
         layout = QVBoxLayout(progress)
-        
+
         # Header
-        header_label = QLabel(f"<h3>🚀 Translating {len(untranslated_segments)} segments</h3>")
+        header_label = QLabel(f"<h3>🚀 Translating {total_segments} segments</h3>")
         layout.addWidget(header_label)
-        
+
         # Provider info
         info_label = QLabel(f"<b>Provider:</b> {provider.title()} | <b>Model:</b> {model}")
         layout.addWidget(info_label)
-        
+
         # Progress bar
         progress_bar = QProgressBar()
-        progress_bar.setMaximum(len(untranslated_segments))
+        progress_bar.setMaximum(total_segments)
         progress_bar.setValue(0)
         layout.addWidget(progress_bar)
-        
+
         # Current segment label
         current_label = QLabel("Starting...")
         layout.addWidget(current_label)
-        
+
         # Statistics
-        stats_label = QLabel("Translated: 0 | Failed: 0 | Remaining: " + str(len(untranslated_segments)))
+        stats_label = QLabel(f"Translated: 0 | Failed: 0 | Remaining: {total_segments}")
         layout.addWidget(stats_label)
-        
+
         # Close button (initially disabled)
         close_btn = QPushButton("Close")
         close_btn.setEnabled(False)
         close_btn.clicked.connect(progress.accept)
         layout.addWidget(close_btn)
-        
+
         # Show progress dialog
         progress.show()
         QApplication.processEvents()
-        
-        # Translation statistics
+
         translated_count = 0
         failed_count = 0
-        
+        segment_idx = 0
+
         try:
-            # Import LLM client
             from modules.llm_clients import LLMClient
-            
+
             client = LLMClient(
                 api_key=api_keys[provider],
                 provider=provider,
                 model=model
             )
-            
-            # Get languages from project
+
             source_lang = getattr(self.current_project, 'source_lang', 'en')
             target_lang = getattr(self.current_project, 'target_lang', 'nl')
-            
+
             self.log(f"Batch translation: {source_lang} → {target_lang}")
-            
-            # Get batch size from settings
+
             general_prefs = self.load_general_settings()
-            BATCH_SIZE = general_prefs.get('batch_size', 100)
-            total_batches = (len(untranslated_segments) + BATCH_SIZE - 1) // BATCH_SIZE
-            
-            segment_idx = 0
+            batch_size = general_prefs.get('batch_size', 100)
+            total_batches = (total_segments + batch_size - 1) // batch_size
+
             for batch_num in range(total_batches):
-                batch_start = batch_num * BATCH_SIZE
-                batch_end = min(batch_start + BATCH_SIZE, len(untranslated_segments))
-                batch_segments = untranslated_segments[batch_start:batch_end]
-                
-                # Update progress
+                batch_start = batch_num * batch_size
+                batch_end = min(batch_start + batch_size, total_segments)
+                batch_segments = segments_to_translate[batch_start:batch_end]
+
                 current_label.setText(f"Translating batch {batch_num + 1}/{total_batches} ({len(batch_segments)} segments)...")
                 progress_bar.setValue(segment_idx)
                 QApplication.processEvents()
-                
+
                 try:
-                    # Build batch prompt with all segments in this batch
                     batch_prompt_parts = []
-                    
-                    # Get base prompt if prompt manager is available
+
                     base_prompt = None
-                    if hasattr(self, 'prompt_manager_qt') and self.prompt_manager_qt:
+                    if hasattr(self, 'prompt_manager_qt') and self.prompt_manager_qt and batch_segments:
                         try:
-                            # Use first segment to build base prompt (same prompt structure for all)
                             first_segment = batch_segments[0][1]
                             base_prompt = self.prompt_manager_qt.build_final_prompt(
                                 source_text=first_segment.source,
@@ -10206,32 +10565,28 @@ class SupervertalerQt(QMainWindow):
                                 target_lang=target_lang,
                                 mode="single"
                             )
-                            # Extract just the instruction part (before the source text)
                             if "**SOURCE TEXT:**" in base_prompt:
                                 base_prompt = base_prompt.split("**SOURCE TEXT:**")[0].strip()
                             elif "Translate the following" in base_prompt:
                                 base_prompt = base_prompt.split("Translate the following")[0].strip()
-                        except:
-                            pass
-                    
-                    # Build batch prompt
+                        except Exception:
+                            base_prompt = None
+
                     if base_prompt:
                         batch_prompt_parts.append(base_prompt)
                     else:
                         batch_prompt_parts.append(f"Translate the following text segments from {source_lang} to {target_lang}.")
-                    
-                    # Add full document context if enabled
+
                     use_full_context = general_prefs.get('use_full_context', True)
                     if use_full_context and self.current_project:
                         try:
-                            # Build full document context
                             context_parts = []
                             for seg in self.current_project.segments:
                                 if seg.source:
                                     context_parts.append(f"{seg.id}. {seg.source}")
                                     if seg.target:
                                         context_parts.append(f"    → {seg.target}")
-                            
+
                             if context_parts:
                                 batch_prompt_parts.append("\n**FULL DOCUMENT CONTEXT:**")
                                 batch_prompt_parts.append("(For reference - segments to translate are marked below)\n")
@@ -10240,127 +10595,102 @@ class SupervertalerQt(QMainWindow):
                                 self.log(f"  Including full document context ({len(self.current_project.segments)} segments)")
                         except Exception as e:
                             self.log(f"⚠ Could not add full document context: {e}")
-                    
+
                     batch_prompt_parts.append(f"\n**SEGMENTS TO TRANSLATE ({len(batch_segments)} segments):**")
                     batch_prompt_parts.append("Provide ONLY the translations, one per line, in the same order. NO explanations, NO segment numbers, NO labels.\n")
-                    
-                    for row_idx, seg in batch_segments:
+
+                    for row_index, seg in batch_segments:
                         batch_prompt_parts.append(f"{seg.id}. {seg.source}")
-                    
+
                     batch_prompt_parts.append("\n**YOUR TRANSLATIONS (one per line, in order):**")
-                    
+
                     batch_prompt = "\n".join(batch_prompt_parts)
-                    
-                    # Translate batch
+
                     self.log(f"🤖 Translating batch {batch_num + 1}/{total_batches} ({len(batch_segments)} segments)...")
-                    # Use first segment's source as placeholder text (translate will use custom_prompt if provided)
+
                     first_segment_text = batch_segments[0][1].source if batch_segments else ""
                     batch_response = client.translate(
-                        text=first_segment_text,  # Placeholder - custom_prompt takes precedence
+                        text=first_segment_text,
                         source_lang=source_lang,
                         target_lang=target_lang,
                         custom_prompt=batch_prompt
                     )
-                    
-                    # Parse translations (one per line)
-                    # Remove any leading numbers/bullets that LLM might add
+
                     import re
                     translation_lines = []
                     for line in batch_response.strip().split('\n'):
-                        line = line.strip()
-                        if not line:
-                            continue
-                        # Remove leading numbers/bullets (e.g., "1. ", "- ", "* ")
-                        line = re.sub(r'^[\d\-\*\)\.\s]+', '', line).strip()
-                        if line:
-                            translation_lines.append(line)
-                    
-                    # Match translations to segments
+                        cleaned_line = re.sub(r'^[\d\-\*\)\.\s]+', '', line.strip())
+                        if cleaned_line:
+                            translation_lines.append(cleaned_line)
+
                     if len(translation_lines) != len(batch_segments):
                         self.log(f"⚠ Warning: Expected {len(batch_segments)} translations, got {len(translation_lines)}")
-                        # If we got fewer, pad with empty strings; if more, truncate
                         while len(translation_lines) < len(batch_segments):
                             translation_lines.append("")
                         translation_lines = translation_lines[:len(batch_segments)]
-                    
-                    # Process each segment in batch
+
                     for i, (row_index, segment) in enumerate(batch_segments):
-                        if i < len(translation_lines):
-                            translation = translation_lines[i]
-                            
-                            if translation:
-                                # Update segment
-                                segment.target = translation
-                                segment.status = "draft"
-                                
-                                # Update grid (using cell widget)
-                                if row_index < self.table.rowCount():
-                                    target_widget = self.table.cellWidget(row_index, 3)
-                                    if target_widget and isinstance(target_widget, EditableGridTextEditor):
-                                        target_widget.setPlainText(translation)
-                                    else:
-                                        self.table.setItem(row_index, 3, QTableWidgetItem(translation))
-                                    self.update_status_icon(row_index, "draft")
-                                
-                                # Add to TM
-                                if self.tm_database:
-                                    try:
-                                        self.tm_database.add_to_project_tm(segment.source, translation)
-                                    except:
-                                        pass  # Don't fail batch on TM errors
-                                
-                                translated_count += 1
-                                self.log(f"✓ Batch: Segment #{segment.id} translated")
-                            else:
-                                failed_count += 1
-                                self.log(f"✗ Batch: Segment #{segment.id} - empty translation")
+                        translation = translation_lines[i] if i < len(translation_lines) else ""
+
+                        if translation:
+                            segment.target = translation
+                            segment.status = "draft"
+
+                            if row_index < self.table.rowCount():
+                                target_widget = self.table.cellWidget(row_index, 3)
+                                if target_widget and isinstance(target_widget, EditableGridTextEditor):
+                                    target_widget.setPlainText(translation)
+                                else:
+                                    self.table.setItem(row_index, 3, QTableWidgetItem(translation))
+                                    self.update_status_icon(row_index, "translated")
+
+                            if self.tm_database:
+                                try:
+                                    self.tm_database.add_to_project_tm(segment.source, translation)
+                                except Exception:
+                                    pass
+
+                            translated_count += 1
+                            self.log(f"✓ Batch: Segment #{segment.id} translated")
                         else:
                             failed_count += 1
-                            self.log(f"✗ Batch: Segment #{segment.id} - no translation in response")
-                        
+                            self.log(f"✗ Batch: Segment #{segment.id} - empty translation")
+
                         segment_idx += 1
                         progress_bar.setValue(segment_idx)
-                        
-                        # Update statistics
-                        remaining = len(untranslated_segments) - segment_idx
+                        remaining = total_segments - segment_idx
                         stats_label.setText(
                             f"Translated: {translated_count} | Failed: {failed_count} | Remaining: {remaining}"
                         )
                         QApplication.processEvents()
-                
+
                 except Exception as e:
-                    # Mark all segments in this batch as failed
                     for row_index, segment in batch_segments:
                         failed_count += 1
                         segment_idx += 1
                         self.log(f"✗ Batch: Segment #{segment.id} - {str(e)}")
                         progress_bar.setValue(segment_idx)
-                        
-                        # Update statistics
-                        remaining = len(untranslated_segments) - segment_idx
+                        remaining = total_segments - segment_idx
                         stats_label.setText(
                             f"Translated: {translated_count} | Failed: {failed_count} | Remaining: {remaining}"
                         )
                         QApplication.processEvents()
-            
-            # Mark project as modified
+
             if translated_count > 0:
                 self.project_modified = True
                 self.update_window_title()
-            
-            # Completion message
-            progress_bar.setValue(len(untranslated_segments))
+
+            progress_bar.setValue(total_segments)
             current_label.setText(
                 f"<b>✓ Batch translation complete!</b><br>"
                 f"Successfully translated: {translated_count}<br>"
                 f"Failed: {failed_count}"
             )
-            
-            # Enable close button
+
             close_btn.setEnabled(True)
-            
+
             self.log(f"✓ Batch translation complete: {translated_count} translated, {failed_count} failed")
-            
+
         except Exception as e:
             QMessageBox.critical(
                 progress,
@@ -10369,8 +10699,7 @@ class SupervertalerQt(QMainWindow):
             )
             self.log(f"✗ Batch translation error: {str(e)}")
             close_btn.setEnabled(True)
-        
-        # Wait for user to close
+
         progress.exec()
     
     def _fetch_llm_translation_async(self, source_text: str, segment, row_index: int):
