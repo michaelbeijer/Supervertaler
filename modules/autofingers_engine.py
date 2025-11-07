@@ -12,6 +12,8 @@ import pyperclip
 import pyautogui
 import re
 
+from modules.tag_cleaner import TagCleaner
+
 # Try to import AHK for better keyboard control
 try:
     from ahk import AHK
@@ -77,12 +79,15 @@ class AutoFingersEngine:
         # Behavior settings
         self.auto_confirm = True  # If True, use Ctrl+Enter to confirm. If False, use Alt+N without confirming
         self.skip_no_match = False
-        
+
         # Fuzzy matching settings
         self.enable_fuzzy_matching = True
         self.fuzzy_threshold = 0.80  # 80% similarity threshold
         self.auto_confirm_fuzzy = False  # Don't auto-confirm fuzzy matches (translator needs to review)
-        
+
+        # Tag cleaning - using standalone TagCleaner module
+        self.tag_cleaner = TagCleaner()
+
         # State tracking
         self.is_running = False
         self.segments_processed = 0
@@ -141,10 +146,10 @@ class AutoFingersEngine:
     def _normalize_dashes(self, text: str) -> str:
         """
         Normalize different types of dashes to regular hyphen for matching.
-        
+
         Args:
             text: Text to normalize
-            
+
         Returns:
             Text with normalized dashes
         """
@@ -153,7 +158,7 @@ class AutoFingersEngine:
         text = text.replace('—', '-')  # Em-dash
         text = text.replace('−', '-')  # Minus sign
         return text
-    
+
     def lookup_translation(self, source_text: str) -> Optional[TranslationMatch]:
         """
         Look up translation for source text in TM database.
@@ -280,11 +285,12 @@ class AutoFingersEngine:
                     self.is_running = False
                     return False, f"No translation found. Paused at: {source_text[:50]}..."
             
-            # Step 6: Copy translation to clipboard and paste
+            # Step 6: Clean tags if enabled, then copy translation to clipboard and paste
             translation = match_result.translation
-            pyperclip.copy(translation)
+            cleaned_translation = self.tag_cleaner.clean(translation)
+            pyperclip.copy(cleaned_translation)
             time.sleep(0.4)
-            
+
             pyautogui.hotkey('ctrl', 'v')
             time.sleep(self.paste_delay / 1000)
             

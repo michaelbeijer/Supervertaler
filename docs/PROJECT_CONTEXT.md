@@ -1,12 +1,132 @@
 # Supervertaler Project Context
 
-**Last Updated:** November 6, 2025  
-**Repository:** https://github.com/michaelbeijer/Supervertaler  
+**Last Updated:** November 7, 2025
+**Repository:** https://github.com/michaelbeijer/Supervertaler
 **Maintainer:** Michael Beijer
 
 ---
 
 ## 📅 Recent Development Activity
+
+### November 7, 2025 - TagCleaner Module & AutoFingers Enhancement
+
+**🎯 New Module: TagCleaner - CAT Tool Tag Removal System**
+
+Implemented a standalone, modular tag cleaning system that removes CAT tool tags from translation text. Follows Supervertaler's modular architecture philosophy - can be used independently or integrated with other modules.
+
+**✅ Completed Features:**
+
+1. **Standalone TagCleaner Module** ([modules/tag_cleaner.py](../modules/tag_cleaner.py))
+   - ✅ Fully independent module with no core dependencies
+   - ✅ Granular control per CAT tool and tag type
+   - ✅ Settings export/import via `to_dict()` / `from_dict()`
+   - ✅ Extensible architecture for adding new tag patterns
+   - ✅ Can be launched standalone or used programmatically
+
+2. **memoQ Index Tag Support** (Initial Implementation)
+   - ✅ Regex pattern: `(?:\[\d+\}|\{\d+\])`
+   - ✅ Removes tags like `[1}`, `{2]`, `[7}`, `{8]`, `[99}`, `{100]`, etc.
+   - ✅ Supports unlimited digit range (not limited to specific numbers)
+   - ✅ Tested with real-world translation projects
+
+3. **AutoFingers Integration**
+   - ✅ TagCleaner instance automatically available: `engine.tag_cleaner`
+   - ✅ Tags cleaned before pasting translation (line 290 in autofingers_engine.py)
+   - ✅ Clean separation of concerns - modular design
+   - ✅ Optional on-the-fly tag cleaning when pasting from TMX to memoQ
+
+4. **User Interface Controls** (Supervertaler_Qt.py:12777-12843)
+   - ✅ Master switch: "Enable tag cleaning" checkbox
+   - ✅ Granular tag type selection (indented hierarchy):
+     - ✅ memoQ index tags ([1} {2]) - **Active and functional**
+     - ⏸️ Trados Studio tags - Framework ready (coming soon)
+     - ⏸️ CafeTran tags - Framework ready (coming soon)
+     - ⏸️ Wordfast tags - Framework ready (coming soon)
+   - ✅ Scrollable settings panel for smaller screens
+
+5. **Settings Persistence**
+   - ✅ Structured JSON format in autofingers_settings.json
+   - ✅ Nested structure matching modular architecture
+   - ✅ Backward compatible with existing AutoFingers settings
+   - ✅ Auto-save and auto-load on startup
+
+**🔧 Technical Implementation:**
+
+**Files Created:**
+- `modules/tag_cleaner.py` - Standalone TagCleaner module (273 lines)
+- `test_tag_cleaner_integration.py` - Comprehensive test suite
+
+**Files Modified:**
+- `modules/autofingers_engine.py` - Integrated TagCleaner (line 15, 87, 290)
+- `Supervertaler_Qt.py` - Added UI controls and settings management
+- `user_data_private/autofingers_settings.json` - Extended structure
+
+**Architecture Highlights:**
+```python
+# Standalone usage
+from modules.tag_cleaner import TagCleaner
+
+cleaner = TagCleaner()
+cleaner.enable()
+cleaner.enable_memoq_index_tags()
+cleaned = cleaner.clean("Text [1}with{2] tags")
+# Result: "Text with tags"
+
+# Integration with AutoFingers
+engine.tag_cleaner.enable()
+# Tags automatically cleaned during translation paste
+```
+
+**Test Results:**
+- ✅ All 3 test suites passing
+- ✅ Standalone module test
+- ✅ AutoFingers integration test
+- ✅ Settings export/import test
+- ✅ Real-world project validation
+
+**📦 Future Extensibility:**
+
+The TagCleaner module is designed for easy expansion:
+
+1. **Additional CAT Tools** (Ready to implement):
+   - Trados Studio tag patterns
+   - CafeTran Espresso tags
+   - Wordfast tags
+   - SDL Passolo tags
+   - Others as requested by users
+
+2. **Standalone Features** (Planned):
+   - Dedicated TagCleaner tab in Supervertaler
+   - Menu integration (Tools → Clean Tags)
+   - Batch tag cleaning for TMX files
+   - CLI mode for automation scripts
+   - Drag-and-drop file cleaning
+
+3. **Advanced Patterns** (Extensible):
+   - Custom regex patterns via UI
+   - Tag pattern libraries
+   - Import/export tag pattern sets
+   - Community-contributed patterns
+
+**💡 Design Philosophy:**
+
+TagCleaner embodies Supervertaler's modular architecture:
+- **Independent**: Can run without Supervertaler core
+- **Reusable**: Other modules can import and use it
+- **Configurable**: Granular control, not all-or-nothing
+- **Extensible**: New tag types = add pattern, no refactoring
+- **User-Requested**: Future features driven by community needs
+
+**🎯 User Impact:**
+
+- Translators using AutoFingers with tagged TMX files can now clean tags automatically
+- No manual tag removal needed after pasting from TMX
+- Supports mixed CAT tool workflows (e.g., Trados TMX → memoQ target)
+- Foundation for future standalone tag cleaning workflows
+
+**📝 Version:** 1.2.4 (2025-11-07)
+
+---
 
 ### November 6, 2025 - LLM & MT Integration Complete
 

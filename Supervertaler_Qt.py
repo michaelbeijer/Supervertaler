@@ -27,7 +27,7 @@ License: MIT
 """
 
 # Version Information
-__version__ = "1.2.3"
+__version__ = "1.2.4"
 __phase__ = "6.1"
 __release_date__ = "2025-11-07"
 __edition__ = "Qt"
@@ -12773,6 +12773,48 @@ class AutoFingersWidget(QWidget):
         self.skip_no_match_check.setChecked(True)
         behavior_group.addWidget(self.skip_no_match_check)
         right_col.addLayout(behavior_group)
+
+        # Tag Cleaning section
+        tag_cleaning_group = QVBoxLayout()
+        tag_cleaning_label = QLabel("Tag Cleaning:")
+        tag_cleaning_label.setStyleSheet("font-weight: bold; font-size: 9pt; margin-top: 8px;")
+        tag_cleaning_group.addWidget(tag_cleaning_label)
+
+        # Master switch
+        self.tag_cleaning_enabled_check = CheckmarkCheckBox("Enable tag cleaning")
+        self.tag_cleaning_enabled_check.setChecked(False)
+        self.tag_cleaning_enabled_check.setToolTip("Remove CAT tool tags from translations before pasting")
+        tag_cleaning_group.addWidget(self.tag_cleaning_enabled_check)
+
+        # Granular controls (indented)
+        tag_types_layout = QVBoxLayout()
+        tag_types_layout.setContentsMargins(20, 0, 0, 0)  # Indent
+
+        self.clean_memoq_index_tags_check = CheckmarkCheckBox("memoQ index tags ([1} {2])")
+        self.clean_memoq_index_tags_check.setChecked(True)
+        self.clean_memoq_index_tags_check.setToolTip("Remove memoQ index tags like [1} {2] [3} etc.")
+        tag_types_layout.addWidget(self.clean_memoq_index_tags_check)
+
+        self.clean_trados_tags_check = CheckmarkCheckBox("Trados Studio tags")
+        self.clean_trados_tags_check.setChecked(False)
+        self.clean_trados_tags_check.setEnabled(False)  # Not implemented yet
+        self.clean_trados_tags_check.setToolTip("Coming soon")
+        tag_types_layout.addWidget(self.clean_trados_tags_check)
+
+        self.clean_cafetran_tags_check = CheckmarkCheckBox("CafeTran tags")
+        self.clean_cafetran_tags_check.setChecked(False)
+        self.clean_cafetran_tags_check.setEnabled(False)  # Not implemented yet
+        self.clean_cafetran_tags_check.setToolTip("Coming soon")
+        tag_types_layout.addWidget(self.clean_cafetran_tags_check)
+
+        self.clean_wordfast_tags_check = CheckmarkCheckBox("Wordfast tags")
+        self.clean_wordfast_tags_check.setChecked(False)
+        self.clean_wordfast_tags_check.setEnabled(False)  # Not implemented yet
+        self.clean_wordfast_tags_check.setToolTip("Coming soon")
+        tag_types_layout.addWidget(self.clean_wordfast_tags_check)
+
+        tag_cleaning_group.addLayout(tag_types_layout)
+        right_col.addLayout(tag_cleaning_group)
         
         # Save button - centered at bottom of right column
         right_col.addStretch()
@@ -12785,11 +12827,20 @@ class AutoFingersWidget(QWidget):
         # Add columns to grid layout
         left_widget = QWidget()
         left_widget.setLayout(left_col)
+
+        # Wrap right column in scroll area for smaller screens
         right_widget = QWidget()
         right_widget.setLayout(right_col)
-        
+
+        right_scroll = QScrollArea()
+        right_scroll.setWidget(right_widget)
+        right_scroll.setWidgetResizable(True)
+        right_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        right_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        right_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+
         settings_layout.addWidget(left_widget, 0, 0)
-        settings_layout.addWidget(right_widget, 0, 1)
+        settings_layout.addWidget(right_scroll, 0, 1)
         
         settings_group.setLayout(settings_layout)
         
@@ -12915,7 +12966,18 @@ class AutoFingersWidget(QWidget):
             self.engine.confirm_delay = self.confirm_delay_spin.value()
             self.engine.auto_confirm = self.auto_confirm_check.isChecked()
             self.engine.skip_no_match = self.skip_no_match_check.isChecked()
-            
+
+            # Apply tag cleaner settings
+            if self.tag_cleaning_enabled_check.isChecked():
+                self.engine.tag_cleaner.enable()
+            else:
+                self.engine.tag_cleaner.disable()
+
+            if self.clean_memoq_index_tags_check.isChecked():
+                self.engine.tag_cleaner.enable_memoq_index_tags()
+            else:
+                self.engine.tag_cleaner.disable_memoq_index_tags()
+
             success, message = self.engine.load_tmx()
             
             if success:
@@ -13144,7 +13206,15 @@ class AutoFingersWidget(QWidget):
                 # Backward compatibility: if old settings had use_down_arrow=True, set auto_confirm=False
                 if settings.get('use_down_arrow', False):
                     self.auto_confirm_check.setChecked(False)
-                
+
+                # Load tag cleaner settings
+                tag_cleaner_settings = settings.get('tag_cleaner', {})
+                self.tag_cleaning_enabled_check.setChecked(tag_cleaner_settings.get('enabled', False))
+                memoq_settings = tag_cleaner_settings.get('memoq', {})
+                self.clean_memoq_index_tags_check.setChecked(
+                    memoq_settings.get('index_tags', {}).get('enabled', True)
+                )
+
                 self.log("✓ Settings loaded")
         except Exception as e:
             self.log(f"⚠️ Could not load settings: {e}")
@@ -13156,15 +13226,26 @@ class AutoFingersWidget(QWidget):
                 'loop_delay': self.loop_delay_spin.value(),
                 'confirm_delay': self.confirm_delay_spin.value(),
                 'auto_confirm': self.auto_confirm_check.isChecked(),
-                'skip_no_match': self.skip_no_match_check.isChecked()
+                'skip_no_match': self.skip_no_match_check.isChecked(),
+                'tag_cleaner': {
+                    'enabled': self.tag_cleaning_enabled_check.isChecked(),
+                    'memoq': {
+                        'index_tags': {
+                            'enabled': self.clean_memoq_index_tags_check.isChecked()
+                        }
+                    },
+                    'trados': {},
+                    'cafetran': {},
+                    'wordfast': {}
+                }
             }
-            
+
             settings_file = Path("user_data_private" if ENABLE_PRIVATE_FEATURES else "user_data") / "autofingers_settings.json"
             settings_file.parent.mkdir(parents=True, exist_ok=True)
-            
+
             with open(settings_file, 'w', encoding='utf-8') as f:
                 json.dump(settings, f, indent=2)
-            
+
             self.log("💾 Settings saved")
             QMessageBox.information(self, "Saved", "Settings saved successfully!")
         except Exception as e:
