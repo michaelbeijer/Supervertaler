@@ -3100,7 +3100,7 @@ class SupervertalerQt(QMainWindow):
         provider_button_group.addButton(claude_radio)
         provider_layout.addWidget(claude_radio)
         
-        gemini_radio = CustomRadioButton("Google Gemini (Gemini 2.0 Flash)")
+        gemini_radio = CustomRadioButton("Google Gemini (Gemini 2.5 Flash)")
         gemini_radio.setChecked(settings.get('provider', 'openai') == 'gemini')
         provider_button_group.addButton(gemini_radio)
         provider_layout.addWidget(gemini_radio)
@@ -3194,11 +3194,30 @@ class SupervertalerQt(QMainWindow):
         
         gemini_combo = QComboBox()
         gemini_combo.addItems([
-            "gemini-2.0-flash-exp (Recommended)",
-            "gemini-1.5-pro",
-            "gemini-1.5-flash"
+            "gemini-2.5-flash (Recommended - Best Balance)",
+            "gemini-2.5-flash-lite (Fastest & Most Economical)",
+            "gemini-2.5-pro (Premium - Complex Reasoning)",
+            "gemini-2.0-flash-exp (Experimental)"
         ])
-        current_gemini_model = settings.get('gemini_model', 'gemini-2.0-flash-exp')
+        gemini_combo.setToolTip(
+            "Gemini 2.5 Flash (Recommended): Best price-performance balance.\n"
+            "  • Best for: General translation, high-volume tasks\n"
+            "  • Context: 1M tokens input, 65K output\n"
+            "  • Strengths: Fast, cost-effective, well-rounded\n"
+            "  • Use for: Most translation tasks\n\n"
+            "Gemini 2.5 Flash-Lite: Fastest and most economical option.\n"
+            "  • Best for: High-throughput batch translation\n"
+            "  • Context: 1M tokens input, 65K output\n"
+            "  • Strengths: Maximum speed, lowest cost\n"
+            "  • Use when: Budget and speed are top priorities\n\n"
+            "Gemini 2.5 Pro: State-of-the-art reasoning for complex problems.\n"
+            "  • Best for: Complex analytical translation, legal documents\n"
+            "  • Context: 1M tokens input, 65K output\n"
+            "  • Strengths: Highest accuracy, complex reasoning\n"
+            "  • Use when: Maximum quality needed, regardless of cost\n\n"
+            "Gemini 2.0 Flash Exp: Experimental model for testing."
+        )
+        current_gemini_model = settings.get('gemini_model', 'gemini-2.5-flash')
         for i in range(gemini_combo.count()):
             if current_gemini_model in gemini_combo.itemText(i):
                 gemini_combo.setCurrentIndex(i)
@@ -9910,7 +9929,7 @@ class SupervertalerQt(QMainWindow):
                 'provider': 'openai',
                 'openai_model': 'gpt-4o',
                 'claude_model': 'claude-sonnet-4-5-20250929',
-                'gemini_model': 'gemini-2.0-flash-exp'
+                'gemini_model': 'gemini-2.5-flash'
             }
         
         try:
@@ -9920,14 +9939,14 @@ class SupervertalerQt(QMainWindow):
                     'provider': 'openai',
                     'openai_model': 'gpt-4o',
                     'claude_model': 'claude-sonnet-4-5-20250929',
-                    'gemini_model': 'gemini-2.0-flash-exp'
+                    'gemini_model': 'gemini-2.5-flash'
                 })
         except:
             return {
                 'provider': 'openai',
                 'openai_model': 'gpt-4o',
                 'claude_model': 'claude-sonnet-4-5-20250929',
-                'gemini_model': 'gemini-2.0-flash-exp'
+                'gemini_model': 'gemini-2.5-flash'
             }
     
     def save_llm_settings(self, settings: Dict[str, str]):
@@ -11032,7 +11051,7 @@ class SupervertalerQt(QMainWindow):
         model_map = {
             "openai": settings.get('openai_model', 'gpt-4o'),
             "claude": settings.get('claude_model', 'claude-sonnet-4-5-20250929'),
-            "gemini": settings.get('gemini_model', 'gemini-2.0-flash-exp')
+            "gemini": settings.get('gemini_model', 'gemini-2.5-flash')
         }
         model = model_map.get(provider, 'gpt-4o')
         
@@ -11923,7 +11942,7 @@ class SupervertalerQt(QMainWindow):
                         from modules.llm_clients import LLMClient
                         self.log("🧠 DIRECT LLM SEARCH: LLMClient imported for Gemini")
                         
-                        gemini_model = settings.get('gemini_model', 'gemini-2.0-flash-exp')
+                        gemini_model = settings.get('gemini_model', 'gemini-2.5-flash')
                         self.log(f"🧠 DIRECT LLM SEARCH: Using Gemini model: {gemini_model}")
                         client = LLMClient(
                             api_key=gemini_api_key,

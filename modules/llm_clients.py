@@ -99,7 +99,7 @@ class LLMClient:
     DEFAULT_MODELS = {
         "openai": "gpt-4o",
         "claude": "claude-sonnet-4-5-20250929",  # Claude Sonnet 4.5 (Sept 2025)
-        "gemini": "gemini-2.0-flash-exp"
+        "gemini": "gemini-2.5-flash"  # Gemini 2.5 Flash (2025)
     }
 
     # Available Claude 4 models with descriptions
