@@ -1561,7 +1561,7 @@ class SupervertalerQt(QMainWindow):
         # 3. MODULES
         modules_tab = self.create_specialised_modules_tab()
         self.right_tabs.addTab(modules_tab, "🧩 Modules")
-        
+
         # 4. SETTINGS
         settings_tab = self.create_settings_tab()
         self.right_tabs.addTab(settings_tab, "⚙️ Settings")
@@ -1702,7 +1702,35 @@ class SupervertalerQt(QMainWindow):
             "📊 Tracked Changes",
             "Tracked Changes - Coming Soon\n\nFeatures:\n• Track translation changes\n• Version history\n• Comparison reports"
         )
-    
+
+    def create_llm_leaderboard_tab(self) -> QWidget:
+        """Create the LLM Leaderboard tab - Benchmark LLM translation quality"""
+        from modules.llm_leaderboard_ui import LLMLeaderboardUI
+
+        # Create LLM client factory that uses existing API keys
+        def llm_client_factory(provider: str, model_id: str):
+            from modules.llm_clients import LLMClient
+            api_keys = self._get_api_keys()
+            api_key = api_keys.get(provider, "")
+
+            if not api_key:
+                raise ValueError(f"No API key configured for {provider}. Please add it in Settings.")
+
+            return LLMClient(api_key=api_key, provider=provider, model=model_id)
+
+        # Create and return the leaderboard UI widget
+        leaderboard_widget = LLMLeaderboardUI(
+            parent=self,
+            llm_client_factory=llm_client_factory
+        )
+
+        return leaderboard_widget
+
+    def _get_api_keys(self) -> dict:
+        """Get API keys from settings"""
+        from modules.llm_clients import load_api_keys
+        return load_api_keys()
+
     def create_log_tab(self) -> QWidget:
         """Create the Log tab - Session Log"""
         tab = QWidget()
@@ -2021,9 +2049,13 @@ class SupervertalerQt(QMainWindow):
         
         lookup_tab = UniversalLookupTab(self)
         modules_tabs.addTab(lookup_tab, "🔍 Universal Lookup")
-        
+
+        # LLM Leaderboard
+        leaderboard_tab = self.create_llm_leaderboard_tab()
+        modules_tabs.addTab(leaderboard_tab, "🏆 LLM Leaderboard")
+
         layout.addWidget(modules_tabs)
-        
+
         return tab
     
     def create_translation_memories_tab(self):
