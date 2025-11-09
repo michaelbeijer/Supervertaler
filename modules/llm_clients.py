@@ -79,7 +79,7 @@ class LLMConfig:
     model: str
     api_key: str
     temperature: Optional[float] = None  # Auto-detected if None
-    max_tokens: int = 4096
+    max_tokens: int = 16384  # Increased from 4096 for batch translation (100 segments needs ~16K tokens)
 
 
 class LLMClient:
@@ -88,14 +88,14 @@ class LLMClient:
     # Default models for each provider
     DEFAULT_MODELS = {
         "openai": "gpt-4o",
-        "claude": "claude-3-5-sonnet-20241022",
+        "claude": "claude-3-5-sonnet-20250219",
         "gemini": "gemini-2.0-flash-exp"
     }
     
     # Reasoning models that don't support temperature parameter (must be omitted)
     REASONING_MODELS = ["gpt-5", "o1", "o3"]
     
-    def __init__(self, api_key: str, provider: str = "openai", model: Optional[str] = None, max_tokens: int = 4096):
+    def __init__(self, api_key: str, provider: str = "openai", model: Optional[str] = None, max_tokens: int = 16384):
         """
         Initialize LLM client
         
@@ -353,50 +353,126 @@ class LLMClient:
     
     def _call_openai(self, prompt: str, max_tokens: Optional[int] = None) -> str:
         """Call OpenAI API with GPT-5/o1/o3 reasoning model support"""
+        print(f"🔵 _call_openai START: model={self.model}, prompt_len={len(prompt)}, max_tokens={max_tokens}")
+
         try:
             from openai import OpenAI
         except ImportError:
             raise ImportError(
                 "OpenAI library not installed. Install with: pip install openai"
             )
-        
-        client = OpenAI(api_key=self.api_key, timeout=120.0)  # 2 minute timeout
-        
-        # Use provided max_tokens or default
-        tokens_to_use = max_tokens if max_tokens is not None else self.max_tokens
-        
+
         # Detect if this is a reasoning model (GPT-5, o1, o3)
         model_lower = self.model.lower()
         is_reasoning_model = any(x in model_lower for x in ["gpt-5", "o1", "o3"])
-        
+
+        # Reasoning models need MUCH longer timeout (they can take 5-10 minutes for large prompts)
+        timeout_seconds = 600.0 if is_reasoning_model else 120.0  # 10 min vs 2 min
+        client = OpenAI(api_key=self.api_key, timeout=timeout_seconds)
+        print(f"🔵 OpenAI client created successfully (timeout: {timeout_seconds}s)")
+
+        # Use provided max_tokens or default
+        # IMPORTANT: Reasoning models need MUCH higher limits because they use tokens for:
+        # 1. Internal reasoning/thinking (can be thousands of tokens)
+        # 2. The actual response content
+        # If limit is too low, all tokens get used for reasoning and response is empty!
+        if max_tokens is not None:
+            tokens_to_use = max_tokens
+        elif is_reasoning_model:
+            # For reasoning models, use 32K tokens (GPT-5 supports up to 65K)
+            # This gives plenty of room for both reasoning and response
+            tokens_to_use = 32768
+        else:
+            tokens_to_use = self.max_tokens
+
+        print(f"🔵 Is reasoning model: {is_reasoning_model}, tokens_to_use: {tokens_to_use}")
+
         # Build API call parameters
         api_params = {
             "model": self.model,
             "messages": [{"role": "user", "content": prompt}],
-            "timeout": 120.0
+            "timeout": timeout_seconds
         }
-        
+
         if is_reasoning_model:
             # Reasoning models (gpt-5, o1, o3-mini) require specific parameters
             # - Use max_completion_tokens instead of max_tokens
             # - DO NOT include temperature parameter (it's not supported)
-            # - Add reasoning_effort parameter to control thinking
             api_params["max_completion_tokens"] = tokens_to_use
             # Note: Temperature parameter is OMITTED for reasoning models (not supported)
-            api_params["reasoning_effort"] = "low"  # Use less reasoning to save tokens
+            # Note: reasoning_effort is also OMITTED - without it, GPT-5 is much faster
+            print(f"🔵 Reasoning model params: max_completion_tokens={tokens_to_use}, no reasoning_effort (faster)")
         else:
             # Standard models (gpt-4o, gpt-4-turbo, etc.)
             api_params["max_tokens"] = tokens_to_use
             api_params["temperature"] = self.temperature
-        
-        response = client.chat.completions.create(**api_params)
-        
-        translation = response.choices[0].message.content.strip()
-        
-        # Clean up translation: remove any prompt remnants
-        translation = self._clean_translation_response(translation, prompt)
-        
-        return translation
+            print(f"🔵 Standard model params: max_tokens={tokens_to_use}, temperature={self.temperature}")
+
+        try:
+            # File-based logging to bypass import cache
+            import datetime
+            debug_log = "C:/Dev/Supervertaler/openai_debug.txt"
+            with open(debug_log, "a", encoding="utf-8") as f:
+                f.write(f"\n{'='*60}\n")
+                f.write(f"[{datetime.datetime.now()}] OpenAI API Call\n")
+                f.write(f"Model: {self.model}\n")
+                f.write(f"Prompt length: {len(prompt)} chars\n")
+                f.write(f"Is reasoning model: {is_reasoning_model}\n")
+                f.write(f"API params: {list(api_params.keys())}\n")
+                if is_reasoning_model:
+                    f.write(f"  - max_completion_tokens: {api_params.get('max_completion_tokens')}\n")
+                    f.write(f"  - reasoning_effort: {api_params.get('reasoning_effort')}\n")
+                else:
+                    f.write(f"  - max_tokens: {api_params.get('max_tokens')}\n")
+                    f.write(f"  - temperature: {api_params.get('temperature')}\n")
+
+            print(f"🔵 Calling OpenAI API...")
+            response = client.chat.completions.create(**api_params)
+            print(f"🔵 OpenAI API call completed")
+
+            # Log success and detailed response info
+            with open(debug_log, "a", encoding="utf-8") as f:
+                f.write(f"✓ API call successful\n")
+                f.write(f"Response has {len(response.choices)} choices\n")
+                if response.choices:
+                    choice = response.choices[0]
+                    f.write(f"Choice[0] finish_reason: {choice.finish_reason}\n")
+                    f.write(f"Choice[0] message.role: {choice.message.role}\n")
+                    f.write(f"Choice[0] message.content type: {type(choice.message.content)}\n")
+                    f.write(f"Choice[0] message.content value: {repr(choice.message.content)[:200]}\n")
+                    # Check for refusal field (GPT-5 specific)
+                    if hasattr(choice.message, 'refusal'):
+                        f.write(f"Choice[0] message.refusal: {choice.message.refusal}\n")
+
+            # Check if response has content
+            if not response.choices or not response.choices[0].message.content:
+                error_msg = f"OpenAI returned empty response for model {self.model}"
+                print(f"❌ ERROR: {error_msg}")
+                raise ValueError(error_msg)
+
+            translation = response.choices[0].message.content.strip()
+
+            # Check if translation is empty after stripping
+            if not translation:
+                error_msg = f"OpenAI returned empty translation after stripping for model {self.model}"
+                print(f"❌ ERROR: {error_msg}")
+                print(f"Raw response: {response.choices[0].message.content}")
+                raise ValueError(error_msg)
+
+            # Clean up translation: remove any prompt remnants
+            translation = self._clean_translation_response(translation, prompt)
+
+            return translation
+
+        except Exception as e:
+            # Log the actual error with context
+            print(f"❌ OpenAI API Error (model: {self.model})")
+            print(f"   Error type: {type(e).__name__}")
+            print(f"   Error message: {str(e)}")
+            print(f"   Prompt length: {len(prompt)} characters")
+            if hasattr(e, 'response'):
+                print(f"   Response: {e.response}")
+            raise  # Re-raise to be caught by calling code
     
     def _call_claude(self, prompt: str, max_tokens: Optional[int] = None) -> str:
         """Call Anthropic Claude API"""
