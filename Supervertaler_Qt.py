@@ -3128,6 +3128,21 @@ class SupervertalerQt(QMainWindow):
             "o1 (Reasoning, Temperature 1.0)",
             "gpt-4-turbo"
         ])
+        openai_combo.setToolTip(
+            "GPT-4o (Recommended): Fast, reliable, excellent for general translation.\n"
+            "  • Best for: 90% of translation tasks\n"
+            "  • Speed: 2-10 seconds per segment\n"
+            "  • Use for: Business documents, technical manuals, general content\n\n"
+            "GPT-4o-mini: Faster and cheaper, good quality for simple text.\n"
+            "  • Best for: High-volume simple translations\n"
+            "  • Speed: 1-5 seconds per segment\n\n"
+            "GPT-5 (Reasoning): Deep analysis, handles complex/ambiguous text.\n"
+            "  • Best for: Legal contracts, literary translation, marketing copy\n"
+            "  • Speed: 30 seconds to 5+ minutes per segment\n"
+            "  • Use when: Accuracy > speed, complex context, cultural nuances\n"
+            "  • Cost: Premium pricing\n\n"
+            "o3-mini/o1: Similar to GPT-5 but different reasoning approaches."
+        )
         # Set current selection
         current_openai_model = settings.get('openai_model', 'gpt-4o')
         for i in range(openai_combo.count()):
@@ -3149,6 +3164,20 @@ class SupervertalerQt(QMainWindow):
             "claude-haiku-4-5-20251001 (Fast & Affordable)",
             "claude-opus-4-1-20250805 (Premium - Complex Reasoning)"
         ])
+        claude_combo.setToolTip(
+            "Claude Sonnet 4.5 (Recommended): Best balance of speed, quality, and cost.\n"
+            "  • Pricing: $3/$15 per million tokens (input/output)\n"
+            "  • Best for: General translation, multilingual content\n"
+            "  • Strengths: Fast, cost-effective, excellent quality\n\n"
+            "Claude Haiku 4.5: 2x faster, 1/3 the cost of Sonnet.\n"
+            "  • Pricing: $1/$5 per million tokens\n"
+            "  • Best for: Large translation projects, high-volume batch processing\n"
+            "  • Use when: Speed and budget are priorities\n\n"
+            "Claude Opus 4.1: Premium model with deep reasoning.\n"
+            "  • Pricing: $15/$75 per million tokens (5x more expensive)\n"
+            "  • Best for: Legal documents, technical specifications, complex reasoning\n"
+            "  • Use when: Highest accuracy is critical, budget is not a concern"
+        )
         current_claude_model = settings.get('claude_model', 'claude-sonnet-4-5-20250929')
         for i in range(claude_combo.count()):
             if current_claude_model in claude_combo.itemText(i):
