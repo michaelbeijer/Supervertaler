@@ -8,6 +8,162 @@
 
 ## 📅 Recent Development Activity
 
+### November 9, 2025 - System Prompts Tab + AI Assistant Enhancement Plan
+
+**🎯 Complete System Prompts UI + Phase 1 Enhancement Plan**
+
+Major additions to the System Prompts accessibility and planning for file attachment and AI action integration.
+
+**✅ System Prompts Settings Tab Implemented:**
+- Added dedicated "📝 System Prompts" settings tab in Settings
+- Mode selector dropdown for three translation modes:
+  - Single Segment Translation
+  - Batch DOCX Translation
+  - Batch Bilingual Translation
+- Rich text editor with monospace font for editing prompts
+- Save functionality (to both memory and JSON)
+- Reset to default with confirmation dialog
+- Navigation from Prompt Library tab to Settings → System Prompts
+- Stored in `user_data_private/Prompt_Library/system_prompts_layer1.json`
+
+**Files Modified:**
+- [Supervertaler_Qt.py](../Supervertaler_Qt.py) - Added System Prompts tab (lines 2965-3846)
+- [modules/unified_prompt_manager_qt.py](../modules/unified_prompt_manager_qt.py) - Updated navigation (lines 1424-1439)
+
+**🔄 PLANNED: AI Assistant Enhancement (November 9, 2025)**
+
+Created comprehensive enhancement plan for fixing three critical issues with AI Assistant:
+
+**Issue 1: File Attachments Not Persistent**
+- Current: Files only stored in memory (`self.attached_files` list)
+- Current: Files lost when application closes
+- Current: No UI to view/manage attached files after uploading
+- **Planned Solution (Phase 1 - HIGH PRIORITY):**
+  - Create persistent storage: `user_data_private/AI_Assistant/attachments/`
+  - Save markdown files with metadata (JSON)
+  - Implement file viewer dialog with markdown preview
+  - Add expandable attached files panel in context sidebar
+  - Add view/remove functionality
+
+**Issue 2: AI Cannot Act on Prompt Library**
+- Current: AI context only mentions prompts exist
+- Current: AI cannot list, create, or modify prompts
+- Current: No structured action interface
+- **Planned Solution (Phase 2 - MEDIUM PRIORITY):**
+  - Implement function calling/action parsing system
+  - Add tools: `list_prompts()`, `create_prompt()`, `update_prompt()`, etc.
+  - Parse AI responses for ACTION markers
+  - Execute actions and update prompt library in real-time
+
+**Storage Structure (Phase 1):**
+```
+user_data_private/
+  AI_Assistant/
+    attachments/
+      {session_id}/
+        {file_hash}.md        # Converted markdown content
+        {file_hash}.meta.json # Metadata (original name, type, date)
+    index.json               # Master index of all attachments
+    conversations/
+      {conversation_id}.json # Conversation history with references
+```
+
+**Metadata Format:**
+```json
+{
+  "file_id": "abc123...",
+  "original_name": "project_brief.pdf",
+  "original_path": "/path/to/original.pdf",
+  "file_type": ".pdf",
+  "size_bytes": 123456,
+  "size_chars": 45678,
+  "attached_at": "2025-11-09T10:30:00",
+  "conversation_id": "conv_xyz",
+  "markdown_path": "attachments/conv_xyz/abc123.md"
+}
+```
+
+**UI Enhancements (Phase 1):**
+- Expandable "📎 Attached Files" section in context sidebar
+- File list showing: name, size, date
+- View button → opens dialog with markdown preview
+- Remove button → confirmation + delete from disk
+- Files persist across sessions
+
+**AI Actions System (Phase 2):**
+- Structured response parsing (ACTION format)
+- Available tools:
+  - `list_prompts()` - List all prompts in library
+  - `get_prompt(path)` - Get content of specific prompt
+  - `create_prompt(name, content, folder)` - Create new prompt
+  - `update_prompt(path, content)` - Update existing prompt
+  - `search_prompts(query)` - Search prompts by content/name
+- System prompt enhancement with action instructions
+
+**Implementation Timeline:**
+- Phase 1 (File Persistence & Viewing): 2-3 hours
+- Phase 2 (AI Actions System): 3-4 hours
+- Testing & Refinement: 1-2 hours
+- **Total:** 6-9 hours development time
+
+**Files to Create:**
+- `modules/ai_attachment_manager.py` - File attachment persistence
+- `modules/ai_actions.py` - AI action system and handlers
+- `modules/ai_file_viewer_dialog.py` - File viewing dialog
+
+**Documentation:**
+- [docs/AI_ASSISTANT_ENHANCEMENT_PLAN.md](AI_ASSISTANT_ENHANCEMENT_PLAN.md) - Full technical specification
+
+**Status:** ✅ Phase 1 COMPLETE, Phase 2 pending
+
+**Phase 1 Implementation Complete (November 9, 2025):**
+
+✅ **Files Created:**
+- `modules/ai_attachment_manager.py` (390 lines) - Complete persistence system
+- `modules/ai_file_viewer_dialog.py` (160 lines) - File viewer and removal dialogs
+- `test_attachment_manager.py` - Comprehensive test suite (all tests passing)
+
+✅ **Files Modified:**
+- `modules/unified_prompt_manager_qt.py` - Full integration completed
+  - Imported AttachmentManager and dialogs
+  - Initialized AttachmentManager in `__init__`
+  - Added `_load_persisted_attachments()` method
+  - Modified `_attach_file()` to save to disk
+  - Created `_create_attached_files_section()` - expandable panel
+  - Added `_refresh_attached_files_list()` - dynamic file list
+  - Added `_create_file_item_widget()` - file item with view/remove buttons
+  - Added `_view_file()` - opens FileViewerDialog
+  - Added `_remove_file()` - removes from disk and memory
+  - Added `_toggle_attached_files()` - expand/collapse functionality
+  - Updated `_update_context_sidebar()` to refresh file list
+  - Updated `_load_conversation_history()` to refresh UI
+
+✅ **Features Implemented:**
+- **Persistent Storage:** Files saved to `user_data_private/AI_Assistant/attachments/`
+- **Metadata Tracking:** JSON files with original name, path, type, size, date
+- **Session Management:** Files organized by date-based sessions
+- **Master Index:** `index.json` tracks all attachments across sessions
+- **Expandable UI:** Collapsible attached files section in context sidebar
+- **File List:** Shows name, type, size for each file
+- **View Dialog:** Read-only markdown preview with copy to clipboard
+- **Remove Function:** Confirmation dialog + disk deletion
+- **Auto-Load:** Files persist and reload across app restarts
+
+✅ **Testing Results:**
+All 8 tests passed:
+1. ✓ Module imports successful
+2. ✓ AttachmentManager initialization
+3. ✓ Session management
+4. ✓ File attachment with metadata
+5. ✓ File listing
+6. ✓ File retrieval with content
+7. ✓ Statistics tracking
+8. ✓ File removal (tested separately)
+
+**Next Step:** Phase 2 - AI Actions System (prompt library integration)
+
+---
+
 ### November 8-9, 2025 - MAJOR: Unified Prompt System + AI Assistant
 
 **🎯 Complete UI Reorganization + AI Assistant Implementation**

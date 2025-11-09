@@ -28,7 +28,7 @@ License: MIT
 """
 
 # Version Information
-__version__ = "1.3.0"
+__version__ = "1.3.1"
 __phase__ = "6.2"
 __release_date__ = "2025-11-09"
 __edition__ = "Qt"
@@ -2960,13 +2960,17 @@ class SupervertalerQt(QMainWindow):
         # ===== TAB 5: View/Display Settings =====
         view_tab = self._create_view_settings_tab()
         settings_tabs.addTab(scroll_area_wrapper(view_tab), "🔍 View/Display")
-        
-        # ===== TAB 6: Keyboard Shortcuts =====
+
+        # ===== TAB 6: System Prompts (Layer 1) =====
+        system_prompts_tab = self._create_system_prompts_tab()
+        settings_tabs.addTab(scroll_area_wrapper(system_prompts_tab), "📝 System Prompts")
+
+        # ===== TAB 7: Keyboard Shortcuts =====
         from modules.keyboard_shortcuts_widget import KeyboardShortcutsWidget
         shortcuts_tab = KeyboardShortcutsWidget(self)
         settings_tabs.addTab(shortcuts_tab, "⌨️ Keyboard Shortcuts")
-        
-        # ===== TAB 7: Log (moved from main tabs) =====
+
+        # ===== TAB 8: Log (moved from main tabs) =====
         log_tab = self.create_log_tab()
         settings_tabs.addTab(log_tab, "📋 Log")
         
@@ -3642,9 +3646,205 @@ class SupervertalerQt(QMainWindow):
         layout.addWidget(save_btn)
         
         layout.addStretch()
-        
+
         return tab
-    
+
+    def _create_system_prompts_tab(self):
+        """Create System Prompts (Layer 1) Settings tab content"""
+        from PyQt6.QtWidgets import QGroupBox, QPushButton, QTextEdit, QComboBox
+
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
+
+        # Header info
+        header_group = QGroupBox("📝 System Prompts (Layer 1)")
+        header_layout = QVBoxLayout()
+
+        info_label = QLabel(
+            "<b>System Prompts are the foundation of Supervertaler's 2-Layer Prompt Architecture.</b><br><br>"
+            "These prompts are <b>always applied</b> and contain critical infrastructure instructions:<br>"
+            "• CAT tool tag preservation (memoQ, Trados, CafeTran)<br>"
+            "• Formatting rules and output standards<br>"
+            "• Language-specific conventions (numbers, dates, typography)<br>"
+            "• Professional translation context<br><br>"
+            "<i>Layer 2 (Custom Prompts) are managed in the Prompts tab and can be freely attached/detached.</i>"
+        )
+        info_label.setTextFormat(Qt.TextFormat.RichText)
+        info_label.setWordWrap(True)
+        info_label.setStyleSheet("font-size: 9pt; color: #333; padding: 12px; background-color: #f3f4f6; border-radius: 3px;")
+        header_layout.addWidget(info_label)
+
+        header_group.setLayout(header_layout)
+        layout.addWidget(header_group)
+
+        # Mode selector
+        mode_group = QGroupBox("🎯 Select System Prompt Mode")
+        mode_layout = QVBoxLayout()
+
+        mode_info = QLabel(
+            "Supervertaler uses different system prompts for different translation modes:"
+        )
+        mode_info.setStyleSheet("font-size: 9pt; color: #666; padding: 8px;")
+        mode_info.setWordWrap(True)
+        mode_layout.addWidget(mode_info)
+
+        mode_selector_layout = QHBoxLayout()
+        mode_selector_layout.addWidget(QLabel("Mode:"))
+        mode_combo = QComboBox()
+        mode_combo.addItems([
+            "Single Segment Translation",
+            "Batch DOCX Translation",
+            "Batch Bilingual Translation"
+        ])
+        mode_combo.setToolTip("Select which system prompt to view/edit")
+        mode_selector_layout.addWidget(mode_combo)
+        mode_selector_layout.addStretch()
+        mode_layout.addLayout(mode_selector_layout)
+
+        mode_group.setLayout(mode_layout)
+        layout.addWidget(mode_group)
+
+        # Editor
+        editor_group = QGroupBox("✏️ Edit System Prompt")
+        editor_layout = QVBoxLayout()
+
+        editor_info = QLabel(
+            "Edit the system prompt below. Use {{SOURCE_LANGUAGE}}, {{TARGET_LANGUAGE}}, and {{SOURCE_TEXT}} as placeholders."
+        )
+        editor_info.setStyleSheet("font-size: 8pt; color: #666; padding: 8px; background-color: #fff3cd; border-radius: 2px;")
+        editor_info.setWordWrap(True)
+        editor_layout.addWidget(editor_info)
+
+        system_prompt_editor = QTextEdit()
+        system_prompt_editor.setStyleSheet("font-family: 'Consolas', 'Courier New', monospace; font-size: 9pt;")
+        system_prompt_editor.setMinimumHeight(400)
+        editor_layout.addWidget(system_prompt_editor)
+
+        editor_group.setLayout(editor_layout)
+        layout.addWidget(editor_group)
+
+        # Buttons
+        buttons_layout = QHBoxLayout()
+
+        reset_btn = QPushButton("🔄 Reset to Default")
+        reset_btn.setToolTip("Restore the default system prompt for this mode")
+        reset_btn.clicked.connect(lambda: self._reset_system_prompt(mode_combo, system_prompt_editor))
+        buttons_layout.addWidget(reset_btn)
+
+        buttons_layout.addStretch()
+
+        save_btn = QPushButton("💾 Save System Prompt")
+        save_btn.setStyleSheet("font-weight: bold; padding: 8px;")
+        save_btn.clicked.connect(lambda: self._save_system_prompt_from_ui(mode_combo, system_prompt_editor))
+        buttons_layout.addWidget(save_btn)
+
+        layout.addLayout(buttons_layout)
+
+        # Load initial prompt
+        self._load_system_prompt_into_editor(mode_combo, system_prompt_editor)
+
+        # Connect mode change to load new prompt
+        mode_combo.currentIndexChanged.connect(lambda: self._load_system_prompt_into_editor(mode_combo, system_prompt_editor))
+
+        return tab
+
+    def _load_system_prompt_into_editor(self, mode_combo, editor):
+        """Load the selected system prompt into the editor"""
+        mode_map = {
+            "Single Segment Translation": "single",
+            "Batch DOCX Translation": "batch_docx",
+            "Batch Bilingual Translation": "batch_bilingual"
+        }
+
+        selected_mode = mode_combo.currentText()
+        mode_key = mode_map.get(selected_mode, "single")
+
+        # Load from unified_prompt_manager if available
+        if hasattr(self, 'unified_prompt_manager'):
+            prompt_text = self.unified_prompt_manager.get_system_template(mode_key)
+        else:
+            # Fallback: load from JSON file
+            system_prompts_file = self.user_data_path / "Prompt_Library" / "system_prompts_layer1.json"
+            if system_prompts_file.exists():
+                import json
+                with open(system_prompts_file, 'r', encoding='utf-8') as f:
+                    system_prompts = json.load(f)
+                prompt_text = system_prompts.get(mode_key, "# SYSTEM PROMPT\n\nNo prompt defined.")
+            else:
+                prompt_text = "# SYSTEM PROMPT\n\nNo prompt defined."
+
+        editor.setPlainText(prompt_text)
+
+    def _save_system_prompt_from_ui(self, mode_combo, editor):
+        """Save the edited system prompt"""
+        mode_map = {
+            "Single Segment Translation": "single",
+            "Batch DOCX Translation": "batch_docx",
+            "Batch Bilingual Translation": "batch_bilingual"
+        }
+
+        selected_mode = mode_combo.currentText()
+        mode_key = mode_map.get(selected_mode, "single")
+        prompt_text = editor.toPlainText()
+
+        # Save to unified_prompt_manager if available
+        if hasattr(self, 'unified_prompt_manager'):
+            self.unified_prompt_manager.system_templates[mode_key] = prompt_text
+
+        # Always save to JSON file
+        import json
+        system_prompts_file = self.user_data_path / "Prompt_Library" / "system_prompts_layer1.json"
+        system_prompts_file.parent.mkdir(parents=True, exist_ok=True)
+
+        # Load existing prompts
+        if system_prompts_file.exists():
+            with open(system_prompts_file, 'r', encoding='utf-8') as f:
+                system_prompts = json.load(f)
+        else:
+            system_prompts = {}
+
+        # Update and save
+        system_prompts[mode_key] = prompt_text
+        with open(system_prompts_file, 'w', encoding='utf-8') as f:
+            json.dump(system_prompts, f, indent=2, ensure_ascii=False)
+
+        self.log(f"✓ Saved system prompt: {selected_mode}")
+        QMessageBox.information(
+            self,
+            "System Prompt Saved",
+            f"System prompt for '{selected_mode}' has been saved successfully."
+        )
+
+    def _reset_system_prompt(self, mode_combo, editor):
+        """Reset system prompt to default"""
+        mode_map = {
+            "Single Segment Translation": "single",
+            "Batch DOCX Translation": "batch_docx",
+            "Batch Bilingual Translation": "batch_bilingual"
+        }
+
+        selected_mode = mode_combo.currentText()
+        mode_key = mode_map.get(selected_mode, "single")
+
+        # Confirm reset
+        reply = QMessageBox.question(
+            self,
+            "Reset System Prompt",
+            f"Are you sure you want to reset the system prompt for '{selected_mode}' to its default value?\n\n"
+            "This will discard any custom changes you've made.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+
+        if reply == QMessageBox.StandardButton.Yes:
+            # Get default from unified_prompt_manager
+            if hasattr(self, 'unified_prompt_manager'):
+                default_prompt = self.unified_prompt_manager._get_default_system_template(mode_key)
+                editor.setPlainText(default_prompt)
+                self.log(f"✓ Reset system prompt to default: {selected_mode}")
+
     def _save_llm_settings_from_ui(self, openai_radio, claude_radio, gemini_radio,
                                    openai_combo, claude_combo, gemini_combo,
                                    openai_enable_cb, claude_enable_cb, gemini_enable_cb,

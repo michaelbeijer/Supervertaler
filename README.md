@@ -26,7 +26,7 @@
 
 ### 🆕 Qt Edition (Modern) - **PRIMARY**
 **File:** `Supervertaler_Qt.py`
-**Version:** v1.3.0 (November 9, 2025)
+**Version:** v1.3.1 (November 9, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -34,7 +34,14 @@
 python Supervertaler_Qt.py
 ```
 
-**NEW in v1.3.0 - AI Assistant + 2-Layer Architecture:**
+**NEW in v1.3.1 - AI Assistant File Attachment Persistence:**
+- 📎 **Persistent File Attachments** - Attached files now saved to disk and persist across sessions
+- 👁️ **File Viewer Dialog** - View attached file content with markdown preview and copy to clipboard
+- 🗂️ **Expandable Files Panel** - Collapsible UI showing all attached files with view/remove buttons
+- 💾 **Session Management** - Files organized by date with metadata tracking
+- 🔄 **Auto-Load** - Files automatically reload when app restarts
+
+**v1.3.0 Features - AI Assistant + 2-Layer Architecture:**
 - 🤖 **AI Assistant with Chat Interface** - Conversational prompt generation and document analysis
 - 🎯 **2-Layer Prompt Architecture** - Simplified from 4-layer to intuitive 2-layer system
   - **Layer 1: System Prompts** - Infrastructure (CAT tags, formatting, core instructions)

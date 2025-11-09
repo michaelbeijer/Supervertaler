@@ -6,6 +6,81 @@ The Qt Edition is the **primary version** for active development and new feature
 
 ---
 
+## [1.3.1] - November 9, 2025
+
+### ✨ Major Feature: AI Assistant File Attachment Persistence (Phase 1)
+
+**Complete persistent storage system for AI Assistant file attachments with view/manage UI**
+
+### Added
+- **📎 AttachmentManager Module** (`modules/ai_attachment_manager.py` - 390 lines)
+  - Complete persistent storage system for attached files
+  - Session-based organization (files grouped by date)
+  - Master index tracking all attachments across sessions
+  - Metadata storage with JSON (original name, path, type, size, date)
+  - Full CRUD operations: attach, get, list, remove files
+  - Statistics tracking (total files, size, sessions)
+
+- **👁️ File Viewer Dialogs** (`modules/ai_file_viewer_dialog.py` - 160 lines)
+  - FileViewerDialog - displays file content with metadata
+  - Read-only markdown preview with monospace font
+  - Copy to clipboard functionality
+  - FileRemoveConfirmDialog - confirmation before deletion
+
+- **🎨 Expandable Attached Files Panel** (AI Assistant context sidebar)
+  - Collapsible "📎 Attached Files" section with expand/collapse button (▼/▶)
+  - Dynamic file list showing name, type, size for each file
+  - View button (👁) - opens file viewer dialog
+  - Remove button (❌) - deletes from disk with confirmation
+  - + button to attach new files
+  - Auto-refresh on file operations
+
+### Changed
+- **🔧 AI Assistant Integration** (`modules/unified_prompt_manager_qt.py`)
+  - Initialized AttachmentManager in `__init__`
+  - Modified `_attach_file()` to save files to persistent storage
+  - Added `_load_persisted_attachments()` method - loads files on startup
+  - Created `_create_attached_files_section()` - expandable panel UI
+  - Added `_refresh_attached_files_list()` - dynamic file list updates
+  - Added `_create_file_item_widget()` - individual file items with buttons
+  - Added `_view_file()` - opens FileViewerDialog
+  - Added `_remove_file()` - removes from disk and memory
+  - Added `_toggle_attached_files()` - expand/collapse functionality
+  - Updated `_update_context_sidebar()` to refresh file list
+  - Updated `_load_conversation_history()` to refresh UI after load
+
+### Technical
+- **Storage Structure:**
+  - Base: `user_data_private/AI_Assistant/`
+  - Attachments: `attachments/{session_id}/{file_hash}.md`
+  - Metadata: `attachments/{session_id}/{file_hash}.meta.json`
+  - Master index: `index.json`
+- **Session Management:** Date-based sessions (YYYYMMDD format)
+- **File Hashing:** SHA256-based unique IDs (path_hash + content_hash)
+- **Backward Compatibility:** Old `self.attached_files` list still maintained
+
+### Testing
+- ✅ Created comprehensive test suite (`test_attachment_manager.py`)
+- ✅ All 8 tests passing (imports, init, session, attach, list, get, stats, remove)
+- ✅ UTF-8 console output handling for Windows
+
+### Benefits
+- ✅ **Files no longer lost** when application closes
+- ✅ **Users can view** attached files anytime via viewer dialog
+- ✅ **Users can remove** unwanted files with confirmation
+- ✅ **Session organization** keeps files organized by date
+- ✅ **Persistent across app restarts** - automatic reload on startup
+
+### Documentation
+- Updated `docs/PROJECT_CONTEXT.md` with Phase 1 implementation details
+- Created `docs/AI_ASSISTANT_ENHANCEMENT_PLAN.md` with full specification
+- Updated website (`docs/index.html`) to reflect new features
+
+### Next
+- Phase 2: AI Actions System (allow AI to create/modify prompts in library)
+
+---
+
 ## [1.2.2] - November 6, 2025
 
 ### 🎨 Major Enhancement: Translation Results, Document Formatting & Tag System
