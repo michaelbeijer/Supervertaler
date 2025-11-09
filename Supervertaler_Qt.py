@@ -3095,7 +3095,7 @@ class SupervertalerQt(QMainWindow):
         provider_button_group.addButton(openai_radio)
         provider_layout.addWidget(openai_radio)
         
-        claude_radio = CustomRadioButton("Anthropic Claude (Claude 3.5 Sonnet)")
+        claude_radio = CustomRadioButton("Anthropic Claude (Claude Sonnet 4.5)")
         claude_radio.setChecked(settings.get('provider', 'openai') == 'claude')
         provider_button_group.addButton(claude_radio)
         provider_layout.addWidget(claude_radio)
@@ -3145,11 +3145,11 @@ class SupervertalerQt(QMainWindow):
         
         claude_combo = QComboBox()
         claude_combo.addItems([
-            "claude-3-5-sonnet-20241022 (Recommended)",
-            "claude-3-5-haiku-20241022 (Fast)",
-            "claude-3-opus-20240229 (Powerful)"
+            "claude-sonnet-4-5-20250929 (Recommended - Best Balance)",
+            "claude-haiku-4-5-20251001 (Fast & Affordable)",
+            "claude-opus-4-1-20250805 (Premium - Complex Reasoning)"
         ])
-        current_claude_model = settings.get('claude_model', 'claude-3-5-sonnet-20241022')
+        current_claude_model = settings.get('claude_model', 'claude-sonnet-4-5-20250929')
         for i in range(claude_combo.count()):
             if current_claude_model in claude_combo.itemText(i):
                 claude_combo.setCurrentIndex(i)
@@ -9880,7 +9880,7 @@ class SupervertalerQt(QMainWindow):
             return {
                 'provider': 'openai',
                 'openai_model': 'gpt-4o',
-                'claude_model': 'claude-3-5-sonnet-20241022',
+                'claude_model': 'claude-sonnet-4-5-20250929',
                 'gemini_model': 'gemini-2.0-flash-exp'
             }
         
@@ -9890,14 +9890,14 @@ class SupervertalerQt(QMainWindow):
                 return prefs.get('llm_settings', {
                     'provider': 'openai',
                     'openai_model': 'gpt-4o',
-                    'claude_model': 'claude-3-5-sonnet-20241022',
+                    'claude_model': 'claude-sonnet-4-5-20250929',
                     'gemini_model': 'gemini-2.0-flash-exp'
                 })
         except:
             return {
                 'provider': 'openai',
                 'openai_model': 'gpt-4o',
-                'claude_model': 'claude-3-5-sonnet-20241022',
+                'claude_model': 'claude-sonnet-4-5-20250929',
                 'gemini_model': 'gemini-2.0-flash-exp'
             }
     
@@ -11002,7 +11002,7 @@ class SupervertalerQt(QMainWindow):
         # Get model based on provider
         model_map = {
             "openai": settings.get('openai_model', 'gpt-4o'),
-            "claude": settings.get('claude_model', 'claude-3-5-sonnet-20241022'),
+            "claude": settings.get('claude_model', 'claude-sonnet-4-5-20250929'),
             "gemini": settings.get('gemini_model', 'gemini-2.0-flash-exp')
         }
         model = model_map.get(provider, 'gpt-4o')
@@ -11485,7 +11485,7 @@ class SupervertalerQt(QMainWindow):
 # Get your key at: https://platform.openai.com/api-keys
 #openai = YOUR_OPENAI_KEY_HERE
 
-# Anthropic Claude (Claude 3.5 Sonnet, etc.)
+# Anthropic Claude (Claude Sonnet 4.5, Haiku 4.5, Opus 4.1)
 # Get your key at: https://console.anthropic.com/settings/keys
 #claude = YOUR_CLAUDE_KEY_HERE
 
@@ -11856,7 +11856,7 @@ class SupervertalerQt(QMainWindow):
                     try:
                         from modules.llm_clients import LLMClient
                         
-                        claude_model = settings.get('claude_model', 'claude-3-5-sonnet-20241022')
+                        claude_model = settings.get('claude_model', 'claude-sonnet-4-5-20250929')
                         client = LLMClient(
                             api_key=api_keys['claude'],
                             provider='claude',
