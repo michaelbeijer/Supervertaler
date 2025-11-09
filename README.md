@@ -2,7 +2,7 @@
 
 # Supervertaler
 
-🎯 **The Ultimate Companion Tool for Translators and Writers** — Context-aware AI with unique 4-Layer Prompt Architecture and specialized modules. Available in two editions: Modern Qt (active development) and Classic Tkinter (maintenance mode).
+🎯 **The Ultimate Companion Tool for Translators and Writers** — Context-aware AI with intuitive 2-Layer Prompt Architecture, AI Assistant, and specialized modules. Available in two editions: Modern Qt (active development) and Classic Tkinter (maintenance mode).
 
 ---
 
@@ -25,43 +25,48 @@
 ## 📦 Two Editions
 
 ### 🆕 Qt Edition (Modern) - **PRIMARY**
-**File:** `Supervertaler_Qt.py`  
-**Version:** v1.2.2 (November 6, 2025)  
-**Framework:** PyQt6  
+**File:** `Supervertaler_Qt.py`
+**Version:** v1.3.0 (November 9, 2025)
+**Framework:** PyQt6
 **Status:** Active Development
 
 ```bash
 python Supervertaler_Qt.py
 ```
 
-**NEW in v1.2.2 - Translation Results, Document Formatting & Tag System:**
-- ✅ **Translation Results Panels Now Working** - CRITICAL FIX: All match types display correctly
-- ✅ **Document View Formatting** - Renders bold, italic, underline, and list item tags
-- ✅ **Enhanced Type Column** - Shows H1, H2, H3, H4, Title, Sub, li, ¶ with color coding
-- ✅ **List Item Tag System** - Automatic detection and tagging of bullets/numbered lists
+**NEW in v1.3.0 - AI Assistant + 2-Layer Architecture:**
+- 🤖 **AI Assistant with Chat Interface** - Conversational prompt generation and document analysis
+- 🎯 **2-Layer Prompt Architecture** - Simplified from 4-layer to intuitive 2-layer system
+  - **Layer 1: System Prompts** - Infrastructure (CAT tags, formatting, core instructions)
+  - **Layer 2: Custom Prompts** - Domain + Project + Style Guide (unified, flexible)
+- ✨ **Markdown Chat Formatting** - Beautiful chat bubbles with **bold**, *italic*, `code`, and bullets
+- 🧹 **TagCleaner Module** - Clean memoQ index tags from AutoFingers translations
+- 🎨 **Perfect Chat Rendering** - Custom Qt delegates for professional chat UI
 
-**v1.2.1 Features - Unified Tabbed Interface:**
-- ✅ **Tabbed Panel in Grid View** - Translation Results | Segment Editor | Notes
-- ✅ **Tabbed Panel in List View** - Same 3-tab structure for consistency
-- ✅ **Synchronized Updates** - All panels update across all views simultaneously
-- ✅ **Enhanced Workflow** - Segment editing now available in Grid View
+**v1.2.4 Features - TagCleaner Module & AutoFingers Enhancement:**
+- ✅ **TagCleaner Module** - Standalone module for cleaning CAT tool tags
+- ✅ **AutoFingers Integration** - Tag cleaning integrated with AutoFingers engine
+- ✅ **Status Column Improvements** - Semantic icons and better visual design
 
-**v1.2.0 Features - Complete Translation Matching System:**
-- ✅ **Google Cloud Translation** - Machine translation integrated
-- ✅ **Multi-LLM Support** - OpenAI GPT, Claude, Gemini (all working simultaneously)
-- ✅ **Complete Match Chaining** - Termbase + TM + MT + LLM matches displayed together
-- ✅ **Termbase Match Preservation** - Fixed: matches no longer disappear
+**v1.2.2-1.2.3 Features:**
+- ✅ **Translation Results Panels** - All match types display correctly
+- ✅ **Document View Formatting** - Renders bold, italic, underline, list items
+- ✅ **Enhanced Type Column** - H1-H4, Title, Sub, li, ¶ with color coding
+- ✅ **Tabbed Panel Interface** - Translation Results | Segment Editor | Notes
+- ✅ **Complete Match Chaining** - Termbase + TM + MT + LLM together
 
-**Features:**
-- 🎯 **4-Layer Prompt Architecture** - System, Domain, Project Prompts, Style Guides + AI Prompt Assistant (unique!)
+**Core Features:**
+- 🎯 **2-Layer Prompt Architecture** - System Prompts + Custom Prompts with AI Assistant
+- 🤖 **AI Assistant** - Conversational interface for document analysis and prompt generation
 - 🧠 **Context-aware AI** - Leverages full document context, images, TM, and termbases
 - 🤖 **Multiple AI Providers** - OpenAI GPT-4o/5, Claude 3.5 Sonnet, Google Gemini 2.0
 - 🌐 **Machine Translation** - Google Cloud Translation API integration
-- 🎨 **Translation Results Panel** - All match types (Termbase, TM, MT, LLM) in one compact view
+- 🎨 **Translation Results Panel** - All match types (Termbase, TM, MT, LLM) in one view
 - 🔄 **CAT Tool Integration** - Import/export with memoQ, Trados, CafeTran
-- 📊 **Bilingual Review Interface** - Grid, List, and Document views for reviewing translations
+- 📊 **Bilingual Review Interface** - Grid, List, and Document views
 - 🔍 **Universal Lookup** - System-wide search with global hotkey (Ctrl+Alt+L)
-- 📝 **TMX Editor** - Professional translation memory editor with database-backed large file support
+- 📝 **TMX Editor** - Professional translation memory editor with database support
+- 🧹 **AutoFingers** - Automated translation pasting for memoQ with tag cleaning
 - 🔧 **PDF Rescue** - AI-powered OCR for poorly formatted PDFs
 - 🔧 **Encoding Repair Tool** - Detect and fix text encoding corruption (mojibake)
 - 💾 **Translation Memory** - Fuzzy matching with TMX import/export

@@ -3,8 +3,8 @@ Supervertaler Qt Edition
 ========================
 The ultimate companion tool for translators and writers.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.2.1 (Unified Tabbed Interface)
-Release Date: November 6, 2025
+Version: 1.3.0 (AI Assistant + 2-Layer Architecture)
+Release Date: November 9, 2025
 Framework: PyQt6
 
 This is the modern edition of Supervertaler using PyQt6 framework.
@@ -14,10 +14,11 @@ Key Features:
 - Complete Translation Matching: Termbase + TM + MT + Multi-LLM
 - Google Cloud Translation API integration
 - Multi-LLM Support: OpenAI GPT, Claude, Google Gemini
-- 4-Layer Prompt Architecture (System, Domain, Project, Style Guides + Prompt Assistant)
+- 2-Layer Prompt Architecture (System + Custom Prompts) with AI Assistant
+- AI Assistant with conversational interface for document analysis
 - Universal Lookup with global hotkey (Ctrl+Alt+L)
 - Modern theme system (6 themes + custom editor)
-- AutoFingers automation for memoQ
+- AutoFingers automation for memoQ with TagCleaner module
 - memoQ bilingual DOCX import/export
 - SQLite-based translation memory with FTS5 search
 - Professional TMX editor
@@ -27,9 +28,9 @@ License: MIT
 """
 
 # Version Information
-__version__ = "1.2.4"
-__phase__ = "6.1"
-__release_date__ = "2025-11-07"
+__version__ = "1.3.0"
+__phase__ = "6.2"
+__release_date__ = "2025-11-09"
 __edition__ = "Qt"
 
 import sys
@@ -1531,7 +1532,7 @@ class SupervertalerQt(QMainWindow):
         # ===== NEW RESTRUCTURED UI =====
         # Left: Tab widget with Prompt Manager, Resources, Modules, Settings
         # Right: Editor (always visible, no tabs) 
-        from modules.prompt_manager_qt import PromptManagerQt
+        from modules.unified_prompt_manager_qt import UnifiedPromptManagerQt
         
         # Main horizontal splitter: Left-side tabs (left) and Editor (right)
         self.main_splitter = QSplitter(Qt.Orientation.Horizontal)
@@ -1547,9 +1548,9 @@ class SupervertalerQt(QMainWindow):
         # Connect tab change for navigation tracking
         self.right_tabs.currentChanged.connect(self.on_right_tab_changed)
         
-        # 1. PROMPT MANAGER (first tab)
+        # 1. UNIFIED PROMPT LIBRARY (first tab)
         prompt_widget = QWidget()
-        self.prompt_manager_qt = PromptManagerQt(self, standalone=False)
+        self.prompt_manager_qt = UnifiedPromptManagerQt(self, standalone=False)
         self.prompt_manager_qt.create_tab(prompt_widget)
         self.right_tabs.addTab(prompt_widget, "🤖 Prompt Manager")
         
@@ -1623,12 +1624,12 @@ class SupervertalerQt(QMainWindow):
         )
     
     def create_prompt_manager_tab(self) -> QWidget:
-        """Create the Prompt Manager tab - 4-Layer Prompt Architecture"""
-        from modules.prompt_manager_qt import PromptManagerQt
+        """Create the Unified Prompt Library tab - Simplified 2-Layer Architecture"""
+        from modules.unified_prompt_manager_qt import UnifiedPromptManagerQt
         
-        # Create Prompt Manager widget (embedded mode, not standalone)
+        # Create Unified Prompt Manager widget (embedded mode, not standalone)
         prompt_widget = QWidget()
-        self.prompt_manager_qt = PromptManagerQt(self, standalone=False)
+        self.prompt_manager_qt = UnifiedPromptManagerQt(self, standalone=False)
         self.prompt_manager_qt.create_tab(prompt_widget)
         
         return prompt_widget
@@ -5047,22 +5048,29 @@ class SupervertalerQt(QMainWindow):
             self.project_file_path = file_path
             self.project_modified = False
             
-            # Restore prompt settings if they exist
+            # Restore prompt settings if they exist (unified library)
             if hasattr(self.current_project, 'prompt_settings') and self.current_project.prompt_settings:
                 prompt_settings = self.current_project.prompt_settings
                 if hasattr(self, 'prompt_manager_qt') and self.prompt_manager_qt:
-                    # Restore active prompts
-                    if prompt_settings.get('active_translate_prompt_name'):
-                        self._restore_active_prompt('translate', prompt_settings['active_translate_prompt_name'])
-                    if prompt_settings.get('active_proofread_prompt_name'):
-                        self._restore_active_prompt('proofread', prompt_settings['active_proofread_prompt_name'])
-                    if prompt_settings.get('active_project_prompt_name'):
-                        self._restore_active_prompt('project', prompt_settings['active_project_prompt_name'])
-                    if prompt_settings.get('active_style_guide_name') and prompt_settings.get('active_style_guide_language'):
-                        self._restore_active_style_guide(
-                            prompt_settings['active_style_guide_name'],
-                            prompt_settings['active_style_guide_language']
-                        )
+                    library = self.prompt_manager_qt.library
+                    
+                    # Restore primary prompt
+                    primary_path = prompt_settings.get('active_primary_prompt_path')
+                    if primary_path and primary_path in library.prompts:
+                        library.set_primary_prompt(primary_path)
+                        self.log(f"✓ Restored primary prompt: {primary_path}")
+                    
+                    # Restore attached prompts
+                    attached_paths = prompt_settings.get('attached_prompt_paths', [])
+                    for path in attached_paths:
+                        if path in library.prompts:
+                            library.attach_prompt(path)
+                            self.log(f"✓ Restored attached prompt: {path}")
+                    
+                    # Restore mode
+                    mode = prompt_settings.get('mode', 'single')
+                    if hasattr(self.prompt_manager_qt, 'set_mode'):
+                        self.prompt_manager_qt.set_mode(mode)
             
             self.load_segments_to_grid()
             self.initialize_tm_database()  # Initialize TM for this project
@@ -5315,12 +5323,12 @@ class SupervertalerQt(QMainWindow):
             
             # Save prompt settings if prompt manager is available
             if hasattr(self, 'prompt_manager_qt') and self.prompt_manager_qt:
+                # Unified prompt library - save active primary and attached prompts
+                library = self.prompt_manager_qt.library
                 self.current_project.prompt_settings = {
-                    'active_translate_prompt_name': getattr(self.prompt_manager_qt, 'active_translate_prompt_name', None),
-                    'active_proofread_prompt_name': getattr(self.prompt_manager_qt, 'active_proofread_prompt_name', None),
-                    'active_project_prompt_name': getattr(self.prompt_manager_qt, 'active_project_prompt_name', None),
-                    'active_style_guide_name': getattr(self.prompt_manager_qt, 'active_style_guide_name', None),
-                    'active_style_guide_language': getattr(self.prompt_manager_qt, 'active_style_guide_language', None),
+                    'active_primary_prompt_path': library.active_primary_prompt_path,
+                    'attached_prompt_paths': library.attached_prompt_paths.copy() if library.attached_prompt_paths else [],
+                    'mode': getattr(self.prompt_manager_qt, 'current_mode', 'single'),
                 }
             
             with open(file_path, 'w', encoding='utf-8') as f:
@@ -6010,15 +6018,35 @@ class SupervertalerQt(QMainWindow):
         if not self.current_project or not self.current_project.segments:
             QMessageBox.warning(self, "No Data", "No segments to export")
             return
-        
-        # Check if a memoQ source file was imported
-        if not hasattr(self, 'memoq_source_file'):
-            QMessageBox.warning(
-                self, "No memoQ Source",
-                "No memoQ bilingual file was imported.\n\n"
-                "This feature is only available after importing a memoQ bilingual DOCX file."
+
+        # Check if a memoQ source file was imported, or prompt for it
+        if not hasattr(self, 'memoq_source_file') or not self.memoq_source_file:
+            # Prompt user to select the original memoQ bilingual file
+            reply = QMessageBox.question(
+                self, "Select memoQ Source File",
+                "To export to memoQ format, please select the original memoQ bilingual DOCX file.\n\n"
+                "This is the file you originally imported from memoQ.\n\n"
+                "Would you like to select it now?",
+                QMessageBox.Yes | QMessageBox.No
             )
-            return
+
+            if reply == QMessageBox.Yes:
+                file_path, _ = QFileDialog.getOpenFileName(
+                    self,
+                    "Select Original memoQ Bilingual DOCX",
+                    "",
+                    "Word Documents (*.docx);;All Files (*.*)"
+                )
+
+                if file_path:
+                    self.memoq_source_file = file_path
+                    self.log(f"✓ memoQ source file set: {Path(file_path).name}")
+                else:
+                    self.log("Export cancelled - no source file selected")
+                    return
+            else:
+                self.log("Export cancelled")
+                return
         
         try:
             from docx import Document
@@ -6042,34 +6070,39 @@ class SupervertalerQt(QMainWindow):
             for i, translation in enumerate(translations):
                 segment = segments[i]
                 row_idx = i + 2  # Skip header rows (0 and 1)
-                
-                if row_idx < len(table.rows):
-                    row = table.rows[row_idx]
-                    
-                    # Write translation to column 2 (target) with formatting
-                    if len(row.cells) >= 3:
-                        target_cell = row.cells[2]
-                        
-                        # Get formatting info for this segment (if available)
-                        formatting_info = None
-                        if hasattr(self, 'memoq_formatting_map') and i in self.memoq_formatting_map:
-                            formatting_info = self.memoq_formatting_map[i]
-                            if any(f['bold'] or f['italic'] or f['underline'] for f in formatting_info):
-                                segments_with_formatting += 1
-                        
-                        # Apply formatting to the target cell
-                        self._apply_formatting_to_cell(target_cell, translation, formatting_info)
-                        segments_updated += 1
-                    
-                    # Update comments in column 3
-                    if len(row.cells) >= 4:
-                        if segment.notes and segment.notes.strip():
-                            row.cells[3].text = segment.notes.strip()
 
-                    # Update status column using compose_memoq_status
-                    if len(row.cells) >= 5:
-                        existing = row.cells[4].text
-                        row.cells[4].text = compose_memoq_status(segment.status, segment.match_percent, existing)
+                # Safety check: ensure we don't go beyond available rows
+                if row_idx >= len(table.rows):
+                    self.log(f"⚠ Warning: Row {row_idx} exceeds table rows ({len(table.rows)}), stopping at segment {i}")
+                    break
+
+                row = table.rows[row_idx]
+                num_cells = len(row.cells)
+
+                # Write translation to column 2 (target) with formatting
+                if num_cells >= 3:
+                    target_cell = row.cells[2]
+
+                    # Get formatting info for this segment (if available)
+                    formatting_info = None
+                    if hasattr(self, 'memoq_formatting_map') and i in self.memoq_formatting_map:
+                        formatting_info = self.memoq_formatting_map[i]
+                        if any(f['bold'] or f['italic'] or f['underline'] for f in formatting_info):
+                            segments_with_formatting += 1
+
+                    # Apply formatting to the target cell
+                    self._apply_formatting_to_cell(target_cell, translation, formatting_info)
+                    segments_updated += 1
+
+                # Update comments in column 3 (if column exists)
+                if num_cells >= 4:
+                    if segment.notes and segment.notes.strip():
+                        row.cells[3].text = segment.notes.strip()
+
+                # Update status column using compose_memoq_status (if column exists)
+                if num_cells >= 5:
+                    existing = row.cells[4].text
+                    row.cells[4].text = compose_memoq_status(segment.status, segment.match_percent, existing)
             
             # Prompt user to save the updated bilingual file
             default_name = Path(self.memoq_source_file).stem + "_translated.docx"
@@ -6343,19 +6376,18 @@ class SupervertalerQt(QMainWindow):
         # Use 🗨️ (left speech bubble) with better contrast
         comment_label = QLabel("🗨️")
         comment_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        # Add slight shadow/border effect for better visibility
+        # Style comment label (text-shadow not supported in Qt, removed)
         if segment.notes and segment.notes.strip():
             comment_label.setStyleSheet("""
                 color: #ff9800;
                 font-size: 14px;
-                text-shadow: 0px 0px 1px rgba(0,0,0,0.5);
+                font-weight: bold;
             """)
             comment_label.setToolTip(segment.notes.strip())
         else:
             comment_label.setStyleSheet("""
                 color: #90A4AE;
                 font-size: 14px;
-                text-shadow: 0px 0px 1px rgba(0,0,0,0.3);
             """)
             comment_label.setToolTip("No comments")
         layout.addWidget(comment_label)
@@ -7407,21 +7439,20 @@ class SupervertalerQt(QMainWindow):
             self.log(f"⚠ Could not restore {prompt_type} prompt '{prompt_name}': {e}")
     
     def _restore_active_style_guide(self, guide_name: str, language: str):
-        """Restore an active style guide by name and language"""
+        """Restore an active style guide by name and language
+        
+        NOTE: Temporarily disabled for unified prompt library migration.
+        TODO: Implement session restoration for unified library (save/restore active prompts)
+        """
         if not hasattr(self, 'prompt_manager_qt') or not self.prompt_manager_qt:
             return
         
-        try:
-            # Get style guide content directly
-            guide_content = self.prompt_manager_qt.style_guide_library.get_guide_content(language)
-            if guide_content:
-                # Set the active style guide directly
-                self.prompt_manager_qt.active_style_guide = guide_content
-                self.prompt_manager_qt.active_style_guide_name = guide_name
-                self.prompt_manager_qt.active_style_guide_language = language
-                self.prompt_manager_qt._update_active_display()
-        except Exception as e:
-            self.log(f"⚠ Could not restore style guide '{guide_name}' ({language}): {e}")
+        # TODO: Adapt this for unified prompt library
+        # The new system uses multi-attach, so we'd need to:
+        # 1. Find the style guide in library.prompts
+        # 2. Attach it using library.attach_prompt(path)
+        # For now, skip restoration - user can re-select prompts
+        self.log(f"⚠ Style guide restoration not yet implemented in unified library: '{guide_name}' ({language})")
     
     def _schedule_delayed_lookup(self, segment, current_row):
         """Schedule TM and termbase lookup with delay (cancel if user moves to another segment)"""

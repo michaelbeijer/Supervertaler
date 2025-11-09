@@ -1,12 +1,567 @@
 # Supervertaler Project Context
 
-**Last Updated:** November 7, 2025
+**Last Updated:** November 9, 2025
 **Repository:** https://github.com/michaelbeijer/Supervertaler
 **Maintainer:** Michael Beijer
 
 ---
 
 ## 📅 Recent Development Activity
+
+### November 8-9, 2025 - MAJOR: Unified Prompt System + AI Assistant
+
+**🎯 Complete UI Reorganization + AI Assistant Implementation**
+
+Major refactoring of the entire prompt management system from 4-layer to 2-layer architecture, PLUS integration of a full AI Assistant for conversational prompt generation and document analysis.
+
+---
+
+## ✅ FIXED: Chat UI Rendering (November 9, 2025)
+
+**Status:** RESOLVED - Chat interface now renders perfectly with custom Qt delegates
+
+**Solution Implemented:**
+Replaced the problematic QTextEdit+HTML approach with a **QListWidget + Custom QStyledItemDelegate** solution. This provides full control over rendering using Qt's native painting system.
+
+**Implementation Details:**
+
+1. **New ChatMessageDelegate Class** ([unified_prompt_manager_qt.py:30-286](modules/unified_prompt_manager_qt.py#L30-L286))
+   - Custom `QStyledItemDelegate` that paints chat bubbles using `QPainter`
+   - Supports three message types: user, assistant, system
+   - Proper text wrapping with `QFontMetrics.boundingRect()`
+   - Dynamic height calculation in `sizeHint()`
+   - Professional styling:
+     - User messages: Right-aligned, Supervertaler blue gradient (#5D7BFF → #4F6FFF)
+     - AI messages: Left-aligned, light gray (#F5F5F7)
+     - System messages: Centered, subtle notification style
+   - Avatar circles with gradient backgrounds (👤 user, 🤖 AI)
+   - Proper shadows, rounded corners (18px radius), smooth antialiasing
+
+2. **Updated Chat Display** ([unified_prompt_manager_qt.py:643-677](modules/unified_prompt_manager_qt.py#L643-L677))
+   - Replaced `QTextEdit` with `QListWidget`
+   - Applied `ChatMessageDelegate` as item delegate
+   - Disabled selection/focus for clean appearance
+   - Smooth pixel-based scrolling
+
+3. **Simplified Message Adding** ([unified_prompt_manager_qt.py:1932-1959](modules/unified_prompt_manager_qt.py#L1932-L1959))
+   - `_add_chat_message()` now creates `QListWidgetItem` with data
+   - No more HTML/CSS - just data stored in `UserRole`
+   - Auto-scroll to bottom on new messages
+
+**What Now Works:**
+- ✅ Perfect chat bubble rendering with gradients and shadows
+- ✅ User text fully visible (white on blue gradient)
+- ✅ AI text fully visible (dark on light gray)
+- ✅ Avatars properly positioned and styled
+- ✅ Text wraps correctly within 70% max width
+- ✅ Professional appearance matching Supervertaler branding
+- ✅ No truncation or formatting glitches
+- ✅ Smooth scrolling and responsive layout
+
+**Testing:**
+- Created [test_chat_ui.py](test_chat_ui.py) - standalone test window
+- Tests all three message types (user, assistant, system)
+- Tests long messages for proper wrapping
+- All visual issues resolved
+
+**Files Modified:**
+- [modules/unified_prompt_manager_qt.py](modules/unified_prompt_manager_qt.py)
+  - Added `ChatMessageDelegate` class (lines 30-286)
+  - Updated imports for Qt painting classes
+  - Modified `_create_chat_interface()` to use QListWidget
+  - Simplified `_add_chat_message()` method
+  - Removed old HTML-based stub methods
+
+---
+
+### November 8, 2025 - MAJOR: Unified Prompt Library System
+
+**🎯 Complete Refactoring: 4-Layer → 2-Layer Prompt Architecture**
+
+Radically simplified the prompt system from a confusing 4-layer architecture to an intuitive 2-layer system inspired by CoTranslatorAI. This is a MAJOR refactoring affecting the entire prompt management system.
+
+**🔄 Architecture Change:**
+
+**OLD (Confusing):**
+```
+System Prompts tab      → CAT tool tags, formatting
+Domain Prompts tab      → Industry/domain expertise
+Project Prompts tab     → Project-specific rules
+Style Guides tab        → Language formatting rules
+```
+
+**NEW (Simple):**
+```
+System Templates        → In Settings, auto-selected by mode
+Prompt Library          → Unified workspace with folders, multi-attach
+```
+
+**✅ Completed Implementation:**
+
+1. **Core Library Module** (`modules/unified_prompt_library.py` - 700+ lines)
+   - ✅ Nested folder support (unlimited depth like CoTranslator)
+   - ✅ Favorites system (stored in YAML frontmatter)
+   - ✅ Quick Run menu for one-click prompts
+   - ✅ Multi-attach capability (primary + multiple attached prompts)
+   - ✅ Markdown files with YAML frontmatter
+   - ✅ Full CRUD operations
+   - ✅ Recursive folder loading
+   - ✅ Path-based organization
+
+2. **Migration System** (`modules/prompt_library_migration.py` - 500+ lines)
+   - ✅ Automatic migration from 4-layer to unified structure
+   - ✅ Backs up old folders with `.old` extension
+   - ✅ Converts JSON prompts to Markdown
+   - ✅ Adds metadata (favorite, quick_run, tags, folder)
+   - ✅ Creates new Library/ folder structure
+   - ✅ Preserves all existing prompts
+   - ✅ One-time migration on first launch
+   - ✅ **TESTED & WORKING** - All 5 tests passing
+
+3. **New UI** (`modules/unified_prompt_manager_qt.py` - 900+ lines)
+   - ✅ Single-tab interface replacing 4 separate tabs
+   - ✅ Tree view with nested folders
+   - ✅ Favorites section at top
+   - ✅ Quick Run menu section
+   - ✅ Active configuration panel showing:
+     - Current mode (Single Segment, Batch DOCX, Batch Bilingual)
+     - Primary prompt (main instructions)
+     - Attached prompts (additional rules)
+   - ✅ Right-click context menus:
+     - Set as Primary / Attach to Active
+     - Add to Favorites / Quick Run
+     - Edit / Duplicate / Delete
+     - Create folders and subfolders
+   - ✅ Prompt editor with metadata fields
+   - ✅ Preview combined prompt
+   - ✅ System Templates access from main UI
+
+4. **Test Suite** (`tests/test_unified_prompt_library.py`)
+   - ✅ Test 1: Migration (PASSED)
+   - ✅ Test 2: Library Loading (PASSED - 16 prompts)
+   - ✅ Test 3: Favorites & Quick Run (PASSED)
+   - ✅ Test 4: Multi-Attach (PASSED)
+   - ✅ Test 5: Prompt Composition (PASSED)
+   - **Result: 5/5 tests passed** ✅
+
+5. **Demo Application** (`tests/demo_unified_prompt_ui.py`)
+   - ✅ Standalone UI demo
+   - ✅ Shows complete new interface
+   - ✅ Run with: `python tests/demo_unified_prompt_ui.py`
+
+6. **User Documentation** (`docs/UNIFIED_PROMPT_LIBRARY_GUIDE.md`)
+   - ✅ Complete user guide
+   - ✅ Migration explanation
+   - ✅ Usage examples
+   - ✅ FAQ and troubleshooting
+   - ✅ Tips and best practices
+
+**📁 New File Structure:**
+
+```
+user_data/Prompt_Library/
+├── 1_System_Prompts.old          (backed up - old system prompts)
+├── 2_Domain_Prompts.old          (backed up - old domain prompts)
+├── 3_Project_Prompts.old         (backed up - old project prompts)
+├── 4_Style_Guides.old            (backed up - old style guides)
+├── .migration_completed          (migration flag file)
+└── Library/                      (NEW unified structure)
+    ├── Style Guides/
+    │   ├── Dutch.md
+    │   ├── English.md
+    │   ├── French.md
+    │   ├── German.md
+    │   └── Spanish.md
+    ├── Domain Expertise/         (migrated from 2_Domain_Prompts)
+    │   ├── Medical Translation Specialist.md
+    │   ├── Legal Translation Specialist.md
+    │   ├── Financial Translation Specialist.md
+    │   └── ... (8 prompts total)
+    ├── Project Prompts/           (migrated from 3_Project_Prompts)
+    │   ├── Professional Tone & Style.md
+    │   ├── Preserve Formatting & Layout.md
+    │   └── Prefer Translation Memory Matches.md
+    └── Active Projects/           (user creates own subfolders)
+        └── (empty - ready for user organization)
+```
+
+**🔧 Technical Details:**
+
+**Terminology Decision:**
+- **"System Templates"** (not "Base Templates" or "Tag Processing Rules")
+- Hidden in Settings > Translation (not in main UI)
+- Auto-selected based on document type
+
+**Metadata Format (YAML Frontmatter):**
+```yaml
+---
+name: "Medical Translation Specialist"
+description: "Expert medical device translation"
+domain: "Medical"
+version: "1.0"
+task_type: "Translation"
+favorite: false
+quick_run: false
+folder: "Domain Expertise"
+tags: ["medical", "technical", "regulatory"]
+created: "2025-10-19"
+modified: "2025-11-08"
+---
+
+# Prompt content here...
+```
+
+**Multi-Attach System:**
+```python
+# User Configuration:
+Primary Prompt:  Medical Translation Specialist
+Attached:        Dutch Style Guide
+Attached:        Professional Tone & Style
+
+# System automatically combines:
+final_prompt = system_template + primary + attached[0] + attached[1]
+```
+
+**Prompt Composition Logic:**
+```python
+def build_final_prompt(source_text, source_lang, target_lang, mode):
+    # Layer 1: System Template (auto-selected)
+    system = get_system_template(mode)  # single, batch_docx, batch_bilingual
+    
+    # Layer 2: Library Prompts
+    library = ""
+    if active_primary_prompt:
+        library += primary_prompt
+    for attached in attached_prompts:
+        library += "\n\n" + attached
+    
+    # Combine
+    final = system + library
+    
+    # Replace placeholders
+    final = final.replace("{{SOURCE_LANGUAGE}}", source_lang)
+    final = final.replace("{{TARGET_LANGUAGE}}", target_lang)
+    final = final.replace("{{SOURCE_TEXT}}", source_text)
+    
+    return final
+```
+
+---
+
+## ✨ AI ASSISTANT IMPLEMENTATION (November 8-9, 2025)
+
+**Complete AI-Powered Conversational Interface**
+
+After completing the unified prompt system, we restructured the Prompt Manager interface to include an AI Assistant for conversational prompt generation and document analysis.
+
+### UI Structure Change
+
+```
+OLD: Single "📚 Prompt Library" tab
+
+NEW: "🤖 Prompt Manager" with two sub-tabs:
+     ├── 📚 Prompt Library (original functionality)
+     └── ✨ AI Assistant (NEW conversational AI)
+```
+
+### AI Assistant Features Implemented
+
+**1. Core Functionality** ✅
+- LLM Integration: OpenAI, Claude, Gemini
+- Auto-detects LLM provider from main app settings
+- Conversation persistence (JSON storage)
+- Message history (last 10 on load, full history saved)
+- Clear chat functionality with confirmation
+
+**2. Context Awareness** ✅
+- Access to all 38+ prompts in unified library
+- Current document tracking
+- Recent conversation memory (last 5 messages in context)
+- Attached files content included in AI requests
+
+**3. File Attachments** ✅
+- PDF/DOCX/PPTX/XLSX auto-conversion using `markitdown`
+- TXT/MD direct import
+- Multiple file support
+- Content included in AI context (first 2000 chars per file)
+- Persistent across sessions
+
+**4. Project Analysis** ✅
+- "🔍 Analyze Project & Generate Prompts" button
+- Analyzes current project context
+- Suggests relevant existing prompts
+- Generates new custom prompts with complete text
+- Lists available resources (prompts, TMs, termbases)
+
+**5. UI Components** ⚠️ (FUNCTIONAL BUT STYLING BROKEN)
+
+Context sidebar (left):
+- 📄 Current Document
+- 📎 Attached Files (with count)
+- 💡 Prompt Library (38 prompts)
+- 💾 Translation Memories (placeholder)
+- 📚 Termbases (placeholder)
+
+Chat area (right):
+- Message display with chat bubbles
+- Multi-line input (Shift+Enter for new lines)
+- 🗑️ Clear Chat button
+- Send button
+
+### Technical Implementation
+
+**Files Modified:**
+- `modules/unified_prompt_manager_qt.py` (1,600+ lines)
+  - `_init_llm_client()` - Initialize AI with API keys
+  - `_load_conversation_history()` - Restore previous chats
+  - `_save_conversation_history()` - Persist to JSON
+  - `_create_ai_assistant_tab()` - Build UI
+  - `_create_context_sidebar()` - Resource panel
+  - `_create_chat_interface()` - Chat display + input
+  - `_send_chat_message()` - Handle user input
+  - `_send_ai_request()` - Call LLM API
+  - `_add_chat_message()` - Render chat bubbles
+  - `_attach_file()` - File attachment + conversion
+  - `_analyze_and_generate()` - Project analysis
+  - `_clear_chat()` - Clear conversation
+
+**Dependencies Added:**
+```python
+# pyproject.toml
+dependencies = [
+    ...
+    "markitdown>=0.0.1",  # Document conversion
+]
+```
+
+**Data Storage:**
+```
+user_data/ai_assistant/
+└── conversation.json
+    {
+      "history": [
+        {
+          "role": "user|assistant|system",
+          "content": "message text",
+          "timestamp": "2025-11-08T..."
+        }
+      ],
+      "files": [
+        {
+          "path": "full/path/to/file",
+          "name": "filename.pdf",
+          "content": "converted markdown...",
+          "type": ".pdf",
+          "size": 12345,
+          "attached_at": "2025-11-08T..."
+        }
+      ],
+      "updated": "2025-11-08T..."
+    }
+```
+
+**Integration Points:**
+- Uses `modules/llm_clients.py` for provider-agnostic API calls
+- Uses `UnifiedPromptLibrary` to access prompt data
+- Connects to parent app for settings and current document
+- Same LLM provider/model as main translation engine
+
+### 🚨 CURRENT PROBLEM: Chat UI Rendering
+
+**Status:** BROKEN - Functional but visually unusable
+
+**Issues:**
+1. User input text appears invisible (white on white background)
+2. Chat bubbles oddly formatted and truncated
+3. HTML/CSS styling not rendering correctly in QTextEdit
+4. Avatar positioning incorrect (bottom instead of top)
+5. Message wrapping issues
+
+**What's Been Tried:**
+- ✅ Table-based layout → messages truncated
+- ✅ Div-based with inline-block → formatting weird  
+- ✅ Solid colors vs gradients → still issues
+- ✅ Various text color combinations → input still invisible
+- ✅ Vertical-align: top/bottom → avatars misaligned
+
+**Root Cause:**
+QTextEdit has limited HTML/CSS support. Advanced styling (flexbox, proper inline-block, gradients) doesn't work well.
+
+**Recommendations for Fixing:**
+
+**Option 1: QListWidget with Custom Delegates** (RECOMMENDED)
+```python
+class ChatMessageDelegate(QStyledItemDelegate):
+    def paint(self, painter, option, index):
+        # Custom painting of chat bubbles
+        # Full control over rendering
+        pass
+```
+
+**Option 2: QScrollArea + Custom Widgets**
+```python
+chat_container = QVBoxLayout()
+for message in messages:
+    bubble = ChatBubbleWidget(message)
+    chat_container.addWidget(bubble)
+```
+
+**Option 3: QWebEngineView**
+```python
+# Use HTML/CSS/JS in web view
+# Best styling control, but heavier
+```
+
+**What Works:**
+- ✅ AI communication (all providers)
+- ✅ Message sending and receiving
+- ✅ Conversation persistence
+- ✅ File attachments with markitdown conversion
+- ✅ Context building and prompt analysis
+- ✅ Error handling and logging
+
+**What's Broken:**
+- ❌ Chat bubble visual styling
+- ❌ User input text visibility
+- ❌ Avatar positioning
+- ❌ Message truncation
+
+**Goal:**
+Professional chat interface matching Supervertaler website colors (#5D7BFF blue gradient), with:
+- Clean chat bubbles (user right in blue, AI left in gray)
+- Avatar icons (👤 for user, 🤖 for AI)
+- Proper text visibility and wrapping
+- Elegant spacing and shadows
+- Similar to iMessage/Slack/modern chat UIs
+
+**Files to Fix:**
+- `modules/unified_prompt_manager_qt.py`
+  - Lines ~1540-1650: `_add_chat_message()` method
+  - Lines ~350-450: `_create_chat_interface()` method
+
+**Documentation Created:**
+- `docs/AI_ASSISTANT_GUIDE.md` - Complete user guide
+- `docs/AI_ASSISTANT_IMPLEMENTATION.md` - Technical details
+- `docs/AI_ASSISTANT_QUICK_REFERENCE.md` - Quick reference card
+
+---
+
+**📊 Migration Results:**
+
+Actual migration output from test run:
+```
+============================================================
+🔄 Starting Prompt Library Migration
+============================================================
+
+📚 Migrating Domain Prompts...
+   ✓ Migrated 8 domain prompts
+
+📋 Migrating Project Prompts...
+   ✓ Migrated 3 project prompts
+
+🎨 Migrating Style Guides...
+   ✓ Migrated 5 style guides
+
+💾 Creating backups of old folders...
+   ✓ Backed up: 1_System_Prompts → 1_System_Prompts.old
+   ✓ Backed up: 2_Domain_Prompts → 2_Domain_Prompts.old
+   ✓ Backed up: 3_Project_Prompts → 3_Project_Prompts.old
+   ✓ Backed up: 4_Style_Guides → 4_Style_Guides.old
+
+============================================================
+✅ Migration Complete! Migrated 16 prompts
+============================================================
+```
+
+**🎯 Key Design Decisions:**
+
+1. **No Legacy Mode** - Clean break, simpler codebase
+2. **Favorites in YAML** - No separate favorites.json file
+3. **Unlimited Nesting** - Like CoTranslator's folder structure
+4. **System Templates Hidden** - In Settings, not fighting for attention
+5. **Multi-Attach** - More flexible than old single-active system
+
+**🚧 Remaining Integration Work:**
+
+**Status: Ready for main app integration**
+
+Files created and tested:
+- ✅ `modules/unified_prompt_library.py`
+- ✅ `modules/unified_prompt_manager_qt.py`
+- ✅ `modules/prompt_library_migration.py`
+- ✅ `tests/test_unified_prompt_library.py`
+- ✅ `tests/demo_unified_prompt_ui.py`
+- ✅ `docs/UNIFIED_PROMPT_LIBRARY_GUIDE.md`
+
+Next steps to complete:
+1. **Integrate into Supervertaler_Qt.py:**
+   - Replace `from modules.prompt_manager_qt import PromptManagerQt`
+   - With `from modules.unified_prompt_manager_qt import UnifiedPromptManagerQt`
+   - Update all calls to `build_final_prompt()`
+   - Update state tracking for active prompts
+
+2. **Add System Templates to Settings:**
+   - Create Settings > Translation > System Templates section
+   - Allow viewing/editing mode-specific templates
+   - Show warning about modifying CAT tool formats
+
+3. **Final Testing:**
+   - Test in actual translation workflow
+   - Test mode switching (single → batch_docx → batch_bilingual)
+   - Test with real documents
+   - Verify tag preservation still works
+   - Test with various LLM providers
+
+**💡 User-Facing Benefits:**
+
+- **Simpler:** One workspace instead of 4 tabs
+- **Flexible:** Organize prompts however you want
+- **Powerful:** Multi-attach for combining instructions
+- **Familiar:** Like CoTranslatorAI's prompt library
+- **Visual:** See folder structure, favorites, quick run
+- **Safe:** Automatic migration with backups
+
+**🔍 Files Modified/Created:**
+
+**New Files:**
+- `modules/unified_prompt_library.py` (700+ lines)
+- `modules/unified_prompt_manager_qt.py` (900+ lines)
+- `modules/prompt_library_migration.py` (500+ lines)
+- `tests/test_unified_prompt_library.py` (200+ lines)
+- `tests/demo_unified_prompt_ui.py` (60 lines)
+- `docs/UNIFIED_PROMPT_LIBRARY_GUIDE.md` (comprehensive guide)
+
+**Files to be Modified:**
+- `Supervertaler_Qt.py` (replace prompt manager integration)
+- Settings dialog (add System Templates section)
+
+**Old Files (to be deprecated):**
+- `modules/prompt_manager_qt.py` (4000+ lines - will be replaced)
+- `modules/prompt_library.py` (680 lines - no longer needed)
+- `modules/style_guide_manager.py` (316 lines - no longer needed)
+
+**🎓 Learning Notes for Future AI:**
+
+This refactoring demonstrates:
+1. **User-centric design:** Simplify confusing architectures
+2. **Inspiration from competitors:** CoTranslatorAI's approach was better
+3. **Safe migration:** Always backup, provide rollback
+4. **Modular design:** Each component testable independently
+5. **Documentation:** User guide written before integration
+6. **Test-driven:** Verify functionality before touching main app
+
+**⚠️ Important Context:**
+
+- This ONLY affects Supervertaler_Qt.py (Qt version)
+- Supervertaler_tkinter.py is separate and unchanged
+- Old prompt manager kept in codebase temporarily for reference
+- Migration runs automatically on first launch of new version
+- User can manually rollback by renaming .old folders
+
+---
+
+## 📅 Previous Development Activity
 
 ### November 7, 2025 - TagCleaner Module & AutoFingers Enhancement
 
