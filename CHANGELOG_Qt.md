@@ -6,6 +6,90 @@ The Qt Edition is the **primary version** for active development and new feature
 
 ---
 
+## [1.3.2] - November 9, 2025
+
+### 🎯 Major Feature: Segment-Level AI Access + Critical Bug Fix
+
+**AI Assistant can now access and query individual segments from your translation project**
+
+### Added
+- **🔢 Segment-Level AI Actions** (Phase 2 Enhancement)
+  - `get_segment_count` - Get total segments and translation progress
+  - `get_segment_info` - Query specific segments by ID, multiple IDs, or range
+  - AI can answer "How many segments?" and "What is segment 5?"
+  - First 10 segments automatically included in AI context
+  - Full segment properties: id, source, target, status, type, notes, match_percent, etc.
+
+- **📊 Segment Information Display**
+  - AI Assistant shows segment details in formatted chat bubbles
+  - HTML entity escaping for CAT tool tags (`<tag>`, `&nbsp;`, etc.)
+  - Proper handling of Trados, memoQ, Wordfast, CafeTran tags
+  - Segments displayed in code blocks for readability
+
+- **⚙️ Auto-Markdown Generation Setting**
+  - Optional setting in Settings → General → AI Assistant Settings
+  - "Auto-generate markdown for imported documents" checkbox
+  - Automatically converts DOCX/PDF to markdown on import
+  - Markdown saved to `user_data_private/AI_Assistant/current_document/`
+  - Includes metadata JSON with conversion info
+
+### Fixed
+- **🐛 CRITICAL: Current Document Not Showing After Import**
+  - Fixed attribute name mismatch: `self.prompt_manager` → `self.prompt_manager_qt`
+  - Current document now appears in AI Assistant sidebar after import
+  - Auto-markdown generation now triggers correctly
+  - Context refresh now works properly
+
+### Changed
+- **🔧 AI Assistant Context Building** (`modules/unified_prompt_manager_qt.py`)
+  - Added `_get_segment_info()` method for structured segment data
+  - Added `generate_markdown_for_current_document()` public method
+  - Modified context building to prioritize segment-level access
+  - Document content fallback when segments unavailable
+
+- **🔧 AI Actions System** (`modules/ai_actions.py`)
+  - Added `parent_app` parameter to constructor
+  - Added segment action handlers with full validation
+  - Enhanced `format_action_results()` with segment display logic
+  - Comprehensive HTML entity escaping (order-aware to prevent double-escaping)
+
+- **🔧 Main Application** (`Supervertaler_Qt.py`)
+  - Added auto-markdown setting to Settings UI
+  - Setting persists in `ui_preferences.json`
+  - Document import triggers markdown generation when enabled
+  - Context refresh called after document import
+
+### Technical
+- **Segment Access Order:**
+  1. `project.segments` - Full segment objects (PREFERRED)
+  2. `parent_app.segments` - Currently loaded segments
+  3. `project.source_segments` - Project source text
+  4. Cached markdown conversion
+  5. On-demand file conversion with markitdown
+
+- **HTML Escaping Order:** `&` → `<` → `>` → `"` (prevents double-escaping)
+- **Segment Data Structure:** Full dataclass with 12 properties per segment
+
+### Testing
+- ✅ Updated test suite (`test_ai_actions.py`)
+- ✅ Added Test 9: get_segment_count action
+- ✅ Added Test 10: get_segment_info action (single, multiple, range)
+- ✅ All 10 tests passing
+
+### Documentation
+- Updated `docs/AI_ASSISTANT_INTEGRATION.md` with segment access details
+- Added segment action examples and use cases
+- Updated troubleshooting section
+
+### Benefits
+- ✅ **Segment-specific queries** - AI can find and analyze specific segments
+- ✅ **Translation progress tracking** - AI reports completion status
+- ✅ **CAT tool tag handling** - All tag types properly escaped and displayed
+- ✅ **Auto-markdown option** - Users control document conversion
+- ✅ **Fixed critical bug** - Current document now shows correctly
+
+---
+
 ## [1.3.1] - November 9, 2025
 
 ### ✨ Major Feature: AI Assistant File Attachment Persistence (Phase 1)

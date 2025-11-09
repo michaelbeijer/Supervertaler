@@ -1,6 +1,86 @@
 # Supervertaler Release Notes
 
-## Current Release: v1.2.1-Qt (November 6, 2025)
+## Current Release: v1.3.2-Qt (November 9, 2025)
+
+### 🎯 Major Feature: Segment-Level AI Access + Critical Bug Fix
+
+**AI Assistant can now access and query individual segments from your translation project!**
+
+### What's New
+
+**✅ Segment-Level AI Actions**
+- Ask "How many segments are in this document?" - AI counts and reports progress
+- Ask "What is segment 5?" - AI retrieves and displays specific segment text
+- Ask "Show me segments 10 through 15" - AI displays range of segments
+- First 10 segments automatically included in AI context for quick reference
+- Full segment properties available: source, target, status, type, notes, match_percent, etc.
+
+**✅ CAT Tool Tag Handling**
+- Proper HTML entity escaping for all CAT tool tags
+- Supports Trados Studio, memoQ, Wordfast, CafeTran tags
+- Handles `<tag>`, `&nbsp;`, quotes, and nested entities
+- Order-aware escaping prevents double-escaping issues
+- Segments displayed in code blocks for readability
+
+**✅ Auto-Markdown Generation**
+- Optional setting in Settings → General → AI Assistant Settings
+- Checkbox: "Auto-generate markdown for imported documents"
+- Automatically converts DOCX/PDF to markdown on import
+- Markdown saved to `user_data_private/AI_Assistant/current_document/`
+- Includes metadata JSON with conversion timestamp and file info
+
+### Fixed Issues
+
+**🐛 CRITICAL BUG FIX: Current Document Not Showing**
+- Fixed attribute name mismatch causing context refresh to fail
+- Current document now appears in AI Assistant sidebar after import
+- Auto-markdown generation now triggers correctly
+- This was preventing all document context from reaching the AI
+
+### How to Use
+
+**Query Segments:**
+1. Load a project with segments
+2. Open Prompt Manager → AI Assistant tab
+3. Ask: "How many segments are in this document?"
+4. Ask: "What is segment 42?"
+5. Ask: "Show me segments 10-15"
+
+**Enable Auto-Markdown:**
+1. Click Settings button (⚙️)
+2. Go to "General" tab
+3. Check "Auto-generate markdown for imported documents"
+4. Click "Save General Settings"
+5. All future imports will auto-generate markdown
+
+**Benefits:**
+- AI can answer segment-specific questions
+- Translation progress tracking via AI
+- Direct segment content access by number
+- CAT tool tags handled properly in display
+- Optional markdown conversion for document analysis
+
+### Technical Details
+
+- Added `get_segment_count` and `get_segment_info` AI actions
+- Segment access prioritizes `project.segments` for full properties
+- HTML escaping order: `&` → `<` → `>` → `"` (prevents double-escaping)
+- Auto-markdown uses markitdown library for conversion
+- All 10 tests passing including new segment action tests
+
+---
+
+## Previous Release: v1.3.1-Qt (November 9, 2025)
+
+### ✨ Major Feature: AI Assistant File Attachment Persistence (Phase 1)
+
+**Complete persistent storage system for AI Assistant file attachments with view/manage UI**
+
+Files attached to AI Assistant are now saved permanently and survive application restarts!
+
+---
+
+## Previous Release: v1.2.1-Qt (November 6, 2025)
 
 ### 🎨 UI Enhancement: Unified Tabbed Interface
 

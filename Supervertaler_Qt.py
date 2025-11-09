@@ -28,7 +28,7 @@ License: MIT
 """
 
 # Version Information
-__version__ = "1.3.1"
+__version__ = "1.3.2"
 __phase__ = "6.2"
 __release_date__ = "2025-11-09"
 __edition__ = "Qt"
@@ -1001,7 +1001,7 @@ class SupervertalerQt(QMainWindow):
         # Create example API keys file on first launch (after UI is ready)
         self.ensure_example_api_keys()
         
-        self.log("Welcome to Supervertaler Qt v1.2.2")
+        self.log("Welcome to Supervertaler Qt v1.3.2")
         self.log("Professional Translation Memory & CAT Tool")
         
         # Load general settings (including auto-propagation)
@@ -1020,7 +1020,7 @@ class SupervertalerQt(QMainWindow):
     def init_ui(self):
         """Initialize the user interface"""
         # Build window title with dev mode indicator
-        title = "Supervertaler Qt v1.2.2"
+        title = "Supervertaler Qt v1.3.2"
         if ENABLE_PRIVATE_FEATURES:
             title += " [🛠️ DEV MODE]"
         self.setWindowTitle(title)
@@ -3499,7 +3499,23 @@ class SupervertalerQt(QMainWindow):
         
         tm_termbase_group.setLayout(tm_termbase_layout)
         layout.addWidget(tm_termbase_group)
-        
+
+        # AI Assistant settings group
+        ai_group = QGroupBox("AI Assistant Settings")
+        ai_layout = QVBoxLayout()
+
+        auto_markdown_cb = QCheckBox("Auto-generate markdown for imported documents")
+        auto_markdown_cb.setChecked(general_settings.get('auto_generate_markdown', False))
+        auto_markdown_cb.setToolTip(
+            "When enabled, Supervertaler will automatically convert imported documents\n"
+            "to markdown format and save them in user_data_private/AI_Assistant/current_document/.\n"
+            "This allows the AI Assistant and you to access a markdown version of your documents."
+        )
+        ai_layout.addWidget(auto_markdown_cb)
+
+        ai_group.setLayout(ai_layout)
+        layout.addWidget(ai_group)
+
         # Find & Replace settings group
         find_replace_group = QGroupBox("Find && Replace Settings")
         find_replace_layout = QVBoxLayout()
@@ -3529,7 +3545,7 @@ class SupervertalerQt(QMainWindow):
         save_btn = QPushButton("💾 Save General Settings")
         save_btn.setStyleSheet("font-weight: bold; padding: 8px;")
         save_btn.clicked.connect(lambda: self._save_general_settings_from_ui(
-            restore_last_project_cb, allow_replace_cb, auto_propagate_cb
+            restore_last_project_cb, allow_replace_cb, auto_propagate_cb, auto_markdown_cb
         ))
         layout.addWidget(save_btn)
         
@@ -3903,17 +3919,22 @@ class SupervertalerQt(QMainWindow):
         self.log("✓ MT settings saved")
         QMessageBox.information(self, "Settings Saved", "MT settings have been saved successfully.")
     
-    def _save_general_settings_from_ui(self, restore_cb, allow_replace_cb, auto_propagate_cb):
+    def _save_general_settings_from_ui(self, restore_cb, allow_replace_cb, auto_propagate_cb, auto_markdown_cb=None):
         """Save general settings from UI"""
         self.allow_replace_in_source = allow_replace_cb.isChecked()
         self.update_warning_banner()
-        
+
         # Update auto-propagate state
         self.auto_propagate_exact_matches = auto_propagate_cb.isChecked()
-        
+
+        # Update auto-markdown setting
+        if auto_markdown_cb is not None:
+            self.auto_generate_markdown = auto_markdown_cb.isChecked()
+
         general_settings = {
             'restore_last_project': restore_cb.isChecked(),
             'auto_propagate_exact_matches': self.auto_propagate_exact_matches,
+            'auto_generate_markdown': self.auto_generate_markdown if hasattr(self, 'auto_generate_markdown') else False,
             'grid_font_size': self.default_font_size,  # Keep existing or update separately
             'results_match_font_size': 9,  # Keep existing
             'results_compare_font_size': 9  # Keep existing
@@ -5922,15 +5943,25 @@ class SupervertalerQt(QMainWindow):
             
             # Set as current project and load into grid
             self.current_project = project
+            self.current_document_path = file_path  # Store document path
             self.load_segments_to_grid()
-            
+
             # Initialize TM for this project
             self.initialize_tm_database()
-            
+
             # Update status
             self.log(f"✓ Loaded {len(segments)} segments from {len(paragraphs)} paragraphs")
             self.log(f"📍 Project language pair: {project.source_lang.upper()} → {project.target_lang.upper()}")
             self.update_window_title()  # Update window title to show project is loaded
+
+            # Auto-generate markdown if enabled
+            if hasattr(self, 'auto_generate_markdown') and self.auto_generate_markdown:
+                if hasattr(self, 'prompt_manager_qt'):
+                    self.prompt_manager_qt.generate_markdown_for_current_document()
+
+            # Refresh AI Assistant context
+            if hasattr(self, 'prompt_manager_qt'):
+                self.prompt_manager_qt.refresh_context()
             
             # Build success message with language info
             lang_info = ""
@@ -7116,6 +7147,8 @@ class SupervertalerQt(QMainWindow):
         if 'enable_tm_termbase_matching' in settings:
             self.enable_tm_matching = settings['enable_tm_termbase_matching']
             self.enable_termbase_matching = settings['enable_tm_termbase_matching']
+        # Load auto-markdown setting
+        self.auto_generate_markdown = settings.get('auto_generate_markdown', False)
         return settings
     
     def _load_general_settings_from_file(self) -> Dict[str, Any]:
@@ -9706,7 +9739,7 @@ class SupervertalerQt(QMainWindow):
     
     def update_window_title(self):
         """Update window title with project name and modified state"""
-        title = "Supervertaler Qt v1.2.2"
+        title = "Supervertaler Qt v1.3.2"
         if ENABLE_PRIVATE_FEATURES:
             title += " [🛠️ DEV MODE]"
         if self.current_project:
@@ -10273,7 +10306,7 @@ class SupervertalerQt(QMainWindow):
         layout.setContentsMargins(20, 20, 20, 20)
         
         # Title
-        title = QLabel("<h2>Supervertaler Qt v1.2.2</h2>")
+        title = QLabel("<h2>Supervertaler Qt v1.3.2</h2>")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title)
         

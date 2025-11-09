@@ -8,7 +8,70 @@
 
 ## 📅 Recent Development Activity
 
-### November 9, 2025 - System Prompts Tab + AI Assistant Enhancement Plan
+### November 9, 2025 (Later) - Segment-Level AI Access + Critical Bug Fix
+
+**🎯 Phase 2 Enhancement Complete: Segment-Level AI Actions**
+
+Implemented segment-level access for AI Assistant allowing querying of specific segments and translation progress tracking.
+
+**✅ Segment-Level AI Actions Implemented:**
+- Added two new AI actions:
+  - `get_segment_count` - Returns total segments, translated, and untranslated counts
+  - `get_segment_info` - Retrieves specific segment(s) by ID, multiple IDs, or range
+- AI Assistant can now answer:
+  - "How many segments are in this document?"
+  - "What is segment 5?"
+  - "Show me segments 10 through 15"
+- First 10 segments automatically included in AI context for quick reference
+- Full segment properties available: id, source, target, status, type, notes, match_percent, etc.
+
+**✅ CAT Tool Tag Handling:**
+- Implemented comprehensive HTML entity escaping for segment display
+- Proper escaping order: `&` → `<` → `>` → `"` (prevents double-escaping)
+- Supports all CAT tool tags: Trados Studio, memoQ, Wordfast, CafeTran
+- Segments displayed in code blocks with monospace font for readability
+
+**✅ Auto-Markdown Generation Feature:**
+- Added optional setting: Settings → General → AI Assistant Settings
+- Checkbox: "Auto-generate markdown for imported documents"
+- When enabled, automatically converts DOCX/PDF to markdown on import
+- Markdown saved to `user_data_private/AI_Assistant/current_document/`
+- Includes metadata JSON with conversion timestamp and file info
+- Setting persists in `ui_preferences.json`
+
+**🐛 CRITICAL BUG FIX:**
+- Fixed attribute name mismatch: `self.prompt_manager` → `self.prompt_manager_qt`
+- This was preventing:
+  - Current document from showing in AI Assistant sidebar after import
+  - Auto-markdown generation from triggering
+  - Context refresh from working properly
+- All document context integration now working correctly
+
+**Files Modified:**
+- [Supervertaler_Qt.py](../Supervertaler_Qt.py) - Fixed attribute names, added auto-markdown setting UI
+- [modules/unified_prompt_manager_qt.py](../modules/unified_prompt_manager_qt.py) - Added segment info method and auto-markdown generation
+- [modules/ai_actions.py](../modules/ai_actions.py) - Added segment actions and HTML escaping
+- [test_ai_actions.py](../test_ai_actions.py) - Added tests 9 and 10 for segment actions
+- [docs/AI_ASSISTANT_INTEGRATION.md](AI_ASSISTANT_INTEGRATION.md) - Updated with segment access documentation
+
+**Testing:**
+- ✅ All 10 tests passing
+- ✅ Test 9: get_segment_count action
+- ✅ Test 10: get_segment_info action (single, multiple, range)
+
+**Benefits:**
+- AI can answer segment-specific questions
+- Translation progress tracking via AI
+- Direct segment content access by number
+- CAT tool tags handled properly in display
+- Optional markdown conversion for document analysis
+- Fixed critical bug preventing document context integration
+
+**Version:** Released as v1.3.2
+
+---
+
+### November 9, 2025 (Earlier) - System Prompts Tab + AI Assistant Enhancement Plan
 
 **🎯 Complete System Prompts UI + Phase 1 Enhancement Plan**
 
@@ -114,7 +177,7 @@ user_data_private/
 **Documentation:**
 - [docs/AI_ASSISTANT_ENHANCEMENT_PLAN.md](AI_ASSISTANT_ENHANCEMENT_PLAN.md) - Full technical specification
 
-**Status:** ✅ Phase 1 COMPLETE, Phase 2 pending
+**Status:** ✅ Phase 1 COMPLETE, ✅ Phase 2 COMPLETE
 
 **Phase 1 Implementation Complete (November 9, 2025):**
 
@@ -160,7 +223,92 @@ All 8 tests passed:
 7. ✓ Statistics tracking
 8. ✓ File removal (tested separately)
 
-**Next Step:** Phase 2 - AI Actions System (prompt library integration)
+**Phase 2 Implementation Complete (November 9, 2025):**
+
+✅ **Files Created:**
+- `modules/ai_actions.py` (665 lines) - Complete AI Actions system
+  - AIActionSystem class with 12 action handlers
+  - Smart JSON parser for ACTION blocks with proper brace matching
+  - Action execution and result formatting
+  - System prompt addition for AI instruction
+- `test_ai_actions.py` (457 lines) - Comprehensive test suite (8/8 tests passing)
+
+✅ **Files Modified:**
+- `modules/unified_prompt_manager_qt.py` - Full AI Actions integration
+  - Imported AIActionSystem (line 30)
+  - Initialized AI Actions in `__init__` (lines 432-436)
+  - Modified `_send_ai_request()` to parse and execute actions (lines 2176-2193)
+  - Updated `_build_ai_context()` to include action instructions (line 2126)
+  - Auto-reload prompt library after create/update/delete actions
+  - Refresh tree widget UI when prompts are modified
+
+✅ **Features Implemented:**
+- **12 Available Actions:**
+  1. `list_prompts` - List all prompts with optional folder filter
+  2. `get_prompt` - Get full details of specific prompt
+  3. `create_prompt` - Create new prompt with metadata
+  4. `update_prompt` - Update existing prompt content/metadata
+  5. `delete_prompt` - Delete prompt from library
+  6. `search_prompts` - Search by name, content, tags, or all
+  7. `create_folder` - Create new folder in library
+  8. `toggle_favorite` - Toggle favorite status
+  9. `toggle_quick_run` - Toggle Quick Run menu status
+  10. `get_favorites` - List all favorite prompts
+  11. `get_quick_run` - List all Quick Run prompts
+  12. `get_folder_structure` - Get complete folder hierarchy
+
+- **Smart ACTION Parser:**
+  - Proper JSON extraction with brace matching
+  - Handles nested JSON objects
+  - Handles strings with escaped characters
+  - Extracts multiple ACTION blocks from single response
+  - Removes ACTION blocks from displayed response
+
+- **Result Display:**
+  - Formatted action results in chat
+  - Success/failure indicators
+  - Detailed result information
+  - Error messages for failed actions
+
+- **UI Integration:**
+  - Actions executed automatically when AI includes them
+  - Prompt Library UI refreshes after modifications
+  - System messages show action results
+  - Seamless conversational interface
+
+✅ **Testing Results:**
+All 8 tests passed:
+1. ✓ AIActionSystem initialization
+2. ✓ list_prompts action (all + folder filter)
+3. ✓ create_prompt action
+4. ✓ search_prompts action (by name, tags, all)
+5. ✓ Parse and execute ACTION blocks from AI response
+6. ✓ update_prompt and delete_prompt actions
+7. ✓ toggle_favorite and toggle_quick_run actions
+8. ✓ Format action results for display
+
+**Example Usage:**
+```
+User: "Create a medical translation prompt for cardiology"
+
+AI: I'll create that prompt for you.
+
+ACTION:create_prompt
+PARAMS:{"name": "Cardiology Translation Expert", "content": "You are an expert cardiology translator...", "folder": "Medical", "tags": ["medical", "cardiology", "heart"]}
+
+The prompt has been created and is ready to use!
+
+[System automatically executes action and shows:]
+✓ **create_prompt**: Created prompt: Cardiology Translation Expert
+  Path: Medical/Cardiology Translation Expert.md
+```
+
+**Benefits:**
+- AI can now actively manage the Prompt Library
+- No manual prompt creation needed
+- Conversational prompt management
+- Intelligent prompt suggestions
+- Automated library organization
 
 ---
 

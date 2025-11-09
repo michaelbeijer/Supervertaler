@@ -27,6 +27,7 @@ from modules.llm_clients import LLMClient, load_api_keys
 from modules.prompt_library_migration import migrate_prompt_library
 from modules.ai_attachment_manager import AttachmentManager
 from modules.ai_file_viewer_dialog import FileViewerDialog, FileRemoveConfirmDialog
+from modules.ai_actions import AIActionSystem
 
 
 class ChatMessageDelegate(QStyledItemDelegate):
@@ -107,15 +108,17 @@ class ChatMessageDelegate(QStyledItemDelegate):
         font = QFont("Segoe UI", 10 if role != "system" else 9)
 
         if role == "system":
-            # System messages are centered and smaller (plain text, no markdown)
-            metrics = option.fontMetrics
+            # System messages are centered and smaller (with markdown formatting)
             text_width = int(width * 0.8) - (self.bubble_padding * 2)
-            text_rect = metrics.boundingRect(
-                0, 0, text_width, 10000,
-                Qt.TextFlag.TextWordWrap | Qt.AlignmentFlag.AlignCenter,
-                message
-            )
-            height = text_rect.height() + self.bubble_padding * 2 + self.padding
+
+            # Use QTextDocument to measure height with markdown
+            doc = QTextDocument()
+            doc.setDefaultFont(font)
+            doc.setHtml(self._markdown_to_html(message, "#5f6368"))
+            doc.setTextWidth(text_width)
+
+            text_height = doc.size().height()
+            height = text_height + self.bubble_padding + self.padding
         else:
             # User/assistant messages - use QTextDocument for accurate height with markdown
             text_width = max_bubble_width - (self.bubble_padding * 2) - self.avatar_size - self.avatar_margin - self.padding
@@ -311,22 +314,23 @@ class ChatMessageDelegate(QStyledItemDelegate):
         painter.drawText(avatar_rect, Qt.AlignmentFlag.AlignCenter, "🤖")
 
     def _paint_system_message(self, painter: QPainter, rect: QRect, message: str):
-        """Paint system message (centered, subtle)"""
-        # Calculate text size
-        font = QFont("Segoe UI", 9)
-        painter.setFont(font)
-        metrics = painter.fontMetrics()
+        """Paint system message (centered, subtle, with markdown formatting)"""
+        from PyQt6.QtGui import QTextDocument, QAbstractTextDocumentLayout
 
-        max_width = int(rect.width() * 0.8)
-        text_rect = metrics.boundingRect(
-            0, 0, max_width, 10000,
-            Qt.TextFlag.TextWordWrap | Qt.AlignmentFlag.AlignCenter,
-            message
-        )
+        # Create text document with markdown converted to HTML
+        font = QFont("Segoe UI", 9)
+        doc = QTextDocument()
+        doc.setDefaultFont(font)
+        doc.setHtml(self._markdown_to_html(message, "#5f6368"))
+
+        # Set max width (80% of available width)
+        max_width = int(rect.width() * 0.8) - (self.bubble_padding * 2)
+        doc.setTextWidth(max_width)
 
         # Calculate bubble dimensions
-        bubble_width = text_rect.width() + self.bubble_padding * 2
-        bubble_height = text_rect.height() + self.bubble_padding
+        text_height = doc.size().height()
+        bubble_width = max_width + self.bubble_padding * 2
+        bubble_height = text_height + self.bubble_padding
 
         # Center horizontally
         bubble_x = (rect.width() - bubble_width) / 2
@@ -343,17 +347,18 @@ class ChatMessageDelegate(QStyledItemDelegate):
         painter.setPen(QPen(QColor("#E8EAED"), 1))
         painter.drawRoundedRect(bubble_rect, 16, 16)
 
-        # Draw text
-        painter.setPen(QPen(QColor("#5f6368")))
+        # Draw text with markdown formatting
         text_draw_rect = bubble_rect.adjusted(
             self.bubble_padding, self.bubble_padding // 2,
             -self.bubble_padding, -self.bubble_padding // 2
         )
-        painter.drawText(
-            text_draw_rect,
-            Qt.TextFlag.TextWordWrap | Qt.AlignmentFlag.AlignCenter,
-            message
-        )
+
+        # Translate painter to text position and draw
+        painter.save()
+        painter.translate(text_draw_rect.topLeft())
+        ctx = QAbstractTextDocumentLayout.PaintContext()
+        doc.documentLayout().draw(painter, ctx)
+        painter.restore()
 
 
 class UnifiedPromptManagerQt:
@@ -417,6 +422,7 @@ class UnifiedPromptManagerQt:
         self.attached_files: List[Dict] = []  # List of {path, name, content, type} - DEPRECATED, use attachment_manager
         self.chat_history: List[Dict] = []  # List of {role, content, timestamp}
         self.ai_conversation_file = self.user_data_path / "ai_assistant" / "conversation.json"
+        self._cached_document_markdown: Optional[str] = None  # Cached markdown conversion of current document
 
         # Initialize Attachment Manager
         ai_assistant_dir = self.user_data_path / "AI_Assistant"
@@ -427,6 +433,13 @@ class UnifiedPromptManagerQt:
         # Set initial session based on current date/time
         session_id = datetime.now().strftime("%Y%m%d")
         self.attachment_manager.set_session(session_id)
+
+        # Initialize AI Action System (Phase 2)
+        self.ai_action_system = AIActionSystem(
+            prompt_library=self.library,
+            parent_app=self.parent_app,
+            log_callback=self.log_message
+        )
 
         self._init_llm_client()
         self._load_conversation_history()
@@ -467,16 +480,33 @@ class UnifiedPromptManagerQt:
         
         # Sub-tabs: Prompt Library and AI Assistant
         self.sub_tabs = QTabWidget()
-        
+
         # Tab 1: Prompt Library
         library_tab = self._create_prompt_library_tab()
         self.sub_tabs.addTab(library_tab, "📚 Prompt Library")
-        
+
         # Tab 2: AI Assistant (placeholder for now)
         assistant_tab = self._create_ai_assistant_tab()
         self.sub_tabs.addTab(assistant_tab, "✨ AI Assistant")
-        
+
+        # Connect tab change signal to update context
+        self.sub_tabs.currentChanged.connect(self._on_tab_changed)
+
         main_layout.addWidget(self.sub_tabs, 1)  # 1 = stretch
+
+    def _on_tab_changed(self, index):
+        """Handle tab change - update context when switching to AI Assistant"""
+        if index == 1:  # AI Assistant tab
+            self._update_context_sidebar()
+
+    def refresh_context(self):
+        """
+        Public method to refresh AI Assistant context.
+        Call this from the main app when document/project changes.
+        """
+        # Clear cached document markdown when context changes
+        self._cached_document_markdown = None
+        self._update_context_sidebar()
     
     def _create_main_header(self) -> QWidget:
         """Create main Prompt Manager header"""
@@ -579,7 +609,8 @@ class UnifiedPromptManagerQt:
         layout.setSpacing(5)
         
         # Quick Action Button at top
-        action_btn = QPushButton("🔍 Analyze Project & Generate Prompts")
+        # Note: && is needed to display a single & (Qt uses & for keyboard shortcuts)
+        action_btn = QPushButton("🔍 Analyze Project && Generate Prompts")
         action_btn.setStyleSheet("""
             QPushButton {
                 background-color: #1976D2;
@@ -2078,10 +2109,272 @@ Respond in clear sections:
     
     def _update_context_sidebar(self):
         """Update the context sidebar with current state"""
+        # Update current document display
+        self._update_current_document_display()
+
         # Update attached files list
         if hasattr(self, 'attached_files_list_layout'):
             self._refresh_attached_files_list()
-    
+
+    def _update_current_document_display(self):
+        """Update the current document section in the sidebar"""
+        if not hasattr(self, 'context_current_doc'):
+            return
+
+        # Get document info from parent app
+        doc_info = "No document loaded"
+
+        if hasattr(self.parent_app, 'current_project') and self.parent_app.current_project:
+            project = self.parent_app.current_project
+            # Get project name
+            project_name = getattr(project, 'name', 'Unnamed Project')
+
+            # Get document info
+            if hasattr(self.parent_app, 'current_document_path') and self.parent_app.current_document_path:
+                doc_path = Path(self.parent_app.current_document_path)
+                doc_info = f"{project_name}\n{doc_path.name}"
+            elif hasattr(project, 'source_file') and project.source_file:
+                doc_path = Path(project.source_file)
+                doc_info = f"{project_name}\n{doc_path.name}"
+            else:
+                doc_info = f"{project_name}\nNo document"
+
+        # Update the label (find the description label in the section)
+        # The section has a QVBoxLayout with [title_label, desc_label]
+        layout = self.context_current_doc.layout()
+        if layout and layout.count() >= 2:
+            desc_label = layout.itemAt(1).widget()
+            if isinstance(desc_label, QLabel):
+                desc_label.setText(doc_info)
+
+    def _get_document_content_preview(self, max_chars=3000):
+        """
+        Get a preview of the current document content.
+
+        Tries multiple methods to access document content:
+        1. From parent_app segments (if available)
+        2. From project source_segments or target_segments
+        3. Direct file read if needed
+
+        Returns:
+            String with document preview (first max_chars characters) or None
+        """
+        try:
+            # Method 1: Try to get segments from parent app
+            if hasattr(self.parent_app, 'segments') and self.parent_app.segments:
+                segments = self.parent_app.segments
+                # Combine segment source text
+                lines = []
+                for seg in segments[:50]:  # First 50 segments
+                    if hasattr(seg, 'source'):
+                        lines.append(seg.source)
+                    elif isinstance(seg, dict) and 'source' in seg:
+                        lines.append(seg['source'])
+
+                if lines:
+                    content = '\n'.join(lines)
+                    return content[:max_chars]
+
+            # Method 2: Try to get from current project's segments
+            if hasattr(self.parent_app, 'current_project') and self.parent_app.current_project:
+                project = self.parent_app.current_project
+
+                # Check for source_segments attribute
+                if hasattr(project, 'source_segments') and project.source_segments:
+                    lines = []
+                    for seg in project.source_segments[:50]:
+                        if isinstance(seg, str):
+                            lines.append(seg)
+                        elif hasattr(seg, 'text'):
+                            lines.append(seg.text)
+                        elif isinstance(seg, dict) and 'text' in seg:
+                            lines.append(seg['text'])
+
+                    if lines:
+                        content = '\n'.join(lines)
+                        return content[:max_chars]
+
+            # Method 3: Check if we have a cached markdown conversion
+            if hasattr(self, '_cached_document_markdown') and self._cached_document_markdown:
+                return self._cached_document_markdown[:max_chars]
+
+            # Method 4: Try converting the source document file with markitdown
+            if hasattr(self.parent_app, 'current_document_path') and self.parent_app.current_document_path:
+                doc_path = Path(self.parent_app.current_document_path)
+                if doc_path.exists():
+                    # Try to convert with markitdown
+                    converted = self._convert_document_to_markdown(doc_path)
+                    if converted:
+                        # Cache for future use
+                        self._cached_document_markdown = converted
+                        # Also save to disk for user access
+                        self._save_document_markdown(doc_path, converted)
+                        return converted[:max_chars]
+
+            return None
+
+        except Exception as e:
+            self.log_message(f"⚠ Error getting document content preview: {e}")
+            return None
+
+    def _convert_document_to_markdown(self, file_path: Path) -> str:
+        """
+        Convert a document to markdown using markitdown.
+
+        Args:
+            file_path: Path to the document file
+
+        Returns:
+            Markdown content or None if conversion fails
+        """
+        try:
+            from markitdown import MarkItDown
+
+            md = MarkItDown()
+            result = md.convert(str(file_path))
+
+            if result and hasattr(result, 'text_content'):
+                return result.text_content
+            elif isinstance(result, str):
+                return result
+
+            return None
+
+        except Exception as e:
+            self.log_message(f"⚠ Error converting document to markdown: {e}")
+            return None
+
+    def _save_document_markdown(self, original_path: Path, markdown_content: str):
+        """
+        Save the markdown conversion of the current document.
+
+        Saves to: user_data_private/AI_Assistant/current_document/
+
+        Args:
+            original_path: Original document file path
+            markdown_content: Converted markdown content
+        """
+        try:
+            # Create directory for current document markdown
+            doc_dir = self.user_data_path / "AI_Assistant" / "current_document"
+            doc_dir.mkdir(parents=True, exist_ok=True)
+
+            # Create filename based on original
+            md_filename = original_path.stem + ".md"
+            md_path = doc_dir / md_filename
+
+            # Save markdown content
+            md_path.write_text(markdown_content, encoding='utf-8')
+
+            # Save metadata
+            metadata = {
+                "original_file": str(original_path),
+                "original_name": original_path.name,
+                "converted_at": datetime.now().isoformat(),
+                "markdown_file": str(md_path),
+                "size_chars": len(markdown_content)
+            }
+
+            meta_path = doc_dir / (original_path.stem + ".meta.json")
+            meta_path.write_text(json.dumps(metadata, indent=2), encoding='utf-8')
+
+            self.log_message(f"✓ Saved document markdown: {md_filename}")
+
+        except Exception as e:
+            self.log_message(f"⚠ Error saving document markdown: {e}")
+
+    def generate_markdown_for_current_document(self) -> bool:
+        """
+        Public method to generate markdown for the current document.
+        Called by main app when auto-markdown is enabled.
+
+        Returns:
+            True if markdown was generated successfully, False otherwise
+        """
+        try:
+            # Check if we have a current document
+            if not hasattr(self.parent_app, 'current_document_path') or not self.parent_app.current_document_path:
+                return False
+
+            doc_path = Path(self.parent_app.current_document_path)
+            if not doc_path.exists():
+                return False
+
+            # Convert to markdown
+            markdown_content = self._convert_document_to_markdown(doc_path)
+            if not markdown_content:
+                return False
+
+            # Save markdown and metadata
+            self._save_document_markdown(doc_path, markdown_content)
+
+            # Cache for session
+            self._cached_document_markdown = markdown_content
+
+            self.log_message(f"✓ Generated markdown for {doc_path.name}")
+            return True
+
+        except Exception as e:
+            self.log_message(f"⚠ Error generating markdown: {e}")
+            return False
+
+    def _get_segment_info(self) -> str:
+        """
+        Get structured segment information for AI context.
+
+        Returns:
+            Formatted string with segment count and sample segments, or None if no segments available
+        """
+        try:
+            segments = None
+
+            # Try to get segments from parent app (preferred - most current)
+            if hasattr(self.parent_app, 'current_project') and self.parent_app.current_project:
+                project = self.parent_app.current_project
+                if hasattr(project, 'segments') and project.segments:
+                    segments = project.segments
+
+            if not segments:
+                return None
+
+            total_count = len(segments)
+
+            # Build segment overview
+            lines = []
+            lines.append(f"- Total segments: {total_count}")
+
+            # Add statistics
+            translated_count = sum(1 for seg in segments if seg.target and seg.target.strip())
+            lines.append(f"- Translated: {translated_count}/{total_count}")
+
+            # Add sample segments (first 10)
+            sample_count = min(10, total_count)
+            lines.append(f"\nFirst {sample_count} segments (use segment numbers to reference specific segments):")
+
+            for i, seg in enumerate(segments[:sample_count], 1):
+                source_preview = seg.source[:80] + "..." if len(seg.source) > 80 else seg.source
+                target_preview = ""
+                if seg.target:
+                    target_preview = seg.target[:80] + "..." if len(seg.target) > 80 else seg.target
+
+                lines.append(f"\n  Segment {seg.id}:")
+                lines.append(f"    Source: {source_preview}")
+                if target_preview:
+                    lines.append(f"    Target: {target_preview}")
+                lines.append(f"    Status: {seg.status}")
+
+            if total_count > sample_count:
+                lines.append(f"\n  ... and {total_count - sample_count} more segments")
+
+            lines.append("\nNOTE: You can access individual segments by their segment number.")
+            lines.append("Use get_segment_info action to retrieve details of specific segments.")
+
+            return "\n".join(lines)
+
+        except Exception as e:
+            self.log_message(f"⚠ Error getting segment info: {e}")
+            return None
+
     def _send_chat_message(self):
         """Send a chat message to AI"""
         message = self.chat_input.toPlainText().strip()
@@ -2108,12 +2401,46 @@ Respond in clear sections:
     def _build_ai_context(self, user_message: str) -> str:
         """Build full context for AI request"""
         parts = []
-        
+
         # System context
         parts.append("You are an AI assistant for Supervertaler, a professional translation tool.")
         parts.append("\nAVAILABLE RESOURCES:")
+
+        # Current document/project info
+        if hasattr(self.parent_app, 'current_project') and self.parent_app.current_project:
+            project = self.parent_app.current_project
+            project_name = getattr(project, 'name', 'Unnamed Project')
+            parts.append(f"- Current Project: {project_name}")
+
+            if hasattr(self.parent_app, 'current_document_path') and self.parent_app.current_document_path:
+                doc_path = Path(self.parent_app.current_document_path)
+                parts.append(f"- Current Document: {doc_path.name}")
+            elif hasattr(project, 'source_file') and project.source_file:
+                doc_path = Path(project.source_file)
+                parts.append(f"- Current Document: {doc_path.name}")
+
+            # Add language pair info if available
+            if hasattr(project, 'source_lang') and hasattr(project, 'target_lang'):
+                parts.append(f"- Language Pair: {project.source_lang} → {project.target_lang}")
+
+            # Add segment information if available
+            segment_info = self._get_segment_info()
+            if segment_info:
+                parts.append(f"\nDOCUMENT SEGMENTS:")
+                parts.append(segment_info)
+
+            # Add document content preview if available (only if no segments)
+            elif not segment_info:
+                doc_content = self._get_document_content_preview()
+                if doc_content:
+                    parts.append(f"\nCURRENT DOCUMENT CONTENT (first 3000 characters):")
+                    parts.append(doc_content)
+
         parts.append(f"- Prompt Library: {len(self.library.prompts)} prompts")
         parts.append(f"- Attached Files: {len(self.attached_files)} files")
+
+        # Add action system instructions (Phase 2)
+        parts.append(self.ai_action_system.get_system_prompt_addition())
         
         # Recent conversation (last 5 messages)
         if len(self.chat_history) > 1:
@@ -2166,8 +2493,24 @@ Respond in clear sections:
             
             # Check if we got a valid response
             if response and response.strip():
-                # Add response
-                self._add_chat_message("assistant", response)
+                # Parse and execute actions (Phase 2)
+                cleaned_response, action_results = self.ai_action_system.parse_and_execute(response)
+
+                # Add the cleaned response (without ACTION blocks)
+                self._add_chat_message("assistant", cleaned_response)
+
+                # If actions were executed, show results
+                if action_results:
+                    formatted_results = self.ai_action_system.format_action_results(action_results)
+                    self._add_chat_message("system", formatted_results)
+
+                    # Reload prompt library if any prompts were modified
+                    if any(r['action'] in ['create_prompt', 'update_prompt', 'delete_prompt']
+                           for r in action_results if r['success']):
+                        self.library.load_all_prompts()
+                        # Refresh tree widget if it exists
+                        if hasattr(self, 'tree_widget') and self.tree_widget:
+                            self._populate_prompt_tree()
             else:
                 self._add_chat_message(
                     "system",
