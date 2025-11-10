@@ -1578,24 +1578,62 @@ class UnifiedPromptManagerQt:
     
     def _save_current_prompt(self):
         """Save currently edited prompt"""
-        if not hasattr(self, 'editor_current_path'):
+        name = self.editor_name_input.text().strip()
+        description = self.editor_desc_input.text().strip()
+        content = self.editor_content.toPlainText().strip()
+
+        if not name or not content:
+            QMessageBox.warning(self.main_widget, "Error", "Name and content are required")
             return
-        
-        path = self.editor_current_path
-        if path not in self.library.prompts:
-            return
-        
-        prompt_data = self.library.prompts[path].copy()
-        prompt_data['name'] = self.editor_name_input.text()
-        prompt_data['description'] = self.editor_desc_input.text()
-        prompt_data['content'] = self.editor_content.toPlainText()
-        prompt_data['modified'] = Path(prompt_data['_filepath']).stat().st_mtime
-        
-        if self.library.save_prompt(path, prompt_data):
-            QMessageBox.information(self.main_widget, "Saved", "Prompt saved successfully!")
-            self._refresh_library()
+
+        # Check if this is a new prompt or editing existing
+        if hasattr(self, 'editor_current_path') and self.editor_current_path:
+            # Editing existing prompt
+            path = self.editor_current_path
+            if path not in self.library.prompts:
+                QMessageBox.warning(self.main_widget, "Error", "Prompt no longer exists")
+                return
+
+            prompt_data = self.library.prompts[path].copy()
+            prompt_data['name'] = name
+            prompt_data['description'] = description
+            prompt_data['content'] = content
+
+            if self.library.save_prompt(path, prompt_data):
+                QMessageBox.information(self.main_widget, "Saved", "Prompt updated successfully!")
+                self._refresh_tree()
+            else:
+                QMessageBox.warning(self.main_widget, "Error", "Failed to save prompt")
         else:
-            QMessageBox.warning(self.main_widget, "Error", "Failed to save prompt")
+            # Creating new prompt
+            folder = getattr(self, 'editor_target_folder', 'Project Prompts')
+
+            # Create new prompt data
+            from datetime import datetime
+            prompt_data = {
+                'name': name,
+                'description': description,
+                'content': content,
+                'domain': '',
+                'version': '1.0',
+                'task_type': 'Translation',
+                'favorite': False,
+                'quick_run': False,
+                'folder': folder,
+                'tags': [],
+                'created': datetime.now().strftime('%Y-%m-%d'),
+                'modified': datetime.now().strftime('%Y-%m-%d')
+            }
+
+            # Create the prompt file (save_prompt creates new file if it doesn't exist)
+            relative_path = f"{folder}/{name}.md"
+            if self.library.save_prompt(relative_path, prompt_data):
+                QMessageBox.information(self.main_widget, "Created", f"Prompt '{name}' created successfully!")
+                self.library.load_all_prompts()  # Reload to get new prompt in memory
+                self._refresh_tree()
+                self.editor_current_path = relative_path  # Now editing this prompt
+            else:
+                QMessageBox.warning(self.main_widget, "Error", "Failed to create prompt")
     
     def _set_primary_prompt(self, relative_path: str):
         """Set prompt as primary"""
@@ -1657,11 +1695,9 @@ class UnifiedPromptManagerQt:
             self._refresh_tree()
     
     def _new_prompt(self):
-        """Create new prompt"""
-        name, ok = QInputDialog.getText(self.main_widget, "New Prompt", "Enter prompt name:")
-        if ok and name:
-            # TODO: Implement new prompt creation
-            self.log_message(f"TODO: Create new prompt: {name}")
+        """Create new prompt (defaults to Project Prompts folder)"""
+        # Delegate to folder-specific method
+        self._new_prompt_in_folder("Project Prompts")
     
     def _new_folder(self):
         """Create new folder"""
@@ -1672,8 +1708,24 @@ class UnifiedPromptManagerQt:
     
     def _new_prompt_in_folder(self, folder_path: str):
         """Create new prompt in specific folder"""
-        # TODO: Implement
-        self.log_message(f"TODO: Create prompt in {folder_path}")
+        name, ok = QInputDialog.getText(self.main_widget, "New Prompt", "Enter prompt name:")
+        if not ok or not name:
+            return
+
+        # Clear editor for new prompt
+        self.editor_name_label.setText(f"Creating: {name}")
+        self.editor_name_input.setText(name)
+        self.editor_desc_input.setText("")
+        self.editor_content.setPlainText("# Your prompt content here\n\nProvide translation instructions...")
+
+        # Store target folder
+        self.editor_current_path = None  # New prompt, no path yet
+        self.editor_target_folder = folder_path  # Store folder for saving
+
+        self.log_message(f"Creating new prompt '{name}' in folder: {folder_path}")
+
+        # Switch to editor view or show editor panel
+        # TODO: If editor is hidden, show it
     
     def _new_subfolder(self, parent_folder: str):
         """Create subfolder"""
