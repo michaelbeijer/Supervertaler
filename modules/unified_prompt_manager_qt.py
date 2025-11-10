@@ -1969,68 +1969,103 @@ PROJECT CONTEXT:
 {context}
 
 YOUR TASK:
-Create a complete, ready-to-use translation prompt following this EXACT structure:
+Analyze the project and create a complete, ready-to-use translation prompt.
 
----START OF PROMPT TEMPLATE---
+I will provide you with TWO prompt structures:
+1. The user's preferred format (what they're used to)
+2. An AI-optimized format (what works best with LLMs)
 
-# System Prompt
+Create BOTH versions, then recommend which one would produce better translations.
 
-You are an expert [SOURCE_LANG] to [TARGET_LANG] translator with deep expertise in [DOMAIN]. [Add role-specific expertise and qualifications]
+---USER'S PREFERRED FORMAT---
 
-Key translation principles:
-• [Principle 1 - specific to domain]
-• [Principle 2 - specific to project type]
-• [Principle 3 - technical/stylistic requirements]
-• Maintain consistency in terminology throughout
-• Preserve formatting, tags, and structural elements
-• Use [STYLE] tone and register
+You are a professional [SOURCE_LANG] to [TARGET_LANG] translator, specializing in [DOMAIN].
 
-Present your output as a direct translation maintaining the original structure and numbering.
+[2-3 sentences defining expertise and qualifications]
 
----
+# GENERAL INSTRUCTIONS
 
-# Custom Instructions
+* Keep each translated segment on its own line to match source segments
+* Do not capitalize each word on a line
+* Provide no explanations; just translate
+* Place all tags in correct positions ({{MQ}}, [uicontrol], etc.)
+* [5-10 domain-specific instructions]
+* Maintain terminology consistency
+* Use [STYLE] (US English, International English, etc.)
 
-## High-Level Summary
+## SPECIAL RULES FOR [FEATURE]
+[Tag handling, formatting, non-translatables if relevant]
 
-[2-3 paragraph summary of the document/project content, key topics, main concepts, and technical focus]
+# HIGH-LEVEL SUMMARY
 
-## Bilingual Glossary
+[2-4 paragraphs: purpose, topics, considerations, context]
 
-| [SOURCE_LANG] | [TARGET_LANG] |
-|---------------|---------------|
-| [term 1] | [translation 1] |
-| [term 2] | [translation 2] |
-[... include 15-25 domain-specific terms ...]
+# GLOSSARY OF KEY TERMS
 
-## Additional Notes
+| [SOURCE_LANG] | [TARGET_LANG] | Notes |
+|---------------|---------------|-------|
+[20-30 terms from sample segments]
 
-• Note 1: [Specific translation guidance for this project]
-• Note 2: [Style preferences - e.g., "US English spelling", "International English"]
-• Note 3: [Tag handling - e.g., "If memoQ tags present, place in appropriate locations"]
-• Note 4: [Domain-specific conventions]
+---AI-OPTIMIZED FORMAT---
 
----END OF PROMPT TEMPLATE---
+# ROLE & EXPERTISE
 
-IMPORTANT REQUIREMENTS:
-1. Fill in ALL bracketed placeholders with specific content based on the project context
-2. Generate 15-25 relevant bilingual glossary entries (extract from sample segments if available)
-3. Make the high-level summary specific to THIS document
-4. Include practical, actionable notes
-5. Match the domain (patents, legal, medical, technical, etc.) to the content
-6. The prompt must be immediately usable without editing
+You are an expert [DOMAIN] translator ([SOURCE_LANG] → [TARGET_LANG]) with:
+- [Qualification 1]
+- [Qualification 2]
+- Deep knowledge of [domain-specific standards/conventions]
 
-After creating the prompt, use these actions:
+# DOCUMENT CONTEXT
 
-1. CREATE the prompt:
+**Type:** [Document type]
+**Domain:** [Specific domain]
+**Language pair:** [Source] → [Target], [variant]
+**Content:** [2-3 sentence summary]
+
+# TRANSLATION CONSTRAINTS
+
+**MUST:**
+- Preserve all tags exactly: {{MQ}}, [uicontrol], etc.
+- Maintain one segment per line (no merging/splitting)
+- Follow glossary terms exactly
+- [3-5 positive domain-specific rules]
+
+**MUST NOT:**
+- Add explanations or commentary
+- Capitalize every word
+- Translate non-translatables: [list specific items]
+- [2-3 negative domain-specific rules]
+
+# TERMINOLOGY REFERENCE
+
+[Present as structured glossary with usage context]
+
+# OUTPUT FORMAT
+
+Provide ONLY the translation, preserving:
+- Original line structure
+- All tags in correct positions
+- Segment numbering if present
+
+---END OF FORMATS---
+
+INSTRUCTIONS:
+1. Analyze the sample segments to extract 20-30 actual terms
+2. Create BOTH prompt versions filled with real content
+3. Add a recommendation explaining which format would work better for this project and why
+4. Consider: Does this need few-shot examples? Complex reasoning? Strict constraints?
+
+Then use these actions:
+
+1. CREATE the recommended prompt:
 ACTION:create_prompt
-PARAMS:{{"name": "[DOMAIN] - [LANGUAGE_PAIR]", "content": "YOUR COMPLETE PROMPT HERE", "folder": "Project Prompts", "description": "Auto-generated prompt for current project"}}
+PARAMS:{{"name": "[Domain] [Source]-[Target]", "content": "YOUR RECOMMENDED PROMPT", "folder": "Project Prompts", "description": "Auto-generated - [format] format"}}
 
-2. ACTIVATE it immediately:
+2. ACTIVATE it:
 ACTION:activate_prompt
-PARAMS:{{"path": "Project Prompts/[DOMAIN] - [LANGUAGE_PAIR].md", "mode": "primary"}}
+PARAMS:{{"path": "Project Prompts/[Domain] [Source]-[Target].md", "mode": "primary"}}
 
-Present a brief analysis, then create and activate the prompt automatically.
+Present your analysis and recommendation, then create and activate the prompt.
 """
         
         # Send to AI (in thread to avoid blocking UI)
