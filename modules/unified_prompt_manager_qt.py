@@ -504,8 +504,25 @@ class UnifiedPromptManagerQt:
         Public method to refresh AI Assistant context.
         Call this from the main app when document/project changes.
         """
-        # Clear cached document markdown when context changes
-        self._cached_document_markdown = None
+        # Reload cached document markdown from disk
+        if hasattr(self.parent_app, 'current_document_path') and self.parent_app.current_document_path:
+            doc_path = Path(self.parent_app.current_document_path)
+            # Try to load existing markdown
+            markdown_dir = self.user_data_path / "ai_assistant" / "current_document"
+            markdown_file = markdown_dir / f"{doc_path.stem}.md"
+            if markdown_file.exists():
+                try:
+                    with open(markdown_file, 'r', encoding='utf-8') as f:
+                        self._cached_document_markdown = f.read()
+                    self.log_message(f"✓ Loaded cached markdown: {markdown_file.name}")
+                except Exception as e:
+                    self.log_message(f"⚠ Failed to load cached markdown: {e}")
+                    self._cached_document_markdown = None
+            else:
+                self._cached_document_markdown = None
+        else:
+            self._cached_document_markdown = None
+
         self._update_context_sidebar()
     
     def _create_main_header(self) -> QWidget:
