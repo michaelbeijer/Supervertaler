@@ -1963,57 +1963,31 @@ You are an expert {{SOURCE_LANGUAGE}} to {{TARGET_LANGUAGE}} translator.
         context = self._build_project_context()
         
         # Create analysis prompt
-        analysis_prompt = f"""Analyze this translation project and create a complete translation prompt.
+        analysis_prompt = f"""Create a translation prompt for this project and save it using the ACTION system.
 
 PROJECT CONTEXT:
 {context}
 
-YOUR TASK - Create ONE complete translation prompt with these sections:
+IMPORTANT: You MUST output the complete ACTION block with PARAMS containing the full prompt.
+Do NOT truncate the ACTION block. Output the ENTIRE thing on one line.
 
-# ROLE & EXPERTISE
-You are an expert [DOMAIN] translator ([SOURCE] → [TARGET]) with [qualifications].
-
-# DOCUMENT CONTEXT
-**Type:** [type]
-**Domain:** [domain]
-**Language pair:** [source] → [target]
-**Content:** [brief description]
-
-# TRANSLATION CONSTRAINTS
-**MUST:**
-- Preserve all tags exactly
-- One segment per line
-- Follow glossary exactly
-- [3-5 domain-specific must-do rules]
-
-**MUST NOT:**
-- Add explanations
-- Capitalize every word
-- [2-3 domain-specific must-not rules]
-
-# TERMINOLOGY REFERENCE
-| [Source Lang] | [Target Lang] | Notes |
-|---------------|---------------|-------|
-[Extract 20-30 actual terms from the sample segments above]
-
-# OUTPUT FORMAT
-Provide ONLY the translation, preserving structure and tags.
-
----
-
-NOW - Use the ACTION system to save this prompt.
-The "content" parameter MUST contain the complete prompt text with \\n for newlines.
-
-Example showing EXACTLY how to format the ACTION:
+Here is the EXACT format to use:
 
 ACTION:create_prompt
-PARAMS:{{"name": "Medical EN-NL", "content": "# ROLE & EXPERTISE\\n\\nYou are an expert medical translator (English → Dutch) with 10+ years experience in clinical trials.\\n\\n# DOCUMENT CONTEXT\\n\\n**Type:** Clinical Study\\n**Domain:** Medical\\n**Language pair:** EN → NL\\n**Content:** Patient consent forms and trial protocols\\n\\n# TRANSLATION CONSTRAINTS\\n\\n**MUST:**\\n- Preserve all tags exactly\\n- One segment per line\\n- Follow medical terminology exactly\\n- Maintain formal register\\n\\n**MUST NOT:**\\n- Add explanations\\n- Simplify medical terms\\n- Capitalize every word\\n\\n# TERMINOLOGY REFERENCE\\n\\n| English | Dutch | Notes |\\n|---------|-------|-------|\\n| informed consent | geïnformeerde toestemming | Legal term |\\n| adverse event | bijwerking | Medical term |\\n| placebo | placebo | No translation |\\n\\n# OUTPUT FORMAT\\n\\nProvide ONLY the translation, preserving structure and tags.", "folder": "Project Prompts", "description": "Auto-generated prompt"}}
+PARAMS:{{"name": "Technical Dutch-English", "content": "# ROLE & EXPERTISE\\n\\nYou are an expert technical translator (Dutch → English) with 10+ years experience.\\n\\n# DOCUMENT CONTEXT\\n\\n**Type:** Technical Document\\n**Domain:** Engineering\\n**Language pair:** Dutch → English\\n**Content:** Technical specifications\\n\\n# TRANSLATION CONSTRAINTS\\n\\n**MUST:**\\n- Preserve all tags exactly\\n- One segment per line\\n- Follow glossary exactly\\n\\n**MUST NOT:**\\n- Add explanations\\n- Capitalize every word\\n\\n# TERMINOLOGY REFERENCE\\n\\n| Dutch | English | Notes |\\n|-------|---------|-------|\\n| inrichting | apparatus | Technical term |\\n| werkwijze | method | Process term |\\n| textiel | textile | Material |\\n\\n# OUTPUT FORMAT\\n\\nProvide ONLY the translation.", "folder": "Project Prompts", "description": "Auto-generated prompt"}}
 
 ACTION:activate_prompt
-PARAMS:{{"path": "Project Prompts/Medical EN-NL.md", "mode": "primary"}}
+PARAMS:{{"path": "Project Prompts/Technical Dutch-English.md", "mode": "primary"}}
 
-Copy this format EXACTLY. Replace the medical example with YOUR project's content.
-Include the FULL prompt with ALL glossary terms in the "content" field.
+YOUR TASK:
+1. Extract 10-15 key terms from the sample segments
+2. Copy the ACTION format above
+3. Replace "Technical Dutch-English" with appropriate name for this project
+4. Replace the content with a complete prompt tailored to this project
+5. Include the extracted terms in the glossary
+6. OUTPUT THE COMPLETE ACTION BLOCK - do not truncate it
+
+CRITICAL: The entire ACTION block must be on one line with proper JSON escaping.
 """
         
         # Send to AI (in thread to avoid blocking UI)
