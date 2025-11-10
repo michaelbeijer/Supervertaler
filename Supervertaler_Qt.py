@@ -1835,8 +1835,15 @@ class SupervertalerQt(QMainWindow):
     
     def on_right_tab_changed(self, index: int):
         """Handle right-side tab changes"""
-        # This can be used for navigation tracking if needed
-        pass
+        # Refresh AI Assistant LLM client when switching to Prompt Manager tab
+        if index == 0 and hasattr(self, 'prompt_manager_qt'):
+            # Reload LLM settings in case they changed
+            llm_settings = self.load_llm_settings()
+            self.current_provider = llm_settings.get('provider', 'openai')
+            provider_key = f"{self.current_provider}_model"
+            self.current_model = llm_settings.get(provider_key)
+            # Reinitialize AI Assistant's LLM client
+            self.prompt_manager_qt._init_llm_client()
     
     def detach_universal_lookup(self):
         """Detach Universal Lookup into a separate window for second screen use"""
