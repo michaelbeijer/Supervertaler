@@ -8,8 +8,8 @@
 
 ## 📚 Documentation
 
-**⭐ START HERE:** [PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md) — Complete project reference  
-**📝 Release Info:** [RELEASE_NOTES.md](RELEASE_NOTES.md) — Current v1.1.0-Qt release details
+**⭐ START HERE:** [PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md) — Complete project reference
+**📝 Release Info:** [RELEASE_NOTES.md](RELEASE_NOTES.md) — Current v1.3.4-Qt release details
 
 ### Edition Changelogs
 - **Qt Edition:** [CHANGELOG_Qt.md](CHANGELOG_Qt.md) — v1.0.2+ (primary development)
@@ -26,7 +26,7 @@
 
 ### 🆕 Qt Edition (Modern) - **PRIMARY**
 **File:** `Supervertaler_Qt.py`
-**Version:** v1.3.1 (November 9, 2025)
+**Version:** v1.3.4 (November 10, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -34,12 +34,24 @@
 python Supervertaler_Qt.py
 ```
 
-**NEW in v1.3.1 - AI Assistant File Attachment Persistence:**
-- 📎 **Persistent File Attachments** - Attached files now saved to disk and persist across sessions
-- 👁️ **File Viewer Dialog** - View attached file content with markdown preview and copy to clipboard
-- 🗂️ **Expandable Files Panel** - Collapsible UI showing all attached files with view/remove buttons
-- 💾 **Session Management** - Files organized by date with metadata tracking
-- 🔄 **Auto-Load** - Files automatically reload when app restarts
+**NEW in v1.3.4 - AI Assistant Enhanced Prompt Generation:**
+- 🤖 **ChatGPT-Quality Prompts** - Professional translation prompts with comprehensive summaries and extensive glossaries
+- 📊 **Comprehensive Summaries** - AI generates 3-4 paragraph detailed document analysis
+- 📚 **Extensive Glossaries** - 30-40 key terms (up from 10-15) with context notes
+- 🎯 **Domain-Specific Constraints** - Tailored requirements for patents, technical, medical, legal documents
+- 📄 **Full Document Analysis** - AI receives up to 50,000 characters for accurate analysis
+- ⚡ **One-Click Activation** - Generated prompts automatically created and activated
+
+**v1.3.3 Features - LLM Leaderboard:**
+- 🏆 **Translation Quality Benchmarking** - Compare OpenAI, Claude, Gemini models
+- 📈 **chrF++ Scoring** - Objective quality metrics (0-100 scale)
+- ⚡ **Speed & Cost Analysis** - Real-time performance and pricing comparison
+- 📊 **Excel Reports** - Professional benchmarking reports with branding
+
+**v1.3.1 Features - AI Assistant File Attachment Persistence:**
+- 📎 **Persistent File Attachments** - Attached files saved to disk across sessions
+- 👁️ **File Viewer Dialog** - View attached content with markdown preview
+- 🗂️ **Expandable Files Panel** - Collapsible UI with view/remove buttons
 
 **v1.3.0 Features - AI Assistant + 2-Layer Architecture:**
 - 🤖 **AI Assistant with Chat Interface** - Conversational prompt generation and document analysis
