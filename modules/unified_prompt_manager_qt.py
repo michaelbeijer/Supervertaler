@@ -2524,8 +2524,15 @@ CRITICAL:
         
         return "\n".join(parts)
     
+    def refresh_llm_client(self):
+        """Refresh LLM client when settings change"""
+        self._init_llm_client()
+
     def _send_ai_request(self, prompt: str, is_analysis: bool = False):
         """Send request to AI and handle response"""
+        # Refresh LLM client to get latest provider settings
+        self._init_llm_client()
+
         if not self.llm_client:
             self._add_chat_message(
                 "system",
