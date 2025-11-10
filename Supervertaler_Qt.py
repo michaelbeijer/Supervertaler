@@ -6235,7 +6235,19 @@ class SupervertalerQt(QMainWindow):
             self.initialize_tm_database()
             
             self.log(f"✓ Imported memoQ bilingual DOCX: {len(segments_data)} segments from {Path(file_path).name}")
-            
+
+            # Store current document path for AI Assistant
+            self.current_document_path = file_path
+
+            # Generate markdown for AI Assistant if enabled
+            if hasattr(self, 'auto_generate_markdown') and self.auto_generate_markdown:
+                if hasattr(self, 'prompt_manager_qt'):
+                    self.prompt_manager_qt.generate_markdown_for_current_document()
+
+            # Refresh AI Assistant context
+            if hasattr(self, 'prompt_manager_qt'):
+                self.prompt_manager_qt.refresh_context()
+
             QMessageBox.information(
                 self, "Import Successful",
                 f"Imported {len(segments_data)} segment(s) from memoQ bilingual DOCX.\n\n"
