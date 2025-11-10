@@ -3966,7 +3966,12 @@ class SupervertalerQt(QMainWindow):
             'gemini_model': gemini_combo.currentText().split()[0]
         }
         self.save_llm_settings(new_settings)
-        
+
+        # Update current provider and model attributes for AI Assistant
+        self.current_provider = new_settings['provider']
+        provider_key = f"{self.current_provider}_model"
+        self.current_model = new_settings.get(provider_key)
+
         enabled_states = {
             'llm_openai': openai_enable_cb.isChecked(),
             'llm_claude': claude_enable_cb.isChecked(),
@@ -7251,6 +7256,13 @@ class SupervertalerQt(QMainWindow):
             self.enable_termbase_matching = settings['enable_tm_termbase_matching']
         # Load auto-markdown setting
         self.auto_generate_markdown = settings.get('auto_generate_markdown', False)
+
+        # Load LLM provider settings for AI Assistant
+        llm_settings = self.load_llm_settings()
+        self.current_provider = llm_settings.get('provider', 'openai')
+        provider_key = f"{self.current_provider}_model"
+        self.current_model = llm_settings.get(provider_key)
+
         return settings
     
     def _load_general_settings_from_file(self) -> Dict[str, Any]:
