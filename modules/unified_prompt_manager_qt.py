@@ -1985,16 +1985,17 @@ You are an expert {{SOURCE_LANGUAGE}} to {{TARGET_LANGUAGE}} translator.
 PROJECT CONTEXT:
 {context}
 
-IMPORTANT: You MUST output the complete ACTION block with PARAMS containing the full prompt.
-Do NOT truncate the ACTION block. Output the ENTIRE thing on one line.
+CRITICAL INSTRUCTIONS:
+- You MUST output BOTH complete ACTION blocks
+- EACH ACTION needs its own PARAMS on the same line
+- Do NOT split ACTION and PARAMS across multiple lines
+- Do NOT truncate the prompt content
 
-Here is the EXACT format to use:
+EXACT FORMAT (everything on ONE line per action):
 
-ACTION:create_prompt
-PARAMS:{{"name": "Technical Dutch-English", "content": "# ROLE & EXPERTISE\\n\\nYou are an expert technical translator (Dutch → English) with 10+ years experience in [domain].\\n\\n# HIGH-LEVEL SUMMARY\\n\\nThe document is a [type] concerning [main topic]. It describes [key innovation/content] with particular focus on [technical aspects].\\n\\nThe document covers [2-3 main themes]. Key features include [important elements]. Special attention should be given to [critical considerations for translation].\\n\\nThe translation must maintain [style requirements] while ensuring [accuracy requirements]. Particular care is needed with [challenging aspects].\\n\\n# DOCUMENT CONTEXT\\n\\n**Type:** [Patent/Technical/Medical/Legal]\\n**Domain:** [Specific field]\\n**Language pair:** [Source] → [Target]\\n**Scope:** [Brief scope]\\n\\n# TRANSLATION CONSTRAINTS\\n\\n**MUST:**\\n- Preserve all tags exactly as they appear\\n- Translate one segment per line\\n- Follow terminology glossary precisely\\n- Maintain [domain-specific requirements]\\n\\n**MUST NOT:**\\n- Add explanatory text or comments\\n- Modify formatting or structure\\n- Deviate from established terminology\\n\\n# TERMINOLOGY REFERENCE\\n\\n| [Source] | [Target] | Notes |\\n|-------|---------|-------|\\n| term1 | translation1 | Context/usage note |\\n| term2 | translation2 | Context/usage note |\\n| term3 | translation3 | Context/usage note |\\n[... 30-40 terms total ...]\\n\\n# OUTPUT FORMAT\\n\\nProvide ONLY the translation, without explanations or metadata.", "folder": "Project Prompts", "description": "Auto-generated prompt"}}
+ACTION:create_prompt PARAMS:{{"name": "Technical Dutch-English", "content": "# ROLE & EXPERTISE\\n\\nYou are an expert technical translator (Dutch → English) with 10+ years experience in [domain].\\n\\n# HIGH-LEVEL SUMMARY\\n\\nThe document is a [type] concerning [main topic]. It describes [key innovation/content] with particular focus on [technical aspects].\\n\\nThe document covers [2-3 main themes]. Key features include [important elements]. Special attention should be given to [critical considerations for translation].\\n\\nThe translation must maintain [style requirements] while ensuring [accuracy requirements]. Particular care is needed with [challenging aspects].\\n\\n# DOCUMENT CONTEXT\\n\\n**Type:** [Patent/Technical/Medical/Legal]\\n**Domain:** [Specific field]\\n**Language pair:** [Source] → [Target]\\n**Scope:** [Brief scope]\\n\\n# TRANSLATION CONSTRAINTS\\n\\n**MUST:**\\n- Preserve all tags exactly as they appear\\n- Translate one segment per line\\n- Follow terminology glossary precisely\\n- Maintain [domain-specific requirements]\\n\\n**MUST NOT:**\\n- Add explanatory text or comments\\n- Modify formatting or structure\\n- Deviate from established terminology\\n\\n# TERMINOLOGY REFERENCE\\n\\n| [Source] | [Target] | Notes |\\n|-------|---------|-------|\\n| term1 | translation1 | Context/usage note |\\n| term2 | translation2 | Context/usage note |\\n| term3 | translation3 | Context/usage note |\\n[... 30-40 terms total ...]\\n\\n# OUTPUT FORMAT\\n\\nProvide ONLY the translation, without explanations or metadata.", "folder": "Project Prompts", "description": "Auto-generated prompt"}}
 
-ACTION:activate_prompt
-PARAMS:{{"path": "Project Prompts/Technical Dutch-English.md", "mode": "primary"}}
+ACTION:activate_prompt PARAMS:{{"path": "Project Prompts/Technical Dutch-English.md", "mode": "primary"}}
 
 YOUR TASK:
 1. **ANALYZE THE FULL DOCUMENT** - Read through all the content to understand:
