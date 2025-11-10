@@ -3,8 +3,8 @@ Supervertaler Qt Edition
 ========================
 The ultimate companion tool for translators and writers.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.3.0 (AI Assistant + 2-Layer Architecture)
-Release Date: November 9, 2025
+Version: 1.3.3 (LLM Leaderboard + UI Standardization)
+Release Date: November 10, 2025
 Framework: PyQt6
 
 This is the modern edition of Supervertaler using PyQt6 framework.
@@ -28,9 +28,9 @@ License: MIT
 """
 
 # Version Information
-__version__ = "1.3.2"
-__phase__ = "6.2"
-__release_date__ = "2025-11-09"
+__version__ = "1.3.3"
+__phase__ = "6.3"
+__release_date__ = "2025-11-10"
 __edition__ = "Qt"
 
 import sys
@@ -1711,7 +1711,17 @@ class SupervertalerQt(QMainWindow):
         def llm_client_factory(provider: str, model_id: str):
             from modules.llm_clients import LLMClient
             api_keys = self._get_api_keys()
-            api_key = api_keys.get(provider, "")
+
+            # Map provider names to API key names
+            # (gemini uses "google" as the key name in api_keys.txt)
+            provider_to_key = {
+                "openai": "openai",
+                "claude": "claude",
+                "gemini": "google"  # Gemini uses Google API key
+            }
+
+            key_name = provider_to_key.get(provider, provider)
+            api_key = api_keys.get(key_name, "")
 
             if not api_key:
                 raise ValueError(f"No API key configured for {provider}. Please add it in Settings.")

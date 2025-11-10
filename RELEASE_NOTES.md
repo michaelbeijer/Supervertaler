@@ -1,6 +1,93 @@
 # Supervertaler Release Notes
 
-## Current Release: v1.3.2-Qt (November 9, 2025)
+## Current Release: v1.3.3-Qt (November 10, 2025)
+
+### 🏆 Major Feature: LLM Leaderboard + UI Standardization
+
+**Translation Quality Benchmarking System - Compare translation quality, speed, and cost across multiple LLM providers!**
+
+### What's New
+
+**✅ LLM Leaderboard Module**
+- **Benchmark translation quality** across OpenAI, Claude, and Gemini models
+- **chrF++ scoring** - Objective translation quality assessment (0-100 scale)
+- **Speed tracking** - See which models are fastest for your workflow
+- **Cost analysis** - Compare pricing across providers
+- **Multiple test datasets** included:
+  - Technical (EN→NL, NL→EN)
+  - Legal (EN→NL, NL→EN)
+  - Medical (EN→NL, NL→EN)
+  - Marketing (EN→NL, NL→EN)
+- **Real-time progress** - Auto-scrolling log shows benchmark status
+- **Excel export** - Professional reports with:
+  - About sheet with branding and Supervertaler.com link
+  - Summary sheet with model rankings
+  - Detailed results with all metrics
+  - Filename includes dataset name and timestamp
+
+**✅ Standardized Module Headers**
+- Professional consistent styling across all modules
+- Trophy emoji 🏆 for LLM Leaderboard identity
+- Blue branding (#1976D2) matching Supervertaler colors
+- Light blue description boxes for clarity
+- Applied to: LLM Leaderboard, TMX Editor, AutoFingers, PDF Rescue
+
+**✅ Latest Model Support**
+- **OpenAI:** GPT-4o, GPT-4o Mini, GPT-5 (Reasoning)
+- **Claude:** Sonnet 4.5, Haiku 4.5, Opus 4.1
+- **Gemini:** 2.5 Flash, 2.5 Flash Lite, 2.5 Pro, 2.0 Flash (Exp)
+- Friendly model names in all dropdowns
+
+**✅ Standalone Usage Support**
+- Can run LLM Leaderboard independently
+- Auto-creates `api_keys.txt` from `api_keys.example.txt` template
+- Complete documentation in `modules/LLM_LEADERBOARD_STANDALONE.md`
+
+### Fixed Issues
+
+**🐛 LLM Leaderboard Bug Fixes**
+- Fixed Claude API call parameters (proper text/custom_prompt separation)
+- Fixed Gemini API key mapping ("gemini" provider → "google" API key)
+- Fixed model dropdown showing generic names instead of selected models
+- Fixed API key auto-creation from template
+
+### How to Use
+
+**Run a Benchmark:**
+1. Click Tools tab → LLM Leaderboard
+2. Select models from dropdowns (OpenAI, Claude, Gemini)
+3. Choose a test dataset (Technical, Legal, Medical, or Marketing)
+4. Select language direction (EN→NL or NL→EN)
+5. Click "Run Benchmark"
+6. Watch real-time progress in auto-scrolling log
+7. View results in table with chrF++ scores, speed, and cost
+8. Export to Excel for analysis
+
+**Standalone Usage:**
+1. Ensure `api_keys.txt` exists (auto-created from template)
+2. Run: `python modules/llm_leaderboard_ui.py`
+3. Add your API keys to the file
+4. Follow benchmark steps above
+
+### Benefits
+
+- **Make informed decisions** about which LLM to use for your translation projects
+- **Objective quality metrics** with chrF++ scoring (industry standard)
+- **Compare costs** across providers to optimize your budget
+- **Professional reports** you can share with clients or colleagues
+- **Extensible datasets** - Add your own test segments for domain-specific benchmarks
+
+### Technical Details
+
+- Core engine: `modules/llm_leaderboard.py`
+- Qt UI: `modules/llm_leaderboard_ui.py`
+- Quality scoring: sacrebleu library (chrF++ implementation)
+- Excel generation: openpyxl with professional formatting
+- API integration: Unified via `modules/llm_clients.py`
+
+---
+
+## Previous Release: v1.3.2-Qt (November 9, 2025)
 
 ### 🎯 Major Feature: Segment-Level AI Access + Critical Bug Fix
 

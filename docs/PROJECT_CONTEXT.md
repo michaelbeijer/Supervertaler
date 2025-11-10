@@ -1,12 +1,116 @@
 # Supervertaler Project Context
 
-**Last Updated:** November 9, 2025
+**Last Updated:** November 10, 2025
 **Repository:** https://github.com/michaelbeijer/Supervertaler
 **Maintainer:** Michael Beijer
 
 ---
 
 ## 📅 Recent Development Activity
+
+### November 10, 2025 - LLM Leaderboard UI Standardization
+
+**🎯 Complete UI Header Standardization Across Modules**
+
+Standardized the visual branding across all Supervertaler modules (LLM Leaderboard, TMX Editor, AutoFingers) with consistent header styling and extended this branding to Excel exports.
+
+**✅ Completed Features:**
+
+1. **Standardized Module Headers**
+   - Applied consistent header style across all modules:
+     - LLM Leaderboard: "🏆 LLM Leaderboard"
+     - TMX Editor: Similar professional styling
+     - AutoFingers: Similar professional styling
+   - Header styling:
+     - Blue title color (#1976D2) - matches Supervertaler branding
+     - 16pt bold font for visibility
+     - Compact spacing (no stretch)
+   - Description box styling:
+     - Light blue background (#E3F2FD)
+     - Gray text color (#666)
+     - Rounded corners (3px border-radius)
+     - 5px padding
+     - Word wrap enabled
+   - Subtitle format: "Translation Quality Benchmarking System - A Supervertaler Module"
+
+2. **Excel Export Branding Consistency**
+   - Updated Excel export title sheet to match UI header style:
+     - Title: "🏆 LLM Leaderboard" (with trophy emoji)
+     - 24pt bold title in blue (#1976D2)
+     - Subtitle: "Translation Quality Benchmarking System"
+     - 12pt italic subtitle in gray (#666666)
+     - Module branding: "A Supervertaler Module"
+     - Clickable hyperlink to https://supervertaler.com/
+   - Complete visual consistency between UI and exported files
+
+3. **Previous Session Fixes Completed**
+   - ✅ Claude model crash fix - Updated to Claude 4 series model IDs
+   - ✅ Gemini API key mapping - Maps "gemini" provider to "google" API key name
+   - ✅ Model dropdown selection - Shows correct friendly names (e.g., "GPT-5 (Reasoning)", "Claude Opus 4.1")
+   - ✅ Excel export with dataset info in filename - Format: `LLM_Leaderboard_{dataset_name}_{timestamp}.xlsx`
+   - ✅ Auto-create API keys file - Copies api_keys.example.txt to api_keys.txt on first run
+   - ✅ Auto-scroll log - Always shows latest benchmark messages
+   - ✅ Comprehensive Excel export - Three sheets (About, Summary, Results) with professional formatting
+
+**Files Modified:**
+- [modules/llm_leaderboard_ui.py](../modules/llm_leaderboard_ui.py)
+  - Lines 90-111: Standardized header with emoji and professional styling
+  - Lines 547-565: Excel export title sheet with matching branding
+  - Lines 782-825: Model name mapping for correct dropdown display
+  - Lines 827-832: Auto-scrolling log implementation
+  - Lines 479-776: Comprehensive Excel export system
+
+**Technical Details:**
+
+**UI Header Implementation:**
+```python
+# Header (matches TMX Editor / AutoFingers style)
+header = QLabel("🏆 LLM Leaderboard")
+header.setStyleSheet("font-size: 16pt; font-weight: bold; color: #1976D2;")
+layout.addWidget(header, 0)
+
+# Description box
+description = QLabel(
+    "Translation Quality Benchmarking System - A Supervertaler Module.\n"
+    "Compare translation quality, speed, and cost across multiple LLM providers."
+)
+description.setWordWrap(True)
+description.setStyleSheet(
+    "color: #666; padding: 5px; "
+    "background-color: #E3F2FD; border-radius: 3px;"
+)
+layout.addWidget(description, 0)
+```
+
+**Excel Export Title Sheet:**
+```python
+# Title with emoji (matches UI header style)
+ws_info['A1'] = "🏆 LLM Leaderboard"
+ws_info['A1'].font = Font(size=24, bold=True, color="1976D2")
+ws_info.merge_cells('A1:D1')
+
+# Subtitle
+ws_info['A2'] = "Translation Quality Benchmarking System"
+ws_info['A2'].font = Font(size=12, italic=True, color="666666")
+ws_info.merge_cells('A2:D2')
+
+# Branding with hyperlink
+ws_info['A3'] = "A Supervertaler Module"
+ws_info['A3'].font = Font(size=11, color="0066CC", underline="single")
+ws_info['A3'].hyperlink = "https://supervertaler.com/"
+ws_info.merge_cells('A3:D3')
+```
+
+**Benefits:**
+- Professional, consistent branding across all modules
+- Clear visual identity reinforcing Supervertaler ecosystem
+- Excel exports maintain same professional appearance as UI
+- User experience enhanced through visual consistency
+- Easier module recognition and navigation
+
+**Status:** ✅ Complete - All standardization tasks finished
+
+---
 
 ### November 9, 2025 (Later) - Segment-Level AI Access + Critical Bug Fix
 

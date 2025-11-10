@@ -6,6 +6,69 @@ The Qt Edition is the **primary version** for active development and new feature
 
 ---
 
+## [1.3.3] - November 10, 2025
+
+### 🏆 Major Feature: LLM Leaderboard + UI Standardization
+
+**Translation Quality Benchmarking System** - Compare translation quality, speed, and cost across multiple LLM providers in a professional, standardized interface.
+
+### Added
+- **🏆 LLM Leaderboard Module** (Complete Implementation)
+  - Benchmark translation quality across OpenAI, Claude, and Gemini models
+  - chrF++ quality scoring for objective translation assessment
+  - Speed and cost tracking for each translation
+  - Multiple test datasets: Technical, Legal, Medical, Marketing (EN→NL, NL→EN)
+  - Comprehensive Excel export with:
+    - About sheet with clickable Supervertaler.com link
+    - Summary sheet with rankings and statistics
+    - Detailed results with all metrics
+    - Dataset info in filename (e.g., `LLM_Leaderboard_Technical_EN-NL_20251110.xlsx`)
+  - Auto-scrolling log for real-time progress monitoring
+  - Standalone usage support with api_keys.example.txt template
+  - Professional documentation in `modules/LLM_LEADERBOARD_STANDALONE.md`
+
+- **🎨 Standardized Module Headers**
+  - Consistent professional styling across all modules
+  - Blue header color (#1976D2) matching Supervertaler branding
+  - Light blue description boxes (#E3F2FD) with rounded corners
+  - Trophy emoji 🏆 for LLM Leaderboard identity
+  - Applied to: LLM Leaderboard, TMX Editor, AutoFingers, PDF Rescue
+
+- **📊 Model Selection Enhancements**
+  - Friendly model names in dropdowns (e.g., "GPT-5 (Reasoning)", "Claude Opus 4.1")
+  - Support for latest models:
+    - OpenAI: GPT-4o, GPT-4o Mini, GPT-5
+    - Claude: Sonnet 4.5, Haiku 4.5, Opus 4.1
+    - Gemini: 2.5 Flash, 2.5 Flash Lite, 2.5 Pro, 2.0 Flash (Exp)
+
+### Fixed
+- **🐛 LLM Leaderboard Bug Fixes**
+  - Fixed Claude API call parameters (text vs custom_prompt)
+  - Fixed Gemini API key mapping ("gemini" provider → "google" API key)
+  - Fixed model dropdown display names (was showing generic names instead of selected models)
+  - Fixed API key auto-creation from template file
+
+### Changed
+- **🔧 Excel Export Branding**
+  - Title sheet matches UI header style with trophy emoji
+  - Blue title color (#1976D2) for brand consistency
+  - Clickable hyperlink to https://supervertaler.com/
+  - Professional subtitle formatting
+
+- **🔧 API Key Management**
+  - Auto-creates `api_keys.txt` from `api_keys.example.txt` on first run
+  - Supports standalone LLM Leaderboard usage outside Supervertaler
+
+### Technical
+- Enhanced `modules/llm_leaderboard.py` - Core benchmarking engine
+- Enhanced `modules/llm_leaderboard_ui.py` - Qt UI with standardized header
+- Updated `modules/llm_clients.py` - Auto-create API keys functionality
+- Updated `Supervertaler_Qt.py` - Gemini API key mapping fix
+- Created `api_keys.example.txt` - Template for standalone usage
+- Created `modules/LLM_LEADERBOARD_STANDALONE.md` - Complete documentation
+
+---
+
 ## [1.3.2] - November 9, 2025
 
 ### 🎯 Major Feature: Segment-Level AI Access + Critical Bug Fix
