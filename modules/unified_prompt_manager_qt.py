@@ -1033,6 +1033,9 @@ class UnifiedPromptManagerQt:
         self.chat_display.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.chat_display.setVerticalScrollMode(QListWidget.ScrollMode.ScrollPerPixel)
         self.chat_display.setSpacing(0)
+        # Enable context menu for copying messages
+        self.chat_display.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.chat_display.customContextMenuRequested.connect(self._show_chat_context_menu)
         layout.addWidget(self.chat_display, 1)
         
         # Top toolbar with Clear button
@@ -1960,26 +1963,38 @@ You are an expert {{SOURCE_LANGUAGE}} to {{TARGET_LANGUAGE}} translator.
         context = self._build_project_context()
         
         # Create analysis prompt
-        analysis_prompt = f"""Analyze this translation project and generate appropriate prompts.
+        analysis_prompt = f"""You are helping a professional translator set up prompts for a new translation project.
 
 PROJECT CONTEXT:
 {context}
 
-AVAILABLE PROMPTS ({len(self.library.prompts)} in library):
-{self._list_available_prompts()}
+YOUR TASK:
+Create a complete, ready-to-use translation prompt tailored to this project.
 
-TASK:
-1. Analyze the project domain, style, and requirements
-2. Identify what kind of prompts would be most helpful
-3. Suggest either:
-   - Existing prompts from the library that are relevant
-   - New prompts to create for this specific project
-4. Provide complete prompt text for any new prompts
+The prompt should include:
+1. **System instructions** - Clear role definition and translation guidelines
+2. **Domain expertise** - Specific knowledge relevant to this content type
+3. **Bilingual glossary** - Key terms with translations (if relevant)
+4. **Style guidelines** - Tone, formatting, and quality expectations
 
-Respond in clear sections:
-1. Project Analysis
-2. Recommended Existing Prompts
-3. Suggested New Prompts (with complete text)
+IMPORTANT REQUIREMENTS:
+- Create a COMPLETE prompt with all sections filled in
+- Include at least 10-15 bilingual glossary entries if the content has specialized terminology
+- Make it immediately usable without further editing
+- Structure it clearly with markdown headers
+- Focus on practical, specific guidance
+
+After creating the prompt, use these actions:
+
+1. CREATE the prompt using:
+ACTION:create_prompt
+PARAMS:{{"name": "Project-Specific Prompt", "content": "YOUR COMPLETE PROMPT HERE", "folder": "Project Prompts", "description": "Auto-generated for current project"}}
+
+2. ACTIVATE it immediately using:
+ACTION:activate_prompt
+PARAMS:{{"path": "Project Prompts/Project-Specific Prompt.md", "mode": "primary"}}
+
+Present your analysis briefly, then create and activate the prompt automatically.
 """
         
         # Send to AI (in thread to avoid blocking UI)
@@ -1988,25 +2003,44 @@ Respond in clear sections:
     def _build_project_context(self) -> str:
         """Build context from current project"""
         context_parts = []
-        
+
         # Current document info
         if hasattr(self.parent_app, 'current_document_path'):
             doc_path = self.parent_app.current_document_path
             if doc_path:
-                context_parts.append(f"Document: {Path(doc_path).name}")
-        
+                context_parts.append(f"**Document:** {Path(doc_path).name}")
+
+        # Language pair
+        if hasattr(self.parent_app, 'current_project') and self.parent_app.current_project:
+            project = self.parent_app.current_project
+            if hasattr(project, 'source_language') and hasattr(project, 'target_language'):
+                context_parts.append(f"**Language Pair:** {project.source_language} → {project.target_language}")
+
+        # Segment information with samples
+        if hasattr(self.parent_app, 'current_project') and self.parent_app.current_project:
+            project = self.parent_app.current_project
+            if hasattr(project, 'segments') and project.segments:
+                total = len(project.segments)
+                context_parts.append(f"\n**Project Size:** {total} segments")
+
+                # Include sample segments
+                sample_count = min(5, total)
+                context_parts.append(f"\n**Sample Segments:**")
+                for i, seg in enumerate(project.segments[:sample_count], 1):
+                    context_parts.append(f"\n{i}. Source: {seg.source[:100]}...")
+                    if seg.target:
+                        context_parts.append(f"   Target: {seg.target[:100]}...")
+
         # Attached files
         if self.attached_files:
-            context_parts.append(f"\nAttached Files ({len(self.attached_files)}):")
+            context_parts.append(f"\n**Attached Files ({len(self.attached_files)}):**")
             for file in self.attached_files:
                 context_parts.append(f"- {file['name']}: {len(file.get('content', ''))} chars")
-        
-        # Active prompts
-        if self.library.active_primary_prompt:
-            context_parts.append("\nActive Primary Prompt: Yes")
-        if self.library.attached_prompts:
-            context_parts.append(f"Attached Prompts: {len(self.library.attached_prompts)}")
-        
+                # Show preview of file content
+                if file.get('content'):
+                    preview = file['content'][:200].replace('\n', ' ')
+                    context_parts.append(f"  Preview: {preview}...")
+
         return "\n".join(context_parts) if context_parts else "No context available"
     
     def _list_available_prompts(self) -> str:
@@ -2593,7 +2627,42 @@ Respond in clear sections:
                 "✨ Chat cleared! Start a new conversation.",
                 save=False
             )
-    
+
+    def _show_chat_context_menu(self, position):
+        """Show context menu for chat messages to allow copying"""
+        item = self.chat_display.itemAt(position)
+        if item is None:
+            return
+
+        # Get message data
+        message_data = item.data(Qt.ItemDataRole.UserRole)
+        if not message_data:
+            return
+
+        message_text = message_data.get('message', '')
+
+        # Create context menu
+        menu = QMenu()
+
+        copy_action = menu.addAction("📋 Copy Message")
+        copy_action.triggered.connect(lambda: self._copy_message_to_clipboard(message_text))
+
+        # Show menu at cursor position
+        menu.exec(self.chat_display.mapToGlobal(position))
+
+    def _copy_message_to_clipboard(self, text: str):
+        """Copy message text to clipboard"""
+        from PyQt6.QtWidgets import QApplication
+        clipboard = QApplication.clipboard()
+        clipboard.setText(text)
+
+        # Show brief confirmation
+        self._add_chat_message(
+            "system",
+            "✓ Message copied to clipboard",
+            save=False
+        )
+
     def _add_chat_message(self, role: str, message: str, save: bool = True):
         """Add a message to the chat display"""
         # Save to history

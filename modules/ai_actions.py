@@ -61,6 +61,7 @@ class AIActionSystem:
             'get_folder_structure': self._action_get_folder_structure,
             'get_segment_count': self._action_get_segment_count,
             'get_segment_info': self._action_get_segment_info,
+            'activate_prompt': self._action_activate_prompt,
         }
 
     def parse_and_execute(self, ai_response: str) -> Tuple[str, List[Dict]]:
@@ -690,6 +691,51 @@ class AIActionSystem:
             'count': len(segments_data)
         }
 
+    def _action_activate_prompt(self, params: Dict) -> Dict:
+        """
+        Activate/attach a prompt to the current project.
+
+        Params:
+            path (required): Path to the prompt to activate
+            mode (optional): 'primary' or 'attach' (default: 'primary')
+
+        Returns:
+            {success: bool, message: str}
+        """
+        path = params.get('path')
+        mode = params.get('mode', 'primary')
+
+        if not path:
+            raise ValueError("Missing required parameter: path")
+
+        # Check if prompt exists
+        if path not in self.prompt_library.prompts:
+            raise ValueError(f"Prompt not found: {path}")
+
+        if mode == 'primary':
+            # Set as primary prompt
+            self.prompt_library.set_primary_prompt(path)
+            return {
+                'success': True,
+                'message': f"✓ Activated as primary prompt: {self.prompt_library.prompts[path].get('name', path)}"
+            }
+        elif mode == 'attach':
+            # Attach as additional prompt
+            if path not in self.prompt_library.attached_prompts:
+                self.prompt_library.attached_prompts.append(path)
+                self.prompt_library.save_active_state()
+                return {
+                    'success': True,
+                    'message': f"✓ Attached prompt: {self.prompt_library.prompts[path].get('name', path)}"
+                }
+            else:
+                return {
+                    'success': False,
+                    'message': f"Prompt already attached: {path}"
+                }
+        else:
+            raise ValueError(f"Invalid mode: {mode}. Use 'primary' or 'attach'")
+
     def get_system_prompt_addition(self) -> str:
         """
         Get text to add to AI system prompt to enable action usage.
@@ -783,6 +829,13 @@ PARAMS: {
   "start_id": 1, "end_id": 10 (range of segments)
 }
 
+### 15. activate_prompt
+Activate/attach a prompt to the current project.
+PARAMS: {
+  "path": "Domain Expertise/Medical.md",
+  "mode": "primary" (or "attach")
+}
+
 **Important:**
 - Actions are executed automatically when you include them in your response
 - You'll see the results immediately
@@ -825,6 +878,10 @@ PARAMS: {
 
                 elif action_name == 'create_prompt':
                     output += f"  Path: {result['result']['path']}\n"
+
+                elif action_name == 'activate_prompt':
+                    # Just use the message from the result
+                    pass
 
                 elif action_name == 'get_segment_count':
                     total = result['result']['total_segments']
