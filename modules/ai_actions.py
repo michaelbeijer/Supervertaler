@@ -80,8 +80,9 @@ class AIActionSystem:
         cleaned_response = ai_response
 
         # Find all ACTION blocks
-        # Pattern: ACTION:name\nPARAMS:... up to next ACTION: or end of string
-        action_pattern = r'ACTION:(\w+)\s*\n\s*PARAMS:\s*'
+        # Pattern: ACTION:name PARAMS:... (with optional newline between)
+        # Handles both "ACTION:name\nPARAMS:" and "ACTION:name PARAMS:"
+        action_pattern = r'ACTION:(\w+)\s+PARAMS:\s*'
         matches = list(re.finditer(action_pattern, ai_response))
 
         # Process each ACTION block
