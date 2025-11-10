@@ -2630,7 +2630,7 @@ Present your analysis and recommendation, then create and activate the prompt.
                         self.library.load_all_prompts()
                         # Refresh tree widget if it exists
                         if hasattr(self, 'tree_widget') and self.tree_widget:
-                            self._populate_prompt_tree()
+                            self._refresh_tree()
                         # Refresh active prompt display
                         if hasattr(self, '_update_active_prompt_display'):
                             self._update_active_prompt_display()
