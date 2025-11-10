@@ -1059,9 +1059,9 @@ class Supervertaler:
         self.current_translate_prompt = self.default_translate_prompt
         self.current_proofread_prompt = self.default_proofread_prompt
         
-        # System prompts directory (uses path resolver for dev mode support)
-        self.system_prompts_dir = get_user_data_path("Prompt_Library/2_Domain_Prompts")
-        os.makedirs(self.system_prompts_dir, exist_ok=True)
+        # Domain prompts directory (Layer 2 - uses path resolver for dev mode support)
+        self.domain_prompts_dir = get_user_data_path("Prompt_Library/2_Domain_Prompts")
+        os.makedirs(self.domain_prompts_dir, exist_ok=True)
         
         # Translation memory - new multi-TM architecture with SQLite backend
         db_path = os.path.join(get_user_data_path("Translation_Resources"), "supervertaler.db")
@@ -1097,11 +1097,11 @@ class Supervertaler:
             except Exception as e:
                 self.log(f"⚠ Could not configure LLM client: {e}")
         
-        system_prompts_dir = get_user_data_path("Prompt_Library/2_Domain_Prompts")
-        custom_instructions_dir = get_user_data_path("Prompt_Library/3_Project_Prompts")
+        domain_prompts_dir = get_user_data_path("Prompt_Library/2_Domain_Prompts")
+        project_prompts_dir = get_user_data_path("Prompt_Library/3_Project_Prompts")
         self.prompt_library = PromptLibrary(
-            system_prompts_dir=system_prompts_dir,
-            custom_instructions_dir=custom_instructions_dir, 
+            domain_prompts_dir=domain_prompts_dir,
+            project_prompts_dir=project_prompts_dir, 
             log_callback=self.log
         )
         
@@ -3752,8 +3752,8 @@ class Supervertaler:
         filename = f"{base_filename} (system prompt).md"
         
         # Check if file already exists
-        system_prompts_dir = get_user_data_path("Prompt_Library/2_Domain_Prompts")
-        filepath = os.path.join(system_prompts_dir, filename)
+        domain_prompts_dir = get_user_data_path("Prompt_Library/2_Domain_Prompts")
+        filepath = os.path.join(domain_prompts_dir, filename)
         
         if os.path.exists(filepath):
             messagebox.showerror("File Exists", 
@@ -3791,7 +3791,7 @@ Add your translation guidelines here...
         
         try:
             # Ensure directory exists
-            os.makedirs(system_prompts_dir, exist_ok=True)
+            os.makedirs(domain_prompts_dir, exist_ok=True)
             
             # Create the file
             with open(filepath, 'w', encoding='utf-8') as f:
@@ -5886,9 +5886,9 @@ Provide the two prompts in the specified format."""
                     # Insert descriptor before .md if not already there
                     filename = filename.replace('.md', ' (system prompt).md')
                 
-                # Get System_prompts directory
-                system_prompts_dir = get_user_data_path("Prompt_Library/2_Domain_Prompts")
-                filepath = os.path.join(system_prompts_dir, filename)
+                # Get Domain prompts directory (Layer 2)
+                domain_prompts_dir = get_user_data_path("Prompt_Library/2_Domain_Prompts")
+                filepath = os.path.join(domain_prompts_dir, filename)
                 
                 # Determine domain from doc_type
                 domain_map = {
@@ -5939,7 +5939,7 @@ Provide the two prompts in the specified format."""
                     
                     messagebox.showinfo("Saved!", 
                         f"System Prompt saved as:\n{filename}\n\n"
-                        f"Location: {os.path.normpath(system_prompts_dir)}\n\n"
+                        f"Location: {os.path.normpath(domain_prompts_dir)}\n\n"
                         f"It will now appear in your Prompt Manager → System Prompts section.")
                     
                     # Don't close dialog - let user see both prompts
@@ -6039,15 +6039,15 @@ Provide the two prompts in the specified format."""
                 "proofread_prompt": custom_instructions_text  # Same instructions for both
             }
             
-            # Save to Custom Instructions folder (respects dev mode)
-            custom_instructions_dir = get_user_data_path('Prompt_Library/3_Project_Prompts')
-            os.makedirs(custom_instructions_dir, exist_ok=True)
+            # Save to Project Prompts folder (Layer 3 - respects dev mode)
+            project_prompts_dir = get_user_data_path('Prompt_Library/3_Project_Prompts')
+            os.makedirs(project_prompts_dir, exist_ok=True)
             
             # Sanitize filename and add descriptor
             safe_filename = "".join(c for c in name if c.isalnum() or c in (' ', '-', '_')).strip()
             # Create filename with descriptor: "name (custom instructions).md"
             filename_with_descriptor = f"{safe_filename} (custom instructions).md"
-            filepath = os.path.join(custom_instructions_dir, filename_with_descriptor)
+            filepath = os.path.join(project_prompts_dir, filename_with_descriptor)
             
             # Log for debugging
             self.log(f"💾 Saving Custom Instructions to: {filepath}")
@@ -6075,7 +6075,7 @@ Provide the two prompts in the specified format."""
                 
                 messagebox.showinfo("Saved!", 
                     f"Custom Instructions saved as:\n\n{filename_with_descriptor}\n\n"
-                    f"Location: {os.path.normpath(custom_instructions_dir)}")
+                    f"Location: {os.path.normpath(project_prompts_dir)}")
                 
                 # Don't close the dialog - let user see both prompts
             except Exception as e:

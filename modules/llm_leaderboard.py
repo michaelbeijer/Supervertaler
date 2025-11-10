@@ -245,16 +245,22 @@ Return ONLY the translation, no explanations or additional text."""
 
         try:
             # Create LLM client
+            self.log(f"   DEBUG: Creating client for {model_config.provider} with model {model_config.model_id}")
             client = self.llm_client_factory(model_config.provider, model_config.model_id)
+            self.log(f"   DEBUG: Client created successfully")
 
             # Measure translation time
             start_time = time.perf_counter()
+            self.log(f"   DEBUG: Calling translate with text='{segment.source[:50]}...', source={segment.direction.split('→')[0].lower()}, target={segment.direction.split('→')[1].lower()}")
+
             output = client.translate(
-                prompt,
+                text=segment.source,
                 source_lang=segment.direction.split("→")[0].lower(),
-                target_lang=segment.direction.split("→")[1].lower()
+                target_lang=segment.direction.split("→")[1].lower(),
+                custom_prompt=prompt
             )
             elapsed_time = time.perf_counter() - start_time
+            self.log(f"   DEBUG: Translation received: '{output[:50] if output else 'NONE'}...'")
 
             result.output = output
             result.latency_ms = elapsed_time * 1000
@@ -268,8 +274,12 @@ Return ONLY the translation, no explanations or additional text."""
             # Would need to access response metadata from LLM client
 
         except Exception as e:
+            import traceback
             result.error = str(e)
-            self.log(f"   Warning: Error translating segment {segment.id} with {model_config.name}: {e}")
+            error_details = traceback.format_exc()
+            self.log(f"   ERROR: Exception translating segment {segment.id} with {model_config.name}")
+            self.log(f"   ERROR: {str(e)}")
+            self.log(f"   ERROR: Traceback:\n{error_details}")
 
         return result
 

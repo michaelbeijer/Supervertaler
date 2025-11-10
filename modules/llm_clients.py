@@ -39,23 +39,34 @@ from dataclasses import dataclass
 def load_api_keys() -> Dict[str, str]:
     """Load API keys from api_keys.txt file (supports both root and user_data_private locations)"""
     script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    
+
     # Try user_data_private first (dev mode), then fallback to root
     possible_paths = [
         os.path.join(script_dir, "user_data_private", "api_keys.txt"),
         os.path.join(script_dir, "api_keys.txt")
     ]
-    
+
     api_keys_file = None
     for path in possible_paths:
         if os.path.exists(path):
             api_keys_file = path
             break
-    
-    # If no file exists, use root location
+
+    # If no file exists, create example file from template
     if api_keys_file is None:
         api_keys_file = possible_paths[1]  # Default to root
-    
+        example_file = os.path.join(script_dir, "api_keys.example.txt")
+
+        # Create api_keys.txt from example if it exists
+        if os.path.exists(example_file) and not os.path.exists(api_keys_file):
+            try:
+                import shutil
+                shutil.copy(example_file, api_keys_file)
+                print(f"Created {api_keys_file} from example template.")
+                print("Please edit this file and add your API keys.")
+            except Exception as e:
+                print(f"Could not create api_keys.txt: {e}")
+
     api_keys = {
         "google": "",           # For Gemini
         "google_translate": "", # For Google Cloud Translation API
@@ -64,7 +75,7 @@ def load_api_keys() -> Dict[str, str]:
         "deepl": "",
         "mymemory": ""
     }
-    
+
     if os.path.exists(api_keys_file):
         try:
             with open(api_keys_file, 'r', encoding='utf-8') as f:
@@ -78,7 +89,7 @@ def load_api_keys() -> Dict[str, str]:
                             api_keys[key] = value
         except Exception as e:
             print(f"Error loading API keys: {e}")
-    
+
     return api_keys
 
 
