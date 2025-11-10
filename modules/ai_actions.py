@@ -137,6 +137,12 @@ class AIActionSystem:
                 result = self.execute_action(action_name, params)
                 action_results.append(result)
 
+                # Reload prompt library immediately if prompt was created/updated/deleted
+                # This ensures subsequent actions (like activate_prompt) see the new prompt
+                if result['success'] and action_name in ['create_prompt', 'update_prompt', 'delete_prompt']:
+                    self.prompt_library.load_all_prompts()
+                    self.log(f"✓ Reloaded prompt library after {action_name}")
+
                 # Remove ACTION block from response
                 # Include the full ACTION block: from start of match to end of JSON
                 full_block = ai_response[match.start():start_pos + json_end]
