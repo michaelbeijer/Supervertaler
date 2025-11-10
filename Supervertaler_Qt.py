@@ -3,7 +3,7 @@ Supervertaler Qt Edition
 ========================
 The ultimate companion tool for translators and writers.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.3.3 (LLM Leaderboard + UI Standardization)
+Version: 1.3.4 (AI Assistant Enhanced Prompt Generation)
 Release Date: November 10, 2025
 Framework: PyQt6
 
@@ -28,8 +28,8 @@ License: MIT
 """
 
 # Version Information
-__version__ = "1.3.3"
-__phase__ = "6.3"
+__version__ = "1.3.4"
+__phase__ = "6.4"
 __release_date__ = "2025-11-10"
 __edition__ = "Qt"
 

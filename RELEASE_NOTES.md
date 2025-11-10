@@ -1,6 +1,67 @@
 # Supervertaler Release Notes
 
-## Current Release: v1.3.3-Qt (November 10, 2025)
+## Current Release: v1.3.4-Qt (November 10, 2025)
+
+### 🤖 Major Feature: AI Assistant Enhanced Prompt Generation
+
+**ChatGPT-Quality Prompt Generation - Create professional translation prompts with comprehensive summaries and extensive glossaries!**
+
+### What's New
+
+**✅ Enhanced Prompt Generation Template**
+- **Comprehensive High-Level Summaries** - AI now generates 3-4 paragraph detailed document analysis including:
+  - Document purpose and main topic
+  - Key technical details and innovations
+  - Scope, structure, and special considerations
+  - Translation challenges and style requirements
+- **Extensive Glossaries** - 30-40 key terms (up from 10-15) with context notes
+- **Domain-Specific Constraints** - Tailored requirements for:
+  - Patents: claim structure, legal precision, figure references
+  - Technical: measurement units, technical accuracy
+  - Medical: clinical terminology, regulatory compliance
+  - Legal: legal terms of art, formal language
+- **Full Document Analysis** - AI receives up to 50,000 characters of document content for accurate analysis
+- **One-Click Activation** - Generated prompts are automatically created and activated
+
+### Fixed Issues
+
+**🐛 AI Assistant Bug Fixes**
+- Fixed empty chat bubbles appearing when AI generates only ACTION blocks
+- Fixed ACTION block parsing to accept both single-line and multi-line formats
+- Fixed prompt generation sending only 5 segments (now sends full document)
+
+### How to Use
+
+**Generate a Translation Prompt:**
+1. Open a document in Supervertaler
+2. Click Prompt Manager tab → AI Assistant
+3. Click "Analyze Project & Generate Prompts"
+4. AI analyzes your document and creates a comprehensive prompt with:
+   - Detailed high-level summary (3-4 paragraphs)
+   - 30-40 terminology entries with notes
+   - Domain-specific translation constraints
+   - Professional formatting ready for immediate use
+5. The prompt is automatically activated as your primary prompt
+6. Right-click any AI response to copy it to clipboard
+
+### Benefits
+
+- **Professional-quality prompts** matching ChatGPT/Claude web interface quality
+- **Save time** - No manual prompt engineering needed
+- **Comprehensive coverage** - Extensive glossaries and detailed summaries
+- **Domain awareness** - AI recognizes patent, technical, medical, legal documents
+- **Immediate use** - Prompts are activated automatically
+
+### Technical Details
+
+- Enhanced template: [modules/unified_prompt_manager_qt.py](modules/unified_prompt_manager_qt.py) lines 1966-2022
+- Empty bubble fix: [modules/unified_prompt_manager_qt.py](modules/unified_prompt_manager_qt.py) lines 2576-2578
+- Full document sending: [modules/unified_prompt_manager_qt.py](modules/unified_prompt_manager_qt.py) lines 2019-2030
+- ACTION parsing fix: [modules/ai_actions.py](modules/ai_actions.py) line 85
+
+---
+
+## Previous Release: v1.3.3-Qt (November 10, 2025)
 
 ### 🏆 Major Feature: LLM Leaderboard + UI Standardization
 

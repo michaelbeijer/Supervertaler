@@ -1963,7 +1963,7 @@ You are an expert {{SOURCE_LANGUAGE}} to {{TARGET_LANGUAGE}} translator.
         context = self._build_project_context()
         
         # Create analysis prompt
-        analysis_prompt = f"""Create a translation prompt for this project and save it using the ACTION system.
+        analysis_prompt = f"""Create a comprehensive translation prompt for this project and save it using the ACTION system.
 
 PROJECT CONTEXT:
 {context}
@@ -1974,20 +1974,51 @@ Do NOT truncate the ACTION block. Output the ENTIRE thing on one line.
 Here is the EXACT format to use:
 
 ACTION:create_prompt
-PARAMS:{{"name": "Technical Dutch-English", "content": "# ROLE & EXPERTISE\\n\\nYou are an expert technical translator (Dutch → English) with 10+ years experience.\\n\\n# DOCUMENT CONTEXT\\n\\n**Type:** Technical Document\\n**Domain:** Engineering\\n**Language pair:** Dutch → English\\n**Content:** Technical specifications\\n\\n# TRANSLATION CONSTRAINTS\\n\\n**MUST:**\\n- Preserve all tags exactly\\n- One segment per line\\n- Follow glossary exactly\\n\\n**MUST NOT:**\\n- Add explanations\\n- Capitalize every word\\n\\n# TERMINOLOGY REFERENCE\\n\\n| Dutch | English | Notes |\\n|-------|---------|-------|\\n| inrichting | apparatus | Technical term |\\n| werkwijze | method | Process term |\\n| textiel | textile | Material |\\n\\n# OUTPUT FORMAT\\n\\nProvide ONLY the translation.", "folder": "Project Prompts", "description": "Auto-generated prompt"}}
+PARAMS:{{"name": "Technical Dutch-English", "content": "# ROLE & EXPERTISE\\n\\nYou are an expert technical translator (Dutch → English) with 10+ years experience in [domain].\\n\\n# HIGH-LEVEL SUMMARY\\n\\nThe document is a [type] concerning [main topic]. It describes [key innovation/content] with particular focus on [technical aspects].\\n\\nThe document covers [2-3 main themes]. Key features include [important elements]. Special attention should be given to [critical considerations for translation].\\n\\nThe translation must maintain [style requirements] while ensuring [accuracy requirements]. Particular care is needed with [challenging aspects].\\n\\n# DOCUMENT CONTEXT\\n\\n**Type:** [Patent/Technical/Medical/Legal]\\n**Domain:** [Specific field]\\n**Language pair:** [Source] → [Target]\\n**Scope:** [Brief scope]\\n\\n# TRANSLATION CONSTRAINTS\\n\\n**MUST:**\\n- Preserve all tags exactly as they appear\\n- Translate one segment per line\\n- Follow terminology glossary precisely\\n- Maintain [domain-specific requirements]\\n\\n**MUST NOT:**\\n- Add explanatory text or comments\\n- Modify formatting or structure\\n- Deviate from established terminology\\n\\n# TERMINOLOGY REFERENCE\\n\\n| [Source] | [Target] | Notes |\\n|-------|---------|-------|\\n| term1 | translation1 | Context/usage note |\\n| term2 | translation2 | Context/usage note |\\n| term3 | translation3 | Context/usage note |\\n[... 30-40 terms total ...]\\n\\n# OUTPUT FORMAT\\n\\nProvide ONLY the translation, without explanations or metadata.", "folder": "Project Prompts", "description": "Auto-generated prompt"}}
 
 ACTION:activate_prompt
 PARAMS:{{"path": "Project Prompts/Technical Dutch-English.md", "mode": "primary"}}
 
 YOUR TASK:
-1. Extract 10-15 key terms from the sample segments
-2. Copy the ACTION format above
-3. Replace "Technical Dutch-English" with appropriate name for this project
-4. Replace the content with a complete prompt tailored to this project
-5. Include the extracted terms in the glossary
-6. OUTPUT THE COMPLETE ACTION BLOCK - do not truncate it
+1. **ANALYZE THE FULL DOCUMENT** - Read through all the content to understand:
+   - Document type (patent, technical manual, medical, legal, etc.)
+   - Main topic and innovations
+   - Domain and technical complexity
+   - Key themes and sections
+   - Critical translation challenges
 
-CRITICAL: The entire ACTION block must be on one line with proper JSON escaping.
+2. **WRITE A COMPREHENSIVE HIGH-LEVEL SUMMARY** (3-4 paragraphs):
+   - Paragraph 1: What the document is about, its purpose, main topic
+   - Paragraph 2: Key technical details, innovations, or important elements
+   - Paragraph 3: Scope, structure, and special considerations
+   - Paragraph 4: Translation challenges and style requirements
+
+3. **EXTRACT 30-40 KEY TERMS** for the glossary:
+   - Include all technical terminology
+   - Add domain-specific terms
+   - Include frequently occurring terms
+   - Add challenging or ambiguous terms
+   - Provide context notes for each term
+
+4. **IDENTIFY DOMAIN-SPECIFIC CONSTRAINTS**:
+   - For patents: claim structure, legal precision, figure references
+   - For technical: measurement units, technical accuracy
+   - For medical: clinical terminology, regulatory compliance
+   - For legal: legal terms of art, formal language
+
+5. **CREATE THE ACTION BLOCK**:
+   - Replace placeholder text with actual content
+   - Use an appropriate name for the prompt
+   - Include ALL extracted terms (30-40)
+   - Write the complete HIGH-LEVEL SUMMARY
+   - Add domain-specific constraints
+   - OUTPUT THE COMPLETE ACTION BLOCK - do not truncate it
+
+CRITICAL:
+- The entire ACTION block must be on one line with proper JSON escaping
+- The HIGH-LEVEL SUMMARY must be 3-4 full paragraphs analyzing the document
+- The glossary must contain 30-40 terms minimum
+- Do NOT use placeholder text - write actual content based on the document
 """
         
         # Send to AI (in thread to avoid blocking UI)
@@ -2542,8 +2573,9 @@ CRITICAL: The entire ACTION block must be on one line with proper JSON escaping.
                 self.log_message(f"[AI Assistant] Cleaned response: {len(cleaned_response)} characters")
                 self.log_message(f"[AI Assistant] Actions executed: {len(action_results)}")
 
-                # Add the cleaned response (without ACTION blocks)
-                self._add_chat_message("assistant", cleaned_response)
+                # Add the cleaned response (without ACTION blocks) - only if non-empty
+                if cleaned_response and cleaned_response.strip():
+                    self._add_chat_message("assistant", cleaned_response)
 
                 # If actions were executed, show results
                 if action_results:

@@ -8,7 +8,114 @@
 
 ## 📅 Recent Development Activity
 
-### November 10, 2025 - LLM Leaderboard UI Standardization
+### November 10, 2025 (Later) - AI Assistant Enhanced Prompt Generation
+
+**🎯 ChatGPT-Quality Automatic Prompt Generation**
+
+Redesigned the AI Assistant's "Analyze Project & Generate Prompts" feature to create comprehensive, professional translation prompts matching the quality of ChatGPT/Claude web interfaces.
+
+**✅ Enhanced Prompt Generation:**
+
+1. **Comprehensive High-Level Summaries**
+   - AI now generates 3-4 paragraph detailed document analysis
+   - Paragraph 1: Document purpose and main topic
+   - Paragraph 2: Key technical details and innovations
+   - Paragraph 3: Scope, structure, and special considerations
+   - Paragraph 4: Translation challenges and style requirements
+   - Previously: Only brief metadata (Type, Domain, Language pair)
+
+2. **Extensive Glossaries**
+   - Template now requires 30-40 key terms (up from 10-15)
+   - Each term includes context notes
+   - Covers all technical terminology, domain-specific terms, frequently occurring terms
+   - Includes challenging or ambiguous terms with usage guidance
+
+3. **Domain-Specific Constraints**
+   - **Patents:** Claim structure, legal precision, figure references
+   - **Technical:** Measurement units, technical accuracy
+   - **Medical:** Clinical terminology, regulatory compliance
+   - **Legal:** Legal terms of art, formal language
+   - AI identifies document type and applies appropriate constraints
+
+4. **Full Document Analysis**
+   - AI now receives up to 50,000 characters of document content
+   - Previously: Only 5 sample segments (500 chars total)
+   - Fallback: First 100 complete segments if markdown not cached
+   - Dramatic improvement in prompt quality and accuracy
+
+5. **One-Click Workflow**
+   - Generated prompts automatically created in Project Prompts folder
+   - Automatically activated as primary prompt
+   - Ready for immediate use in translation
+   - No manual prompt engineering needed
+
+**🐛 Bug Fixes:**
+
+1. **Empty Chat Bubble Fix**
+   - Problem: Empty assistant messages appeared when AI generated only ACTION blocks
+   - Root cause: `cleaned_response` was empty string after removing ACTION blocks
+   - Fix: Only add assistant message if `cleaned_response.strip()` is non-empty
+   - File: `modules/unified_prompt_manager_qt.py` lines 2576-2578
+
+2. **Full Document Content Sending**
+   - Problem: Only 5 segments sent to AI (100 chars each = 500 chars total)
+   - User expectation: Full document analysis
+   - Fix: Send cached markdown (50,000 chars) or first 100 complete segments
+   - File: `modules/unified_prompt_manager_qt.py` lines 2019-2030
+
+3. **ACTION Block Parsing**
+   - Problem: Regex required newline but AI outputted single-line format
+   - Fix: Changed pattern from `r'ACTION:(\w+)\s*\n\s*PARAMS:\s*'` to `r'ACTION:(\w+)\s+PARAMS:\s*'`
+   - File: `modules/ai_actions.py` line 85
+
+**Files Modified:**
+
+- [modules/unified_prompt_manager_qt.py](../modules/unified_prompt_manager_qt.py)
+  - Lines 1966-2022: Enhanced prompt generation template with comprehensive instructions
+  - Lines 2576-2578: Empty bubble fix (only add assistant message if non-empty)
+  - Lines 2019-2030: Full document sending (50,000 chars vs 500 chars)
+- [modules/ai_actions.py](../modules/ai_actions.py)
+  - Line 85: ACTION parsing fix (accept single-line format)
+
+**Example Generated Prompt Quality:**
+
+Before:
+- 10-15 terms in glossary
+- No high-level summary
+- Generic constraints
+- Based on 5 sample segments (500 chars)
+
+After:
+- 30-40 terms in glossary with context notes
+- 3-4 paragraph comprehensive high-level summary
+- Domain-specific constraints (patents, technical, medical, legal)
+- Based on full document (50,000 chars)
+- Professional formatting matching user's example prompts
+
+**Technical Implementation:**
+
+Enhanced template structure:
+```
+YOUR TASK:
+1. **ANALYZE THE FULL DOCUMENT** - Read through all content
+2. **WRITE A COMPREHENSIVE HIGH-LEVEL SUMMARY** (3-4 paragraphs)
+3. **EXTRACT 30-40 KEY TERMS** for glossary
+4. **IDENTIFY DOMAIN-SPECIFIC CONSTRAINTS**
+5. **CREATE THE ACTION BLOCK** with all content
+```
+
+**Benefits:**
+- Professional-quality prompts matching ChatGPT/Claude web quality
+- Save significant time - no manual prompt engineering needed
+- Comprehensive coverage - extensive glossaries and detailed summaries
+- Domain awareness - AI recognizes and adapts to document type
+- Immediate use - prompts activated automatically
+
+**Status:** ✅ Complete - v1.3.4 release ready
+
+---
+
+### November 10, 2025 (Earlier) - LLM Leaderboard UI Standardization
 
 **🎯 Complete UI Header Standardization Across Modules**
 
