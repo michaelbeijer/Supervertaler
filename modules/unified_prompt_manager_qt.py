@@ -2009,20 +2009,25 @@ CRITICAL: The entire ACTION block must be on one line with proper JSON escaping.
             if hasattr(project, 'source_language') and hasattr(project, 'target_language'):
                 context_parts.append(f"**Language Pair:** {project.source_language} → {project.target_language}")
 
-        # Segment information with samples
+        # Full document content
         if hasattr(self.parent_app, 'current_project') and self.parent_app.current_project:
             project = self.parent_app.current_project
             if hasattr(project, 'segments') and project.segments:
                 total = len(project.segments)
                 context_parts.append(f"\n**Project Size:** {total} segments")
 
-                # Include sample segments
-                sample_count = min(5, total)
-                context_parts.append(f"\n**Sample Segments:**")
-                for i, seg in enumerate(project.segments[:sample_count], 1):
-                    context_parts.append(f"\n{i}. Source: {seg.source[:100]}...")
-                    if seg.target:
-                        context_parts.append(f"   Target: {seg.target[:100]}...")
+                # Try to get full document markdown (up to 50,000 chars for analysis)
+                if self._cached_document_markdown:
+                    # Use cached markdown
+                    doc_content = self._cached_document_markdown[:50000]
+                    context_parts.append(f"\n**Full Document Content:**\n{doc_content}")
+                else:
+                    # Fallback: Construct from segments (first 100 segments)
+                    context_parts.append(f"\n**Document Content (first 100 segments):**")
+                    for i, seg in enumerate(project.segments[:100], 1):
+                        context_parts.append(f"\n{i}. {seg.source}")
+                        if seg.target:
+                            context_parts.append(f"   → {seg.target}")
 
         # Attached files
         if self.attached_files:
