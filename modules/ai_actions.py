@@ -298,6 +298,7 @@ class AIActionSystem:
             tags (optional): List of tags
             domain (optional): Domain category
             task_type (optional): Task type
+            activate (optional): If True, activate as primary after creating
 
         Returns:
             {success: bool, path: str, message: str}
@@ -333,10 +334,17 @@ class AIActionSystem:
         success = self.prompt_library.save_prompt(relative_path, prompt_data)
 
         if success:
+            message = f"Created prompt: {name}"
+
+            # Auto-activate if requested
+            if params.get('activate', False):
+                self.prompt_library.set_primary_prompt(relative_path)
+                message += f" and activated as primary"
+
             return {
                 'success': True,
                 'path': relative_path,
-                'message': f"Created prompt: {name}"
+                'message': message
             }
         else:
             raise Exception("Failed to save prompt")

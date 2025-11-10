@@ -1986,30 +1986,29 @@ You are an expert {{SOURCE_LANGUAGE}} to {{TARGET_LANGUAGE}} translator.
 PROJECT CONTEXT:
 {context}
 
-Your task: Create a translation prompt for this project.
+Your task: Analyze the document and create a translation prompt with glossary.
 
-Output format - TWO complete ACTION blocks (no truncation):
+Output ONE complete ACTION block:
 
-ACTION:create_prompt PARAMS:{{"name": "[Name based on document]", "content": "[Full prompt with glossary]", "folder": "Project Prompts", "description": "Auto-generated"}}
-ACTION:activate_prompt PARAMS:{{"path": "Project Prompts/[Name based on document].md", "mode": "primary"}}
+ACTION:create_prompt PARAMS:{{"name": "[Descriptive name]", "content": "[Full markdown prompt]", "folder": "Project Prompts", "description": "Auto-generated", "activate": true}}
 
-Prompt structure to use:
-# Translation Prompt: [Domain] [Languages]
+Prompt content structure:
+# [Domain] Translation: [Lang1]→[Lang2]
 
-## Document Summary
-[2-3 paragraphs about the document]
+## Summary
+[2-3 sentences about document type and content]
 
-## Key Terminology
+## Terminology
 | Source | Target | Notes |
 |--------|--------|-------|
-[20+ terms from document]
+[Extract 20+ key terms from the document]
 
-## Translation Guidelines
-- Preserve all formatting
-- Follow glossary exactly
+## Guidelines
+- Preserve formatting
+- Follow glossary
 - One segment per line
 
-CRITICAL: Output BOTH actions complete. Do NOT truncate."""
+Output the complete ACTION block with full prompt content."""
         
         # Send to AI (in thread to avoid blocking UI)
         self._send_ai_request(analysis_prompt, is_analysis=True)
