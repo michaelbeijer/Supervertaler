@@ -392,11 +392,12 @@ class UnifiedPromptManagerQt:
         
         # Paths
         self.prompt_library_dir = self.user_data_path / "Prompt_Library"
-        self.unified_library_dir = self.prompt_library_dir / "Library"
-        
+        # Use Prompt_Library directly, not Prompt_Library/Library
+        self.unified_library_dir = self.prompt_library_dir
+
         # Run migration if needed
         self._check_and_migrate()
-        
+
         # Initialize unified prompt library
         self.library = UnifiedPromptLibrary(
             library_dir=str(self.unified_library_dir),
@@ -1985,59 +1986,30 @@ You are an expert {{SOURCE_LANGUAGE}} to {{TARGET_LANGUAGE}} translator.
 PROJECT CONTEXT:
 {context}
 
-CRITICAL INSTRUCTIONS:
-- You MUST output BOTH complete ACTION blocks
-- EACH ACTION needs its own PARAMS on the same line
-- Do NOT split ACTION and PARAMS across multiple lines
-- Do NOT truncate the prompt content
+Your task: Create a translation prompt for this project.
 
-EXACT FORMAT (everything on ONE line per action):
+Output format - TWO complete ACTION blocks (no truncation):
 
-ACTION:create_prompt PARAMS:{{"name": "Technical Dutch-English", "content": "# ROLE & EXPERTISE\\n\\nYou are an expert technical translator (Dutch → English) with 10+ years experience in [domain].\\n\\n# HIGH-LEVEL SUMMARY\\n\\nThe document is a [type] concerning [main topic]. It describes [key innovation/content] with particular focus on [technical aspects].\\n\\nThe document covers [2-3 main themes]. Key features include [important elements]. Special attention should be given to [critical considerations for translation].\\n\\nThe translation must maintain [style requirements] while ensuring [accuracy requirements]. Particular care is needed with [challenging aspects].\\n\\n# DOCUMENT CONTEXT\\n\\n**Type:** [Patent/Technical/Medical/Legal]\\n**Domain:** [Specific field]\\n**Language pair:** [Source] → [Target]\\n**Scope:** [Brief scope]\\n\\n# TRANSLATION CONSTRAINTS\\n\\n**MUST:**\\n- Preserve all tags exactly as they appear\\n- Translate one segment per line\\n- Follow terminology glossary precisely\\n- Maintain [domain-specific requirements]\\n\\n**MUST NOT:**\\n- Add explanatory text or comments\\n- Modify formatting or structure\\n- Deviate from established terminology\\n\\n# TERMINOLOGY REFERENCE\\n\\n| [Source] | [Target] | Notes |\\n|-------|---------|-------|\\n| term1 | translation1 | Context/usage note |\\n| term2 | translation2 | Context/usage note |\\n| term3 | translation3 | Context/usage note |\\n[... 30-40 terms total ...]\\n\\n# OUTPUT FORMAT\\n\\nProvide ONLY the translation, without explanations or metadata.", "folder": "Project Prompts", "description": "Auto-generated prompt"}}
+ACTION:create_prompt PARAMS:{{"name": "[Name based on document]", "content": "[Full prompt with glossary]", "folder": "Project Prompts", "description": "Auto-generated"}}
+ACTION:activate_prompt PARAMS:{{"path": "Project Prompts/[Name based on document].md", "mode": "primary"}}
 
-ACTION:activate_prompt PARAMS:{{"path": "Project Prompts/Technical Dutch-English.md", "mode": "primary"}}
+Prompt structure to use:
+# Translation Prompt: [Domain] [Languages]
 
-YOUR TASK:
-1. **ANALYZE THE FULL DOCUMENT** - Read through all the content to understand:
-   - Document type (patent, technical manual, medical, legal, etc.)
-   - Main topic and innovations
-   - Domain and technical complexity
-   - Key themes and sections
-   - Critical translation challenges
+## Document Summary
+[2-3 paragraphs about the document]
 
-2. **WRITE A COMPREHENSIVE HIGH-LEVEL SUMMARY** (3-4 paragraphs):
-   - Paragraph 1: What the document is about, its purpose, main topic
-   - Paragraph 2: Key technical details, innovations, or important elements
-   - Paragraph 3: Scope, structure, and special considerations
-   - Paragraph 4: Translation challenges and style requirements
+## Key Terminology
+| Source | Target | Notes |
+|--------|--------|-------|
+[20+ terms from document]
 
-3. **EXTRACT 30-40 KEY TERMS** for the glossary:
-   - Include all technical terminology
-   - Add domain-specific terms
-   - Include frequently occurring terms
-   - Add challenging or ambiguous terms
-   - Provide context notes for each term
+## Translation Guidelines
+- Preserve all formatting
+- Follow glossary exactly
+- One segment per line
 
-4. **IDENTIFY DOMAIN-SPECIFIC CONSTRAINTS**:
-   - For patents: claim structure, legal precision, figure references
-   - For technical: measurement units, technical accuracy
-   - For medical: clinical terminology, regulatory compliance
-   - For legal: legal terms of art, formal language
-
-5. **CREATE THE ACTION BLOCK**:
-   - Replace placeholder text with actual content
-   - Use an appropriate name for the prompt
-   - Include ALL extracted terms (30-40)
-   - Write the complete HIGH-LEVEL SUMMARY
-   - Add domain-specific constraints
-   - OUTPUT THE COMPLETE ACTION BLOCK - do not truncate it
-
-CRITICAL:
-- The entire ACTION block must be on one line with proper JSON escaping
-- The HIGH-LEVEL SUMMARY must be 3-4 full paragraphs analyzing the document
-- The glossary must contain 30-40 terms minimum
-- Do NOT use placeholder text - write actual content based on the document
-"""
+CRITICAL: Output BOTH actions complete. Do NOT truncate."""
         
         # Send to AI (in thread to avoid blocking UI)
         self._send_ai_request(analysis_prompt, is_analysis=True)
