@@ -2588,9 +2588,14 @@ Output complete ACTION."""
                 if action_results:
                     formatted_results = self.ai_action_system.format_action_results(action_results)
                     self._add_chat_message("system", formatted_results)
+                else:
+                    # No actions found - show warning with first 500 chars of response for debugging
+                    if not (cleaned_response and cleaned_response.strip()):
+                        self.log_message(f"[AI Assistant] ⚠ No actions found in response. First 500 chars: {response[:500]}")
+                        self._add_chat_message("system", "⚠ AI responded but no actions were found. Check logs for details.")
 
-                    # Reload prompt library if any prompts were modified
-                    if any(r['action'] in ['create_prompt', 'update_prompt', 'delete_prompt', 'activate_prompt']
+                # Reload prompt library if any prompts were modified
+                if action_results and any(r['action'] in ['create_prompt', 'update_prompt', 'delete_prompt', 'activate_prompt']
                            for r in action_results if r['success']):
                         self.log_message("[AI Assistant] Reloading prompt library due to prompt modifications...")
                         self.library.load_all_prompts()

@@ -8,6 +8,38 @@
 
 ## 📅 Recent Development Activity
 
+### November 10, 2025 (Continued) - Fixed CODE FENCE Parsing Issue
+
+**🐛 Critical Fix: ACTION Block Parser Not Handling Markdown Code Fences**
+
+Claude was wrapping ACTION blocks in markdown code fences (```yaml), causing the parser to fail. Only the text "`yaml`" was being displayed to the user.
+
+**Problem:**
+- Claude output: ````yaml\nACTION:create_prompt PARAMS:{...}\n```
+- Parser removed ACTION block successfully
+- But leftover "`yaml`" text was displayed as the AI response
+- Empty chat bubbles or just "`yaml`" appearing
+
+**Solution:**
+Enhanced ACTION parser in `modules/ai_actions.py` to strip markdown code fences before parsing:
+- Remove opening fence: ````yaml`, ````json`, or ``` (at start or after newline)
+- Remove closing fence: ``` (at end or before newline)
+- Remove standalone backticks and language markers
+- Handle both block-level and inline code fences
+
+**Files Modified:**
+- [modules/ai_actions.py](../modules/ai_actions.py) - Lines 81-88: Added comprehensive code fence stripping
+
+**Commit:** `42a86c2` - "Fix ACTION parser to strip markdown code fences from LLM responses"
+
+**Impact:**
+- AI Assistant now handles Claude's markdown-wrapped responses correctly
+- No more "`yaml`" text appearing in chat
+- ACTION blocks properly extracted and executed
+- Works with all LLM providers (OpenAI, Claude, Gemini)
+
+---
+
 ### November 10, 2025 (Later) - AI Assistant Enhanced Prompt Generation
 
 **🎯 ChatGPT-Quality Automatic Prompt Generation**

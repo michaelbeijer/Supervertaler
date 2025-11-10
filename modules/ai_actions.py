@@ -80,12 +80,18 @@ class AIActionSystem:
 
         # Strip markdown code fences if present (Claude often wraps in ```yaml or ```)
         # Handle both block-level and inline code fences
+        self.log(f"[DEBUG] Original response length: {len(ai_response)} chars")
+        self.log(f"[DEBUG] First 200 chars: {ai_response[:200]}")
+
         # Remove opening fence: ```yaml, ```json, or just ``` (at start or after newline)
         ai_response = re.sub(r'(^|\n)```(?:yaml|json|)?\s*\n?', r'\1', ai_response)
         # Remove closing fence: ``` (at end or before newline)
         ai_response = re.sub(r'\n?```\s*($|\n)', r'\1', ai_response)
         # Remove any remaining standalone backticks or language markers
         ai_response = re.sub(r'^`(?:yaml|json|)\s*$', '', ai_response, flags=re.MULTILINE)
+
+        self.log(f"[DEBUG] After fence stripping length: {len(ai_response)} chars")
+        self.log(f"[DEBUG] After fence stripping first 200 chars: {ai_response[:200]}")
 
         cleaned_response = ai_response
 
@@ -94,6 +100,8 @@ class AIActionSystem:
         # Handles both "ACTION:name\nPARAMS:" and "ACTION:name PARAMS:"
         action_pattern = r'ACTION:(\w+)\s+PARAMS:\s*'
         matches = list(re.finditer(action_pattern, ai_response))
+
+        self.log(f"[DEBUG] Found {len(matches)} ACTION blocks")
 
         # Process each ACTION block
         for i, match in enumerate(matches):
