@@ -2471,30 +2471,44 @@ Respond in clear sections:
             return
             
         try:
+            # Log the request
+            self.log_message(f"[AI Assistant] Sending request to {self.llm_client.provider} ({self.llm_client.model})")
+            self.log_message(f"[AI Assistant] Prompt length: {len(prompt)} characters")
+
             # Show thinking message (don't save to history)
             self._add_chat_message("system", "🤔 Thinking...", save=False)
-            
+
             # Force UI update
             if hasattr(self, 'chat_display'):
                 from PyQt6.QtWidgets import QApplication
                 QApplication.processEvents()
-            
+
             # Call LLM using translate method with custom prompt
             # The translate method accepts a custom_prompt parameter that we can use for any text generation
+            self.log_message("[AI Assistant] Calling LLM translate method...")
             response = self.llm_client.translate(
                 text="",  # Empty text since we're using custom_prompt
                 source_lang="en",
                 target_lang="en",
                 custom_prompt=prompt
             )
-            
+
+            # Log the response
+            self.log_message(f"[AI Assistant] Received response: {len(response) if response else 0} characters")
+            if response:
+                self.log_message(f"[AI Assistant] Response preview: {response[:200]}...")
+
             # Clear the thinking message by clearing and reloading history
             self._reload_chat_display()
-            
+
             # Check if we got a valid response
             if response and response.strip():
+                self.log_message("[AI Assistant] Processing response with action system...")
                 # Parse and execute actions (Phase 2)
                 cleaned_response, action_results = self.ai_action_system.parse_and_execute(response)
+
+                self.log_message(f"[AI Assistant] Cleaned response: {len(cleaned_response)} characters")
+                self.log_message(f"[AI Assistant] Actions executed: {len(action_results)}")
 
                 # Add the cleaned response (without ACTION blocks)
                 self._add_chat_message("assistant", cleaned_response)
@@ -2507,28 +2521,33 @@ Respond in clear sections:
                     # Reload prompt library if any prompts were modified
                     if any(r['action'] in ['create_prompt', 'update_prompt', 'delete_prompt']
                            for r in action_results if r['success']):
+                        self.log_message("[AI Assistant] Reloading prompt library due to prompt modifications...")
                         self.library.load_all_prompts()
                         # Refresh tree widget if it exists
                         if hasattr(self, 'tree_widget') and self.tree_widget:
                             self._populate_prompt_tree()
+
+                self.log_message("[AI Assistant] ✓ Request completed successfully")
             else:
+                self.log_message("[AI Assistant] ⚠ Received empty response from AI")
                 self._add_chat_message(
                     "system",
                     "⚠ Received empty response from AI. Please try again."
                 )
-            
+
         except Exception as e:
             # Clear the thinking message
             self._reload_chat_display()
-            
+
             # Log the full error
             import traceback
             error_details = traceback.format_exc()
-            self.log_message(f"AI Assistant Error: {error_details}")
-            
+            self.log_message(f"[AI Assistant] ❌ ERROR: {error_details}")
+            print(f"AI Assistant Error:\n{error_details}")  # Also print to console
+
             self._add_chat_message(
                 "system",
-                f"⚠ Error communicating with AI: {str(e)}\n\nCheck the console for details."
+                f"⚠ Error communicating with AI: {str(e)}\n\nCheck the log for details."
             )
     
     def _reload_chat_display(self):
