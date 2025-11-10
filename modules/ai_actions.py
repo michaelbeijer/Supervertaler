@@ -77,6 +77,16 @@ class AIActionSystem:
             action_results: List of {action, params, success, result/error}
         """
         action_results = []
+
+        # Strip markdown code fences if present (Claude often wraps in ```yaml or ```)
+        # Handle both block-level and inline code fences
+        # Remove opening fence: ```yaml, ```json, or just ``` (at start or after newline)
+        ai_response = re.sub(r'(^|\n)```(?:yaml|json|)?\s*\n?', r'\1', ai_response)
+        # Remove closing fence: ``` (at end or before newline)
+        ai_response = re.sub(r'\n?```\s*($|\n)', r'\1', ai_response)
+        # Remove any remaining standalone backticks or language markers
+        ai_response = re.sub(r'^`(?:yaml|json|)\s*$', '', ai_response, flags=re.MULTILINE)
+
         cleaned_response = ai_response
 
         # Find all ACTION blocks
