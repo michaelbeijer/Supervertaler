@@ -76,16 +76,6 @@ Contains older versions of Supervertaler for reference:
 
 ---
 
-### `tests/`
-**Unit tests and test infrastructure**
-
-Contains test files and testing infrastructure:
-- Unit tests
-- Integration tests
-- Test utilities
-
-**For**: Contributors running tests or adding new test coverage
-
 ---
 
 ## 🎯 For End Users
@@ -124,4 +114,15 @@ Browse the folders above to find what you need!
 
 ---
 
-**Last updated**: October 10, 2025
+## ⚠️ Important Note
+
+**Test files have been consolidated!**
+
+All test files are now located in the **`tests/` directory at the repository root**, not in `.dev/`.
+
+- ✅ **For tests**: Use `tests/` (root level)
+- ✅ **For development utilities**: Use `.dev/` (this folder)
+
+---
+
+**Last updated**: November 10, 2025
