@@ -2624,13 +2624,16 @@ Present your analysis and recommendation, then create and activate the prompt.
                     self._add_chat_message("system", formatted_results)
 
                     # Reload prompt library if any prompts were modified
-                    if any(r['action'] in ['create_prompt', 'update_prompt', 'delete_prompt']
+                    if any(r['action'] in ['create_prompt', 'update_prompt', 'delete_prompt', 'activate_prompt']
                            for r in action_results if r['success']):
                         self.log_message("[AI Assistant] Reloading prompt library due to prompt modifications...")
                         self.library.load_all_prompts()
                         # Refresh tree widget if it exists
                         if hasattr(self, 'tree_widget') and self.tree_widget:
                             self._populate_prompt_tree()
+                        # Refresh active prompt display
+                        if hasattr(self, '_update_active_prompt_display'):
+                            self._update_active_prompt_display()
 
                 self.log_message("[AI Assistant] ✓ Request completed successfully")
             else:
@@ -2710,7 +2713,7 @@ Present your analysis and recommendation, then create and activate the prompt.
         if not message_data:
             return
 
-        message_text = message_data.get('message', '')
+        message_text = message_data.get('content', '')
 
         # Create context menu
         menu = QMenu()
