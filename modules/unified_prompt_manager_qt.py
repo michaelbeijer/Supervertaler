@@ -2051,21 +2051,24 @@ Provide ONLY the translation, preserving:
 
 INSTRUCTIONS:
 1. Analyze the sample segments to extract 20-30 actual terms
-2. Create BOTH prompt versions filled with real content
-3. Add a recommendation explaining which format would work better for this project and why
-4. Consider: Does this need few-shot examples? Complex reasoning? Strict constraints?
+2. Create BOTH prompt versions with ALL content filled in
+3. Recommend which format is better and explain why
+4. Use the ACTION system to create and activate the recommended prompt
 
-Then use these actions:
+CRITICAL - How to use actions:
+The "content" field must contain the COMPLETE prompt text (user format or AI format).
+Do NOT use placeholder text like "YOUR PROMPT HERE".
+Fill in the ENTIRE prompt with all sections complete.
 
-1. CREATE the recommended prompt:
+Example of correct ACTION usage:
 ACTION:create_prompt
-PARAMS:{{"name": "[Domain] [Source]-[Target]", "content": "YOUR RECOMMENDED PROMPT", "folder": "Project Prompts", "description": "Auto-generated - [format] format"}}
+PARAMS:{{"name": "Patents Dutch-English", "content": "# ROLE & EXPERTISE\\n\\nYou are an expert patent translator (Dutch → English) with:\\n- Deep knowledge of patent law\\n- 15+ years experience\\n\\n# DOCUMENT CONTEXT\\n\\n**Type:** Patent Application\\n**Domain:** Technical Patents\\n**Language pair:** Dutch → English, US English\\n**Content:** Patent for textile recycling innovation\\n\\n# TRANSLATION CONSTRAINTS\\n\\n**MUST:**\\n- Preserve all tags exactly\\n- Follow glossary terms exactly\\n- Maintain legal precision\\n\\n**MUST NOT:**\\n- Add explanations\\n- Alter claim structure\\n\\n# TERMINOLOGY REFERENCE\\n\\n| Dutch | English | Notes |\\n|-------|---------|-------|\\n| uitvinding | invention | Legal term |\\n| inrichting | apparatus | Technical term |\\n\\n# OUTPUT FORMAT\\n\\nProvide ONLY the translation, preserving structure.", "folder": "Project Prompts", "description": "Auto-generated - AI-optimized format"}}
 
-2. ACTIVATE it:
+Then activate it:
 ACTION:activate_prompt
-PARAMS:{{"path": "Project Prompts/[Domain] [Source]-[Target].md", "mode": "primary"}}
+PARAMS:{{"path": "Project Prompts/Patents Dutch-English.md", "mode": "primary"}}
 
-Present your analysis and recommendation, then create and activate the prompt.
+Present your analysis, create the full prompt, then use actions to save and activate it.
 """
         
         # Send to AI (in thread to avoid blocking UI)
