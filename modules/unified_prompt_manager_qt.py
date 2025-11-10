@@ -1963,112 +1963,57 @@ You are an expert {{SOURCE_LANGUAGE}} to {{TARGET_LANGUAGE}} translator.
         context = self._build_project_context()
         
         # Create analysis prompt
-        analysis_prompt = f"""You are helping a professional translator set up a translation prompt for a new project.
+        analysis_prompt = f"""Analyze this translation project and create a complete translation prompt.
 
 PROJECT CONTEXT:
 {context}
 
-YOUR TASK:
-Analyze the project and create a complete, ready-to-use translation prompt.
-
-I will provide you with TWO prompt structures:
-1. The user's preferred format (what they're used to)
-2. An AI-optimized format (what works best with LLMs)
-
-Create BOTH versions, then recommend which one would produce better translations.
-
----USER'S PREFERRED FORMAT---
-
-You are a professional [SOURCE_LANG] to [TARGET_LANG] translator, specializing in [DOMAIN].
-
-[2-3 sentences defining expertise and qualifications]
-
-# GENERAL INSTRUCTIONS
-
-* Keep each translated segment on its own line to match source segments
-* Do not capitalize each word on a line
-* Provide no explanations; just translate
-* Place all tags in correct positions ({{MQ}}, [uicontrol], etc.)
-* [5-10 domain-specific instructions]
-* Maintain terminology consistency
-* Use [STYLE] (US English, International English, etc.)
-
-## SPECIAL RULES FOR [FEATURE]
-[Tag handling, formatting, non-translatables if relevant]
-
-# HIGH-LEVEL SUMMARY
-
-[2-4 paragraphs: purpose, topics, considerations, context]
-
-# GLOSSARY OF KEY TERMS
-
-| [SOURCE_LANG] | [TARGET_LANG] | Notes |
-|---------------|---------------|-------|
-[20-30 terms from sample segments]
-
----AI-OPTIMIZED FORMAT---
+YOUR TASK - Create ONE complete translation prompt with these sections:
 
 # ROLE & EXPERTISE
-
-You are an expert [DOMAIN] translator ([SOURCE_LANG] → [TARGET_LANG]) with:
-- [Qualification 1]
-- [Qualification 2]
-- Deep knowledge of [domain-specific standards/conventions]
+You are an expert [DOMAIN] translator ([SOURCE] → [TARGET]) with [qualifications].
 
 # DOCUMENT CONTEXT
-
-**Type:** [Document type]
-**Domain:** [Specific domain]
-**Language pair:** [Source] → [Target], [variant]
-**Content:** [2-3 sentence summary]
+**Type:** [type]
+**Domain:** [domain]
+**Language pair:** [source] → [target]
+**Content:** [brief description]
 
 # TRANSLATION CONSTRAINTS
-
 **MUST:**
-- Preserve all tags exactly: {{MQ}}, [uicontrol], etc.
-- Maintain one segment per line (no merging/splitting)
-- Follow glossary terms exactly
-- [3-5 positive domain-specific rules]
+- Preserve all tags exactly
+- One segment per line
+- Follow glossary exactly
+- [3-5 domain-specific must-do rules]
 
 **MUST NOT:**
-- Add explanations or commentary
+- Add explanations
 - Capitalize every word
-- Translate non-translatables: [list specific items]
-- [2-3 negative domain-specific rules]
+- [2-3 domain-specific must-not rules]
 
 # TERMINOLOGY REFERENCE
-
-[Present as structured glossary with usage context]
+| [Source Lang] | [Target Lang] | Notes |
+|---------------|---------------|-------|
+[Extract 20-30 actual terms from the sample segments above]
 
 # OUTPUT FORMAT
+Provide ONLY the translation, preserving structure and tags.
 
-Provide ONLY the translation, preserving:
-- Original line structure
-- All tags in correct positions
-- Segment numbering if present
+---
 
----END OF FORMATS---
+NOW - Use the ACTION system to save this prompt.
+The "content" parameter MUST contain the complete prompt text with \\n for newlines.
 
-INSTRUCTIONS:
-1. Analyze the sample segments to extract 20-30 actual terms
-2. Create BOTH prompt versions with ALL content filled in
-3. Recommend which format is better and explain why
-4. Use the ACTION system to create and activate the recommended prompt
+Example showing EXACTLY how to format the ACTION:
 
-CRITICAL - How to use actions:
-The "content" field must contain the COMPLETE prompt text (user format or AI format).
-Do NOT use placeholder text like "YOUR PROMPT HERE".
-Fill in the ENTIRE prompt with all sections complete.
-
-Example of correct ACTION usage:
 ACTION:create_prompt
-PARAMS:{{"name": "Patents Dutch-English", "content": "# ROLE & EXPERTISE\\n\\nYou are an expert patent translator (Dutch → English) with:\\n- Deep knowledge of patent law\\n- 15+ years experience\\n\\n# DOCUMENT CONTEXT\\n\\n**Type:** Patent Application\\n**Domain:** Technical Patents\\n**Language pair:** Dutch → English, US English\\n**Content:** Patent for textile recycling innovation\\n\\n# TRANSLATION CONSTRAINTS\\n\\n**MUST:**\\n- Preserve all tags exactly\\n- Follow glossary terms exactly\\n- Maintain legal precision\\n\\n**MUST NOT:**\\n- Add explanations\\n- Alter claim structure\\n\\n# TERMINOLOGY REFERENCE\\n\\n| Dutch | English | Notes |\\n|-------|---------|-------|\\n| uitvinding | invention | Legal term |\\n| inrichting | apparatus | Technical term |\\n\\n# OUTPUT FORMAT\\n\\nProvide ONLY the translation, preserving structure.", "folder": "Project Prompts", "description": "Auto-generated - AI-optimized format"}}
+PARAMS:{{"name": "Medical EN-NL", "content": "# ROLE & EXPERTISE\\n\\nYou are an expert medical translator (English → Dutch) with 10+ years experience in clinical trials.\\n\\n# DOCUMENT CONTEXT\\n\\n**Type:** Clinical Study\\n**Domain:** Medical\\n**Language pair:** EN → NL\\n**Content:** Patient consent forms and trial protocols\\n\\n# TRANSLATION CONSTRAINTS\\n\\n**MUST:**\\n- Preserve all tags exactly\\n- One segment per line\\n- Follow medical terminology exactly\\n- Maintain formal register\\n\\n**MUST NOT:**\\n- Add explanations\\n- Simplify medical terms\\n- Capitalize every word\\n\\n# TERMINOLOGY REFERENCE\\n\\n| English | Dutch | Notes |\\n|---------|-------|-------|\\n| informed consent | geïnformeerde toestemming | Legal term |\\n| adverse event | bijwerking | Medical term |\\n| placebo | placebo | No translation |\\n\\n# OUTPUT FORMAT\\n\\nProvide ONLY the translation, preserving structure and tags.", "folder": "Project Prompts", "description": "Auto-generated prompt"}}
 
-Then activate it:
 ACTION:activate_prompt
-PARAMS:{{"path": "Project Prompts/Patents Dutch-English.md", "mode": "primary"}}
+PARAMS:{{"path": "Project Prompts/Medical EN-NL.md", "mode": "primary"}}
 
-Present your analysis, create the full prompt, then use actions to save and activate it.
+Copy this format EXACTLY. Replace the medical example with YOUR project's content.
+Include the FULL prompt with ALL glossary terms in the "content" field.
 """
         
         # Send to AI (in thread to avoid blocking UI)
