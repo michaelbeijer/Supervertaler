@@ -1986,22 +1986,27 @@ You are an expert {{SOURCE_LANGUAGE}} to {{TARGET_LANGUAGE}} translator.
 PROJECT CONTEXT:
 {context}
 
-Create a translation prompt with glossary. Output ONE complete ACTION block:
+Create a translation prompt. Output ONE complete ACTION block:
 
-ACTION:create_prompt PARAMS:{{"name": "[Name]", "content": "[Prompt below]", "folder": "Project Prompts", "description": "Auto-generated", "activate": true}}
+ACTION:create_prompt PARAMS:{{"name": "[Name]", "content": "[Prompt]", "folder": "Project Prompts", "description": "Auto-generated", "activate": true}}
 
-Prompt structure:
-# [Domain] [Source]→[Target] Translation
+Prompt must include:
 
-## Document Context
-[2-3 sentences about type and content]
+# ROLE & EXPERTISE
+You are an expert [domain] translator ([source] → [target]) with 10+ years experience.
 
-## Key Terminology
+# DOCUMENT CONTEXT
+**Type:** [type]
+**Domain:** [domain]
+**Language pair:** [source] → [target]
+**Content:** [brief description]
+
+# KEY TERMINOLOGY
 | [Source] | [Target] | Notes |
 |----------|----------|-------|
-[20+ terms extracted from document]
+[20+ key terms from document]
 
-## Translation Constraints
+# TRANSLATION CONSTRAINTS
 **MUST:**
 - Preserve all tags exactly
 - One segment per line
@@ -2011,10 +2016,10 @@ Prompt structure:
 - Add explanations
 - Modify formatting
 
-## Output Format
+# OUTPUT FORMAT
 Provide ONLY the translation.
 
-Output complete ACTION with full content."""
+Output complete ACTION."""
         
         # Send to AI (in thread to avoid blocking UI)
         self._send_ai_request(analysis_prompt, is_analysis=True)
