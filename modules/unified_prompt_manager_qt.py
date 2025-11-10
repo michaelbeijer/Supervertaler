@@ -1963,38 +1963,74 @@ You are an expert {{SOURCE_LANGUAGE}} to {{TARGET_LANGUAGE}} translator.
         context = self._build_project_context()
         
         # Create analysis prompt
-        analysis_prompt = f"""You are helping a professional translator set up prompts for a new translation project.
+        analysis_prompt = f"""You are helping a professional translator set up a translation prompt for a new project.
 
 PROJECT CONTEXT:
 {context}
 
 YOUR TASK:
-Create a complete, ready-to-use translation prompt tailored to this project.
+Create a complete, ready-to-use translation prompt following this EXACT structure:
 
-The prompt should include:
-1. **System instructions** - Clear role definition and translation guidelines
-2. **Domain expertise** - Specific knowledge relevant to this content type
-3. **Bilingual glossary** - Key terms with translations (if relevant)
-4. **Style guidelines** - Tone, formatting, and quality expectations
+---START OF PROMPT TEMPLATE---
+
+# System Prompt
+
+You are an expert [SOURCE_LANG] to [TARGET_LANG] translator with deep expertise in [DOMAIN]. [Add role-specific expertise and qualifications]
+
+Key translation principles:
+• [Principle 1 - specific to domain]
+• [Principle 2 - specific to project type]
+• [Principle 3 - technical/stylistic requirements]
+• Maintain consistency in terminology throughout
+• Preserve formatting, tags, and structural elements
+• Use [STYLE] tone and register
+
+Present your output as a direct translation maintaining the original structure and numbering.
+
+---
+
+# Custom Instructions
+
+## High-Level Summary
+
+[2-3 paragraph summary of the document/project content, key topics, main concepts, and technical focus]
+
+## Bilingual Glossary
+
+| [SOURCE_LANG] | [TARGET_LANG] |
+|---------------|---------------|
+| [term 1] | [translation 1] |
+| [term 2] | [translation 2] |
+[... include 15-25 domain-specific terms ...]
+
+## Additional Notes
+
+• Note 1: [Specific translation guidance for this project]
+• Note 2: [Style preferences - e.g., "US English spelling", "International English"]
+• Note 3: [Tag handling - e.g., "If memoQ tags present, place in appropriate locations"]
+• Note 4: [Domain-specific conventions]
+
+---END OF PROMPT TEMPLATE---
 
 IMPORTANT REQUIREMENTS:
-- Create a COMPLETE prompt with all sections filled in
-- Include at least 10-15 bilingual glossary entries if the content has specialized terminology
-- Make it immediately usable without further editing
-- Structure it clearly with markdown headers
-- Focus on practical, specific guidance
+1. Fill in ALL bracketed placeholders with specific content based on the project context
+2. Generate 15-25 relevant bilingual glossary entries (extract from sample segments if available)
+3. Make the high-level summary specific to THIS document
+4. Include practical, actionable notes
+5. Match the domain (patents, legal, medical, technical, etc.) to the content
+6. The prompt must be immediately usable without editing
 
 After creating the prompt, use these actions:
 
-1. CREATE the prompt using:
+1. CREATE the prompt:
 ACTION:create_prompt
-PARAMS:{{"name": "Project-Specific Prompt", "content": "YOUR COMPLETE PROMPT HERE", "folder": "Project Prompts", "description": "Auto-generated for current project"}}
+PARAMS:{{"name": "[DOMAIN] - [LANGUAGE_PAIR]", "content": "YOUR COMPLETE PROMPT HERE", "folder": "Project Prompts", "description": "Auto-generated prompt for current project"}}
 
-2. ACTIVATE it immediately using:
+2. ACTIVATE it immediately:
 ACTION:activate_prompt
-PARAMS:{{"path": "Project Prompts/Project-Specific Prompt.md", "mode": "primary"}}
+PARAMS:{{"path": "Project Prompts/[DOMAIN] - [LANGUAGE_PAIR].md", "mode": "primary"}}
 
-Present your analysis briefly, then create and activate the prompt automatically.
+Present a brief analysis, then create and activate the prompt automatically.
 """
         
         # Send to AI (in thread to avoid blocking UI)
