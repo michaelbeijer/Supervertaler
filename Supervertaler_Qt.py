@@ -10051,6 +10051,7 @@ class SupervertalerQt(QMainWindow):
 
     def on_dictation_status(self, message):
         """Show dictation status"""
+        self.log(message)  # Also log to Log tab
         self.status_bar.showMessage(message, 2000)
 
     def on_dictation_error(self, error_msg):
