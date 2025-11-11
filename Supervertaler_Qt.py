@@ -1566,9 +1566,9 @@ class SupervertalerQt(QMainWindow):
         self.prompt_manager_qt.create_tab(prompt_widget)
         self.right_tabs.addTab(prompt_widget, "🤖 Prompt Manager")
         
-        # 2. RESOURCES
+        # 2. TRANSLATION RESOURCES
         resources_tab = self.create_resources_tab()
-        self.right_tabs.addTab(resources_tab, "📚 Resources")
+        self.right_tabs.addTab(resources_tab, "📚 Translation Resources")
         
         # 3. MODULES
         modules_tab = self.create_specialised_modules_tab()
@@ -3026,12 +3026,16 @@ class SupervertalerQt(QMainWindow):
         system_prompts_tab = self._create_system_prompts_tab()
         settings_tabs.addTab(scroll_area_wrapper(system_prompts_tab), "📝 System Prompts")
 
-        # ===== TAB 7: Keyboard Shortcuts =====
+        # ===== TAB 7: Voice Dictation Settings =====
+        dictation_tab = self._create_voice_dictation_settings_tab()
+        settings_tabs.addTab(scroll_area_wrapper(dictation_tab), "🎤 Voice Dictation")
+
+        # ===== TAB 8: Keyboard Shortcuts =====
         from modules.keyboard_shortcuts_widget import KeyboardShortcutsWidget
         shortcuts_tab = KeyboardShortcutsWidget(self)
         settings_tabs.addTab(shortcuts_tab, "⌨️ Keyboard Shortcuts")
 
-        # ===== TAB 8: Log (moved from main tabs) =====
+        # ===== TAB 9: Log (moved from main tabs) =====
         log_tab = self.create_log_tab()
         settings_tabs.addTab(log_tab, "📋 Log")
         
@@ -3770,6 +3774,133 @@ class SupervertalerQt(QMainWindow):
         ))
         layout.addWidget(save_btn)
         
+        layout.addStretch()
+
+        return tab
+
+    def _create_voice_dictation_settings_tab(self):
+        """Create Voice Dictation Settings tab content"""
+        from PyQt6.QtWidgets import QGroupBox, QPushButton, QComboBox, QSpinBox
+
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
+
+        # Load current dictation settings
+        dictation_settings = self.load_dictation_settings()
+
+        # Header info
+        header_info = QLabel(
+            "Configure voice dictation settings for hands-free translation input.\n"
+            "Voice dictation allows you to speak translations instead of typing them."
+        )
+        header_info.setStyleSheet("font-size: 9pt; color: #444; padding: 10px; background-color: #E3F2FD; border-radius: 4px;")
+        header_info.setWordWrap(True)
+        layout.addWidget(header_info)
+
+        # Whisper Model Settings group
+        model_group = QGroupBox("🤖 Speech Recognition Model")
+        model_layout = QVBoxLayout()
+
+        model_info = QLabel(
+            "Select the Whisper model size. Larger models are more accurate but slower.\n"
+            "• tiny: Fastest, least accurate (~1 GB RAM)\n"
+            "• base: Fast, good accuracy (~1 GB RAM) - Recommended\n"
+            "• small: Slower, better accuracy (~2 GB RAM)\n"
+            "• medium: Slow, very accurate (~5 GB RAM)\n"
+            "• large: Slowest, best accuracy (~10 GB RAM)"
+        )
+        model_info.setStyleSheet("font-size: 8pt; color: #666; padding: 8px; background-color: #f3f4f6; border-radius: 2px;")
+        model_info.setWordWrap(True)
+        model_layout.addWidget(model_info)
+
+        model_select_layout = QHBoxLayout()
+        model_select_layout.addWidget(QLabel("Model:"))
+        model_combo = QComboBox()
+        model_combo.addItems(["tiny", "base", "small", "medium", "large"])
+        model_combo.setCurrentText(dictation_settings.get('model', 'base'))
+        model_combo.setToolTip("Select Whisper model size (base recommended)")
+        model_select_layout.addWidget(model_combo)
+        model_select_layout.addStretch()
+        model_layout.addLayout(model_select_layout)
+
+        model_group.setLayout(model_layout)
+        layout.addWidget(model_group)
+
+        # Recording Settings group
+        recording_group = QGroupBox("🎤 Recording Settings")
+        recording_layout = QVBoxLayout()
+
+        # Max recording duration
+        duration_info = QLabel(
+            "Maximum recording duration per dictation session.\n"
+            "Recording automatically stops after this time limit."
+        )
+        duration_info.setStyleSheet("font-size: 8pt; color: #666; padding: 8px; background-color: #f3f4f6; border-radius: 2px;")
+        duration_info.setWordWrap(True)
+        recording_layout.addWidget(duration_info)
+
+        duration_layout = QHBoxLayout()
+        duration_layout.addWidget(QLabel("Max Duration:"))
+        duration_spin = QSpinBox()
+        duration_spin.setMinimum(3)
+        duration_spin.setMaximum(60)
+        duration_spin.setValue(dictation_settings.get('max_duration', 10))
+        duration_spin.setSuffix(" seconds")
+        duration_spin.setToolTip("Maximum recording time (3-60 seconds)")
+        duration_layout.addWidget(duration_spin)
+        duration_layout.addStretch()
+        recording_layout.addLayout(duration_layout)
+
+        recording_group.setLayout(recording_layout)
+        layout.addWidget(recording_group)
+
+        # Language Settings group
+        language_group = QGroupBox("🌐 Language Settings")
+        language_layout = QVBoxLayout()
+
+        language_info = QLabel(
+            "By default, voice dictation uses your project's target language.\n"
+            "You can override this to always use a specific language."
+        )
+        language_info.setStyleSheet("font-size: 8pt; color: #666; padding: 8px; background-color: #f3f4f6; border-radius: 2px;")
+        language_info.setWordWrap(True)
+        language_layout.addWidget(language_info)
+
+        lang_select_layout = QHBoxLayout()
+        lang_select_layout.addWidget(QLabel("Dictation Language:"))
+        lang_combo = QComboBox()
+        lang_combo.addItems([
+            "Auto (use project target language)",
+            "English", "Dutch", "German", "French", "Spanish",
+            "Italian", "Portuguese", "Polish", "Russian",
+            "Chinese", "Japanese", "Korean"
+        ])
+        lang_combo.setCurrentText(dictation_settings.get('language', 'Auto (use project target language)'))
+        lang_combo.setToolTip("Language for speech recognition")
+        lang_select_layout.addWidget(lang_combo)
+        lang_select_layout.addStretch()
+        language_layout.addLayout(lang_select_layout)
+
+        language_group.setLayout(language_layout)
+        layout.addWidget(language_group)
+
+        # Save button
+        save_btn = QPushButton("💾 Save Voice Dictation Settings")
+        save_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 10px;")
+        save_btn.clicked.connect(lambda: self.save_dictation_settings(
+            model_combo.currentText(),
+            duration_spin.value(),
+            lang_combo.currentText()
+        ))
+        layout.addWidget(save_btn)
+
+        # Store references for later access
+        self.dictation_model_combo = model_combo
+        self.dictation_duration_spin = duration_spin
+        self.dictation_lang_combo = lang_combo
+
         layout.addStretch()
 
         return tab
@@ -7343,11 +7474,68 @@ class SupervertalerQt(QMainWindow):
                 json.dump(prefs, f, indent=2)
         except Exception as e:
             self.log(f"⚠ Could not save general settings: {str(e)}")
-    
+
+    def load_dictation_settings(self) -> Dict[str, Any]:
+        """Load voice dictation settings"""
+        prefs_file = self.user_data_path / "ui_preferences.json"
+
+        defaults = {
+            'model': 'base',
+            'max_duration': 10,
+            'language': 'Auto (use project target language)'
+        }
+
+        if not prefs_file.exists():
+            return defaults
+
+        try:
+            with open(prefs_file, 'r') as f:
+                prefs = json.load(f)
+                dictation = prefs.get('dictation_settings', {})
+                result = defaults.copy()
+                result.update(dictation)
+                return result
+        except:
+            return defaults
+
+    def save_dictation_settings(self, model: str, duration: int, language: str):
+        """Save voice dictation settings"""
+        prefs_file = self.user_data_path / "ui_preferences.json"
+
+        # Load existing preferences
+        prefs = {}
+        if prefs_file.exists():
+            try:
+                with open(prefs_file, 'r') as f:
+                    prefs = json.load(f)
+            except:
+                pass
+
+        # Update dictation settings
+        prefs['dictation_settings'] = {
+            'model': model,
+            'max_duration': duration,
+            'language': language
+        }
+
+        # Save back
+        try:
+            with open(prefs_file, 'w') as f:
+                json.dump(prefs, f, indent=2)
+            self.log(f"✓ Voice dictation settings saved: Model={model}, Duration={duration}s")
+            QMessageBox.information(self, "Settings Saved",
+                f"Voice dictation settings saved successfully!\n\n"
+                f"Model: {model}\n"
+                f"Max Duration: {duration} seconds\n"
+                f"Language: {language}")
+        except Exception as e:
+            self.log(f"⚠ Could not save dictation settings: {str(e)}")
+            QMessageBox.warning(self, "Save Error", f"Could not save settings:\n{str(e)}")
+
     def load_language_settings(self):
         """Load language settings from preferences"""
         prefs_file = self.user_data_path / "ui_preferences.json"
-        
+
         defaults = {
             'source_language': 'English',
             'target_language': 'Dutch'
@@ -9708,8 +9896,19 @@ class SupervertalerQt(QMainWindow):
             return
 
         try:
-            # Get target language from app settings
-            target_lang = getattr(self, 'target_language', 'English')
+            # Load dictation settings
+            dictation_settings = self.load_dictation_settings()
+            model_name = dictation_settings.get('model', 'base')
+            max_duration = dictation_settings.get('max_duration', 10)
+            lang_setting = dictation_settings.get('language', 'Auto (use project target language)')
+
+            # Determine language
+            if lang_setting == 'Auto (use project target language)':
+                # Use project's target language
+                target_lang = getattr(self, 'target_language', 'English')
+            else:
+                # Use override language from settings
+                target_lang = lang_setting
 
             # Map language names to Whisper codes
             lang_map = {
@@ -9728,11 +9927,11 @@ class SupervertalerQt(QMainWindow):
             }
             lang_code = lang_map.get(target_lang, 'auto')
 
-            # Create dictation thread
+            # Create dictation thread with user settings
             self.dictation_thread = QuickDictationThread(
-                model_name="base",  # Fast model
+                model_name=model_name,
                 language=lang_code,
-                duration=10  # Max 10 seconds
+                duration=max_duration
             )
 
             # Connect signals
