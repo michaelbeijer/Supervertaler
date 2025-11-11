@@ -130,7 +130,6 @@ class QuickDictationThread(QThread):
             self.status_update.emit("⏳ Transcribing...")
 
             # Check if model needs to be downloaded
-            import os
             cache_dir = os.path.expanduser("~/.cache/whisper")
             if os.name == 'nt':  # Windows
                 cache_dir = os.path.join(os.environ.get('USERPROFILE', ''), '.cache', 'whisper')
