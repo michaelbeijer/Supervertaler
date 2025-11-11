@@ -42,17 +42,20 @@ class RecordingThread(QThread):
                 dtype='float32'
             )
 
-            # Wait for recording to complete or be stopped
-            while self.is_recording and not sd.wait():
-                pass
+            # Wait for recording to complete
+            sd.wait()
+
+            if not self.is_recording:
+                # Recording was stopped early
+                sd.stop()
 
             # Convert to int16
             audio_data = np.int16(recording * 32767)
 
-            # Save to temporary WAV file
-            temp_file = tempfile.NamedTemporaryFile(suffix='.wav', delete=False)
-            temp_path = temp_file.name
-            temp_file.close()
+            # Save to temporary WAV file with explicit directory
+            import os
+            temp_dir = tempfile.gettempdir()
+            temp_path = os.path.join(temp_dir, f"voice_recording_{os.getpid()}.wav")
 
             with wave.open(temp_path, 'wb') as wf:
                 wf.setnchannels(1)
@@ -63,7 +66,8 @@ class RecordingThread(QThread):
             self.finished.emit(temp_path)
 
         except Exception as e:
-            self.error.emit(str(e))
+            import traceback
+            self.error.emit(f"{str(e)}\n{traceback.format_exc()}")
 
     def stop(self):
         """Stop recording"""
@@ -86,6 +90,13 @@ class TranscriptionThread(QThread):
     def run(self):
         """Transcribe audio in background"""
         try:
+            import os
+
+            # Verify file exists
+            if not os.path.exists(self.audio_path):
+                self.error.emit(f"Audio file not found: {self.audio_path}")
+                return
+
             self.progress.emit("Loading Whisper model...")
 
             # Load model
@@ -108,7 +119,8 @@ class TranscriptionThread(QThread):
             self.finished.emit(result["text"].strip())
 
         except Exception as e:
-            self.error.emit(str(e))
+            import traceback
+            self.error.emit(f"{str(e)}\n\nFull error:\n{traceback.format_exc()}")
 
 
 class VoiceDictationWidget(QWidget):
