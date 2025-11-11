@@ -10057,6 +10057,13 @@ class SupervertalerQt(QMainWindow):
     def on_dictation_error(self, error_msg):
         """Handle dictation error"""
         self._set_dictation_button_recording(False)
+
+        # Log the full error to Log tab
+        self.log("")
+        self.log("❌ SUPERVOICE ERROR:")
+        self.log(error_msg)
+        self.log("")
+
         self.status_bar.showMessage(f"❌ Voice dictation error", 3000)
 
         # Show detailed error dialog for FFmpeg issues
