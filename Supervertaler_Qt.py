@@ -7503,12 +7503,14 @@ class SupervertalerQt(QMainWindow):
         """Save Supervoice settings"""
         prefs_file = self.user_data_path / "ui_preferences.json"
 
-        # Load existing preferences
+        # Load existing preferences to check if model changed
+        old_model = None
         prefs = {}
         if prefs_file.exists():
             try:
                 with open(prefs_file, 'r') as f:
                     prefs = json.load(f)
+                    old_model = prefs.get('dictation_settings', {}).get('model')
             except:
                 pass
 
@@ -7519,16 +7521,45 @@ class SupervertalerQt(QMainWindow):
             'language': language
         }
 
+        # Model download info
+        model_sizes = {
+            'tiny': '75 MB',
+            'base': '142 MB',
+            'small': '466 MB',
+            'medium': '1.5 GB',
+            'large': '2.9 GB'
+        }
+
         # Save back
         try:
             with open(prefs_file, 'w') as f:
                 json.dump(prefs, f, indent=2)
             self.log(f"✓ Supervoice settings saved: Model={model}, Duration={duration}s")
-            QMessageBox.information(self, "Settings Saved",
+
+            # Build message
+            message = (
                 f"Supervoice settings saved successfully!\n\n"
                 f"Model: {model}\n"
                 f"Max Duration: {duration} seconds\n"
-                f"Language: {language}")
+                f"Language: {language}"
+            )
+
+            # Add download info if model changed
+            if old_model != model:
+                import os
+                cache_path = os.path.expanduser('~/.cache/whisper')
+                if os.name == 'nt':  # Windows
+                    cache_path = os.path.join(os.environ.get('USERPROFILE', ''), '.cache', 'whisper')
+
+                download_size = model_sizes.get(model, 'unknown size')
+                message += (
+                    f"\n\n📥 Model Download Info:\n"
+                    f"If you haven't used the '{model}' model before, it will be\n"
+                    f"downloaded automatically on first use ({download_size}).\n\n"
+                    f"Storage location:\n{cache_path}"
+                )
+
+            QMessageBox.information(self, "Settings Saved", message)
         except Exception as e:
             self.log(f"⚠ Could not save Supervoice settings: {str(e)}")
             QMessageBox.warning(self, "Save Error", f"Could not save settings:\n{str(e)}")
