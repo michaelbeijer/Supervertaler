@@ -10052,10 +10052,28 @@ class SupervertalerQt(QMainWindow):
             'large': '2.9 GB'
         }
         size = model_sizes.get(model_name, 'unknown size')
-        self.status_bar.showMessage(f"🎤 Supervoice: Loading '{model_name}' model...", 10000)
-        self.log(f"⏳ Loading Whisper model '{model_name}' ({size})...")
-        self.log(f"   If this is your first time using '{model_name}', it will download now ({size}).")
-        self.log(f"   Location: {self._get_whisper_cache_path()}")
+
+        # Check if model exists
+        import os
+        cache_dir = self._get_whisper_cache_path()
+        model_files = [
+            f"{model_name}.pt",
+            f"{model_name}.en.pt",
+            f"{model_name}-v3.pt"
+        ]
+        model_exists = any(os.path.exists(os.path.join(cache_dir, f)) for f in model_files)
+
+        if model_exists:
+            self.status_bar.showMessage(f"🎤 Supervoice: Loading '{model_name}' model...", 10000)
+            self.log(f"⏳ Loading Whisper model '{model_name}' from cache...")
+        else:
+            self.status_bar.showMessage(f"📥 Supervoice: Downloading '{model_name}' model ({size})...", 60000)
+            self.log(f"")
+            self.log(f"📥 DOWNLOADING Whisper model '{model_name}' ({size})...")
+            self.log(f"   This is a one-time download. Please be patient!")
+            self.log(f"   ⚠️ DO NOT CLOSE SUPERVERTALER until download completes!")
+            self.log(f"   Location: {cache_dir}")
+            self.log(f"")
 
     def on_model_loading_finished(self):
         """Handle Whisper model loading/download finishing"""

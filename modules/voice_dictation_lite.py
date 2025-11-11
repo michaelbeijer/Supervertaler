@@ -103,9 +103,26 @@ class QuickDictationThread(QThread):
             # Step 2: Transcribe
             self.status_update.emit("⏳ Transcribing...")
 
+            # Check if model needs to be downloaded
+            import os
+            cache_dir = os.path.expanduser("~/.cache/whisper")
+            if os.name == 'nt':  # Windows
+                cache_dir = os.path.join(os.environ.get('USERPROFILE', ''), '.cache', 'whisper')
+
+            model_files = [
+                f"{self.model_name}.pt",
+                f"{self.model_name}.en.pt",
+                f"{self.model_name}-v3.pt"  # For large model
+            ]
+            model_exists = any(os.path.exists(os.path.join(cache_dir, f)) for f in model_files)
+
             # Load model (cached after first use, may download on first use)
             self.model_loading_started.emit(self.model_name)
-            self.status_update.emit(f"⏳ Loading {self.model_name} model...")
+            if not model_exists:
+                self.status_update.emit(f"📥 Downloading {self.model_name} model... (this may take several minutes)")
+            else:
+                self.status_update.emit(f"⏳ Loading {self.model_name} model...")
+
             model = whisper.load_model(self.model_name)
             self.model_loading_finished.emit()
 
