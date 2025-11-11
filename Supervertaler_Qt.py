@@ -5153,7 +5153,7 @@ class SupervertalerQt(QMainWindow):
         dictate_btn = QPushButton("🎤 Dictate (F9)")
         dictate_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold;")
         dictate_btn.clicked.connect(self.start_voice_dictation)
-        dictate_btn.setToolTip("Click or press F9 to start voice dictation")
+        dictate_btn.setToolTip("Click or press F9 to start/stop voice dictation")
 
         # Store reference to dictate button for state updates
         editor_widget.dictate_btn = dictate_btn
@@ -9926,10 +9926,17 @@ class SupervertalerQt(QMainWindow):
                     pass
 
     def start_voice_dictation(self):
-        """Start voice dictation into target field"""
+        """Start or stop voice dictation (toggle behavior)"""
+        # Check if already recording - if so, stop it
         if hasattr(self, 'dictation_thread') and self.dictation_thread and self.dictation_thread.isRunning():
-            # Already recording
-            return
+            if self.dictation_thread.is_recording:
+                # Stop recording early
+                self.dictation_thread.stop_recording()
+                self.log("⏹️ Stopping recording early...")
+                return
+            else:
+                # Thread is running but not recording (probably transcribing/loading model)
+                return
 
         try:
             # Load dictation settings
@@ -10092,7 +10099,7 @@ class SupervertalerQt(QMainWindow):
                     if hasattr(panel, 'editor_widget') and hasattr(panel.editor_widget, 'dictate_btn'):
                         button = panel.editor_widget.dictate_btn
                         if is_recording:
-                            button.setText("🔴 Recording...")
+                            button.setText("⏹️ Stop (F9)")
                             button.setStyleSheet("background-color: #D32F2F; color: white; font-weight: bold;")
                         else:
                             button.setText("🎤 Dictate (F9)")

@@ -60,6 +60,12 @@ class QuickDictationThread(QThread):
         self.duration = duration  # Max recording duration
         self.sample_rate = 16000
         self.is_recording = False
+        self.stop_requested = False
+        self.recording_stream = None
+
+    def stop_recording(self):
+        """Stop recording early (called from main thread)"""
+        self.stop_requested = True
 
     def run(self):
         """Record and transcribe audio"""
@@ -74,9 +80,11 @@ class QuickDictationThread(QThread):
                 return
 
             # Step 1: Record audio
-            self.status_update.emit("🔴 Recording...")
+            self.status_update.emit("🔴 Recording... (Press F9 or click Stop to finish)")
             self.is_recording = True
+            self.stop_requested = False
 
+            # Start recording
             recording = sd.rec(
                 int(self.duration * self.sample_rate),
                 samplerate=self.sample_rate,
@@ -84,8 +92,21 @@ class QuickDictationThread(QThread):
                 dtype='float32'
             )
 
-            sd.wait()  # Wait for recording to complete
+            # Wait for recording to complete OR manual stop
+            import time
+            elapsed = 0
+            check_interval = 0.1  # Check every 100ms
+            while elapsed < self.duration and not self.stop_requested:
+                time.sleep(check_interval)
+                elapsed += check_interval
+
+            # Stop recording
+            sd.stop()
             self.is_recording = False
+
+            # Calculate actual recorded samples
+            actual_samples = int(min(elapsed, self.duration) * self.sample_rate)
+            recording = recording[:actual_samples]  # Trim to actual length
 
             # Convert to int16
             audio_data = np.int16(recording * 32767)
