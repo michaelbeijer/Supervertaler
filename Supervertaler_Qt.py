@@ -3026,9 +3026,9 @@ class SupervertalerQt(QMainWindow):
         system_prompts_tab = self._create_system_prompts_tab()
         settings_tabs.addTab(scroll_area_wrapper(system_prompts_tab), "📝 System Prompts")
 
-        # ===== TAB 7: Voice Dictation Settings =====
+        # ===== TAB 7: Supervoice Settings =====
         dictation_tab = self._create_voice_dictation_settings_tab()
-        settings_tabs.addTab(scroll_area_wrapper(dictation_tab), "🎤 Voice Dictation")
+        settings_tabs.addTab(scroll_area_wrapper(dictation_tab), "🎤 Supervoice")
 
         # ===== TAB 8: Keyboard Shortcuts =====
         from modules.keyboard_shortcuts_widget import KeyboardShortcutsWidget
@@ -3779,7 +3779,7 @@ class SupervertalerQt(QMainWindow):
         return tab
 
     def _create_voice_dictation_settings_tab(self):
-        """Create Voice Dictation Settings tab content"""
+        """Create Supervoice Settings tab content"""
         from PyQt6.QtWidgets import QGroupBox, QPushButton, QComboBox, QSpinBox
 
         tab = QWidget()
@@ -3792,8 +3792,8 @@ class SupervertalerQt(QMainWindow):
 
         # Header info
         header_info = QLabel(
-            "Configure voice dictation settings for hands-free translation input.\n"
-            "Voice dictation allows you to speak translations instead of typing them."
+            "Configure Supervoice settings for hands-free translation input.\n"
+            "Supervoice allows you to speak translations instead of typing them."
         )
         header_info.setStyleSheet("font-size: 9pt; color: #444; padding: 10px; background-color: #E3F2FD; border-radius: 4px;")
         header_info.setWordWrap(True)
@@ -3805,11 +3805,12 @@ class SupervertalerQt(QMainWindow):
 
         model_info = QLabel(
             "Select the Whisper model size. Larger models are more accurate but slower.\n"
-            "• tiny: Fastest, least accurate (~1 GB RAM)\n"
-            "• base: Fast, good accuracy (~1 GB RAM) - Recommended\n"
-            "• small: Slower, better accuracy (~2 GB RAM)\n"
-            "• medium: Slow, very accurate (~5 GB RAM)\n"
-            "• large: Slowest, best accuracy (~10 GB RAM)"
+            "• tiny: Fastest, least accurate (~1 GB RAM, 75 MB download)\n"
+            "• base: Fast, good accuracy (~1 GB RAM, 142 MB download) - Recommended\n"
+            "• small: Slower, better accuracy (~2 GB RAM, 466 MB download)\n"
+            "• medium: Slow, very accurate (~5 GB RAM, 1.5 GB download)\n"
+            "• large: Slowest, best accuracy (~10 GB RAM, 2.9 GB download)\n\n"
+            "Models download automatically on first use to: %USERPROFILE%\\.cache\\whisper"
         )
         model_info.setStyleSheet("font-size: 8pt; color: #666; padding: 8px; background-color: #f3f4f6; border-radius: 2px;")
         model_info.setWordWrap(True)
@@ -3887,7 +3888,7 @@ class SupervertalerQt(QMainWindow):
         layout.addWidget(language_group)
 
         # Save button
-        save_btn = QPushButton("💾 Save Voice Dictation Settings")
+        save_btn = QPushButton("💾 Save Supervoice Settings")
         save_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 10px;")
         save_btn.clicked.connect(lambda: self.save_dictation_settings(
             model_combo.currentText(),
@@ -7476,7 +7477,7 @@ class SupervertalerQt(QMainWindow):
             self.log(f"⚠ Could not save general settings: {str(e)}")
 
     def load_dictation_settings(self) -> Dict[str, Any]:
-        """Load voice dictation settings"""
+        """Load Supervoice settings"""
         prefs_file = self.user_data_path / "ui_preferences.json"
 
         defaults = {
@@ -7499,7 +7500,7 @@ class SupervertalerQt(QMainWindow):
             return defaults
 
     def save_dictation_settings(self, model: str, duration: int, language: str):
-        """Save voice dictation settings"""
+        """Save Supervoice settings"""
         prefs_file = self.user_data_path / "ui_preferences.json"
 
         # Load existing preferences
@@ -7522,14 +7523,14 @@ class SupervertalerQt(QMainWindow):
         try:
             with open(prefs_file, 'w') as f:
                 json.dump(prefs, f, indent=2)
-            self.log(f"✓ Voice dictation settings saved: Model={model}, Duration={duration}s")
+            self.log(f"✓ Supervoice settings saved: Model={model}, Duration={duration}s")
             QMessageBox.information(self, "Settings Saved",
-                f"Voice dictation settings saved successfully!\n\n"
+                f"Supervoice settings saved successfully!\n\n"
                 f"Model: {model}\n"
                 f"Max Duration: {duration} seconds\n"
                 f"Language: {language}")
         except Exception as e:
-            self.log(f"⚠ Could not save dictation settings: {str(e)}")
+            self.log(f"⚠ Could not save Supervoice settings: {str(e)}")
             QMessageBox.warning(self, "Save Error", f"Could not save settings:\n{str(e)}")
 
     def load_language_settings(self):
