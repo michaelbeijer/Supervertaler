@@ -9,8 +9,37 @@ import numpy as np
 import tempfile
 import wave
 import os
+import sys
 from pathlib import Path
 from PyQt6.QtCore import QThread, pyqtSignal
+
+
+def ensure_ffmpeg_available():
+    """
+    Ensure FFmpeg is available for Whisper
+    Returns True if FFmpeg is found, False otherwise
+    """
+    import shutil
+
+    # Check if ffmpeg is already in system PATH
+    if shutil.which('ffmpeg'):
+        return True
+
+    # Check for bundled ffmpeg (for .exe distributions)
+    if getattr(sys, 'frozen', False):
+        # Running as compiled executable
+        bundle_dir = Path(sys._MEIPASS)
+    else:
+        # Running as script
+        bundle_dir = Path(__file__).parent.parent
+
+    bundled_ffmpeg = bundle_dir / 'binaries' / 'ffmpeg.exe'
+    if bundled_ffmpeg.exists():
+        # Add bundled ffmpeg directory to PATH
+        os.environ['PATH'] = str(bundled_ffmpeg.parent) + os.pathsep + os.environ['PATH']
+        return True
+
+    return False
 
 
 class QuickDictationThread(QThread):
@@ -33,6 +62,15 @@ class QuickDictationThread(QThread):
     def run(self):
         """Record and transcribe audio"""
         try:
+            # Check FFmpeg availability first
+            if not ensure_ffmpeg_available():
+                self.error_occurred.emit(
+                    "FFmpeg not found. Please install FFmpeg or contact support.\n\n"
+                    "Quick install: Open PowerShell as Admin and run:\n"
+                    "winget install FFmpeg  (or)  choco install ffmpeg"
+                )
+                return
+
             # Step 1: Record audio
             self.status_update.emit("🔴 Recording...")
             self.is_recording = True

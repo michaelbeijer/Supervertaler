@@ -9793,7 +9793,11 @@ class SupervertalerQt(QMainWindow):
     def on_dictation_error(self, error_msg):
         """Handle dictation error"""
         self._set_dictation_button_recording(False)
-        self.status_bar.showMessage(f"❌ {error_msg}", 3000)
+        self.status_bar.showMessage(f"❌ Voice dictation error", 3000)
+
+        # Show detailed error dialog for FFmpeg issues
+        if "FFmpeg" in error_msg or "ffmpeg" in error_msg:
+            QMessageBox.warning(self, "FFmpeg Required", error_msg)
 
     def on_dictation_finished(self):
         """Handle dictation thread finishing"""
