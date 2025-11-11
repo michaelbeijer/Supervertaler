@@ -1043,7 +1043,18 @@ class SupervertalerQt(QMainWindow):
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
         self.status_bar.showMessage("Ready")
-    
+
+        # Setup global shortcuts
+        self.setup_global_shortcuts()
+
+    def setup_global_shortcuts(self):
+        """Setup application-wide keyboard shortcuts"""
+        from PyQt6.QtGui import QShortcut
+
+        # F9 - Voice dictation
+        self.shortcut_dictate = QShortcut(QKeySequence("F9"), self)
+        self.shortcut_dictate.activated.connect(self.start_voice_dictation)
+
     def create_menus(self):
         """Create application menus"""
         menubar = self.menuBar()
@@ -9725,28 +9736,44 @@ class SupervertalerQt(QMainWindow):
             self.dictation_thread.transcription_ready.connect(self.on_dictation_complete)
             self.dictation_thread.status_update.connect(self.on_dictation_status)
             self.dictation_thread.error_occurred.connect(self.on_dictation_error)
+            self.dictation_thread.finished.connect(self.on_dictation_finished)
+
+            # Change button appearance
+            self._set_dictation_button_recording(True)
 
             # Start recording
             self.dictation_thread.start()
 
         except Exception as e:
+            self._set_dictation_button_recording(False)
             QMessageBox.critical(self, "Error", f"Failed to start dictation:\n{str(e)}")
 
     def on_dictation_complete(self, text):
         """Handle completed dictation"""
-        # Insert text into target editor
-        if hasattr(self, 'tabbed_panels'):
+        # Try to insert into currently focused target field (grid or editor)
+        focused_widget = QApplication.focusWidget()
+
+        # Check if focused widget is a grid target cell
+        if isinstance(focused_widget, EditableGridTextEditor):
+            current_text = focused_widget.toPlainText()
+            if current_text:
+                focused_widget.setPlainText(current_text + " " + text)
+            else:
+                focused_widget.setPlainText(text)
+            # Move cursor to end
+            cursor = focused_widget.textCursor()
+            cursor.movePosition(cursor.MoveOperation.End)
+            focused_widget.setTextCursor(cursor)
+        # Otherwise insert into segment editor below grid
+        elif hasattr(self, 'tabbed_panels'):
             for panel in self.tabbed_panels:
                 try:
                     if hasattr(panel, 'editor_widget'):
                         current_text = panel.editor_widget.target_editor.toPlainText()
                         if current_text:
-                            # Append with space
                             panel.editor_widget.target_editor.setPlainText(current_text + " " + text)
                         else:
-                            # Set new text
                             panel.editor_widget.target_editor.setPlainText(text)
-                        # Move cursor to end
                         cursor = panel.editor_widget.target_editor.textCursor()
                         cursor.movePosition(cursor.MoveOperation.End)
                         panel.editor_widget.target_editor.setTextCursor(cursor)
@@ -9762,7 +9789,32 @@ class SupervertalerQt(QMainWindow):
 
     def on_dictation_error(self, error_msg):
         """Handle dictation error"""
+        self._set_dictation_button_recording(False)
         self.status_bar.showMessage(f"❌ {error_msg}", 3000)
+
+    def on_dictation_finished(self):
+        """Handle dictation thread finishing"""
+        self._set_dictation_button_recording(False)
+
+    def _set_dictation_button_recording(self, is_recording):
+        """Change dictate button appearance based on recording state"""
+        if hasattr(self, 'tabbed_panels'):
+            for panel in self.tabbed_panels:
+                try:
+                    # Find dictate button in the panel
+                    button_layout = panel.layout().itemAt(2)  # Action buttons layout
+                    if button_layout and button_layout.layout():
+                        for i in range(button_layout.layout().count()):
+                            widget = button_layout.layout().itemAt(i).widget()
+                            if widget and isinstance(widget, QPushButton) and "Dictate" in widget.text():
+                                if is_recording:
+                                    widget.setText("🔴 Recording...")
+                                    widget.setStyleSheet("background-color: #D32F2F; color: white; font-weight: bold;")
+                                else:
+                                    widget.setText("🎤 Dictate (F9)")
+                                    widget.setStyleSheet("background-color: #FF5722; color: white; font-weight: bold;")
+                except:
+                    pass
 
     def save_tab_segment(self):
         """Save current segment in tab editor"""

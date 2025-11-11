@@ -159,7 +159,15 @@ class ShortcutManager:
             "default": "Ctrl+Shift+A",
             "action": "show_autofingers"
         },
-        
+
+        # Special
+        "voice_dictate": {
+            "category": "Special",
+            "description": "Voice Dictation",
+            "default": "F9",
+            "action": "start_voice_dictation"
+        },
+
         # Match Insertion (Direct)
         "match_insert_1": {
             "category": "Match Insertion",
