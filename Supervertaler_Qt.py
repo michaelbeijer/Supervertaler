@@ -9993,7 +9993,16 @@ class SupervertalerQt(QMainWindow):
 
         except Exception as e:
             self._set_dictation_button_recording(False)
-            QMessageBox.critical(self, "Error", f"Failed to start dictation:\n{str(e)}")
+            import traceback
+            error_details = traceback.format_exc()
+            self.log(f"")
+            self.log(f"❌ ERROR starting dictation:")
+            self.log(f"   {str(e)}")
+            self.log(f"")
+            self.log(f"Full traceback:")
+            self.log(error_details)
+            self.log(f"")
+            QMessageBox.critical(self, "Dictation Error", f"Failed to start dictation:\n\n{str(e)}\n\nCheck the Log tab for full details.")
 
     def on_dictation_complete(self, text):
         """Handle completed dictation"""

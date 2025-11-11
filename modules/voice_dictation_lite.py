@@ -170,7 +170,9 @@ class QuickDictationThread(QThread):
 
         except Exception as e:
             self.is_recording = False
-            self.error_occurred.emit(f"Error: {str(e)}")
+            import traceback
+            error_details = traceback.format_exc()
+            self.error_occurred.emit(f"Error: {str(e)}\n\nTraceback:\n{error_details}")
 
     def stop(self):
         """Stop recording"""
