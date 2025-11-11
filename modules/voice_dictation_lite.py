@@ -103,10 +103,12 @@ class QuickDictationThread(QThread):
             # Stop recording
             sd.stop()
             self.is_recording = False
+            self.status_update.emit(f"🛑 Recording stopped ({elapsed:.1f}s recorded)")
 
             # Calculate actual recorded samples
             actual_samples = int(min(elapsed, self.duration) * self.sample_rate)
             recording = recording[:actual_samples]  # Trim to actual length
+            self.status_update.emit(f"📊 Processing {actual_samples} audio samples...")
 
             # Convert to int16
             audio_data = np.int16(recording * 32767)
@@ -114,12 +116,15 @@ class QuickDictationThread(QThread):
             # Save to temp WAV
             temp_dir = tempfile.gettempdir()
             temp_path = os.path.join(temp_dir, f"sv_dictation_{os.getpid()}.wav")
+            self.status_update.emit(f"💾 Saving audio to {temp_path}")
 
             with wave.open(temp_path, 'wb') as wf:
                 wf.setnchannels(1)
                 wf.setsampwidth(2)
                 wf.setframerate(self.sample_rate)
                 wf.writeframes(audio_data.tobytes())
+
+            self.status_update.emit(f"✓ Audio saved ({len(audio_data)} bytes)")
 
             # Step 2: Transcribe
             self.status_update.emit("⏳ Transcribing...")
