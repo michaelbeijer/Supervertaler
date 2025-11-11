@@ -50,6 +50,8 @@ class QuickDictationThread(QThread):
     transcription_ready = pyqtSignal(str)  # Emits transcribed text
     status_update = pyqtSignal(str)  # Status messages
     error_occurred = pyqtSignal(str)  # Errors
+    model_loading_started = pyqtSignal(str)  # Model name being loaded/downloaded
+    model_loading_finished = pyqtSignal()  # Model loaded successfully
 
     def __init__(self, model_name="base", language="auto", duration=10):
         super().__init__()
@@ -101,10 +103,14 @@ class QuickDictationThread(QThread):
             # Step 2: Transcribe
             self.status_update.emit("⏳ Transcribing...")
 
-            # Load model (cached after first use)
+            # Load model (cached after first use, may download on first use)
+            self.model_loading_started.emit(self.model_name)
+            self.status_update.emit(f"⏳ Loading {self.model_name} model...")
             model = whisper.load_model(self.model_name)
+            self.model_loading_finished.emit()
 
             # Transcribe
+            self.status_update.emit("⏳ Transcribing audio...")
             if self.language:
                 result = model.transcribe(temp_path, language=self.language)
             else:

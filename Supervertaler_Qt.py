@@ -959,6 +959,10 @@ class SupervertalerQt(QMainWindow):
         # Global language settings (defaults)
         self.source_language = "English"
         self.target_language = "Dutch"
+
+        # Supervoice model download tracking
+        self.is_loading_model = False
+        self.loading_model_name = None
         
         # View mode tracking
         self.current_view_mode = LayoutMode.GRID  # Default to Grid view
@@ -9971,6 +9975,8 @@ class SupervertalerQt(QMainWindow):
             self.dictation_thread.status_update.connect(self.on_dictation_status)
             self.dictation_thread.error_occurred.connect(self.on_dictation_error)
             self.dictation_thread.finished.connect(self.on_dictation_finished)
+            self.dictation_thread.model_loading_started.connect(self.on_model_loading_started)
+            self.dictation_thread.model_loading_finished.connect(self.on_model_loading_finished)
 
             # Change button appearance
             self._set_dictation_button_recording(True)
@@ -10033,6 +10039,31 @@ class SupervertalerQt(QMainWindow):
     def on_dictation_finished(self):
         """Handle dictation thread finishing"""
         self._set_dictation_button_recording(False)
+
+    def on_model_loading_started(self, model_name):
+        """Handle Whisper model loading/download starting"""
+        self.is_loading_model = True
+        self.loading_model_name = model_name
+        model_sizes = {
+            'tiny': '75 MB',
+            'base': '142 MB',
+            'small': '466 MB',
+            'medium': '1.5 GB',
+            'large': '2.9 GB'
+        }
+        size = model_sizes.get(model_name, 'unknown size')
+        self.status_bar.showMessage(f"🎤 Supervoice: Loading '{model_name}' model...", 10000)
+        self.log(f"⏳ Loading Whisper model '{model_name}' ({size})...")
+        self.log(f"   If this is your first time using '{model_name}', it will download now ({size}).")
+        self.log(f"   Location: {self._get_whisper_cache_path()}")
+
+    def on_model_loading_finished(self):
+        """Handle Whisper model loading/download finishing"""
+        model_name = self.loading_model_name  # Save before clearing
+        self.is_loading_model = False
+        self.loading_model_name = None
+        self.status_bar.showMessage(f"🎤 Supervoice: '{model_name}' model ready", 3000)
+        self.log(f"✅ Model '{model_name}' loaded successfully")
 
     def _set_dictation_button_recording(self, is_recording):
         """Change dictate button appearance based on recording state"""
@@ -10844,6 +10875,36 @@ class SupervertalerQt(QMainWindow):
     
     def closeEvent(self, event):
         """Handle window close event"""
+        # Check if Whisper model is downloading
+        if self.is_loading_model:
+            model_sizes = {
+                'tiny': '75 MB',
+                'base': '142 MB',
+                'small': '466 MB',
+                'medium': '1.5 GB',
+                'large': '2.9 GB'
+            }
+            size = model_sizes.get(self.loading_model_name, 'unknown size')
+
+            reply = QMessageBox.warning(
+                self,
+                "⚠️ Supervoice Model Downloading",
+                f"Supervoice is currently downloading the '{self.loading_model_name}' model ({size}).\n\n"
+                f"If you close now, the download will be interrupted and the model\n"
+                f"file may become corrupted. You would need to delete the incomplete\n"
+                f"file manually and re-download.\n\n"
+                f"Download location:\n"
+                f"{self._get_whisper_cache_path()}\n\n"
+                f"Do you want to force quit anyway?",
+                QMessageBox.StandardButton.No | QMessageBox.StandardButton.Yes,
+                QMessageBox.StandardButton.No
+            )
+
+            if reply == QMessageBox.StandardButton.No:
+                event.ignore()
+                return
+
+        # Check for unsaved project changes
         if self.project_modified:
             reply = QMessageBox.question(
                 self,
@@ -10853,7 +10914,7 @@ class SupervertalerQt(QMainWindow):
                 QMessageBox.StandardButton.Discard |
                 QMessageBox.StandardButton.Cancel
             )
-            
+
             if reply == QMessageBox.StandardButton.Save:
                 self.save_project()
                 event.accept()
@@ -10863,6 +10924,14 @@ class SupervertalerQt(QMainWindow):
                 event.ignore()
         else:
             event.accept()
+
+    def _get_whisper_cache_path(self):
+        """Get the Whisper model cache directory path"""
+        import os
+        if os.name == 'nt':  # Windows
+            return os.path.join(os.environ.get('USERPROFILE', ''), '.cache', 'whisper')
+        else:  # Linux/Mac
+            return os.path.expanduser('~/.cache/whisper')
     
     # =========================================================================
     # LLM TRANSLATION INTEGRATION
