@@ -5015,7 +5015,7 @@ class SupervertalerQt(QMainWindow):
 
         # Voice dictation button
         dictate_btn = QPushButton("🎤 Dictate (F9)")
-        dictate_btn.setStyleSheet("background-color: #FF5722; color: white; font-weight: bold;")
+        dictate_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold;")
         dictate_btn.clicked.connect(self.start_voice_dictation)
         dictate_btn.setToolTip("Click or press F9 to start voice dictation")
 
@@ -9816,7 +9816,7 @@ class SupervertalerQt(QMainWindow):
                             button.setStyleSheet("background-color: #D32F2F; color: white; font-weight: bold;")
                         else:
                             button.setText("🎤 Dictate (F9)")
-                            button.setStyleSheet("background-color: #FF5722; color: white; font-weight: bold;")
+                            button.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold;")
                 except:
                     pass
 
