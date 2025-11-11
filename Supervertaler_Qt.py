@@ -55,6 +55,7 @@ if sys.platform == 'win32':
 # External dependencies
 import pyperclip  # For clipboard operations in Universal Lookup
 from modules.universal_lookup import UniversalLookupEngine  # Universal Lookup engine
+from modules.voice_dictation_lite import QuickDictationThread  # Voice dictation
 from modules.statuses import (
     STATUSES,
     DEFAULT_STATUS,
@@ -5000,15 +5001,23 @@ class SupervertalerQt(QMainWindow):
         copy_btn.clicked.connect(self.copy_source_to_tab_target)
         clear_btn = QPushButton("🗑️ Clear Target")
         clear_btn.clicked.connect(self.clear_tab_target)
+
+        # Voice dictation button
+        dictate_btn = QPushButton("🎤 Dictate (F9)")
+        dictate_btn.setStyleSheet("background-color: #FF5722; color: white; font-weight: bold;")
+        dictate_btn.clicked.connect(self.start_voice_dictation)
+        dictate_btn.setToolTip("Click or press F9 to start voice dictation")
+
         save_btn = QPushButton("💾 Save")
         save_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold;")
         save_btn.clicked.connect(self.save_tab_segment)
         save_next_btn = QPushButton("💾 Save & Next (Ctrl+Enter)")
         save_next_btn.setStyleSheet("background-color: #2196F3; color: white; font-weight: bold;")
         save_next_btn.clicked.connect(self.save_tab_segment_and_next)
-        
+
         button_layout.addWidget(copy_btn)
         button_layout.addWidget(clear_btn)
+        button_layout.addWidget(dictate_btn)
         button_layout.addStretch()
         button_layout.addWidget(save_btn)
         button_layout.addWidget(save_next_btn)
@@ -9677,7 +9686,85 @@ class SupervertalerQt(QMainWindow):
                         panel.editor_widget.target_editor.clear()
                 except:
                     pass
-    
+
+    def start_voice_dictation(self):
+        """Start voice dictation into target field"""
+        if hasattr(self, 'dictation_thread') and self.dictation_thread and self.dictation_thread.isRunning():
+            # Already recording
+            return
+
+        try:
+            # Get target language from UI preferences
+            ui_prefs = self.load_ui_preferences()
+            target_lang = ui_prefs.get('language_settings', {}).get('target_language', 'English')
+
+            # Map language names to Whisper codes
+            lang_map = {
+                'English': 'en',
+                'Dutch': 'nl',
+                'German': 'de',
+                'French': 'fr',
+                'Spanish': 'es',
+                'Italian': 'it',
+                'Portuguese': 'pt',
+                'Polish': 'pl',
+                'Russian': 'ru',
+                'Chinese': 'zh',
+                'Japanese': 'ja',
+                'Korean': 'ko'
+            }
+            lang_code = lang_map.get(target_lang, 'auto')
+
+            # Create dictation thread
+            self.dictation_thread = QuickDictationThread(
+                model_name="base",  # Fast model
+                language=lang_code,
+                duration=10  # Max 10 seconds
+            )
+
+            # Connect signals
+            self.dictation_thread.transcription_ready.connect(self.on_dictation_complete)
+            self.dictation_thread.status_update.connect(self.on_dictation_status)
+            self.dictation_thread.error_occurred.connect(self.on_dictation_error)
+
+            # Start recording
+            self.dictation_thread.start()
+
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to start dictation:\n{str(e)}")
+
+    def on_dictation_complete(self, text):
+        """Handle completed dictation"""
+        # Insert text into target editor
+        if hasattr(self, 'tabbed_panels'):
+            for panel in self.tabbed_panels:
+                try:
+                    if hasattr(panel, 'editor_widget'):
+                        current_text = panel.editor_widget.target_editor.toPlainText()
+                        if current_text:
+                            # Append with space
+                            panel.editor_widget.target_editor.setPlainText(current_text + " " + text)
+                        else:
+                            # Set new text
+                            panel.editor_widget.target_editor.setPlainText(text)
+                        # Move cursor to end
+                        cursor = panel.editor_widget.target_editor.textCursor()
+                        cursor.movePosition(cursor.MoveOperation.End)
+                        panel.editor_widget.target_editor.setTextCursor(cursor)
+                except:
+                    pass
+
+        # Show notification
+        self.status_bar.showMessage(f"✅ Dictation: {text[:50]}...", 3000)
+
+    def on_dictation_status(self, message):
+        """Show dictation status"""
+        self.status_bar.showMessage(message, 2000)
+
+    def on_dictation_error(self, error_msg):
+        """Handle dictation error"""
+        self.status_bar.showMessage(f"❌ {error_msg}", 3000)
+
     def save_tab_segment(self):
         """Save current segment in tab editor"""
         if not hasattr(self, 'tab_current_segment_id') or not self.tab_current_segment_id:
