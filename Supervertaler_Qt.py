@@ -906,6 +906,77 @@ class ThemeEditorDialog(QDialog):
 
 
 # ============================================================================
+# DETACHED LOG WINDOW
+# ============================================================================
+
+class DetachedLogWindow(QWidget):
+    """Detached log window that can be moved to another screen"""
+
+    def __init__(self, parent):
+        super().__init__()
+        self.parent = parent
+        self.setWindowTitle("Supervertaler - Session Log")
+        self.setWindowIcon(self.parent.windowIcon())
+        self.resize(800, 600)
+
+        # Create layout
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(10, 10, 10, 10)
+
+        # Top toolbar
+        toolbar = QWidget()
+        toolbar_layout = QHBoxLayout(toolbar)
+        toolbar_layout.setContentsMargins(0, 0, 0, 0)
+
+        # Info label
+        info_label = QLabel("📋 This is a detached log window. It will update in real-time.")
+        info_label.setStyleSheet("color: #666; font-style: italic;")
+        toolbar_layout.addWidget(info_label)
+
+        toolbar_layout.addStretch()
+
+        # Re-attach button
+        reattach_btn = QPushButton("↩️ Close")
+        reattach_btn.setToolTip("Close this detached window")
+        reattach_btn.clicked.connect(self.close)
+        toolbar_layout.addWidget(reattach_btn)
+
+        layout.addWidget(toolbar)
+
+        # Log display
+        self.log_display = QPlainTextEdit()
+        self.log_display.setReadOnly(True)
+        self.log_display.setStyleSheet("""
+            QPlainTextEdit {
+                background-color: #ffffff;
+                color: #000000;
+                font-family: 'Consolas', 'Courier New', monospace;
+                font-size: 10px;
+                border: 1px solid #ccc;
+            }
+        """)
+        layout.addWidget(self.log_display)
+
+        # Copy existing log content
+        if hasattr(parent, 'session_log') and parent.session_log:
+            self.log_display.setPlainText(parent.session_log.toPlainText())
+            # Scroll to bottom
+            scrollbar = self.log_display.verticalScrollBar()
+            if scrollbar:
+                scrollbar.setValue(scrollbar.maximum())
+
+    def closeEvent(self, event):
+        """Handle window close"""
+        # Remove from parent's list
+        try:
+            if self in self.parent.detached_log_windows:
+                self.parent.detached_log_windows.remove(self)
+        except:
+            pass
+        event.accept()
+
+
+# ============================================================================
 # MAIN WINDOW
 # ============================================================================
 
@@ -1761,8 +1832,27 @@ class SupervertalerQt(QMainWindow):
         """Create the Log tab - Session Log"""
         tab = QWidget()
         layout = QVBoxLayout(tab)
-        layout.setContentsMargins(0, 0, 0, 0)
-        
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(10)
+
+        # Top toolbar with detach button
+        toolbar = QWidget()
+        toolbar_layout = QHBoxLayout(toolbar)
+        toolbar_layout.setContentsMargins(0, 0, 0, 0)
+
+        detach_btn = QPushButton("🪟 Detach Log Window")
+        detach_btn.setToolTip("Open log in a separate window that can be moved to another screen")
+        detach_btn.clicked.connect(self.detach_log_window)
+        toolbar_layout.addWidget(detach_btn)
+
+        clear_btn = QPushButton("🗑️ Clear Log")
+        clear_btn.setToolTip("Clear all log messages")
+        clear_btn.clicked.connect(self.clear_log)
+        toolbar_layout.addWidget(clear_btn)
+
+        toolbar_layout.addStretch()
+        layout.addWidget(toolbar)
+
         # Log display area
         self.session_log = QPlainTextEdit()
         self.session_log.setReadOnly(True)
@@ -1776,12 +1866,38 @@ class SupervertalerQt(QMainWindow):
             }
         """)
         layout.addWidget(self.session_log)
-        
+
         # Initialize with welcome message
         self.session_log.setPlainText("Session Log - Ready\n" + "="*50 + "\n")
-        
+
+        # List to track detached log windows
+        self.detached_log_windows = []
+
         return tab
-    
+
+    def detach_log_window(self):
+        """Create a detached log window"""
+        detached_window = DetachedLogWindow(self)
+        detached_window.show()
+        self.detached_log_windows.append(detached_window)
+        self.log("🪟 Log window detached")
+
+    def clear_log(self):
+        """Clear the log"""
+        reply = QMessageBox.question(
+            self,
+            "Clear Log",
+            "Are you sure you want to clear the log?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            self.session_log.setPlainText("Session Log - Ready\n" + "="*50 + "\n")
+            # Also clear detached windows
+            for window in self.detached_log_windows:
+                if window and not window.isHidden():
+                    window.log_display.setPlainText("Session Log - Ready\n" + "="*50 + "\n")
+
     def create_editor_widget(self):
         """Create the Editor widget (left side, always visible, no tabs)"""
         from PyQt6.QtWidgets import QPushButton, QLabel, QStackedWidget, QSizePolicy
@@ -10331,7 +10447,7 @@ class SupervertalerQt(QMainWindow):
         if hasattr(self, 'status_bar'):
             self.status_bar.showMessage(message)
         print(f"[LOG] {message}")
-        
+
         # Also append to session log tab if it exists
         if hasattr(self, 'session_log') and self.session_log:
             from datetime import datetime
@@ -10345,6 +10461,29 @@ class SupervertalerQt(QMainWindow):
                     scrollbar.setValue(scrollbar.maximum())
             except Exception:
                 pass  # Silently fail if widget not ready
+
+        # Also send to detached log windows
+        if hasattr(self, 'detached_log_windows'):
+            from datetime import datetime
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            formatted_message = f"[{timestamp}] {message}\n"
+            for window in self.detached_log_windows[:]:  # Copy list to avoid modification during iteration
+                try:
+                    if window and not window.isHidden():
+                        window.log_display.appendPlainText(formatted_message)
+                        # Auto-scroll to bottom
+                        scrollbar = window.log_display.verticalScrollBar()
+                        if scrollbar:
+                            scrollbar.setValue(scrollbar.maximum())
+                    else:
+                        # Remove closed windows
+                        self.detached_log_windows.remove(window)
+                except:
+                    # Remove invalid windows
+                    try:
+                        self.detached_log_windows.remove(window)
+                    except:
+                        pass
     
     def show_options_dialog(self):
         """Show application options dialog - DEPRECATED: Redirects to Settings tab for backwards compatibility"""
