@@ -9927,15 +9927,24 @@ class SupervertalerQt(QMainWindow):
 
     def start_voice_dictation(self):
         """Start or stop voice dictation (toggle behavior)"""
+        # Debug: Check thread state
+        has_thread = hasattr(self, 'dictation_thread')
+        thread_exists = has_thread and self.dictation_thread is not None
+        thread_running = thread_exists and self.dictation_thread.isRunning()
+        is_recording = thread_exists and getattr(self.dictation_thread, 'is_recording', False)
+
+        self.log(f"🔍 DEBUG: has_thread={has_thread}, thread_exists={thread_exists}, thread_running={thread_running}, is_recording={is_recording}")
+
         # Check if already recording - if so, stop it
-        if hasattr(self, 'dictation_thread') and self.dictation_thread and self.dictation_thread.isRunning():
-            if self.dictation_thread.is_recording:
+        if thread_running:
+            if is_recording:
                 # Stop recording early
                 self.dictation_thread.stop_recording()
                 self.log("⏹️ Stopping recording early...")
                 return
             else:
                 # Thread is running but not recording (probably transcribing/loading model)
+                self.log("⚠️ Thread is running but not recording - waiting for it to finish...")
                 return
 
         try:
@@ -9989,6 +9998,7 @@ class SupervertalerQt(QMainWindow):
             self._set_dictation_button_recording(True)
 
             # Start recording
+            self.log(f"▶️ Starting dictation thread (model={model_name}, language={lang_code}, duration={max_duration}s)...")
             self.dictation_thread.start()
 
         except Exception as e:
@@ -10054,6 +10064,7 @@ class SupervertalerQt(QMainWindow):
 
     def on_dictation_finished(self):
         """Handle dictation thread finishing"""
+        self.log("✓ Dictation thread finished")
         self._set_dictation_button_recording(False)
 
     def on_model_loading_started(self, model_name):
