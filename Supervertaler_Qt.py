@@ -10451,30 +10451,31 @@ class SupervertalerQt(QMainWindow):
         # Also append to session log tab if it exists
         if hasattr(self, 'session_log') and self.session_log:
             from datetime import datetime
+            from PyQt6.QtGui import QTextCursor
             timestamp = datetime.now().strftime("%H:%M:%S")
-            formatted_message = f"[{timestamp}] {message}\n"
+            formatted_message = f"[{timestamp}] {message}"
             try:
+                # Append without newline (appendPlainText adds it automatically)
                 self.session_log.appendPlainText(formatted_message)
-                # Auto-scroll to bottom
-                scrollbar = self.session_log.verticalScrollBar()
-                if scrollbar:
-                    scrollbar.setValue(scrollbar.maximum())
+                # Force scroll to bottom by moving cursor to end
+                self.session_log.moveCursor(QTextCursor.MoveOperation.End)
+                self.session_log.ensureCursorVisible()
             except Exception:
                 pass  # Silently fail if widget not ready
 
         # Also send to detached log windows
         if hasattr(self, 'detached_log_windows'):
             from datetime import datetime
+            from PyQt6.QtGui import QTextCursor
             timestamp = datetime.now().strftime("%H:%M:%S")
-            formatted_message = f"[{timestamp}] {message}\n"
+            formatted_message = f"[{timestamp}] {message}"
             for window in self.detached_log_windows[:]:  # Copy list to avoid modification during iteration
                 try:
                     if window and not window.isHidden():
                         window.log_display.appendPlainText(formatted_message)
-                        # Auto-scroll to bottom
-                        scrollbar = window.log_display.verticalScrollBar()
-                        if scrollbar:
-                            scrollbar.setValue(scrollbar.maximum())
+                        # Force scroll to bottom by moving cursor to end
+                        window.log_display.moveCursor(QTextCursor.MoveOperation.End)
+                        window.log_display.ensureCursorVisible()
                     else:
                         # Remove closed windows
                         self.detached_log_windows.remove(window)
