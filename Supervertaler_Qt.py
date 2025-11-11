@@ -9694,9 +9694,8 @@ class SupervertalerQt(QMainWindow):
             return
 
         try:
-            # Get target language from UI preferences
-            ui_prefs = self.load_ui_preferences()
-            target_lang = ui_prefs.get('language_settings', {}).get('target_language', 'English')
+            # Get target language from app settings
+            target_lang = getattr(self, 'target_language', 'English')
 
             # Map language names to Whisper codes
             lang_map = {
