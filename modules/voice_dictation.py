@@ -15,7 +15,7 @@ from PyQt6.QtWidgets import (
     QComboBox, QTextEdit, QGroupBox, QMessageBox, QProgressBar
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
-from PyQt6.QtGui import QFont
+from PyQt6.QtGui import QFont, QShortcut, QKeySequence
 
 
 class RecordingThread(QThread):
@@ -164,6 +164,7 @@ class VoiceDictationWidget(QWidget):
         self.recording_thread = None
         self.transcription_thread = None
         self.init_ui()
+        self.setup_shortcuts()
 
     def init_ui(self):
         """Initialize the user interface"""
@@ -275,6 +276,38 @@ class VoiceDictationWidget(QWidget):
         help_text.setWordWrap(True)
         help_text.setStyleSheet("color: #666; font-size: 10px; padding: 5px;")
         layout.addWidget(help_text)
+
+        # Keyboard shortcuts info
+        shortcuts_text = QLabel(
+            "⌨️ Shortcuts: F9 = Start/Stop Recording | Esc = Cancel | Ctrl+C = Copy"
+        )
+        shortcuts_text.setWordWrap(True)
+        shortcuts_text.setStyleSheet(
+            "color: #1976D2; font-size: 10px; font-weight: bold; "
+            "padding: 8px; background-color: #E3F2FD; border-radius: 3px; margin-top: 5px;"
+        )
+        layout.addWidget(shortcuts_text)
+
+    def setup_shortcuts(self):
+        """Setup keyboard shortcuts"""
+        # F9 - Start/Stop recording
+        self.shortcut_record = QShortcut(QKeySequence("F9"), self)
+        self.shortcut_record.activated.connect(self.toggle_recording)
+
+        # Esc - Cancel recording
+        self.shortcut_cancel = QShortcut(QKeySequence(Qt.Key.Key_Escape), self)
+        self.shortcut_cancel.activated.connect(self.cancel_recording)
+
+        # Ctrl+C - Copy to clipboard
+        self.shortcut_copy = QShortcut(QKeySequence("Ctrl+C"), self)
+        self.shortcut_copy.activated.connect(self.copy_to_clipboard)
+
+    def cancel_recording(self):
+        """Cancel ongoing recording"""
+        if self.recording_thread and self.recording_thread.is_recording:
+            self.stop_recording()
+            self.status_label.setText("⚠️ Recording cancelled")
+            self.status_label.setStyleSheet("color: #FF9800;")
 
     def toggle_recording(self):
         """Start or stop recording"""
