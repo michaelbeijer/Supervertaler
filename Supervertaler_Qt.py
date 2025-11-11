@@ -5019,6 +5019,9 @@ class SupervertalerQt(QMainWindow):
         dictate_btn.clicked.connect(self.start_voice_dictation)
         dictate_btn.setToolTip("Click or press F9 to start voice dictation")
 
+        # Store reference to dictate button for state updates
+        editor_widget.dictate_btn = dictate_btn
+
         save_btn = QPushButton("💾 Save")
         save_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold;")
         save_btn.clicked.connect(self.save_tab_segment)
@@ -9801,18 +9804,15 @@ class SupervertalerQt(QMainWindow):
         if hasattr(self, 'tabbed_panels'):
             for panel in self.tabbed_panels:
                 try:
-                    # Find dictate button in the panel
-                    button_layout = panel.layout().itemAt(2)  # Action buttons layout
-                    if button_layout and button_layout.layout():
-                        for i in range(button_layout.layout().count()):
-                            widget = button_layout.layout().itemAt(i).widget()
-                            if widget and isinstance(widget, QPushButton) and "Dictate" in widget.text():
-                                if is_recording:
-                                    widget.setText("🔴 Recording...")
-                                    widget.setStyleSheet("background-color: #D32F2F; color: white; font-weight: bold;")
-                                else:
-                                    widget.setText("🎤 Dictate (F9)")
-                                    widget.setStyleSheet("background-color: #FF5722; color: white; font-weight: bold;")
+                    # Use stored reference to dictate button
+                    if hasattr(panel, 'editor_widget') and hasattr(panel.editor_widget, 'dictate_btn'):
+                        button = panel.editor_widget.dictate_btn
+                        if is_recording:
+                            button.setText("🔴 Recording...")
+                            button.setStyleSheet("background-color: #D32F2F; color: white; font-weight: bold;")
+                        else:
+                            button.setText("🎤 Dictate (F9)")
+                            button.setStyleSheet("background-color: #FF5722; color: white; font-weight: bold;")
                 except:
                     pass
 
