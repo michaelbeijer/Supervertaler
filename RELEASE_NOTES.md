@@ -162,13 +162,13 @@
 
 ## Previous Release: v1.3.3-Qt (November 10, 2025)
 
-### 🏆 Major Feature: LLM Leaderboard + UI Standardization
+### 📊 Major Feature: Superbench + UI Standardization
 
-**Translation Quality Benchmarking System - Compare translation quality, speed, and cost across multiple LLM providers!**
+**LLM Translation Quality Benchmarking System - Compare translation quality, speed, and cost across multiple LLM providers!**
 
 ### What's New
 
-**✅ LLM Leaderboard Module**
+**✅ Superbench Module (formerly LLM Leaderboard)**
 - **Benchmark translation quality** across OpenAI, Claude, and Gemini models
 - **chrF++ scoring** - Objective translation quality assessment (0-100 scale)
 - **Speed tracking** - See which models are fastest for your workflow
@@ -187,10 +187,10 @@
 
 **✅ Standardized Module Headers**
 - Professional consistent styling across all modules
-- Trophy emoji 🏆 for LLM Leaderboard identity
+- Chart emoji 📊 for Superbench identity
 - Blue branding (#1976D2) matching Supervertaler colors
 - Light blue description boxes for clarity
-- Applied to: LLM Leaderboard, TMX Editor, AutoFingers, PDF Rescue
+- Applied to: Superbench, TMX Editor, AutoFingers, PDF Rescue
 
 **✅ Latest Model Support**
 - **OpenAI:** GPT-4o, GPT-4o Mini, GPT-5 (Reasoning)
@@ -199,13 +199,13 @@
 - Friendly model names in all dropdowns
 
 **✅ Standalone Usage Support**
-- Can run LLM Leaderboard independently
+- Can run Superbench independently
 - Auto-creates `api_keys.txt` from `api_keys.example.txt` template
 - Complete documentation in `modules/LLM_LEADERBOARD_STANDALONE.md`
 
 ### Fixed Issues
 
-**🐛 LLM Leaderboard Bug Fixes**
+**🐛 Superbench Bug Fixes**
 - Fixed Claude API call parameters (proper text/custom_prompt separation)
 - Fixed Gemini API key mapping ("gemini" provider → "google" API key)
 - Fixed model dropdown showing generic names instead of selected models

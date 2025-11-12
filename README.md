@@ -44,7 +44,7 @@ python Supervertaler_Qt.py
 
 **Previous Features:**
 - 🤖 **AI Assistant Enhanced Prompts** - ChatGPT-quality translation prompts (v1.3.4)
-- 🏆 **LLM Leaderboard** - Translation quality benchmarking with chrF++ scoring (v1.3.3)
+- 📊 **Superbench** - LLM translation quality benchmarking with adaptive project sampling (v1.4.1, formerly LLM Leaderboard v1.3.3)
 
 **v1.3.1 Features - AI Assistant File Attachment Persistence:**
 - 📎 **Persistent File Attachments** - Attached files saved to disk across sessions
