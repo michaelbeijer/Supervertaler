@@ -1,12 +1,156 @@
 # Supervertaler Project Context
 
-**Last Updated:** November 10, 2025
+**Last Updated:** November 12, 2025
 **Repository:** https://github.com/michaelbeijer/Supervertaler
 **Maintainer:** Michael Beijer
 
 ---
 
 ## 📅 Recent Development Activity
+
+### November 12, 2025 - Version 1.4.0 Release: Supervoice Voice Dictation + Documentation Update
+
+**🎤 Version 1.4.0 Released - Supervoice Voice Dictation + Detachable Log**
+
+Today we released version 1.4.0, which includes the completed Supervoice voice dictation feature and detachable log window. All version numbers and documentation have been updated to reflect this major release.
+
+**✅ Version Update (1.3.4 → 1.4.0):**
+
+Updated all version references across the codebase:
+- **Supervertaler_Qt.py:**
+  - Header docstring: "Version: 1.4.0 (Supervoice Voice Dictation + Detachable Log)"
+  - `__version__ = "1.4.0"`
+  - `__release_date__ = "2025-11-12"`
+  - Welcome message: "Welcome to Supervertaler Qt v1.4.0"
+  - All window titles updated
+  - About dialog updated
+
+**✅ Website Documentation Updated (docs/index.html):**
+
+1. **Hero Badge Updated:**
+   - Changed from "v1.3.4 - AI Assistant Enhanced"
+   - To: "v1.4.0 - Supervoice Voice Dictation 🎤"
+
+2. **New Supervoice Module Card Added:**
+   - Placed as first module in grid (prominent positioning)
+   - Red border (3px solid #FF6B6B) to highlight as NEW
+   - Features highlighted:
+     - 100+ languages via OpenAI Whisper
+     - F9 global hotkey (start/stop)
+     - 5 model sizes (tiny to large)
+     - Configurable in Settings → 🎤 Supervoice
+     - Future: voice commands and parallel command system
+   - Links to [VOICE_DICTATION_GUIDE.md](VOICE_DICTATION_GUIDE.md)
+
+3. **Features Section Updated:**
+   - Updated highlight box to showcase v1.4.0 Supervoice (red/orange gradient)
+   - Changed from LLM Leaderboard highlight to Supervoice highlight
+   - Added 4 feature highlights:
+     - 🌍 100+ Languages (OpenAI Whisper)
+     - ⌨️ F9 Hotkey (press-to-start/stop)
+     - 🎚️ 5 Model Sizes (balance speed vs accuracy)
+     - 🚀 Future Voice Commands (workflow automation)
+   - Added Supervoice feature card to features grid (first position, red border)
+
+**✅ Documentation Files Updated:**
+
+1. **README.md:**
+   - Updated release info reference to v1.4.0
+   - Updated Qt Edition version section:
+     - Version: v1.4.0 (November 12, 2025)
+     - Added complete Supervoice feature list
+     - Highlighted 100+ language support
+     - Mentioned future voice command system
+     - Condensed previous features (v1.3.4, v1.3.3) for brevity
+
+2. **CHANGELOG_Qt.md:**
+   - Added comprehensive v1.4.0 entry at top
+   - Documented all Supervoice features:
+     - AI-powered speech recognition (OpenAI Whisper)
+     - 100+ language support
+     - F9 global hotkey
+     - 5 model sizes with descriptions
+     - FFmpeg detection and bundling
+     - Grid cell integration
+     - Language auto-detection
+     - Future voice command plans
+   - Documented detachable log window features
+   - Listed all documentation files created
+   - Documented bug fixes (UnboundLocalError, language detection, button color, auto-scroll)
+   - Listed technical details
+
+3. **RELEASE_NOTES.md:**
+   - Updated "Current Release" to v1.4.0 (November 12, 2025)
+   - Created comprehensive release notes with:
+     - Complete "What's New" section for Supervoice
+     - Model size comparison table
+     - Detachable log features
+     - Documentation links
+     - Bug fixes section
+     - Step-by-step "How to Use" instructions
+     - Benefits list
+     - Technical details
+   - Added v1.3.4 as "Previous Release" section
+
+**📝 Key Messaging:**
+
+All documentation now consistently mentions:
+- **100+ languages** - "as many languages as Whisper can handle"
+- **Future parallel dictation system** - for voice commands (confirm segment, go to top, filtering, workflow automation)
+- **Press-to-start, press-to-stop** - Simple F9 hotkey workflow
+- **5 model sizes** - Balance between speed and accuracy
+- **Multi-monitor support** - Detachable log window feature
+
+**🎯 Supervoice Features (Summary):**
+
+The v1.4.0 release includes:
+1. **Voice Dictation Core:**
+   - OpenAI Whisper integration
+   - 100+ language support
+   - F9 global hotkey (start/stop)
+   - 5 model sizes (tiny, base, small, medium, large)
+   - Visual feedback (button color change)
+   - Grid cell integration
+   - Language auto-detection
+
+2. **Supporting Features:**
+   - FFmpeg detection and bundling infrastructure
+   - User-friendly error messages
+   - Comprehensive documentation (3 guides)
+   - Settings configuration panel
+
+3. **Detachable Log Window:**
+   - Multi-monitor support
+   - Synchronized auto-scroll
+   - Persistent state
+   - Independent positioning/sizing
+
+4. **Bug Fixes:**
+   - Fixed UnboundLocalError (duplicate `import os`)
+   - Fixed language detection
+   - Fixed button color restoration
+   - Fixed log auto-scroll synchronization
+
+**📚 Documentation Created/Updated:**
+
+All documentation is complete and comprehensive:
+- [VOICE_DICTATION_GUIDE.md](VOICE_DICTATION_GUIDE.md) - User guide
+- [VOICE_DICTATION_DEPLOYMENT.md](VOICE_DICTATION_DEPLOYMENT.md) - Deployment guide
+- [SUPERVOICE_TROUBLESHOOTING.md](SUPERVOICE_TROUBLESHOOTING.md) - Troubleshooting
+- [docs/index.html](../docs/index.html) - Website updated
+- [README.md](../README.md) - Updated
+- [CHANGELOG_Qt.md](../CHANGELOG_Qt.md) - Updated
+- [RELEASE_NOTES.md](../RELEASE_NOTES.md) - Updated
+
+**🚀 Next Steps:**
+
+The foundation is now in place for the future parallel dictation system mentioned throughout the documentation. This will enable voice commands for:
+- Segment navigation (go to top, go to segment X)
+- Segment confirmation (confirm segment, next segment)
+- Filtering and search operations
+- Workflow automation commands
+
+---
 
 ### November 10, 2025 (Continued) - Fixed CODE FENCE Parsing Issue
 

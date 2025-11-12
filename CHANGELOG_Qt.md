@@ -6,6 +6,67 @@ The Qt Edition is the **primary version** for active development and new feature
 
 ---
 
+## [1.4.0] - November 12, 2025
+
+### 🎤 Major Feature: Supervoice Voice Dictation + Detachable Log Window
+
+**AI-Powered Hands-Free Translation Input** - OpenAI Whisper voice dictation with 100+ language support, plus multi-monitor log window capability.
+
+### Added
+- **🎤 Supervoice Voice Dictation Module**
+  - AI-powered speech recognition using OpenAI Whisper
+  - Support for 100+ languages (as many as Whisper can handle)
+  - Press-to-start, press-to-stop recording with F9 global hotkey
+  - 5 model sizes: tiny, base, small, medium, large (balance speed vs accuracy)
+  - Configurable in Settings → 🎤 Supervoice
+  - Automatic FFmpeg detection and bundling support
+  - User-friendly error messages with installation instructions
+  - Visual feedback: button color changes during recording
+  - Seamless integration with segment editor and grid cells
+  - Language auto-detection from project settings
+  - Manual stop functionality (press F9 again to stop recording)
+  - Future: Planned parallel dictation system for voice commands (confirm segment, go to top, filtering, workflow automation)
+
+- **🪟 Detachable Log Window**
+  - Log window can be detached into separate floating window
+  - Perfect for multi-monitor setups
+  - Synchronized auto-scroll between main and detached logs
+  - "Detach Log" / "Attach Log" button in Settings
+  - Remembers detached state across sessions
+  - Independent positioning and sizing
+
+- **📚 Comprehensive Documentation**
+  - [VOICE_DICTATION_GUIDE.md](docs/VOICE_DICTATION_GUIDE.md) - Complete user guide
+  - [VOICE_DICTATION_DEPLOYMENT.md](docs/VOICE_DICTATION_DEPLOYMENT.md) - Deployment options
+  - [SUPERVOICE_TROUBLESHOOTING.md](docs/SUPERVOICE_TROUBLESHOOTING.md) - Troubleshooting guide
+  - FFmpeg licensing information
+  - Model selection recommendations
+  - Corrupt model file recovery instructions
+
+### Fixed
+- **🐛 Voice Dictation Bug Fixes**
+  - Fixed critical UnboundLocalError in `voice_dictation_lite.py:118` (duplicate `import os` statement)
+  - Fixed language detection from project settings
+  - Fixed button color restoration after recording
+  - Fixed auto-scroll synchronization between log windows
+
+### Changed
+- **🔧 Version Update**
+  - Updated version from 1.3.4 to 1.4.0
+  - Updated all version strings in code and documentation
+  - Updated window titles and welcome messages
+  - Updated website (docs/index.html) with Supervoice module card
+  - Updated hero badge to "v1.4.0 - Supervoice Voice Dictation"
+
+### Technical
+- New module: `modules/voice_dictation_lite.py` - Core dictation engine
+- Enhanced `Supervertaler_Qt.py` - Integrated voice dictation and detachable log
+- Updated `docs/index.html` - Added Supervoice feature highlight and module card
+- Created FFmpeg detection and bundling infrastructure
+- Whisper model caching in `%USERPROFILE%\.cache\whisper\`
+
+---
+
 ## [1.3.3] - November 10, 2025
 
 ### 🏆 Major Feature: LLM Leaderboard + UI Standardization

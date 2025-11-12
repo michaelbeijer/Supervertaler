@@ -3,8 +3,8 @@ Supervertaler Qt Edition
 ========================
 The ultimate companion tool for translators and writers.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.3.4 (AI Assistant Enhanced Prompt Generation)
-Release Date: November 10, 2025
+Version: 1.4.0 (Supervoice Voice Dictation + Detachable Log)
+Release Date: November 12, 2025
 Framework: PyQt6
 
 This is the modern edition of Supervertaler using PyQt6 framework.
@@ -12,11 +12,13 @@ For the classic tkinter edition, see Supervertaler_tkinter.py
 
 Key Features:
 - Complete Translation Matching: Termbase + TM + MT + Multi-LLM
+- Supervoice: AI-powered voice dictation (100+ languages via OpenAI Whisper)
 - Google Cloud Translation API integration
 - Multi-LLM Support: OpenAI GPT, Claude, Google Gemini
 - 2-Layer Prompt Architecture (System + Custom Prompts) with AI Assistant
 - AI Assistant with conversational interface for document analysis
 - Universal Lookup with global hotkey (Ctrl+Alt+L)
+- Detachable Log window for multi-monitor setups
 - Modern theme system (6 themes + custom editor)
 - AutoFingers automation for memoQ with TagCleaner module
 - memoQ bilingual DOCX import/export
@@ -28,9 +30,9 @@ License: MIT
 """
 
 # Version Information
-__version__ = "1.3.4"
-__phase__ = "6.4"
-__release_date__ = "2025-11-10"
+__version__ = "1.4.0"
+__phase__ = "7.0"
+__release_date__ = "2025-11-12"
 __edition__ = "Qt"
 
 import sys
@@ -1077,7 +1079,7 @@ class SupervertalerQt(QMainWindow):
         # Create example API keys file on first launch (after UI is ready)
         self.ensure_example_api_keys()
         
-        self.log("Welcome to Supervertaler Qt v1.3.2")
+        self.log("Welcome to Supervertaler Qt v1.4.0")
         self.log("Professional Translation Memory & CAT Tool")
         
         # Load general settings (including auto-propagation)
@@ -1096,7 +1098,7 @@ class SupervertalerQt(QMainWindow):
     def init_ui(self):
         """Initialize the user interface"""
         # Build window title with dev mode indicator
-        title = "Supervertaler Qt v1.3.2"
+        title = "Supervertaler Qt v1.4.0"
         if ENABLE_PRIVATE_FEATURES:
             title += " [🛠️ DEV MODE]"
         self.setWindowTitle(title)
@@ -10433,7 +10435,7 @@ class SupervertalerQt(QMainWindow):
     
     def update_window_title(self):
         """Update window title with project name and modified state"""
-        title = "Supervertaler Qt v1.3.2"
+        title = "Supervertaler Qt v1.4.0"
         if ENABLE_PRIVATE_FEATURES:
             title += " [🛠️ DEV MODE]"
         if self.current_project:
@@ -11024,7 +11026,7 @@ class SupervertalerQt(QMainWindow):
         layout.setContentsMargins(20, 20, 20, 20)
         
         # Title
-        title = QLabel("<h2>Supervertaler Qt v1.3.2</h2>")
+        title = QLabel("<h2>Supervertaler Qt v1.4.0</h2>")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title)
         

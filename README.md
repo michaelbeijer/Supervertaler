@@ -9,7 +9,7 @@
 ## 📚 Documentation
 
 **⭐ START HERE:** [PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md) — Complete project reference
-**📝 Release Info:** [RELEASE_NOTES.md](RELEASE_NOTES.md) — Current v1.3.4-Qt release details
+**📝 Release Info:** [RELEASE_NOTES.md](RELEASE_NOTES.md) — Current v1.4.0-Qt release details
 
 ### Edition Changelogs
 - **Qt Edition:** [CHANGELOG_Qt.md](CHANGELOG_Qt.md) — v1.0.2+ (primary development)
@@ -26,7 +26,7 @@
 
 ### 🆕 Qt Edition (Modern) - **PRIMARY**
 **File:** `Supervertaler_Qt.py`
-**Version:** v1.3.4 (November 10, 2025)
+**Version:** v1.4.0 (November 12, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -34,19 +34,17 @@
 python Supervertaler_Qt.py
 ```
 
-**NEW in v1.3.4 - AI Assistant Enhanced Prompt Generation:**
-- 🤖 **ChatGPT-Quality Prompts** - Professional translation prompts with comprehensive summaries and extensive glossaries
-- 📊 **Comprehensive Summaries** - AI generates 3-4 paragraph detailed document analysis
-- 📚 **Extensive Glossaries** - 30-40 key terms (up from 10-15) with context notes
-- 🎯 **Domain-Specific Constraints** - Tailored requirements for patents, technical, medical, legal documents
-- 📄 **Full Document Analysis** - AI receives up to 50,000 characters for accurate analysis
-- ⚡ **One-Click Activation** - Generated prompts automatically created and activated
+**NEW in v1.4.0 - Supervoice Voice Dictation + Detachable Log:**
+- 🎤 **Supervoice Voice Dictation** - AI-powered hands-free translation input
+- 🌍 **100+ Languages** - OpenAI Whisper supports virtually any language
+- ⌨️ **F9 Global Hotkey** - Press-to-start, press-to-stop recording anywhere
+- 🎚️ **5 Model Sizes** - Tiny to Large (balance speed vs accuracy)
+- 🚀 **Future Voice Commands** - Planned parallel dictation for workflow automation
+- 🪟 **Detachable Log Window** - Multi-monitor support with synchronized auto-scroll
 
-**v1.3.3 Features - LLM Leaderboard:**
-- 🏆 **Translation Quality Benchmarking** - Compare OpenAI, Claude, Gemini models
-- 📈 **chrF++ Scoring** - Objective quality metrics (0-100 scale)
-- ⚡ **Speed & Cost Analysis** - Real-time performance and pricing comparison
-- 📊 **Excel Reports** - Professional benchmarking reports with branding
+**Previous Features:**
+- 🤖 **AI Assistant Enhanced Prompts** - ChatGPT-quality translation prompts (v1.3.4)
+- 🏆 **LLM Leaderboard** - Translation quality benchmarking with chrF++ scoring (v1.3.3)
 
 **v1.3.1 Features - AI Assistant File Attachment Persistence:**
 - 📎 **Persistent File Attachments** - Attached files saved to disk across sessions

@@ -1,63 +1,104 @@
 # Supervertaler Release Notes
 
-## Current Release: v1.3.4-Qt (November 10, 2025)
+## Current Release: v1.4.0-Qt (November 12, 2025)
+
+### 🎤 Major Feature: Supervoice Voice Dictation + Detachable Log Window
+
+**AI-Powered Hands-Free Translation Input - OpenAI Whisper voice dictation with 100+ language support!**
+
+### What's New
+
+**✅ Supervoice Voice Dictation Module**
+- **AI-Powered Speech Recognition** - Using OpenAI Whisper for accurate transcription
+- **100+ Languages Supported** - Works with as many languages as Whisper can handle
+- **F9 Global Hotkey** - Press-to-start, press-to-stop recording anywhere in the app
+- **5 Model Sizes** - Choose from tiny, base, small, medium, or large models:
+  - **tiny** - Fastest, lowest RAM (75 MB download)
+  - **base** - Recommended balance (142 MB download)
+  - **small** - Better accuracy (466 MB download)
+  - **medium** - High accuracy (1.5 GB download)
+  - **large** - Best quality (2.9 GB download)
+- **Visual Feedback** - Dictate button changes color during recording
+- **Grid Cell Integration** - Click any grid cell and press F9 to dictate directly
+- **Language Auto-Detection** - Uses your project's target language setting
+- **Future Voice Commands** - Planned parallel dictation system for workflow automation (confirm segment, go to top, filtering, etc.)
+
+**✅ Detachable Log Window**
+- **Multi-Monitor Support** - Detach log window to separate screen
+- **Synchronized Auto-Scroll** - Both windows scroll together
+- **Persistent State** - Remembers detached/attached preference
+- **Independent Sizing** - Position and size the window as needed
+- **One-Click Toggle** - "Detach Log" / "Attach Log" button in Settings
+
+**✅ Comprehensive Documentation**
+- **User Guide:** [VOICE_DICTATION_GUIDE.md](docs/VOICE_DICTATION_GUIDE.md) - Complete setup and usage instructions
+- **Deployment Guide:** [VOICE_DICTATION_DEPLOYMENT.md](docs/VOICE_DICTATION_DEPLOYMENT.md) - FFmpeg bundling options
+- **Troubleshooting:** [SUPERVOICE_TROUBLESHOOTING.md](docs/SUPERVOICE_TROUBLESHOOTING.md) - Common issues and solutions
+
+### Fixed Issues
+
+**🐛 Voice Dictation Bug Fixes**
+- Fixed critical UnboundLocalError in voice_dictation_lite.py (duplicate `import os` statement)
+- Fixed language detection from project settings
+- Fixed button color restoration after recording stops
+- Fixed auto-scroll synchronization between main and detached log windows
+
+### How to Use
+
+**Setup Supervoice:**
+1. Install FFmpeg (Windows: `winget install FFmpeg` or `choco install ffmpeg`)
+2. Open Supervertaler → Settings → 🎤 Supervoice
+3. Select a model size (recommended: "base" for most users)
+4. Click "💾 Save Supervoice Settings"
+
+**Use Voice Dictation:**
+1. Click on any segment (or grid cell) where you want to dictate
+2. Press **F9** (or click "Dictate" button)
+3. Speak your translation
+4. Press **F9** again to stop recording
+5. Text appears automatically in the selected field
+
+**Detach Log Window (Optional):**
+1. Open Settings (⚙️)
+2. Click "Detach Log" button at bottom
+3. Position log window on second monitor
+4. Continue working - both windows stay synchronized
+
+### Benefits
+
+- **Hands-free translation** - Dictate instead of typing
+- **100+ language support** - Works with virtually any language pair
+- **Flexible accuracy** - Choose model size based on your needs
+- **Multi-monitor workflow** - Detachable log for better screen space
+- **Future-ready** - Foundation for voice command system
+- **Comprehensive support** - Full documentation and troubleshooting guides
+
+### Technical Details
+
+- Voice dictation engine: [modules/voice_dictation_lite.py](modules/voice_dictation_lite.py)
+- Whisper model cache: `%USERPROFILE%\.cache\whisper\` (Windows)
+- FFmpeg detection: Checks system PATH and bundled binaries
+- Log window: Synchronized QTextEdit widgets with signal connections
+
+---
+
+## Previous Release: v1.3.4-Qt (November 10, 2025)
 
 ### 🤖 Major Feature: AI Assistant Enhanced Prompt Generation
 
 **ChatGPT-Quality Prompt Generation - Create professional translation prompts with comprehensive summaries and extensive glossaries!**
 
 ### What's New
-
-**✅ Enhanced Prompt Generation Template**
-- **Comprehensive High-Level Summaries** - AI now generates 3-4 paragraph detailed document analysis including:
-  - Document purpose and main topic
-  - Key technical details and innovations
-  - Scope, structure, and special considerations
-  - Translation challenges and style requirements
+- **Comprehensive High-Level Summaries** - AI generates 3-4 paragraph detailed document analysis
 - **Extensive Glossaries** - 30-40 key terms (up from 10-15) with context notes
-- **Domain-Specific Constraints** - Tailored requirements for:
-  - Patents: claim structure, legal precision, figure references
-  - Technical: measurement units, technical accuracy
-  - Medical: clinical terminology, regulatory compliance
-  - Legal: legal terms of art, formal language
-- **Full Document Analysis** - AI receives up to 50,000 characters of document content for accurate analysis
-- **One-Click Activation** - Generated prompts are automatically created and activated
+- **Domain-Specific Constraints** - Tailored requirements for patents, technical, medical, legal documents
+- **Full Document Analysis** - AI receives up to 50,000 characters for accurate analysis
+- **One-Click Activation** - Generated prompts automatically created and activated
 
 ### Fixed Issues
-
-**🐛 AI Assistant Bug Fixes**
 - Fixed empty chat bubbles appearing when AI generates only ACTION blocks
 - Fixed ACTION block parsing to accept both single-line and multi-line formats
 - Fixed prompt generation sending only 5 segments (now sends full document)
-
-### How to Use
-
-**Generate a Translation Prompt:**
-1. Open a document in Supervertaler
-2. Click Prompt Manager tab → AI Assistant
-3. Click "Analyze Project & Generate Prompts"
-4. AI analyzes your document and creates a comprehensive prompt with:
-   - Detailed high-level summary (3-4 paragraphs)
-   - 30-40 terminology entries with notes
-   - Domain-specific translation constraints
-   - Professional formatting ready for immediate use
-5. The prompt is automatically activated as your primary prompt
-6. Right-click any AI response to copy it to clipboard
-
-### Benefits
-
-- **Professional-quality prompts** matching ChatGPT/Claude web interface quality
-- **Save time** - No manual prompt engineering needed
-- **Comprehensive coverage** - Extensive glossaries and detailed summaries
-- **Domain awareness** - AI recognizes patent, technical, medical, legal documents
-- **Immediate use** - Prompts are activated automatically
-
-### Technical Details
-
-- Enhanced template: [modules/unified_prompt_manager_qt.py](modules/unified_prompt_manager_qt.py) lines 1966-2022
-- Empty bubble fix: [modules/unified_prompt_manager_qt.py](modules/unified_prompt_manager_qt.py) lines 2576-2578
-- Full document sending: [modules/unified_prompt_manager_qt.py](modules/unified_prompt_manager_qt.py) lines 2019-2030
-- ACTION parsing fix: [modules/ai_actions.py](modules/ai_actions.py) line 85
 
 ---
 
