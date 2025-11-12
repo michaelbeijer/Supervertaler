@@ -1303,8 +1303,8 @@ class SupervertalerQt(QMainWindow):
         # Universal Lookup
         universal_lookup_action = QAction("🔍 &Universal Lookup...", self)
         universal_lookup_action.setShortcut("Ctrl+Alt+L")
-        # Tab indices: Home=0, Resources=1, Modules=2, Settings=3 (Prompt Manager and Editor removed)
-        universal_lookup_action.triggered.connect(lambda: self.right_tabs.setCurrentIndex(2) if hasattr(self, 'right_tabs') else None)  # Modules tab
+        # Tab indices: Home=0, Resources=1, Tools=2, Settings=3 (Prompt Manager and Editor removed)
+        universal_lookup_action.triggered.connect(lambda: self.right_tabs.setCurrentIndex(2) if hasattr(self, 'right_tabs') else None)  # Tools tab
         edit_menu.addAction(universal_lookup_action)
         
         # View Menu
@@ -1328,7 +1328,7 @@ class SupervertalerQt(QMainWindow):
         # nav_menu.addAction(go_editor_action)
         
         go_settings_action = QAction("⚙️ &Settings", self)
-        # Tab indices shifted: Resources=1, Modules=2, Settings=3 (Home=0, Prompt Manager and Editor removed)
+        # Tab indices shifted: Resources=1, Tools=2, Settings=3 (Home=0, Prompt Manager and Editor removed)
         go_settings_action.triggered.connect(lambda: self.right_tabs.setCurrentIndex(3) if hasattr(self, 'right_tabs') else None)  # Settings tab
         nav_menu.addAction(go_settings_action)
         
@@ -1619,14 +1619,14 @@ class SupervertalerQt(QMainWindow):
         content_layout.setContentsMargins(5, 5, 5, 5)
         
         # ===== NEW RESTRUCTURED UI =====
-        # Left: Tab widget with Prompt Manager, Resources, Modules, Settings
+        # Left: Tab widget with Prompt Manager, Resources, Tools, Settings
         # Right: Editor (always visible, no tabs) 
         from modules.unified_prompt_manager_qt import UnifiedPromptManagerQt
         
         # Main horizontal splitter: Left-side tabs (left) and Editor (right)
         self.main_splitter = QSplitter(Qt.Orientation.Horizontal)
         
-        # ===== LEFT SIDE: Tab widget with Prompt Manager, Resources, Modules, Settings =====
+        # ===== LEFT SIDE: Tab widget with Prompt Manager, Resources, Tools, Settings =====
         self.right_tabs = QTabWidget()
         self.right_tabs.setStyleSheet("""
             QTabBar::tab { padding: 8px 15px; }
@@ -1647,9 +1647,9 @@ class SupervertalerQt(QMainWindow):
         resources_tab = self.create_resources_tab()
         self.right_tabs.addTab(resources_tab, "📚 Translation Resources")
         
-        # 3. MODULES
-        modules_tab = self.create_specialised_modules_tab()
-        self.right_tabs.addTab(modules_tab, "🧩 Modules")
+        # 3. TOOLS
+        tools_tab = self.create_specialised_tools_tab()
+        self.right_tabs.addTab(tools_tab, "🛠️ Tools")
 
         # 4. SETTINGS
         settings_tab = self.create_settings_tab()
@@ -2169,8 +2169,8 @@ class SupervertalerQt(QMainWindow):
         
         return tab
     
-    def create_specialised_modules_tab(self):
-        """Create the Specialised Modules tab with nested sub-tabs"""
+    def create_specialised_tools_tab(self):
+        """Create the Specialised Tools tab with nested sub-tabs"""
         from PyQt6.QtWidgets import QTabWidget
         
         tab = QWidget()
@@ -10539,14 +10539,14 @@ class SupervertalerQt(QMainWindow):
     def _go_to_settings_tab(self):
         """Navigate to Settings tab (from menu)"""
         if hasattr(self, 'right_tabs'):
-            # Right tabs: Prompt Manager=0, Resources=1, Modules=2, Settings=3
+            # Right tabs: Prompt Manager=0, Resources=1, Tools=2, Settings=3
             self.right_tabs.setCurrentIndex(3)
     
     def _go_to_universal_lookup(self):
-        """Navigate to Universal Lookup in Modules tab"""
+        """Navigate to Universal Lookup in Tools tab"""
         if hasattr(self, 'right_tabs'):
-            # Right tabs: Prompt Manager=0, Resources=1, Modules=2, Settings=3
-            self.right_tabs.setCurrentIndex(2)  # Switch to Modules tab
+            # Right tabs: Prompt Manager=0, Resources=1, Tools=2, Settings=3
+            self.right_tabs.setCurrentIndex(2)  # Switch to Tools tab
             # Then switch to Universal Lookup sub-tab
             if hasattr(self, 'modules_tabs'):
                 # Find Universal Lookup index in modules tabs
@@ -12339,9 +12339,9 @@ class SupervertalerQt(QMainWindow):
     def show_autofingers(self):
         """Show AutoFingers by switching to the AutoFingers tab"""
         # Find the AutoFingers tab index and activate it
-        # AutoFingers is in Modules tab (right_tabs index 2)
+        # AutoFingers is in Tools tab (right_tabs index 2)
         if hasattr(self, 'right_tabs'):
-            self.right_tabs.setCurrentIndex(2)  # Switch to Modules tab
+            self.right_tabs.setCurrentIndex(2)  # Switch to Tools tab
             # Then switch to AutoFingers sub-tab
             if hasattr(self, 'modules_tabs'):
                 for i in range(self.modules_tabs.count()):
