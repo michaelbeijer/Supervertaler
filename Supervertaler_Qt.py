@@ -1793,7 +1793,7 @@ class SupervertalerQt(QMainWindow):
         )
 
     def create_llm_leaderboard_tab(self) -> QWidget:
-        """Create the LLM Leaderboard tab - Benchmark LLM translation quality"""
+        """Create the Superbench tab - Benchmark LLM translation quality"""
         from modules.llm_leaderboard_ui import LLMLeaderboardUI
 
         # Create LLM client factory that uses existing API keys
@@ -2201,9 +2201,9 @@ class SupervertalerQt(QMainWindow):
         lookup_tab = UniversalLookupTab(self)
         modules_tabs.addTab(lookup_tab, "🔍 Universal Lookup")
 
-        # LLM Leaderboard
+        # Superbench
         leaderboard_tab = self.create_llm_leaderboard_tab()
-        modules_tabs.addTab(leaderboard_tab, "🏆 LLM Leaderboard")
+        modules_tabs.addTab(leaderboard_tab, "📊 Superbench")
 
         layout.addWidget(modules_tabs)
 
