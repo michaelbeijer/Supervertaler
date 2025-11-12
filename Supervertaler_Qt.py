@@ -1079,7 +1079,7 @@ class SupervertalerQt(QMainWindow):
         # Create example API keys file on first launch (after UI is ready)
         self.ensure_example_api_keys()
         
-        self.log("Welcome to Supervertaler Qt v1.4.0")
+        self.log("Welcome to Supervertaler Qt v1.4.1")
         self.log("Professional Translation Memory & CAT Tool")
         
         # Load general settings (including auto-propagation)
@@ -1098,7 +1098,7 @@ class SupervertalerQt(QMainWindow):
     def init_ui(self):
         """Initialize the user interface"""
         # Build window title with dev mode indicator
-        title = "Supervertaler Qt v1.4.0"
+        title = "Supervertaler Qt v1.4.1"
         if ENABLE_PRIVATE_FEATURES:
             title += " [🛠️ DEV MODE]"
         self.setWindowTitle(title)
@@ -5903,15 +5903,19 @@ class SupervertalerQt(QMainWindow):
         """Save project with new filename"""
         if not self.current_project:
             return
-        
+
         file_path, _ = QFileDialog.getSaveFileName(
             self,
             "Save Project As",
             str(self.user_data_path / "Projects" / f"{self.current_project.name}.json"),
             "JSON Files (*.json);;All Files (*.*)"
         )
-        
+
         if file_path:
+            # Update project name to match the new filename
+            new_name = Path(file_path).stem
+            self.current_project.name = new_name
+
             self.save_project_to_file(file_path)
             self.project_file_path = file_path
             self.add_to_recent_projects(file_path)
@@ -6727,7 +6731,9 @@ class SupervertalerQt(QMainWindow):
                     row.cells[4].text = compose_memoq_status(segment.status, segment.match_percent, existing)
             
             # Prompt user to save the updated bilingual file
-            default_name = Path(self.memoq_source_file).stem + "_translated.docx"
+            # Use the same directory as the original import file
+            source_path = Path(self.memoq_source_file)
+            default_name = str(source_path.parent / (source_path.stem + "_translated.docx"))
             save_path, _ = QFileDialog.getSaveFileName(
                 self,
                 "Save memoQ Bilingual DOCX",
@@ -10435,7 +10441,7 @@ class SupervertalerQt(QMainWindow):
     
     def update_window_title(self):
         """Update window title with project name and modified state"""
-        title = "Supervertaler Qt v1.4.0"
+        title = "Supervertaler Qt v1.4.1"
         if ENABLE_PRIVATE_FEATURES:
             title += " [🛠️ DEV MODE]"
         if self.current_project:
@@ -11026,7 +11032,7 @@ class SupervertalerQt(QMainWindow):
         layout.setContentsMargins(20, 20, 20, 20)
         
         # Title
-        title = QLabel("<h2>Supervertaler Qt v1.4.0</h2>")
+        title = QLabel("<h2>Supervertaler Qt v1.4.1</h2>")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title)
         

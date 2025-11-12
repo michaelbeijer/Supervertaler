@@ -20,7 +20,7 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGroupBox, QLabel,
     QPushButton, QComboBox, QCheckBox, QTableWidget, QTableWidgetItem,
     QProgressBar, QTextEdit, QSplitter, QHeaderView, QMessageBox,
-    QFileDialog
+    QFileDialog, QRadioButton, QSpinBox
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QColor, QFont
@@ -31,12 +31,12 @@ from pathlib import Path
 try:
     from modules.llm_leaderboard import (
         LLMLeaderboard, TestDataset, ModelConfig, BenchmarkResult,
-        create_sample_datasets, CHRF_AVAILABLE
+        create_sample_datasets, create_dataset_from_project, CHRF_AVAILABLE
     )
 except ImportError:
     from llm_leaderboard import (
         LLMLeaderboard, TestDataset, ModelConfig, BenchmarkResult,
-        create_sample_datasets, CHRF_AVAILABLE
+        create_sample_datasets, create_dataset_from_project, CHRF_AVAILABLE
     )
 
 
@@ -56,18 +56,27 @@ class BenchmarkThread(QThread):
     def run(self):
         """Run benchmark in background thread"""
         try:
+            print(f"[BENCHMARK THREAD] Starting benchmark with {len(self.models)} models on {len(self.dataset.segments)} segments")
             results = self.leaderboard.run_benchmark(
                 self.dataset,
                 self.models,
                 progress_callback=self._on_progress
             )
+            print(f"[BENCHMARK THREAD] Benchmark completed with {len(results)} results")
             self.finished.emit(results)
+            print(f"[BENCHMARK THREAD] Finished signal emitted successfully")
         except Exception as e:
+            print(f"[BENCHMARK THREAD] ERROR: {str(e)}")
+            import traceback
+            print(f"[BENCHMARK THREAD] TRACEBACK:\n{traceback.format_exc()}")
             self.error.emit(str(e))
 
     def _on_progress(self, current: int, total: int, message: str):
         """Forward progress updates to main thread"""
-        self.progress_update.emit(current, total, message)
+        try:
+            self.progress_update.emit(current, total, message)
+        except Exception as e:
+            print(f"[BENCHMARK THREAD] Progress update failed: {str(e)}")
 
 
 class LLMLeaderboardUI(QWidget):
@@ -84,6 +93,8 @@ class LLMLeaderboardUI(QWidget):
         # Load sample datasets
         self.datasets = create_sample_datasets()
         self.current_dataset = self.datasets[0] if self.datasets else None
+        self.project_dataset = None
+        self.project_metadata = None
 
         self.init_ui()
 
@@ -159,23 +170,78 @@ class LLMLeaderboardUI(QWidget):
         dataset_group = QGroupBox("Test Dataset")
         dataset_layout = QVBoxLayout()
 
+        # Radio buttons for dataset source
+        self.predefined_radio = QRadioButton("Pre-defined Datasets")
+        self.predefined_radio.setChecked(True)
+        self.predefined_radio.toggled.connect(self._on_dataset_source_changed)
+        dataset_layout.addWidget(self.predefined_radio)
+
+        # Pre-defined datasets dropdown
         self.dataset_combo = QComboBox()
         for ds in self.datasets:
             self.dataset_combo.addItem(f"{ds.name} ({len(ds.segments)} segments)", ds)
         self.dataset_combo.currentIndexChanged.connect(self._on_dataset_changed)
         dataset_layout.addWidget(self.dataset_combo)
 
-        dataset_info_label = QLabel("Select a test set to compare models")
-        dataset_info_label.setStyleSheet("color: #666; font-size: 9pt;")
-        dataset_layout.addWidget(dataset_info_label)
+        dataset_layout.addSpacing(10)
 
-        # TODO: Add Import CSV and Create Custom buttons
-        # import_btn = QPushButton("Import CSV...")
-        # dataset_layout.addWidget(import_btn)
+        # Current Project option
+        self.project_radio = QRadioButton("Current Project")
+        self.project_radio.toggled.connect(self._on_dataset_source_changed)
+        dataset_layout.addWidget(self.project_radio)
+
+        # Project dataset controls (initially hidden)
+        self.project_controls_widget = QWidget()
+        project_controls_layout = QVBoxLayout()
+        project_controls_layout.setContentsMargins(20, 0, 0, 0)  # Indent
+
+        # Sample size
+        sample_size_layout = QHBoxLayout()
+        sample_size_layout.addWidget(QLabel("Sample size:"))
+        self.sample_size_spin = QSpinBox()
+        self.sample_size_spin.setRange(1, 50)
+        self.sample_size_spin.setValue(10)
+        self.sample_size_spin.setToolTip("Number of segments to sample from project")
+        sample_size_layout.addWidget(self.sample_size_spin)
+        sample_size_layout.addStretch()
+        project_controls_layout.addLayout(sample_size_layout)
+
+        # Sampling method
+        method_layout = QHBoxLayout()
+        method_layout.addWidget(QLabel("Method:"))
+        self.sampling_method_combo = QComboBox()
+        self.sampling_method_combo.addItems(["Smart Sampling", "Random", "Evenly Spaced"])
+        self.sampling_method_combo.setToolTip(
+            "Smart: 30% begin, 40% middle, 30% end\n"
+            "Random: Random selection\n"
+            "Evenly Spaced: Every Nth segment"
+        )
+        method_layout.addWidget(self.sampling_method_combo)
+        method_layout.addStretch()
+        project_controls_layout.addLayout(method_layout)
+
+        # Project status info
+        self.project_status_label = QLabel("Project status: No project loaded")
+        self.project_status_label.setStyleSheet("color: #666; font-size: 9pt; padding: 5px;")
+        self.project_status_label.setWordWrap(True)
+        project_controls_layout.addWidget(self.project_status_label)
+
+        # Create dataset button
+        self.create_dataset_button = QPushButton("📊 Create Test Dataset from Project")
+        self.create_dataset_button.clicked.connect(self._on_create_project_dataset)
+        self.create_dataset_button.setEnabled(False)
+        project_controls_layout.addWidget(self.create_dataset_button)
+
+        self.project_controls_widget.setLayout(project_controls_layout)
+        self.project_controls_widget.setVisible(False)
+        dataset_layout.addWidget(self.project_controls_widget)
 
         dataset_layout.addStretch()
         dataset_group.setLayout(dataset_layout)
         layout.addWidget(dataset_group)
+
+        # Update project status on init
+        self._update_project_status()
 
         # Right: Model selection
         model_group = QGroupBox("Model Selection")
@@ -302,6 +368,148 @@ class LLMLeaderboardUI(QWidget):
         self.current_dataset = self.dataset_combo.itemData(index)
         self.log(f"Selected dataset: {self.current_dataset.name}")
 
+    def _on_dataset_source_changed(self):
+        """Handle radio button toggle between predefined and project datasets"""
+        print(f"[LLM DEBUG] _on_dataset_source_changed() called")
+        is_project = self.project_radio.isChecked()
+        print(f"[LLM DEBUG] is_project: {is_project}")
+        self.dataset_combo.setEnabled(not is_project)
+        self.project_controls_widget.setVisible(is_project)
+
+        if is_project:
+            # Update project status when switching to project mode
+            print(f"[LLM DEBUG] Calling _update_project_status() from _on_dataset_source_changed")
+            self._update_project_status()
+
+            # Switch to project dataset if available
+            if self.project_dataset:
+                self.current_dataset = self.project_dataset
+                self.log(f"Using project dataset: {self.current_dataset.name}")
+            else:
+                self.current_dataset = None
+        else:
+            # Switch back to predefined dataset
+            self.current_dataset = self.dataset_combo.currentData()
+            if self.current_dataset:
+                self.log(f"Using predefined dataset: {self.current_dataset.name}")
+
+    def _update_project_status(self):
+        """Update the project status label based on loaded project"""
+        try:
+            # Debug to console (always print)
+            print(f"[LLM DEBUG] _update_project_status() called")
+            print(f"[LLM DEBUG] parent_app exists: {self.parent_app is not None}")
+        except Exception as e:
+            print(f"[LLM DEBUG] ERROR in _update_project_status: {e}")
+            import traceback
+            traceback.print_exc()
+
+        if self.parent_app:
+            print(f"[LLM DEBUG] parent_app has 'current_project': {hasattr(self.parent_app, 'current_project')}")
+            if hasattr(self.parent_app, 'current_project'):
+                print(f"[LLM DEBUG] current_project is not None: {self.parent_app.current_project is not None}")
+                if self.parent_app.current_project:
+                    print(f"[LLM DEBUG] project.segments exists: {hasattr(self.parent_app.current_project, 'segments')}")
+                    if hasattr(self.parent_app.current_project, 'segments'):
+                        print(f"[LLM DEBUG] project.segments length: {len(self.parent_app.current_project.segments) if self.parent_app.current_project.segments else 0}")
+
+        if not self.parent_app or not hasattr(self.parent_app, 'current_project') or not self.parent_app.current_project:
+            self.project_status_label.setText("⚠️ No project loaded")
+            self.project_status_label.setStyleSheet("color: #FF6600; font-size: 9pt; padding: 5px;")
+            self.create_dataset_button.setEnabled(False)
+            return
+
+        project = self.parent_app.current_project
+        total_segs = len(project.segments) if project.segments else 0
+        print(f"[LLM DEBUG] Project has {total_segs} segments")
+
+        if total_segs == 0:
+            self.project_status_label.setText("⚠️ Project has no segments")
+            self.project_status_label.setStyleSheet("color: #FF6600; font-size: 9pt; padding: 5px;")
+            self.create_dataset_button.setEnabled(False)
+            return
+
+        # Count translated segments
+        translated = sum(1 for seg in project.segments if seg.target and seg.target.strip())
+        pct = (translated / total_segs * 100) if total_segs > 0 else 0
+
+        status_html = f"""
+        <b>Project Status:</b><br>
+        • Total segments: {total_segs}<br>
+        • Translated: {translated} ({pct:.1f}%)<br>
+        """
+
+        if translated == 0:
+            status_html += "<br>⚠️ <b>No translations yet</b><br>"
+            status_html += "Quality scoring unavailable<br>"
+            status_html += "Will compare: Speed, Cost, Outputs"
+            self.project_status_label.setStyleSheet("color: #FF6600; font-size: 9pt; padding: 5px; background: #FFF8E1; border-radius: 3px;")
+        elif translated < total_segs:
+            status_html += f"<br>✓ Quality scoring available for {translated} segments"
+            self.project_status_label.setStyleSheet("color: #0066CC; font-size: 9pt; padding: 5px; background: #E3F2FD; border-radius: 3px;")
+        else:
+            status_html += "<br>✓ Quality scoring available (fully translated)"
+            self.project_status_label.setStyleSheet("color: #00AA00; font-size: 9pt; padding: 5px; background: #E8F5E9; border-radius: 3px;")
+
+        self.project_status_label.setText(status_html)
+        self.create_dataset_button.setEnabled(True)
+
+    def _on_create_project_dataset(self):
+        """Create test dataset from current project"""
+        if not self.parent_app or not hasattr(self.parent_app, 'current_project') or not self.parent_app.current_project:
+            QMessageBox.warning(self, "Error", "No project loaded")
+            return
+
+        project = self.parent_app.current_project
+        sample_size = self.sample_size_spin.value()
+
+        # Map combo box text to method name
+        method_map = {
+            "Smart Sampling": "smart",
+            "Random": "random",
+            "Evenly Spaced": "evenly_spaced"
+        }
+        sampling_method = method_map.get(self.sampling_method_combo.currentText(), "smart")
+
+        try:
+            # Create dataset
+            self.project_dataset, self.project_metadata = create_dataset_from_project(
+                project,
+                sample_size=sample_size,
+                sampling_method=sampling_method,
+                require_targets=False
+            )
+
+            self.current_dataset = self.project_dataset
+
+            # Log creation
+            meta = self.project_metadata
+            self.log(f"Created project dataset: {self.project_dataset.name}")
+            self.log(f"  • Sampled {meta['sampled_segments']} segments from {meta['total_segments']} total")
+            self.log(f"  • Method: {sampling_method}")
+            self.log(f"  • References available: {meta['segments_with_references']}/{meta['sampled_segments']}")
+
+            if meta['quality_scoring_available']:
+                self.log(f"  • ✓ Quality scoring enabled")
+            else:
+                self.log(f"  • ⚠️ Quality scoring disabled (no reference translations)")
+
+            # Update button text
+            self.create_dataset_button.setText(f"✓ Dataset Created ({len(self.project_dataset.segments)} segments)")
+            self.create_dataset_button.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold;")
+
+            QMessageBox.information(
+                self,
+                "Dataset Created",
+                f"Successfully created test dataset with {meta['sampled_segments']} segments.\n\n"
+                f"Quality scoring: {'Enabled' if meta['quality_scoring_available'] else 'Disabled (no references)'}\n"
+                f"Ready to benchmark!"
+            )
+
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to create dataset:\n{str(e)}")
+            self.log(f"ERROR creating project dataset: {str(e)}")
+
     def _on_run_benchmark(self):
         """Start benchmark execution"""
         if not self.llm_client_factory:
@@ -368,22 +576,37 @@ class LLMLeaderboardUI(QWidget):
 
     def _on_benchmark_finished(self, results: List[BenchmarkResult]):
         """Handle benchmark completion"""
-        self.current_results = results
+        try:
+            print(f"[UI] _on_benchmark_finished called with {len(results)} results")
+            self.current_results = results
 
-        # Update UI state
-        self.run_button.setEnabled(True)
-        self.cancel_button.setEnabled(False)
-        self.export_button.setEnabled(True)
-        self.progress_bar.setVisible(False)
-        self.status_label.setText(f"✅ Benchmark complete: {len(results)} results")
+            # Update UI state
+            print(f"[UI] Updating UI state...")
+            self.run_button.setEnabled(True)
+            self.cancel_button.setEnabled(False)
+            self.export_button.setEnabled(True)
+            self.progress_bar.setVisible(False)
+            self.status_label.setText(f"✅ Benchmark complete: {len(results)} results")
+            print(f"[UI] UI state updated")
 
-        # Populate results table
-        self._populate_results_table(results)
+            # Populate results table
+            print(f"[UI] Populating results table...")
+            self._populate_results_table(results)
+            print(f"[UI] Results table populated")
 
-        # Populate summary table
-        self._populate_summary_table()
+            # Populate summary table
+            print(f"[UI] Populating summary table...")
+            self._populate_summary_table()
+            print(f"[UI] Summary table populated")
 
-        self.log("✅ Benchmark finished successfully")
+            self.log("✅ Benchmark finished successfully")
+            print(f"[UI] _on_benchmark_finished completed successfully")
+        except Exception as e:
+            print(f"[UI] ERROR in _on_benchmark_finished: {str(e)}")
+            import traceback
+            print(f"[UI] TRACEBACK:\n{traceback.format_exc()}")
+            self.log(f"❌ Error displaying results: {str(e)}")
+            QMessageBox.critical(self, "Display Error", f"Benchmark completed but failed to display results:\n\n{str(e)}")
 
     def _on_benchmark_error(self, error_msg: str):
         """Handle benchmark error"""
@@ -498,8 +721,12 @@ class LLMLeaderboardUI(QWidget):
             QMessageBox.warning(self, "No Results", "No benchmark results to export")
             return
 
-        # Generate filename with dataset info
+        # Generate filename with dataset info - sanitize for Windows filesystem
         dataset_name = self.current_dataset.name.replace(" ", "_").replace("→", "-")
+        # Remove invalid filename characters: < > : " / \ | ? *
+        invalid_chars = '<>:"/\\|?*'
+        for char in invalid_chars:
+            dataset_name = dataset_name.replace(char, "_")
         from datetime import datetime
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         default_filename = f"LLM_Leaderboard_{dataset_name}_{timestamp}.xlsx"
@@ -725,22 +952,8 @@ class LLMLeaderboardUI(QWidget):
         ws_summary.column_dimensions['G'].width = 15
         ws_summary.column_dimensions['H'].width = 15
 
-        # === RESULTS SHEET ===
+        # === RESULTS SHEET (New Segment-Grouped Format) ===
         ws_results = wb.create_sheet("Results")
-
-        # Header row
-        headers = ["Segment ID", "Source Text", "Reference", "Model", "Provider",
-                   "Translation Output", "Speed (ms)", "Quality (chrF++)", "Error"]
-        ws_results.append(headers)
-
-        # Format header row
-        header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
-        header_font = Font(color="FFFFFF", bold=True)
-        for col_num, _ in enumerate(headers, 1):
-            cell = ws_results.cell(1, col_num)
-            cell.fill = header_fill
-            cell.font = header_font
-            cell.alignment = Alignment(horizontal="center", vertical="center")
 
         # Group results by segment
         segments_dict = {}
@@ -749,8 +962,38 @@ class LLMLeaderboardUI(QWidget):
                 segments_dict[result.segment_id] = []
             segments_dict[result.segment_id].append(result)
 
-        # Populate data rows
-        row_num = 2
+        # Get list of all models tested
+        all_models = []
+        model_seen = set()
+        for result in self.current_results:
+            if result.model_name not in model_seen:
+                all_models.append(result.model_name)
+                model_seen.add(result.model_name)
+
+        # Styling
+        header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+        header_font = Font(color="FFFFFF", bold=True)
+        segment_header_fill = PatternFill(start_color="E3F2FD", end_color="E3F2FD", fill_type="solid")
+        segment_header_font = Font(bold=True, size=11)
+        label_font = Font(bold=True, size=10)
+        best_quality_fill = PatternFill(start_color="C6EFCE", end_color="C6EFCE", fill_type="solid")
+
+        # Model-specific background colors (alternating for visual clarity)
+        model_colors = {
+            "GPT-4o": PatternFill(start_color="FFCCCC", end_color="FFCCCC", fill_type="solid"),  # Stronger pink/salmon
+            "Claude Sonnet 4.5": PatternFill(start_color="CCFFCC", end_color="CCFFCC", fill_type="solid"),  # Stronger light green
+            "Gemini 2.5 Flash": PatternFill(start_color="CCDDFF", end_color="CCDDFF", fill_type="solid"),  # Stronger light blue
+        }
+        # Default colors for other models
+        default_model_colors = [
+            PatternFill(start_color="FFF4E6", end_color="FFF4E6", fill_type="solid"),  # Light orange
+            PatternFill(start_color="F3E5F5", end_color="F3E5F5", fill_type="solid"),  # Light purple
+            PatternFill(start_color="E8F5E9", end_color="E8F5E9", fill_type="solid"),  # Light green-2
+        ]
+
+        row_num = 1
+
+        # Process each segment
         for segment_id in sorted(segments_dict.keys()):
             segment_results = segments_dict[segment_id]
 
@@ -763,37 +1006,73 @@ class LLMLeaderboardUI(QWidget):
                     reference_text = seg.reference
                     break
 
-            for result in segment_results:
-                ws_results.cell(row_num, 1, segment_id)
-                ws_results.cell(row_num, 2, source_text)
-                ws_results.cell(row_num, 3, reference_text)
-                ws_results.cell(row_num, 4, result.model_name)
-                ws_results.cell(row_num, 5, result.provider)
-                ws_results.cell(row_num, 6, result.output if result.output else "")
-                ws_results.cell(row_num, 7, f"{result.latency_ms:.0f}" if result.latency_ms else "")
-                ws_results.cell(row_num, 8, f"{result.quality_score:.2f}" if result.quality_score else "")
-                ws_results.cell(row_num, 9, result.error if result.error else "")
+            # Segment header row (spans columns A-B)
+            ws_results.merge_cells(f'A{row_num}:B{row_num}')
+            segment_header_cell = ws_results.cell(row_num, 1, f"Segment {segment_id}")
+            segment_header_cell.fill = segment_header_fill
+            segment_header_cell.font = segment_header_font
+            segment_header_cell.alignment = Alignment(horizontal="left", vertical="center")
+            row_num += 1
 
-                # Highlight errors in red
+            # Source row
+            ws_results.cell(row_num, 1, "Source:").font = label_font
+            ws_results.cell(row_num, 2, source_text)
+            ws_results.cell(row_num, 2).alignment = Alignment(wrap_text=True, vertical="top")
+            row_num += 1
+
+            # Reference row (if available)
+            if reference_text:
+                ws_results.cell(row_num, 1, "Reference:").font = label_font
+                ws_results.cell(row_num, 2, reference_text)
+                ws_results.cell(row_num, 2).alignment = Alignment(wrap_text=True, vertical="top")
+                row_num += 1
+
+            # Find best quality score for this segment (if available)
+            best_quality = None
+            if reference_text:  # Only if we have references
+                quality_scores = [r.quality_score for r in segment_results if r.quality_score is not None]
+                if quality_scores:
+                    best_quality = max(quality_scores)
+
+            # Model output rows
+            for idx, result in enumerate(segment_results):
+                # Model name label
+                model_cell = ws_results.cell(row_num, 1, result.model_name)
+                model_cell.font = label_font
+
+                # Translation output
+                output_cell = ws_results.cell(row_num, 2, result.output if result.output else result.error if result.error else "")
+                output_cell.alignment = Alignment(wrap_text=True, vertical="top")
+
+                # Apply model-specific background color first
+                if result.model_name in model_colors:
+                    model_cell.fill = model_colors[result.model_name]
+                    output_cell.fill = model_colors[result.model_name]
+                else:
+                    # Use alternating default colors for unknown models
+                    color_idx = idx % len(default_model_colors)
+                    model_cell.fill = default_model_colors[color_idx]
+                    output_cell.fill = default_model_colors[color_idx]
+
+                # Override with best quality highlight (green wins over model color)
+                if best_quality and result.quality_score == best_quality:
+                    model_cell.fill = best_quality_fill
+                    output_cell.fill = best_quality_fill
+
+                # Override with error highlight (red wins over everything)
                 if result.error:
                     error_fill = PatternFill(start_color="FFCCCC", end_color="FFCCCC", fill_type="solid")
-                    for col in range(1, 10):
-                        ws_results.cell(row_num, col).fill = error_fill
+                    model_cell.fill = error_fill
+                    output_cell.fill = error_fill
 
                 row_num += 1
 
-        # Auto-size columns
-        for col_num in range(1, len(headers) + 1):
-            column_letter = get_column_letter(col_num)
-            max_length = 0
-            for cell in ws_results[column_letter]:
-                try:
-                    if len(str(cell.value)) > max_length:
-                        max_length = len(str(cell.value))
-                except:
-                    pass
-            adjusted_width = min(max_length + 2, 80)  # Cap at 80 for readability
-            ws_results.column_dimensions[column_letter].width = adjusted_width
+            # Add blank row between segments
+            row_num += 1
+
+        # Set column widths
+        ws_results.column_dimensions['A'].width = 20  # Model name column
+        ws_results.column_dimensions['B'].width = 80  # Text column (wider for readability)
 
         # Save workbook
         wb.save(filepath)

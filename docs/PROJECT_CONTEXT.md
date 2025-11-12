@@ -8,6 +8,121 @@
 
 ## 📅 Recent Development Activity
 
+### November 12, 2025 - Version 1.4.1 Release: Superbench - Adaptive Project Benchmarking
+
+**📊 Version 1.4.1 Released - Superbench LLM Benchmarking on Real Projects**
+
+Today we released version 1.4.1, which adds the Superbench module - a powerful adaptive project benchmarking system that allows users to benchmark LLMs on their actual translation projects instead of just pre-made datasets.
+
+**✅ Major Features Added:**
+
+**Superbench - LLM Translation Quality Benchmarking System:**
+- **Adaptive Project Benchmarking** - Create custom benchmark datasets from the current open project
+- **Three Smart Sampling Methods:**
+  - **Random** - Random segment selection across entire project
+  - **Evenly-Spaced** - Uniform distribution from start to finish
+  - **Smart** - 30% beginning, 40% middle, 30% end for representative coverage
+- **Current Project Dataset Creation** - Test LLMs on actual project content with configurable sample sizes (10-1000 segments)
+- **40+ Language Support** - Automatic language code-to-name conversion system
+- **Multi-Model Benchmarking** - Simultaneously test GPT-4o, Claude Sonnet 4.5, Gemini 2.5 Flash
+- **Quality Scoring** - Automatic chrF++ quality scoring when reference translations are available
+- **Enhanced Excel Export** - Segment-grouped layout with improved visual design
+
+**✅ Critical Bug Fixes:**
+
+1. **Language Translation Bug (Critical):**
+   - **Issue:** LLM translations appeared in English instead of the target language (e.g., Dutch)
+   - **Root Cause:** `build_translation_prompt()` was passing language codes ("nl") instead of language names ("Dutch") to LLMs
+   - **Fix:**
+     - Created `_lang_code_to_name()` method with comprehensive 40+ language mappings
+     - Rewrote `build_translation_prompt()` to dynamically parse any language direction format
+     - LLMs now receive full language names in prompts: "Translate from English to Dutch"
+   - **Files Modified:** [modules/llm_leaderboard.py](../modules/llm_leaderboard.py)
+
+2. **Project Name Display Bug:**
+   - **Issue:** Window title and recent projects menu showed import filename instead of custom project name
+   - **Root Cause:** `save_project_as()` saved file but didn't update `self.current_project.name`
+   - **Fix:** Added logic to extract filename stem and update project name when saving
+   - **Files Modified:** [Supervertaler_Qt.py](../Supervertaler_Qt.py) (line 5915-5917)
+
+3. **Excel Filename Sanitization:**
+   - **Issue:** Export filenames could contain invalid Windows characters like `:`
+   - **Fix:** Added comprehensive filename sanitization removing `<>:"/\|?*`
+   - **Files Modified:** [modules/llm_leaderboard_ui.py](../modules/llm_leaderboard_ui.py) (line 724-732)
+
+4. **Benchmark Crash Prevention:**
+   - **Issue:** Occasional crashes during benchmark execution
+   - **Fix:** Added comprehensive error handling throughout pipeline:
+     - Segment data validation
+     - Language direction validation
+     - LLM client creation error handling
+     - Translation API error handling with full tracebacks
+     - Output validation
+   - **Files Modified:** [modules/llm_leaderboard.py](../modules/llm_leaderboard.py), [modules/llm_leaderboard_ui.py](../modules/llm_leaderboard_ui.py)
+
+**✅ User Experience Enhancements:**
+
+1. **Enhanced Excel Colors:**
+   - Changed model colors from light pastels to stronger, more saturated colors:
+     - GPT-4o: #FFE6E6 → #FFCCCC (stronger pink)
+     - Claude Sonnet 4.5: #E6F4EA → #CCFFCC (stronger green)
+     - Gemini 2.5 Flash: #E3F2FD → #CCDDFF (stronger blue)
+   - Better visual distinction in Results sheet
+   - **Files Modified:** [modules/llm_leaderboard_ui.py](../modules/llm_leaderboard_ui.py) (line 982-986)
+
+2. **Intelligent Export Paths:**
+   - memoQ export dialog now defaults to original import file location
+   - Significantly improves round-trip workflow convenience
+   - **Files Modified:** [Supervertaler_Qt.py](../Supervertaler_Qt.py) (line 6734-6742)
+
+**📁 Technical Implementation:**
+
+**Language Code Converter System:**
+```python
+def _lang_code_to_name(self, code: str) -> str:
+    """Convert language code to full language name for LLM prompts"""
+    lang_map = {
+        "en": "English", "nl": "Dutch", "de": "German", "fr": "French",
+        "es": "Spanish", "it": "Italian", "pt": "Portuguese", "ja": "Japanese",
+        "zh": "Chinese", "ko": "Korean", "ar": "Arabic", "ru": "Russian",
+        # ... 40+ language mappings with regional variants
+    }
+```
+
+**Dynamic Prompt Builder:**
+- Parses any language direction format (e.g., "en→nl", "EN→NL", "de→fr")
+- Converts both source and target codes to full language names
+- Builds clear prompts: "Translate from English to Dutch... Target language: Dutch"
+
+**Excel Export Format:**
+- Segment-grouped layout (all model outputs for one segment grouped together)
+- Model-specific background colors for easy comparison
+- Summary sheet with overall statistics
+- Raw Data sheet with all benchmark metadata
+
+**📝 Key Changes Summary:**
+
+1. **modules/llm_leaderboard.py:**
+   - Added `_lang_code_to_name()` method (lines 133-180)
+   - Rewrote `build_translation_prompt()` (lines 182-208)
+   - Enhanced `_translate_segment()` validation (lines 247-360)
+
+2. **modules/llm_leaderboard_ui.py:**
+   - Fixed filename sanitization (lines 724-732)
+   - Enhanced Excel colors (lines 982-986)
+   - Added comprehensive error handling to BenchmarkThread (lines 56-79)
+
+3. **Supervertaler_Qt.py:**
+   - Fixed `save_project_as()` project name update (lines 5915-5917)
+   - Enhanced memoQ export path intelligence (lines 6734-6742)
+   - Updated version to v1.4.1 (4 locations)
+
+**🎯 Version 1.4.1 Impact:**
+
+This release transforms the LLM Leaderboard from a pre-made dataset testing tool into "Superbench" - a practical, real-world benchmarking system that works on actual translation projects. The critical language bug fix ensures translations actually appear in the correct target language, making the feature genuinely usable for the first time.
+
+---
+
 ### November 12, 2025 - Version 1.4.0 Release: Supervoice Voice Dictation + Documentation Update
 
 **🎤 Version 1.4.0 Released - Supervoice Voice Dictation + Detachable Log**

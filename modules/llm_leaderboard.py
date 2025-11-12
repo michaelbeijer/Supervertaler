@@ -19,6 +19,7 @@ License: MIT
 
 import time
 import json
+import random
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass, asdict
@@ -129,14 +130,66 @@ class LLMLeaderboard:
         self.is_running = False
         self.cancel_requested = False
 
+    def _lang_code_to_name(self, code: str) -> str:
+        """Convert language code to full language name for LLM prompts"""
+        # Common language codes to names mapping
+        lang_map = {
+            "en": "English", "en-us": "English", "en-gb": "English",
+            "nl": "Dutch", "nl-nl": "Dutch", "nl-be": "Dutch (Belgian)",
+            "de": "German", "de-de": "German", "de-at": "German (Austrian)",
+            "fr": "French", "fr-fr": "French", "fr-be": "French (Belgian)",
+            "es": "Spanish", "es-es": "Spanish", "es-mx": "Spanish (Mexican)",
+            "it": "Italian", "it-it": "Italian",
+            "pt": "Portuguese", "pt-pt": "Portuguese", "pt-br": "Portuguese (Brazilian)",
+            "ru": "Russian", "ru-ru": "Russian",
+            "zh": "Chinese", "zh-cn": "Chinese (Simplified)", "zh-tw": "Chinese (Traditional)",
+            "ja": "Japanese", "ja-jp": "Japanese",
+            "ko": "Korean", "ko-kr": "Korean",
+            "ar": "Arabic", "ar-sa": "Arabic",
+            "pl": "Polish", "pl-pl": "Polish",
+            "sv": "Swedish", "sv-se": "Swedish",
+            "da": "Danish", "da-dk": "Danish",
+            "no": "Norwegian", "nb-no": "Norwegian",
+            "fi": "Finnish", "fi-fi": "Finnish",
+            "cs": "Czech", "cs-cz": "Czech",
+            "tr": "Turkish", "tr-tr": "Turkish",
+            "el": "Greek", "el-gr": "Greek",
+            "he": "Hebrew", "he-il": "Hebrew",
+            "hi": "Hindi", "hi-in": "Hindi",
+            "th": "Thai", "th-th": "Thai",
+            "vi": "Vietnamese", "vi-vn": "Vietnamese",
+            "id": "Indonesian", "id-id": "Indonesian",
+            "ms": "Malay", "ms-my": "Malay",
+            "uk": "Ukrainian", "uk-ua": "Ukrainian",
+            "ro": "Romanian", "ro-ro": "Romanian",
+            "hu": "Hungarian", "hu-hu": "Hungarian",
+            "bg": "Bulgarian", "bg-bg": "Bulgarian",
+            "hr": "Croatian", "hr-hr": "Croatian",
+            "sr": "Serbian", "sr-rs": "Serbian",
+            "sk": "Slovak", "sk-sk": "Slovak",
+            "sl": "Slovenian", "sl-si": "Slovenian",
+            "lt": "Lithuanian", "lt-lt": "Lithuanian",
+            "lv": "Latvian", "lv-lv": "Latvian",
+            "et": "Estonian", "et-ee": "Estonian",
+        }
+
+        # Normalize code to lowercase
+        code_lower = code.lower().strip()
+
+        # Return mapped name or capitalize the code as fallback
+        return lang_map.get(code_lower, code.upper())
+
     def build_translation_prompt(self, segment: TestSegment) -> str:
         """Build translation prompt for a test segment"""
-        if segment.direction == "EN→NL":
-            direction_hint = "from English to Dutch"
-            target_lang = "Dutch (Netherlands), formal-neutral business register"
-        else:  # NL→EN
-            direction_hint = "from Dutch to English"
-            target_lang = "UK English, formal-neutral business register"
+        # Extract language codes from direction (e.g., "EN→NL" or "en→nl")
+        parts = segment.direction.split("→")
+        source_code = parts[0].strip() if len(parts) > 0 else "source language"
+        target_code = parts[1].strip() if len(parts) > 1 else "target language"
+
+        # Convert codes to full language names
+        source_lang = self._lang_code_to_name(source_code)
+        target_lang = self._lang_code_to_name(target_code)
+        direction_hint = f"from {source_lang} to {target_lang}"
 
         prompt = f"""You are a professional translator. Translate the following text {direction_hint}.
 
@@ -244,31 +297,106 @@ Return ONLY the translation, no explanations or additional text."""
         )
 
         try:
-            # Create LLM client
-            self.log(f"   DEBUG: Creating client for {model_config.provider} with model {model_config.model_id}")
-            client = self.llm_client_factory(model_config.provider, model_config.model_id)
-            self.log(f"   DEBUG: Client created successfully")
+            self.log(f"   DEBUG: Starting translation for segment {segment.id} with {model_config.name}")
 
-            # Measure translation time
-            start_time = time.perf_counter()
-            self.log(f"   DEBUG: Calling translate with text='{segment.source[:50]}...', source={segment.direction.split('→')[0].lower()}, target={segment.direction.split('→')[1].lower()}")
+            # Validate segment data first
+            if not segment:
+                result.error = "Null segment"
+                self.log(f"   ERROR: Null segment received")
+                return result
 
-            output = client.translate(
-                text=segment.source,
-                source_lang=segment.direction.split("→")[0].lower(),
-                target_lang=segment.direction.split("→")[1].lower(),
-                custom_prompt=prompt
-            )
-            elapsed_time = time.perf_counter() - start_time
-            self.log(f"   DEBUG: Translation received: '{output[:50] if output else 'NONE'}...'")
+            if not hasattr(segment, 'id') or segment.id is None:
+                result.error = "Segment missing ID"
+                self.log(f"   ERROR: Segment missing ID")
+                return result
 
-            result.output = output
-            result.latency_ms = elapsed_time * 1000
+            if not hasattr(segment, 'source'):
+                result.error = f"Segment {segment.id} missing source attribute"
+                self.log(f"   ERROR: {result.error}")
+                return result
+
+            # Validate segment source text
+            if not segment.source or not segment.source.strip():
+                result.error = "Empty source text"
+                self.log(f"   ERROR: Segment {segment.id} has empty source text")
+                return result
+
+            # Parse language codes from direction
+            if not hasattr(segment, 'direction') or not segment.direction:
+                result.error = f"Segment {segment.id} missing direction"
+                self.log(f"   ERROR: {result.error}")
+                return result
+
+            try:
+                direction_parts = segment.direction.split("→")
+                if len(direction_parts) != 2:
+                    raise ValueError(f"Invalid direction format: {segment.direction}")
+                source_lang = direction_parts[0].strip().lower()
+                target_lang = direction_parts[1].strip().lower()
+
+                if not source_lang or not target_lang:
+                    raise ValueError(f"Empty language codes in direction: {segment.direction}")
+            except Exception as lang_err:
+                result.error = f"Invalid language direction: {segment.direction} - {str(lang_err)}"
+                self.log(f"   ERROR: {result.error}")
+                return result
+
+            # Create LLM client with error handling
+            try:
+                self.log(f"   DEBUG: Creating client for {model_config.provider} with model {model_config.model_id}")
+                client = self.llm_client_factory(model_config.provider, model_config.model_id)
+                if not client:
+                    result.error = f"Failed to create {model_config.provider} client"
+                    self.log(f"   ERROR: {result.error}")
+                    return result
+                self.log(f"   DEBUG: Client created successfully")
+            except Exception as client_err:
+                result.error = f"Client creation failed: {str(client_err)}"
+                self.log(f"   ERROR: {result.error}")
+                return result
+
+            # Measure translation time with comprehensive error handling
+            try:
+                start_time = time.perf_counter()
+                source_preview = segment.source[:50] + "..." if len(segment.source) > 50 else segment.source
+                self.log(f"   DEBUG: Calling translate with text='{source_preview}', source={source_lang}, target={target_lang}")
+
+                output = client.translate(
+                    text=segment.source,
+                    source_lang=source_lang,
+                    target_lang=target_lang,
+                    custom_prompt=prompt
+                )
+                elapsed_time = time.perf_counter() - start_time
+
+                # Validate output
+                if output is None:
+                    result.error = "Translation returned None"
+                    self.log(f"   ERROR: {result.error}")
+                    return result
+
+                output_preview = output[:50] if output else 'EMPTY'
+                self.log(f"   DEBUG: Translation received: '{output_preview}...'")
+
+                result.output = output if isinstance(output, str) else str(output)
+                result.latency_ms = elapsed_time * 1000
+
+            except Exception as translate_err:
+                result.error = f"Translation failed: {str(translate_err)}"
+                self.log(f"   ERROR: {result.error}")
+                import traceback
+                self.log(f"   TRACEBACK: {traceback.format_exc()}")
+                return result
 
             # Calculate quality score if reference is available
-            if self.chrf_metric and segment.reference:
-                score = self.chrf_metric.corpus_score([output], [[segment.reference]])
-                result.quality_score = score.score
+            if self.chrf_metric and segment.reference and segment.reference.strip():
+                try:
+                    score = self.chrf_metric.corpus_score([output], [[segment.reference]])
+                    result.quality_score = score.score
+                    self.log(f"   DEBUG: chrF++ score calculated: {result.quality_score:.1f}")
+                except Exception as score_err:
+                    self.log(f"   WARNING: chrF++ scoring failed for segment {segment.id}: {score_err}")
+                    result.quality_score = None
 
             # TODO: Token counting and cost estimation
             # Would need to access response metadata from LLM client
@@ -435,6 +563,159 @@ def create_sample_datasets() -> List[TestDataset]:
         legal_nl_en.add_segment(seg)
 
     return [business_en_nl, technical_en_nl, legal_nl_en]
+
+
+def create_dataset_from_project(
+    project,
+    sample_size: int = 10,
+    sampling_method: str = "smart",
+    require_targets: bool = False
+) -> Tuple[TestDataset, Dict]:
+    """
+    Create test dataset from current Supervertaler project
+
+    Supports two scenarios:
+    - Translated projects: Uses existing targets as reference for quality scoring
+    - Untranslated projects: No references, compare speed/cost/outputs only
+
+    Args:
+        project: Supervertaler project object with segments
+        sample_size: Number of segments to include (default 10)
+        sampling_method: "random", "evenly_spaced", or "smart" (default)
+        require_targets: If True, only include segments with targets
+
+    Returns:
+        Tuple of (TestDataset, metadata_dict)
+        metadata_dict contains info about reference availability
+    """
+    # Create dataset with project info
+    dataset = TestDataset(
+        name=f"Project: {getattr(project, 'name', 'Current')}",
+        description=f"Sample from current project ({getattr(project, 'source_lang', '??')}→{getattr(project, 'target_lang', '??')})"
+    )
+
+    # Get eligible segments
+    eligible_segments = []
+    translated_count = 0
+
+    for seg in project.segments:
+        has_source = seg.source and seg.source.strip()
+        has_target = seg.target and seg.target.strip()
+
+        if has_target:
+            translated_count += 1
+
+        if require_targets:
+            # Only segments with existing translations
+            if has_source and has_target:
+                eligible_segments.append(seg)
+        else:
+            # All segments with source text
+            if has_source:
+                eligible_segments.append(seg)
+
+    # Check if we have enough segments
+    if len(eligible_segments) == 0:
+        raise ValueError("No eligible segments found in project")
+
+    # Sample segments
+    actual_sample_size = min(sample_size, len(eligible_segments))
+    sampled = _sample_segments(eligible_segments, actual_sample_size, sampling_method)
+
+    # Create TestSegments
+    reference_count = 0
+    for i, seg in enumerate(sampled, 1):
+        # Use target as reference if available
+        reference = seg.target if (seg.target and seg.target.strip()) else ""
+        if reference:
+            reference_count += 1
+
+        test_seg = TestSegment(
+            id=seg.id,
+            source=seg.source,
+            reference=reference,
+            domain=getattr(project, 'domain', 'general'),
+            direction=f"{getattr(project, 'source_lang', 'XX')}→{getattr(project, 'target_lang', 'XX')}",
+            context=""
+        )
+        dataset.add_segment(test_seg)
+
+    # Build metadata
+    metadata = {
+        "total_segments": len(project.segments),
+        "translated_count": translated_count,
+        "translation_percentage": (translated_count / len(project.segments) * 100) if project.segments else 0,
+        "eligible_segments": len(eligible_segments),
+        "sampled_segments": len(sampled),
+        "segments_with_references": reference_count,
+        "has_references": reference_count > 0,
+        "quality_scoring_available": reference_count > 0,
+        "sampling_method": sampling_method
+    }
+
+    return dataset, metadata
+
+
+def _sample_segments(segments: List, n: int, method: str) -> List:
+    """
+    Sample segments from project using specified method
+
+    Args:
+        segments: List of segment objects
+        n: Number of segments to sample
+        method: "random", "evenly_spaced", or "smart"
+
+    Returns:
+        List of sampled segments
+    """
+    if len(segments) <= n:
+        return segments
+
+    if method == "random":
+        return random.sample(segments, n)
+
+    elif method == "evenly_spaced":
+        # Stratified sampling - every Nth segment
+        step = len(segments) / n
+        return [segments[int(i * step)] for i in range(n)]
+
+    elif method == "smart":
+        # Smart sampling: representative coverage across document
+        # 30% from beginning, 40% from middle, 30% from end
+        # Ensures coverage of introduction, main content, and conclusions
+
+        # Divide into sections
+        third = len(segments) // 3
+        begin = segments[:third]
+        middle = segments[third:2*third]
+        end = segments[2*third:]
+
+        # Calculate samples per section
+        n_begin = int(n * 0.3)
+        n_middle = int(n * 0.4)
+        n_end = n - n_begin - n_middle
+
+        # Sample from each section
+        sampled = []
+        if begin and n_begin > 0:
+            sampled.extend(random.sample(begin, min(n_begin, len(begin))))
+        if middle and n_middle > 0:
+            sampled.extend(random.sample(middle, min(n_middle, len(middle))))
+        if end and n_end > 0:
+            sampled.extend(random.sample(end, min(n_end, len(end))))
+
+        # If we didn't get enough, fill from remaining
+        if len(sampled) < n:
+            remaining = [s for s in segments if s not in sampled]
+            if remaining:
+                needed = n - len(sampled)
+                sampled.extend(random.sample(remaining, min(needed, len(remaining))))
+
+        return sampled
+
+    else:
+        # Default to random if method not recognized
+        return random.sample(segments, n)
 
 
 # For testing/development

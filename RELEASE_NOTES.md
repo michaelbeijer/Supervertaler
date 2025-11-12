@@ -1,6 +1,64 @@
 # Supervertaler Release Notes
 
-## Current Release: v1.4.0-Qt (November 12, 2025)
+## Current Release: v1.4.1-Qt (November 12, 2025)
+
+### 📊 Major Feature: Superbench - Adaptive Project Benchmarking
+
+**Benchmark LLMs on YOUR actual translation projects, not just pre-made datasets!**
+
+### What's New
+
+**✅ Superbench - LLM Translation Quality Benchmarking System**
+- **Adaptive Project Benchmarking** - Create custom benchmark datasets from your current project
+- **Smart Sampling Methods** - Three strategies:
+  - **Random** - Random selection across the entire project
+  - **Evenly-Spaced** - Uniform distribution from start to finish
+  - **Smart** - 30% beginning, 40% middle, 30% end for representative coverage
+- **40+ Language Support** - Automatic language code-to-name conversion (en→English, nl→Dutch, etc.)
+- **Current Project Dataset** - Test LLMs on your actual translation content
+- **Quality Scoring** - Automatic chrF++ scoring when reference translations available
+- **Enhanced Excel Export** - Segment-grouped layout with stronger model colors for better visual distinction
+- **Multi-Model Testing** - Benchmark multiple LLMs simultaneously (GPT-4o, Claude Sonnet 4.5, Gemini 2.5 Flash)
+
+**✨ Enhanced User Experience**
+- **Intelligent Export Paths** - memoQ export dialog now defaults to original import folder location
+- **Fixed Project Names** - Window title and recent projects menu now correctly show custom project names
+- **Robust Error Handling** - Comprehensive validation and error reporting throughout benchmark pipeline
+
+### Fixed Issues
+
+**🐛 Critical Bug Fixes**
+- Fixed critical language bug where LLM translations appeared in English instead of target language
+- Fixed `build_translation_prompt()` to dynamically parse any language direction format
+- Fixed language code handling - LLMs now receive full language names (Dutch) instead of codes (nl)
+- Fixed project name display to show custom names instead of filenames
+- Fixed filename sanitization to remove invalid Windows characters from export filenames
+
+**🔧 Improvements**
+- Added comprehensive segment data validation to prevent benchmark crashes
+- Enhanced Excel Results sheet with stronger, more saturated model colors (better visual distinction)
+- Improved error messages with detailed tracebacks for debugging
+
+### Documentation
+
+- **Superbench Integration** - Documented in PROJECT_CONTEXT.md
+- **Language Mapping** - Full list of supported language codes in llm_leaderboard.py
+
+### Technical Details
+
+**Language Code Converter:**
+- 40+ language mappings with regional variants
+- Supports common formats: en, en-US, en-GB, nl, nl-NL, nl-BE, etc.
+- Dynamic prompt builder for any language direction
+
+**Excel Export Enhancements:**
+- GPT-4o: Stronger pink (#FFCCCC)
+- Claude Sonnet 4.5: Stronger green (#CCFFCC)
+- Gemini 2.5 Flash: Stronger blue (#CCDDFF)
+
+---
+
+## Previous Release: v1.4.0-Qt (November 12, 2025)
 
 ### 🎤 Major Feature: Supervoice Voice Dictation + Detachable Log Window
 
