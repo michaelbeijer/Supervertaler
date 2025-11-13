@@ -1751,12 +1751,12 @@ class SupervertalerQt(QMainWindow):
         # If coming from unified view, we need to restore tabs to right_tabs
         if hasattr(self, 'unified_tabs_widget') and self.unified_tabs_widget is not None:
             # Move tabs back from unified view to right_tabs
-            # Skip the first 4 items (Grid, List, Document, separator)
+            # Skip the Document Views tab (index 0) and move the rest
             tab_count = self.unified_tabs_widget.count()
-            for i in range(4, tab_count):  # Start from index 4 (after separator)
-                tab_text = self.unified_tabs_widget.tabText(4)  # Always take index 4
-                tab_widget = self.unified_tabs_widget.widget(4)
-                self.unified_tabs_widget.removeTab(4)
+            for i in range(1, tab_count):  # Start from index 1 (after Document Views)
+                tab_text = self.unified_tabs_widget.tabText(1)  # Always take index 1
+                tab_widget = self.unified_tabs_widget.widget(1)
+                self.unified_tabs_widget.removeTab(1)
                 self.right_tabs.addTab(tab_widget, tab_text)
         
         # Recreate the main splitter with sidebar tabs (left) and editor (right)
@@ -1786,24 +1786,26 @@ class SupervertalerQt(QMainWindow):
             QTabBar::tab { padding: 8px 15px; }
         """)
         
-        # Add View tabs first (Grid, List, Document)
-        # Create new instances for unified view
+        # Create a nested tab widget for Document Views (Grid, List, Document)
+        self.document_views_widget = QTabWidget()
+        self.document_views_widget.setStyleSheet("""
+            QTabBar::tab { padding: 6px 12px; }
+        """)
+        
+        # Create view widgets and add to nested tab
         grid_widget = self.create_grid_view_widget_for_home()
         list_widget = self.create_list_view_widget_for_home()
         doc_widget = self.create_document_view_widget_for_home()
         
-        self.unified_tabs_widget.addTab(grid_widget, "📊 Grid")
-        self.unified_tabs_widget.addTab(list_widget, "📋 List")
-        self.unified_tabs_widget.addTab(doc_widget, "📄 Document")
+        self.document_views_widget.addTab(grid_widget, "📊 Grid")
+        self.document_views_widget.addTab(list_widget, "📋 List")
+        self.document_views_widget.addTab(doc_widget, "📄 Document")
         
-        # Add a visual separator (disabled tab)
-        separator_label = QLabel()
-        separator_label.setFixedHeight(0)
-        separator_tab = QWidget()
-        sep_layout = QVBoxLayout(separator_tab)
-        sep_layout.addWidget(separator_label)
-        self.unified_tabs_widget.addTab(separator_tab, "──────")
-        self.unified_tabs_widget.setTabEnabled(3, False)  # Disable the separator tab
+        # Connect nested tab changes to refresh views
+        self.document_views_widget.currentChanged.connect(self._on_document_views_tab_changed)
+        
+        # Add the nested Document Views tab to main unified tabs
+        self.unified_tabs_widget.addTab(self.document_views_widget, "📝 Document Views")
         
         # Now add the sidebar tabs (Prompt Manager, Resources, Tools, Settings)
         # We need to temporarily reparent these widgets
@@ -1820,23 +1822,31 @@ class SupervertalerQt(QMainWindow):
         # Add to layout
         self.content_layout.addWidget(self.unified_tabs_widget, 1)
     
-    def _on_unified_tab_changed(self, index: int):
-        """Handle tab changes in unified layout mode"""
+    def _on_document_views_tab_changed(self, index: int):
+        """Handle tab changes within the nested Document Views tab"""
         try:
-            if index == 1:  # List View tab
+            if index == 0:  # Grid View
+                # Grid refreshes automatically when segments change
+                pass
+            elif index == 1:  # List View
                 if hasattr(self, 'list_tree') and self.current_project:
                     self.refresh_list_view()
-            elif index == 2:  # Document View tab
+            elif index == 2:  # Document View
                 if self.current_project:
-                    # Make sure document_container is properly initialized
                     if hasattr(self, 'document_container') and self.document_container is not None:
                         self.refresh_document_view()
                     else:
                         self.log("⚠️ Document container not initialized")
         except Exception as e:
-            self.log(f"⚠️ Error switching tabs: {e}")
+            self.log(f"⚠️ Error switching document views: {e}")
             import traceback
             traceback.print_exc()
+    
+    def _on_unified_tab_changed(self, index: int):
+        """Handle tab changes in unified layout mode (main tabs)"""
+        # The Document Views tab is now nested, so we don't need special handling here
+        # The nested tab has its own handler (_on_document_views_tab_changed)
+        pass
     
     def save_layout_preference(self, mode: str):
         """Save layout preference to settings"""
@@ -4635,9 +4645,9 @@ class SupervertalerQt(QMainWindow):
         self.list_view_btn.setChecked(mode == LayoutMode.LIST)
         self.document_view_btn.setChecked(mode == LayoutMode.DOCUMENT)
         
-        # Check if we're in unified layout mode
-        if hasattr(self, 'unified_tabs_widget') and self.unified_tabs_widget.parent() is not None:
-            # In unified layout, switch to the appropriate tab
+        # Check if we're in unified layout mode with nested Document Views
+        if hasattr(self, 'document_views_widget') and self.document_views_widget.parent() is not None:
+            # In unified layout, switch within the nested Document Views tab
             tab_index = 0
             if mode == LayoutMode.GRID:
                 tab_index = 0
@@ -4646,7 +4656,12 @@ class SupervertalerQt(QMainWindow):
             elif mode == LayoutMode.DOCUMENT:
                 tab_index = 2
             
-            self.unified_tabs_widget.setCurrentIndex(tab_index)
+            # First, make sure the Document Views tab is selected in the main unified tabs
+            if hasattr(self, 'unified_tabs_widget'):
+                self.unified_tabs_widget.setCurrentIndex(0)  # Document Views is the first tab
+            
+            # Then switch to the specific view within Document Views
+            self.document_views_widget.setCurrentIndex(tab_index)
             
             # Refresh views as needed
             if mode == LayoutMode.LIST and hasattr(self, 'list_tree') and self.current_project:
