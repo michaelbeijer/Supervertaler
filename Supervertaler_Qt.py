@@ -1814,8 +1814,20 @@ class SupervertalerQt(QMainWindow):
             self.right_tabs.removeTab(0)  # Remove from original
             self.unified_tabs_widget.addTab(tab_widget, tab_text)  # Add to unified
         
+        # Connect tab change signal to handle refreshes
+        self.unified_tabs_widget.currentChanged.connect(self._on_unified_tab_changed)
+        
         # Add to layout
         self.content_layout.addWidget(self.unified_tabs_widget, 1)
+    
+    def _on_unified_tab_changed(self, index: int):
+        """Handle tab changes in unified layout mode"""
+        if index == 1:  # List View tab
+            if hasattr(self, 'list_tree') and self.current_project:
+                self.refresh_list_view()
+        elif index == 2:  # Document View tab
+            if hasattr(self, 'document_container') and self.current_project:
+                self.refresh_document_view()
     
     def save_layout_preference(self, mode: str):
         """Save layout preference to settings"""
