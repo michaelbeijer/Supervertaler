@@ -5223,7 +5223,36 @@ class SupervertalerQt(QMainWindow):
         tab_seg_info = QLabel("Select a segment to edit")
         tab_seg_info.setStyleSheet("font-weight: bold; font-size: 11pt;")
         info_layout.addWidget(tab_seg_info, stretch=1)
-        
+
+        # TM/Termbase toggle button
+        tm_toggle_btn = QPushButton("🔍 TM/Termbase ON")
+        tm_toggle_btn.setCheckable(True)
+        tm_toggle_btn.setChecked(True)  # Start enabled
+        tm_toggle_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #4CAF50;
+                color: white;
+                font-weight: bold;
+                padding: 5px 10px;
+                border-radius: 3px;
+            }
+            QPushButton:checked {
+                background-color: #4CAF50;
+            }
+            QPushButton:!checked {
+                background-color: #757575;
+            }
+            QPushButton:hover {
+                opacity: 0.9;
+            }
+        """)
+        tm_toggle_btn.setToolTip("Toggle TM and Termbase lookups when clicking segments (speeds up editing)")
+        tm_toggle_btn.clicked.connect(lambda checked: self.toggle_tm_from_editor(checked, tm_toggle_btn))
+        info_layout.addWidget(tm_toggle_btn)
+
+        # Store reference to button for updates from Settings
+        editor_widget.tm_toggle_btn = tm_toggle_btn
+
         # Status selector
         status_label = QLabel("Status:")
         tab_status_combo = QComboBox()
@@ -8512,14 +8541,24 @@ class SupervertalerQt(QMainWindow):
         """Toggle TM and termbase matching on/off"""
         self.enable_tm_matching = enabled
         self.enable_termbase_matching = enabled
-        
+
         # Update checkbox in settings if it exists (prevents circular updates)
         if hasattr(self, 'tm_matching_checkbox') and self.tm_matching_checkbox:
             # Temporarily disconnect to prevent signal loop
             self.tm_matching_checkbox.blockSignals(True)
             self.tm_matching_checkbox.setChecked(enabled)
             self.tm_matching_checkbox.blockSignals(False)
-        
+
+        # Update all segment editor toggle buttons (Grid, List, Document views)
+        if hasattr(self, 'tabbed_panels') and self.tabbed_panels:
+            for tabs in self.tabbed_panels:
+                if hasattr(tabs, 'editor_widget') and hasattr(tabs.editor_widget, 'tm_toggle_btn'):
+                    btn = tabs.editor_widget.tm_toggle_btn
+                    btn.blockSignals(True)
+                    btn.setChecked(enabled)
+                    btn.setText("🔍 TM/Termbase ON" if enabled else "🚫 TM/Termbase OFF")
+                    btn.blockSignals(False)
+
         if enabled:
             self.log("✓ TM and Termbase matching enabled")
             # If a segment is currently selected, trigger lookup
@@ -10293,7 +10332,20 @@ class SupervertalerQt(QMainWindow):
         if not hasattr(self, 'tab_current_segment_id') or not self.tab_current_segment_id:
             return
         self.log(f"✓ Saved comments for segment {self.tab_current_segment_id}")
-    
+
+    def toggle_tm_from_editor(self, checked: bool, button: QPushButton):
+        """Toggle TM/Termbase lookups from segment editor button"""
+        # Call the existing toggle method
+        self.toggle_tm_termbase_matching(checked)
+
+        # Update button text and style
+        if checked:
+            button.setText("🔍 TM/Termbase ON")
+            self.log("✓ TM/Termbase lookups ENABLED from segment editor")
+        else:
+            button.setText("🚫 TM/Termbase OFF")
+            self.log("⚠️ TM/Termbase lookups DISABLED from segment editor (faster editing)")
+
     def update_tab_segment_editor(self, segment_id: int, source_text: str, target_text: str, 
                                    status: str = "untranslated", notes: str = ""):
         """Update the tab segment editor with current segment data"""
