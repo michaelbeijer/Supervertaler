@@ -1842,7 +1842,7 @@ class SupervertalerQt(QMainWindow):
         """Save layout preference to settings"""
         try:
             import json
-            prefs_file = self.get_data_folder() / "ui_preferences.json"
+            prefs_file = self.user_data_path / "ui_preferences.json"
             
             prefs = {}
             if prefs_file.exists():
@@ -1862,7 +1862,7 @@ class SupervertalerQt(QMainWindow):
         """Load layout preference from settings"""
         try:
             import json
-            prefs_file = self.get_data_folder() / "ui_preferences.json"
+            prefs_file = self.user_data_path / "ui_preferences.json"
             
             if prefs_file.exists():
                 with open(prefs_file, 'r', encoding='utf-8') as f:
