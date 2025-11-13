@@ -1748,6 +1748,11 @@ class SupervertalerQt(QMainWindow):
     
     def _create_split_layout(self):
         """Create the split view layout (current default)"""
+        # Recreate right_tabs if it was deleted or doesn't exist
+        if not hasattr(self, 'right_tabs') or self.right_tabs is None or not self.right_tabs.isVisible():
+            self.right_tabs = QTabWidget()
+            self.right_tabs.setTabPosition(QTabWidget.TabPosition.West)
+        
         # If coming from unified view, we need to restore tabs to right_tabs
         if hasattr(self, 'unified_tabs_widget') and self.unified_tabs_widget is not None:
             # Move tabs back from unified view to right_tabs
