@@ -1805,6 +1805,18 @@ class SupervertalerQt(QMainWindow):
         
         self.content_layout.addWidget(self.main_splitter, 1)
         self.main_splitter.show()
+        
+        # Refresh the views to display data after widgets are restored
+        if self.current_project:
+            # Refresh grid view
+            if hasattr(self, 'grid_table'):
+                self.grid_table.viewport().update()
+            
+            # Refresh list view
+            if hasattr(self, 'list_tree'):
+                self.refresh_list_view()
+            
+            # Document view doesn't need refresh as it works correctly
     
     def _create_unified_layout(self):
         """Create the unified layout (all tabs in one widget, full screen)"""
