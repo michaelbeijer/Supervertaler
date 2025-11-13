@@ -4614,21 +4614,40 @@ class SupervertalerQt(QMainWindow):
         self.list_view_btn.setChecked(mode == LayoutMode.LIST)
         self.document_view_btn.setChecked(mode == LayoutMode.DOCUMENT)
         
-        # Switch stack widget
-        if mode == LayoutMode.GRID:
-            self.view_stack.setCurrentIndex(0)
-        
-        elif mode == LayoutMode.LIST:
-            self.view_stack.setCurrentIndex(1)
-            # Refresh list view when switching to it
-            if hasattr(self, 'list_tree') and self.current_project:
+        # Check if we're in unified layout mode
+        if hasattr(self, 'unified_tabs_widget') and self.unified_tabs_widget.parent() is not None:
+            # In unified layout, switch to the appropriate tab
+            tab_index = 0
+            if mode == LayoutMode.GRID:
+                tab_index = 0
+            elif mode == LayoutMode.LIST:
+                tab_index = 1
+            elif mode == LayoutMode.DOCUMENT:
+                tab_index = 2
+            
+            self.unified_tabs_widget.setCurrentIndex(tab_index)
+            
+            # Refresh views as needed
+            if mode == LayoutMode.LIST and hasattr(self, 'list_tree') and self.current_project:
                 self.refresh_list_view()
-        
-        elif mode == LayoutMode.DOCUMENT:
-            self.view_stack.setCurrentIndex(2)
-            # Refresh document view when switching to it
-            if hasattr(self, 'document_container') and self.current_project:
+            elif mode == LayoutMode.DOCUMENT and hasattr(self, 'document_container') and self.current_project:
                 self.refresh_document_view()
+        else:
+            # In split layout, use the view stack
+            if mode == LayoutMode.GRID:
+                self.view_stack.setCurrentIndex(0)
+            
+            elif mode == LayoutMode.LIST:
+                self.view_stack.setCurrentIndex(1)
+                # Refresh list view when switching to it
+                if hasattr(self, 'list_tree') and self.current_project:
+                    self.refresh_list_view()
+            
+            elif mode == LayoutMode.DOCUMENT:
+                self.view_stack.setCurrentIndex(2)
+                # Refresh document view when switching to it
+                if hasattr(self, 'document_container') and self.current_project:
+                    self.refresh_document_view()
         
         self.log(f"Switched to {mode} view")
     
