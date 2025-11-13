@@ -1749,8 +1749,26 @@ class SupervertalerQt(QMainWindow):
     
     def _create_split_layout(self):
         """Create the split view layout (current default)"""
-        # If coming from unified view, we need to restore tabs to right_tabs
+        # If coming from unified view, we need to restore widgets
         if hasattr(self, 'unified_tabs_widget') and self.unified_tabs_widget is not None:
+            # First, restore the view widgets back to view_stack from document_views_widget
+            if hasattr(self, 'document_views_widget') and self.document_views_widget is not None:
+                # Extract the three view widgets from the nested tab
+                grid_widget = self.document_views_widget.widget(0)
+                list_widget = self.document_views_widget.widget(1)
+                doc_widget = self.document_views_widget.widget(2)
+                
+                # Remove from document_views_widget
+                self.document_views_widget.removeTab(0)
+                self.document_views_widget.removeTab(0)
+                self.document_views_widget.removeTab(0)
+                
+                # Add back to view_stack in the correct order
+                if hasattr(self, 'view_stack'):
+                    self.view_stack.addWidget(grid_widget)
+                    self.view_stack.addWidget(list_widget)
+                    self.view_stack.addWidget(doc_widget)
+            
             # Clear right_tabs if it has any tabs (shouldn't happen, but just in case)
             if hasattr(self, 'right_tabs') and self.right_tabs is not None:
                 while self.right_tabs.count() > 0:
@@ -1802,10 +1820,23 @@ class SupervertalerQt(QMainWindow):
             QTabBar::tab { padding: 6px 12px; }
         """)
         
-        # Create view widgets and add to nested tab
-        grid_widget = self.create_grid_view_widget_for_home()
-        list_widget = self.create_list_view_widget_for_home()
-        doc_widget = self.create_document_view_widget_for_home()
+        # Reuse existing view widgets from view_stack instead of creating new ones
+        # This preserves the data and state
+        if hasattr(self, 'view_stack'):
+            # Remove widgets from view_stack and add to document_views_widget
+            grid_widget = self.view_stack.widget(0)  # Grid is at index 0
+            list_widget = self.view_stack.widget(1)  # List is at index 1
+            doc_widget = self.view_stack.widget(2)   # Document is at index 2
+            
+            # Remove from stack (but don't delete)
+            self.view_stack.removeWidget(grid_widget)
+            self.view_stack.removeWidget(list_widget)
+            self.view_stack.removeWidget(doc_widget)
+        else:
+            # Fallback: create new widgets if view_stack doesn't exist
+            grid_widget = self.create_grid_view_widget_for_home()
+            list_widget = self.create_list_view_widget_for_home()
+            doc_widget = self.create_document_view_widget_for_home()
         
         self.document_views_widget.addTab(grid_widget, "📊 Grid")
         self.document_views_widget.addTab(list_widget, "📋 List")
