@@ -72,7 +72,10 @@ class SupercleanerUI(QWidget):
         self.cb_normalize_font = QCheckBox("Normalize font in each paragraph")
         self.cb_set_default_spacing = QCheckBox("Set default text spacing")
         self.cb_remove_hyphens = QCheckBox("Remove manual hyphens")
-        self.cb_replace_symbols = QCheckBox("Replace special symbols with regular characters")
+        self.cb_replace_symbols = QCheckBox("Replace special symbols (non-breaking spaces, ellipsis)")
+        self.cb_replace_symbols.setToolTip("Replaces non-breaking spaces and ellipsis characters that can cause TM matching issues")
+        self.cb_simplify_quotes = QCheckBox("Simplify quotes & dashes to ASCII (optional)")
+        self.cb_simplify_quotes.setToolTip("Convert curly quotes ("")  and em-dashes (—) to straight quotes (\") and hyphens (-)")
         self.cb_remove_styles = QCheckBox("Remove character styles (aggressive)")
         
         # Set defaults (checked)
@@ -84,7 +87,8 @@ class SupercleanerUI(QWidget):
             cb.setChecked(True)
             cleaner_layout.addWidget(cb)
         
-        # Aggressive option unchecked by default
+        # Optional operations unchecked by default
+        cleaner_layout.addWidget(self.cb_simplify_quotes)  # New optional operation
         cleaner_layout.addWidget(self.cb_remove_styles)
         
         cleaner_group.setLayout(cleaner_layout)
@@ -195,6 +199,7 @@ class SupercleanerUI(QWidget):
         self.cb_set_default_spacing.setChecked(True)
         self.cb_remove_hyphens.setChecked(True)
         self.cb_replace_symbols.setChecked(True)
+        self.cb_simplify_quotes.setChecked(False)  # Optional - preserves curly quotes by default
         self.cb_remove_styles.setChecked(False)
         
         # Unbreaker
@@ -213,8 +218,9 @@ class SupercleanerUI(QWidget):
                    self.cb_font_color_automatic, self.cb_normalize_font_color,
                    self.cb_normalize_font_size, self.cb_normalize_font,
                    self.cb_set_default_spacing, self.cb_remove_hyphens,
-                   self.cb_replace_symbols, self.cb_remove_styles,
-                   self.cb_fix_line_breaks, self.cb_remove_spaces]:
+                   self.cb_replace_symbols, self.cb_simplify_quotes,
+                   self.cb_remove_styles, self.cb_fix_line_breaks,
+                   self.cb_remove_spaces]:
             cb.setChecked(True)
         
         # Keep sentence joining disabled (known issues)
@@ -229,9 +235,9 @@ class SupercleanerUI(QWidget):
                    self.cb_font_color_automatic, self.cb_normalize_font_color,
                    self.cb_normalize_font_size, self.cb_normalize_font,
                    self.cb_set_default_spacing, self.cb_remove_hyphens,
-                   self.cb_replace_symbols, self.cb_remove_styles,
-                   self.cb_fix_line_breaks, self.cb_join_sentences,
-                   self.cb_remove_spaces]:
+                   self.cb_replace_symbols, self.cb_simplify_quotes,
+                   self.cb_remove_styles, self.cb_fix_line_breaks,
+                   self.cb_join_sentences, self.cb_remove_spaces]:
             cb.setChecked(False)
         
         self.log("❌ Cleared all cleaning options")
@@ -248,6 +254,7 @@ class SupercleanerUI(QWidget):
             'set_default_spacing': self.cb_set_default_spacing.isChecked(),
             'remove_manual_hyphens': self.cb_remove_hyphens.isChecked(),
             'replace_special_symbols': self.cb_replace_symbols.isChecked(),
+            'simplify_quotes_and_dashes': self.cb_simplify_quotes.isChecked(),
             'remove_character_styles': self.cb_remove_styles.isChecked(),
             'fix_line_breaks': self.cb_fix_line_breaks.isChecked(),
             'join_broken_sentences': self.cb_join_sentences.isChecked(),

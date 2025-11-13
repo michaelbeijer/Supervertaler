@@ -105,6 +105,12 @@ class DocumentCleaner:
                 if count > 0:
                     stats['operations'].append(f"Replaced {count} special symbols")
 
+            if operations.get('simplify_quotes_and_dashes', False):
+                count = self._simplify_quotes_and_dashes(doc)
+                stats['changes_made'] += count
+                if count > 0:
+                    stats['operations'].append(f"Simplified {count} quotes/dashes to ASCII")
+
             # Unbreaker operations - fix incorrect line/paragraph breaks
             if operations.get('fix_line_breaks', False):
                 count = self._fix_incorrect_line_breaks(doc)
@@ -306,17 +312,35 @@ class DocumentCleaner:
         return count
 
     def _replace_special_symbols(self, doc) -> int:
-        """Replace special symbols with regular characters"""
+        """Replace problematic special symbols (mainly non-breaking spaces and ellipsis)"""
         count = 0
         replacements = {
-            '\u2018': "'",  # Left single quotation mark
-            '\u2019': "'",  # Right single quotation mark
-            '\u201C': '"',  # Left double quotation mark
-            '\u201D': '"',  # Right double quotation mark
-            '\u2013': '-',  # En dash
-            '\u2014': '--', # Em dash
             '\u2026': '...', # Ellipsis
-            '\u00A0': ' ',  # Non-breaking space
+            '\u00A0': ' ',  # Non-breaking space (important for TM matching)
+        }
+
+        try:
+            for paragraph in doc.paragraphs:
+                for run in paragraph.runs:
+                    original = run.text
+                    for special, regular in replacements.items():
+                        run.text = run.text.replace(special, regular)
+                    if run.text != original:
+                        count += 1
+        except Exception:
+            pass
+        return count
+
+    def _simplify_quotes_and_dashes(self, doc) -> int:
+        """Convert typographic quotes and dashes to simple ASCII equivalents (OPTIONAL)"""
+        count = 0
+        replacements = {
+            '\u2018': "'",  # Left single quotation mark → straight apostrophe
+            '\u2019': "'",  # Right single quotation mark → straight apostrophe
+            '\u201C': '"',  # Left double quotation mark → straight quote
+            '\u201D': '"',  # Right double quotation mark → straight quote
+            '\u2013': '-',  # En dash → hyphen
+            '\u2014': '-',  # Em dash → hyphen (NOT double hyphen)
         }
 
         try:
@@ -462,43 +486,45 @@ class DocumentCleaner:
 
     def _remove_excessive_spaces(self, doc) -> int:
         """
-        Remove excessive spaces between words, at paragraph boundaries,
-        and around punctuation. Improves TM matching.
+        Remove excessive spaces between words and around punctuation.
         
-        IMPORTANT: This only removes EXCESSIVE spaces (2 or more in a row),
-        never removes single spaces between words.
+        CRITICAL: We work on full paragraph text, not individual runs,
+        because runs are formatting boundaries and may split words.
+        Removing trailing spaces from runs causes words to stick together!
         """
         count = 0
         try:
             for paragraph in doc.paragraphs:
-                for run in paragraph.runs:
-                    original = run.text
-                    
-                    # Only process if there's text
-                    if not original:
-                        continue
+                original_text = paragraph.text
+                
+                # Only process if there's text
+                if not original_text or not original_text.strip():
+                    continue
 
-                    # Replace multiple spaces (2+) with single space
-                    # This preserves normal single spaces between words
-                    text = re.sub(r'  +', ' ', run.text)
+                # Work on the full paragraph text
+                text = original_text
+                
+                # Replace multiple spaces (2+) with single space
+                text = re.sub(r'  +', ' ', text)
 
-                    # Remove spaces before punctuation (but not period for abbreviations)
-                    text = re.sub(r' +([,;:!?)])', r'\1', text)
+                # Remove spaces before punctuation (but be careful with abbreviations)
+                text = re.sub(r' +([,;:!?)])', r'\1', text)
 
-                    # Remove spaces after opening punctuation
-                    text = re.sub(r'([(]) +', r'\1', text)
-                    
-                    # Remove trailing spaces at end of runs
-                    # But keep leading space if it was there (might be intentional)
-                    if len(text) > 1 and text.endswith(' ') and not text.endswith('  '):
-                        # Keep single trailing space, remove multiple
-                        pass
-                    else:
-                        text = re.sub(r' +$', '', text)
+                # Remove spaces after opening punctuation
+                text = re.sub(r'([(]) +', r'\1', text)
+                
+                # Remove leading/trailing spaces from paragraph
+                text = text.strip()
 
-                    # Update if changed
-                    if text != original:
-                        run.text = text
+                # Only update if changed
+                if text != original_text:
+                    # Reconstruct paragraph with cleaned text
+                    # Keep the first run and put all text there, clear others
+                    if paragraph.runs:
+                        paragraph.runs[0].text = text
+                        # Clear remaining runs
+                        for i in range(len(paragraph.runs) - 1, 0, -1):
+                            paragraph.runs[i].text = ''
                         count += 1
 
         except Exception as e:
@@ -535,7 +561,8 @@ def clean_document_simple(input_path: str, output_path: str = None,
         'normalize_font': quick_clean,
         'set_default_spacing': quick_clean,
         'remove_manual_hyphens': quick_clean,
-        'replace_special_symbols': quick_clean,
+        'replace_special_symbols': quick_clean,  # Only non-breaking spaces and ellipsis
+        'simplify_quotes_and_dashes': False,  # OPTIONAL - converts curly quotes/em-dashes to ASCII
         'remove_character_styles': False,  # More aggressive, optional
 
         # Unbreaker operations
