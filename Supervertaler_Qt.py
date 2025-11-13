@@ -6281,7 +6281,7 @@ class SupervertalerQt(QMainWindow):
         if clean_checkbox.isChecked():
             self.log("🧹 Running Supercleaner on document before import...")
             try:
-                from modules.document_cleaner import clean_document_simple
+                from modules.supercleaner import clean_document_simple
                 import tempfile
                 import shutil
 
