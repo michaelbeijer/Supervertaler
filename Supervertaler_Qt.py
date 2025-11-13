@@ -1822,12 +1822,21 @@ class SupervertalerQt(QMainWindow):
     
     def _on_unified_tab_changed(self, index: int):
         """Handle tab changes in unified layout mode"""
-        if index == 1:  # List View tab
-            if hasattr(self, 'list_tree') and self.current_project:
-                self.refresh_list_view()
-        elif index == 2:  # Document View tab
-            if hasattr(self, 'document_container') and self.current_project:
-                self.refresh_document_view()
+        try:
+            if index == 1:  # List View tab
+                if hasattr(self, 'list_tree') and self.current_project:
+                    self.refresh_list_view()
+            elif index == 2:  # Document View tab
+                if self.current_project:
+                    # Make sure document_container is properly initialized
+                    if hasattr(self, 'document_container') and self.document_container is not None:
+                        self.refresh_document_view()
+                    else:
+                        self.log("⚠️ Document container not initialized")
+        except Exception as e:
+            self.log(f"⚠️ Error switching tabs: {e}")
+            import traceback
+            traceback.print_exc()
     
     def save_layout_preference(self, mode: str):
         """Save layout preference to settings"""
@@ -5171,11 +5180,17 @@ class SupervertalerQt(QMainWindow):
         scroll_area.setWidgetResizable(True)
         scroll_area.setStyleSheet("background-color: white;")
         
-        if not hasattr(self, 'document_container'):
-            self.document_container = QWidget()
-            self.document_layout = QVBoxLayout(self.document_container)
-            self.document_layout.setContentsMargins(0, 0, 0, 0)  # No margins - text widget has padding
-            self.document_layout.setSpacing(0)  # No spacing - content adds its own
+        # Always create a new container for this widget instance
+        # Don't reuse existing one as it might be in a different parent hierarchy
+        document_container = QWidget()
+        document_layout = QVBoxLayout(document_container)
+        document_layout.setContentsMargins(0, 0, 0, 0)
+        document_layout.setSpacing(0)
+        
+        # Store references for refresh methods to use
+        # In unified mode, this will be the unified version; in split mode, the split version
+        self.document_container = document_container
+        self.document_layout = document_layout
         
         scroll_area.setWidget(self.document_container)
         home_doc_splitter.addWidget(scroll_area)
@@ -7460,7 +7475,11 @@ class SupervertalerQt(QMainWindow):
     
     def refresh_document_view(self):
         """Refresh the Document View with current segments (Natural document flow like Tkinter)"""
-        if not hasattr(self, 'document_container') or not self.current_project:
+        if not hasattr(self, 'document_container') or self.document_container is None:
+            return
+        if not hasattr(self, 'document_layout') or self.document_layout is None:
+            return
+        if not self.current_project:
             return
         
         # Clear existing widgets
