@@ -1116,6 +1116,11 @@ class SupervertalerQt(QMainWindow):
         # Create main layout
         self.create_main_layout()
         
+        # Load and apply saved layout preference
+        saved_mode = self.load_layout_preference()
+        if saved_mode and saved_mode != "split":
+            self.switch_layout_mode(saved_mode)
+        
         # Create status bar
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
@@ -1331,6 +1336,27 @@ class SupervertalerQt(QMainWindow):
         # Tab indices shifted: Resources=1, Tools=2, Settings=3 (Home=0, Prompt Manager and Editor removed)
         go_settings_action.triggered.connect(lambda: self.right_tabs.setCurrentIndex(3) if hasattr(self, 'right_tabs') else None)  # Settings tab
         nav_menu.addAction(go_settings_action)
+        
+        view_menu.addSeparator()
+        
+        # Layout switcher submenu
+        layout_menu = view_menu.addMenu("🖼️ &Layout")
+        
+        self.split_view_action = QAction("📱 &Split View (Sidebar + View)", self)
+        self.split_view_action.setCheckable(True)
+        self.split_view_action.triggered.connect(lambda: self.switch_layout_mode("split"))
+        self.split_view_action.setToolTip("Traditional split layout: sidebar tabs on left, view panels on right")
+        layout_menu.addAction(self.split_view_action)
+        
+        self.unified_view_action = QAction("🖥️ &Unified View (All Tabs)", self)
+        self.unified_view_action.setCheckable(True)
+        self.unified_view_action.triggered.connect(lambda: self.switch_layout_mode("unified"))
+        self.unified_view_action.setToolTip("All tabs in one widget with full screen space")
+        layout_menu.addAction(self.unified_view_action)
+        
+        # Set default to split view
+        self.split_view_action.setChecked(True)
+        self.current_layout_mode = "split"
         
         view_menu.addSeparator()
         
@@ -1687,6 +1713,143 @@ class SupervertalerQt(QMainWindow):
         
         # Add content directly to main layout with stretch
         main_layout.addWidget(content_widget, 1)  # Stretch factor 1
+        
+        # Store references for layout switching
+        self.content_widget = content_widget
+        self.content_layout = content_layout
+        self.editor_widget_ref = editor_widget
+    
+    def switch_layout_mode(self, mode: str):
+        """Switch between split and unified layout modes"""
+        if mode == self.current_layout_mode:
+            return
+            
+        # Update menu checkboxes
+        self.split_view_action.setChecked(mode == "split")
+        self.unified_view_action.setChecked(mode == "unified")
+        
+        # Clear the current layout
+        while self.content_layout.count():
+            item = self.content_layout.takeAt(0)
+            if item.widget():
+                item.widget().setParent(None)
+        
+        if mode == "split":
+            # Recreate split view layout
+            self._create_split_layout()
+        else:  # unified
+            # Create unified layout (all tabs in one widget)
+            self._create_unified_layout()
+        
+        self.current_layout_mode = mode
+        
+        # Save preference
+        self.save_layout_preference(mode)
+    
+    def _create_split_layout(self):
+        """Create the split view layout (current default)"""
+        # If coming from unified view, we need to restore tabs to right_tabs
+        if hasattr(self, 'unified_tabs_widget') and self.unified_tabs_widget is not None:
+            # Move tabs back from unified view to right_tabs
+            # Skip the first 4 items (Grid, List, Document, separator)
+            tab_count = self.unified_tabs_widget.count()
+            for i in range(4, tab_count):  # Start from index 4 (after separator)
+                tab_text = self.unified_tabs_widget.tabText(4)  # Always take index 4
+                tab_widget = self.unified_tabs_widget.widget(4)
+                self.unified_tabs_widget.removeTab(4)
+                self.right_tabs.addTab(tab_widget, tab_text)
+        
+        # Recreate the main splitter with sidebar tabs (left) and editor (right)
+        self.main_splitter = QSplitter(Qt.Orientation.Horizontal)
+        
+        # Re-add the tabs and editor
+        self.main_splitter.addWidget(self.right_tabs)
+        self.main_splitter.addWidget(self.editor_widget_ref)
+        
+        # Restore splitter settings
+        self.main_splitter.setChildrenCollapsible(False)
+        self.main_splitter.setHandleWidth(8)
+        self.main_splitter.setOpaqueResize(True)
+        self.right_tabs.setMinimumWidth(200)
+        self.editor_widget_ref.setMinimumWidth(200)
+        self.main_splitter.setSizes([770, 1150])
+        self.main_splitter.setStretchFactor(0, 2)
+        self.main_splitter.setStretchFactor(1, 3)
+        
+        self.content_layout.addWidget(self.main_splitter, 1)
+    
+    def _create_unified_layout(self):
+        """Create the unified layout (all tabs in one widget, full screen)"""
+        # Create a single tab widget combining all tabs
+        self.unified_tabs_widget = QTabWidget()
+        self.unified_tabs_widget.setStyleSheet("""
+            QTabBar::tab { padding: 8px 15px; }
+        """)
+        
+        # Add View tabs first (Grid, List, Document)
+        # Create new instances for unified view
+        grid_widget = self.create_grid_view_widget_for_home()
+        list_widget = self.create_list_view_widget_for_home()
+        doc_widget = self.create_document_view_widget_for_home()
+        
+        self.unified_tabs_widget.addTab(grid_widget, "📊 Grid")
+        self.unified_tabs_widget.addTab(list_widget, "📋 List")
+        self.unified_tabs_widget.addTab(doc_widget, "📄 Document")
+        
+        # Add a visual separator (disabled tab)
+        separator_label = QLabel()
+        separator_label.setFixedHeight(0)
+        separator_tab = QWidget()
+        sep_layout = QVBoxLayout(separator_tab)
+        sep_layout.addWidget(separator_label)
+        self.unified_tabs_widget.addTab(separator_tab, "──────")
+        self.unified_tabs_widget.setTabEnabled(3, False)  # Disable the separator tab
+        
+        # Now add the sidebar tabs (Prompt Manager, Resources, Tools, Settings)
+        # We need to temporarily reparent these widgets
+        tab_count = self.right_tabs.count()
+        for i in range(tab_count):
+            tab_text = self.right_tabs.tabText(0)  # Always take first since we're removing
+            tab_widget = self.right_tabs.widget(0)  # Get first widget
+            self.right_tabs.removeTab(0)  # Remove from original
+            self.unified_tabs_widget.addTab(tab_widget, tab_text)  # Add to unified
+        
+        # Add to layout
+        self.content_layout.addWidget(self.unified_tabs_widget, 1)
+    
+    def save_layout_preference(self, mode: str):
+        """Save layout preference to settings"""
+        try:
+            import json
+            prefs_file = self.get_data_folder() / "ui_preferences.json"
+            
+            prefs = {}
+            if prefs_file.exists():
+                with open(prefs_file, 'r', encoding='utf-8') as f:
+                    prefs = json.load(f)
+            
+            prefs['layout_mode'] = mode
+            
+            with open(prefs_file, 'w', encoding='utf-8') as f:
+                json.dump(prefs, f, indent=2)
+                
+            self.log(f"💾 Saved layout preference: {mode} view")
+        except Exception as e:
+            self.log(f"⚠️ Could not save layout preference: {e}")
+    
+    def load_layout_preference(self) -> str:
+        """Load layout preference from settings"""
+        try:
+            import json
+            prefs_file = self.get_data_folder() / "ui_preferences.json"
+            
+            if prefs_file.exists():
+                with open(prefs_file, 'r', encoding='utf-8') as f:
+                    prefs = json.load(f)
+                return prefs.get('layout_mode', 'split')
+        except Exception:
+            pass
+        return 'split'  # Default to split view
     
     def _create_placeholder_tab(self, title: str, description: str) -> QWidget:
         """Create a simple placeholder tab"""
