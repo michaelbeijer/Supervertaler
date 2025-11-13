@@ -1728,11 +1728,12 @@ class SupervertalerQt(QMainWindow):
         self.split_view_action.setChecked(mode == "split")
         self.unified_view_action.setChecked(mode == "unified")
         
-        # Clear the current layout
+        # Clear the current layout without deleting widgets
         while self.content_layout.count():
             item = self.content_layout.takeAt(0)
             if item.widget():
-                item.widget().setParent(None)
+                # Don't set parent to None - just hide the widget to keep it alive
+                item.widget().hide()
         
         if mode == "split":
             # Recreate split view layout
@@ -1767,8 +1768,11 @@ class SupervertalerQt(QMainWindow):
         # Recreate the main splitter with sidebar tabs (left) and editor (right)
         self.main_splitter = QSplitter(Qt.Orientation.Horizontal)
         
-        # Re-add the tabs and editor
+        # Re-add the tabs and editor, making sure to show them
+        self.right_tabs.show()
         self.main_splitter.addWidget(self.right_tabs)
+        
+        self.editor_widget_ref.show()
         self.main_splitter.addWidget(self.editor_widget_ref)
         
         # Restore splitter settings
@@ -1782,6 +1786,7 @@ class SupervertalerQt(QMainWindow):
         self.main_splitter.setStretchFactor(1, 3)
         
         self.content_layout.addWidget(self.main_splitter, 1)
+        self.main_splitter.show()
     
     def _create_unified_layout(self):
         """Create the unified layout (all tabs in one widget, full screen)"""
@@ -1824,8 +1829,9 @@ class SupervertalerQt(QMainWindow):
         # Connect tab change signal to handle refreshes
         self.unified_tabs_widget.currentChanged.connect(self._on_unified_tab_changed)
         
-        # Add to layout
+        # Add to layout and show
         self.content_layout.addWidget(self.unified_tabs_widget, 1)
+        self.unified_tabs_widget.show()
     
     def _on_document_views_tab_changed(self, index: int):
         """Handle tab changes within the nested Document Views tab"""
