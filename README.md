@@ -9,7 +9,7 @@
 ## 📚 Documentation
 
 **⭐ START HERE:** [PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md) — Complete project reference
-**📝 Release Info:** [RELEASE_NOTES.md](RELEASE_NOTES.md) — Current v1.4.0-Qt release details
+**📝 Release Info:** [CHANGELOG_Qt.md](CHANGELOG_Qt.md) — Complete version history and recent highlights
 
 ### Edition Changelogs
 - **Qt Edition:** [CHANGELOG_Qt.md](CHANGELOG_Qt.md) — v1.0.2+ (primary development)

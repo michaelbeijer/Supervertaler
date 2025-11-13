@@ -6,6 +6,25 @@ The Qt Edition is the **primary version** for active development and new feature
 
 ---
 
+## 🌟 Recent Highlights - What's New in Supervertaler
+
+**Latest Major Features:**
+
+- 🎤 **Supervoice (v1.4.0)** - AI voice dictation with OpenAI Whisper, 100+ languages, F9 hotkey
+- 📊 **Superbench (v1.4.1)** - Benchmark LLM translation quality on YOUR actual projects with chrF++ scoring
+- 🤖 **AI Assistant (v1.3.4)** - ChatGPT-quality conversational prompt refinement built into the editor
+- 📚 **Unified Prompt Library (v1.3.0)** - Unlimited folders, favorites, multi-attach, quick run
+- 📝 **TMX Editor (v1.1.3)** - Database-backed editor handles massive 1GB+ TMX files
+- ✋ **AutoFingers (v1.2.4)** - Automated TMX-to-memoQ pasting with fuzzy matching and tag cleaning
+- 📄 **PDF Rescue** - AI OCR with GPT-4 Vision transforms locked PDFs into clean DOCX
+- 🖼️ **Image Context** - Multimodal AI automatically includes images when translating technical documents
+- 💾 **Translation Memory** - Fuzzy matching with TMX import/export, auto-propagation
+- 🔄 **CAT Tool Integration** - memoQ, Trados, CafeTran bilingual table support
+
+**See full version history below** ↓
+
+---
+
 ## [1.4.0] - November 12, 2025
 
 ### 🎤 Major Feature: Supervoice Voice Dictation + Detachable Log Window

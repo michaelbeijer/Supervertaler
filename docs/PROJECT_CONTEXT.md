@@ -194,14 +194,14 @@ Updated all version references across the codebase:
    - Documented bug fixes (UnboundLocalError, language detection, button color, auto-scroll)
    - Listed technical details
 
-3. **RELEASE_NOTES.md:**
-   - Updated "Current Release" to v1.4.0 (November 12, 2025)
-   - Created comprehensive release notes with:
-     - Complete "What's New" section for Supervoice
-     - Model size comparison table
-     - Detachable log features
+3. **CHANGELOG_Qt.md:**
+   - Maintains complete version history from v1.0.0 to current
+   - Top section includes marketing-style highlights of recent major features
+   - Detailed release notes for all versions:
+     - Categorized changes (Added, Fixed, Changed, Technical)
+     - Complete "What's New" sections
+     - Bug fixes and improvements
      - Documentation links
-     - Bug fixes section
      - Step-by-step "How to Use" instructions
      - Benefits list
      - Technical details
@@ -254,8 +254,7 @@ All documentation is complete and comprehensive:
 - [SUPERVOICE_TROUBLESHOOTING.md](SUPERVOICE_TROUBLESHOOTING.md) - Troubleshooting
 - [docs/index.html](../docs/index.html) - Website updated
 - [README.md](../README.md) - Updated
-- [CHANGELOG_Qt.md](../CHANGELOG_Qt.md) - Updated
-- [RELEASE_NOTES.md](../RELEASE_NOTES.md) - Updated
+- [CHANGELOG_Qt.md](../CHANGELOG_Qt.md) - Complete version history with marketing highlights
 
 **🚀 Next Steps:**
 
@@ -1604,7 +1603,6 @@ Successfully integrated all translation sources (Termbase, TM, MT, LLM) with pro
 ├── README.md                         # Repository overview
 ├── CHANGELOG_Qt.md                   # Qt version history
 ├── CHANGELOG_Tkinter.md              # Tkinter version history
-├── RELEASE_NOTES.md                  # Current release info
 │
 ├── modules/                          # Shared modules
 │   ├── database_manager.py           # SQLite backend
@@ -1739,7 +1737,6 @@ python Supervertaler_tkinter.py
 | `docs/PROJECT_CONTEXT.md` | This file - source of truth |
 | `CHANGELOG_Qt.md` | Qt version history |
 | `CHANGELOG_Tkinter.md` | Tkinter version history |
-| `RELEASE_NOTES.md` | Current release |
 | `modules/database_manager.py` | Database layer |
 | `modules/termbase_manager.py` | Termbase operations |
 
