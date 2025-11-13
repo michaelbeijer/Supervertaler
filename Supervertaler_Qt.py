@@ -7905,91 +7905,103 @@ class SupervertalerQt(QMainWindow):
                         notes=segment.notes
                     )
                 
-                # Get termbase matches (from cache or search on-demand)
+                # Get termbase matches (from cache or search on-demand) - ONLY if enabled
                 matches_dict = None  # Initialize at the top level
-                try:
-                    segment_id = segment.id
-                    source_widget = self.table.cellWidget(current_row, 2)  # Source column is column 2
-                    
-                    # Check cache first (thread-safe)
-                    stored_matches = {}
-                    with self.termbase_cache_lock:
-                        if segment_id in self.termbase_cache:
-                            stored_matches = self.termbase_cache[segment_id]
-                            self.log(f"✅ Cache HIT: Retrieved {len(stored_matches)} termbase matches for segment {segment_id}")
-                    
-                    # If not in cache, search on-demand (lazy loading)
-                    if not stored_matches and source_widget:
-                        self.log(f"🔍 Cache MISS: Searching termbases for segment {segment_id}...")
-                        stored_matches = self.find_termbase_matches_in_source(segment.source)
-                        
-                        # Store in cache for future access (thread-safe)
-                        if stored_matches:
+
+                # Check if TM/Termbase matching is enabled
+                if not self.enable_tm_matching and not self.enable_termbase_matching:
+                    self.log("⏭️ TM/Termbase matching disabled - skipping all lookups")
+                else:
+                    try:
+                        segment_id = segment.id
+                        source_widget = self.table.cellWidget(current_row, 2)  # Source column is column 2
+
+                        # Termbase lookup (if enabled)
+                        stored_matches = {}
+                        if self.enable_termbase_matching:
+                            # Check cache first (thread-safe)
                             with self.termbase_cache_lock:
-                                self.termbase_cache[segment_id] = stored_matches
-                            self.log(f"💾 Cached {len(stored_matches)} matches for segment {segment_id}")
-                    
-                    # Store in widget for backwards compatibility
-                    if source_widget and hasattr(source_widget, 'termbase_matches'):
-                        source_widget.termbase_matches = stored_matches
-                    
-                    if stored_matches:
-                        # Convert stored matches to TranslationMatch objects
-                        from modules.translation_results_panel import TranslationMatch
-                        matches_dict = {
-                            "LLM": [],
-                            "NT": [],
-                            "MT": [],
-                            "TM": [],
-                            "Termbases": []
-                        }
-                        
-                        for source_term, target_term in stored_matches.items():
-                            match_obj = TranslationMatch(
-                                source=source_term,
-                                target=target_term,
-                                relevance=95,  # High relevance for termbase matches
-                                metadata={
-                                    'termbase_name': 'Default',
-                                    'definition': '',
-                                    'domain': ''
-                                },
-                                match_type='Termbase',
-                                compare_source=source_term,
-                                provider_code='TB'
-                            )
-                            matches_dict["Termbases"].append(match_obj)
-                        
-                        # Get current project languages for all translation services
-                        source_lang = getattr(self.current_project, 'source_lang', None) if self.current_project else None
-                        target_lang = getattr(self.current_project, 'target_lang', None) if self.current_project else None
-                        
-                        # Convert language names to codes if needed
-                        if source_lang:
-                            source_lang_code = self._convert_language_to_code(source_lang)
-                        if target_lang:
-                            target_lang_code = self._convert_language_to_code(target_lang)
-                        
-                        # Show immediate termbase matches, delay expensive TM/MT/LLM searches
-                        self.log(f"🚀 Immediate display: {len(matches_dict['Termbases'])} termbase matches")
-                        
-                        # Update all tabbed results panels
-                        if hasattr(self, 'results_panels'):
-                            for panel in self.results_panels:
-                                try:
-                                    panel.set_matches(matches_dict)
-                                except Exception as e:
-                                    self.log(f"Error updating results panel: {e}")
-                    else:
-                        self.log("📋 No stored termbase matches found")
-                except Exception as e:
-                    self.log(f"Error retrieving stored termbase matches: {e}")
-                    
-                # Schedule expensive searches (TM, MT, LLM) with debouncing to prevent UI blocking
-                # Pass the termbase matches to preserve them in delayed search
-                if matches_dict:
-                    termbase_matches = matches_dict.get('Termbases', [])
-                    self._schedule_mt_and_llm_matches(segment, termbase_matches)
+                                if segment_id in self.termbase_cache:
+                                    stored_matches = self.termbase_cache[segment_id]
+                                    self.log(f"✅ Cache HIT: Retrieved {len(stored_matches)} termbase matches for segment {segment_id}")
+
+                            # If not in cache, search on-demand (lazy loading)
+                            if not stored_matches and source_widget:
+                                self.log(f"🔍 Cache MISS: Searching termbases for segment {segment_id}...")
+                                stored_matches = self.find_termbase_matches_in_source(segment.source)
+
+                                # Store in cache for future access (thread-safe)
+                                if stored_matches:
+                                    with self.termbase_cache_lock:
+                                        self.termbase_cache[segment_id] = stored_matches
+                                    self.log(f"💾 Cached {len(stored_matches)} matches for segment {segment_id}")
+
+                            # Store in widget for backwards compatibility
+                            if source_widget and hasattr(source_widget, 'termbase_matches'):
+                                source_widget.termbase_matches = stored_matches
+                        else:
+                            self.log("⏭️ Termbase matching disabled - skipping termbase lookup")
+
+                        if stored_matches:
+                            # Convert stored matches to TranslationMatch objects
+                            from modules.translation_results_panel import TranslationMatch
+                            matches_dict = {
+                                "LLM": [],
+                                "NT": [],
+                                "MT": [],
+                                "TM": [],
+                                "Termbases": []
+                            }
+
+                            for source_term, target_term in stored_matches.items():
+                                match_obj = TranslationMatch(
+                                    source=source_term,
+                                    target=target_term,
+                                    relevance=95,  # High relevance for termbase matches
+                                    metadata={
+                                        'termbase_name': 'Default',
+                                        'definition': '',
+                                        'domain': ''
+                                    },
+                                    match_type='Termbase',
+                                    compare_source=source_term,
+                                    provider_code='TB'
+                                )
+                                matches_dict["Termbases"].append(match_obj)
+
+                            # Get current project languages for all translation services
+                            source_lang = getattr(self.current_project, 'source_lang', None) if self.current_project else None
+                            target_lang = getattr(self.current_project, 'target_lang', None) if self.current_project else None
+
+                            # Convert language names to codes if needed
+                            if source_lang:
+                                source_lang_code = self._convert_language_to_code(source_lang)
+                            if target_lang:
+                                target_lang_code = self._convert_language_to_code(target_lang)
+
+                            # Show immediate termbase matches, delay expensive TM/MT/LLM searches
+                            self.log(f"🚀 Immediate display: {len(matches_dict['Termbases'])} termbase matches")
+
+                            # Update all tabbed results panels
+                            if hasattr(self, 'results_panels'):
+                                for panel in self.results_panels:
+                                    try:
+                                        panel.set_matches(matches_dict)
+                                    except Exception as e:
+                                        self.log(f"Error updating results panel: {e}")
+                        else:
+                            self.log("📋 No stored termbase matches found")
+                    except Exception as e:
+                        self.log(f"Error retrieving stored termbase matches: {e}")
+
+                    # Schedule expensive searches (TM, MT, LLM) with debouncing to prevent UI blocking
+                    # Pass the termbase matches to preserve them in delayed search
+                    # ONLY schedule if TM matching is enabled
+                    if self.enable_tm_matching and matches_dict:
+                        termbase_matches = matches_dict.get('Termbases', [])
+                        self._schedule_mt_and_llm_matches(segment, termbase_matches)
+                    elif not self.enable_tm_matching:
+                        self.log("⏭️ TM matching disabled - skipping TM/MT/LLM lookup")
         except Exception as e:
             self.log(f"Critical error in on_cell_selected: {e}")
     
