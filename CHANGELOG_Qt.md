@@ -141,7 +141,7 @@ The Qt Edition is the **primary version** for active development and new feature
 
 ### Technical
 - Enhanced `modules/llm_leaderboard.py` - Core benchmarking engine
-- Enhanced `modules/llm_leaderboard_ui.py` - Qt UI with standardized header
+- Enhanced `modules/superbench_ui.py` - Qt UI with standardized header
 - Updated `modules/llm_clients.py` - Auto-create API keys functionality
 - Updated `Supervertaler_Qt.py` - Gemini API key mapping fix
 - Created `api_keys.example.txt` - Template for standalone usage

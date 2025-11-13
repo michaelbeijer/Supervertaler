@@ -1723,6 +1723,39 @@ class SupervertalerQt(QMainWindow):
         
         return prompt_widget
     
+    def create_supercleaner_tab(self) -> QWidget:
+        """Create the Supercleaner tab - Clean DOCX documents"""
+        from modules.supercleaner_ui import SupercleanerUI
+        
+        # Create container widget with header
+        container = QWidget()
+        layout = QVBoxLayout(container)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(5)
+        
+        # Header (matches TMX Editor / AutoFingers / PDF Rescue style)
+        header = QLabel("🧹 Supercleaner")
+        header.setStyleSheet("font-size: 16pt; font-weight: bold; color: #1976D2;")
+        layout.addWidget(header, 0)
+        
+        # Description box (matches other tools style)
+        description = QLabel(
+            "Clean DOCX documents before translation - removes formatting issues, excessive tags, and OCR artifacts.\n"
+            "Inspired by TransTools Document Cleaner, Unbreaker, and CodeZapper."
+        )
+        description.setWordWrap(True)
+        description.setStyleSheet("color: #666; padding: 5px; background-color: #E3F2FD; border-radius: 3px;")
+        layout.addWidget(description, 0)
+        
+        # Create Supercleaner UI widget
+        supercleaner = SupercleanerUI(parent=self)
+        layout.addWidget(supercleaner, 1)  # 1 = stretch factor
+        
+        # Store reference
+        self.supercleaner_embedded = supercleaner
+        
+        return container
+    
     def create_tmx_editor_tab(self) -> QWidget:
         """Create the TMX Editor tab - Edit TMs"""
         from modules.tmx_editor_qt import TmxEditorUIQt
@@ -1794,7 +1827,7 @@ class SupervertalerQt(QMainWindow):
 
     def create_llm_leaderboard_tab(self) -> QWidget:
         """Create the Superbench tab - Benchmark LLM translation quality"""
-        from modules.llm_leaderboard_ui import LLMLeaderboardUI
+        from modules.llm_superbench_ui import LLMLeaderboardUI
 
         # Create LLM client factory that uses existing API keys
         def llm_client_factory(provider: str, model_id: str):
@@ -2183,6 +2216,9 @@ class SupervertalerQt(QMainWindow):
         self.modules_tabs = modules_tabs  # Store for navigation
         
         # Add nested tabs
+        supercleaner_tab = self.create_supercleaner_tab()
+        modules_tabs.addTab(supercleaner_tab, "🧹 Supercleaner")
+        
         tmx_tab = self.create_tmx_editor_tab()
         modules_tabs.addTab(tmx_tab, "✏️ TMX Editor")
         
@@ -6757,10 +6793,10 @@ class SupervertalerQt(QMainWindow):
                 "To export to memoQ format, please select the original memoQ bilingual DOCX file.\n\n"
                 "This is the file you originally imported from memoQ.\n\n"
                 "Would you like to select it now?",
-                QMessageBox.Yes | QMessageBox.No
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
             )
 
-            if reply == QMessageBox.Yes:
+            if reply == QMessageBox.StandardButton.Yes:
                 file_path, _ = QFileDialog.getOpenFileName(
                     self,
                     "Select Original memoQ Bilingual DOCX",

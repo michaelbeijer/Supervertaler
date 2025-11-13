@@ -48,7 +48,7 @@ Today we released version 1.4.1, which adds the Superbench module - a powerful a
 3. **Excel Filename Sanitization:**
    - **Issue:** Export filenames could contain invalid Windows characters like `:`
    - **Fix:** Added comprehensive filename sanitization removing `<>:"/\|?*`
-   - **Files Modified:** [modules/llm_leaderboard_ui.py](../modules/llm_leaderboard_ui.py) (line 724-732)
+   - **Files Modified:** [modules/superbench_ui.py](../modules/superbench_ui.py) (line 724-732)
 
 4. **Benchmark Crash Prevention:**
    - **Issue:** Occasional crashes during benchmark execution
@@ -58,7 +58,7 @@ Today we released version 1.4.1, which adds the Superbench module - a powerful a
      - LLM client creation error handling
      - Translation API error handling with full tracebacks
      - Output validation
-   - **Files Modified:** [modules/llm_leaderboard.py](../modules/llm_leaderboard.py), [modules/llm_leaderboard_ui.py](../modules/llm_leaderboard_ui.py)
+   - **Files Modified:** [modules/llm_leaderboard.py](../modules/llm_leaderboard.py), [modules/superbench_ui.py](../modules/superbench_ui.py)
 
 **✅ User Experience Enhancements:**
 
@@ -107,7 +107,7 @@ def _lang_code_to_name(self, code: str) -> str:
    - Rewrote `build_translation_prompt()` (lines 182-208)
    - Enhanced `_translate_segment()` validation (lines 247-360)
 
-2. **modules/llm_leaderboard_ui.py:**
+2. **modules/superbench_ui.py:**
    - Fixed filename sanitization (lines 724-732)
    - Enhanced Excel colors (lines 982-986)
    - Added comprehensive error handling to BenchmarkThread (lines 56-79)
@@ -450,7 +450,7 @@ Standardized the visual branding across all Supervertaler modules (LLM Leaderboa
    - ✅ Comprehensive Excel export - Three sheets (About, Summary, Results) with professional formatting
 
 **Files Modified:**
-- [modules/llm_leaderboard_ui.py](../modules/llm_leaderboard_ui.py)
+- [modules/superbench_ui.py](../modules/superbench_ui.py)
   - Lines 90-111: Standardized header with emoji and professional styling
   - Lines 547-565: Excel export title sheet with matching branding
   - Lines 782-825: Model name mapping for correct dropdown display

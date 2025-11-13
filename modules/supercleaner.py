@@ -371,48 +371,57 @@ class DocumentCleaner:
         Join sentences that were incorrectly split across paragraphs.
         Detects paragraphs that don't end with sentence-ending punctuation
         and joins them with the next paragraph.
+        
+        DISABLED BY DEFAULT - This operation is too aggressive and causes
+        words to stick together. Needs more sophisticated logic to detect
+        true broken sentences vs intentional paragraph breaks.
         """
         count = 0
-        try:
-            paragraphs = list(doc.paragraphs)
-            i = 0
-
-            while i < len(paragraphs) - 1:
-                current_para = paragraphs[i]
-                next_para = paragraphs[i + 1]
-
-                current_text = current_para.text.strip()
-                next_text = next_para.text.strip()
-
-                # Skip empty paragraphs
-                if not current_text or not next_text:
-                    i += 1
-                    continue
-
-                # Check if current paragraph ends mid-sentence
-                if self._is_broken_sentence(current_text):
-                    # Join paragraphs
-                    joined_text = current_text + ' ' + next_text
-
-                    # Update current paragraph
-                    if current_para.runs:
-                        current_para.runs[0].text = joined_text
-                        # Clear other runs
-                        for j in range(len(current_para.runs) - 1, 0, -1):
-                            current_para.runs[j].text = ''
-
-                    # Clear next paragraph
-                    if next_para.runs:
-                        for run in next_para.runs:
-                            run.text = ''
-
-                    count += 1
-
-                i += 1
-
-        except Exception as e:
-            self.logger.error(f"Error joining broken sentences: {e}")
+        # TEMPORARILY DISABLED due to word spacing bugs
+        # The current logic joins too many paragraphs incorrectly
         return count
+        
+        # Original code kept for reference but not executed:
+        # try:
+        #     paragraphs = list(doc.paragraphs)
+        #     i = 0
+        #
+        #     while i < len(paragraphs) - 1:
+        #         current_para = paragraphs[i]
+        #         next_para = paragraphs[i + 1]
+        #
+        #         current_text = current_para.text.strip()
+        #         next_text = next_para.text.strip()
+        #
+        #         # Skip empty paragraphs
+        #         if not current_text or not next_text:
+        #             i += 1
+        #             continue
+        #
+        #         # Check if current paragraph ends mid-sentence
+        #         if self._is_broken_sentence(current_text):
+        #             # Join paragraphs WITH PROPER SPACING
+        #             joined_text = current_text + ' ' + next_text
+        #
+        #             # Update current paragraph
+        #             if current_para.runs:
+        #                 current_para.runs[0].text = joined_text
+        #                 # Clear other runs
+        #                 for j in range(len(current_para.runs) - 1, 0, -1):
+        #                     current_para.runs[j].text = ''
+        #
+        #             # Clear next paragraph
+        #             if next_para.runs:
+        #                 for run in next_para.runs:
+        #                     run.text = ''
+        #
+        #             count += 1
+        #
+        #         i += 1
+        #
+        # except Exception as e:
+        #     self.logger.error(f"Error joining broken sentences: {e}")
+        # return count
 
     def _is_likely_incorrect_break(self, text: str) -> bool:
         """Check if a line break is likely incorrect (mid-sentence)"""
@@ -455,24 +464,37 @@ class DocumentCleaner:
         """
         Remove excessive spaces between words, at paragraph boundaries,
         and around punctuation. Improves TM matching.
+        
+        IMPORTANT: This only removes EXCESSIVE spaces (2 or more in a row),
+        never removes single spaces between words.
         """
         count = 0
         try:
             for paragraph in doc.paragraphs:
                 for run in paragraph.runs:
                     original = run.text
+                    
+                    # Only process if there's text
+                    if not original:
+                        continue
 
-                    # Replace multiple spaces with single space
-                    text = re.sub(r' {2,}', ' ', run.text)
+                    # Replace multiple spaces (2+) with single space
+                    # This preserves normal single spaces between words
+                    text = re.sub(r'  +', ' ', run.text)
 
-                    # Remove spaces at beginning/end
-                    text = text.strip()
-
-                    # Remove spaces before punctuation
-                    text = re.sub(r'\s+([.,;:!?)])', r'\1', text)
+                    # Remove spaces before punctuation (but not period for abbreviations)
+                    text = re.sub(r' +([,;:!?)])', r'\1', text)
 
                     # Remove spaces after opening punctuation
-                    text = re.sub(r'([(])\s+', r'\1', text)
+                    text = re.sub(r'([(]) +', r'\1', text)
+                    
+                    # Remove trailing spaces at end of runs
+                    # But keep leading space if it was there (might be intentional)
+                    if len(text) > 1 and text.endswith(' ') and not text.endswith('  '):
+                        # Keep single trailing space, remove multiple
+                        pass
+                    else:
+                        text = re.sub(r' +$', '', text)
 
                     # Update if changed
                     if text != original:
@@ -518,7 +540,7 @@ def clean_document_simple(input_path: str, output_path: str = None,
 
         # Unbreaker operations
         'fix_line_breaks': quick_clean,
-        'join_broken_sentences': quick_clean,
+        'join_broken_sentences': False,  # DISABLED - too aggressive, causes word spacing issues
 
         # Remove excessive spaces
         'remove_excessive_spaces': quick_clean,

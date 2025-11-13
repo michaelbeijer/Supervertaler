@@ -19,7 +19,7 @@
 ```
 modules/
   llm_leaderboard.py          # Core benchmarking logic
-  llm_leaderboard_ui.py        # Qt UI components
+  superbench_ui.py             # Qt UI components
   llm_leaderboard_data.py      # Test dataset management
 
 data/
@@ -39,7 +39,7 @@ data/
    - Results saved to project database
 
 2. **Standalone Mode** (Independent launcher)
-   - `python -m modules.llm_leaderboard_ui`
+   - `python -m modules.superbench_ui`
    - Can be used independently of main app
    - Own configuration management
 
