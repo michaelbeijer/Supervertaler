@@ -6221,20 +6221,95 @@ class SupervertalerQt(QMainWindow):
             "",
             "Word Documents (*.docx);;All Files (*.*)"
         )
-        
+
         if not file_path:
             return
-        
-        QMessageBox.information(
-            self,
-            "Monolingual Import",
+
+        # Show import options dialog with Supercleaner option
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Import DOCX Options")
+        dialog.setMinimumWidth(500)
+
+        layout = QVBoxLayout(dialog)
+
+        # Info message
+        info_label = QLabel(
             "You selected the Monolingual DOCX import workflow.\n\n"
             "Projects created with this option can be exported as standard formats "
             "(DOCX, plain text, etc.), but they cannot be exported as memoQ bilingual "
             "DOCX files. If you need memoQ round-tripping, use 'Import memoQ bilingual document'."
         )
+        info_label.setWordWrap(True)
+        layout.addWidget(info_label)
 
-        self.import_docx_from_path(file_path)
+        layout.addSpacing(20)
+
+        # Supercleaner option
+        clean_checkbox = QCheckBox("🧹 Clean document before import (Supercleaner)")
+        clean_checkbox.setChecked(True)  # Default to enabled
+        clean_checkbox.setToolTip(
+            "Automatically clean the document before importing:\n"
+            "• Remove formatting issues and excessive tags\n"
+            "• Fix incorrect line breaks (Unbreaker)\n"
+            "• Remove excessive spaces\n"
+            "• Normalize fonts, colors, and sizes\n\n"
+            "Recommended for OCR/PDF-converted documents"
+        )
+        layout.addWidget(clean_checkbox)
+
+        layout.addSpacing(20)
+
+        # Buttons
+        button_layout = QHBoxLayout()
+        ok_btn = QPushButton("Import")
+        ok_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold;")
+        ok_btn.clicked.connect(dialog.accept)
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(dialog.reject)
+
+        button_layout.addStretch()
+        button_layout.addWidget(cancel_btn)
+        button_layout.addWidget(ok_btn)
+        layout.addLayout(button_layout)
+
+        # Show dialog
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        # Clean document if requested
+        import_path = file_path
+        if clean_checkbox.isChecked():
+            self.log("🧹 Running Supercleaner on document before import...")
+            try:
+                from modules.document_cleaner import clean_document_simple
+                import tempfile
+                import shutil
+
+                # Create temp file for cleaned version
+                temp_fd, temp_path = tempfile.mkstemp(suffix='.docx')
+                os.close(temp_fd)
+
+                # Clean the document
+                stats = clean_document_simple(file_path, temp_path, quick_clean=True)
+
+                self.log(f"✓ Supercleaner complete:")
+                self.log(f"  - Paragraphs processed: {stats['paragraphs_processed']}")
+                self.log(f"  - Changes made: {stats['changes_made']}")
+                for op in stats.get('operations', []):
+                    self.log(f"  - {op}")
+
+                import_path = temp_path
+
+            except Exception as e:
+                self.log(f"⚠️ Supercleaner error (importing original): {e}")
+                QMessageBox.warning(
+                    self,
+                    "Supercleaner Warning",
+                    f"Could not clean document, importing original:\n\n{str(e)}"
+                )
+                import_path = file_path
+
+        self.import_docx_from_path(import_path)
     
     def import_docx_from_path(self, file_path):
         """Import a monolingual DOCX document from a given path"""
