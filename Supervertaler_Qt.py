@@ -1806,6 +1806,17 @@ class SupervertalerQt(QMainWindow):
         self.content_layout.addWidget(self.main_splitter, 1)
         self.main_splitter.show()
         
+        # Switch to the current view mode (Grid by default)
+        if hasattr(self, 'view_stack'):
+            # Determine which view to show (default to grid if not set)
+            current_mode = getattr(self, 'current_view_mode', LayoutMode.GRID)
+            if current_mode == LayoutMode.GRID:
+                self.view_stack.setCurrentIndex(0)
+            elif current_mode == LayoutMode.LIST:
+                self.view_stack.setCurrentIndex(1)
+            elif current_mode == LayoutMode.DOCUMENT:
+                self.view_stack.setCurrentIndex(2)
+        
         # Refresh the views to display data after widgets are restored
         if self.current_project:
             # Refresh grid view by reloading segments
