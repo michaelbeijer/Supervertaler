@@ -1809,7 +1809,7 @@ class SupervertalerQt(QMainWindow):
         # Refresh the views to display data after widgets are restored
         if self.current_project:
             # Refresh grid view by reloading segments
-            if hasattr(self, 'grid_table'):
+            if hasattr(self, 'table'):
                 self.load_segments_to_grid()
             
             # Refresh list view
