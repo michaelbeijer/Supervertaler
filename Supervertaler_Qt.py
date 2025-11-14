@@ -1808,15 +1808,17 @@ class SupervertalerQt(QMainWindow):
         
         # Refresh the views to display data after widgets are restored
         if self.current_project:
-            # Refresh grid view
+            # Refresh grid view by reloading segments
             if hasattr(self, 'grid_table'):
-                self.grid_table.viewport().update()
+                self.load_segments_to_grid()
             
             # Refresh list view
             if hasattr(self, 'list_tree'):
                 self.refresh_list_view()
             
-            # Document view doesn't need refresh as it works correctly
+            # Refresh document view
+            if hasattr(self, 'document_container'):
+                self.refresh_document_view()
     
     def _create_unified_layout(self):
         """Create the unified layout (all tabs in one widget, full screen)"""
