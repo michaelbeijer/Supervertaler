@@ -7737,26 +7737,32 @@ class SupervertalerQt(QMainWindow):
             target_editor.setFont(font)
             
             # Connect text changes to update segment
-            # Use a factory function to create a proper closure that captures the current row, segment, and editor
-            def make_target_changed_handler(target_row, editor_widget):
+            # Use a factory function to create a proper closure that captures the segment ID
+            def make_target_changed_handler(segment_id, editor_widget):
                 # Create debounce timer for expensive operations
                 debounce_timer = None
                 
                 def on_target_text_changed():
                     nonlocal debounce_timer
                     new_text = editor_widget.toPlainText()
-                    if target_row < len(self.current_project.segments):
+                    
+                    # CRITICAL: Find segment by ID, not by row index!
+                    # Row indices can change, but segment IDs are stable
+                    target_segment = next((seg for seg in self.current_project.segments if seg.id == segment_id), None)
+                    if target_segment:
                         # IMMEDIATE: Update segment data (no delay for data safety)
-                        # CRITICAL FIX: Access segment directly from project list, not from closure
-                        self.current_project.segments[target_row].target = new_text
+                        target_segment.target = new_text
                         self.project_modified = True
                         
                         # IMMEDIATE: Reset status to "not_started" when user manually edits
                         # Any manual edit means the segment needs review
-                        if self.current_project.segments[target_row].status != 'not_started':
-                            self.current_project.segments[target_row].status = 'not_started'
-                            # Update status display immediately
-                            self._update_status_cell(target_row, self.current_project.segments[target_row])
+                        if target_segment.status != 'not_started':
+                            target_segment.status = 'not_started'
+                            # Find current row for this segment ID to update status display
+                            for row_idx, seg in enumerate(self.current_project.segments):
+                                if seg.id == segment_id:
+                                    self._update_status_cell(row_idx, target_segment)
+                                    break
                         
                         # DEBOUNCED: Expensive UI/DB operations (only after user stops typing)
                         # Cancel previous timer
@@ -7767,14 +7773,14 @@ class SupervertalerQt(QMainWindow):
                         from PyQt6.QtCore import QTimer
                         debounce_timer = QTimer()
                         debounce_timer.setSingleShot(True)
-                        debounce_timer.timeout.connect(lambda: self._handle_target_text_debounced(
-                            target_row, self.current_project.segments[target_row], new_text
+                        debounce_timer.timeout.connect(lambda: self._handle_target_text_debounced_by_id(
+                            segment_id, new_text
                         ))
                         debounce_timer.start(500)  # 500ms delay
                         
                 return on_target_text_changed
             
-            target_editor.textChanged.connect(make_target_changed_handler(row, target_editor))
+            target_editor.textChanged.connect(make_target_changed_handler(segment.id, target_editor))
             
             # Set as cell widget
             self.table.setCellWidget(row, 3, target_editor)
@@ -8686,8 +8692,54 @@ class SupervertalerQt(QMainWindow):
         """Get status icon for display"""
         return get_status(status).icon
     
+    def _handle_target_text_debounced_by_id(self, segment_id, new_text):
+        """
+        Handle expensive target text change operations after user stops typing.
+        Called 500ms after last keystroke to avoid UI lag.
+        Uses segment ID to find the correct segment (not row index).
+        """
+        try:
+            # Find segment by ID
+            segment = next((seg for seg in self.current_project.segments if seg.id == segment_id), None)
+            if not segment:
+                return
+            
+            # Find current row for this segment
+            row = next((i for i, seg in enumerate(self.current_project.segments) if seg.id == segment_id), None)
+            if row is None:
+                return
+            
+            # Note: Status is now set to "not_started" immediately on edit (in on_target_text_changed)
+            # User must manually confirm/approve to change status to translated/confirmed
+            
+            # Update window title
+            self.update_window_title()
+            
+            # Auto-resize the row
+            if hasattr(self, 'table') and self.table:
+                self.table.resizeRowToContents(row)
+            
+            # Save to TM if segment is translated/approved/confirmed and has content
+            if segment.status in ['translated', 'approved', 'confirmed'] and new_text.strip():
+                try:
+                    if self.current_project and hasattr(self.current_project, 'source_lang') and hasattr(self.current_project, 'target_lang'):
+                        self.db_manager.add_translation_unit(
+                            source=segment.source,
+                            target=new_text,
+                            source_lang=self.current_project.source_lang,
+                            target_lang=self.current_project.target_lang,
+                            tm_id='project'
+                        )
+                        # Invalidate cache so prefetched segments get fresh TM matches
+                        self.invalidate_translation_cache()
+                except Exception as e:
+                    self.log(f"Warning: Could not save to TM: {e}")
+        except Exception as e:
+            self.log(f"Error in debounced target handler: {e}")
+    
     def _handle_target_text_debounced(self, row, segment, new_text):
         """
+        DEPRECATED: Use _handle_target_text_debounced_by_id instead.
         Handle expensive target text change operations after user stops typing.
         Called 500ms after last keystroke to avoid UI lag.
         """
@@ -8785,7 +8837,25 @@ class SupervertalerQt(QMainWindow):
                 return
             
             if current_row < len(self.current_project.segments):
-                segment = self.current_project.segments[current_row]
+                # CRITICAL: Get segment by ID from the grid, not by row index!
+                # The row index might not match the segment's position in the list
+                id_item = self.table.item(current_row, 0)
+                if not id_item:
+                    self.log(f"⚠️ No ID item found at row {current_row}")
+                    return
+                
+                # Get segment ID from the grid cell
+                try:
+                    segment_id = int(id_item.text())
+                except (ValueError, AttributeError):
+                    self.log(f"⚠️ Could not parse segment ID from cell at row {current_row}")
+                    return
+                
+                # Find the segment by ID in the project's segment list
+                segment = next((seg for seg in self.current_project.segments if seg.id == segment_id), None)
+                if not segment:
+                    self.log(f"⚠️ Could not find segment with ID {segment_id} in project")
+                    return
                 
                 # Update Translation Results panel header with segment info
                 if hasattr(self, 'results_panels'):
