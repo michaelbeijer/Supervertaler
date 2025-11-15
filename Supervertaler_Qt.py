@@ -165,7 +165,6 @@ class LayoutMode:
 # ============================================================================
 
 @dataclass
-@dataclass
 class Segment:
     """Translation segment (matches tkinter version format)"""
     id: int
@@ -6677,6 +6676,11 @@ class SupervertalerQt(QMainWindow):
         """Save project to specified file"""
         try:
             self.current_project.modified = datetime.now().isoformat()
+            
+            # DEBUG: Log first 5 segments before saving
+            self.log(f"💾 DEBUG: Saving {len(self.current_project.segments)} segments")
+            for i, seg in enumerate(self.current_project.segments[:7]):
+                self.log(f"💾 Seg {seg.id}: target='{seg.target[:50] if seg.target else 'EMPTY'}...', status={seg.status}")
             
             # Save prompt settings if prompt manager is available
             if hasattr(self, 'prompt_manager_qt') and self.prompt_manager_qt:
