@@ -41,7 +41,7 @@ import os
 import subprocess
 import atexit
 from pathlib import Path
-from typing import List, Optional, Dict, Any, Tuple
+from typing import List, Optional, Dict, Any, Tuple, Callable
 from dataclasses import dataclass, asdict
 from datetime import datetime
 import threading
@@ -97,7 +97,8 @@ try:
         QScrollArea, QSizePolicy
     )
     from PyQt6.QtCore import Qt, QSize, QTimer, pyqtSignal, QObject, QUrl
-    from PyQt6.QtGui import QFont, QAction, QKeySequence, QIcon, QTextOption, QColor, QDesktopServices, QTextCharFormat, QTextCursor
+    from PyQt6.QtGui import QFont, QAction, QKeySequence, QIcon, QTextOption, QColor, QDesktopServices, QTextCharFormat, QTextCursor, QBrush
+    from PyQt6 import sip
 except ImportError:
     print("PyQt6 not found. Installing...")
     import subprocess
@@ -156,7 +157,6 @@ atexit.register(cleanup_ahk_process)
 class LayoutMode:
     """Layout/view modes for the Project Editor"""
     GRID = "grid"       # Spreadsheet-like table (default)
-    LIST = "list"       # List view with editor panel
     DOCUMENT = "document"  # Document flow view with clickable segments
 
 
@@ -1005,6 +1005,8 @@ class SupervertalerQt(QMainWindow):
         # Application settings
         self.allow_replace_in_source = False  # Safety: don't allow replace in source by default
         self.auto_propagate_exact_matches = True  # Auto-fill 100% TM matches for empty segments
+        self.auto_insert_100_percent_matches = True  # Auto-insert 100% TM matches when segment selected
+        self.tm_save_mode = 'all'  # 'all' = keep all translations with timestamps, 'latest' = only keep most recent
         
         # TM and Termbase matching toggle (default: enabled)
         self.enable_tm_matching = True
@@ -1029,6 +1031,14 @@ class SupervertalerQt(QMainWindow):
         self.termbase_batch_worker_thread = None  # Background worker thread
         self.termbase_batch_stop_event = threading.Event()  # Signal to stop background worker
         
+        # TM/MT/LLM prefetch cache for instant segment switching (like memoQ)
+        # Maps segment ID → {"TM": [...], "MT": [...], "LLM": [...]}
+        self.translation_matches_cache = {}
+        self.translation_matches_cache_lock = threading.Lock()
+        self.prefetch_worker_thread = None
+        self.prefetch_stop_event = threading.Event()
+        self.prefetch_queue = []  # List of segment IDs to prefetch
+        
         # Global language settings (defaults)
         self.source_language = "English"
         self.target_language = "Dutch"
@@ -1043,9 +1053,9 @@ class SupervertalerQt(QMainWindow):
         # Document view state (initialized early to prevent AttributeError during project loading)
         self.doc_segment_widgets = {}
         self.doc_current_segment_id = None
-        
-        # List view state (initialized early to prevent AttributeError during project loading)
-        self.list_current_segment_id = None
+        self.document_containers: Dict[str, Optional[QWidget]] = {}
+        self.active_document_host = 'editor'
+        self.warning_banners: Dict[str, QWidget] = {}
         
         # Universal Lookup detached window
         self.lookup_detached_window = None
@@ -1080,7 +1090,7 @@ class SupervertalerQt(QMainWindow):
         self.ensure_example_api_keys()
         
         self.log("Welcome to Supervertaler Qt v1.4.1")
-        self.log("Professional Translation Memory & CAT Tool")
+        self.log("Supervertaler: The ultimate companion tool for translators and writers.")
         
         # Load general settings (including auto-propagation)
         self.load_general_settings()
@@ -1116,11 +1126,6 @@ class SupervertalerQt(QMainWindow):
         # Create main layout
         self.create_main_layout()
         
-        # Load and apply saved layout preference
-        saved_mode = self.load_layout_preference()
-        if saved_mode and saved_mode != "split":
-            self.switch_layout_mode(saved_mode)
-        
         # Create status bar
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
@@ -1136,6 +1141,28 @@ class SupervertalerQt(QMainWindow):
         # F9 - Voice dictation
         self.shortcut_dictate = QShortcut(QKeySequence("F9"), self)
         self.shortcut_dictate.activated.connect(self.start_voice_dictation)
+        
+        # Ctrl+Up/Down - Cycle through translation matches
+        self.shortcut_match_up = QShortcut(QKeySequence("Ctrl+Up"), self)
+        self.shortcut_match_up.activated.connect(self.select_previous_match)
+        
+        self.shortcut_match_down = QShortcut(QKeySequence("Ctrl+Down"), self)
+        self.shortcut_match_down.activated.connect(self.select_next_match)
+        
+        # Alt+Up/Down - Navigate to previous/next segment
+        self.shortcut_segment_up = QShortcut(QKeySequence("Alt+Up"), self)
+        self.shortcut_segment_up.activated.connect(self.go_to_previous_segment)
+        
+        self.shortcut_segment_down = QShortcut(QKeySequence("Alt+Down"), self)
+        self.shortcut_segment_down.activated.connect(self.go_to_next_segment)
+        
+        # Ctrl+Enter - Confirm segment and go to next unconfirmed
+        self.shortcut_confirm_next = QShortcut(QKeySequence("Ctrl+Return"), self)
+        self.shortcut_confirm_next.activated.connect(self.confirm_and_next_unconfirmed)
+        
+        # Ctrl+Shift+S - Copy source to target
+        self.shortcut_copy_source = QShortcut(QKeySequence("Ctrl+Shift+S"), self)
+        self.shortcut_copy_source.activated.connect(self.copy_source_to_grid_target)
 
     def create_menus(self):
         """Create application menus"""
@@ -1318,45 +1345,25 @@ class SupervertalerQt(QMainWindow):
         # Navigation submenu
         nav_menu = view_menu.addMenu("📑 &Navigate To")
         
-        go_home_action = QAction("🏠 &Home", self)
-        go_home_action.triggered.connect(lambda: self.right_tabs.setCurrentIndex(0) if hasattr(self, 'right_tabs') else None)  # Prompt Manager tab
-        nav_menu.addAction(go_home_action)
+        go_editor_action = QAction("📝 &Project Editor", self)
+        go_editor_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(0) if hasattr(self, 'main_tabs') else None)
+        nav_menu.addAction(go_editor_action)
         
-        # Prompt Manager tab removed - it's now integrated in the Home tab
-        # go_prompt_action = QAction("💡 &Prompt Manager", self)
-        # go_prompt_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(1) if hasattr(self, 'main_tabs') else None)
-        # nav_menu.addAction(go_prompt_action)
+        go_prompt_action = QAction("🤖 &Prompt Manager", self)
+        go_prompt_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(1) if hasattr(self, 'main_tabs') else None)
+        nav_menu.addAction(go_prompt_action)
         
-        # Editor tab removed - functionality moved to Home tab
-        # go_editor_action = QAction("📝 &Editor", self)
-        # go_editor_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(2) if hasattr(self, 'main_tabs') else None)
-        # nav_menu.addAction(go_editor_action)
+        go_resources_action = QAction("📚 &Translation Resources", self)
+        go_resources_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(2) if hasattr(self, 'main_tabs') else None)
+        nav_menu.addAction(go_resources_action)
+        
+        go_tools_action = QAction("🛠️ &Tools", self)
+        go_tools_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(3) if hasattr(self, 'main_tabs') else None)
+        nav_menu.addAction(go_tools_action)
         
         go_settings_action = QAction("⚙️ &Settings", self)
-        # Tab indices shifted: Resources=1, Tools=2, Settings=3 (Home=0, Prompt Manager and Editor removed)
-        go_settings_action.triggered.connect(lambda: self.right_tabs.setCurrentIndex(3) if hasattr(self, 'right_tabs') else None)  # Settings tab
+        go_settings_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(4) if hasattr(self, 'main_tabs') else None)
         nav_menu.addAction(go_settings_action)
-        
-        view_menu.addSeparator()
-        
-        # Layout switcher submenu
-        layout_menu = view_menu.addMenu("🖼️ &Layout")
-        
-        self.split_view_action = QAction("📱 &Split View (Sidebar + View)", self)
-        self.split_view_action.setCheckable(True)
-        self.split_view_action.triggered.connect(lambda: self.switch_layout_mode("split"))
-        self.split_view_action.setToolTip("Traditional split layout: sidebar tabs on left, view panels on right")
-        layout_menu.addAction(self.split_view_action)
-        
-        self.unified_view_action = QAction("🖥️ &Unified View (All Tabs)", self)
-        self.unified_view_action.setCheckable(True)
-        self.unified_view_action.triggered.connect(lambda: self.switch_layout_mode("unified"))
-        self.unified_view_action.setToolTip("All tabs in one widget with full screen space")
-        layout_menu.addAction(self.unified_view_action)
-        
-        # Set default to split view
-        self.split_view_action.setChecked(True)
-        self.current_layout_mode = "split"
         
         view_menu.addSeparator()
         
@@ -1365,9 +1372,7 @@ class SupervertalerQt(QMainWindow):
         grid_view_action.triggered.connect(lambda: self.switch_view_mode(LayoutMode.GRID))
         view_menu.addAction(grid_view_action)
         
-        list_view_action = QAction("📋 &List View", self)
-        list_view_action.triggered.connect(lambda: self.switch_view_mode(LayoutMode.LIST))
-        view_menu.addAction(list_view_action)
+        # List view removed - now only Grid and Document views available
         
         document_view_action = QAction("📄 &Document View", self)
         document_view_action.triggered.connect(lambda: self.switch_view_mode(LayoutMode.DOCUMENT))
@@ -1626,328 +1631,93 @@ class SupervertalerQt(QMainWindow):
         pass
     
     def create_main_layout(self):
-        """Create main application layout with tabs"""
+        """Create main application layout with all-tab interface"""
         # Central widget
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         
-        # Main layout with splitter for sidebar and main content
-        from PyQt6.QtWidgets import QSplitter, QHBoxLayout
-        main_layout = QHBoxLayout(central_widget)
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.setSpacing(0)
+        # Main layout
+        main_layout = QVBoxLayout(central_widget)
+        main_layout.setContentsMargins(5, 5, 5, 5)
         
-        # Main content area
-        content_widget = QWidget()
-        from PyQt6.QtWidgets import QSizePolicy
-        content_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        content_layout = QVBoxLayout(content_widget)
-        content_layout.setContentsMargins(5, 5, 5, 5)
-        
-        # ===== NEW RESTRUCTURED UI =====
-        # Left: Tab widget with Prompt Manager, Resources, Tools, Settings
-        # Right: Editor (always visible, no tabs) 
+        # ===== SIMPLIFIED TAB-BASED UI =====
+        # Single tab widget with all functionality
         from modules.unified_prompt_manager_qt import UnifiedPromptManagerQt
         
-        # Main horizontal splitter: Left-side tabs (left) and Editor (right)
-        self.main_splitter = QSplitter(Qt.Orientation.Horizontal)
-        
-        # ===== LEFT SIDE: Tab widget with Prompt Manager, Resources, Tools, Settings =====
-        self.right_tabs = QTabWidget()
-        self.right_tabs.setStyleSheet("""
-            QTabBar::tab { padding: 8px 15px; }
-        """)
-        # Ensure left tabs can be resized
-        self.right_tabs.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        
-        # Connect tab change for navigation tracking
-        self.right_tabs.currentChanged.connect(self.on_right_tab_changed)
-        
-        # 1. UNIFIED PROMPT LIBRARY (first tab)
-        prompt_widget = QWidget()
-        self.prompt_manager_qt = UnifiedPromptManagerQt(self, standalone=False)
-        self.prompt_manager_qt.create_tab(prompt_widget)
-        self.right_tabs.addTab(prompt_widget, "🤖 Prompt Manager")
-        
-        # 2. TRANSLATION RESOURCES
-        resources_tab = self.create_resources_tab()
-        self.right_tabs.addTab(resources_tab, "📚 Translation Resources")
-        
-        # 3. TOOLS
-        tools_tab = self.create_specialised_tools_tab()
-        self.right_tabs.addTab(tools_tab, "🛠️ Tools")
-
-        # 4. SETTINGS
-        settings_tab = self.create_settings_tab()
-        self.right_tabs.addTab(settings_tab, "⚙️ Settings")
-        
-        self.main_splitter.addWidget(self.right_tabs)
-        
-        # ===== RIGHT SIDE: Editor (no tabs, always visible) =====
-        editor_widget = self.create_editor_widget()
-        # Ensure editor widget can be resized (splitter handles this automatically, but explicit policy helps)
-        from PyQt6.QtWidgets import QSizePolicy
-        editor_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        self.main_splitter.addWidget(editor_widget)
-        
-        # Ensure splitter is resizable
-        self.main_splitter.setChildrenCollapsible(False)  # Prevent collapsing completely
-        self.main_splitter.setHandleWidth(8)  # Make the splitter handle more visible
-        self.main_splitter.setOpaqueResize(True)  # Enable real-time resizing
-        
-        # Set minimum sizes for widgets to allow resizing below default sizes
-        self.right_tabs.setMinimumWidth(200)  # Allow left tabs to shrink to 200px
-        editor_widget.setMinimumWidth(200)  # Allow editor to shrink to 200px
-        
-        # Set initial splitter sizes - give more space to translation grid (right panel)
-        # Better default: ~40% left (Prompt Manager), ~60% right (grid)
-        # For a typical 1920px wide window: ~770px left, ~1150px right
-        self.main_splitter.setSizes([770, 1150])  # Initial sizes: reasonable space for Prompt Manager, more space for grid
-        
-        # Set stretch factors for proportional resizing (right gets more space)
-        self.main_splitter.setStretchFactor(0, 2)  # Left tabs: stretch factor 2
-        self.main_splitter.setStretchFactor(1, 3)  # Editor widget: stretch factor 3
-        
-        # Add splitter to content layout with stretch to fill available space
-        content_layout.addWidget(self.main_splitter, 1)  # Stretch factor 1
-        
-        # Add content directly to main layout with stretch
-        main_layout.addWidget(content_widget, 1)  # Stretch factor 1
-        
-        # Store references for layout switching
-        self.content_widget = content_widget
-        self.content_layout = content_layout
-        self.editor_widget_ref = editor_widget
-    
-    def switch_layout_mode(self, mode: str):
-        """Switch between split and unified layout modes"""
-        if mode == self.current_layout_mode:
-            return
-            
-        # Update menu checkboxes
-        self.split_view_action.setChecked(mode == "split")
-        self.unified_view_action.setChecked(mode == "unified")
-        
-        # Clear the current layout without deleting widgets
-        while self.content_layout.count():
-            item = self.content_layout.takeAt(0)
-            if item.widget():
-                # Don't set parent to None - just hide the widget to keep it alive
-                item.widget().hide()
-        
-        if mode == "split":
-            # Recreate split view layout
-            self._create_split_layout()
-        else:  # unified
-            # Create unified layout (all tabs in one widget)
-            self._create_unified_layout()
-        
-        self.current_layout_mode = mode
-        
-        # Save preference
-        self.save_layout_preference(mode)
-    
-    def _create_split_layout(self):
-        """Create the split view layout (current default)"""
-        # If coming from unified view, we need to restore widgets
-        if hasattr(self, 'unified_tabs_widget') and self.unified_tabs_widget is not None:
-            # First, restore the view widgets back to view_stack from document_views_widget
-            if hasattr(self, 'document_views_widget') and self.document_views_widget is not None:
-                # Extract the three view widgets from the nested tab
-                grid_widget = self.document_views_widget.widget(0)
-                list_widget = self.document_views_widget.widget(1)
-                doc_widget = self.document_views_widget.widget(2)
-                
-                # Remove from document_views_widget
-                self.document_views_widget.removeTab(0)
-                self.document_views_widget.removeTab(0)
-                self.document_views_widget.removeTab(0)
-                
-                # Add back to view_stack in the correct order
-                if hasattr(self, 'view_stack'):
-                    self.view_stack.addWidget(grid_widget)
-                    self.view_stack.addWidget(list_widget)
-                    self.view_stack.addWidget(doc_widget)
-            
-            # Clear right_tabs if it has any tabs (shouldn't happen, but just in case)
-            if hasattr(self, 'right_tabs') and self.right_tabs is not None:
-                while self.right_tabs.count() > 0:
-                    self.right_tabs.removeTab(0)
-            
-            # Move tabs back from unified view to right_tabs
-            # Skip the Document Views tab (index 0) and move the rest
-            tab_count = self.unified_tabs_widget.count()
-            for i in range(1, tab_count):  # Start from index 1 (after Document Views)
-                tab_text = self.unified_tabs_widget.tabText(1)  # Always take index 1
-                tab_widget = self.unified_tabs_widget.widget(1)
-                self.unified_tabs_widget.removeTab(1)
-                self.right_tabs.addTab(tab_widget, tab_text)
-        
-        # Recreate the main splitter with sidebar tabs (left) and editor (right)
-        self.main_splitter = QSplitter(Qt.Orientation.Horizontal)
-        
-        # Re-add the tabs and editor, making sure to show them
-        self.right_tabs.show()
-        self.main_splitter.addWidget(self.right_tabs)
-        
-        self.editor_widget_ref.show()
-        self.main_splitter.addWidget(self.editor_widget_ref)
-        
-        # Restore splitter settings
-        self.main_splitter.setChildrenCollapsible(False)
-        self.main_splitter.setHandleWidth(8)
-        self.main_splitter.setOpaqueResize(True)
-        self.right_tabs.setMinimumWidth(200)
-        self.editor_widget_ref.setMinimumWidth(200)
-        self.main_splitter.setSizes([770, 1150])
-        self.main_splitter.setStretchFactor(0, 2)
-        self.main_splitter.setStretchFactor(1, 3)
-        
-        self.content_layout.addWidget(self.main_splitter, 1)
-        self.main_splitter.show()
-        
-        # Switch to the current view mode (Grid by default)
-        if hasattr(self, 'view_stack'):
-            # Determine which view to show (default to grid if not set)
-            current_mode = getattr(self, 'current_view_mode', LayoutMode.GRID)
-            if current_mode == LayoutMode.GRID:
-                self.view_stack.setCurrentIndex(0)
-            elif current_mode == LayoutMode.LIST:
-                self.view_stack.setCurrentIndex(1)
-            elif current_mode == LayoutMode.DOCUMENT:
-                self.view_stack.setCurrentIndex(2)
-        
-        # Refresh the views to display data after widgets are restored
-        if self.current_project:
-            # Refresh grid view by reloading segments
-            if hasattr(self, 'table'):
-                self.load_segments_to_grid()
-            
-            # Refresh list view
-            if hasattr(self, 'list_tree'):
-                self.refresh_list_view()
-            
-            # Refresh document view
-            if hasattr(self, 'document_container'):
-                self.refresh_document_view()
-    
-    def _create_unified_layout(self):
-        """Create the unified layout (all tabs in one widget, full screen)"""
-        # Create a single tab widget combining all tabs
-        self.unified_tabs_widget = QTabWidget()
-        self.unified_tabs_widget.setStyleSheet("""
+        # Create main tab widget
+        self.main_tabs = QTabWidget()
+        self.main_tabs.setStyleSheet("""
             QTabBar::tab { padding: 8px 15px; }
         """)
         
-        # Create a nested tab widget for Document Views (Grid, List, Document)
+        # Create nested tab widget for Document Views (Grid, List, Document)
         self.document_views_widget = QTabWidget()
         self.document_views_widget.setStyleSheet("""
             QTabBar::tab { padding: 6px 12px; }
         """)
         
-        # Reuse existing view widgets from view_stack instead of creating new ones
-        # This preserves the data and state
-        if hasattr(self, 'view_stack'):
-            # Remove widgets from view_stack and add to document_views_widget
-            grid_widget = self.view_stack.widget(0)  # Grid is at index 0
-            list_widget = self.view_stack.widget(1)  # List is at index 1
-            doc_widget = self.view_stack.widget(2)   # Document is at index 2
-            
-            # Remove from stack (but don't delete)
-            self.view_stack.removeWidget(grid_widget)
-            self.view_stack.removeWidget(list_widget)
-            self.view_stack.removeWidget(doc_widget)
-        else:
-            # Fallback: create new widgets if view_stack doesn't exist
-            grid_widget = self.create_grid_view_widget_for_home()
-            list_widget = self.create_list_view_widget_for_home()
-            doc_widget = self.create_document_view_widget_for_home()
+        # Create view widgets
+        grid_widget = self.create_grid_view_widget_for_home()
+        doc_widget = self.create_document_view_widget_for_home()
         
         self.document_views_widget.addTab(grid_widget, "📊 Grid")
-        self.document_views_widget.addTab(list_widget, "📋 List")
         self.document_views_widget.addTab(doc_widget, "📄 Document")
         
-        # Connect nested tab changes to refresh views
+        # Register document container
+        doc_container = self._locate_document_container(doc_widget, "editor_document_container")
+        if doc_container is not None:
+            self.document_containers['editor'] = doc_container
+        
+        # Add tabs to main interface
+        self.main_tabs.addTab(self.document_views_widget, "📝 Project Editor")
+        
+        # 1. UNIFIED PROMPT LIBRARY
+        prompt_widget = QWidget()
+        self.prompt_manager_qt = UnifiedPromptManagerQt(self, standalone=False)
+        self.prompt_manager_qt.create_tab(prompt_widget)
+        self.main_tabs.addTab(prompt_widget, "🤖 Prompt Manager")
+        
+        # 2. TRANSLATION RESOURCES
+        resources_tab = self.create_resources_tab()
+        self.main_tabs.addTab(resources_tab, "📚 Translation Resources")
+        
+        # 3. TOOLS
+        tools_tab = self.create_specialised_tools_tab()
+        self.main_tabs.addTab(tools_tab, "🛠️ Tools")
+
+        # 4. SETTINGS
+        settings_tab = self.create_settings_tab()
+        self.main_tabs.addTab(settings_tab, "⚙️ Settings")
+        
+        main_layout.addWidget(self.main_tabs)
+        
+        # Connect tab changes to handle view refreshes
         self.document_views_widget.currentChanged.connect(self._on_document_views_tab_changed)
-        
-        # Add the nested Document Views tab to main unified tabs
-        self.unified_tabs_widget.addTab(self.document_views_widget, "📝 Document Views")
-        
-        # Now add the sidebar tabs (Prompt Manager, Resources, Tools, Settings)
-        # We need to temporarily reparent these widgets
-        tab_count = self.right_tabs.count()
-        for i in range(tab_count):
-            tab_text = self.right_tabs.tabText(0)  # Always take first since we're removing
-            tab_widget = self.right_tabs.widget(0)  # Get first widget
-            self.right_tabs.removeTab(0)  # Remove from original
-            self.unified_tabs_widget.addTab(tab_widget, tab_text)  # Add to unified
-        
-        # Connect tab change signal to handle refreshes
-        self.unified_tabs_widget.currentChanged.connect(self._on_unified_tab_changed)
-        
-        # Add to layout and show
-        self.content_layout.addWidget(self.unified_tabs_widget, 1)
-        self.unified_tabs_widget.show()
+        self.main_tabs.currentChanged.connect(self._on_main_tab_changed)
     
     def _on_document_views_tab_changed(self, index: int):
-        """Handle tab changes within the nested Document Views tab"""
+        """Handle tab changes within the Document Views (Grid/List/Document)"""
         try:
             if index == 0:  # Grid View
                 # Grid refreshes automatically when segments change
                 pass
-            elif index == 1:  # List View
-                if hasattr(self, 'list_tree') and self.current_project:
-                    self.refresh_list_view()
-            elif index == 2:  # Document View
+            elif index == 1:  # Document View
                 if self.current_project:
-                    if hasattr(self, 'document_container') and self.document_container is not None:
-                        self.refresh_document_view()
-                    else:
-                        self.log("⚠️ Document container not initialized")
+                    self._set_active_document_host('editor')
+                    # Force re-discovery of container before refresh
+                    doc_widget = self.document_views_widget.widget(2)
+                    if doc_widget:
+                        doc_container = self._locate_document_container(doc_widget, "editor_document_container")
+                        if doc_container is not None:
+                            self.document_containers['editor'] = doc_container
+                    container = self._get_document_container('editor')
+                    if container is not None:
+                        self.refresh_document_view('editor')
         except Exception as e:
             self.log(f"⚠️ Error switching document views: {e}")
             import traceback
             traceback.print_exc()
-    
-    def _on_unified_tab_changed(self, index: int):
-        """Handle tab changes in unified layout mode (main tabs)"""
-        # The Document Views tab is now nested, so we don't need special handling here
-        # The nested tab has its own handler (_on_document_views_tab_changed)
-        pass
-    
-    def save_layout_preference(self, mode: str):
-        """Save layout preference to settings"""
-        try:
-            import json
-            prefs_file = self.user_data_path / "ui_preferences.json"
-            
-            prefs = {}
-            if prefs_file.exists():
-                with open(prefs_file, 'r', encoding='utf-8') as f:
-                    prefs = json.load(f)
-            
-            prefs['layout_mode'] = mode
-            
-            with open(prefs_file, 'w', encoding='utf-8') as f:
-                json.dump(prefs, f, indent=2)
-                
-            self.log(f"💾 Saved layout preference: {mode} view")
-        except Exception as e:
-            self.log(f"⚠️ Could not save layout preference: {e}")
-    
-    def load_layout_preference(self) -> str:
-        """Load layout preference from settings"""
-        try:
-            import json
-            prefs_file = self.user_data_path / "ui_preferences.json"
-            
-            if prefs_file.exists():
-                with open(prefs_file, 'r', encoding='utf-8') as f:
-                    prefs = json.load(f)
-                return prefs.get('layout_mode', 'split')
-        except Exception:
-            pass
-        return 'split'  # Default to split view
+
     
     def _create_placeholder_tab(self, title: str, description: str) -> QWidget:
         """Create a simple placeholder tab"""
@@ -2261,10 +2031,10 @@ class SupervertalerQt(QMainWindow):
         """DEPRECATED: Replaced by create_editor_widget() - kept for backwards compatibility"""
         return self.create_editor_widget()
     
-    def on_right_tab_changed(self, index: int):
-        """Handle right-side tab changes"""
-        # Refresh AI Assistant LLM client when switching to Prompt Manager tab
-        if index == 0 and hasattr(self, 'prompt_manager_qt'):
+    def _on_main_tab_changed(self, index: int):
+        """Handle main tab changes"""
+        # Refresh AI Assistant LLM client when switching to Prompt Manager tab (index 1)
+        if index == 1 and hasattr(self, 'prompt_manager_qt'):
             # Reload LLM settings in case they changed
             llm_settings = self.load_llm_settings()
             self.current_provider = llm_settings.get('provider', 'openai')
@@ -4016,6 +3786,35 @@ class SupervertalerQt(QMainWindow):
         )
         tm_termbase_layout.addWidget(auto_propagate_cb)
         
+        # Auto-insert 100% matches on segment selection
+        auto_insert_100_cb = QCheckBox("Auto-insert 100% TM matches when selecting segment")
+        auto_insert_100_cb.setChecked(general_settings.get('auto_insert_100_percent_matches', True))
+        auto_insert_100_cb.setToolTip(
+            "When enabled, 100% TM matches are automatically inserted into the target field\n"
+            "as soon as you select a segment (even if target is not empty).\n"
+            "Like memoQ's auto-propagation feature for exact matches."
+        )
+        tm_termbase_layout.addWidget(auto_insert_100_cb)
+        
+        # TM Save Mode
+        tm_save_label = QLabel("TM Save Mode:")
+        tm_save_mode_combo = QComboBox()
+        tm_save_mode_combo.addItem("Save all translations (with timestamps)", "all")
+        tm_save_mode_combo.addItem("Save only latest translation (overwrite)", "latest")
+        current_tm_mode = general_settings.get('tm_save_mode', 'all')
+        tm_save_mode_combo.setCurrentIndex(0 if current_tm_mode == 'all' else 1)
+        tm_save_mode_combo.setToolTip(
+            "All translations: Keeps all versions of translations for the same source segment with timestamps.\n"
+            "The system will prefer the most recent translation when showing matches.\n\n"
+            "Latest only: Overwrites old translations - only the most recent translation is kept.\n"
+            "This prevents the TM from growing with old/obsolete translations."
+        )
+        tm_save_layout_h = QHBoxLayout()
+        tm_save_layout_h.addWidget(tm_save_label)
+        tm_save_layout_h.addWidget(tm_save_mode_combo)
+        tm_save_layout_h.addStretch()
+        tm_termbase_layout.addLayout(tm_save_layout_h)
+        
         # TM/Termbase matching toggle
         tm_matching_cb = QCheckBox("Enable TM && Termbase Matching")
         tm_matching_cb.setChecked(self.enable_tm_matching)  # Load current state
@@ -4028,6 +3827,7 @@ class SupervertalerQt(QMainWindow):
         tm_termbase_layout.addWidget(tm_matching_cb)
         self.tm_matching_checkbox = tm_matching_cb  # Store reference for updates
         self.auto_propagate_checkbox = auto_propagate_cb  # Store reference for updates
+        self.auto_insert_100_checkbox = auto_insert_100_cb  # Store reference for updates
         
         tm_termbase_group.setLayout(tm_termbase_layout)
         layout.addWidget(tm_termbase_group)
@@ -4598,12 +4398,23 @@ class SupervertalerQt(QMainWindow):
 
         general_settings = {
             'restore_last_project': restore_cb.isChecked(),
-            'auto_propagate_exact_matches': self.auto_propagate_exact_matches,
+            'auto_propagate_exact_matches': self.auto_propagate_checkbox.isChecked() if hasattr(self, 'auto_propagate_checkbox') else self.auto_propagate_exact_matches,
+            'auto_insert_100_percent_matches': self.auto_insert_100_checkbox.isChecked() if hasattr(self, 'auto_insert_100_checkbox') else True,
+            'tm_save_mode': tm_save_mode_combo.currentData() if 'tm_save_mode_combo' in locals() else 'all',
             'auto_generate_markdown': self.auto_generate_markdown if hasattr(self, 'auto_generate_markdown') else False,
             'grid_font_size': self.default_font_size,  # Keep existing or update separately
             'results_match_font_size': 9,  # Keep existing
             'results_compare_font_size': 9  # Keep existing
         }
+        
+        # Update instance variable from checkbox
+        if hasattr(self, 'auto_insert_100_checkbox'):
+            self.auto_insert_100_percent_matches = self.auto_insert_100_checkbox.isChecked()
+        
+        # Update TM save mode
+        if 'tm_save_mode_combo' in locals():
+            self.tm_save_mode = tm_save_mode_combo.currentData()
+        
         self.save_general_settings(general_settings)
         
         self.log("✓ General settings saved")
@@ -4669,11 +4480,6 @@ class SupervertalerQt(QMainWindow):
         self.grid_view_btn.clicked.connect(lambda: self.switch_view_mode(LayoutMode.GRID))
         view_toolbar_layout.addWidget(self.grid_view_btn)
         
-        self.list_view_btn = QPushButton("📋 List")
-        self.list_view_btn.setCheckable(True)
-        self.list_view_btn.clicked.connect(lambda: self.switch_view_mode(LayoutMode.LIST))
-        view_toolbar_layout.addWidget(self.list_view_btn)
-        
         self.document_view_btn = QPushButton("📄 Document")
         self.document_view_btn.setCheckable(True)
         self.document_view_btn.clicked.connect(lambda: self.switch_view_mode(LayoutMode.DOCUMENT))
@@ -4704,24 +4510,21 @@ class SupervertalerQt(QMainWindow):
         return tab
     
     def switch_view_mode(self, mode: str):
-        """Switch between Grid/List/Document views"""
+        """Switch between Grid/Document views"""
         self.current_view_mode = mode
         
         # Update button states
         self.grid_view_btn.setChecked(mode == LayoutMode.GRID)
-        self.list_view_btn.setChecked(mode == LayoutMode.LIST)
         self.document_view_btn.setChecked(mode == LayoutMode.DOCUMENT)
         
         # Check if we're in unified layout mode with nested Document Views
-        if hasattr(self, 'document_views_widget') and self.document_views_widget.parent() is not None:
+        if self.current_layout_mode == "unified" and hasattr(self, 'document_views_widget'):
             # In unified layout, switch within the nested Document Views tab
             tab_index = 0
             if mode == LayoutMode.GRID:
                 tab_index = 0
-            elif mode == LayoutMode.LIST:
-                tab_index = 1
             elif mode == LayoutMode.DOCUMENT:
-                tab_index = 2
+                tab_index = 1
             
             # First, make sure the Document Views tab is selected in the main unified tabs
             if hasattr(self, 'unified_tabs_widget'):
@@ -4731,26 +4534,20 @@ class SupervertalerQt(QMainWindow):
             self.document_views_widget.setCurrentIndex(tab_index)
             
             # Refresh views as needed
-            if mode == LayoutMode.LIST and hasattr(self, 'list_tree') and self.current_project:
-                self.refresh_list_view()
-            elif mode == LayoutMode.DOCUMENT and hasattr(self, 'document_container') and self.current_project:
-                self.refresh_document_view()
+            if mode == LayoutMode.DOCUMENT and self.current_project:
+                self._set_active_document_host('editor')
+                self.refresh_document_view('editor')
         else:
             # In split layout, use the view stack
             if mode == LayoutMode.GRID:
                 self.view_stack.setCurrentIndex(0)
             
-            elif mode == LayoutMode.LIST:
-                self.view_stack.setCurrentIndex(1)
-                # Refresh list view when switching to it
-                if hasattr(self, 'list_tree') and self.current_project:
-                    self.refresh_list_view()
-            
             elif mode == LayoutMode.DOCUMENT:
-                self.view_stack.setCurrentIndex(2)
+                self.view_stack.setCurrentIndex(1)
                 # Refresh document view when switching to it
-                if hasattr(self, 'document_container') and self.current_project:
-                    self.refresh_document_view()
+                if self.current_project:
+                    self._set_active_document_host('editor')
+                    self.refresh_document_view('editor')
         
         self.log(f"Switched to {mode} view")
     
@@ -4770,36 +4567,9 @@ class SupervertalerQt(QMainWindow):
         grid_layout.setSpacing(5)
         
         # Warning banner for replace in source (hidden by default)
-        self.warning_banner = QWidget()
-        self.warning_banner.setStyleSheet(
-            "background-color: #dc2626; color: white; padding: 8px; border-radius: 4px;"
-        )
-        warning_layout = QHBoxLayout(self.warning_banner)
-        warning_layout.setContentsMargins(10, 5, 10, 5)
-        
-        warning_icon = QLabel("⚠️")
-        warning_icon.setStyleSheet("font-size: 16px; background: transparent;")
-        warning_layout.addWidget(warning_icon)
-        
-        warning_text = QLabel(
-            "<b>WARNING:</b> Replace in Source Text is ENABLED. "
-            "This allows modifying your original source segments. Use with extreme caution!"
-        )
-        warning_text.setStyleSheet("background: transparent; font-weight: bold;")
-        warning_text.setWordWrap(True)
-        warning_layout.addWidget(warning_text, stretch=1)
-        
-        settings_link = QPushButton("⚙️ Disable in Options")
-        settings_link.setStyleSheet(
-            "background-color: rgba(255, 255, 255, 0.2); color: white; "
-            "border: 1px solid white; padding: 4px 12px; border-radius: 3px; font-weight: bold;"
-        )
-        settings_link.setCursor(Qt.CursorShape.PointingHandCursor)
-        settings_link.clicked.connect(self._go_to_settings_tab)
-        warning_layout.addWidget(settings_link)
-        
-        grid_layout.addWidget(self.warning_banner)
-        self.warning_banner.hide()  # Hidden by default
+        editor_warning = self._get_warning_banner('editor_grid')
+        grid_layout.addWidget(editor_warning)
+        editor_warning.hide()  # Hidden by default
         
         # Filter panel (like memoQ)
         filter_panel = QWidget()
@@ -4809,17 +4579,21 @@ class SupervertalerQt(QMainWindow):
         
         # Source filter
         source_filter_label = QLabel("Filter Source:")
-        self.source_filter = QLineEdit()
-        self.source_filter.setPlaceholderText("Type to filter source segments...")
-        self.source_filter.textChanged.connect(self.apply_filters)
-        self.source_filter.returnPressed.connect(self.apply_filters)
+        self.source_filter = self._ensure_shared_filter(
+            'source_filter',
+            "Type to filter source segments...",
+            on_change=self.apply_filters,
+            on_return=self.apply_filters,
+        )
         
         # Target filter
         target_filter_label = QLabel("Filter Target:")
-        self.target_filter = QLineEdit()
-        self.target_filter.setPlaceholderText("Type to filter target segments...")
-        self.target_filter.textChanged.connect(self.apply_filters)
-        self.target_filter.returnPressed.connect(self.apply_filters)
+        self.target_filter = self._ensure_shared_filter(
+            'target_filter',
+            "Type to filter target segments...",
+            on_change=self.apply_filters,
+            on_return=self.apply_filters,
+        )
         
         # Clear filters button
         clear_filters_btn = QPushButton("Clear Filters")
@@ -4834,8 +4608,9 @@ class SupervertalerQt(QMainWindow):
         
         grid_layout.addWidget(filter_panel)
         
-        # Translation Grid
-        self.create_translation_grid()
+        # Translation Grid (create it if it doesn't exist or has been deleted)
+        if not hasattr(self, 'table') or not self._widget_is_alive(self.table):
+            self.create_translation_grid()
         grid_layout.addWidget(self.table)
         
         # Add grid container to splitter
@@ -4847,55 +4622,32 @@ class SupervertalerQt(QMainWindow):
         
         layout.addWidget(self.editor_splitter)
         
+        self.update_warning_banner()
+
         return widget
     
     def create_grid_view_widget_for_home(self):
-        """Create Grid View widget with translation results panel at bottom"""
+        """Create Grid View widget with translation results panel on the right (memoQ style)"""
         widget = QWidget()
         layout = QVBoxLayout(widget)
         layout.setContentsMargins(0, 0, 0, 0)
         
-        # Main vertical splitter: Grid area (top) and Translation Results (bottom)
-        self.home_grid_splitter = QSplitter(Qt.Orientation.Vertical)
+        # Main horizontal splitter: Grid+Segment Editor (left) and Translation Results (right)
+        main_horizontal_splitter = QSplitter(Qt.Orientation.Horizontal)
         
-        # Top: Grid container with filter boxes
+        # Left side: Vertical splitter with Grid (top) and Segment Editor/Comments (bottom)
+        left_vertical_splitter = QSplitter(Qt.Orientation.Vertical)
+        
+        # Top of left side: Grid container with filter boxes
         grid_container = QWidget()
         grid_layout = QVBoxLayout(grid_container)
         grid_layout.setContentsMargins(0, 0, 0, 0)
         grid_layout.setSpacing(5)
         
         # Warning banner for replace in source (hidden by default)
-        if not hasattr(self, 'warning_banner'):
-            self.warning_banner = QWidget()
-            self.warning_banner.setStyleSheet(
-                "background-color: #dc2626; color: white; padding: 8px; border-radius: 4px;"
-            )
-            warning_layout = QHBoxLayout(self.warning_banner)
-            warning_layout.setContentsMargins(10, 5, 10, 5)
-            
-            warning_icon = QLabel("⚠️")
-            warning_icon.setStyleSheet("font-size: 16px; background: transparent;")
-            warning_layout.addWidget(warning_icon)
-            
-            warning_text = QLabel(
-                "<b>WARNING:</b> Replace in Source Text is ENABLED. "
-                "This allows modifying your original source segments. Use with extreme caution!"
-            )
-            warning_text.setStyleSheet("background: transparent; font-weight: bold;")
-            warning_text.setWordWrap(True)
-            warning_layout.addWidget(warning_text, stretch=1)
-            
-            settings_link = QPushButton("⚙️ Disable in Options")
-            settings_link.setStyleSheet(
-                "background-color: rgba(255, 255, 255, 0.2); color: white; "
-                "border: 1px solid white; padding: 4px 12px; border-radius: 3px; font-weight: bold;"
-            )
-            settings_link.setCursor(Qt.CursorShape.PointingHandCursor)
-            settings_link.clicked.connect(self._go_to_settings_tab)
-            warning_layout.addWidget(settings_link)
-        
-        grid_layout.addWidget(self.warning_banner)
-        self.warning_banner.hide()  # Hidden by default
+        home_warning = self._get_warning_banner('home_grid')
+        grid_layout.addWidget(home_warning)
+        home_warning.hide()  # Hidden by default
         
         # Filter panel (like memoQ)
         filter_panel = QWidget()
@@ -4905,17 +4657,19 @@ class SupervertalerQt(QMainWindow):
         
         # Source filter
         source_filter_label = QLabel("Filter Source:")
-        if not hasattr(self, 'source_filter'):
-            self.source_filter = QLineEdit()
-        self.source_filter.setPlaceholderText("Type to filter source segments... (Press Enter or click Filter)")
-        self.source_filter.returnPressed.connect(self.apply_filters)
+        self.source_filter = self._ensure_shared_filter(
+            'source_filter',
+            "Type to filter source segments... (Press Enter or click Filter)",
+            on_return=self.apply_filters,
+        )
         
         # Target filter
         target_filter_label = QLabel("Filter Target:")
-        if not hasattr(self, 'target_filter'):
-            self.target_filter = QLineEdit()
-        self.target_filter.setPlaceholderText("Type to filter target segments... (Press Enter or click Filter)")
-        self.target_filter.returnPressed.connect(self.apply_filters)
+        self.target_filter = self._ensure_shared_filter(
+            'target_filter',
+            "Type to filter target segments... (Press Enter or click Filter)",
+            on_return=self.apply_filters,
+        )
         
         # Filter button (activates the filter)
         apply_filter_btn = QPushButton("Filter")
@@ -4945,7 +4699,7 @@ class SupervertalerQt(QMainWindow):
         pagination_layout.setSpacing(10)
         
         # Pagination label (left side)
-        if not hasattr(self, 'pagination_label'):
+        if not hasattr(self, 'pagination_label') or not self._widget_is_alive(self.pagination_label):
             self.pagination_label = QLabel("Segments 1-50 of 0")
         self.pagination_label.setStyleSheet("color: #555;")
         pagination_layout.addWidget(self.pagination_label)
@@ -4954,7 +4708,7 @@ class SupervertalerQt(QMainWindow):
         
         # Pagination controls (right side)
         # First page button
-        if not hasattr(self, 'first_page_btn'):
+        if not hasattr(self, 'first_page_btn') or not self._widget_is_alive(self.first_page_btn):
             self.first_page_btn = QPushButton("⏮ First")
             self.first_page_btn.setMaximumWidth(70)
             if hasattr(self, 'go_to_first_page'):
@@ -4962,7 +4716,7 @@ class SupervertalerQt(QMainWindow):
         pagination_layout.addWidget(self.first_page_btn)
         
         # Previous page button
-        if not hasattr(self, 'prev_page_btn'):
+        if not hasattr(self, 'prev_page_btn') or not self._widget_is_alive(self.prev_page_btn):
             self.prev_page_btn = QPushButton("◀ Prev")
             self.prev_page_btn.setMaximumWidth(70)
             if hasattr(self, 'go_to_prev_page'):
@@ -4973,7 +4727,7 @@ class SupervertalerQt(QMainWindow):
         page_label = QLabel("Page:")
         pagination_layout.addWidget(page_label)
         
-        if not hasattr(self, 'page_number_input'):
+        if not hasattr(self, 'page_number_input') or not self._widget_is_alive(self.page_number_input):
             self.page_number_input = QLineEdit()
             self.page_number_input.setMaximumWidth(50)
             self.page_number_input.setText("1")
@@ -4981,12 +4735,12 @@ class SupervertalerQt(QMainWindow):
                 self.page_number_input.returnPressed.connect(self.go_to_page)
         pagination_layout.addWidget(self.page_number_input)
         
-        if not hasattr(self, 'total_pages_label'):
+        if not hasattr(self, 'total_pages_label') or not self._widget_is_alive(self.total_pages_label):
             self.total_pages_label = QLabel("of 1")
         pagination_layout.addWidget(self.total_pages_label)
         
         # Next page button
-        if not hasattr(self, 'next_page_btn'):
+        if not hasattr(self, 'next_page_btn') or not self._widget_is_alive(self.next_page_btn):
             self.next_page_btn = QPushButton("Next ▶")
             self.next_page_btn.setMaximumWidth(70)
             if hasattr(self, 'go_to_next_page'):
@@ -4994,7 +4748,7 @@ class SupervertalerQt(QMainWindow):
         pagination_layout.addWidget(self.next_page_btn)
         
         # Last page button
-        if not hasattr(self, 'last_page_btn'):
+        if not hasattr(self, 'last_page_btn') or not self._widget_is_alive(self.last_page_btn):
             self.last_page_btn = QPushButton("Last ⏭")
             self.last_page_btn.setMaximumWidth(70)
             if hasattr(self, 'go_to_last_page'):
@@ -5005,7 +4759,7 @@ class SupervertalerQt(QMainWindow):
         page_size_label = QLabel("Per page:")
         pagination_layout.addWidget(page_size_label)
         
-        if not hasattr(self, 'page_size_combo'):
+        if not hasattr(self, 'page_size_combo') or not self._widget_is_alive(self.page_size_combo):
             self.page_size_combo = QComboBox()
             self.page_size_combo.addItems(["25", "50", "100", "200", "All"])
             if not hasattr(self, 'grid_page_size'):
@@ -5021,39 +4775,147 @@ class SupervertalerQt(QMainWindow):
         # Note: Pagination methods (go_to_first_page, go_to_prev_page, etc.) will be implemented
         # when pagination functionality is fully added. For now, buttons are created but won't work.
         
-        # Translation Grid (create it if it doesn't exist)
-        if not hasattr(self, 'table') or self.table is None:
+        # Translation Grid (create it if it doesn't exist or has been deleted)
+        if not hasattr(self, 'table') or not self._widget_is_alive(self.table):
             self.create_translation_grid()
         grid_layout.addWidget(self.table)
         
-        # Add grid container to top of vertical splitter
-        self.home_grid_splitter.addWidget(grid_container)  # Grid on top
+        # Compact toolbar below grid with action buttons
+        toolbar = QWidget()
+        toolbar_layout = QHBoxLayout(toolbar)
+        toolbar_layout.setContentsMargins(5, 5, 5, 5)
+        toolbar_layout.setSpacing(8)
         
-        # Add tabbed assistance panel at bottom (Translation Results, Segment Editor, Notes)
-        # Always create fresh to avoid stale widget issues
-        self.home_tabbed_panel = self.create_tabbed_assistance_panel()
-        self.home_grid_splitter.addWidget(self.home_tabbed_panel)  # Tabs at bottom
+        # Segment info label
+        tab_seg_info = QLabel("Segment: -")
+        tab_seg_info.setStyleSheet("font-weight: bold;")
+        toolbar_layout.addWidget(tab_seg_info)
         
-        print(f"DEBUG: Grid view - Added tabbed panel to splitter")
-        print(f"DEBUG: Tabbed panel has {self.home_tabbed_panel.count()} tabs")
-        for i in range(self.home_tabbed_panel.count()):
-            print(f"DEBUG:   Tab {i}: '{self.home_tabbed_panel.tabText(i)}'")
+        # TM/Termbase toggle button
+        tm_toggle_btn = QPushButton("🔍 TM ON")
+        tm_toggle_btn.setCheckable(True)
+        tm_toggle_btn.setChecked(True)
+        tm_toggle_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #4CAF50;
+                color: white;
+                font-weight: bold;
+                padding: 4px 8px;
+                border-radius: 3px;
+            }
+            QPushButton:checked {
+                background-color: #4CAF50;
+            }
+            QPushButton:!checked {
+                background-color: #757575;
+            }
+        """)
+        tm_toggle_btn.setToolTip("Toggle TM and Termbase lookups")
+        tm_toggle_btn.clicked.connect(lambda checked: self.toggle_tm_from_editor(checked, tm_toggle_btn))
+        toolbar_layout.addWidget(tm_toggle_btn)
         
-        # Set splitter proportions - Top to Bottom
-        # Position 0 (grid) gets 700, Position 1 (tabbed panel) gets 300
-        self.home_grid_splitter.setSizes([700, 300])
+        # Status selector
+        from modules.statuses import get_status, STATUSES
+        status_label = QLabel("Status:")
+        tab_status_combo = QComboBox()
+        for status_key in STATUSES.keys():
+            definition = get_status(status_key)
+            tab_status_combo.addItem(definition.label, status_key)
+        tab_status_combo.currentIndexChanged.connect(self.on_tab_status_combo_changed)
+        toolbar_layout.addWidget(status_label)
+        toolbar_layout.addWidget(tab_status_combo)
         
-        print(f"DEBUG: Final splitter has {self.home_grid_splitter.count()} widgets:")
-        for i in range(self.home_grid_splitter.count()):
-            child_widget = self.home_grid_splitter.widget(i)
-            print(f"  Position {i}: {child_widget.__class__.__name__}")
+        toolbar_layout.addWidget(QLabel("|"))  # Separator
         
-        # Ensure splitter handles are visible
-        self.home_grid_splitter.setHandleWidth(8)
-        self.home_grid_splitter.setChildrenCollapsible(False)
+        # Action buttons
+        copy_btn = QPushButton("📋 Copy")
+        copy_btn.setToolTip("Copy Source → Target")
+        copy_btn.clicked.connect(self.copy_source_to_grid_target)
+        toolbar_layout.addWidget(copy_btn)
         
-        layout.addWidget(self.home_grid_splitter)
+        clear_btn = QPushButton("🗑️ Clear")
+        clear_btn.setToolTip("Clear Target")
+        clear_btn.clicked.connect(self.clear_grid_target)
+        toolbar_layout.addWidget(clear_btn)
         
+        dictate_btn = QPushButton("🎤 Dictate")
+        dictate_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 4px 8px;")
+        dictate_btn.clicked.connect(self.start_voice_dictation)
+        dictate_btn.setToolTip("Start/stop voice dictation (F9)")
+        toolbar_layout.addWidget(dictate_btn)
+        
+        toolbar_layout.addStretch()
+        
+        save_btn = QPushButton("💾 Save")
+        save_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 4px 8px;")
+        save_btn.clicked.connect(self.save_grid_segment)
+        toolbar_layout.addWidget(save_btn)
+        
+        save_next_btn = QPushButton("💾 Save & Next")
+        save_next_btn.setStyleSheet("background-color: #2196F3; color: white; font-weight: bold; padding: 4px 8px;")
+        save_next_btn.clicked.connect(self.save_grid_segment_and_next)
+        save_next_btn.setToolTip("Save and go to next segment (Ctrl+Enter)")
+        toolbar_layout.addWidget(save_next_btn)
+        
+        grid_layout.addWidget(toolbar)
+        
+        # Store references
+        self.tab_seg_info = tab_seg_info
+        self.tab_status_combo = tab_status_combo
+        self.tab_dictate_btn = dictate_btn
+        
+        # Add grid container to top of left vertical splitter
+        left_vertical_splitter.addWidget(grid_container)
+        
+        # Bottom of left side: Comments panel only
+        comments_widget = QWidget()
+        comments_layout = QVBoxLayout(comments_widget)
+        comments_layout.setContentsMargins(5, 5, 5, 5)
+        
+        comments_label = QLabel("💬 Comments:")
+        comments_label.setStyleSheet("font-weight: bold;")
+        comments_layout.addWidget(comments_label)
+        
+        self.tab_notes_edit = QTextEdit()
+        self.tab_notes_edit.setPlaceholderText("Add notes or comments for the current segment...")
+        self.tab_notes_edit.textChanged.connect(self.on_tab_notes_change)
+        comments_layout.addWidget(self.tab_notes_edit)
+        
+        left_vertical_splitter.addWidget(comments_widget)
+        
+        # Set vertical splitter proportions: Grid larger, editor smaller
+        left_vertical_splitter.setSizes([600, 200])
+        left_vertical_splitter.setHandleWidth(8)
+        left_vertical_splitter.setChildrenCollapsible(False)
+        
+        # Add left side to main horizontal splitter
+        main_horizontal_splitter.addWidget(left_vertical_splitter)
+        
+        # Right side: Translation Results panel (standalone, no tabs)
+        from modules.translation_results_panel import TranslationResultsPanel
+        self.translation_results_panel = TranslationResultsPanel(self)
+        
+        # Connect signals for match selection/insertion
+        self.translation_results_panel.match_selected.connect(self.on_match_selected)
+        self.translation_results_panel.match_inserted.connect(self.on_match_inserted)
+        
+        # Register this panel so it receives updates when segments are selected
+        if not hasattr(self, 'results_panels'):
+            self.results_panels = []
+        self.results_panels.append(self.translation_results_panel)
+        
+        main_horizontal_splitter.addWidget(self.translation_results_panel)
+        
+        # Set horizontal splitter proportions: Grid area larger, results smaller
+        # Give more space to the grid+editor on the left
+        main_horizontal_splitter.setSizes([900, 400])
+        main_horizontal_splitter.setHandleWidth(8)
+        main_horizontal_splitter.setChildrenCollapsible(False)
+        
+        layout.addWidget(main_horizontal_splitter)
+        
+        self.update_warning_banner()
+
         return widget
     
     def switch_home_view_mode(self, mode: str):
@@ -5072,17 +4934,13 @@ class SupervertalerQt(QMainWindow):
         # Switch stack
         if mode == "grid":
             self.home_view_stack.setCurrentIndex(0)
-        elif mode == "list":
-            self.home_view_stack.setCurrentIndex(1)
-            # Refresh list view when switching to it
-            if hasattr(self, 'list_tree') and self.current_project:
-                self.refresh_list_view()
         elif mode == "document":
-            self.home_view_stack.setCurrentIndex(2)
+            self.home_view_stack.setCurrentIndex(1)
             # CRITICAL: Refresh document view to render styles!
-            if hasattr(self, 'document_container') and self.current_project:
+            if self.current_project:
                 print(f"DEBUG: Refreshing document view from home tab switch...")
-                self.refresh_document_view()
+                self._set_active_document_host('home')
+                self.refresh_document_view('home')
         
         self.log(f"Switched to {mode} view in Home tab")
     
@@ -5151,103 +5009,188 @@ class SupervertalerQt(QMainWindow):
             self.grid_current_page = 0
         # TODO: Implement full pagination logic with reload
     
-    def create_list_view_widget_for_home(self):
-        """Create List View widget adapted for home tab (assistance panel at bottom)"""
-        widget = QWidget()
-        main_layout = QVBoxLayout(widget)
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        
-        # Vertical splitter: List on top, Editor in middle, Assistance at bottom
-        home_list_splitter = QSplitter(Qt.Orientation.Vertical)
-        
-        # Top: Segment list
-        list_container = QWidget()
-        list_layout = QVBoxLayout(list_container)
-        list_layout.setContentsMargins(0, 0, 0, 0)
-        
-        # Filter panel
-        filter_panel = QWidget()
-        filter_layout = QHBoxLayout(filter_panel)
-        filter_layout.setContentsMargins(5, 5, 5, 5)
-        
-        source_filter_label = QLabel("Filter Source:")
-        if not hasattr(self, 'list_source_filter'):
-            self.list_source_filter = QLineEdit()
-        self.list_source_filter.setPlaceholderText("Type to filter...")
-        self.list_source_filter.textChanged.connect(self.apply_list_filters)
-        
-        target_filter_label = QLabel("Filter Target:")
-        if not hasattr(self, 'list_target_filter'):
-            self.list_target_filter = QLineEdit()
-        self.list_target_filter.setPlaceholderText("Type to filter...")
-        self.list_target_filter.textChanged.connect(self.apply_list_filters)
-        
-        clear_btn = QPushButton("Clear")
-        clear_btn.clicked.connect(self.clear_list_filters)
-        clear_btn.setMaximumWidth(60)
-        
-        filter_layout.addWidget(source_filter_label)
-        filter_layout.addWidget(self.list_source_filter, stretch=1)
-        filter_layout.addWidget(target_filter_label)
-        filter_layout.addWidget(self.list_target_filter, stretch=1)
-        filter_layout.addWidget(clear_btn)
-        
-        list_layout.addWidget(filter_panel)
-        
-        # Segment tree (QTreeWidget for list view)
-        if not hasattr(self, 'list_tree'):
-            self.list_tree = QTreeWidget()
-            self.list_tree.setHeaderLabels(["#", "Type", "Status", "Source", "Target"])
-            self.list_tree.setAlternatingRowColors(True)
-            self.list_tree.setRootIsDecorated(False)
-            self.list_tree.setSelectionMode(QTreeWidget.SelectionMode.ExtendedSelection)  # Allow Ctrl/Shift multi-selection
-            # Enable context menu for bulk operations
-            self.list_tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-            self.list_tree.customContextMenuRequested.connect(self.show_list_context_menu)
-            
-            # Column widths - all resizable
-            header = self.list_tree.header()
-            header.setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)  # ID - resizable
-            header.setSectionResizeMode(1, QHeaderView.ResizeMode.Interactive)  # Type - resizable
-            header.setSectionResizeMode(2, QHeaderView.ResizeMode.Interactive)  # Match
-            header.setSectionResizeMode(3, QHeaderView.ResizeMode.Interactive)  # Status - resizable
-            header.setSectionResizeMode(4, QHeaderView.ResizeMode.Interactive)  # Source - resizable
-            header.setSectionResizeMode(5, QHeaderView.ResizeMode.Interactive)  # Target - resizable
-            
-            self.list_tree.setColumnWidth(0, 50)
-            self.list_tree.setColumnWidth(1, 80)
-            self.list_tree.setColumnWidth(2, 80)
-            # Set default widths for Source and Target columns
-            self.list_tree.setColumnWidth(3, 80)
-            self.list_tree.setColumnWidth(4, 350)
-            self.list_tree.setColumnWidth(5, 350)
-            
-            # Connect selection
-            self.list_tree.itemSelectionChanged.connect(self.on_list_segment_selected)
-            self.list_tree.itemDoubleClicked.connect(lambda: self.focus_list_target_editor())
-        
-        list_layout.addWidget(self.list_tree)
-        home_list_splitter.addWidget(list_container)
-        
-        # Bottom: Add tabbed assistance panel (Translation Results, Segment Editor, Notes)
-        # Create separate instance for list view (can't share widgets between views)
-        self.home_list_tabbed_panel = self.create_tabbed_assistance_panel()
-        home_list_splitter.addWidget(self.home_list_tabbed_panel)
-        home_list_splitter.setSizes([600, 400])
-        
-        print(f"DEBUG: List view - Added tabbed panel to splitter")
-        print(f"DEBUG: Tabbed panel has {self.home_list_tabbed_panel.count()} tabs")
-        for i in range(self.home_list_tabbed_panel.count()):
-            print(f"DEBUG:   Tab {i}: '{self.home_list_tabbed_panel.tabText(i)}'")
-        
-        main_layout.addWidget(home_list_splitter)
-        
-        # Store current selected segment for list view
-        if not hasattr(self, 'list_current_segment_id'):
-            self.list_current_segment_id = None
-        
+    def _widget_is_alive(self, widget: Optional[QWidget]) -> bool:
+        """Return True if the underlying Qt object still exists."""
+        if widget is None:
+            return False
+        try:
+            return not sip.isdeleted(widget)
+        except RuntimeError:
+            return False
+
+    def _get_line_edit_text(self, attr_name: str) -> str:
+        """Safely fetch text from a shared QLineEdit, handling deleted widgets."""
+        widget = getattr(self, attr_name, None)
+        if not self._widget_is_alive(widget):
+            setattr(self, attr_name, None)
+            return ""
+        return widget.text()
+
+    def _ensure_shared_filter(self, attr_name: str, placeholder: str,
+                               on_change: Optional[Callable] = None,
+                               on_return: Optional[Callable] = None) -> QLineEdit:
+        """Create (or recreate) shared filter widgets that may be destroyed during layout swaps."""
+        widget = getattr(self, attr_name, None)
+        if not self._widget_is_alive(widget):
+            widget = QLineEdit()
+            if on_change is not None:
+                widget.textChanged.connect(on_change)
+            if on_return is not None:
+                widget.returnPressed.connect(on_return)
+            setattr(self, attr_name, widget)
+        widget.setPlaceholderText(placeholder)
         return widget
-    
+
+    def _ensure_primary_filters_ready(self):
+        """Make sure the grid filters exist before programmatic use."""
+        self.source_filter = self._ensure_shared_filter(
+            'source_filter',
+            "Type to filter source segments...",
+            on_change=self.apply_filters,
+            on_return=self.apply_filters,
+        )
+        self.target_filter = self._ensure_shared_filter(
+            'target_filter',
+            "Type to filter target segments...",
+            on_change=self.apply_filters,
+            on_return=self.apply_filters,
+        )
+
+    def _find_widget_by_object_name(self, object_name: str) -> Optional[QWidget]:
+        app = QApplication.instance()
+        if app is None:
+            return None
+        for widget in app.allWidgets():
+            try:
+                if widget.objectName() == object_name and not sip.isdeleted(widget):
+                    return widget
+            except RuntimeError:
+                continue
+        return None
+
+    def _build_warning_banner(self, key: str) -> QWidget:
+        banner = QWidget()
+        banner.setObjectName(f"{key}_warning_banner")
+        banner.setStyleSheet(
+            "background-color: #dc2626; color: white; padding: 8px; border-radius: 4px;"
+        )
+        warning_layout = QHBoxLayout(banner)
+        warning_layout.setContentsMargins(10, 5, 10, 5)
+
+        warning_icon = QLabel("⚠️")
+        warning_icon.setStyleSheet("font-size: 16px; background: transparent;")
+        warning_layout.addWidget(warning_icon)
+
+        warning_text = QLabel(
+            "<b>WARNING:</b> Replace in Source Text is ENABLED. "
+            "This allows modifying your original source segments. Use with extreme caution!"
+        )
+        warning_text.setStyleSheet("background: transparent; font-weight: bold;")
+        warning_text.setWordWrap(True)
+        warning_layout.addWidget(warning_text, stretch=1)
+
+        settings_link = QPushButton("⚙️ Disable in Options")
+        settings_link.setStyleSheet(
+            "background-color: rgba(255, 255, 255, 0.2); color: white; "
+            "border: 1px solid white; padding: 4px 12px; border-radius: 3px; font-weight: bold;"
+        )
+        settings_link.setCursor(Qt.CursorShape.PointingHandCursor)
+        settings_link.clicked.connect(self._go_to_settings_tab)
+        warning_layout.addWidget(settings_link)
+
+        return banner
+
+    def _get_warning_banner(self, key: str) -> QWidget:
+        """Return a per-host warning banner widget, recreating it if needed."""
+        banner = self.warning_banners.get(key)
+        if not self._widget_is_alive(banner):
+            banner = self._build_warning_banner(key)
+            self.warning_banners[key] = banner
+        elif banner.parent() is not None:
+            banner.setParent(None)
+        return banner
+
+    def _find_document_container(self, host: str) -> Optional[QWidget]:
+        """Locate the document container widget within the current UI hierarchy."""
+        if host == 'home' and hasattr(self, 'home_view_stack'):
+            doc_view_widget = self.home_view_stack.widget(1)
+            if doc_view_widget:
+                return doc_view_widget.findChild(QWidget, "editor_document_container")
+        elif host == 'editor':
+            doc_widget = getattr(self, 'document_view_widget', None)
+            if doc_widget:
+                return doc_widget.findChild(QWidget, "editor_document_container")
+        return None
+
+    def _register_document_container(self, host: str, container: QWidget) -> None:
+        """Track the QWidget that hosts the document view for the specified host."""
+        if not container.objectName():
+            container.setObjectName(f"{host}_document_container")
+        self.document_containers[host] = container
+
+    def _set_active_document_host(self, host: str) -> None:
+        self.active_document_host = host
+
+    def _get_document_container(self, host: Optional[str] = None) -> Optional[QWidget]:
+        host = host or getattr(self, 'active_document_host', 'editor')
+        container = self.document_containers.get(host)
+
+        if container is not None:
+            try:
+                if sip.isdeleted(container):
+                    container = None
+            except Exception:
+                container = None
+
+        if container is None:
+            container = self._find_document_container(host)
+            if container is not None:
+                self.document_containers[host] = container
+
+        return container
+
+    def _locate_document_container(self, widget: Optional[QWidget], object_name: str) -> Optional[QWidget]:
+        if widget is None:
+            return None
+        try:
+            if sip.isdeleted(widget):
+                return None
+        except Exception:
+            return None
+        try:
+            return widget.findChild(QWidget, object_name)
+        except Exception:
+            return None
+
+    def _find_document_container(self, host: str) -> Optional[QWidget]:
+        """Locate the document container widget for the requested host."""
+        object_name = "home_document_container" if host == 'home' else "editor_document_container"
+        if host == 'home' and hasattr(self, 'home_view_stack'):
+            doc_view_widget = self.home_view_stack.widget(2)
+            if doc_view_widget:
+                container = self._locate_document_container(doc_view_widget, object_name)
+                if container:
+                    return container
+        elif host == 'editor':
+            doc_view_widget = getattr(self, 'document_view_widget', None)
+            container = self._locate_document_container(doc_view_widget, object_name)
+            if container:
+                return container
+
+            # Unified layout fallback: document widget lives inside nested tabs
+            if hasattr(self, 'document_views_widget') and self.document_views_widget is not None:
+                for idx in range(self.document_views_widget.count()):
+                    tab_widget = self.document_views_widget.widget(idx)
+                    container = self._locate_document_container(tab_widget, object_name)
+                    if container:
+                        return container
+
+        # Global search fallback (handles reparented widgets)
+        container = self._find_widget_by_object_name(object_name)
+        if container is not None:
+            return container
+        return None
+
     def create_document_view_widget_for_home(self):
         """Create Document View widget adapted for home tab (tabbed panel at bottom)"""
         widget = QWidget()
@@ -5265,16 +5208,16 @@ class SupervertalerQt(QMainWindow):
         # Always create a new container for this widget instance
         # Don't reuse existing one as it might be in a different parent hierarchy
         document_container = QWidget()
+        # Use "editor_document_container" name for compatibility with unified layout
+        document_container.setObjectName("editor_document_container")
         document_layout = QVBoxLayout(document_container)
         document_layout.setContentsMargins(0, 0, 0, 0)
         document_layout.setSpacing(0)
         
-        # Store references for refresh methods to use
-        # In unified mode, this will be the unified version; in split mode, the split version
-        self.document_container = document_container
-        self.document_layout = document_layout
+        # Store references for refresh methods to use (but still register as 'home' host)
+        self._register_document_container('home', document_container)
         
-        scroll_area.setWidget(self.document_container)
+        scroll_area.setWidget(document_container)
         home_doc_splitter.addWidget(scroll_area)
         
         # Bottom: Tabbed panel (Translation Results | Segment Editor | Notes)
@@ -5298,94 +5241,6 @@ class SupervertalerQt(QMainWindow):
         
         return widget
     
-    def create_list_view_widget(self):
-        """Create the List View widget (segment list with editor panel)"""
-        print("="*80)
-        print("DEBUG: *** create_list_view_widget() CALLED ***")
-        print("="*80)
-        widget = QWidget()
-        main_layout = QVBoxLayout(widget)
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        
-        # Main vertical splitter: List on top, Editor at bottom
-        self.list_splitter = QSplitter(Qt.Orientation.Vertical)
-        
-        # Top: Segment list
-        list_container = QWidget()
-        list_layout = QVBoxLayout(list_container)
-        list_layout.setContentsMargins(0, 0, 0, 0)
-        
-        # Filter panel
-        filter_panel = QWidget()
-        filter_layout = QHBoxLayout(filter_panel)
-        filter_layout.setContentsMargins(5, 5, 5, 5)
-        
-        source_filter_label = QLabel("Filter Source:")
-        self.list_source_filter = QLineEdit()
-        self.list_source_filter.setPlaceholderText("Type to filter...")
-        self.list_source_filter.textChanged.connect(self.apply_list_filters)
-        
-        target_filter_label = QLabel("Filter Target:")
-        self.list_target_filter = QLineEdit()
-        self.list_target_filter.setPlaceholderText("Type to filter...")
-        self.list_target_filter.textChanged.connect(self.apply_list_filters)
-        
-        clear_btn = QPushButton("Clear")
-        clear_btn.clicked.connect(self.clear_list_filters)
-        clear_btn.setMaximumWidth(60)
-        
-        filter_layout.addWidget(source_filter_label)
-        filter_layout.addWidget(self.list_source_filter, stretch=1)
-        filter_layout.addWidget(target_filter_label)
-        filter_layout.addWidget(self.list_target_filter, stretch=1)
-        filter_layout.addWidget(clear_btn)
-        
-        list_layout.addWidget(filter_panel)
-        
-        # Segment tree (QTreeWidget for list view)
-        self.list_tree = QTreeWidget()
-        self.list_tree.setHeaderLabels(["#", "Type", "Status", "Source", "Target"])
-        self.list_tree.setAlternatingRowColors(True)
-        self.list_tree.setRootIsDecorated(False)
-        self.list_tree.setSelectionMode(QTreeWidget.SelectionMode.SingleSelection)
-        
-        # Column widths - all resizable
-        header = self.list_tree.header()
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)
-        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Interactive)
-        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Interactive)
-        header.setSectionResizeMode(3, QHeaderView.ResizeMode.Interactive)
-        header.setSectionResizeMode(4, QHeaderView.ResizeMode.Interactive)
-
-        self.list_tree.setColumnWidth(0, 50)
-        self.list_tree.setColumnWidth(1, 80)
-        self.list_tree.setColumnWidth(2, 160)
-        # Set default widths for Source and Target columns
-        self.list_tree.setColumnWidth(3, 360)
-        self.list_tree.setColumnWidth(4, 360)
-        
-        # Connect selection
-        self.list_tree.itemSelectionChanged.connect(self.on_list_segment_selected)
-        self.list_tree.itemDoubleClicked.connect(lambda: self.focus_list_target_editor())
-        
-        list_layout.addWidget(self.list_tree)
-        
-        self.list_splitter.addWidget(list_container)
-        
-        # Bottom: Tabbed assistance panel (Translation Results | Segment Editor | Notes)
-        # Use the same tabbed panel approach as Grid View for consistency
-        self.list_tabbed_panel = self.create_tabbed_assistance_panel()
-        self.list_splitter.addWidget(self.list_tabbed_panel)
-        
-        self.list_splitter.setSizes([600, 250])
-        
-        main_layout.addWidget(self.list_splitter)
-        
-        # Store current selected segment for list view
-        self.list_current_segment_id = None
-        
-        return widget
-    
     def create_document_view_widget(self):
         """Create the Document View widget (natural document flow)"""
         widget = QWidget()
@@ -5400,12 +5255,15 @@ class SupervertalerQt(QMainWindow):
         scroll_area.setWidgetResizable(True)
         scroll_area.setStyleSheet("background-color: white;")
         
-        self.document_container = QWidget()
-        self.document_layout = QVBoxLayout(self.document_container)
-        self.document_layout.setContentsMargins(0, 0, 0, 0)  # No margins - text widget has padding
-        self.document_layout.setSpacing(0)  # No spacing - content will add its own
+        document_container = QWidget()
+        document_container.setObjectName("editor_document_container")
+        document_layout = QVBoxLayout(document_container)
+        document_layout.setContentsMargins(0, 0, 0, 0)  # No margins - text widget has padding
+        document_layout.setSpacing(0)  # No spacing - content will add its own
+
+        self._register_document_container('editor', document_container)
         
-        scroll_area.setWidget(self.document_container)
+        scroll_area.setWidget(document_container)
         
         self.doc_splitter.addWidget(scroll_area)
         
@@ -5581,9 +5439,10 @@ class SupervertalerQt(QMainWindow):
         editor_widget.tm_toggle_btn = tm_toggle_btn
 
         # Status selector
+        from modules.statuses import STATUSES
         status_label = QLabel("Status:")
         tab_status_combo = QComboBox()
-        for status_key in STATUS_ORDER:
+        for status_key in STATUSES.keys():
             definition = get_status(status_key)
             tab_status_combo.addItem(definition.label, status_key)
         tab_status_combo.currentIndexChanged.connect(self.on_tab_status_combo_changed)
@@ -6039,6 +5898,11 @@ class SupervertalerQt(QMainWindow):
             # This pre-fills the cache while user works on the project
             self._start_termbase_batch_worker()
             
+            # Start prefetch worker for first 50 segments (instant switching like memoQ)
+            if len(self.current_project.segments) > 0:
+                prefetch_ids = [seg.id for seg in self.current_project.segments[:50]]
+                self._start_prefetch_worker(prefetch_ids)
+            
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to load project:\n{str(e)}")
             self.log(f"✗ Error loading project: {e}")
@@ -6245,6 +6109,231 @@ class SupervertalerQt(QMainWindow):
             self.termbase_batch_worker_thread.join(timeout=3)
             self.log("✓ Termbase batch worker stopped")
     
+    # ========================================================================
+    # TM/MT/LLM PREFETCH WORKER (Background caching for instant segment switching)
+    # ========================================================================
+    
+    def _start_prefetch_worker(self, segment_ids):
+        """
+        Start background thread to prefetch TM/MT/LLM matches for visible segments.
+        This enables instant segment switching like memoQ.
+        """
+        if not segment_ids or len(segment_ids) == 0:
+            return
+        
+        # Stop any existing worker thread
+        self.prefetch_stop_event.set()
+        if self.prefetch_worker_thread and self.prefetch_worker_thread.is_alive():
+            self.log("⏹️  Stopping existing prefetch worker...")
+            self.prefetch_worker_thread.join(timeout=1)
+        
+        # Reset stop event for new worker
+        self.prefetch_stop_event.clear()
+        
+        # Set queue and start worker
+        self.prefetch_queue = segment_ids.copy()
+        
+        self.log(f"🚀 Starting background prefetch for {len(segment_ids)} segments...")
+        
+        self.prefetch_worker_thread = threading.Thread(
+            target=self._prefetch_worker_run,
+            args=(segment_ids,),
+            daemon=True
+        )
+        self.prefetch_worker_thread.start()
+    
+    def _prefetch_worker_run(self, segment_ids):
+        """
+        Background worker: prefetch TM/MT/LLM matches for given segments.
+        Runs in separate thread to avoid blocking UI.
+        """
+        try:
+            self.log(f"🔄 Prefetch worker started for {len(segment_ids)} segments")
+            
+            for idx, segment_id in enumerate(segment_ids):
+                # Check stop signal
+                if self.prefetch_stop_event.is_set():
+                    self.log(f"⏹️  Prefetch worker stopped at segment {idx+1}/{len(segment_ids)}")
+                    return
+                
+                # Check if already cached
+                with self.translation_matches_cache_lock:
+                    if segment_id in self.translation_matches_cache:
+                        continue  # Already cached, skip
+                
+                # Find segment
+                segment = None
+                if self.current_project:
+                    for seg in self.current_project.segments:
+                        if seg.id == segment_id:
+                            segment = seg
+                            break
+                
+                if not segment:
+                    continue
+                
+                # Fetch TM/MT/LLM matches (this is the expensive part)
+                matches = self._fetch_all_matches_for_segment(segment)
+                
+                # Only cache if we got at least one match (don't cache empty results)
+                # This prevents "empty cache hits" when TM database is still empty
+                tm_count = len(matches.get("TM", []))
+                tb_count = len(matches.get("Termbases", []))
+                mt_count = len(matches.get("MT", []))
+                llm_count = len(matches.get("LLM", []))
+                total_matches = tm_count + tb_count + mt_count + llm_count
+                
+                if total_matches > 0:
+                    # Store in cache only if we have results
+                    with self.translation_matches_cache_lock:
+                        self.translation_matches_cache[segment_id] = matches
+                else:
+                    # Don't cache empty results - let it fall through to slow lookup next time
+                    pass
+                
+                # Log progress every 10 segments
+                if (idx + 1) % 10 == 0:
+                    self.log(f"✓ Prefetched {idx+1}/{len(segment_ids)} segments")
+            
+            self.log(f"✓ Prefetch worker completed: {len(segment_ids)} segments cached")
+            
+        except Exception as e:
+            self.log(f"Error in prefetch worker: {e}")
+            import traceback
+            self.log(f"Prefetch worker traceback: {traceback.format_exc()}")
+    
+    def _fetch_all_matches_for_segment(self, segment):
+        """
+        Fetch TM, MT, and LLM matches for a single segment.
+        Used by prefetch worker. Returns matches_dict with all match types.
+        """
+        from modules.translation_results_panel import TranslationMatch
+        
+        matches_dict = {
+            "LLM": [],
+            "NT": [],
+            "MT": [],
+            "TM": [],
+            "Termbases": []
+        }
+        
+        # Get project languages
+        source_lang = getattr(self.current_project, 'source_lang', None) if self.current_project else None
+        target_lang = getattr(self.current_project, 'target_lang', None) if self.current_project else None
+        
+        if not source_lang or not target_lang:
+            return matches_dict
+        
+        # Convert language names to codes
+        source_lang_code = self._convert_language_to_code(source_lang)
+        target_lang_code = self._convert_language_to_code(target_lang)
+        
+        # 1. TM matches (if enabled) - thread-safe check
+        enable_tm = getattr(self, 'enable_tm_matching', True)  # Default to True if not set
+        if enable_tm and hasattr(self, 'db_manager') and self.db_manager:
+            try:
+                tm_results = self.db_manager.search_translation_memory(
+                    segment.source,
+                    source_lang,
+                    target_lang,
+                    limit=5
+                )
+                
+                if tm_results:  # Only add if we got results
+                    for tm_match in tm_results:
+                        match_obj = TranslationMatch(
+                            source=tm_match.get('source', ''),
+                            target=tm_match.get('target', ''),
+                            relevance=tm_match.get('similarity', 0),
+                            metadata={'tm_name': tm_match.get('tm_id', 'project')},
+                            match_type='TM',
+                            compare_source=tm_match.get('source', ''),
+                            provider_code='TM'
+                        )
+                        matches_dict["TM"].append(match_obj)
+            except Exception as e:
+                pass  # Silently continue
+        
+        # 2. MT matches (if enabled)
+        if self.enable_mt_matching:
+            # Use the same MT fetching logic as the main search
+            # For now, we'll skip MT in prefetch to avoid rate limiting
+            # MT will still be fetched on-demand when user clicks
+            pass
+        
+        # 3. LLM matches (if enabled)
+        if self.enable_llm_matching:
+            # Skip LLM in prefetch - too expensive and slow
+            # LLM will still be fetched on-demand when user clicks
+            pass
+        
+        # 4. Termbase matches (from cache)
+        with self.termbase_cache_lock:
+            if segment.id in self.termbase_cache:
+                stored_matches = self.termbase_cache[segment.id]
+                for source_term, target_term in stored_matches.items():
+                    match_obj = TranslationMatch(
+                        source=source_term,
+                        target=target_term,
+                        relevance=95,
+                        metadata={'termbase_name': 'Default'},
+                        match_type='Termbase',
+                        compare_source=source_term,
+                        provider_code='TB'
+                    )
+                    matches_dict["Termbases"].append(match_obj)
+        
+        return matches_dict
+    
+    def stop_prefetch_worker(self):
+        """Stop the background prefetch worker gracefully"""
+        if self.prefetch_worker_thread and self.prefetch_worker_thread.is_alive():
+            self.log("⏹️  Stopping prefetch worker...")
+            self.prefetch_stop_event.set()
+            self.prefetch_worker_thread.join(timeout=2)
+            self.log("✓ Prefetch worker stopped")
+    
+    def invalidate_translation_cache(self, smart_invalidation=True):
+        """
+        Invalidate prefetch cache when TM/Termbase is updated.
+        
+        Args:
+            smart_invalidation: If True, only clear future segments (keeps already-seen segments cached).
+                               If False, clear entire cache.
+        
+        Smart mode: When translator saves segment N, only clears cache for segments > N.
+        This way, going backwards still uses cache, but going forward gets fresh TM matches.
+        """
+        with self.translation_matches_cache_lock:
+            if not smart_invalidation:
+                # Full invalidation (e.g., termbase import, bulk TM import)
+                cache_size = len(self.translation_matches_cache)
+                if cache_size > 0:
+                    self.translation_matches_cache.clear()
+                    self.log(f"🔄 Full cache invalidated ({cache_size} segments cleared)")
+            else:
+                # Smart invalidation: Only clear segments ahead of current position
+                if hasattr(self, 'table') and self.table:
+                    current_row = self.table.currentRow()
+                    if current_row >= 0 and self.current_project:
+                        # Clear cache for all segments AFTER current position
+                        segments_to_clear = []
+                        for seg in self.current_project.segments[current_row + 1:]:
+                            if seg.id in self.translation_matches_cache:
+                                segments_to_clear.append(seg.id)
+                        
+                        for seg_id in segments_to_clear:
+                            del self.translation_matches_cache[seg_id]
+                        
+                        if segments_to_clear:
+                            self.log(f"🔄 Smart cache: cleared {len(segments_to_clear)} future segments (keeping past segments cached)")
+                else:
+                    # Fallback: full clear if we can't determine position
+                    cache_size = len(self.translation_matches_cache)
+                    if cache_size > 0:
+                        self.translation_matches_cache.clear()
+                        self.log(f"🔄 Cache invalidated ({cache_size} segments)")
+    
     def save_project(self):
         """Save current project"""
         if not self.current_project:
@@ -6323,11 +6412,13 @@ class SupervertalerQt(QMainWindow):
                 if self.project_modified:
                     return
         
-        # Stop background batch worker
+        # Stop background batch workers
         self.stop_termbase_batch_worker()
+        self.stop_prefetch_worker()
         
-        # Clear termbase cache for this project
+        # Clear caches for this project
         self.termbase_cache.clear()
+        self.translation_matches_cache.clear()
         
         # Clear project data
         self.current_project = None
@@ -7340,18 +7431,31 @@ class SupervertalerQt(QMainWindow):
             # Connect text changes to update segment
             # Use a factory function to create a proper closure that captures the current row, segment, and editor
             def make_target_changed_handler(target_row, target_segment, editor_widget):
+                # Create debounce timer for expensive operations
+                debounce_timer = None
+                
                 def on_target_text_changed():
+                    nonlocal debounce_timer
                     new_text = editor_widget.toPlainText()
                     if target_row < len(self.current_project.segments):
+                        # IMMEDIATE: Update segment data (no delay for data safety)
                         target_segment.target = new_text
-                        # Update status if translation was added
-                        if target_segment.target and target_segment.status in (DEFAULT_STATUS.key, 'pretranslated', 'rejected'):
-                            target_segment.status = 'translated'
-                            self.update_status_icon(target_row, target_segment.status)
                         self.project_modified = True
-                        self.update_window_title()
-                        # Auto-resize the row
-                        self.table.resizeRowToContents(target_row)
+                        
+                        # DEBOUNCED: Expensive UI/DB operations (only after user stops typing)
+                        # Cancel previous timer
+                        if debounce_timer:
+                            debounce_timer.stop()
+                        
+                        # Schedule expensive operations after 500ms of inactivity
+                        from PyQt6.QtCore import QTimer
+                        debounce_timer = QTimer()
+                        debounce_timer.setSingleShot(True)
+                        debounce_timer.timeout.connect(lambda: self._handle_target_text_debounced(
+                            target_row, target_segment, new_text
+                        ))
+                        debounce_timer.start(500)  # 500ms delay
+                        
                 return on_target_text_changed
             
             target_editor.textChanged.connect(make_target_changed_handler(row, segment, target_editor))
@@ -7385,7 +7489,7 @@ class SupervertalerQt(QMainWindow):
         # Also refresh List and Document views if they exist
         if hasattr(self, 'list_tree'):
             self.refresh_list_view()
-        if hasattr(self, 'document_container'):
+        if self._get_document_container():
             self.refresh_document_view()
 
     def _create_status_cell_widget(self, segment: Segment) -> QWidget:
@@ -7503,84 +7607,40 @@ class SupervertalerQt(QMainWindow):
         # This method is kept for backward compatibility but does nothing
         pass
 
-    def refresh_list_view(self):
-        """Refresh the List View with current segments"""
-        if not hasattr(self, 'list_tree') or not self.current_project:
-            return
-        
-        self.list_tree.clear()
-        
-        if not self.current_project.segments:
-            return
-        
-        # Apply filters if any
-        source_filter = self.list_source_filter.text().lower() if hasattr(self, 'list_source_filter') else ""
-        target_filter = self.list_target_filter.text().lower() if hasattr(self, 'list_target_filter') else ""
-        
-        for segment in self.current_project.segments:
-            # Filter segments
-            if source_filter and source_filter not in segment.source.lower():
-                continue
-            if target_filter and target_filter not in segment.target.lower():
-                continue
-            
-            status_def = get_status(segment.status)
-            match_text = f"{segment.match_percent}%" if segment.match_percent is not None else ""
-            status_display = f"{status_def.icon}"
-            if match_text:
-                status_display += f"  {match_text}"
-            if segment.notes and segment.notes.strip():
-                status_display += "  💬"
-            item = QTreeWidgetItem([
-                str(segment.id),
-                segment.type.upper() if segment.type != "para" else "#",
-                status_display,
-                segment.source[:100] + "..." if len(segment.source) > 100 else segment.source,
-                segment.target[:100] + "..." if len(segment.target) > 100 else segment.target
-            ])
-            item.setData(0, Qt.ItemDataRole.UserRole, segment.id)  # Store segment ID
-            
-            # Color coding by status
-            item.setBackground(2, QColor(status_def.color))
 
-            # Tooltip for match/status columns
-            status_tooltip = status_def.label
-            if segment.match_percent is not None:
-                status_tooltip += f" | {segment.match_percent}% match"
-            if segment.notes and segment.notes.strip():
-                status_tooltip += f"\nComment: {segment.notes.strip()}"
-            item.setToolTip(2, status_tooltip)
-            
-            self.list_tree.addTopLevelItem(item)
-        
-        self.log(f"✓ Refreshed List View with {self.list_tree.topLevelItemCount()} segments")
     
-    def refresh_document_view(self):
+    def refresh_document_view(self, host: Optional[str] = None):
         """Refresh the Document View with current segments (Natural document flow like Tkinter)"""
-        if not hasattr(self, 'document_container') or self.document_container is None:
-            return
-        if not hasattr(self, 'document_layout') or self.document_layout is None:
-            return
         if not self.current_project:
             return
-        
+
+        host = host or getattr(self, 'active_document_host', 'editor')
+        container = self._get_document_container(host)
+        if container is None:
+            return
+
+        layout = container.layout()
+        if layout is None:
+            layout = QVBoxLayout(container)
+            layout.setContentsMargins(0, 0, 0, 0)
+            layout.setSpacing(0)
+
         # Clear existing widgets
-        while self.document_layout.count() > 0:
-            item = self.document_layout.itemAt(0)
+        while layout.count() > 0:
+            item = layout.takeAt(0)
             if item:
                 widget = item.widget()
                 if widget:
                     widget.deleteLater()
-                self.document_layout.removeItem(item)
-        
+
         self.doc_segment_widgets.clear()
-        
+
         if not self.current_project.segments:
             return
         
         # Apply filters if any
-        source_filter = self.source_filter.text().lower() if hasattr(self, 'source_filter') else ""
-        target_filter = self.target_filter.text().lower() if hasattr(self, 'target_filter') else ""
+        source_filter = self._get_line_edit_text('source_filter').lower()
+        target_filter = self._get_line_edit_text('target_filter').lower()
         
         # Create a single QTextEdit for the entire document (exactly like Tkinter's Text widget)
         doc_text = QTextEdit()
@@ -7811,7 +7871,7 @@ class SupervertalerQt(QMainWindow):
         doc_text.mousePressEvent = handle_click
         
         # Add the text widget to the layout - it will expand to fill available space
-        self.document_layout.addWidget(doc_text)
+        layout.addWidget(doc_text)
         
         self.log(f"✓ Refreshed Document View with {len(self.doc_segment_widgets)} segments (natural flow)")
     
@@ -7975,12 +8035,16 @@ class SupervertalerQt(QMainWindow):
         settings = self._load_general_settings_from_file()
         if 'auto_propagate_exact_matches' in settings:
             self.auto_propagate_exact_matches = settings['auto_propagate_exact_matches']
+        if 'auto_insert_100_percent_matches' in settings:
+            self.auto_insert_100_percent_matches = settings['auto_insert_100_percent_matches']
         # Load TM/termbase matching setting
         if 'enable_tm_termbase_matching' in settings:
             self.enable_tm_matching = settings['enable_tm_termbase_matching']
             self.enable_termbase_matching = settings['enable_tm_termbase_matching']
         # Load auto-markdown setting
         self.auto_generate_markdown = settings.get('auto_generate_markdown', False)
+        # Load TM save mode
+        self.tm_save_mode = settings.get('tm_save_mode', 'all')
 
         # Load LLM provider settings for AI Assistant
         llm_settings = self.load_llm_settings()
@@ -8257,6 +8321,44 @@ class SupervertalerQt(QMainWindow):
         """Get status icon for display"""
         return get_status(status).icon
     
+    def _handle_target_text_debounced(self, row, segment, new_text):
+        """
+        Handle expensive target text change operations after user stops typing.
+        Called 500ms after last keystroke to avoid UI lag.
+        """
+        try:
+            # Update status if translation was added
+            if segment.target and segment.status in (DEFAULT_STATUS.key, 'pretranslated', 'rejected'):
+                segment.status = 'translated'
+                self.update_status_icon(row, segment.status)
+            
+            # Update window title
+            self.update_window_title()
+            
+            # Auto-resize the row
+            if hasattr(self, 'table') and self.table:
+                self.table.resizeRowToContents(row)
+            
+            # Save to TM if segment is translated/approved/confirmed and has content
+            if segment.status in ['translated', 'approved', 'confirmed'] and new_text.strip():
+                try:
+                    if self.current_project and hasattr(self.current_project, 'source_lang') and hasattr(self.current_project, 'target_lang'):
+                        save_mode = self.tm_save_mode if hasattr(self, 'tm_save_mode') else 'all'
+                        self.db_manager.add_translation_unit(
+                            source=segment.source,
+                            target=new_text,
+                            source_lang=self.current_project.source_lang,
+                            target_lang=self.current_project.target_lang,
+                            tm_id='project',
+                            save_mode=save_mode
+                        )
+                        # Invalidate cache so prefetched segments get fresh TM matches
+                        self.invalidate_translation_cache()
+                except Exception as e:
+                    self.log(f"Warning: Could not save to TM: {e}")
+        except Exception as e:
+            self.log(f"Error in debounced target handler: {e}")
+    
     def update_status_icon(self, row: int, status: str):
         """Update status icon for a specific row"""
         if not self.current_project or row >= len(self.current_project.segments):
@@ -8264,6 +8366,24 @@ class SupervertalerQt(QMainWindow):
         segment = self.current_project.segments[row]
         segment.status = status
         self._refresh_segment_status(segment)
+        
+        # Save to TM if status changed to translated/approved/confirmed and has content
+        if status in ['translated', 'approved', 'confirmed'] and segment.target.strip():
+            try:
+                if self.current_project and hasattr(self.current_project, 'source_lang') and hasattr(self.current_project, 'target_lang'):
+                    save_mode = self.tm_save_mode if hasattr(self, 'tm_save_mode') else 'all'
+                    self.db_manager.add_translation_unit(
+                        source=segment.source,
+                        target=segment.target,
+                        source_lang=self.current_project.source_lang,
+                        target_lang=self.current_project.target_lang,
+                        tm_id='project',
+                        save_mode=save_mode
+                    )
+                    # Invalidate cache so prefetched segments get fresh TM matches
+                    self.invalidate_translation_cache()
+            except Exception as e:
+                self.log(f"Warning: Could not save to TM: {e}")
     
     def on_cell_changed(self, item: QTableWidgetItem):
         """Handle cell content changes - now mainly for placeholder items"""
@@ -8276,17 +8396,24 @@ class SupervertalerQt(QMainWindow):
         """Handle cell selection change"""
         self.log(f"🎯 on_cell_selected called: row {current_row}, col {current_col}")
         
+        # 🚫 GUARD: Don't re-run lookups if we're staying on the same row
+        # This prevents lookups when user edits text (focus changes within same row)
+        if hasattr(self, '_last_selected_row') and self._last_selected_row == current_row:
+            self.log(f"⏭️ Skipping lookup - already on row {current_row}")
+            return
+        self._last_selected_row = current_row
+        
         # DEBUG: Also log all connected signals for this table
         self.log(f"🔗 Table currentCellChanged signal connected: {self.table.currentCellChanged}")
         self.log(f"🔗 Table itemClicked signal connected: {self.table.itemClicked}")
         self.log(f"🔗 Table itemSelectionChanged signal connected: {self.table.itemSelectionChanged}")
         try:
-            # Clear previous highlighting
+            # Clear previous highlighting - ensure both background AND foreground are reset
             if previous_row >= 0 and previous_row < self.table.rowCount():
                 prev_id_item = self.table.item(previous_row, 0)
                 if prev_id_item:
-                    prev_id_item.setBackground(QColor())  # Reset background to default
-                    prev_id_item.setForeground(QColor("black"))  # Reset text color to black
+                    prev_id_item.setBackground(QBrush())  # Reset background to default (use QBrush for proper clearing)
+                    prev_id_item.setForeground(QBrush(QColor("black")))  # Reset text color to black
             
             # Highlight current segment number in orange (like memoQ)
             if current_row >= 0 and current_row < self.table.rowCount():
@@ -8301,7 +8428,35 @@ class SupervertalerQt(QMainWindow):
             if current_row < len(self.current_project.segments):
                 segment = self.current_project.segments[current_row]
                 
-                # Update tab segment editor
+                # Update Translation Results panel header with segment info
+                if hasattr(self, 'results_panels'):
+                    for panel in self.results_panels:
+                        try:
+                            panel.set_segment_info(segment.id, segment.source)
+                        except Exception as e:
+                            self.log(f"Error updating Translation Results panel header: {e}")
+                
+                # Update toolbar segment info and status
+                if hasattr(self, 'tab_seg_info'):
+                    try:
+                        self.tab_seg_info.setText(f"Segment {segment.id}")
+                        
+                        # Update status combo if it exists
+                        if hasattr(self, 'tab_status_combo'):
+                            from modules.statuses import STATUSES
+                            idx = -1
+                            for i in range(self.tab_status_combo.count()):
+                                if self.tab_status_combo.itemData(i) == segment.status:
+                                    idx = i
+                                    break
+                            if idx >= 0:
+                                self.tab_status_combo.blockSignals(True)
+                                self.tab_status_combo.setCurrentIndex(idx)
+                                self.tab_status_combo.blockSignals(False)
+                    except Exception as e:
+                        self.log(f"Error updating toolbar: {e}")
+                
+                # Update legacy tabbed panels (if they exist for other views)
                 if hasattr(self, 'update_tab_segment_editor'):
                     self.update_tab_segment_editor(
                         segment_id=segment.id,
@@ -8314,12 +8469,75 @@ class SupervertalerQt(QMainWindow):
                 # Get termbase matches (from cache or search on-demand) - ONLY if enabled
                 matches_dict = None  # Initialize at the top level
 
+                # 🚀 CHECK PREFETCH CACHE FIRST for instant display (like memoQ)
+                segment_id = segment.id
+                with self.translation_matches_cache_lock:
+                    if segment_id in self.translation_matches_cache:
+                        cached_matches = self.translation_matches_cache[segment_id]
+                        
+                        # Count matches in each category
+                        tm_count = len(cached_matches.get("TM", []))
+                        tb_count = len(cached_matches.get("Termbases", []))
+                        mt_count = len(cached_matches.get("MT", []))
+                        llm_count = len(cached_matches.get("LLM", []))
+                        
+                        self.log(f"⚡ CACHE HIT for segment {segment_id}: TM={tm_count}, TB={tb_count}, MT={mt_count}, LLM={llm_count}")
+                        
+                        # If cache exists but is EMPTY, treat as cache miss and do slow lookup
+                        total_matches = tm_count + tb_count + mt_count + llm_count
+                        if total_matches == 0:
+                            self.log(f"⚠️ Cache exists but is EMPTY - doing slow lookup instead")
+                            cached_matches = None  # Force slow lookup
+                        else:
+                            # Display cached matches immediately
+                            if hasattr(self, 'results_panels'):
+                                for panel in self.results_panels:
+                                    try:
+                                        panel.clear()
+                                        panel.add_matches(cached_matches)
+                                    except Exception as e:
+                                        self.log(f"Error displaying cached matches: {e}")
+                            
+                            # 🎯 AUTO-INSERT 100% TM MATCH from cache (if enabled in settings)
+                            self.log(f"🎯 CACHE: Auto-insert setting: {self.auto_insert_100_percent_matches}, TM count: {tm_count}")
+                            self.log(f"🎯 CACHE: Segment target: '{segment.target}' (length={len(segment.target)}, stripped='{segment.target.strip()}')")
+                            
+                            if self.auto_insert_100_percent_matches and tm_count > 0:
+                                # Check if segment target is empty (don't overwrite existing translations)
+                                target_empty = not segment.target or len(segment.target.strip()) == 0
+                                self.log(f"🎯 CACHE: Target empty check: {target_empty}")
+                                
+                                if target_empty:
+                                    # Find first 100% match in cached TM results
+                                    best_match = None
+                                    for tm_match in cached_matches.get("TM", []):
+                                        self.log(f"🔍 CACHE: Checking TM match: relevance={tm_match.relevance} (type={type(tm_match.relevance).__name__})")
+                                        # Use >= 99.5 to handle potential floating point issues
+                                        if float(tm_match.relevance) >= 99.5:
+                                            best_match = tm_match
+                                            self.log(f"✅ CACHE: Found 100% match with target: '{tm_match.target[:50]}...'")
+                                            break
+                                    
+                                    if best_match:
+                                        self.log(f"✨ CACHE: Auto-inserting 100% TM match into segment {segment.id} at row {current_row}")
+                                        self._auto_insert_tm_match(segment, best_match.target, current_row)
+                                    else:
+                                        relevances = [(tm.relevance, type(tm.relevance).__name__) for tm in cached_matches.get("TM", [])]
+                                        self.log(f"⚠️ CACHE: No 100% match found. All relevances: {relevances}")
+                                else:
+                                    self.log(f"⚠️ CACHE: Target not empty ('{segment.target}') - skipping auto-insert")
+                            
+                            # Skip the slow lookup below, we already have everything
+                            # Continue to prefetch trigger at the end
+                            matches_dict = cached_matches  # Set for later use
+                    else:
+                        cached_matches = None
+                
                 # Check if TM/Termbase matching is enabled
-                if not self.enable_tm_matching and not self.enable_termbase_matching:
+                if not matches_dict and (not self.enable_tm_matching and not self.enable_termbase_matching):
                     self.log("⏭️ TM/Termbase matching disabled - skipping all lookups")
-                else:
+                elif not matches_dict:  # Only do slow lookup if cache missed
                     try:
-                        segment_id = segment.id
                         source_widget = self.table.cellWidget(current_row, 2)  # Source column is column 2
 
                         # Termbase lookup (if enabled)
@@ -8388,26 +8606,65 @@ class SupervertalerQt(QMainWindow):
                             # Show immediate termbase matches, delay expensive TM/MT/LLM searches
                             self.log(f"🚀 Immediate display: {len(matches_dict['Termbases'])} termbase matches")
 
-                            # Update all tabbed results panels
+                            # Clear panels first, then show termbase matches immediately
                             if hasattr(self, 'results_panels'):
                                 for panel in self.results_panels:
                                     try:
-                                        panel.set_matches(matches_dict)
+                                        panel.clear()  # Clear old matches
+                                        panel.add_matches(matches_dict)  # Add termbase matches immediately
                                     except Exception as e:
                                         self.log(f"Error updating results panel: {e}")
                         else:
-                            self.log("📋 No stored termbase matches found")
+                            # No termbase matches - clear panel and initialize empty dict
+                            self.log("📋 No termbase matches found - clearing panel")
+                            matches_dict = {
+                                "LLM": [],
+                                "NT": [],
+                                "MT": [],
+                                "TM": [],
+                                "Termbases": []
+                            }
+                            if hasattr(self, 'results_panels'):
+                                for panel in self.results_panels:
+                                    try:
+                                        panel.clear()
+                                    except Exception as e:
+                                        self.log(f"Error clearing results panel: {e}")
                     except Exception as e:
                         self.log(f"Error retrieving stored termbase matches: {e}")
 
                     # Schedule expensive searches (TM, MT, LLM) with debouncing to prevent UI blocking
-                    # Pass the termbase matches to preserve them in delayed search
-                    # ONLY schedule if TM matching is enabled
-                    if self.enable_tm_matching and matches_dict:
-                        termbase_matches = matches_dict.get('Termbases', [])
+                    # ONLY schedule if:
+                    # 1. Cache miss (no prefetched matches)
+                    # 2. TM matching is enabled
+                    with self.translation_matches_cache_lock:
+                        cache_hit = segment_id in self.translation_matches_cache
+                    
+                    if not cache_hit and self.enable_tm_matching:
+                        # Get termbase matches if they exist (could be None or empty)
+                        termbase_matches = matches_dict.get('Termbases', []) if matches_dict else []
+                        self.log(f"🔍 Scheduling TM/MT/LLM lookup (with {len(termbase_matches)} termbase matches to preserve)")
                         self._schedule_mt_and_llm_matches(segment, termbase_matches)
                     elif not self.enable_tm_matching:
                         self.log("⏭️ TM matching disabled - skipping TM/MT/LLM lookup")
+                    elif cache_hit:
+                        self.log("⚡ Using cached matches - skipping delayed lookup")
+                
+                # Trigger prefetch for next 20 segments (adaptive background caching)
+                if self.current_project and current_row >= 0:
+                    next_segment_ids = []
+                    start_idx = current_row + 1
+                    end_idx = min(start_idx + 20, len(self.current_project.segments))
+                    
+                    for seg in self.current_project.segments[start_idx:end_idx]:
+                        # Only prefetch if not already cached
+                        with self.translation_matches_cache_lock:
+                            if seg.id not in self.translation_matches_cache:
+                                next_segment_ids.append(seg.id)
+                    
+                    if next_segment_ids:
+                        self._start_prefetch_worker(next_segment_ids)
+                        
         except Exception as e:
             self.log(f"Critical error in on_cell_selected: {e}")
     
@@ -8454,24 +8711,7 @@ class SupervertalerQt(QMainWindow):
         
         return segments
     
-    def get_selected_segments_from_list(self):
-        """Get list of selected segments from list view"""
-        if not self.current_project or not hasattr(self, 'list_tree'):
-            return []
-        
-        selected_items = self.list_tree.selectedItems()
-        segments = []
-        
-        for item in selected_items:
-            segment_id = item.data(0, Qt.ItemDataRole.UserRole)
-            if segment_id:
-                # Find segment by ID
-                for segment in self.current_project.segments:
-                    if segment.id == segment_id:
-                        segments.append(segment)
-                        break
-        
-        return segments
+
     
     def show_grid_context_menu(self, position):
         """Show context menu for grid view with bulk operations"""
@@ -8495,27 +8735,7 @@ class SupervertalerQt(QMainWindow):
         
         menu.exec(self.table.viewport().mapToGlobal(position))
     
-    def show_list_context_menu(self, position):
-        """Show context menu for list view with bulk operations"""
-        selected_segments = self.get_selected_segments_from_list()
-        
-        if not selected_segments:
-            return
-        
-        menu = QMenu(self)
-        
-        # Clear translations action
-        clear_action = menu.addAction("🗑️ Clear Translations")
-        clear_action.setToolTip(f"Clear translations for {len(selected_segments)} selected segment(s)")
-        clear_action.triggered.connect(lambda: self.clear_selected_translations(selected_segments, 'list'))
-        
-        menu.addSeparator()
-        
-        # Select all action
-        select_all_action = menu.addAction("📋 Select All (Ctrl+A)")
-        select_all_action.triggered.connect(lambda: self.list_tree.selectAll())
-        
-        menu.exec(self.list_tree.viewport().mapToGlobal(position))
+
     
     def clear_selected_translations(self, segments, view_type='grid'):
         """Clear translations for selected segments"""
@@ -8548,7 +8768,7 @@ class SupervertalerQt(QMainWindow):
     
     def clear_selected_translations_from_menu(self):
         """Clear translations for selected segments (called from Edit menu)"""
-        # Determine which view is active
+        # Only available in Grid view now
         if hasattr(self, 'home_view_stack') and self.home_view_stack:
             current_index = self.home_view_stack.currentIndex()
             if current_index == 0:  # Grid view
@@ -8557,14 +8777,8 @@ class SupervertalerQt(QMainWindow):
                     self.clear_selected_translations(selected_segments, 'grid')
                 else:
                     QMessageBox.information(self, "No Selection", "Please select one or more segments to clear translations.")
-            elif current_index == 1:  # List view
-                selected_segments = self.get_selected_segments_from_list()
-                if selected_segments:
-                    self.clear_selected_translations(selected_segments, 'list')
-                else:
-                    QMessageBox.information(self, "No Selection", "Please select one or more segments to clear translations.")
             else:
-                QMessageBox.information(self, "Not Available", "Bulk operations are only available in Grid and List views.")
+                QMessageBox.information(self, "Not Available", "Bulk operations are only available in Grid view.")
         else:
             QMessageBox.information(self, "Not Available", "Please load a project first.")
     
@@ -10005,6 +10219,8 @@ class SupervertalerQt(QMainWindow):
         
         search_source = self.search_source_cb.isChecked()
         search_target = self.search_target_cb.isChecked()
+
+        self._ensure_primary_filters_ready()
         
         # Use filter boxes to highlight
         if search_source:
@@ -10116,6 +10332,8 @@ class SupervertalerQt(QMainWindow):
         if not self.current_project:
             return
         
+        self._ensure_primary_filters_ready()
+
         # Populate filter boxes based on scope
         if scope == 0:  # Both
             self.source_filter.setText(search_text)
@@ -10180,12 +10398,13 @@ class SupervertalerQt(QMainWindow):
         # Safety check: ensure table and filter widgets exist
         if not hasattr(self, 'table') or self.table is None:
             return
-        
-        if not hasattr(self, 'source_filter') or not hasattr(self, 'target_filter'):
+        has_source = self._widget_is_alive(getattr(self, 'source_filter', None))
+        has_target = self._widget_is_alive(getattr(self, 'target_filter', None))
+        if not has_source and not has_target:
             return
-        
-        source_filter_text = self.source_filter.text().strip()
-        target_filter_text = self.target_filter.text().strip()
+
+        source_filter_text = self._get_line_edit_text('source_filter').strip()
+        target_filter_text = self._get_line_edit_text('target_filter').strip()
         
         # If both empty, clear everything
         if not source_filter_text and not target_filter_text:
@@ -10231,20 +10450,26 @@ class SupervertalerQt(QMainWindow):
     
     def clear_filters(self):
         """Clear all filter boxes, highlighting, and show all rows"""
-        # Safety check: ensure filter widgets exist
-        if not hasattr(self, 'source_filter') or not hasattr(self, 'target_filter'):
+        source_widget = getattr(self, 'source_filter', None)
+        target_widget = getattr(self, 'target_filter', None)
+        has_source = self._widget_is_alive(source_widget)
+        has_target = self._widget_is_alive(target_widget)
+        if not has_source and not has_target:
             return
-        
-        # Block signals to prevent recursion
-        self.source_filter.blockSignals(True)
-        self.target_filter.blockSignals(True)
-        
-        self.source_filter.clear()
-        self.target_filter.clear()
-        
-        # Re-enable signals
-        self.source_filter.blockSignals(False)
-        self.target_filter.blockSignals(False)
+
+        if has_source:
+            source_widget.blockSignals(True)
+            source_widget.clear()
+            source_widget.blockSignals(False)
+        else:
+            self.source_filter = None
+
+        if has_target:
+            target_widget.blockSignals(True)
+            target_widget.clear()
+            target_widget.blockSignals(False)
+        else:
+            self.target_filter = None
         
         # Reload grid to remove all highlighting
         if self.current_project:
@@ -10261,113 +10486,7 @@ class SupervertalerQt(QMainWindow):
         self.log("Filters cleared")
     
     # ========================================================================
-    # LIST VIEW METHODS
-    # ========================================================================
-    
-    def apply_list_filters(self):
-        """Apply filters to List View"""
-        self.refresh_list_view()
-    
-    def clear_list_filters(self):
-        """Clear List View filters"""
-        if hasattr(self, 'list_source_filter'):
-            self.list_source_filter.clear()
-        if hasattr(self, 'list_target_filter'):
-            self.list_target_filter.clear()
-        self.refresh_list_view()
-    
-    def on_list_segment_selected(self):
-        """Handle segment selection in List View"""
-        selected_items = self.list_tree.selectedItems()
-        if not selected_items:
-            self.list_current_segment_id = None
-            # Update tab segment editor to show nothing selected
-            if hasattr(self, 'update_tab_segment_editor'):
-                self.update_tab_segment_editor(
-                    segment_id=None,
-                    source_text="",
-                    target_text="",
-                    status="untranslated",
-                    notes=""
-                )
-            return
-        
-        item = selected_items[0]
-        segment_id = item.data(0, Qt.ItemDataRole.UserRole)
-        self.list_current_segment_id = segment_id
-        
-        # Find segment
-        segment = next((s for s in self.current_project.segments if s.id == segment_id), None)
-        if not segment:
-            return
-        
-        # Update tab segment editor with new tabbed panel approach
-        if hasattr(self, 'update_tab_segment_editor'):
-            self.update_tab_segment_editor(
-                segment_id=segment.id,
-                source_text=segment.source,
-                target_text=segment.target,
-                status=segment.status,
-                notes=segment.notes if hasattr(segment, 'notes') else ""
-            )
-        
-        # Trigger assistance panel update (same as grid view)
-        # Find row index for on_cell_selected
-        row = next((i for i, s in enumerate(self.current_project.segments) if s.id == segment_id), -1)
-        if row >= 0:
-            # Call on_cell_selected to update translation results
-            self.on_cell_selected(row, 3, -1, -1)
-    
-    def on_list_status_change(self, status: str):
-        """Handle status change in List View (deprecated - now handled by tab editor)"""
-        # This is kept for backwards compatibility but actual editing is done in tab panel
-        pass
-    
-    def on_list_target_change(self):
-        """Handle target text change in List View (deprecated - now handled by tab editor)"""
-        # This is kept for backwards compatibility but actual editing is done in tab panel
-        pass
-    
-    def copy_source_to_list_target(self):
-        """Copy source to target in List View (deprecated - now handled by tab editor)"""
-        # This is kept for backwards compatibility but actual editing is done in tab panel
-        pass
-    
-    def clear_list_target(self):
-        """Clear target in List View (deprecated - now handled by tab editor)"""
-        # This is kept for backwards compatibility but actual editing is done in tab panel
-        pass
-    
-    def focus_list_target_editor(self):
-        """Focus the target editor in List View"""
-        # Focus the tab segment editor instead
-        if hasattr(self, 'list_tabbed_panel'):
-            # Switch to Segment Editor tab
-            self.list_tabbed_panel.setCurrentIndex(1)  # Index 1 is Segment Editor
-    
-    def save_list_segment_and_next(self):
-        """Save current segment and move to next in List View"""
-        if not self.list_current_segment_id:
-            return
-        
-        # Find current item
-        current_item = self.list_tree.currentItem()
-        if not current_item:
-            return
-        
-        # Find next item
-        current_index = self.list_tree.indexOfTopLevelItem(current_item)
-        next_index = current_index + 1
-        
-        if next_index < self.list_tree.topLevelItemCount():
-            next_item = self.list_tree.topLevelItem(next_index)
-            self.list_tree.setCurrentItem(next_item)
-            self.list_tree.scrollToItem(next_item)
-        else:
-            self.log("✓ Last segment - no next segment")
-    
-    # ========================================================================
-    # TABBED SEGMENT EDITOR METHODS (for Grid/List views)
+    # TABBED SEGMENT EDITOR METHODS (for Grid view)
     # ========================================================================
     
     def on_tab_target_change(self):
@@ -10393,6 +10512,7 @@ class SupervertalerQt(QMainWindow):
         if self.current_project and hasattr(self.current_project, 'segments'):
             for seg in self.current_project.segments:
                 if seg.id == self.tab_current_segment_id:
+                    # IMMEDIATE: Update segment data
                     seg.target = new_text
                     self.project_modified = True
                     
@@ -10407,7 +10527,39 @@ class SupervertalerQt(QMainWindow):
                                     panel.editor_widget.target_editor.blockSignals(False)
                             except:
                                 pass
+                    
+                    # DEBOUNCED: Save to TM (expensive operation)
+                    # Cancel previous timer
+                    if hasattr(self, '_tab_target_debounce_timer'):
+                        self._tab_target_debounce_timer.stop()
+                    
+                    # Schedule TM save after 500ms of inactivity
+                    from PyQt6.QtCore import QTimer
+                    self._tab_target_debounce_timer = QTimer()
+                    self._tab_target_debounce_timer.setSingleShot(True)
+                    self._tab_target_debounce_timer.timeout.connect(lambda: self._save_tab_target_to_tm(seg, new_text))
+                    self._tab_target_debounce_timer.start(500)
+                    
                     break
+    
+    def _save_tab_target_to_tm(self, segment, text):
+        """Save tab target text to TM after debounce delay"""
+        try:
+            if segment.status in ['translated', 'approved', 'confirmed'] and text.strip():
+                if self.current_project and hasattr(self.current_project, 'source_lang') and hasattr(self.current_project, 'target_lang'):
+                    save_mode = self.tm_save_mode if hasattr(self, 'tm_save_mode') else 'all'
+                    self.db_manager.add_translation_unit(
+                        source=segment.source,
+                        target=text,
+                        source_lang=self.current_project.source_lang,
+                        target_lang=self.current_project.target_lang,
+                        tm_id='project',
+                        save_mode=save_mode
+                    )
+                    # Invalidate cache so prefetched segments get fresh TM matches
+                    self.invalidate_translation_cache()
+        except Exception as e:
+            self.log(f"Warning: Could not save to TM: {e}")
     
     def on_tab_status_combo_changed(self, index: int):
         combo = self.sender()
@@ -10445,6 +10597,26 @@ class SupervertalerQt(QMainWindow):
                             except Exception as e:
                                 self.log(f"Error syncing status combo: {e}")
                     self._refresh_segment_status(seg)
+                    
+                    # Save to TM if status changed to translated/approved/confirmed and has content
+                    if status_key in ['translated', 'approved', 'confirmed'] and seg.target.strip():
+                        try:
+                            if self.current_project and hasattr(self.current_project, 'source_lang') and hasattr(self.current_project, 'target_lang'):
+                                save_mode = self.tm_save_mode if hasattr(self, 'tm_save_mode') else 'all'
+                                self.db_manager.add_translation_unit(
+                                    source=seg.source,
+                                    target=seg.target,
+                                    source_lang=self.current_project.source_lang,
+                                    target_lang=self.current_project.target_lang,
+                                    tm_id='project',
+                                    save_mode=save_mode
+                                )
+                                # Invalidate cache so prefetched segments get fresh TM matches
+                                self.invalidate_translation_cache()
+                                self.log(f"✓ Saved to TM: {seg.source[:30]}... → {seg.target[:30]}...")
+                        except Exception as e:
+                            self.log(f"Warning: Could not save to TM: {e}")
+                    
                     break
     
     def on_tab_notes_change(self):
@@ -10701,6 +10873,17 @@ class SupervertalerQt(QMainWindow):
 
     def _set_dictation_button_recording(self, is_recording):
         """Change dictate button appearance based on recording state"""
+        # Update grid view dictate button
+        if hasattr(self, 'tab_dictate_btn'):
+            button = self.tab_dictate_btn
+            if is_recording:
+                button.setText("⏹️ Stop (F9)")
+                button.setStyleSheet("background-color: #D32F2F; color: white; font-weight: bold;")
+            else:
+                button.setText("🎤 Dictate (F9)")
+                button.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold;")
+        
+        # Update list view dictate button (legacy, for backwards compatibility)
         if hasattr(self, 'tabbed_panels'):
             for panel in self.tabbed_panels:
                 try:
@@ -10720,30 +10903,272 @@ class SupervertalerQt(QMainWindow):
         """Save current segment in tab editor"""
         if not hasattr(self, 'tab_current_segment_id') or not self.tab_current_segment_id:
             return
-        self.log(f"✓ Saved segment {self.tab_current_segment_id}")
+        
+        # Find segment and save to TM if appropriate
+        if self.current_project and hasattr(self.current_project, 'segments'):
+            for seg in self.current_project.segments:
+                if seg.id == self.tab_current_segment_id:
+                    # Save to TM if status is translated/approved/confirmed and has content
+                    if seg.status in ['translated', 'approved', 'confirmed'] and seg.target.strip():
+                        try:
+                            if hasattr(self.current_project, 'source_lang') and hasattr(self.current_project, 'target_lang'):
+                                save_mode = self.tm_save_mode if hasattr(self, 'tm_save_mode') else 'all'
+                                self.db_manager.add_translation_unit(
+                                    source=seg.source,
+                                    target=seg.target,
+                                    source_lang=self.current_project.source_lang,
+                                    target_lang=self.current_project.target_lang,
+                                    tm_id='project',
+                                    save_mode=save_mode
+                                )
+                                # Invalidate cache so prefetched segments get fresh TM matches
+                                self.invalidate_translation_cache()
+                                self.log(f"✓ Saved segment {self.tab_current_segment_id} to TM")
+                            else:
+                                self.log(f"✓ Saved segment {self.tab_current_segment_id}")
+                        except Exception as e:
+                            self.log(f"✓ Saved segment {self.tab_current_segment_id} (TM save failed: {e})")
+                    else:
+                        self.log(f"✓ Saved segment {self.tab_current_segment_id}")
+                    break
+        else:
+            self.log(f"✓ Saved segment {self.tab_current_segment_id}")
     
     def save_tab_segment_and_next(self):
         """Save current segment and move to next in tab editor"""
         self.save_tab_segment()
         
-        # Move to next segment based on current view
-        if self.current_view_mode == LayoutMode.GRID or (hasattr(self, 'home_view_stack') and 
-                                                          self.home_view_stack.currentIndex() == 0):
-            # Grid view - move to next row in table
-            if hasattr(self, 'table') and self.table:
-                current_row = self.table.currentRow()
-                if current_row < self.table.rowCount() - 1:
-                    self.table.setCurrentCell(current_row + 1, self.table.currentColumn())
-        elif self.current_view_mode == LayoutMode.LIST or (hasattr(self, 'home_view_stack') and 
-                                                             self.home_view_stack.currentIndex() == 1):
-            # List view - move to next item in list
-            if hasattr(self, 'list_tree') and self.list_tree:
-                current_item = self.list_tree.currentItem()
-                if current_item:
-                    current_index = self.list_tree.indexOfTopLevelItem(current_item)
-                    if current_index < self.list_tree.topLevelItemCount() - 1:
-                        next_item = self.list_tree.topLevelItem(current_index + 1)
-                        self.list_tree.setCurrentItem(next_item)
+        # Move to next segment in grid view
+        if hasattr(self, 'table') and self.table:
+            current_row = self.table.currentRow()
+            if current_row < self.table.rowCount() - 1:
+                self.table.setCurrentCell(current_row + 1, self.table.currentColumn())
+    
+    # ========================================================================
+    # GRID-BASED EDITING HANDLERS (for toolbar below grid)
+    # ========================================================================
+    
+    def copy_source_to_grid_target(self):
+        """Copy source to target in currently selected grid row"""
+        if not hasattr(self, 'table') or not self.table:
+            return
+        
+        current_row = self.table.currentRow()
+        if current_row < 0 or current_row >= len(self.current_project.segments):
+            return
+        
+        segment = self.current_project.segments[current_row]
+        segment.target = segment.source
+        
+        # Update grid cell
+        target_item = self.table.item(current_row, 1)
+        if target_item and hasattr(target_item, 'text_editor'):
+            target_item.text_editor.setPlainText(segment.source)
+        
+        self.project_modified = True
+        self.log(f"📋 Copied source to target in segment {segment.id}")
+    
+    def clear_grid_target(self):
+        """Clear target in currently selected grid row"""
+        if not hasattr(self, 'table') or not self.table:
+            return
+        
+        current_row = self.table.currentRow()
+        if current_row < 0 or current_row >= len(self.current_project.segments):
+            return
+        
+        segment = self.current_project.segments[current_row]
+        segment.target = ""
+        
+        # Update grid cell
+        target_item = self.table.item(current_row, 1)
+        if target_item and hasattr(target_item, 'text_editor'):
+            target_item.text_editor.clear()
+        
+        self.project_modified = True
+        self.log(f"🗑️ Cleared target in segment {segment.id}")
+    
+    def save_grid_segment(self):
+        """Save current segment from grid"""
+        if not hasattr(self, 'table') or not self.table:
+            return
+        
+        current_row = self.table.currentRow()
+        if current_row < 0 or current_row >= len(self.current_project.segments):
+            return
+        
+        segment = self.current_project.segments[current_row]
+        
+        # Save to TM if status is translated/approved/confirmed and has content
+        if segment.status in ['translated', 'approved', 'confirmed'] and segment.target.strip():
+            try:
+                if hasattr(self.current_project, 'source_lang') and hasattr(self.current_project, 'target_lang'):
+                    save_mode = self.tm_save_mode if hasattr(self, 'tm_save_mode') else 'all'
+                    self.db_manager.add_translation_unit(
+                        source=segment.source,
+                        target=segment.target,
+                        source_lang=self.current_project.source_lang,
+                        target_lang=self.current_project.target_lang,
+                        tm_id='project',
+                        save_mode=save_mode
+                    )
+                    self.invalidate_translation_cache()
+                    self.log(f"💾 Saved segment {segment.id} to TM")
+                else:
+                    self.log(f"💾 Saved segment {segment.id}")
+            except Exception as e:
+                self.log(f"💾 Saved segment {segment.id} (TM save failed: {e})")
+        else:
+            self.log(f"💾 Saved segment {segment.id}")
+    
+    def save_grid_segment_and_next(self):
+        """Save current segment and move to next in grid"""
+        self.save_grid_segment()
+        
+        if hasattr(self, 'table') and self.table:
+            current_row = self.table.currentRow()
+            if current_row < self.table.rowCount() - 1:
+                next_row = current_row + 1
+                self.table.setCurrentCell(next_row, 3)  # Column 3 = Target (widget column)
+                # Get the target cell widget and set focus to it
+                target_widget = self.table.cellWidget(next_row, 3)
+                if target_widget:
+                    target_widget.setFocus()
+                    # Move cursor to end of text
+                    target_widget.moveCursor(QTextCursor.MoveOperation.End)
+    
+    # ========================================================================
+    # KEYBOARD NAVIGATION SHORTCUTS
+    # ========================================================================
+    
+    def select_previous_match(self):
+        """Cycle to previous match in translation results (Ctrl+Up)"""
+        if hasattr(self, 'results_panels') and self.results_panels:
+            for panel in self.results_panels:
+                try:
+                    if hasattr(panel, 'select_previous_match'):
+                        panel.select_previous_match()
+                        break
+                except Exception as e:
+                    self.log(f"Error selecting previous match: {e}")
+    
+    def select_next_match(self):
+        """Cycle to next match in translation results (Ctrl+Down)"""
+        if hasattr(self, 'results_panels') and self.results_panels:
+            for panel in self.results_panels:
+                try:
+                    if hasattr(panel, 'select_next_match'):
+                        panel.select_next_match()
+                        break
+                except Exception as e:
+                    self.log(f"Error selecting next match: {e}")
+    
+    def go_to_previous_segment(self):
+        """Navigate to previous segment (Alt+Up)"""
+        if hasattr(self, 'table') and self.table:
+            current_row = self.table.currentRow()
+            if current_row > 0:
+                new_row = current_row - 1
+                self.table.setCurrentCell(new_row, 3)  # Column 3 = Target (widget column)
+                self.log(f"⬆️ Moved to segment {new_row + 1}")
+                # Get the target cell widget and set focus to it
+                target_widget = self.table.cellWidget(new_row, 3)
+                if target_widget:
+                    target_widget.setFocus()
+                    # Move cursor to end of text
+                    target_widget.moveCursor(QTextCursor.MoveOperation.End)
+    
+    def go_to_next_segment(self):
+        """Navigate to next segment (Alt+Down)"""
+        if hasattr(self, 'table') and self.table:
+            current_row = self.table.currentRow()
+            if current_row < self.table.rowCount() - 1:
+                new_row = current_row + 1
+                self.table.setCurrentCell(new_row, 3)  # Column 3 = Target (widget column)
+                self.log(f"⬇️ Moved to segment {new_row + 1}")
+                # Get the target cell widget and set focus to it
+                target_widget = self.table.cellWidget(new_row, 3)
+                if target_widget:
+                    target_widget.setFocus()
+                    # Move cursor to end of text
+                    target_widget.moveCursor(QTextCursor.MoveOperation.End)
+    
+    def confirm_and_next_unconfirmed(self):
+        """Set current segment to confirmed and move to next unconfirmed segment (Ctrl+Enter)"""
+        if not hasattr(self, 'table') or not self.table or not self.current_project:
+            self.log("⚠️ Ctrl+Enter: Missing table or project")
+            return
+        
+        current_row = self.table.currentRow()
+        if current_row < 0:
+            self.log("⚠️ Ctrl+Enter: No row selected")
+            return
+        
+        # Set current segment to confirmed
+        if current_row < len(self.current_project.segments):
+            segment = self.current_project.segments[current_row]
+            self.log(f"🔍 Ctrl+Enter: Row {current_row}, Segment ID {segment.id}")
+            self.log(f"🔍 Source: '{segment.source[:50]}...'")
+            self.log(f"🔍 Target before: '{segment.target[:50] if segment.target else '<empty>'}...'")
+            
+            # Get current target text from the grid widget
+            target_widget = self.table.cellWidget(current_row, 3)  # Column 3 = Target
+            if target_widget:
+                current_text = target_widget.toPlainText().strip()
+                segment.target = current_text
+                self.log(f"🔍 Target from widget: '{current_text[:50]}...'")
+            
+            segment.status = 'confirmed'
+            self.update_status_icon(current_row, 'confirmed')
+            self.project_modified = True
+            self.log(f"✅ Segment {segment.id} confirmed")
+            
+            # Save to TM if target has content
+            if segment.target.strip():
+                try:
+                    if hasattr(self.current_project, 'source_lang') and hasattr(self.current_project, 'target_lang'):
+                        save_mode = self.tm_save_mode if hasattr(self, 'tm_save_mode') else 'all'
+                        self.db_manager.add_translation_unit(
+                            source=segment.source,
+                            target=segment.target,
+                            source_lang=self.current_project.source_lang,
+                            target_lang=self.current_project.target_lang,
+                            tm_id='project',
+                            save_mode=save_mode
+                        )
+                        self.log(f"💾 Saved segment {segment.id} to TM (mode={save_mode}): '{segment.target[:50]}...'")
+                        self.invalidate_translation_cache()
+                    else:
+                        self.log(f"⚠️ Cannot save to TM: missing language info")
+                except Exception as e:
+                    self.log(f"⚠️ Error saving to TM: {e}")
+        
+        # Find next unconfirmed segment
+        for row in range(current_row + 1, self.table.rowCount()):
+            if row < len(self.current_project.segments):
+                seg = self.current_project.segments[row]
+                if seg.status not in ['confirmed', 'approved']:
+                    self.table.setCurrentCell(row, 3)  # Column 3 = Target (widget column)
+                    self.log(f"⏭️ Moved to next unconfirmed segment {seg.id}")
+                    # Get the target cell widget and set focus to it
+                    target_widget = self.table.cellWidget(row, 3)
+                    if target_widget:
+                        target_widget.setFocus()
+                        # Move cursor to end of text
+                        target_widget.moveCursor(QTextCursor.MoveOperation.End)
+                    return
+        
+        # No more unconfirmed segments, just go to next
+        if current_row < self.table.rowCount() - 1:
+            next_row = current_row + 1
+            self.table.setCurrentCell(next_row, 3)  # Column 3 = Target (widget column)
+            self.log(f"⏭️ Moved to next segment (all remaining confirmed)")
+            # Get the target cell widget and set focus to it
+            target_widget = self.table.cellWidget(next_row, 3)
+            if target_widget:
+                target_widget.setFocus()
+                # Move cursor to end of text
+                target_widget.moveCursor(QTextCursor.MoveOperation.End)
     
     def save_tab_notes(self):
         """Save comments in tab editor"""
@@ -11191,127 +11616,34 @@ class SupervertalerQt(QMainWindow):
     
     def update_warning_banner(self):
         """Show/hide warning banner based on allow_replace_in_source setting"""
-        if self.allow_replace_in_source:
-            self.warning_banner.show()
-        else:
-            self.warning_banner.hide()
+        if not hasattr(self, 'warning_banners'):
+            return
+
+        stale_keys = []
+        for key, banner in self.warning_banners.items():
+            if not self._widget_is_alive(banner):
+                stale_keys.append(key)
+                continue
+            if self.allow_replace_in_source:
+                banner.show()
+            else:
+                banner.hide()
+
+        for key in stale_keys:
+            self.warning_banners.pop(key, None)
     
     def show_tm_manager(self):
         """Show Translation Memory Manager dialog"""
-        from modules.translation_memory import TMDatabase
+        from modules.tm_manager_qt import TMManagerDialog
         
-        if not self.current_project:
-            QMessageBox.warning(
-                self,
-                "No Project Loaded",
-                "Please load or create a project first."
-            )
-            return
-        
-        dialog = QDialog(self)
-        dialog.setWindowTitle("Translation Memory Manager")
-        dialog.setMinimumSize(900, 600)
-        
-        layout = QVBoxLayout(dialog)
-        
-        # Header
-        header_label = QLabel("<h2>📚 Translation Memory Manager</h2>")
-        layout.addWidget(header_label)
-        
-        # Tab widget for different TM management tasks
-        tabs = QTabWidget()
-        
-        # ===== Tab 1: TM Database Overview =====
-        overview_tab = QWidget()
-        overview_layout = QVBoxLayout(overview_tab)
-        
-        # Current project info
-        info_group = QGroupBox("Current Project")
-        info_layout = QGridLayout()
-        info_layout.addWidget(QLabel("<b>Name:</b>"), 0, 0)
-        info_layout.addWidget(QLabel(self.current_project.name), 0, 1)
-        info_layout.addWidget(QLabel("<b>Language Pair:</b>"), 1, 0)
-        info_layout.addWidget(QLabel(f"{self.current_project.source_lang} → {self.current_project.target_lang}"), 1, 1)
-        info_group.setLayout(info_layout)
-        overview_layout.addWidget(info_group)
-        
-        # TM Statistics
-        stats_group = QGroupBox("Translation Memory Statistics")
-        stats_layout = QVBoxLayout()
-        
-        if self.tm_database:
-            # Get TM count from database
-            try:
-                # Query database for entry count
-                cursor = self.tm_database.db.connection.cursor()
-                cursor.execute(
-                    "SELECT COUNT(*) FROM translation_units WHERE source_lang=? AND target_lang=?",
-                    (self.current_project.source_lang, self.current_project.target_lang)
-                )
-                entry_count = cursor.fetchone()[0]
-                
-                stats_text = f"""<ul>
-                    <li><b>Total Entries:</b> {entry_count:,}</li>
-                    <li><b>Database Path:</b> {self.tm_database.db.db_path}</li>
-                    <li><b>Active Language Pair:</b> {self.current_project.source_lang} → {self.current_project.target_lang}</li>
-                </ul>"""
-                stats_label = QLabel(stats_text)
-            except Exception as e:
-                stats_label = QLabel(f"<span style='color: #ef4444;'>Error reading database: {e}</span>")
-        else:
-            stats_label = QLabel("<span style='color: #f59e0b;'>No TM database initialized</span>")
-        
-        stats_layout.addWidget(stats_label)
-        stats_group.setLayout(stats_layout)
-        overview_layout.addWidget(stats_group)
-        
-        # Refresh button
-        refresh_btn = QPushButton("🔄 Refresh Statistics")
-        refresh_btn.clicked.connect(lambda: self.show_tm_manager())  # Reopen dialog
-        overview_layout.addWidget(refresh_btn)
-        
-        overview_layout.addStretch()
-        tabs.addTab(overview_tab, "📊 Overview")
-        
-        # ===== Tab 2: Add Entry Manually =====
-        add_tab = QWidget()
-        add_layout = QVBoxLayout(add_tab)
-        
-        add_label = QLabel("<h3>Add Translation Entry</h3>")
-        add_layout.addWidget(add_label)
-        
-        form_layout = QGridLayout()
-        
-        form_layout.addWidget(QLabel(f"<b>Source ({self.current_project.source_lang}):</b>"), 0, 0)
-        source_input = QTextEdit()
-        source_input.setMaximumHeight(100)
-        source_input.setPlaceholderText("Enter source text...")
-        form_layout.addWidget(source_input, 1, 0)
-        
-        form_layout.addWidget(QLabel(f"<b>Target ({self.current_project.target_lang}):</b>"), 2, 0)
-        target_input = QTextEdit()
-        target_input.setMaximumHeight(100)
-        target_input.setPlaceholderText("Enter target translation...")
-        form_layout.addWidget(target_input, 3, 0)
-        
-        add_layout.addLayout(form_layout)
-        
-        # Add button
-        def add_entry():
-            source = source_input.toPlainText().strip()
-            target = target_input.toPlainText().strip()
-            
-            if not source or not target:
-                QMessageBox.warning(dialog, "Missing Data", "Please enter both source and target text.")
-                return
-            
-            if self.tm_database:
-                try:
-                    self.tm_database.add_entry(source, target)
-                    QMessageBox.information(dialog, "Success", "Translation entry added to TM database!")
-                    source_input.clear()
-                    target_input.clear()
-                    self.log(f"Added TM entry: {source[:50]}... → {target[:50]}...")
+        try:
+            dialog = TMManagerDialog(self, self.db_manager, self.log)
+            dialog.exec()
+        except Exception as e:
+            self.log(f"Error opening TM Manager: {e}")
+            QMessageBox.critical(self, "Error", f"Failed to open TM Manager:\n{str(e)}")
+    
+    def show_about(self):
                 except Exception as e:
                     QMessageBox.critical(dialog, "Error", f"Failed to add entry: {e}")
             else:
@@ -12838,14 +13170,14 @@ class SupervertalerQt(QMainWindow):
             self._pending_mt_llm_segment = segment
             self._pending_termbase_matches = termbase_matches or []
             
-            # Start debounced timer - only call APIs after user stops clicking for 1.5 seconds
+            # Start debounced timer - only call APIs after user stops clicking for 0.3 seconds
             from PyQt6.QtCore import QTimer
             self._mt_llm_timer = QTimer()
             self._mt_llm_timer.setSingleShot(True)
             self._mt_llm_timer.timeout.connect(lambda: self._execute_mt_llm_lookup())
-            self._mt_llm_timer.start(1500)  # Wait 1.5 seconds of inactivity
+            self._mt_llm_timer.start(300)  # Wait 0.3 seconds of inactivity
             
-            self.log(f"🚀 Scheduled MT/LLM lookup for '{segment.source[:50]}...' (will execute in 1.5s if user doesn't move)")
+            self.log(f"🚀 Scheduled MT/LLM lookup for '{segment.source[:50]}...' (will execute in 0.3s if user doesn't move)")
                 
         except Exception as e:
             self.log(f"Error scheduling MT/LLM search: {e}")
@@ -12953,29 +13285,261 @@ class SupervertalerQt(QMainWindow):
                             provider_code='TM'
                         )
                         matches_dict["TM"].append(match_obj)
+                    
+                    # Show TM matches immediately (progressive loading)
+                    if matches_dict["TM"]:
+                        self.log(f"🚀 Showing {len(matches_dict['TM'])} TM matches progressively")
+                        tm_only = {"TM": matches_dict["TM"], "MT": [], "LLM": [], "NT": [], "Termbases": []}
+                        if hasattr(self, 'results_panels') and self.results_panels:
+                            for panel in self.results_panels:
+                                try:
+                                    panel.add_matches(tm_only)
+                                except Exception as e:
+                                    self.log(f"Error adding TM matches: {e}")
+                        
+                        # 🎯 AUTO-INSERT 100% TM MATCH (if enabled in settings)
+                        self.log(f"🎯 DELAYED: Auto-insert setting enabled: {self.auto_insert_100_percent_matches}")
+                        self.log(f"🎯 DELAYED: Segment target: '{segment.target}' (length={len(segment.target)}, stripped='{segment.target.strip()}')")
+                        self.log(f"🎯 DELAYED: TM matches count: {len(matches_dict['TM'])}")
+                        
+                        if self.auto_insert_100_percent_matches:
+                            # Only auto-insert if target is empty (don't overwrite existing translations)
+                            target_empty = not segment.target or len(segment.target.strip()) == 0
+                            self.log(f"🎯 DELAYED: Target empty check: {target_empty}")
+                            
+                            if target_empty:
+                                # Find first 100% match
+                                best_match = None
+                                for tm_match in matches_dict["TM"]:
+                                    self.log(f"🔍 DELAYED: Checking TM match: relevance={tm_match.relevance} (type={type(tm_match.relevance).__name__})")
+                                    # Use >= 99.5 to handle potential floating point issues
+                                    if float(tm_match.relevance) >= 99.5:
+                                        best_match = tm_match
+                                        self.log(f"✅ DELAYED: Found 100% match with target: '{tm_match.target[:50]}...'")
+                                        break
+                                
+                                if best_match:
+                                    self.log(f"✨ DELAYED: Auto-inserting 100% TM match into segment {segment.id}")
+                                    # Find the row for this segment
+                                    target_row = None
+                                    if hasattr(self, 'current_project') and self.current_project:
+                                        for idx, seg in enumerate(self.current_project.segments):
+                                            if seg.id == segment.id:
+                                                target_row = idx
+                                                break
+                                    # Insert into target field
+                                    self._auto_insert_tm_match(segment, best_match.target, target_row)
+                                else:
+                                    relevances = [(tm.relevance, type(tm.relevance).__name__) for tm in matches_dict['TM']]
+                                    self.log(f"⚠️ DELAYED: No 100% match found. All relevances: {relevances}")
+                            else:
+                                self.log(f"⚠️ DELAYED: Target not empty ('{segment.target}') - skipping auto-insert")
                 except Exception as e:
                     self.log(f"Error in delayed TM search: {e}")
             
-            # Add MT and LLM matches
-            self._add_mt_and_llm_matches(segment, matches_dict, source_lang, target_lang, source_lang_code, target_lang_code)
-            
-            # Update display with all delayed matches (TM, MT, LLM)
-            total_new_matches = len(matches_dict["TM"]) + len(matches_dict["MT"]) + len(matches_dict["LLM"])
-            if total_new_matches > 0:
-                self.log(f"🚀 DELAYED SEARCH COMPLETE: Added {len(matches_dict['TM'])} TM + {len(matches_dict['MT'])} MT + {len(matches_dict['LLM'])} LLM matches")
-                # Update all results panels
-                if hasattr(self, 'results_panels') and self.results_panels:
-                    self.log(f"✅ Updating {len(self.results_panels)} results panels with delayed matches")
-                    for panel in self.results_panels:
-                        try:
-                            panel.set_matches(matches_dict)
-                        except Exception as e:
-                            self.log(f"Error updating panel: {e}")
-            else:
-                self.log("🚀 DELAYED SEARCH COMPLETE: No TM, MT or LLM matches found")
+            # Add MT and LLM matches progressively
+            self._add_mt_and_llm_matches_progressive(segment, source_lang, target_lang, source_lang_code, target_lang_code)
                 
         except Exception as e:
             self.log(f"Error in MT/LLM search: {e}")
+    
+    def _auto_insert_tm_match(self, segment, target_text, row=None):
+        """
+        Auto-insert a 100% TM match into the target field.
+        Works for both grid and tab views.
+        
+        Args:
+            segment: The segment object to update
+            target_text: The translation text to insert
+            row: The grid row number (if known), or None to search
+        """
+        try:
+            self.log(f"🔧 Auto-insert: Starting for segment {segment.id} at row {row}, target='{target_text[:50]}...'")
+            
+            # Update segment data
+            segment.target = target_text
+            segment.status = 'translated'  # Mark as translated
+            self.project_modified = True
+            self.log(f"🔧 Auto-insert: Updated segment.target, status=translated")
+            
+            # Update grid view if visible
+            if hasattr(self, 'table') and self.table:
+                # If row is provided, use it directly
+                if row is not None and 0 <= row < self.table.rowCount():
+                    self.log(f"🔧 Auto-insert: Using provided row {row}")
+                    target_row = row
+                else:
+                    # Search for the row
+                    self.log(f"🔧 Auto-insert: Searching {self.table.rowCount()} rows for segment {segment.id}")
+                    target_row = None
+                    for r in range(self.table.rowCount()):
+                        row_item = self.table.item(r, 0)
+                        if row_item and row_item.data(Qt.ItemDataRole.UserRole) == segment.id:
+                            target_row = r
+                            self.log(f"🔧 Auto-insert: Found segment at row {r}")
+                            break
+                
+                if target_row is not None:
+                    # Update target editor widget
+                    target_widget = self.table.cellWidget(target_row, 3)
+                    if target_widget:
+                        self.log(f"🔧 Auto-insert: Got target widget, type={type(target_widget).__name__}")
+                        if hasattr(target_widget, 'setPlainText'):
+                            target_widget.blockSignals(True)
+                            target_widget.setPlainText(target_text)
+                            target_widget.blockSignals(False)
+                            self.log(f"🔧 Auto-insert: Set widget text to '{target_text[:50]}...'")
+                        else:
+                            self.log(f"⚠️ Auto-insert: Widget has no setPlainText method!")
+                    else:
+                        self.log(f"⚠️ Auto-insert: No target widget found at row {target_row}, col 3")
+                    
+                    # Update status icon
+                    self.update_status_icon(target_row, 'translated')
+                    self.log(f"🔧 Auto-insert: Updated status icon to 'translated'")
+                else:
+                    self.log(f"⚠️ Auto-insert: Could not find row for segment {segment.id}!")
+            else:
+                self.log(f"⚠️ Auto-insert: No table attribute or table is None")
+            
+            self.log(f"✅ Auto-inserted 100% TM match into segment {segment.id}")
+            
+        except Exception as e:
+            self.log(f"⚠ Error auto-inserting TM match: {e}")
+    
+    def _add_mt_and_llm_matches_progressive(self, segment, source_lang, target_lang, source_lang_code, target_lang_code):
+        """Add MT and LLM matches progressively - show each as it completes"""
+        from modules.translation_results_panel import TranslationMatch
+        
+        # MT matches (usually fast ~0.5s)
+        if self.enable_mt_matching:
+            try:
+                self.log(f"🤖 PROGRESSIVE MT: Getting machine translation...")
+                from modules.llm_clients import get_google_translation
+                
+                google_result = get_google_translation(
+                    segment.source, 
+                    source_lang_code or 'auto',
+                    target_lang_code or 'en'
+                )
+                
+                if google_result and google_result.get('translation'):
+                    match = TranslationMatch(
+                        source=segment.source,
+                        target=google_result['translation'],
+                        relevance=95,
+                        metadata=google_result.get('metadata', {}),
+                        match_type="MT",
+                        provider_code='GT'
+                    )
+                    # Show MT match immediately
+                    mt_dict = {"MT": [match], "TM": [], "LLM": [], "NT": [], "Termbases": []}
+                    self.log(f"🤖 PROGRESSIVE MT: Showing Google Translate match")
+                    if hasattr(self, 'results_panels') and self.results_panels:
+                        for panel in self.results_panels:
+                            try:
+                                panel.add_matches(mt_dict)
+                            except Exception as e:
+                                self.log(f"Error adding MT match: {e}")
+            except Exception as e:
+                self.log(f"⚠ Error getting Google Translate: {e}")
+        
+        # LLM matches (slower ~1-3s each)
+        if self.enable_llm_matching:
+            try:
+                self.log(f"🧠 PROGRESSIVE LLM: Getting LLM translations...")
+                api_keys = self.load_api_keys()
+                if not api_keys:
+                    self.log("⚠ No API keys found for LLM translation")
+                    return
+                
+                settings = self.load_llm_settings()
+                
+                # OpenAI
+                if 'openai' in api_keys:
+                    try:
+                        self.log("🧠 PROGRESSIVE LLM: Attempting OpenAI translation...")
+                        from modules.llm_clients import LLMClient
+                        
+                        openai_model = settings.get('openai_model', 'gpt-4o')
+                        client = LLMClient(
+                            api_key=api_keys['openai'],
+                            provider='openai',
+                            model=openai_model
+                        )
+                        
+                        translation = client.translate(
+                            text=segment.source,
+                            source_lang=source_lang_code or 'nl',
+                            target_lang=target_lang_code or 'en'
+                        )
+                        
+                        if translation and translation.strip():
+                            match = TranslationMatch(
+                                source=segment.source,
+                                target=translation.strip(),
+                                relevance=88,
+                                metadata={'model': openai_model, 'provider': 'OpenAI'},
+                                match_type="LLM",
+                                compare_source=segment.source,
+                                provider_code='OA'
+                            )
+                            # Show OpenAI match immediately
+                            llm_dict = {"LLM": [match], "MT": [], "TM": [], "NT": [], "Termbases": []}
+                            self.log(f"🧠 PROGRESSIVE LLM: Showing OpenAI match")
+                            if hasattr(self, 'results_panels') and self.results_panels:
+                                for panel in self.results_panels:
+                                    try:
+                                        panel.add_matches(llm_dict)
+                                    except Exception as e:
+                                        self.log(f"Error adding OpenAI match: {e}")
+                    except Exception as e:
+                        self.log(f"⚠ Error getting OpenAI translation: {e}")
+                
+                # Claude
+                if 'anthropic' in api_keys:
+                    try:
+                        self.log("🧠 PROGRESSIVE LLM: Attempting Claude translation...")
+                        from modules.llm_clients import LLMClient
+                        
+                        claude_model = settings.get('anthropic_model', 'claude-3-5-sonnet-20241022')
+                        client = LLMClient(
+                            api_key=api_keys['anthropic'],
+                            provider='anthropic',
+                            model=claude_model
+                        )
+                        
+                        translation = client.translate(
+                            text=segment.source,
+                            source_lang=source_lang_code or 'nl',
+                            target_lang=target_lang_code or 'en'
+                        )
+                        
+                        if translation and translation.strip():
+                            match = TranslationMatch(
+                                source=segment.source,
+                                target=translation.strip(),
+                                relevance=88,
+                                metadata={'model': claude_model, 'provider': 'Claude'},
+                                match_type="LLM",
+                                compare_source=segment.source,
+                                provider_code='CL'
+                            )
+                            # Show Claude match immediately
+                            llm_dict = {"LLM": [match], "MT": [], "TM": [], "NT": [], "Termbases": []}
+                            self.log(f"🧠 PROGRESSIVE LLM: Showing Claude match")
+                            if hasattr(self, 'results_panels') and self.results_panels:
+                                for panel in self.results_panels:
+                                    try:
+                                        panel.add_matches(llm_dict)
+                                    except Exception as e:
+                                        self.log(f"Error adding Claude match: {e}")
+                    except Exception as e:
+                        self.log(f"⚠ Error getting Claude translation: {e}")
+                        
+            except Exception as e:
+                self.log(f"⚠ Error in LLM matching: {e}")
+    
     def _add_mt_and_llm_matches(self, segment, matches_dict, source_lang, target_lang, source_lang_code, target_lang_code):
         """Add MT and LLM matches to the matches dictionary"""
         from modules.translation_results_panel import TranslationMatch

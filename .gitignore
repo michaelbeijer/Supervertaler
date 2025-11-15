@@ -8,7 +8,7 @@ api_keys.txt
 .supervertaler.local
 
 # SECURITY: Private data folder - NEVER sync to GitHub
-user data_private/
+user_data_private/
 
 # SAFETY: Archive folder for deleted files - NEVER sync to GitHub
 # Located at C:\Dev\Supervertaler_Archive (outside this repo)
