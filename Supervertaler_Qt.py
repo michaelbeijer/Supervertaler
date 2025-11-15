@@ -6692,6 +6692,11 @@ class SupervertalerQt(QMainWindow):
                     'mode': getattr(self.prompt_manager_qt, 'current_mode', 'single'),
                 }
             
+            # FINAL DEBUG: Log segment data at the exact moment before serialization
+            self.log(f"💾💾💾 FINAL DEBUG before to_dict():")
+            for i, seg in enumerate(self.current_project.segments[:7]):
+                self.log(f"💾💾💾 Seg {seg.id} (obj {id(seg)}): target='{seg.target[:50] if seg.target else 'EMPTY'}...', status={seg.status}")
+            
             with open(file_path, 'w', encoding='utf-8') as f:
                 json.dump(self.current_project.to_dict(), f, indent=2, ensure_ascii=False)
             
