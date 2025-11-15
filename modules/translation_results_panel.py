@@ -43,6 +43,7 @@ class CompactMatchItem(QFrame):
     # Class variables (can be changed globally)
     font_size_pt = 9
     show_tags = False  # When False, HTML/XML tags are hidden
+    tag_highlight_color = '#FFB6C1'  # Default light pink for tag highlighting
     
     def __init__(self, match: TranslationMatch, match_number: int = 0, parent=None):
         super().__init__(parent)
@@ -108,7 +109,8 @@ class CompactMatchItem(QFrame):
         # Source column - NO truncation, allow wrapping
         self.source_label = QLabel(self._format_text(match.source))
         self.source_label.setWordWrap(True)  # Allow wrapping
-        self.source_label.setTextFormat(Qt.TextFormat.PlainText if self.show_tags else Qt.TextFormat.RichText)
+        # Always use RichText when tags are shown (for highlighting), otherwise RichText for rendering
+        self.source_label.setTextFormat(Qt.TextFormat.RichText)
         self.source_label.setStyleSheet(f"font-size: {self.font_size_pt}px; color: #333; padding: 0px; margin: 0px;")
         self.source_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
         self.source_label.setMinimumWidth(150)  # Much wider minimum
@@ -117,7 +119,8 @@ class CompactMatchItem(QFrame):
         # Target column - NO truncation, allow wrapping
         self.target_label = QLabel(self._format_text(match.target))
         self.target_label.setWordWrap(True)  # Allow wrapping
-        self.target_label.setTextFormat(Qt.TextFormat.PlainText if self.show_tags else Qt.TextFormat.RichText)
+        # Always use RichText when tags are shown (for highlighting), otherwise RichText for rendering
+        self.target_label.setTextFormat(Qt.TextFormat.RichText)
         self.target_label.setStyleSheet(f"font-size: {self.font_size_pt}px; color: #555; padding: 0px; margin: 0px;")
         self.target_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
         self.target_label.setMinimumWidth(150)  # Much wider minimum
@@ -159,11 +162,25 @@ class CompactMatchItem(QFrame):
     def _format_text(self, text: str) -> str:
         """Format text based on show_tags setting"""
         if self.show_tags:
-            # Show tags as-is (plain text)
+            # Show tags with text color
+            import re
+            # Escape HTML entities first to prevent double-escaping
+            text = text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+            # Now color the escaped tags
+            tag_pattern = re.compile(r'&lt;/?[a-zA-Z][a-zA-Z0-9]*/?&gt;')
+            text = tag_pattern.sub(lambda m: f'<span style="color: {self.tag_highlight_color};">{m.group()}</span>', text)
             return text
         else:
             # Let QLabel interpret as HTML (tags will be rendered/hidden)
             return text
+    
+    def update_tag_color(self, color: str):
+        """Update tag highlight color for this item"""
+        self.tag_highlight_color = color
+        # Refresh text if tags are shown
+        if self.show_tags and self.source_label and self.target_label:
+            self.source_label.setText(self._format_text(self.match.source))
+            self.target_label.setText(self._format_text(self.match.target))
     
     @classmethod
     def set_font_size(cls, size: int):
@@ -484,26 +501,34 @@ class TranslationResultsPanel(QWidget):
         main_splitter.addWidget(self.compare_frame)
         self.compare_frame.hide()  # Hidden by default
         
-        # Set splitter proportions (60% matches, 40% compare)
-        main_splitter.setSizes([600, 400])
-        main_splitter.setCollapsible(0, False)
-        main_splitter.setCollapsible(1, True)
+        # Notes section with its own container
+        notes_widget = QWidget()
+        notes_layout = QVBoxLayout(notes_widget)
+        notes_layout.setContentsMargins(0, 0, 0, 0)
+        notes_layout.setSpacing(2)
         
-        layout.addWidget(main_splitter)
-        
-        # Notes section (compact)
         notes_label = QLabel("📝 Notes (segment annotations)")
         notes_label.setStyleSheet("font-weight: bold; font-size: 9px; color: #333;")
-        layout.addWidget(notes_label)
+        notes_layout.addWidget(notes_label)
         
         self.notes_edit = QTextEdit()
-        self.notes_edit.setMaximumHeight(50)
+        self.notes_edit.setMaximumHeight(80)
         self.notes_edit.setPlaceholderText("Add notes about this segment, context, or translation concerns...")
         self.notes_edit.setStyleSheet("font-size: 9px; padding: 4px;")
-        layout.addWidget(self.notes_edit)
+        notes_layout.addWidget(self.notes_edit)
+        
+        main_splitter.addWidget(notes_widget)
+        
+        # Set splitter proportions (50% matches, 35% compare, 15% notes)
+        main_splitter.setSizes([500, 350, 150])
+        main_splitter.setCollapsible(0, False)
+        main_splitter.setCollapsible(1, True)
+        main_splitter.setCollapsible(2, False)
+        
+        layout.addWidget(main_splitter)
     
     def _create_compare_box(self) -> QFrame:
-        """Create compare box frame with VERTICAL stacked layout and resizable sections"""
+        """Create compare box frame with VERTICAL stacked layout - all boxes resize together"""
         frame = QFrame()
         frame.setStyleSheet("""
             QFrame {
@@ -519,46 +544,24 @@ class TranslationResultsPanel(QWidget):
         layout.setSpacing(2)
         
         # Title
-        title = QLabel("📊 Compare Box (Vertically Stacked & Resizable)")
+        title = QLabel("📊 Compare Box (Vertically Stacked)")
         title.setStyleSheet("font-weight: bold; font-size: 9px; color: #666;")
         layout.addWidget(title)
-        
-        # Use splitter for vertical resizing of compare boxes
-        compare_splitter = QSplitter(Qt.Orientation.Vertical)
-        compare_splitter.setStyleSheet("""
-            QSplitter { background-color: #fafafa; }
-            QSplitter::handle { 
-                background-color: #d0d0d0; 
-                height: 5px;
-                margin: 2px 0px;
-            }
-            QSplitter::handle:hover { 
-                background-color: #0066cc; 
-            }
-        """)
         
         # Box 1: Current Source
         box1 = self._create_compare_text_box("Current Source:", "#e3f2fd")
         self.compare_current = box1[1]
-        compare_splitter.addWidget(box1[0])
+        layout.addWidget(box1[0], 1)  # stretch factor 1
         
         # Box 2: TM Source (with diff highlighting capability)
         box2 = self._create_compare_text_box("TM Source:", "#fff3cd")
         self.compare_tm_source = box2[1]
-        compare_splitter.addWidget(box2[0])
+        layout.addWidget(box2[0], 1)  # stretch factor 1
         
         # Box 3: TM Target
         box3 = self._create_compare_text_box("TM Target:", "#d4edda")
         self.compare_tm_target = box3[1]
-        compare_splitter.addWidget(box3[0])
-        
-        # Equal heights for each box (33% each)
-        compare_splitter.setSizes([33, 33, 34])
-        compare_splitter.setCollapsible(0, False)
-        compare_splitter.setCollapsible(1, False)
-        compare_splitter.setCollapsible(2, False)
-        
-        layout.addWidget(compare_splitter)
+        layout.addWidget(box3[0], 1)  # stretch factor 1
         
         return frame
     
@@ -596,6 +599,7 @@ class TranslationResultsPanel(QWidget):
         """
         Add new matches to existing matches (for progressive loading)
         Merges new matches with existing ones and re-renders the display
+        Includes deduplication to prevent showing identical matches
         
         Args:
             new_matches_dict: Dict with keys like "NT", "MT", "TM", "Termbases"
@@ -606,12 +610,15 @@ class TranslationResultsPanel(QWidget):
             self.set_matches(new_matches_dict)
             return
         
-        # Merge: Update existing match types with new matches
+        # Merge: Update existing match types with new matches (with deduplication)
         for match_type, new_matches in new_matches_dict.items():
             if new_matches:  # Only merge non-empty lists
                 if match_type in self.matches_by_type:
-                    # Append to existing matches
-                    self.matches_by_type[match_type].extend(new_matches)
+                    # Deduplicate: Only add matches that don't already exist
+                    existing_targets = {match.target for match in self.matches_by_type[match_type]}
+                    unique_new_matches = [m for m in new_matches if m.target not in existing_targets]
+                    if unique_new_matches:
+                        self.matches_by_type[match_type].extend(unique_new_matches)
                 else:
                     # New match type, add it
                     self.matches_by_type[match_type] = new_matches
@@ -647,13 +654,26 @@ class TranslationResultsPanel(QWidget):
             if item and item.widget():
                 item.widget().deleteLater()
         
+        # Apply match limits per type (configurable, defaults provided)
+        match_limits = getattr(self, 'match_limits', {
+            "LLM": 3,
+            "NT": 5,
+            "MT": 3,
+            "TM": 5,
+            "Termbases": 10
+        })
+        
         # Build flat list of all matches with global numbering
         global_number = 1
         order = ["LLM", "NT", "MT", "TM", "Termbases"]  # LLM appears first (top)
         
         for match_type in order:
             if match_type in matches_dict and matches_dict[match_type]:
-                for match in matches_dict[match_type]:
+                # Apply limit for this match type
+                limit = match_limits.get(match_type, 5)
+                limited_matches = matches_dict[match_type][:limit]
+                
+                for match in limited_matches:
                     self.all_matches.append(match)
                     
                     # Create match item with global number
@@ -684,10 +704,10 @@ class TranslationResultsPanel(QWidget):
         self.current_selection = match
         self.match_selected.emit(match)
         
-        # Update compare box
+        # Update compare box - show for TM matches with compare source
         if match.match_type == "TM" and match.compare_source:
             self.compare_frame.show()
-            self.compare_current.setText("")  # Would be filled from segment
+            # Current source is already set via set_segment_info
             self.compare_tm_source.setText(match.compare_source)
             self.compare_tm_target.setText(match.target)
         else:
@@ -745,12 +765,20 @@ class TranslationResultsPanel(QWidget):
         # Refresh all match items
         for item in self.match_items:
             if hasattr(item, 'source_label') and hasattr(item, 'target_label'):
-                # Update text format
-                item.source_label.setTextFormat(Qt.TextFormat.PlainText if show else Qt.TextFormat.RichText)
-                item.target_label.setTextFormat(Qt.TextFormat.PlainText if show else Qt.TextFormat.RichText)
+                # Always use RichText (needed for both tag rendering and highlighting)
+                item.source_label.setTextFormat(Qt.TextFormat.RichText)
+                item.target_label.setTextFormat(Qt.TextFormat.RichText)
                 # Refresh text
                 item.source_label.setText(item._format_text(item.match.source))
                 item.target_label.setText(item._format_text(item.match.target))
+    
+    def set_tag_color(self, color: str):
+        """Set tag highlight color for all match items"""
+        CompactMatchItem.tag_highlight_color = color
+        # Refresh all match items to apply new color
+        for item in self.match_items:
+            if hasattr(item, 'update_tag_color'):
+                item.update_tag_color(color)
     
     def _get_box_color(self, text_edit) -> str:
         """Get background color for a compare box (mapping hack)"""

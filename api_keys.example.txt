@@ -1,0 +1,44 @@
+# API Keys for Supervertaler & LLM Leaderboard
+# ============================================
+#
+# INSTRUCTIONS:
+# 1. Copy this file and rename it to: api_keys.txt
+# 2. Replace the placeholder values with your actual API keys
+# 3. Keep api_keys.txt secure and never commit it to version control
+#
+# Format: key_name=your_api_key_here (no spaces around =, no quotes)
+
+# === LLM Translation APIs ===
+
+# OpenAI (GPT-4o, GPT-5)
+# Get your key at: https://platform.openai.com/api-keys
+openai=YOUR_OPENAI_API_KEY_HERE
+
+# Anthropic Claude (Claude Sonnet 4.5, Haiku, Opus)
+# Get your key at: https://console.anthropic.com/settings/keys
+claude=YOUR_ANTHROPIC_API_KEY_HERE
+
+# Google Gemini (Gemini 2.5 Flash, Pro)
+# Get your key at: https://aistudio.google.com/app/apikey
+# NOTE: Use "google" as the key name (not "gemini")
+google=YOUR_GOOGLE_GEMINI_API_KEY_HERE
+
+# === Optional Translation APIs ===
+
+# DeepL (Optional - for DeepL translation)
+# Get your key at: https://www.deepl.com/pro-api
+deepl=
+
+# MyMemory (Optional - free translation API)
+mymemory=
+
+# Google Cloud Translation API (Optional - different from Gemini)
+google_translate=
+
+# ============================================
+# SECURITY NOTES:
+# - Keep this file private and secure
+# - Never share your API keys publicly
+# - Monitor your API usage regularly
+# - Each provider has different pricing and rate limits
+# ============================================

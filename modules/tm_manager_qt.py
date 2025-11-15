@@ -137,6 +137,10 @@ class TMManagerDialog(QDialog):
         self.tabs.addTab(self.import_export_tab, "📥 Import/Export")
         self.tabs.addTab(self.stats_tab, "📊 Statistics")
         
+        # Add maintenance tab for cleaning
+        self.maintenance_tab = self.create_maintenance_tab()
+        self.tabs.addTab(self.maintenance_tab, "🧹 Maintenance")
+        
         layout.addWidget(self.tabs)
         
         # Close button
@@ -183,6 +187,8 @@ class TMManagerDialog(QDialog):
         self.browser_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
         self.browser_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.browser_table.setAlternatingRowColors(True)
+        # Enable sorting by clicking column headers
+        self.browser_table.setSortingEnabled(True)
         layout.addWidget(self.browser_table)
         
         # Action buttons
@@ -602,3 +608,199 @@ Average Target Length: {avg_lengths[1]:.1f} characters
         except Exception as e:
             self.stats_display.setPlainText(f"Error loading statistics:\n{str(e)}")
             self.log(f"Error refreshing stats: {e}")
+    
+    def create_maintenance_tab(self):
+        """Create maintenance/cleaning tab"""
+        widget = QGroupBox()
+        layout = QVBoxLayout()
+        
+        # Header
+        header_label = QLabel("<h3>🧹 TM Maintenance & Cleaning</h3>")
+        layout.addWidget(header_label)
+        
+        info_label = QLabel(
+            "Clean up your translation memory by removing duplicates and redundant entries.\n"
+            "This helps keep your TM efficient and reduces clutter."
+        )
+        info_label.setWordWrap(True)
+        info_label.setStyleSheet("color: #666; margin-bottom: 15px;")
+        layout.addWidget(info_label)
+        
+        # Duplicate cleaning section
+        dup_group = QGroupBox("Duplicate Entry Cleaning")
+        dup_layout = QVBoxLayout()
+        
+        # Option 1: Identical source + target
+        dup1_layout = QHBoxLayout()
+        dup1_desc = QLabel(
+            "<b>Remove identical source + target pairs:</b><br>"
+            "Deletes entries where both source and target text are exactly the same.<br>"
+            "<i>Example: 'Hello' → 'Hello' (untranslated entries)</i>"
+        )
+        dup1_desc.setWordWrap(True)
+        dup1_layout.addWidget(dup1_desc, 1)
+        
+        clean_identical_btn = QPushButton("🗑️ Clean")
+        clean_identical_btn.setFixedWidth(100)
+        clean_identical_btn.clicked.connect(self.clean_identical_source_target)
+        dup1_layout.addWidget(clean_identical_btn)
+        dup_layout.addLayout(dup1_layout)
+        
+        dup_layout.addWidget(QLabel(""))  # Spacer
+        
+        # Option 2: Identical source (keep newest)
+        dup2_layout = QHBoxLayout()
+        dup2_desc = QLabel(
+            "<b>Remove duplicate sources (keep newest only):</b><br>"
+            "For entries with identical source text, keeps only the most recent translation.<br>"
+            "<i>Useful for removing outdated translations of the same source.</i>"
+        )
+        dup2_desc.setWordWrap(True)
+        dup2_layout.addWidget(dup2_desc, 1)
+        
+        clean_duplicates_btn = QPushButton("🗑️ Clean")
+        clean_duplicates_btn.setFixedWidth(100)
+        clean_duplicates_btn.clicked.connect(self.clean_duplicate_sources)
+        dup2_layout.addWidget(clean_duplicates_btn)
+        dup_layout.addLayout(dup2_layout)
+        
+        dup_group.setLayout(dup_layout)
+        layout.addWidget(dup_group)
+        
+        # Results display
+        self.maintenance_results = QTextEdit()
+        self.maintenance_results.setReadOnly(True)
+        self.maintenance_results.setMaximumHeight(200)
+        self.maintenance_results.setPlaceholderText("Cleaning results will appear here...")
+        layout.addWidget(self.maintenance_results)
+        
+        layout.addStretch()
+        
+        widget.setLayout(layout)
+        return widget
+    
+    def clean_identical_source_target(self):
+        """Remove entries where source and target are identical"""
+        try:
+            # Confirm with user
+            reply = QMessageBox.question(
+                self, "Confirm Cleaning",
+                "This will delete all TM entries where the source and target text are identical.\n\n"
+                "This action cannot be undone. Continue?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
+            
+            if reply != QMessageBox.StandardButton.Yes:
+                return
+            
+            # Find and count identical entries
+            self.db_manager.cursor.execute("""
+                SELECT COUNT(*) FROM translation_units 
+                WHERE source_text = target_text
+            """)
+            count_before = self.db_manager.cursor.fetchone()[0]
+            
+            if count_before == 0:
+                self.maintenance_results.setPlainText("✅ No identical source/target entries found. TM is clean!")
+                return
+            
+            # Delete identical entries
+            self.db_manager.cursor.execute("""
+                DELETE FROM translation_units 
+                WHERE source_text = target_text
+            """)
+            self.db_manager.connection.commit()
+            
+            # Report results
+            result_text = f"""
+✅ Cleaning Complete!
+
+Removed {count_before:,} entries where source = target
+
+These were likely untranslated entries or placeholders.
+Your TM is now cleaner and more efficient.
+"""
+            self.maintenance_results.setPlainText(result_text)
+            self.log(f"Cleaned {count_before} identical source/target entries from TM")
+            
+            # Refresh stats if on stats tab
+            self.refresh_stats()
+            
+        except Exception as e:
+            error_msg = f"❌ Error during cleaning:\n{str(e)}"
+            self.maintenance_results.setPlainText(error_msg)
+            QMessageBox.critical(self, "Cleaning Error", str(e))
+    
+    def clean_duplicate_sources(self):
+        """Remove duplicate sources, keeping only the newest translation"""
+        try:
+            # Confirm with user
+            reply = QMessageBox.question(
+                self, "Confirm Cleaning",
+                "This will find entries with identical source text and keep only the most recent translation.\n\n"
+                "Older translations of the same source will be deleted.\n"
+                "This action cannot be undone. Continue?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
+            
+            if reply != QMessageBox.StandardButton.Yes:
+                return
+            
+            # Find duplicate sources
+            self.db_manager.cursor.execute("""
+                SELECT source_hash, COUNT(*) as cnt
+                FROM translation_units
+                GROUP BY source_hash
+                HAVING cnt > 1
+            """)
+            duplicates = self.db_manager.cursor.fetchall()
+            
+            if not duplicates:
+                self.maintenance_results.setPlainText("✅ No duplicate sources found. TM is clean!")
+                return
+            
+            total_deleted = 0
+            
+            # For each duplicate source, keep only the newest
+            for source_hash, count in duplicates:
+                # Get all entries for this source, ordered by date (newest first)
+                self.db_manager.cursor.execute("""
+                    SELECT id FROM translation_units
+                    WHERE source_hash = ?
+                    ORDER BY modified_date DESC
+                """, (source_hash,))
+                
+                ids = [row[0] for row in self.db_manager.cursor.fetchall()]
+                
+                # Keep the first (newest), delete the rest
+                if len(ids) > 1:
+                    ids_to_delete = ids[1:]  # All except the first
+                    placeholders = ','.join('?' * len(ids_to_delete))
+                    self.db_manager.cursor.execute(f"""
+                        DELETE FROM translation_units
+                        WHERE id IN ({placeholders})
+                    """, ids_to_delete)
+                    total_deleted += len(ids_to_delete)
+            
+            self.db_manager.connection.commit()
+            
+            # Report results
+            result_text = f"""
+✅ Cleaning Complete!
+
+Found {len(duplicates):,} sources with multiple translations
+Removed {total_deleted:,} older translations
+Kept the most recent translation for each source
+
+Your TM now has only the latest translations.
+"""
+            self.maintenance_results.setPlainText(result_text)
+            self.log(f"Cleaned {total_deleted} duplicate source entries from TM (kept newest)")
+            
+            # Refresh stats if on stats tab
+            self.refresh_stats()
+            
+        except Exception as e:
+            error_msg = f"❌ Error during cleaning:\n{str(e)}"
+            self.maintenance_results.setPlainText(error_msg)
+            QMessageBox.critical(self, "Cleaning Error", str(e))

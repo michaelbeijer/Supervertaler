@@ -1,0 +1,46 @@
+name: Quick AI task
+description: Small, focused task that an AI agent can implement directly.
+title: "[AI] "
+labels:
+  - ai-ready
+body:
+  - type: input
+    id: summary
+    attributes:
+      label: Summary
+      description: One short sentence describing the task.
+      placeholder: "Add Tab shortcut between source and target text boxes"
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Where in the app does this happen? (screen, workflow, etc.)
+      placeholder: "Grid view while translating segments in Supervertaler."
+
+  - type: textarea
+    id: current_behavior
+    attributes:
+      label: Current behavior
+      description: What happens now?
+      placeholder: "Source textbox doesn’t support Ctrl+Left/Right word navigation, and there is no Tab shortcut."
+  
+  - type: textarea
+    id: desired_behavior
+    attributes:
+      label: Desired behavior
+      description: What should happen instead? Write it like instructions for the AI.
+      placeholder: |
+        - Enable Ctrl+Left/Right and Ctrl+Shift+Left/Right in the source textbox.
+        - When Tab is pressed, move focus between source and target boxes.
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes_for_ai
+    attributes:
+      label: Notes for AI
+      description: Edge cases, related issues, links, or extra implementation hints.
+      placeholder: "See also related keyboard/UX issues. Don’t break existing shortcuts."

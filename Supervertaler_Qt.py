@@ -97,7 +97,7 @@ try:
         QScrollArea, QSizePolicy
     )
     from PyQt6.QtCore import Qt, QSize, QTimer, pyqtSignal, QObject, QUrl
-    from PyQt6.QtGui import QFont, QAction, QKeySequence, QIcon, QTextOption, QColor, QDesktopServices, QTextCharFormat, QTextCursor, QBrush
+    from PyQt6.QtGui import QFont, QAction, QKeySequence, QIcon, QTextOption, QColor, QDesktopServices, QTextCharFormat, QTextCursor, QBrush, QSyntaxHighlighter
     from PyQt6 import sip
 except ImportError:
     print("PyQt6 not found. Installing...")
@@ -319,6 +319,9 @@ class GridTextEditor(QTextEdit):
 class ReadOnlyGridTextEditor(QTextEdit):
     """Read-only QTextEdit for source cells - allows easy text selection"""
     
+    # Class variable for tag highlight color (shared across all instances)
+    tag_highlight_color = '#FFB6C1'  # Default light pink
+    
     def __init__(self, text: str = "", parent=None):
         super().__init__(parent)
         self.setReadOnly(True)
@@ -363,6 +366,9 @@ class ReadOnlyGridTextEditor(QTextEdit):
         
         # Store termbase matches for this cell
         self.termbase_matches = {}
+        
+        # Add syntax highlighter for tags
+        self.highlighter = TagHighlighter(self.document(), self.tag_highlight_color)
     
     def sizeHint(self):
         """Return compact size based on content"""
@@ -427,8 +433,43 @@ class ReadOnlyGridTextEditor(QTextEdit):
                 print(f"Error triggering manual cell selection: {e}")
 
 
+class TagHighlighter(QSyntaxHighlighter):
+    """Syntax highlighter for HTML/XML tags in text editors"""
+    
+    def __init__(self, document, tag_color='#FFB6C1'):
+        super().__init__(document)
+        self.tag_color = tag_color
+        self.update_tag_format()
+    
+    def update_tag_format(self):
+        """Update the tag format with current color"""
+        from PyQt6.QtGui import QTextCharFormat, QColor
+        self.tag_format = QTextCharFormat()
+        self.tag_format.setForeground(QColor(self.tag_color))
+    
+    def set_tag_color(self, color: str):
+        """Update tag highlight color"""
+        self.tag_color = color
+        self.update_tag_format()
+        self.rehighlight()
+    
+    def highlightBlock(self, text):
+        """Highlight all tags in the text block"""
+        import re
+        # Match opening and closing tags: <tag>, </tag>, <tag/>
+        tag_pattern = re.compile(r'</?[a-zA-Z][a-zA-Z0-9]*/?>')
+        
+        for match in tag_pattern.finditer(text):
+            start = match.start()
+            length = match.end() - start
+            self.setFormat(start, length, self.tag_format)
+
+
 class EditableGridTextEditor(QTextEdit):
     """Editable QTextEdit for target cells - allows text selection and editing"""
+    
+    # Class variable for tag highlight color (shared across all instances)
+    tag_highlight_color = '#FFB6C1'  # Default light pink
     
     def __init__(self, text: str = "", parent=None, row: int = -1, table=None):
         super().__init__(parent)
@@ -440,6 +481,9 @@ class EditableGridTextEditor(QTextEdit):
         self.setAcceptRichText(False)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        
+        # Add syntax highlighter for tags
+        self.highlighter = TagHighlighter(self.document(), self.tag_highlight_color)
         
         # Style to look like a normal cell with subtle selection
         # IMPORTANT: Use white background instead of transparent to avoid text visibility issues
@@ -1006,7 +1050,7 @@ class SupervertalerQt(QMainWindow):
         self.allow_replace_in_source = False  # Safety: don't allow replace in source by default
         self.auto_propagate_exact_matches = True  # Auto-fill 100% TM matches for empty segments
         self.auto_insert_100_percent_matches = True  # Auto-insert 100% TM matches when segment selected
-        self.tm_save_mode = 'all'  # 'all' = keep all translations with timestamps, 'latest' = only keep most recent
+        self.tm_save_mode = 'latest'  # 'all' = keep all translations with timestamps, 'latest' = only keep most recent (DEFAULT)
         
         # TM and Termbase matching toggle (default: enabled)
         self.enable_tm_matching = True
@@ -3897,7 +3941,7 @@ class SupervertalerQt(QMainWindow):
         tm_save_mode_combo = QComboBox()
         tm_save_mode_combo.addItem("Save all translations (with timestamps)", "all")
         tm_save_mode_combo.addItem("Save only latest translation (overwrite)", "latest")
-        current_tm_mode = general_settings.get('tm_save_mode', 'all')
+        current_tm_mode = general_settings.get('tm_save_mode', 'latest')
         tm_save_mode_combo.setCurrentIndex(0 if current_tm_mode == 'all' else 1)
         tm_save_mode_combo.setToolTip(
             "All translations: Keeps all versions of translations for the same source segment with timestamps.\n"
@@ -3969,11 +4013,83 @@ class SupervertalerQt(QMainWindow):
         find_replace_group.setLayout(find_replace_layout)
         layout.addWidget(find_replace_group)
         
+        # Translation Results Match Limits group
+        match_limits_group = QGroupBox("📊 Translation Results - Match Limits")
+        match_limits_layout = QVBoxLayout()
+        
+        info_label = QLabel(
+            "Configure the maximum number of matches to display for each match type.\n"
+            "Reducing limits improves performance and reduces clutter."
+        )
+        info_label.setWordWrap(True)
+        info_label.setStyleSheet("color: #666; font-size: 9pt; padding: 5px;")
+        match_limits_layout.addWidget(info_label)
+        
+        # Create spinboxes for each match type
+        limits_grid = QVBoxLayout()
+        limits_grid.setSpacing(5)
+        
+        current_limits = general_settings.get('match_limits', {
+            "LLM": 3,
+            "MT": 3,
+            "TM": 5,
+            "Termbases": 10
+        })
+        
+        # LLM limit
+        llm_layout = QHBoxLayout()
+        llm_layout.addWidget(QLabel("🧠 LLM (AI) matches:"))
+        llm_spin = QSpinBox()
+        llm_spin.setRange(1, 10)
+        llm_spin.setValue(current_limits.get("LLM", 3))
+        llm_spin.setSuffix(" matches")
+        llm_layout.addWidget(llm_spin)
+        llm_layout.addStretch()
+        limits_grid.addLayout(llm_layout)
+        
+        # MT limit
+        mt_layout = QHBoxLayout()
+        mt_layout.addWidget(QLabel("🤖 MT (Machine Translation) matches:"))
+        mt_spin = QSpinBox()
+        mt_spin.setRange(1, 10)
+        mt_spin.setValue(current_limits.get("MT", 3))
+        mt_spin.setSuffix(" matches")
+        mt_layout.addWidget(mt_spin)
+        mt_layout.addStretch()
+        limits_grid.addLayout(mt_layout)
+        
+        # TM limit
+        tm_limit_layout = QHBoxLayout()
+        tm_limit_layout.addWidget(QLabel("💾 TM (Translation Memory) matches:"))
+        tm_limit_spin = QSpinBox()
+        tm_limit_spin.setRange(1, 20)
+        tm_limit_spin.setValue(current_limits.get("TM", 5))
+        tm_limit_spin.setSuffix(" matches")
+        tm_limit_layout.addWidget(tm_limit_spin)
+        tm_limit_layout.addStretch()
+        limits_grid.addLayout(tm_limit_layout)
+        
+        # Termbase limit
+        tb_layout = QHBoxLayout()
+        tb_layout.addWidget(QLabel("📚 Termbase matches:"))
+        tb_spin = QSpinBox()
+        tb_spin.setRange(1, 50)
+        tb_spin.setValue(current_limits.get("Termbases", 10))
+        tb_spin.setSuffix(" matches")
+        tb_layout.addWidget(tb_spin)
+        tb_layout.addStretch()
+        limits_grid.addLayout(tb_layout)
+        
+        match_limits_layout.addLayout(limits_grid)
+        match_limits_group.setLayout(match_limits_layout)
+        layout.addWidget(match_limits_group)
+        
         # Save button
         save_btn = QPushButton("💾 Save General Settings")
         save_btn.setStyleSheet("font-weight: bold; padding: 8px;")
         save_btn.clicked.connect(lambda: self._save_general_settings_from_ui(
-            restore_last_project_cb, allow_replace_cb, auto_propagate_cb, auto_markdown_cb
+            restore_last_project_cb, allow_replace_cb, auto_propagate_cb, auto_markdown_cb,
+            llm_spin, mt_spin, tm_limit_spin, tb_spin
         ))
         layout.addWidget(save_btn)
         
@@ -4066,6 +4182,33 @@ class SupervertalerQt(QMainWindow):
         show_tags_layout.addStretch()
         results_layout.addLayout(show_tags_layout)
         
+        # Tag highlight color picker
+        tag_color_layout = QHBoxLayout()
+        tag_color_layout.addWidget(QLabel("Tag Highlight Color:"))
+        
+        from PyQt6.QtWidgets import QColorDialog
+        from PyQt6.QtGui import QColor
+        
+        # Get current tag color or default to light pink
+        current_color = font_settings.get('tag_highlight_color', '#FFB6C1')
+        tag_color_btn = QPushButton()
+        tag_color_btn.setFixedSize(80, 25)
+        tag_color_btn.setStyleSheet(f"background-color: {current_color}; border: 1px solid #999;")
+        tag_color_btn.setToolTip("Click to choose tag highlight color")
+        
+        def choose_tag_color():
+            color = QColorDialog.getColor(QColor(current_color), self, "Choose Tag Highlight Color")
+            if color.isValid():
+                hex_color = color.name()
+                tag_color_btn.setStyleSheet(f"background-color: {hex_color}; border: 1px solid #999;")
+                tag_color_btn.setProperty('selected_color', hex_color)
+        
+        tag_color_btn.clicked.connect(choose_tag_color)
+        tag_color_btn.setProperty('selected_color', current_color)
+        tag_color_layout.addWidget(tag_color_btn)
+        tag_color_layout.addStretch()
+        results_layout.addLayout(tag_color_layout)
+        
         results_group.setLayout(results_layout)
         layout.addWidget(results_group)
         
@@ -4094,7 +4237,7 @@ class SupervertalerQt(QMainWindow):
         save_btn = QPushButton("💾 Save View Settings")
         save_btn.setStyleSheet("font-weight: bold; padding: 8px;")
         save_btn.clicked.connect(lambda: self._save_view_settings_from_ui(
-            grid_font_spin, match_font_spin, compare_font_spin, show_tags_check
+            grid_font_spin, match_font_spin, compare_font_spin, show_tags_check, tag_color_btn
         ))
         layout.addWidget(save_btn)
         
@@ -4489,7 +4632,8 @@ class SupervertalerQt(QMainWindow):
         self.log("✓ MT settings saved")
         QMessageBox.information(self, "Settings Saved", "MT settings have been saved successfully.")
     
-    def _save_general_settings_from_ui(self, restore_cb, allow_replace_cb, auto_propagate_cb, auto_markdown_cb=None):
+    def _save_general_settings_from_ui(self, restore_cb, allow_replace_cb, auto_propagate_cb, auto_markdown_cb=None,
+                                       llm_spin=None, mt_spin=None, tm_limit_spin=None, tb_spin=None):
         """Save general settings from UI"""
         self.allow_replace_in_source = allow_replace_cb.isChecked()
         self.update_warning_banner()
@@ -4505,12 +4649,25 @@ class SupervertalerQt(QMainWindow):
             'restore_last_project': restore_cb.isChecked(),
             'auto_propagate_exact_matches': self.auto_propagate_checkbox.isChecked() if hasattr(self, 'auto_propagate_checkbox') else self.auto_propagate_exact_matches,
             'auto_insert_100_percent_matches': self.auto_insert_100_checkbox.isChecked() if hasattr(self, 'auto_insert_100_checkbox') else True,
-            'tm_save_mode': tm_save_mode_combo.currentData() if 'tm_save_mode_combo' in locals() else 'all',
+            'tm_save_mode': tm_save_mode_combo.currentData() if 'tm_save_mode_combo' in locals() else 'latest',
             'auto_generate_markdown': self.auto_generate_markdown if hasattr(self, 'auto_generate_markdown') else False,
             'grid_font_size': self.default_font_size,  # Keep existing or update separately
             'results_match_font_size': 9,  # Keep existing
             'results_compare_font_size': 9  # Keep existing
         }
+        
+        # Add match limits if provided
+        if all([llm_spin, mt_spin, tm_limit_spin, tb_spin]):
+            general_settings['match_limits'] = {
+                'LLM': llm_spin.value(),
+                'MT': mt_spin.value(),
+                'TM': tm_limit_spin.value(),
+                'Termbases': tb_spin.value()
+            }
+            # Apply to all results panels immediately
+            if hasattr(self, 'results_panels'):
+                for panel in self.results_panels:
+                    panel.match_limits = general_settings['match_limits']
         
         # Update instance variable from checkbox
         if hasattr(self, 'auto_insert_100_checkbox'):
@@ -4525,7 +4682,7 @@ class SupervertalerQt(QMainWindow):
         self.log("✓ General settings saved")
         QMessageBox.information(self, "Settings Saved", "General settings have been saved successfully.")
     
-    def _save_view_settings_from_ui(self, grid_spin, match_spin, compare_spin, show_tags_check=None):
+    def _save_view_settings_from_ui(self, grid_spin, match_spin, compare_spin, show_tags_check=None, tag_color_btn=None):
         """Save view settings from UI"""
         general_settings = {
             'restore_last_project': self.load_general_settings().get('restore_last_project', False),
@@ -4535,6 +4692,14 @@ class SupervertalerQt(QMainWindow):
             'results_compare_font_size': compare_spin.value(),
             'enable_tm_termbase_matching': self.enable_tm_matching  # Save TM/termbase matching state
         }
+        
+        # Add tag color if provided
+        if tag_color_btn:
+            tag_color = tag_color_btn.property('selected_color')
+            if tag_color:
+                general_settings['tag_highlight_color'] = tag_color
+                EditableGridTextEditor.tag_highlight_color = tag_color
+        
         self.save_general_settings(general_settings)
         
         # Apply font sizes immediately
@@ -4567,6 +4732,18 @@ class SupervertalerQt(QMainWindow):
                 for panel in self.results_panels:
                     if hasattr(panel, 'set_show_tags'):
                         panel.set_show_tags(show_tags)
+            
+            # Apply tag color setting
+            if tag_color_btn:
+                tag_color = tag_color_btn.property('selected_color')
+                if tag_color:
+                    for panel in self.results_panels:
+                        if hasattr(panel, 'set_tag_color'):
+                            panel.set_tag_color(tag_color)
+        
+        # Refresh grid to apply tag colors
+        if hasattr(self, 'table') and self.table is not None:
+            self.refresh_grid_tag_colors()
         
         self.log("✓ View settings saved and applied")
         QMessageBox.information(self, "Settings Saved", "View settings have been saved and applied successfully.")
@@ -5409,7 +5586,7 @@ class SupervertalerQt(QMainWindow):
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.Interactive)  # Type
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)  # Source - stretch to fill space
         header.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)  # Target - stretch to fill space
-        header.setSectionResizeMode(4, QHeaderView.ResizeMode.Interactive)  # Status
+        header.setSectionResizeMode(4, QHeaderView.ResizeMode.Interactive)  # Status - allow resizing
         header.setStretchLastSection(False)  # Don't auto-stretch last section (we use Stretch mode for Source/Target)
         
         # Set initial column widths - give Source and Target equal space
@@ -7561,7 +7738,7 @@ class SupervertalerQt(QMainWindow):
             
             # Connect text changes to update segment
             # Use a factory function to create a proper closure that captures the current row, segment, and editor
-            def make_target_changed_handler(target_row, target_segment, editor_widget):
+            def make_target_changed_handler(target_row, editor_widget):
                 # Create debounce timer for expensive operations
                 debounce_timer = None
                 
@@ -7570,15 +7747,16 @@ class SupervertalerQt(QMainWindow):
                     new_text = editor_widget.toPlainText()
                     if target_row < len(self.current_project.segments):
                         # IMMEDIATE: Update segment data (no delay for data safety)
-                        target_segment.target = new_text
+                        # CRITICAL FIX: Access segment directly from project list, not from closure
+                        self.current_project.segments[target_row].target = new_text
                         self.project_modified = True
                         
                         # IMMEDIATE: Reset status to "not_started" when user manually edits
                         # Any manual edit means the segment needs review
-                        if target_segment.status != 'not_started':
-                            target_segment.status = 'not_started'
+                        if self.current_project.segments[target_row].status != 'not_started':
+                            self.current_project.segments[target_row].status = 'not_started'
                             # Update status display immediately
-                            self._update_status_cell(target_row, target_segment)
+                            self._update_status_cell(target_row, self.current_project.segments[target_row])
                         
                         # DEBOUNCED: Expensive UI/DB operations (only after user stops typing)
                         # Cancel previous timer
@@ -7590,13 +7768,13 @@ class SupervertalerQt(QMainWindow):
                         debounce_timer = QTimer()
                         debounce_timer.setSingleShot(True)
                         debounce_timer.timeout.connect(lambda: self._handle_target_text_debounced(
-                            target_row, target_segment, new_text
+                            target_row, self.current_project.segments[target_row], new_text
                         ))
                         debounce_timer.start(500)  # 500ms delay
                         
                 return on_target_text_changed
             
-            target_editor.textChanged.connect(make_target_changed_handler(row, segment, target_editor))
+            target_editor.textChanged.connect(make_target_changed_handler(row, target_editor))
             
             # Set as cell widget
             self.table.setCellWidget(row, 3, target_editor)
@@ -8108,6 +8286,24 @@ class SupervertalerQt(QMainWindow):
         # Save font size to preferences
         self.save_current_font_sizes()
     
+    def refresh_grid_tag_colors(self):
+        """Refresh tag highlight colors in all grid cells"""
+        if not hasattr(self, 'table') or not self.table:
+            return
+        
+        for row in range(self.table.rowCount()):
+            # Source column (2) - ReadOnlyGridTextEditor
+            source_widget = self.table.cellWidget(row, 2)
+            if source_widget and isinstance(source_widget, ReadOnlyGridTextEditor):
+                if hasattr(source_widget, 'highlighter'):
+                    source_widget.highlighter.set_tag_color(EditableGridTextEditor.tag_highlight_color)
+            
+            # Target column (3) - EditableGridTextEditor
+            target_widget = self.table.cellWidget(row, 3)
+            if target_widget and isinstance(target_widget, EditableGridTextEditor):
+                if hasattr(target_widget, 'highlighter'):
+                    target_widget.highlighter.set_tag_color(EditableGridTextEditor.tag_highlight_color)
+    
     def on_font_changed(self):
         """Handle font change - legacy method for compatibility"""
         self.apply_font_to_grid()
@@ -8161,6 +8357,8 @@ class SupervertalerQt(QMainWindow):
                 general_settings['results_compare_font_size'] = TranslationResultsPanel.compare_box_font_size
             if hasattr(CompactMatchItem, 'show_tags'):
                 general_settings['results_show_tags'] = CompactMatchItem.show_tags
+            if hasattr(EditableGridTextEditor, 'tag_highlight_color'):
+                general_settings['tag_highlight_color'] = EditableGridTextEditor.tag_highlight_color
             # Preserve other settings
             if 'restore_last_project' not in general_settings:
                 general_settings['restore_last_project'] = False
@@ -8184,7 +8382,7 @@ class SupervertalerQt(QMainWindow):
         # Load auto-markdown setting
         self.auto_generate_markdown = settings.get('auto_generate_markdown', False)
         # Load TM save mode
-        self.tm_save_mode = settings.get('tm_save_mode', 'all')
+        self.tm_save_mode = settings.get('tm_save_mode', 'latest')
 
         # Load LLM provider settings for AI Assistant
         llm_settings = self.load_llm_settings()
@@ -8429,6 +8627,25 @@ class SupervertalerQt(QMainWindow):
                 for panel in self.results_panels:
                     if hasattr(panel, 'set_show_tags'):
                         panel.set_show_tags(show_tags)
+                
+                # Load and apply tag color
+                tag_color = general_settings.get('tag_highlight_color', '#FFB6C1')
+                EditableGridTextEditor.tag_highlight_color = tag_color
+                ReadOnlyGridTextEditor.tag_highlight_color = tag_color
+                CompactMatchItem.tag_highlight_color = tag_color
+                for panel in self.results_panels:
+                    if hasattr(panel, 'set_tag_color'):
+                        panel.set_tag_color(tag_color)
+                
+                # Load and apply match limits
+                match_limits = general_settings.get('match_limits', {
+                    'LLM': 3,
+                    'MT': 3,
+                    'TM': 5,
+                    'Termbases': 10
+                })
+                for panel in self.results_panels:
+                    panel.match_limits = match_limits
                     
         except Exception as e:
             self.log(f"⚠ Could not load font sizes: {e}")
@@ -13588,7 +13805,7 @@ class SupervertalerQt(QMainWindow):
                         match_type="MT",
                         provider_code='GT'
                     )
-                    # Show MT match immediately
+                    # Show MT match immediately (deduplicated by panel)
                     mt_dict = {"MT": [match]}
                     self.log(f"🤖 PROGRESSIVE MT: Showing Google Translate match")
                     if hasattr(self, 'results_panels') and self.results_panels:
