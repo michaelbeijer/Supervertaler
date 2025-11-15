@@ -1,5 +1,5 @@
-name: Feature / spec
-description: Larger feature or change that needs a bit of design before coding.
+name: "Feature / spec"
+description: "Larger feature or change that needs some design before coding."
 title: "[Feature] "
 labels:
   - feature
@@ -8,52 +8,31 @@ body:
     id: summary
     attributes:
       label: Summary
-      description: One-line description of the feature.
+      description: "One-line description of the feature."
       placeholder: "Show per-job cost in tokens and EUR"
+    validations:
+      required: true
 
   - type: textarea
     id: problem
     attributes:
       label: Problem
-      description: Why is this feature needed? What pain does it solve?
+      description: "Why is this feature needed? What pain does it solve?"
       placeholder: "Users cannot see how much each job costs them in LLM usage, so pricing and budgeting are hard."
 
   - type: textarea
     id: user_story
     attributes:
       label: User story
-      description: Use the format: As a…, I want…, so that…
-      placeholder: |
-        As a Supervertaler user,
-        I want to see a cost breakdown per job,
-        so that I can understand and control my LLM spending.
+      description: "Use the format: As a…, I want…, so that…"
+      placeholder: "As a Supervertaler user, I want to see a cost breakdown per job so that I can understand and control my LLM spending."
 
   - type: textarea
     id: requirements
     attributes:
       label: Requirements
-      description: Bullet list of what must be true for this to be “done”. Checkboxes are good here.
+      description: "Bullet list of what must be true for this to be done. Checkboxes are fine."
       placeholder: |
         - [ ] Track token usage per job, per model.
         - [ ] Convert tokens to approximate EUR using config prices.
-        - [ ] Show a simple per-job report view.
-        - [ ] Estimate cost for jobs not yet translated.
-  
-  - type: textarea
-    id: impl_notes
-    attributes:
-      label: Implementation notes
-      description: Any rough technical ideas, data sources, or existing UI pieces to reuse.
-      placeholder: |
-        - Store per-model prices in a config file.
-        - Use recorded token usage from API responses where available.
-        - For estimates, derive tokens from word/character counts.
-
-  - type: textarea
-    id: open_questions
-    attributes:
-      label: Open questions
-      description: Decisions you haven’t made yet.
-      placeholder: |
-        - Should we support time-range reports (weekly/monthly)?
-        - Where should this report live in the UI?
+        - [ ] Show a simple per-job report vi
