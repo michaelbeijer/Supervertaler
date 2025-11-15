@@ -11581,19 +11581,8 @@ class SupervertalerQt(QMainWindow):
             target_widget = self.table.cellWidget(current_row, 3)  # Column 3 = Target
             if target_widget:
                 current_text = target_widget.toPlainText().strip()
-                self.log(f"🔍 Target from widget: '{current_text[:50]}...'")
-                
-                # DEBUG: Check segment object identity
-                self.log(f"🔍 DEBUG: Segment object ID before update: {id(segment)}")
-                self.log(f"🔍 DEBUG: Segment in list ID: {id(self.current_project.segments[segment.id - 1])}")
-                
                 segment.target = current_text
-                
-                # DEBUG: Verify update persisted
-                self.log(f"🔍 DEBUG: Segment target after assignment: '{segment.target[:50]}...'")
-                found_segment = next((seg for seg in self.current_project.segments if seg.id == segment_id), None)
-                if found_segment:
-                    self.log(f"🔍 DEBUG: Re-found segment target: '{found_segment.target[:50] if found_segment.target else 'EMPTY'}...'")
+                self.log(f"🔍 Target from widget: '{current_text[:50]}...'")
             
             segment.status = 'confirmed'
             self.update_status_icon(current_row, 'confirmed')
@@ -13831,20 +13820,13 @@ class SupervertalerQt(QMainWindow):
         try:
             self.log(f"🔧 Auto-insert: Starting for segment {segment.id} at row {row}, target='{target_text[:50]}...'")
             
-            # DEBUG: Check if this is the right object in the list
-            list_segment = self.current_project.segments[segment.id - 1]  # Assuming ID matches list index + 1
-            self.log(f"🔧 DEBUG: Segment param object ID: {id(segment)}")
-            self.log(f"🔧 DEBUG: Segment in list object ID: {id(list_segment)}")
-            self.log(f"🔧 DEBUG: Same object? {id(segment) == id(list_segment)}")
-            
-            # Update segment data
+            # CRITICAL: Update segment data directly
+            # The segment parameter IS a reference to the object in self.current_project.segments
+            # No need to look it up - just modify it directly!
             segment.target = target_text
             segment.status = 'translated'  # Mark as translated
             self.project_modified = True
             self.log(f"🔧 Auto-insert: Updated segment.target, status=translated")
-            
-            # DEBUG: Verify the update persisted in the list
-            self.log(f"🔧 DEBUG: List segment target after update: '{list_segment.target[:50] if list_segment.target else 'EMPTY'}...'")
             
             # Update grid view if visible
             if hasattr(self, 'table') and self.table:
