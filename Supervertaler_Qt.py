@@ -13831,11 +13831,20 @@ class SupervertalerQt(QMainWindow):
         try:
             self.log(f"🔧 Auto-insert: Starting for segment {segment.id} at row {row}, target='{target_text[:50]}...'")
             
+            # DEBUG: Check if this is the right object in the list
+            list_segment = self.current_project.segments[segment.id - 1]  # Assuming ID matches list index + 1
+            self.log(f"🔧 DEBUG: Segment param object ID: {id(segment)}")
+            self.log(f"🔧 DEBUG: Segment in list object ID: {id(list_segment)}")
+            self.log(f"🔧 DEBUG: Same object? {id(segment) == id(list_segment)}")
+            
             # Update segment data
             segment.target = target_text
             segment.status = 'translated'  # Mark as translated
             self.project_modified = True
             self.log(f"🔧 Auto-insert: Updated segment.target, status=translated")
+            
+            # DEBUG: Verify the update persisted in the list
+            self.log(f"🔧 DEBUG: List segment target after update: '{list_segment.target[:50] if list_segment.target else 'EMPTY'}...'")
             
             # Update grid view if visible
             if hasattr(self, 'table') and self.table:
