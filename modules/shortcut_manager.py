@@ -141,11 +141,23 @@ class ShortcutManager:
         },
         
         # Resources & Tools
-        "tools_tm_manager": {
+        "tools_tm_manager_tab": {
             "category": "Resources",
-            "description": "Translation Memory Manager",
+            "description": "TM Manager (Launch in tab)",
             "default": "Ctrl+M",
+            "action": "show_tm_manager_in_tab"
+        },
+        "tools_tm_manager_window": {
+            "category": "Resources",
+            "description": "TM Manager (Separate window)",
+            "default": "Ctrl+Shift+M",
             "action": "show_tm_manager"
+        },
+        "tools_concordance_search": {
+            "category": "Resources",
+            "description": "Quick Concordance Search",
+            "default": "Ctrl+K",
+            "action": "show_concordance_search"
         },
         "tools_universal_lookup": {
             "category": "Resources",
@@ -236,38 +248,59 @@ class ShortcutManager:
         # Match Navigation
         "match_next": {
             "category": "Match Navigation",
-            "description": "Next Match",
+            "description": "Next Match (in results panel)",
             "default": "Down",
             "action": "next_match",
             "context": "match_panel"
         },
         "match_previous": {
             "category": "Match Navigation",
-            "description": "Previous Match",
+            "description": "Previous Match (in results panel)",
             "default": "Up",
             "action": "previous_match",
             "context": "match_panel"
         },
+        "match_cycle_next": {
+            "category": "Match Navigation",
+            "description": "Cycle to Next Match (from grid)",
+            "default": "Ctrl+Down",
+            "action": "select_next_match",
+            "context": "grid"
+        },
+        "match_cycle_previous": {
+            "category": "Match Navigation",
+            "description": "Cycle to Previous Match (from grid)",
+            "default": "Ctrl+Up",
+            "action": "select_previous_match",
+            "context": "grid"
+        },
         "match_insert_selected": {
             "category": "Match Navigation",
             "description": "Insert Selected Match",
-            "default": "Space",
+            "default": "Space or Enter",
             "action": "insert_selected_match",
             "context": "match_panel"
         },
+        "match_insert_selected_ctrl": {
+            "category": "Match Navigation",
+            "description": "Insert Selected Match (from grid)",
+            "default": "Ctrl+Space",
+            "action": "insert_selected_match",
+            "context": "grid"
+        },
         
         # Grid Navigation
-        "grid_first_cell": {
+        "segment_next": {
             "category": "Grid Navigation",
-            "description": "Jump to First Cell",
-            "default": "Ctrl+Up",
-            "action": "jump_to_first_cell"
+            "description": "Next Segment",
+            "default": "Alt+Down",
+            "action": "go_to_next_segment"
         },
-        "grid_last_cell": {
+        "segment_previous": {
             "category": "Grid Navigation",
-            "description": "Jump to Last Cell",
-            "default": "Ctrl+Down",
-            "action": "jump_to_last_cell"
+            "description": "Previous Segment",
+            "default": "Alt+Up",
+            "action": "go_to_previous_segment"
         },
         
         # Editor Operations

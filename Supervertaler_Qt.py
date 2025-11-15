@@ -3,8 +3,8 @@ Supervertaler Qt Edition
 ========================
 The ultimate companion tool for translators and writers.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.4.0 (Supervoice Voice Dictation + Detachable Log)
-Release Date: November 12, 2025
+Version: 1.5.0 (Translation Results Enhancement + Match Insertion)
+Release Date: November 15, 2025
 Framework: PyQt6
 
 This is the modern edition of Supervertaler using PyQt6 framework.
@@ -30,9 +30,9 @@ License: MIT
 """
 
 # Version Information
-__version__ = "1.4.0"
+__version__ = "1.5.0"
 __phase__ = "7.0"
-__release_date__ = "2025-11-12"
+__release_date__ = "2025-11-15"
 __edition__ = "Qt"
 
 import sys
@@ -1149,6 +1149,17 @@ class SupervertalerQt(QMainWindow):
         self.shortcut_match_down = QShortcut(QKeySequence("Ctrl+Down"), self)
         self.shortcut_match_down.activated.connect(self.select_next_match)
         
+        # Ctrl+1 through Ctrl+9 - Insert match by number
+        self.match_shortcuts = []
+        for i in range(1, 10):
+            shortcut = QShortcut(QKeySequence(f"Ctrl+{i}"), self)
+            shortcut.activated.connect(lambda num=i: self.insert_match_by_number(num))
+            self.match_shortcuts.append(shortcut)
+        
+        # Ctrl+Space - Insert currently selected match
+        self.shortcut_insert_selected = QShortcut(QKeySequence("Ctrl+Space"), self)
+        self.shortcut_insert_selected.activated.connect(self.insert_selected_match)
+        
         # Alt+Up/Down - Navigate to previous/next segment
         self.shortcut_segment_up = QShortcut(QKeySequence("Alt+Up"), self)
         self.shortcut_segment_up.activated.connect(self.go_to_previous_segment)
@@ -1163,6 +1174,10 @@ class SupervertalerQt(QMainWindow):
         # Ctrl+Shift+S - Copy source to target
         self.shortcut_copy_source = QShortcut(QKeySequence("Ctrl+Shift+S"), self)
         self.shortcut_copy_source.activated.connect(self.copy_source_to_grid_target)
+        
+        # Ctrl+K - Concordance Search
+        self.shortcut_concordance = QShortcut(QKeySequence("Ctrl+K"), self)
+        self.shortcut_concordance.activated.connect(self.show_concordance_search)
 
     def create_menus(self):
         """Create application menus"""
@@ -1450,10 +1465,15 @@ class SupervertalerQt(QMainWindow):
         # Tools Menu
         tools_menu = menubar.addMenu("&Tools")
         
-        tm_manager_action = QAction("&Translation Memory Manager...", self)
-        tm_manager_action.setShortcut("Ctrl+M")
-        tm_manager_action.triggered.connect(self.show_tm_manager)
-        tools_menu.addAction(tm_manager_action)
+        tm_manager_tab_action = QAction("📚 TM Manager (Launch in &tab)", self)
+        tm_manager_tab_action.setShortcut("Ctrl+M")
+        tm_manager_tab_action.triggered.connect(self.show_tm_manager_in_tab)
+        tools_menu.addAction(tm_manager_tab_action)
+        
+        tm_manager_window_action = QAction("🪟 TM Manager (Separate &window)...", self)
+        tm_manager_window_action.setShortcut("Ctrl+Shift+M")
+        tm_manager_window_action.triggered.connect(self.show_tm_manager)
+        tools_menu.addAction(tm_manager_window_action)
         
         autofingers_action = QAction("✋ &AutoFingers - CAT Tool Automation...", self)
         autofingers_action.setShortcut("Ctrl+Shift+A")
@@ -1893,6 +1913,78 @@ class SupervertalerQt(QMainWindow):
         """Get API keys from settings"""
         from modules.llm_clients import load_api_keys
         return load_api_keys()
+    
+    def create_tm_manager_tab(self) -> QWidget:
+        """Create the TM Manager tab for the Tools section with full functionality"""
+        from modules.tm_manager_qt import TMManagerDialog
+        
+        # Create a container widget
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(5, 5, 5, 5)
+        
+        # Create nested tab widget for TM Manager functionality
+        tm_tabs = QTabWidget()
+        
+        # Create an instance of TMManagerDialog but use its tab creation methods
+        # We'll create the tabs directly without the dialog wrapper
+        temp_manager = TMManagerDialog(self, self.db_manager, self.log)
+        
+        # Add all the tabs from the TM Manager
+        tm_tabs.addTab(temp_manager.browser_tab, "📋 Browse")
+        tm_tabs.addTab(temp_manager.search_tab, "🔍 Concordance")
+        tm_tabs.addTab(temp_manager.import_export_tab, "📥 Import/Export")
+        tm_tabs.addTab(temp_manager.stats_tab, "📊 Statistics")
+        tm_tabs.addTab(temp_manager.maintenance_tab, "🧹 Maintenance")
+        
+        layout.addWidget(tm_tabs)
+        
+        # Store reference to temp_manager so it doesn't get garbage collected
+        tab._tm_manager = temp_manager
+        
+        return tab
+    
+    def show_concordance_search(self, initial_query: str = None):
+        """Show concordance search dialog (Ctrl+K)"""
+        from modules.tm_manager_qt import TMManagerDialog
+        
+        try:
+            # Get selected text if available and no initial query
+            if not initial_query:
+                if hasattr(self, 'table') and self.table:
+                    current_row = self.table.currentRow()
+                    if current_row >= 0:
+                        source_widget = self.table.cellWidget(current_row, 2)  # Source column
+                        if source_widget and hasattr(source_widget, 'textCursor'):
+                            cursor = source_widget.textCursor()
+                            if cursor.hasSelection():
+                                initial_query = cursor.selectedText()
+            
+            # Open TM Manager to concordance tab
+            dialog = TMManagerDialog(self, self.db_manager, self.log)
+            dialog.tabs.setCurrentIndex(1)  # Switch to Concordance tab
+            
+            # Set initial query if provided
+            if initial_query and hasattr(dialog, 'search_input'):
+                dialog.search_input.setText(initial_query)
+                dialog.do_concordance_search()
+            
+            dialog.exec()
+        except Exception as e:
+            self.log(f"Error opening concordance search: {e}")
+            QMessageBox.critical(self, "Error", f"Failed to open concordance search:\n{str(e)}")
+    
+    def show_tm_manager_tab(self, tab_index: int = 0):
+        """Show TM Manager dialog opened to specific tab"""
+        from modules.tm_manager_qt import TMManagerDialog
+        
+        try:
+            dialog = TMManagerDialog(self, self.db_manager, self.log)
+            dialog.tabs.setCurrentIndex(tab_index)
+            dialog.exec()
+        except Exception as e:
+            self.log(f"Error opening TM Manager: {e}")
+            QMessageBox.critical(self, "Error", f"Failed to open TM Manager:\n{str(e)}")
 
     def create_log_tab(self) -> QWidget:
         """Create the Log tab - Session Log"""
@@ -2271,6 +2363,10 @@ class SupervertalerQt(QMainWindow):
         # Superbench
         leaderboard_tab = self.create_llm_leaderboard_tab()
         modules_tabs.addTab(leaderboard_tab, "📊 Superbench")
+        
+        # Translation Memory Manager
+        tm_manager_tab = self.create_tm_manager_tab()
+        modules_tabs.addTab(tm_manager_tab, "💾 TM Manager")
 
         layout.addWidget(modules_tabs)
 
@@ -3961,6 +4057,15 @@ class SupervertalerQt(QMainWindow):
         compare_spin_layout.addStretch()
         results_layout.addLayout(compare_spin_layout)
         
+        # Show tags checkbox
+        show_tags_layout = QHBoxLayout()
+        show_tags_check = QCheckBox("Show HTML/XML tags in match text")
+        show_tags_check.setChecked(font_settings.get('results_show_tags', False))
+        show_tags_check.setToolTip("When enabled, tags like <b>, <li>, etc. are displayed. When disabled, only the text content is shown.")
+        show_tags_layout.addWidget(show_tags_check)
+        show_tags_layout.addStretch()
+        results_layout.addLayout(show_tags_layout)
+        
         results_group.setLayout(results_layout)
         layout.addWidget(results_group)
         
@@ -3989,7 +4094,7 @@ class SupervertalerQt(QMainWindow):
         save_btn = QPushButton("💾 Save View Settings")
         save_btn.setStyleSheet("font-weight: bold; padding: 8px;")
         save_btn.clicked.connect(lambda: self._save_view_settings_from_ui(
-            grid_font_spin, match_font_spin, compare_font_spin
+            grid_font_spin, match_font_spin, compare_font_spin, show_tags_check
         ))
         layout.addWidget(save_btn)
         
@@ -4420,7 +4525,7 @@ class SupervertalerQt(QMainWindow):
         self.log("✓ General settings saved")
         QMessageBox.information(self, "Settings Saved", "General settings have been saved successfully.")
     
-    def _save_view_settings_from_ui(self, grid_spin, match_spin, compare_spin):
+    def _save_view_settings_from_ui(self, grid_spin, match_spin, compare_spin, show_tags_check=None):
         """Save view settings from UI"""
         general_settings = {
             'restore_last_project': self.load_general_settings().get('restore_last_project', False),
@@ -4454,6 +4559,14 @@ class SupervertalerQt(QMainWindow):
                 for panel in self.results_panels:
                     if hasattr(panel, 'set_compare_box_font_size'):
                         panel.set_compare_box_font_size(compare_spin.value())
+            
+            # Apply show_tags setting
+            if show_tags_check:
+                show_tags = show_tags_check.isChecked()
+                CompactMatchItem.show_tags = show_tags
+                for panel in self.results_panels:
+                    if hasattr(panel, 'set_show_tags'):
+                        panel.set_show_tags(show_tags)
         
         self.log("✓ View settings saved and applied")
         QMessageBox.information(self, "Settings Saved", "View settings have been saved and applied successfully.")
@@ -5561,33 +5674,51 @@ class SupervertalerQt(QMainWindow):
     def on_match_inserted(self, match_text: str):
         """
         Handle match insertion (user pressed Ctrl+number or Spacebar in match pane)
-        Insert the match text into the currently selected target cell
+        Insert the match text at the cursor position in the currently selected target cell
         WITHOUT confirming the segment or moving to next
         """
         try:
             if not self.current_project or not self.table:
                 return
             
-            # Get current cell from grid
-            current_item = self.table.currentItem()
-            if current_item:
-                row = current_item.row()
-                col = current_item.column()
+            # Get current row
+            row = self.table.currentRow()
+            col = self.table.currentColumn()
+            
+            if row >= 0 and row < len(self.current_project.segments):
+                # Get the target cell widget (EditableGridTextEditor)
+                target_widget = self.table.cellWidget(row, 3)  # Column 3 is target
                 
-                # Check if we're in a target column (column 3 for Target)
-                if col == 3 and row < len(self.current_project.segments):
-                    # Just insert the match text - don't confirm or move
+                if target_widget and isinstance(target_widget, QTextEdit):
+                    # Insert text at cursor position
+                    cursor = target_widget.textCursor()
+                    cursor.insertText(match_text)
+                    
+                    # Update the segment data
+                    segment = self.current_project.segments[row]
+                    segment.target = target_widget.toPlainText()
+                    
+                    # Set focus back to the target editor
+                    target_widget.setFocus()
+                    
+                    self.log(f"✓ Match inserted into segment {row + 1} at cursor position")
+                elif col == 3:
+                    # Fallback: If no widget exists, create one or set text directly
                     segment = self.current_project.segments[row]
                     segment.target = match_text
                     
-                    # Update the table view
-                    self.table.item(row, col).setText(match_text)
-                    self.log(f"✓ Match inserted into segment {row + 1}")
+                    # Try to update via cellWidget first
+                    if target_widget:
+                        target_widget.setPlainText(match_text)
                     
-                    # Stay in current segment - don't move or confirm
-                    # User is still in edit mode and can continue editing
+                    self.log(f"✓ Match inserted into segment {row + 1}")
+                else:
+                    self.log(f"⚠ Please click on the target cell first to insert match")
+            
         except Exception as e:
             self.log(f"Error inserting match: {e}")
+            import traceback
+            traceback.print_exc()
     
     # ========================================================================
     # PROJECT MANAGEMENT
@@ -7442,6 +7573,13 @@ class SupervertalerQt(QMainWindow):
                         target_segment.target = new_text
                         self.project_modified = True
                         
+                        # IMMEDIATE: Reset status to "not_started" when user manually edits
+                        # Any manual edit means the segment needs review
+                        if target_segment.status != 'not_started':
+                            target_segment.status = 'not_started'
+                            # Update status display immediately
+                            self._update_status_cell(target_row, target_segment)
+                        
                         # DEBOUNCED: Expensive UI/DB operations (only after user stops typing)
                         # Cancel previous timer
                         if debounce_timer:
@@ -8021,6 +8159,8 @@ class SupervertalerQt(QMainWindow):
                 general_settings['results_match_font_size'] = CompactMatchItem.font_size_pt
             if hasattr(TranslationResultsPanel, 'compare_box_font_size'):
                 general_settings['results_compare_font_size'] = TranslationResultsPanel.compare_box_font_size
+            if hasattr(CompactMatchItem, 'show_tags'):
+                general_settings['results_show_tags'] = CompactMatchItem.show_tags
             # Preserve other settings
             if 'restore_last_project' not in general_settings:
                 general_settings['restore_last_project'] = False
@@ -8265,6 +8405,7 @@ class SupervertalerQt(QMainWindow):
             # Load results pane font sizes
             match_size = general_settings.get('results_match_font_size', 9)
             compare_size = general_settings.get('results_compare_font_size', 9)
+            show_tags = general_settings.get('results_show_tags', False)
             
             # Apply to all results panels
             if hasattr(self, 'results_panels'):
@@ -8281,6 +8422,13 @@ class SupervertalerQt(QMainWindow):
                     for panel in self.results_panels:
                         if hasattr(panel, 'set_compare_box_font_size'):
                             panel.set_compare_box_font_size(compare_size)
+                
+                # Apply show_tags setting
+                from modules.translation_results_panel import CompactMatchItem
+                CompactMatchItem.show_tags = show_tags
+                for panel in self.results_panels:
+                    if hasattr(panel, 'set_show_tags'):
+                        panel.set_show_tags(show_tags)
                     
         except Exception as e:
             self.log(f"⚠ Could not load font sizes: {e}")
@@ -8327,10 +8475,8 @@ class SupervertalerQt(QMainWindow):
         Called 500ms after last keystroke to avoid UI lag.
         """
         try:
-            # Update status if translation was added
-            if segment.target and segment.status in (DEFAULT_STATUS.key, 'pretranslated', 'rejected'):
-                segment.status = 'translated'
-                self.update_status_icon(row, segment.status)
+            # Note: Status is now set to "not_started" immediately on edit (in on_target_text_changed)
+            # User must manually confirm/approve to change status to translated/confirmed
             
             # Update window title
             self.update_window_title()
@@ -8343,14 +8489,12 @@ class SupervertalerQt(QMainWindow):
             if segment.status in ['translated', 'approved', 'confirmed'] and new_text.strip():
                 try:
                     if self.current_project and hasattr(self.current_project, 'source_lang') and hasattr(self.current_project, 'target_lang'):
-                        save_mode = self.tm_save_mode if hasattr(self, 'tm_save_mode') else 'all'
                         self.db_manager.add_translation_unit(
                             source=segment.source,
                             target=new_text,
                             source_lang=self.current_project.source_lang,
                             target_lang=self.current_project.target_lang,
-                            tm_id='project',
-                            save_mode=save_mode
+                            tm_id='project'
                         )
                         # Invalidate cache so prefetched segments get fresh TM matches
                         self.invalidate_translation_cache()
@@ -8371,14 +8515,12 @@ class SupervertalerQt(QMainWindow):
         if status in ['translated', 'approved', 'confirmed'] and segment.target.strip():
             try:
                 if self.current_project and hasattr(self.current_project, 'source_lang') and hasattr(self.current_project, 'target_lang'):
-                    save_mode = self.tm_save_mode if hasattr(self, 'tm_save_mode') else 'all'
                     self.db_manager.add_translation_unit(
                         source=segment.source,
                         target=segment.target,
                         source_lang=self.current_project.source_lang,
                         target_lang=self.current_project.target_lang,
-                        tm_id='project',
-                        save_mode=save_mode
+                        tm_id='project'
                     )
                     # Invalidate cache so prefetched segments get fresh TM matches
                     self.invalidate_translation_cache()
@@ -8494,7 +8636,7 @@ class SupervertalerQt(QMainWindow):
                                 for panel in self.results_panels:
                                     try:
                                         panel.clear()
-                                        panel.add_matches(cached_matches)
+                                        panel.set_matches(cached_matches)
                                     except Exception as e:
                                         self.log(f"Error displaying cached matches: {e}")
                             
@@ -8611,7 +8753,7 @@ class SupervertalerQt(QMainWindow):
                                 for panel in self.results_panels:
                                     try:
                                         panel.clear()  # Clear old matches
-                                        panel.add_matches(matches_dict)  # Add termbase matches immediately
+                                        panel.set_matches(matches_dict)  # Add termbase matches immediately
                                     except Exception as e:
                                         self.log(f"Error updating results panel: {e}")
                         else:
@@ -10547,14 +10689,12 @@ class SupervertalerQt(QMainWindow):
         try:
             if segment.status in ['translated', 'approved', 'confirmed'] and text.strip():
                 if self.current_project and hasattr(self.current_project, 'source_lang') and hasattr(self.current_project, 'target_lang'):
-                    save_mode = self.tm_save_mode if hasattr(self, 'tm_save_mode') else 'all'
                     self.db_manager.add_translation_unit(
                         source=segment.source,
                         target=text,
                         source_lang=self.current_project.source_lang,
                         target_lang=self.current_project.target_lang,
-                        tm_id='project',
-                        save_mode=save_mode
+                        tm_id='project'
                     )
                     # Invalidate cache so prefetched segments get fresh TM matches
                     self.invalidate_translation_cache()
@@ -10912,14 +11052,12 @@ class SupervertalerQt(QMainWindow):
                     if seg.status in ['translated', 'approved', 'confirmed'] and seg.target.strip():
                         try:
                             if hasattr(self.current_project, 'source_lang') and hasattr(self.current_project, 'target_lang'):
-                                save_mode = self.tm_save_mode if hasattr(self, 'tm_save_mode') else 'all'
                                 self.db_manager.add_translation_unit(
                                     source=seg.source,
                                     target=seg.target,
                                     source_lang=self.current_project.source_lang,
                                     target_lang=self.current_project.target_lang,
-                                    tm_id='project',
-                                    save_mode=save_mode
+                                    tm_id='project'
                                 )
                                 # Invalidate cache so prefetched segments get fresh TM matches
                                 self.invalidate_translation_cache()
@@ -11003,14 +11141,12 @@ class SupervertalerQt(QMainWindow):
         if segment.status in ['translated', 'approved', 'confirmed'] and segment.target.strip():
             try:
                 if hasattr(self.current_project, 'source_lang') and hasattr(self.current_project, 'target_lang'):
-                    save_mode = self.tm_save_mode if hasattr(self, 'tm_save_mode') else 'all'
                     self.db_manager.add_translation_unit(
                         source=segment.source,
                         target=segment.target,
                         source_lang=self.current_project.source_lang,
                         target_lang=self.current_project.target_lang,
-                        tm_id='project',
-                        save_mode=save_mode
+                        tm_id='project'
                     )
                     self.invalidate_translation_cache()
                     self.log(f"💾 Saved segment {segment.id} to TM")
@@ -11062,6 +11198,28 @@ class SupervertalerQt(QMainWindow):
                         break
                 except Exception as e:
                     self.log(f"Error selecting next match: {e}")
+    
+    def insert_match_by_number(self, match_number: int):
+        """Insert match by number (Ctrl+1-9)"""
+        if hasattr(self, 'results_panels') and self.results_panels:
+            for panel in self.results_panels:
+                try:
+                    if hasattr(panel, 'insert_match_by_number'):
+                        if panel.insert_match_by_number(match_number):
+                            break
+                except Exception as e:
+                    self.log(f"Error inserting match #{match_number}: {e}")
+    
+    def insert_selected_match(self):
+        """Insert currently selected match (Ctrl+Space)"""
+        if hasattr(self, 'results_panels') and self.results_panels:
+            for panel in self.results_panels:
+                try:
+                    if hasattr(panel, 'insert_selected_match'):
+                        if panel.insert_selected_match():
+                            break
+                except Exception as e:
+                    self.log(f"Error inserting selected match: {e}")
     
     def go_to_previous_segment(self):
         """Navigate to previous segment (Alt+Up)"""
@@ -11127,16 +11285,14 @@ class SupervertalerQt(QMainWindow):
             if segment.target.strip():
                 try:
                     if hasattr(self.current_project, 'source_lang') and hasattr(self.current_project, 'target_lang'):
-                        save_mode = self.tm_save_mode if hasattr(self, 'tm_save_mode') else 'all'
                         self.db_manager.add_translation_unit(
                             source=segment.source,
                             target=segment.target,
                             source_lang=self.current_project.source_lang,
                             target_lang=self.current_project.target_lang,
-                            tm_id='project',
-                            save_mode=save_mode
+                            tm_id='project'
                         )
-                        self.log(f"💾 Saved segment {segment.id} to TM (mode={save_mode}): '{segment.target[:50]}...'")
+                        self.log(f"💾 Saved segment {segment.id} to TM: '{segment.target[:50]}...'")
                         self.invalidate_translation_cache()
                     else:
                         self.log(f"⚠️ Cannot save to TM: missing language info")
@@ -11633,7 +11789,7 @@ class SupervertalerQt(QMainWindow):
             self.warning_banners.pop(key, None)
     
     def show_tm_manager(self):
-        """Show Translation Memory Manager dialog"""
+        """Show Translation Memory Manager dialog (separate window)"""
         from modules.tm_manager_qt import TMManagerDialog
         
         try:
@@ -11642,6 +11798,21 @@ class SupervertalerQt(QMainWindow):
         except Exception as e:
             self.log(f"Error opening TM Manager: {e}")
             QMessageBox.critical(self, "Error", f"Failed to open TM Manager:\n{str(e)}")
+    
+    def show_tm_manager_in_tab(self):
+        """Switch to TM Manager tab in the main Tools section"""
+        try:
+            # Find the Tools tab in the main tab widget
+            for i in range(self.tabs.count()):
+                if self.tabs.tabText(i) == "Tools":
+                    self.tabs.setCurrentIndex(i)
+                    self.log("📚 Switched to TM Manager tab")
+                    return
+            
+            self.log("⚠️ Tools tab not found")
+        except Exception as e:
+            self.log(f"Error switching to TM Manager tab: {e}")
+            QMessageBox.critical(self, "Error", f"Failed to switch to TM Manager tab:\n{str(e)}")
     
     def show_about(self):
         import_layout = QVBoxLayout(import_tab)
@@ -13274,7 +13445,7 @@ class SupervertalerQt(QMainWindow):
                     # Show TM matches immediately (progressive loading)
                     if matches_dict["TM"]:
                         self.log(f"🚀 Showing {len(matches_dict['TM'])} TM matches progressively")
-                        tm_only = {"TM": matches_dict["TM"], "MT": [], "LLM": [], "NT": [], "Termbases": []}
+                        tm_only = {"TM": matches_dict["TM"]}
                         if hasattr(self, 'results_panels') and self.results_panels:
                             for panel in self.results_panels:
                                 try:
@@ -13418,7 +13589,7 @@ class SupervertalerQt(QMainWindow):
                         provider_code='GT'
                     )
                     # Show MT match immediately
-                    mt_dict = {"MT": [match], "TM": [], "LLM": [], "NT": [], "Termbases": []}
+                    mt_dict = {"MT": [match]}
                     self.log(f"🤖 PROGRESSIVE MT: Showing Google Translate match")
                     if hasattr(self, 'results_panels') and self.results_panels:
                         for panel in self.results_panels:
@@ -13470,7 +13641,7 @@ class SupervertalerQt(QMainWindow):
                                 provider_code='OA'
                             )
                             # Show OpenAI match immediately
-                            llm_dict = {"LLM": [match], "MT": [], "TM": [], "NT": [], "Termbases": []}
+                            llm_dict = {"LLM": [match]}
                             self.log(f"🧠 PROGRESSIVE LLM: Showing OpenAI match")
                             if hasattr(self, 'results_panels') and self.results_panels:
                                 for panel in self.results_panels:
@@ -13511,7 +13682,7 @@ class SupervertalerQt(QMainWindow):
                                 provider_code='CL'
                             )
                             # Show Claude match immediately
-                            llm_dict = {"LLM": [match], "MT": [], "TM": [], "NT": [], "Termbases": []}
+                            llm_dict = {"LLM": [match]}
                             self.log(f"🧠 PROGRESSIVE LLM: Showing Claude match")
                             if hasattr(self, 'results_panels') and self.results_panels:
                                 for panel in self.results_panels:

@@ -40,8 +40,9 @@ class CompactMatchItem(QFrame):
     
     match_selected = pyqtSignal(TranslationMatch)
     
-    # Class variable for font size (can be changed globally)
+    # Class variables (can be changed globally)
     font_size_pt = 9
+    show_tags = False  # When False, HTML/XML tags are hidden
     
     def __init__(self, match: TranslationMatch, match_number: int = 0, parent=None):
         super().__init__(parent)
@@ -105,16 +106,18 @@ class CompactMatchItem(QFrame):
         content_layout.setSpacing(6)
         
         # Source column - NO truncation, allow wrapping
-        self.source_label = QLabel(match.source)
+        self.source_label = QLabel(self._format_text(match.source))
         self.source_label.setWordWrap(True)  # Allow wrapping
+        self.source_label.setTextFormat(Qt.TextFormat.PlainText if self.show_tags else Qt.TextFormat.RichText)
         self.source_label.setStyleSheet(f"font-size: {self.font_size_pt}px; color: #333; padding: 0px; margin: 0px;")
         self.source_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
         self.source_label.setMinimumWidth(150)  # Much wider minimum
         content_layout.addWidget(self.source_label, 1)
         
         # Target column - NO truncation, allow wrapping
-        self.target_label = QLabel(match.target)
+        self.target_label = QLabel(self._format_text(match.target))
         self.target_label.setWordWrap(True)  # Allow wrapping
+        self.target_label.setTextFormat(Qt.TextFormat.PlainText if self.show_tags else Qt.TextFormat.RichText)
         self.target_label.setStyleSheet(f"font-size: {self.font_size_pt}px; color: #555; padding: 0px; margin: 0px;")
         self.target_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
         self.target_label.setMinimumWidth(150)  # Much wider minimum
@@ -152,6 +155,15 @@ class CompactMatchItem(QFrame):
         
         # NOW call update_styling() after num_label_ref is set
         self.update_styling()
+    
+    def _format_text(self, text: str) -> str:
+        """Format text based on show_tags setting"""
+        if self.show_tags:
+            # Show tags as-is (plain text)
+            return text
+        else:
+            # Let QLabel interpret as HTML (tags will be rendered/hidden)
+            return text
     
     @classmethod
     def set_font_size(cls, size: int):
@@ -580,6 +592,33 @@ class TranslationResultsPanel(QWidget):
         
         return (container, text_edit)
     
+    def add_matches(self, new_matches_dict: Dict[str, List[TranslationMatch]]):
+        """
+        Add new matches to existing matches (for progressive loading)
+        Merges new matches with existing ones and re-renders the display
+        
+        Args:
+            new_matches_dict: Dict with keys like "NT", "MT", "TM", "Termbases"
+        """
+        # Merge new matches with existing matches_by_type
+        if not hasattr(self, 'matches_by_type') or not self.matches_by_type:
+            # No existing matches, just set them
+            self.set_matches(new_matches_dict)
+            return
+        
+        # Merge: Update existing match types with new matches
+        for match_type, new_matches in new_matches_dict.items():
+            if new_matches:  # Only merge non-empty lists
+                if match_type in self.matches_by_type:
+                    # Append to existing matches
+                    self.matches_by_type[match_type].extend(new_matches)
+                else:
+                    # New match type, add it
+                    self.matches_by_type[match_type] = new_matches
+        
+        # Re-render with merged matches
+        self.set_matches(self.matches_by_type)
+    
     def set_matches(self, matches_dict: Dict[str, List[TranslationMatch]]):
         """
         Set matches from different sources in unified flat list with GLOBAL consecutive numbering
@@ -700,6 +739,19 @@ class TranslationResultsPanel(QWidget):
                 }}
             """)
     
+    def set_show_tags(self, show: bool):
+        """Set whether to show HTML/XML tags in matches"""
+        CompactMatchItem.show_tags = show
+        # Refresh all match items
+        for item in self.match_items:
+            if hasattr(item, 'source_label') and hasattr(item, 'target_label'):
+                # Update text format
+                item.source_label.setTextFormat(Qt.TextFormat.PlainText if show else Qt.TextFormat.RichText)
+                item.target_label.setTextFormat(Qt.TextFormat.PlainText if show else Qt.TextFormat.RichText)
+                # Refresh text
+                item.source_label.setText(item._format_text(item.match.source))
+                item.target_label.setText(item._format_text(item.match.target))
+    
     def _get_box_color(self, text_edit) -> str:
         """Get background color for a compare box (mapping hack)"""
         # This is a workaround - in production, store colors with the widgets
@@ -738,51 +790,96 @@ class TranslationResultsPanel(QWidget):
         self.set_compare_box_font_size(9)
         return 9
     
+    def select_previous_match(self):
+        """Navigate to previous match (Ctrl+Up from main window)"""
+        if self.selected_index > 0:
+            new_index = self.selected_index - 1
+            self._on_match_item_selected(self.all_matches[new_index], new_index)
+            # Scroll to make it visible
+            if 0 <= new_index < len(self.match_items):
+                self.matches_scroll.ensureWidgetVisible(self.match_items[new_index])
+        elif self.selected_index == -1 and self.all_matches:
+            # No selection, select last match
+            new_index = len(self.all_matches) - 1
+            self._on_match_item_selected(self.all_matches[new_index], new_index)
+            if 0 <= new_index < len(self.match_items):
+                self.matches_scroll.ensureWidgetVisible(self.match_items[new_index])
+    
+    def select_next_match(self):
+        """Navigate to next match (Ctrl+Down from main window)"""
+        if self.selected_index < len(self.all_matches) - 1:
+            new_index = self.selected_index + 1
+            self._on_match_item_selected(self.all_matches[new_index], new_index)
+            # Scroll to make it visible
+            if 0 <= new_index < len(self.match_items):
+                self.matches_scroll.ensureWidgetVisible(self.match_items[new_index])
+        elif self.selected_index == -1 and self.all_matches:
+            # No selection, select first match
+            new_index = 0
+            self._on_match_item_selected(self.all_matches[new_index], new_index)
+            if 0 <= new_index < len(self.match_items):
+                self.matches_scroll.ensureWidgetVisible(self.match_items[new_index])
+    
+    def insert_match_by_number(self, match_number: int):
+        """Insert match by its number (1-based index) - for Ctrl+1-9 shortcuts"""
+        if 0 < match_number <= len(self.all_matches):
+            match = self.all_matches[match_number - 1]
+            # Select it visually
+            self._on_match_item_selected(match, match_number - 1)
+            # Scroll to it
+            if 0 <= match_number - 1 < len(self.match_items):
+                self.matches_scroll.ensureWidgetVisible(self.match_items[match_number - 1])
+            # Emit insert signal
+            self.match_inserted.emit(match.target)
+            return True
+        return False
+    
+    def insert_selected_match(self):
+        """Insert currently selected match (Ctrl+Space)"""
+        if self.current_selection:
+            self.match_inserted.emit(self.current_selection.target)
+            return True
+        return False
+    
     def keyPressEvent(self, event):
         """
         Handle keyboard events for navigation and insertion
         
         Shortcuts:
-        - Up/Down arrows: Navigate matches within current section
+        - Up/Down arrows: Navigate matches (plain arrows, no Ctrl)
         - Spacebar: Insert selected match into target
         - Return/Enter: Insert selected match into target
+        - Ctrl+Space: Insert selected match (alternative)
         - Ctrl+1 to Ctrl+9: Insert specific match by number (global)
         
-        Note: Ctrl+Up/Down are reserved for grid navigation (not match navigation)
+        Note: Ctrl+Up/Down are handled at main window level for grid navigation
         """
-        # Ctrl+1 through Ctrl+9: Insert match by number (global, not per-section)
-        if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
-            if event.key() >= Qt.Key.Key_1 and event.key() <= Qt.Key.Key_9:
-                match_num = event.key() - Qt.Key.Key_0  # Convert key to number
-                if 0 < match_num <= len(self.all_matches):
-                    # Find and select the match
-                    match = self.all_matches[match_num - 1]
-                    
-                    # Find which section it belongs to and select it
-                    for section in self.match_sections.values():
-                        if match in section.matches:
-                            local_index = section.matches.index(match) + 1
-                            section.select_by_number(local_index)
-                            break
-                    
-                    # Emit insert signal
-                    self.match_inserted.emit(match.target)
+        # Ctrl+Space: Insert currently selected match
+        if (event.modifiers() & Qt.KeyboardModifier.ControlModifier and 
+            event.key() == Qt.Key.Key_Space):
+            if self.insert_selected_match():
                 event.accept()
                 return
         
-        # Up/Down arrows: Navigate matches (NOT Ctrl+Up/Down - those are for grid)
+        # Ctrl+1 through Ctrl+9: Insert match by number
+        if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
+            if event.key() >= Qt.Key.Key_1 and event.key() <= Qt.Key.Key_9:
+                match_num = event.key() - Qt.Key.Key_0  # Convert key to number
+                if self.insert_match_by_number(match_num):
+                    event.accept()
+                    return
+        
+        # Up/Down arrows: Navigate matches (plain arrows only, NOT Ctrl+Up/Down)
         if event.key() == Qt.Key.Key_Up:
             if not (event.modifiers() & Qt.KeyboardModifier.ControlModifier):
-                for section in self.match_sections.values():
-                    if section.navigate(-1):
-                        event.accept()
-                        return
+                self.select_previous_match()
+                event.accept()
+                return
         elif event.key() == Qt.Key.Key_Down:
             if not (event.modifiers() & Qt.KeyboardModifier.ControlModifier):
-                for section in self.match_sections.values():
-                    if section.navigate(1):
-                        event.accept()
-                        return
+                self.select_next_match()
+                event.accept()
+                return
         
         # Spacebar or Return/Enter: Insert selected match
         elif event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter, Qt.Key.Key_Space):

@@ -25,6 +25,45 @@ The Qt Edition is the **primary version** for active development and new feature
 
 ---
 
+## [1.5.0] - November 15, 2025
+
+### 🔍 Translation Results Enhancement + Match Insertion Shortcuts
+
+**Major Features:**
+- 🎯 **Progressive Match Loading** - Termbase, TM, MT, and LLM results now accumulate instead of replacing each other
+- ⌨️ **Match Navigation Shortcuts** - `Ctrl+Up/Down` to cycle through translation matches from the grid
+- 🚀 **Quick Insert Shortcuts** - `Ctrl+1-9` to instantly insert specific matches at cursor position
+- ⏎ **Smart Match Insertion** - `Ctrl+Space`, `Space`, or `Enter` in results panel to insert selected match
+- 🏷️ **Tag Display Control** - Optional setting to show/hide HTML/XML tags in translation results (Settings → View Settings)
+- 📊 **Status Management** - Manual edits now reset segment status to "Not started" requiring explicit confirmation
+
+**Bug Fixes:**
+- ✅ Fixed translation results panel showing only the last match type (now accumulates all: termbase → TM → MT → LLM)
+- ✅ Fixed `add_matches()` method not found error (implemented progressive match accumulation)
+- ✅ Fixed `save_mode` parameter errors in TM saving (removed deprecated parameter)
+- ✅ Fixed match insertion not working (now correctly inserts at cursor position in target cell)
+- ✅ Fixed `scroll_area` AttributeError (corrected to `matches_scroll`)
+
+**Keyboard Shortcuts Added:**
+- `Ctrl+Up` - Navigate to previous match in results panel
+- `Ctrl+Down` - Navigate to next match in results panel
+- `Ctrl+1` through `Ctrl+9` - Insert match #1-9 at cursor position
+- `Ctrl+Space` - Insert currently selected match
+- `Space` or `Enter` - Insert selected match (when focused on results panel)
+
+**Documentation:**
+- Updated shortcut manager with complete match navigation and insertion shortcuts
+- Added comprehensive shortcut documentation in Settings → Shortcuts section
+
+**Technical Improvements:**
+- Implemented `add_matches()` method for progressive match accumulation
+- Added `insert_match_by_number()` for direct match insertion by number
+- Added `insert_selected_match()` for keyboard-driven match insertion
+- Improved `on_match_inserted()` to insert at cursor position using `textCursor().insertText()`
+- Added tag formatting control with `show_tags` class variable and `_format_text()` method
+
+---
+
 ## [1.4.0] - November 12, 2025
 
 ### 🎤 Major Feature: Supervoice Voice Dictation + Detachable Log Window

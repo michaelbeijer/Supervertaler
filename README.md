@@ -26,7 +26,7 @@
 
 ### 🆕 Qt Edition (Modern) - **PRIMARY**
 **File:** `Supervertaler_Qt.py`
-**Version:** v1.4.0 (November 12, 2025)
+**Version:** v1.5.0 (November 15, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -34,7 +34,13 @@
 python Supervertaler_Qt.py
 ```
 
-**NEW in v1.4.0 - Supervoice Voice Dictation + Detachable Log:**
+**NEW in v1.5.0 - Translation Results Enhancement + Match Insertion:**
+- 🎯 **Progressive Match Loading** - All match types now accumulate (termbase + TM + MT + LLM)
+- ⌨️ **Match Shortcuts** - `Ctrl+1-9` for quick insert, `Ctrl+Up/Down` to navigate, `Ctrl+Space` to insert
+- 🏷️ **Tag Display Control** - Optional show/hide HTML/XML tags in results
+- 📊 **Smart Status** - Manual edits reset status requiring confirmation
+
+**v1.4.0 - Supervoice Voice Dictation + Detachable Log:**
 - 🎤 **Supervoice Voice Dictation** - AI-powered hands-free translation input
 - 🌍 **100+ Languages** - OpenAI Whisper supports virtually any language
 - ⌨️ **F9 Global Hotkey** - Press-to-start, press-to-stop recording anywhere
