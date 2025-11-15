@@ -11551,7 +11551,24 @@ class SupervertalerQt(QMainWindow):
         
         # Set current segment to confirmed
         if current_row < len(self.current_project.segments):
-            segment = self.current_project.segments[current_row]
+            # CRITICAL: Get segment by ID from grid, not by row index!
+            id_item = self.table.item(current_row, 0)
+            if not id_item:
+                self.log(f"⚠️ Ctrl+Enter: No ID item at row {current_row}")
+                return
+            
+            try:
+                segment_id = int(id_item.text())
+            except (ValueError, AttributeError):
+                self.log(f"⚠️ Ctrl+Enter: Could not parse segment ID from row {current_row}")
+                return
+            
+            # Find segment by ID in project
+            segment = next((seg for seg in self.current_project.segments if seg.id == segment_id), None)
+            if not segment:
+                self.log(f"⚠️ Ctrl+Enter: Could not find segment with ID {segment_id}")
+                return
+            
             self.log(f"🔍 Ctrl+Enter: Row {current_row}, Segment ID {segment.id}")
             self.log(f"🔍 Source: '{segment.source[:50]}...'")
             self.log(f"🔍 Target before: '{segment.target[:50] if segment.target else '<empty>'}...'")
