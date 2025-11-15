@@ -11644,21 +11644,6 @@ class SupervertalerQt(QMainWindow):
             QMessageBox.critical(self, "Error", f"Failed to open TM Manager:\n{str(e)}")
     
     def show_about(self):
-                except Exception as e:
-                    QMessageBox.critical(dialog, "Error", f"Failed to add entry: {e}")
-            else:
-                QMessageBox.warning(dialog, "No Database", "TM database not initialized.")
-        
-        add_btn = QPushButton("✅ Add to Translation Memory")
-        add_btn.clicked.connect(add_entry)
-        add_btn.setStyleSheet("background-color: #22c55e; color: white; padding: 10px; font-weight: bold;")
-        add_layout.addWidget(add_btn)
-        
-        add_layout.addStretch()
-        tabs.addTab(add_tab, "➕ Add Entry")
-        
-        # ===== Tab 3: Import TMX =====
-        import_tab = QWidget()
         import_layout = QVBoxLayout(import_tab)
         
         import_label = QLabel("<h3>Import TMX File</h3>")
