@@ -11581,8 +11581,19 @@ class SupervertalerQt(QMainWindow):
             target_widget = self.table.cellWidget(current_row, 3)  # Column 3 = Target
             if target_widget:
                 current_text = target_widget.toPlainText().strip()
-                segment.target = current_text
                 self.log(f"🔍 Target from widget: '{current_text[:50]}...'")
+                
+                # DEBUG: Check segment object identity
+                self.log(f"🔍 DEBUG: Segment object ID before update: {id(segment)}")
+                self.log(f"🔍 DEBUG: Segment in list ID: {id(self.current_project.segments[segment.id - 1])}")
+                
+                segment.target = current_text
+                
+                # DEBUG: Verify update persisted
+                self.log(f"🔍 DEBUG: Segment target after assignment: '{segment.target[:50]}...'")
+                found_segment = next((seg for seg in self.current_project.segments if seg.id == segment_id), None)
+                if found_segment:
+                    self.log(f"🔍 DEBUG: Re-found segment target: '{found_segment.target[:50] if found_segment.target else 'EMPTY'}...'")
             
             segment.status = 'confirmed'
             self.update_status_icon(current_row, 'confirmed')
