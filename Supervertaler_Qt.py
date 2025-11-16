@@ -3,7 +3,7 @@ Supervertaler Qt Edition
 ========================
 The ultimate companion tool for translators and writers.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.4.2 (Critical Bug Fix: Tab Editor Cross-Contamination)
+Version: 1.6.0 (Complete Termbase System with Interactive Features)
 Release Date: November 16, 2025
 Framework: PyQt6
 
@@ -30,9 +30,9 @@ License: MIT
 """
 
 # Version Information
-__version__ = "1.5.0"
-__phase__ = "7.0"
-__release_date__ = "2025-11-15"
+__version__ = "1.6.0"
+__phase__ = "8.0"
+__release_date__ = "2025-11-16"
 __edition__ = "Qt"
 
 import sys
@@ -370,6 +370,15 @@ class ReadOnlyGridTextEditor(QTextEdit):
             Qt.TextInteractionFlag.TextSelectableByMouse
         )
         
+        # Make inactive selections stay visible with same color
+        from PyQt6.QtGui import QPalette
+        palette = self.palette()
+        palette.setColor(QPalette.ColorGroup.Active, QPalette.ColorRole.Highlight, QColor("#D0E7FF"))
+        palette.setColor(QPalette.ColorGroup.Active, QPalette.ColorRole.HighlightedText, QColor("black"))
+        palette.setColor(QPalette.ColorGroup.Inactive, QPalette.ColorRole.Highlight, QColor("#D0E7FF"))
+        palette.setColor(QPalette.ColorGroup.Inactive, QPalette.ColorRole.HighlightedText, QColor("black"))
+        self.setPalette(palette)
+        
         # Style to look like a normal cell with subtle selection
         # IMPORTANT: Use light gray background instead of transparent to avoid text visibility issues
         self.setStyleSheet("""
@@ -403,17 +412,110 @@ class ReadOnlyGridTextEditor(QTextEdit):
         self.setMinimumHeight(0)
         self.setMaximumHeight(16777215)  # Qt's max int
         
-        # Store termbase matches for this cell
+        # Store termbase matches for this cell (for tooltip and double-click)
         self.termbase_matches = {}
+        
+        # Enable mouse tracking for hover tooltips
+        self.setMouseTracking(True)
         
         # Add syntax highlighter for tags
         self.highlighter = TagHighlighter(self.document(), self.tag_highlight_color)
     
+    def highlight_termbase_matches(self, matches_dict: Dict):
+        """
+        Highlight termbase matches in the text using background colors based on priority.
+        Does NOT change the widget - just adds background formatting to existing text.
+        
+        Args:
+            matches_dict: Dictionary of {term: {'translation': str, 'priority': int}} or {term: str}
+        """
+        if not matches_dict:
+            return
+        
+        from PyQt6.QtGui import QTextCursor, QTextCharFormat, QColor
+        
+        # Get the document and create a cursor
+        doc = self.document()
+        text = self.toPlainText()
+        text_lower = text.lower()
+        
+        # IMPORTANT: Clear all previous formatting first to prevent inconsistent highlighting
+        cursor = QTextCursor(doc)
+        cursor.select(QTextCursor.SelectionType.Document)
+        default_fmt = QTextCharFormat()
+        cursor.setCharFormat(default_fmt)
+        
+        # Sort terms by length (longest first) to avoid partial matches
+        sorted_terms = sorted(matches_dict.keys(), key=len, reverse=True)
+        
+        # Track positions we've already highlighted to avoid overlaps
+        highlighted_ranges = []
+        
+        for term in sorted_terms:
+            # Get priority and forbidden status
+            match_info = matches_dict[term]
+            if isinstance(match_info, dict):
+                priority = match_info.get('priority', 50)
+                forbidden = match_info.get('forbidden', False)
+            else:
+                priority = 50
+                forbidden = False
+            
+            # Use black background for forbidden terms, otherwise priority-based blue
+            if forbidden:
+                color = QColor(0, 0, 0)  # Black for forbidden terms
+            else:
+                # Calculate color based on priority (higher = darker)
+                darkness = int(255 - (priority * 1.5))
+                darkness = max(0, min(darkness, 200))
+                color = QColor(0, darkness, 255)
+            
+            # Find all occurrences of this term (case-insensitive)
+            term_lower = term.lower()
+            start = 0
+            while True:
+                idx = text_lower.find(term_lower, start)
+                if idx == -1:
+                    break
+                
+                end_idx = idx + len(term)
+                
+                # Check if this range overlaps with already highlighted text
+                overlaps = any(
+                    (idx < h_end and end_idx > h_start)
+                    for h_start, h_end in highlighted_ranges
+                )
+                
+                if not overlaps:
+                    # Create cursor for this position
+                    cursor = QTextCursor(doc)
+                    cursor.setPosition(idx)
+                    cursor.setPosition(end_idx, QTextCursor.MoveMode.KeepAnchor)
+                    
+                    # Create format with background color
+                    fmt = QTextCharFormat()
+                    fmt.setBackground(color)
+                    fmt.setForeground(QColor("white"))
+                    
+                    # Apply format
+                    cursor.setCharFormat(fmt)
+                    
+                    # Track this range as highlighted
+                    highlighted_ranges.append((idx, end_idx))
+                
+                start = end_idx
+    
     def event(self, event):
-        """Override event() to catch Tab key before Qt's default handling"""
+        """Override event() to catch Tab and Ctrl+T keys before Qt's default handling"""
         # Catch Tab key at event level (before keyPressEvent)
         if event.type() == event.Type.KeyPress:
             key_event = event
+            
+            # Ctrl+E: Add selected terms to termbase
+            if key_event.key() == Qt.Key.Key_E and key_event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+                self._handle_add_to_termbase()
+                return True  # Event handled
+            
             if key_event.key() == Qt.Key.Key_Tab:
                 # Ctrl+Tab: Insert actual tab character (if editing is allowed)
                 if key_event.modifiers() == Qt.KeyboardModifier.ControlModifier:
@@ -449,6 +551,134 @@ class ReadOnlyGridTextEditor(QTextEdit):
         height = max(height + 2, 1)
         current_width = self.width() if self.width() > 0 else 200
         return QSize(current_width, height)
+    
+    def _handle_add_to_termbase(self):
+        """Handle Ctrl+T: Add selected source and target terms to termbase"""
+        if not self.table_ref or self.row < 0:
+            return
+        
+        # Get source selection (from this widget)
+        source_text = self.textCursor().selectedText().strip()
+        
+        # Get target cell widget and its selection
+        target_widget = self.table_ref.cellWidget(self.row, 3)
+        target_text = ""
+        if target_widget and hasattr(target_widget, 'textCursor'):
+            target_text = target_widget.textCursor().selectedText().strip()
+        
+        # Validate we have both selections
+        if not source_text or not target_text:
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.warning(
+                self,
+                "Selection Required",
+                "Please select text in both Source and Target cells before adding to termbase.\\n\\n"
+                "Workflow:\\n"
+                "1. Select term in source cell\\n"
+                "2. Press Tab to cycle to target cell\\n"
+                "3. Select corresponding translation\\n"
+                "4. Press Ctrl+E (or right-click) to add to termbase"
+            )
+            return
+        
+        # Find main window and call add_to_termbase method
+        main_window = self.table_ref.parent()
+        while main_window and not hasattr(main_window, 'add_term_pair_to_termbase'):
+            main_window = main_window.parent()
+        
+        if main_window and hasattr(main_window, 'add_term_pair_to_termbase'):
+            main_window.add_term_pair_to_termbase(source_text, target_text)
+    
+    def mouseMoveEvent(self, event):
+        """Show tooltip when hovering over highlighted termbase matches"""
+        super().mouseMoveEvent(event)
+        
+        # Get cursor position
+        cursor = self.cursorForPosition(event.pos())
+        cursor_pos = cursor.position()
+        
+        # Check if cursor is over a termbase match
+        for term, match_info in self.termbase_matches.items():
+            # Find term position in text
+            text = self.toPlainText()
+            text_lower = text.lower()
+            term_lower = term.lower()
+            
+            start = 0
+            while True:
+                idx = text_lower.find(term_lower, start)
+                if idx == -1:
+                    break
+                
+                end_idx = idx + len(term)
+                
+                # Check if cursor is within this term's range
+                if idx <= cursor_pos <= end_idx:
+                    # Get translation and other info
+                    if isinstance(match_info, dict):
+                        translation = match_info.get('translation', '')
+                        priority = match_info.get('priority', 50)
+                        forbidden = match_info.get('forbidden', False)
+                        
+                        # Build tooltip
+                        tooltip = f"<b>{term}</b> → <b>{translation}</b>"
+                        if forbidden:
+                            tooltip += "<br><span style='color: red;'>⚠️ FORBIDDEN TERM</span>"
+                        tooltip += f"<br><span style='color: #666;'>Priority: {priority}</span>"
+                        tooltip += "<br><span style='color: #666;'><i>Double-click to insert</i></span>"
+                    else:
+                        tooltip = f"<b>{term}</b> → <b>{match_info}</b><br><span style='color: #666;'><i>Double-click to insert</i></span>"
+                    
+                    self.setToolTip(tooltip)
+                    return
+                
+                start = end_idx
+        
+        # No match found at cursor position
+        self.setToolTip("")
+    
+    def mouseDoubleClickEvent(self, event):
+        """Insert termbase translation on double-click"""
+        # Get cursor position
+        cursor = self.cursorForPosition(event.pos())
+        cursor_pos = cursor.position()
+        
+        # Check if double-clicked on a termbase match
+        for term, match_info in self.termbase_matches.items():
+            text = self.toPlainText()
+            text_lower = text.lower()
+            term_lower = term.lower()
+            
+            start = 0
+            while True:
+                idx = text_lower.find(term_lower, start)
+                if idx == -1:
+                    break
+                
+                end_idx = idx + len(term)
+                
+                # Check if cursor is within this term's range
+                if idx <= cursor_pos <= end_idx:
+                    # Get translation
+                    if isinstance(match_info, dict):
+                        translation = match_info.get('translation', '')
+                    else:
+                        translation = match_info
+                    
+                    # Insert translation into target cell at cursor position
+                    if self.table_ref and self.row >= 0:
+                        target_widget = self.table_ref.cellWidget(self.row, 3)
+                        if target_widget and hasattr(target_widget, 'textCursor'):
+                            # Insert at current cursor position in target
+                            target_cursor = target_widget.textCursor()
+                            target_cursor.insertText(translation)
+                            target_widget.setFocus()
+                    return
+                
+                start = end_idx
+        
+        # If not on a termbase match, allow normal double-click selection
+        super().mouseDoubleClickEvent(event)
     
     def mousePressEvent(self, event):
         """Allow text selection on click and trigger row selection"""
@@ -554,6 +784,15 @@ class EditableGridTextEditor(QTextEdit):
         # CRITICAL: Enable strong focus to receive Tab key events
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         
+        # Make inactive selections stay visible with same color
+        from PyQt6.QtGui import QPalette
+        palette = self.palette()
+        palette.setColor(QPalette.ColorGroup.Active, QPalette.ColorRole.Highlight, QColor("#D0E7FF"))
+        palette.setColor(QPalette.ColorGroup.Active, QPalette.ColorRole.HighlightedText, QColor("black"))
+        palette.setColor(QPalette.ColorGroup.Inactive, QPalette.ColorRole.Highlight, QColor("#D0E7FF"))
+        palette.setColor(QPalette.ColorGroup.Inactive, QPalette.ColorRole.HighlightedText, QColor("black"))
+        self.setPalette(palette)
+        
         # Add syntax highlighter for tags
         self.highlighter = TagHighlighter(self.document(), self.tag_highlight_color)
         
@@ -589,6 +828,73 @@ class EditableGridTextEditor(QTextEdit):
         # Set minimum height to 0 - let content determine size
         self.setMinimumHeight(0)
         self.setMaximumHeight(16777215)  # Qt's max int
+    
+    def _handle_add_to_termbase(self):
+        """Handle Ctrl+T: Add selected source and target terms to termbase"""
+        if not self.table or self.row < 0:
+            return
+        
+        # Get target selection (from this widget)
+        target_text = self.textCursor().selectedText().strip()
+        
+        # Get source cell widget and its selection
+        source_widget = self.table.cellWidget(self.row, 2)
+        source_text = ""
+        if source_widget and hasattr(source_widget, 'textCursor'):
+            source_text = source_widget.textCursor().selectedText().strip()
+        
+        # Validate we have both selections
+        if not source_text or not target_text:
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.warning(
+                self,
+                "Selection Required",
+                "Please select text in both Source and Target cells before adding to termbase.\\n\\n"
+                "Workflow:\\n"
+                "1. Select term in source/target cell\\n"
+                "2. Press Tab to cycle to other cell\\n"
+                "3. Select corresponding term\\n"
+                "4. Press Ctrl+E (or right-click) to add to termbase"
+            )
+            return
+        
+        # Find main window and call add_to_termbase method
+        main_window = self.table.parent()
+        while main_window and not hasattr(main_window, 'add_term_pair_to_termbase'):
+            main_window = main_window.parent()
+        
+        if main_window and hasattr(main_window, 'add_term_pair_to_termbase'):
+            main_window.add_term_pair_to_termbase(source_text, target_text)
+    
+    def contextMenuEvent(self, event):
+        """Show context menu with Add to Termbase option"""
+        from PyQt6.QtWidgets import QMenu
+        from PyQt6.QtGui import QAction
+        
+        menu = QMenu(self)
+        
+        # Add standard edit actions
+        if self.textCursor().hasSelection():
+            copy_action = QAction("Copy", self)
+            copy_action.triggered.connect(self.copy)
+            menu.addAction(copy_action)
+            
+            cut_action = QAction("Cut", self)
+            cut_action.triggered.connect(self.cut)
+            menu.addAction(cut_action)
+            menu.addSeparator()
+        
+        paste_action = QAction("Paste", self)
+        paste_action.triggered.connect(self.paste)
+        menu.addAction(paste_action)
+        menu.addSeparator()
+        
+        # Add to termbase action
+        add_to_tb_action = QAction("Add to Termbase (Ctrl+E)", self)
+        add_to_tb_action.triggered.connect(self._handle_add_to_termbase)
+        menu.addAction(add_to_tb_action)
+        
+        menu.exec(event.globalPos())
     
     def sizeHint(self):
         """Return compact size based on content"""
@@ -643,7 +949,13 @@ class EditableGridTextEditor(QTextEdit):
                 print(f"Error triggering manual cell selection: {e}")
     
     def keyPressEvent(self, event):
-        """Handle Tab key to cycle between source and target cells"""
+        """Handle Tab and Ctrl+E keys to cycle between source and target cells"""
+        # Ctrl+E: Add selected terms to termbase
+        if event.key() == Qt.Key.Key_E and event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+            self._handle_add_to_termbase()
+            event.accept()
+            return
+        
         # Ctrl+Tab: Insert actual tab character
         if event.key() == Qt.Key.Key_Tab and event.modifiers() == Qt.KeyboardModifier.ControlModifier:
             self.insertPlainText('\t')
@@ -693,7 +1005,7 @@ class TermbaseHighlightWidget(QLabel):
         self.setTextFormat(Qt.TextFormat.RichText)
     
     def _create_highlighted_html(self) -> str:
-        """Create HTML with highlighted termbase matches"""
+        """Create HTML with highlighted termbase matches using priority colors"""
         text = self.source_text
         
         # Sort terms by length (longest first) to avoid overlaps
@@ -708,6 +1020,22 @@ class TermbaseHighlightWidget(QLabel):
             search_term = term.lower()
             search_html = html.lower()
             
+            # Get priority-based color (if termbase_matches contains priority info)
+            match_info = self.termbase_matches[term]
+            if isinstance(match_info, dict) and 'priority' in match_info:
+                priority = match_info.get('priority', 50)
+                translation = match_info.get('translation', '')
+            else:
+                # Backward compatibility: if just string, use default priority
+                priority = 50
+                translation = match_info if isinstance(match_info, str) else ''
+            
+            # Calculate color based on priority (1-99, higher = darker blue)
+            # Priority 99 = darkest (#0066CC), Priority 1 = lightest (#99CCFF)
+            darkness = int(255 - (priority * 1.5))  # Higher priority = lower RGB value = darker
+            darkness = max(0, min(darkness, 200))  # Clamp between 0-200
+            color = f"rgb(0, {darkness}, 255)"
+            
             # Find all occurrences
             start = 0
             while True:
@@ -718,8 +1046,8 @@ class TermbaseHighlightWidget(QLabel):
                 # Extract original casing
                 original_term = html[idx:idx + len(term)]
                 
-                # Replace with highlighted version
-                highlighted = f'<span style="color: blue; font-weight: bold; text-decoration: underline; cursor: pointer;" class="termbase-match" data-term="{term}">{original_term}</span>'
+                # Replace with highlighted version using priority color
+                highlighted = f'<span style="background-color: {color}; color: white; padding: 1px 3px; border-radius: 2px; font-weight: bold; cursor: pointer;" class="termbase-match" data-term="{term}" title="{translation} (Priority: {priority})">{original_term}</span>'
                 
                 html = html[:idx] + highlighted + html[idx + len(term):]
                 search_html = html.lower()
@@ -1161,6 +1489,106 @@ class DetachedLogWindow(QWidget):
 
 
 # ============================================================================
+# TERM METADATA DIALOG
+# ============================================================================
+
+class TermMetadataDialog(QDialog):
+    """Dialog for adding/editing term metadata before saving to termbase"""
+    
+    def __init__(self, source_term: str, target_term: str, parent=None):
+        super().__init__(parent)
+        self.source_term = source_term
+        self.target_term = target_term
+        self.setup_ui()
+        
+    def setup_ui(self):
+        self.setWindowTitle("Add Term to Termbase")
+        self.setMinimumWidth(500)
+        layout = QVBoxLayout(self)
+        
+        # Header
+        header = QLabel("Add term pair to termbase")
+        header.setStyleSheet("font-size: 14px; font-weight: bold; margin-bottom: 10px;")
+        layout.addWidget(header)
+        
+        # Term pair display (read-only)
+        term_group = QGroupBox("Term Pair")
+        term_layout = QFormLayout()
+        
+        source_label = QLabel(self.source_term)
+        source_label.setStyleSheet("padding: 5px; background-color: #f0f0f0; border-radius: 3px;")
+        source_label.setWordWrap(True)
+        term_layout.addRow("Source:", source_label)
+        
+        target_label = QLabel(self.target_term)
+        target_label.setStyleSheet("padding: 5px; background-color: #f0f0f0; border-radius: 3px;")
+        target_label.setWordWrap(True)
+        term_layout.addRow("Target:", target_label)
+        
+        term_group.setLayout(term_layout)
+        layout.addWidget(term_group)
+        
+        # Metadata fields
+        meta_group = QGroupBox("Metadata (Optional)")
+        meta_layout = QFormLayout()
+        
+        # Definition
+        self.definition_edit = QTextEdit()
+        self.definition_edit.setMaximumHeight(60)
+        self.definition_edit.setPlaceholderText("Enter definition or context...")
+        meta_layout.addRow("Definition:", self.definition_edit)
+        
+        # Domain
+        self.domain_edit = QLineEdit()
+        self.domain_edit.setPlaceholderText("e.g., Medical, Legal, Technical...")
+        meta_layout.addRow("Domain:", self.domain_edit)
+        
+        # Priority
+        priority_layout = QHBoxLayout()
+        self.priority_spin = QSpinBox()
+        self.priority_spin.setRange(1, 99)
+        self.priority_spin.setValue(50)
+        self.priority_spin.setToolTip("Lower number = higher priority (1 = highest)")
+        priority_layout.addWidget(self.priority_spin)
+        priority_layout.addWidget(QLabel("(Lower = higher priority)"))
+        priority_layout.addStretch()
+        meta_layout.addRow("Priority:", priority_layout)
+        
+        # Forbidden term checkbox
+        self.forbidden_check = CheckmarkCheckBox("Mark as forbidden term")
+        self.forbidden_check.setToolTip("Forbidden terms trigger warnings when used")
+        meta_layout.addRow("", self.forbidden_check)
+        
+        meta_group.setLayout(meta_layout)
+        layout.addWidget(meta_group)
+        
+        # Buttons
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+        
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(self.reject)
+        button_layout.addWidget(cancel_btn)
+        
+        save_btn = QPushButton("Add to Termbase")
+        save_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 5px 15px;")
+        save_btn.clicked.connect(self.accept)
+        save_btn.setDefault(True)
+        button_layout.addWidget(save_btn)
+        
+        layout.addLayout(button_layout)
+    
+    def get_metadata(self):
+        """Return dictionary of metadata fields"""
+        return {
+            'definition': self.definition_edit.toPlainText().strip(),
+            'domain': self.domain_edit.text().strip(),
+            'priority': self.priority_spin.value(),
+            'forbidden': self.forbidden_check.isChecked()
+        }
+
+
+# ============================================================================
 # MAIN WINDOW
 # ============================================================================
 
@@ -1195,6 +1623,7 @@ class SupervertalerQt(QMainWindow):
         self.enable_termbase_matching = True
         self.enable_mt_matching = True  # Machine Translation enabled
         self.enable_llm_matching = True  # LLM Translation enabled
+        self.enable_termbase_grid_highlighting = True  # Highlight termbase matches in source cells
         
         # Translation service availability flags (would be set from config/API keys)
         self.google_translate_enabled = True  # For demo purposes
@@ -3096,6 +3525,100 @@ class SupervertalerQt(QMainWindow):
                     f"Error testing segmentation:\n\n{e}"
                 )
     
+    def add_term_pair_to_termbase(self, source_text: str, target_text: str):
+        """Add a term pair to active termbase(s) with metadata dialog"""
+        # Check if we have a current project
+        if not hasattr(self, 'current_project') or not self.current_project:
+            QMessageBox.warning(self, "No Active Project", "Please open or create a project before adding terms to termbase.")
+            return
+        
+        # Get active termbases for current project
+        if not hasattr(self, 'termbase_mgr') or not self.termbase_mgr:
+            QMessageBox.critical(self, "Error", "Termbase manager not initialized")
+            return
+        
+        # Generate a simple project ID from the project file path (use hash of path)
+        import hashlib
+        project_id = None
+        if hasattr(self, 'project_file_path') and self.project_file_path:
+            project_id = int(hashlib.md5(self.project_file_path.encode()).hexdigest()[:8], 16)
+        else:
+            # Use project name as fallback
+            project_id = int(hashlib.md5(self.current_project.name.encode()).hexdigest()[:8], 16)
+        
+        active_termbases = self.termbase_mgr.get_active_termbases_for_project(project_id)
+        
+        if not active_termbases:
+            QMessageBox.warning(self, "No Active Termbase", "Please activate at least one termbase in Translation Resources → Termbases tab.")
+            return
+        
+        # Show metadata dialog
+        dialog = TermMetadataDialog(source_text, target_text, self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return  # User cancelled
+        
+        metadata = dialog.get_metadata()
+        
+        # Get source and target languages from current project
+        source_lang = self.current_project.source_lang if self.current_project else 'English'
+        target_lang = self.current_project.target_lang if self.current_project else 'Dutch'
+        
+        # Convert to language codes for database storage
+        source_lang_code = self._convert_language_to_code(source_lang)
+        target_lang_code = self._convert_language_to_code(target_lang)
+        
+        self.log(f"📝 Adding term with languages: {source_lang} ({source_lang_code}) → {target_lang} ({target_lang_code})")
+        
+        # Add term to all active termbases
+        success_count = 0
+        for tb in active_termbases:
+            try:
+                term_id = self.termbase_mgr.add_term(
+                    termbase_id=tb['id'],
+                    source_term=source_text,
+                    target_term=target_text,
+                    source_lang=source_lang_code,
+                    target_lang=target_lang_code,
+                    definition=metadata['definition'],
+                    domain=metadata['domain'],
+                    priority=metadata['priority'],
+                    forbidden=metadata['forbidden']
+                )
+                
+                if term_id:
+                    success_count += 1
+                    self.log(f"✓ Added term to termbase '{tb['name']}': {source_text} → {target_text}")
+                    
+            except Exception as e:
+                self.log(f"✗ Error adding term to termbase '{tb['name']}': {e}")
+        
+        # Show result
+        if success_count > 0:
+            QMessageBox.information(self, "Term Added", f"Successfully added term pair to {success_count} termbase(s):\\n\\nSource: {source_text}\\nTarget: {target_text}\\n\\nDomain: {metadata['domain'] or '(none)'}\\nPriority: {metadata['priority']}")
+            
+            # Refresh translation results to show new termbase match immediately
+            current_row = self.table.currentRow()
+            if current_row >= 0 and current_row < len(self.current_project.segments):
+                segment = self.current_project.segments[current_row]
+                
+                # Clear BOTH caches for this segment to force refresh
+                with self.translation_matches_cache_lock:
+                    if segment.id in self.translation_matches_cache:
+                        del self.translation_matches_cache[segment.id]
+                        self.log(f"🗑️ Cleared translation matches cache for segment {segment.id}")
+                
+                with self.termbase_cache_lock:
+                    if segment.id in self.termbase_cache:
+                        del self.termbase_cache[segment.id]
+                        self.log(f"🗑️ Cleared termbase cache for segment {segment.id}")
+                
+                # Trigger lookup refresh by simulating segment change
+                self._last_selected_row = -1  # Reset to force refresh
+                self.on_cell_selected(current_row, self.table.currentColumn(), -1, -1)
+                self.log(f"🔄 Triggered refresh for segment {segment.id}")
+        else:
+            QMessageBox.warning(self, "Error Adding Term", "Failed to add term to any termbase. Check the log for details.")
+    
     def create_termbases_tab(self):
         """Create the Termbases tab - manage all termbases (global and project-specific)"""
         tab = QWidget()
@@ -3163,8 +3686,19 @@ class SupervertalerQt(QMainWindow):
                 # Active checkbox
                 checkbox = QCheckBox()
                 checkbox.setChecked(is_active)
-                checkbox.toggled.connect(lambda checked, tb_id=tb['id']: 
-                    termbase_mgr.activate_termbase(tb_id, project_id) if checked and project_id else termbase_mgr.deactivate_termbase(tb_id, project_id) if project_id else None)
+                def on_toggle(checked, tb_id=tb['id']):
+                    if project_id:
+                        if checked:
+                            termbase_mgr.activate_termbase(tb_id, project_id)
+                            self.log(f"✓ Activated termbase {tb_id} for project {project_id}")
+                        else:
+                            termbase_mgr.deactivate_termbase(tb_id, project_id)
+                            self.log(f"✓ Deactivated termbase {tb_id} for project {project_id}")
+                        # Clear termbase cache to force reload
+                        with self.termbase_cache_lock:
+                            self.termbase_cache.clear()
+                        refresh_termbase_list()
+                checkbox.toggled.connect(on_toggle)
                 termbase_table.setCellWidget(row, 0, checkbox)
                 
                 # Name (bold if active)
@@ -3259,6 +3793,7 @@ class SupervertalerQt(QMainWindow):
         button_layout.addWidget(export_btn)
         
         delete_btn = QPushButton("🗑️ Delete")
+        delete_btn.clicked.connect(lambda: self._delete_termbase(termbase_mgr, termbase_table, refresh_termbase_list))
         button_layout.addWidget(delete_btn)
         
         edit_btn = QPushButton("✏️ Edit Terms")
@@ -3357,6 +3892,58 @@ class SupervertalerQt(QMainWindow):
         dialog.setLayout(layout)
         dialog.exec()
     
+    def _delete_termbase(self, termbase_mgr, termbase_table, refresh_callback):
+        """Delete selected termbase"""
+        selected_row = termbase_table.currentRow()
+        if selected_row < 0:
+            QMessageBox.warning(self, "Error", "Please select a termbase to delete")
+            return
+        
+        tb_name = termbase_table.item(selected_row, 1).text()
+        
+        # Confirm deletion
+        reply = QMessageBox.question(
+            self,
+            "Confirm Deletion",
+            f"Are you sure you want to delete termbase '{tb_name}'?\n\nThis will permanently delete all terms in this termbase.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+        
+        if reply == QMessageBox.StandardButton.Yes:
+            # Find termbase ID
+            termbases = termbase_mgr.get_all_termbases()
+            termbase = next((tb for tb in termbases if tb['name'] == tb_name), None)
+            if termbase:
+                try:
+                    # Delete from database
+                    cursor = self.db_manager.cursor
+                    cursor.execute("DELETE FROM termbase_terms WHERE termbase_id = ?", (termbase['id'],))
+                    cursor.execute("DELETE FROM termbase_activation WHERE termbase_id = ?", (termbase['id'],))
+                    cursor.execute("DELETE FROM termbases WHERE id = ?", (termbase['id'],))
+                    self.db_manager.connection.commit()
+                    
+                    self.log(f"✓ Deleted termbase: {tb_name}")
+                    QMessageBox.information(self, "Success", f"Termbase '{tb_name}' has been deleted")
+                    
+                    # Clear cache and refresh
+                    with self.termbase_cache_lock:
+                        self.termbase_cache.clear()
+                    refresh_callback()
+                except Exception as e:
+                    QMessageBox.critical(self, "Error", f"Failed to delete termbase: {str(e)}")
+                    self.log(f"✗ Error deleting termbase: {e}")
+    
+    def _update_term_forbidden(self, term_id: int, forbidden: bool):
+        """Update forbidden flag for a term"""
+        try:
+            cursor = self.db_manager.cursor
+            cursor.execute("UPDATE termbase_terms SET forbidden = ? WHERE id = ?", (1 if forbidden else 0, term_id))
+            self.db_manager.connection.commit()
+            self.log(f"✓ Updated term {term_id} forbidden status to {forbidden}")
+        except Exception as e:
+            self.log(f"✗ Error updating term forbidden status: {e}")
+    
     def _show_edit_terms_dialog(self, termbase_mgr, termbase_table, refresh_callback):
         """Show dialog to edit terms in selected termbase"""
         selected_row = termbase_table.currentRow()
@@ -3400,15 +3987,44 @@ class SupervertalerQt(QMainWindow):
             terms_table.setRowCount(len(terms))
             
             for row, term in enumerate(terms):
-                terms_table.setItem(row, 0, QTableWidgetItem(term['source_term']))
+                # Store term ID in first column (hidden from user)
+                source_item = QTableWidgetItem(term['source_term'])
+                source_item.setData(Qt.ItemDataRole.UserRole, term['id'])  # Store term ID
+                terms_table.setItem(row, 0, source_item)
+                
                 terms_table.setItem(row, 1, QTableWidgetItem(term['target_term']))
                 terms_table.setItem(row, 2, QTableWidgetItem(term['domain'] or ""))
-                terms_table.setItem(row, 3, QTableWidgetItem(str(term['priority'])))
+                
+                priority_item = QTableWidgetItem(str(term['priority']))
+                priority_item.setFlags(priority_item.flags() | Qt.ItemFlag.ItemIsEditable)
+                terms_table.setItem(row, 3, priority_item)
                 
                 forbidden_check = QCheckBox()
                 forbidden_check.setChecked(term['forbidden'])
+                forbidden_check.toggled.connect(lambda checked, t_id=term['id']: self._update_term_forbidden(t_id, checked))
                 terms_table.setCellWidget(row, 4, forbidden_check)
         
+        # Handle term field changes
+        def on_term_changed(item: QTableWidgetItem):
+            if item.column() == 3:  # Priority column
+                term_id = terms_table.item(item.row(), 0).data(Qt.ItemDataRole.UserRole)
+                try:
+                    new_priority = int(item.text())
+                    new_priority = max(1, min(99, new_priority))
+                    item.setText(str(new_priority))
+                    
+                    # Update in database
+                    cursor = self.db_manager.cursor
+                    cursor.execute("UPDATE termbase_terms SET priority = ? WHERE id = ?", (new_priority, term_id))
+                    self.db_manager.connection.commit()
+                    self.log(f"✓ Updated term priority to {new_priority}")
+                except ValueError:
+                    terms = termbase_mgr.get_terms(termbase_id)
+                    original = next((t for t in terms if t['id'] == term_id), None)
+                    if original:
+                        item.setText(str(original['priority']))
+        
+        terms_table.itemChanged.connect(on_term_changed)
         refresh_terms_table()
         layout.addWidget(QLabel(f"Terms in '{tb_name}':"), 0)
         layout.addWidget(terms_table, 1)
@@ -4110,9 +4726,21 @@ class SupervertalerQt(QMainWindow):
         )
         tm_matching_cb.toggled.connect(self.toggle_tm_termbase_matching)
         tm_termbase_layout.addWidget(tm_matching_cb)
+        
+        # Termbase grid highlighting toggle
+        tb_highlight_cb = QCheckBox("Highlight termbase matches in source cells")
+        tb_highlight_cb.setChecked(general_settings.get('enable_termbase_grid_highlighting', True))
+        tb_highlight_cb.setToolTip(
+            "When enabled, termbase matches are highlighted with colored backgrounds in the source column.\n"
+            "Higher priority terms are shown with darker blue, lower priority with lighter blue.\n"
+            "This provides visual feedback similar to memoQ's termbase highlighting."
+        )
+        tm_termbase_layout.addWidget(tb_highlight_cb)
+        
         self.tm_matching_checkbox = tm_matching_cb  # Store reference for updates
         self.auto_propagate_checkbox = auto_propagate_cb  # Store reference for updates
         self.auto_insert_100_checkbox = auto_insert_100_cb  # Store reference for updates
+        self.tb_highlight_checkbox = tb_highlight_cb  # Store reference for updates
         
         tm_termbase_group.setLayout(tm_termbase_layout)
         layout.addWidget(tm_termbase_group)
@@ -4235,7 +4863,7 @@ class SupervertalerQt(QMainWindow):
         save_btn.clicked.connect(lambda: self._save_general_settings_from_ui(
             restore_last_project_cb, allow_replace_cb, auto_propagate_cb, auto_markdown_cb,
             llm_spin, mt_spin, tm_limit_spin, tb_spin,
-            auto_open_log_cb, auto_insert_100_cb, tm_save_mode_combo
+            auto_open_log_cb, auto_insert_100_cb, tm_save_mode_combo, tb_highlight_cb
         ))
         layout.addWidget(save_btn)
         
@@ -4779,7 +5407,7 @@ class SupervertalerQt(QMainWindow):
     
     def _save_general_settings_from_ui(self, restore_cb, allow_replace_cb, auto_propagate_cb, auto_markdown_cb=None,
                                        llm_spin=None, mt_spin=None, tm_limit_spin=None, tb_spin=None,
-                                       auto_open_log_cb=None, auto_insert_100_cb=None, tm_save_mode_combo=None):
+                                       auto_open_log_cb=None, auto_insert_100_cb=None, tm_save_mode_combo=None, tb_highlight_cb=None):
         """Save general settings from UI"""
         self.allow_replace_in_source = allow_replace_cb.isChecked()
         self.update_warning_banner()
@@ -4794,6 +5422,10 @@ class SupervertalerQt(QMainWindow):
         # Update auto-insert setting
         if auto_insert_100_cb is not None:
             self.auto_insert_100_percent_matches = auto_insert_100_cb.isChecked()
+        
+        # Update termbase grid highlighting setting
+        if tb_highlight_cb is not None:
+            self.enable_termbase_grid_highlighting = tb_highlight_cb.isChecked()
 
         general_settings = {
             'restore_last_project': restore_cb.isChecked(),
@@ -4802,6 +5434,7 @@ class SupervertalerQt(QMainWindow):
             'auto_insert_100_percent_matches': auto_insert_100_cb.isChecked() if auto_insert_100_cb is not None else (self.auto_insert_100_checkbox.isChecked() if hasattr(self, 'auto_insert_100_checkbox') else True),
             'tm_save_mode': tm_save_mode_combo.currentData() if tm_save_mode_combo is not None else 'latest',
             'auto_generate_markdown': self.auto_generate_markdown if hasattr(self, 'auto_generate_markdown') else False,
+            'enable_termbase_grid_highlighting': tb_highlight_cb.isChecked() if tb_highlight_cb is not None else True,
             'grid_font_size': self.default_font_size,  # Keep existing or update separately
             'results_match_font_size': 9,  # Keep existing
             'results_compare_font_size': 9  # Keep existing
@@ -6749,12 +7382,27 @@ class SupervertalerQt(QMainWindow):
         with self.termbase_cache_lock:
             if segment.id in self.termbase_cache:
                 stored_matches = self.termbase_cache[segment.id]
-                for source_term, target_term in stored_matches.items():
+                for source_term, match_info in stored_matches.items():
+                    # Extract translation, priority, and forbidden flag from match_info
+                    if isinstance(match_info, dict):
+                        target_term = match_info.get('translation', '')
+                        priority = match_info.get('priority', 50)
+                        forbidden = match_info.get('forbidden', False)
+                    else:
+                        # Backward compatibility: if just string
+                        target_term = match_info
+                        priority = 50
+                        forbidden = False
+                    
                     match_obj = TranslationMatch(
                         source=source_term,
                         target=target_term,
                         relevance=95,
-                        metadata={'termbase_name': 'Default'},
+                        metadata={
+                            'termbase_name': 'Default',
+                            'priority': priority,
+                            'forbidden': forbidden
+                        },
                         match_type='Termbase',
                         compare_source=source_term,
                         provider_code='TB'
@@ -8585,6 +9233,9 @@ class SupervertalerQt(QMainWindow):
         if 'enable_tm_termbase_matching' in settings:
             self.enable_tm_matching = settings['enable_tm_termbase_matching']
             self.enable_termbase_matching = settings['enable_tm_termbase_matching']
+        # Load termbase grid highlighting setting
+        if 'enable_termbase_grid_highlighting' in settings:
+            self.enable_termbase_grid_highlighting = settings['enable_termbase_grid_highlighting']
         # Load auto-markdown setting
         self.auto_generate_markdown = settings.get('auto_generate_markdown', False)
         # Load TM save mode
@@ -9014,6 +9665,22 @@ class SupervertalerQt(QMainWindow):
             return
         self._last_selected_row = current_row
         
+        # Clear text selections in previous row's source and target cells
+        if previous_row >= 0 and previous_row < self.table.rowCount():
+            # Clear source cell selection (column 2)
+            source_widget = self.table.cellWidget(previous_row, 2)
+            if source_widget and hasattr(source_widget, 'textCursor'):
+                cursor = source_widget.textCursor()
+                cursor.clearSelection()
+                source_widget.setTextCursor(cursor)
+            
+            # Clear target cell selection (column 3)
+            target_widget = self.table.cellWidget(previous_row, 3)
+            if target_widget and hasattr(target_widget, 'textCursor'):
+                cursor = target_widget.textCursor()
+                cursor.clearSelection()
+                target_widget.setTextCursor(cursor)
+        
         # DEBUG: Also log all connected signals for this table
         self.log(f"🔗 Table currentCellChanged signal connected: {self.table.currentCellChanged}")
         self.log(f"🔗 Table itemClicked signal connected: {self.table.itemClicked}")
@@ -9192,6 +9859,10 @@ class SupervertalerQt(QMainWindow):
                             # Store in widget for backwards compatibility
                             if source_widget and hasattr(source_widget, 'termbase_matches'):
                                 source_widget.termbase_matches = stored_matches
+                            
+                            # Highlight termbase matches in source cell with priority colors (if enabled)
+                            if stored_matches and self.enable_termbase_grid_highlighting:
+                                self.highlight_source_with_termbase(current_row, segment.source, stored_matches)
                         else:
                             self.log("⏭️ Termbase matching disabled - skipping termbase lookup")
 
@@ -9206,7 +9877,18 @@ class SupervertalerQt(QMainWindow):
                                 "Termbases": []
                             }
 
-                            for source_term, target_term in stored_matches.items():
+                            for source_term, match_info in stored_matches.items():
+                                # Extract translation, priority, and forbidden flag from match_info
+                                if isinstance(match_info, dict):
+                                    target_term = match_info.get('translation', '')
+                                    priority = match_info.get('priority', 50)
+                                    forbidden = match_info.get('forbidden', False)
+                                else:
+                                    # Backward compatibility: if just string
+                                    target_term = match_info
+                                    priority = 50
+                                    forbidden = False
+                                
                                 match_obj = TranslationMatch(
                                     source=source_term,
                                     target=target_term,
@@ -9214,7 +9896,9 @@ class SupervertalerQt(QMainWindow):
                                     metadata={
                                         'termbase_name': 'Default',
                                         'definition': '',
-                                        'domain': ''
+                                        'domain': '',
+                                        'priority': priority,
+                                        'forbidden': forbidden
                                     },
                                     match_type='Termbase',
                                     compare_source=source_term,
@@ -10322,9 +11006,17 @@ class SupervertalerQt(QMainWindow):
                     for result in termbase_results:
                         source_term = result.get('source_term', '').strip()
                         target_term = result.get('target_term', '').strip()
+                        priority = result.get('priority', 50)  # Get priority from database
+                        forbidden = result.get('forbidden', False)  # Get forbidden flag
                         if source_term and target_term:
-                            matches[source_term] = target_term
-                            self.log(f"    → {source_term} = {target_term}")
+                            # Store as dict with priority and forbidden info for color highlighting
+                            matches[source_term] = {
+                                'translation': target_term,
+                                'priority': priority,
+                                'forbidden': forbidden
+                            }
+                            forbidden_marker = " [FORBIDDEN]" if forbidden else ""
+                            self.log(f"    → {source_term} = {target_term} (priority: {priority}){forbidden_marker}")
             
             self.log(f"🔍 Total unique matches: {len(matches)}")
             return matches
@@ -10335,37 +11027,45 @@ class SupervertalerQt(QMainWindow):
             self.log(f"Traceback: {traceback.format_exc()}")
             return {}
     
-    def highlight_source_with_termbase(self, row: int, source_text: str):
+    def highlight_source_with_termbase(self, row: int, source_text: str, termbase_matches: Optional[Dict] = None):
         """
-        Highlight termbase matches in the source column of the grid
-        Creates a custom widget with clickable term highlights
+        Highlight termbase matches in the source column using text formatting.
+        Does NOT replace the widget - just adds background colors to existing ReadOnlyGridTextEditor.
+        
+        Args:
+            row: Row number in table
+            source_text: Source text to highlight
+            termbase_matches: Optional pre-computed matches dict (to avoid duplicate searches)
         """
         if not self.table or row < 0:
             return
         
         try:
-            # Find termbase matches
-            self.log("🟡 TERMBASE CALL: From highlighting (highlight_termbase_matches)")
-            termbase_matches = self.find_termbase_matches_in_source(source_text)
+            # Use provided matches or find them
+            if termbase_matches is None:
+                self.log("🟡 TERMBASE CALL: From highlighting (highlight_termbase_matches)")
+                termbase_matches = self.find_termbase_matches_in_source(source_text)
+            else:
+                self.log(f"🟢 Using pre-computed termbase matches ({len(termbase_matches)} found)")
             
             if not termbase_matches:
-                # No matches - display plain text
+                # No matches - nothing to highlight
                 return
             
-            # Create highlighted widget
-            widget = TermbaseHighlightWidget(source_text, termbase_matches, parent=self.table)
+            # Get the existing source widget (ReadOnlyGridTextEditor)
+            source_widget = self.table.cellWidget(row, 2)
+            if not source_widget or not hasattr(source_widget, 'highlight_termbase_matches'):
+                self.log(f"⚠️ Source widget at row {row} is not a ReadOnlyGridTextEditor")
+                return
             
-            # Store reference to insert translation on double-click
-            def on_term_clicked(term, translation):
-                self.insert_term_translation(row, translation)
-            
-            widget.term_double_clicked = on_term_clicked
-            
-            # Set the widget in the source column (column 2)
-            self.table.setCellWidget(row, 2, widget)
+            # Apply highlighting to the existing widget
+            source_widget.highlight_termbase_matches(termbase_matches)
+            self.log(f"✅ Applied termbase highlighting to {len(termbase_matches)} terms in row {row}")
             
         except Exception as e:
             self.log(f"Error highlighting termbase matches: {e}")
+            import traceback
+            self.log(f"Traceback: {traceback.format_exc()}")
     
     def insert_term_translation(self, row: int, translation: str):
         """

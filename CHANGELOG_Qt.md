@@ -10,6 +10,7 @@ The Qt Edition is the **primary version** for active development and new feature
 
 **Latest Major Features:**
 
+- 📚 **Complete Termbase System (v1.6.0)** - Professional terminology management with interactive features
 - 🎤 **Supervoice (v1.4.0)** - AI voice dictation with OpenAI Whisper, 100+ languages, F9 hotkey
 - 📊 **Superbench (v1.4.1)** - Benchmark LLM translation quality on YOUR actual projects with chrF++ scoring
 - 🤖 **AI Assistant (v1.3.4)** - ChatGPT-quality conversational prompt refinement built into the editor
@@ -22,6 +23,118 @@ The Qt Edition is the **primary version** for active development and new feature
 - 🔄 **CAT Tool Integration** - memoQ, Trados, CafeTran bilingual table support
 
 **See full version history below** ↓
+
+---
+
+## [1.6.0] - November 16, 2025
+
+### 📚 Complete Termbase System with Interactive Features
+
+**The Ultimate Terminology Management** - Full-featured termbase system rivaling commercial CAT tools with memoQ-inspired interactive features.
+
+### Added
+
+**Core Termbase Features:**
+- 📊 **SQLite-Based Storage** - Robust database backend for termbases and terms
+- 🔍 **Real-Time Term Matching** - Automatic detection of termbase matches in source segments
+- 🎨 **Priority-Based Highlighting** - Terms highlighted in source cells with color intensity matching priority (1-99)
+- 🎯 **Visual Match Display** - All termbase matches shown in Translation Results panel with metadata
+- ⚫ **Forbidden Term Marking** - Forbidden terms highlighted in black (source cells and translation results)
+- 🗂️ **Multi-Termbase Support** - Create and manage multiple termbases per project
+- ✅ **Termbase Activation** - Enable/disable specific termbases for each project
+
+**Interactive Features (memoQ-Inspired):**
+- 💡 **Hover Tooltips** - Mouse over highlighted terms to see translation, priority, and forbidden status
+- 🖱️ **Double-Click Insertion** - Double-click any highlighted term to insert translation at cursor
+- 📝 **Dual Selection Workflow** - Select source term → Tab → select target translation → Ctrl+E to add
+- 🎹 **Keyboard Shortcuts** - Ctrl+E to add term pair, right-click context menu alternative
+
+**Termbase Management UI:**
+- 📋 **Termbase List** - View all termbases with term counts and activation toggles
+- ➕ **Create/Delete** - Full CRUD operations with confirmation dialogs
+- ✏️ **Edit Terms Dialog** - Modify source/target terms, priority (1-99), and forbidden flag
+- 🔢 **Priority Editing** - Click priority cells to edit directly in table
+- 🚫 **Forbidden Toggle** - Checkbox for marking terms as forbidden (do-not-use)
+- 📊 **Metadata Entry** - Add definition, domain, priority, and forbidden status when creating terms
+
+**Technical Implementation:**
+- 🗄️ **Three-Table Schema** - `termbases`, `termbase_terms`, `termbase_activation` for flexible management
+- 🔍 **FTS5 Full-Text Search** - Fast term matching even with large termbases
+- 💾 **Smart Caching** - Term matches cached per segment for performance
+- 🔄 **Automatic Refresh** - Adding/editing terms immediately updates highlighting and results
+- 🎨 **QTextCharFormat Highlighting** - Non-intrusive background color without replacing widgets
+- 🖱️ **Mouse Tracking** - Enable hover detection with `setMouseTracking(True)`
+- 📍 **Position Detection** - `cursorForPosition()` for finding text under mouse cursor
+
+**Color System:**
+- 🔵 **Priority Colors** - Higher priority (lower number) = darker blue, lower priority = lighter blue
+- ⚫ **Forbidden Terms** - Black background (#000000) with white text for maximum visibility
+- 🎨 **Consistent Rendering** - Same color scheme in source highlights and translation results
+
+**Workflow Integration:**
+- ⚡ **Fast Term Entry** - Select in source → Tab → select in target → Ctrl+E → done
+- 🔄 **Immediate Visibility** - New terms appear instantly in highlights and results
+- 📊 **Project-Based Activation** - Each project remembers which termbases are active
+- 🎯 **Settings Toggle** - Enable/disable grid highlighting in Settings → General
+
+### Fixed
+- ✅ Language code handling - Proper conversion from language names (Dutch → nl, English → en)
+- ✅ Term search issues - Fixed "unknown" language codes preventing matches
+- ✅ Activation persistence - Termbase toggles now save correctly across sessions
+- ✅ Priority editing - Term priority changes now persist to database
+- ✅ Delete functionality - Delete button now works with confirmation dialog
+- ✅ Project ID tracking - Hash-based project ID for termbase activation
+- ✅ Highlight consistency - Clear formatting before re-applying to prevent accumulation
+- ✅ Cache clearing - Both termbase_cache and translation_matches_cache cleared after changes
+
+### Technical Details
+**Database Schema:**
+```sql
+-- Termbases table
+CREATE TABLE termbases (
+    id INTEGER PRIMARY KEY,
+    name TEXT UNIQUE NOT NULL,
+    description TEXT,
+    created_date TEXT,
+    modified_date TEXT
+)
+
+-- Termbase terms with FTS5 search
+CREATE VIRTUAL TABLE termbase_terms USING fts5(
+    termbase_id UNINDEXED,
+    source_term,
+    target_term,
+    source_lang,
+    target_lang,
+    definition,
+    domain,
+    priority UNINDEXED,
+    forbidden UNINDEXED,
+    created_date UNINDEXED,
+    modified_date UNINDEXED
+)
+
+-- Project-specific termbase activation
+CREATE TABLE termbase_activation (
+    project_id TEXT NOT NULL,
+    termbase_id INTEGER NOT NULL,
+    is_active INTEGER DEFAULT 1,
+    PRIMARY KEY (project_id, termbase_id)
+)
+```
+
+**Key Classes:**
+- `TermbaseManager` - Database operations and term search
+- `ReadOnlyGridTextEditor` - Source cell with highlighting, tooltip, and double-click
+- `TermMetadataDialog` - Modal dialog for entering term metadata
+- `find_termbase_matches_in_source()` - Search engine returning match dict
+- `highlight_termbase_matches()` - Visual highlighting with priority/forbidden colors
+
+### Documentation
+- Added comprehensive termbase workflow documentation
+- Updated keyboard shortcuts reference
+- Documented color system and priority levels
+- Added tooltip and double-click feature guides
 
 ---
 

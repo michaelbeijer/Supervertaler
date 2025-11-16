@@ -223,14 +223,22 @@ class CompactMatchItem(QFrame):
         base_color = base_color_map.get(self.match.match_type, "#adb5bd")
         
         # For termbase matches, apply priority-based shading (darker = higher priority/lower number)
+        # OR use black for forbidden terms
         if self.match.match_type == "Termbase":
-            # Get termbase priority from metadata (default 50 if not set)
-            termbase_priority = self.match.metadata.get('termbase_priority', 50)
-            # Priority range: 1-99, lower = higher priority = darker blue
-            # Convert priority to shade factor: 1 (highest) = darkest, 99 (lowest) = lightest
-            # Scale: priority 1 → factor 1.0 (no darkening), priority 99 → factor 0.6 (lightest)
-            priority_factor = 1.0 - ((termbase_priority - 1) / 98.0) * 0.4  # Range: 0.6 to 1.0
-            type_color = self._darken_color(base_color, priority_factor)
+            # Check if term is forbidden
+            is_forbidden = self.match.metadata.get('forbidden', False)
+            
+            if is_forbidden:
+                # Forbidden terms get black background
+                type_color = "#000000"
+            else:
+                # Get termbase priority from metadata (default 50 if not set)
+                termbase_priority = self.match.metadata.get('priority', 50)
+                # Priority range: 1-99, lower = higher priority = darker blue
+                # Convert priority to shade factor: 1 (highest) = darkest, 99 (lowest) = lightest
+                # Scale: priority 1 → factor 1.0 (no darkening), priority 99 → factor 0.6 (lightest)
+                priority_factor = 1.0 - ((termbase_priority - 1) / 98.0) * 0.4  # Range: 0.6 to 1.0
+                type_color = self._darken_color(base_color, priority_factor)
         else:
             type_color = base_color
         

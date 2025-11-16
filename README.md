@@ -26,7 +26,7 @@
 
 ### 🆕 Qt Edition (Modern) - **PRIMARY**
 **File:** `Supervertaler_Qt.py`
-**Version:** v1.5.1 (November 16, 2025)
+**Version:** v1.6.0 (November 16, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -34,7 +34,18 @@
 python Supervertaler_Qt.py
 ```
 
-**NEW in v1.5.1 - Source/Target Tab Cycling:**
+**NEW in v1.6.0 - Complete Termbase System:**
+- 📚 **Professional Terminology Management** - SQLite-based termbase system rivaling commercial CAT tools
+- 🎨 **Priority-Based Highlighting** - Terms highlighted in source with color intensity matching priority (1-99)
+- 💡 **Hover Tooltips** - Mouse over highlighted terms to see translation, priority, and forbidden status
+- 🖱️ **Double-Click Insertion** - Click any highlighted term to insert translation at cursor
+- ⚫ **Forbidden Term Marking** - Forbidden terms highlighted in black for maximum visibility
+- 🔍 **Real-Time Matching** - Automatic detection and display in Translation Results panel
+- 🗂️ **Multi-Termbase Support** - Create, activate/deactivate, and manage multiple termbases
+- ⌨️ **Fast Term Entry** - Select source → Tab → select target → Ctrl+E to add term
+- ✏️ **Full Management** - Edit priority, forbidden flag, definition, domain in dedicated UI
+
+**v1.5.1 - Source/Target Tab Cycling:**
 - 🔄 **Tab Key Cycling** - Press `Tab` to jump between source and target cells
 - ⌨️ **Termbase Workflow** - Select term in source → `Tab` → select translation in target
 - 🔠 **Ctrl+Tab** - Insert actual tab character when needed

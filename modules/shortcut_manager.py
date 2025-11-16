@@ -332,6 +332,13 @@ class ShortcutManager:
             "action": "insert_tab",
             "context": "grid_editor"
         },
+        "editor_add_to_termbase": {
+            "category": "Editor",
+            "description": "Add selected term pair to termbase",
+            "default": "Ctrl+E",
+            "action": "add_to_termbase",
+            "context": "grid_editor"
+        },
     }
     
     def __init__(self, settings_file: Optional[Path] = None):
