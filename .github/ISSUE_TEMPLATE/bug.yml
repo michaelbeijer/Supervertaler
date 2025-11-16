@@ -1,0 +1,14 @@
+name: Bug
+description: A bug that needs to be fixed.
+title: "[BUG] "
+labels: ["bug"]
+body:
+  - type: input
+    id: summary
+    attributes:
+      label: Summary
+      description: "Describe the bug."
+      placeholder: "I would like to fix the following bug ..."
+    validations:
+      required: true
+
