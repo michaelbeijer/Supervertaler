@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "Supervertaler"
 version = "1.6.0"
-description = "AI-powered context-aware translation tool for professional translators with complete termbase system"
+description = "Professional AI-powered CAT tool with complete termbase system, voice dictation, and modern PyQt6 interface"
 readme = "README.md"
 requires-python = ">=3.12"
 license = {text = "MIT"}
@@ -23,21 +23,25 @@ keywords = [
     "GPT",
     "Claude",
     "Gemini",
+    "termbase",
     "translation-memory",
+    "PyQt6",
     "localization",
 ]
 classifiers = [
-    "Development Status :: 5 - Production/Stable",
+    "Development Status :: 4 - Beta",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
     "License :: OSI Approved :: MIT License",
-    "Operating System :: Microsoft :: Windows",
+    "Operating System :: OS Independent",
     "Intended Audience :: End Users/Desktop",
     "Topic :: Office/Business",
     "Topic :: Text Processing :: Linguistic",
+    "Environment :: X11 Applications :: Qt",
 ]
 
 dependencies = [
+    "PyQt6>=6.5.0",
     "python-docx>=0.8.11",
     "openpyxl>=3.1.0",
     "Pillow>=10.0.0",
@@ -45,17 +49,17 @@ dependencies = [
     "anthropic>=0.7.0",
     "google-generativeai>=0.3.0",
     "markitdown>=0.0.1",
-    "sacrebleu>=2.3.1",  # For LLM Leaderboard quality scoring (chrF++)
+    "sacrebleu>=2.3.1",  # For Superbench quality scoring (chrF++)
 ]
 
 [project.urls]
-Homepage = "https://github.com/michaelbeijer/Supervertaler"
+Homepage = "https://michaelbeijer.github.io/Supervertaler"
 Repository = "https://github.com/michaelbeijer/Supervertaler.git"
 "Bug Tracker" = "https://github.com/michaelbeijer/Supervertaler/issues"
-Documentation = "https://michaelbeijer.co.uk"
+Changelog = "https://github.com/michaelbeijer/Supervertaler/blob/main/CHANGELOG.md"
 "Author Website" = "https://michaelbeijer.co.uk"
+Documentation = "https://github.com/michaelbeijer/Supervertaler/blob/main/docs/PROJECT_CONTEXT.md"
 
-# Note: Entry point disabled - run via: python -m Supervertaler_v3.7.0
-# Or create proper module structure if distributing as pip package
+# Note: Run via: python Supervertaler.py
 # [project.scripts]
-# supervertaler = "Supervertaler_v3.7.0:main"
+# supervertaler = "Supervertaler:main"

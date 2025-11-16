@@ -1,8 +1,12 @@
-# Supervertaler Qt Edition - Changelog
+# Supervertaler - Changelog
 
-All notable changes to the **Qt Edition** of Supervertaler are documented in this file.
+All notable changes to Supervertaler are documented in this file.
 
-The Qt Edition is the **primary version** for active development and new features. See [CHANGELOG_Tkinter.md](CHANGELOG_Tkinter.md) for the legacy Classic edition.
+**Current Version:** v1.6.0 (November 16, 2025)  
+**Framework:** PyQt6  
+**Status:** Active Development
+
+**Note:** For historical information about legacy versions (Tkinter Edition, Classic Edition), see [legacy_versions/LEGACY_VERSIONS.md](legacy_versions/LEGACY_VERSIONS.md).
 
 ---
 
