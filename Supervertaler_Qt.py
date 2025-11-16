@@ -13816,8 +13816,25 @@ class SupervertalerQt(QMainWindow):
                                 except Exception as e:
                                     self.log(f"Error adding TM matches: {e}")
                         
-                        # 🎯 AUTO-INSERT DISABLED FOR DEBUGGING
-                        self.log(f"🚫 AUTO-INSERT DISABLED - User must manually accept TM matches")
+                        # 🎯 AUTO-INSERT 100% TM MATCH (if enabled in settings)
+                        if self.auto_insert_100_percent_matches:
+                            # Check if segment target is empty (don't overwrite existing translations)
+                            target_empty = not segment.target or len(segment.target.strip()) == 0
+                            
+                            if target_empty and matches_dict["TM"]:
+                                # Find first 100% match
+                                best_match = None
+                                for tm_match in matches_dict["TM"]:
+                                    # Use >= 99.5 to handle floating point precision
+                                    if float(tm_match.relevance) >= 99.5:
+                                        best_match = tm_match
+                                        self.log(f"✨ Auto-inserting 100% TM match into segment {segment.id}")
+                                        break
+                                
+                                if best_match:
+                                    self._auto_insert_tm_match(segment, best_match.target, None)  # Let function find row
+                        else:
+                            self.log(f"⏭️ Auto-insert disabled - user must manually accept TM matches")
                 except Exception as e:
                     self.log(f"Error in delayed TM search: {e}")
             
