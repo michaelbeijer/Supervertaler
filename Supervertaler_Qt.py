@@ -1147,6 +1147,13 @@ class SupervertalerQt(QMainWindow):
         # Restore last project if enabled in settings
         self.restore_last_project_if_enabled()
         
+        # Auto-open log window if enabled in settings
+        general_settings = self.load_general_settings()
+        if general_settings.get('auto_open_log', False):
+            # Use QTimer to open log window after UI fully initializes
+            from PyQt6.QtCore import QTimer
+            QTimer.singleShot(500, self.detach_log_window)  # 500ms delay to ensure UI is ready
+        
         # Load font sizes from preferences (after UI is fully initialized)
         QApplication.instance().processEvents()  # Allow UI to finish initializing
         self.load_font_sizes_from_preferences()
@@ -3695,16 +3702,6 @@ class SupervertalerQt(QMainWindow):
         check_tm_before_api = general_prefs.get('check_tm_before_api', True)
         auto_propagate_100 = general_prefs.get('auto_propagate_100', True)
         
-        # Auto-insert 100% TM matches
-        auto_insert_cb = CheckmarkCheckBox("✨ Auto-insert 100% TM matches")
-        auto_insert_cb.setChecked(auto_insert_100)
-        prefs_layout.addWidget(auto_insert_cb)
-        auto_insert_info = QLabel("  ⓘ Automatically fill target with 100% matches when entering untranslated segments")
-        auto_insert_info.setStyleSheet("font-size: 9pt; color: #666; padding-left: 20px;")
-        prefs_layout.addWidget(auto_insert_info)
-        
-        prefs_layout.addSpacing(5)
-        
         # Batch Size
         batch_size_layout = QHBoxLayout()
         batch_size_label = QLabel("Batch Size (segments per API call):")
@@ -3797,7 +3794,7 @@ class SupervertalerQt(QMainWindow):
             openai_combo, claude_combo, gemini_combo,
             openai_enable_cb, claude_enable_cb, gemini_enable_cb,
             batch_size_spin, surrounding_spin, full_context_cb,
-            auto_insert_cb, check_tm_cb, auto_propagate_cb,
+            check_tm_cb, auto_propagate_cb,
             delay_spin
         ))
         layout.addWidget(save_btn)
@@ -3911,6 +3908,13 @@ class SupervertalerQt(QMainWindow):
             "When enabled, Supervertaler will automatically open the last project you were working on when the application starts."
         )
         startup_layout.addWidget(restore_last_project_cb)
+        
+        auto_open_log_cb = QCheckBox("Auto-open log window on startup (detached)")
+        auto_open_log_cb.setChecked(general_settings.get('auto_open_log', False))
+        auto_open_log_cb.setToolTip(
+            "When enabled, the log window will automatically open in a separate detached window when Supervertaler starts."
+        )
+        startup_layout.addWidget(auto_open_log_cb)
         
         startup_group.setLayout(startup_layout)
         layout.addWidget(startup_group)
@@ -4091,7 +4095,8 @@ class SupervertalerQt(QMainWindow):
         save_btn.setStyleSheet("font-weight: bold; padding: 8px;")
         save_btn.clicked.connect(lambda: self._save_general_settings_from_ui(
             restore_last_project_cb, allow_replace_cb, auto_propagate_cb, auto_markdown_cb,
-            llm_spin, mt_spin, tm_limit_spin, tb_spin
+            llm_spin, mt_spin, tm_limit_spin, tb_spin,
+            auto_open_log_cb, auto_insert_100_cb, tm_save_mode_combo
         ))
         layout.addWidget(save_btn)
         
@@ -4575,7 +4580,7 @@ class SupervertalerQt(QMainWindow):
                                    openai_combo, claude_combo, gemini_combo,
                                    openai_enable_cb, claude_enable_cb, gemini_enable_cb,
                                    batch_size_spin, surrounding_spin, full_context_cb,
-                                   auto_insert_cb, check_tm_cb, auto_propagate_cb,
+                                   check_tm_cb, auto_propagate_cb,
                                    delay_spin):
         """Save LLM settings from UI"""
         new_settings = {
@@ -4607,7 +4612,6 @@ class SupervertalerQt(QMainWindow):
         general_prefs['batch_size'] = batch_size_spin.value()
         general_prefs['surrounding_segments'] = surrounding_spin.value()
         general_prefs['use_full_context'] = full_context_cb.isChecked()
-        general_prefs['auto_insert_100'] = auto_insert_cb.isChecked()
         general_prefs['check_tm_before_api'] = check_tm_cb.isChecked()
         general_prefs['auto_propagate_100'] = auto_propagate_cb.isChecked()
         general_prefs['lookup_delay'] = delay_spin.value()
@@ -4635,7 +4639,8 @@ class SupervertalerQt(QMainWindow):
         QMessageBox.information(self, "Settings Saved", "MT settings have been saved successfully.")
     
     def _save_general_settings_from_ui(self, restore_cb, allow_replace_cb, auto_propagate_cb, auto_markdown_cb=None,
-                                       llm_spin=None, mt_spin=None, tm_limit_spin=None, tb_spin=None):
+                                       llm_spin=None, mt_spin=None, tm_limit_spin=None, tb_spin=None,
+                                       auto_open_log_cb=None, auto_insert_100_cb=None, tm_save_mode_combo=None):
         """Save general settings from UI"""
         self.allow_replace_in_source = allow_replace_cb.isChecked()
         self.update_warning_banner()
@@ -4646,12 +4651,17 @@ class SupervertalerQt(QMainWindow):
         # Update auto-markdown setting
         if auto_markdown_cb is not None:
             self.auto_generate_markdown = auto_markdown_cb.isChecked()
+        
+        # Update auto-insert setting
+        if auto_insert_100_cb is not None:
+            self.auto_insert_100_percent_matches = auto_insert_100_cb.isChecked()
 
         general_settings = {
             'restore_last_project': restore_cb.isChecked(),
+            'auto_open_log': auto_open_log_cb.isChecked() if auto_open_log_cb is not None else False,
             'auto_propagate_exact_matches': self.auto_propagate_checkbox.isChecked() if hasattr(self, 'auto_propagate_checkbox') else self.auto_propagate_exact_matches,
-            'auto_insert_100_percent_matches': self.auto_insert_100_checkbox.isChecked() if hasattr(self, 'auto_insert_100_checkbox') else True,
-            'tm_save_mode': tm_save_mode_combo.currentData() if 'tm_save_mode_combo' in locals() else 'latest',
+            'auto_insert_100_percent_matches': auto_insert_100_cb.isChecked() if auto_insert_100_cb is not None else (self.auto_insert_100_checkbox.isChecked() if hasattr(self, 'auto_insert_100_checkbox') else True),
+            'tm_save_mode': tm_save_mode_combo.currentData() if tm_save_mode_combo is not None else 'latest',
             'auto_generate_markdown': self.auto_generate_markdown if hasattr(self, 'auto_generate_markdown') else False,
             'grid_font_size': self.default_font_size,  # Keep existing or update separately
             'results_match_font_size': 9,  # Keep existing
@@ -4672,11 +4682,13 @@ class SupervertalerQt(QMainWindow):
                     panel.match_limits = general_settings['match_limits']
         
         # Update instance variable from checkbox
-        if hasattr(self, 'auto_insert_100_checkbox'):
+        if auto_insert_100_cb is not None:
+            self.auto_insert_100_percent_matches = auto_insert_100_cb.isChecked()
+        elif hasattr(self, 'auto_insert_100_checkbox'):
             self.auto_insert_100_percent_matches = self.auto_insert_100_checkbox.isChecked()
         
         # Update TM save mode
-        if 'tm_save_mode_combo' in locals():
+        if tm_save_mode_combo is not None:
             self.tm_save_mode = tm_save_mode_combo.currentData()
         
         self.save_general_settings(general_settings)
