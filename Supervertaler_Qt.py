@@ -13817,24 +13817,34 @@ class SupervertalerQt(QMainWindow):
                                     self.log(f"Error adding TM matches: {e}")
                         
                         # 🎯 AUTO-INSERT 100% TM MATCH (if enabled in settings)
+                        self.log(f"🎯 DELAYED: Auto-insert enabled: {self.auto_insert_100_percent_matches}, TM count: {len(matches_dict.get('TM', []))}")
                         if self.auto_insert_100_percent_matches:
                             # Check if segment target is empty (don't overwrite existing translations)
                             target_empty = not segment.target or len(segment.target.strip()) == 0
+                            self.log(f"🎯 DELAYED: Target empty: {target_empty}, segment.target='{segment.target[:30] if segment.target else 'EMPTY'}'")
                             
                             if target_empty and matches_dict["TM"]:
                                 # Find first 100% match
                                 best_match = None
                                 for tm_match in matches_dict["TM"]:
+                                    self.log(f"🔍 DELAYED: Checking TM match: relevance={tm_match.relevance} (type={type(tm_match.relevance).__name__})")
                                     # Use >= 99.5 to handle floating point precision
                                     if float(tm_match.relevance) >= 99.5:
                                         best_match = tm_match
-                                        self.log(f"✨ Auto-inserting 100% TM match into segment {segment.id}")
+                                        self.log(f"✨ DELAYED: Found 100% match - auto-inserting into segment {segment.id}")
                                         break
                                 
                                 if best_match:
                                     self._auto_insert_tm_match(segment, best_match.target, None)  # Let function find row
+                                else:
+                                    relevances = [tm.relevance for tm in matches_dict.get("TM", [])]
+                                    self.log(f"⚠️ DELAYED: No 100% match found. TM relevances: {relevances}")
+                            elif not target_empty:
+                                self.log(f"⚠️ DELAYED: Target not empty - skipping auto-insert")
+                            else:
+                                self.log(f"⚠️ DELAYED: No TM matches to auto-insert")
                         else:
-                            self.log(f"⏭️ Auto-insert disabled - user must manually accept TM matches")
+                            self.log(f"⏭️ DELAYED: Auto-insert disabled in settings")
                 except Exception as e:
                     self.log(f"Error in delayed TM search: {e}")
             
@@ -13874,12 +13884,12 @@ class SupervertalerQt(QMainWindow):
                     self.log(f"🔧 Auto-insert: Using provided row {row}")
                     target_row = row
                 else:
-                    # Search for the row
+                    # Search for the row by segment ID (stored as text in column 0)
                     self.log(f"🔧 Auto-insert: Searching {self.table.rowCount()} rows for segment {segment.id}")
                     target_row = None
                     for r in range(self.table.rowCount()):
                         row_item = self.table.item(r, 0)
-                        if row_item and row_item.data(Qt.ItemDataRole.UserRole) == segment.id:
+                        if row_item and row_item.text() == str(segment.id):
                             target_row = r
                             self.log(f"🔧 Auto-insert: Found segment at row {r}")
                             break
