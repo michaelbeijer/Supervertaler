@@ -3,8 +3,8 @@ Supervertaler Qt Edition
 ========================
 The ultimate companion tool for translators and writers.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.5.0 (Translation Results Enhancement + Match Insertion)
-Release Date: November 15, 2025
+Version: 1.4.2 (Critical Bug Fix: Tab Editor Cross-Contamination)
+Release Date: November 16, 2025
 Framework: PyQt6
 
 This is the modern edition of Supervertaler using PyQt6 framework.
@@ -1098,6 +1098,9 @@ class SupervertalerQt(QMainWindow):
         self.doc_current_segment_id = None
         self.document_containers: Dict[str, Optional[QWidget]] = {}
         self.active_document_host = 'editor'
+
+        # Target editor signal suppression (prevents load-time churn)
+        self._suppress_target_change_handlers = False
         self.warning_banners: Dict[str, QWidget] = {}
         
         # Universal Lookup detached window
@@ -1132,7 +1135,7 @@ class SupervertalerQt(QMainWindow):
         # Create example API keys file on first launch (after UI is ready)
         self.ensure_example_api_keys()
         
-        self.log("Welcome to Supervertaler Qt v1.4.1")
+        self.log("Welcome to Supervertaler Qt v1.4.2")
         self.log("Supervertaler: The ultimate companion tool for translators and writers.")
         
         # Load general settings (including auto-propagation)
@@ -5861,7 +5864,25 @@ class SupervertalerQt(QMainWindow):
             row = self.table.currentRow()
             col = self.table.currentColumn()
             
-            if row >= 0 and row < len(self.current_project.segments):
+            if row >= 0:
+                # CRITICAL: Get segment by ID from grid, not by row index!
+                id_item = self.table.item(row, 0)
+                if not id_item:
+                    self.log(f"⚠️ No segment ID found at row {row}")
+                    return
+                
+                try:
+                    segment_id = int(id_item.text())
+                except (ValueError, AttributeError):
+                    self.log(f"⚠️ Could not parse segment ID from row {row}")
+                    return
+                
+                # Find segment by ID
+                segment = next((seg for seg in self.current_project.segments if seg.id == segment_id), None)
+                if not segment:
+                    self.log(f"⚠️ Could not find segment with ID {segment_id}")
+                    return
+                
                 # Get the target cell widget (EditableGridTextEditor)
                 target_widget = self.table.cellWidget(row, 3)  # Column 3 is target
                 
@@ -5871,16 +5892,14 @@ class SupervertalerQt(QMainWindow):
                     cursor.insertText(match_text)
                     
                     # Update the segment data
-                    segment = self.current_project.segments[row]
                     segment.target = target_widget.toPlainText()
                     
                     # Set focus back to the target editor
                     target_widget.setFocus()
                     
-                    self.log(f"✓ Match inserted into segment {row + 1} at cursor position")
+                    self.log(f"✓ Match inserted into segment {segment.id} at cursor position")
                 elif col == 3:
                     # Fallback: If no widget exists, create one or set text directly
-                    segment = self.current_project.segments[row]
                     segment.target = match_text
                     
                     # Try to update via cellWidget first
@@ -6695,7 +6714,8 @@ class SupervertalerQt(QMainWindow):
             # FINAL DEBUG: Log segment data at the exact moment before serialization
             self.log(f"💾💾💾 FINAL DEBUG before to_dict():")
             for i, seg in enumerate(self.current_project.segments[:7]):
-                self.log(f"💾💾💾 Seg {seg.id} (obj {id(seg)}): target='{seg.target[:50] if seg.target else 'EMPTY'}...', status={seg.status}")
+                target_preview = seg.target[:50] if seg.target else 'EMPTY'
+                self.log(f"💾💾💾 Seg {seg.id} (obj {id(seg)}): target='{target_preview}...', status={seg.status}, type(target)={type(seg.target).__name__}, len={len(seg.target)}")
             
             with open(file_path, 'w', encoding='utf-8') as f:
                 json.dump(self.current_project.to_dict(), f, indent=2, ensure_ascii=False)
@@ -7655,123 +7675,138 @@ class SupervertalerQt(QMainWindow):
     
     def load_segments_to_grid(self):
         """Load segments into the grid with termbase highlighting"""
+        self.log(f"🔄🔄🔄 load_segments_to_grid CALLED - this will RELOAD grid from segment data!")
+        
+        # DEBUG: Log segment data BEFORE loading to grid
+        if self.current_project and self.current_project.segments:
+            self.log(f"🔄 BEFORE LOAD: First 7 segments:")
+            for seg in self.current_project.segments[:7]:
+                self.log(f"🔄   Seg {seg.id} (obj {id(seg)}): target='{seg.target[:30] if seg.target else 'EMPTY'}...', len={len(seg.target)}, status={seg.status}")
+        
         if not self.current_project or not self.current_project.segments:
             self.clear_grid()
             return
         
         self.table.setRowCount(len(self.current_project.segments))
-        
-        for row, segment in enumerate(self.current_project.segments):
-            # Clear any previous cell widgets
-            self.table.removeCellWidget(row, 2)  # Source
-            self.table.removeCellWidget(row, 3)  # Target
-            self.table.removeCellWidget(row, 4)  # Match
-            self.table.removeCellWidget(row, 5)  # Status
-            
-            # ID - Segment number (starts with black foreground, will be highlighted orange when selected)
-            id_item = QTableWidgetItem(str(segment.id))
-            id_item.setFlags(id_item.flags() & ~Qt.ItemFlag.ItemIsEditable)  # Read-only
-            id_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            # Explicitly set black foreground for all segment numbers (will be changed to orange when selected)
-            id_item.setForeground(QColor("black"))
-            id_item.setBackground(QColor())  # Default (white) background
-            self.table.setItem(row, 0, id_item)
-            
-            # Type - show segment type based on style and content
-            # Determine type display from style attribute and segment type
-            style = getattr(segment, 'style', 'Normal')
-            
-            # Check for list items (bullets/numbering or <li> tags)
-            source_text = segment.source.strip()
-            is_list_item = (
-                source_text.startswith('<li>') or  # Tagged list item
-                source_text.lstrip().startswith(('• ', '- ', '* ', '· ')) or
-                (len(source_text) > 2 and source_text[0].isdigit() and source_text[1:3] in ('. ', ') '))
-            )
-            
-            # Determine type display
-            if 'Title' in style:
-                type_display = "Title"
-            elif 'Heading 1' in style or 'Heading1' in style:
-                type_display = "H1"
-            elif 'Heading 2' in style or 'Heading2' in style:
-                type_display = "H2"
-            elif 'Heading 3' in style or 'Heading3' in style:
-                type_display = "H3"
-            elif 'Heading 4' in style or 'Heading4' in style:
-                type_display = "H4"
-            elif 'Subtitle' in style:
-                type_display = "Sub"
-            elif is_list_item:
-                type_display = "li"
-            elif segment.type and segment.type != "para":
-                type_display = segment.type.upper()
-            else:
-                type_display = "¶"  # Paragraph symbol
-            
-            type_item = QTableWidgetItem(type_display)
-            type_item.setFlags(type_item.flags() & ~Qt.ItemFlag.ItemIsEditable)  # Read-only
-            type_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            
-            # Color-code by type for better visibility
-            if type_display in ("H1", "H2", "H3", "H4", "Title"):
-                type_item.setForeground(QColor("#003366"))  # Dark blue for headings
-                type_item.setBackground(QColor("#e6f3ff"))  # Light blue background
-            elif type_display == "li":
-                type_item.setForeground(QColor("#006600"))  # Dark green for list items
-                type_item.setBackground(QColor("#f0f8f0"))  # Light green background
-            
-            self.table.setItem(row, 1, type_item)
-            
-            # Source - Use read-only QTextEdit widget for easy text selection
-            source_editor = ReadOnlyGridTextEditor(segment.source, self.table)
-            
-            # Initialize empty termbase matches (will be populated lazily on segment selection or by background worker)
-            source_editor.termbase_matches = {}
-            
-            # Set font to match grid
-            font = QFont(self.default_font_family, self.default_font_size)
-            source_editor.setFont(font)
-            
-            # Set as cell widget (allows easy text selection)
-            self.table.setCellWidget(row, 2, source_editor)
-            
-            # Also set a placeholder item for row height calculation
-            source_item = QTableWidgetItem()
-            source_item.setFlags(Qt.ItemFlag.NoItemFlags)  # No interaction
-            self.table.setItem(row, 2, source_item)
-            
-            # Target - Use editable QTextEdit widget for easy text selection and editing
-            target_editor = EditableGridTextEditor(segment.target, self.table, row, self.table)
-            target_editor.setFont(font)
-            
-            # Connect text changes to update segment
-            # Use a factory function to create a proper closure that captures the segment ID
-            def make_target_changed_handler(segment_id, editor_widget):
-                # Create debounce timer for expensive operations
-                debounce_timer = None
+
+        previous_suppression = self._suppress_target_change_handlers
+        self._suppress_target_change_handlers = True
+
+        try:
+            for row, segment in enumerate(self.current_project.segments):
+                # Clear any previous cell widgets
+                self.table.removeCellWidget(row, 2)  # Source
+                self.table.removeCellWidget(row, 3)  # Target
+                self.table.removeCellWidget(row, 4)  # Match
+                self.table.removeCellWidget(row, 5)  # Status
                 
-                def on_target_text_changed():
-                    nonlocal debounce_timer
-                    new_text = editor_widget.toPlainText()
+                # ID - Segment number (starts with black foreground, will be highlighted orange when selected)
+                id_item = QTableWidgetItem(str(segment.id))
+                id_item.setFlags(id_item.flags() & ~Qt.ItemFlag.ItemIsEditable)  # Read-only
+                id_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                # Explicitly set black foreground for all segment numbers (will be changed to orange when selected)
+                id_item.setForeground(QColor("black"))
+                id_item.setBackground(QColor())  # Default (white) background
+                self.table.setItem(row, 0, id_item)
+                
+                # Type - show segment type based on style and content
+                # Determine type display from style attribute and segment type
+                style = getattr(segment, 'style', 'Normal')
+                
+                # Check for list items (bullets/numbering or <li> tags)
+                source_text = segment.source.strip()
+                is_list_item = (
+                    source_text.startswith('<li>') or  # Tagged list item
+                    source_text.lstrip().startswith(('• ', '- ', '* ', '· ')) or
+                    (len(source_text) > 2 and source_text[0].isdigit() and source_text[1:3] in ('. ', ') '))
+                )
+                
+                # Determine type display
+                if 'Title' in style:
+                    type_display = "Title"
+                elif 'Heading 1' in style or 'Heading1' in style:
+                    type_display = "H1"
+                elif 'Heading 2' in style or 'Heading2' in style:
+                    type_display = "H2"
+                elif 'Heading 3' in style or 'Heading3' in style:
+                    type_display = "H3"
+                elif 'Heading 4' in style or 'Heading4' in style:
+                    type_display = "H4"
+                elif 'Subtitle' in style:
+                    type_display = "Sub"
+                elif is_list_item:
+                    type_display = "li"
+                elif segment.type and segment.type != "para":
+                    type_display = segment.type.upper()
+                else:
+                    type_display = "¶"  # Paragraph symbol
+                
+                type_item = QTableWidgetItem(type_display)
+                type_item.setFlags(type_item.flags() & ~Qt.ItemFlag.ItemIsEditable)  # Read-only
+                type_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                
+                # Color-code by type for better visibility
+                if type_display in ("H1", "H2", "H3", "H4", "Title"):
+                    type_item.setForeground(QColor("#003366"))  # Dark blue for headings
+                    type_item.setBackground(QColor("#e6f3ff"))  # Light blue background
+                elif type_display == "li":
+                    type_item.setForeground(QColor("#006600"))  # Dark green for list items
+                    type_item.setBackground(QColor("#f0f8f0"))  # Light green background
+                
+                self.table.setItem(row, 1, type_item)
+                
+                # Source - Use read-only QTextEdit widget for easy text selection
+                source_editor = ReadOnlyGridTextEditor(segment.source, self.table)
+                
+                # Initialize empty termbase matches (will be populated lazily on segment selection or by background worker)
+                source_editor.termbase_matches = {}
+                
+                # Set font to match grid
+                font = QFont(self.default_font_family, self.default_font_size)
+                source_editor.setFont(font)
+                
+                # Set as cell widget (allows easy text selection)
+                self.table.setCellWidget(row, 2, source_editor)
+                
+                # Also set a placeholder item for row height calculation
+                source_item = QTableWidgetItem()
+                source_item.setFlags(Qt.ItemFlag.NoItemFlags)  # No interaction
+                self.table.setItem(row, 2, source_item)
+                
+                # Target - Use editable QTextEdit widget for easy text selection and editing
+                target_editor = EditableGridTextEditor(segment.target, self.table, row, self.table)
+                target_editor.setFont(font)
+                
+                # Connect text changes to update segment
+                # Use a factory function to create a proper closure that captures the segment ID
+                def make_target_changed_handler(segment_id, editor_widget):
+                    # Create debounce timer for expensive operations
+                    debounce_timer = None
                     
-                    # CRITICAL: Find segment by ID, not by row index!
-                    # Row indices can change, but segment IDs are stable
-                    target_segment = next((seg for seg in self.current_project.segments if seg.id == segment_id), None)
-                    if target_segment:
-                        # IMMEDIATE: Update segment data (no delay for data safety)
-                        target_segment.target = new_text
-                        self.project_modified = True
+                    def on_target_text_changed():
+                        nonlocal debounce_timer
+                        new_text = editor_widget.toPlainText()
                         
-                        # IMMEDIATE: Reset status to "not_started" when user manually edits
-                        # Any manual edit means the segment needs review
-                        if target_segment.status != 'not_started':
-                            target_segment.status = 'not_started'
-                            # Find current row for this segment ID to update status display
-                            for row_idx, seg in enumerate(self.current_project.segments):
-                                if seg.id == segment_id:
-                                    self._update_status_cell(row_idx, target_segment)
-                                    break
+                        # DEBUG: Log EVERY call to catch the culprit
+                        self.log(f"🔔 textChanged FIRED: segment_id={segment_id}, new_text='{new_text[:20] if new_text else 'EMPTY'}...'")
+
+                        if self._suppress_target_change_handlers:
+                            self.log(f"🔔 textChanged SUPPRESSED for segment {segment_id}")
+                            return
+                        
+                        # CRITICAL: Find segment by ID, not by row index!
+                        # Row indices can change, but segment IDs are stable
+                        target_segment = next((seg for seg in self.current_project.segments if seg.id == segment_id), None)
+                        if not target_segment:
+                            return
+                        
+                        # SIMPLIFIED: Just update the target, NO status changes
+                        self.log(f"📝 BEFORE update: seg {segment_id} target='{target_segment.target[:30] if target_segment.target else 'EMPTY'}...', status={target_segment.status}, obj_id={id(target_segment)}")
+                        target_segment.target = new_text
+                        self.log(f"📝 AFTER update: seg {segment_id} target='{target_segment.target[:30] if target_segment.target else 'EMPTY'}...', status={target_segment.status}, obj_id={id(target_segment)}")
+                        
+                        # Mark project as modified
+                        self.project_modified = True
                         
                         # DEBOUNCED: Expensive UI/DB operations (only after user stops typing)
                         # Cancel previous timer
@@ -7782,46 +7817,50 @@ class SupervertalerQt(QMainWindow):
                         from PyQt6.QtCore import QTimer
                         debounce_timer = QTimer()
                         debounce_timer.setSingleShot(True)
-                        debounce_timer.timeout.connect(lambda: self._handle_target_text_debounced_by_id(
-                            segment_id, new_text
+                        # CRITICAL: Use default parameter to capture new_text BY VALUE, not by reference
+                        # This prevents the closure from capturing a variable that changes later
+                        debounce_timer.timeout.connect(lambda text=new_text: self._handle_target_text_debounced_by_id(
+                            segment_id, text
                         ))
                         debounce_timer.start(500)  # 500ms delay
-                        
-                return on_target_text_changed
-            
-            target_editor.textChanged.connect(make_target_changed_handler(segment.id, target_editor))
-            
-            # Set as cell widget
-            self.table.setCellWidget(row, 3, target_editor)
-            
-            # Also set a placeholder item for row height calculation
-            target_item = QTableWidgetItem()
-            target_item.setFlags(Qt.ItemFlag.NoItemFlags)  # No interaction
-            self.table.setItem(row, 3, target_item)
+                            
+                    return on_target_text_changed
+                
+                target_editor.textChanged.connect(make_target_changed_handler(segment.id, target_editor))
+                
+                # Set as cell widget
+                self.table.setCellWidget(row, 3, target_editor)
+                
+                # Also set a placeholder item for row height calculation
+                target_item = QTableWidgetItem()
+                target_item.setFlags(Qt.ItemFlag.NoItemFlags)  # No interaction
+                self.table.setItem(row, 3, target_item)
 
-            # Pre-populate status cell item so gridlines render before widget assignment
-            status_placeholder = QTableWidgetItem()
-            status_placeholder.setFlags(Qt.ItemFlag.NoItemFlags)
-            status_placeholder.setBackground(QColor(get_status(segment.status).color))
-            self.table.setItem(row, 4, status_placeholder)
+                # Pre-populate status cell item so gridlines render before widget assignment
+                status_placeholder = QTableWidgetItem()
+                status_placeholder.setFlags(Qt.ItemFlag.NoItemFlags)
+                status_placeholder.setBackground(QColor(get_status(segment.status).color))
+                self.table.setItem(row, 4, status_placeholder)
 
-            # Status column (icon + match + comment)
-            self._update_status_cell(row, segment)
-        
-        # Apply current font
-        self.apply_font_to_grid()
-        
-        # Auto-resize rows
-        self.auto_resize_rows()
-        self._enforce_status_row_heights()
-        
-        self.log(f"✓ Loaded {len(self.current_project.segments)} segments to grid")
+                # Status column (icon + match + comment)
+                self._update_status_cell(row, segment)
+            
+            # Apply current font
+            self.apply_font_to_grid()
+            
+            # Auto-resize rows
+            self.auto_resize_rows()
+            self._enforce_status_row_heights()
+            
+            self.log(f"✓ Loaded {len(self.current_project.segments)} segments to grid")
 
-        # Also refresh List and Document views if they exist
-        if hasattr(self, 'list_tree'):
-            self.refresh_list_view()
-        if self._get_document_container():
-            self.refresh_document_view()
+            # Also refresh List and Document views if they exist
+            if hasattr(self, 'list_tree'):
+                self.refresh_list_view()
+            if self._get_document_container():
+                self.refresh_document_view()
+        finally:
+            self._suppress_target_change_handlers = previous_suppression
 
     def _create_status_cell_widget(self, segment: Segment) -> QWidget:
         widget = QWidget()
@@ -9306,7 +9345,8 @@ class SupervertalerQt(QMainWindow):
         from PyQt6.QtCore import QTimer
         self.lookup_timer = QTimer()
         self.lookup_timer.setSingleShot(True)
-        self.lookup_timer.timeout.connect(lambda: self._perform_delayed_lookup(segment, current_row, segment_id))
+        # CRITICAL: Capture variables by value using default parameters to avoid closure bugs
+        self.lookup_timer.timeout.connect(lambda seg=segment, row=current_row, seg_id=segment_id: self._perform_delayed_lookup(seg, row, seg_id))
         self.lookup_timer.start(lookup_delay)
         self.log(f"🚀 _schedule_delayed_lookup: Will search segment {current_row + 1} in {lookup_delay}ms")
     
@@ -10975,7 +11015,8 @@ class SupervertalerQt(QMainWindow):
                     from PyQt6.QtCore import QTimer
                     self._tab_target_debounce_timer = QTimer()
                     self._tab_target_debounce_timer.setSingleShot(True)
-                    self._tab_target_debounce_timer.timeout.connect(lambda: self._save_tab_target_to_tm(seg, new_text))
+                    # CRITICAL: Capture variables by value using default parameters to avoid closure bugs
+                    self._tab_target_debounce_timer.timeout.connect(lambda segment=seg, text=new_text: self._save_tab_target_to_tm(segment, text))
                     self._tab_target_debounce_timer.start(500)
                     
                     break
@@ -11581,6 +11622,7 @@ class SupervertalerQt(QMainWindow):
             self.log(f"🔍 Ctrl+Enter: Row {current_row}, Segment ID {segment.id}")
             self.log(f"🔍 Source: '{segment.source[:50]}...'")
             self.log(f"🔍 Target before: '{segment.target[:50] if segment.target else '<empty>'}...'")
+            self.log(f"🔍 Segment object ID: {id(segment)}")
             
             # Get current target text from the grid widget
             target_widget = self.table.cellWidget(current_row, 3)  # Column 3 = Target
@@ -11588,11 +11630,18 @@ class SupervertalerQt(QMainWindow):
                 current_text = target_widget.toPlainText().strip()
                 segment.target = current_text
                 self.log(f"🔍 Target from widget: '{current_text[:50]}...'")
+                self.log(f"🔍 After assignment: segment.target = '{segment.target[:50] if segment.target else '<empty>'}...'")
             
             segment.status = 'confirmed'
+            self.log(f"🔍 After status assignment: segment.status = '{segment.status}', segment.target = '{segment.target[:50] if segment.target else '<empty>'}...')")
             self.update_status_icon(current_row, 'confirmed')
             self.project_modified = True
             self.log(f"✅ Segment {segment.id} confirmed")
+            
+            # VERIFICATION: Check the segment ONE MORE TIME to ensure target wasn't corrupted
+            verification_seg = next((s for s in self.current_project.segments if s.id == segment.id), None)
+            if verification_seg:
+                self.log(f"✅ VERIFICATION: Segment {segment_id} - target still correct: '{verification_seg.target[:30] if verification_seg.target else 'EMPTY'}', object ID={id(verification_seg)}")
             
             # Save to TM if target has content
             if segment.target.strip():
@@ -11661,6 +11710,10 @@ class SupervertalerQt(QMainWindow):
     def update_tab_segment_editor(self, segment_id: int, source_text: str, target_text: str, 
                                    status: str = "untranslated", notes: str = ""):
         """Update the tab segment editor with current segment data"""
+        # CRITICAL FIX: Update segment ID BEFORE setting text to prevent cross-contamination
+        # When setPlainText() triggers textChanged, it needs to update the CORRECT segment
+        self.tab_current_segment_id = segment_id
+        
         # Update ALL tabbed panels (grid view and list view)
         if hasattr(self, 'tabbed_panels'):
             for panel in self.tabbed_panels:
@@ -11682,9 +11735,6 @@ class SupervertalerQt(QMainWindow):
                         panel.notes_widget.notes_editor.setPlainText(notes)
                 except Exception as e:
                     self.log(f"Error updating tabbed panel: {e}")
-        
-        # Store current segment ID
-        self.tab_current_segment_id = segment_id
     
     # ========================================================================
     # DOCUMENT VIEW METHODS
@@ -13766,43 +13816,8 @@ class SupervertalerQt(QMainWindow):
                                 except Exception as e:
                                     self.log(f"Error adding TM matches: {e}")
                         
-                        # 🎯 AUTO-INSERT 100% TM MATCH (if enabled in settings)
-                        self.log(f"🎯 DELAYED: Auto-insert setting enabled: {self.auto_insert_100_percent_matches}")
-                        self.log(f"🎯 DELAYED: Segment target: '{segment.target}' (length={len(segment.target)}, stripped='{segment.target.strip()}')")
-                        self.log(f"🎯 DELAYED: TM matches count: {len(matches_dict['TM'])}")
-                        
-                        if self.auto_insert_100_percent_matches:
-                            # Only auto-insert if target is empty (don't overwrite existing translations)
-                            target_empty = not segment.target or len(segment.target.strip()) == 0
-                            self.log(f"🎯 DELAYED: Target empty check: {target_empty}")
-                            
-                            if target_empty:
-                                # Find first 100% match
-                                best_match = None
-                                for tm_match in matches_dict["TM"]:
-                                    self.log(f"🔍 DELAYED: Checking TM match: relevance={tm_match.relevance} (type={type(tm_match.relevance).__name__})")
-                                    # Use >= 99.5 to handle potential floating point issues
-                                    if float(tm_match.relevance) >= 99.5:
-                                        best_match = tm_match
-                                        self.log(f"✅ DELAYED: Found 100% match with target: '{tm_match.target[:50]}...'")
-                                        break
-                                
-                                if best_match:
-                                    self.log(f"✨ DELAYED: Auto-inserting 100% TM match into segment {segment.id}")
-                                    # Find the row for this segment
-                                    target_row = None
-                                    if hasattr(self, 'current_project') and self.current_project:
-                                        for idx, seg in enumerate(self.current_project.segments):
-                                            if seg.id == segment.id:
-                                                target_row = idx
-                                                break
-                                    # Insert into target field
-                                    self._auto_insert_tm_match(segment, best_match.target, target_row)
-                                else:
-                                    relevances = [(tm.relevance, type(tm.relevance).__name__) for tm in matches_dict['TM']]
-                                    self.log(f"⚠️ DELAYED: No 100% match found. All relevances: {relevances}")
-                            else:
-                                self.log(f"⚠️ DELAYED: Target not empty ('{segment.target}') - skipping auto-insert")
+                        # 🎯 AUTO-INSERT DISABLED FOR DEBUGGING
+                        self.log(f"🚫 AUTO-INSERT DISABLED - User must manually accept TM matches")
                 except Exception as e:
                     self.log(f"Error in delayed TM search: {e}")
             
@@ -13824,6 +13839,7 @@ class SupervertalerQt(QMainWindow):
         """
         try:
             self.log(f"🔧 Auto-insert: Starting for segment {segment.id} at row {row}, target='{target_text[:50]}...'")
+            self.log(f"🔧 Auto-insert: BEFORE - segment.id={segment.id}, segment object ID={id(segment)}, old_target='{segment.target[:30] if segment.target else 'EMPTY'}'")
             
             # CRITICAL: Update segment data directly
             # The segment parameter IS a reference to the object in self.current_project.segments
@@ -13831,6 +13847,7 @@ class SupervertalerQt(QMainWindow):
             segment.target = target_text
             segment.status = 'translated'  # Mark as translated
             self.project_modified = True
+            self.log(f"🔧 Auto-insert: AFTER - segment.id={segment.id}, segment object ID={id(segment)}, new_target='{segment.target[:30] if segment.target else 'EMPTY'}'")
             self.log(f"🔧 Auto-insert: Updated segment.target, status=translated")
             
             # Update grid view if visible
@@ -13856,9 +13873,10 @@ class SupervertalerQt(QMainWindow):
                     if target_widget:
                         self.log(f"🔧 Auto-insert: Got target widget, type={type(target_widget).__name__}")
                         if hasattr(target_widget, 'setPlainText'):
-                            target_widget.blockSignals(True)
+                            # CRITICAL: Do NOT block signals - we need textChanged to update segment.target
+                            # The segment was already updated above (line ~13855), but the widget needs to trigger
+                            # the handler so they stay in sync
                             target_widget.setPlainText(target_text)
-                            target_widget.blockSignals(False)
                             self.log(f"🔧 Auto-insert: Set widget text to '{target_text[:50]}...'")
                         else:
                             self.log(f"⚠️ Auto-insert: Widget has no setPlainText method!")
