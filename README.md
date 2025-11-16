@@ -26,7 +26,7 @@
 
 ### 🆕 Qt Edition (Modern) - **PRIMARY**
 **File:** `Supervertaler_Qt.py`
-**Version:** v1.4.3 (November 16, 2025)
+**Version:** v1.5.1 (November 16, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -34,7 +34,7 @@
 python Supervertaler_Qt.py
 ```
 
-**NEW in v1.4.3 - Source/Target Tab Cycling:**
+**NEW in v1.5.1 - Source/Target Tab Cycling:**
 - 🔄 **Tab Key Cycling** - Press `Tab` to jump between source and target cells
 - ⌨️ **Termbase Workflow** - Select term in source → `Tab` → select translation in target
 - 🔠 **Ctrl+Tab** - Insert actual tab character when needed

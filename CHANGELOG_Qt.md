@@ -25,7 +25,7 @@ The Qt Edition is the **primary version** for active development and new feature
 
 ---
 
-## [1.4.3] - November 16, 2025
+## [1.5.1] - November 16, 2025
 
 ### ⌨️ Source/Target Tab Cycling for Termbase Workflow
 

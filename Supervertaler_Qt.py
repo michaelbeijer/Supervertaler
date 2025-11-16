@@ -1274,7 +1274,7 @@ class SupervertalerQt(QMainWindow):
         # Create example API keys file on first launch (after UI is ready)
         self.ensure_example_api_keys()
         
-        self.log("Welcome to Supervertaler Qt v1.4.3")
+        self.log("Welcome to Supervertaler Qt v1.5.1")
         self.log("Supervertaler: The ultimate companion tool for translators and writers.")
         
         # Load general settings (including auto-propagation)
