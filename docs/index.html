@@ -48,7 +48,7 @@
                     Supervertaler
                     <span class="gradient-text">The Ultimate Companion Tool For Translators</span>
                 </h1>
-                <p class="version-badge">v1.5.0 - November 15, 2025</p>
+                <p class="version-badge">v1.5.1 - November 16, 2025</p>
                 <p class="hero-subtitle">
                     AI-powered features that work alongside your CAT tool (memoQ, Trados).
                     2-Layer Prompt Architecture with AI Assistant, specialized modules, and intelligent features.
@@ -64,7 +64,7 @@
                     </a>
                 </div>
                 <div class="hero-badges">
-                    <span class="badge badge-cat">🆕 Qt Edition v1.5.0 - Translation Results Enhancement 🎯</span>
+                    <span class="badge badge-cat">🆕 Qt Edition v1.5.1 - Tab Cycling & Translation Results 🎯</span>
                     <span class="badge badge-cat">Tkinter Edition v3.7.7 - Stable & Feature-Rich</span>
                 </div>
             </div>
@@ -314,24 +314,24 @@
             <h2 class="section-title">Features</h2>
             <p class="section-subtitle">Everything you need for professional translation work</p>
             
-            <!-- NEW in v1.5.0 Highlight Box -->
+            <!-- NEW in v1.5.1 Highlight Box -->
             <div style="background: linear-gradient(135deg, #4CAF50 0%, #45B7D1 100%); padding: 30px; border-radius: 15px; margin-bottom: 40px; color: white; box-shadow: 0 10px 40px rgba(76,175,80,0.4);">
                 <h3 style="font-size: 28px; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
-                    🎯 NEW in v1.5.0: Translation Results Enhancement + Match Shortcuts
+                    ⌨️ NEW in v1.5.1: Tab Cycling + Translation Results Enhancement
                 </h3>
                 <p style="font-size: 18px; margin-bottom: 20px; line-height: 1.6;">
-                    All translation matches now accumulate progressively (termbase + TM + MT + LLM). Quick insert with keyboard shortcuts and smart status management!
+                    Tab key cycles between Source/Target cells for termbase workflow! Plus progressive match loading (termbase + TM + MT + LLM) with keyboard shortcuts.
                 </p>
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+                    <div style="background: rgba(255,255,255,0.2); padding: 20px; border-radius: 10px;">
+                        <div style="font-size: 24px; margin-bottom: 10px;">⌨️</div>
+                        <h4 style="margin-bottom: 8px;">Tab Cycling</h4>
+                        <p style="font-size: 14px; opacity: 0.95;">Press Tab to cycle between Source/Target cells</p>
+                    </div>
                     <div style="background: rgba(255,255,255,0.2); padding: 20px; border-radius: 10px;">
                         <div style="font-size: 24px; margin-bottom: 10px;">🎯</div>
                         <h4 style="margin-bottom: 8px;">Progressive Loading</h4>
                         <p style="font-size: 14px; opacity: 0.95;">All match types accumulate instead of replacing</p>
-                    </div>
-                    <div style="background: rgba(255,255,255,0.2); padding: 20px; border-radius: 10px;">
-                        <div style="font-size: 24px; margin-bottom: 10px;">⌨️</div>
-                        <h4 style="margin-bottom: 8px;">F9 Hotkey</h4>
-                        <p style="font-size: 14px; opacity: 0.95;">Press-to-start, press-to-stop recording anywhere</p>
                     </div>
                     <div style="background: rgba(255,255,255,0.2); padding: 20px; border-radius: 10px;">
                         <div style="font-size: 24px; margin-bottom: 10px;">🎚️</div>
@@ -348,6 +348,20 @@
             
             <div class="features-grid">
                 <div class="feature-card" style="border: 2px solid #4CAF50;">
+                    <div class="feature-icon">⌨️</div>
+                    <h3>Tab Cycling for Termbase Workflow <span class="badge-new">v1.5.1</span></h3>
+                    <p>Press Tab to cycle focus between Source and Target cells, perfect for building termbase entries. Select terms in both cells and send to termbase.</p>
+                    <ul class="feature-list">
+                        <li>Tab key cycles: Target → Source → Target</li>
+                        <li>Ctrl+Tab: Insert actual tab character</li>
+                        <li>Text selection with keyboard (Shift+arrows)</li>
+                        <li>Arrow keys navigate within cells</li>
+                        <li>Optimized for termbase workflow</li>
+                        <li>Future: dual selection tracking</li>
+                    </ul>
+                </div>
+
+                <div class="feature-card">
                     <div class="feature-icon">🎯</div>
                     <h3>Translation Results Enhancement <span class="badge-new">v1.5.0</span></h3>
                     <p>Progressive match loading shows all translation sources simultaneously with powerful keyboard shortcuts for quick insertion.</p>
