@@ -25,6 +25,31 @@ The Qt Edition is the **primary version** for active development and new feature
 
 ---
 
+## [1.4.3] - November 16, 2025
+
+### ⌨️ Source/Target Tab Cycling for Termbase Workflow
+
+**New Feature:**
+- 🔄 **Tab Key Cycling** - Press `Tab` in target cell to jump to source cell, then `Tab` again to return to target
+  - Enables fast termbase workflow: select term in source, Tab to target, select translation
+  - Works bidirectionally: Target → Source → Target
+  - Both source and target cells support text selection with keyboard and mouse
+  - Arrow keys work in both cells for cursor movement
+- 🔠 **Ctrl+Tab** - Insert actual tab character when needed (in both source and target)
+
+**Technical Implementation:**
+- Source cells (`ReadOnlyGridTextEditor`) now intercept Tab at the `event()` level for reliable cycling
+- Target cells (`EditableGridTextEditor`) handle Tab in `keyPressEvent()`
+- Text selection enabled in source cells via `TextSelectableByKeyboard | TextSelectableByMouse` flags
+- Focus policy set to `StrongFocus` on both cell types
+
+**Workflow Benefits:**
+- Facilitates termbase entry: select source term → Tab → select target translation → add to termbase
+- Maintains active text selections in both cells simultaneously for termbase operations
+- No need to click between cells, keyboard-only navigation
+
+---
+
 ## [1.5.0] - November 15, 2025
 
 ### 🔍 Translation Results Enhancement + Match Insertion Shortcuts

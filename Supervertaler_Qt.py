@@ -277,9 +277,34 @@ class GridTextEditor(QTextEdit):
     
     table_widget = None  # Will be set by delegate
     assistance_panel = None  # Will be set by delegate
+    current_row = None  # Track which row this editor is in
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        # Prevent Tab from changing focus - we handle it manually
+        self.setTabChangesFocus(False)
     
     def keyPressEvent(self, event):
-        """Override to handle Ctrl+1-9, Ctrl+Up/Down shortcuts"""
+        """Override keyPressEvent to handle Tab - this is called AFTER event()"""
+        # Ctrl+Tab: Insert actual tab character
+        if event.key() == Qt.Key.Key_Tab and event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+            self.insertPlainText('\t')
+            event.accept()
+            return
+        
+        # Tab (without Ctrl): Cycle to source cell
+        if event.key() == Qt.Key.Key_Tab:
+            if self.table_widget and self.current_row is not None:
+                # Close current editor
+                self.table_widget.closeEditor(self, QAbstractItemDelegate.EndEditHint.NoHint)
+                # Open editor for source cell in same row (column 2)
+                source_index = self.table_widget.model().index(self.current_row, 2)
+                self.table_widget.setCurrentIndex(source_index)
+                self.table_widget.edit(source_index)
+                event.accept()
+                return
+        
+        # Handle other Ctrl+ shortcuts
         if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
             # Ctrl+1 through Ctrl+9: Insert match by number
             # TODO: Update to work with new results_panels system
@@ -312,6 +337,7 @@ class GridTextEditor(QTextEdit):
             return
         
         # All other keys: Handle normally (including ESC for closing editor)
+        print(f"🔑 GridTextEditor: Passing to super().keyPressEvent")
         super().keyPressEvent(event)
 
 
@@ -321,14 +347,28 @@ class ReadOnlyGridTextEditor(QTextEdit):
     # Class variable for tag highlight color (shared across all instances)
     tag_highlight_color = '#FFB6C1'  # Default light pink
     
-    def __init__(self, text: str = "", parent=None):
+    table_widget = None  # Will be set by delegate
+    current_row = None  # Track which row this editor is in
+    allow_source_edit = False  # Will be set by delegate based on settings
+    
+    def __init__(self, text: str = "", parent=None, row: int = -1):
         super().__init__(parent)
-        self.setReadOnly(True)
+        self.row = row  # Store row number for Tab cycling
+        self.table_ref = parent  # Store table reference (parent is the table)
+        self.setReadOnly(True)  # Prevent typing but allow selection
         self.setPlainText(text)
         self.setWordWrapMode(QTextOption.WrapMode.WordWrap)
         self.setAcceptRichText(False)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        
+        # CRITICAL: Enable keyboard focus and text selection
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        # Enable text interaction: selection with keyboard and mouse
+        self.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByKeyboard | 
+            Qt.TextInteractionFlag.TextSelectableByMouse
+        )
         
         # Style to look like a normal cell with subtle selection
         # IMPORTANT: Use light gray background instead of transparent to avoid text visibility issues
@@ -368,6 +408,36 @@ class ReadOnlyGridTextEditor(QTextEdit):
         
         # Add syntax highlighter for tags
         self.highlighter = TagHighlighter(self.document(), self.tag_highlight_color)
+    
+    def event(self, event):
+        """Override event() to catch Tab key before Qt's default handling"""
+        # Catch Tab key at event level (before keyPressEvent)
+        if event.type() == event.Type.KeyPress:
+            key_event = event
+            if key_event.key() == Qt.Key.Key_Tab:
+                # Ctrl+Tab: Insert actual tab character (if editing is allowed)
+                if key_event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+                    if self.allow_source_edit:
+                        self.insertPlainText('\t')
+                        return True  # Event handled
+                
+                # Tab alone: Cycle to target cell (column 3) in same row
+                if key_event.modifiers() == Qt.KeyboardModifier.NoModifier:
+                    if self.table_ref and self.row >= 0:
+                        # Get target cell widget (column 3)
+                        target_widget = self.table_ref.cellWidget(self.row, 3)
+                        if target_widget:
+                            target_widget.setFocus()
+                            self.table_ref.setCurrentCell(self.row, 3)
+                            return True  # Event handled, don't propagate
+        
+        # Let base class handle all other events
+        return super().event(event)
+    
+    def keyPressEvent(self, event):
+        """Override to handle other keys (Tab is handled in event())"""
+        # All keys: Handle normally (Tab already handled in event())
+        super().keyPressEvent(event)
     
     def sizeHint(self):
         """Return compact size based on content"""
@@ -481,6 +551,9 @@ class EditableGridTextEditor(QTextEdit):
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         
+        # CRITICAL: Enable strong focus to receive Tab key events
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        
         # Add syntax highlighter for tags
         self.highlighter = TagHighlighter(self.document(), self.tag_highlight_color)
         
@@ -568,6 +641,28 @@ class EditableGridTextEditor(QTextEdit):
                     main_window.on_cell_selected(self.row, 3, -1, -1)
             except Exception as e:
                 print(f"Error triggering manual cell selection: {e}")
+    
+    def keyPressEvent(self, event):
+        """Handle Tab key to cycle between source and target cells"""
+        # Ctrl+Tab: Insert actual tab character
+        if event.key() == Qt.Key.Key_Tab and event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+            self.insertPlainText('\t')
+            event.accept()
+            return
+        
+        # Tab alone: Cycle to source cell (column 2) in same row
+        if event.key() == Qt.Key.Key_Tab and event.modifiers() == Qt.KeyboardModifier.NoModifier:
+            if self.table and self.row >= 0:
+                # Get source cell widget (column 2)
+                source_widget = self.table.cellWidget(self.row, 2)
+                if source_widget:
+                    source_widget.setFocus()
+                    self.table.setCurrentCell(self.row, 2)
+                    event.accept()
+                    return
+        
+        # All other keys: Handle normally
+        super().keyPressEvent(event)
 
 
 class TermbaseHighlightWidget(QLabel):
@@ -664,18 +759,20 @@ class TermbaseHighlightWidget(QLabel):
 class WordWrapDelegate(QStyledItemDelegate):
     """Custom delegate to enable word wrap when editing cells"""
     
-    def __init__(self, assistance_panel=None, table_widget=None):
+    def __init__(self, assistance_panel=None, table_widget=None, allow_source_edit=False):
         super().__init__()
         self.assistance_panel = assistance_panel
         self.table_widget = table_widget
+        self.allow_source_edit = allow_source_edit  # Controls whether source can be edited
     
     def createEditor(self, parent, option, index):
         """Create a QTextEdit for multi-line editing with word wrap"""
-        # Only use QTextEdit for Target column (column 3)
+        # Target column (column 3) - always editable
         if index.column() == 3:
             editor = GridTextEditor(parent)
             editor.assistance_panel = self.assistance_panel
             editor.table_widget = self.table_widget
+            editor.current_row = index.row()
             editor.setWordWrapMode(QTextOption.WrapMode.WordWrap)
             editor.setAcceptRichText(False)  # Plain text only
             editor.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
@@ -689,12 +786,48 @@ class WordWrapDelegate(QStyledItemDelegate):
                 QTimer.singleShot(0, lambda: table.resizeRowToContents(index.row()))
             
             return editor
+        
+        # Source column (column 2) - editable for selection/dual selection, optionally editable for content
+        elif index.column() == 2:
+            editor = ReadOnlyGridTextEditor("", parent)
+            editor.table_widget = self.table_widget
+            editor.current_row = index.row()
+            editor.allow_source_edit = self.allow_source_edit
+            
+            # If allow_source_edit is True, make it actually editable (with warning color)
+            if self.allow_source_edit:
+                editor.setReadOnly(False)
+                editor.setStyleSheet("""
+                    QTextEdit {
+                        border: none;
+                        background-color: #FFF9E6;
+                        padding: 0px;
+                        color: black;
+                    }
+                    QTextEdit:focus {
+                        border: 1px solid #FF9800;
+                        background-color: #FFFACD;
+                        color: black;
+                    }
+                    QTextEdit::selection {
+                        background-color: #D0E7FF;
+                        color: black;
+                    }
+                """)
+            
+            # Ensure the row is tall enough for editing
+            table = parent.parent()
+            if hasattr(table, 'resizeRowToContents'):
+                from PyQt6.QtCore import QTimer
+                QTimer.singleShot(0, lambda: table.resizeRowToContents(index.row()))
+            
+            return editor
         else:
             return super().createEditor(parent, option, index)
     
     def setEditorData(self, editor, index):
         """Load data into the editor"""
-        if isinstance(editor, QTextEdit):
+        if isinstance(editor, (QTextEdit, ReadOnlyGridTextEditor)):
             text = index.model().data(index, Qt.ItemDataRole.EditRole)
             editor.setPlainText(text or "")
             # Ensure cursor is at start
@@ -706,7 +839,13 @@ class WordWrapDelegate(QStyledItemDelegate):
     
     def setModelData(self, editor, model, index):
         """Save data from editor back to model"""
-        if isinstance(editor, QTextEdit):
+        if isinstance(editor, ReadOnlyGridTextEditor):
+            # Only save if editing is allowed
+            if editor.allow_source_edit:
+                text = editor.toPlainText()
+                model.setData(index, text, Qt.ItemDataRole.EditRole)
+            # Otherwise, just close without saving (was for selection only)
+        elif isinstance(editor, QTextEdit):
             text = editor.toPlainText()
             model.setData(index, text, Qt.ItemDataRole.EditRole)
         else:
@@ -714,7 +853,7 @@ class WordWrapDelegate(QStyledItemDelegate):
     
     def updateEditorGeometry(self, editor, option, index):
         """Set the editor geometry to match the cell size"""
-        if isinstance(editor, QTextEdit):
+        if isinstance(editor, (QTextEdit, ReadOnlyGridTextEditor)):
             # Make the editor fill the cell properly with some padding
             rect = option.rect
             editor.setGeometry(rect)
@@ -1135,7 +1274,7 @@ class SupervertalerQt(QMainWindow):
         # Create example API keys file on first launch (after UI is ready)
         self.ensure_example_api_keys()
         
-        self.log("Welcome to Supervertaler Qt v1.4.2")
+        self.log("Welcome to Supervertaler Qt v1.4.3")
         self.log("Supervertaler: The ultimate companion tool for translators and writers.")
         
         # Load general settings (including auto-propagation)
@@ -5615,7 +5754,8 @@ class SupervertalerQt(QMainWindow):
         
         # Apply custom delegate for word wrap in edit mode
         # Pass None for assistance_panel (keyboard shortcuts disabled for now)
-        self.table.setItemDelegate(WordWrapDelegate(None, self.table))
+        # Pass allow_replace_in_source setting to control source editing
+        self.table.setItemDelegate(WordWrapDelegate(None, self.table, self.allow_replace_in_source))
         
         # Row behavior - Enable multi-selection with full row selection (memoQ-style)
         self.table.verticalHeader().setVisible(False)
@@ -7768,7 +7908,7 @@ class SupervertalerQt(QMainWindow):
                 self.table.setItem(row, 1, type_item)
                 
                 # Source - Use read-only QTextEdit widget for easy text selection
-                source_editor = ReadOnlyGridTextEditor(segment.source, self.table)
+                source_editor = ReadOnlyGridTextEditor(segment.source, self.table, row)
                 
                 # Initialize empty termbase matches (will be populated lazily on segment selection or by background worker)
                 source_editor.termbase_matches = {}
@@ -12162,6 +12302,15 @@ class SupervertalerQt(QMainWindow):
 
         for key in stale_keys:
             self.warning_banners.pop(key, None)
+        
+        # Update the grid delegate to reflect the new setting
+        self.update_grid_delegate()
+    
+    def update_grid_delegate(self):
+        """Update the grid's item delegate to reflect current settings"""
+        if hasattr(self, 'table') and self._widget_is_alive(self.table):
+            # Recreate the delegate with updated settings
+            self.table.setItemDelegate(WordWrapDelegate(None, self.table, self.allow_replace_in_source))
     
     def show_tm_manager(self):
         """Show Translation Memory Manager dialog (separate window)"""

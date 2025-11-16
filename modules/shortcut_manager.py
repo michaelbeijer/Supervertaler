@@ -318,6 +318,20 @@ class ShortcutManager:
             "action": "insert_line_break",
             "context": "editor_alt"
         },
+        "editor_cycle_source_target": {
+            "category": "Editor",
+            "description": "Cycle between Source/Target cells",
+            "default": "Tab",
+            "action": "cycle_source_target",
+            "context": "grid_editor"
+        },
+        "editor_insert_tab": {
+            "category": "Editor",
+            "description": "Insert Tab character",
+            "default": "Ctrl+Tab",
+            "action": "insert_tab",
+            "context": "grid_editor"
+        },
     }
     
     def __init__(self, settings_file: Optional[Path] = None):
