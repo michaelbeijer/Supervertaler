@@ -13940,3 +13940,1491 @@ Choice[0] message.role: assistant
 Choice[0] message.content type: <class 'str'>
 Choice[0] message.content value: '<b>Learn to program the most beautiful apps in Python</b>'
 Choice[0] message.refusal: None
+
+============================================================
+[2025-11-16 23:59:08.340632] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 77 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Course in Basic Python Programming'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 00:18:20.170218] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 77 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Course in Basic Python Programming'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 00:20:49.004510] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 96 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Not so crazy, because Python has many advantages:'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 00:20:53.087182] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 112 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '<li>The Python software is free to download and install.</li>'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 00:21:07.515896] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 112 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '<li>The Python software is free to download and install.</li>'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 00:22:36.167224] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 96 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Not so crazy, because Python has many advantages:'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 00:22:40.225354] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 112 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '<li>The Python software is free to download and install.</li>'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 00:25:15.788369] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 77 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Course on Basic Python Programming'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 00:42:24.153480] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 77 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Course on Basic Python Programming'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 00:42:39.443671] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 95 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '<b>Learn to program the most beautiful apps in Python</b>'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 00:42:50.636512] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 110 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Python is one of the most widely used programming languages in the world.'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 00:43:02.298106] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 110 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Python is one of the most widely used programming languages in the world.'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 00:43:40.022465] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 96 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Not so crazy, because Python has many advantages:'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 00:43:50.763576] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 110 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Python is one of the most widely used programming languages in the world.'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 00:47:44.315751] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 77 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Course on Basic Python Programming'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 00:48:24.251017] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 110 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Python is one of the most widely used programming languages in the world.'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 00:48:28.334043] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 77 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Course on Basic Python Programming'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 00:48:31.859489] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 96 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Not so crazy, because Python has many advantages:'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 00:48:35.943155] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 112 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '<li>The Python software is free to download and install.</li>'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 00:48:51.497976] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 168 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '<li>The application possibilities are endless, think for example of scripts, games, apps, data analyses, and websites.</li>'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 00:49:46.168301] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 168 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '<li>The application possibilities are endless, think for example of scripts, games, apps, data analyses, and websites.</li>'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 00:50:42.167541] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 108 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '<li>Python can be used on almost any development platform.</li>'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 00:50:46.066587] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 168 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '<li>The application possibilities are endless, think for example of scripts, games, apps, data analyses, and websites.</li>'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 00:52:55.412007] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 150 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: "<li>Code snippets can be inherited, so you don't have to enter every line again.</li>"
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 01:02:17.375544] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 95 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '<b>Learn to program the most beautiful apps in Python</b>'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 01:02:32.468882] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 168 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '<li>The application possibilities are endless, think for example of scripts, games, apps, data analyses, and websites.</li>'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 01:02:40.249100] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 108 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '<li>Python can be used on almost any development platform.</li>'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 01:02:51.886753] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 168 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '<li>The application possibilities are endless, think for example of scripts, games, apps, data analyses, and websites.</li>'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 01:03:24.905318] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 168 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '<li>The application possibilities are endless, think for example of scripts, games, apps, data analyses, and websites.</li>'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 01:03:34.058419] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 108 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '<li>Python can be used on almost any development platform.</li>'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 01:03:40.592551] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 168 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '<li>The application possibilities are endless, think for example of scripts, games, apps, data analyses, and websites.</li>'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 01:04:05.117467] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 150 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: "<li>Code snippets can be inherited, so you don't have to enter every line again.</li>"
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 01:04:10.436807] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 168 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '<li>The application possibilities are endless, think for example of scripts, games, apps, data analyses, and websites.</li>'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 01:04:44.332488] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 108 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '<li>Python can be used on almost any development platform.</li>'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 01:04:48.768537] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 168 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '<li>The application possibilities are endless, think for example of scripts, games, apps, data analyses, and websites.</li>'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 01:11:56.381208] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 77 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Course in Basic Python Programming'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 01:12:08.351972] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 95 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '<b>Learn to program the most beautiful apps in Python</b>'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 01:12:23.842047] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 108 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '<li>Python can be used on almost any development platform.</li>'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 01:12:32.174659] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 116 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '<li>Programming in Python is easy to learn, even for beginners.</li>'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 01:12:48.409373] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 116 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '<li>Programming in Python is easy to learn, even for beginners.</li>'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 01:21:06.374032] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 77 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Course on Basic Python Programming'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 01:21:25.330629] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 168 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '<li>The application possibilities are endless, think for example of scripts, games, apps, data analyses, and websites.</li>'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 01:21:51.269150] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 108 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '<li>Python can be used on almost any development platform.</li>'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 01:21:55.486455] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 168 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '<li>The application possibilities are endless, think for example of scripts, games, apps, data analyses, and websites.</li>'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 01:27:17.164598] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 77 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Course on Basic Python Programming'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 01:44:11.375075] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 77 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Course in Basic Python Programming'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 02:04:17.310063] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 77 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Course in Basic Python Programming'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 02:05:31.425331] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 110 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Python is one of the most widely used programming languages in the world.'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 02:05:42.070677] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 168 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '<li>The application possibilities are endless, think for example of scripts, games, apps, data analyses, and websites.</li>'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 02:17:45.744052] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 77 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Course in Basic Python Programming'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 02:49:31.829391] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 168 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '<li>The application possibilities are endless, think for example of scripts, games, apps, data analyses, and websites.</li>'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 02:49:42.962733] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 150 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: "<li>Code snippets can be inherited, so you don't have to rewrite every line.</li>"
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 02:49:46.915064] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 168 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '<li>The application possibilities are endless, think for example of scripts, games, apps, data analyses, and websites.</li>'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 03:07:59.719292] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 77 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Course on Basic Python Programming'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 03:08:09.262728] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 108 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '<li>Python can be used on almost any development platform.</li>'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 03:08:34.482557] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 96 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Not so crazy, because Python has many advantages:'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 03:08:41.107003] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 116 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '<li>Programming in Python is easy to learn, even for beginners.</li>'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 03:19:58.374540] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 110 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Python is one of the most widely used programming languages in the world.'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 03:20:14.267462] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 116 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '<li>Programming in Python is easy to learn, even for beginners.</li>'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 03:20:18.432877] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 110 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Python is one of the most widely used programming languages in the world.'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 03:20:46.409762] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 96 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Not so crazy, because Python has many advantages:'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 03:27:20.945328] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 77 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Course in Basic Python Programming'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 03:27:34.350397] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 116 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '<li>Programming in Python is easy to learn, even for beginners.</li>'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 03:36:49.538584] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 77 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Course in Basic Python Programming'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 03:37:30.597971] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 77 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Course in Basic Python Programming'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 03:54:30.366929] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 77 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Course in Basic Python Programming'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 04:00:22.602456] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 77 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Course in Basic Python Programming'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 04:01:54.451268] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 77 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Course in Basic Python Programming'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 04:02:05.868340] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 95 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '<b>Learn to program the most beautiful apps in Python</b>'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 04:02:11.974237] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 110 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Python is one of the most widely used programming languages in the world.'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 04:03:47.842375] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 168 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '<li>The application possibilities are endless, think for example of scripts, games, apps, data analyses, and websites.</li>'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 04:04:31.787303] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 150 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: "<li>Code snippets can be inherited, so you don't have to write each line again.</li>"
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 04:04:36.994684] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 168 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '<li>The application possibilities are endless, think for example of scripts, games, apps, data analyses, and websites.</li>'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 04:05:08.461721] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 108 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '<li>Python can be used on almost any development platform.</li>'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 04:10:35.752330] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 77 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Course in Basic Python Programming'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 04:11:16.667873] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 77 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Course in Basic Python Programming'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 04:12:34.810824] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 77 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Course in Basic Python Programming'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 04:14:48.136251] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 77 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Course in Basic Python Programming'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 04:15:38.291176] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 77 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Course in Basic Python Programming'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 04:16:39.953077] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 77 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Course in Basic Python Programming'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 04:28:08.249114] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 77 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Course in Basic Python Programming'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 04:28:44.699240] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 77 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Course in Basic Python Programming'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 04:29:07.075274] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 77 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Course in Basic Python Programming'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 10:50:56.687244] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 77 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Course on Basic Python Programming'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 10:51:09.033766] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 77 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Course in Basic Python Programming'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 11:01:36.494909] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 77 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Course in Basic Python Programming'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 11:02:13.833549] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 96 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Not so crazy, because Python has many advantages:'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 11:02:17.712665] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 77 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Course on Basic Python Programming'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 11:53:33.854022] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 77 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Course in Basic Python Programming'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 11:54:39.894140] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 95 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '<b>Learn to program the most beautiful apps in Python</b>'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 12:33:42.081205] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 77 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Course in Basic Python Programming'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 12:34:20.403272] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 110 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Python is one of the most widely used programming languages in the world.'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 12:34:37.860412] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 110 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Python is one of the most widely used programming languages in the world.'
+Choice[0] message.refusal: None

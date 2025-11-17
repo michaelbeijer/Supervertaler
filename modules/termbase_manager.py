@@ -284,9 +284,10 @@ class TermbaseManager:
     # ========================================================================
     
     def add_term(self, termbase_id: int, source_term: str, target_term: str,
-                 priority: int = 99, domain: str = "", definition: str = "",
+                 priority: int = 99, domain: str = "", notes: str = "",
+                 project: str = "", client: str = "",
                  forbidden: bool = False, source_lang: Optional[str] = None,
-                 target_lang: Optional[str] = None) -> Optional[int]:
+                 target_lang: Optional[str] = None, term_uuid: Optional[str] = None) -> Optional[int]:
         """
         Add a term to termbase
         
@@ -296,24 +297,32 @@ class TermbaseManager:
             target_term: Target language term
             priority: Priority (1=highest, 99=default)
             domain: Domain/category
-            definition: Optional definition
+            notes: Optional notes/definition
+            project: Optional project name
+            client: Optional client name
             forbidden: Whether this is a forbidden term
             source_lang: Source language code
             target_lang: Target language code
+            term_uuid: Optional UUID for tracking term across imports/exports
             
         Returns:
             Term ID or None if failed
         """
         try:
+            import uuid
             cursor = self.db_manager.cursor
+            
+            # Generate UUID if not provided
+            if not term_uuid:
+                term_uuid = str(uuid.uuid4())
             
             cursor.execute("""
                 INSERT INTO termbase_terms 
-                (termbase_id, source_term, target_term, priority, domain, definition, 
-                 forbidden, source_lang, target_lang)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (termbase_id, source_term, target_term, priority, domain, definition,
-                  forbidden, source_lang, target_lang))
+                (termbase_id, source_term, target_term, priority, domain, notes,
+                 project, client, forbidden, source_lang, target_lang, term_uuid)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (termbase_id, source_term, target_term, priority, domain, notes,
+                  project, client, forbidden, source_lang, target_lang, term_uuid))
             
             self.db_manager.connection.commit()
             term_id = cursor.lastrowid
@@ -329,7 +338,8 @@ class TermbaseManager:
             cursor = self.db_manager.cursor
             
             cursor.execute("""
-                SELECT id, source_term, target_term, priority, domain, definition, forbidden
+                SELECT id, source_term, target_term, priority, domain, notes,
+                       project, client, forbidden, term_uuid
                 FROM termbase_terms
                 WHERE termbase_id = ?
                 ORDER BY priority ASC, source_term ASC
@@ -343,8 +353,11 @@ class TermbaseManager:
                     'target_term': row[2],
                     'priority': row[3],
                     'domain': row[4],
-                    'definition': row[5],
-                    'forbidden': row[6]
+                    'notes': row[5],
+                    'project': row[6],
+                    'client': row[7],
+                    'forbidden': row[8],
+                    'term_uuid': row[9]
                 })
             
             return terms
@@ -354,7 +367,8 @@ class TermbaseManager:
     
     def update_term(self, term_id: int, source_term: Optional[str] = None,
                    target_term: Optional[str] = None, priority: Optional[int] = None,
-                   domain: Optional[str] = None, definition: Optional[str] = None,
+                   domain: Optional[str] = None, notes: Optional[str] = None,
+                   project: Optional[str] = None, client: Optional[str] = None,
                    forbidden: Optional[bool] = None) -> bool:
         """Update a term"""
         try:
@@ -374,9 +388,15 @@ class TermbaseManager:
             if domain is not None:
                 updates.append("domain = ?")
                 params.append(domain)
-            if definition is not None:
-                updates.append("definition = ?")
-                params.append(definition)
+            if notes is not None:
+                updates.append("notes = ?")
+                params.append(notes)
+            if project is not None:
+                updates.append("project = ?")
+                params.append(project)
+            if client is not None:
+                updates.append("client = ?")
+                params.append(client)
             if forbidden is not None:
                 updates.append("forbidden = ?")
                 params.append(forbidden)

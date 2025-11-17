@@ -3,8 +3,8 @@ Supervertaler Qt Edition
 ========================
 The ultimate companion tool for translators and writers.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.6.0 (Complete Termbase System with Interactive Features)
-Release Date: November 16, 2025
+Version: 1.6.2 (Image Extractor - Superimage)
+Release Date: November 17, 2025
 Framework: PyQt6
 
 This is the modern edition of Supervertaler using PyQt6 framework.
@@ -13,6 +13,7 @@ For the classic tkinter edition, see Supervertaler_tkinter.py
 Key Features:
 - Complete Translation Matching: Termbase + TM + MT + Multi-LLM
 - Supervoice: AI-powered voice dictation (100+ languages via OpenAI Whisper)
+- Superimage: Extract images from DOCX files with preview
 - Google Cloud Translation API integration
 - Multi-LLM Support: OpenAI GPT, Claude, Google Gemini
 - 2-Layer Prompt Architecture (System + Custom Prompts) with AI Assistant
@@ -30,9 +31,9 @@ License: MIT
 """
 
 # Version Information
-__version__ = "1.6.0"
-__phase__ = "8.0"
-__release_date__ = "2025-11-16"
+__version__ = "1.6.2"
+__phase__ = "8.2"
+__release_date__ = "2025-11-17"
 __edition__ = "Qt"
 
 import sys
@@ -215,6 +216,7 @@ class Project:
     created: str = ""
     modified: str = ""
     prompt_settings: Dict[str, Any] = None  # Store active prompt settings
+    id: int = None  # Unique project ID for TM activation tracking
     
     def __post_init__(self):
         if self.segments is None:
@@ -225,6 +227,12 @@ class Project:
             self.modified = datetime.now().isoformat()
         if self.prompt_settings is None:
             self.prompt_settings = {}
+        # Generate ID if not set (for backward compatibility with old projects)
+        if self.id is None:
+            import hashlib
+            # Create stable ID from project name + created timestamp
+            id_source = f"{self.name}_{self.created}"
+            self.id = int(hashlib.md5(id_source.encode()).hexdigest()[:8], 16)
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization"""
@@ -234,7 +242,8 @@ class Project:
             'target_lang': self.target_lang,
             'segments': [seg.to_dict() for seg in self.segments],
             'created': self.created,
-            'modified': self.modified
+            'modified': self.modified,
+            'id': self.id  # Save project ID
         }
         # Add prompt settings if they exist
         if hasattr(self, 'prompt_settings'):
@@ -255,7 +264,8 @@ class Project:
             target_lang=data.get('target_lang', 'nl'),
             segments=segments,
             created=data.get('created', ''),
-            modified=data.get('modified', '')
+            modified=data.get('modified', ''),
+            id=data.get('id', None)  # Load project ID (will auto-generate if missing)
         )
         # Store prompt settings if they exist
         if 'prompt_settings' in data:
@@ -1532,16 +1542,26 @@ class TermMetadataDialog(QDialog):
         meta_group = QGroupBox("Metadata (Optional)")
         meta_layout = QFormLayout()
         
-        # Definition
-        self.definition_edit = QTextEdit()
-        self.definition_edit.setMaximumHeight(60)
-        self.definition_edit.setPlaceholderText("Enter definition or context...")
-        meta_layout.addRow("Definition:", self.definition_edit)
-        
         # Domain
         self.domain_edit = QLineEdit()
-        self.domain_edit.setPlaceholderText("e.g., Medical, Legal, Technical...")
+        self.domain_edit.setPlaceholderText("e.g., Patents, Legal, Medical, IT...")
         meta_layout.addRow("Domain:", self.domain_edit)
+        
+        # Notes
+        self.notes_edit = QTextEdit()
+        self.notes_edit.setMaximumHeight(60)
+        self.notes_edit.setPlaceholderText("Usage notes, context, definition, URLs...")
+        meta_layout.addRow("Notes:", self.notes_edit)
+        
+        # Project
+        self.project_edit = QLineEdit()
+        self.project_edit.setPlaceholderText("Optional project name...")
+        meta_layout.addRow("Project:", self.project_edit)
+        
+        # Client
+        self.client_edit = QLineEdit()
+        self.client_edit.setPlaceholderText("Optional client name...")
+        meta_layout.addRow("Client:", self.client_edit)
         
         # Priority
         priority_layout = QHBoxLayout()
@@ -1581,8 +1601,10 @@ class TermMetadataDialog(QDialog):
     def get_metadata(self):
         """Return dictionary of metadata fields"""
         return {
-            'definition': self.definition_edit.toPlainText().strip(),
             'domain': self.domain_edit.text().strip(),
+            'notes': self.notes_edit.toPlainText().strip(),
+            'project': self.project_edit.text().strip(),
+            'client': self.client_edit.text().strip(),
             'priority': self.priority_spin.value(),
             'forbidden': self.forbidden_check.isChecked()
         }
@@ -2086,20 +2108,17 @@ class SupervertalerQt(QMainWindow):
         # Tools Menu
         tools_menu = menubar.addMenu("&Tools")
         
-        tm_manager_tab_action = QAction("📚 TM Manager (Launch in &tab)", self)
-        tm_manager_tab_action.setShortcut("Ctrl+M")
-        tm_manager_tab_action.triggered.connect(self.show_tm_manager_in_tab)
-        tools_menu.addAction(tm_manager_tab_action)
-        
-        tm_manager_window_action = QAction("🪟 TM Manager (Separate &window)...", self)
-        tm_manager_window_action.setShortcut("Ctrl+Shift+M")
-        tm_manager_window_action.triggered.connect(self.show_tm_manager)
-        tools_menu.addAction(tm_manager_window_action)
-        
         autofingers_action = QAction("✋ &AutoFingers - CAT Tool Automation...", self)
         autofingers_action.setShortcut("Ctrl+Shift+A")
         autofingers_action.triggered.connect(self.show_autofingers)
         tools_menu.addAction(autofingers_action)
+        
+        tools_menu.addSeparator()
+        
+        image_extractor_action = QAction("🖼️ &Image Extractor (Superimage)...", self)
+        image_extractor_action.triggered.connect(self.show_image_extractor_from_tools)
+        image_extractor_action.setToolTip("Extract images from DOCX files")
+        tools_menu.addAction(image_extractor_action)
         
         tools_menu.addSeparator()
         
@@ -2463,10 +2482,200 @@ class SupervertalerQt(QMainWindow):
     
     def create_reference_images_tab(self) -> QWidget:
         """Create the Reference Images tab - Visual context"""
-        return self._create_placeholder_tab(
-            "🖼️ Reference Images",
-            "Reference Images - Coming Soon\n\nFeatures:\n• Upload reference images\n• Visual context for translation\n• Screenshot annotation"
-        )
+        from modules.image_extractor import ImageExtractor
+        
+        tab = QWidget()
+        main_layout = QVBoxLayout(tab)
+        main_layout.setContentsMargins(10, 10, 10, 10)
+        main_layout.setSpacing(5)
+        
+        # Compact header with title and extract button in one row
+        header_layout = QHBoxLayout()
+        
+        title = QLabel("🖼️ Image Extractor")
+        title.setStyleSheet("font-size: 14px; font-weight: bold; color: #2c3e50;")
+        header_layout.addWidget(title)
+        
+        header_layout.addStretch()
+        
+        # Extract button (moved to top)
+        extract_btn = QPushButton("🖼️ Extract Images")
+        extract_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #3498db;
+                color: white;
+                font-weight: bold;
+                font-size: 12px;
+                padding: 6px 12px;
+                border-radius: 3px;
+            }
+            QPushButton:hover {
+                background-color: #2980b9;
+            }
+        """)
+        extract_btn.clicked.connect(self._on_extract_images)
+        header_layout.addWidget(extract_btn)
+        
+        main_layout.addLayout(header_layout)
+        
+        # Compact controls in a single row
+        controls_layout = QHBoxLayout()
+        
+        # Input files
+        add_file_btn = QPushButton("📄 Add File")
+        add_file_btn.clicked.connect(self._on_add_docx_file_for_extraction)
+        add_file_btn.setMaximumWidth(100)
+        controls_layout.addWidget(add_file_btn)
+        
+        add_folder_btn = QPushButton("📁 Folder")
+        add_folder_btn.clicked.connect(self._on_add_docx_folder_for_extraction)
+        add_folder_btn.setMaximumWidth(80)
+        controls_layout.addWidget(add_folder_btn)
+        
+        clear_list_btn = QPushButton("🗑️")
+        clear_list_btn.clicked.connect(lambda: self.image_extractor_file_list.clear())
+        clear_list_btn.setMaximumWidth(40)
+        clear_list_btn.setToolTip("Clear file list")
+        controls_layout.addWidget(clear_list_btn)
+        
+        # File list (compact, inline)
+        self.image_extractor_file_list = QListWidget()
+        self.image_extractor_file_list.setMaximumHeight(60)
+        self.image_extractor_file_list.setStyleSheet("font-size: 9px;")
+        controls_layout.addWidget(self.image_extractor_file_list, 1)
+        
+        # Auto-folder checkbox
+        self.image_extractor_auto_folder = QCheckBox("📁 Auto-folder")
+        self.image_extractor_auto_folder.setChecked(False)
+        self.image_extractor_auto_folder.setToolTip("Create 'Images' folder next to each DOCX file")
+        self.image_extractor_auto_folder.toggled.connect(self._on_auto_folder_toggled)
+        controls_layout.addWidget(self.image_extractor_auto_folder)
+        
+        # Output directory
+        self.image_extractor_output_dir = QLineEdit()
+        self.image_extractor_output_dir.setPlaceholderText("Output directory...")
+        self.image_extractor_output_dir.setMaximumWidth(200)
+        controls_layout.addWidget(self.image_extractor_output_dir)
+        
+        browse_btn = QPushButton("Browse...")
+        browse_btn.clicked.connect(self._on_browse_output_dir_for_extraction)
+        browse_btn.setMaximumWidth(80)
+        controls_layout.addWidget(browse_btn)
+        
+        # Filename prefix
+        controls_layout.addWidget(QLabel("Prefix:"))
+        self.image_extractor_prefix = QLineEdit("Fig.")
+        self.image_extractor_prefix.setMaximumWidth(60)
+        controls_layout.addWidget(self.image_extractor_prefix)
+        
+        main_layout.addLayout(controls_layout)
+        
+        # Main horizontal splitter (left: operations, right: preview)
+        results_splitter = QSplitter(Qt.Orientation.Horizontal)
+        
+        # Left panel: Status and file list
+        left_widget = QWidget()
+        left_layout = QVBoxLayout(left_widget)
+        left_layout.setContentsMargins(0, 0, 0, 0)
+        
+        status_label = QLabel("📋 Results")
+        status_label.setStyleSheet("font-weight: bold; font-size: 9px; color: #666;")
+        left_layout.addWidget(status_label)
+        
+        # Status text area (resizable)
+        self.image_extractor_status = QTextEdit()
+        self.image_extractor_status.setReadOnly(True)
+        self.image_extractor_status.setMinimumHeight(50)
+        self.image_extractor_status.setStyleSheet("font-size: 9px;")
+        self.image_extractor_status.setPlaceholderText("Extraction status...")
+        left_layout.addWidget(self.image_extractor_status)
+        
+        # Extracted files list
+        files_label = QLabel("📂 Extracted Files (click to preview)")
+        files_label.setStyleSheet("font-weight: bold; font-size: 9px; color: #666; margin-top: 3px;")
+        left_layout.addWidget(files_label)
+        
+        self.image_extractor_files_list = QListWidget()
+        self.image_extractor_files_list.itemClicked.connect(self._on_file_list_item_clicked)
+        self.image_extractor_files_list.setStyleSheet("""
+            QListWidget {
+                border: 1px solid #ccc;
+                background-color: white;
+                font-size: 9px;
+            }
+            QListWidget::item {
+                padding: 3px;
+                border-bottom: 1px solid #eee;
+            }
+            QListWidget::item:selected {
+                background-color: #e3f2fd;
+                color: black;
+            }
+            QListWidget::item:hover {
+                background-color: #f5f5f5;
+            }
+        """)
+        left_layout.addWidget(self.image_extractor_files_list)
+        
+        results_splitter.addWidget(left_widget)
+        
+        # Right panel: Full-height image preview
+        preview_widget = QWidget()
+        preview_layout = QVBoxLayout(preview_widget)
+        preview_layout.setContentsMargins(0, 0, 0, 0)
+        
+        preview_label = QLabel("🖼️ Image Preview")
+        preview_label.setStyleSheet("font-weight: bold; font-size: 9px; color: #666;")
+        preview_layout.addWidget(preview_label)
+        
+        # Large image display area with scroll
+        preview_scroll = QScrollArea()
+        preview_scroll.setWidgetResizable(True)
+        preview_scroll.setStyleSheet("QScrollArea { border: 1px solid #ccc; background-color: #f9f9f9; }")
+        preview_scroll.setMinimumWidth(300)
+        
+        self.image_extractor_preview = QLabel()
+        self.image_extractor_preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.image_extractor_preview.setStyleSheet("padding: 10px; background-color: white;")
+        self.image_extractor_preview.setText("No image selected\n\nClick on a file in the list to preview\nor\nExtract images to see them here")
+        self.image_extractor_preview.setWordWrap(True)
+        
+        preview_scroll.setWidget(self.image_extractor_preview)
+        preview_layout.addWidget(preview_scroll)
+        
+        # Preview navigation buttons at bottom
+        nav_layout = QHBoxLayout()
+        
+        self.preview_prev_btn = QPushButton("◀ Previous")
+        self.preview_prev_btn.clicked.connect(self._on_preview_prev)
+        self.preview_prev_btn.setEnabled(False)
+        nav_layout.addWidget(self.preview_prev_btn)
+        
+        self.preview_image_label = QLabel("No images")
+        self.preview_image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.preview_image_label.setStyleSheet("font-size: 8px; color: #666;")
+        nav_layout.addWidget(self.preview_image_label)
+        
+        self.preview_next_btn = QPushButton("Next ▶")
+        self.preview_next_btn.clicked.connect(self._on_preview_next)
+        self.preview_next_btn.setEnabled(False)
+        nav_layout.addWidget(self.preview_next_btn)
+        
+        preview_layout.addLayout(nav_layout)
+        
+        results_splitter.addWidget(preview_widget)
+        
+        # Set initial splitter sizes (40% left, 60% right)
+        results_splitter.setSizes([400, 600])
+        
+        main_layout.addWidget(results_splitter)
+        
+        # Initialize extractor and preview state
+        self.image_extractor = ImageExtractor()
+        self.extracted_image_files = []
+        self.current_preview_index = 0
+        
+        return tab
     
     def create_pdf_rescue_tab(self) -> QWidget:
         """Create the PDF Rescue tab - AI OCR"""
@@ -2496,6 +2705,271 @@ class SupervertalerQt(QMainWindow):
             "📊 Tracked Changes",
             "Tracked Changes - Coming Soon\n\nFeatures:\n• Track translation changes\n• Version history\n• Comparison reports"
         )
+    
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Image Extractor Helper Methods
+    # ═══════════════════════════════════════════════════════════════════════════
+    
+    def _on_add_docx_file_for_extraction(self):
+        """Add a single DOCX file to the extraction list"""
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select DOCX File",
+            "",
+            "Word Documents (*.docx)"
+        )
+        
+        if file_path:
+            # Avoid duplicates
+            items = [self.image_extractor_file_list.item(i).text() 
+                    for i in range(self.image_extractor_file_list.count())]
+            if file_path not in items:
+                self.image_extractor_file_list.addItem(file_path)
+    
+    def _on_add_docx_folder_for_extraction(self):
+        """Add all DOCX files from a folder to the extraction list"""
+        folder_path = QFileDialog.getExistingDirectory(
+            self,
+            "Select Folder Containing DOCX Files"
+        )
+        
+        if folder_path:
+            import glob
+            docx_files = glob.glob(os.path.join(folder_path, "*.docx"))
+            
+            # Get existing items to avoid duplicates
+            items = [self.image_extractor_file_list.item(i).text() 
+                    for i in range(self.image_extractor_file_list.count())]
+            
+            added = 0
+            for docx_file in docx_files:
+                if docx_file not in items:
+                    self.image_extractor_file_list.addItem(docx_file)
+                    added += 1
+            
+            if added > 0:
+                self.image_extractor_status.append(f"✅ Added {added} DOCX file(s) from folder")
+    
+    def _on_browse_output_dir_for_extraction(self):
+        """Browse for output directory"""
+        folder_path = QFileDialog.getExistingDirectory(
+            self,
+            "Select Output Directory for Extracted Images"
+        )
+        
+        if folder_path:
+            self.image_extractor_output_dir.setText(folder_path)
+    
+    def _on_auto_folder_toggled(self, checked):
+        """Handle auto-folder checkbox toggle"""
+        # Disable/enable output directory selection based on auto-folder
+        self.image_extractor_output_dir.setEnabled(not checked)
+        
+        if checked:
+            self.image_extractor_output_dir.setPlaceholderText("Auto: 'Images' folder next to each DOCX")
+        else:
+            self.image_extractor_output_dir.setPlaceholderText("Choose output directory...")
+    
+    def _on_file_list_item_clicked(self, item):
+        """Handle click on extracted file list item"""
+        if not item:
+            return
+        
+        # Get the file path stored in the item
+        file_path = item.data(Qt.ItemDataRole.UserRole)
+        
+        if file_path and file_path in self.extracted_image_files:
+            # Update current index and preview
+            self.current_preview_index = self.extracted_image_files.index(file_path)
+            self._update_preview()
+    
+    def _on_extract_images(self):
+        """Extract images from all DOCX files in the list"""
+        # Validate inputs
+        if self.image_extractor_file_list.count() == 0:
+            QMessageBox.warning(
+                self,
+                "No Files",
+                "Please add at least one DOCX file to extract images from."
+            )
+            return
+        
+        # Check if using auto-folder mode
+        use_auto_folder = self.image_extractor_auto_folder.isChecked()
+        
+        if not use_auto_folder:
+            output_dir = self.image_extractor_output_dir.text().strip()
+            if not output_dir:
+                QMessageBox.warning(
+                    self,
+                    "No Output Directory",
+                    "Please select an output directory for the extracted images."
+                )
+                return
+        
+        prefix = self.image_extractor_prefix.text().strip()
+        if not prefix:
+            prefix = "Fig."
+        
+        # Get list of files
+        docx_files = [self.image_extractor_file_list.item(i).text() 
+                     for i in range(self.image_extractor_file_list.count())]
+        
+        # Clear status, file list, and preview
+        self.image_extractor_status.clear()
+        self.image_extractor_status.append("🔄 Starting image extraction...\n")
+        self.image_extractor_files_list.clear()
+        self.extracted_image_files = []
+        self.current_preview_index = 0
+        self.image_extractor_preview.setText("No image selected\n\nClick on a file in the list to preview\nor\nExtract images to see them here")
+        QApplication.processEvents()
+        
+        try:
+            total_count = 0
+            all_extracted_files = []
+            
+            if use_auto_folder:
+                # Extract to "Images" folder next to each DOCX
+                self.image_extractor_status.append("📁 Mode: Auto-folder (Images subfolder per DOCX)\n")
+                
+                for docx_file in docx_files:
+                    docx_dir = os.path.dirname(docx_file)
+                    docx_name = os.path.splitext(os.path.basename(docx_file))[0]
+                    auto_output_dir = os.path.join(docx_dir, "Images")
+                    
+                    self.image_extractor_status.append(f"📄 Processing: {os.path.basename(docx_file)}")
+                    
+                    count, files = self.image_extractor.extract_images_from_docx(
+                        docx_file,
+                        auto_output_dir,
+                        prefix
+                    )
+                    
+                    total_count += count
+                    all_extracted_files.extend(files)
+                    
+                    if count > 0:
+                        self.image_extractor_status.append(f"   ✅ {count} image(s) → {auto_output_dir}")
+                    else:
+                        self.image_extractor_status.append(f"   ⚠️  No images found")
+                    
+                    QApplication.processEvents()
+                
+                output_msg = f"Images saved in 'Images' subfolders next to each DOCX file"
+            else:
+                # Extract all to single directory
+                output_dir = self.image_extractor_output_dir.text().strip()
+                self.image_extractor_status.append(f"📁 Output directory: {output_dir}\n")
+                
+                total_count, all_extracted_files = self.image_extractor.extract_from_multiple_docx(
+                    docx_files, 
+                    output_dir, 
+                    prefix
+                )
+                
+                output_msg = output_dir
+            
+            # Show results
+            self.image_extractor_status.append(f"\n✅ Successfully extracted {total_count} images!")
+            
+            if all_extracted_files:
+                # Store files for preview
+                self.extracted_image_files = all_extracted_files
+                self.current_preview_index = 0
+                
+                # Populate file list
+                self.image_extractor_files_list.clear()
+                for i, file_path in enumerate(all_extracted_files, 1):
+                    item = QListWidgetItem(f"{i}. {os.path.basename(file_path)}")
+                    item.setData(Qt.ItemDataRole.UserRole, file_path)  # Store full path
+                    item.setToolTip(file_path)  # Show full path on hover
+                    self.image_extractor_files_list.addItem(item)
+                
+                # Enable preview buttons
+                if len(self.extracted_image_files) > 0:
+                    self.preview_prev_btn.setEnabled(len(self.extracted_image_files) > 1)
+                    self.preview_next_btn.setEnabled(len(self.extracted_image_files) > 1)
+                    
+                    # Select and show first image
+                    self.image_extractor_files_list.setCurrentRow(0)
+                    self._update_preview()
+            
+            # Success message
+            QMessageBox.information(
+                self,
+                "Extraction Complete",
+                f"Successfully extracted {total_count} images!\n\n{output_msg}"
+            )
+            
+        except Exception as e:
+            self.image_extractor_status.append(f"\n❌ Error: {str(e)}")
+            QMessageBox.critical(
+                self,
+                "Extraction Error",
+                f"An error occurred during extraction:\n{str(e)}"
+            )
+    
+    def _update_preview(self):
+        """Update the image preview with the current image"""
+        if not self.extracted_image_files or self.current_preview_index >= len(self.extracted_image_files):
+            self.image_extractor_preview.setText("No image selected\n\nClick on a file in the list to preview\nor\nExtract images to see them here")
+            self.preview_image_label.setText("No images")
+            return
+        
+        image_path = self.extracted_image_files[self.current_preview_index]
+        
+        # Update list selection to match current preview
+        if hasattr(self, 'image_extractor_files_list'):
+            self.image_extractor_files_list.setCurrentRow(self.current_preview_index)
+        
+        try:
+            from PyQt6.QtGui import QPixmap
+            
+            pixmap = QPixmap(image_path)
+            
+            if not pixmap.isNull():
+                # Get the scroll area size for better scaling
+                scroll_area = self.image_extractor_preview.parent()
+                if scroll_area and hasattr(scroll_area, 'viewport'):
+                    viewport_size = scroll_area.viewport().size()
+                    max_width = viewport_size.width() - 40  # Account for padding
+                    max_height = viewport_size.height() - 40
+                else:
+                    # Fallback to larger default size
+                    max_width = 800
+                    max_height = 600
+                
+                # Scale image to fit preview area while maintaining aspect ratio
+                scaled_pixmap = pixmap.scaled(
+                    max_width, max_height,
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation
+                )
+                
+                self.image_extractor_preview.setPixmap(scaled_pixmap)
+                
+                # Update label with size info
+                self.preview_image_label.setText(
+                    f"Image {self.current_preview_index + 1} of {len(self.extracted_image_files)}: "
+                    f"{os.path.basename(image_path)} ({pixmap.width()}×{pixmap.height()}px)"
+                )
+            else:
+                self.image_extractor_preview.setText(f"Failed to load image:\n{os.path.basename(image_path)}")
+                
+        except Exception as e:
+            self.image_extractor_preview.setText(f"Error loading image:\n{str(e)}")
+    
+    def _on_preview_prev(self):
+        """Show previous image in preview"""
+        if self.extracted_image_files and self.current_preview_index > 0:
+            self.current_preview_index -= 1
+            self._update_preview()
+    
+    def _on_preview_next(self):
+        """Show next image in preview"""
+        if self.extracted_image_files and self.current_preview_index < len(self.extracted_image_files) - 1:
+            self.current_preview_index += 1
+            self._update_preview()
 
     def create_llm_leaderboard_tab(self) -> QWidget:
         """Create the Superbench tab - Benchmark LLM translation quality"""
@@ -2534,36 +3008,6 @@ class SupervertalerQt(QMainWindow):
         """Get API keys from settings"""
         from modules.llm_clients import load_api_keys
         return load_api_keys()
-    
-    def create_tm_manager_tab(self) -> QWidget:
-        """Create the TM Manager tab for the Tools section with full functionality"""
-        from modules.tm_manager_qt import TMManagerDialog
-        
-        # Create a container widget
-        tab = QWidget()
-        layout = QVBoxLayout(tab)
-        layout.setContentsMargins(5, 5, 5, 5)
-        
-        # Create nested tab widget for TM Manager functionality
-        tm_tabs = QTabWidget()
-        
-        # Create an instance of TMManagerDialog but use its tab creation methods
-        # We'll create the tabs directly without the dialog wrapper
-        temp_manager = TMManagerDialog(self, self.db_manager, self.log)
-        
-        # Add all the tabs from the TM Manager
-        tm_tabs.addTab(temp_manager.browser_tab, "📋 Browse")
-        tm_tabs.addTab(temp_manager.search_tab, "🔍 Concordance")
-        tm_tabs.addTab(temp_manager.import_export_tab, "📥 Import/Export")
-        tm_tabs.addTab(temp_manager.stats_tab, "📊 Statistics")
-        tm_tabs.addTab(temp_manager.maintenance_tab, "🧹 Maintenance")
-        
-        layout.addWidget(tm_tabs)
-        
-        # Store reference to temp_manager so it doesn't get garbage collected
-        tab._tm_manager = temp_manager
-        
-        return tab
     
     def show_concordance_search(self, initial_query: str = None):
         """Show concordance search dialog (Ctrl+K)"""
@@ -2908,7 +3352,7 @@ class SupervertalerQt(QMainWindow):
         self.log("Universal Lookup re-attached to Home tab")
     
     def create_projects_manager_tab(self):
-        """Create the Projects Manager tab - manage projects, attach TMs and glossaries (legacy - content moved to Home)"""
+        """Create the Projects Manager tab - manage projects, attach TMs and termbases (legacy - content moved to Home)"""
         # This method is kept for backwards compatibility but content is now in Home tab
         return self.create_home_tab()
     
@@ -2984,17 +3428,58 @@ class SupervertalerQt(QMainWindow):
         # Superbench
         leaderboard_tab = self.create_llm_leaderboard_tab()
         modules_tabs.addTab(leaderboard_tab, "📊 Superbench")
-        
-        # Translation Memory Manager
-        tm_manager_tab = self.create_tm_manager_tab()
-        modules_tabs.addTab(tm_manager_tab, "💾 TM Manager")
 
         layout.addWidget(modules_tabs)
 
         return tab
     
     def create_translation_memories_tab(self):
-        """Create the Translation Memories tab - manage all TMs (global)"""
+        """Create the Translation Memories tab with nested sub-tabs"""
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        
+        # Check if database is available
+        if not (hasattr(self, 'db_manager') and self.db_manager):
+            placeholder = QLabel("Translation Memories Manager\n\nDatabase not initialized.")
+            placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            placeholder.setStyleSheet("color: #888; font-size: 12px;")
+            layout.addWidget(placeholder, stretch=1)
+            return tab
+        
+        # Import TM metadata manager
+        from modules.tm_metadata_manager import TMMetadataManager
+        tm_metadata_mgr = TMMetadataManager(self.db_manager, self.log)
+        self.tm_metadata_mgr = tm_metadata_mgr  # Store for later use
+        
+        # Create nested tab widget for TM functionality
+        tm_tabs = QTabWidget()
+        
+        # Tab 1: TM List (Management) - manage multiple TMs
+        tm_list_tab = self._create_tm_list_tab(tm_metadata_mgr)
+        tm_tabs.addTab(tm_list_tab, "📋 TM List")
+        
+        # Tab 2: Browse All - browse ALL active TMs together
+        from modules.tm_manager_qt import TMManagerDialog
+        temp_manager = TMManagerDialog(self, self.db_manager, self.log)
+        tm_tabs.addTab(temp_manager.browser_tab, "📖 Browse All")
+        
+        # Tab 3: Concordance - search across ALL active TMs
+        tm_tabs.addTab(temp_manager.search_tab, "🔍 Concordance")
+        
+        # Tab 4: Statistics - aggregate stats for all TMs
+        tm_tabs.addTab(temp_manager.stats_tab, "📊 Statistics")
+        
+        # Store reference to prevent garbage collection
+        tab._tm_manager = temp_manager
+        
+        layout.addWidget(tm_tabs)
+        
+        return tab
+    
+    def _create_tm_list_tab(self, tm_metadata_mgr):
+        """Create the TM List sub-tab with table and management buttons"""
         tab = QWidget()
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(10, 10, 10, 10)
@@ -3005,86 +3490,163 @@ class SupervertalerQt(QMainWindow):
         layout.addWidget(header)
         
         # Description
-        desc = QLabel("Manage translation memories for project matching. View statistics and import/export TMs.")
+        desc = QLabel("Manage translation memories. Activate/deactivate TMs for current project. Import client TMX files as named TMs.")
         desc.setStyleSheet("color: #666; font-size: 11px; margin-bottom: 10px;")
         layout.addWidget(desc)
         
-        # Check if TM database is available
-        if not hasattr(self, 'tm_database') or not self.tm_database:
-            placeholder = QLabel("Translation Memories\n\nTM database not initialized.\nLoad a project to initialize TM system.")
-            placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            placeholder.setStyleSheet("color: #888; font-size: 12px;")
-            layout.addWidget(placeholder, stretch=1)
-            return tab
+        # Search bar
+        search_layout = QHBoxLayout()
+        search_box = QLineEdit()
+        search_box.setPlaceholderText("Search translation memories...")
+        search_box.setMaximumWidth(300)
+        search_layout.addWidget(search_box)
+        search_layout.addStretch()
+        layout.addLayout(search_layout)
         
-        # TM Statistics
-        stats_group = QGroupBox("TM Statistics")
-        stats_layout = QVBoxLayout()
+        # Help message for first-time users
+        help_msg = QLabel(
+            "💡 <b>Getting Started:</b> Create or import TM files below, then activate them (checkboxes) for this project. "
+            "Segments will be saved to all activated TMs."
+        )
+        help_msg.setWordWrap(True)
+        help_msg.setStyleSheet("background-color: #e3f2fd; padding: 8px; border-radius: 4px; color: #1976d2;")
+        layout.addWidget(help_msg)
         
-        try:
-            # Get TM stats from database
-            import sqlite3
-            db_path = self.user_data_path / "Translation_Resources" / "supervertaler.db"
-            conn = sqlite3.connect(str(db_path))
-            cursor = conn.cursor()
+        # TM list with table
+        tm_table = QTableWidget()
+        tm_table.setColumnCount(6)
+        tm_table.setHorizontalHeaderLabels(["Active", "TM Name", "Languages", "Entries", "Last Modified", "Description"])
+        tm_table.horizontalHeader().setStretchLastSection(True)
+        tm_table.setColumnWidth(0, 60)
+        tm_table.setColumnWidth(1, 250)
+        tm_table.setColumnWidth(2, 120)
+        tm_table.setColumnWidth(3, 80)
+        tm_table.setColumnWidth(4, 150)
+        
+        # Populate TM list
+        def refresh_tm_list():
+            # Get current project dynamically (not captured in closure!)
+            current_project = self.current_project if hasattr(self, 'current_project') else None
+            project_id = current_project.id if (current_project and hasattr(current_project, 'id')) else None
             
-            # Count total entries
-            cursor.execute("SELECT COUNT(*) FROM translation_units")
-            total_entries = cursor.fetchone()[0]
+            tms = tm_metadata_mgr.get_all_tms()
+            tm_table.setRowCount(len(tms))
             
-            # Count by TM ID
-            cursor.execute("SELECT tm_id, COUNT(*) FROM translation_units GROUP BY tm_id")
-            tm_stats = cursor.fetchall()
-            
-            conn.close()
-            
-            # Display stats
-            stats_info = QLabel(f"Total Translation Units: {total_entries}")
-            stats_info.setStyleSheet("font-weight: bold; color: #2563eb;")
-            stats_layout.addWidget(stats_info)
-            
-            if tm_stats:
-                stats_layout.addWidget(QLabel("TM Breakdown:"))
-                for tm_id, count in tm_stats:
-                    tm_label = QLabel(f"  • {tm_id}: {count} entries")
-                    tm_label.setStyleSheet("margin-left: 15px; color: #555;")
-                    stats_layout.addWidget(tm_label)
-            
-        except Exception as e:
-            error_label = QLabel(f"Error loading TM statistics: {e}")
-            error_label.setStyleSheet("color: #dc2626;")
-            stats_layout.addWidget(error_label)
+            for row, tm in enumerate(tms):
+                # Check if active for current project
+                is_active = tm_metadata_mgr.is_tm_active(tm['id'], project_id)
+                
+                # Active checkbox (use CheckmarkCheckBox for clear visual feedback)
+                checkbox = CheckmarkCheckBox()
+                checkbox.setChecked(is_active)
+                
+                def on_toggle(checked, tm_id=tm['id'], row_idx=row, name_item_ref=None):
+                    # Get current project ID dynamically (not from closure!)
+                    has_current_project = hasattr(self, 'current_project')
+                    curr_proj = self.current_project if has_current_project else None
+                    has_id = curr_proj and hasattr(curr_proj, 'id')
+                    curr_proj_id = curr_proj.id if has_id else None
+                    
+                    if curr_proj_id is None:
+                        self.log(f"⚠️ Cannot toggle TM - no project loaded. Please load a project first.")
+                        # Revert checkbox state
+                        sender_checkbox = tm_table.cellWidget(row_idx, 0)
+                        if sender_checkbox:
+                            sender_checkbox.blockSignals(True)
+                            sender_checkbox.setChecked(not checked)
+                            sender_checkbox.blockSignals(False)
+                        return
+                    
+                    # Perform activation/deactivation
+                    if checked:
+                        success = tm_metadata_mgr.activate_tm(tm_id, curr_proj_id)
+                        status = "activated" if success else "failed to activate"
+                    else:
+                        success = tm_metadata_mgr.deactivate_tm(tm_id, curr_proj_id)
+                        status = "deactivated" if success else "failed to deactivate"
+                    
+                    if success:
+                        self.log(f"✅ TM {tm_id} {status} for project {curr_proj_id}")
+                        # Update name to be bold if active, normal if inactive
+                        name_item = tm_table.item(row_idx, 1)
+                        if name_item:
+                            font = name_item.font()
+                            font.setBold(checked)
+                            name_item.setFont(font)
+                    else:
+                        self.log(f"❌ Failed to {status} TM {tm_id}")
+                        # Revert checkbox on failure
+                        sender_checkbox = tm_table.cellWidget(row_idx, 0)
+                        if sender_checkbox:
+                            sender_checkbox.blockSignals(True)
+                            sender_checkbox.setChecked(not checked)
+                            sender_checkbox.blockSignals(False)
+                
+                checkbox.toggled.connect(on_toggle)
+                tm_table.setCellWidget(row, 0, checkbox)
+                
+                # Name (bold if active)
+                name_item = QTableWidgetItem(tm['name'])
+                if is_active:
+                    font = name_item.font()
+                    font.setBold(True)
+                    name_item.setFont(font)
+                tm_table.setItem(row, 1, name_item)
+                
+                # Languages
+                langs = f"{tm['source_lang'] or '?'} → {tm['target_lang'] or '?'}"
+                tm_table.setItem(row, 2, QTableWidgetItem(langs))
+                
+                # Entry count
+                tm_table.setItem(row, 3, QTableWidgetItem(str(tm['entry_count'])))
+                
+                # Last modified
+                modified = tm['modified_date'] or tm['created_date'] or ''
+                if modified:
+                    # Format datetime nicely
+                    try:
+                        from datetime import datetime
+                        dt = datetime.fromisoformat(modified)
+                        modified = dt.strftime("%Y-%m-%d %H:%M")
+                    except:
+                        pass
+                tm_table.setItem(row, 4, QTableWidgetItem(modified))
+                
+                # Description
+                desc_text = tm['description'] or ''
+                tm_table.setItem(row, 5, QTableWidgetItem(desc_text))
         
-        stats_group.setLayout(stats_layout)
-        layout.addWidget(stats_group)
+        refresh_tm_list()
+        layout.addWidget(tm_table, stretch=1)
         
-        # TM Management Buttons
-        buttons_group = QGroupBox("TM Management")
-        buttons_layout = QVBoxLayout()
+        # Button bar
+        button_layout = QHBoxLayout()
         
-        # Import TMX button
-        import_btn = QPushButton("📥 Import TMX File")
-        import_btn.setToolTip("Import translation memory from TMX file")
-        import_btn.clicked.connect(self.import_tmx_file)
-        buttons_layout.addWidget(import_btn)
+        create_btn = QPushButton("+ Create New TM")
+        create_btn.clicked.connect(lambda: self._show_create_tm_dialog(tm_metadata_mgr, refresh_tm_list, project_id))
+        button_layout.addWidget(create_btn)
         
-        # Export TMX button
-        export_btn = QPushButton("📤 Export TM as TMX")
-        export_btn.setToolTip("Export current translation memory to TMX file")
-        export_btn.clicked.connect(self.export_tm_as_tmx)
-        buttons_layout.addWidget(export_btn)
+        import_btn = QPushButton("📥 Import TMX")
+        import_btn.setToolTip("Import TMX file as a new TM or add to existing TM")
+        import_btn.clicked.connect(lambda: self._import_tmx_as_tm(tm_metadata_mgr, tm_table, refresh_tm_list))
+        button_layout.addWidget(import_btn)
         
-        # Clear TM button (with warning)
-        clear_btn = QPushButton("🗑️ Clear All TM Entries")
-        clear_btn.setToolTip("WARNING: This will delete all translation memory entries!")
-        clear_btn.setStyleSheet("color: #dc2626; font-weight: bold;")
-        clear_btn.clicked.connect(self.clear_tm_entries)
-        buttons_layout.addWidget(clear_btn)
+        export_btn = QPushButton("📤 Export TM")
+        export_btn.setToolTip("Export selected TM to TMX file")
+        export_btn.clicked.connect(lambda: self._export_tm_to_tmx(tm_metadata_mgr, tm_table))
+        button_layout.addWidget(export_btn)
         
-        buttons_group.setLayout(buttons_layout)
-        layout.addWidget(buttons_group)
+        edit_btn = QPushButton("✏️ Edit/Maintain TM")
+        edit_btn.setToolTip("Open editor for selected TM (Browse, Import/Export, Maintenance)")
+        edit_btn.clicked.connect(lambda: self._show_tm_editor_dialog(tm_metadata_mgr, tm_table))
+        button_layout.addWidget(edit_btn)
         
-        layout.addStretch()
+        delete_btn = QPushButton("🗑️ Delete TM")
+        delete_btn.clicked.connect(lambda: self._delete_tm(tm_metadata_mgr, tm_table, refresh_tm_list))
+        button_layout.addWidget(delete_btn)
+        
+        button_layout.addStretch()
+        layout.addLayout(button_layout)
         
         return tab
     
@@ -3579,8 +4141,10 @@ class SupervertalerQt(QMainWindow):
                     target_term=target_text,
                     source_lang=source_lang_code,
                     target_lang=target_lang_code,
-                    definition=metadata['definition'],
+                    notes=metadata['notes'],
                     domain=metadata['domain'],
+                    project=metadata['project'],
+                    client=metadata['client'],
                     priority=metadata['priority'],
                     forbidden=metadata['forbidden']
                 )
@@ -3787,9 +4351,11 @@ class SupervertalerQt(QMainWindow):
         button_layout.addWidget(create_btn)
         
         import_btn = QPushButton("📥 Import")
+        import_btn.clicked.connect(lambda: self._import_termbase(termbase_mgr, termbase_table))
         button_layout.addWidget(import_btn)
         
         export_btn = QPushButton("📤 Export")
+        export_btn.clicked.connect(lambda: self._export_termbase(termbase_mgr, termbase_table))
         button_layout.addWidget(export_btn)
         
         delete_btn = QPushButton("🗑️ Delete")
@@ -3934,6 +4500,205 @@ class SupervertalerQt(QMainWindow):
                     QMessageBox.critical(self, "Error", f"Failed to delete termbase: {str(e)}")
                     self.log(f"✗ Error deleting termbase: {e}")
     
+    def _import_termbase(self, termbase_mgr, termbase_table):
+        """Import terms into selected termbase from TSV file"""
+        selected_row = termbase_table.currentRow()
+        if selected_row < 0:
+            QMessageBox.warning(self, "Error", "Please select a termbase to import into")
+            return
+        
+        # Get termbase ID
+        tb_name = termbase_table.item(selected_row, 1).text()
+        termbases = termbase_mgr.get_all_termbases()
+        termbase = next((tb for tb in termbases if tb['name'] == tb_name), None)
+        if not termbase:
+            QMessageBox.warning(self, "Error", "Could not find selected termbase")
+            return
+        
+        # File dialog
+        from PyQt6.QtWidgets import QFileDialog
+        filepath, _ = QFileDialog.getOpenFileName(
+            self,
+            "Import Termbase",
+            "",
+            "TSV Files (*.tsv *.txt);;All Files (*.*)"
+        )
+        
+        if not filepath:
+            return
+        
+        # Show options dialog
+        options_dialog = QDialog(self)
+        options_dialog.setWindowTitle("Import Options")
+        options_dialog.setMinimumWidth(400)
+        
+        layout = QVBoxLayout(options_dialog)
+        
+        # Info
+        info_label = QLabel(f"Importing into termbase: <b>{tb_name}</b>")
+        info_label.setWordWrap(True)
+        layout.addWidget(info_label)
+        
+        # Duplicate handling
+        dup_group = QGroupBox("Duplicate Handling")
+        dup_layout = QVBoxLayout()
+        
+        skip_radio = QRadioButton("Skip duplicates (keep existing terms)")
+        skip_radio.setChecked(True)
+        update_radio = QRadioButton("Update duplicates (overwrite existing terms)")
+        
+        dup_layout.addWidget(skip_radio)
+        dup_layout.addWidget(update_radio)
+        dup_group.setLayout(dup_layout)
+        layout.addWidget(dup_group)
+        
+        # Buttons
+        button_box = QHBoxLayout()
+        button_box.addStretch()
+        
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(options_dialog.reject)
+        button_box.addWidget(cancel_btn)
+        
+        import_btn = QPushButton("Import")
+        import_btn.setStyleSheet("font-weight: bold; background-color: #4CAF50; color: white; padding: 8px 20px;")
+        import_btn.clicked.connect(options_dialog.accept)
+        button_box.addWidget(import_btn)
+        
+        layout.addLayout(button_box)
+        
+        if options_dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        
+        # Perform import
+        from modules.termbase_import_export import TermbaseImporter
+        importer = TermbaseImporter(self.db_manager, termbase_mgr)
+        
+        self.log(f"📥 Importing termbase from {filepath}...")
+        
+        result = importer.import_tsv(
+            filepath=filepath,
+            termbase_id=termbase['id'],
+            skip_duplicates=skip_radio.isChecked(),
+            update_duplicates=update_radio.isChecked()
+        )
+        
+        # Show results
+        if result.success:
+            # Build detailed message
+            message = f"<b>Import Complete</b><br><br>"
+            message += f"✅ Imported: {result.imported_count} terms<br>"
+            if result.skipped_count > 0:
+                message += f"⏭️ Skipped: {result.skipped_count} duplicates<br>"
+            if result.error_count > 0:
+                message += f"❌ Errors: {result.error_count}<br>"
+            
+            if result.errors:
+                message += "<br><b>Errors:</b><br>"
+                for line_num, error_msg in result.errors[:10]:  # Show first 10 errors
+                    message += f"Line {line_num}: {error_msg}<br>"
+                if len(result.errors) > 10:
+                    message += f"... and {len(result.errors) - 10} more errors<br>"
+            
+            msg_box = QMessageBox(self)
+            msg_box.setWindowTitle("Import Results")
+            msg_box.setIcon(QMessageBox.Icon.Information)
+            msg_box.setText(message)
+            msg_box.setTextFormat(Qt.TextFormat.RichText)
+            msg_box.exec()
+            
+            self.log(f"✓ {result.message}")
+            
+            # Clear cache
+            with self.termbase_cache_lock:
+                self.termbase_cache.clear()
+        else:
+            QMessageBox.critical(self, "Import Failed", result.message)
+            self.log(f"✗ Import failed: {result.message}")
+    
+    def _export_termbase(self, termbase_mgr, termbase_table):
+        """Export selected termbase to TSV file"""
+        selected_row = termbase_table.currentRow()
+        if selected_row < 0:
+            QMessageBox.warning(self, "Error", "Please select a termbase to export")
+            return
+        
+        # Get termbase ID
+        tb_name = termbase_table.item(selected_row, 1).text()
+        termbases = termbase_mgr.get_all_termbases()
+        termbase = next((tb for tb in termbases if tb['name'] == tb_name), None)
+        if not termbase:
+            QMessageBox.warning(self, "Error", "Could not find selected termbase")
+            return
+        
+        # File dialog
+        from PyQt6.QtWidgets import QFileDialog
+        default_filename = f"{tb_name.replace(' ', '_')}.tsv"
+        filepath, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export Termbase",
+            default_filename,
+            "TSV Files (*.tsv);;Text Files (*.txt);;All Files (*.*)"
+        )
+        
+        if not filepath:
+            return
+        
+        # Show options dialog
+        options_dialog = QDialog(self)
+        options_dialog.setWindowTitle("Export Options")
+        options_dialog.setMinimumWidth(400)
+        
+        layout = QVBoxLayout(options_dialog)
+        
+        # Info
+        info_label = QLabel(f"Exporting termbase: <b>{tb_name}</b>")
+        info_label.setWordWrap(True)
+        layout.addWidget(info_label)
+        
+        # Metadata checkbox
+        metadata_check = QCheckBox("Include all metadata (project, client, forbidden)")
+        metadata_check.setChecked(True)
+        layout.addWidget(metadata_check)
+        
+        # Buttons
+        button_box = QHBoxLayout()
+        button_box.addStretch()
+        
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(options_dialog.reject)
+        button_box.addWidget(cancel_btn)
+        
+        export_btn = QPushButton("Export")
+        export_btn.setStyleSheet("font-weight: bold; background-color: #2196F3; color: white; padding: 8px 20px;")
+        export_btn.clicked.connect(options_dialog.accept)
+        button_box.addWidget(export_btn)
+        
+        layout.addLayout(button_box)
+        
+        if options_dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        
+        # Perform export
+        from modules.termbase_import_export import TermbaseExporter
+        exporter = TermbaseExporter(self.db_manager, termbase_mgr)
+        
+        self.log(f"📤 Exporting termbase to {filepath}...")
+        
+        success, message = exporter.export_tsv(
+            termbase_id=termbase['id'],
+            filepath=filepath,
+            include_metadata=metadata_check.isChecked()
+        )
+        
+        # Show result
+        if success:
+            QMessageBox.information(self, "Export Complete", message)
+            self.log(f"✓ {message}")
+        else:
+            QMessageBox.critical(self, "Export Failed", message)
+            self.log(f"✗ Export failed: {message}")
+    
     def _update_term_forbidden(self, term_id: int, forbidden: bool):
         """Update forbidden flag for a term"""
         try:
@@ -3972,14 +4737,17 @@ class SupervertalerQt(QMainWindow):
         
         # Terms table
         terms_table = QTableWidget()
-        terms_table.setColumnCount(5)
-        terms_table.setHorizontalHeaderLabels(["Source", "Target", "Domain", "Priority", "Forbidden"])
+        terms_table.setColumnCount(8)
+        terms_table.setHorizontalHeaderLabels(["Source", "Target", "Domain", "Priority", "Notes", "Project", "Client", "Forbidden"])
         terms_table.horizontalHeader().setStretchLastSection(False)
-        terms_table.setColumnWidth(0, 150)
-        terms_table.setColumnWidth(1, 150)
-        terms_table.setColumnWidth(2, 150)
-        terms_table.setColumnWidth(3, 80)
-        terms_table.setColumnWidth(4, 80)
+        terms_table.setColumnWidth(0, 120)
+        terms_table.setColumnWidth(1, 120)
+        terms_table.setColumnWidth(2, 100)
+        terms_table.setColumnWidth(3, 60)
+        terms_table.setColumnWidth(4, 150)
+        terms_table.setColumnWidth(5, 100)
+        terms_table.setColumnWidth(6, 100)
+        terms_table.setColumnWidth(7, 80)
         
         # Load terms
         def refresh_terms_table():
@@ -3999,10 +4767,21 @@ class SupervertalerQt(QMainWindow):
                 priority_item.setFlags(priority_item.flags() | Qt.ItemFlag.ItemIsEditable)
                 terms_table.setItem(row, 3, priority_item)
                 
+                # Notes column (truncated for display)
+                notes_text = term.get('notes', '') or ""
+                if len(notes_text) > 50:
+                    notes_text = notes_text[:47] + "..."
+                terms_table.setItem(row, 4, QTableWidgetItem(notes_text))
+                
+                # Project and Client columns
+                terms_table.setItem(row, 5, QTableWidgetItem(term.get('project', '') or ""))
+                terms_table.setItem(row, 6, QTableWidgetItem(term.get('client', '') or ""))
+                
+                # Forbidden checkbox
                 forbidden_check = QCheckBox()
                 forbidden_check.setChecked(term['forbidden'])
                 forbidden_check.toggled.connect(lambda checked, t_id=term['id']: self._update_term_forbidden(t_id, checked))
-                terms_table.setCellWidget(row, 4, forbidden_check)
+                terms_table.setCellWidget(row, 7, forbidden_check)
         
         # Handle term field changes
         def on_term_changed(item: QTableWidgetItem):
@@ -4078,6 +4857,359 @@ class SupervertalerQt(QMainWindow):
         
         dialog.setLayout(layout)
         dialog.exec()
+    
+    # ========================================================================
+    # TRANSLATION MEMORY HELPER METHODS
+    # ========================================================================
+    
+    def _show_create_tm_dialog(self, tm_metadata_mgr, refresh_callback, project_id):
+        """Show dialog to create new TM"""
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Create New Translation Memory")
+        dialog.setMinimumWidth(450)
+        
+        layout = QFormLayout()
+        
+        # TM Name
+        name_field = QLineEdit()
+        name_field.setPlaceholderText("e.g., ClientX_Medical_2024")
+        layout.addRow("TM Name:", name_field)
+        
+        # TM ID (auto-generated from name, but editable)
+        tm_id_field = QLineEdit()
+        tm_id_field.setPlaceholderText("e.g., clientx_medical_2024")
+        layout.addRow("TM ID:", tm_id_field)
+        
+        # Auto-generate TM ID from name
+        def update_tm_id():
+            name = name_field.text().strip()
+            if name and not tm_id_field.text():
+                # Convert name to valid tm_id
+                tm_id = name.lower().replace(' ', '_').replace('-', '_')
+                # Remove special characters
+                tm_id = ''.join(c for c in tm_id if c.isalnum() or c == '_')
+                tm_id_field.setText(tm_id)
+        
+        name_field.textChanged.connect(update_tm_id)
+        
+        # Source language
+        source_lang_field = QLineEdit()
+        source_lang_field.setPlaceholderText("e.g., en, nl, de")
+        layout.addRow("Source Language:", source_lang_field)
+        
+        # Target language
+        target_lang_field = QLineEdit()
+        target_lang_field.setPlaceholderText("e.g., en, nl, de")
+        layout.addRow("Target Language:", target_lang_field)
+        
+        # Description
+        desc_field = QTextEdit()
+        desc_field.setMaximumHeight(80)
+        desc_field.setPlaceholderText("Optional description...")
+        layout.addRow("Description:", desc_field)
+        
+        # Buttons
+        button_box = QHBoxLayout()
+        button_box.addStretch()
+        
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(dialog.reject)
+        button_box.addWidget(cancel_btn)
+        
+        create_btn = QPushButton("Create")
+        create_btn.setStyleSheet("font-weight: bold;")
+        create_btn.clicked.connect(dialog.accept)
+        button_box.addWidget(create_btn)
+        
+        layout.addRow("", button_box)
+        
+        dialog.setLayout(layout)
+        
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            name = name_field.text().strip()
+            tm_id = tm_id_field.text().strip()
+            source_lang = source_lang_field.text().strip() or None
+            target_lang = target_lang_field.text().strip() or None
+            description = desc_field.toPlainText().strip()
+            
+            if not name:
+                QMessageBox.warning(self, "Error", "Please enter a TM name")
+                return
+            
+            if not tm_id:
+                QMessageBox.warning(self, "Error", "Please enter a TM ID")
+                return
+            
+            # Create TM
+            result = tm_metadata_mgr.create_tm(
+                name=name,
+                tm_id=tm_id,
+                source_lang=source_lang,
+                target_lang=target_lang,
+                description=description
+            )
+            
+            if result:
+                # Auto-activate for current project
+                if project_id:
+                    tm_metadata_mgr.activate_tm(result, project_id)
+                
+                QMessageBox.information(self, "Success", f"Translation Memory '{name}' created successfully!")
+                refresh_callback()
+            else:
+                QMessageBox.critical(self, "Error", "Failed to create TM. The TM name or ID may already exist.")
+    
+    def _import_tmx_as_tm(self, tm_metadata_mgr, tm_table, refresh_callback):
+        """Import TMX file as a new TM or add to existing TM"""
+        from PyQt6.QtWidgets import QFileDialog, QRadioButton, QButtonGroup
+        
+        # File dialog
+        filepath, _ = QFileDialog.getOpenFileName(
+            self,
+            "Import TMX File",
+            "",
+            "TMX Files (*.tmx);;All Files (*.*)"
+        )
+        
+        if not filepath:
+            return
+        
+        # Ask user: create new TM or add to existing?
+        choice_dialog = QDialog(self)
+        choice_dialog.setWindowTitle("Import TMX")
+        choice_dialog.setMinimumWidth(400)
+        
+        layout = QVBoxLayout(choice_dialog)
+        
+        layout.addWidget(QLabel(f"Importing: {filepath}\n"))
+        layout.addWidget(QLabel("Choose import option:"))
+        
+        new_tm_radio = QRadioButton("Create new TM from this TMX")
+        new_tm_radio.setChecked(True)
+        layout.addWidget(new_tm_radio)
+        
+        existing_tm_radio = QRadioButton("Add to existing TM")
+        layout.addWidget(existing_tm_radio)
+        
+        # TM selection combo (for existing TM option)
+        tm_combo = QComboBox()
+        tm_combo.setEnabled(False)
+        tms = tm_metadata_mgr.get_all_tms()
+        for tm in tms:
+            tm_combo.addItem(tm['name'], tm['tm_id'])
+        layout.addWidget(tm_combo)
+        
+        existing_tm_radio.toggled.connect(tm_combo.setEnabled)
+        
+        # Buttons
+        button_box = QHBoxLayout()
+        button_box.addStretch()
+        
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(choice_dialog.reject)
+        button_box.addWidget(cancel_btn)
+        
+        import_btn = QPushButton("Import")
+        import_btn.setStyleSheet("font-weight: bold;")
+        import_btn.clicked.connect(choice_dialog.accept)
+        button_box.addWidget(import_btn)
+        
+        layout.addLayout(button_box)
+        
+        if choice_dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        
+        # Determine target tm_id
+        target_tm_id = None
+        
+        if new_tm_radio.isChecked():
+            # Create new TM - ask for name
+            from pathlib import Path
+            default_name = Path(filepath).stem  # Use filename without extension
+            
+            name, ok = QInputDialog.getText(
+                self,
+                "New TM Name",
+                "Enter name for the new Translation Memory:",
+                text=default_name
+            )
+            
+            if not ok or not name:
+                return
+            
+            # Generate tm_id from name
+            tm_id = name.lower().replace(' ', '_').replace('-', '_')
+            tm_id = ''.join(c for c in tm_id if c.isalnum() or c == '_')
+            
+            # Create TM metadata entry
+            db_id = tm_metadata_mgr.create_tm(
+                name=name,
+                tm_id=tm_id,
+                source_lang=None,  # Will be detected from TMX
+                target_lang=None,
+                description=f"Imported from {Path(filepath).name}"
+            )
+            
+            if not db_id:
+                QMessageBox.critical(self, "Error", "Failed to create TM metadata")
+                return
+            
+            target_tm_id = tm_id
+        else:
+            # Use existing TM
+            target_tm_id = tm_combo.currentData()
+            if not target_tm_id:
+                QMessageBox.warning(self, "Error", "No TM selected")
+                return
+        
+        # Import TMX
+        try:
+            if not self.tm_database:
+                self.initialize_tm_database()
+            
+            if self.tm_database:
+                # Import using existing TM database import method
+                self.tm_database.import_tmx(filepath, tm_id=target_tm_id)
+                
+                # Update entry count
+                tm_metadata_mgr.update_entry_count(target_tm_id)
+                
+                QMessageBox.information(self, "Success", f"TMX imported successfully into TM '{target_tm_id}'!")
+                refresh_callback()
+            else:
+                QMessageBox.critical(self, "Error", "TM database not available")
+        except Exception as e:
+            self.log(f"✗ Error importing TMX: {e}")
+            import traceback
+            traceback.print_exc()
+            QMessageBox.critical(self, "Import Error", f"Failed to import TMX:\n\n{str(e)}")
+    
+    def _export_tm_to_tmx(self, tm_metadata_mgr, tm_table):
+        """Export selected TM to TMX file"""
+        selected_row = tm_table.currentRow()
+        if selected_row < 0:
+            QMessageBox.warning(self, "Error", "Please select a TM to export")
+            return
+        
+        # Get TM
+        tm_name = tm_table.item(selected_row, 1).text()
+        tms = tm_metadata_mgr.get_all_tms()
+        tm = next((t for t in tms if t['name'] == tm_name), None)
+        if not tm:
+            QMessageBox.warning(self, "Error", "Could not find selected TM")
+            return
+        
+        # File dialog
+        from PyQt6.QtWidgets import QFileDialog
+        default_filename = f"{tm_name.replace(' ', '_')}.tmx"
+        filepath, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export TM to TMX",
+            default_filename,
+            "TMX Files (*.tmx);;All Files (*.*)"
+        )
+        
+        if not filepath:
+            return
+        
+        try:
+            # Get all entries for this TM
+            cursor = self.db_manager.cursor
+            cursor.execute("""
+                SELECT source_text, target_text 
+                FROM translation_units 
+                WHERE tm_id = ?
+                ORDER BY id
+            """, (tm['tm_id'],))
+            
+            entries = cursor.fetchall()
+            
+            if not entries:
+                QMessageBox.warning(self, "Empty TM", "This TM has no entries to export")
+                return
+            
+            # Generate TMX
+            from modules.tmx_generator import TMXGenerator
+            tmx_generator = TMXGenerator(log_callback=self.log)
+            
+            source_segments = [e[0] for e in entries]
+            target_segments = [e[1] for e in entries]
+            
+            tmx_tree = tmx_generator.generate_tmx(
+                source_segments=source_segments,
+                target_segments=target_segments,
+                source_lang=tm['source_lang'] or "en",
+                target_lang=tm['target_lang'] or "nl"
+            )
+            
+            if tmx_generator.save_tmx(tmx_tree, filepath):
+                self.log(f"✓ Exported TM '{tm_name}' to {filepath} ({len(entries)} entries)")
+                QMessageBox.information(
+                    self,
+                    "Export Complete",
+                    f"TM exported successfully!\n\nFile: {filepath}\nEntries: {len(entries)}"
+                )
+            else:
+                QMessageBox.warning(self, "Export Error", "Failed to save TMX file")
+        
+        except Exception as e:
+            self.log(f"✗ Error exporting TM: {e}")
+            import traceback
+            traceback.print_exc()
+            QMessageBox.critical(self, "Export Error", f"Failed to export TM:\n\n{str(e)}")
+    
+    def _delete_tm(self, tm_metadata_mgr, tm_table, refresh_callback):
+        """Delete selected TM"""
+        selected_row = tm_table.currentRow()
+        if selected_row < 0:
+            QMessageBox.warning(self, "Error", "Please select a TM to delete")
+            return
+        
+        # Get TM
+        tm_name = tm_table.item(selected_row, 1).text()
+        tms = tm_metadata_mgr.get_all_tms()
+        tm = next((t for t in tms if t['name'] == tm_name), None)
+        if not tm:
+            return
+        
+        # Confirm deletion
+        reply = QMessageBox.question(
+            self,
+            "Delete TM",
+            f"Delete TM '{tm_name}'?\n\nThis will also delete all {tm['entry_count']} translation units in this TM.\n\nThis action cannot be undone!",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+        
+        if reply == QMessageBox.StandardButton.Yes:
+            if tm_metadata_mgr.delete_tm(tm['id'], delete_entries=True):
+                QMessageBox.information(self, "Success", f"TM '{tm_name}' deleted successfully")
+                refresh_callback()
+            else:
+                QMessageBox.critical(self, "Error", "Failed to delete TM")
+    
+    def _show_tm_editor_dialog(self, tm_metadata_mgr, tm_table):
+        """Show TM Editor dialog for selected TM (combines old TM Manager functionality)"""
+        selected_row = tm_table.currentRow()
+        if selected_row < 0:
+            QMessageBox.warning(self, "Error", "Please select a TM to edit")
+            return
+        
+        # Get TM
+        tm_name = tm_table.item(selected_row, 1).text()
+        tms = tm_metadata_mgr.get_all_tms()
+        tm = next((t for t in tms if t['name'] == tm_name), None)
+        if not tm:
+            return
+        
+        # Open TM Editor with this specific TM
+        from modules.tm_editor_dialog import TMEditorDialog
+        dialog = TMEditorDialog(self, self.db_manager, self.log, tm_id=tm['tm_id'], tm_name=tm_name)
+        dialog.exec()
+    
+    # ========================================================================
+    # SETTINGS TAB
+    # ========================================================================
     
     def create_settings_tab(self):
         """Create the Settings tab - moved from Tools > Options dialog"""
@@ -7172,8 +8304,10 @@ class SupervertalerQt(QMainWindow):
                 
                 # Search termbases in database using provided cursor
                 try:
-                    # Build query based on language constraints
-                    query = "SELECT source_term, target_term FROM termbase_terms WHERE 1=1"
+                    # Build query based on language constraints - include all metadata fields
+                    query = """SELECT id, source_term, target_term, termbase_id, priority, 
+                               domain, notes, project, client, forbidden 
+                               FROM termbase_terms WHERE 1=1"""
                     params = []
                     
                     # Add word search constraint (case-insensitive)
@@ -7198,10 +8332,35 @@ class SupervertalerQt(QMainWindow):
                     
                     if results:
                         for row in results:
-                            source_term = row[0] if isinstance(row, tuple) else row['source_term']
-                            target_term = row[1] if isinstance(row, tuple) else row['target_term']
-                            if source_term and target_term:
-                                matches[source_term.strip()] = target_term.strip()
+                            if isinstance(row, tuple):
+                                source_term = row[1]
+                                target_term = row[2]
+                                # Store as dict with all metadata
+                                matches[source_term.strip()] = {
+                                    'translation': target_term.strip(),
+                                    'term_id': row[0],
+                                    'termbase_id': row[3],
+                                    'priority': row[4],
+                                    'domain': row[5] or '',
+                                    'notes': row[6] or '',
+                                    'project': row[7] or '',
+                                    'client': row[8] or '',
+                                    'forbidden': row[9] or False
+                                }
+                            else:
+                                source_term = row['source_term']
+                                target_term = row['target_term']
+                                matches[source_term.strip()] = {
+                                    'translation': target_term.strip(),
+                                    'term_id': row['id'],
+                                    'termbase_id': row['termbase_id'],
+                                    'priority': row['priority'],
+                                    'domain': row['domain'] or '',
+                                    'notes': row['notes'] or '',
+                                    'project': row['project'] or '',
+                                    'client': row['client'] or '',
+                                    'forbidden': row['forbidden'] or False
+                                }
                 
                 except Exception as e:
                     # Log but continue with other words
@@ -7401,7 +8560,13 @@ class SupervertalerQt(QMainWindow):
                         metadata={
                             'termbase_name': 'Default',
                             'priority': priority,
-                            'forbidden': forbidden
+                            'forbidden': forbidden,
+                            'term_id': match_info.get('term_id') if isinstance(match_info, dict) else None,
+                            'termbase_id': match_info.get('termbase_id') if isinstance(match_info, dict) else None,
+                            'domain': match_info.get('domain', '') if isinstance(match_info, dict) else '',
+                            'notes': match_info.get('notes', '') if isinstance(match_info, dict) else '',
+                            'project': match_info.get('project', '') if isinstance(match_info, dict) else '',
+                            'client': match_info.get('client', '') if isinstance(match_info, dict) else ''
                         },
                         match_type='Termbase',
                         compare_source=source_term,
@@ -7418,6 +8583,62 @@ class SupervertalerQt(QMainWindow):
             self.prefetch_stop_event.set()
             self.prefetch_worker_thread.join(timeout=2)
             self.log("✓ Prefetch worker stopped")
+    
+    def save_segment_to_activated_tms(self, source: str, target: str):
+        """
+        Save segment to all activated TMs for current project.
+        
+        Args:
+            source: Source text
+            target: Target text
+        """
+        if not self.current_project:
+            return
+        
+        if not hasattr(self.current_project, 'source_lang') or not hasattr(self.current_project, 'target_lang'):
+            return
+        
+        # Get activated TM IDs for this project
+        tm_ids = []
+        
+        if hasattr(self, 'tm_metadata_mgr') and self.tm_metadata_mgr:
+            if hasattr(self, 'current_project') and self.current_project:
+                project_id = self.current_project.id if hasattr(self.current_project, 'id') else None
+                
+                if project_id:
+                    tm_ids = self.tm_metadata_mgr.get_active_tm_ids(project_id)
+                else:
+                    self.log(f"⚠️ Cannot save to TM: project has no 'id' attribute!")
+            else:
+                self.log(f"⚠️ Cannot save to TM: No current project loaded!")
+        else:
+            self.log(f"⚠️ Cannot save to TM: TM metadata manager not available!")
+        
+        # If no TMs activated, skip saving (user must activate TMs explicitly)
+        if not tm_ids:
+            self.log("⚠️ No TMs activated - segment not saved to TM. Please activate at least one TM in Translation Resources.")
+            self.log(f"   - To fix: Go to Translation Resources > Translation Memories > TM List and check the Active checkbox")
+            return
+        
+        # Save to each activated TM
+        saved_count = 0
+        for tm_id in tm_ids:
+            try:
+                self.db_manager.add_translation_unit(
+                    source=source,
+                    target=target,
+                    source_lang=self.current_project.source_lang,
+                    target_lang=self.current_project.target_lang,
+                    tm_id=tm_id
+                )
+                saved_count += 1
+            except Exception as e:
+                self.log(f"⚠️ Could not save to TM '{tm_id}': {e}")
+        
+        if saved_count > 0:
+            self.log(f"💾 Saved segment to {saved_count} TM(s)")
+            # Invalidate cache so prefetched segments get fresh TM matches
+            self.invalidate_translation_cache()
     
     def invalidate_translation_cache(self, smart_invalidation=True):
         """
@@ -9573,16 +10794,7 @@ class SupervertalerQt(QMainWindow):
             # Save to TM if segment is translated/approved/confirmed and has content
             if segment.status in ['translated', 'approved', 'confirmed'] and new_text.strip():
                 try:
-                    if self.current_project and hasattr(self.current_project, 'source_lang') and hasattr(self.current_project, 'target_lang'):
-                        self.db_manager.add_translation_unit(
-                            source=segment.source,
-                            target=new_text,
-                            source_lang=self.current_project.source_lang,
-                            target_lang=self.current_project.target_lang,
-                            tm_id='project'
-                        )
-                        # Invalidate cache so prefetched segments get fresh TM matches
-                        self.invalidate_translation_cache()
+                    self.save_segment_to_activated_tms(segment.source, new_text)
                 except Exception as e:
                     self.log(f"Warning: Could not save to TM: {e}")
         except Exception as e:
@@ -9608,16 +10820,7 @@ class SupervertalerQt(QMainWindow):
             # Save to TM if segment is translated/approved/confirmed and has content
             if segment.status in ['translated', 'approved', 'confirmed'] and new_text.strip():
                 try:
-                    if self.current_project and hasattr(self.current_project, 'source_lang') and hasattr(self.current_project, 'target_lang'):
-                        self.db_manager.add_translation_unit(
-                            source=segment.source,
-                            target=new_text,
-                            source_lang=self.current_project.source_lang,
-                            target_lang=self.current_project.target_lang,
-                            tm_id='project'
-                        )
-                        # Invalidate cache so prefetched segments get fresh TM matches
-                        self.invalidate_translation_cache()
+                    self.save_segment_to_activated_tms(segment.source, new_text)
                 except Exception as e:
                     self.log(f"Warning: Could not save to TM: {e}")
         except Exception as e:
@@ -9634,16 +10837,7 @@ class SupervertalerQt(QMainWindow):
         # Save to TM if status changed to translated/approved/confirmed and has content
         if status in ['translated', 'approved', 'confirmed'] and segment.target.strip():
             try:
-                if self.current_project and hasattr(self.current_project, 'source_lang') and hasattr(self.current_project, 'target_lang'):
-                    self.db_manager.add_translation_unit(
-                        source=segment.source,
-                        target=segment.target,
-                        source_lang=self.current_project.source_lang,
-                        target_lang=self.current_project.target_lang,
-                        tm_id='project'
-                    )
-                    # Invalidate cache so prefetched segments get fresh TM matches
-                    self.invalidate_translation_cache()
+                self.save_segment_to_activated_tms(segment.source, segment.target)
             except Exception as e:
                 self.log(f"Warning: Could not save to TM: {e}")
     
@@ -9878,16 +11072,28 @@ class SupervertalerQt(QMainWindow):
                             }
 
                             for source_term, match_info in stored_matches.items():
-                                # Extract translation, priority, and forbidden flag from match_info
+                                # Extract all fields from match_info
                                 if isinstance(match_info, dict):
                                     target_term = match_info.get('translation', '')
                                     priority = match_info.get('priority', 50)
                                     forbidden = match_info.get('forbidden', False)
+                                    term_id = match_info.get('term_id')
+                                    termbase_id = match_info.get('termbase_id')
+                                    domain = match_info.get('domain', '')
+                                    notes = match_info.get('notes', '')
+                                    project = match_info.get('project', '')
+                                    client = match_info.get('client', '')
                                 else:
                                     # Backward compatibility: if just string
                                     target_term = match_info
                                     priority = 50
                                     forbidden = False
+                                    term_id = None
+                                    termbase_id = None
+                                    domain = ''
+                                    notes = ''
+                                    project = ''
+                                    client = ''
                                 
                                 match_obj = TranslationMatch(
                                     source=source_term,
@@ -9895,10 +11101,14 @@ class SupervertalerQt(QMainWindow):
                                     relevance=95,  # High relevance for termbase matches
                                     metadata={
                                         'termbase_name': 'Default',
-                                        'definition': '',
-                                        'domain': '',
+                                        'domain': domain,
+                                        'notes': notes,
+                                        'project': project,
+                                        'client': client,
                                         'priority': priority,
-                                        'forbidden': forbidden
+                                        'forbidden': forbidden,
+                                        'term_id': term_id,
+                                        'termbase_id': termbase_id
                                     },
                                     match_type='Termbase',
                                     compare_source=source_term,
@@ -10417,12 +11627,17 @@ class SupervertalerQt(QMainWindow):
                                                 target=target_term,
                                                 relevance=100 - tb_match.get('priority', 99),  # Lower priority = higher relevance
                                                 metadata={
+                                                    'term_id': tb_match.get('id'),  # Term entry ID for editing
                                                     'termbase_id': termbase_id,
                                                     'termbase_name': tb_match.get('termbase_name', 'Unknown'),
                                                     'termbase_priority': termbase_priority,  # Termbase-level priority for color shading
                                                     'term_priority': tb_match.get('priority', 99),  # Term-level priority for sorting
-                                                    'definition': tb_match.get('definition', ''),
-                                                    'domain': tb_match.get('domain', '')
+                                                    'priority': tb_match.get('priority', 99),  # For display in termbase viewer
+                                                    'domain': tb_match.get('domain', ''),
+                                                    'notes': tb_match.get('notes', ''),
+                                                    'project': tb_match.get('project', ''),
+                                                    'client': tb_match.get('client', ''),
+                                                    'forbidden': tb_match.get('forbidden', False)
                                                 },
                                                 match_type='Termbase',
                                                 compare_source=source_term,
@@ -10588,8 +11803,17 @@ class SupervertalerQt(QMainWindow):
             return
         
         try:
-            # Search for matches
-            matches = self.tm_database.search_all(source_text, max_matches=5)
+            # Get activated TM IDs for current project
+            tm_ids = None
+            if hasattr(self, 'tm_metadata_mgr') and self.tm_metadata_mgr and self.current_project:
+                project_id = self.current_project.id if hasattr(self.current_project, 'id') else None
+                if project_id:
+                    tm_ids = self.tm_metadata_mgr.get_active_tm_ids(project_id)
+                    if tm_ids:
+                        self.log(f"🔍 Searching activated TMs: {tm_ids}")
+            
+            # Search for matches (using activated TMs if available)
+            matches = self.tm_database.search_all(source_text, tm_ids=tm_ids, max_matches=5)
             
             # Auto-propagate exact match if enabled (check both settings)
             general_prefs = self.load_general_settings()
@@ -10645,17 +11869,38 @@ class SupervertalerQt(QMainWindow):
                 try:
                     from modules.translation_results_panel import TranslationMatch
                     
-                    # Convert TM matches
+                    # Convert TM matches with full TM metadata
                     tm_matches = []
                     for match in matches:
+                        # Get full TM metadata from tm_metadata_mgr if available
+                        tm_metadata = {
+                            'tm_name': match.get('tm_name', 'Unknown TM'),
+                            'tm_id': match.get('tm_id', ''),
+                            'context': match.get('context', '')
+                        }
+                        
+                        # Fetch full TM details if tm_metadata_mgr is available
+                        if hasattr(self, 'tm_metadata_mgr') and self.tm_metadata_mgr:
+                            tm_id_str = match.get('tm_id', '')
+                            if tm_id_str:
+                                # Find TM by tm_id string (not database ID)
+                                all_tms = self.tm_metadata_mgr.get_all_tms()
+                                for tm in all_tms:
+                                    if tm['tm_id'] == tm_id_str:
+                                        tm_metadata.update({
+                                            'source_lang': tm.get('source_lang', ''),
+                                            'target_lang': tm.get('target_lang', ''),
+                                            'entry_count': tm.get('entry_count', 0),
+                                            'modified_date': tm.get('modified_date', ''),
+                                            'description': tm.get('description', '')
+                                        })
+                                        break
+                        
                         tm_match = TranslationMatch(
                             source=match.get('source', ''),
                             target=match.get('target', ''),
                             relevance=int(match.get('match_pct', 0)),
-                            metadata={
-                                'tm_name': match.get('tm_name', 'Unknown TM'),
-                                'context': match.get('context', '')
-                            },
+                            metadata=tm_metadata,
                             match_type='TM',
                             compare_source=match.get('source', '')
                         )
@@ -10704,10 +11949,14 @@ class SupervertalerQt(QMainWindow):
                                         target=tb_match.get('target_term', ''),
                                         relevance=100 - tb_match.get('priority', 99),  # Lower priority = higher relevance
                                         metadata={
+                                            'term_id': tb_match.get('id'),
                                             'termbase_id': tb_match.get('termbase_id'),
+                                            'termbase_name': tb_match.get('termbase_name', ''),
                                             'priority': tb_match.get('priority', 99),
-                                            'definition': tb_match.get('definition', ''),
                                             'domain': tb_match.get('domain', ''),
+                                            'notes': tb_match.get('notes', ''),
+                                            'project': tb_match.get('project', ''),
+                                            'client': tb_match.get('client', ''),
                                             'forbidden': tb_match.get('forbidden', False)
                                         },
                                         match_type='Termbase',
@@ -11006,14 +12255,26 @@ class SupervertalerQt(QMainWindow):
                     for result in termbase_results:
                         source_term = result.get('source_term', '').strip()
                         target_term = result.get('target_term', '').strip()
-                        priority = result.get('priority', 50)  # Get priority from database
-                        forbidden = result.get('forbidden', False)  # Get forbidden flag
+                        priority = result.get('priority', 50)
+                        forbidden = result.get('forbidden', False)
+                        term_id = result.get('id')
+                        termbase_id = result.get('termbase_id')
+                        domain = result.get('domain', '')
+                        notes = result.get('notes', '')
+                        project = result.get('project', '')
+                        client = result.get('client', '')
                         if source_term and target_term:
-                            # Store as dict with priority and forbidden info for color highlighting
+                            # Store as dict with all metadata including IDs for editing
                             matches[source_term] = {
                                 'translation': target_term,
                                 'priority': priority,
-                                'forbidden': forbidden
+                                'forbidden': forbidden,
+                                'term_id': term_id,
+                                'termbase_id': termbase_id,
+                                'domain': domain,
+                                'notes': notes,
+                                'project': project,
+                                'client': client
                             }
                             forbidden_marker = " [FORBIDDEN]" if forbidden else ""
                             self.log(f"    → {source_term} = {target_term} (priority: {priority}){forbidden_marker}")
@@ -11877,16 +13138,7 @@ class SupervertalerQt(QMainWindow):
         """Save tab target text to TM after debounce delay"""
         try:
             if segment.status in ['translated', 'approved', 'confirmed'] and text.strip():
-                if self.current_project and hasattr(self.current_project, 'source_lang') and hasattr(self.current_project, 'target_lang'):
-                    self.db_manager.add_translation_unit(
-                        source=segment.source,
-                        target=text,
-                        source_lang=self.current_project.source_lang,
-                        target_lang=self.current_project.target_lang,
-                        tm_id='project'
-                    )
-                    # Invalidate cache so prefetched segments get fresh TM matches
-                    self.invalidate_translation_cache()
+                self.save_segment_to_activated_tms(segment.source, text)
         except Exception as e:
             self.log(f"Warning: Could not save to TM: {e}")
     
@@ -11930,19 +13182,8 @@ class SupervertalerQt(QMainWindow):
                     # Save to TM if status changed to translated/approved/confirmed and has content
                     if status_key in ['translated', 'approved', 'confirmed'] and seg.target.strip():
                         try:
-                            if self.current_project and hasattr(self.current_project, 'source_lang') and hasattr(self.current_project, 'target_lang'):
-                                save_mode = self.tm_save_mode if hasattr(self, 'tm_save_mode') else 'all'
-                                self.db_manager.add_translation_unit(
-                                    source=seg.source,
-                                    target=seg.target,
-                                    source_lang=self.current_project.source_lang,
-                                    target_lang=self.current_project.target_lang,
-                                    tm_id='project',
-                                    save_mode=save_mode
-                                )
-                                # Invalidate cache so prefetched segments get fresh TM matches
-                                self.invalidate_translation_cache()
-                                self.log(f"✓ Saved to TM: {seg.source[:30]}... → {seg.target[:30]}...")
+                            self.save_segment_to_activated_tms(seg.source, seg.target)
+                            self.log(f"✓ Saved to TM: {seg.source[:30]}... → {seg.target[:30]}...")
                         except Exception as e:
                             self.log(f"Warning: Could not save to TM: {e}")
                     
@@ -12240,19 +13481,8 @@ class SupervertalerQt(QMainWindow):
                     # Save to TM if status is translated/approved/confirmed and has content
                     if seg.status in ['translated', 'approved', 'confirmed'] and seg.target.strip():
                         try:
-                            if hasattr(self.current_project, 'source_lang') and hasattr(self.current_project, 'target_lang'):
-                                self.db_manager.add_translation_unit(
-                                    source=seg.source,
-                                    target=seg.target,
-                                    source_lang=self.current_project.source_lang,
-                                    target_lang=self.current_project.target_lang,
-                                    tm_id='project'
-                                )
-                                # Invalidate cache so prefetched segments get fresh TM matches
-                                self.invalidate_translation_cache()
-                                self.log(f"✓ Saved segment {self.tab_current_segment_id} to TM")
-                            else:
-                                self.log(f"✓ Saved segment {self.tab_current_segment_id}")
+                            self.save_segment_to_activated_tms(seg.source, seg.target)
+                            self.log(f"✓ Saved segment {self.tab_current_segment_id} to TM")
                         except Exception as e:
                             self.log(f"✓ Saved segment {self.tab_current_segment_id} (TM save failed: {e})")
                     else:
@@ -12329,18 +13559,8 @@ class SupervertalerQt(QMainWindow):
         # Save to TM if status is translated/approved/confirmed and has content
         if segment.status in ['translated', 'approved', 'confirmed'] and segment.target.strip():
             try:
-                if hasattr(self.current_project, 'source_lang') and hasattr(self.current_project, 'target_lang'):
-                    self.db_manager.add_translation_unit(
-                        source=segment.source,
-                        target=segment.target,
-                        source_lang=self.current_project.source_lang,
-                        target_lang=self.current_project.target_lang,
-                        tm_id='project'
-                    )
-                    self.invalidate_translation_cache()
-                    self.log(f"💾 Saved segment {segment.id} to TM")
-                else:
-                    self.log(f"💾 Saved segment {segment.id}")
+                self.save_segment_to_activated_tms(segment.source, segment.target)
+                self.log(f"💾 Saved segment {segment.id} to TM")
             except Exception as e:
                 self.log(f"💾 Saved segment {segment.id} (TM save failed: {e})")
         else:
@@ -12498,18 +13718,8 @@ class SupervertalerQt(QMainWindow):
             # Save to TM if target has content
             if segment.target.strip():
                 try:
-                    if hasattr(self.current_project, 'source_lang') and hasattr(self.current_project, 'target_lang'):
-                        self.db_manager.add_translation_unit(
-                            source=segment.source,
-                            target=segment.target,
-                            source_lang=self.current_project.source_lang,
-                            target_lang=self.current_project.target_lang,
-                            tm_id='project'
-                        )
-                        self.log(f"💾 Saved segment {segment.id} to TM: '{segment.target[:50]}...'")
-                        self.invalidate_translation_cache()
-                    else:
-                        self.log(f"⚠️ Cannot save to TM: missing language info")
+                    self.save_segment_to_activated_tms(segment.source, segment.target)
+                    self.log(f"💾 Saved segment {segment.id} to TM: '{segment.target[:50]}...'")
                 except Exception as e:
                     self.log(f"⚠️ Error saving to TM: {e}")
         
@@ -13012,32 +14222,6 @@ class SupervertalerQt(QMainWindow):
             # Recreate the delegate with updated settings
             self.table.setItemDelegate(WordWrapDelegate(None, self.table, self.allow_replace_in_source))
     
-    def show_tm_manager(self):
-        """Show Translation Memory Manager dialog (separate window)"""
-        from modules.tm_manager_qt import TMManagerDialog
-        
-        try:
-            dialog = TMManagerDialog(self, self.db_manager, self.log)
-            dialog.exec()
-        except Exception as e:
-            self.log(f"Error opening TM Manager: {e}")
-            QMessageBox.critical(self, "Error", f"Failed to open TM Manager:\n{str(e)}")
-    
-    def show_tm_manager_in_tab(self):
-        """Switch to TM Manager tab in the main Tools section"""
-        try:
-            # Find the Tools tab in the main tab widget
-            for i in range(self.tabs.count()):
-                if self.tabs.tabText(i) == "Tools":
-                    self.tabs.setCurrentIndex(i)
-                    self.log("📚 Switched to TM Manager tab")
-                    return
-            
-            self.log("⚠️ Tools tab not found")
-        except Exception as e:
-            self.log(f"Error switching to TM Manager tab: {e}")
-            QMessageBox.critical(self, "Error", f"Failed to switch to TM Manager tab:\n{str(e)}")
-    
     def show_about(self):
         import_layout = QVBoxLayout(import_tab)
         
@@ -13154,8 +14338,15 @@ class SupervertalerQt(QMainWindow):
                 results_table.setRowCount(0)
                 return
             
+            # Get activated TM IDs for current project
+            tm_ids = None
+            if hasattr(self, 'tm_metadata_mgr') and self.tm_metadata_mgr and self.current_project:
+                project_id = self.current_project.id if hasattr(self.current_project, 'id') else None
+                if project_id:
+                    tm_ids = self.tm_metadata_mgr.get_active_tm_ids(project_id)
+            
             try:
-                matches = self.tm_database.search_all(search_term, max_matches=50)
+                matches = self.tm_database.search_all(search_term, tm_ids=tm_ids, max_matches=50)
                 
                 results_table.setRowCount(len(matches))
                 for i, match in enumerate(matches):
@@ -13385,8 +14576,15 @@ class SupervertalerQt(QMainWindow):
             tm_match = None
             
             if check_tm_before_api and self.tm_database:
+                # Get activated TM IDs for current project
+                tm_ids = None
+                if hasattr(self, 'tm_metadata_mgr') and self.tm_metadata_mgr and self.current_project:
+                    project_id = self.current_project.id if hasattr(self.current_project, 'id') else None
+                    if project_id:
+                        tm_ids = self.tm_metadata_mgr.get_active_tm_ids(project_id)
+                
                 try:
-                    matches = self.tm_database.search_all(segment.source, max_matches=1)
+                    matches = self.tm_database.search_all(segment.source, tm_ids=tm_ids, max_matches=1)
                     if matches and matches[0].get('match_pct', 0) == 100:
                         tm_match = matches[0].get('target', '')
                         self.log(f"✓ Found 100% TM match for segment #{segment.id}")
@@ -14529,6 +15727,18 @@ class SupervertalerQt(QMainWindow):
                 for i in range(self.modules_tabs.count()):
                     if "AutoFingers" in self.modules_tabs.tabText(i):
                         self.modules_tabs.setCurrentIndex(i)
+                        break
+    
+    def show_image_extractor_from_tools(self):
+        """Show Image Extractor by switching to the Reference Images tab in Translation Resources"""
+        # Switch to Translation Resources tab (right_tabs index 1)
+        if hasattr(self, 'right_tabs'):
+            self.right_tabs.setCurrentIndex(1)  # Switch to Translation Resources tab
+            # Then switch to Reference Images sub-tab
+            if hasattr(self, 'resources_tabs'):
+                for i in range(self.resources_tabs.count()):
+                    if "Reference Images" in self.resources_tabs.tabText(i):
+                        self.resources_tabs.setCurrentIndex(i)
                         break
     
     def show_theme_editor(self):

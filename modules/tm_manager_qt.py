@@ -99,11 +99,12 @@ class TMXImportThread(QThread):
 class TMManagerDialog(QDialog):
     """Translation Memory Manager dialog"""
     
-    def __init__(self, parent, db_manager, log_callback: Optional[Callable] = None):
+    def __init__(self, parent, db_manager, log_callback: Optional[Callable] = None, tm_ids: list = None):
         super().__init__(parent)
         self.db_manager = db_manager
         self.log = log_callback if log_callback else lambda x: None
         self.parent_app = parent
+        self.filter_tm_ids = tm_ids  # Optional filter: only show entries from these TM IDs
         
         self.setWindowTitle("Translation Memory Manager")
         self.resize(1000, 700)
@@ -337,16 +338,24 @@ class TMManagerDialog(QDialog):
             limit = self.browser_limit.value()
             filter_text = self.browser_filter.text().strip()
             
+            # Build TM filter clause
+            tm_filter = ""
+            params = []
+            if self.filter_tm_ids:
+                placeholders = ','.join('?' * len(self.filter_tm_ids))
+                tm_filter = f" WHERE tm_id IN ({placeholders})"
+                params = self.filter_tm_ids[:]
+            
             # Get entries from database
             if filter_text:
                 entries = self.db_manager.concordance_search(filter_text)
+                # Apply TM filter to concordance results
+                if self.filter_tm_ids:
+                    entries = [e for e in entries if e.get('tm_id') in self.filter_tm_ids]
             else:
                 # Get recent entries
-                self.db_manager.cursor.execute(f"""
-                    SELECT * FROM translation_units 
-                    ORDER BY modified_date DESC 
-                    LIMIT {limit}
-                """)
+                query = f"SELECT * FROM translation_units{tm_filter} ORDER BY modified_date DESC LIMIT {limit}"
+                self.db_manager.cursor.execute(query, params)
                 entries = [dict(row) for row in self.db_manager.cursor.fetchall()]
             
             # Populate table
@@ -560,26 +569,40 @@ class TMManagerDialog(QDialog):
     def refresh_stats(self):
         """Refresh TM statistics"""
         try:
+            # Build TM filter clause
+            tm_filter = ""
+            params = []
+            if self.filter_tm_ids:
+                placeholders = ','.join('?' * len(self.filter_tm_ids))
+                tm_filter = f" WHERE tm_id IN ({placeholders})"
+                params = self.filter_tm_ids[:]
+            
             # Get various statistics
-            self.db_manager.cursor.execute("SELECT COUNT(*) FROM translation_units")
+            self.db_manager.cursor.execute(f"SELECT COUNT(*) FROM translation_units{tm_filter}", params)
             total_entries = self.db_manager.cursor.fetchone()[0]
             
-            self.db_manager.cursor.execute("SELECT COUNT(DISTINCT tm_id) FROM translation_units")
+            self.db_manager.cursor.execute(f"SELECT COUNT(DISTINCT tm_id) FROM translation_units{tm_filter}", params)
             tm_count = self.db_manager.cursor.fetchone()[0]
             
-            self.db_manager.cursor.execute("""
+            query = f"""
                 SELECT tm_id, COUNT(*) as count 
-                FROM translation_units 
+                FROM translation_units{tm_filter}
                 GROUP BY tm_id 
                 ORDER BY count DESC
-            """)
+            """
+            self.db_manager.cursor.execute(query, params)
             tm_breakdown = self.db_manager.cursor.fetchall()
             
-            self.db_manager.cursor.execute("""
+            query = f"""
                 SELECT AVG(LENGTH(source_text)), AVG(LENGTH(target_text))
-                FROM translation_units
-            """)
+                FROM translation_units{tm_filter}
+            """
+            self.db_manager.cursor.execute(query, params)
             avg_lengths = self.db_manager.cursor.fetchone()
+            
+            # Handle empty TM (AVG returns None)
+            avg_source = avg_lengths[0] if avg_lengths[0] is not None else 0
+            avg_target = avg_lengths[1] if avg_lengths[1] is not None else 0
             
             # Format statistics
             stats_text = f"""
@@ -590,8 +613,8 @@ class TMManagerDialog(QDialog):
 Total Translation Units: {total_entries:,}
 Number of TMs: {tm_count}
 
-Average Source Length: {avg_lengths[0]:.1f} characters
-Average Target Length: {avg_lengths[1]:.1f} characters
+Average Source Length: {avg_source:.1f} characters
+Average Target Length: {avg_target:.1f} characters
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   BREAKDOWN BY TM
@@ -693,11 +716,17 @@ Average Target Length: {avg_lengths[1]:.1f} characters
             if reply != QMessageBox.StandardButton.Yes:
                 return
             
+            # Build TM filter clause
+            tm_filter = ""
+            params = []
+            if self.filter_tm_ids:
+                placeholders = ','.join('?' * len(self.filter_tm_ids))
+                tm_filter = f" AND tm_id IN ({placeholders})"
+                params = self.filter_tm_ids[:]
+            
             # Find and count identical entries
-            self.db_manager.cursor.execute("""
-                SELECT COUNT(*) FROM translation_units 
-                WHERE source_text = target_text
-            """)
+            query = f"SELECT COUNT(*) FROM translation_units WHERE source_text = target_text{tm_filter}"
+            self.db_manager.cursor.execute(query, params)
             count_before = self.db_manager.cursor.fetchone()[0]
             
             if count_before == 0:
@@ -705,10 +734,8 @@ Average Target Length: {avg_lengths[1]:.1f} characters
                 return
             
             # Delete identical entries
-            self.db_manager.cursor.execute("""
-                DELETE FROM translation_units 
-                WHERE source_text = target_text
-            """)
+            query = f"DELETE FROM translation_units WHERE source_text = target_text{tm_filter}"
+            self.db_manager.cursor.execute(query, params)
             self.db_manager.connection.commit()
             
             # Report results
@@ -746,13 +773,22 @@ Your TM is now cleaner and more efficient.
             if reply != QMessageBox.StandardButton.Yes:
                 return
             
+            # Build TM filter clause
+            tm_filter = ""
+            params = []
+            if self.filter_tm_ids:
+                placeholders = ','.join('?' * len(self.filter_tm_ids))
+                tm_filter = f" WHERE tm_id IN ({placeholders})"
+                params = self.filter_tm_ids[:]
+            
             # Find duplicate sources
-            self.db_manager.cursor.execute("""
+            query = f"""
                 SELECT source_hash, COUNT(*) as cnt
-                FROM translation_units
+                FROM translation_units{tm_filter}
                 GROUP BY source_hash
                 HAVING cnt > 1
-            """)
+            """
+            self.db_manager.cursor.execute(query, params)
             duplicates = self.db_manager.cursor.fetchall()
             
             if not duplicates:
@@ -763,12 +799,20 @@ Your TM is now cleaner and more efficient.
             
             # For each duplicate source, keep only the newest
             for source_hash, count in duplicates:
+                # Build filter for this source hash
+                hash_params = [source_hash]
+                hash_filter = ""
+                if self.filter_tm_ids:
+                    hash_filter = f" AND tm_id IN ({','.join('?' * len(self.filter_tm_ids))})"
+                    hash_params.extend(self.filter_tm_ids)
+                
                 # Get all entries for this source, ordered by date (newest first)
-                self.db_manager.cursor.execute("""
+                query = f"""
                     SELECT id FROM translation_units
-                    WHERE source_hash = ?
+                    WHERE source_hash = ?{hash_filter}
                     ORDER BY modified_date DESC
-                """, (source_hash,))
+                """
+                self.db_manager.cursor.execute(query, hash_params)
                 
                 ids = [row[0] for row in self.db_manager.cursor.fetchall()]
                 

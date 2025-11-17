@@ -196,8 +196,56 @@ class CompactMatchItem(QFrame):
     
     def mousePressEvent(self, event):
         """Emit signal when clicked"""
-        self.match_selected.emit(self.match)
-        self.select()
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.match_selected.emit(self.match)
+            self.select()
+        elif event.button() == Qt.MouseButton.RightButton:
+            self._show_context_menu(event.globalPosition().toPoint())
+    
+    def _show_context_menu(self, pos):
+        """Show context menu for this match item"""
+        # Only show edit option for termbase matches
+        if self.match.match_type != "Termbase":
+            return
+        
+        from PyQt6.QtWidgets import QMenu
+        from PyQt6.QtGui import QAction
+        
+        menu = QMenu()
+        
+        # Edit entry action
+        edit_action = QAction("✏️ Edit Termbase Entry", menu)
+        edit_action.triggered.connect(self._edit_termbase_entry)
+        menu.addAction(edit_action)
+        
+        menu.exec(pos)
+    
+    def _edit_termbase_entry(self):
+        """Open termbase entry editor for this match"""
+        if self.match.match_type != "Termbase":
+            return
+        
+        # Get term_id and termbase_id from metadata
+        term_id = self.match.metadata.get('term_id')
+        termbase_id = self.match.metadata.get('termbase_id')
+        
+        if term_id and termbase_id:
+            from modules.termbase_entry_editor import TermbaseEntryEditor
+            
+            # Get parent window (main application)
+            parent_window = self.window()
+            
+            dialog = TermbaseEntryEditor(
+                parent=parent_window,
+                db_manager=getattr(parent_window, 'db_manager', None),
+                termbase_id=termbase_id,
+                term_id=term_id
+            )
+            
+            if dialog.exec():
+                # Entry was edited, refresh if needed
+                # Signal could be emitted here to refresh the translation results panel
+                pass
     
     def select(self):
         """Select this match"""
@@ -504,10 +552,20 @@ class TranslationResultsPanel(QWidget):
         self.matches_scroll.setWidget(self.matches_container)
         main_splitter.addWidget(self.matches_scroll)
         
-        # Compare box (shown when match selected) - VERTICAL STACKED LAYOUT
+        # Compare box (shown when TM match selected) - VERTICAL STACKED LAYOUT
         self.compare_frame = self._create_compare_box()
         main_splitter.addWidget(self.compare_frame)
         self.compare_frame.hide()  # Hidden by default
+        
+        # TM metadata info panel (shown below compare box when TM match selected)
+        self.tm_info_frame = self._create_tm_info_panel()
+        main_splitter.addWidget(self.tm_info_frame)
+        self.tm_info_frame.hide()  # Hidden by default
+        
+        # Termbase data viewer (shown when termbase match selected)
+        self.termbase_frame = self._create_termbase_viewer()
+        main_splitter.addWidget(self.termbase_frame)
+        self.termbase_frame.hide()  # Hidden by default
         
         # Notes section with its own container
         notes_widget = QWidget()
@@ -552,7 +610,7 @@ class TranslationResultsPanel(QWidget):
         layout.setSpacing(2)
         
         # Title
-        title = QLabel("📊 Compare Box (Vertically Stacked)")
+        title = QLabel("📊 Compare Box")
         title.setStyleSheet("font-weight: bold; font-size: 9px; color: #666;")
         layout.addWidget(title)
         
@@ -602,6 +660,389 @@ class TranslationResultsPanel(QWidget):
         self.compare_text_edits.append(text_edit)
         
         return (container, text_edit)
+    
+    def _create_termbase_viewer(self) -> QFrame:
+        """Create termbase data viewer frame"""
+        frame = QFrame()
+        frame.setStyleSheet("""
+            QFrame {
+                background-color: #fafafa;
+                border: 1px solid #ddd;
+                border-radius: 3px;
+                padding: 4px;
+            }
+        """)
+        
+        layout = QVBoxLayout(frame)
+        layout.setContentsMargins(4, 4, 4, 4)
+        layout.setSpacing(4)
+        
+        # Title with termbase name (will be updated dynamically)
+        header_layout = QHBoxLayout()
+        self.termbase_title = QLabel("📖 Term Info")
+        self.termbase_title.setStyleSheet("font-weight: bold; font-size: 9px; color: #666;")
+        header_layout.addWidget(self.termbase_title)
+        header_layout.addStretch()
+        
+        # Refresh button
+        self.termbase_refresh_btn = QPushButton("🔄 Refresh data")
+        self.termbase_refresh_btn.setStyleSheet("""
+            QPushButton {
+                font-size: 8px;
+                padding: 2px 6px;
+                background-color: #2196F3;
+                color: white;
+                border: none;
+                border-radius: 2px;
+            }
+            QPushButton:hover {
+                background-color: #0b7dda;
+            }
+        """)
+        self.termbase_refresh_btn.setFixedHeight(20)
+        self.termbase_refresh_btn.setToolTip("Refresh entry from database")
+        self.termbase_refresh_btn.clicked.connect(self._on_refresh_termbase_entry)
+        header_layout.addWidget(self.termbase_refresh_btn)
+        
+        # Edit button
+        self.termbase_edit_btn = QPushButton("✏️ Edit")
+        self.termbase_edit_btn.setStyleSheet("""
+            QPushButton {
+                font-size: 8px;
+                padding: 2px 6px;
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                border-radius: 2px;
+            }
+            QPushButton:hover {
+                background-color: #45a049;
+            }
+        """)
+        self.termbase_edit_btn.setFixedHeight(20)
+        self.termbase_edit_btn.clicked.connect(self._on_edit_termbase_entry)
+        header_layout.addWidget(self.termbase_edit_btn)
+        
+        layout.addLayout(header_layout)
+        
+        # Source and Target terms
+        terms_container = QWidget()
+        terms_layout = QVBoxLayout(terms_container)
+        terms_layout.setContentsMargins(2, 2, 2, 2)
+        terms_layout.setSpacing(3)
+        
+        # Source term
+        source_label = QLabel("Source Term:")
+        source_label.setStyleSheet("font-weight: bold; font-size: 8px; color: #666;")
+        terms_layout.addWidget(source_label)
+        
+        self.termbase_source = QLabel()
+        self.termbase_source.setStyleSheet("""
+            QLabel {
+                background-color: #e3f2fd;
+                border: 1px solid #ccc;
+                border-radius: 2px;
+                font-size: 10px;
+                padding: 6px;
+                margin: 0px;
+            }
+        """)
+        self.termbase_source.setWordWrap(True)
+        terms_layout.addWidget(self.termbase_source)
+        
+        # Target term
+        target_label = QLabel("Target Term:")
+        target_label.setStyleSheet("font-weight: bold; font-size: 8px; color: #666;")
+        terms_layout.addWidget(target_label)
+        
+        self.termbase_target = QLabel()
+        self.termbase_target.setStyleSheet("""
+            QLabel {
+                background-color: #d4edda;
+                border: 1px solid #ccc;
+                border-radius: 2px;
+                font-size: 10px;
+                padding: 6px;
+                margin: 0px;
+            }
+        """)
+        self.termbase_target.setWordWrap(True)
+        terms_layout.addWidget(self.termbase_target)
+        
+        layout.addWidget(terms_container)
+        
+        # Metadata area
+        metadata_label = QLabel("Metadata:")
+        metadata_label.setStyleSheet("font-weight: bold; font-size: 8px; color: #666;")
+        layout.addWidget(metadata_label)
+        
+        from PyQt6.QtWidgets import QTextBrowser
+        self.termbase_metadata = QTextBrowser()
+        self.termbase_metadata.setReadOnly(True)
+        self.termbase_metadata.setMaximumHeight(80)
+        self.termbase_metadata.setStyleSheet(f"""
+            QTextBrowser {{
+                background-color: #fff3cd;
+                border: 1px solid #ccc;
+                border-radius: 2px;
+                font-size: {self.compare_box_font_size}px;
+                padding: 4px;
+                margin: 0px;
+            }}
+        """)
+        # Enable clickable links
+        self.termbase_metadata.setOpenExternalLinks(True)
+        layout.addWidget(self.termbase_metadata)
+        
+        # Track metadata text edit for font size updates
+        self.compare_text_edits.append(self.termbase_metadata)
+        
+        return frame
+    
+    def _create_tm_info_panel(self) -> QFrame:
+        """Create TM metadata info panel (memoQ-style) - shown when TM match is selected"""
+        frame = QFrame()
+        frame.setStyleSheet("""
+            QFrame {
+                background-color: #f5f5f5;
+                border: 1px solid #ddd;
+                border-radius: 3px;
+                padding: 4px;
+            }
+        """)
+        
+        layout = QVBoxLayout(frame)
+        layout.setContentsMargins(6, 4, 6, 4)
+        layout.setSpacing(3)
+        
+        # Title
+        title = QLabel("💾 TM Info")
+        title.setStyleSheet("font-weight: bold; font-size: 9px; color: #666; margin-bottom: 2px;")
+        layout.addWidget(title)
+        
+        # Info grid (compact 2-column layout)
+        info_container = QWidget()
+        info_layout = QVBoxLayout(info_container)
+        info_layout.setContentsMargins(0, 0, 0, 0)
+        info_layout.setSpacing(2)
+        
+        # TM Name
+        self.tm_name_label = QLabel()
+        self.tm_name_label.setStyleSheet("font-size: 9px; color: #333; font-weight: bold;")
+        self.tm_name_label.setWordWrap(True)
+        info_layout.addWidget(self.tm_name_label)
+        
+        # Languages (smaller)
+        self.tm_languages_label = QLabel()
+        self.tm_languages_label.setStyleSheet("font-size: 8px; color: #666;")
+        info_layout.addWidget(self.tm_languages_label)
+        
+        # Entry count and modified date in single line
+        self.tm_stats_label = QLabel()
+        self.tm_stats_label.setStyleSheet("font-size: 8px; color: #666;")
+        self.tm_stats_label.setWordWrap(True)
+        info_layout.addWidget(self.tm_stats_label)
+        
+        # Description (if available)
+        self.tm_description_label = QLabel()
+        self.tm_description_label.setStyleSheet("""
+            QLabel {
+                font-size: 8px;
+                color: #555;
+                background-color: #fff;
+                padding: 3px;
+                border: 1px solid #ddd;
+                border-radius: 2px;
+            }
+        """)
+        self.tm_description_label.setWordWrap(True)
+        self.tm_description_label.hide()  # Hidden if no description
+        info_layout.addWidget(self.tm_description_label)
+        
+        layout.addWidget(info_container)
+        
+        return frame
+    
+    def _on_edit_termbase_entry(self):
+        """Handle edit button click - open termbase entry editor dialog"""
+        if not self.current_selection or self.current_selection.match_type != "Termbase":
+            return
+        
+        # Get term_id from metadata if available
+        term_id = self.current_selection.metadata.get('term_id')
+        termbase_id = self.current_selection.metadata.get('termbase_id')
+        
+        if term_id and termbase_id:
+            # Import and show editor dialog
+            from modules.termbase_entry_editor import TermbaseEntryEditor
+            
+            # Get parent window (main application)
+            parent_window = self.window()
+            
+            dialog = TermbaseEntryEditor(
+                parent=parent_window,
+                db_manager=getattr(parent_window, 'db_manager', None),
+                termbase_id=termbase_id,
+                term_id=term_id
+            )
+            
+            if dialog.exec():
+                # Entry was edited, refresh the display
+                # Get updated term data and refresh the termbase viewer
+                self._refresh_termbase_viewer()
+    
+    def _on_refresh_termbase_entry(self):
+        """Handle refresh button click - reload entry from database"""
+        if not self.current_selection or self.current_selection.match_type != "Termbase":
+            return
+        
+        # Get term_id from metadata
+        term_id = self.current_selection.metadata.get('term_id')
+        if not term_id:
+            return
+        
+        # Get parent window and database manager
+        parent_window = self.window()
+        db_manager = getattr(parent_window, 'db_manager', None)
+        
+        if not db_manager:
+            return
+        
+        try:
+            # Fetch fresh data from database
+            cursor = db_manager.cursor
+            cursor.execute("""
+                SELECT source_term, target_term, priority, domain, notes, 
+                       project, client, forbidden, termbase_id
+                FROM termbase_terms
+                WHERE id = ?
+            """, (term_id,))
+            
+            row = cursor.fetchone()
+            if row:
+                # Update the current selection metadata with fresh data
+                self.current_selection.source = row[0]
+                self.current_selection.target = row[1]
+                self.current_selection.metadata['priority'] = row[2] or 99
+                self.current_selection.metadata['domain'] = row[3] or ''
+                self.current_selection.metadata['notes'] = row[4] or ''
+                self.current_selection.metadata['project'] = row[5] or ''
+                self.current_selection.metadata['client'] = row[6] or ''
+                self.current_selection.metadata['forbidden'] = row[7] or False
+                self.current_selection.metadata['termbase_id'] = row[8]
+                
+                # Re-display with updated data
+                self._display_termbase_data(self.current_selection)
+                
+        except Exception as e:
+            print(f"Error refreshing termbase entry: {e}")
+    
+    def _refresh_termbase_viewer(self):
+        """Refresh termbase viewer with latest data from database"""
+        if not self.current_selection or self.current_selection.match_type != "Termbase":
+            return
+        
+        # Use the refresh handler to fetch and display fresh data
+        self._on_refresh_termbase_entry()
+    
+    def _display_termbase_data(self, match: TranslationMatch):
+        """Display termbase entry data in the viewer"""
+        # Keep consistent "Term Info" title
+        self.termbase_title.setText("📖 Term Info")
+        
+        # Display source and target terms
+        self.termbase_source.setText(match.source)
+        self.termbase_target.setText(match.target)
+        
+        # Build metadata text
+        metadata_parts = []
+        
+        # Priority
+        priority = match.metadata.get('priority', 50)
+        metadata_parts.append(f"<b>Priority:</b> {priority}")
+        
+        # Domain
+        domain = match.metadata.get('domain', '')
+        if domain:
+            metadata_parts.append(f"<b>Domain:</b> {domain}")
+        
+        # Notes
+        notes = match.metadata.get('notes', '')
+        if notes:
+            # Truncate long notes for display
+            if len(notes) > 200:
+                notes = notes[:200] + "..."
+            # Convert URLs to clickable links
+            import re
+            url_pattern = r'(https?://[^\s]+)'
+            notes = re.sub(url_pattern, r'<a href="\1">\1</a>', notes)
+            metadata_parts.append(f"<b>Notes:</b> {notes}")
+        
+        # Project
+        project = match.metadata.get('project', '')
+        if project:
+            metadata_parts.append(f"<b>Project:</b> {project}")
+        
+        # Client
+        client = match.metadata.get('client', '')
+        if client:
+            metadata_parts.append(f"<b>Client:</b> {client}")
+        
+        # Forbidden status
+        forbidden = match.metadata.get('forbidden', False)
+        if forbidden:
+            metadata_parts.append("<b><span style='color: red;'>⚠️ FORBIDDEN TERM</span></b>")
+        
+        # Term ID (for debugging)
+        term_id = match.metadata.get('term_id', '')
+        if term_id:
+            metadata_parts.append(f"<span style='color: #888; font-size: 7px;'>Term ID: {term_id}</span>")
+        
+        metadata_html = "<br>".join(metadata_parts) if metadata_parts else "<i>No metadata</i>"
+        self.termbase_metadata.setHtml(metadata_html)
+    
+    def _display_tm_metadata(self, match: TranslationMatch):
+        """Display TM metadata in the info panel (memoQ-style)"""
+        # Get TM metadata from match
+        tm_name = match.metadata.get('tm_name', 'Unknown TM')
+        tm_id = match.metadata.get('tm_id', '')
+        source_lang = match.metadata.get('source_lang', '')
+        target_lang = match.metadata.get('target_lang', '')
+        entry_count = match.metadata.get('entry_count', 0)
+        modified_date = match.metadata.get('modified_date', '')
+        description = match.metadata.get('description', '')
+        
+        # Update TM name
+        self.tm_name_label.setText(f"📝 {tm_name}")
+        
+        # Update languages
+        if source_lang and target_lang:
+            self.tm_languages_label.setText(f"🌐 {source_lang} → {target_lang}")
+        else:
+            self.tm_languages_label.setText("")
+        
+        # Update stats (entry count + modified date)
+        stats_parts = []
+        if entry_count:
+            stats_parts.append(f"📊 {entry_count:,} entries")
+        if modified_date:
+            # Format date nicely if it's ISO format
+            try:
+                from datetime import datetime
+                dt = datetime.fromisoformat(modified_date)
+                formatted_date = dt.strftime("%Y-%m-%d %H:%M")
+                stats_parts.append(f"🕒 Modified: {formatted_date}")
+            except:
+                stats_parts.append(f"🕒 {modified_date}")
+        
+        self.tm_stats_label.setText(" • ".join(stats_parts) if stats_parts else "")
+        
+        # Update description (show/hide based on content)
+        if description and description.strip():
+            self.tm_description_label.setText(f"💬 {description}")
+            self.tm_description_label.show()
+        else:
+            self.tm_description_label.hide()
     
     def add_matches(self, new_matches_dict: Dict[str, List[TranslationMatch]]):
         """
@@ -712,14 +1153,31 @@ class TranslationResultsPanel(QWidget):
         self.current_selection = match
         self.match_selected.emit(match)
         
-        # Update compare box - show for TM matches with compare source
+        # Show appropriate viewer based on match type
         if match.match_type == "TM" and match.compare_source:
+            # Show TM compare box
             self.compare_frame.show()
+            self.tm_info_frame.show()  # Show TM metadata below compare box
+            self.termbase_frame.hide()
+            
             # Current source is already set via set_segment_info
             self.compare_tm_source.setText(match.compare_source)
             self.compare_tm_target.setText(match.target)
-        else:
+            
+            # Populate TM metadata panel
+            self._display_tm_metadata(match)
+            
+        elif match.match_type == "Termbase":
+            # Show termbase data viewer
             self.compare_frame.hide()
+            self.tm_info_frame.hide()
+            self.termbase_frame.show()
+            self._display_termbase_data(match)
+        else:
+            # Hide all viewers
+            self.compare_frame.hide()
+            self.tm_info_frame.hide()
+            self.termbase_frame.hide()
     
     def set_segment_info(self, segment_num: int, source_text: str):
         """Update segment info display"""
@@ -732,6 +1190,8 @@ class TranslationResultsPanel(QWidget):
         self.current_selection = None
         self.all_matches = []
         self.compare_frame.hide()
+        self.tm_info_frame.hide()
+        self.termbase_frame.hide()
         self.notes_edit.clear()
         
         while self.main_layout.count() > 0:

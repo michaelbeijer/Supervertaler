@@ -63,6 +63,17 @@ class DatabaseManager:
             # Create tables
             self._create_tables()
             
+            # Run database migrations (adds new columns/tables as needed)
+            try:
+                from modules.database_migrations import check_and_migrate
+                migration_success = check_and_migrate(self)
+                if not migration_success:
+                    self.log("[WARNING] Database migration reported failure")
+            except Exception as e:
+                self.log(f"[WARNING] Database migration check failed: {e}")
+                import traceback
+                traceback.print_exc()
+            
             self.log(f"[OK] Database connected: {os.path.basename(self.db_path)}")
             return True
             
@@ -72,6 +83,7 @@ class DatabaseManager:
     
     def _create_tables(self):
         """Create database schema"""
+        print("📊 Creating database tables...")
         
         # ============================================
         # TRANSLATION MEMORY TABLES
@@ -158,6 +170,44 @@ class DatabaseManager:
                 INSERT INTO translation_units_fts(rowid, source_text, target_text)
                 VALUES (new.id, new.source_text, new.target_text);
             END
+        """)
+        
+        # ============================================
+        # TRANSLATION MEMORY METADATA
+        # ============================================
+        
+        # Translation Memories table - tracks individual TM names/metadata
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS translation_memories (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                description TEXT,
+                source_lang TEXT,
+                target_lang TEXT,
+                tm_id TEXT NOT NULL UNIQUE,  -- The tm_id used in translation_units table
+                created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                modified_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                entry_count INTEGER DEFAULT 0,  -- Cached count, updated on changes
+                last_used TIMESTAMP
+            )
+        """)
+        
+        # TM activation (tracks which TMs are active for which projects)
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS tm_activation (
+                tm_id INTEGER NOT NULL,
+                project_id INTEGER NOT NULL,
+                is_active BOOLEAN DEFAULT 1,
+                activated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (tm_id, project_id),
+                FOREIGN KEY (tm_id) REFERENCES translation_memories(id) ON DELETE CASCADE
+            )
+        """)
+        
+        # Index for fast tm_id lookups
+        self.cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_tm_tm_id 
+            ON translation_memories(tm_id)
         """)
         
         # ============================================
@@ -495,7 +545,14 @@ class DatabaseManager:
         """)
         
         # Commit schema
-        self.connection.commit()
+        try:
+            self.connection.commit()
+            print("✅ Database tables created and committed successfully")
+        except Exception as e:
+            print(f"❌ Error committing database schema: {e}")
+            import traceback
+            traceback.print_exc()
+            raise
     
     def close(self):
         """Close database connection"""
@@ -826,6 +883,7 @@ class DatabaseManager:
             SELECT 
                 t.id, t.source_term, t.target_term, t.termbase_id, t.priority, 
                 t.forbidden, t.source_lang, t.target_lang, t.definition, t.domain,
+                t.notes, t.project, t.client,
                 tb.name as termbase_name,
                 tb.source_lang as termbase_source_lang,
                 tb.target_lang as termbase_target_lang

@@ -63,7 +63,7 @@ Supervertaler_Data/
 │       ├── Prefer Translation Memory Matches.md
 │       └── ... (5 more)
 ├── Translation_Resources/
-│   ├── Glossaries/                   ← Your terminology databases
+│   ├── Termbases/                    ← Your terminology databases
 │   ├── TMs/                          ← Your Translation Memory files
 │   ├── Non-translatables/            ← Lists of non-translatable terms
 │   └── Segmentation_rules/           ← Custom segmentation rules
@@ -170,7 +170,7 @@ When you first launch v3.7.1:
 - ✅ Your recent projects
 - ✅ Your custom prompts (if they were already in `user data/`)
 - ✅ Your translation memory files
-- ✅ Your glossaries
+- ✅ Your termbases
 - ✅ Your project files
 
 ## Multiple Computers?

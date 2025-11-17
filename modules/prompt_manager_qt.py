@@ -69,11 +69,11 @@ class PromptManagerQt:
         # Helper for QMessageBox (PyQt6 uses instances, not static methods)
         self._msg_box = None
         
-        # Initialize prompt library (4-layer architecture)
-        # - 2_Domain_Prompts folder → Layer 2: Domain expertise (medical, legal, technical)
-        # - 3_Project_Prompts folder → Layer 3: Project/client-specific instructions
-        domain_prompts_dir = self.user_data_path / "Prompt_Library" / "2_Domain_Prompts"
-        project_prompts_dir = self.user_data_path / "Prompt_Library" / "3_Project_Prompts"
+        # Initialize prompt library (unified architecture)
+        # - Domain Expertise folder → Domain expertise (medical, legal, technical)
+        # - Project Prompts folder → Project/client-specific instructions
+        domain_prompts_dir = self.user_data_path / "Prompt_Library" / "Domain Expertise"
+        project_prompts_dir = self.user_data_path / "Prompt_Library" / "Project Prompts"
         
         self.prompt_library = PromptLibrary(
             domain_prompts_dir=str(domain_prompts_dir),
@@ -82,7 +82,7 @@ class PromptManagerQt:
         )
         
         # Initialize style guide library
-        style_guides_dir = self.user_data_path / "Prompt_Library" / "4_Style_Guides"
+        style_guides_dir = self.user_data_path / "Prompt_Library" / "Style Guides"
         self.style_guide_library = StyleGuideLibrary(
             style_guides_dir=str(style_guides_dir),
             log_callback=self.log

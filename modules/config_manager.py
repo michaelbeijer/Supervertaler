@@ -33,11 +33,12 @@ class ConfigManager:
     
     # Folder structure that must exist in user_data directory
     REQUIRED_FOLDERS = [
-        "Prompt_Library/1_System_Prompts",
-        "Prompt_Library/2_Domain_Prompts",
-        "Prompt_Library/3_Project_Prompts",
-        "Prompt_Library/4_Style_Guides",
-        "Translation_Resources/Glossaries",
+        # Note: Old numbered folders (1_System_Prompts, 2_Domain_Prompts, etc.) are deprecated
+        # Migration moves them to unified Library structure
+        "Prompt_Library/Domain Expertise",
+        "Prompt_Library/Project Prompts",
+        "Prompt_Library/Style Guides",
+        "Translation_Resources/Termbases",
         "Translation_Resources/TMs",
         "Translation_Resources/Non-translatables",
         "Translation_Resources/Segmentation_rules",

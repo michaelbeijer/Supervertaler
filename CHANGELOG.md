@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.6.0 (November 16, 2025)  
+**Current Version:** v1.6.2 (November 17, 2025)  
 **Framework:** PyQt6  
 **Status:** Active Development
 
@@ -14,6 +14,8 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- 🖼️ **Superimage (v1.6.2)** - Extract images from DOCX files with preview and auto-folder management
+- 📚 **Enhanced Termbase System (v1.6.1)** - Extended metadata with notes, project, client fields and refresh functionality
 - 📚 **Complete Termbase System (v1.6.0)** - Professional terminology management with interactive features
 - 🎤 **Supervoice (v1.4.0)** - AI voice dictation with OpenAI Whisper, 100+ languages, F9 hotkey
 - 📊 **Superbench (v1.4.1)** - Benchmark LLM translation quality on YOUR actual projects with chrF++ scoring
@@ -27,6 +29,135 @@ All notable changes to Supervertaler are documented in this file.
 - 🔄 **CAT Tool Integration** - memoQ, Trados, CafeTran bilingual table support
 
 **See full version history below** ↓
+
+---
+
+## [1.6.2] - November 17, 2025
+
+### 🖼️ Image Extractor (Superimage)
+
+**Extract Images from DOCX Files** - New tool for extracting all images from DOCX files with preview and batch processing capabilities.
+
+### Added
+
+**Image Extraction:**
+- 📄 **DOCX Image Extractor** - Extract all images from DOCX files (located in word/media/ folder)
+- 🖼️ **PNG Output** - Convert all image formats to PNG with sequential naming (Fig. 1.png, Fig. 2.png, etc.)
+- 📁 **Auto-folder Mode** - Option to automatically create "Images" subfolder next to source DOCX
+- 📚 **Batch Processing** - Add multiple DOCX files or entire folders for bulk extraction
+- 🎯 **Custom Prefix** - Configurable filename prefix (default: "Fig.")
+
+**Image Preview:**
+- 👁️ **Click-to-Preview** - Click any extracted file in list to view in preview panel
+- 🖼️ **Resizable Preview** - Horizontal splitter between results and preview (60% preview area)
+- ⬅️➡️ **Navigation Buttons** - Previous/Next buttons synced with file list
+- 🔍 **Auto-scaling** - Images automatically scaled to fit viewport while maintaining aspect ratio
+
+**UI/UX:**
+- 🎨 **Compact Layout** - Optimized vertical space with single-row controls
+- 📝 **Resizable Status Log** - Extraction progress log with minimum 50px height
+- 📋 **File List Management** - Add files, add folder, clear list functionality
+- 🛠️ **Tools Menu Integration** - Quick access via Tools → Image Extractor (Superimage)
+
+**Technical:**
+- 🔧 **New Module** - `modules/image_extractor.py` with `ImageExtractor` class
+- 📖 **Documentation** - Complete user guide in `modules/IMAGE_EXTRACTOR_README.md`
+- 🧪 **Test Script** - `tests/test_image_extractor.py` for validation
+- 🎨 **PIL/Pillow** - Image format conversion (RGBA→RGB with white background)
+
+**Location:**
+- Translation Resources → Reference Images tab
+- Tools → Image Extractor (Superimage)...
+
+---
+
+## [1.6.1] - November 17, 2025
+
+### 📚 Enhanced Termbase Metadata System
+
+**Extended Metadata & Improved UX** - Comprehensive termbase metadata with notes, project, and client fields, plus instant refresh functionality.
+
+### Added
+
+**Enhanced Metadata Fields:**
+- 📝 **Notes Field** - Multi-line notes field replacing old definition field for context, usage notes, and URLs
+- 🔗 **Clickable URLs** - URLs in notes automatically become clickable links (opens in external browser)
+- 📁 **Project Field** - Track which project a term belongs to
+- 👤 **Client Field** - Associate terms with specific clients
+- 🏷️ **Domain Field** - Already existed, now fully integrated throughout system
+
+**Termbase Viewer Enhancements:**
+- 📖 **Dedicated Termbase Viewer** - New panel at bottom of Translation Results showing selected termbase entry
+- 🔄 **Refresh Data Button** - Manual refresh button to reload latest data from database
+- ✏️ **Edit Button** - Direct access to edit dialog from termbase viewer
+- 🖱️ **Right-Click Edit** - Context menu on termbase matches for quick editing
+- ♻️ **Auto-Refresh on Edit** - Termbase viewer automatically updates after editing entry
+
+**Improved Table Views:**
+- 📊 **Extended Columns** - Edit Terms dialog now shows: Source, Target, Domain, Priority, Notes (truncated), Project, Client, Forbidden
+- 📏 **Smart Column Widths** - Optimized column sizing for better visibility
+- ✂️ **Notes Truncation** - Long notes truncated to 50 characters with "..." in table view
+
+**Database Enhancements:**
+- 🗄️ **Database Migration System** - Automated schema updates for backward compatibility
+- ➕ **New Columns** - Added `notes`, `project`, `client` columns to `termbase_terms` table
+- 🔗 **Synonyms Table** - Created `termbase_synonyms` table structure (foundation for future feature)
+- 🔄 **Legacy Support** - Old `definition` column preserved for backward compatibility
+
+### Fixed
+
+**Metadata Flow Issues:**
+- ✅ **Complete Metadata Chain** - All termbase metadata now flows correctly: Dialog → Database → Search → Display
+- ✅ **Edit Button Caching** - Fixed issue where edit buttons didn't work until adding first new term
+- ✅ **Thread-Safe Queries** - Background termbase worker now includes all metadata fields (term_id, termbase_id, etc.)
+- ✅ **Initial Load** - Termbase matches loaded at startup now include full metadata for immediate editing
+- ✅ **Field Consistency** - Standardized on "notes" (plural) throughout codebase
+
+**UI/UX Improvements:**
+- ✅ **Visible Refresh Button** - Changed from just "🔄" to "🔄 Refresh data" for better visibility
+- ✅ **Metadata Display** - Termbase viewer shows all fields with proper formatting
+- ✅ **URL Rendering** - QTextBrowser with `setOpenExternalLinks(True)` for clickable links
+- ✅ **Edit Dialog Fields** - Updated TermMetadataDialog to show notes, project, client (removed old definition field)
+
+### Changed
+
+**API Updates:**
+- 🔄 **termbase_manager.add_term()** - Updated signature to accept `notes`, `project`, `client` instead of `definition`
+- 🔄 **termbase_manager.get_terms()** - Now returns all new fields in term dictionaries
+- 🔄 **termbase_manager.update_term()** - Updated to handle new field structure
+- 🔄 **database_manager.search_termbases()** - SELECT query includes all new columns
+- 🔄 **TranslationMatch metadata** - All creation points include complete metadata with IDs
+
+**Code Quality:**
+- 📦 **Modular Migrations** - `database_migrations.py` handles all schema updates
+- 🔒 **Type Safety** - Proper Optional types for new fields throughout
+- 🧹 **Cleanup** - Removed all references to old "definition" field (except database column for compatibility)
+
+### Technical Details
+
+**Database Migration:**
+```sql
+-- Migration adds new columns to termbase_terms
+ALTER TABLE termbase_terms ADD COLUMN notes TEXT;
+ALTER TABLE termbase_terms ADD COLUMN project TEXT;
+ALTER TABLE termbase_terms ADD COLUMN client TEXT;
+
+-- New synonyms table (foundation for future feature)
+CREATE TABLE IF NOT EXISTS termbase_synonyms (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    term_id INTEGER NOT NULL,
+    synonym_text TEXT NOT NULL,
+    language TEXT NOT NULL,
+    created_date TEXT,
+    FOREIGN KEY (term_id) REFERENCES termbase_terms(id) ON DELETE CASCADE
+);
+```
+
+**Metadata Flow:**
+1. **Add Term**: TermMetadataDialog → get_metadata() → add_term_pair_to_termbase() → termbase_mgr.add_term() → Database INSERT
+2. **Load Terms**: Database SELECT → search_termbases() → TranslationMatch metadata → Termbase viewer display
+3. **Edit Term**: Edit button → TermbaseEntryEditor → update_term() → Database UPDATE → Refresh viewer
+4. **Cache Population**: Background worker → _search_termbases_thread_safe() → Complete metadata → termbase_cache
 
 ---
 

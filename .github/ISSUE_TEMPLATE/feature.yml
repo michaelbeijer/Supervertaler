@@ -1,0 +1,15 @@
+name: "Feature"
+description: "Features and enhancements."
+title: "[Feature] "
+labels:
+  - feature
+body:
+  - type: input
+    id: summary
+    attributes:
+      label: Summary
+      description: "Describe the feature you want."
+      placeholder: "Implement the following feature ..."
+    validations:
+      required: true
+

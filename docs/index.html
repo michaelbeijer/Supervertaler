@@ -48,10 +48,10 @@
                     Supervertaler
                     <span class="gradient-text">The Ultimate Companion Tool For Translators</span>
                 </h1>
-                <p class="version-badge">v1.6.0 - November 16, 2025</p>
+                <p class="version-badge">v1.6.2 - November 17, 2025</p>
                 <p class="hero-subtitle">
                     AI-powered features that work alongside your CAT tool (memoQ, Trados).
-                    2-Layer Prompt Architecture with AI Assistant, complete termbase system, and intelligent features.
+                    2-Layer Prompt Architecture with AI Assistant, Image Extractor, enhanced termbase system with rich metadata, and intelligent features.
                     Built by translators, for translators and writers.
                 </p>
                 <div class="hero-buttons">
@@ -64,7 +64,7 @@
                     </a>
                 </div>
                 <div class="hero-badges">
-                    <span class="badge badge-cat">🆕 v1.6.0 - Complete Termbase System 📚</span>
+                    <span class="badge badge-cat">🆕 v1.6.2 - Image Extractor (Superimage) 🖼️</span>
                     <span class="badge badge-cat">PyQt6 • SQLite • Modern UI • Active Development</span>
                 </div>
             </div>
@@ -314,13 +314,13 @@
             <h2 class="section-title">Features</h2>
             <p class="section-subtitle">Everything you need for professional translation work</p>
             
-            <!-- NEW in v1.6.0 Termbase System Showcase -->
+            <!-- ENHANCED in v1.6.1 Termbase System Showcase -->
             <div style="background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%); padding: 40px; border-radius: 15px; margin-bottom: 40px; color: white; box-shadow: 0 10px 40px rgba(99,102,241,0.4);">
                 <h3 style="font-size: 32px; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
-                    📚 NEW in v1.6.0: Complete Termbase System
+                    📚 ENHANCED in v1.6.1: Complete Termbase System with Rich Metadata
                 </h3>
                 <p style="font-size: 20px; margin-bottom: 25px; line-height: 1.6;">
-                    Professional terminology management that rivals commercial CAT tools - with memoQ-inspired interactive features that make working with termbases a joy!
+                    Professional terminology management that rivals commercial CAT tools - with memoQ-inspired interactive features, extended metadata (notes, project, client), and instant refresh functionality!
                 </p>
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 25px;">
                     <div style="background: rgba(255,255,255,0.15); padding: 20px; border-radius: 10px; backdrop-filter: blur(10px);">
@@ -353,11 +353,17 @@
                         <h4 style="margin-bottom: 8px; font-size: 18px;">Forbidden Terms</h4>
                         <p style="font-size: 14px; opacity: 0.95; line-height: 1.5;">Mark terms as "do not use" - they're highlighted in black everywhere for maximum visibility. Never miss them again.</p>
                     </div>
+                    <div style="background: rgba(255,255,255,0.15); padding: 20px; border-radius: 10px; backdrop-filter: blur(10px);">
+                        <div style="font-size: 28px; margin-bottom: 10px;">📝</div>
+                        <h4 style="margin-bottom: 8px; font-size: 18px;">Rich Metadata <span style="background: #FFD700; color: #000; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin-left: 5px;">NEW v1.6.1</span></h4>
+                        <p style="font-size: 14px; opacity: 0.95; line-height: 1.5;">Notes with clickable URLs, project and client fields, domain categorization. Dedicated termbase viewer with refresh button for instant updates.</p>
+                    </div>
                 </div>
                 <div style="background: rgba(255,255,255,0.2); padding: 20px; border-radius: 10px; border: 2px solid rgba(255,255,255,0.3);">
                     <p style="font-size: 16px; line-height: 1.7; margin: 0;">
                         <strong>🔍 Real-Time Matching:</strong> Termbase matches automatically detected and displayed in Translation Results panel alongside TM, MT, and LLM matches. Complete workflow integration. 
                         <strong>💾 SQLite Backend:</strong> Fast, reliable, FTS5 full-text search for instant term lookups.
+                        <strong>🔄 Instant Refresh:</strong> Edit terms and click refresh to see updates immediately without reloading project.
                     </p>
                 </div>
             </div>
@@ -411,6 +417,20 @@
                         <li>Auto-detects figure references</li>
                         <li>Visual context for technical translations</li>
                         <li>Project persistence</li>
+                    </ul>
+                </div>
+
+                <div class="feature-card" style="border: 2px solid #4CAF50;">
+                    <div class="feature-icon">🖼️</div>
+                    <h3>Image Extractor (Superimage) <span class="badge-new">v1.6.2</span></h3>
+                    <p>Extract all images from DOCX files with preview and batch processing. Auto-folder mode creates organized output structure.</p>
+                    <ul class="feature-list">
+                        <li>Extract images from DOCX files</li>
+                        <li>Sequential PNG naming (Fig. 1.png, etc.)</li>
+                        <li>Auto-folder: Images subfolder next to DOCX</li>
+                        <li>Click-to-preview with navigation</li>
+                        <li>Batch processing multiple files</li>
+                        <li>Resizable preview panel</li>
                     </ul>
                 </div>
 
@@ -617,16 +637,16 @@
             <!-- Main Download Card -->
             <div style="text-align: center; margin: 40px 0;">
                 <div class="download-card featured" style="border: 3px solid #6366F1; max-width: 700px; margin: 0 auto;">
-                    <div class="download-badge" style="background: #6366F1;">CURRENT - v1.6.0</div>
+                    <div class="download-badge" style="background: #6366F1;">CURRENT - v1.6.2</div>
                     <h3>🎨 Supervertaler</h3>
                     <p class="download-description" style="font-weight: 600; color: #6366F1; margin-bottom: 10px;">
                         Modern Professional Interface
                     </p>
                     <p class="download-description">
-                        Complete termbase system, AI Assistant, Supervoice dictation, Universal Lookup, TMX Editor, and more. Built with PyQt6 for modern UI and performance.
+                        Enhanced termbase system with rich metadata, AI Assistant, Supervoice dictation, Universal Lookup, TMX Editor, and more. Built with PyQt6 for modern UI and performance.
                     </p>
                     <div class="feature-highlights" style="text-align: left; font-size: 0.9em;">
-                        <div class="highlight-item">📚 Complete termbase system with interactive features</div>
+                        <div class="highlight-item">📚 Enhanced termbase system with notes, project, client fields & refresh</div>
                         <div class="highlight-item">🎤 Supervoice - AI voice dictation (100+ languages)</div>
                         <div class="highlight-item">🤖 AI Assistant - Conversational prompt generation</div>
                         <div class="highlight-item">🔍 Universal Lookup - System-wide TM search (Ctrl+Alt+L)</div>

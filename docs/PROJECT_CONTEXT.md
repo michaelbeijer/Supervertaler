@@ -1782,7 +1782,7 @@ python Supervertaler_tkinter.py
 
 2. **Professional Tab Organization**
    - **Project Group:** Project Manager, Project Editor
-   - **Resources Group:** Translation Memories, Glossaries, Non-Translatables, Prompts
+   - **Resources Group:** Translation Memories, Termbases, Non-Translatables, Prompts
    - **Modules Group:** TMX Editor, Reference Images, PDF Rescue, Encoding Repair, AutoFingers, Tracked Changes
    - **Settings Group:** Settings, Log
    - **Utilities:** Universal Lookup (Ctrl+Alt+L)
