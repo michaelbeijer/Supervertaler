@@ -89,37 +89,38 @@ class CheckmarkCheckBox(QCheckBox):
             if indicator_rect.isValid():
                 # Draw white checkmark
                 painter = QPainter(self)
-                painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-                pen_width = max(2.0, min(indicator_rect.width(), indicator_rect.height()) * 0.12)
-                painter.setPen(QPen(QColor(255, 255, 255), pen_width, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin))
-                painter.setBrush(QColor(255, 255, 255))
+                try:
+                    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+                    pen_width = max(2.0, min(indicator_rect.width(), indicator_rect.height()) * 0.12)
+                    painter.setPen(QPen(QColor(255, 255, 255), pen_width, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin))
+                    painter.setBrush(QColor(255, 255, 255))
 
-                # Draw checkmark (✓ shape)
-                x = indicator_rect.x()
-                y = indicator_rect.y()
-                w = indicator_rect.width()
-                h = indicator_rect.height()
+                    # Draw checkmark (✓ shape)
+                    x = indicator_rect.x()
+                    y = indicator_rect.y()
+                    w = indicator_rect.width()
+                    h = indicator_rect.height()
 
-                # Add padding
-                padding = min(w, h) * 0.15
-                x += padding
-                y += padding
-                w -= padding * 2
-                h -= padding * 2
+                    # Add padding
+                    padding = min(w, h) * 0.15
+                    x += padding
+                    y += padding
+                    w -= padding * 2
+                    h -= padding * 2
 
-                # Checkmark path
-                check_x1 = x + w * 0.10
-                check_y1 = y + h * 0.50
-                check_x2 = x + w * 0.35
-                check_y2 = y + h * 0.70
-                check_x3 = x + w * 0.90
-                check_y3 = y + h * 0.25
+                    # Checkmark path
+                    check_x1 = x + w * 0.10
+                    check_y1 = y + h * 0.50
+                    check_x2 = x + w * 0.35
+                    check_y2 = y + h * 0.70
+                    check_x3 = x + w * 0.90
+                    check_y3 = y + h * 0.25
 
-                # Draw checkmark lines
-                painter.drawLine(QPointF(check_x2, check_y2), QPointF(check_x3, check_y3))
-                painter.drawLine(QPointF(check_x1, check_y1), QPointF(check_x2, check_y2))
-
-                painter.end()
+                    # Draw checkmark lines
+                    painter.drawLine(QPointF(check_x2, check_y2), QPointF(check_x3, check_y3))
+                    painter.drawLine(QPointF(check_x1, check_y1), QPointF(check_x2, check_y2))
+                finally:
+                    painter.end()
 
 
 class CustomRadioButton(QRadioButton):
@@ -170,37 +171,38 @@ class CustomRadioButton(QRadioButton):
             if indicator_rect.isValid():
                 # Draw white checkmark
                 painter = QPainter(self)
-                painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-                pen_width = max(2.0, min(indicator_rect.width(), indicator_rect.height()) * 0.12)
-                painter.setPen(QPen(QColor(255, 255, 255), pen_width, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin))
-                painter.setBrush(QColor(255, 255, 255))
+                try:
+                    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+                    pen_width = max(2.0, min(indicator_rect.width(), indicator_rect.height()) * 0.12)
+                    painter.setPen(QPen(QColor(255, 255, 255), pen_width, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin))
+                    painter.setBrush(QColor(255, 255, 255))
 
-                # Draw checkmark (✓ shape)
-                x = indicator_rect.x()
-                y = indicator_rect.y()
-                w = indicator_rect.width()
-                h = indicator_rect.height()
+                    # Draw checkmark (✓ shape)
+                    x = indicator_rect.x()
+                    y = indicator_rect.y()
+                    w = indicator_rect.width()
+                    h = indicator_rect.height()
 
-                # Add padding
-                padding = min(w, h) * 0.15
-                x += padding
-                y += padding
-                w -= padding * 2
-                h -= padding * 2
+                    # Add padding
+                    padding = min(w, h) * 0.15
+                    x += padding
+                    y += padding
+                    w -= padding * 2
+                    h -= padding * 2
 
-                # Checkmark path
-                check_x1 = x + w * 0.10
-                check_y1 = y + h * 0.50
-                check_x2 = x + w * 0.35
-                check_y2 = y + h * 0.70
-                check_x3 = x + w * 0.90
-                check_y3 = y + h * 0.25
+                    # Checkmark path
+                    check_x1 = x + w * 0.10
+                    check_y1 = y + h * 0.50
+                    check_x2 = x + w * 0.35
+                    check_y2 = y + h * 0.70
+                    check_x3 = x + w * 0.90
+                    check_y3 = y + h * 0.25
 
-                # Draw checkmark lines
-                painter.drawLine(QPointF(check_x2, check_y2), QPointF(check_x3, check_y3))
-                painter.drawLine(QPointF(check_x1, check_y1), QPointF(check_x2, check_y2))
-
-                painter.end()
+                    # Draw checkmark lines
+                    painter.drawLine(QPointF(check_x2, check_y2), QPointF(check_x3, check_y3))
+                    painter.drawLine(QPointF(check_x1, check_y1), QPointF(check_x2, check_y2))
+                finally:
+                    painter.end()
 
 
 class BenchmarkThread(QThread):
