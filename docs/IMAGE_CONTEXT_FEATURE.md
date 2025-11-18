@@ -49,39 +49,50 @@ The system automatically normalizes figure references to match various filename 
 4. **AI receives image:** Image automatically included in GPT-4V/Claude/Gemini request
 5. **Better translation:** AI "sees" the technical drawing and translates accurately
 
-## Next Steps (Phase 2 - TODO)
+## Phase 2: AI Integration (Completed ✅)
 
-### 🔄 Integration with AI Translation
+### ✅ Implementation Complete
 
-To complete the feature, images need to be automatically included in AI translation requests:
+**Status**: Implemented in v1.6.3
 
-**Files to modify:**
-- `modules/llm_clients.py` - Add image support to API calls
-- `Supervertaler.py` - Detect figures in source text before translation
+Images are now automatically included in AI translation requests when figures are detected.
 
-**Implementation approach:**
+**Files modified:**
+- ✅ `modules/llm_clients.py` - Vision model support and image handling
+- ✅ `Supervertaler.py` - Figure detection and image inclusion in translations
+
+**Implementation:**
 
 ```python
-# In translate_with_ai() or similar method:
-def translate_segment_with_ai(self, segment_id, provider, model):
-    segment = self.current_project.segments[segment_id]
-    source_text = segment.source
-    
-    # NEW: Detect figure references and get images
-    figure_images = []
-    if self.figure_context.has_images():
-        figure_refs = self.figure_context.detect_figure_references(source_text)
-        if figure_refs:
-            figure_images = self.figure_context.get_images_for_text(source_text)
-            self.log(f"[Image Context] Including {len(figure_images)} figure(s) with translation")
-    
-    # Pass images to LLM client
-    translation = llm_client.translate(
-        source_text,
-        source_lang,
-        target_lang,
-        images=figure_images  # NEW parameter
-    )
+# In single-segment translation (line ~15740):
+if self.figure_context and self.figure_context.images:
+    figure_refs = self.figure_context.detect_figure_references(segment.source)
+    if figure_refs:
+        images_for_text = self.figure_context.get_images_for_text(segment.source)
+        if images_for_text:
+            if LLMClient.model_supports_vision(provider, model):
+                if provider == "gemini":
+                    images = images_for_text  # PIL.Image directly
+                else:
+                    images = [(ref, self.figure_context.pil_image_to_base64_png(img))
+                             for ref, img in images_for_text]
+                self.log(f"Including {len(images)} figure images: {', '.join(figure_refs)}")
+                
+# In batch translation (line ~16250):
+# Same logic but collects all unique figures across batch segments
+```
+
+**Vision Model Support:**
+- Added `VISION_MODELS` constant with supported models per provider
+- Added `model_supports_vision()` method for capability detection
+- Modified all API call methods (_call_openai, _call_claude, _call_gemini) to handle images
+- Automatic warning when images provided but model doesn't support vision
+
+**Ready for Testing:**
+- ⏳ Test with real patent documents containing figure references
+- ⏳ Test with various figure naming conventions (fig1.png, Figure 1A.jpg, etc.)
+- ⏳ Test batch translation with multiple figures
+- ⏳ Test with different vision models (GPT-4V, Claude 3, Gemini Pro Vision)
 ```
 
 **LLM Client modifications needed:**

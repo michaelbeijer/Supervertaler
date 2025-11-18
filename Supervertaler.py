@@ -16247,12 +16247,45 @@ class SupervertalerQt(QMainWindow):
 
                     self.log(f"🤖 Translating batch {batch_num + 1}/{total_batches} ({len(batch_segments)} segments)...")
 
+                    # Check for figure references across all segments in batch
+                    batch_images = None
+                    if self.figure_context and self.figure_context.images:
+                        try:
+                            # Collect all unique figure references from batch
+                            all_figure_refs = set()
+                            for row_index, seg in batch_segments:
+                                refs = self.figure_context.detect_figure_references(seg.source)
+                                all_figure_refs.update(refs)
+                            
+                            if all_figure_refs:
+                                # Get images for all detected figures
+                                batch_text = "\n".join([seg.source for _, seg in batch_segments])
+                                images_for_batch = self.figure_context.get_images_for_text(batch_text)
+                                
+                                if images_for_batch:
+                                    # Check if model supports vision
+                                    if LLMClient.model_supports_vision(provider, model):
+                                        # Convert PIL images to appropriate format for provider
+                                        if provider == "gemini":
+                                            batch_images = images_for_batch
+                                        else:
+                                            batch_images = [
+                                                (ref, self.figure_context.pil_image_to_base64_png(img))
+                                                for ref, img in images_for_batch
+                                            ]
+                                        self.log(f"  Including {len(batch_images)} figure images: {', '.join(sorted(all_figure_refs))}")
+                                    else:
+                                        self.log(f"⚠ Figures detected ({', '.join(sorted(all_figure_refs))}) but model {model} doesn't support vision")
+                        except Exception as e:
+                            self.log(f"⚠ Could not load batch figures: {e}")
+
                     first_segment_text = batch_segments[0][1].source if batch_segments else ""
                     batch_response = client.translate(
                         text=first_segment_text,
                         source_lang=source_lang,
                         target_lang=target_lang,
-                        custom_prompt=batch_prompt
+                        custom_prompt=batch_prompt,
+                        images=batch_images
                     )
 
                     import re
