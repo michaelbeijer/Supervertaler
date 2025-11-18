@@ -3,7 +3,7 @@ Supervertaler Qt Edition
 ========================
 The ultimate companion tool for translators and writers.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.6.4 (Superbrowser - Multi-Chat AI Browser)
+Version: 1.6.5 (File Dialog Memory)
 Release Date: November 18, 2025
 Framework: PyQt6
 
@@ -31,8 +31,8 @@ License: MIT
 """
 
 # Version Information
-__version__ = "1.6.4"
-__phase__ = "8.4"
+__version__ = "1.6.5"
+__phase__ = "8.5"
 __release_date__ = "2025-11-18"
 __edition__ = "Qt"
 
@@ -1917,7 +1917,7 @@ class SupervertalerQt(QMainWindow):
         # Create example API keys file on first launch (after UI is ready)
         self.ensure_example_api_keys()
         
-        self.log("Welcome to Supervertaler Qt v1.6.4")
+        self.log("Welcome to Supervertaler Qt v1.6.5")
         self.log("Supervertaler: The ultimate companion tool for translators and writers.")
         
         # Load general settings (including auto-propagation)

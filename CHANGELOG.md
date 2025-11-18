@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.6.4 (November 18, 2025)  
+**Current Version:** v1.6.5 (November 18, 2025)  
 **Framework:** PyQt6  
 **Status:** Active Development
 
@@ -14,6 +14,7 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- 📁 **File Dialog Memory (v1.6.5)** - File dialogs remember your last used directory for improved workflow
 - 🌐 **Superbrowser (v1.6.4)** - Multi-chat AI browser with ChatGPT, Claude, and Gemini side-by-side in one window
 - ⚡ **UI Responsiveness & Precision Scroll (v1.6.3)** - Debug settings, disabled LLM auto-matching, memoQ-style precision scroll buttons, auto-center active segment
 - 🖼️ **Superimage (v1.6.2)** - Extract images from DOCX files with preview and auto-folder management
@@ -31,6 +32,46 @@ All notable changes to Supervertaler are documented in this file.
 - 🔄 **CAT Tool Integration** - memoQ, Trados, CafeTran bilingual table support
 
 **See full version history below** ↓
+
+---
+
+## [1.6.5] - November 18, 2025
+
+### 📁 File Dialog Memory - Smart Directory Navigation
+
+**File Dialogs Remember Your Last Location** - A quality-of-life improvement that significantly streamlines workflow by automatically remembering the last directory you navigated to across all file dialogs throughout the application.
+
+### Added
+
+**File Dialog Helper System:**
+- 📁 **Last Directory Memory** - File dialogs automatically open in the last used directory
+- 💾 **Persistent Storage** - Last directory saved to config file between sessions
+- 🔄 **Universal Coverage** - Works for all dialog types (open file, save file, select folder, multiple files)
+- 🎯 **Automatic Detection** - Extracts directory from file paths automatically
+- 🛠️ **Helper Module** - Created `modules/file_dialog_helper.py` with wrapper functions
+
+**Config Manager Enhancements:**
+- Added `get_last_directory()` - Retrieve the last used directory
+- Added `set_last_directory()` - Save a directory as the last used location
+- Added `update_last_directory_from_file()` - Extract and save directory from file path
+
+**Integration Points:**
+- Image Extractor (add DOCX files, select folder, output directory)
+- TMX import/export dialogs
+- Project open/save dialogs
+- Export dialogs (JSON, TMX, etc.)
+
+**Benefits:**
+- No more navigating from program root every time
+- Improved workflow when working with files in the same folder
+- Transparent operation - works automatically without configuration
+- Persists between application sessions
+
+### Technical Implementation
+- Created `modules/file_dialog_helper.py` with `get_open_file_name()`, `get_save_file_name()`, `get_existing_directory()`, `get_open_file_names()` wrappers
+- Extended `config_manager.py` with directory tracking methods
+- Updated key file dialog calls in `Supervertaler.py` to use helper functions
+- Last directory stored in `~/.supervertaler_config.json` (or dev mode equivalent)
 
 ---
 
