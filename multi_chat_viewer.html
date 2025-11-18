@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Chat Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 10px;
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .container {
+            display: flex;
+            height: calc(100vh - 50px);
+            width: 100%;
+        }
+
+        .column {
+            flex: 1;
+            border-right: 2px solid #34495e;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .column:last-child {
+            border-right: none;
+        }
+
+        .column-header {
+            background-color: #34495e;
+            color: white;
+            padding: 8px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .chatgpt-header {
+            background-color: #10a37f;
+        }
+
+        .claude-header {
+            background-color: #c17c4f;
+        }
+
+        .gemini-header {
+            background-color: #4285f4;
+        }
+
+        iframe {
+            flex: 1;
+            border: none;
+            width: 100%;
+        }
+
+        .error-message {
+            padding: 20px;
+            text-align: center;
+            color: #e74c3c;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">Multi-Chat Viewer - ChatGPT | Claude | Gemini</div>
+    <div class="container">
+        <div class="column">
+            <div class="column-header chatgpt-header">ChatGPT</div>
+            <iframe
+                src="https://chatgpt.com/g/g-p-691b3c7d19b4819183e9a27cd0700bc7-brants-stein-002-be-ep/c/691c9614-b258-832c-8201-88e911ae26f9"
+                title="ChatGPT Chat"
+                sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals"
+                loading="lazy">
+            </iframe>
+        </div>
+
+        <div class="column">
+            <div class="column-header claude-header">Claude</div>
+            <iframe
+                src="https://claude.ai/chat/7e0f1651-33a5-43c0-bca6-be6f4977736b"
+                title="Claude Chat"
+                sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals"
+                loading="lazy">
+            </iframe>
+        </div>
+
+        <div class="column">
+            <div class="column-header gemini-header">Gemini</div>
+            <iframe
+                src="https://gemini.google.com/gem/839507734ccd/3ebe6cf9e3dafd58"
+                title="Gemini Chat"
+                sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals"
+                loading="lazy">
+            </iframe>
+        </div>
+    </div>
+
+    <script>
+        // Handle iframe errors
+        document.querySelectorAll('iframe').forEach(iframe => {
+            iframe.onerror = function() {
+                console.error('Failed to load iframe:', iframe.src);
+            };
+        });
+    </script>
+</body>
+</html>
