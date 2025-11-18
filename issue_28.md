@@ -86,3 +86,23 @@ The implementation follows the proven pattern from the legacy v2.5.0-CLASSIC ver
 - No breaking changes to existing API
 - Images parameter is optional (defaults to None)
 - Non-vision models automatically skip image processing with warning
+
+---
+
+## Additional Feature: Superbrowser Integration
+
+**Status**: ✅ Completed November 18, 2025
+
+While implementing Phase 2, also integrated the **Superbrowser** feature - a multi-chat AI browser that displays ChatGPT, Claude, and Gemini side by side in resizable columns.
+
+**Implementation:**
+- Created `modules/superbrowser.py` - Standalone module with `SuperbrowserWidget`
+- Added as new tab in Specialised Tools: "🌐 Superbrowser"
+- Features: URL navigation, reload, home buttons for each AI provider
+- Configurable URLs for custom chat sessions
+- Requires `PyQt6-WebEngine` package (now installed)
+
+**Files Created/Modified:**
+- `modules/superbrowser.py` - New module (259 lines)
+- `Supervertaler.py` - Added `create_superbrowser_tab()` method and tab registration
+- Dependencies: Added `PyQt6-WebEngine` to requirements

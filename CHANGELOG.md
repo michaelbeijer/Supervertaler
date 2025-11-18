@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.6.3 (November 18, 2025)  
+**Current Version:** v1.6.4 (November 18, 2025)  
 **Framework:** PyQt6  
 **Status:** Active Development
 
@@ -14,6 +14,7 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- 🌐 **Superbrowser (v1.6.4)** - Multi-chat AI browser with ChatGPT, Claude, and Gemini side-by-side in one window
 - ⚡ **UI Responsiveness & Precision Scroll (v1.6.3)** - Debug settings, disabled LLM auto-matching, memoQ-style precision scroll buttons, auto-center active segment
 - 🖼️ **Superimage (v1.6.2)** - Extract images from DOCX files with preview and auto-folder management
 - 📚 **Enhanced Termbase System (v1.6.1)** - Extended metadata with notes, project, client fields and refresh functionality
@@ -30,6 +31,47 @@ All notable changes to Supervertaler are documented in this file.
 - 🔄 **CAT Tool Integration** - memoQ, Trados, CafeTran bilingual table support
 
 **See full version history below** ↓
+
+---
+
+## [1.6.4] - November 18, 2025
+
+### 🌐 Superbrowser - Multi-Chat AI Browser
+
+**Work with Multiple AI Chats Simultaneously** - A revolutionary new tab that displays ChatGPT, Claude, and Gemini side-by-side in resizable columns with persistent login sessions, perfect for comparing AI responses or maintaining multiple conversation threads.
+
+### Added
+
+**Superbrowser Tab:**
+- 🌐 **Three-Column Layout** - ChatGPT, Claude, and Gemini displayed simultaneously in resizable columns
+- 🔐 **Persistent Sessions** - Login credentials saved between sessions (no need to log in every time)
+- 🔧 **Collapsible Configuration** - Hide/show URL configuration panel to maximize screen space
+- 🎨 **Color-Coded Columns** - Each AI provider has distinct color (green, copper, blue)
+- 🏠 **Navigation Controls** - URL bar, reload, and home buttons for each column
+- 💾 **Profile Storage** - Separate persistent storage for each AI provider (cookies, cache, sessions)
+- 📱 **Minimal Headers** - Tiny 10px headers maximize space for chat windows
+- 🎯 **Dev Mode Support** - Uses `user_data_private/` for dev mode, `user_data/` for production
+
+**Technical Implementation:**
+- Created `modules/superbrowser.py` - Standalone module with `SuperbrowserWidget`
+- Integrated QtWebEngine with OpenGL context sharing for proper rendering
+- Added persistent profile management using `QWebEngineProfile`
+- Implemented `ChatColumn` class for individual browser columns
+- Added to Specialised Tools as "🌐 Superbrowser" tab
+
+**Use Cases:**
+- Compare how different AI models respond to the same prompt
+- Maintain separate conversation threads for different projects
+- Quick access to all major AI assistants without switching browser tabs
+- Research and development with multiple AI perspectives
+
+### Fixed
+- QtWebEngine DLL compatibility issues resolved (version matching)
+- OpenGL context sharing properly initialized before QApplication creation
+- Profile storage paths follow application's dev mode patterns
+
+### Dependencies
+- Added `PyQt6-WebEngine>=6.8.0,<6.9.0` requirement (version matched to PyQt6 6.8.1)
 
 ---
 

@@ -32,7 +32,7 @@ Usage:
 """
 
 import os
-from typing import Dict, Optional, Literal
+from typing import Dict, Optional, Literal, List
 from dataclasses import dataclass
 
 

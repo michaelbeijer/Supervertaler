@@ -3,7 +3,7 @@ Supervertaler Qt Edition
 ========================
 The ultimate companion tool for translators and writers.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.6.3 (UI Responsiveness & Precision Scroll)
+Version: 1.6.4 (Superbrowser - Multi-Chat AI Browser)
 Release Date: November 18, 2025
 Framework: PyQt6
 
@@ -31,8 +31,8 @@ License: MIT
 """
 
 # Version Information
-__version__ = "1.6.3"
-__phase__ = "8.3"
+__version__ = "1.6.4"
+__phase__ = "8.4"
 __release_date__ = "2025-11-18"
 __edition__ = "Qt"
 
@@ -1916,7 +1916,7 @@ class SupervertalerQt(QMainWindow):
         # Create example API keys file on first launch (after UI is ready)
         self.ensure_example_api_keys()
         
-        self.log("Welcome to Supervertaler Qt v1.5.1")
+        self.log("Welcome to Supervertaler Qt v1.6.4")
         self.log("Supervertaler: The ultimate companion tool for translators and writers.")
         
         # Load general settings (including auto-propagation)
@@ -3338,6 +3338,15 @@ class SupervertalerQt(QMainWindow):
 
         return leaderboard_widget
 
+    def create_superbrowser_tab(self) -> QWidget:
+        """Create the Superbrowser tab - Multi-Chat AI Browser"""
+        from modules.superbrowser import SuperbrowserWidget
+        
+        # Create and return the Superbrowser widget
+        superbrowser_widget = SuperbrowserWidget(parent=self)
+        
+        return superbrowser_widget
+
     def _get_api_keys(self) -> dict:
         """Get API keys from settings"""
         from modules.llm_clients import load_api_keys
@@ -3762,6 +3771,10 @@ class SupervertalerQt(QMainWindow):
         # Superbench
         leaderboard_tab = self.create_llm_leaderboard_tab()
         modules_tabs.addTab(leaderboard_tab, "📊 Superbench")
+        
+        # Superbrowser - Multi-Chat AI Browser
+        superbrowser_tab = self.create_superbrowser_tab()
+        modules_tabs.addTab(superbrowser_tab, "🌐 Superbrowser")
 
         layout.addWidget(modules_tabs)
 
@@ -19225,6 +19238,9 @@ class AutoFingersWidget(QWidget):
 
 def main():
     """Application entry point"""
+    # Set OpenGL context sharing before creating QApplication (required for QtWebEngine)
+    QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
+    
     app = QApplication(sys.argv)
     app.setApplicationName("Supervertaler Qt")
     app.setOrganizationName("Supervertaler")
