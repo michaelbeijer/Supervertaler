@@ -1892,6 +1892,10 @@ class SupervertalerQt(QMainWindow):
         )
         self.db_manager.connect()
         
+        # Figure Context Manager for multimodal AI translation
+        from modules.figure_context_manager import FigureContextManager
+        self.figure_context = FigureContextManager(self)
+        
         # Theme Manager
         from modules.theme_manager import ThemeManager
         self.theme_manager = None  # Will be initialized after UI setup
@@ -2689,7 +2693,7 @@ class SupervertalerQt(QMainWindow):
         return container
     
     def create_reference_images_tab(self) -> QWidget:
-        """Create the Reference Images tab - Visual context"""
+        """Create the Image Context tab - Load images as visual context for AI translation"""
         from modules.image_extractor import ImageExtractor
         
         tab = QWidget()
@@ -2697,10 +2701,60 @@ class SupervertalerQt(QMainWindow):
         main_layout.setContentsMargins(10, 10, 10, 10)
         main_layout.setSpacing(5)
         
+        # === IMAGE CONTEXT SECTION (TOP) ===
+        context_group = QGroupBox("🎯 Image Context - Load Images for AI Translation")
+        context_layout = QVBoxLayout()
+        
+        # Description
+        context_desc = QLabel(
+            "Load figure images to automatically include with AI translations when text references them (e.g., 'Figure 1', 'see fig 2A').\n"
+            "The AI will 'see' the images and better translate technical descriptions and part references."
+        )
+        context_desc.setWordWrap(True)
+        context_desc.setStyleSheet("color: #666; font-size: 10px; padding: 5px; background-color: #f0f8ff; border-radius: 3px;")
+        context_layout.addWidget(context_desc)
+        
+        # Context controls row
+        context_controls = QHBoxLayout()
+        
+        load_context_btn = QPushButton("📁 Load Images Folder")
+        load_context_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #4CAF50;
+                color: white;
+                font-weight: bold;
+                padding: 8px 16px;
+                border-radius: 3px;
+            }
+            QPushButton:hover {
+                background-color: #45a049;
+            }
+        """)
+        load_context_btn.clicked.connect(self._on_load_image_context_folder)
+        context_controls.addWidget(load_context_btn)
+        
+        clear_context_btn = QPushButton("🗑️ Clear")
+        clear_context_btn.clicked.connect(self._on_clear_image_context)
+        clear_context_btn.setMaximumWidth(80)
+        context_controls.addWidget(clear_context_btn)
+        
+        # Status label
+        self.image_context_status_label = QLabel("No images loaded")
+        self.image_context_status_label.setStyleSheet("color: #999; font-size: 11px; padding: 5px;")
+        context_controls.addWidget(self.image_context_status_label, 1)
+        
+        context_layout.addLayout(context_controls)
+        context_group.setLayout(context_layout)
+        main_layout.addWidget(context_group)
+        
+        # === IMAGE EXTRACTOR SECTION (BOTTOM) ===
+        extractor_group = QGroupBox("🛠️ Image Extractor - Extract Images from DOCX Files")
+        extractor_layout = QVBoxLayout()
+        
         # Compact header with title and extract button in one row
         header_layout = QHBoxLayout()
         
-        title = QLabel("🖼️ Image Extractor")
+        title = QLabel("Extract images to save them for later use as context")
         title.setStyleSheet("font-size: 14px; font-weight: bold; color: #2c3e50;")
         header_layout.addWidget(title)
         
@@ -3179,6 +3233,78 @@ class SupervertalerQt(QMainWindow):
             self.current_preview_index += 1
             self._update_preview()
 
+    # === IMAGE CONTEXT METHODS ===
+    
+    def _on_load_image_context_folder(self):
+        """Load a folder of figure images for AI translation context"""
+        from PyQt6.QtWidgets import QFileDialog
+        
+        folder = QFileDialog.getExistingDirectory(
+            self,
+            "Select Folder with Figure Images",
+            "",
+            QFileDialog.Option.ShowDirsOnly
+        )
+        
+        if folder:
+            try:
+                count = self.figure_context.load_from_folder(folder)
+                
+                if count > 0:
+                    self.image_context_status_label.setText(
+                        f"✅ {count} image{'s' if count != 1 else ''} loaded from: {os.path.basename(folder)}"
+                    )
+                    self.image_context_status_label.setStyleSheet("color: #4CAF50; font-weight: bold; font-size: 11px; padding: 5px;")
+                    self.log(f"[Image Context] Loaded {count} images from {folder}")
+                    QMessageBox.information(
+                        self,
+                        "Images Loaded",
+                        f"Successfully loaded {count} figure image{'s' if count != 1 else ''}.\n\n"
+                        f"These images will automatically be included with AI translations when the text "
+                        f"references figures (e.g., 'Figure 1', 'see fig 2A')."
+                    )
+                else:
+                    self.image_context_status_label.setText("⚠️ No valid images found in folder")
+                    self.image_context_status_label.setStyleSheet("color: #FF9800; font-size: 11px; padding: 5px;")
+                    QMessageBox.warning(
+                        self,
+                        "No Images Found",
+                        "The selected folder does not contain any valid image files.\n\n"
+                        "Supported formats: .png, .jpg, .jpeg, .gif, .bmp, .tiff\n"
+                        "Filename examples: 'Figure 1.png', 'fig2a.jpg', 'Fig. 3-B.png'"
+                    )
+            except Exception as e:
+                self.image_context_status_label.setText(f"❌ Error loading images")
+                self.image_context_status_label.setStyleSheet("color: #F44336; font-size: 11px; padding: 5px;")
+                self.log(f"[Image Context] Error loading images: {e}")
+                QMessageBox.critical(
+                    self,
+                    "Error Loading Images",
+                    f"Failed to load images from folder:\n\n{str(e)}"
+                )
+    
+    def _on_clear_image_context(self):
+        """Clear all loaded image context"""
+        if self.figure_context.has_images():
+            reply = QMessageBox.question(
+                self,
+                "Clear Image Context",
+                f"Clear {self.figure_context.get_image_count()} loaded image{'s' if self.figure_context.get_image_count() != 1 else ''}?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
+            
+            if reply == QMessageBox.StandardButton.Yes:
+                self.figure_context.clear()
+                self.image_context_status_label.setText("No images loaded")
+                self.image_context_status_label.setStyleSheet("color: #999; font-size: 11px; padding: 5px;")
+                self.log("[Image Context] Cleared all images")
+        else:
+            QMessageBox.information(
+                self,
+                "No Images Loaded",
+                "There are no images currently loaded."
+            )
+
     def create_llm_leaderboard_tab(self) -> QWidget:
         """Create the Superbench tab - Benchmark LLM translation quality"""
         from modules.llm_superbench_ui import LLMLeaderboardUI
@@ -3592,7 +3718,7 @@ class SupervertalerQt(QMainWindow):
         resources_tabs.addTab(seg_tab, "📏 Segmentation Rules")
         
         ref_tab = self.create_reference_images_tab()
-        resources_tabs.addTab(ref_tab, "🖼️ Reference Images")
+        resources_tabs.addTab(ref_tab, "🎯 Image Context")
         
         layout.addWidget(resources_tabs)
         
@@ -15612,12 +15738,41 @@ class SupervertalerQt(QMainWindow):
                 except Exception as e:
                     self.log(f"⚠ Could not build prompt from manager: {e}")
             
+            # Check for figure references and prepare images if available
+            images = None
+            if self.figure_context and self.figure_context.images:
+                try:
+                    # Detect figure references in source text
+                    figure_refs = self.figure_context.detect_figure_references(segment.source)
+                    if figure_refs:
+                        # Get images for detected figures
+                        images_for_text = self.figure_context.get_images_for_text(segment.source)
+                        if images_for_text:
+                            # Check if model supports vision
+                            if LLMClient.model_supports_vision(provider, model):
+                                # Convert PIL images to appropriate format for provider
+                                if provider == "gemini":
+                                    # Gemini uses PIL.Image directly
+                                    images = images_for_text
+                                else:
+                                    # OpenAI and Claude use base64 PNG
+                                    images = [
+                                        (ref, self.figure_context.pil_image_to_base64_png(img))
+                                        for ref, img in images_for_text
+                                    ]
+                                self.log(f"  Including {len(images)} figure images: {', '.join(figure_refs)}")
+                            else:
+                                self.log(f"⚠ Figures detected ({', '.join(figure_refs)}) but model {model} doesn't support vision")
+                except Exception as e:
+                    self.log(f"⚠ Could not load figures: {e}")
+            
             # Translate using the module
             translation = client.translate(
                 text=segment.source,
                 source_lang=self.current_project.source_lang,
                 target_lang=self.current_project.target_lang,
-                custom_prompt=custom_prompt
+                custom_prompt=custom_prompt,
+                images=images
             )
             
             if translation:
@@ -16859,14 +17014,14 @@ class SupervertalerQt(QMainWindow):
                         break
     
     def show_image_extractor_from_tools(self):
-        """Show Image Extractor by switching to the Reference Images tab in Translation Resources"""
+        """Show Image Extractor by switching to the Image Context tab in Translation Resources"""
         # Switch to Translation Resources tab (right_tabs index 1)
         if hasattr(self, 'right_tabs'):
             self.right_tabs.setCurrentIndex(1)  # Switch to Translation Resources tab
-            # Then switch to Reference Images sub-tab
+            # Then switch to Image Context sub-tab
             if hasattr(self, 'resources_tabs'):
                 for i in range(self.resources_tabs.count()):
-                    if "Reference Images" in self.resources_tabs.tabText(i):
+                    if "Image Context" in self.resources_tabs.tabText(i):
                         self.resources_tabs.setCurrentIndex(i)
                         break
     

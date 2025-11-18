@@ -112,6 +112,35 @@ class LLMClient:
         "claude": "claude-sonnet-4-5-20250929",  # Claude Sonnet 4.5 (Sept 2025)
         "gemini": "gemini-2.5-flash"  # Gemini 2.5 Flash (2025)
     }
+    
+    # Vision-capable models (support image inputs)
+    VISION_MODELS = {
+        "openai": [
+            "gpt-4-vision-preview",
+            "gpt-4-turbo",
+            "gpt-4-turbo-2024-04-09",
+            "gpt-4o",
+            "gpt-4o-mini",
+            "chatgpt-4o-latest"
+        ],
+        "claude": [
+            "claude-3-opus-20240229",
+            "claude-3-sonnet-20240229",
+            "claude-3-haiku-20240307",
+            "claude-3-5-sonnet-20240620",
+            "claude-3-5-sonnet-20241022",
+            "claude-sonnet-4-5-20250929",
+            "claude-haiku-4-5-20251001",
+            "claude-opus-4-1-20250805"
+        ],
+        "gemini": [
+            "gemini-pro-vision",
+            "gemini-1.5-pro",
+            "gemini-1.5-flash",
+            "gemini-2.0-flash",
+            "gemini-2.5-flash"
+        ]
+    }
 
     # Available Claude 4 models with descriptions
     CLAUDE_MODELS = {
@@ -168,6 +197,22 @@ class LLMClient:
         if model_id:
             return cls.CLAUDE_MODELS.get(model_id, {})
         return cls.CLAUDE_MODELS
+    
+    @classmethod
+    def model_supports_vision(cls, provider: str, model_name: str) -> bool:
+        """
+        Check if a model supports vision (image) inputs
+        
+        Args:
+            provider: Provider name ("openai", "claude", "gemini")
+            model_name: Model identifier
+            
+        Returns:
+            True if model supports vision, False otherwise
+        """
+        provider = provider.lower()
+        vision_models = cls.VISION_MODELS.get(provider, [])
+        return model_name in vision_models
 
     def __init__(self, api_key: str, provider: str = "openai", model: Optional[str] = None, max_tokens: int = 16384):
         """
@@ -390,7 +435,8 @@ class LLMClient:
         target_lang: str = "nl",
         context: Optional[str] = None,
         custom_prompt: Optional[str] = None,
-        max_tokens: Optional[int] = None
+        max_tokens: Optional[int] = None,
+        images: Optional[List] = None
     ) -> str:
         """
         Translate text using configured LLM
@@ -415,19 +461,24 @@ class LLMClient:
             if context:
                 prompt = f"Context: {context}\n\n{prompt}"
         
+        # Log warning if images provided but model doesn't support vision
+        if images and not self.model_supports_vision(self.provider, self.model):
+            print(f"⚠️ Warning: Model {self.model} doesn't support vision. Images will be ignored.")
+            images = None  # Don't pass to API
+        
         # Call appropriate provider
         if self.provider == "openai":
-            return self._call_openai(prompt, max_tokens=max_tokens)
+            return self._call_openai(prompt, max_tokens=max_tokens, images=images)
         elif self.provider == "claude":
-            return self._call_claude(prompt, max_tokens=max_tokens)
+            return self._call_claude(prompt, max_tokens=max_tokens, images=images)
         elif self.provider == "gemini":
-            return self._call_gemini(prompt, max_tokens=max_tokens)
+            return self._call_gemini(prompt, max_tokens=max_tokens, images=images)
         else:
             raise ValueError(f"Unsupported provider: {self.provider}")
     
-    def _call_openai(self, prompt: str, max_tokens: Optional[int] = None) -> str:
-        """Call OpenAI API with GPT-5/o1/o3 reasoning model support"""
-        print(f"🔵 _call_openai START: model={self.model}, prompt_len={len(prompt)}, max_tokens={max_tokens}")
+    def _call_openai(self, prompt: str, max_tokens: Optional[int] = None, images: Optional[List] = None) -> str:
+        """Call OpenAI API with GPT-5/o1/o3 reasoning model support and vision capability"""
+        print(f"🔵 _call_openai START: model={self.model}, prompt_len={len(prompt)}, max_tokens={max_tokens}, images={len(images) if images else 0}")
 
         try:
             from openai import OpenAI
@@ -461,10 +512,24 @@ class LLMClient:
 
         print(f"🔵 Is reasoning model: {is_reasoning_model}, tokens_to_use: {tokens_to_use}")
 
+        # Build message content (text + optional images)
+        if images:
+            # Vision API format: content as array with text and image_url objects
+            content = [{"type": "text", "text": prompt}]
+            for img_ref, img_base64 in images:
+                content.append({
+                    "type": "image_url",
+                    "image_url": {"url": f"data:image/png;base64,{img_base64}"}
+                })
+            print(f"🔵 Vision mode: {len(images)} images added to message")
+        else:
+            # Standard text-only format
+            content = prompt
+
         # Build API call parameters
         api_params = {
             "model": self.model,
-            "messages": [{"role": "user", "content": prompt}],
+            "messages": [{"role": "user", "content": content}],
             "timeout": timeout_seconds
         }
 
@@ -548,8 +613,8 @@ class LLMClient:
                 print(f"   Response: {e.response}")
             raise  # Re-raise to be caught by calling code
     
-    def _call_claude(self, prompt: str, max_tokens: Optional[int] = None) -> str:
-        """Call Anthropic Claude API"""
+    def _call_claude(self, prompt: str, max_tokens: Optional[int] = None, images: Optional[List] = None) -> str:
+        """Call Anthropic Claude API with vision support"""
         try:
             import anthropic
         except ImportError:
@@ -572,10 +637,30 @@ class LLMClient:
         # Use provided max_tokens or default (Claude uses 4096 as default)
         tokens_to_use = max_tokens if max_tokens is not None else self.max_tokens
         
+        # Build message content (text + optional images)
+        if images:
+            # Claude vision format: content as array with text and image objects
+            content = []
+            for img_ref, img_base64 in images:
+                content.append({
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": "image/png",
+                        "data": img_base64
+                    }
+                })
+            # Add text after images
+            content.append({"type": "text", "text": prompt})
+            print(f"🟣 Claude vision mode: {len(images)} images added to message")
+        else:
+            # Standard text-only format
+            content = prompt
+        
         response = client.messages.create(
             model=self.model,
             max_tokens=tokens_to_use,
-            messages=[{"role": "user", "content": prompt}],
+            messages=[{"role": "user", "content": content}],
             timeout=timeout_seconds  # Explicit timeout
         )
         
@@ -586,19 +671,31 @@ class LLMClient:
         
         return translation
     
-    def _call_gemini(self, prompt: str, max_tokens: Optional[int] = None) -> str:
-        """Call Google Gemini API"""
+    def _call_gemini(self, prompt: str, max_tokens: Optional[int] = None, images: Optional[List] = None) -> str:
+        """Call Google Gemini API with vision support"""
         try:
             import google.generativeai as genai
+            from PIL import Image
         except ImportError:
             raise ImportError(
-                "Google AI library not installed. Install with: pip install google-generativeai"
+                "Google AI library not installed. Install with: pip install google-generativeai pillow"
             )
         
         genai.configure(api_key=self.api_key)
         model = genai.GenerativeModel(self.model)
         
-        response = model.generate_content(prompt)
+        # Build content (text + optional images)
+        if images:
+            # Gemini format: list with prompt text followed by PIL Image objects
+            content = [prompt]
+            for img_ref, pil_image in images:
+                content.append(pil_image)  # Gemini accepts PIL.Image directly
+            print(f"🟢 Gemini vision mode: {len(images)} images added to message")
+        else:
+            # Standard text-only
+            content = prompt
+        
+        response = model.generate_content(content)
         translation = response.text.strip()
         
         # Clean up translation: remove any prompt remnants
