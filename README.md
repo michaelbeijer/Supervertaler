@@ -1,8 +1,8 @@
 # Supervertaler
 
-🎯 **The Ultimate Companion Tool for Translators and Writers** — Context-aware AI with intuitive 2-Layer Prompt Architecture, AI Assistant, complete termbase system, and specialized modules.
+🎯 **The Ultimate Companion Tool for Translators and Writers** — Context-aware AI with intuitive 2-Layer Prompt Architecture, AI Assistant, project termbase system with automatic extraction, and specialized modules.
 
-**Current Version:** v1.6.0 (November 16, 2025)  
+**Current Version:** v1.7.0 (November 18, 2025)  
 **Framework:** PyQt6  
 **Status:** Active Development
 
@@ -28,7 +28,17 @@
 python Supervertaler.py
 ```
 
-**NEW in v1.6.0 - Complete Termbase System:**
+**NEW in v1.7.0 - Project Termbases with Automatic Extraction:**
+- 📌 **Project Termbase System** - Dedicated project-specific termbase (one per project) + multiple background termbases
+- 🔍 **Automatic Term Extraction** - Extract terminology from project source segments with smart frequency analysis
+- 🎨 **Pink Highlighting** - Project termbase matches highlighted in light pink in grid and results panel
+- 🧠 **Smart Algorithm** - N-gram extraction with scoring based on frequency, capitalization, special characters
+- 🌐 **Multi-Language** - Built-in stop words for English, Dutch, German, French, Spanish
+- 📊 **Preview & Configure** - Review extracted terms, adjust parameters (frequency, n-gram, language)
+- 🎯 **Visual Distinction** - Project=pink, Forbidden=black, Background=priority-based blue
+- ⚡ **One-Click Extraction** - Extract Terms button in Termbases tab (enabled when project loaded)
+
+**v1.6.0 - Complete Termbase System:**
 - 📚 **Professional Terminology Management** - SQLite-based termbase system rivaling commercial CAT tools
 - 🎨 **Priority-Based Highlighting** - Terms highlighted in source with color intensity matching priority (1-99)
 - 💡 **Hover Tooltips** - Mouse over highlighted terms to see translation, priority, and forbidden status

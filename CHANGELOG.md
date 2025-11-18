@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.6.5 (November 18, 2025)  
+**Current Version:** v1.7.0 (November 18, 2025)  
 **Framework:** PyQt6  
 **Status:** Active Development
 
@@ -14,6 +14,7 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- 📚 **Project Termbases (v1.7.0)** - Dedicated project-specific terminology with automatic extraction and pink highlighting
 - 📁 **File Dialog Memory (v1.6.5)** - File dialogs remember your last used directory for improved workflow
 - 🌐 **Superbrowser (v1.6.4)** - Multi-chat AI browser with ChatGPT, Claude, and Gemini side-by-side in one window
 - ⚡ **UI Responsiveness & Precision Scroll (v1.6.3)** - Debug settings, disabled LLM auto-matching, memoQ-style precision scroll buttons, auto-center active segment
@@ -32,6 +33,74 @@ All notable changes to Supervertaler are documented in this file.
 - 🔄 **CAT Tool Integration** - memoQ, Trados, CafeTran bilingual table support
 
 **See full version history below** ↓
+
+---
+
+## [1.7.0] - November 18, 2025
+
+### 📚 Project Termbases - Dedicated Project Terminology
+
+**Project-Specific Terminology Management** - A powerful new termbase system that distinguishes between project-specific terminology (one per project) and background termbases (multiple allowed), with automatic term extraction from project source text.
+
+### Added
+
+**Project Termbase System:**
+- 📌 **Project Termbase Designation** - Mark one termbase per project as the official project termbase
+- 🎨 **Pink Highlighting** - Project termbase matches highlighted in light pink (RGB 255, 182, 193) in both grid and results panel
+- 🔵 **Background Termbases** - Regular termbases use priority-based blue shading as before
+- 🔍 **Term Extraction** - Automatically extract terminology from project source segments
+- 🧠 **Smart Algorithm** - Frequency analysis, n-gram extraction, scoring based on capitalization and special characters
+- 🌐 **Multi-Language Support** - Stop words for English, Dutch, German, French, Spanish
+- 📊 **Preview & Select** - Review extracted terms with scores before adding to termbase
+- 🎯 **Configurable Parameters** - Adjust min frequency, max n-gram size, language, term count
+- ⚙️ **Standalone Module** - Term extractor designed as independent module (`modules/term_extractor.py`) for future CLI tool
+
+**Termbases Tab Enhancements:**
+- 📋 **Type Column** - Shows "📌 Project" in pink or "Background" for each termbase
+- 🔘 **Set/Unset Buttons** - Easy designation of project termbases
+- 🔍 **Extract Terms Button** - Launch term extraction dialog (only enabled with project loaded)
+- 🎨 **Visual Distinction** - Project termbase names shown in pink
+- 🔒 **Validation** - System enforces "only one project termbase per project" rule
+
+**Database Schema:**
+- 🗄️ **is_project_termbase Column** - Added to termbases table with migration
+- ✅ **Backward Compatible** - Existing databases upgraded automatically
+
+**Termbase Manager Extensions:**
+- `set_as_project_termbase(termbase_id, project_id)` - Designate project termbase
+- `unset_project_termbase(termbase_id)` - Remove designation
+- `get_project_termbase(project_id)` - Retrieve project termbase
+- Enhanced `create_termbase()` with `is_project_termbase` parameter and validation
+- Enhanced `get_all_termbases()` to sort project termbase first
+
+**Match Pipeline Integration:**
+- 🔗 **Metadata Tracking** - `is_project_termbase` flag passed through entire match pipeline
+- 🎨 **Grid Highlighting** - Light pink backgrounds for project termbase matches in source column
+- 📋 **Results Panel** - Light pink number badges for project termbase matches
+
+### Changed
+- Updated termbase search to include `is_project_termbase` field
+- Modified `highlight_termbase_matches()` to use pink for project termbases
+- Enhanced `TranslationMatch` metadata to capture project termbase status
+- Updated `CompactMatchItem` styling to handle three-way color logic (forbidden=black, project=pink, background=blue)
+
+### Technical Details
+- **Term Extraction Algorithm:**
+  - N-gram extraction (unigrams, bigrams, trigrams)
+  - Frequency-based scoring with logarithmic scaling
+  - Bonuses for capitalization (+3), special characters (+2), n-gram size (+1.5 per word)
+  - Term classification: proper_noun, technical, phrase, word
+  - Configurable filtering by frequency, type, score
+- **Color Scheme:**
+  - Project Termbase: `#FFB6C1` (light pink)
+  - Forbidden Terms: `#000000` (black)
+  - Background Termbases: `#4d94ff` (blue with priority-based darkening)
+
+### Use Cases
+- **Starting New Projects** - Extract project-specific terminology automatically
+- **Consistency** - Ensure project terminology has visual precedence
+- **Background Knowledge** - Maintain general termbases alongside project-specific ones
+- **Source-Only Termbases** - Perfect for extracting terms before translation begins
 
 ---
 

@@ -238,6 +238,14 @@ class DatabaseManager:
             # Column already exists, ignore
             pass
         
+        # Migration: Add is_project_termbase column if it doesn't exist
+        try:
+            self.cursor.execute("ALTER TABLE termbases ADD COLUMN is_project_termbase BOOLEAN DEFAULT 0")
+            self.connection.commit()
+        except Exception:
+            # Column already exists, ignore
+            pass
+        
         # Legacy support: create glossaries as alias for termbases
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS glossaries (
@@ -886,7 +894,8 @@ class DatabaseManager:
                 t.notes, t.project, t.client,
                 tb.name as termbase_name,
                 tb.source_lang as termbase_source_lang,
-                tb.target_lang as termbase_target_lang
+                tb.target_lang as termbase_target_lang,
+                tb.is_project_termbase
             FROM termbase_terms t
             LEFT JOIN termbases tb ON CAST(t.termbase_id AS INTEGER) = tb.id
             WHERE (

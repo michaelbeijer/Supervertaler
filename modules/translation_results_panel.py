@@ -271,16 +271,21 @@ class CompactMatchItem(QFrame):
         base_color = base_color_map.get(self.match.match_type, "#adb5bd")
         
         # For termbase matches, apply priority-based shading (darker = higher priority/lower number)
-        # OR use black for forbidden terms
+        # OR use black for forbidden terms, OR use light pink for project termbases
         if self.match.match_type == "Termbase":
             # Check if term is forbidden
             is_forbidden = self.match.metadata.get('forbidden', False)
+            # Check if this is a project termbase
+            is_project_termbase = self.match.metadata.get('is_project_termbase', False)
             
             if is_forbidden:
                 # Forbidden terms get black background
                 type_color = "#000000"
+            elif is_project_termbase:
+                # Project termbase gets light pink (same as grid highlighting)
+                type_color = "#FFB6C1"  # Light pink (RGB 255, 182, 193)
             else:
-                # Get termbase priority from metadata (default 50 if not set)
+                # Background termbases: Get priority from metadata (default 50 if not set)
                 termbase_priority = self.match.metadata.get('priority', 50)
                 # Priority range: 1-99, lower = higher priority = darker blue
                 # Convert priority to shade factor: 1 (highest) = darkest, 99 (lowest) = lightest

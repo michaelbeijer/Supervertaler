@@ -37,7 +37,7 @@ class TermbaseManager:
     
     def create_termbase(self, name: str, source_lang: Optional[str] = None, 
                        target_lang: Optional[str] = None, project_id: Optional[int] = None,
-                       description: str = "", is_global: bool = True) -> Optional[int]:
+                       description: str = "", is_global: bool = True, is_project_termbase: bool = False) -> Optional[int]:
         """
         Create a new termbase
         
@@ -48,6 +48,7 @@ class TermbaseManager:
             project_id: If set, termbase is project-specific; if None, it's global
             description: Optional description
             is_global: Whether this is a global termbase (available to all projects)
+            is_project_termbase: Whether this is the special project termbase (only one allowed per project)
             
         Returns:
             Termbase ID or None if failed
@@ -56,15 +57,27 @@ class TermbaseManager:
             cursor = self.db_manager.cursor
             now = datetime.now().isoformat()
             
+            # If this is a project termbase, check if one already exists for this project
+            if is_project_termbase and project_id:
+                cursor.execute("""
+                    SELECT id, name FROM termbases 
+                    WHERE project_id = ? AND is_project_termbase = 1
+                """, (project_id,))
+                existing = cursor.fetchone()
+                if existing:
+                    self.log(f"✗ Project {project_id} already has a project termbase: {existing[1]}")
+                    return None
+            
             cursor.execute("""
                 INSERT INTO termbases (name, source_lang, target_lang, project_id, 
-                                      description, is_global, created_date, modified_date)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (name, source_lang, target_lang, project_id, description, is_global, now, now))
+                                      description, is_global, is_project_termbase, created_date, modified_date)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (name, source_lang, target_lang, project_id, description, is_global, is_project_termbase, now, now))
             
             self.db_manager.connection.commit()
             termbase_id = cursor.lastrowid
-            self.log(f"✓ Created termbase: {name} (ID: {termbase_id})")
+            tb_type = "project termbase" if is_project_termbase else "termbase"
+            self.log(f"✓ Created {tb_type}: {name} (ID: {termbase_id})")
             return termbase_id
         except Exception as e:
             self.log(f"✗ Error creating termbase: {e}")
@@ -84,12 +97,13 @@ class TermbaseManager:
             cursor.execute("""
                 SELECT 
                     t.id, t.name, t.source_lang, t.target_lang, t.project_id,
-                    t.description, t.is_global, t.priority, t.created_date, t.modified_date,
+                    t.description, t.is_global, t.priority, t.is_project_termbase, 
+                    t.created_date, t.modified_date,
                     COUNT(gt.id) as term_count
                 FROM termbases t
                 LEFT JOIN termbase_terms gt ON CAST(t.id AS TEXT) = gt.termbase_id
                 GROUP BY t.id
-                ORDER BY t.is_global DESC, t.name ASC
+                ORDER BY t.is_project_termbase DESC, t.is_global DESC, t.name ASC
             """)
             
             termbases = []
@@ -103,9 +117,10 @@ class TermbaseManager:
                     'description': row[5],
                     'is_global': row[6],
                     'priority': row[7] or 50,  # Default to 50 if NULL
-                    'created_date': row[8],
-                    'modified_date': row[9],
-                    'term_count': row[10] or 0
+                    'is_project_termbase': bool(row[8]),
+                    'created_date': row[9],
+                    'modified_date': row[10],
+                    'term_count': row[11] or 0
                 })
             
             return termbases
@@ -278,6 +293,91 @@ class TermbaseManager:
         except Exception as e:
             self.log(f"✗ Error deactivating termbase: {e}")
             return False
+    
+    def set_as_project_termbase(self, termbase_id: int, project_id: int) -> bool:
+        """
+        Set a termbase as the project termbase for a project.
+        Only one project termbase allowed per project - this will unset any existing one.
+        """
+        try:
+            cursor = self.db_manager.cursor
+            
+            # First, unset any existing project termbase for this project
+            cursor.execute("""
+                UPDATE termbases 
+                SET is_project_termbase = 0 
+                WHERE project_id = ? AND is_project_termbase = 1
+            """, (project_id,))
+            
+            # Then set the new one
+            cursor.execute("""
+                UPDATE termbases 
+                SET is_project_termbase = 1 
+                WHERE id = ?
+            """, (termbase_id,))
+            
+            self.db_manager.connection.commit()
+            self.log(f"✓ Set termbase {termbase_id} as project termbase for project {project_id}")
+            return True
+        except Exception as e:
+            self.log(f"✗ Error setting project termbase: {e}")
+            return False
+    
+    def unset_project_termbase(self, termbase_id: int) -> bool:
+        """Remove project termbase designation from a termbase"""
+        try:
+            cursor = self.db_manager.cursor
+            
+            cursor.execute("""
+                UPDATE termbases 
+                SET is_project_termbase = 0 
+                WHERE id = ?
+            """, (termbase_id,))
+            
+            self.db_manager.connection.commit()
+            self.log(f"✓ Removed project termbase designation from termbase {termbase_id}")
+            return True
+        except Exception as e:
+            self.log(f"✗ Error unsetting project termbase: {e}")
+            return False
+    
+    def get_project_termbase(self, project_id: int) -> Optional[Dict]:
+        """Get the project termbase for a specific project"""
+        try:
+            cursor = self.db_manager.cursor
+            
+            cursor.execute("""
+                SELECT 
+                    t.id, t.name, t.source_lang, t.target_lang, t.project_id,
+                    t.description, t.is_global, t.priority, t.is_project_termbase,
+                    t.created_date, t.modified_date,
+                    COUNT(gt.id) as term_count
+                FROM termbases t
+                LEFT JOIN termbase_terms gt ON CAST(t.id AS TEXT) = gt.termbase_id
+                WHERE t.project_id = ? AND t.is_project_termbase = 1
+                GROUP BY t.id
+            """, (project_id,))
+            
+            row = cursor.fetchone()
+            if row:
+                return {
+                    'id': row[0],
+                    'name': row[1],
+                    'source_lang': row[2],
+                    'target_lang': row[3],
+                    'project_id': row[4],
+                    'description': row[5],
+                    'is_global': row[6],
+                    'priority': row[7] or 50,
+                    'is_project_termbase': bool(row[8]),
+                    'created_date': row[9],
+                    'modified_date': row[10],
+                    'term_count': row[11] or 0
+                }
+            return None
+        except Exception as e:
+            self.log(f"✗ Error getting project termbase: {e}")
+            return None
     
     # ========================================================================
     # TERM MANAGEMENT

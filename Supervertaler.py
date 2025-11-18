@@ -3,7 +3,7 @@ Supervertaler Qt Edition
 ========================
 The ultimate companion tool for translators and writers.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.6.5 (File Dialog Memory)
+Version: 1.7.0 (Project Termbases)
 Release Date: November 18, 2025
 Framework: PyQt6
 
@@ -12,6 +12,7 @@ For the classic tkinter edition, see Supervertaler_tkinter.py
 
 Key Features:
 - Complete Translation Matching: Termbase + TM + MT + Multi-LLM
+- Project Termbases: Dedicated terminology per project with automatic extraction
 - Supervoice: AI-powered voice dictation (100+ languages via OpenAI Whisper)
 - Superimage: Extract images from DOCX files with preview
 - Google Cloud Translation API integration
@@ -31,8 +32,8 @@ License: MIT
 """
 
 # Version Information
-__version__ = "1.6.5"
-__phase__ = "8.5"
+__version__ = "1.7.0"
+__phase__ = "8.6"
 __release_date__ = "2025-11-18"
 __edition__ = "Qt"
 
@@ -463,20 +464,24 @@ class ReadOnlyGridTextEditor(QTextEdit):
         highlighted_ranges = []
         
         for term in sorted_terms:
-            # Get priority and forbidden status
+            # Get priority, forbidden status, and termbase type
             match_info = matches_dict[term]
             if isinstance(match_info, dict):
                 priority = match_info.get('priority', 50)
                 forbidden = match_info.get('forbidden', False)
+                is_project_termbase = match_info.get('is_project_termbase', False)
             else:
                 priority = 50
                 forbidden = False
+                is_project_termbase = False
             
-            # Use black background for forbidden terms, otherwise priority-based blue
+            # Color selection based on termbase type and term status
             if forbidden:
                 color = QColor(0, 0, 0)  # Black for forbidden terms
+            elif is_project_termbase:
+                color = QColor(255, 182, 193)  # Light pink for project termbase
             else:
-                # Calculate color based on priority (higher = darker)
+                # Calculate color based on priority (higher = darker) for background termbases
                 darkness = int(255 - (priority * 1.5))
                 darkness = max(0, min(darkness, 200))
                 color = QColor(0, darkness, 255)
@@ -4568,15 +4573,16 @@ class SupervertalerQt(QMainWindow):
         
         # Termbase list with table
         termbase_table = QTableWidget()
-        termbase_table.setColumnCount(6)
-        termbase_table.setHorizontalHeaderLabels(["Active", "Name", "Languages", "Terms", "Priority", "Scope"])
+        termbase_table.setColumnCount(7)
+        termbase_table.setHorizontalHeaderLabels(["Active", "Type", "Name", "Languages", "Terms", "Priority", "Scope"])
         termbase_table.horizontalHeader().setStretchLastSection(False)
-        termbase_table.setColumnWidth(0, 60)
-        termbase_table.setColumnWidth(1, 200)
-        termbase_table.setColumnWidth(2, 150)
-        termbase_table.setColumnWidth(3, 80)
-        termbase_table.setColumnWidth(4, 70)  # Priority column
-        termbase_table.setColumnWidth(5, 100)
+        termbase_table.setColumnWidth(0, 60)   # Active checkbox
+        termbase_table.setColumnWidth(1, 100)  # Type (Project/Background)
+        termbase_table.setColumnWidth(2, 200)  # Name
+        termbase_table.setColumnWidth(3, 150)  # Languages
+        termbase_table.setColumnWidth(4, 80)   # Terms
+        termbase_table.setColumnWidth(5, 70)   # Priority column
+        termbase_table.setColumnWidth(6, 100)  # Scope
         
         # Get current project
         current_project = self.current_project if hasattr(self, 'current_project') else None
@@ -4610,38 +4616,82 @@ class SupervertalerQt(QMainWindow):
                 checkbox.toggled.connect(on_toggle)
                 termbase_table.setCellWidget(row, 0, checkbox)
                 
-                # Name (bold if active)
+                # Type (Project/Background) with button to set/unset
+                is_project_tb = tb.get('is_project_termbase', False)
+                type_widget = QWidget()
+                type_layout = QHBoxLayout(type_widget)
+                type_layout.setContentsMargins(2, 2, 2, 2)
+                
+                if is_project_tb:
+                    type_label = QLabel("📌 Project")
+                    type_label.setStyleSheet("color: #FF69B4; font-weight: bold;")  # Pink
+                    type_layout.addWidget(type_label)
+                    
+                    # Unset button
+                    unset_btn = QPushButton("✕")
+                    unset_btn.setFixedSize(20, 20)
+                    unset_btn.setToolTip("Remove project termbase designation")
+                    def on_unset(tb_id=tb['id']):
+                        termbase_mgr.unset_project_termbase(tb_id)
+                        refresh_termbase_list()
+                    unset_btn.clicked.connect(on_unset)
+                    type_layout.addWidget(unset_btn)
+                else:
+                    type_label = QLabel("Background")
+                    type_layout.addWidget(type_label)
+                    
+                    # Set as project button (only if this termbase belongs to current project)
+                    if project_id and tb.get('project_id') == project_id:
+                        set_btn = QPushButton("Set")
+                        set_btn.setFixedSize(40, 20)
+                        set_btn.setToolTip("Set as project termbase")
+                        def on_set(tb_id=tb['id']):
+                            termbase_mgr.set_as_project_termbase(tb_id, project_id)
+                            refresh_termbase_list()
+                        set_btn.clicked.connect(on_set)
+                        type_layout.addWidget(set_btn)
+                
+                type_layout.addStretch()
+                termbase_table.setCellWidget(row, 1, type_widget)
+                
+                # Name (bold if active or project termbase)
                 name_item = QTableWidgetItem(tb['name'])
-                if is_active:
+                if is_active or is_project_tb:
                     font = name_item.font()
                     font.setBold(True)
                     name_item.setFont(font)
-                termbase_table.setItem(row, 1, name_item)
+                if is_project_tb:
+                    name_item.setForeground(QColor("#FF69B4"))  # Pink color for project termbase
+                termbase_table.setItem(row, 2, name_item)
                 
                 # Languages
                 langs = f"{tb['source_lang'] or '?'} → {tb['target_lang'] or '?'}"
-                termbase_table.setItem(row, 2, QTableWidgetItem(langs))
+                termbase_table.setItem(row, 3, QTableWidgetItem(langs))
                 
                 # Term count
-                termbase_table.setItem(row, 3, QTableWidgetItem(str(tb['term_count'])))
+                termbase_table.setItem(row, 4, QTableWidgetItem(str(tb['term_count'])))
                 
-                # Priority (editable)
+                # Priority (editable for background termbases only)
                 priority = tb.get('priority', 50)  # Default 50 if not set
                 priority_item = QTableWidgetItem(str(priority))
-                priority_item.setFlags(priority_item.flags() | Qt.ItemFlag.ItemIsEditable)
-                termbase_table.setItem(row, 4, priority_item)
+                if not is_project_tb:  # Only editable for background termbases
+                    priority_item.setFlags(priority_item.flags() | Qt.ItemFlag.ItemIsEditable)
+                else:
+                    priority_item.setFlags(priority_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+                    priority_item.setForeground(QColor("#999"))  # Gray out for project termbase
+                termbase_table.setItem(row, 5, priority_item)
                 
                 # Scope
                 scope = "Global" if tb['is_global'] else "Project"
-                termbase_table.setItem(row, 5, QTableWidgetItem(scope))
+                termbase_table.setItem(row, 6, QTableWidgetItem(scope))
         
-        # Handle priority changes - only process changes to Priority column (column 4)
+        # Handle priority changes - only process changes to Priority column (column 5)
         priority_changing = False  # Flag to prevent recursion
         
         def on_priority_changed(item: QTableWidgetItem):
             """Update termbase priority when edited"""
-            # Only process Priority column (column 4)
-            if item.column() != 4:
+            # Only process Priority column (column 5)
+            if item.column() != 5:
                 return
             
             # Prevent recursion
@@ -4694,6 +4744,12 @@ class SupervertalerQt(QMainWindow):
         create_btn = QPushButton("+ Create New")
         create_btn.clicked.connect(lambda: self._show_create_termbase_dialog(termbase_mgr, refresh_termbase_list, project_id))
         button_layout.addWidget(create_btn)
+        
+        extract_btn = QPushButton("🔍 Extract Terms")
+        extract_btn.setToolTip("Extract terminology from project segments to create project termbase")
+        extract_btn.setEnabled(project_id is not None)  # Only enabled when project is loaded
+        extract_btn.clicked.connect(lambda: self._show_term_extraction_dialog(termbase_mgr, refresh_termbase_list, project_id))
+        button_layout.addWidget(extract_btn)
         
         import_btn = QPushButton("📥 Import")
         import_btn.clicked.connect(lambda: self._import_termbase(termbase_mgr, termbase_table))
@@ -4799,6 +4855,282 @@ class SupervertalerQt(QMainWindow):
         button_layout.addWidget(create_btn)
         button_layout.addWidget(cancel_btn)
         layout.addRow("", button_layout)
+        
+        dialog.setLayout(layout)
+        dialog.exec()
+    
+    def _show_term_extraction_dialog(self, termbase_mgr, refresh_callback, project_id):
+        """Show dialog to extract terms from project segments"""
+        from modules.term_extractor import TermExtractor
+        
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Extract Terms from Project")
+        dialog.setMinimumWidth(800)
+        dialog.setMinimumHeight(600)
+        
+        layout = QVBoxLayout()
+        
+        # Info label
+        info_label = QLabel("Extract terminology from project source segments to create a project termbase.")
+        info_label.setWordWrap(True)
+        layout.addWidget(info_label)
+        
+        # Source text section
+        source_group = QGroupBox("Source Text")
+        source_layout = QVBoxLayout()
+        
+        # Text source options
+        source_type_layout = QHBoxLayout()
+        use_project_radio = QRadioButton("Use project segments")
+        use_project_radio.setChecked(True)
+        use_manual_radio = QRadioButton("Paste text manually")
+        
+        source_type_layout.addWidget(use_project_radio)
+        source_type_layout.addWidget(use_manual_radio)
+        source_type_layout.addStretch()
+        source_layout.addLayout(source_type_layout)
+        
+        # Manual text input
+        text_input = QTextEdit()
+        text_input.setPlaceholderText("Paste source text here...")
+        text_input.setMaximumHeight(150)
+        text_input.setEnabled(False)
+        source_layout.addWidget(text_input)
+        
+        def on_source_type_changed():
+            text_input.setEnabled(use_manual_radio.isChecked())
+        
+        use_project_radio.toggled.connect(on_source_type_changed)
+        use_manual_radio.toggled.connect(on_source_type_changed)
+        
+        source_group.setLayout(source_layout)
+        layout.addWidget(source_group)
+        
+        # Extraction parameters
+        params_group = QGroupBox("Extraction Parameters")
+        params_layout = QFormLayout()
+        
+        # Source language
+        lang_combo = QComboBox()
+        lang_combo.addItems(["en", "nl", "de", "fr", "es"])
+        params_layout.addRow("Source Language:", lang_combo)
+        
+        # Min frequency
+        freq_spin = QSpinBox()
+        freq_spin.setMinimum(1)
+        freq_spin.setMaximum(20)
+        freq_spin.setValue(2)
+        params_layout.addRow("Min Frequency:", freq_spin)
+        
+        # Max n-gram
+        ngram_spin = QSpinBox()
+        ngram_spin.setMinimum(1)
+        ngram_spin.setMaximum(5)
+        ngram_spin.setValue(3)
+        params_layout.addRow("Max N-gram:", ngram_spin)
+        
+        # Max terms
+        max_terms_spin = QSpinBox()
+        max_terms_spin.setMinimum(10)
+        max_terms_spin.setMaximum(1000)
+        max_terms_spin.setValue(100)
+        params_layout.addRow("Max Terms:", max_terms_spin)
+        
+        params_group.setLayout(params_layout)
+        layout.addWidget(params_group)
+        
+        # Extract button
+        extract_btn = QPushButton("🔍 Extract Terms")
+        extract_btn.setMaximumWidth(150)
+        
+        # Results table
+        results_table = QTableWidget()
+        results_table.setColumnCount(4)
+        results_table.setHorizontalHeaderLabels(["Select", "Term", "Frequency", "Score"])
+        results_table.horizontalHeader().setStretchLastSection(False)
+        results_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        results_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        results_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        results_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
+        results_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        results_table.setVisible(False)
+        
+        results_label = QLabel("Extracted terms will appear here")
+        results_label.setVisible(False)
+        
+        layout.addWidget(extract_btn)
+        layout.addWidget(results_label)
+        layout.addWidget(results_table)
+        
+        extracted_terms = []
+        
+        def extract_terms():
+            """Extract terms and populate results table"""
+            # Get source text
+            if use_project_radio.isChecked():
+                # Get all source segments from current project
+                if not self.current_project:
+                    QMessageBox.warning(dialog, "Error", "No project is currently loaded")
+                    return
+                
+                segments = []
+                for i in range(self.grid_widget.grid.rowCount()):
+                    source_widget = self.grid_widget.grid.cellWidget(i, self.grid_widget.source_col)
+                    if source_widget:
+                        text = source_widget.toPlainText().strip()
+                        if text:
+                            segments.append(text)
+                
+                if not segments:
+                    QMessageBox.warning(dialog, "Error", "No source segments found in project")
+                    return
+                
+                source_text = "\n".join(segments)
+            else:
+                source_text = text_input.toPlainText().strip()
+                if not source_text:
+                    QMessageBox.warning(dialog, "Error", "Please enter some text to analyze")
+                    return
+            
+            # Extract terms
+            try:
+                extractor = TermExtractor(
+                    source_lang=lang_combo.currentText(),
+                    min_frequency=freq_spin.value(),
+                    max_ngram=ngram_spin.value()
+                )
+                
+                terms = extractor.extract_terms(source_text)
+                
+                # Limit to max terms
+                terms = terms[:max_terms_spin.value()]
+                
+                if not terms:
+                    QMessageBox.information(dialog, "No Terms", "No terms were extracted with the current parameters. Try lowering the minimum frequency.")
+                    return
+                
+                # Store for later use
+                nonlocal extracted_terms
+                extracted_terms = terms
+                
+                # Populate table
+                results_table.setRowCount(len(terms))
+                for i, term in enumerate(terms):
+                    # Checkbox
+                    check_item = QTableWidgetItem()
+                    check_item.setFlags(Qt.ItemFlag.ItemIsUserCheckable | Qt.ItemFlag.ItemIsEnabled)
+                    check_item.setCheckState(Qt.CheckState.Checked)
+                    results_table.setItem(i, 0, check_item)
+                    
+                    # Term
+                    results_table.setItem(i, 1, QTableWidgetItem(term['term']))
+                    
+                    # Frequency
+                    freq_item = QTableWidgetItem(str(term['frequency']))
+                    freq_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                    results_table.setItem(i, 2, freq_item)
+                    
+                    # Score
+                    score_item = QTableWidgetItem(f"{term['score']:.2f}")
+                    score_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                    results_table.setItem(i, 3, score_item)
+                
+                results_table.setVisible(True)
+                results_label.setText(f"Extracted {len(terms)} terms (select terms to add):")
+                results_label.setVisible(True)
+                
+                self.log(f"✓ Extracted {len(terms)} terms from project")
+                
+            except Exception as e:
+                QMessageBox.critical(dialog, "Error", f"Failed to extract terms: {str(e)}")
+                self.log(f"✗ Term extraction failed: {e}")
+        
+        extract_btn.clicked.connect(extract_terms)
+        
+        # Buttons
+        button_layout = QHBoxLayout()
+        
+        create_btn = QPushButton("Create Project Termbase")
+        create_btn.setToolTip("Create a new project termbase with selected terms")
+        
+        cancel_btn = QPushButton("Cancel")
+        
+        def create_project_termbase():
+            """Create project termbase with selected terms"""
+            if not extracted_terms:
+                QMessageBox.warning(dialog, "Error", "Please extract terms first")
+                return
+            
+            # Get selected terms
+            selected = []
+            for i in range(results_table.rowCount()):
+                check_item = results_table.item(i, 0)
+                if check_item and check_item.checkState() == Qt.CheckState.Checked:
+                    selected.append(extracted_terms[i])
+            
+            if not selected:
+                QMessageBox.warning(dialog, "Error", "Please select at least one term")
+                return
+            
+            # Ask for termbase name
+            name, ok = QInputDialog.getText(
+                dialog,
+                "Termbase Name",
+                "Enter name for project termbase:",
+                text=f"{self.current_project.get('name', 'Project')} Terminology"
+            )
+            
+            if not ok or not name.strip():
+                return
+            
+            # Create termbase
+            source_lang = lang_combo.currentText()
+            tb_id = termbase_mgr.create_termbase(
+                name=name.strip(),
+                source_lang=source_lang,
+                target_lang=None,  # Source-only termbase
+                project_id=project_id,
+                description=f"Extracted terminology from project segments ({len(selected)} terms)",
+                is_global=False,
+                is_project_termbase=True
+            )
+            
+            if not tb_id:
+                QMessageBox.critical(dialog, "Error", "Failed to create termbase. There may already be a project termbase for this project.")
+                return
+            
+            # Add terms (source only, target = empty string)
+            added = 0
+            for term in selected:
+                success = termbase_mgr.add_term(
+                    termbase_id=tb_id,
+                    source_term=term['term'],
+                    target_term="",  # Empty target for source-only
+                    priority=50
+                )
+                if success:
+                    added += 1
+            
+            self.log(f"✓ Created project termbase '{name}' with {added} terms")
+            QMessageBox.information(
+                dialog,
+                "Success",
+                f"Project termbase '{name}' created with {added} terms!"
+            )
+            
+            # Clear cache and refresh
+            with self.termbase_cache_lock:
+                self.termbase_cache.clear()
+            refresh_callback()
+            dialog.accept()
+        
+        create_btn.clicked.connect(create_project_termbase)
+        cancel_btn.clicked.connect(dialog.reject)
+        
+        button_layout.addStretch()
+        button_layout.addWidget(create_btn)
+        button_layout.addWidget(cancel_btn)
+        layout.addLayout(button_layout)
         
         dialog.setLayout(layout)
         dialog.exec()
@@ -12792,7 +13124,8 @@ class SupervertalerQt(QMainWindow):
                                             'notes': tb_match.get('notes', ''),
                                             'project': tb_match.get('project', ''),
                                             'client': tb_match.get('client', ''),
-                                            'forbidden': tb_match.get('forbidden', False)
+                                            'forbidden': tb_match.get('forbidden', False),
+                                            'is_project_termbase': tb_match.get('is_project_termbase', False)
                                         },
                                         match_type='Termbase',
                                         compare_source=tb_match.get('source_term', '')
@@ -13092,6 +13425,7 @@ class SupervertalerQt(QMainWindow):
                         target_term = result.get('target_term', '').strip()
                         priority = result.get('priority', 50)
                         forbidden = result.get('forbidden', False)
+                        is_project_termbase = result.get('is_project_termbase', False)
                         term_id = result.get('id')
                         termbase_id = result.get('termbase_id')
                         domain = result.get('domain', '')
@@ -13104,6 +13438,7 @@ class SupervertalerQt(QMainWindow):
                                 'translation': target_term,
                                 'priority': priority,
                                 'forbidden': forbidden,
+                                'is_project_termbase': is_project_termbase,
                                 'term_id': term_id,
                                 'termbase_id': termbase_id,
                                 'domain': domain,
