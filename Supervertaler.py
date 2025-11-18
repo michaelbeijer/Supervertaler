@@ -3,8 +3,8 @@ Supervertaler Qt Edition
 ========================
 The ultimate companion tool for translators and writers.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.6.2 (Image Extractor - Superimage)
-Release Date: November 17, 2025
+Version: 1.6.3 (UI Responsiveness & Precision Scroll)
+Release Date: November 18, 2025
 Framework: PyQt6
 
 This is the modern edition of Supervertaler using PyQt6 framework.
@@ -31,9 +31,9 @@ License: MIT
 """
 
 # Version Information
-__version__ = "1.6.2"
-__phase__ = "8.2"
-__release_date__ = "2025-11-17"
+__version__ = "1.6.3"
+__phase__ = "8.3"
+__release_date__ = "2025-11-18"
 __edition__ = "Qt"
 
 import sys
@@ -95,7 +95,7 @@ try:
         QButtonGroup, QDialogButtonBox, QTabWidget, QGroupBox, QGridLayout, QCheckBox,
         QProgressBar, QFormLayout, QTabBar, QPlainTextEdit, QAbstractItemDelegate,
         QFrame, QListWidget, QListWidgetItem, QStackedWidget, QTreeWidget, QTreeWidgetItem,
-        QScrollArea, QSizePolicy
+        QScrollArea, QSizePolicy, QSlider
     )
     from PyQt6.QtCore import Qt, QSize, QTimer, pyqtSignal, QObject, QUrl
     from PyQt6.QtGui import QFont, QAction, QKeySequence, QIcon, QTextOption, QColor, QDesktopServices, QTextCharFormat, QTextCursor, QBrush, QSyntaxHighlighter
@@ -1610,6 +1610,184 @@ class TermMetadataDialog(QDialog):
         }
 
 
+class AdvancedFiltersDialog(QDialog):
+    """Dialog for advanced filtering options"""
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setup_ui()
+    
+    def setup_ui(self):
+        self.setWindowTitle("Advanced Filters")
+        self.setMinimumWidth(600)
+        self.setMinimumHeight(500)
+        layout = QVBoxLayout(self)
+        
+        # Create scroll area for filters
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        
+        content = QWidget()
+        content_layout = QVBoxLayout(content)
+        content_layout.setSpacing(15)
+        
+        # Match Rate Filter
+        match_group = QGroupBox("Match Rate (%)")
+        match_layout = QHBoxLayout()
+        
+        self.match_rate_check = QCheckBox("Enable")
+        match_layout.addWidget(self.match_rate_check)
+        
+        match_layout.addWidget(QLabel("From:"))
+        self.match_min_spin = QSpinBox()
+        self.match_min_spin.setRange(0, 100)
+        self.match_min_spin.setValue(0)
+        self.match_min_spin.setSuffix("%")
+        match_layout.addWidget(self.match_min_spin)
+        
+        match_layout.addWidget(QLabel("To:"))
+        self.match_max_spin = QSpinBox()
+        self.match_max_spin.setRange(0, 100)
+        self.match_max_spin.setValue(100)
+        self.match_max_spin.setSuffix("%")
+        match_layout.addWidget(self.match_max_spin)
+        match_layout.addStretch()
+        
+        match_group.setLayout(match_layout)
+        content_layout.addWidget(match_group)
+        
+        # Row Status Filter
+        status_group = QGroupBox("Row Status")
+        status_layout = QVBoxLayout()
+        
+        self.status_not_started = QCheckBox("Not started")
+        self.status_edited = QCheckBox("Edited")
+        self.status_translated = QCheckBox("Translated")
+        self.status_confirmed = QCheckBox("Confirmed")
+        self.status_draft = QCheckBox("Draft")
+        
+        status_layout.addWidget(self.status_not_started)
+        status_layout.addWidget(self.status_edited)
+        status_layout.addWidget(self.status_translated)
+        status_layout.addWidget(self.status_confirmed)
+        status_layout.addWidget(self.status_draft)
+        
+        status_group.setLayout(status_layout)
+        content_layout.addWidget(status_group)
+        
+        # Locked/Unlocked Filter
+        locked_group = QGroupBox("Locked Status")
+        locked_layout = QVBoxLayout()
+        
+        self.locked_both = QRadioButton("Both locked and unlocked rows")
+        self.locked_only = QRadioButton("Only locked rows")
+        self.locked_unlocked_only = QRadioButton("Only unlocked rows")
+        self.locked_both.setChecked(True)
+        
+        locked_layout.addWidget(self.locked_both)
+        locked_layout.addWidget(self.locked_only)
+        locked_layout.addWidget(self.locked_unlocked_only)
+        
+        locked_group.setLayout(locked_layout)
+        content_layout.addWidget(locked_group)
+        
+        # Other Properties
+        other_group = QGroupBox("Other Properties")
+        other_layout = QVBoxLayout()
+        
+        self.has_comments_check = QCheckBox("Has comments/notes")
+        self.repetitions_check = QCheckBox("Repetitions only")
+        self.auto_propagated_check = QCheckBox("Auto-propagated")
+        
+        other_layout.addWidget(self.has_comments_check)
+        other_layout.addWidget(self.repetitions_check)
+        other_layout.addWidget(self.auto_propagated_check)
+        
+        other_group.setLayout(other_layout)
+        content_layout.addWidget(other_group)
+        
+        content_layout.addStretch()
+        scroll.setWidget(content)
+        layout.addWidget(scroll)
+        
+        # Buttons
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+        
+        reset_btn = QPushButton("Reset All")
+        reset_btn.clicked.connect(self.reset_filters)
+        button_layout.addWidget(reset_btn)
+        
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(self.reject)
+        button_layout.addWidget(cancel_btn)
+        
+        apply_btn = QPushButton("Apply Filters")
+        apply_btn.setStyleSheet("background-color: #2196F3; color: white; font-weight: bold; padding: 5px 15px;")
+        apply_btn.clicked.connect(self.accept)
+        apply_btn.setDefault(True)
+        button_layout.addWidget(apply_btn)
+        
+        layout.addLayout(button_layout)
+    
+    def reset_filters(self):
+        """Reset all filters to default"""
+        self.match_rate_check.setChecked(False)
+        self.match_min_spin.setValue(0)
+        self.match_max_spin.setValue(100)
+        
+        self.status_not_started.setChecked(False)
+        self.status_edited.setChecked(False)
+        self.status_translated.setChecked(False)
+        self.status_confirmed.setChecked(False)
+        self.status_draft.setChecked(False)
+        
+        self.locked_both.setChecked(True)
+        
+        self.has_comments_check.setChecked(False)
+        self.repetitions_check.setChecked(False)
+        self.auto_propagated_check.setChecked(False)
+    
+    def get_filters(self):
+        """Return dictionary of filter settings"""
+        filters = {}
+        
+        # Match rate
+        filters['match_rate_enabled'] = self.match_rate_check.isChecked()
+        filters['match_rate_min'] = self.match_min_spin.value()
+        filters['match_rate_max'] = self.match_max_spin.value()
+        
+        # Row status
+        row_status = []
+        if self.status_not_started.isChecked():
+            row_status.append('not_started')
+        if self.status_edited.isChecked():
+            row_status.append('edited')
+        if self.status_translated.isChecked():
+            row_status.append('translated')
+        if self.status_confirmed.isChecked():
+            row_status.append('confirmed')
+        if self.status_draft.isChecked():
+            row_status.append('draft')
+        filters['row_status'] = row_status
+        
+        # Locked filter
+        if self.locked_only.isChecked():
+            filters['locked_filter'] = 'locked'
+        elif self.locked_unlocked_only.isChecked():
+            filters['locked_filter'] = 'unlocked'
+        else:
+            filters['locked_filter'] = None
+        
+        # Other properties
+        filters['has_comments'] = self.has_comments_check.isChecked()
+        filters['repetitions_only'] = self.repetitions_check.isChecked()
+        filters['auto_propagated'] = self.auto_propagated_check.isChecked()
+        
+        return filters
+
+
 # ============================================================================
 # MAIN WINDOW
 # ============================================================================
@@ -1644,8 +1822,17 @@ class SupervertalerQt(QMainWindow):
         self.enable_tm_matching = True
         self.enable_termbase_matching = True
         self.enable_mt_matching = True  # Machine Translation enabled
-        self.enable_llm_matching = True  # LLM Translation enabled
+        self.enable_llm_matching = False  # LLM Translation enabled (DISABLED by default - too slow for navigation!)
         self.enable_termbase_grid_highlighting = True  # Highlight termbase matches in source cells
+        
+        # Debug mode settings (for troubleshooting performance issues)
+        self.debug_mode_enabled = False  # Enables verbose debug logging
+        self.debug_auto_export = False  # Auto-export debug logs to file
+        self.debug_log_buffer = []  # Buffer for debug logs (for export)
+        
+        # Precision scroll settings (for fine-tuned grid navigation)
+        self.precision_scroll_divisor = 3  # Divide row height by this (higher = finer increments)
+        self.auto_center_active_segment = False  # Auto-scroll to keep active segment centered
         
         # Translation service availability flags (would be set from config/API keys)
         self.google_translate_enabled = True  # For demo purposes
@@ -1821,6 +2008,10 @@ class SupervertalerQt(QMainWindow):
         # Ctrl+K - Concordance Search
         self.shortcut_concordance = QShortcut(QKeySequence("Ctrl+K"), self)
         self.shortcut_concordance.activated.connect(self.show_concordance_search)
+        
+        # Ctrl+Shift+F - Filter on selected text
+        self.shortcut_filter_selected = QShortcut(QKeySequence("Ctrl+Shift+F"), self)
+        self.shortcut_filter_selected.activated.connect(self.filter_on_selected_text)
 
     def create_menus(self):
         """Create application menus"""
@@ -1939,7 +2130,7 @@ class SupervertalerQt(QMainWindow):
         translate_action.triggered.connect(self.translate_current_segment)
         edit_menu.addAction(translate_action)
 
-        translate_menu = edit_menu.addMenu("Translate &Multiple Segments")
+        translate_menu = edit_menu.addMenu("Batch &Translate")
 
         translate_selected_not_started_action = QAction("Translate selected not-started segments", self)
         translate_selected_not_started_action.triggered.connect(
@@ -1977,6 +2168,23 @@ class SupervertalerQt(QMainWindow):
             lambda checked=False: self.translate_multiple_segments("all_segments")
         )
         translate_menu.addAction(translate_all_segments_action)
+        
+        translate_menu.addSeparator()
+        
+        # NEW: Translate only empty segments (for re-running failed batches)
+        translate_empty_action = QAction("Translate all empty segments", self)
+        translate_empty_action.setToolTip("Translate segments with empty target (useful after partial batch translation)")
+        translate_empty_action.triggered.connect(
+            lambda checked=False: self.translate_multiple_segments("all_empty")
+        )
+        translate_menu.addAction(translate_empty_action)
+        
+        translate_filtered_action = QAction("Translate all filtered segments", self)
+        translate_filtered_action.setToolTip("Translate only segments currently visible after filtering")
+        translate_filtered_action.triggered.connect(
+            lambda checked=False: self.translate_multiple_segments("filtered_segments")
+        )
+        translate_menu.addAction(translate_filtered_action)
         
         edit_menu.addSeparator()
         
@@ -5255,7 +5463,11 @@ class SupervertalerQt(QMainWindow):
         dictation_tab = self._create_voice_dictation_settings_tab()
         settings_tabs.addTab(scroll_area_wrapper(dictation_tab), "🎤 Supervoice")
 
-        # ===== TAB 8: Keyboard Shortcuts =====
+        # ===== TAB 8: Debug Settings =====
+        debug_tab = self._create_debug_settings_tab()
+        settings_tabs.addTab(scroll_area_wrapper(debug_tab), "🐛 Debug")
+
+        # ===== TAB 9: Keyboard Shortcuts =====
         from modules.keyboard_shortcuts_widget import KeyboardShortcutsWidget
         shortcuts_tab = KeyboardShortcutsWidget(self)
         settings_tabs.addTab(shortcuts_tab, "⌨️ Keyboard Shortcuts")
@@ -5628,12 +5840,49 @@ class SupervertalerQt(QMainWindow):
         prefs_layout.addSpacing(5)
         
         # Include full document context
-        full_context_cb = CheckmarkCheckBox("Include full document context in batch translation (increases API usage)")
+        full_context_cb = CheckmarkCheckBox("Include surrounding context in batch translation")
         full_context_cb.setChecked(use_full_context)
         prefs_layout.addWidget(full_context_cb)
-        full_context_info = QLabel("  ⓘ Context helps with consistency but sends more data - use for technical docs")
+        full_context_info = QLabel("  ⓘ Sends nearby segments (NOT full document) for consistency - prevents timeouts")
         full_context_info.setStyleSheet("font-size: 9pt; color: #666; padding-left: 20px;")
         prefs_layout.addWidget(full_context_info)
+        
+        # Context window size slider
+        context_window_size = general_prefs.get('context_window_size', 50)
+        context_layout = QHBoxLayout()
+        context_label = QLabel("  Context window:")
+        context_layout.addWidget(context_label)
+        context_slider = QSlider(Qt.Orientation.Horizontal)
+        context_slider.setMinimum(0)
+        context_slider.setMaximum(200)
+        context_slider.setValue(context_window_size)
+        context_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
+        context_slider.setTickInterval(25)
+        context_slider.setEnabled(use_full_context)
+        context_layout.addWidget(context_slider)
+        context_value_label = QLabel(f"{context_window_size} segments")
+        context_value_label.setMinimumWidth(100)
+        context_layout.addWidget(context_value_label)
+        context_layout.addStretch()
+        prefs_layout.addLayout(context_layout)
+        
+        # Update label when slider changes
+        def update_context_label(value):
+            if value == 0:
+                context_value_label.setText("0 (disabled)")
+            else:
+                total_segs = len(self.current_project.segments) if self.current_project else 300
+                context_segs = min(value * 2 + batch_size_spin.value(), total_segs)
+                percentage = int((context_segs / total_segs) * 100) if total_segs > 0 else 0
+                context_value_label.setText(f"{value} seg (~{percentage}% of doc)")
+        
+        context_slider.valueChanged.connect(update_context_label)
+        full_context_cb.stateChanged.connect(lambda: context_slider.setEnabled(full_context_cb.isChecked()))
+        update_context_label(context_window_size)
+        
+        context_slider_info = QLabel("  ⓘ Segments before/after batch to include. 50=100 seg window, 0=no context. Default: 50")
+        context_slider_info.setStyleSheet("font-size: 9pt; color: #666; padding-left: 20px;")
+        prefs_layout.addWidget(context_slider_info)
         
         prefs_layout.addSpacing(5)
         
@@ -5680,7 +5929,7 @@ class SupervertalerQt(QMainWindow):
             openai_radio, claude_radio, gemini_radio, 
             openai_combo, claude_combo, gemini_combo,
             openai_enable_cb, claude_enable_cb, gemini_enable_cb,
-            batch_size_spin, surrounding_spin, full_context_cb,
+            batch_size_spin, surrounding_spin, full_context_cb, context_slider,
             check_tm_cb, auto_propagate_cb,
             delay_spin
         ))
@@ -5859,6 +6108,18 @@ class SupervertalerQt(QMainWindow):
         tm_matching_cb.toggled.connect(self.toggle_tm_termbase_matching)
         tm_termbase_layout.addWidget(tm_matching_cb)
         
+        # LLM matching toggle (separate from TM/Termbase)
+        llm_matching_cb = QCheckBox("Enable LLM (AI) matching on segment selection")
+        llm_matching_cb.setChecked(self.enable_llm_matching)
+        llm_matching_cb.setToolTip(
+            "⚠️ WARNING: LLM translations take 10-20 seconds per segment!\n\n"
+            "When enabled, AI translations are automatically generated when you select a segment.\n"
+            "This is VERY SLOW and will make the UI freeze for 10-20 seconds on each segment.\n\n"
+            "RECOMMENDED: Keep this DISABLED (default).\n"
+            "Use the 'Translate with AI' button in the toolbar when you need LLM translations instead."
+        )
+        tm_termbase_layout.addWidget(llm_matching_cb)
+        
         # Termbase grid highlighting toggle
         tb_highlight_cb = QCheckBox("Highlight termbase matches in source cells")
         tb_highlight_cb.setChecked(general_settings.get('enable_termbase_grid_highlighting', True))
@@ -5873,6 +6134,7 @@ class SupervertalerQt(QMainWindow):
         self.auto_propagate_checkbox = auto_propagate_cb  # Store reference for updates
         self.auto_insert_100_checkbox = auto_insert_100_cb  # Store reference for updates
         self.tb_highlight_checkbox = tb_highlight_cb  # Store reference for updates
+        self.llm_matching_checkbox = llm_matching_cb  # Store reference for LLM matching
         
         tm_termbase_group.setLayout(tm_termbase_layout)
         layout.addWidget(tm_termbase_group)
@@ -5917,6 +6179,72 @@ class SupervertalerQt(QMainWindow):
         
         find_replace_group.setLayout(find_replace_layout)
         layout.addWidget(find_replace_group)
+        
+        # Precision Scroll Settings group
+        scroll_group = QGroupBox("⬆️⬇️ Precision Scroll Settings")
+        scroll_layout = QVBoxLayout()
+        
+        scroll_info = QLabel(
+            "Configure how much the precision scroll buttons (▲▼) move the grid.\n"
+            "Higher values = finer increments (smaller movements)."
+        )
+        scroll_info.setWordWrap(True)
+        scroll_info.setStyleSheet("color: #666; font-size: 9pt; padding: 5px;")
+        scroll_layout.addWidget(scroll_info)
+        
+        # Scroll increment slider/spinbox
+        scroll_control_layout = QHBoxLayout()
+        scroll_label = QLabel("Scroll precision:")
+        scroll_control_layout.addWidget(scroll_label)
+        
+        precision_spin = QSpinBox()
+        precision_spin.setRange(1, 10)
+        precision_spin.setValue(general_settings.get('precision_scroll_divisor', 3))
+        precision_spin.setSuffix(" (divisor)")
+        precision_spin.setToolTip(
+            "Control how far each button click scrolls the grid.\n\n"
+            "1 = 50 pixels (coarse)\n"
+            "3 = 40 pixels (default)\n"
+            "5 = 30 pixels (fine)\n"
+            "10 = 5 pixels (very fine)\n\n"
+            "Higher values = smaller increments = more precise control."
+        )
+        scroll_control_layout.addWidget(precision_spin)
+        
+        # Preview label
+        preview_label = QLabel()
+        def update_preview(value):
+            if value == 1:
+                preview_label.setText("↕️ Coarse (full row)")
+            elif value <= 3:
+                preview_label.setText("↕️ Medium (default)")
+            elif value <= 6:
+                preview_label.setText("↕️ Fine")
+            else:
+                preview_label.setText("↕️ Very fine")
+        update_preview(precision_spin.value())
+        precision_spin.valueChanged.connect(update_preview)
+        
+        scroll_control_layout.addWidget(preview_label)
+        scroll_control_layout.addStretch()
+        scroll_layout.addLayout(scroll_control_layout)
+        
+        # Auto-center active segment toggle
+        auto_center_cb = QCheckBox("Keep active segment centered (like memoQ/Trados)")
+        auto_center_cb.setChecked(general_settings.get('auto_center_active_segment', False))
+        auto_center_cb.setToolTip(
+            "When enabled, the grid automatically scrolls to keep the currently selected segment\n"
+            "centered in the viewport when you navigate between segments.\n"
+            "This matches the behavior of memoQ, Trados, and other CAT tools."
+        )
+        scroll_layout.addWidget(auto_center_cb)
+        
+        scroll_group.setLayout(scroll_layout)
+        layout.addWidget(scroll_group)
+        
+        # Store references for saving
+        self.precision_spin = precision_spin
+        self.auto_center_cb = auto_center_cb
         
         # Translation Results Match Limits group
         match_limits_group = QGroupBox("📊 Translation Results - Match Limits")
@@ -6475,10 +6803,178 @@ class SupervertalerQt(QMainWindow):
                 editor.setPlainText(default_prompt)
                 self.log(f"✓ Reset system prompt to default: {selected_mode}")
 
+    def _create_debug_settings_tab(self):
+        """Create Debug Settings tab content"""
+        from PyQt6.QtWidgets import QGroupBox, QPushButton, QTextEdit
+        
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
+        
+        debug_settings = self.load_general_settings()
+        
+        # Debug Mode section
+        debug_group = QGroupBox("🐛 Debug Mode")
+        debug_layout = QVBoxLayout()
+        
+        info_label = QLabel(
+            "<b>Debug Mode</b> enables verbose logging to help diagnose performance issues.\n\n"
+            "When enabled, detailed logs will show:\n"
+            "• Every text change event in the grid\n"
+            "• Database update operations (BEFORE/AFTER)\n"
+            "• Cell selection events\n"
+            "• Signal connections\n\n"
+            "⚠️ <b>Warning:</b> Debug mode generates a LOT of log output and may slow down the application.\n"
+            "Only enable when troubleshooting specific issues."
+        )
+        info_label.setWordWrap(True)
+        info_label.setStyleSheet("font-size: 9pt; color: #666; padding: 10px; background-color: #f3f4f6; border-radius: 4px;")
+        debug_layout.addWidget(info_label)
+        
+        debug_layout.addSpacing(10)
+        
+        # Enable debug mode checkbox
+        debug_mode_cb = QCheckBox("Enable verbose debug logging")
+        debug_mode_cb.setChecked(debug_settings.get('debug_mode_enabled', False))
+        debug_mode_cb.setToolTip(
+            "When enabled, shows detailed debug messages in the log.\n"
+            "This helps diagnose performance issues but generates a lot of output."
+        )
+        debug_layout.addWidget(debug_mode_cb)
+        
+        # Auto-export debug logs checkbox
+        debug_export_cb = QCheckBox("Auto-export debug logs to file")
+        debug_export_cb.setChecked(debug_settings.get('debug_auto_export', False))
+        debug_export_cb.setToolTip(
+            "When enabled, automatically saves debug logs to:\n"
+            "supervertaler_debug_log_<timestamp>.txt in the program root.\n"
+            "Logs are exported every 5 minutes or when you close the application."
+        )
+        debug_export_cb.setEnabled(debug_mode_cb.isChecked())  # Only enabled if debug mode is on
+        debug_layout.addWidget(debug_export_cb)
+        
+        # Link the checkboxes
+        debug_mode_cb.toggled.connect(lambda checked: debug_export_cb.setEnabled(checked))
+        
+        debug_layout.addSpacing(10)
+        
+        # Export log button
+        export_btn = QPushButton("📁 Export Debug Log Now")
+        export_btn.setToolTip("Export the current debug log buffer to a timestamped file")
+        export_btn.clicked.connect(self.export_debug_log_now)
+        debug_layout.addWidget(export_btn)
+        
+        # Clear log buffer button
+        clear_btn = QPushButton("🗑️ Clear Debug Log Buffer")
+        clear_btn.setToolTip("Clear the in-memory debug log buffer")
+        clear_btn.clicked.connect(self.clear_debug_log_buffer)
+        debug_layout.addWidget(clear_btn)
+        
+        debug_group.setLayout(debug_layout)
+        layout.addWidget(debug_group)
+        
+        # Performance Settings section
+        perf_group = QGroupBox("⚡ Performance Settings")
+        perf_layout = QVBoxLayout()
+        
+        perf_info = QLabel(
+            "<b>Performance Tuning</b> - These settings control UI responsiveness.\n\n"
+            "Higher delays = more responsive typing but slower lookups.\n"
+            "Lower delays = faster lookups but potential UI freezes during typing."
+        )
+        perf_info.setWordWrap(True)
+        perf_info.setStyleSheet("font-size: 9pt; color: #666; padding: 10px; background-color: #f3f4f6; border-radius: 4px;")
+        perf_layout.addWidget(perf_info)
+        
+        perf_layout.addSpacing(10)
+        
+        # Target text debounce delay
+        debounce_layout = QHBoxLayout()
+        debounce_layout.addWidget(QLabel("Target text save delay:"))
+        debounce_spin = QSpinBox()
+        debounce_spin.setRange(100, 5000)
+        debounce_spin.setValue(debug_settings.get('target_debounce_delay', 1000))
+        debounce_spin.setSingleStep(100)
+        debounce_spin.setSuffix(" ms")
+        debounce_spin.setToolTip(
+            "Delay before saving target text changes to database.\n"
+            "1000ms (default) = good balance between responsiveness and data safety.\n"
+            "Higher values = less database overhead but longer delay before saving."
+        )
+        debounce_layout.addWidget(debounce_spin)
+        debounce_layout.addStretch()
+        perf_layout.addLayout(debounce_layout)
+        
+        perf_group.setLayout(perf_layout)
+        layout.addWidget(perf_group)
+        
+        # Save button
+        save_btn = QPushButton("💾 Save Debug Settings")
+        save_btn.setStyleSheet("font-weight: bold; padding: 8px;")
+        save_btn.clicked.connect(lambda: self._save_debug_settings_from_ui(
+            debug_mode_cb, debug_export_cb, debounce_spin
+        ))
+        layout.addWidget(save_btn)
+        
+        layout.addStretch()
+        
+        return tab
+    
+    def _save_debug_settings_from_ui(self, debug_mode_cb, debug_export_cb, debounce_spin):
+        """Save debug settings from UI"""
+        self.debug_mode_enabled = debug_mode_cb.isChecked()
+        self.debug_auto_export = debug_export_cb.isChecked()
+        
+        general_settings = self.load_general_settings()
+        general_settings['debug_mode_enabled'] = self.debug_mode_enabled
+        general_settings['debug_auto_export'] = self.debug_auto_export
+        general_settings['target_debounce_delay'] = debounce_spin.value()
+        self.save_general_settings(general_settings)
+        
+        self.log(f"✓ Debug settings saved: Debug Mode={'ON' if self.debug_mode_enabled else 'OFF'}, Auto-export={'ON' if self.debug_auto_export else 'OFF'}")
+        QMessageBox.information(self, "Settings Saved", "Debug settings have been saved successfully.")
+    
+    def export_debug_log_now(self):
+        """Export debug log buffer to file immediately"""
+        from datetime import datetime
+        
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"supervertaler_debug_log_{timestamp}.txt"
+        
+        try:
+            with open(filename, 'w', encoding='utf-8') as f:
+                f.write(f"Supervertaler Debug Log\n")
+                f.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+                f.write("="*80 + "\n\n")
+                
+                if self.debug_log_buffer:
+                    f.write("\n".join(self.debug_log_buffer))
+                else:
+                    f.write("(No debug logs in buffer)")
+            
+            self.log(f"✓ Debug log exported to: {filename}")
+            QMessageBox.information(
+                self,
+                "Log Exported",
+                f"Debug log exported successfully to:\n{filename}\n\n"
+                f"Log entries: {len(self.debug_log_buffer)}"
+            )
+        except Exception as e:
+            self.log(f"❌ Error exporting debug log: {e}")
+            QMessageBox.warning(self, "Export Failed", f"Failed to export debug log:\n{e}")
+    
+    def clear_debug_log_buffer(self):
+        """Clear the debug log buffer"""
+        buffer_size = len(self.debug_log_buffer)
+        self.debug_log_buffer.clear()
+        self.log(f"✓ Debug log buffer cleared ({buffer_size} entries removed)")
+        QMessageBox.information(self, "Buffer Cleared", f"Debug log buffer cleared.\n{buffer_size} entries removed.")
+
     def _save_llm_settings_from_ui(self, openai_radio, claude_radio, gemini_radio,
                                    openai_combo, claude_combo, gemini_combo,
                                    openai_enable_cb, claude_enable_cb, gemini_enable_cb,
-                                   batch_size_spin, surrounding_spin, full_context_cb,
+                                   batch_size_spin, surrounding_spin, full_context_cb, context_slider,
                                    check_tm_cb, auto_propagate_cb,
                                    delay_spin):
         """Save LLM settings from UI"""
@@ -6511,6 +7007,7 @@ class SupervertalerQt(QMainWindow):
         general_prefs['batch_size'] = batch_size_spin.value()
         general_prefs['surrounding_segments'] = surrounding_spin.value()
         general_prefs['use_full_context'] = full_context_cb.isChecked()
+        general_prefs['context_window_size'] = context_slider.value()
         general_prefs['check_tm_before_api'] = check_tm_cb.isChecked()
         general_prefs['auto_propagate_100'] = auto_propagate_cb.isChecked()
         general_prefs['lookup_delay'] = delay_spin.value()
@@ -6558,6 +7055,10 @@ class SupervertalerQt(QMainWindow):
         # Update termbase grid highlighting setting
         if tb_highlight_cb is not None:
             self.enable_termbase_grid_highlighting = tb_highlight_cb.isChecked()
+        
+        # Update LLM matching setting
+        if hasattr(self, 'llm_matching_checkbox'):
+            self.enable_llm_matching = self.llm_matching_checkbox.isChecked()
 
         general_settings = {
             'restore_last_project': restore_cb.isChecked(),
@@ -6567,6 +7068,9 @@ class SupervertalerQt(QMainWindow):
             'tm_save_mode': tm_save_mode_combo.currentData() if tm_save_mode_combo is not None else 'latest',
             'auto_generate_markdown': self.auto_generate_markdown if hasattr(self, 'auto_generate_markdown') else False,
             'enable_termbase_grid_highlighting': tb_highlight_cb.isChecked() if tb_highlight_cb is not None else True,
+            'enable_llm_matching': self.enable_llm_matching,  # Save LLM matching state
+            'precision_scroll_divisor': self.precision_spin.value() if hasattr(self, 'precision_spin') else 3,  # Save precision scroll setting
+            'auto_center_active_segment': self.auto_center_cb.isChecked() if hasattr(self, 'auto_center_cb') else False,  # Save auto-center setting
             'grid_font_size': self.default_font_size,  # Keep existing or update separately
             'results_match_font_size': 9,  # Keep existing
             'results_compare_font_size': 9  # Keep existing
@@ -6890,12 +7394,33 @@ class SupervertalerQt(QMainWindow):
         clear_filters_btn.clicked.connect(self.clear_filters)
         clear_filters_btn.setMaximumWidth(100)
         
+        # Quick Filters dropdown menu
+        quick_filter_btn = QPushButton("⚡ Quick Filters")
+        quick_filter_btn.setMaximumWidth(130)
+        quick_filter_btn.setStyleSheet("background-color: #FF9800; color: white; font-weight: bold;")
+        quick_filter_menu = QMenu(self)
+        quick_filter_menu.addAction("🔍 Empty segments", lambda: self.apply_quick_filter("empty"))
+        quick_filter_menu.addAction("❌ Not translated", lambda: self.apply_quick_filter("not_translated"))
+        quick_filter_menu.addAction("✓ Confirmed", lambda: self.apply_quick_filter("confirmed"))
+        quick_filter_menu.addAction("🔒 Locked", lambda: self.apply_quick_filter("locked"))
+        quick_filter_menu.addAction("🔓 Not locked", lambda: self.apply_quick_filter("not_locked"))
+        quick_filter_menu.addAction("💬 Commented", lambda: self.apply_quick_filter("commented"))
+        quick_filter_btn.setMenu(quick_filter_menu)
+        
+        # Advanced Filters dialog button
+        advanced_filter_btn = QPushButton("⚙️ Advanced Filters")
+        advanced_filter_btn.clicked.connect(self.show_advanced_filters_dialog)
+        advanced_filter_btn.setMaximumWidth(140)
+        advanced_filter_btn.setStyleSheet("background-color: #2196F3; color: white; font-weight: bold;")
+        
         filter_layout.addWidget(source_filter_label)
         filter_layout.addWidget(self.source_filter, stretch=1)
         filter_layout.addWidget(target_filter_label)
         filter_layout.addWidget(self.target_filter, stretch=1)
         filter_layout.addWidget(apply_filter_btn)
         filter_layout.addWidget(clear_filters_btn)
+        filter_layout.addWidget(quick_filter_btn)
+        filter_layout.addWidget(advanced_filter_btn)
         
         grid_layout.addWidget(filter_panel)
         
@@ -7429,7 +7954,7 @@ class SupervertalerQt(QMainWindow):
         home_doc_splitter.addWidget(scroll_area)
         
         # Bottom: Tabbed panel (Translation Results | Segment Editor | Notes)
-        self.home_doc_tabbed_panel = self.create_tabbed_assistance_panel()
+        self.home_doc_tabbed_panel = self.create_assistance_panel()
         home_doc_splitter.addWidget(self.home_doc_tabbed_panel)
         
         home_doc_splitter.setSizes([600, 250])
@@ -7477,7 +8002,7 @@ class SupervertalerQt(QMainWindow):
         
         # Bottom: Tabbed panel (Translation Results | Segment Editor | Notes)
         # Create tabbed assistance panel for document view
-        self.doc_tabbed_panel = self.create_tabbed_assistance_panel()
+        self.doc_tabbed_panel = self.create_assistance_panel()
         self.doc_splitter.addWidget(self.doc_tabbed_panel)
         
         self.doc_splitter.setSizes([600, 250])
@@ -7573,28 +8098,153 @@ class SupervertalerQt(QMainWindow):
         
         # Debug: Confirm signal connections
         self.log("🔌 Table signals connected: currentCellChanged, itemClicked, itemSelectionChanged")
+        
+        # Add precision scroll buttons (memoQ-style)
+        self.add_precision_scroll_buttons()
+    
+    def add_precision_scroll_buttons(self):
+        """Add precision scroll buttons at top/bottom of scrollbar (memoQ-style)"""
+        from PyQt6.QtWidgets import QPushButton
+        from PyQt6.QtCore import Qt, QTimer
+        
+        # Get the vertical scrollbar
+        scrollbar = self.table.verticalScrollBar()
+        
+        # Create scroll up button (appears at top)
+        self.scroll_up_btn = QPushButton("▲", self.table)
+        self.scroll_up_btn.setFixedSize(18, 22)
+        self.scroll_up_btn.setStyleSheet("""
+            QPushButton {
+                background-color: rgba(240, 240, 240, 220);
+                border: 1px solid #ccc;
+                border-radius: 3px;
+                font-size: 9pt;
+                font-weight: bold;
+                padding: 0px;
+            }
+            QPushButton:hover {
+                background-color: #2196F3;
+                color: white;
+                border: 1px solid #1976D2;
+            }
+            QPushButton:pressed {
+                background-color: #1565C0;
+            }
+        """)
+        self.scroll_up_btn.setToolTip("Scroll up one row (Precision scroll)")
+        self.scroll_up_btn.clicked.connect(lambda: self.precision_scroll(-1))
+        self.scroll_up_btn.raise_()  # Bring to front
+        self.scroll_up_btn.show()  # Start visible for testing
+        
+        # Create scroll down button (appears at bottom)
+        self.scroll_down_btn = QPushButton("▼", self.table)
+        self.scroll_down_btn.setFixedSize(18, 22)
+        self.scroll_down_btn.setStyleSheet("""
+            QPushButton {
+                background-color: rgba(240, 240, 240, 220);
+                border: 1px solid #ccc;
+                border-radius: 3px;
+                font-size: 9pt;
+                font-weight: bold;
+                padding: 0px;
+            }
+            QPushButton:hover {
+                background-color: #2196F3;
+                color: white;
+                border: 1px solid #1976D2;
+            }
+            QPushButton:pressed {
+                background-color: #1565C0;
+            }
+        """)
+        self.scroll_down_btn.setToolTip("Scroll down one row (Precision scroll)")
+        self.scroll_down_btn.clicked.connect(lambda: self.precision_scroll(1))
+        self.scroll_down_btn.raise_()  # Bring to front
+        self.scroll_down_btn.show()  # Start visible for testing
+        
+        # Position buttons initially
+        QTimer.singleShot(100, self.position_precision_scroll_buttons)
+        
+        # Update position when table is resized
+        self.table.resizeEvent = self._table_resize_event_wrapper(self.table.resizeEvent)
+    
+    def _table_resize_event_wrapper(self, original_resize_event):
+        """Wrapper for table resize event to reposition scroll buttons"""
+        def wrapped_resize_event(event):
+            result = original_resize_event(event)
+            self.position_precision_scroll_buttons()
+            return result
+        return wrapped_resize_event
+    
+    def precision_scroll(self, direction):
+        """Scroll table by a small amount for fine-tuned navigation
+        Args:
+            direction: -1 for up, 1 for down
+        """
+        scrollbar = self.table.verticalScrollBar()
+        current = scrollbar.value()
+        
+        # Use fixed pixel amounts based on divisor (inversely related)
+        # Higher divisor = smaller scroll amount = finer control
+        divisor = getattr(self, 'precision_scroll_divisor', 3)
+        
+        # Map divisor (1-10) to scroll amount (50-5 pixels)
+        # divisor 1 = 50px, divisor 3 = 30px, divisor 5 = 20px, divisor 10 = 5px
+        scroll_amount = max(5, 55 - (divisor * 5))
+        
+        new_value = current + (direction * scroll_amount)
+        scrollbar.setValue(new_value)
+    
+    def position_precision_scroll_buttons(self):
+        """Position precision scroll buttons at top/bottom of scrollbar"""
+        if not hasattr(self, 'scroll_up_btn') or not hasattr(self, 'scroll_down_btn'):
+            return
+        
+        scrollbar = self.table.verticalScrollBar()
+        
+        # Always position buttons, even if scrollbar not visible yet
+        table_width = self.table.width()
+        table_height = self.table.height()
+        
+        # Position buttons to the left of scrollbar (scrollbar is ~17px wide)
+        scrollbar_width = scrollbar.width() if scrollbar.isVisible() else 17
+        x_pos = table_width - scrollbar_width - 24  # 24 = button width + small margin
+        
+        # Up button at top (below header)
+        header_height = self.table.horizontalHeader().height()
+        self.scroll_up_btn.move(x_pos, header_height + 5)
+        
+        # Down button at bottom (above status bar area)
+        self.scroll_down_btn.move(x_pos, table_height - 30)
+        
+        # Show/hide based on scrollbar visibility
+        if scrollbar.isVisible():
+            self.scroll_up_btn.show()
+            self.scroll_down_btn.show()
+        else:
+            self.scroll_up_btn.hide()
+            self.scroll_down_btn.hide()
     
     def create_assistance_panel(self):
-        """DEPRECATED: Old assistance panel creation - now using create_tabbed_assistance_panel"""
-        # This function is kept for backward compatibility but is no longer used
-        # The new system uses multiple results panels in tabs
-        pass
-    
-    def create_tabbed_assistance_panel(self, parent=None):
-        """
-        Create a tabbed panel with Translation Results, Segment Editor, and Notes
-        This is used in both Grid and List views for consistency
-        """
-        tabs = QTabWidget(parent)
-        tabs.setTabPosition(QTabWidget.TabPosition.North)
-        tabs.setDocumentMode(False)
+        """Create the assistance panel widget (Translation Results) with compact resizeable design"""
+        from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTabWidget
+        from modules.translation_results_panel import TranslationResultsPanel
         
-        # Tab 1: Translation Results - Create a NEW instance for this panel
-        # (Can't reuse widgets - they can only have one parent)
+        tabs = QTabWidget()
+        tabs.setTabPosition(QTabWidget.TabPosition.South)  # Tabs at bottom for easy access
+        
+        # Get match limits from settings
+        general_settings = self.load_general_settings()
+        match_limits = general_settings.get('match_limits', {
+            "LLM": 3,
+            "MT": 3,
+            "TM": 5,
+            "Termbases": 10
+        })
+        
         try:
-            from modules.translation_results_panel import TranslationResultsPanel
-            results_panel = TranslationResultsPanel(self)
-            results_panel.match_selected.connect(self.on_match_selected)
+            # Create translation results panel with dynamic font sizing
+            results_panel = TranslationResultsPanel(tabs)
             results_panel.match_inserted.connect(self.on_match_inserted)
             tabs.addTab(results_panel, "🔍 Translation Results")
             
@@ -9298,10 +9948,11 @@ class SupervertalerQt(QMainWindow):
                 )
                 return
             
-            # Extract source and target segments from columns 1 and 2 (skipping header rows 0 and 1)
-            # Also extract formatting information (bold, italic, underline)
-            segments_data = []  # List of dictionaries with segment metadata
+            # CLASSIC APPROACH: Extract source segments to simple line-by-line list
+            source_segments = []
+            target_segments = []
             formatting_map = {}  # segment_index -> list of formatting info
+            metadata = []  # Store comments, status, etc. for later
             
             for row_idx in range(2, len(table.rows)):
                 row = table.rows[row_idx]
@@ -9313,20 +9964,18 @@ class SupervertalerQt(QMainWindow):
                     
                     source_text = source_cell.text.strip()
                     target_text = target_cell.text.strip()
-
+                    
+                    # Always add (even if empty) to maintain alignment
+                    source_segments.append(source_text)
+                    target_segments.append(target_text)
+                    
+                    # Store metadata
                     comment_text = row.cells[3].text.strip() if len(row.cells) >= 4 else ""
                     status_text = row.cells[4].text.strip() if len(row.cells) >= 5 else ""
-                    mapped_status, match_percent = self._interpret_memoq_status(status_text, bool(target_text))
-                    
-                    # Always add the row to maintain alignment
-                    segment_idx = len(segments_data)
-                    segments_data.append({
-                        'source': source_text,
-                        'target': target_text,
-                        'status': mapped_status,
-                        'memoq_status': status_text,
+                    metadata.append({
                         'comment': comment_text,
-                        'match_percent': match_percent
+                        'status': status_text,
+                        'target': target_text
                     })
                     
                     # Extract formatting from runs in source cell
@@ -9344,14 +9993,12 @@ class SupervertalerQt(QMainWindow):
                     
                     # Store formatting for this segment
                     if formatting_info:
+                        segment_idx = len(source_segments) - 1
                         formatting_map[segment_idx] = formatting_info
             
-            if not segments_data:
+            if not source_segments:
                 QMessageBox.warning(self, "Warning", "No segments found in the bilingual file.")
                 return
-            
-            # Create new project with the imported segments
-            project_name = Path(file_path).stem
             
             # Detect languages from table header (row 1, columns 1 and 2)
             header_row = table.rows[1]
@@ -9374,7 +10021,42 @@ class SupervertalerQt(QMainWindow):
                     if lang_name in target_header:
                         target_lang = lang_code
             
-            # Create project
+            # SAFETY STEP: Save source segments to TXT file for user verification
+            txt_file_path = Path(file_path).with_suffix('.txt')
+            try:
+                with open(txt_file_path, 'w', encoding='utf-8') as f:
+                    f.write('\n'.join(source_segments))
+                self.log(f"✓ Extracted {len(source_segments)} segments to: {txt_file_path.name}")
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Failed to save TXT file:\n\n{e}")
+                return
+            
+            # Show verification dialog
+            reply = QMessageBox.question(
+                self,
+                "Verify Extracted Segments",
+                f"Extracted {len(source_segments)} source segments from memoQ file.\n\n"
+                f"A text file has been saved for verification:\n{txt_file_path.name}\n\n"
+                f"Please check this file to ensure all segments were extracted correctly.\n\n"
+                f"Languages detected: {source_lang.upper()} → {target_lang.upper()}\n\n"
+                f"Continue with import?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.Yes
+            )
+            
+            if reply != QMessageBox.StandardButton.Yes:
+                self.log("✗ User cancelled memoQ import after extraction")
+                return
+            
+            # Store the bilingual DOCX metadata for later export
+            self.memoq_source_file = file_path
+            self.memoq_source_segments = source_segments
+            self.memoq_target_segments = target_segments
+            self.memoq_formatting_map = formatting_map
+            self.memoq_metadata = metadata
+            
+            # Create simple project with sequential IDs
+            project_name = Path(file_path).stem
             self.current_project = Project(
                 name=project_name,
                 source_lang=source_lang,
@@ -9382,23 +10064,21 @@ class SupervertalerQt(QMainWindow):
                 segments=[]
             )
             
-            # Create segments
-            for idx, segment_entry in enumerate(segments_data):
+            # Create segments with simple sequential IDs
+            for idx, source_text in enumerate(source_segments):
+                existing_target = target_segments[idx] if idx < len(target_segments) else ""
+                status = "translated" if existing_target.strip() else "not_started"
+                
                 segment = Segment(
-                    id=idx + 1,
-                    source=segment_entry['source'],
-                    target=segment_entry['target'],
-                    status=segment_entry['status'],
+                    id=idx + 1,  # Sequential: 1, 2, 3, 4...
+                    source=source_text,
+                    target=existing_target,
+                    status=status,
                     type="para",
-                    notes=segment_entry.get('comment', ""),
-                    match_percent=segment_entry.get('match_percent'),
-                    memoQ_status=segment_entry.get('memoq_status', "")
+                    notes=metadata[idx].get('comment', '') if idx < len(metadata) else "",
+                    memoQ_status=metadata[idx].get('status', '') if idx < len(metadata) else ""
                 )
                 self.current_project.segments.append(segment)
-            
-            # Store the original memoQ file info for export
-            self.memoq_source_file = file_path
-            self.memoq_formatting_map = formatting_map
             
             # Update UI
             self.project_file_path = None
@@ -9407,7 +10087,7 @@ class SupervertalerQt(QMainWindow):
             self.load_segments_to_grid()
             self.initialize_tm_database()
             
-            self.log(f"✓ Imported memoQ bilingual DOCX: {len(segments_data)} segments from {Path(file_path).name}")
+            self.log(f"✓ Imported memoQ bilingual DOCX: {len(source_segments)} segments from {Path(file_path).name}")
 
             # Store current document path for AI Assistant
             self.current_document_path = file_path
@@ -9423,7 +10103,7 @@ class SupervertalerQt(QMainWindow):
 
             QMessageBox.information(
                 self, "Import Successful",
-                f"Imported {len(segments_data)} segment(s) from memoQ bilingual DOCX.\n\n"
+                f"Imported {len(source_segments)} segment(s) from memoQ bilingual DOCX.\n\n"
                 f"File: {Path(file_path).name}\n"
                 f"Languages: {source_lang} → {target_lang}"
             )
@@ -9808,11 +10488,13 @@ class SupervertalerQt(QMainWindow):
                         nonlocal debounce_timer
                         new_text = editor_widget.toPlainText()
                         
-                        # DEBUG: Log EVERY call to catch the culprit
-                        self.log(f"🔔 textChanged FIRED: segment_id={segment_id}, new_text='{new_text[:20] if new_text else 'EMPTY'}...'")
+                        # DEBUG: Log EVERY call to catch the culprit (only in debug mode)
+                        if self.debug_mode_enabled:
+                            self.log(f"🔔 textChanged FIRED: segment_id={segment_id}, new_text='{new_text[:20] if new_text else 'EMPTY'}...'")
 
                         if self._suppress_target_change_handlers:
-                            self.log(f"🔔 textChanged SUPPRESSED for segment {segment_id}")
+                            if self.debug_mode_enabled:
+                                self.log(f"🔔 textChanged SUPPRESSED for segment {segment_id}")
                             return
                         
                         # CRITICAL: Find segment by ID, not by row index!
@@ -9822,9 +10504,11 @@ class SupervertalerQt(QMainWindow):
                             return
                         
                         # SIMPLIFIED: Just update the target, NO status changes
-                        self.log(f"📝 BEFORE update: seg {segment_id} target='{target_segment.target[:30] if target_segment.target else 'EMPTY'}...', status={target_segment.status}, obj_id={id(target_segment)}")
+                        if self.debug_mode_enabled:
+                            self.log(f"📝 BEFORE update: seg {segment_id} target='{target_segment.target[:30] if target_segment.target else 'EMPTY'}...', status={target_segment.status}, obj_id={id(target_segment)}")
                         target_segment.target = new_text
-                        self.log(f"📝 AFTER update: seg {segment_id} target='{target_segment.target[:30] if target_segment.target else 'EMPTY'}...', status={target_segment.status}, obj_id={id(target_segment)}")
+                        if self.debug_mode_enabled:
+                            self.log(f"📝 AFTER update: seg {segment_id} target='{target_segment.target[:30] if target_segment.target else 'EMPTY'}...', status={target_segment.status}, obj_id={id(target_segment)}")
                         
                         # Mark project as modified
                         self.project_modified = True
@@ -9843,7 +10527,7 @@ class SupervertalerQt(QMainWindow):
                         debounce_timer.timeout.connect(lambda text=new_text: self._handle_target_text_debounced_by_id(
                             segment_id, text
                         ))
-                        debounce_timer.start(500)  # 500ms delay
+                        debounce_timer.start(1000)  # 1000ms delay (increased for better responsiveness)
                             
                     return on_target_text_changed
                 
@@ -10461,6 +11145,15 @@ class SupervertalerQt(QMainWindow):
         self.auto_generate_markdown = settings.get('auto_generate_markdown', False)
         # Load TM save mode
         self.tm_save_mode = settings.get('tm_save_mode', 'latest')
+        # Load debug mode settings
+        self.debug_mode_enabled = settings.get('debug_mode_enabled', False)
+        self.debug_auto_export = settings.get('debug_auto_export', False)
+        # Load LLM matching setting (default: FALSE - too slow!)
+        self.enable_llm_matching = settings.get('enable_llm_matching', False)
+        # Load precision scroll divisor setting
+        self.precision_scroll_divisor = settings.get('precision_scroll_divisor', 3)
+        # Load auto-center active segment setting
+        self.auto_center_active_segment = settings.get('auto_center_active_segment', False)
 
         # Load LLM provider settings for AI Assistant
         llm_settings = self.load_llm_settings()
@@ -10850,12 +11543,14 @@ class SupervertalerQt(QMainWindow):
     
     def on_cell_selected(self, current_row, current_col, previous_row, previous_col):
         """Handle cell selection change"""
-        self.log(f"🎯 on_cell_selected called: row {current_row}, col {current_col}")
+        if self.debug_mode_enabled:
+            self.log(f"🎯 on_cell_selected called: row {current_row}, col {current_col}")
         
         # 🚫 GUARD: Don't re-run lookups if we're staying on the same row
         # This prevents lookups when user edits text (focus changes within same row)
         if hasattr(self, '_last_selected_row') and self._last_selected_row == current_row:
-            self.log(f"⏭️ Skipping lookup - already on row {current_row}")
+            if self.debug_mode_enabled:
+                self.log(f"⏭️ Skipping lookup - already on row {current_row}")
             return
         self._last_selected_row = current_row
         
@@ -10875,10 +11570,11 @@ class SupervertalerQt(QMainWindow):
                 cursor.clearSelection()
                 target_widget.setTextCursor(cursor)
         
-        # DEBUG: Also log all connected signals for this table
-        self.log(f"🔗 Table currentCellChanged signal connected: {self.table.currentCellChanged}")
-        self.log(f"🔗 Table itemClicked signal connected: {self.table.itemClicked}")
-        self.log(f"🔗 Table itemSelectionChanged signal connected: {self.table.itemSelectionChanged}")
+        # DEBUG: Also log all connected signals for this table (only in debug mode)
+        if self.debug_mode_enabled:
+            self.log(f"🔗 Table currentCellChanged signal connected: {self.table.currentCellChanged}")
+            self.log(f"🔗 Table itemClicked signal connected: {self.table.itemClicked}")
+            self.log(f"🔗 Table itemSelectionChanged signal connected: {self.table.itemSelectionChanged}")
         try:
             # Clear previous highlighting - ensure both background AND foreground are reset
             if previous_row >= 0 and previous_row < self.table.rowCount():
@@ -10893,6 +11589,10 @@ class SupervertalerQt(QMainWindow):
                 if current_id_item:
                     current_id_item.setBackground(QColor("#FFA500"))  # Orange background
                     current_id_item.setForeground(QColor("white"))    # White text for contrast
+                
+                # Auto-center active segment if enabled (like memoQ/Trados)
+                if getattr(self, 'auto_center_active_segment', False):
+                    self.table.scrollToItem(current_id_item, QTableWidget.ScrollHint.PositionAtCenter)
             
             if not self.current_project or current_row < 0:
                 return
@@ -12957,6 +13657,10 @@ class SupervertalerQt(QMainWindow):
         label.setWordWrap(True)
         label.setTextFormat(Qt.TextFormat.RichText)
         
+        # Set the same font as the table cells
+        font = QFont(self.default_font_family, self.default_font_size)
+        label.setFont(font)
+        
         # Build HTML with highlighted search term (case-insensitive)
         search_lower = search_term.lower()
         text_lower = text.lower()
@@ -13075,6 +13779,181 @@ class SupervertalerQt(QMainWindow):
                 self.table.setRowHidden(row, False)
         
         self.log("Filters cleared")
+    
+    def filter_empty_segments(self):
+        """Quick filter to show only segments with empty target"""
+        if not self.current_project:
+            return
+        
+        # Safety check: ensure table exists
+        if not hasattr(self, 'table') or self.table is None:
+            return
+        
+        # Clear filter boxes first
+        source_widget = getattr(self, 'source_filter', None)
+        target_widget = getattr(self, 'target_filter', None)
+        if self._widget_is_alive(source_widget):
+            source_widget.blockSignals(True)
+            source_widget.clear()
+            source_widget.blockSignals(False)
+        if self._widget_is_alive(target_widget):
+            target_widget.blockSignals(True)
+            target_widget.clear()
+            target_widget.blockSignals(False)
+        
+        # Reload grid to clear any previous highlighting
+        self.load_segments_to_grid()
+        
+        # Hide rows with non-empty target
+        visible_count = 0
+        for row, segment in enumerate(self.current_project.segments):
+            if row >= self.table.rowCount():
+                break
+            
+            has_empty_target = not segment.target or not segment.target.strip()
+            self.table.setRowHidden(row, not has_empty_target)
+            
+            if has_empty_target:
+                visible_count += 1
+        
+        self.log(f"🔍 Empty segments filter: showing {visible_count} of {len(self.current_project.segments)} segments")
+    
+    def apply_quick_filter(self, filter_type: str):
+        """Apply quick filter based on type"""
+        if not self.current_project:
+            return
+        
+        if not hasattr(self, 'table') or self.table is None:
+            return
+        
+        # Clear filter boxes first
+        source_widget = getattr(self, 'source_filter', None)
+        target_widget = getattr(self, 'target_filter', None)
+        if self._widget_is_alive(source_widget):
+            source_widget.blockSignals(True)
+            source_widget.clear()
+            source_widget.blockSignals(False)
+        if self._widget_is_alive(target_widget):
+            target_widget.blockSignals(True)
+            target_widget.clear()
+            target_widget.blockSignals(False)
+        
+        # Reload grid to clear any previous highlighting
+        self.load_segments_to_grid()
+        
+        # Apply filter based on type
+        visible_count = 0
+        for row, segment in enumerate(self.current_project.segments):
+            if row >= self.table.rowCount():
+                break
+            
+            show_row = False
+            
+            if filter_type == "empty":
+                show_row = not segment.target or not segment.target.strip()
+            elif filter_type == "not_translated":
+                show_row = segment.status in ["not_started", "draft"]
+            elif filter_type == "confirmed":
+                show_row = segment.status == "confirmed"
+            elif filter_type == "locked":
+                # TODO: Implement locked status
+                show_row = getattr(segment, 'locked', False)
+            elif filter_type == "not_locked":
+                # TODO: Implement locked status
+                show_row = not getattr(segment, 'locked', False)
+            elif filter_type == "commented":
+                show_row = bool(segment.notes and segment.notes.strip())
+            
+            self.table.setRowHidden(row, not show_row)
+            
+            if show_row:
+                visible_count += 1
+        
+        filter_names = {
+            "empty": "Empty segments",
+            "not_translated": "Not translated",
+            "confirmed": "Confirmed",
+            "locked": "Locked",
+            "not_locked": "Not locked",
+            "commented": "Commented"
+        }
+        self.log(f"🔍 {filter_names.get(filter_type, 'Quick')} filter: showing {visible_count} of {len(self.current_project.segments)} segments")
+    
+    def show_advanced_filters_dialog(self):
+        """Show advanced filters dialog with detailed filtering options"""
+        if not self.current_project:
+            QMessageBox.information(self, "No Project", "Please open or create a project first.")
+            return
+        
+        dialog = AdvancedFiltersDialog(self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            filters = dialog.get_filters()
+            self.apply_advanced_filters(filters)
+    
+    def apply_advanced_filters(self, filters: dict):
+        """Apply advanced filters to grid"""
+        if not self.current_project or not hasattr(self, 'table') or self.table is None:
+            return
+        
+        # Clear text filter boxes
+        source_widget = getattr(self, 'source_filter', None)
+        target_widget = getattr(self, 'target_filter', None)
+        if self._widget_is_alive(source_widget):
+            source_widget.blockSignals(True)
+            source_widget.clear()
+            source_widget.blockSignals(False)
+        if self._widget_is_alive(target_widget):
+            target_widget.blockSignals(True)
+            target_widget.clear()
+            target_widget.blockSignals(False)
+        
+        # Reload grid
+        self.load_segments_to_grid()
+        
+        visible_count = 0
+        for row, segment in enumerate(self.current_project.segments):
+            if row >= self.table.rowCount():
+                break
+            
+            show_row = True
+            
+            # Match rate filter
+            if filters.get('match_rate_enabled'):
+                match_percent = getattr(segment, 'match_percent', 0) or 0
+                min_rate = filters.get('match_rate_min', 0)
+                max_rate = filters.get('match_rate_max', 100)
+                if not (min_rate <= match_percent <= max_rate):
+                    show_row = False
+            
+            # Row status filters
+            status_filters = filters.get('row_status', [])
+            if status_filters:
+                if segment.status not in status_filters:
+                    show_row = False
+            
+            # Locked/unlocked filter
+            if filters.get('locked_filter'):
+                locked_value = getattr(segment, 'locked', False)
+                if filters['locked_filter'] == 'locked' and not locked_value:
+                    show_row = False
+                elif filters['locked_filter'] == 'unlocked' and locked_value:
+                    show_row = False
+            
+            # Other properties
+            if filters.get('has_comments'):
+                if not (segment.notes and segment.notes.strip()):
+                    show_row = False
+            
+            if filters.get('repetitions_only'):
+                # TODO: Implement repetition detection
+                pass
+            
+            self.table.setRowHidden(row, not show_row)
+            
+            if show_row:
+                visible_count += 1
+        
+        self.log(f"🔍 Advanced filters: showing {visible_count} of {len(self.current_project.segments)} segments")
     
     # ========================================================================
     # TABBED SEGMENT EDITOR METHODS (for Grid view)
@@ -13505,6 +14384,54 @@ class SupervertalerQt(QMainWindow):
     # GRID-BASED EDITING HANDLERS (for toolbar below grid)
     # ========================================================================
     
+    def filter_on_selected_text(self):
+        """Filter based on currently selected text in source or target column"""
+        from PyQt6.QtWidgets import QApplication
+        
+        # Get the currently focused widget
+        focused_widget = QApplication.focusWidget()
+        
+        if not focused_widget:
+            self.log("⚠️ No widget has focus. Click in a source or target cell first.")
+            return
+        
+        selected_text = ""
+        is_source = False
+        is_target = False
+        
+        # Check if it's a text editor widget (source or target)
+        if isinstance(focused_widget, (EditableGridTextEditor, ReadOnlyGridTextEditor)):
+            cursor = focused_widget.textCursor()
+            selected_text = cursor.selectedText().strip()
+            
+            # Determine if it's source or target by checking which column it's in
+            if hasattr(self, 'table') and self.table:
+                for row in range(self.table.rowCount()):
+                    # Check source column (index 2)
+                    source_widget = self.table.cellWidget(row, 2)
+                    if source_widget == focused_widget:
+                        is_source = True
+                        break
+                    # Check target column (index 3)
+                    target_widget = self.table.cellWidget(row, 3)
+                    if target_widget == focused_widget:
+                        is_target = True
+                        break
+        
+        if not selected_text:
+            self.log("⚠️ No text selected. Select text in source or target column first.")
+            return
+        
+        # Put selected text in appropriate filter box and apply filter
+        if is_source and hasattr(self, 'source_filter') and self.source_filter:
+            self.source_filter.setText(selected_text)
+            self.apply_filters()
+            self.log(f"🔍 Filtering source on: '{selected_text}'")
+        elif is_target and hasattr(self, 'target_filter') and self.target_filter:
+            self.target_filter.setText(selected_text)
+            self.apply_filters()
+            self.log(f"🔍 Filtering target on: '{selected_text}'")
+    
     def copy_source_to_grid_target(self):
         """Copy source to target in currently selected grid row"""
         if not hasattr(self, 'table') or not self.table:
@@ -13931,6 +14858,17 @@ class SupervertalerQt(QMainWindow):
         if hasattr(self, 'status_bar'):
             self.status_bar.showMessage(message)
         print(f"[LOG] {message}")
+        
+        # Add to debug buffer if debug mode is enabled
+        if hasattr(self, 'debug_mode_enabled') and self.debug_mode_enabled:
+            if not hasattr(self, 'debug_log_buffer'):
+                self.debug_log_buffer = []
+            from datetime import datetime
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            self.debug_log_buffer.append(f"[{timestamp}] {message}")
+            # Keep buffer size reasonable (max 10,000 entries)
+            if len(self.debug_log_buffer) > 10000:
+                self.debug_log_buffer = self.debug_log_buffer[-10000:]
 
         # Also append to session log tab if it exists
         if hasattr(self, 'session_log') and self.session_log:
@@ -14779,6 +15717,24 @@ class SupervertalerQt(QMainWindow):
         elif scope == "all_segments":
             segments_with_rows = list(enumerate(self.current_project.segments))
             description = "segment(s)"
+        elif scope == "all_empty":
+            # NEW: Translate only segments with empty target (useful after partial batch translation)
+            segments_with_rows = [
+                (idx, seg) for idx, seg in enumerate(self.current_project.segments)
+                if not seg.target or not seg.target.strip()
+            ]
+            description = "empty segment(s)"
+        elif scope == "filtered_segments":
+            # NEW: Translate only currently filtered/visible segments
+            segments_with_rows = self._get_filtered_segments_with_rows()
+            if not segments_with_rows:
+                QMessageBox.information(
+                    self,
+                    "No Filtered Segments",
+                    "No segments are currently visible after filtering.\nClear filters or adjust your filter criteria."
+                )
+                return
+            description = "filtered segment(s)"
         else:
             return
 
@@ -14824,18 +15780,51 @@ class SupervertalerQt(QMainWindow):
 
         return segments_with_rows
 
+    def _get_filtered_segments_with_rows(self) -> List[Tuple[int, Segment]]:
+        """Return currently visible/filtered segments as (row_index, segment)."""
+        if not self.current_project:
+            return []
+
+        # Check if table is currently filtered
+        if not hasattr(self, 'table') or self.table.rowCount() == 0:
+            return []
+
+        visible_segments: List[Tuple[int, Segment]] = []
+        
+        # Iterate through visible rows in the table
+        for visual_row in range(self.table.rowCount()):
+            if not self.table.isRowHidden(visual_row):
+                # Get the segment from this row
+                # The visual row index corresponds to the segment index in the project
+                if visual_row < len(self.current_project.segments):
+                    seg = self.current_project.segments[visual_row]
+                    visible_segments.append((visual_row, seg))
+
+        return visible_segments
+
     def translate_batch(self, segments_with_rows: Optional[List[Tuple[int, Segment]]] = None, scope_description: Optional[str] = None):
-        """Translate multiple segments with progress dialog"""
+        """
+        Translate ALL segments in the project using LLM provider.
+        
+        CRITICAL REQUIREMENTS for memoQ bilingual files:
+        - Column 2 (source): Source text to translate
+        - Column 3 (target): MUST BE COMPLETELY EMPTY (no pre-translations!)
+        - Column 5 (status): Completely ignored by system
+        
+        The system will translate EVERY segment in the file.
+        Users MUST ensure target column is 100% empty before export.
+        """
         if not self.current_project:
             QMessageBox.warning(self, "No Project", "Please load or create a project first.")
             return
 
         if segments_with_rows is None:
+            # Translate ALL segments in the project
+            # Users must ensure memoQ export has completely empty target column
             segments_with_rows = [
                 (idx, seg) for idx, seg in enumerate(self.current_project.segments)
-                if seg.status == DEFAULT_STATUS.key
             ]
-            scope_description = scope_description or "untranslated segment(s)"
+            scope_description = scope_description or "segment(s)"
         else:
             valid_segments: List[Tuple[int, Segment]] = []
             for row_index, segment in segments_with_rows:
@@ -14854,6 +15843,47 @@ class SupervertalerQt(QMainWindow):
 
         segments_to_translate = sorted(segments_with_rows, key=lambda item: item[0])
         total_segments = len(segments_to_translate)
+        
+        # Log what we found
+        self.log(f"📊 Project has {total_segments} segments → Will translate ALL of them")
+        
+        # VALIDATION: Check if any segments already have target text
+        segments_with_target = [(idx, seg) for idx, seg in segments_to_translate if seg.target and seg.target.strip()]
+        
+        if segments_with_target:
+            # Show examples of problematic segments
+            examples = segments_with_target[:3]
+            example_text = "\n".join([
+                f"• Segment {seg.id}: \"{seg.target[:50]}{'...' if len(seg.target) > 50 else ''}\""
+                for idx, seg in examples
+            ])
+            
+            warning_msg = (
+                f"⚠️ CRITICAL ERROR: {len(segments_with_target)} of {total_segments} segments have target text!\n\n"
+                f"Examples:\n{example_text}\n\n"
+                f"❌ This file is NOT ready for batch translation!\n\n"
+                f"REQUIRED: Target column (column 3) must be 100% EMPTY:\n"
+                f"  • No pre-translations\n"
+                f"  • No confirmed segments\n"
+                f"  • No partial translations\n"
+                f"  • Completely blank target cells\n\n"
+                f"The system will translate ALL {total_segments} segments.\n"
+                f"Existing translations will cause MAJOR synchronization problems!\n\n"
+                f"YOU MUST: Cancel → Clean target column in memoQ → Re-export\n\n"
+                f"Proceed anyway? (STRONGLY NOT recommended - will cause errors!)"
+            )
+            reply = QMessageBox.warning(
+                self,
+                "Target Text Detected",
+                warning_msg,
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No  # Default to No for safety
+            )
+            if reply != QMessageBox.StandardButton.Yes:
+                self.log("✓ Batch translation cancelled - user chose to clean file first")
+                return
+            else:
+                self.log("⚠️ User proceeded with batch translation despite existing target text")
 
         reply = QMessageBox.question(
             self,
@@ -14945,7 +15975,13 @@ class SupervertalerQt(QMainWindow):
             source_lang = getattr(self.current_project, 'source_lang', 'en')
             target_lang = getattr(self.current_project, 'target_lang', 'nl')
 
-            self.log(f"Batch translation: {source_lang} → {target_lang}")
+            self.log(f"═══════════════════════════════════════════════════════════")
+            self.log(f"🚀 Starting Batch Translation")
+            self.log(f"   Source → Target: {source_lang} → {target_lang}")
+            self.log(f"   Total segments: {total_segments}")
+            if segments_with_target:
+                self.log(f"   ⚠️ Warning: {len(segments_with_target)} segments have existing target text")
+            self.log(f"═══════════════════════════════════════════════════════════")
 
             general_prefs = self.load_general_settings()
             batch_size = general_prefs.get('batch_size', 100)
@@ -14988,29 +16024,69 @@ class SupervertalerQt(QMainWindow):
                     use_full_context = general_prefs.get('use_full_context', True)
                     if use_full_context and self.current_project:
                         try:
+                            # Get first and last segment IDs in this batch for context window
+                            first_batch_seg_id = batch_segments[0][1].id if batch_segments else 0
+                            last_batch_seg_id = batch_segments[-1][1].id if batch_segments else 0
+                            
+                            # Use user-configurable context window size (default 50)
+                            # This prevents massive prompts that cause timeouts with large documents
+                            context_window_size = general_prefs.get('context_window_size', 50)
+                            context_start_id = max(1, first_batch_seg_id - context_window_size)
+                            context_end_id = min(len(self.current_project.segments), last_batch_seg_id + context_window_size)
+                            
                             context_parts = []
                             for seg in self.current_project.segments:
-                                if seg.source:
+                                if seg.source and context_start_id <= seg.id <= context_end_id:
                                     context_parts.append(f"{seg.id}. {seg.source}")
-                                    if seg.target:
+                                    # Show existing translations if present (for legacy compatibility)
+                                    if seg.target and seg.target.strip():
                                         context_parts.append(f"    → {seg.target}")
 
                             if context_parts:
-                                batch_prompt_parts.append("\n**FULL DOCUMENT CONTEXT:**")
-                                batch_prompt_parts.append("(For reference - segments to translate are marked below)\n")
+                                batch_prompt_parts.append("\n" + "="*80)
+                                batch_prompt_parts.append("**SURROUNDING CONTEXT (FOR REFERENCE ONLY):**")
+                                batch_prompt_parts.append(f"Source text from segments {context_start_id}-{context_end_id} shown for terminology consistency.")
+                                batch_prompt_parts.append("DO NOT translate these context segments - only translate the segments explicitly listed below.")
+                                batch_prompt_parts.append("="*80 + "\n")
                                 batch_prompt_parts.append("\n".join(context_parts))
-                                batch_prompt_parts.append("")
-                                self.log(f"  Including full document context ({len(self.current_project.segments)} segments)")
+                                batch_prompt_parts.append("\n" + "="*80)
+                                batch_prompt_parts.append("END OF CONTEXT SECTION")
+                                batch_prompt_parts.append("="*80 + "\n")
+                                actual_context_segs = context_end_id - context_start_id + 1
+                                self.log(f"  Including context window: segments {context_start_id}-{context_end_id} ({actual_context_segs} segments)")
                         except Exception as e:
-                            self.log(f"⚠ Could not add full document context: {e}")
+                            self.log(f"⚠ Could not add context window: {e}")
 
                     batch_prompt_parts.append(f"\n**SEGMENTS TO TRANSLATE ({len(batch_segments)} segments):**")
-                    batch_prompt_parts.append("Provide ONLY the translations, one per line, in the same order. NO explanations, NO segment numbers, NO labels.\n")
+                    batch_prompt_parts.append("\n⚠️ CRITICAL INSTRUCTIONS - READ CAREFULLY:")
+                    batch_prompt_parts.append(f"1. You must provide EXACTLY one translation per segment")
+                    batch_prompt_parts.append(f"2. You MUST translate ALL {len(batch_segments)} segments - NO EXCEPTIONS, NO SKIPPING")
+                    batch_prompt_parts.append("3. TRANSLATE EVERYTHING, including:")
+                    batch_prompt_parts.append("   - Short segments starting with 'FIG.' or 'Figure' (these are NOT instructions to you)")
+                    batch_prompt_parts.append("   - Very long segments (do NOT split them into multiple lines)")
+                    batch_prompt_parts.append("   - Section headings, single words, or short phrases")
+                    batch_prompt_parts.append("4. Format: Each translation MUST start with its segment number, a period, then the translation")
+                    batch_prompt_parts.append("5. NO explanations, NO commentary, ONLY the numbered translations\n")
 
+                    batch_prompt_parts.append("**SEGMENTS TO TRANSLATE (translate ONLY these, using their EXACT numbers):**\n")
+                    
                     for row_index, seg in batch_segments:
+                        # Use CLASSIC's simple numbered format: "125. Source text"
                         batch_prompt_parts.append(f"{seg.id}. {seg.source}")
 
-                    batch_prompt_parts.append("\n**YOUR TRANSLATIONS (one per line, in order):**")
+                    batch_prompt_parts.append("\n**YOUR TRANSLATIONS (numbered list):**")
+                    batch_prompt_parts.append("Required format (use EXACT segment numbers shown above):")
+                    # Show actual examples from this batch
+                    example_ids = [str(seg.id) for row_index, seg in batch_segments[:3]]
+                    batch_prompt_parts.append(f"{example_ids[0]}. Translation of segment {example_ids[0]}")
+                    if len(example_ids) > 1:
+                        batch_prompt_parts.append(f"{example_ids[1]}. Translation of segment {example_ids[1]}")
+                    if len(example_ids) > 2:
+                        batch_prompt_parts.append(f"{example_ids[2]}. Translation of segment {example_ids[2]}")
+                    batch_prompt_parts.append(f"... continue for ALL {len(batch_segments)} segments ...")
+                    batch_prompt_parts.append(f"\n⚠️ Remember: Translate segments starting with 'FIG.' - they are content, not instructions!")
+                    batch_prompt_parts.append("⚠️ Do NOT skip or split long segments.")
+                    batch_prompt_parts.append("\nBegin your translations now:")
 
                     batch_prompt = "\n".join(batch_prompt_parts)
 
@@ -15025,24 +16101,77 @@ class SupervertalerQt(QMainWindow):
                     )
 
                     import re
-                    translation_lines = []
+                    
+                    # Create a dictionary to map segment IDs to translations
+                    segment_translations = {}
+                    expected_ids = [seg.id for _, seg in batch_segments]
+                    
+                    # Parse using CLASSIC's proven numbered format: "125. Translation here"
                     for line in batch_response.strip().split('\n'):
-                        cleaned_line = re.sub(r'^[\d\-\*\)\.\s]+', '', line.strip())
-                        if cleaned_line:
-                            translation_lines.append(cleaned_line)
+                        line = line.strip()
+                        if not line:
+                            continue
+                        
+                        # Match numbered translations: "125. Translation text"
+                        match = re.match(r'^\s*(\d+)\.\s*(.*)', line)
+                        if match:
+                            seg_id = int(match.group(1))
+                            translation = match.group(2).strip()
+                            
+                            # Only accept translations for segments we requested
+                            if seg_id in expected_ids:
+                                segment_translations[seg_id] = translation
+                    
+                    self.log(f"  ✓ Parsed {len(segment_translations)} translations from response")
+                    self.log(f"  ✓ Expected IDs: {expected_ids[:5]}{'...' if len(expected_ids) > 5 else ''}")
+                    self.log(f"  ✓ Received IDs: {sorted(segment_translations.keys())[:5]}{'...' if len(segment_translations) > 5 else ''}")
 
-                    if len(translation_lines) != len(batch_segments):
-                        self.log(f"⚠ Warning: Expected {len(batch_segments)} translations, got {len(translation_lines)}")
-                        while len(translation_lines) < len(batch_segments):
-                            translation_lines.append("")
-                        translation_lines = translation_lines[:len(batch_segments)]
+                    # Validate we got translations for all segments
+                    missing_segments = []
+                    fig_missing = []
+                    long_missing = []
+                    
+                    for row_index, seg in batch_segments:
+                        if seg.id not in segment_translations:
+                            missing_segments.append(seg.id)
+                            # Check if it's a FIG segment
+                            if seg.source.strip().upper().startswith('FIG'):
+                                fig_missing.append(seg.id)
+                            # Check if it's a very long segment
+                            if len(seg.source) > 500:
+                                long_missing.append(seg.id)
+                    
+                    if missing_segments:
+                        self.log(f"❌ WARNING: Missing translations for {len(missing_segments)} segments: {missing_segments}")
+                        if fig_missing:
+                            self.log(f"  ⚠️ {len(fig_missing)} missing segments start with 'FIG': {fig_missing}")
+                        if long_missing:
+                            self.log(f"  ⚠️ {len(long_missing)} missing segments are very long (>500 chars): {long_missing}")
+                        self.log(f"  Expected {len(batch_segments)} translations, got {len(segment_translations)}")
+                        
+                        response_preview = batch_response[:800].replace('\n', ' ')
+                        self.log(f"  Response preview: {response_preview}...")
 
                     for i, (row_index, segment) in enumerate(batch_segments):
-                        translation = translation_lines[i] if i < len(translation_lines) else ""
+                        translation = segment_translations.get(segment.id, "")
 
                         if translation:
+                            # Sanity check: if source is very long and translation is very short, flag it
+                            source_len = len(segment.source)
+                            trans_len = len(translation)
+                            if source_len > 300 and trans_len < source_len * 0.3:
+                                self.log(f"⚠ Segment #{segment.id}: Suspiciously short translation ({trans_len} chars for {source_len} char source)")
+                            
+                            # Check if translation seems to be from wrong segment (contains wrong numbering)
+                            source_starts_with_num = re.match(r'^(\d+)\.', segment.source.strip())
+                            trans_starts_with_num = re.match(r'^(\d+)\.', translation.strip())
+                            if source_starts_with_num and trans_starts_with_num:
+                                if source_starts_with_num.group(1) != trans_starts_with_num.group(1):
+                                    self.log(f"⚠ Segment #{segment.id}: Number mismatch! Source starts with {source_starts_with_num.group(1)}, translation with {trans_starts_with_num.group(1)}")
+                        
+                        if translation:
                             segment.target = translation
-                            segment.status = "draft"
+                            segment.status = "translated"  # Set to 'translated' like single translation mode
 
                             if row_index < self.table.rowCount():
                                 target_widget = self.table.cellWidget(row_index, 3)

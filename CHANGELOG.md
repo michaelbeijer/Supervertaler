@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.6.2 (November 17, 2025)  
+**Current Version:** v1.6.3 (November 18, 2025)  
 **Framework:** PyQt6  
 **Status:** Active Development
 
@@ -14,6 +14,7 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- ⚡ **UI Responsiveness & Precision Scroll (v1.6.3)** - Debug settings, disabled LLM auto-matching, memoQ-style precision scroll buttons, auto-center active segment
 - 🖼️ **Superimage (v1.6.2)** - Extract images from DOCX files with preview and auto-folder management
 - 📚 **Enhanced Termbase System (v1.6.1)** - Extended metadata with notes, project, client fields and refresh functionality
 - 📚 **Complete Termbase System (v1.6.0)** - Professional terminology management with interactive features
@@ -29,6 +30,90 @@ All notable changes to Supervertaler are documented in this file.
 - 🔄 **CAT Tool Integration** - memoQ, Trados, CafeTran bilingual table support
 
 **See full version history below** ↓
+
+---
+
+## [1.6.3] - November 18, 2025
+
+### ⚡ UI Responsiveness & Precision Scroll Enhancements
+
+**Major Performance Improvements & memoQ-Style Navigation** - Comprehensive UI responsiveness optimizations including debug settings system, disabled LLM auto-matching by default, precision scroll buttons, and auto-center active segment feature.
+
+### Added
+
+**Debug Settings System:**
+- 🐛 **Debug Settings Tab** - New dedicated tab in Settings dialog for debugging and performance tuning
+- 📝 **Verbose Logging Toggle** - Enable/disable detailed debug logs (textChanged events, update cycles, cell selection)
+- 📤 **Debug Log Export** - Export debug logs to timestamped files (`supervertaler_debug_log_YYYYMMDD_HHMMSS.txt`)
+- 🔄 **Auto-export Option** - Automatically export debug logs on application exit
+- 🗑️ **Clear Log Buffer** - Manual clear button for debug log buffer (10,000 entry limit)
+- ⏱️ **Debounce Delay Control** - Spinbox to adjust target text debounce delay (100-5000ms range, default 1000ms)
+- ⚠️ **Performance Warnings** - Clear warnings about performance impact of verbose logging
+
+**Precision Scroll Controls:**
+- ⬆️⬇️ **Precision Scroll Buttons** - memoQ-style ▲▼ buttons for fine-grained grid scrolling
+- 🎯 **Fixed Pixel Scrolling** - Uses fixed pixel amounts (5-50px) instead of variable row heights for predictable movement
+- 🎚️ **Adjustable Precision** - Spinbox setting (1-10 divisor) to control scroll increment size:
+  - Divisor 1 = 50 pixels (coarse)
+  - Divisor 3 = 40 pixels (default)
+  - Divisor 5 = 30 pixels (fine)
+  - Divisor 10 = 5 pixels (very fine)
+- 📊 **Live Preview** - Setting shows "Coarse/Medium/Fine/Very fine" label based on divisor value
+- 📍 **Smart Positioning** - Buttons positioned to left of scrollbar, never cut off or overlapping
+- 🎨 **Hover Effects** - Blue highlight on hover, visual feedback on click
+- 🔄 **Auto-repositioning** - Buttons reposition on window resize and table changes
+
+**Auto-Center Active Segment:**
+- 🎯 **Keep Active Segment Centered** - Optional toggle to auto-scroll and center selected segment in viewport
+- 🔄 **CAT Tool Behavior** - Matches memoQ, Trados, and other professional CAT tools
+- ✅ **Settings Persistence** - Auto-center preference saved to `ui_preferences.json`
+- 🖱️ **Smooth Navigation** - Active segment always visible and centered when navigating
+
+**Performance Optimizations:**
+- 🚫 **LLM Auto-matching Disabled by Default** - Changed `enable_llm_matching` from `True` to `False` to prevent 10-20 second UI freezes
+- ⚡ **Conditional Debug Logging** - All verbose logs wrapped in `if self.debug_mode_enabled:` checks
+- ⏱️ **Increased Debounce Delay** - Target text change debounce increased from 500ms to 1000ms
+- 🎛️ **LLM Matching Toggle** - Added checkbox in General Settings with warning tooltip
+- 💾 **Settings Persistence** - Debug mode, LLM matching, precision scroll, and auto-center settings saved/loaded
+
+**UI/UX Improvements:**
+- 📑 **Precision Scroll Settings Section** - New section in General Settings with all scroll-related controls
+- ℹ️ **Helpful Tooltips** - Detailed explanations for all new settings
+- ⚠️ **Warning Messages** - Clear warnings about LLM performance impact (10-20 sec per segment)
+- 🎨 **Consistent Styling** - Settings UI follows existing design patterns
+
+### Changed
+
+- 🔧 **Default LLM Behavior** - LLM translations no longer trigger automatically on segment selection (use "Translate with AI" button instead)
+- ⏱️ **Debounce Timing** - Target text debounce delay increased from 500ms to 1000ms for better stability
+- 📊 **Debug Logging** - Performance-heavy debug logs now conditional (only when debug mode enabled)
+- 🎯 **Scroll Algorithm** - Precision scroll now uses fixed pixel amounts instead of row-height-based calculations
+
+### Fixed
+
+- 🐛 **UI Freezing on Segment Selection** - Eliminated 10-20 second freezes caused by automatic LLM API calls
+- 🐛 **Unpredictable Scroll Jumping** - Fixed precision scroll skipping segments due to variable row heights
+- 🐛 **Button Positioning** - Fixed scroll buttons being cut off by scrollbar
+- 🐛 **Method Name Mismatch** - Fixed `create_tabbed_assistance_panel` vs `create_assistance_panel` naming error
+- 🐛 **Duplicate Method Definition** - Removed duplicate `position_precision_scroll_buttons` method
+- 🐛 **TranslationResultsPanel Initialization** - Fixed incorrect `main_window` and `match_limits` parameters
+
+### Technical Details
+
+**Files Modified:**
+- `Supervertaler.py` - Core application with all new features
+- `ui_preferences.json` - Stores debug_mode_enabled, debug_auto_export, enable_llm_matching, precision_scroll_divisor, auto_center_active_segment
+
+**Performance Impact:**
+- MT engines (1-2 sec) remain enabled for auto-matching ✅
+- LLM translations (10-20 sec) now on-demand only (via button) ✅
+- Debug logging overhead eliminated in production use ✅
+- Smoother segment navigation with predictable scroll behavior ✅
+
+**Location:**
+- Settings → 🐛 Debug (Debug settings tab)
+- Settings → General Settings (LLM matching toggle, precision scroll settings)
+- Grid → Right edge (Precision scroll buttons ▲▼)
 
 ---
 
