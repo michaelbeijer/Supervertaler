@@ -427,6 +427,35 @@ class ConfigManager:
             'is_first_launch': self.is_first_launch(),
             'config': self.config,
         }
+    
+    def get_last_directory(self) -> str:
+        """
+        Get the last directory used in file dialogs.
+        Returns empty string if no directory has been saved yet.
+        """
+        return self.config.get('last_directory', '')
+    
+    def set_last_directory(self, directory: str) -> None:
+        """
+        Save the last directory used in file dialogs.
+        
+        Args:
+            directory: Full path to the directory to remember
+        """
+        if directory and os.path.isdir(directory):
+            self.config['last_directory'] = os.path.normpath(directory)
+            self._save_config()
+    
+    def update_last_directory_from_file(self, file_path: str) -> None:
+        """
+        Extract and save the directory from a file path.
+        
+        Args:
+            file_path: Full path to a file
+        """
+        if file_path:
+            directory = os.path.dirname(file_path)
+            self.set_last_directory(directory)
 
 
 # Convenience function for easy access

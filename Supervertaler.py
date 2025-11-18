@@ -67,6 +67,7 @@ from modules.statuses import (
     match_memoq_status,
     compose_memoq_status,
 )
+from modules import file_dialog_helper as fdh  # File dialog helper with last directory memory
 
 
 STATUS_ORDER = [
@@ -2974,10 +2975,9 @@ class SupervertalerQt(QMainWindow):
     
     def _on_add_docx_file_for_extraction(self):
         """Add a single DOCX file to the extraction list"""
-        file_path, _ = QFileDialog.getOpenFileName(
+        file_path, _ = fdh.get_open_file_name(
             self,
             "Select DOCX File",
-            "",
             "Word Documents (*.docx)"
         )
         
@@ -2990,7 +2990,7 @@ class SupervertalerQt(QMainWindow):
     
     def _on_add_docx_folder_for_extraction(self):
         """Add all DOCX files from a folder to the extraction list"""
-        folder_path = QFileDialog.getExistingDirectory(
+        folder_path = fdh.get_existing_directory(
             self,
             "Select Folder Containing DOCX Files"
         )
@@ -3014,7 +3014,7 @@ class SupervertalerQt(QMainWindow):
     
     def _on_browse_output_dir_for_extraction(self):
         """Browse for output directory"""
-        folder_path = QFileDialog.getExistingDirectory(
+        folder_path = fdh.get_existing_directory(
             self,
             "Select Output Directory for Extracted Images"
         )
@@ -4000,10 +4000,9 @@ class SupervertalerQt(QMainWindow):
     def import_tmx_file(self):
         """Import TMX file into translation memory"""
         try:
-            file_path, _ = QFileDialog.getOpenFileName(
+            file_path, _ = fdh.get_open_file_name(
                 self, 
                 "Import TMX File", 
-                "", 
                 "TMX Files (*.tmx);;All Files (*.*)"
             )
             
@@ -4024,10 +4023,9 @@ class SupervertalerQt(QMainWindow):
                 QMessageBox.warning(self, "No Project", "Please open a project first")
                 return
             
-            file_path, _ = QFileDialog.getSaveFileName(
+            file_path, _ = fdh.get_save_file_name(
                 self, 
                 "Export Grid as TMX", 
-                "supervertaler_grid.tmx", 
                 "TMX Files (*.tmx);;All Files (*.*)"
             )
             
@@ -8871,10 +8869,9 @@ class SupervertalerQt(QMainWindow):
     
     def open_project(self):
         """Open a project file"""
-        file_path, _ = QFileDialog.getOpenFileName(
+        file_path, _ = fdh.get_open_file_name(
             self,
             "Open Project",
-            str(self.user_data_path / "Projects"),
             "JSON Files (*.json);;All Files (*.*)"
         )
         
@@ -9485,10 +9482,9 @@ class SupervertalerQt(QMainWindow):
         if not self.current_project:
             return
 
-        file_path, _ = QFileDialog.getSaveFileName(
+        file_path, _ = fdh.get_save_file_name(
             self,
             "Save Project As",
-            str(self.user_data_path / "Projects" / f"{self.current_project.name}.json"),
             "JSON Files (*.json);;All Files (*.*)"
         )
 
