@@ -4598,8 +4598,12 @@ class SupervertalerQt(QMainWindow):
                 # Check if active for current project
                 is_active = termbase_mgr.is_termbase_active(tb['id'], project_id) if project_id else True
                 
-                # Active checkbox
-                checkbox = QCheckBox()
+                # Active checkbox - pink for project termbase, standard green for others
+                is_project_tb = tb.get('is_project_termbase', False)
+                if is_project_tb:
+                    checkbox = PinkCheckmarkCheckBox()
+                else:
+                    checkbox = CheckmarkCheckBox()
                 checkbox.setChecked(is_active)
                 def on_toggle(checked, tb_id=tb['id']):
                     if project_id:
@@ -4617,7 +4621,6 @@ class SupervertalerQt(QMainWindow):
                 termbase_table.setCellWidget(row, 0, checkbox)
                 
                 # Type (Project/Background) with button to set/unset
-                is_project_tb = tb.get('is_project_termbase', False)
                 type_widget = QWidget()
                 type_layout = QHBoxLayout(type_widget)
                 type_layout.setContentsMargins(2, 2, 2, 2)
@@ -4801,17 +4804,20 @@ class SupervertalerQt(QMainWindow):
         desc_field.setMaximumHeight(80)
         layout.addRow("Description:", desc_field)
         
-        # Scope
+        # Scope - use styled checkboxes instead of radio buttons for better visibility
         scope_group = QButtonGroup()
-        global_radio = QRadioButton("Global (all projects)")
-        global_radio.setChecked(True)
-        project_radio = QRadioButton("Project-specific")
-        scope_group.addButton(global_radio, 0)
-        scope_group.addButton(project_radio, 1)
+        scope_group.setExclusive(True)  # Only one can be checked
+        
+        global_checkbox = BlueCheckmarkCheckBox("Global (all projects)")
+        global_checkbox.setChecked(True)
+        project_checkbox = PinkCheckmarkCheckBox("Project-specific")
+        
+        scope_group.addButton(global_checkbox, 0)
+        scope_group.addButton(project_checkbox, 1)
         
         scope_layout = QHBoxLayout()
-        scope_layout.addWidget(global_radio)
-        scope_layout.addWidget(project_radio)
+        scope_layout.addWidget(global_checkbox)
+        scope_layout.addWidget(project_checkbox)
         layout.addRow("Scope:", scope_layout)
         
         # Buttons
@@ -18649,6 +18655,166 @@ class CheckmarkCheckBox(QCheckBox):
                 check_y3 = y + h * 0.25
                 
                 # Draw two lines forming the checkmark
+                painter.drawLine(QPointF(check_x2, check_y2), QPointF(check_x3, check_y3))
+                painter.drawLine(QPointF(check_x1, check_y1), QPointF(check_x2, check_y2))
+                
+                painter.end()
+
+
+class PinkCheckmarkCheckBox(QCheckBox):
+    """Custom checkbox with pink background and white checkmark when checked (for project termbases)"""
+    
+    def __init__(self, text="", parent=None):
+        super().__init__(text, parent)
+        self.setCheckable(True)
+        self.setEnabled(True)
+        self.setStyleSheet("""
+            QCheckBox {
+                font-size: 9pt;
+                spacing: 6px;
+            }
+            QCheckBox::indicator {
+                width: 18px;
+                height: 18px;
+                border: 2px solid #999;
+                border-radius: 3px;
+                background-color: white;
+            }
+            QCheckBox::indicator:checked {
+                background-color: #FFB6C1;
+                border-color: #FFB6C1;
+            }
+            QCheckBox::indicator:hover {
+                border-color: #666;
+            }
+            QCheckBox::indicator:checked:hover {
+                background-color: #FF99AD;
+                border-color: #FF99AD;
+            }
+        """)
+    
+    def paintEvent(self, event):
+        """Override paint event to draw white checkmark when checked"""
+        super().paintEvent(event)
+        
+        if self.isChecked():
+            from PyQt6.QtWidgets import QStyleOptionButton
+            from PyQt6.QtGui import QPainter, QPen, QColor
+            from PyQt6.QtCore import QPointF
+            
+            opt = QStyleOptionButton()
+            self.initStyleOption(opt)
+            indicator_rect = self.style().subElementRect(
+                self.style().SubElement.SE_CheckBoxIndicator,
+                opt,
+                self
+            )
+            
+            if indicator_rect.isValid():
+                painter = QPainter(self)
+                painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+                pen_width = max(2.0, min(indicator_rect.width(), indicator_rect.height()) * 0.12)
+                painter.setPen(QPen(QColor(255, 255, 255), pen_width, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin))
+                painter.setBrush(QColor(255, 255, 255))
+                
+                x = indicator_rect.x()
+                y = indicator_rect.y()
+                w = indicator_rect.width()
+                h = indicator_rect.height()
+                
+                padding = min(w, h) * 0.15
+                x += padding
+                y += padding
+                w -= padding * 2
+                h -= padding * 2
+                
+                check_x1 = x + w * 0.10
+                check_y1 = y + h * 0.50
+                check_x2 = x + w * 0.35
+                check_y2 = y + h * 0.70
+                check_x3 = x + w * 0.90
+                check_y3 = y + h * 0.25
+                
+                painter.drawLine(QPointF(check_x2, check_y2), QPointF(check_x3, check_y3))
+                painter.drawLine(QPointF(check_x1, check_y1), QPointF(check_x2, check_y2))
+                
+                painter.end()
+
+
+class BlueCheckmarkCheckBox(QCheckBox):
+    """Custom checkbox with blue background and white checkmark when checked (for global/background termbases)"""
+    
+    def __init__(self, text="", parent=None):
+        super().__init__(text, parent)
+        self.setCheckable(True)
+        self.setEnabled(True)
+        self.setStyleSheet("""
+            QCheckBox {
+                font-size: 9pt;
+                spacing: 6px;
+            }
+            QCheckBox::indicator {
+                width: 18px;
+                height: 18px;
+                border: 2px solid #999;
+                border-radius: 3px;
+                background-color: white;
+            }
+            QCheckBox::indicator:checked {
+                background-color: #4d94ff;
+                border-color: #4d94ff;
+            }
+            QCheckBox::indicator:hover {
+                border-color: #666;
+            }
+            QCheckBox::indicator:checked:hover {
+                background-color: #3d7dd9;
+                border-color: #3d7dd9;
+            }
+        """)
+    
+    def paintEvent(self, event):
+        """Override paint event to draw white checkmark when checked"""
+        super().paintEvent(event)
+        
+        if self.isChecked():
+            from PyQt6.QtWidgets import QStyleOptionButton
+            from PyQt6.QtGui import QPainter, QPen, QColor
+            from PyQt6.QtCore import QPointF
+            
+            opt = QStyleOptionButton()
+            self.initStyleOption(opt)
+            indicator_rect = self.style().subElementRect(
+                self.style().SubElement.SE_CheckBoxIndicator,
+                opt,
+                self
+            )
+            
+            if indicator_rect.isValid():
+                painter = QPainter(self)
+                painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+                pen_width = max(2.0, min(indicator_rect.width(), indicator_rect.height()) * 0.12)
+                painter.setPen(QPen(QColor(255, 255, 255), pen_width, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin))
+                painter.setBrush(QColor(255, 255, 255))
+                
+                x = indicator_rect.x()
+                y = indicator_rect.y()
+                w = indicator_rect.width()
+                h = indicator_rect.height()
+                
+                padding = min(w, h) * 0.15
+                x += padding
+                y += padding
+                w -= padding * 2
+                h -= padding * 2
+                
+                check_x1 = x + w * 0.10
+                check_y1 = y + h * 0.50
+                check_x2 = x + w * 0.35
+                check_y2 = y + h * 0.70
+                check_x3 = x + w * 0.90
+                check_y3 = y + h * 0.25
+                
                 painter.drawLine(QPointF(check_x2, check_y2), QPointF(check_x3, check_y3))
                 painter.drawLine(QPointF(check_x1, check_y1), QPointF(check_x2, check_y2))
                 
