@@ -1511,15 +1511,17 @@ class DetachedLogWindow(QWidget):
 class TermMetadataDialog(QDialog):
     """Dialog for adding/editing term metadata before saving to termbase"""
     
-    def __init__(self, source_term: str, target_term: str, parent=None):
+    def __init__(self, source_term: str, target_term: str, active_termbases: list, parent=None):
         super().__init__(parent)
         self.source_term = source_term
         self.target_term = target_term
+        self.active_termbases = active_termbases
+        self.termbase_checkboxes = {}  # Store checkbox references
         self.setup_ui()
         
     def setup_ui(self):
         self.setWindowTitle("Add Term to Termbase")
-        self.setMinimumWidth(500)
+        self.setMinimumWidth(550)
         layout = QVBoxLayout(self)
         
         # Header
@@ -1543,6 +1545,58 @@ class TermMetadataDialog(QDialog):
         
         term_group.setLayout(term_layout)
         layout.addWidget(term_group)
+        
+        # Termbase selection
+        tb_group = QGroupBox("Save to Termbase(s)")
+        tb_layout = QVBoxLayout()
+        
+        if not self.active_termbases:
+            no_tb_label = QLabel("⚠️ No active termbases found. Please activate at least one termbase first.")
+            no_tb_label.setStyleSheet("color: #d32f2f; padding: 10px;")
+            no_tb_label.setWordWrap(True)
+            tb_layout.addWidget(no_tb_label)
+        else:
+            # Header with select all/none buttons
+            header_layout = QHBoxLayout()
+            select_all_btn = QPushButton("Select All")
+            select_all_btn.setMaximumWidth(100)
+            select_none_btn = QPushButton("Select None")
+            select_none_btn.setMaximumWidth(100)
+            
+            def select_all():
+                for cb in self.termbase_checkboxes.values():
+                    cb.setChecked(True)
+            
+            def select_none():
+                for cb in self.termbase_checkboxes.values():
+                    cb.setChecked(False)
+            
+            select_all_btn.clicked.connect(select_all)
+            select_none_btn.clicked.connect(select_none)
+            
+            header_layout.addWidget(select_all_btn)
+            header_layout.addWidget(select_none_btn)
+            header_layout.addStretch()
+            tb_layout.addLayout(header_layout)
+            
+            # Checkboxes for each active termbase
+            for tb in self.active_termbases:
+                is_project_tb = tb.get('is_project_termbase', False)
+                
+                # Use pink checkbox for project termbase, green for others
+                if is_project_tb:
+                    cb = PinkCheckmarkCheckBox(f"📌 {tb['name']} (Project)")
+                else:
+                    cb = CheckmarkCheckBox(tb['name'])
+                
+                cb.setChecked(True)  # Default: all selected
+                cb.setToolTip(f"Languages: {tb.get('source_lang', '?')} → {tb.get('target_lang', '?')}")
+                
+                self.termbase_checkboxes[tb['id']] = cb
+                tb_layout.addWidget(cb)
+        
+        tb_group.setLayout(tb_layout)
+        layout.addWidget(tb_group)
         
         # Metadata fields
         meta_group = QGroupBox("Metadata (Optional)")
@@ -1614,6 +1668,10 @@ class TermMetadataDialog(QDialog):
             'priority': self.priority_spin.value(),
             'forbidden': self.forbidden_check.isChecked()
         }
+    
+    def get_selected_termbases(self):
+        """Return list of selected termbase IDs"""
+        return [tb_id for tb_id, cb in self.termbase_checkboxes.items() if cb.isChecked()]
 
 
 class AdvancedFiltersDialog(QDialog):
@@ -4464,12 +4522,17 @@ class SupervertalerQt(QMainWindow):
             QMessageBox.warning(self, "No Active Termbase", "Please activate at least one termbase in Translation Resources → Termbases tab.")
             return
         
-        # Show metadata dialog
-        dialog = TermMetadataDialog(source_text, target_text, self)
+        # Show metadata dialog with termbase selection
+        dialog = TermMetadataDialog(source_text, target_text, active_termbases, self)
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return  # User cancelled
         
         metadata = dialog.get_metadata()
+        selected_termbase_ids = dialog.get_selected_termbases()
+        
+        if not selected_termbase_ids:
+            QMessageBox.warning(self, "No Termbase Selected", "Please select at least one termbase to save the term to.")
+            return
         
         # Get source and target languages from current project
         source_lang = self.current_project.source_lang if self.current_project else 'English'
@@ -4481,9 +4544,12 @@ class SupervertalerQt(QMainWindow):
         
         self.log(f"📝 Adding term with languages: {source_lang} ({source_lang_code}) → {target_lang} ({target_lang_code})")
         
-        # Add term to all active termbases
+        # Add term to selected termbases only
         success_count = 0
         for tb in active_termbases:
+            if tb['id'] not in selected_termbase_ids:
+                continue  # Skip unselected termbases
+            
             try:
                 term_id = self.termbase_mgr.add_term(
                     termbase_id=tb['id'],
