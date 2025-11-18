@@ -209,7 +209,7 @@ class BenchmarkThread(QThread):
     """Background thread for running benchmarks without blocking UI"""
 
     progress_update = pyqtSignal(int, int, str)  # current, total, message
-    finished = pyqtSignal(list)  # results
+    finished = pyqtSignal()  # Completion signal (no data - avoid Qt signal crash with large lists)
     error = pyqtSignal(str)  # error message
 
     def __init__(self, leaderboard: LLMLeaderboard, dataset: TestDataset, models: List[ModelConfig]):
@@ -217,18 +217,21 @@ class BenchmarkThread(QThread):
         self.leaderboard = leaderboard
         self.dataset = dataset
         self.models = models
+        self.results = []  # Store results here, access from main thread
 
     def run(self):
         """Run benchmark in background thread"""
         try:
             print(f"[BENCHMARK THREAD] Starting benchmark with {len(self.models)} models on {len(self.dataset.segments)} segments")
-            results = self.leaderboard.run_benchmark(
+            self.results = self.leaderboard.run_benchmark(
                 self.dataset,
                 self.models,
                 progress_callback=self._on_progress
             )
-            print(f"[BENCHMARK THREAD] Benchmark completed with {len(results)} results")
-            self.finished.emit(results)
+            print(f"[BENCHMARK THREAD] Benchmark completed with {len(self.results)} results")
+            # Don't pass results through signal - causes Qt crash with large lists
+            # Main thread will access self.results or self.leaderboard.results directly
+            self.finished.emit()
             print(f"[BENCHMARK THREAD] Finished signal emitted successfully")
         except Exception as e:
             print(f"[BENCHMARK THREAD] ERROR: {str(e)}")
@@ -739,10 +742,30 @@ class LLMLeaderboardUI(QWidget):
         self.progress_bar.setValue(current)
         self.status_label.setText(f"{message} ({current}/{total})")
 
-    def _on_benchmark_finished(self, results: List[BenchmarkResult]):
+    def _on_benchmark_finished(self):
         """Handle benchmark completion"""
         try:
-            print(f"[UI] _on_benchmark_finished called with {len(results)} results")
+            # Get results from benchmark thread (stored there, not passed through signal)
+            if self.benchmark_thread and hasattr(self.benchmark_thread, 'results'):
+                results = self.benchmark_thread.results[:]
+            elif self.leaderboard and hasattr(self.leaderboard, 'results'):
+                results = self.leaderboard.results[:]
+            else:
+                results = []
+            
+            print(f"[UI] _on_benchmark_finished called, retrieved {len(results)} results")
+            
+            # Validate results
+            if not results:
+                print(f"[UI] WARNING: No results to display")
+                self.run_button.setEnabled(True)
+                self.cancel_button.setEnabled(False)
+                self.progress_bar.setVisible(False)
+                self.status_label.setText("⚠️ Benchmark complete but no results")
+                self.log("⚠️ Benchmark complete but produced no results")
+                return
+            
+            # Copy results to avoid threading issues
             self.current_results = results
 
             # Update UI state
@@ -754,15 +777,23 @@ class LLMLeaderboardUI(QWidget):
             self.status_label.setText(f"✅ Benchmark complete: {len(results)} results")
             print(f"[UI] UI state updated")
 
-            # Populate results table
+            # Block table signals during population to prevent crashes
             print(f"[UI] Populating results table...")
-            self._populate_results_table(results)
-            print(f"[UI] Results table populated")
+            self.results_table.blockSignals(True)
+            try:
+                self._populate_results_table(results)
+                print(f"[UI] Results table populated")
+            finally:
+                self.results_table.blockSignals(False)
 
             # Populate summary table
             print(f"[UI] Populating summary table...")
-            self._populate_summary_table()
-            print(f"[UI] Summary table populated")
+            self.summary_table.blockSignals(True)
+            try:
+                self._populate_summary_table()
+                print(f"[UI] Summary table populated")
+            finally:
+                self.summary_table.blockSignals(False)
 
             self.log("✅ Benchmark finished successfully")
             print(f"[UI] _on_benchmark_finished completed successfully")
@@ -771,6 +802,11 @@ class LLMLeaderboardUI(QWidget):
             import traceback
             print(f"[UI] TRACEBACK:\n{traceback.format_exc()}")
             self.log(f"❌ Error displaying results: {str(e)}")
+            # Re-enable buttons even on error
+            self.run_button.setEnabled(True)
+            self.cancel_button.setEnabled(False)
+            self.progress_bar.setVisible(False)
+            self.status_label.setText("❌ Display error")
             QMessageBox.critical(self, "Display Error", f"Benchmark completed but failed to display results:\n\n{str(e)}")
 
     def _on_benchmark_error(self, error_msg: str):
@@ -785,100 +821,146 @@ class LLMLeaderboardUI(QWidget):
 
     def _populate_results_table(self, results: List[BenchmarkResult]):
         """Populate results table with benchmark data"""
-        # Group results by segment
-        segments_dict = {}
-        for result in results:
-            if result.segment_id not in segments_dict:
-                segments_dict[result.segment_id] = []
-            segments_dict[result.segment_id].append(result)
+        try:
+            # Validate inputs
+            if not results:
+                print("[UI] _populate_results_table: No results to populate")
+                return
+            
+            if not self.current_dataset or not hasattr(self.current_dataset, 'segments'):
+                print("[UI] _populate_results_table: No current dataset")
+                return
+            
+            # Clear existing rows
+            self.results_table.setRowCount(0)
+            
+            # Group results by segment
+            segments_dict = {}
+            for result in results:
+                if not result or not hasattr(result, 'segment_id'):
+                    continue
+                if result.segment_id not in segments_dict:
+                    segments_dict[result.segment_id] = []
+                segments_dict[result.segment_id].append(result)
 
-        # Populate table
-        row = 0
-        for segment_id in sorted(segments_dict.keys()):
-            segment_results = segments_dict[segment_id]
+            # Populate table
+            row = 0
+            for segment_id in sorted(segments_dict.keys()):
+                segment_results = segments_dict[segment_id]
 
-            # Get source text from dataset
-            source_text = ""
-            for seg in self.current_dataset.segments:
-                if seg.id == segment_id:
-                    source_text = seg.source
-                    break
+                # Get source text from dataset
+                source_text = "(source not found)"
+                if self.current_dataset and self.current_dataset.segments:
+                    for seg in self.current_dataset.segments:
+                        if hasattr(seg, 'id') and seg.id == segment_id:
+                            source_text = seg.source if hasattr(seg, 'source') else "(no source)"
+                            break
 
-            # Truncate source text for display
-            if len(source_text) > 80:
-                source_text = source_text[:77] + "..."
+                # Truncate source text for display
+                if source_text and len(source_text) > 80:
+                    source_text = source_text[:77] + "..."
 
-            for result in segment_results:
-                self.results_table.insertRow(row)
+                for result in segment_results:
+                    try:
+                        self.results_table.insertRow(row)
 
-                # Segment ID
-                self.results_table.setItem(row, 0, QTableWidgetItem(str(segment_id)))
+                        # Segment ID
+                        self.results_table.setItem(row, 0, QTableWidgetItem(str(segment_id)))
 
-                # Source text
-                self.results_table.setItem(row, 1, QTableWidgetItem(source_text))
+                        # Source text
+                        self.results_table.setItem(row, 1, QTableWidgetItem(source_text))
 
-                # Model name
-                self.results_table.setItem(row, 2, QTableWidgetItem(result.model_name))
+                        # Model name
+                        model_name = result.model_name if hasattr(result, 'model_name') else "Unknown"
+                        self.results_table.setItem(row, 2, QTableWidgetItem(model_name))
 
-                # Translation output
-                output_text = result.output if result.output else f"ERROR: {result.error}"
-                if len(output_text) > 100:
-                    output_text = output_text[:97] + "..."
-                item = QTableWidgetItem(output_text)
-                if result.error:
-                    item.setForeground(QColor("red"))
-                self.results_table.setItem(row, 3, item)
+                        # Translation output
+                        output_text = result.output if (hasattr(result, 'output') and result.output) else f"ERROR: {getattr(result, 'error', 'Unknown error')}"
+                        if len(output_text) > 100:
+                            output_text = output_text[:97] + "..."
+                        item = QTableWidgetItem(output_text)
+                        if hasattr(result, 'error') and result.error:
+                            item.setForeground(QColor("red"))
+                        self.results_table.setItem(row, 3, item)
 
-                # Speed
-                speed_item = QTableWidgetItem(f"{result.latency_ms:.0f}")
-                self.results_table.setItem(row, 4, speed_item)
+                        # Speed
+                        latency = result.latency_ms if hasattr(result, 'latency_ms') else 0.0
+                        speed_item = QTableWidgetItem(f"{latency:.0f}")
+                        self.results_table.setItem(row, 4, speed_item)
 
-                # Quality
-                if result.quality_score is not None:
-                    quality_item = QTableWidgetItem(f"{result.quality_score:.1f}")
-                    self.results_table.setItem(row, 5, quality_item)
-                else:
-                    self.results_table.setItem(row, 5, QTableWidgetItem("—"))
+                        # Quality
+                        if hasattr(result, 'quality_score') and result.quality_score is not None:
+                            quality_item = QTableWidgetItem(f"{result.quality_score:.1f}")
+                            self.results_table.setItem(row, 5, quality_item)
+                        else:
+                            self.results_table.setItem(row, 5, QTableWidgetItem("—"))
 
-                row += 1
+                        row += 1
+                    except Exception as row_error:
+                        print(f"[UI] Error populating row {row}: {row_error}")
+                        continue
+                        
+        except Exception as e:
+            print(f"[UI] ERROR in _populate_results_table: {str(e)}")
+            import traceback
+            print(f"[UI] TRACEBACK:\n{traceback.format_exc()}")
+            raise
 
     def _populate_summary_table(self):
         """Populate summary statistics table"""
-        if not self.leaderboard:
-            return
+        try:
+            if not self.leaderboard:
+                print("[UI] _populate_summary_table: No leaderboard instance")
+                return
 
-        summary = self.leaderboard.get_summary_stats()
+            summary = self.leaderboard.get_summary_stats()
+            
+            if not summary:
+                print("[UI] _populate_summary_table: No summary stats available")
+                return
 
-        self.summary_table.setRowCount(len(summary))
-        row = 0
+            self.summary_table.setRowCount(len(summary))
+            row = 0
 
-        for model_name, stats in summary.items():
-            # Model name
-            self.summary_table.setItem(row, 0, QTableWidgetItem(model_name))
+            for model_name, stats in summary.items():
+                try:
+                    # Model name
+                    self.summary_table.setItem(row, 0, QTableWidgetItem(str(model_name)))
 
-            # Avg speed
-            avg_speed = stats["avg_latency_ms"]
-            speed_item = QTableWidgetItem(f"{avg_speed:.0f}")
-            self.summary_table.setItem(row, 1, speed_item)
+                    # Avg speed
+                    avg_speed = stats.get("avg_latency_ms", 0.0)
+                    speed_item = QTableWidgetItem(f"{avg_speed:.0f}")
+                    self.summary_table.setItem(row, 1, speed_item)
 
-            # Avg quality
-            avg_quality = stats["avg_quality_score"]
-            if avg_quality is not None:
-                quality_item = QTableWidgetItem(f"{avg_quality:.1f}")
-                self.summary_table.setItem(row, 2, quality_item)
-            else:
-                self.summary_table.setItem(row, 2, QTableWidgetItem("—"))
+                    # Avg quality
+                    avg_quality = stats.get("avg_quality_score")
+                    if avg_quality is not None:
+                        quality_item = QTableWidgetItem(f"{avg_quality:.1f}")
+                        self.summary_table.setItem(row, 2, quality_item)
+                    else:
+                        self.summary_table.setItem(row, 2, QTableWidgetItem("—"))
 
-            # Success count
-            self.summary_table.setItem(row, 3, QTableWidgetItem(str(stats["success_count"])))
+                    # Success count
+                    success_count = stats.get("success_count", 0)
+                    self.summary_table.setItem(row, 3, QTableWidgetItem(str(success_count)))
 
-            # Error count
-            error_item = QTableWidgetItem(str(stats["error_count"]))
-            if stats["error_count"] > 0:
-                error_item.setForeground(QColor("red"))
-            self.summary_table.setItem(row, 4, error_item)
+                    # Error count
+                    error_count = stats.get("error_count", 0)
+                    error_item = QTableWidgetItem(str(error_count))
+                    if error_count > 0:
+                        error_item.setForeground(QColor("red"))
+                    self.summary_table.setItem(row, 4, error_item)
 
-            row += 1
+                    row += 1
+                except Exception as row_error:
+                    print(f"[UI] Error populating summary row {row}: {row_error}")
+                    continue
+                    
+        except Exception as e:
+            print(f"[UI] ERROR in _populate_summary_table: {str(e)}")
+            import traceback
+            print(f"[UI] TRACEBACK:\n{traceback.format_exc()}")
+            raise
 
     def _on_export_results(self):
         """Export results to file (JSON or Excel)"""

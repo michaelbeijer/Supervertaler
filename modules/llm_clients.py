@@ -557,7 +557,17 @@ class LLMClient:
                 "Anthropic library not installed. Install with: pip install anthropic"
             )
         
-        client = anthropic.Anthropic(api_key=self.api_key, timeout=120.0)  # 2 minute timeout
+        # Use longer timeout for batch operations (detected by large prompts)
+        # Opus 4.1 can take longer to process, especially with extended context
+        prompt_length = len(prompt)
+        if prompt_length > 50000:  # Large batch prompt
+            timeout_seconds = 300.0  # 5 minutes for very large prompts
+        elif prompt_length > 20000:  # Medium batch prompt
+            timeout_seconds = 180.0  # 3 minutes
+        else:
+            timeout_seconds = 120.0  # 2 minutes for normal operations
+        
+        client = anthropic.Anthropic(api_key=self.api_key, timeout=timeout_seconds)
         
         # Use provided max_tokens or default (Claude uses 4096 as default)
         tokens_to_use = max_tokens if max_tokens is not None else self.max_tokens
@@ -566,7 +576,7 @@ class LLMClient:
             model=self.model,
             max_tokens=tokens_to_use,
             messages=[{"role": "user", "content": prompt}],
-            timeout=120.0  # Explicit timeout
+            timeout=timeout_seconds  # Explicit timeout
         )
         
         translation = response.content[0].text.strip()

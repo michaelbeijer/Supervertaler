@@ -339,6 +339,14 @@ class ShortcutManager:
             "action": "add_to_termbase",
             "context": "grid_editor"
         },
+        
+        # Filter Operations
+        "filter_selected_text": {
+            "category": "Filter",
+            "description": "Filter on selected text (source or target)",
+            "default": "Ctrl+Shift+F",
+            "action": "filter_on_selected_text"
+        },
     }
     
     def __init__(self, settings_file: Optional[Path] = None):

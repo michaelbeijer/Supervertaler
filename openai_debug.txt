@@ -15428,3 +15428,933 @@ Choice[0] message.role: assistant
 Choice[0] message.content type: <class 'str'>
 Choice[0] message.content value: 'Python is one of the most widely used programming languages in the world.'
 Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 16:07:08.235693] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 61 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'The translation of "TECHNISCH DOMEIN" from Dutch to English is "TECHNICAL DOMAIN."'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 16:07:28.206122] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 61 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'The translation of "TECHNISCH DOMEIN" from Dutch to English is "TECHNICAL DOMAIN."'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 16:07:45.767326] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 158 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'The invention relates to a device and a method for taking a sample from a container.'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 16:07:50.534275] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 61 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'The translation of "TECHNISCH DOMEIN" from Dutch to English is "TECHNICAL DOMAIN."'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 16:08:35.444734] OpenAI API Call
+Model: gpt-5
+Prompt length: 406 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'FIG. 8 illustrates a receiving element in the retracted state.'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 16:09:19.744017] OpenAI API Call
+Model: gpt-5
+Prompt length: 1548 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'In a second aspect, the invention concerns a method for taking a sample from a container comprising goods, preferably bulk goods, using at least one spear with a pointed tip and an elongated cylindri
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 16:11:09.561568] OpenAI API Call
+Model: gpt-5
+Prompt length: 614 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'A spear with a cylindrical body of the aforementioned diameter can be inserted deep into coarse and fine material with the minimum required force, while the diameter is large enough to provide suffic
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 16:11:42.281224] OpenAI API Call
+Model: gpt-5
+Prompt length: 470 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'In one embodiment, the outer diameter of the inner tube substantially corresponds to the inner diameter of the outer tube.'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 16:12:09.636158] OpenAI API Call
+Model: gpt-5
+Prompt length: 645 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Because the openings in the inner tube (7) are located at the same positions along the length of the spear as the openings (3) in the outer tube (2), these openings may or may not overlap, depending 
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 16:27:04.413391] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 61 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'The translation of "TECHNISCH DOMEIN" from Dutch to English is "TECHNICAL DOMAIN."'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 16:27:34.012653] OpenAI API Call
+Model: gpt-5
+Prompt length: 614 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'The ability to easily switch the catch elements between an aligned and a misaligned position ensures that the catch element does not interfere with the spear drive, which significantly improves the s
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 16:31:48.635554] OpenAI API Call
+Model: gpt-5
+Prompt length: 505 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'This process uses the same simple rotational motion, so no additional mechanical components are needed to remove the steel from the spear.'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 16:32:46.410960] OpenAI API Call
+Model: gpt-5
+Prompt length: 508 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'At corresponding positions, the inner tube (7) has similar openings, each forming a passage to a separate hollow chamber inside the inner tube (7).'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 16:33:16.493811] OpenAI API Call
+Model: gpt-5
+Prompt length: 788 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'The method according to any one of claims 11 or 12, wherein the spear is in a horizontal orientation and comprises an upper side and a lower side, and further comprising the step of removing the samp
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 16:37:03.830829] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 115 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '"Setup and procedure for taking a sample from a container."'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 16:37:20.842394] OpenAI API Call
+Model: gpt-5
+Prompt length: 553 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Multiple spears can be attached to the part of the frame in the second plane, which are then supported and/or guided by the support points in the part of the frame in the first plane.'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 16:38:08.165711] OpenAI API Call
+Model: gpt-5
+Prompt length: 572 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'aligning the at least one receiving opening of the collector element with the position along the length of the spear where openings in the inner and outer tube are located by positioning the spear an
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 16:38:57.075424] OpenAI API Call
+Model: gpt-5
+Prompt length: 355 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'EXTRACT'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 16:42:51.513231] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 166 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'FIG. 4 illustrates a schematic representation of three side views of a capture element integrated into a single piece frame.'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 16:42:59.320558] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 8337 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'FIG. 4 illustrates a schematic representation of three side views of a receiving element integrated into a single piece frame.'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 16:43:52.453882] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 55 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'The translation of "UITTREKSEL" from Dutch to English is "excerpt" or "extract."'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 16:44:07.684888] OpenAI API Call
+Model: gpt-4o-mini
+Prompt length: 115 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '"Setup and procedure for taking a sample from a container"'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 16:45:11.094957] OpenAI API Call
+Model: gpt-5
+Prompt length: 158 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'The invention relates to an apparatus and a method for taking a sample from a container.'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 17:10:02.764540] OpenAI API Call
+Model: gpt-5
+Prompt length: 61 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'TECHNICAL DOMAIN'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 17:16:27.451811] OpenAI API Call
+Model: gpt-5
+Prompt length: 485 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'These systems, however, result in a very cumbersome system for removing the samples from the inner tube, and moreover involve a setup that takes up a lot of space, which makes them unsuitable for use
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 17:17:23.882083] OpenAI API Call
+Model: gpt-5
+Prompt length: 271 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+
+============================================================
+[2025-11-17 17:29:51.667913] OpenAI API Call
+Model: gpt-5
+Prompt length: 115 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+
+============================================================
+[2025-11-17 17:32:54.343104] OpenAI API Call
+Model: gpt-5
+Prompt length: 115 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Setup and procedure for taking a sample from a container'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 17:38:36.343159] OpenAI API Call
+Model: gpt-5
+Prompt length: 485 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'However, these systems result in a very cumbersome setup for removing the samples from the inner tube, and moreover involve an arrangement that takes up a lot of space, which makes them unsuitable fo
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 17:45:10.868913] OpenAI API Call
+Model: gpt-5
+Prompt length: 272 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'FIG. 8 shows a collecting element (27) with three vertically stacked collection openings (65) and hollow volumes (61) in the form of three trays (61, 65), which are connected by a hinge point (87) to
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 18:52:53.188986] OpenAI API Call
+Model: gpt-5
+Prompt length: 485 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'However, these systems result in a very cumbersome method for removing the samples from the inner tube and involve a setup that takes up a lot of space, which makes them unsuitable for use with conta
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 18:54:49.197525] OpenAI API Call
+Model: gpt-5
+Prompt length: 1248 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'In a second aspect, the invention relates to a method for taking a sample from a container containing goods, preferably bulk goods, using at least one spear with a pointed end and an elongated cylind
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 18:59:13.711468] OpenAI API Call
+Model: gpt-5
+Prompt length: 226 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Sampling from containers is essential for verifying composition, quality, and compliance with standards, without having to unload the entire cargo.'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 18:59:27.217057] OpenAI API Call
+Model: gpt-5
+Prompt length: 1248 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'In a second aspect, the invention relates to a method for taking a sample from a container containing goods, preferably bulk goods, using at least one spear with a pointed tip and an elongate cylindr
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 19:10:44.069959] OpenAI API Call
+Model: gpt-5
+Prompt length: 419 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'In one embodiment, a catch element is integrated into the portion of the frame that supports a spear, and the inner and outer tubes of the spear include a common opening at the position along the len
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 19:18:57.271267] OpenAI API Call
+Model: gpt-5
+Prompt length: 129 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'A commonly used technique is the use of manual or automated spears.'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 20:00:45.710694] OpenAI API Call
+Model: gpt-5
+Prompt length: 265 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'When the inner tube is rotated so that the single opening in the inner tube aligns with the upper opening in the outer tube, a passage is created at the top of the spear through which the steel can f
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 20:07:04.639001] OpenAI API Call
+Model: gpt-5
+Prompt length: 115 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Equipment and procedure for taking a sample from a container'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 20:23:34.371794] OpenAI API Call
+Model: gpt-5
+Prompt length: 115 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Setup and procedure for taking a sample from a container'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 20:32:41.164820] OpenAI API Call
+Model: gpt-5
+Prompt length: 543 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Because of these high forces, the spears are often damaged and deformed, rendering them unusable, particularly because, on the one hand, the spear must be made as narrow as possible to minimize the r
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 20:33:49.979588] OpenAI API Call
+Model: gpt-5
+Prompt length: 468 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'In an embodiment, the apparatus comprises at least one collection element, which comprises a collection opening and a hollow volume, the collection opening being configured to be aligned with a posit
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 21:58:18.522034] OpenAI API Call
+Model: gpt-5
+Prompt length: 115 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Apparatus and method for taking a sample from a container.'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 22:20:57.800395] OpenAI API Call
+Model: gpt-5
+Prompt length: 129 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'A commonly used technique is the use of manual or automated spears.'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 22:23:29.899841] OpenAI API Call
+Model: gpt-5
+Prompt length: 252 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'This method is effective for smaller containers or less dense materials, but can be unreliable with heavier, compact loads because the probe cannot be inserted deeply enough.'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 22:37:07.551732] OpenAI API Call
+Model: gpt-5
+Prompt length: 194 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Manual spears typically consist of a perforated tube that is inserted into the container to collect samples from different layers.'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 22:37:25.636438] OpenAI API Call
+Model: gpt-5
+Prompt length: 129 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'A commonly used technique is the use of manual or automated spears.'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 22:38:28.319772] OpenAI API Call
+Model: gpt-5
+Prompt length: 266 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'The term “sample” or “samples” refers to one or more specimens or test pieces of material from the container, such as raw materials or bulk products, which are collected by the spears for further ana
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 22:46:22.811130] OpenAI API Call
+Model: gpt-5
+Prompt length: 252 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'The term “second extreme configuration” refers to the configuration of the equipment in which the spears are fully extended and positioned as far as possible outside the volume defined by the frame.'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 22:47:06.375933] OpenAI API Call
+Model: gpt-5
+Prompt length: 1224 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'In a first aspect, the invention relates to a device suitable for taking a sample from a container, comprising: at least one spear, comprising a pointed tip and an elongated cylindrical body; a drive
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 23:00:18.045260] OpenAI API Call
+Model: gpt-5
+Prompt length: 115 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Apparatus and method for taking a sample from a container'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 23:00:49.174739] OpenAI API Call
+Model: gpt-5
+Prompt length: 129 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'A widely used technique is the use of manual or automated spears.'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 23:02:09.653907] OpenAI API Call
+Model: gpt-5
+Prompt length: 1224 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'In a first aspect, the invention relates to an apparatus suitable for taking a sample from a container, comprising: at least one spear having a pointed end and an elongated cylindrical body; a drive 
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 23:07:28.310049] OpenAI API Call
+Model: gpt-5
+Prompt length: 185 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'It is clear that the current state of the art does not allow for an efficient system that enables easy sampling from containers.'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 23:14:02.406602] OpenAI API Call
+Model: gpt-5
+Prompt length: 156 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'FIG. 7 illustrates a top view of the apparatus mounted in a container and operating on a container.'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 23:22:19.239019] OpenAI API Call
+Model: gpt-5
+Prompt length: 194 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Manual spears typically consist of a tube with openings that is inserted into the container to collect samples from different layers.'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 23:22:55.671033] OpenAI API Call
+Model: gpt-5
+Prompt length: 252 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'This method is effective for smaller containers or less dense materials, but can be unreliable with heavier, compact loads because the spear cannot be inserted deep enough.'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 23:23:14.419066] OpenAI API Call
+Model: gpt-5
+Prompt length: 177 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'In addition, there are vacuum-based sampling devices that draw materials out of the container using negative pressure.'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 23:23:26.616859] OpenAI API Call
+Model: gpt-5
+Prompt length: 181 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'This technique is suitable for fine-grained materials such as powders, but it clogs easily with coarser or clumped materials.'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-17 23:23:38.916913] OpenAI API Call
+Model: gpt-5
+Prompt length: 485 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'However, these systems make the removal of samples from the inner tube very cumbersome, and they involve a setup that takes up a lot of space, which makes them unsuitable for use with containers. The
+Choice[0] message.refusal: None
