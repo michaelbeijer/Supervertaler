@@ -155,6 +155,27 @@ class TermbaseEntryEditor(QDialog):
         
         # Buttons
         buttons_layout = QHBoxLayout()
+        
+        # Delete button (only show when editing existing term)
+        if self.term_id:
+            self.delete_btn = QPushButton("🗑️ Delete")
+            self.delete_btn.setStyleSheet("""
+                QPushButton {
+                    padding: 8px 20px;
+                    font-size: 11px;
+                    font-weight: bold;
+                    background-color: #f44336;
+                    color: white;
+                    border: none;
+                    border-radius: 3px;
+                }
+                QPushButton:hover {
+                    background-color: #d32f2f;
+                }
+            """)
+            self.delete_btn.clicked.connect(self.delete_term)
+            buttons_layout.addWidget(self.delete_btn)
+        
         buttons_layout.addStretch()
         
         self.cancel_btn = QPushButton("Cancel")
@@ -202,7 +223,7 @@ class TermbaseEntryEditor(QDialog):
             cursor = self.db_manager.cursor
             cursor.execute("""
                 SELECT source_term, target_term, priority, domain, definition, forbidden,
-                       note, project, client
+                       notes, project, client
                 FROM termbase_terms
                 WHERE id = ?
             """, (self.term_id,))
@@ -235,6 +256,30 @@ class TermbaseEntryEditor(QDialog):
                 
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to load term data: {e}")
+    
+    def delete_term(self):
+        """Delete this term from database"""
+        if not self.db_manager or not self.term_id:
+            return
+        
+        # Confirm deletion
+        reply = QMessageBox.question(
+            self,
+            "Confirm Deletion",
+            f"Delete this termbase entry?\n\nSource: {self.source_edit.text()}\nTarget: {self.target_edit.text()}\n\nThis action cannot be undone.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+        
+        if reply == QMessageBox.StandardButton.Yes:
+            try:
+                cursor = self.db_manager.cursor
+                cursor.execute("DELETE FROM termbase_terms WHERE id = ?", (self.term_id,))
+                self.db_manager.connection.commit()
+                QMessageBox.information(self, "Success", "Termbase entry deleted")
+                self.accept()  # Close dialog with success
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Failed to delete entry: {e}")
     
     def save_term(self):
         """Save term to database"""

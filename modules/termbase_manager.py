@@ -98,7 +98,7 @@ class TermbaseManager:
                 SELECT 
                     t.id, t.name, t.source_lang, t.target_lang, t.project_id,
                     t.description, t.is_global, t.priority, t.is_project_termbase, 
-                    t.created_date, t.modified_date,
+                    t.ranking, t.created_date, t.modified_date,
                     COUNT(gt.id) as term_count
                 FROM termbases t
                 LEFT JOIN termbase_terms gt ON CAST(t.id AS TEXT) = gt.termbase_id
@@ -116,11 +116,12 @@ class TermbaseManager:
                     'project_id': row[4],
                     'description': row[5],
                     'is_global': row[6],
-                    'priority': row[7] or 50,  # Default to 50 if NULL
+                    'priority': row[7] or 50,  # Default to 50 if NULL (legacy)
                     'is_project_termbase': bool(row[8]),
-                    'created_date': row[9],
-                    'modified_date': row[10],
-                    'term_count': row[11] or 0
+                    'ranking': row[9],  # NEW: termbase ranking
+                    'created_date': row[10],
+                    'modified_date': row[11],
+                    'term_count': row[12] or 0
                 })
             
             return termbases
@@ -206,6 +207,7 @@ class TermbaseManager:
                 SELECT 
                     t.id, t.name, t.source_lang, t.target_lang, t.project_id,
                     t.description, t.is_global, t.created_date, t.modified_date,
+                    t.ranking, t.is_project_termbase,
                     COUNT(gt.id) as term_count
                 FROM termbases t
                 LEFT JOIN termbase_terms gt ON t.id = gt.termbase_id
@@ -228,7 +230,9 @@ class TermbaseManager:
                     'is_global': row[6],
                     'created_date': row[7],
                     'modified_date': row[8],
-                    'term_count': row[9] or 0
+                    'ranking': row[9],
+                    'is_project_termbase': row[10],
+                    'term_count': row[11] or 0
                 })
             
             return termbases
@@ -261,37 +265,72 @@ class TermbaseManager:
             return True
     
     def activate_termbase(self, termbase_id: int, project_id: int) -> bool:
-        """Activate termbase for project"""
+        """Activate termbase for project and assign ranking"""
         try:
             cursor = self.db_manager.cursor
             
+            self.log(f"🔵 ACTIVATE: termbase_id={termbase_id}, project_id={project_id}")
+            
+            # Insert or update activation record
             cursor.execute("""
                 INSERT OR REPLACE INTO termbase_activation (termbase_id, project_id, is_active)
                 VALUES (?, ?, 1)
             """, (termbase_id, project_id))
+            
+            self.log(f"  ✓ Inserted activation record")
+            
+            # Assign rankings to all activated termbases for this project
+            self._reassign_rankings_for_project(project_id)
+            
+            # Verify the ranking was assigned
+            cursor.execute("SELECT ranking FROM termbases WHERE id = ?", (termbase_id,))
+            result = cursor.fetchone()
+            if result:
+                ranking = result[0]
+                self.log(f"  ✓ Termbase {termbase_id} now has ranking: {ranking}")
+            else:
+                self.log(f"  ⚠️  Could not verify ranking for termbase {termbase_id}")
             
             self.db_manager.connection.commit()
             self.log(f"✓ Activated termbase {termbase_id} for project {project_id}")
             return True
         except Exception as e:
             self.log(f"✗ Error activating termbase: {e}")
+            import traceback
+            self.log(f"Traceback: {traceback.format_exc()}")
             return False
     
     def deactivate_termbase(self, termbase_id: int, project_id: int) -> bool:
-        """Deactivate termbase for project"""
+        """Deactivate termbase for project and reassign rankings"""
         try:
             cursor = self.db_manager.cursor
+            
+            self.log(f"🔴 DEACTIVATE: termbase_id={termbase_id}, project_id={project_id}")
             
             cursor.execute("""
                 INSERT OR REPLACE INTO termbase_activation (termbase_id, project_id, is_active)
                 VALUES (?, ?, 0)
             """, (termbase_id, project_id))
             
+            self.log(f"  ✓ Inserted deactivation record")
+            
+            # Clear ranking for this termbase
+            cursor.execute("""
+                UPDATE termbases SET ranking = NULL WHERE id = ?
+            """, (termbase_id,))
+            
+            self.log(f"  ✓ Cleared ranking for termbase {termbase_id}")
+            
+            # Reassign rankings to remaining activated termbases
+            self._reassign_rankings_for_project(project_id)
+            
             self.db_manager.connection.commit()
             self.log(f"✓ Deactivated termbase {termbase_id} for project {project_id}")
             return True
         except Exception as e:
             self.log(f"✗ Error deactivating termbase: {e}")
+            import traceback
+            self.log(f"Traceback: {traceback.format_exc()}")
             return False
     
     def set_as_project_termbase(self, termbase_id: int, project_id: int) -> bool:
@@ -322,6 +361,52 @@ class TermbaseManager:
         except Exception as e:
             self.log(f"✗ Error setting project termbase: {e}")
             return False
+    
+    def _reassign_rankings_for_project(self, project_id: int):
+        """
+        Reassign rankings to all activated termbases for a project.
+        Rankings are assigned sequentially (1, 2, 3, ...) based on termbase ID order.
+        Project termbases don't get rankings (they're always highlighted pink).
+        """
+        try:
+            cursor = self.db_manager.cursor
+            
+            # Get all activated termbases for this project (excluding project termbases)
+            # Order by activation timestamp so first activated gets #1, second gets #2, etc.
+            cursor.execute("""
+                SELECT t.id
+                FROM termbases t
+                INNER JOIN termbase_activation ta ON t.id = ta.termbase_id
+                WHERE ta.project_id = ? AND ta.is_active = 1
+                AND (t.is_project_termbase = 0 OR t.is_project_termbase IS NULL)
+                ORDER BY ta.activated_date ASC
+            """, (project_id,))
+            
+            activated_termbase_ids = [row[0] for row in cursor.fetchall()]
+            
+            # Assign rankings sequentially
+            for rank, termbase_id in enumerate(activated_termbase_ids, start=1):
+                cursor.execute("""
+                    UPDATE termbases SET ranking = ? WHERE id = ?
+                """, (rank, termbase_id))
+                self.log(f"  ✓ Assigned ranking #{rank} to termbase ID {termbase_id}")
+            
+            # Clear rankings for non-activated termbases
+            if activated_termbase_ids:
+                placeholders = ','.join('?' * len(activated_termbase_ids))
+                cursor.execute(f"""
+                    UPDATE termbases SET ranking = NULL 
+                    WHERE id NOT IN ({placeholders})
+                """, activated_termbase_ids)
+            else:
+                cursor.execute("UPDATE termbases SET ranking = NULL")
+            
+            # Commit the changes
+            self.db_manager.connection.commit()
+            self.log(f"✓ Assigned rankings to {len(activated_termbase_ids)} activated termbase(s) for project {project_id}")
+                
+        except Exception as e:
+            self.log(f"✗ Error reassigning rankings: {e}")
     
     def unset_project_termbase(self, termbase_id: int) -> bool:
         """Remove project termbase designation from a termbase"""

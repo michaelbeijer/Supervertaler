@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.7.0 (November 18, 2025)  
+**Current Version:** v1.7.1 (November 19, 2025)  
 **Framework:** PyQt6  
 **Status:** Active Development
 
@@ -14,6 +14,7 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- 🎨 **Termbase UI Polish (v1.7.1)** - Improved visual consistency with pink highlighting for project termbases and real-time term count updates
 - 📚 **Project Termbases (v1.7.0)** - Dedicated project-specific terminology with automatic extraction and pink highlighting
 - 📁 **File Dialog Memory (v1.6.5)** - File dialogs remember your last used directory for improved workflow
 - 🌐 **Superbrowser (v1.6.4)** - Multi-chat AI browser with ChatGPT, Claude, and Gemini side-by-side in one window
@@ -33,6 +34,35 @@ All notable changes to Supervertaler are documented in this file.
 - 🔄 **CAT Tool Integration** - memoQ, Trados, CafeTran bilingual table support
 
 **See full version history below** ↓
+
+---
+
+## [1.7.1] - November 19, 2025
+
+### 🎨 Termbase UI Polish - Visual Consistency Improvements
+
+**Bug Fixes & UI Improvements:**
+
+**Fixed:**
+- ✅ **Deleted Term Highlighting** - Fixed issue where deleted termbase terms remained highlighted after deletion and navigation
+- ✅ **Termbase Name Display** - Termbase names now correctly shown in Term Info metadata area
+- ✅ **Term Count Updates** - Term counts in termbase list now update immediately after adding terms
+- ✅ **Project Termbase Colors** - Fixed project termbases showing blue instead of pink in translation results
+- ✅ **Ranking Metadata** - Added missing `ranking` field to TranslationMatch metadata in all code paths
+
+**Improved:**
+- 🎨 **Visual Consistency** - Project termbase matches now display with same style as background termbases (colored number badge only)
+- 🎯 **Effective Project Detection** - Uses `ranking == 1` as fallback when `is_project_termbase` flag is false
+- 🔄 **Real-time Refresh** - Termbase list UI refreshes immediately via callback after term addition
+- 📊 **Database Query Fix** - Fixed TEXT/INTEGER comparison with CAST for accurate term counts
+
+**Technical:**
+- Modified `highlight_termbase_matches()` to clear formatting before early return
+- Added `termbase_name` extraction and display in translation results panel
+- Implemented `refresh_termbase_list()` callback storage and invocation
+- Added explicit boolean conversion for `is_project_termbase` from SQLite
+- Updated `CompactMatchItem.update_styling()` to use consistent badge-only coloring
+- Fixed two locations where `ranking` was missing from TranslationMatch metadata
 
 ---
 

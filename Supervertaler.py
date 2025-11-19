@@ -3,8 +3,8 @@ Supervertaler Qt Edition
 ========================
 The ultimate companion tool for translators and writers.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.7.0 (Project Termbases)
-Release Date: November 18, 2025
+Version: 1.7.1 (Termbase UI Polish)
+Release Date: November 19, 2025
 Framework: PyQt6
 
 This is the modern edition of Supervertaler using PyQt6 framework.
@@ -31,10 +31,10 @@ Author: Michael Beijer
 License: MIT
 """
 
-# Version Information
-__version__ = "1.7.0"
-__phase__ = "8.6"
-__release_date__ = "2025-11-18"
+# Version Information.
+__version__ = "1.7.1"
+__phase__ = "8.7"
+__release_date__ = "2025-11-19"
 __edition__ = "Qt"
 
 import sys
@@ -441,9 +441,6 @@ class ReadOnlyGridTextEditor(QTextEdit):
         Args:
             matches_dict: Dictionary of {term: {'translation': str, 'priority': int}} or {term: str}
         """
-        if not matches_dict:
-            return
-        
         from PyQt6.QtGui import QTextCursor, QTextCharFormat, QColor
         
         # Get the document and create a cursor
@@ -451,11 +448,15 @@ class ReadOnlyGridTextEditor(QTextEdit):
         text = self.toPlainText()
         text_lower = text.lower()
         
-        # IMPORTANT: Clear all previous formatting first to prevent inconsistent highlighting
+        # IMPORTANT: Always clear all previous formatting first to prevent inconsistent highlighting
         cursor = QTextCursor(doc)
         cursor.select(QTextCursor.SelectionType.Document)
         default_fmt = QTextCharFormat()
         cursor.setCharFormat(default_fmt)
+        
+        # If no matches, we're done (highlighting has been cleared)
+        if not matches_dict:
+            return
         
         # Sort terms by length (longest first) to avoid partial matches
         sorted_terms = sorted(matches_dict.keys(), key=len, reverse=True)
@@ -464,27 +465,55 @@ class ReadOnlyGridTextEditor(QTextEdit):
         highlighted_ranges = []
         
         for term in sorted_terms:
-            # Get priority, forbidden status, and termbase type
+            # Get ranking, forbidden status, and termbase type
             match_info = matches_dict[term]
             if isinstance(match_info, dict):
-                priority = match_info.get('priority', 50)
+                ranking = match_info.get('ranking', None)  # NEW: use ranking instead of priority
                 forbidden = match_info.get('forbidden', False)
                 is_project_termbase = match_info.get('is_project_termbase', False)
             else:
-                priority = 50
+                ranking = None
                 forbidden = False
                 is_project_termbase = False
+            
+            # IMPORTANT: Treat ranking #1 as project termbase (even if flag not set)
+            # This matches the logic in the termbase list UI
+            is_effective_project = is_project_termbase or (ranking == 1)
+            
+            # Debug logging for color selection
+            # (This will be printed once per term)
+            if hasattr(self, 'parent') and hasattr(self.parent(), 'log'):
+                parent = self.parent()
+                while parent and not hasattr(parent, 'log'):
+                    parent = parent.parent()
+                if parent and hasattr(parent, 'log'):
+                    parent.log(f"  🎨 Highlighting '{term}': is_project={is_project_termbase}, ranking={ranking}, effective_project={is_effective_project}, forbidden={forbidden}")
             
             # Color selection based on termbase type and term status
             if forbidden:
                 color = QColor(0, 0, 0)  # Black for forbidden terms
-            elif is_project_termbase:
-                color = QColor(255, 182, 193)  # Light pink for project termbase
+            elif is_effective_project:
+                color = QColor(255, 182, 193)  # Light pink (#FFB6C1) for project termbase
             else:
-                # Calculate color based on priority (higher = darker) for background termbases
-                darkness = int(255 - (priority * 1.5))
-                darkness = max(0, min(darkness, 200))
-                color = QColor(0, darkness, 255)
+                # Calculate color based on ranking (lower ranking = darker blue)
+                # Ranking 1 = darkest, Ranking 2 = medium, Ranking 3+ = lighter
+                if ranking is not None:
+                    # Map ranking to distinct blue shades:
+                    # Ranking #1: Dark blue (RGB 0, 100, 255)
+                    # Ranking #2: Medium blue (RGB 0, 150, 255)
+                    # Ranking #3: Light blue (RGB 0, 200, 255)
+                    # Ranking #4+: Very light blue (RGB 100, 220, 255)
+                    if ranking == 1:
+                        color = QColor(0, 100, 255)  # Dark blue
+                    elif ranking == 2:
+                        color = QColor(0, 150, 255)  # Medium blue
+                    elif ranking == 3:
+                        color = QColor(0, 200, 255)  # Light blue
+                    else:
+                        color = QColor(100, 220, 255)  # Very light blue
+                else:
+                    # No ranking (termbase not activated) - use default light blue
+                    color = QColor(173, 216, 230)  # Light blue (fallback)
             
             # Find all occurrences of this term (case-insensitive)
             term_lower = term.lower()
@@ -1623,17 +1652,6 @@ class TermMetadataDialog(QDialog):
         self.client_edit.setPlaceholderText("Optional client name...")
         meta_layout.addRow("Client:", self.client_edit)
         
-        # Priority
-        priority_layout = QHBoxLayout()
-        self.priority_spin = QSpinBox()
-        self.priority_spin.setRange(1, 99)
-        self.priority_spin.setValue(50)
-        self.priority_spin.setToolTip("Lower number = higher priority (1 = highest)")
-        priority_layout.addWidget(self.priority_spin)
-        priority_layout.addWidget(QLabel("(Lower = higher priority)"))
-        priority_layout.addStretch()
-        meta_layout.addRow("Priority:", priority_layout)
-        
         # Forbidden term checkbox
         self.forbidden_check = CheckmarkCheckBox("Mark as forbidden term")
         self.forbidden_check.setToolTip("Forbidden terms trigger warnings when used")
@@ -1665,7 +1683,6 @@ class TermMetadataDialog(QDialog):
             'notes': self.notes_edit.toPlainText().strip(),
             'project': self.project_edit.text().strip(),
             'client': self.client_edit.text().strip(),
-            'priority': self.priority_spin.value(),
             'forbidden': self.forbidden_check.isChecked()
         }
     
@@ -4516,10 +4533,11 @@ class SupervertalerQt(QMainWindow):
             # Use project name as fallback
             project_id = int(hashlib.md5(self.current_project.name.encode()).hexdigest()[:8], 16)
         
-        active_termbases = self.termbase_mgr.get_active_termbases_for_project(project_id)
+        # Get all termbases (not just active) so newly created ones appear in the dialog
+        active_termbases = self.termbase_mgr.get_all_termbases()
         
         if not active_termbases:
-            QMessageBox.warning(self, "No Active Termbase", "Please activate at least one termbase in Translation Resources → Termbases tab.")
+            QMessageBox.warning(self, "No Termbase", "Please create or activate at least one termbase in Translation Resources → Termbases tab.")
             return
         
         # Show metadata dialog with termbase selection
@@ -4561,7 +4579,7 @@ class SupervertalerQt(QMainWindow):
                     domain=metadata['domain'],
                     project=metadata['project'],
                     client=metadata['client'],
-                    priority=metadata['priority'],
+                    # priority removed - now managed at termbase level via ranking
                     forbidden=metadata['forbidden']
                 )
                 
@@ -4574,7 +4592,7 @@ class SupervertalerQt(QMainWindow):
         
         # Show result
         if success_count > 0:
-            QMessageBox.information(self, "Term Added", f"Successfully added term pair to {success_count} termbase(s):\\n\\nSource: {source_text}\\nTarget: {target_text}\\n\\nDomain: {metadata['domain'] or '(none)'}\\nPriority: {metadata['priority']}")
+            QMessageBox.information(self, "Term Added", f"Successfully added term pair to {success_count} termbase(s):\\n\\nSource: {source_text}\\nTarget: {target_text}\\n\\nDomain: {metadata['domain'] or '(none)'}")
             
             # Refresh translation results to show new termbase match immediately
             current_row = self.table.currentRow()
@@ -4596,6 +4614,14 @@ class SupervertalerQt(QMainWindow):
                 self._last_selected_row = -1  # Reset to force refresh
                 self.on_cell_selected(current_row, self.table.currentColumn(), -1, -1)
                 self.log(f"🔄 Triggered refresh for segment {segment.id}")
+            
+            # IMPORTANT: Refresh the termbase list UI if it's currently open to update term counts
+            # Find the termbase tab and call its refresh function
+            if hasattr(self, 'termbase_tab_refresh_callback') and self.termbase_tab_refresh_callback:
+                self.log("🔄 Refreshing termbase list to update term counts")
+                self.termbase_tab_refresh_callback()
+            else:
+                self.log("⚠️ No termbase refresh callback found (tab not initialized yet)")
         else:
             QMessageBox.warning(self, "Error Adding Term", "Failed to add term to any termbase. Check the log for details.")
     
@@ -4639,16 +4665,15 @@ class SupervertalerQt(QMainWindow):
         
         # Termbase list with table
         termbase_table = QTableWidget()
-        termbase_table.setColumnCount(7)
-        termbase_table.setHorizontalHeaderLabels(["Active", "Type", "Name", "Languages", "Terms", "Priority", "Scope"])
+        termbase_table.setColumnCount(6)
+        termbase_table.setHorizontalHeaderLabels(["Active", "Type", "Name", "Languages", "Terms", "Ranking"])
         termbase_table.horizontalHeader().setStretchLastSection(False)
         termbase_table.setColumnWidth(0, 60)   # Active checkbox
         termbase_table.setColumnWidth(1, 100)  # Type (Project/Background)
         termbase_table.setColumnWidth(2, 200)  # Name
         termbase_table.setColumnWidth(3, 150)  # Languages
         termbase_table.setColumnWidth(4, 80)   # Terms
-        termbase_table.setColumnWidth(5, 70)   # Priority column
-        termbase_table.setColumnWidth(6, 100)  # Scope
+        termbase_table.setColumnWidth(5, 80)   # Ranking
         
         # Get current project
         current_project = self.current_project if hasattr(self, 'current_project') else None
@@ -4657,12 +4682,19 @@ class SupervertalerQt(QMainWindow):
         
         # Populate termbase list
         def refresh_termbase_list():
+            # CRITICAL FIX: Get project_id dynamically, not from closure
+            current_proj = self.current_project if hasattr(self, 'current_project') else None
+            refresh_project_id = current_proj.id if (current_proj and hasattr(current_proj, 'id')) else None
+            
+            self.log(f"📋 Refreshing termbase list (project_id: {refresh_project_id})")
             termbases = termbase_mgr.get_all_termbases()
+            self.log(f"  Found {len(termbases)} termbase(s) in database")
             termbase_table.setRowCount(len(termbases))
             
             for row, tb in enumerate(termbases):
                 # Check if active for current project
-                is_active = termbase_mgr.is_termbase_active(tb['id'], project_id) if project_id else True
+                is_active = termbase_mgr.is_termbase_active(tb['id'], refresh_project_id) if refresh_project_id else True
+                self.log(f"  Row {row}: Termbase '{tb['name']}' (ID {tb['id']}) - Active: {is_active}")
                 
                 # Active checkbox - pink for project termbase, standard green for others
                 is_project_tb = tb.get('is_project_termbase', False)
@@ -4671,40 +4703,82 @@ class SupervertalerQt(QMainWindow):
                 else:
                     checkbox = CheckmarkCheckBox()
                 checkbox.setChecked(is_active)
+                self.log(f"  🔗 Setting up checkbox for termbase {tb['id']} - Initial state: {is_active}")
                 def on_toggle(checked, tb_id=tb['id']):
-                    if project_id:
-                        if checked:
-                            termbase_mgr.activate_termbase(tb_id, project_id)
-                            self.log(f"✓ Activated termbase {tb_id} for project {project_id}")
-                        else:
-                            termbase_mgr.deactivate_termbase(tb_id, project_id)
-                            self.log(f"✓ Deactivated termbase {tb_id} for project {project_id}")
-                        # Clear termbase cache to force reload
-                        with self.termbase_cache_lock:
-                            self.termbase_cache.clear()
-                        refresh_termbase_list()
+                    self.log(f"")
+                    self.log(f"=" * 80)
+                    self.log(f"🔘 CHECKBOX TOGGLE EVENT FIRED!")
+                    self.log(f"  termbase_id: {tb_id}")
+                    self.log(f"  checked (new state): {checked}")
+                    
+                    # CRITICAL FIX: Get project_id dynamically from current_project, not from closure
+                    current_proj = self.current_project if hasattr(self, 'current_project') else None
+                    current_project_id = current_proj.id if (current_proj and hasattr(current_proj, 'id')) else None
+                    self.log(f"  project_id (dynamic): {current_project_id}")
+                    self.log(f"=" * 80)
+                    
+                    if not current_project_id:
+                        self.log(f"⚠️ Cannot toggle termbase - no project loaded!")
+                        QMessageBox.warning(
+                            self,
+                            "No Project Loaded",
+                            "Please open or create a project before activating/deactivating termbases.\n\n"
+                            "Termbases can only be activated for specific projects."
+                        )
+                        # Revert checkbox state
+                        checkbox.setChecked(not checked)
+                        return
+                    
+                    if checked:
+                        self.log(f"▶️ Activating termbase {tb_id} for project {current_project_id}...")
+                        termbase_mgr.activate_termbase(tb_id, current_project_id)
+                        self.log(f"✓ Activated termbase {tb_id} for project {current_project_id}")
+                    else:
+                        self.log(f"▶️ Deactivating termbase {tb_id} for project {current_project_id}...")
+                        termbase_mgr.deactivate_termbase(tb_id, current_project_id)
+                        self.log(f"✓ Deactivated termbase {tb_id} for project {current_project_id}")
+                    
+                    # Clear termbase cache to force reload
+                    self.log(f"  Clearing termbase cache...")
+                    with self.termbase_cache_lock:
+                        self.termbase_cache.clear()
+                    
+                    self.log(f"  Refreshing termbase list...")
+                    refresh_termbase_list()
+                    self.log(f"✅ Toggle complete for termbase {tb_id}")
+                
+                # Connect the toggled signal
+                self.log(f"  🔗 Connecting checkbox.toggled signal for termbase {tb['id']}")
                 checkbox.toggled.connect(on_toggle)
+                self.log(f"  ✅ Signal connected successfully")
                 termbase_table.setCellWidget(row, 0, checkbox)
+                
+                # Get ranking first (needed for type determination)
+                ranking = tb.get('ranking', None)
                 
                 # Type (Project/Background) with button to set/unset
                 type_widget = QWidget()
                 type_layout = QHBoxLayout(type_widget)
                 type_layout.setContentsMargins(2, 2, 2, 2)
                 
-                if is_project_tb:
+                # Treat ranking #1 as project termbase if not explicitly marked
+                is_effective_project = is_project_tb or (ranking == 1 and not is_project_tb)
+                
+                if is_effective_project:
                     type_label = QLabel("📌 Project")
                     type_label.setStyleSheet("color: #FF69B4; font-weight: bold;")  # Pink
                     type_layout.addWidget(type_label)
                     
-                    # Unset button
-                    unset_btn = QPushButton("✕")
-                    unset_btn.setFixedSize(20, 20)
-                    unset_btn.setToolTip("Remove project termbase designation")
-                    def on_unset(tb_id=tb['id']):
-                        termbase_mgr.unset_project_termbase(tb_id)
-                        refresh_termbase_list()
-                    unset_btn.clicked.connect(on_unset)
-                    type_layout.addWidget(unset_btn)
+                    # Unset button (only show if explicitly marked as project termbase)
+                    if is_project_tb:
+                        unset_btn = QPushButton("✕")
+                        unset_btn.setFixedSize(20, 20)
+                        unset_btn.setToolTip("Remove project termbase designation")
+                        def on_unset(tb_id=tb['id']):
+                            termbase_mgr.unset_project_termbase(tb_id)
+                            refresh_termbase_list()
+                        unset_btn.clicked.connect(on_unset)
+                        type_layout.addWidget(unset_btn)
                 else:
                     type_label = QLabel("Background")
                     type_layout.addWidget(type_label)
@@ -4725,6 +4799,8 @@ class SupervertalerQt(QMainWindow):
                 
                 # Name (bold if active or project termbase)
                 name_item = QTableWidgetItem(tb['name'])
+                # Store termbase ID in row data for delete functionality
+                name_item.setData(Qt.ItemDataRole.UserRole, tb['id'])
                 if is_active or is_project_tb:
                     font = name_item.font()
                     font.setBold(True)
@@ -4738,71 +4814,39 @@ class SupervertalerQt(QMainWindow):
                 termbase_table.setItem(row, 3, QTableWidgetItem(langs))
                 
                 # Term count
-                termbase_table.setItem(row, 4, QTableWidgetItem(str(tb['term_count'])))
-                
-                # Priority (editable for background termbases only)
-                priority = tb.get('priority', 50)  # Default 50 if not set
-                priority_item = QTableWidgetItem(str(priority))
-                if not is_project_tb:  # Only editable for background termbases
-                    priority_item.setFlags(priority_item.flags() | Qt.ItemFlag.ItemIsEditable)
-                else:
-                    priority_item.setFlags(priority_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
-                    priority_item.setForeground(QColor("#999"))  # Gray out for project termbase
-                termbase_table.setItem(row, 5, priority_item)
-                
-                # Scope
-                scope = "Global" if tb['is_global'] else "Project"
-                termbase_table.setItem(row, 6, QTableWidgetItem(scope))
-        
-        # Handle priority changes - only process changes to Priority column (column 5)
-        priority_changing = False  # Flag to prevent recursion
-        
-        def on_priority_changed(item: QTableWidgetItem):
-            """Update termbase priority when edited"""
-            # Only process Priority column (column 5)
-            if item.column() != 5:
-                return
-            
-            # Prevent recursion
-            nonlocal priority_changing
-            if priority_changing:
-                return
-            
-            row = item.row()
-            termbases_list = termbase_mgr.get_all_termbases()
-            if row < len(termbases_list):
-                termbase_id = termbases_list[row]['id']
                 try:
-                    new_priority = int(item.text())
-                    # Clamp to valid range 1-99
-                    new_priority = max(1, min(99, new_priority))
-                    
-                    # Temporarily disconnect to prevent recursion when setting text
-                    priority_changing = True
-                    termbase_table.itemChanged.disconnect(on_priority_changed)
-                    item.setText(str(new_priority))
-                    termbase_table.itemChanged.connect(on_priority_changed)
-                    priority_changing = False
-                    
-                    # Update in database
-                    cursor = self.db_manager.cursor
-                    cursor.execute("UPDATE termbases SET priority = ?, modified_date = CURRENT_TIMESTAMP WHERE id = ?",
-                                 (new_priority, termbase_id))
-                    self.db_manager.connection.commit()
-                    self.log(f"✓ Updated priority for termbase {termbase_id} to {new_priority}")
-                except ValueError:
-                    # Invalid input, revert to original value
-                    priority_changing = True
-                    termbase_table.itemChanged.disconnect(on_priority_changed)
-                    termbases_list = termbase_mgr.get_all_termbases()
-                    if row < len(termbases_list):
-                        original_priority = termbases_list[row].get('priority', 50)
-                        item.setText(str(original_priority))
-                    termbase_table.itemChanged.connect(on_priority_changed)
-                    priority_changing = False
-                    self.log(f"⚠ Invalid priority value, reverted to original")
+                    # Recalculate live term count to avoid stale values
+                    # IMPORTANT: termbase_id is stored as TEXT, so cast tb['id'] to TEXT for comparison
+                    self.db_manager.cursor.execute("SELECT COUNT(*) FROM termbase_terms WHERE termbase_id = CAST(? AS TEXT)", (tb['id'],))
+                    live_count = self.db_manager.cursor.fetchone()[0]
+                    self.log(f"  📊 Live term count for termbase {tb['id']} ('{tb['name']}'): {live_count}")
+                except Exception as e:
+                    live_count = tb.get('term_count', 0)
+                    self.log(f"⚠️ Term count query failed for termbase {tb['id']}: {e}")
+                termbase_table.setItem(row, 4, QTableWidgetItem(str(live_count)))
+                
+                # Ranking (read-only, assigned automatically on activation)
+                # Note: ranking already retrieved earlier for type determination
+                if is_project_tb:
+                    # Project termbases don't use ranking system
+                    ranking_item = QTableWidgetItem("—")
+                    ranking_item.setForeground(QColor("#999"))
+                    ranking_item.setToolTip("Project termbases don't use ranking (always highlighted pink)")
+                    self.log(f"  Termbase '{tb['name']}' (ID {tb['id']}): Project termbase (no ranking)")
+                elif ranking is not None:
+                    ranking_item = QTableWidgetItem(f"#{ranking}")
+                    ranking_item.setToolTip(f"Priority ranking #{ranking} (lower = higher priority)")
+                    self.log(f"  Termbase '{tb['name']}' (ID {tb['id']}): Ranking #{ranking}")
+                else:
+                    ranking_item = QTableWidgetItem("—")
+                    ranking_item.setForeground(QColor("#999"))
+                    ranking_item.setToolTip("No ranking - termbase not activated for current project")
+                    self.log(f"  Termbase '{tb['name']}' (ID {tb['id']}): No ranking (inactive or not assigned)")
+                ranking_item.setFlags(ranking_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+                termbase_table.setItem(row, 5, ranking_item)
         
-        termbase_table.itemChanged.connect(on_priority_changed)
+        # Store callback as instance attribute so add_term_to_termbase can call it
+        self.termbase_tab_refresh_callback = refresh_termbase_list
         
         refresh_termbase_list()
         layout.addWidget(termbase_table, stretch=1)
@@ -5214,7 +5258,18 @@ class SupervertalerQt(QMainWindow):
             QMessageBox.warning(self, "Error", "Please select a termbase to delete")
             return
         
-        tb_name = termbase_table.item(selected_row, 1).text()
+        # Get termbase info from Name column (column 2, not 1 which has Type widget)
+        name_item = termbase_table.item(selected_row, 2)
+        if not name_item:
+            QMessageBox.warning(self, "Error", "Could not read termbase information")
+            return
+        
+        tb_name = name_item.text()
+        termbase_id = name_item.data(Qt.ItemDataRole.UserRole)
+        
+        if not termbase_id:
+            QMessageBox.warning(self, "Error", "Could not find termbase ID")
+            return
         
         # Confirm deletion
         reply = QMessageBox.question(
@@ -5226,16 +5281,14 @@ class SupervertalerQt(QMainWindow):
         )
         
         if reply == QMessageBox.StandardButton.Yes:
-            # Find termbase ID
-            termbases = termbase_mgr.get_all_termbases()
-            termbase = next((tb for tb in termbases if tb['name'] == tb_name), None)
-            if termbase:
+            # Use the termbase ID we got from row data
+            if termbase_id:
                 try:
                     # Delete from database
                     cursor = self.db_manager.cursor
-                    cursor.execute("DELETE FROM termbase_terms WHERE termbase_id = ?", (termbase['id'],))
-                    cursor.execute("DELETE FROM termbase_activation WHERE termbase_id = ?", (termbase['id'],))
-                    cursor.execute("DELETE FROM termbases WHERE id = ?", (termbase['id'],))
+                    cursor.execute("DELETE FROM termbase_terms WHERE termbase_id = ?", (termbase_id,))
+                    cursor.execute("DELETE FROM termbase_activation WHERE termbase_id = ?", (termbase_id,))
+                    cursor.execute("DELETE FROM termbases WHERE id = ?", (termbase_id,))
                     self.db_manager.connection.commit()
                     
                     self.log(f"✓ Deleted termbase: {tb_name}")
@@ -5465,8 +5518,8 @@ class SupervertalerQt(QMainWindow):
             QMessageBox.warning(self, "Error", "Please select a termbase first")
             return
         
-        # Get termbase ID from table
-        tb_name = termbase_table.item(selected_row, 1).text()
+        # Get termbase ID from table (column 2 is Name, not column 1)
+        tb_name = termbase_table.item(selected_row, 2).text()
         
         # Find termbase ID
         termbases = termbase_mgr.get_all_termbases()
@@ -5598,6 +5651,70 @@ class SupervertalerQt(QMainWindow):
         add_btn.clicked.connect(add_term)
         add_layout.addWidget(add_btn)
         layout.addLayout(add_layout)
+        
+        # Action buttons
+        action_layout = QHBoxLayout()
+        
+        # Edit selected term button
+        edit_term_btn = QPushButton("✏️ Edit Selected Term")
+        def edit_selected_term():
+            selected_row = terms_table.currentRow()
+            if selected_row < 0:
+                QMessageBox.warning(dialog, "Error", "Please select a term to edit")
+                return
+            
+            term_id = terms_table.item(selected_row, 0).data(Qt.ItemDataRole.UserRole)
+            if term_id:
+                from modules.termbase_entry_editor import TermbaseEntryEditor
+                edit_dialog = TermbaseEntryEditor(
+                    parent=self,
+                    db_manager=self.db_manager,
+                    termbase_id=termbase_id,
+                    term_id=term_id
+                )
+                if edit_dialog.exec():
+                    refresh_terms_table()
+        
+        edit_term_btn.clicked.connect(edit_selected_term)
+        action_layout.addWidget(edit_term_btn)
+        
+        # Delete selected term button
+        delete_term_btn = QPushButton("🗑️ Delete Selected Term")
+        delete_term_btn.setStyleSheet("background-color: #f44336; color: white; font-weight: bold;")
+        def delete_selected_term():
+            selected_row = terms_table.currentRow()
+            if selected_row < 0:
+                QMessageBox.warning(dialog, "Error", "Please select a term to delete")
+                return
+            
+            term_id = terms_table.item(selected_row, 0).data(Qt.ItemDataRole.UserRole)
+            source_term = terms_table.item(selected_row, 0).text()
+            target_term = terms_table.item(selected_row, 1).text()
+            
+            if term_id:
+                reply = QMessageBox.question(
+                    dialog,
+                    "Confirm Deletion",
+                    f"Delete this term?\n\nSource: {source_term}\nTarget: {target_term}\n\nThis action cannot be undone.",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.No
+                )
+                
+                if reply == QMessageBox.StandardButton.Yes:
+                    try:
+                        cursor = self.db_manager.cursor
+                        cursor.execute("DELETE FROM termbase_terms WHERE id = ?", (term_id,))
+                        self.db_manager.connection.commit()
+                        self.log(f"✓ Deleted term: {source_term} → {target_term}")
+                        refresh_terms_table()
+                    except Exception as e:
+                        QMessageBox.critical(dialog, "Error", f"Failed to delete term: {e}")
+        
+        delete_term_btn.clicked.connect(delete_selected_term)
+        action_layout.addWidget(delete_term_btn)
+        
+        action_layout.addStretch()
+        layout.addLayout(action_layout)
         
         # Close button
         close_btn = QPushButton("Close")
@@ -9325,6 +9442,13 @@ class SupervertalerQt(QMainWindow):
             self.update_window_title()
             self.add_to_recent_projects(file_path)
             
+            # Assign rankings to activated termbases for this project
+            if hasattr(self, 'termbase_mgr') and self.termbase_mgr and self.current_project:
+                project_id = self.current_project.id if hasattr(self.current_project, 'id') else None
+                if project_id:
+                    self.termbase_mgr._reassign_rankings_for_project(project_id)
+                    self.log(f"✓ Assigned termbase rankings for project {project_id}")
+            
             self.log(f"✓ Loaded project: {self.current_project.name} ({len(self.current_project.segments)} segments)")
             
             # Start background batch processing of termbase matches for all segments
@@ -9478,127 +9602,132 @@ class SupervertalerQt(QMainWindow):
             return {}
         
         try:
-            # Convert language names to codes
+            # Convert language names to codes (match interactive search logic)
             source_lang_code = self._convert_language_to_code(source_lang) if source_lang else None
             target_lang_code = self._convert_language_to_code(target_lang) if target_lang else None
-            
-            # Split source text into words and search for each
+
             words = source_text.split()
-            matches = {}
-            
+            source_text_lower = source_text.lower()
+            matches: Dict[str, Dict] = {}
+
+            import re
+
             for word in words:
-                # Remove punctuation and search
                 clean_word = word.strip('.,!?;:')
-                if len(clean_word) < 2:  # Skip short words
+                if len(clean_word) < 2:
                     continue
-                
-                # Search termbases in database using provided cursor
+
                 try:
-                    # Build query based on language constraints - include all metadata fields
-                    query = """SELECT id, source_term, target_term, termbase_id, priority, 
-                               domain, notes, project, client, forbidden 
-                               FROM termbase_terms WHERE 1=1"""
-                    params = []
-                    
-                    # Add word search constraint (case-insensitive)
-                    query += " AND LOWER(source_term) LIKE ?"
-                    params.append(f"%{clean_word.lower()}%")
-                    
-                    # Add language constraints if specified
+                    # JOIN termbases to get is_project_termbase, name, and ranking
+                    query = """
+                        SELECT 
+                            t.id, t.source_term, t.target_term, t.termbase_id, t.priority,
+                            t.domain, t.notes, t.project, t.client, t.forbidden,
+                            tb.is_project_termbase, tb.name as termbase_name, tb.ranking
+                        FROM termbase_terms t
+                        LEFT JOIN termbases tb ON CAST(t.termbase_id AS INTEGER) = tb.id
+                        WHERE LOWER(t.source_term) LIKE ?
+                    """
+                    params = [f"%{clean_word.lower()}%"]
+
                     if source_lang_code:
-                        query += " AND source_lang = ?"
-                        params.append(source_lang_code)
-                    
+                        query += " AND (t.source_lang = ? OR (t.source_lang IS NULL AND tb.source_lang = ?) OR (t.source_lang IS NULL AND tb.source_lang IS NULL))"
+                        params.extend([source_lang_code, source_lang_code])
                     if target_lang_code:
-                        query += " AND target_lang = ?"
-                        params.append(target_lang_code)
-                    
-                    # Limit results
-                    query += " LIMIT 5"
-                    
-                    # Execute using thread-local cursor
+                        query += " AND (t.target_lang = ? OR (t.target_lang IS NULL AND tb.target_lang = ?) OR (t.target_lang IS NULL AND tb.target_lang IS NULL))"
+                        params.extend([target_lang_code, target_lang_code])
+
+                    # Limit raw hits per word to keep batch worker light
+                    query += " LIMIT 15"
                     cursor.execute(query, params)
                     results = cursor.fetchall()
-                    
-                    if results:
-                        for row in results:
-                            if isinstance(row, tuple):
-                                source_term = row[1]
-                                target_term = row[2]
-                                # Store as dict with all metadata
-                                matches[source_term.strip()] = {
-                                    'translation': target_term.strip(),
-                                    'term_id': row[0],
-                                    'termbase_id': row[3],
-                                    'priority': row[4],
-                                    'domain': row[5] or '',
-                                    'notes': row[6] or '',
-                                    'project': row[7] or '',
-                                    'client': row[8] or '',
-                                    'forbidden': row[9] or False
-                                }
-                            else:
-                                source_term = row['source_term']
-                                target_term = row['target_term']
-                                matches[source_term.strip()] = {
-                                    'translation': target_term.strip(),
-                                    'term_id': row['id'],
-                                    'termbase_id': row['termbase_id'],
-                                    'priority': row['priority'],
-                                    'domain': row['domain'] or '',
-                                    'notes': row['notes'] or '',
-                                    'project': row['project'] or '',
-                                    'client': row['client'] or '',
-                                    'forbidden': row['forbidden'] or False
-                                }
-                
-                except Exception as e:
-                    # Log but continue with other words
-                    pass
-            
+
+                    for row in results:
+                        # Uniform access
+                        source_term = row[1] if isinstance(row, tuple) else row['source_term']
+                        target_term = row[2] if isinstance(row, tuple) else row['target_term']
+                        if not source_term or not target_term:
+                            continue
+
+                        # Phrase-level validation with word boundaries (case-insensitive)
+                        pattern = re.compile(r"\b" + re.escape(source_term.lower()) + r"\b")
+                        if not pattern.search(source_text_lower):
+                            continue
+
+                        term_id = row[0] if isinstance(row, tuple) else row['id']
+                        termbase_id = row[3] if isinstance(row, tuple) else row['termbase_id']
+                        priority = row[4] if isinstance(row, tuple) else row['priority']
+                        domain = row[5] if isinstance(row, tuple) else row['domain']
+                        notes = row[6] if isinstance(row, tuple) else row['notes']
+                        project = row[7] if isinstance(row, tuple) else row['project']
+                        client = row[8] if isinstance(row, tuple) else row['client']
+                        forbidden = row[9] if isinstance(row, tuple) else row['forbidden']
+                        is_project_tb = row[10] if isinstance(row, tuple) else row['is_project_termbase']
+                        termbase_name = row[11] if isinstance(row, tuple) else row['termbase_name']
+                        ranking = row[12] if isinstance(row, tuple) else row.get('ranking', None)
+
+                        existing = matches.get(source_term.strip())
+                        # Deduplicate: keep numerically lowest ranking (highest priority)
+                        # For project termbases, ranking is None so they always win
+                        if existing:
+                            existing_ranking = existing.get('ranking', None)
+                            if is_project_tb:
+                                # Project termbase always wins
+                                pass
+                            elif existing.get('is_project_termbase'):
+                                # Existing is project termbase, skip this one
+                                continue
+                            elif existing_ranking is not None and ranking is not None:
+                                # Both have rankings, keep lower (higher priority)
+                                if existing_ranking <= ranking:
+                                    continue
+
+                        matches[source_term.strip()] = {
+                            'translation': target_term.strip(),
+                            'term_id': term_id,
+                            'termbase_id': termbase_id,
+                            'priority': priority,  # Keep for backward compatibility
+                            'ranking': ranking,  # NEW: termbase-level ranking
+                            'domain': domain or '',
+                            'notes': notes or '',
+                            'project': project or '',
+                            'client': client or '',
+                            'forbidden': forbidden or False,
+                            'is_project_termbase': bool(is_project_tb),
+                            'termbase_name': termbase_name or ''
+                        }
+                except Exception:
+                    # Skip word on any error; continue with next word
+                    continue
+
             return matches
-            
-        except Exception as e:
+        except Exception:
             return {}
-    
-    def stop_termbase_batch_worker(self):
-        """Stop the background termbase batch worker gracefully"""
-        if self.termbase_batch_worker_thread and self.termbase_batch_worker_thread.is_alive():
-            self.log("⏹️  Stopping termbase batch worker...")
-            self.termbase_batch_stop_event.set()
-            self.termbase_batch_worker_thread.join(timeout=3)
-            self.log("✓ Termbase batch worker stopped")
-    
-    # ========================================================================
-    # TM/MT/LLM PREFETCH WORKER (Background caching for instant segment switching)
-    # ========================================================================
     
     def _start_prefetch_worker(self, segment_ids):
         """
-        Start background thread to prefetch TM/MT/LLM matches for visible segments.
-        This enables instant segment switching like memoQ.
+        Start background thread to prefetch TM/MT/LLM matches for given segments.
+        This enables instant switching between segments without waiting for match lookups.
         """
-        if not segment_ids or len(segment_ids) == 0:
+        if not segment_ids:
             return
         
         # Stop any existing worker thread
         self.prefetch_stop_event.set()
         if self.prefetch_worker_thread and self.prefetch_worker_thread.is_alive():
-            self.log("⏹️  Stopping existing prefetch worker...")
-            self.prefetch_worker_thread.join(timeout=1)
+            self.log(f"⏹️  Stopping existing prefetch worker...")
+            self.prefetch_worker_thread.join(timeout=2)
         
         # Reset stop event for new worker
         self.prefetch_stop_event.clear()
         
-        # Set queue and start worker
-        self.prefetch_queue = segment_ids.copy()
-        
-        self.log(f"🚀 Starting background prefetch for {len(segment_ids)} segments...")
+        # Start new background worker thread
+        self.log(f"🔄 Starting prefetch worker for {len(segment_ids)} segments...")
         
         self.prefetch_worker_thread = threading.Thread(
             target=self._prefetch_worker_run,
             args=(segment_ids,),
-            daemon=True
+            daemon=True  # Daemon thread - won't prevent program exit
         )
         self.prefetch_worker_thread.start()
     
@@ -9732,25 +9861,33 @@ class SupervertalerQt(QMainWindow):
             if segment.id in self.termbase_cache:
                 stored_matches = self.termbase_cache[segment.id]
                 for source_term, match_info in stored_matches.items():
-                    # Extract translation, priority, and forbidden flag from match_info
+                    # Extract translation, ranking, and other metadata from match_info
                     if isinstance(match_info, dict):
                         target_term = match_info.get('translation', '')
-                        priority = match_info.get('priority', 50)
+                        priority = match_info.get('priority', 50)  # Keep for backward compatibility
+                        ranking = match_info.get('ranking', None)  # NEW: termbase ranking
                         forbidden = match_info.get('forbidden', False)
+                        is_project_termbase = match_info.get('is_project_termbase', False)
+                        termbase_name = match_info.get('termbase_name', 'Default')
                     else:
                         # Backward compatibility: if just string
                         target_term = match_info
                         priority = 50
+                        ranking = None
                         forbidden = False
+                        is_project_termbase = False
+                        termbase_name = 'Default'
                     
                     match_obj = TranslationMatch(
                         source=source_term,
                         target=target_term,
                         relevance=95,
                         metadata={
-                            'termbase_name': 'Default',
-                            'priority': priority,
+                            'termbase_name': termbase_name,
+                            'priority': priority,  # Keep for backward compatibility
+                            'ranking': ranking,  # NEW: termbase-level ranking
                             'forbidden': forbidden,
+                            'is_project_termbase': is_project_termbase,
                             'term_id': match_info.get('term_id') if isinstance(match_info, dict) else None,
                             'termbase_id': match_info.get('termbase_id') if isinstance(match_info, dict) else None,
                             'domain': match_info.get('domain', '') if isinstance(match_info, dict) else '',
@@ -12315,9 +12452,12 @@ class SupervertalerQt(QMainWindow):
                                 if isinstance(match_info, dict):
                                     target_term = match_info.get('translation', '')
                                     priority = match_info.get('priority', 50)
+                                    ranking = match_info.get('ranking', None)
                                     forbidden = match_info.get('forbidden', False)
+                                    is_project_termbase = match_info.get('is_project_termbase', False)
                                     term_id = match_info.get('term_id')
                                     termbase_id = match_info.get('termbase_id')
+                                    termbase_name = match_info.get('termbase_name', 'Unknown')
                                     domain = match_info.get('domain', '')
                                     notes = match_info.get('notes', '')
                                     project = match_info.get('project', '')
@@ -12326,9 +12466,12 @@ class SupervertalerQt(QMainWindow):
                                     # Backward compatibility: if just string
                                     target_term = match_info
                                     priority = 50
+                                    ranking = None
                                     forbidden = False
+                                    is_project_termbase = False
                                     term_id = None
                                     termbase_id = None
+                                    termbase_name = 'Unknown'
                                     domain = ''
                                     notes = ''
                                     project = ''
@@ -12339,7 +12482,9 @@ class SupervertalerQt(QMainWindow):
                                     target=target_term,
                                     relevance=95,  # High relevance for termbase matches
                                     metadata={
-                                        'termbase_name': 'Default',
+                                        'termbase_name': termbase_name,
+                                        'ranking': ranking,
+                                        'is_project_termbase': is_project_termbase,
                                         'domain': domain,
                                         'notes': notes,
                                         'project': project,
@@ -12847,31 +12992,21 @@ class SupervertalerQt(QMainWindow):
                                             # Get termbase code (or generate from name)
                                             termbase_code = self.get_termbase_code(termbase_id, termbase_code_map)
                                             
-                                            # Get termbase priority (termbase-level, not term-level)
-                                            # We need to query the termbase table for this
-                                            termbase_priority = 50  # Default
-                                            try:
-                                                if self.db_manager and self.db_manager.cursor:
-                                                    cursor = self.db_manager.cursor
-                                                    cursor.execute("SELECT priority FROM termbases WHERE id = ?", (termbase_id,))
-                                                    row = cursor.fetchone()
-                                                    if row and row[0] is not None:
-                                                        termbase_priority = row[0]
-                                            except Exception as prio_error:
-                                                self.log(f"Warning: Could not fetch termbase priority for {termbase_id}: {prio_error}")
-                                                # Continue with default priority
+                                            # Get termbase ranking and is_project_termbase
+                                            termbase_ranking = tb_match.get('ranking', None)  # From JOIN
+                                            is_project_termbase = tb_match.get('is_project_termbase', False)
                                             
                                             match_obj = TranslationMatch(
                                                 source=source_term,
                                                 target=target_term,
-                                                relevance=100 - tb_match.get('priority', 99),  # Lower priority = higher relevance
+                                                relevance=95,  # High relevance for termbase matches
                                                 metadata={
                                                     'term_id': tb_match.get('id'),  # Term entry ID for editing
                                                     'termbase_id': termbase_id,
                                                     'termbase_name': tb_match.get('termbase_name', 'Unknown'),
-                                                    'termbase_priority': termbase_priority,  # Termbase-level priority for color shading
-                                                    'term_priority': tb_match.get('priority', 99),  # Term-level priority for sorting
-                                                    'priority': tb_match.get('priority', 99),  # For display in termbase viewer
+                                                    'ranking': termbase_ranking,  # NEW: Termbase-level ranking for color shading
+                                                    'priority': tb_match.get('priority', 99),  # Keep for backward compatibility
+                                                    'is_project_termbase': is_project_termbase,  # Project termbase flag
                                                     'domain': tb_match.get('domain', ''),
                                                     'notes': tb_match.get('notes', ''),
                                                     'project': tb_match.get('project', ''),
@@ -13182,15 +13317,30 @@ class SupervertalerQt(QMainWindow):
                                 )
                                 
                                 # Convert termbase results to TranslationMatch objects
+                                source_text_lower = source_text.lower()
+                                import re
                                 for tb_match in tb_results:
+                                    source_term_full = tb_match.get('source_term', '')
+                                    target_term_full = tb_match.get('target_term', '')
+                                    if not source_term_full or not target_term_full:
+                                        continue
+                                    # Require full phrase presence in segment (word-boundary)
+                                    pattern = re.compile(r"\b" + re.escape(source_term_full.lower()) + r"\b")
+                                    if not pattern.search(source_text_lower):
+                                        continue
+                                    # Deduplicate by term_id
+                                    term_id = tb_match.get('id')
+                                    if any(m.metadata.get('term_id') == term_id for m in termbase_matches):
+                                        continue
                                     termbase_match = TranslationMatch(
-                                        source=tb_match.get('source_term', ''),
-                                        target=tb_match.get('target_term', ''),
-                                        relevance=100 - tb_match.get('priority', 99),  # Lower priority = higher relevance
+                                        source=source_term_full,
+                                        target=target_term_full,
+                                        relevance=100 - tb_match.get('priority', 99),
                                         metadata={
-                                            'term_id': tb_match.get('id'),
+                                            'term_id': term_id,
                                             'termbase_id': tb_match.get('termbase_id'),
                                             'termbase_name': tb_match.get('termbase_name', ''),
+                                            'ranking': tb_match.get('ranking', None),
                                             'priority': tb_match.get('priority', 99),
                                             'domain': tb_match.get('domain', ''),
                                             'notes': tb_match.get('notes', ''),
@@ -13200,7 +13350,7 @@ class SupervertalerQt(QMainWindow):
                                             'is_project_termbase': tb_match.get('is_project_termbase', False)
                                         },
                                         match_type='Termbase',
-                                        compare_source=tb_match.get('source_term', '')
+                                        compare_source=source_term_full
                                     )
                                     termbase_matches.append(termbase_match)
                     except Exception as e:
@@ -13472,6 +13622,7 @@ class SupervertalerQt(QMainWindow):
             # Split source text into words and search for each one
             words = source_text.split()
             matches = {}
+            source_text_lower = source_text.lower()
             self.log(f"  Processing {len(words)} words: {words[:10]}{'...' if len(words) > 10 else ''}")
             
             for word in words:
@@ -13496,30 +13647,48 @@ class SupervertalerQt(QMainWindow):
                         source_term = result.get('source_term', '').strip()
                         target_term = result.get('target_term', '').strip()
                         priority = result.get('priority', 50)
+                        ranking = result.get('ranking', None)  # NEW: termbase ranking (1, 2, 3...)
                         forbidden = result.get('forbidden', False)
                         is_project_termbase = result.get('is_project_termbase', False)
                         term_id = result.get('id')
                         termbase_id = result.get('termbase_id')
+                        termbase_name = result.get('termbase_name', 'Unknown')
+                        self.log(f"    🎨 Term '{source_term}': is_project_termbase={is_project_termbase}, ranking={ranking}, termbase='{termbase_name}'")
                         domain = result.get('domain', '')
                         notes = result.get('notes', '')
                         project = result.get('project', '')
                         client = result.get('client', '')
-                        if source_term and target_term:
-                            # Store as dict with all metadata including IDs for editing
-                            matches[source_term] = {
-                                'translation': target_term,
-                                'priority': priority,
-                                'forbidden': forbidden,
-                                'is_project_termbase': is_project_termbase,
-                                'term_id': term_id,
-                                'termbase_id': termbase_id,
-                                'domain': domain,
-                                'notes': notes,
-                                'project': project,
-                                'client': client
-                            }
-                            forbidden_marker = " [FORBIDDEN]" if forbidden else ""
-                            self.log(f"    → {source_term} = {target_term} (priority: {priority}){forbidden_marker}")
+                        if not source_term or not target_term:
+                            continue
+                        # FILTER: Only keep if full source term appears in source text (case-insensitive)
+                        # Use word-boundary regex; fall back to simple substring if regex fails
+                        import re
+                        pattern = re.compile(r"\b" + re.escape(source_term.lower()) + r"\b")
+                        if not pattern.search(source_text_lower):
+                            # Skip terms whose full phrase isn't in the segment
+                            continue
+                        # Deduplicate: keep highest priority (numerically lowest) if term repeats
+                        existing = matches.get(source_term)
+                        if existing and existing.get('priority', 50) <= priority:
+                            # Existing has higher or equal priority; skip
+                            continue
+                        matches[source_term] = {
+                            'translation': target_term,
+                            'priority': priority,  # Legacy field from term itself
+                            'ranking': ranking,  # NEW: termbase ranking (None if not activated)
+                            'forbidden': forbidden,
+                            'is_project_termbase': is_project_termbase,
+                            'term_id': term_id,
+                            'termbase_id': termbase_id,
+                            'termbase_name': termbase_name,
+                            'domain': domain,
+                            'notes': notes,
+                            'project': project,
+                            'client': client
+                        }
+                        forbidden_marker = " [FORBIDDEN]" if forbidden else ""
+                        ranking_info = f" ranking=#{ranking}" if ranking is not None else " (no ranking)"
+                        self.log(f"    → {source_term} = {target_term} (priority: {priority}{ranking_info}){forbidden_marker}")
             
             self.log(f"🔍 Total unique matches: {len(matches)}")
             return matches

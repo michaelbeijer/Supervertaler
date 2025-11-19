@@ -224,7 +224,8 @@ class DatabaseManager:
                 target_lang TEXT,
                 project_id INTEGER,  -- NULL = global, set = project-specific
                 is_global BOOLEAN DEFAULT 1,
-                priority INTEGER DEFAULT 50,  -- Termbase priority: 1-99, lower = higher priority (affects color shading)
+                priority INTEGER DEFAULT 50,  -- DEPRECATED: Use ranking instead
+                ranking INTEGER,  -- Termbase activation ranking: 1 = highest priority, 2 = second highest, etc. Only for activated termbases.
                 created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 modified_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
@@ -241,6 +242,14 @@ class DatabaseManager:
         # Migration: Add is_project_termbase column if it doesn't exist
         try:
             self.cursor.execute("ALTER TABLE termbases ADD COLUMN is_project_termbase BOOLEAN DEFAULT 0")
+            self.connection.commit()
+        except Exception:
+            # Column already exists, ignore
+            pass
+        
+        # Migration: Add ranking column if it doesn't exist
+        try:
+            self.cursor.execute("ALTER TABLE termbases ADD COLUMN ranking INTEGER")
             self.connection.commit()
         except Exception:
             # Column already exists, ignore
@@ -884,7 +893,7 @@ class DatabaseManager:
         Returns:
             List of termbase hits, sorted by priority (lower = higher priority)
         """
-        # Build query with filters - include termbase name via JOIN
+        # Build query with filters - include termbase name and ranking via JOIN
         # Note: termbase_id is stored as TEXT in termbase_terms but INTEGER in termbases
         # Use CAST to ensure proper comparison
         query = """
@@ -895,7 +904,8 @@ class DatabaseManager:
                 tb.name as termbase_name,
                 tb.source_lang as termbase_source_lang,
                 tb.target_lang as termbase_target_lang,
-                tb.is_project_termbase
+                tb.is_project_termbase,
+                tb.ranking
             FROM termbase_terms t
             LEFT JOIN termbases tb ON CAST(t.termbase_id AS INTEGER) = tb.id
             WHERE (
@@ -938,12 +948,19 @@ class DatabaseManager:
         if min_length > 0:
             query += f" AND LENGTH(t.source_term) >= {min_length}"
         
-        # Sort by priority (lower number = higher priority)
-        # Use t.priority (term priority) not tb.priority (termbase priority)
-        query += " ORDER BY t.priority ASC, t.source_term ASC"
+        # Sort by ranking (lower number = higher priority)
+        # Project termbases (ranking IS NULL) appear first, then by ranking, then alphabetically
+        # Use COALESCE to treat NULL as -1 (highest priority)
+        query += " ORDER BY COALESCE(tb.ranking, -1) ASC, t.source_term ASC"
         
         self.cursor.execute(query, params)
-        results = [dict(row) for row in self.cursor.fetchall()]
+        results = []
+        for row in self.cursor.fetchall():
+            result_dict = dict(row)
+            # SQLite stores booleans as 0/1, explicitly convert to Python bool
+            if 'is_project_termbase' in result_dict:
+                result_dict['is_project_termbase'] = bool(result_dict['is_project_termbase'])
+            results.append(result_dict)
         return results
     
     # ============================================

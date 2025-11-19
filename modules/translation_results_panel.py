@@ -218,6 +218,11 @@ class CompactMatchItem(QFrame):
         edit_action.triggered.connect(self._edit_termbase_entry)
         menu.addAction(edit_action)
         
+        # Delete entry action
+        delete_action = QAction("🗑️ Delete Termbase Entry", menu)
+        delete_action.triggered.connect(self._delete_termbase_entry)
+        menu.addAction(delete_action)
+        
         menu.exec(pos)
     
     def _edit_termbase_entry(self):
@@ -247,6 +252,90 @@ class CompactMatchItem(QFrame):
                 # Signal could be emitted here to refresh the translation results panel
                 pass
     
+    def _delete_termbase_entry(self):
+        """Delete this termbase entry"""
+        from PyQt6.QtWidgets import QMessageBox
+        
+        if self.match.match_type != "Termbase":
+            return
+        
+        # Get term_id and termbase_id from metadata
+        term_id = self.match.metadata.get('term_id')
+        termbase_id = self.match.metadata.get('termbase_id')
+        source_term = self.match.source
+        target_term = self.match.target
+        
+        if term_id and termbase_id:
+            # Confirm deletion
+            parent_window = self.window()
+            reply = QMessageBox.question(
+                parent_window,
+                "Confirm Deletion",
+                f"Delete termbase entry?\n\nSource: {source_term}\nTarget: {target_term}\n\nThis action cannot be undone.",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No
+            )
+            
+            if reply == QMessageBox.StandardButton.Yes:
+                db_manager = getattr(parent_window, 'db_manager', None)
+                if db_manager:
+                    try:
+                        # Log database path for debugging
+                        if hasattr(parent_window, 'log'):
+                            db_path = getattr(db_manager, 'db_path', 'unknown')
+                            parent_window.log(f"🗑️ Deleting term ID {term_id} from database: {db_path}")
+                        
+                        cursor = db_manager.cursor
+                        # First verify the term exists
+                        cursor.execute("SELECT source_term, target_term FROM termbase_terms WHERE id = ?", (term_id,))
+                        existing = cursor.fetchone()
+                        if hasattr(parent_window, 'log'):
+                            if existing:
+                                parent_window.log(f"   Found term to delete: {existing[0]} → {existing[1]}")
+                            else:
+                                parent_window.log(f"   ⚠️ Term ID {term_id} not found in database!")
+                        
+                        # Delete the term
+                        cursor.execute("DELETE FROM termbase_terms WHERE id = ?", (term_id,))
+                        rows_deleted = cursor.rowcount
+                        db_manager.connection.commit()
+                        
+                        if hasattr(parent_window, 'log'):
+                            parent_window.log(f"   ✅ Deleted {rows_deleted} row(s) from database")
+                        
+                        # Clear termbase cache to force refresh
+                        if hasattr(parent_window, 'termbase_cache'):
+                            with parent_window.termbase_cache_lock:
+                                parent_window.termbase_cache.clear()
+                                if hasattr(parent_window, 'log'):
+                                    parent_window.log(f"   ✅ Cleared termbase cache")
+                        
+                        # Reset the last selected row to force re-highlighting when returning to this segment
+                        if hasattr(parent_window, '_last_selected_row'):
+                            parent_window._last_selected_row = None
+                        
+                        # Trigger re-highlighting of source text to remove deleted term
+                        if hasattr(parent_window, 'table') and hasattr(parent_window, 'find_termbase_matches_in_source'):
+                            current_row = parent_window.table.currentRow()
+                            if current_row >= 0:
+                                # Get source text widget
+                                source_widget = parent_window.table.cellWidget(current_row, 2)
+                                if source_widget and hasattr(source_widget, 'toPlainText'):
+                                    source_text = source_widget.toPlainText()
+                                    # Re-find matches and re-highlight
+                                    termbase_matches = parent_window.find_termbase_matches_in_source(source_text)
+                                    if hasattr(source_widget, 'highlight_termbase_matches'):
+                                        source_widget.highlight_termbase_matches(termbase_matches)
+                                    # Update the widget's stored matches to reflect the deletion
+                                    if hasattr(source_widget, 'termbase_matches'):
+                                        source_widget.termbase_matches = termbase_matches
+                        
+                        QMessageBox.information(parent_window, "Success", "Termbase entry deleted")
+                        # Hide this match card since it's been deleted
+                        self.hide()
+                    except Exception as e:
+                        QMessageBox.critical(parent_window, "Error", f"Failed to delete entry: {e}")
+    
     def select(self):
         """Select this match"""
         self.is_selected = True
@@ -270,28 +359,31 @@ class CompactMatchItem(QFrame):
         
         base_color = base_color_map.get(self.match.match_type, "#adb5bd")
         
-        # For termbase matches, apply priority-based shading (darker = higher priority/lower number)
-        # OR use black for forbidden terms, OR use light pink for project termbases
+        # For termbase matches, apply ranking-based shading OR special colors for forbidden/project termbases
+        is_project_termbase = False
         if self.match.match_type == "Termbase":
-            # Check if term is forbidden
             is_forbidden = self.match.metadata.get('forbidden', False)
-            # Check if this is a project termbase
-            is_project_termbase = self.match.metadata.get('is_project_termbase', False)
+            is_project_termbase_flag = self.match.metadata.get('is_project_termbase', False)
+            termbase_ranking = self.match.metadata.get('ranking', None)
+            
+            # EFFECTIVE project termbase = explicit flag OR ranking #1
+            is_effective_project = is_project_termbase_flag or (termbase_ranking == 1)
+            is_project_termbase = is_effective_project  # For later use in background styling
             
             if is_forbidden:
-                # Forbidden terms get black background
-                type_color = "#000000"
-            elif is_project_termbase:
-                # Project termbase gets light pink (same as grid highlighting)
-                type_color = "#FFB6C1"  # Light pink (RGB 255, 182, 193)
+                type_color = "#000000"  # Forbidden terms: black
+            elif is_effective_project:
+                type_color = "#FFB6C1"  # Project termbase: uniform light pink
             else:
-                # Background termbases: Get priority from metadata (default 50 if not set)
-                termbase_priority = self.match.metadata.get('priority', 50)
-                # Priority range: 1-99, lower = higher priority = darker blue
-                # Convert priority to shade factor: 1 (highest) = darkest, 99 (lowest) = lightest
-                # Scale: priority 1 → factor 1.0 (no darkening), priority 99 → factor 0.6 (lightest)
-                priority_factor = 1.0 - ((termbase_priority - 1) / 98.0) * 0.4  # Range: 0.6 to 1.0
-                type_color = self._darken_color(base_color, priority_factor)
+                # Use termbase ranking (2+ = background termbases with priority)
+                if termbase_ranking is not None and termbase_ranking > 1:
+                    # Map ranking to color intensity: ranking 2 = darkest, ranking 5+ = lighter
+                    # Create distinct visual priority levels (fewer shades than old 1-99 system)
+                    ranking_factor = 1.0 - (min(termbase_ranking, 10) - 2) / 20.0  # Adjusted for rank 2+
+                    type_color = self._darken_color(base_color, ranking_factor)
+                else:
+                    # No ranking assigned (shouldn't happen for activated termbases)
+                    type_color = base_color
         else:
             type_color = base_color
         
@@ -319,7 +411,7 @@ class CompactMatchItem(QFrame):
                     }}
                 """)
             else:
-                # Unselected: type color background with white text (for number only)
+                # Unselected: number badge colored (same styling for all match types)
                 self.num_label_ref.setStyleSheet(f"""
                     QLabel {{
                         background-color: {type_color};
@@ -331,7 +423,7 @@ class CompactMatchItem(QFrame):
                         border-radius: 2px;
                     }}
                 """)
-                # No background for item when unselected
+                # All matches have white background with subtle hover effect
                 self.setStyleSheet("""
                     CompactMatchItem {
                         background-color: white;
@@ -962,6 +1054,10 @@ class TranslationResultsPanel(QWidget):
         # Build metadata text
         metadata_parts = []
         
+        # Termbase name
+        termbase_name = match.metadata.get('termbase_name', 'Unknown')
+        metadata_parts.append(f"<b>Termbase:</b> {termbase_name}")
+        
         # Priority
         priority = match.metadata.get('priority', 50)
         metadata_parts.append(f"<b>Priority:</b> {priority}")
@@ -1155,12 +1251,14 @@ class TranslationResultsPanel(QWidget):
     
     def _on_match_selected(self, match: TranslationMatch):
         """Handle match selection"""
+        print(f"🔍 DEBUG: _on_match_selected called with match_type='{match.match_type}'")
         self.current_selection = match
         self.match_selected.emit(match)
         
         # Show appropriate viewer based on match type
         if match.match_type == "TM" and match.compare_source:
             # Show TM compare box
+            print("📊 DEBUG: Showing TM compare box")
             self.compare_frame.show()
             self.tm_info_frame.show()  # Show TM metadata below compare box
             self.termbase_frame.hide()
@@ -1174,12 +1272,14 @@ class TranslationResultsPanel(QWidget):
             
         elif match.match_type == "Termbase":
             # Show termbase data viewer
+            print("📖 DEBUG: Showing termbase viewer!")
             self.compare_frame.hide()
             self.tm_info_frame.hide()
             self.termbase_frame.show()
             self._display_termbase_data(match)
         else:
             # Hide all viewers
+            print(f"❌ DEBUG: Match type '{match.match_type}' - hiding all viewers")
             self.compare_frame.hide()
             self.tm_info_frame.hide()
             self.termbase_frame.hide()
