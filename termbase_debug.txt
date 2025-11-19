@@ -1,0 +1,36 @@
+🎨 CompactMatchItem.update_styling for 'techniek': is_project_termbase=False, ranking=None, type=<class 'NoneType'>
+   → is_effective_project=False, will use color: blue
+🎨 CompactMatchItem.update_styling for 'handmatige of geautomatiseerde': is_project_termbase=False, ranking=None, type=<class 'NoneType'>
+   → is_effective_project=False, will use color: blue
+🎨 CompactMatchItem.update_styling for 'speren': is_project_termbase=False, ranking=None, type=<class 'NoneType'>
+   → is_effective_project=False, will use color: blue
+🎨 CompactMatchItem.update_styling for 'techniek': is_project_termbase=False, ranking=None, type=<class 'NoneType'>
+   → is_effective_project=False, will use color: blue
+🎨 CompactMatchItem.update_styling for 'handmatige of geautomatiseerde': is_project_termbase=False, ranking=None, type=<class 'NoneType'>
+   → is_effective_project=False, will use color: blue
+🎨 CompactMatchItem.update_styling for 'speren': is_project_termbase=False, ranking=None, type=<class 'NoneType'>
+   → is_effective_project=False, will use color: blue
+🎨 CompactMatchItem.update_styling for 'techniek': is_project_termbase=False, ranking=None, type=<class 'NoneType'>
+   → is_effective_project=False, will use color: blue
+🎨 CompactMatchItem.update_styling for 'handmatige of geautomatiseerde': is_project_termbase=False, ranking=None, type=<class 'NoneType'>
+   → is_effective_project=False, will use color: blue
+🎨 CompactMatchItem.update_styling for 'speren': is_project_termbase=False, ranking=None, type=<class 'NoneType'>
+   → is_effective_project=False, will use color: blue
+🎨 CompactMatchItem.update_styling for 'techniek': is_project_termbase=False, ranking=None, type=<class 'NoneType'>
+   → is_effective_project=False, will use color: blue
+🎨 CompactMatchItem.update_styling for 'handmatige of geautomatiseerde': is_project_termbase=False, ranking=None, type=<class 'NoneType'>
+   → is_effective_project=False, will use color: blue
+🎨 CompactMatchItem.update_styling for 'speren': is_project_termbase=False, ranking=None, type=<class 'NoneType'>
+   → is_effective_project=False, will use color: blue
+🎨 CompactMatchItem.update_styling for 'techniek': is_project_termbase=False, ranking=None, type=<class 'NoneType'>
+   → is_effective_project=False, will use color: blue
+🎨 CompactMatchItem.update_styling for 'handmatige of geautomatiseerde': is_project_termbase=False, ranking=None, type=<class 'NoneType'>
+   → is_effective_project=False, will use color: blue
+🎨 CompactMatchItem.update_styling for 'speren': is_project_termbase=False, ranking=None, type=<class 'NoneType'>
+   → is_effective_project=False, will use color: blue
+🎨 CompactMatchItem.update_styling for 'techniek': is_project_termbase=False, ranking=None, type=<class 'NoneType'>
+   → is_effective_project=False, will use color: blue
+🎨 CompactMatchItem.update_styling for 'handmatige of geautomatiseerde': is_project_termbase=False, ranking=None, type=<class 'NoneType'>
+   → is_effective_project=False, will use color: blue
+🎨 CompactMatchItem.update_styling for 'speren': is_project_termbase=False, ranking=None, type=<class 'NoneType'>
+   → is_effective_project=False, will use color: blue

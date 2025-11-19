@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.7.1 (November 19, 2025)  
+**Current Version:** v1.7.2 (November 19, 2025)  
 **Framework:** PyQt6  
 **Status:** Active Development
 
@@ -14,6 +14,7 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- 🔧 **Termbase Critical Fixes (v1.7.2)** - Fixed term deduplication and termbase selection issues
 - 🎨 **Termbase UI Polish (v1.7.1)** - Improved visual consistency with pink highlighting for project termbases and real-time term count updates
 - 📚 **Project Termbases (v1.7.0)** - Dedicated project-specific terminology with automatic extraction and pink highlighting
 - 📁 **File Dialog Memory (v1.6.5)** - File dialogs remember your last used directory for improved workflow
@@ -34,6 +35,41 @@ All notable changes to Supervertaler are documented in this file.
 - 🔄 **CAT Tool Integration** - memoQ, Trados, CafeTran bilingual table support
 
 **See full version history below** ↓
+
+---
+
+## [1.7.2] - November 19, 2025
+
+### 🔧 Termbase Critical Fixes - Term Deduplication & Selection
+
+**Major Bug Fixes:**
+
+**Fixed:**
+- ✅ **Multiple Translations Display** - Fixed critical deduplication bug where only one translation was kept for terms with same source text
+  - Example: "inrichting → device" AND "inrichting → apparatus" now both display correctly
+  - Root cause: Used `source_term` as dict key, now uses `term_id` to allow multiple translations
+- ✅ **Termbase Selection** - Terms now save only to selected termbases (previously saved to all active termbases)
+  - Filter logic working correctly with INTEGER termbase IDs
+  - Debug logging confirmed type matching works as expected
+- ✅ **Segment Highlighting Consistency** - Termbase highlighting now works consistently across all segments
+  - Fixed cache iteration to handle new dict structure with `term_id` keys
+  - Updated all code paths that consume termbase matches
+
+**Technical Changes:**
+- **Dictionary Structure Change:**
+  - Changed from: `matches[source_term] = {...}` (only one translation per source)
+  - Changed to: `matches[term_id] = {'source': source_term, 'translation': target_term, ...}` (multiple translations allowed)
+- **Code Locations Updated:**
+  - `find_termbase_matches_in_source()` - Changed dict key from source_term to term_id
+  - `highlight_termbase_matches()` - Updated to extract source term from match_info
+  - `DocumentView._create_highlighted_html()` - Updated iteration logic
+  - `_get_cached_matches()` - Fixed to extract source term from dict values (2 locations)
+  - All hover tooltip and double-click handlers updated
+
+**Impact:**
+- 🎯 **Better Term Disambiguation** - Users can now add multiple translations for same source term
+- 🎨 **Accurate Highlighting** - All matching terms highlighted correctly in grid
+- ✅ **Correct Termbase Selection** - Terms added only to user-selected termbases
 
 ---
 

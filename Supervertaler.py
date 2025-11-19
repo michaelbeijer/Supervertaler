@@ -32,7 +32,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.7.1"
+__version__ = "1.7.2"
 __phase__ = "8.7"
 __release_date__ = "2025-11-19"
 __edition__ = "Qt"
@@ -458,23 +458,26 @@ class ReadOnlyGridTextEditor(QTextEdit):
         if not matches_dict:
             return
         
-        # Sort terms by length (longest first) to avoid partial matches
-        sorted_terms = sorted(matches_dict.keys(), key=len, reverse=True)
+        # Sort matches by source term length (longest first) to avoid partial matches
+        # Since dict keys are now term_ids, we need to extract source terms first
+        term_entries = []
+        for term_id, match_info in matches_dict.items():
+            if isinstance(match_info, dict):
+                source_term = match_info.get('source', '')
+                if source_term:
+                    term_entries.append((source_term, term_id, match_info))
+        
+        # Sort by source term length (longest first)
+        term_entries.sort(key=lambda x: len(x[0]), reverse=True)
         
         # Track positions we've already highlighted to avoid overlaps
         highlighted_ranges = []
         
-        for term in sorted_terms:
+        for term, term_id, match_info in term_entries:
             # Get ranking, forbidden status, and termbase type
-            match_info = matches_dict[term]
-            if isinstance(match_info, dict):
-                ranking = match_info.get('ranking', None)  # NEW: use ranking instead of priority
-                forbidden = match_info.get('forbidden', False)
-                is_project_termbase = match_info.get('is_project_termbase', False)
-            else:
-                ranking = None
-                forbidden = False
-                is_project_termbase = False
+            ranking = match_info.get('ranking', None)  # NEW: use ranking instead of priority
+            forbidden = match_info.get('forbidden', False)
+            is_project_termbase = match_info.get('is_project_termbase', False)
             
             # IMPORTANT: Treat ranking #1 as project termbase (even if flag not set)
             # This matches the logic in the termbase list UI
@@ -643,7 +646,9 @@ class ReadOnlyGridTextEditor(QTextEdit):
         cursor_pos = cursor.position()
         
         # Check if cursor is over a termbase match
-        for term, match_info in self.termbase_matches.items():
+        for term_id, match_info in self.termbase_matches.items():
+            # Extract source term from match_info
+            term = match_info.get('source', '') if isinstance(match_info, dict) else str(term_id)
             # Find term position in text
             text = self.toPlainText()
             text_lower = text.lower()
@@ -689,7 +694,9 @@ class ReadOnlyGridTextEditor(QTextEdit):
         cursor_pos = cursor.position()
         
         # Check if double-clicked on a termbase match
-        for term, match_info in self.termbase_matches.items():
+        for term_id, match_info in self.termbase_matches.items():
+            # Extract source term from match_info
+            term = match_info.get('source', '') if isinstance(match_info, dict) else str(term_id)
             text = self.toPlainText()
             text_lower = text.lower()
             term_lower = term.lower()
@@ -1053,20 +1060,27 @@ class TermbaseHighlightWidget(QLabel):
         """Create HTML with highlighted termbase matches using priority colors"""
         text = self.source_text
         
-        # Sort terms by length (longest first) to avoid overlaps
-        sorted_terms = sorted(self.termbase_matches.keys(), key=len, reverse=True)
+        # Sort matches by source term length (longest first) to avoid overlaps
+        # Since dict keys are now term_ids, extract source terms first
+        term_entries = []
+        for term_id, match_info in self.termbase_matches.items():
+            if isinstance(match_info, dict):
+                source_term = match_info.get('source', '')
+                if source_term:
+                    term_entries.append((source_term, match_info))
+        
+        term_entries.sort(key=lambda x: len(x[0]), reverse=True)
         
         # Build HTML with highlights
         html = text
         offset = 0
         
-        for term in sorted_terms:
+        for term, match_info in term_entries:
             # Case-insensitive search
             search_term = term.lower()
             search_html = html.lower()
             
             # Get priority-based color (if termbase_matches contains priority info)
-            match_info = self.termbase_matches[term]
             if isinstance(match_info, dict) and 'priority' in match_info:
                 priority = match_info.get('priority', 50)
                 translation = match_info.get('translation', '')
@@ -1118,7 +1132,9 @@ class TermbaseHighlightWidget(QLabel):
         
         # Try to find which term is near the click point
         # This is a simplified approach - in production would need better handling
-        for term, translation in self.termbase_matches.items():
+        for term_id, match_info in self.termbase_matches.items():
+            term = match_info.get('source', '') if isinstance(match_info, dict) else str(term_id)
+            translation = match_info.get('translation', match_info) if isinstance(match_info, dict) else match_info
             # Check if this term contains the click area (very approximate)
             if self.term_double_clicked is not None and callable(self.term_double_clicked):
                 # For now, if we get a double-click and there are matches,
@@ -3950,18 +3966,22 @@ class SupervertalerQt(QMainWindow):
         tm_table.setColumnWidth(3, 80)
         tm_table.setColumnWidth(4, 150)
         
+        # Get current project (for lambda closures below)
+        current_project = self.current_project if hasattr(self, 'current_project') else None
+        project_id = current_project.id if (current_project and hasattr(current_project, 'id')) else None
+        
         # Populate TM list
         def refresh_tm_list():
             # Get current project dynamically (not captured in closure!)
-            current_project = self.current_project if hasattr(self, 'current_project') else None
-            project_id = current_project.id if (current_project and hasattr(current_project, 'id')) else None
+            current_proj = self.current_project if hasattr(self, 'current_project') else None
+            refresh_project_id = current_proj.id if (current_proj and hasattr(current_proj, 'id')) else None
             
             tms = tm_metadata_mgr.get_all_tms()
             tm_table.setRowCount(len(tms))
             
             for row, tm in enumerate(tms):
                 # Check if active for current project
-                is_active = tm_metadata_mgr.is_tm_active(tm['id'], project_id)
+                is_active = tm_metadata_mgr.is_tm_active(tm['id'], refresh_project_id)
                 
                 # Active checkbox (use CheckmarkCheckBox for clear visual feedback)
                 checkbox = CheckmarkCheckBox()
@@ -9860,9 +9880,10 @@ class SupervertalerQt(QMainWindow):
         with self.termbase_cache_lock:
             if segment.id in self.termbase_cache:
                 stored_matches = self.termbase_cache[segment.id]
-                for source_term, match_info in stored_matches.items():
-                    # Extract translation, ranking, and other metadata from match_info
+                for term_id, match_info in stored_matches.items():
+                    # Extract source term, translation, ranking, and other metadata from match_info
                     if isinstance(match_info, dict):
+                        source_term = match_info.get('source', '')
                         target_term = match_info.get('translation', '')
                         priority = match_info.get('priority', 50)  # Keep for backward compatibility
                         ranking = match_info.get('ranking', None)  # NEW: termbase ranking
@@ -9870,7 +9891,8 @@ class SupervertalerQt(QMainWindow):
                         is_project_termbase = match_info.get('is_project_termbase', False)
                         termbase_name = match_info.get('termbase_name', 'Default')
                     else:
-                        # Backward compatibility: if just string
+                        # Backward compatibility: if just string (shouldn't happen with new code)
+                        source_term = str(term_id)
                         target_term = match_info
                         priority = 50
                         ranking = None
@@ -12447,9 +12469,10 @@ class SupervertalerQt(QMainWindow):
                                 "Termbases": []
                             }
 
-                            for source_term, match_info in stored_matches.items():
-                                # Extract all fields from match_info
+                            for term_id_key, match_info in stored_matches.items():
+                                # Extract all fields from match_info (including source term)
                                 if isinstance(match_info, dict):
+                                    source_term = match_info.get('source', '')
                                     target_term = match_info.get('translation', '')
                                     priority = match_info.get('priority', 50)
                                     ranking = match_info.get('ranking', None)
@@ -12463,7 +12486,8 @@ class SupervertalerQt(QMainWindow):
                                     project = match_info.get('project', '')
                                     client = match_info.get('client', '')
                                 else:
-                                    # Backward compatibility: if just string
+                                    # Backward compatibility: if just string (shouldn't happen with new code)
+                                    source_term = str(term_id_key)
                                     target_term = match_info
                                     priority = 50
                                     ranking = None
@@ -13667,12 +13691,13 @@ class SupervertalerQt(QMainWindow):
                         if not pattern.search(source_text_lower):
                             # Skip terms whose full phrase isn't in the segment
                             continue
-                        # Deduplicate: keep highest priority (numerically lowest) if term repeats
-                        existing = matches.get(source_term)
-                        if existing and existing.get('priority', 50) <= priority:
-                            # Existing has higher or equal priority; skip
-                            continue
-                        matches[source_term] = {
+                        # CRITICAL FIX: Use term_id as dict key instead of source_term
+                        # This allows multiple translations for the same source term to coexist
+                        # Example: "inrichting → device" AND "inrichting → apparatus" both displayed
+                        # Old code: matches[source_term] = {...} - only kept one translation
+                        # New code: matches[term_id] = {...} - keeps all translations
+                        matches[term_id] = {
+                            'source': source_term,  # Add source field for display
                             'translation': target_term,
                             'priority': priority,  # Legacy field from term itself
                             'ranking': ranking,  # NEW: termbase ranking (None if not activated)
