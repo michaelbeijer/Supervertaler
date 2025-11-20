@@ -32,9 +32,9 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.7.2"
+__version__ = "1.7.3"
 __phase__ = "8.7"
-__release_date__ = "2025-11-19"
+__release_date__ = "2025-11-20"
 __edition__ = "Qt"
 
 import sys
@@ -1676,6 +1676,136 @@ class TermMetadataDialog(QDialog):
         meta_group.setLayout(meta_layout)
         layout.addWidget(meta_group)
         
+        # Source Synonyms section
+        source_syn_group = QGroupBox("Source Synonyms (Optional)")
+        source_syn_layout = QVBoxLayout()
+        
+        # Instructions
+        source_syn_info = QLabel("Add alternative source terms. First item = preferred term:")
+        source_syn_info.setStyleSheet("color: #666; font-size: 11px; margin-bottom: 5px;")
+        source_syn_layout.addWidget(source_syn_info)
+        
+        # Input field + Add button + Forbidden checkbox
+        source_add_layout = QHBoxLayout()
+        self.source_synonym_edit = QLineEdit()
+        self.source_synonym_edit.setPlaceholderText("Enter source synonym and press Add or Enter...")
+        source_add_layout.addWidget(self.source_synonym_edit)
+        
+        self.source_synonym_forbidden_check = QCheckBox("Forbidden")
+        self.source_synonym_forbidden_check.setToolTip("Mark this source synonym as forbidden")
+        source_add_layout.addWidget(self.source_synonym_forbidden_check)
+        
+        source_add_syn_btn = QPushButton("Add")
+        source_add_syn_btn.setMaximumWidth(60)
+        source_add_syn_btn.clicked.connect(self.add_source_synonym)
+        source_add_layout.addWidget(source_add_syn_btn)
+        source_syn_layout.addLayout(source_add_layout)
+        
+        # Connect Enter key to add synonym
+        self.source_synonym_edit.returnPressed.connect(self.add_source_synonym)
+        
+        # List of source synonyms with control buttons
+        source_list_layout = QHBoxLayout()
+        
+        self.source_synonym_list = QListWidget()
+        self.source_synonym_list.setMaximumHeight(100)
+        self.source_synonym_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.source_synonym_list.customContextMenuRequested.connect(self.show_source_synonym_context_menu)
+        source_list_layout.addWidget(self.source_synonym_list)
+        
+        # Up/Down buttons for source synonyms
+        source_button_col = QVBoxLayout()
+        source_move_up_btn = QPushButton("▲")
+        source_move_up_btn.setToolTip("Move synonym up (higher priority)")
+        source_move_up_btn.setMaximumWidth(30)
+        source_move_up_btn.clicked.connect(self.move_source_synonym_up)
+        source_button_col.addWidget(source_move_up_btn)
+        
+        source_move_down_btn = QPushButton("▼")
+        source_move_down_btn.setToolTip("Move synonym down (lower priority)")
+        source_move_down_btn.setMaximumWidth(30)
+        source_move_down_btn.clicked.connect(self.move_source_synonym_down)
+        source_button_col.addWidget(source_move_down_btn)
+        
+        source_button_col.addStretch()
+        
+        source_delete_btn = QPushButton("✗")
+        source_delete_btn.setToolTip("Delete synonym")
+        source_delete_btn.setMaximumWidth(30)
+        source_delete_btn.clicked.connect(self.delete_selected_source_synonym)
+        source_button_col.addWidget(source_delete_btn)
+        
+        source_list_layout.addLayout(source_button_col)
+        source_syn_layout.addLayout(source_list_layout)
+        
+        source_syn_group.setLayout(source_syn_layout)
+        layout.addWidget(source_syn_group)
+        
+        # Target Synonyms section
+        target_syn_group = QGroupBox("Target Synonyms (Optional)")
+        target_syn_layout = QVBoxLayout()
+        
+        # Instructions
+        target_syn_info = QLabel("Add alternative translations (synonyms). First item = preferred term:")
+        target_syn_info.setStyleSheet("color: #666; font-size: 11px; margin-bottom: 5px;")
+        target_syn_layout.addWidget(target_syn_info)
+        
+        # Input field + Add button + Forbidden checkbox
+        target_add_layout = QHBoxLayout()
+        self.target_synonym_edit = QLineEdit()
+        self.target_synonym_edit.setPlaceholderText("Enter synonym and press Add or Enter...")
+        target_add_layout.addWidget(self.target_synonym_edit)
+        
+        self.target_synonym_forbidden_check = QCheckBox("Forbidden")
+        self.target_synonym_forbidden_check.setToolTip("Mark this synonym as forbidden (warning when used)")
+        target_add_layout.addWidget(self.target_synonym_forbidden_check)
+        
+        target_add_syn_btn = QPushButton("Add")
+        target_add_syn_btn.setMaximumWidth(60)
+        target_add_syn_btn.clicked.connect(self.add_target_synonym)
+        target_add_layout.addWidget(target_add_syn_btn)
+        target_syn_layout.addLayout(target_add_layout)
+        
+        # Connect Enter key to add synonym
+        self.target_synonym_edit.returnPressed.connect(self.add_target_synonym)
+        
+        # List of target synonyms with control buttons
+        target_list_layout = QHBoxLayout()
+        
+        self.target_synonym_list = QListWidget()
+        self.target_synonym_list.setMaximumHeight(100)
+        self.target_synonym_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.target_synonym_list.customContextMenuRequested.connect(self.show_target_synonym_context_menu)
+        target_list_layout.addWidget(self.target_synonym_list)
+        
+        # Up/Down buttons for target synonyms
+        target_button_col = QVBoxLayout()
+        target_move_up_btn = QPushButton("▲")
+        target_move_up_btn.setToolTip("Move synonym up (higher priority)")
+        target_move_up_btn.setMaximumWidth(30)
+        target_move_up_btn.clicked.connect(self.move_target_synonym_up)
+        target_button_col.addWidget(target_move_up_btn)
+        
+        target_move_down_btn = QPushButton("▼")
+        target_move_down_btn.setToolTip("Move synonym down (lower priority)")
+        target_move_down_btn.setMaximumWidth(30)
+        target_move_down_btn.clicked.connect(self.move_target_synonym_down)
+        target_button_col.addWidget(target_move_down_btn)
+        
+        target_button_col.addStretch()
+        
+        target_delete_btn = QPushButton("✗")
+        target_delete_btn.setToolTip("Delete synonym")
+        target_delete_btn.setMaximumWidth(30)
+        target_delete_btn.clicked.connect(self.delete_selected_target_synonym)
+        target_button_col.addWidget(target_delete_btn)
+        
+        target_list_layout.addLayout(target_button_col)
+        target_syn_layout.addLayout(target_list_layout)
+        
+        target_syn_group.setLayout(target_syn_layout)
+        layout.addWidget(target_syn_group)
+        
         # Buttons
         button_layout = QHBoxLayout()
         button_layout.addStretch()
@@ -1691,6 +1821,236 @@ class TermMetadataDialog(QDialog):
         button_layout.addWidget(save_btn)
         
         layout.addLayout(button_layout)
+    
+    # ========================================================================
+    # SOURCE SYNONYM METHODS
+    # ========================================================================
+    
+    def add_source_synonym(self):
+        """Add a source synonym to the list"""
+        synonym = self.source_synonym_edit.text().strip()
+        if synonym:
+            # Check for duplicates
+            for i in range(self.source_synonym_list.count()):
+                item = self.source_synonym_list.item(i)
+                item_text = item.data(Qt.ItemDataRole.UserRole).get('text', '')
+                if item_text == synonym:
+                    QMessageBox.warning(self, "Duplicate", f"Source synonym '{synonym}' already added.")
+                    return
+            
+            # Don't allow the main source term as a synonym
+            if synonym.lower() == self.source_term.lower():
+                QMessageBox.warning(self, "Invalid Synonym", "Cannot add the main source term as a synonym.")
+                return
+            
+            # Create list item with stored data
+            is_forbidden = self.source_synonym_forbidden_check.isChecked()
+            display_text = f"{'🚫 ' if is_forbidden else ''}{synonym}"
+            
+            item = QListWidgetItem(display_text)
+            item.setData(Qt.ItemDataRole.UserRole, {
+                'text': synonym,
+                'forbidden': is_forbidden
+            })
+            
+            if is_forbidden:
+                item.setForeground(QColor('#d32f2f'))
+            
+            self.source_synonym_list.addItem(item)
+            self.source_synonym_edit.clear()
+            self.source_synonym_forbidden_check.setChecked(False)
+            self.source_synonym_edit.setFocus()
+    
+    def move_source_synonym_up(self):
+        """Move selected source synonym up in the list"""
+        current_row = self.source_synonym_list.currentRow()
+        if current_row > 0:
+            item = self.source_synonym_list.takeItem(current_row)
+            self.source_synonym_list.insertItem(current_row - 1, item)
+            self.source_synonym_list.setCurrentRow(current_row - 1)
+    
+    def move_source_synonym_down(self):
+        """Move selected source synonym down in the list"""
+        current_row = self.source_synonym_list.currentRow()
+        if current_row < self.source_synonym_list.count() - 1 and current_row >= 0:
+            item = self.source_synonym_list.takeItem(current_row)
+            self.source_synonym_list.insertItem(current_row + 1, item)
+            self.source_synonym_list.setCurrentRow(current_row + 1)
+    
+    def delete_selected_source_synonym(self):
+        """Delete selected source synonym"""
+        current_row = self.source_synonym_list.currentRow()
+        if current_row >= 0:
+            self.source_synonym_list.takeItem(current_row)
+    
+    def show_source_synonym_context_menu(self, position):
+        """Show context menu for source synonym list"""
+        if self.source_synonym_list.count() == 0:
+            return
+        
+        current_item = self.source_synonym_list.currentItem()
+        if not current_item:
+            return
+        
+        menu = QMenu()
+        
+        # Toggle forbidden status
+        data = current_item.data(Qt.ItemDataRole.UserRole)
+        is_forbidden = data.get('forbidden', False)
+        
+        if is_forbidden:
+            toggle_action = menu.addAction("Mark as Allowed")
+        else:
+            toggle_action = menu.addAction("Mark as Forbidden")
+        
+        menu.addSeparator()
+        delete_action = menu.addAction("Delete")
+        
+        action = menu.exec(self.source_synonym_list.mapToGlobal(position))
+        
+        if action == toggle_action:
+            # Toggle forbidden status
+            data['forbidden'] = not is_forbidden
+            text = data['text']
+            display_text = f"{'🚫 ' if data['forbidden'] else ''}{text}"
+            current_item.setText(display_text)
+            current_item.setData(Qt.ItemDataRole.UserRole, data)
+            
+            if data['forbidden']:
+                current_item.setForeground(QColor('#d32f2f'))
+            else:
+                current_item.setForeground(QColor('#000000'))
+                
+        elif action == delete_action:
+            self.source_synonym_list.takeItem(self.source_synonym_list.row(current_item))
+    
+    def get_source_synonyms(self):
+        """Return list of source synonym dictionaries with text, forbidden flag, and order"""
+        synonyms = []
+        for i in range(self.source_synonym_list.count()):
+            item = self.source_synonym_list.item(i)
+            data = item.data(Qt.ItemDataRole.UserRole)
+            synonyms.append({
+                'text': data['text'],
+                'forbidden': data['forbidden'],
+                'order': i
+            })
+        return synonyms
+    
+    # ========================================================================
+    # TARGET SYNONYM METHODS
+    # ========================================================================
+    
+    def add_target_synonym(self):
+        """Add a target synonym to the list"""
+        synonym = self.target_synonym_edit.text().strip()
+        if synonym:
+            # Check for duplicates
+            for i in range(self.target_synonym_list.count()):
+                item = self.target_synonym_list.item(i)
+                item_text = item.data(Qt.ItemDataRole.UserRole).get('text', '')
+                if item_text == synonym:
+                    QMessageBox.warning(self, "Duplicate", f"Synonym '{synonym}' already added.")
+                    return
+            
+            # Don't allow the main target term as a synonym
+            if synonym.lower() == self.target_term.lower():
+                QMessageBox.warning(self, "Invalid Synonym", "Cannot add the main target term as a synonym.")
+                return
+            
+            # Create list item with stored data
+            is_forbidden = self.target_synonym_forbidden_check.isChecked()
+            display_text = f"{'🚫 ' if is_forbidden else ''}{synonym}"
+            
+            item = QListWidgetItem(display_text)
+            item.setData(Qt.ItemDataRole.UserRole, {
+                'text': synonym,
+                'forbidden': is_forbidden
+            })
+            
+            if is_forbidden:
+                item.setForeground(QColor('#d32f2f'))
+            
+            self.target_synonym_list.addItem(item)
+            self.target_synonym_edit.clear()
+            self.target_synonym_forbidden_check.setChecked(False)
+            self.target_synonym_edit.setFocus()
+    
+    def move_target_synonym_up(self):
+        """Move selected target synonym up in the list"""
+        current_row = self.target_synonym_list.currentRow()
+        if current_row > 0:
+            item = self.target_synonym_list.takeItem(current_row)
+            self.target_synonym_list.insertItem(current_row - 1, item)
+            self.target_synonym_list.setCurrentRow(current_row - 1)
+    
+    def move_target_synonym_down(self):
+        """Move selected target synonym down in the list"""
+        current_row = self.target_synonym_list.currentRow()
+        if current_row < self.target_synonym_list.count() - 1 and current_row >= 0:
+            item = self.target_synonym_list.takeItem(current_row)
+            self.target_synonym_list.insertItem(current_row + 1, item)
+            self.target_synonym_list.setCurrentRow(current_row + 1)
+    
+    def delete_selected_target_synonym(self):
+        """Delete selected target synonym"""
+        current_row = self.target_synonym_list.currentRow()
+        if current_row >= 0:
+            self.target_synonym_list.takeItem(current_row)
+    
+    def show_target_synonym_context_menu(self, position):
+        """Show context menu for target synonym list"""
+        if self.target_synonym_list.count() == 0:
+            return
+        
+        current_item = self.target_synonym_list.currentItem()
+        if not current_item:
+            return
+        
+        menu = QMenu()
+        
+        # Toggle forbidden status
+        data = current_item.data(Qt.ItemDataRole.UserRole)
+        is_forbidden = data.get('forbidden', False)
+        
+        if is_forbidden:
+            toggle_action = menu.addAction("Mark as Allowed")
+        else:
+            toggle_action = menu.addAction("Mark as Forbidden")
+        
+        menu.addSeparator()
+        delete_action = menu.addAction("Delete")
+        
+        action = menu.exec(self.target_synonym_list.mapToGlobal(position))
+        
+        if action == toggle_action:
+            # Toggle forbidden status
+            data['forbidden'] = not is_forbidden
+            text = data['text']
+            display_text = f"{'🚫 ' if data['forbidden'] else ''}{text}"
+            current_item.setText(display_text)
+            current_item.setData(Qt.ItemDataRole.UserRole, data)
+            
+            if data['forbidden']:
+                current_item.setForeground(QColor('#d32f2f'))
+            else:
+                current_item.setForeground(QColor('#000000'))
+                
+        elif action == delete_action:
+            self.target_synonym_list.takeItem(self.target_synonym_list.row(current_item))
+    
+    def get_target_synonyms(self):
+        """Return list of target synonym dictionaries with text, forbidden flag, and order"""
+        synonyms = []
+        for i in range(self.target_synonym_list.count()):
+            item = self.target_synonym_list.item(i)
+            data = item.data(Qt.ItemDataRole.UserRole)
+            synonyms.append({
+                'text': data['text'],
+                'forbidden': data['forbidden'],
+                'order': i
+            })
+        return synonyms
     
     def get_metadata(self):
         """Return dictionary of metadata fields"""
@@ -4567,6 +4927,8 @@ class SupervertalerQt(QMainWindow):
         
         metadata = dialog.get_metadata()
         selected_termbase_ids = dialog.get_selected_termbases()
+        source_synonyms = dialog.get_source_synonyms()
+        target_synonyms = dialog.get_target_synonyms()
         
         if not selected_termbase_ids:
             QMessageBox.warning(self, "No Termbase Selected", "Please select at least one termbase to save the term to.")
@@ -4581,6 +4943,10 @@ class SupervertalerQt(QMainWindow):
         target_lang_code = self._convert_language_to_code(target_lang)
         
         self.log(f"📝 Adding term with languages: {source_lang} ({source_lang_code}) → {target_lang} ({target_lang_code})")
+        if source_synonyms:
+            self.log(f"   With {len(source_synonyms)} source synonym(s): {', '.join([s['text'] for s in source_synonyms])}")
+        if target_synonyms:
+            self.log(f"   With {len(target_synonyms)} target synonym(s): {', '.join([s['text'] for s in target_synonyms])}")
         
         # Add term to selected termbases only
         success_count = 0
@@ -4606,6 +4972,36 @@ class SupervertalerQt(QMainWindow):
                 if term_id:
                     success_count += 1
                     self.log(f"✓ Added term to termbase '{tb['name']}': {source_text} → {target_text}")
+                    
+                    # Add source synonyms if any
+                    if source_synonyms:
+                        for syn_data in source_synonyms:
+                            if self.termbase_mgr.add_synonym(
+                                term_id, 
+                                syn_data['text'], 
+                                language='source',
+                                display_order=syn_data['order'],
+                                forbidden=syn_data['forbidden']
+                            ):
+                                forbidden_marker = " (forbidden)" if syn_data['forbidden'] else ""
+                                self.log(f"  ✓ Added source synonym: {syn_data['text']}{forbidden_marker}")
+                            else:
+                                self.log(f"  ✗ Failed to add source synonym: {syn_data['text']}")
+                    
+                    # Add target synonyms if any
+                    if target_synonyms:
+                        for syn_data in target_synonyms:
+                            if self.termbase_mgr.add_synonym(
+                                term_id, 
+                                syn_data['text'], 
+                                language='target',
+                                display_order=syn_data['order'],
+                                forbidden=syn_data['forbidden']
+                            ):
+                                forbidden_marker = " (forbidden)" if syn_data['forbidden'] else ""
+                                self.log(f"  ✓ Added target synonym: {syn_data['text']}{forbidden_marker}")
+                            else:
+                                self.log(f"  ✗ Failed to add target synonym: {syn_data['text']}")
                     
             except Exception as e:
                 self.log(f"✗ Error adding term to termbase '{tb['name']}': {e}")
@@ -5329,12 +5725,17 @@ class SupervertalerQt(QMainWindow):
             QMessageBox.warning(self, "Error", "Please select a termbase to import into")
             return
         
-        # Get termbase ID
-        tb_name = termbase_table.item(selected_row, 1).text()
-        termbases = termbase_mgr.get_all_termbases()
-        termbase = next((tb for tb in termbases if tb['name'] == tb_name), None)
-        if not termbase:
-            QMessageBox.warning(self, "Error", "Could not find selected termbase")
+        # Get termbase info from Name column (column 2)
+        name_item = termbase_table.item(selected_row, 2)
+        if not name_item:
+            QMessageBox.warning(self, "Error", "Could not read termbase information")
+            return
+        
+        tb_name = name_item.text()
+        termbase_id = name_item.data(Qt.ItemDataRole.UserRole)
+        
+        if not termbase_id:
+            QMessageBox.warning(self, "Error", "Could not find termbase ID")
             return
         
         # File dialog
@@ -5400,7 +5801,7 @@ class SupervertalerQt(QMainWindow):
         
         result = importer.import_tsv(
             filepath=filepath,
-            termbase_id=termbase['id'],
+            termbase_id=termbase_id,
             skip_duplicates=skip_radio.isChecked(),
             update_duplicates=update_radio.isChecked()
         )
@@ -5445,12 +5846,17 @@ class SupervertalerQt(QMainWindow):
             QMessageBox.warning(self, "Error", "Please select a termbase to export")
             return
         
-        # Get termbase ID
-        tb_name = termbase_table.item(selected_row, 1).text()
-        termbases = termbase_mgr.get_all_termbases()
-        termbase = next((tb for tb in termbases if tb['name'] == tb_name), None)
-        if not termbase:
-            QMessageBox.warning(self, "Error", "Could not find selected termbase")
+        # Get termbase info from Name column (column 2)
+        name_item = termbase_table.item(selected_row, 2)
+        if not name_item:
+            QMessageBox.warning(self, "Error", "Could not read termbase information")
+            return
+        
+        tb_name = name_item.text()
+        termbase_id = name_item.data(Qt.ItemDataRole.UserRole)
+        
+        if not termbase_id:
+            QMessageBox.warning(self, "Error", "Could not find termbase ID")
             return
         
         # File dialog
@@ -5508,7 +5914,7 @@ class SupervertalerQt(QMainWindow):
         self.log(f"📤 Exporting termbase to {filepath}...")
         
         success, message = exporter.export_tsv(
-            termbase_id=termbase['id'],
+            termbase_id=termbase_id,
             filepath=filepath,
             include_metadata=metadata_check.isChecked()
         )
@@ -7355,11 +7761,13 @@ class SupervertalerQt(QMainWindow):
 
         system_prompt_editor = QTextEdit()
         system_prompt_editor.setStyleSheet("font-family: 'Consolas', 'Courier New', monospace; font-size: 9pt;")
-        system_prompt_editor.setMinimumHeight(400)
-        editor_layout.addWidget(system_prompt_editor)
+        system_prompt_editor.setMinimumHeight(500)  # Increased from 400 to 500
+        system_prompt_editor.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)  # Enable word wrap
+        system_prompt_editor.setAcceptRichText(False)  # Plain text only
+        editor_layout.addWidget(system_prompt_editor, 1)  # Added stretch factor of 1 to allow expansion
 
         editor_group.setLayout(editor_layout)
-        layout.addWidget(editor_group)
+        layout.addWidget(editor_group, 1)  # Added stretch factor of 1 to allow expansion
 
         # Buttons
         buttons_layout = QHBoxLayout()
@@ -8248,6 +8656,12 @@ class SupervertalerQt(QMainWindow):
         clear_btn.setToolTip("Clear Target")
         clear_btn.clicked.connect(self.clear_grid_target)
         toolbar_layout.addWidget(clear_btn)
+        
+        preview_prompt_btn = QPushButton("🧪 Preview Prompts")
+        preview_prompt_btn.setToolTip("Preview the complete assembled prompt\n(System Template + Custom Prompts + current segment)")
+        preview_prompt_btn.setStyleSheet("background-color: #9C27B0; color: white; font-weight: bold; padding: 4px 8px;")
+        preview_prompt_btn.clicked.connect(self._preview_combined_prompt_from_grid)
+        toolbar_layout.addWidget(preview_prompt_btn)
         
         dictate_btn = QPushButton("🎤 Dictate")
         dictate_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 4px 8px;")
@@ -12642,6 +13056,157 @@ class SupervertalerQt(QMainWindow):
         
         return segments
     
+    def _preview_combined_prompt_from_grid(self):
+        """Preview combined prompt with the currently selected segment from grid"""
+        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QTextEdit, QPushButton, QHBoxLayout, QMessageBox
+        
+        # Check if project is loaded
+        if not self.current_project:
+            QMessageBox.warning(
+                self,
+                "No Project",
+                "Please load a project first to preview prompts."
+            )
+            return
+        
+        # Check if prompt_manager_qt exists
+        if not hasattr(self, 'prompt_manager_qt'):
+            QMessageBox.warning(
+                self,
+                "Feature Not Available",
+                "Prompt Manager is not available."
+            )
+            return
+        
+        # Get current segment from grid
+        current_segment = None
+        current_segment_id = "Preview"
+        
+        if hasattr(self, 'table') and self.table:
+            current_row = self.table.currentRow()
+            if current_row >= 0:
+                # Map display row to actual segment index (for pagination)
+                actual_index = current_row
+                if hasattr(self, 'grid_row_to_segment_index') and self.grid_row_to_segment_index:
+                    if current_row in self.grid_row_to_segment_index:
+                        actual_index = self.grid_row_to_segment_index[current_row]
+                
+                # Get segment
+                if actual_index < len(self.current_project.segments):
+                    current_segment = self.current_project.segments[actual_index]
+                    current_segment_id = f"Segment {current_segment.id}"
+        
+        # Fallback to first segment if none selected
+        if not current_segment:
+            if len(self.current_project.segments) > 0:
+                current_segment = self.current_project.segments[0]
+                current_segment_id = f"Example: Segment {current_segment.id}"
+                QMessageBox.information(
+                    self,
+                    "No Segment Selected",
+                    "No segment is currently selected. Using the first segment as an example.\n\n"
+                    "To preview with a specific segment, please select a row in the grid first."
+                )
+            else:
+                QMessageBox.warning(
+                    self,
+                    "No Segments",
+                    "This project has no segments to preview."
+                )
+                return
+        
+        # Get languages
+        source_lang = getattr(self.current_project, 'source_lang', 'Source Language')
+        target_lang = getattr(self.current_project, 'target_lang', 'Target Language')
+        
+        # Get source text
+        source_text = current_segment.source
+        
+        # Build combined prompt
+        combined = self.prompt_manager_qt.build_final_prompt(source_text, source_lang, target_lang)
+        
+        # Check for figure/image context
+        figure_info = ""
+        figure_images = []
+        if hasattr(self, 'figure_context') and self.figure_context:
+            if self.figure_context.has_images():
+                # Detect figure references in current segment
+                figure_refs = self.figure_context.detect_figure_references(source_text)
+                if figure_refs:
+                    figure_images = self.figure_context.get_images_for_text(source_text)
+                    if figure_images:
+                        image_names = [ref for ref, _ in figure_images]
+                        figure_info = f"🖼️ {len(figure_images)} image(s) will be sent with this prompt: {', '.join(f'Figure {ref}' for ref in image_names)}"
+                    else:
+                        figure_info = f"⚠️ Figure references detected ({', '.join(figure_refs)}) but images not found in loaded context"
+                else:
+                    total_images = len(self.figure_context.figure_context_map)
+                    figure_info = f"ℹ️ {total_images} image(s) loaded but no figure references detected in this segment"
+        
+        # Build composition info
+        composition_parts = []
+        composition_parts.append(f"📍 {current_segment_id}")
+        composition_parts.append(f"🌐 {source_lang} → {target_lang}")
+        composition_parts.append(f"📏 Total prompt: {len(combined):,} characters")
+        
+        if self.prompt_manager_qt.library.active_primary_prompt:
+            composition_parts.append(f"✓ Primary prompt attached")
+        
+        if self.prompt_manager_qt.library.attached_prompts:
+            composition_parts.append(f"✓ {len(self.prompt_manager_qt.library.attached_prompts)} additional prompt(s) attached")
+        
+        if figure_info:
+            composition_parts.append(figure_info)
+        
+        composition_text = "\n".join(composition_parts)
+        
+        # Create dialog
+        dialog = QDialog(self)
+        dialog.setWindowTitle("🧪 Combined Prompt Preview")
+        dialog.resize(900, 700)
+        
+        layout = QVBoxLayout(dialog)
+        
+        # Info label
+        info_label = QLabel(
+            "<b>Complete Assembled Prompt</b><br>"
+            "This is what will be sent to the AI (System Template + Custom Prompts + segment text)<br><br>" +
+            composition_text.replace("\n", "<br>")
+        )
+        info_label.setTextFormat(Qt.TextFormat.RichText)
+        info_label.setWordWrap(True)
+        info_label.setStyleSheet("padding: 10px; background-color: #e3f2fd; border-radius: 4px; margin-bottom: 10px;")
+        layout.addWidget(info_label)
+        
+        # Additional image context notice if images are being sent
+        if figure_images:
+            image_notice = QLabel(
+                f"📸 <b>Visual Context:</b> {len(figure_images)} image(s) will be sent alongside this text prompt as binary data<br>"
+                f"<small>Images: {', '.join(f'Figure {ref}' for ref, _ in figure_images)}</small>"
+            )
+            image_notice.setTextFormat(Qt.TextFormat.RichText)
+            image_notice.setWordWrap(True)
+            image_notice.setStyleSheet("padding: 10px; background-color: #fff3cd; border-radius: 4px; margin-bottom: 10px; border-left: 4px solid #ff9800;")
+            layout.addWidget(image_notice)
+        
+        # Text editor for preview
+        text_edit = QTextEdit()
+        text_edit.setPlainText(combined)
+        text_edit.setReadOnly(True)
+        text_edit.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)
+        text_edit.setStyleSheet("font-family: 'Consolas', 'Courier New', monospace; font-size: 9pt;")
+        layout.addWidget(text_edit, 1)
+        
+        # Close button
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+        close_btn = QPushButton("Close")
+        close_btn.clicked.connect(dialog.accept)
+        close_btn.setStyleSheet("padding: 8px 20px; font-weight: bold;")
+        button_layout.addWidget(close_btn)
+        layout.addLayout(button_layout)
+        
+        dialog.exec()
 
     
     def show_grid_context_menu(self, position):
@@ -16165,13 +16730,29 @@ class SupervertalerQt(QMainWindow):
 
             if reply == QMessageBox.StandardButton.Save:
                 self.save_project()
+                self._close_detached_log_windows()
                 event.accept()
             elif reply == QMessageBox.StandardButton.Discard:
+                self._close_detached_log_windows()
                 event.accept()
             else:
                 event.ignore()
         else:
+            self._close_detached_log_windows()
             event.accept()
+    
+    def _close_detached_log_windows(self):
+        """Close all detached log windows when main window closes"""
+        try:
+            if hasattr(self, 'detached_log_windows'):
+                for log_window in list(self.detached_log_windows):
+                    try:
+                        log_window.close()
+                    except:
+                        pass
+                self.detached_log_windows.clear()
+        except:
+            pass
 
     def _get_whisper_cache_path(self):
         """Get the Whisper model cache directory path"""
@@ -16350,11 +16931,12 @@ class SupervertalerQt(QMainWindow):
             
             # Check for figure references and prepare images if available
             images = None
-            if self.figure_context and self.figure_context.images:
+            if self.figure_context and self.figure_context.has_images():
                 try:
                     # Detect figure references in source text
                     figure_refs = self.figure_context.detect_figure_references(segment.source)
                     if figure_refs:
+                        self.log(f"  🖼️ Detected figure references in segment #{segment.id}: {', '.join(figure_refs)}")
                         # Get images for detected figures
                         images_for_text = self.figure_context.get_images_for_text(segment.source)
                         if images_for_text:
@@ -16370,11 +16952,13 @@ class SupervertalerQt(QMainWindow):
                                         (ref, self.figure_context.pil_image_to_base64_png(img))
                                         for ref, img in images_for_text
                                     ]
-                                self.log(f"  Including {len(images)} figure images: {', '.join(figure_refs)}")
+                                self.log(f"  ✅ Including {len(images)} figure images: {', '.join(figure_refs)}")
                             else:
-                                self.log(f"⚠ Figures detected ({', '.join(figure_refs)}) but model {model} doesn't support vision")
+                                self.log(f"  ⚠️ Figures detected ({', '.join(figure_refs)}) but model '{model}' doesn't support vision")
+                        else:
+                            self.log(f"  ⚠️ Figure references detected but no matching images found in loaded folder")
                 except Exception as e:
-                    self.log(f"⚠ Could not load figures: {e}")
+                    self.log(f"  ⚠️ Could not load figures: {e}")
             
             # Translate using the module
             translation = client.translate(
@@ -16859,15 +17443,20 @@ class SupervertalerQt(QMainWindow):
 
                     # Check for figure references across all segments in batch
                     batch_images = None
-                    if self.figure_context and self.figure_context.images:
+                    if self.figure_context and self.figure_context.has_images():
                         try:
+                            self.log(f"  🖼️ Scanning batch for figure references...")
                             # Collect all unique figure references from batch
                             all_figure_refs = set()
+                            segments_with_figures = []
                             for row_index, seg in batch_segments:
                                 refs = self.figure_context.detect_figure_references(seg.source)
-                                all_figure_refs.update(refs)
+                                if refs:
+                                    all_figure_refs.update(refs)
+                                    segments_with_figures.append(f"#{seg.id}")
                             
                             if all_figure_refs:
+                                self.log(f"  📌 Detected figure references {sorted(all_figure_refs)} in segments: {', '.join(segments_with_figures[:5])}{'...' if len(segments_with_figures) > 5 else ''}")
                                 # Get images for all detected figures
                                 batch_text = "\n".join([seg.source for _, seg in batch_segments])
                                 images_for_batch = self.figure_context.get_images_for_text(batch_text)
@@ -16883,11 +17472,15 @@ class SupervertalerQt(QMainWindow):
                                                 (ref, self.figure_context.pil_image_to_base64_png(img))
                                                 for ref, img in images_for_batch
                                             ]
-                                        self.log(f"  Including {len(batch_images)} figure images: {', '.join(sorted(all_figure_refs))}")
+                                        self.log(f"  ✅ Including {len(batch_images)} figure images with batch: {', '.join(sorted(all_figure_refs))}")
                                     else:
-                                        self.log(f"⚠ Figures detected ({', '.join(sorted(all_figure_refs))}) but model {model} doesn't support vision")
+                                        self.log(f"  ⚠️ Figures detected ({', '.join(sorted(all_figure_refs))}) but model '{model}' doesn't support vision")
+                                else:
+                                    self.log(f"  ⚠️ Figure references detected but no matching images found in loaded folder")
+                            else:
+                                self.log(f"  ℹ️ No figure references detected in this batch")
                         except Exception as e:
-                            self.log(f"⚠ Could not load batch figures: {e}")
+                            self.log(f"  ⚠️ Could not load batch figures: {e}")
 
                     first_segment_text = batch_segments[0][1].source if batch_segments else ""
                     batch_response = client.translate(

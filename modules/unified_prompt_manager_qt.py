@@ -1284,6 +1284,7 @@ class UnifiedPromptManagerQt:
         btn_layout = QHBoxLayout()
         
         btn_preview = QPushButton("Preview Combined")
+        btn_preview.setToolTip("Preview the complete assembled prompt that will be sent to the AI\n(System Template + Project Instructions + Custom Prompts + your text)")
         btn_preview.clicked.connect(self._preview_combined_prompt)
         btn_layout.addWidget(btn_preview)
         
@@ -1762,15 +1763,106 @@ class UnifiedPromptManagerQt:
         self.log_message("✓ Library refreshed")
     
     def _preview_combined_prompt(self):
-        """Preview the combined prompt"""
-        combined = self.build_final_prompt("{{SOURCE_TEXT}}", "Source Lang", "Target Lang")
+        """Preview the combined prompt with actual segment text"""
+        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QTextEdit, QPushButton, QHBoxLayout, QMessageBox
         
-        # Show in dialog
-        dialog = QMessageBox(self.main_widget)
-        dialog.setWindowTitle("Combined Prompt Preview")
-        dialog.setText("This is how prompts will be combined:")
-        dialog.setDetailedText(combined)
-        dialog.setIcon(QMessageBox.Icon.Information)
+        # Get current segment from the app
+        current_segment = None
+        current_segment_id = "Preview"
+        source_lang = "Source Language"
+        target_lang = "Target Language"
+        
+        # Try to get segment from main app
+        if hasattr(self, 'app') and self.app:
+            # Get languages if project loaded
+            if hasattr(self.app, 'current_project') and self.app.current_project:
+                source_lang = getattr(self.app.current_project, 'source_lang', 'Source Language')
+                target_lang = getattr(self.app.current_project, 'target_lang', 'Target Language')
+                
+                # Try to get selected segment
+                if hasattr(self.app, 'table') and self.app.table:
+                    current_row = self.app.table.currentRow()
+                    if current_row >= 0:
+                        # Map display row to actual segment index
+                        actual_index = current_row
+                        if hasattr(self.app, 'grid_row_to_segment_index') and self.app.grid_row_to_segment_index:
+                            if current_row in self.app.grid_row_to_segment_index:
+                                actual_index = self.app.grid_row_to_segment_index[current_row]
+                        
+                        # Get segment
+                        if actual_index < len(self.app.current_project.segments):
+                            current_segment = self.app.current_project.segments[actual_index]
+                            current_segment_id = f"Segment {current_segment.id}"
+                
+                # Fallback to first segment if none selected
+                if not current_segment and len(self.app.current_project.segments) > 0:
+                    current_segment = self.app.current_project.segments[0]
+                    current_segment_id = f"Example: Segment {current_segment.id}"
+        
+        # Get source text
+        if current_segment:
+            source_text = current_segment.source
+        else:
+            source_text = "{{SOURCE_TEXT}}"
+            QMessageBox.information(
+                self.main_widget,
+                "No Segment Selected",
+                "No segment is currently selected. Showing template with placeholder text.\n\n"
+                "To see the actual prompt with your text, please select a segment first."
+            )
+        
+        # Build combined prompt
+        combined = self.build_final_prompt(source_text, source_lang, target_lang)
+        
+        # Build composition info
+        composition_parts = []
+        composition_parts.append(f"📍 Segment: {current_segment_id}")
+        composition_parts.append(f"🌐 Languages: {source_lang} → {target_lang}")
+        composition_parts.append(f"📏 Total prompt length: {len(combined):,} characters")
+        
+        if self.library.active_primary_prompt:
+            composition_parts.append(f"✓ Primary prompt attached")
+        
+        if self.library.attached_prompts:
+            composition_parts.append(f"✓ {len(self.library.attached_prompts)} additional prompt(s) attached")
+        
+        composition_text = "\n".join(composition_parts)
+        
+        # Create custom dialog with proper text editor
+        dialog = QDialog(self.main_widget)
+        dialog.setWindowTitle("🧪 Combined Prompt Preview")
+        dialog.resize(900, 700)  # Larger default size
+        
+        layout = QVBoxLayout(dialog)
+        
+        # Info label
+        info_label = QLabel(
+            "<b>Complete Assembled Prompt</b><br>"
+            "This is what will be sent to the AI (System Template + Custom Prompts + your text)<br><br>" +
+            composition_text.replace("\n", "<br>")
+        )
+        info_label.setTextFormat(Qt.TextFormat.RichText)
+        info_label.setWordWrap(True)
+        info_label.setStyleSheet("padding: 10px; background-color: #e3f2fd; border-radius: 4px; margin-bottom: 10px;")
+        layout.addWidget(info_label)
+        
+        # Text editor for preview
+        text_edit = QTextEdit()
+        text_edit.setPlainText(combined)
+        text_edit.setReadOnly(True)
+        text_edit.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)
+        text_edit.setStyleSheet("font-family: 'Consolas', 'Courier New', monospace; font-size: 9pt;")
+        layout.addWidget(text_edit, 1)  # Stretch factor 1
+        
+        # Close button
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+        close_btn = QPushButton("Close")
+        close_btn.clicked.connect(dialog.accept)
+        close_btn.setStyleSheet("padding: 8px 20px; font-weight: bold;")
+        button_layout.addWidget(close_btn)
+        layout.addLayout(button_layout)
+        
         dialog.exec()
     
     def _view_current_system_template(self):

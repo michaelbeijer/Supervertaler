@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.7.2 (November 19, 2025)  
+**Current Version:** v1.7.3 (November 20, 2025)  
 **Framework:** PyQt6  
 **Status:** Active Development
 
@@ -14,6 +14,7 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- 🧪 **Prompt Preview & System Template Editor (v1.7.3)** - Preview combined prompts with figure context detection and improved system template editor with better layout
 - 🔧 **Termbase Critical Fixes (v1.7.2)** - Fixed term deduplication and termbase selection issues
 - 🎨 **Termbase UI Polish (v1.7.1)** - Improved visual consistency with pink highlighting for project termbases and real-time term count updates
 - 📚 **Project Termbases (v1.7.0)** - Dedicated project-specific terminology with automatic extraction and pink highlighting
@@ -35,6 +36,47 @@ All notable changes to Supervertaler are documented in this file.
 - 🔄 **CAT Tool Integration** - memoQ, Trados, CafeTran bilingual table support
 
 **See full version history below** ↓
+
+---
+
+## [1.7.3] - November 20, 2025
+
+### 🧪 Prompt Preview & System Template Improvements
+
+**New Features:**
+
+**Added:**
+- ✅ **Preview Combined Prompts Button** - New "🧪 Preview Prompts" button in Project Editor segment action bar
+  - Shows complete assembled prompt that will be sent to AI
+  - Displays System Template + Custom Prompts + current segment text
+  - Real-time composition info (segment ID, languages, character count, attached prompts)
+  - Visual context indicator showing which images will be sent alongside text
+  - Clear tooltip explaining functionality
+
+**Enhanced:**
+- ✅ **System Template Editor** - Improved layout and usability in Settings → System Prompts
+  - Increased text editor height from 400px to 500px
+  - Added stretch factors for proper expansion to fill available space
+  - Enabled word wrap at widget width for easier reading
+  - Set plain text mode to prevent formatting issues
+  
+- ✅ **Figure Context Detection** - Fixed regex pattern for accurate figure reference detection
+  - Now correctly matches "Figuur 3" → "3" instead of "3toont"
+  - Properly handles subfigures (e.g., Figure 1A, 2B)
+  - Requires space between "figuur/figure/fig" and number
+
+**Improved:**
+- ✅ **Image Context Preview** - Preview dialog now shows detailed image information
+  - 🖼️ Displays which images will be sent with prompt (e.g., "Figure 3")
+  - ⚠️ Warns if references detected but images not found
+  - ℹ️ Shows info when images loaded but not referenced in segment
+  - Yellow banner highlights when images are being sent as binary data
+
+**Technical:**
+- Updated `UnifiedPromptManagerQt._preview_combined_prompt()` to access actual segment data
+- Added `_preview_combined_prompt_from_grid()` method in main app
+- Fixed attribute reference from `self.unified_prompt_manager` to `self.prompt_manager_qt`
+- Improved figure reference regex from `[\w\d]+(?:[\s\.\-]*[\w\d]+)?` to `\d+[a-zA-Z]?`
 
 ---
 

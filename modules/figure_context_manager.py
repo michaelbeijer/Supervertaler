@@ -58,7 +58,8 @@ class FigureContextManager:
             return []
         
         # Pattern matches: figure/figuur/fig + optional period + space + identifier
-        pattern = r"(?:figure|figuur|fig\.?)\s*([\w\d]+(?:[\s\.\-]*[\w\d]+)?)"
+        # Match: digit(s) optionally followed by letter(s) (e.g., 1, 2A, 3b, 10C)
+        pattern = r"(?:figure|figuur|fig\.?)\s+(\d+[a-zA-Z]?)"
         matches = re.findall(pattern, text, re.IGNORECASE)
         
         normalized_refs = []
