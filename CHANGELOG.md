@@ -2,8 +2,8 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.7.4 (November 20, 2025)  
-**Framework:** PyQt6  
+**Current Version:** v1.7.5 (November 20, 2025)
+**Framework:** PyQt6
 **Status:** Active Development
 
 **Note:** For historical information about legacy versions (Tkinter Edition, Classic Edition), see [legacy_versions/LEGACY_VERSIONS.md](legacy_versions/LEGACY_VERSIONS.md).
@@ -14,6 +14,7 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- 🐛 **Critical TM Save Bug Fix (v1.7.5)** - Fixed massive unnecessary database writes during grid operations that caused 10+ second freezes
 - 💾 **Project Persistence (v1.7.4)** - Projects now remember your primary prompt and image context folder
 - 🧪 **Prompt Preview & System Template Editor (v1.7.3)** - Preview combined prompts with figure context detection and improved system template editor with better layout
 - 🔧 **Termbase Critical Fixes (v1.7.2)** - Fixed term deduplication and termbase selection issues
@@ -37,6 +38,36 @@ All notable changes to Supervertaler are documented in this file.
 - 🔄 **CAT Tool Integration** - memoQ, Trados, CafeTran bilingual table support
 
 **See full version history below** ↓
+
+---
+
+## [1.7.5] - November 20, 2025
+
+### 🐛 Critical Bug Fix - Translation Memory Save Flood
+
+**Fixed:**
+
+- ✅ **TM Save Flood During Grid Operations** - CRITICAL FIX
+  - **Issue:** Every time `load_segments_to_grid()` was called (startup, filtering, clear filters), all segments with status "translated"/"confirmed"/"approved" would trigger false TM database saves 1-2 seconds after grid load
+  - **Symptoms:**
+    - 10+ second UI freeze on projects with 200+ segments
+    - Massive unnecessary database writes (219 saves on a 219-segment project)
+    - Made filtering operations completely unusable
+    - Could potentially corrupt data or cause performance issues on large projects
+  - **Root Cause:** Qt internally queues document change events when `setPlainText()` is called on QTextEdit widgets, even when signals are blocked. When `blockSignals(False)` was called after grid loading, Qt delivered all these queued events, triggering `textChanged` for every segment. By that time, the suppression flag had already been restored, so the suppression check failed.
+  - **Solution:**
+    - Added `_initial_load_complete` flag to `EditableGridTextEditor` class
+    - Signal handler now ignores the first spurious `textChanged` event after widget creation
+    - All subsequent real user edits are processed normally
+    - Clean, minimal fix that doesn't interfere with Qt's event system
+  - **Testing:** Verified on BRANTS project (219 segments) - zero false TM saves during startup, filtering, and filter clearing
+  - **Files Modified:** Supervertaler.py (lines 835, 11647-11651)
+
+**Impact:**
+- **Performance:** Grid loading is now instant with no post-load freeze
+- **Database:** Eliminates 200+ unnecessary database writes per grid operation
+- **User Experience:** Filtering and grid operations are now fast and responsive
+- **Data Integrity:** Prevents potential database corruption from excessive writes
 
 ---
 

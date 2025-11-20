@@ -1,12 +1,85 @@
 # Supervertaler Project Context
 
-**Last Updated:** November 12, 2025
+**Last Updated:** November 20, 2025
 **Repository:** https://github.com/michaelbeijer/Supervertaler
 **Maintainer:** Michael Beijer
 
 ---
 
 ## 📅 Recent Development Activity
+
+### November 20, 2025 - Version 1.7.5 Release: Critical TM Save Bug Fix
+
+**🐛 Version 1.7.5 Released - Critical Bug Fix for Translation Memory Saves**
+
+Today we released version 1.7.5, which fixes a critical bug that was causing massive unnecessary database writes during grid operations. This bug made filtering and grid operations unusable on large projects.
+
+**✅ Critical Bug Fix:**
+
+**TM Save Flood During Grid Loading (CRITICAL):**
+- **Issue:** Every time `load_segments_to_grid()` was called (startup, filtering, clear filters), all segments with status "translated"/"confirmed"/"approved" would trigger false TM database saves 1-2 seconds after grid load completed
+- **Symptoms:**
+  - 10+ second UI freeze on projects with 200+ segments
+  - Massive unnecessary database writes (219 saves on a 219-segment project)
+  - Made filtering operations unusable
+  - Could potentially corrupt data or cause performance issues
+- **Root Cause:** Qt internally queues document change events when `setPlainText()` is called on QTextEdit widgets, even when signals are blocked. When `blockSignals(False)` was called in the finally block after grid loading, Qt delivered all these queued events, triggering `textChanged` for every segment. By that time, the suppression flag `_suppress_target_change_handlers` had already been restored to `False`, so the suppression check failed.
+- **Technical Details:**
+  1. Signals were blocked during `setPlainText()` in `EditableGridTextEditor.__init__()`
+  2. Signals remained blocked through widget placement and signal handler connection
+  3. Signals were unblocked in the finally block after grid loading
+  4. Qt's internal event queue had pending `textChanged` events from the initial `setPlainText()` calls
+  5. When `blockSignals(False)` was called, Qt delivered all queued events
+  6. Each event triggered a 1000ms debounce timer that then saved to TM database
+- **Fix:**
+  - Added `_initial_load_complete` flag to `EditableGridTextEditor` class
+  - Flag is set to `False` during widget construction
+  - Signal handler checks this flag and ignores the first spurious `textChanged` event
+  - After consuming the first queued event, flag is set to `True` and all subsequent real user edits are processed normally
+  - Clean, surgical fix that doesn't interfere with Qt's event system
+- **Files Modified:**
+  - [Supervertaler.py](../Supervertaler.py) (lines 835, 11647-11651)
+- **Testing:** Verified on BRANTS project (219 segments) - zero false TM saves during startup, filtering, and filter clearing
+
+**📊 Impact:**
+- **Performance:** Grid loading is now instant with no post-load freeze
+- **Database:** Eliminates 200+ unnecessary database writes per grid operation
+- **User Experience:** Filtering and grid operations are now fast and responsive
+- **Data Integrity:** Prevents potential database corruption from excessive writes
+
+**🔧 Implementation Details:**
+
+The fix uses a per-widget state tracking approach:
+```python
+class EditableGridTextEditor(QTextEdit):
+    def __init__(self, text: str = "", parent=None, row: int = -1, table=None):
+        # Track initial load state to ignore spurious textChanged events
+        self._initial_load_complete = False
+        self.blockSignals(True)
+        self.setPlainText(text)
+        # Signals stay blocked until after handler connection
+```
+
+In the signal handler:
+```python
+def on_target_text_changed():
+    # Ignore spurious textChanged event from Qt's queued document changes
+    if not editor_widget._initial_load_complete:
+        editor_widget._initial_load_complete = True
+        return  # Ignore first event after signal unblock
+
+    # Process all subsequent real user edits normally
+    # ...
+```
+
+This solution was chosen because:
+- ✅ Minimal code changes
+- ✅ Per-widget state tracking is clean and maintainable
+- ✅ Doesn't interfere with Qt's event system or signal blocking
+- ✅ Allows one spurious event to be consumed per widget, then normal operation
+- ✅ No changes to existing suppression flag logic
+
+---
 
 ### November 12, 2025 - Version 1.4.1 Release: Superbench - Adaptive Project Benchmarking
 

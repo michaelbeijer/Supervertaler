@@ -3,8 +3,8 @@ Supervertaler Qt Edition
 ========================
 The ultimate companion tool for translators and writers.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.7.1 (Termbase UI Polish)
-Release Date: November 19, 2025
+Version: 1.7.5 (Critical TM Save Bug Fix)
+Release Date: November 20, 2025
 Framework: PyQt6
 
 This is the modern edition of Supervertaler using PyQt6 framework.
@@ -32,7 +32,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.7.4"
+__version__ = "1.7.5"
 __phase__ = "8.7"
 __release_date__ = "2025-11-20"
 __edition__ = "Qt"
@@ -827,7 +827,20 @@ class EditableGridTextEditor(QTextEdit):
         self.row = row  # Store row number for auto-selection
         self.table = table  # Store table reference
         self.setReadOnly(False)
+
+        # CRITICAL: Track initial load state to ignore spurious textChanged events
+        # Qt queues document change events during setPlainText() even with blockSignals(True).
+        # When signals are unblocked later, Qt delivers these queued events, causing false
+        # textChanged signals. This flag allows us to ignore the first event after unblocking.
+        self._initial_load_complete = False
+
+        # CRITICAL: Block ALL signals during initialization to prevent textChanged from firing
+        # when setText is called. Signals will be unblocked AFTER signal handler is connected
+        # in load_segments_to_grid. This prevents ANY textChanged events during grid loading.
+        self.blockSignals(True)
         self.setPlainText(text)
+        # DO NOT unblock signals here - they will be unblocked after handler connection
+        
         self.setWordWrapMode(QTextOption.WrapMode.WordWrap)
         self.setAcceptRichText(False)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
@@ -11623,10 +11636,19 @@ class SupervertalerQt(QMainWindow):
                     def on_target_text_changed():
                         nonlocal debounce_timer
                         new_text = editor_widget.toPlainText()
-                        
+
                         # DEBUG: Log EVERY call to catch the culprit (only in debug mode)
                         if self.debug_mode_enabled:
                             self.log(f"🔔 textChanged FIRED: segment_id={segment_id}, new_text='{new_text[:20] if new_text else 'EMPTY'}...'")
+
+                        # CRITICAL: Ignore spurious textChanged event from Qt's queued document changes
+                        # When signals are unblocked after setPlainText(), Qt delivers queued events
+                        # This flag prevents false TM saves during grid load/filter/refresh operations
+                        if not editor_widget._initial_load_complete:
+                            editor_widget._initial_load_complete = True
+                            if self.debug_mode_enabled:
+                                self.log(f"🔔 textChanged IGNORED (initial load) for segment {segment_id}")
+                            return
 
                         if self._suppress_target_change_handlers:
                             if self.debug_mode_enabled:
@@ -11667,15 +11689,19 @@ class SupervertalerQt(QMainWindow):
                             
                     return on_target_text_changed
                 
-                target_editor.textChanged.connect(make_target_changed_handler(segment.id, target_editor))
-                
-                # Set as cell widget
+                # Set as cell widget FIRST (before connecting signals)
                 self.table.setCellWidget(row, 3, target_editor)
                 
                 # Also set a placeholder item for row height calculation
                 target_item = QTableWidgetItem()
                 target_item.setFlags(Qt.ItemFlag.NoItemFlags)  # No interaction
                 self.table.setItem(row, 3, target_item)
+                
+                # CRITICAL: Connect textChanged AFTER widget is in table and setText is done
+                # This prevents programmatic setText from triggering TM saves during grid reload
+                target_editor.textChanged.connect(make_target_changed_handler(segment.id, target_editor))
+                
+                # DO NOT unblock signals here - they stay blocked until end of load_segments_to_grid
 
                 # Pre-populate status cell item so gridlines render before widget assignment
                 status_placeholder = QTableWidgetItem()
@@ -11702,6 +11728,13 @@ class SupervertalerQt(QMainWindow):
                 self.refresh_document_view()
         finally:
             self._suppress_target_change_handlers = previous_suppression
+            
+            # NOW unblock all target editor signals - grid loading is complete
+            # This MUST happen after suppression flag is restored to avoid race conditions
+            for row in range(self.table.rowCount()):
+                target_widget = self.table.cellWidget(row, 3)
+                if target_widget:
+                    target_widget.blockSignals(False)
 
     def _create_status_cell_widget(self, segment: Segment) -> QWidget:
         widget = QWidget()
@@ -12727,7 +12760,8 @@ class SupervertalerQt(QMainWindow):
                     current_id_item.setForeground(QColor("white"))    # White text for contrast
                 
                 # Auto-center active segment if enabled (like memoQ/Trados)
-                if getattr(self, 'auto_center_active_segment', False):
+                # BUT: Disable during filtering to prevent jarring jumps
+                if getattr(self, 'auto_center_active_segment', False) and not getattr(self, 'filtering_active', False):
                     self.table.scrollToItem(current_id_item, QTableWidget.ScrollHint.PositionAtCenter)
             
             if not self.current_project or current_row < 0:
@@ -15031,6 +15065,9 @@ class SupervertalerQt(QMainWindow):
             self.clear_filters()
             return
         
+        # Set flag to disable auto-center scrolling during filtering
+        self.filtering_active = True
+        
         # Clear previous highlights by reloading
         self.load_segments_to_grid()
         
@@ -15077,6 +15114,24 @@ class SupervertalerQt(QMainWindow):
         if not has_source and not has_target:
             return
 
+        # Remember which segment was selected before clearing
+        selected_segment_id = None
+        if self.current_project and hasattr(self, 'table') and self.table is not None:
+            current_row = self.table.currentRow()
+            self.log(f"🔍 Clear filters: current_row from table = {current_row}")
+            
+            if current_row >= 0:
+                # Get segment ID directly from the ID cell (column 0)
+                id_item = self.table.item(current_row, 0)
+                if id_item:
+                    try:
+                        selected_segment_id = int(id_item.text())
+                        self.log(f"🔍 Captured segment ID {selected_segment_id} from row {current_row} (cell text: {id_item.text()})")
+                    except (ValueError, AttributeError) as e:
+                        self.log(f"⚠️ Could not parse segment ID from cell: {e}")
+                else:
+                    self.log(f"⚠️ No ID item found at row {current_row}")
+
         if has_source:
             source_widget.blockSignals(True)
             source_widget.clear()
@@ -15098,6 +15153,25 @@ class SupervertalerQt(QMainWindow):
                 return
                 
             self.load_segments_to_grid()
+            
+            # Clear filtering flag to re-enable auto-center
+            self.filtering_active = False
+            
+            # Restore selection to the previously selected segment
+            if selected_segment_id is not None:
+                for row, segment in enumerate(self.current_project.segments):
+                    if segment.id == selected_segment_id:
+                        self.table.setCurrentCell(row, self.table.currentColumn())
+                        # Force immediate scroll using QTimer to ensure layout is complete
+                        from PyQt6.QtCore import QTimer
+                        QTimer.singleShot(0, lambda r=row: self.table.scrollToItem(
+                            self.table.item(r, 0), 
+                            QTableWidget.ScrollHint.PositionAtCenter
+                        ))
+                        self.log(f"✓ Restored selection to segment {selected_segment_id} at row {row}")
+                        break
+                else:
+                    self.log(f"⚠️ Could not find segment {selected_segment_id} in segments list")
             
             # Explicitly show all rows (unhide them)
             for row in range(self.table.rowCount()):
