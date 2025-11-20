@@ -8,6 +8,50 @@
 
 ## 📅 Recent Development Activity
 
+### November 20, 2025 - Version 1.7.6 Release: Auto Backup System
+
+**💾 Version 1.7.6 Released - Automatic Backup System**
+
+Today we released version 1.7.6, which introduces a comprehensive automatic backup system to prevent data loss during translation work. The system automatically saves both the project.json file and exports a TMX backup at regular intervals.
+
+**✨ New Features:**
+
+**Auto Backup System:**
+- **Settings UI:** Added "Auto Backup Settings" section to Settings → General tab
+  - Enable/disable automatic backups checkbox (enabled by default)
+  - Configurable backup interval (1-60 minutes, default: 5 minutes)
+  - Clear descriptions explaining both project.json and TMX are saved
+- **Implementation:**
+  - QTimer-based system that runs in the background during translation
+  - Automatically saves project.json to the current project file location
+  - Exports TMX file named `{project_name}_backup.tmx` in the same folder as project.json
+  - Includes all segments (even empty translations) for maximum data recovery capability
+  - Non-intrusive: backups run silently without interrupting user workflow
+- **Settings Persistence:**
+  - Backup preferences saved to `ui_preferences.json`
+  - Timer automatically restarts when settings are changed
+  - Settings persist across application sessions
+- **Files Modified:**
+  - [Supervertaler.py:7155-7198](../Supervertaler.py#L7155-L7198) - Settings UI
+  - [Supervertaler.py:8220-8221](../Supervertaler.py#L8220-L8221) - Settings persistence
+  - [Supervertaler.py:2408-2411](../Supervertaler.py#L2408-L2411) - Timer initialization
+  - [Supervertaler.py:10609-10689](../Supervertaler.py#L10609-L10689) - Backup methods
+- **User Benefits:**
+  - Prevents data loss during translation work
+  - TMX backup ensures recovery even if project.json gets corrupted
+  - TMX can be imported into any CAT tool (memoQ, Trados, etc.) for maximum compatibility
+  - Configurable intervals allow users to balance backup frequency with performance
+
+**📊 Technical Details:**
+- Timer runs at configurable interval (converted from minutes to milliseconds)
+- Backup only runs when a project is open and has a file path
+- Uses existing `save_project_to_file()` method for project.json
+- Uses existing `TMXGenerator` module for TMX export
+- Logs backup completion with timestamp for debugging
+- Gracefully handles errors without interrupting user workflow
+
+---
+
 ### November 20, 2025 - Version 1.7.5 Release: Critical TM Save Bug Fix
 
 **🐛 Version 1.7.5 Released - Critical Bug Fix for Translation Memory Saves**

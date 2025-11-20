@@ -3,7 +3,7 @@ Supervertaler Qt Edition
 ========================
 The ultimate companion tool for translators and writers.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.7.5 (Critical TM Save Bug Fix)
+Version: 1.7.6 (Auto Backup System)
 Release Date: November 20, 2025
 Framework: PyQt6
 
@@ -32,7 +32,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.7.5"
+__version__ = "1.7.6"
 __phase__ = "8.7"
 __release_date__ = "2025-11-20"
 __edition__ = "Qt"
@@ -2404,7 +2404,12 @@ class SupervertalerQt(QMainWindow):
             # Use QTimer to open log window after UI fully initializes
             from PyQt6.QtCore import QTimer
             QTimer.singleShot(500, self.detach_log_window)  # 500ms delay to ensure UI is ready
-        
+
+        # Initialize auto backup timer
+        self.auto_backup_timer = None
+        self.last_backup_time = None
+        self.restart_auto_backup_timer()
+
         # Load font sizes from preferences (after UI is fully initialized)
         QApplication.instance().processEvents()  # Allow UI to finish initializing
         self.load_font_sizes_from_preferences()
@@ -7151,7 +7156,52 @@ class SupervertalerQt(QMainWindow):
         
         startup_group.setLayout(startup_layout)
         layout.addWidget(startup_group)
-        
+
+        # Auto Backup Settings group
+        backup_group = QGroupBox("💾 Auto Backup Settings")
+        backup_layout = QVBoxLayout()
+
+        backup_info = QLabel(
+            "Supervertaler can automatically back up your project at regular intervals\n"
+            "to prevent data loss. Both a project.json and TMX file will be saved."
+        )
+        backup_info.setWordWrap(True)
+        backup_info.setStyleSheet("color: #666; font-size: 9pt; padding: 5px;")
+        backup_layout.addWidget(backup_info)
+
+        # Enable auto backup checkbox
+        enable_backup_cb = QCheckBox("Enable automatic backups")
+        enable_backup_cb.setChecked(general_settings.get('enable_auto_backup', True))
+        enable_backup_cb.setToolTip(
+            "When enabled, Supervertaler will automatically save your project and export\n"
+            "a TMX file at the configured interval. This helps prevent data loss."
+        )
+        backup_layout.addWidget(enable_backup_cb)
+
+        # Backup interval spinner
+        interval_layout = QHBoxLayout()
+        interval_label = QLabel("Backup interval:")
+        interval_layout.addWidget(interval_label)
+
+        backup_interval_spin = QSpinBox()
+        backup_interval_spin.setRange(1, 60)
+        backup_interval_spin.setValue(general_settings.get('backup_interval_minutes', 5))
+        backup_interval_spin.setSuffix(" minutes")
+        backup_interval_spin.setToolTip(
+            "Set how often Supervertaler should automatically save your project.\n"
+            "Default: 5 minutes. Range: 1-60 minutes."
+        )
+        interval_layout.addWidget(backup_interval_spin)
+        interval_layout.addStretch()
+        backup_layout.addLayout(interval_layout)
+
+        backup_group.setLayout(backup_layout)
+        layout.addWidget(backup_group)
+
+        # Store references for saving
+        self.enable_backup_cb = enable_backup_cb
+        self.backup_interval_spin = backup_interval_spin
+
         # Translation memory and termbase settings section
         tm_termbase_group = QGroupBox("Translation memory and termbase settings")
         tm_termbase_layout = QVBoxLayout()
@@ -7420,7 +7470,8 @@ class SupervertalerQt(QMainWindow):
         save_btn.clicked.connect(lambda: self._save_general_settings_from_ui(
             restore_last_project_cb, allow_replace_cb, auto_propagate_cb, auto_markdown_cb,
             llm_spin, mt_spin, tm_limit_spin, tb_spin,
-            auto_open_log_cb, auto_insert_100_cb, tm_save_mode_combo, tb_highlight_cb
+            auto_open_log_cb, auto_insert_100_cb, tm_save_mode_combo, tb_highlight_cb,
+            enable_backup_cb, backup_interval_spin
         ))
         layout.addWidget(save_btn)
         
@@ -8135,7 +8186,8 @@ class SupervertalerQt(QMainWindow):
     
     def _save_general_settings_from_ui(self, restore_cb, allow_replace_cb, auto_propagate_cb, auto_markdown_cb=None,
                                        llm_spin=None, mt_spin=None, tm_limit_spin=None, tb_spin=None,
-                                       auto_open_log_cb=None, auto_insert_100_cb=None, tm_save_mode_combo=None, tb_highlight_cb=None):
+                                       auto_open_log_cb=None, auto_insert_100_cb=None, tm_save_mode_combo=None, tb_highlight_cb=None,
+                                       enable_backup_cb=None, backup_interval_spin=None):
         """Save general settings from UI"""
         self.allow_replace_in_source = allow_replace_cb.isChecked()
         self.update_warning_banner()
@@ -8170,6 +8222,8 @@ class SupervertalerQt(QMainWindow):
             'enable_llm_matching': self.enable_llm_matching,  # Save LLM matching state
             'precision_scroll_divisor': self.precision_spin.value() if hasattr(self, 'precision_spin') else 3,  # Save precision scroll setting
             'auto_center_active_segment': self.auto_center_cb.isChecked() if hasattr(self, 'auto_center_cb') else False,  # Save auto-center setting
+            'enable_auto_backup': enable_backup_cb.isChecked() if enable_backup_cb is not None else True,  # Auto backup enabled by default
+            'backup_interval_minutes': backup_interval_spin.value() if backup_interval_spin is not None else 5,  # Default 5 minutes
             'grid_font_size': self.default_font_size,  # Keep existing or update separately
             'results_match_font_size': 9,  # Keep existing
             'results_compare_font_size': 9  # Keep existing
@@ -8199,7 +8253,11 @@ class SupervertalerQt(QMainWindow):
             self.tm_save_mode = tm_save_mode_combo.currentData()
         
         self.save_general_settings(general_settings)
-        
+
+        # Restart auto backup timer if settings changed
+        if enable_backup_cb is not None or backup_interval_spin is not None:
+            self.restart_auto_backup_timer()
+
         self.log("✓ General settings saved")
         QMessageBox.information(self, "Settings Saved", "General settings have been saved successfully.")
     
@@ -10547,7 +10605,89 @@ class SupervertalerQt(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to save project:\n{str(e)}")
             self.log(f"✗ Error saving project: {e}")
-    
+
+    def restart_auto_backup_timer(self):
+        """Restart the auto backup timer based on current settings"""
+        from PyQt6.QtCore import QTimer
+        from datetime import datetime
+
+        # Stop existing timer if running
+        if self.auto_backup_timer:
+            self.auto_backup_timer.stop()
+            self.auto_backup_timer = None
+
+        # Load settings
+        general_settings = self.load_general_settings()
+        enabled = general_settings.get('enable_auto_backup', True)
+        interval_minutes = general_settings.get('backup_interval_minutes', 5)
+
+        if not enabled:
+            self.log("Auto backup disabled")
+            return
+
+        # Create and start timer
+        self.auto_backup_timer = QTimer()
+        self.auto_backup_timer.timeout.connect(self.perform_auto_backup)
+        interval_ms = interval_minutes * 60 * 1000  # Convert minutes to milliseconds
+        self.auto_backup_timer.start(interval_ms)
+
+        self.log(f"Auto backup enabled: every {interval_minutes} minute(s)")
+
+    def perform_auto_backup(self):
+        """Perform automatic backup of project and TMX"""
+        from datetime import datetime
+        from modules.tmx_generator import TMXGenerator
+
+        # Check if there's a project to backup
+        if not self.current_project or not self.project_file_path:
+            return
+
+        try:
+            # Save project.json
+            self.save_project_to_file(self.project_file_path)
+
+            # Export TMX to same folder as project
+            project_dir = Path(self.project_file_path).parent
+            project_name = Path(self.project_file_path).stem
+            tmx_file_path = project_dir / f"{project_name}_backup.tmx"
+
+            # Prepare segments for TMX export
+            source_segments = []
+            target_segments = []
+
+            for segment in self.current_project.segments:
+                source_text = segment.source
+                target_text = segment.target if segment.target else ""
+
+                if source_text:
+                    source_segments.append(source_text)
+                    target_segments.append(target_text)
+
+            if source_segments:
+                # Generate and save TMX
+                tmx_generator = TMXGenerator(log_callback=self.log)
+
+                source_lang = self.current_project.source_lang or "en"
+                target_lang = self.current_project.target_lang or "nl"
+
+                tmx_tree = tmx_generator.generate_tmx(
+                    source_segments=source_segments,
+                    target_segments=target_segments,
+                    source_lang=source_lang,
+                    target_lang=target_lang
+                )
+
+                tmx_generator.save_tmx(tmx_tree, str(tmx_file_path))
+
+            # Update last backup time
+            self.last_backup_time = datetime.now()
+            timestamp = self.last_backup_time.strftime("%H:%M:%S")
+
+            self.log(f"💾 Auto backup completed at {timestamp}: {Path(self.project_file_path).name} + {tmx_file_path.name}")
+
+        except Exception as e:
+            self.log(f"⚠️ Auto backup failed: {e}")
+
     def close_project(self):
         """Close current project"""
         if not self.current_project:
@@ -10821,7 +10961,7 @@ class SupervertalerQt(QMainWindow):
 
         # Supercleaner option
         clean_checkbox = QCheckBox("🧹 Clean document before import (Supercleaner)")
-        clean_checkbox.setChecked(True)  # Default to enabled
+        clean_checkbox.setChecked(False)  # Default to disabled
         clean_checkbox.setToolTip(
             "Automatically clean the document before importing:\n"
             "• Remove formatting issues and excessive tags\n"
@@ -17332,38 +17472,150 @@ class SupervertalerQt(QMainWindow):
             else:
                 self.log("⚠️ User proceeded with batch translation despite existing target text")
 
-        reply = QMessageBox.question(
-            self,
-            "Batch Translation",
-            f"Found {total_segments} {scope_description}.\n\n"
-            f"Translate them using your configured LLM provider?\n\n"
-            f"This may take several minutes and consume API credits.",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        # Show provider selection dialog
+        provider_dialog = QDialog(self)
+        provider_dialog.setWindowTitle("Select Translation Provider")
+        provider_dialog.setModal(True)
+        provider_dialog.setMinimumWidth(500)
+
+        dialog_layout = QVBoxLayout(provider_dialog)
+
+        # Header
+        header = QLabel(f"<h3>🚀 Batch Translate {total_segments} Segments</h3>")
+        dialog_layout.addWidget(header)
+
+        info_label = QLabel(
+            "Choose which translation provider to use for batch translation.\n"
+            "This may take several minutes and consume API credits."
         )
+        info_label.setWordWrap(True)
+        info_label.setStyleSheet("color: #666; padding: 10px 0;")
+        dialog_layout.addWidget(info_label)
 
-        if reply != QMessageBox.StandardButton.Yes:
-            return
+        dialog_layout.addSpacing(10)
 
-        # Load API keys and settings
+        # Provider selection checkboxes (mutually exclusive)
+        provider_group = QGroupBox("Translation Provider")
+        provider_layout = QVBoxLayout()
+
+        llm_checkbox = CheckmarkCheckBox("🤖 LLM (AI) - Use configured LLM provider (GPT, Claude, Gemini)")
+        llm_checkbox.setChecked(True)  # Default to LLM
+        provider_layout.addWidget(llm_checkbox)
+
+        # Load API keys to check what's available
         api_keys = self.load_api_keys()
-        if not api_keys:
-            QMessageBox.critical(
-                self, "API Keys Missing",
-                "Please configure your API keys in Settings first."
-            )
-            return
+        enabled_providers = self.load_provider_enabled_states()
 
+        # Show available MT providers
+        mt_providers_available = []
+        if enabled_providers.get('mt_google_translate', True) and api_keys.get('google_translate'):
+            mt_providers_available.append('Google Translate')
+        if enabled_providers.get('mt_deepl', True) and api_keys.get('deepl'):
+            mt_providers_available.append('DeepL')
+        if enabled_providers.get('mt_microsoft', True) and (api_keys.get('microsoft_translate') or api_keys.get('azure_translate')):
+            mt_providers_available.append('Microsoft Translator')
+        if enabled_providers.get('mt_amazon', True) and (api_keys.get('amazon_translate') or api_keys.get('aws_translate')):
+            mt_providers_available.append('Amazon Translate')
+        if enabled_providers.get('mt_modernmt', True) and api_keys.get('modernmt'):
+            mt_providers_available.append('ModernMT')
+        if enabled_providers.get('mt_mymemory', True):
+            mt_providers_available.append('MyMemory')
+
+        mt_label_text = "🌐 MT (Machine Translation)"
+        if mt_providers_available:
+            mt_label_text += f" - {', '.join(mt_providers_available)}"
+        else:
+            mt_label_text += " - No MT providers configured"
+
+        mt_checkbox = CheckmarkCheckBox(mt_label_text)
+        mt_checkbox.setEnabled(len(mt_providers_available) > 0)
+        provider_layout.addWidget(mt_checkbox)
+
+        # Make checkboxes mutually exclusive
+        def on_llm_toggled(checked):
+            if checked:
+                mt_checkbox.setChecked(False)
+
+        def on_mt_toggled(checked):
+            if checked:
+                llm_checkbox.setChecked(False)
+
+        llm_checkbox.toggled.connect(on_llm_toggled)
+        mt_checkbox.toggled.connect(on_mt_toggled)
+
+        if not mt_providers_available:
+            mt_warning = QLabel("⚠️ Configure MT API keys in Settings → MT Settings to enable")
+            mt_warning.setStyleSheet("color: #ff6b6b; font-size: 9pt; padding-left: 25px;")
+            provider_layout.addWidget(mt_warning)
+
+        provider_group.setLayout(provider_layout)
+        dialog_layout.addWidget(provider_group)
+
+        dialog_layout.addSpacing(10)
+
+        # Show current LLM settings
         settings = self.load_llm_settings()
-        provider = settings.get('provider', 'openai')
-        model_key = f'{provider}_model'
-        model = settings.get(model_key, 'gpt-4o')
+        llm_provider = settings.get('provider', 'openai')
+        model_key = f'{llm_provider}_model'
+        llm_model = settings.get(model_key, 'gpt-4o')
 
-        if provider not in api_keys:
-            QMessageBox.critical(
-                self, f"{provider.title()} API Key Missing",
-                f"Please configure your {provider.title()} API key in Settings."
-            )
+        llm_info = QLabel(f"📊 Current LLM: {llm_provider.title()} ({llm_model})")
+        llm_info.setStyleSheet("color: #666; font-size: 9pt; padding: 5px 0;")
+        dialog_layout.addWidget(llm_info)
+
+        dialog_layout.addSpacing(20)
+
+        # Buttons
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(provider_dialog.reject)
+        button_layout.addWidget(cancel_btn)
+
+        ok_btn = QPushButton("Start Translation")
+        ok_btn.setDefault(True)
+        ok_btn.clicked.connect(provider_dialog.accept)
+        button_layout.addWidget(ok_btn)
+
+        dialog_layout.addLayout(button_layout)
+
+        # Show dialog
+        if provider_dialog.exec() != QDialog.DialogCode.Accepted:
             return
+
+        # Determine which provider was selected
+        use_mt = mt_checkbox.isChecked()
+
+        if use_mt:
+            # Use MT provider
+            translation_provider_type = 'MT'
+            translation_provider_name = mt_providers_available[0] if mt_providers_available else None
+            if not translation_provider_name:
+                QMessageBox.critical(
+                    self, "No MT Provider",
+                    "No Machine Translation provider available. Please configure MT API keys in Settings."
+                )
+                return
+        else:
+            # Use LLM provider
+            translation_provider_type = 'LLM'
+            if not api_keys:
+                QMessageBox.critical(
+                    self, "API Keys Missing",
+                    "Please configure your API keys in Settings first."
+                )
+                return
+
+            if llm_provider not in api_keys:
+                QMessageBox.critical(
+                    self, f"{llm_provider.title()} API Key Missing",
+                    f"Please configure your {llm_provider.title()} API key in Settings."
+                )
+                return
+
+            translation_provider_name = llm_provider
+            model = llm_model
 
         # Create progress dialog
         progress = QDialog(self)
@@ -17379,7 +17631,10 @@ class SupervertalerQt(QMainWindow):
         layout.addWidget(header_label)
 
         # Provider info
-        info_label = QLabel(f"<b>Provider:</b> {provider.title()} | <b>Model:</b> {model}")
+        if translation_provider_type == 'MT':
+            info_label = QLabel(f"<b>Provider:</b> {translation_provider_name} (Machine Translation)")
+        else:
+            info_label = QLabel(f"<b>Provider:</b> {translation_provider_name.title()} | <b>Model:</b> {model}")
         layout.addWidget(info_label)
 
         # Progress bar
@@ -17411,24 +17666,57 @@ class SupervertalerQt(QMainWindow):
         segment_idx = 0
 
         try:
-            from modules.llm_clients import LLMClient
-
-            client = LLMClient(
-                api_key=api_keys[provider],
-                provider=provider,
-                model=model
-            )
-
             source_lang = getattr(self.current_project, 'source_lang', 'en')
             target_lang = getattr(self.current_project, 'target_lang', 'nl')
 
             self.log(f"═══════════════════════════════════════════════════════════")
             self.log(f"🚀 Starting Batch Translation")
+            self.log(f"   Provider Type: {translation_provider_type}")
+            if translation_provider_type == 'MT':
+                self.log(f"   MT Provider: {translation_provider_name}")
+            else:
+                self.log(f"   LLM Provider: {translation_provider_name} ({model})")
             self.log(f"   Source → Target: {source_lang} → {target_lang}")
             self.log(f"   Total segments: {total_segments}")
             if segments_with_target:
                 self.log(f"   ⚠️ Warning: {len(segments_with_target)} segments have existing target text")
             self.log(f"═══════════════════════════════════════════════════════════")
+
+            # Initialize client based on provider type
+            client = None
+            mt_api_key = None
+            mt_provider_code = None
+
+            if translation_provider_type == 'LLM':
+                from modules.llm_clients import LLMClient
+                client = LLMClient(
+                    api_key=api_keys[translation_provider_name],
+                    provider=translation_provider_name,
+                    model=model
+                )
+            else:
+                # MT provider - get API key
+                provider_map = {
+                    'Google Translate': 'google_translate',
+                    'DeepL': 'deepl',
+                    'Microsoft Translator': ('microsoft_translate', 'azure_translate'),
+                    'Amazon Translate': ('amazon_translate', 'aws_translate'),
+                    'ModernMT': 'modernmt',
+                    'MyMemory': 'mymemory'
+                }
+
+                key_name = provider_map.get(translation_provider_name)
+                if isinstance(key_name, tuple):
+                    # Try multiple possible key names
+                    for kn in key_name:
+                        if api_keys.get(kn):
+                            mt_api_key = api_keys[kn]
+                            break
+                else:
+                    mt_api_key = api_keys.get(key_name)
+
+                # Store provider code for MT calls
+                mt_provider_code = translation_provider_name.lower().replace(' ', '_')
 
             general_prefs = self.load_general_settings()
             batch_size = general_prefs.get('batch_size', 100)
@@ -17444,6 +17732,54 @@ class SupervertalerQt(QMainWindow):
                 QApplication.processEvents()
 
                 try:
+                    # MT provider - simpler segment-by-segment translation
+                    if translation_provider_type == 'MT':
+                        current_label.setText(f"Translating batch {batch_num + 1}/{total_batches} ({len(batch_segments)} segments)...")
+                        progress_bar.setValue(segment_idx)
+                        QApplication.processEvents()
+
+                        # Translate each segment individually with MT
+                        for row_index, segment in batch_segments:
+                            try:
+                                translation = None
+
+                                # Call appropriate MT service
+                                if translation_provider_name == 'Google Translate':
+                                    translation = self.call_google_translate(segment.source, source_lang, target_lang, mt_api_key)
+                                elif translation_provider_name == 'DeepL':
+                                    translation = self.call_deepl(segment.source, source_lang, target_lang, mt_api_key)
+                                elif translation_provider_name == 'Microsoft Translator':
+                                    translation = self.call_microsoft_translate(segment.source, source_lang, target_lang, mt_api_key)
+                                elif translation_provider_name == 'Amazon Translate':
+                                    region = api_keys.get('amazon_translate_region', 'us-east-1')
+                                    translation = self.call_amazon_translate(segment.source, source_lang, target_lang, mt_api_key, region)
+                                elif translation_provider_name == 'ModernMT':
+                                    translation = self.call_modernmt(segment.source, source_lang, target_lang, mt_api_key)
+                                elif translation_provider_name == 'MyMemory':
+                                    translation = self.call_mymemory(segment.source, source_lang, target_lang, mt_api_key)
+
+                                if translation and not translation.startswith('['):  # Skip error messages
+                                    segment.target = translation
+                                    segment.status = 'pre-translated'
+                                    translated_count += 1
+                                    self.log(f"  ✓ Segment {segment.id}: {segment.source[:40]}... → {translation[:40]}...")
+                                else:
+                                    failed_count += 1
+                                    self.log(f"  ✗ Segment {segment.id}: Translation failed - {translation}")
+
+                                segment_idx += 1
+                                progress_bar.setValue(segment_idx)
+                                stats_label.setText(f"Translated: {translated_count} | Failed: {failed_count} | Remaining: {total_segments - segment_idx}")
+                                QApplication.processEvents()
+
+                            except Exception as e:
+                                failed_count += 1
+                                self.log(f"  ✗ Segment {segment.id}: Error - {e}")
+                                segment_idx += 1
+
+                        continue  # Skip to next batch
+
+                    # LLM provider - batch translation with context
                     batch_prompt_parts = []
 
                     base_prompt = None

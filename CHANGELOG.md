@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.7.5 (November 20, 2025)
+**Current Version:** v1.7.6 (November 20, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -14,6 +14,7 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- 💾 **Auto Backup System (v1.7.6)** - Automatic project.json and TMX backups at configurable intervals to prevent data loss
 - 🐛 **Critical TM Save Bug Fix (v1.7.5)** - Fixed massive unnecessary database writes during grid operations that caused 10+ second freezes
 - 💾 **Project Persistence (v1.7.4)** - Projects now remember your primary prompt and image context folder
 - 🧪 **Prompt Preview & System Template Editor (v1.7.3)** - Preview combined prompts with figure context detection and improved system template editor with better layout
@@ -38,6 +39,31 @@ All notable changes to Supervertaler are documented in this file.
 - 🔄 **CAT Tool Integration** - memoQ, Trados, CafeTran bilingual table support
 
 **See full version history below** ↓
+
+---
+
+## [1.7.6] - November 20, 2025
+
+### 💾 Auto Backup System
+
+**Added:**
+
+- ✨ **Automatic Backup System** - Prevents data loss during translation work
+  - Auto-saves project.json at configurable intervals (1-60 minutes, default: 5 minutes)
+  - Auto-exports TMX backup file in same folder as project.json
+  - TMX backup includes all segments for maximum recovery capability
+  - Settings UI in Settings → General tab with enable/disable toggle
+  - Non-intrusive background operation with timestamp logging
+  - Settings persist across sessions in ui_preferences.json
+  - Timer automatically restarts when settings are changed
+
+**Technical Details:**
+
+- QTimer-based system with millisecond precision
+- Uses existing `save_project_to_file()` and `TMXGenerator` methods
+- Graceful error handling without interrupting workflow
+- Only runs when project is open and has a file path
+- TMX file named `{project_name}_backup.tmx` for easy identification
 
 ---
 
