@@ -32,7 +32,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.7.3"
+__version__ = "1.7.4"
 __phase__ = "8.7"
 __release_date__ = "2025-11-20"
 __edition__ = "Qt"
@@ -9856,20 +9856,38 @@ class SupervertalerQt(QMainWindow):
                     # Restore primary prompt
                     primary_path = prompt_settings.get('active_primary_prompt_path')
                     if primary_path and primary_path in library.prompts:
-                        library.set_primary_prompt(primary_path)
+                        # Use the UI method to update both internal state and UI
+                        self.prompt_manager_qt._set_primary_prompt(primary_path)
                         self.log(f"✓ Restored primary prompt: {primary_path}")
                     
                     # Restore attached prompts
                     attached_paths = prompt_settings.get('attached_prompt_paths', [])
                     for path in attached_paths:
                         if path in library.prompts:
-                            library.attach_prompt(path)
+                            # Use the UI method to update both internal state and UI
+                            self.prompt_manager_qt._attach_prompt(path)
                             self.log(f"✓ Restored attached prompt: {path}")
                     
                     # Restore mode
                     mode = prompt_settings.get('mode', 'single')
                     if hasattr(self.prompt_manager_qt, 'set_mode'):
                         self.prompt_manager_qt.set_mode(mode)
+                
+                # Restore image context folder
+                image_folder = prompt_settings.get('image_context_folder')
+                if image_folder and hasattr(self, 'figure_context') and self.figure_context:
+                    try:
+                        if os.path.exists(image_folder):
+                            count = self.figure_context.load_from_folder(image_folder)
+                            if count > 0:
+                                if hasattr(self, 'image_context_status_label'):
+                                    self.image_context_status_label.setText(f"✅ {count} images loaded: {Path(image_folder).name}")
+                                    self.image_context_status_label.setStyleSheet("color: #4CAF50; font-weight: bold; font-size: 11px; padding: 5px;")
+                                self.log(f"✅ Restored image context: {count} images from {image_folder}")
+                        else:
+                            self.log(f"⚠️  Saved image folder not found: {image_folder}")
+                    except Exception as e:
+                        self.log(f"❌ Error restoring image context: {e}")
             
             self.load_segments_to_grid()
             self.initialize_tm_database()  # Initialize TM for this project
@@ -10493,6 +10511,12 @@ class SupervertalerQt(QMainWindow):
                     'attached_prompt_paths': library.attached_prompt_paths.copy() if library.attached_prompt_paths else [],
                     'mode': getattr(self.prompt_manager_qt, 'current_mode', 'single'),
                 }
+            
+            # Save image/figure context folder path
+            if hasattr(self, 'figure_context') and self.figure_context and self.figure_context.figure_context_folder:
+                if not self.current_project.prompt_settings:
+                    self.current_project.prompt_settings = {}
+                self.current_project.prompt_settings['image_context_folder'] = self.figure_context.figure_context_folder
             
             # FINAL DEBUG: Log segment data at the exact moment before serialization
             self.log(f"💾💾💾 FINAL DEBUG before to_dict():")

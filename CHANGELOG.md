@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.7.3 (November 20, 2025)  
+**Current Version:** v1.7.4 (November 20, 2025)  
 **Framework:** PyQt6  
 **Status:** Active Development
 
@@ -14,6 +14,7 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- 💾 **Project Persistence (v1.7.4)** - Projects now remember your primary prompt and image context folder
 - 🧪 **Prompt Preview & System Template Editor (v1.7.3)** - Preview combined prompts with figure context detection and improved system template editor with better layout
 - 🔧 **Termbase Critical Fixes (v1.7.2)** - Fixed term deduplication and termbase selection issues
 - 🎨 **Termbase UI Polish (v1.7.1)** - Improved visual consistency with pink highlighting for project termbases and real-time term count updates
@@ -36,6 +37,42 @@ All notable changes to Supervertaler are documented in this file.
 - 🔄 **CAT Tool Integration** - memoQ, Trados, CafeTran bilingual table support
 
 **See full version history below** ↓
+
+---
+
+## [1.7.4] - November 20, 2025
+
+### 💾 Project Persistence Improvements
+
+**Enhanced:**
+
+- ✅ **Primary Prompt Persistence** - Projects now remember your selected primary prompt
+  - Automatically restores primary prompt when reopening project
+  - Updates UI label to show active prompt name
+  - Works with Unified Prompt Library system
+  
+- ✅ **Image Context Folder Persistence** - Projects remember loaded image folders
+  - Image context folder path saved to project.json
+  - Automatically reloads all images from saved folder on project open
+  - Updates UI status label showing image count and folder name
+  - Logs success/warnings if folder path has changed
+  
+- ✅ **Attached Prompts Persistence** - All attached prompts are restored
+  - Maintains complete prompt configuration across sessions
+  - Updates attached prompts list UI on restore
+
+**Technical:**
+- Changed from `library.set_primary_prompt()` to `_set_primary_prompt()` for UI updates
+- Changed from `library.attach_prompt()` to `_attach_prompt()` for UI updates
+- Added `image_context_folder` to `prompt_settings` in project.json
+- Proper UI synchronization on project load for all prompt settings
+
+**User Experience:**
+Now when you save a project, it remembers:
+- ✓ Which primary prompt you selected
+- ✓ Which prompts you attached
+- ✓ Which image folder you loaded
+- ✓ All settings restore automatically on project open
 
 ---
 
