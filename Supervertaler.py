@@ -3,8 +3,8 @@ Supervertaler Qt Edition
 ========================
 The ultimate companion tool for translators and writers.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.7.6 (Auto Backup System)
-Release Date: November 20, 2025
+Version: 1.7.7 (Termbase Display Customization)
+Release Date: November 21, 2025
 Framework: PyQt6
 
 This is the modern edition of Supervertaler using PyQt6 framework.
@@ -32,9 +32,9 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.7.6"
+__version__ = "1.7.7"
 __phase__ = "8.7"
-__release_date__ = "2025-11-20"
+__release_date__ = "2025-11-21"
 __edition__ = "Qt"
 
 import sys
@@ -97,7 +97,7 @@ try:
         QButtonGroup, QDialogButtonBox, QTabWidget, QGroupBox, QGridLayout, QCheckBox,
         QProgressBar, QFormLayout, QTabBar, QPlainTextEdit, QAbstractItemDelegate,
         QFrame, QListWidget, QListWidgetItem, QStackedWidget, QTreeWidget, QTreeWidgetItem,
-        QScrollArea, QSizePolicy, QSlider
+        QScrollArea, QSizePolicy, QSlider, QToolButton
     )
     from PyQt6.QtCore import Qt, QSize, QTimer, pyqtSignal, QObject, QUrl
     from PyQt6.QtGui import QFont, QAction, QKeySequence, QIcon, QTextOption, QColor, QDesktopServices, QTextCharFormat, QTextCursor, QBrush, QSyntaxHighlighter
@@ -492,31 +492,31 @@ class ReadOnlyGridTextEditor(QTextEdit):
                 if parent and hasattr(parent, 'log'):
                     parent.log(f"  🎨 Highlighting '{term}': is_project={is_project_termbase}, ranking={ranking}, effective_project={is_effective_project}, forbidden={forbidden}")
             
-            # Color selection based on termbase type and term status
+            # Color selection based on term status and ranking
+            # All termbase matches use SOFT, PASTEL green shades (subtle background highlighting)
+            # Lower ranking number = higher priority = slightly less pastel (but still soft)
             if forbidden:
                 color = QColor(0, 0, 0)  # Black for forbidden terms
-            elif is_effective_project:
-                color = QColor(255, 182, 193)  # Light pink (#FFB6C1) for project termbase
             else:
-                # Calculate color based on ranking (lower ranking = darker blue)
-                # Ranking 1 = darkest, Ranking 2 = medium, Ranking 3+ = lighter
+                # Use ranking to determine soft green shade
+                # All shades are pastel/soft to stay in the background
                 if ranking is not None:
-                    # Map ranking to distinct blue shades:
-                    # Ranking #1: Dark blue (RGB 0, 100, 255)
-                    # Ranking #2: Medium blue (RGB 0, 150, 255)
-                    # Ranking #3: Light blue (RGB 0, 200, 255)
-                    # Ranking #4+: Very light blue (RGB 100, 220, 255)
+                    # Map ranking to soft pastel green shades:
+                    # Ranking #1: Soft medium green (still readable but subtle)
+                    # Ranking #2: Soft light green
+                    # Ranking #3: Very soft light green
+                    # Ranking #4+: Extremely soft pastel green
                     if ranking == 1:
-                        color = QColor(0, 100, 255)  # Dark blue
+                        color = QColor(165, 214, 167)  # Soft medium green (Green 200)
                     elif ranking == 2:
-                        color = QColor(0, 150, 255)  # Medium blue
+                        color = QColor(200, 230, 201)  # Soft light green (Green 100)
                     elif ranking == 3:
-                        color = QColor(0, 200, 255)  # Light blue
+                        color = QColor(220, 237, 200)  # Very soft light green (Light Green 100)
                     else:
-                        color = QColor(100, 220, 255)  # Very light blue
+                        color = QColor(232, 245, 233)  # Extremely soft pastel green (Green 50)
                 else:
-                    # No ranking (termbase not activated) - use default light blue
-                    color = QColor(173, 216, 230)  # Light blue (fallback)
+                    # No ranking (inactive termbase) - use soft light green
+                    color = QColor(200, 230, 201)  # Green 100 (fallback)
             
             # Find all occurrences of this term (case-insensitive)
             term_lower = term.lower()
@@ -543,7 +543,12 @@ class ReadOnlyGridTextEditor(QTextEdit):
                     # Create format with background color
                     fmt = QTextCharFormat()
                     fmt.setBackground(color)
-                    fmt.setForeground(QColor("white"))
+                    # Use black text for soft pastel backgrounds (better contrast and readability)
+                    # Only use white text for dark forbidden terms
+                    if forbidden:
+                        fmt.setForeground(QColor("white"))
+                    else:
+                        fmt.setForeground(QColor("black"))
                     
                     # Apply format
                     cursor.setCharFormat(fmt)
@@ -1580,11 +1585,32 @@ class TermMetadataDialog(QDialog):
     def setup_ui(self):
         self.setWindowTitle("Add Term to Termbase")
         self.setMinimumWidth(550)
-        layout = QVBoxLayout(self)
+
+        # Auto-resize to fit screen (max 85% of screen height)
+        screen = QApplication.primaryScreen().availableGeometry()
+        max_height = int(screen.height() * 0.85)
+        self.setMaximumHeight(max_height)
+
+        # Start with very compact size for laptops
+        self.resize(600, min(550, max_height))
+
+        # Create main layout
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+
+        # Create scroll area for all content
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+
+        content_widget = QWidget()
+        layout = QVBoxLayout(content_widget)
+        layout.setSpacing(4)
+        layout.setContentsMargins(6, 6, 6, 6)
         
         # Header
         header = QLabel("Add term pair to termbase")
-        header.setStyleSheet("font-size: 14px; font-weight: bold; margin-bottom: 10px;")
+        header.setStyleSheet("font-size: 12px; font-weight: bold; margin-bottom: 5px; padding: 4px;")
         layout.addWidget(header)
         
         # Term pair display (read-only)
@@ -1667,8 +1693,9 @@ class TermMetadataDialog(QDialog):
         
         # Notes
         self.notes_edit = QTextEdit()
-        self.notes_edit.setMaximumHeight(60)
+        self.notes_edit.setMaximumHeight(45)
         self.notes_edit.setPlaceholderText("Usage notes, context, definition, URLs...")
+        self.notes_edit.setStyleSheet("padding: 3px; font-size: 10px;")
         meta_layout.addRow("Notes:", self.notes_edit)
         
         # Project
@@ -1689,13 +1716,35 @@ class TermMetadataDialog(QDialog):
         meta_group.setLayout(meta_layout)
         layout.addWidget(meta_group)
         
-        # Source Synonyms section
-        source_syn_group = QGroupBox("Source Synonyms (Optional)")
-        source_syn_layout = QVBoxLayout()
-        
+        # Source Synonyms section (collapsible)
+        source_syn_group = QGroupBox()
+        source_syn_main_layout = QVBoxLayout()
+
+        # Header with collapse button
+        source_syn_header = QHBoxLayout()
+        self.source_syn_toggle = QToolButton()
+        self.source_syn_toggle.setText("▼")
+        self.source_syn_toggle.setStyleSheet("QToolButton { border: none; font-weight: bold; }")
+        self.source_syn_toggle.setFixedSize(20, 20)
+        self.source_syn_toggle.setCheckable(True)
+        self.source_syn_toggle.setChecked(False)
+        source_syn_header.addWidget(self.source_syn_toggle)
+
+        source_syn_label = QLabel("Source Synonyms (Optional)")
+        source_syn_label.setStyleSheet("font-weight: bold;")
+        source_syn_header.addWidget(source_syn_label)
+        source_syn_header.addStretch()
+        source_syn_main_layout.addLayout(source_syn_header)
+
+        # Collapsible content
+        self.source_syn_content = QWidget()
+        source_syn_layout = QVBoxLayout(self.source_syn_content)
+        source_syn_layout.setContentsMargins(0, 0, 0, 0)
+        self.source_syn_content.setVisible(False)
+
         # Instructions
         source_syn_info = QLabel("Add alternative source terms. First item = preferred term:")
-        source_syn_info.setStyleSheet("color: #666; font-size: 11px; margin-bottom: 5px;")
+        source_syn_info.setStyleSheet("color: #666; font-size: 10px;")
         source_syn_layout.addWidget(source_syn_info)
         
         # Input field + Add button + Forbidden checkbox
@@ -1750,17 +1799,45 @@ class TermMetadataDialog(QDialog):
         
         source_list_layout.addLayout(source_button_col)
         source_syn_layout.addLayout(source_list_layout)
-        
-        source_syn_group.setLayout(source_syn_layout)
+
+        # Add collapsible content to main layout
+        source_syn_main_layout.addWidget(self.source_syn_content)
+        source_syn_group.setLayout(source_syn_main_layout)
+
+        # Connect toggle button
+        self.source_syn_toggle.clicked.connect(lambda: self.toggle_section(self.source_syn_toggle, self.source_syn_content))
+
         layout.addWidget(source_syn_group)
         
-        # Target Synonyms section
-        target_syn_group = QGroupBox("Target Synonyms (Optional)")
-        target_syn_layout = QVBoxLayout()
-        
+        # Target Synonyms section (collapsible)
+        target_syn_group = QGroupBox()
+        target_syn_main_layout = QVBoxLayout()
+
+        # Header with collapse button
+        target_syn_header = QHBoxLayout()
+        self.target_syn_toggle = QToolButton()
+        self.target_syn_toggle.setText("▼")
+        self.target_syn_toggle.setStyleSheet("QToolButton { border: none; font-weight: bold; }")
+        self.target_syn_toggle.setFixedSize(20, 20)
+        self.target_syn_toggle.setCheckable(True)
+        self.target_syn_toggle.setChecked(False)
+        target_syn_header.addWidget(self.target_syn_toggle)
+
+        target_syn_label = QLabel("Target Synonyms (Optional)")
+        target_syn_label.setStyleSheet("font-weight: bold;")
+        target_syn_header.addWidget(target_syn_label)
+        target_syn_header.addStretch()
+        target_syn_main_layout.addLayout(target_syn_header)
+
+        # Collapsible content
+        self.target_syn_content = QWidget()
+        target_syn_layout = QVBoxLayout(self.target_syn_content)
+        target_syn_layout.setContentsMargins(0, 0, 0, 0)
+        self.target_syn_content.setVisible(False)
+
         # Instructions
         target_syn_info = QLabel("Add alternative translations (synonyms). First item = preferred term:")
-        target_syn_info.setStyleSheet("color: #666; font-size: 11px; margin-bottom: 5px;")
+        target_syn_info.setStyleSheet("color: #666; font-size: 10px;")
         target_syn_layout.addWidget(target_syn_info)
         
         # Input field + Add button + Forbidden checkbox
@@ -1815,10 +1892,16 @@ class TermMetadataDialog(QDialog):
         
         target_list_layout.addLayout(target_button_col)
         target_syn_layout.addLayout(target_list_layout)
-        
-        target_syn_group.setLayout(target_syn_layout)
+
+        # Add collapsible content to main layout
+        target_syn_main_layout.addWidget(self.target_syn_content)
+        target_syn_group.setLayout(target_syn_main_layout)
+
+        # Connect toggle button
+        self.target_syn_toggle.clicked.connect(lambda: self.toggle_section(self.target_syn_toggle, self.target_syn_content))
+
         layout.addWidget(target_syn_group)
-        
+
         # Buttons
         button_layout = QHBoxLayout()
         button_layout.addStretch()
@@ -1832,9 +1915,19 @@ class TermMetadataDialog(QDialog):
         save_btn.clicked.connect(self.accept)
         save_btn.setDefault(True)
         button_layout.addWidget(save_btn)
-        
+
         layout.addLayout(button_layout)
-    
+
+        # Set the scroll area content
+        scroll.setWidget(content_widget)
+        main_layout.addWidget(scroll)
+
+    def toggle_section(self, toggle_btn, content_widget):
+        """Toggle visibility of a collapsible section"""
+        is_visible = content_widget.isVisible()
+        content_widget.setVisible(not is_visible)
+        toggle_btn.setText("▼" if is_visible else "▲")
+
     # ========================================================================
     # SOURCE SYNONYM METHODS
     # ========================================================================
@@ -2294,7 +2387,11 @@ class SupervertalerQt(QMainWindow):
         self.enable_mt_matching = True  # Machine Translation enabled
         self.enable_llm_matching = False  # LLM Translation enabled (DISABLED by default - too slow for navigation!)
         self.enable_termbase_grid_highlighting = True  # Highlight termbase matches in source cells
-        
+
+        # Termbase display settings
+        self.termbase_display_order = 'appearance'  # Options: 'alphabetical', 'appearance', 'length'
+        self.termbase_hide_shorter_matches = False  # Hide shorter terms included in longer ones
+
         # Debug mode settings (for troubleshooting performance issues)
         self.debug_mode_enabled = False  # Enables verbose debug logging
         self.debug_auto_export = False  # Auto-export debug logs to file
@@ -7276,7 +7373,38 @@ class SupervertalerQt(QMainWindow):
             "This provides visual feedback similar to memoQ's termbase highlighting."
         )
         tm_termbase_layout.addWidget(tb_highlight_cb)
-        
+
+        # Termbase display order
+        tb_order_label = QLabel("Termbase match display order:")
+        tb_order_combo = QComboBox()
+        tb_order_combo.addItem("Order of appearance in source text", "appearance")
+        tb_order_combo.addItem("Alphabetical (A-Z)", "alphabetical")
+        tb_order_combo.addItem("By length (longest first)", "length")
+        current_order = general_settings.get('termbase_display_order', 'appearance')
+        order_index = {'appearance': 0, 'alphabetical': 1, 'length': 2}.get(current_order, 0)
+        tb_order_combo.setCurrentIndex(order_index)
+        tb_order_combo.setToolTip(
+            "Choose how termbase matches are sorted in the translation results panel:\n\n"
+            "• Order of appearance: Matches appear in the order they occur in the source text (default)\n"
+            "• Alphabetical: Matches are sorted alphabetically by source term (A-Z)\n"
+            "• By length: Longer matches appear first (useful for prioritizing multi-word terms)"
+        )
+        tb_order_layout = QHBoxLayout()
+        tb_order_layout.addWidget(tb_order_label)
+        tb_order_layout.addWidget(tb_order_combo)
+        tb_order_layout.addStretch()
+        tm_termbase_layout.addLayout(tb_order_layout)
+
+        # Hide shorter matches checkbox
+        tb_hide_shorter_cb = QCheckBox("Hide shorter termbase matches included in longer ones")
+        tb_hide_shorter_cb.setChecked(general_settings.get('termbase_hide_shorter_matches', False))
+        tb_hide_shorter_cb.setToolTip(
+            "When enabled, shorter terms that are fully contained within longer matched terms are hidden.\n\n"
+            "Example: If both 'cooling' and 'cooling system' match, only 'cooling system' is shown.\n"
+            "This reduces clutter in the translation results panel."
+        )
+        tm_termbase_layout.addWidget(tb_hide_shorter_cb)
+
         self.tm_matching_checkbox = tm_matching_cb  # Store reference for updates
         self.auto_propagate_checkbox = auto_propagate_cb  # Store reference for updates
         self.auto_insert_100_checkbox = auto_insert_100_cb  # Store reference for updates
@@ -7471,7 +7599,8 @@ class SupervertalerQt(QMainWindow):
             restore_last_project_cb, allow_replace_cb, auto_propagate_cb, auto_markdown_cb,
             llm_spin, mt_spin, tm_limit_spin, tb_spin,
             auto_open_log_cb, auto_insert_100_cb, tm_save_mode_combo, tb_highlight_cb,
-            enable_backup_cb, backup_interval_spin
+            enable_backup_cb, backup_interval_spin,
+            tb_order_combo, tb_hide_shorter_cb
         ))
         layout.addWidget(save_btn)
         
@@ -8187,7 +8316,8 @@ class SupervertalerQt(QMainWindow):
     def _save_general_settings_from_ui(self, restore_cb, allow_replace_cb, auto_propagate_cb, auto_markdown_cb=None,
                                        llm_spin=None, mt_spin=None, tm_limit_spin=None, tb_spin=None,
                                        auto_open_log_cb=None, auto_insert_100_cb=None, tm_save_mode_combo=None, tb_highlight_cb=None,
-                                       enable_backup_cb=None, backup_interval_spin=None):
+                                       enable_backup_cb=None, backup_interval_spin=None,
+                                       tb_order_combo=None, tb_hide_shorter_cb=None):
         """Save general settings from UI"""
         self.allow_replace_in_source = allow_replace_cb.isChecked()
         self.update_warning_banner()
@@ -8206,7 +8336,13 @@ class SupervertalerQt(QMainWindow):
         # Update termbase grid highlighting setting
         if tb_highlight_cb is not None:
             self.enable_termbase_grid_highlighting = tb_highlight_cb.isChecked()
-        
+
+        # Update termbase display settings
+        if tb_order_combo is not None:
+            self.termbase_display_order = tb_order_combo.currentData()
+        if tb_hide_shorter_cb is not None:
+            self.termbase_hide_shorter_matches = tb_hide_shorter_cb.isChecked()
+
         # Update LLM matching setting
         if hasattr(self, 'llm_matching_checkbox'):
             self.enable_llm_matching = self.llm_matching_checkbox.isChecked()
@@ -8220,6 +8356,8 @@ class SupervertalerQt(QMainWindow):
             'auto_generate_markdown': self.auto_generate_markdown if hasattr(self, 'auto_generate_markdown') else False,
             'enable_termbase_grid_highlighting': tb_highlight_cb.isChecked() if tb_highlight_cb is not None else True,
             'enable_llm_matching': self.enable_llm_matching,  # Save LLM matching state
+            'termbase_display_order': tb_order_combo.currentData() if tb_order_combo is not None else 'appearance',
+            'termbase_hide_shorter_matches': tb_hide_shorter_cb.isChecked() if tb_hide_shorter_cb is not None else False,
             'precision_scroll_divisor': self.precision_spin.value() if hasattr(self, 'precision_spin') else 3,  # Save precision scroll setting
             'auto_center_active_segment': self.auto_center_cb.isChecked() if hasattr(self, 'auto_center_cb') else False,  # Save auto-center setting
             'enable_auto_backup': enable_backup_cb.isChecked() if enable_backup_cb is not None else True,  # Auto backup enabled by default
@@ -8789,7 +8927,7 @@ class SupervertalerQt(QMainWindow):
         
         # Right side: Translation Results panel (standalone, no tabs)
         from modules.translation_results_panel import TranslationResultsPanel
-        self.translation_results_panel = TranslationResultsPanel(self)
+        self.translation_results_panel = TranslationResultsPanel(self, parent_app=self)
         
         # Connect signals for match selection/insertion
         self.translation_results_panel.match_selected.connect(self.on_match_selected)
@@ -9407,7 +9545,7 @@ class SupervertalerQt(QMainWindow):
         
         try:
             # Create translation results panel with dynamic font sizing
-            results_panel = TranslationResultsPanel(tabs)
+            results_panel = TranslationResultsPanel(tabs, parent_app=self)
             results_panel.match_inserted.connect(self.on_match_inserted)
             tabs.addTab(results_panel, "🔍 Translation Results")
             
@@ -12463,6 +12601,9 @@ class SupervertalerQt(QMainWindow):
         self.precision_scroll_divisor = settings.get('precision_scroll_divisor', 3)
         # Load auto-center active segment setting
         self.auto_center_active_segment = settings.get('auto_center_active_segment', False)
+        # Load termbase display settings
+        self.termbase_display_order = settings.get('termbase_display_order', 'appearance')
+        self.termbase_hide_shorter_matches = settings.get('termbase_hide_shorter_matches', False)
 
         # Load LLM provider settings for AI Assistant
         llm_settings = self.load_llm_settings()

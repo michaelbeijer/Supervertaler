@@ -2,8 +2,8 @@
 
 🎯 **The Ultimate Companion Tool for Translators and Writers** — Context-aware AI with intuitive 2-Layer Prompt Architecture, AI Assistant, project termbase system with automatic extraction, and specialized modules.
 
-**Current Version:** v1.7.0 (November 18, 2025)  
-**Framework:** PyQt6  
+**Current Version:** v1.7.7 (November 21, 2025)
+**Framework:** PyQt6
 **Status:** Active Development
 
 ---

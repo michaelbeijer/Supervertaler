@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.7.6 (November 20, 2025)
+**Current Version:** v1.7.7 (November 21, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -14,6 +14,7 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- 🎯 **Termbase Display Customization (v1.7.7)** - User-configurable termbase match sorting and filtering for cleaner translation results
 - 💾 **Auto Backup System (v1.7.6)** - Automatic project.json and TMX backups at configurable intervals to prevent data loss
 - 🐛 **Critical TM Save Bug Fix (v1.7.5)** - Fixed massive unnecessary database writes during grid operations that caused 10+ second freezes
 - 💾 **Project Persistence (v1.7.4)** - Projects now remember your primary prompt and image context folder
@@ -39,6 +40,52 @@ All notable changes to Supervertaler are documented in this file.
 - 🔄 **CAT Tool Integration** - memoQ, Trados, CafeTran bilingual table support
 
 **See full version history below** ↓
+
+---
+
+## [1.7.7] - November 21, 2025
+
+### 🎯 Termbase Display Customization
+
+**Added:**
+
+- ✨ **User-Configurable Termbase Sorting** - Control how termbase matches are displayed
+  - Three sorting options available in Settings → General:
+    - **Order of appearance in source text** (default) - Matches appear as they occur in the segment
+    - **Alphabetical (A-Z)** - Matches sorted by source term alphabetically
+    - **By length (longest first)** - Longer multi-word terms prioritized over shorter ones
+  - Sorting preference persists across sessions
+  - Only affects termbase matches; TM, MT, and LLM results maintain their existing order
+
+- ✨ **Smart Substring Filtering** - Reduces termbase match clutter
+  - Optional "Hide shorter termbase matches" checkbox in Settings → General
+  - Automatically filters out shorter terms that are fully contained within longer matched terms
+  - Example: If both "cooling" and "cooling system" match, only "cooling system" is shown
+  - Helps focus on the most relevant multi-word terminology
+  - Can be toggled on/off without restarting the application
+
+**Enhanced:**
+
+- 🔧 **Bold Font for Project Resources** - Project termbases and TMs now display with bold provider codes (TB, TM) instead of asterisks for cleaner visual distinction
+- 🎨 **Translation Results Panel** - Added parent app reference for accessing user settings dynamically
+
+**Technical Details:**
+
+- Settings stored in `ui_preferences.json` under `general_settings`
+- `TranslationResultsPanel` now accepts `parent_app` parameter for settings access
+- New methods: `_sort_termbase_matches()` and `_filter_shorter_matches()` in `translation_results_panel.py`
+- Sorting uses case-insensitive comparison for alphabetical mode
+- Filtering uses substring detection with length comparison
+- Files Modified:
+  - `Supervertaler.py` (lines 2391-2393, 7377-7406, 8316-8360, 8930, 9548, 12604-12606)
+  - `modules/translation_results_panel.py` (lines 626-628, 1201-1276, 1324-1329)
+
+**User Experience:**
+
+- Settings are immediately accessible via Settings → General → TM/Termbase Options
+- Tooltips explain each option clearly
+- Changes apply to all subsequent segment matches
+- No performance impact on match retrieval
 
 ---
 

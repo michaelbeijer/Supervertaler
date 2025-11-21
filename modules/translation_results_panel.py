@@ -127,8 +127,22 @@ class CompactMatchItem(QFrame):
         content_layout.addWidget(self.target_label, 1)
         
         # Provider code column (tiny, after target text) - always reserve space for alignment
-        provider_label = QLabel(match.provider_code if match.provider_code else "")
-        provider_label.setStyleSheet("font-size: 7px; color: #888; padding: 0px; margin: 0px; font-weight: normal;")
+        # Determine provider code text and styling
+        provider_code_text = match.provider_code if match.provider_code else ""
+
+        # Determine if this is a project termbase or project TM
+        # For termbases: explicit flag OR ranking #1 = project termbase
+        is_project_tb_flag = match.match_type == 'Termbase' and match.metadata.get('is_project_termbase', False)
+        is_ranking_1 = match.match_type == 'Termbase' and match.metadata.get('ranking') == 1
+        is_project_tb = is_project_tb_flag or is_ranking_1
+        is_project_tm = match.match_type == 'TM' and match.metadata.get('is_project_tm', False)
+
+        provider_label = QLabel(provider_code_text)
+
+        # Use bold font for project termbases/TMs, normal font for background resources
+        font_weight = "bold" if (is_project_tb or is_project_tm) else "normal"
+        # Use darker color for better visibility (changed from #888 to #333)
+        provider_label.setStyleSheet(f"font-size: 7px; color: #333; padding: 0px; margin: 0px; font-weight: {font_weight};")
         provider_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         provider_label.setFixedWidth(28)  # Tiny column, just wide enough for "GPT", "MMT", etc.
         provider_label.setFixedHeight(18)
@@ -348,42 +362,49 @@ class CompactMatchItem(QFrame):
     
     def update_styling(self):
         """Update visual styling based on selection state and match type"""
-        # Color code by match type: LLM=purple, TM=red, Termbase=blue, MT=orange, NT=gray
+        # Color code by match type: LLM=purple, TM=red, Termbase=green, MT=orange, NT=gray
         base_color_map = {
             "LLM": "#9c27b0",  # Purple for LLM translations
-            "TM": "#ff6b6b",
-            "Termbase": "#4d94ff",  # Base blue for termbase (will be shaded by priority)
+            "TM": "#ff6b6b",  # Red for Translation Memory
+            "Termbase": "#4CAF50",  # Green for all termbase matches (Material Design Green 500)
             "MT": "#ff9800",  # Orange for Machine Translation
-            "NT": "#adb5bd"
+            "NT": "#adb5bd"  # Gray for New Translation
         }
-        
+
         base_color = base_color_map.get(self.match.match_type, "#adb5bd")
-        
-        # For termbase matches, apply ranking-based shading OR special colors for forbidden/project termbases
+
+        # For termbase matches, apply ranking-based green shading
+        # Darker green = higher priority (lower ranking number)
         is_project_termbase = False
         if self.match.match_type == "Termbase":
             is_forbidden = self.match.metadata.get('forbidden', False)
             is_project_termbase_flag = self.match.metadata.get('is_project_termbase', False)
             termbase_ranking = self.match.metadata.get('ranking', None)
-            
+
             # EFFECTIVE project termbase = explicit flag OR ranking #1
             is_effective_project = is_project_termbase_flag or (termbase_ranking == 1)
             is_project_termbase = is_effective_project  # For later use in background styling
-            
+
             if is_forbidden:
                 type_color = "#000000"  # Forbidden terms: black
-            elif is_effective_project:
-                type_color = "#FFB6C1"  # Project termbase: uniform light pink
             else:
-                # Use termbase ranking (2+ = background termbases with priority)
-                if termbase_ranking is not None and termbase_ranking > 1:
-                    # Map ranking to color intensity: ranking 2 = darkest, ranking 5+ = lighter
-                    # Create distinct visual priority levels (fewer shades than old 1-99 system)
-                    ranking_factor = 1.0 - (min(termbase_ranking, 10) - 2) / 20.0  # Adjusted for rank 2+
-                    type_color = self._darken_color(base_color, ranking_factor)
+                # Use ranking to determine SOFT pastel green shade
+                # All shades are subtle to stay in the background
+                if termbase_ranking is not None:
+                    # Map ranking to soft pastel green shades:
+                    # Ranking #1: Soft medium green (Green 200)
+                    # Ranking #2: Soft light green (Green 100)
+                    # Ranking #3: Very soft light green (Light Green 100)
+                    # Ranking #4+: Extremely soft pastel green (Green 50)
+                    ranking_colors = {
+                        1: "#A5D6A7",  # Soft medium green (Green 200)
+                        2: "#C8E6C9",  # Soft light green (Green 100)
+                        3: "#DCEDC8",  # Very soft light green (Light Green 100)
+                    }
+                    type_color = ranking_colors.get(termbase_ranking, "#E8F5E9")  # Green 50 for 4+ (Extremely soft)
                 else:
-                    # No ranking assigned (shouldn't happen for activated termbases)
-                    type_color = base_color
+                    # No ranking - use soft light green
+                    type_color = "#C8E6C9"  # Green 100 (fallback)
         else:
             type_color = base_color
         
@@ -602,8 +623,9 @@ class TranslationResultsPanel(QWidget):
     # Class variables for font sizes
     compare_box_font_size = 9
     
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, parent_app=None):
         super().__init__(parent)
+        self.parent_app = parent_app  # Reference to main app for settings access
         self.matches_by_type: Dict[str, List[TranslationMatch]] = {}
         self.current_selection: Optional[TranslationMatch] = None
         self.all_matches: List[TranslationMatch] = []
@@ -1175,7 +1197,84 @@ class TranslationResultsPanel(QWidget):
         
         # Re-render with merged matches
         self.set_matches(self.matches_by_type)
-    
+
+    def _sort_termbase_matches(self, matches: List[TranslationMatch]) -> List[TranslationMatch]:
+        """
+        Sort termbase matches based on user preference.
+
+        Args:
+            matches: List of termbase matches
+
+        Returns:
+            Sorted list of matches
+        """
+        if not self.parent_app:
+            return matches  # No sorting if no parent app
+
+        sort_order = getattr(self.parent_app, 'termbase_display_order', 'appearance')
+
+        if sort_order == 'alphabetical':
+            # Sort alphabetically by source term (case-insensitive)
+            return sorted(matches, key=lambda m: m.source.lower())
+        elif sort_order == 'length':
+            # Sort by source term length (longest first)
+            return sorted(matches, key=lambda m: len(m.source), reverse=True)
+        elif sort_order == 'appearance':
+            # Sort by position in source text (if available in metadata)
+            # If position not available, keep original order
+            def get_position(match):
+                pos = match.metadata.get('position_in_source', -1)
+                # If no position, put at end
+                return pos if pos >= 0 else 999999
+            return sorted(matches, key=get_position)
+        else:
+            # Default: keep original order
+            return matches
+
+    def _filter_shorter_matches(self, matches: List[TranslationMatch]) -> List[TranslationMatch]:
+        """
+        Filter out shorter termbase matches that are substrings of longer matches.
+
+        Args:
+            matches: List of termbase matches
+
+        Returns:
+            Filtered list with shorter substring matches removed
+        """
+        if not self.parent_app:
+            return matches  # No filtering if no parent app
+
+        hide_shorter = getattr(self.parent_app, 'termbase_hide_shorter_matches', False)
+
+        if not hide_shorter:
+            return matches
+
+        # Create a list to track which matches to keep
+        filtered_matches = []
+
+        for i, match in enumerate(matches):
+            # Check if this match's source is a substring of any other match's source
+            is_substring = False
+            source_lower = match.source.lower()
+
+            for j, other_match in enumerate(matches):
+                if i == j:
+                    continue
+                other_source_lower = other_match.source.lower()
+
+                # Check if current match is a substring of the other match
+                # and is shorter than the other match
+                if (source_lower in other_source_lower and
+                    len(source_lower) < len(other_source_lower)):
+                    is_substring = True
+                    break
+
+            # Keep the match if it's not a substring of a longer match
+            if not is_substring:
+                filtered_matches.append(match)
+
+        return filtered_matches
+
     def set_matches(self, matches_dict: Dict[str, List[TranslationMatch]]):
         """
         Set matches from different sources in unified flat list with GLOBAL consecutive numbering
@@ -1219,10 +1318,20 @@ class TranslationResultsPanel(QWidget):
         
         for match_type in order:
             if match_type in matches_dict and matches_dict[match_type]:
+                # Get matches for this type
+                type_matches = matches_dict[match_type]
+
+                # Apply sorting and filtering for termbase matches
+                if match_type == "Termbases":
+                    # First filter out shorter substring matches (if enabled)
+                    type_matches = self._filter_shorter_matches(type_matches)
+                    # Then sort according to user preference
+                    type_matches = self._sort_termbase_matches(type_matches)
+
                 # Apply limit for this match type
                 limit = match_limits.get(match_type, 5)
-                limited_matches = matches_dict[match_type][:limit]
-                
+                limited_matches = type_matches[:limit]
+
                 for match in limited_matches:
                     self.all_matches.append(match)
                     

@@ -1,12 +1,103 @@
 # Supervertaler Project Context
 
-**Last Updated:** November 20, 2025
+**Last Updated:** November 21, 2025
 **Repository:** https://github.com/michaelbeijer/Supervertaler
 **Maintainer:** Michael Beijer
 
 ---
 
 ## 📅 Recent Development Activity
+
+### November 21, 2025 - Version 1.7.7 Release: Termbase Display Customization
+
+**🎯 Version 1.7.7 Released - User-Configurable Termbase Display**
+
+Today we released version 1.7.7, which introduces user-configurable sorting and filtering options for termbase matches in the translation results panel. This gives translators full control over how terminology is displayed, reducing clutter and improving focus on relevant multi-word terms.
+
+**✨ New Features:**
+
+**User-Configurable Termbase Sorting:**
+- **Three Sorting Options** (accessible in Settings → General → TM/Termbase Options):
+  - **Order of appearance in source text** (default) - Matches appear as they occur in the segment
+  - **Alphabetical (A-Z)** - Matches sorted by source term alphabetically (case-insensitive)
+  - **By length (longest first)** - Longer multi-word terms prioritized over shorter ones
+- **Settings UI:**
+  - Dropdown combo box with clear descriptions for each option
+  - Helpful tooltips explaining the behavior of each sorting mode
+  - Settings persist across sessions in `ui_preferences.json`
+- **Implementation:**
+  - New method `_sort_termbase_matches()` in `TranslationResultsPanel`
+  - Sorting applied only to termbase matches; TM, MT, and LLM results maintain existing order
+  - Position-in-source sorting uses metadata when available
+  - Falls back to original order if position data not present
+
+**Smart Substring Filtering:**
+- **"Hide shorter termbase matches" checkbox** in Settings → General
+- **Intelligent Filtering:**
+  - Automatically filters out shorter terms that are fully contained within longer matched terms
+  - Example: If both "cooling" and "cooling system" match, only "cooling system" is shown
+  - Helps focus on the most relevant multi-word terminology
+  - Reduces visual clutter in the translation results panel
+- **Implementation:**
+  - New method `_filter_shorter_matches()` in `TranslationResultsPanel`
+  - Uses substring detection with length comparison
+  - Case-insensitive matching for better accuracy
+  - Can be toggled on/off without restarting the application
+
+**Enhanced Visual Distinction:**
+- **Bold Font for Project Resources:**
+  - Project termbases now display with bold provider codes (TB) instead of asterisks
+  - Project TMs also use bold font for cleaner visual distinction
+  - Changed from "TB*" notation to bold "TB" for better aesthetics
+  - Uses `font-weight: bold` CSS property
+
+**📊 Technical Implementation:**
+
+**Settings Architecture:**
+- Settings stored in `ui_preferences.json` under `general_settings` key
+- Two new settings variables:
+  - `termbase_display_order`: 'appearance' | 'alphabetical' | 'length' (default: 'appearance')
+  - `termbase_hide_shorter_matches`: boolean (default: False)
+- Settings loaded at application startup in `load_general_settings()` method
+- Settings saved when user clicks "Save Settings" in settings dialog
+
+**Translation Results Panel Updates:**
+- `TranslationResultsPanel` now accepts `parent_app` parameter for settings access
+- New sorting method supports three strategies with fallback handling
+- New filtering method identifies and removes substring matches
+- Applied in `set_matches()` method before match limit is enforced
+- Processing order: filter first (reduce set), then sort (organize remaining)
+
+**Files Modified:**
+- [Supervertaler.py](../Supervertaler.py):
+  - Lines 2391-2393: Added settings instance variables
+  - Lines 7377-7406: Settings UI controls (combo box + checkbox)
+  - Lines 8316-8360: Save settings logic
+  - Lines 8930, 9548: Pass `parent_app` when creating `TranslationResultsPanel`
+  - Lines 12604-12606: Load settings on startup
+- [modules/translation_results_panel.py](../modules/translation_results_panel.py):
+  - Lines 626-628: Accept `parent_app` parameter in `__init__()`
+  - Lines 133-145: Bold font for project resources
+  - Lines 1201-1232: `_sort_termbase_matches()` method
+  - Lines 1234-1276: `_filter_shorter_matches()` method
+  - Lines 1324-1329: Apply sorting and filtering in `set_matches()`
+
+**🎯 User Benefits:**
+- **Cleaner Results Panel:** Hide redundant short terms that are part of longer matches
+- **Better Organization:** Sort matches by relevance, alphabetically, or by term length
+- **Improved Focus:** Prioritize multi-word terminology over single words
+- **Workflow Optimization:** Choose sorting that matches your translation style
+- **No Performance Impact:** Sorting and filtering happen instantly
+- **Persistent Preferences:** Settings remembered across sessions
+
+**🧪 Testing:**
+- Application starts successfully with no errors
+- Settings UI displays correctly with tooltips
+- Settings persist across application restarts
+- Sorting and filtering apply correctly to termbase matches only
+- Bold font displays correctly for project resources
+
+---
 
 ### November 20, 2025 - Version 1.7.6 Release: Auto Backup System
 
