@@ -438,11 +438,11 @@ We're looking for:
 
 Check out:
 1. **README.md** (this file) - Overview
-2. **[CHANGELOG_Qt.md](CHANGELOG_Qt.md)** - Qt Edition changes
-3. **[CHANGELOG_Tkinter.md](CHANGELOG_Tkinter.md)** - Tkinter Edition changes
-4. **[USER_GUIDE.md](USER_GUIDE.md)** - Detailed usage instructions
-5. **GitHub Issues** - Common questions
-5. **Website Documentation** - tutorials and guides
+2. **[CHANGELOG.md](CHANGELOG.md)** - Complete version history
+3. **[docs/PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md)** - Complete project reference
+4. **[GitHub Discussions](https://github.com/michaelbeijer/Supervertaler/discussions)** - Ask questions & share ideas
+5. **[Website Documentation](https://supervertaler.com)** - Guides and tutorials
+6. **[GitHub Issues](https://github.com/michaelbeijer/Supervertaler/issues)** - Bug reports & feature requests
 
 ---
 

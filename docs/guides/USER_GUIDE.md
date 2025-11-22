@@ -1,8 +1,16 @@
 # Supervertaler User Guide
 ## AI-Powered Professional Translation Tool
 
+> **⚠️ OUTDATED DOCUMENTATION**  
+> This guide was last updated for v3.7.1 (October 2025) and contains outdated information.  
+> **Current Version:** v1.7.8 (November 22, 2025)  
+> **For up-to-date information, see:**
+> - [CHANGELOG.md](../../CHANGELOG.md) - Latest features and changes
+> - [PROJECT_CONTEXT.md](../PROJECT_CONTEXT.md) - Complete project reference
+> - [Supervertaler Website](https://supervertaler.com) - Current documentation
+
 **Last Updated**: October 22, 2025  
-**Current Version**: v3.7.1
+**Guide Version**: v3.7.1 (OUTDATED)
 
 ---
 

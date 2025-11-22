@@ -1,8 +1,16 @@
 ==========================================================================
-  SUPERVERTALER v3.7.0 - Installation Guide (Three Methods)
+  SUPERVERTALER - Installation Guide
 ==========================================================================
 
-Latest Version: v3.7.0 (October 19, 2025)
+> **⚠️ OUTDATED DOCUMENTATION**  
+> This installation guide was last updated for v3.7.0 (October 2025).  
+> **Current Version:** v1.7.8 (November 22, 2025)  
+> **For current installation instructions:**
+> - See [README.md](../../README.md) - Quick start instructions
+> - Visit [Supervertaler Website](https://supervertaler.com) - Latest guides
+> - Check [GitHub Releases](https://github.com/michaelbeijer/Supervertaler/releases)
+
+Latest Version: v3.7.0 (October 19, 2025) - **OUTDATED**
 Supervertaler is now available in THREE ways - choose what works for you!
 
 Thank you for downloading Supervertaler! This guide will help you get 

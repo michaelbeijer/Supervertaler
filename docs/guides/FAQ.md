@@ -1,7 +1,15 @@
 # Supervertaler - Frequently Asked Questions
 
+> **⚠️ OUTDATED DOCUMENTATION**  
+> This FAQ was last updated for v3.4.0-beta (October 2025) and contains outdated information.  
+> **Current Version:** v1.7.8 (November 22, 2025)  
+> **For current help, see:**
+> - [GitHub Discussions](https://github.com/michaelbeijer/Supervertaler/discussions) - Ask questions
+> - [CHANGELOG.md](../../CHANGELOG.md) - Latest features
+> - [PROJECT_CONTEXT.md](../PROJECT_CONTEXT.md) - Complete reference
+
 **Last Updated**: October 13, 2025  
-**Version**: 3.4.0-beta (CAT Edition) / 2.5.0-CLASSIC
+**FAQ Version**: 3.4.0-beta (OUTDATED)
 
 ---
 

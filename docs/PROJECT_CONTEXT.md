@@ -539,7 +539,7 @@ Updated all version references across the codebase:
      - Mentioned future voice command system
      - Condensed previous features (v1.3.4, v1.3.3) for brevity
 
-2. **CHANGELOG_Qt.md:**
+2. **CHANGELOG.md:**
    - Added comprehensive v1.4.0 entry at top
    - Documented all Supervoice features:
      - AI-powered speech recognition (OpenAI Whisper)
@@ -555,7 +555,7 @@ Updated all version references across the codebase:
    - Documented bug fixes (UnboundLocalError, language detection, button color, auto-scroll)
    - Listed technical details
 
-3. **CHANGELOG_Qt.md:**
+3. **CHANGELOG.md:**
    - Maintains complete version history from v1.0.0 to current
    - Top section includes marketing-style highlights of recent major features
    - Detailed release notes for all versions:
@@ -615,7 +615,7 @@ All documentation is complete and comprehensive:
 - [SUPERVOICE_TROUBLESHOOTING.md](SUPERVOICE_TROUBLESHOOTING.md) - Troubleshooting
 - [docs/index.html](../docs/index.html) - Website updated
 - [README.md](../README.md) - Updated
-- [CHANGELOG_Qt.md](../CHANGELOG_Qt.md) - Complete version history with marketing highlights
+- [CHANGELOG.md](../CHANGELOG.md) - Complete version history with marketing highlights
 
 **🚀 Next Steps:**
 
@@ -1949,7 +1949,7 @@ Successfully integrated all translation sources (Termbase, TM, MT, LLM) with pro
 | **Status** | Primary (new features) | Legacy (feature parity) |
 | **UI** | Modern ribbon + compact panels | Tabbed interface |
 | **Database** | SQLite (shared schema) | SQLite (shared schema) |
-| **Changelog** | `CHANGELOG_Qt.md` | `CHANGELOG_Tkinter.md` |
+| **Changelog** | `CHANGELOG.md` | `legacy_versions/CHANGELOG_Tkinter.md` |
 
 **Migration Strategy:** Move all tkinter functionality to Qt version, then deprecate tkinter in v2.0.0
 
@@ -1962,7 +1962,7 @@ Successfully integrated all translation sources (Termbase, TM, MT, LLM) with pro
 ├── Supervertaler.py              # Qt Edition (PRIMARY)
 ├── Supervertaler_tkinter.py         # Tkinter Edition (legacy)
 ├── README.md                         # Repository overview
-├── CHANGELOG_Qt.md                   # Qt version history
+├── CHANGELOG.md                      # Complete version history
 ├── CHANGELOG_Tkinter.md              # Tkinter version history
 │
 ├── modules/                          # Shared modules
@@ -2096,7 +2096,7 @@ python Supervertaler_tkinter.py
 | File | Purpose |
 |------|---------|
 | `docs/PROJECT_CONTEXT.md` | This file - source of truth |
-| `CHANGELOG_Qt.md` | Qt version history |
+| `CHANGELOG.md` | Complete version history |
 | `CHANGELOG_Tkinter.md` | Tkinter version history |
 | `modules/database_manager.py` | Database layer |
 | `modules/termbase_manager.py` | Termbase operations |

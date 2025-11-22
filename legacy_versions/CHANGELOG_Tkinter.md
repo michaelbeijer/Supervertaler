@@ -2,7 +2,7 @@
 
 All notable changes to the **Tkinter Edition (Classic)** of Supervertaler are documented in this file.
 
-The Tkinter Edition is the **legacy version** in maintenance mode. Primary development continues in the [Qt Edition](CHANGELOG_Qt.md).
+The Tkinter Edition is the **legacy version** in maintenance mode. Primary development continues in the [Qt Edition](../CHANGELOG.md).
 
 ---
 
@@ -63,7 +63,7 @@ Users of the Tkinter Edition are encouraged to migrate to the Qt Edition (v1.0+)
 
 ---
 
-**Note:** This changelog focuses on the Tkinter Edition (legacy). See [CHANGELOG_Qt.md](CHANGELOG_Qt.md) for the primary Qt Edition.
+**Note:** This changelog focuses on the Tkinter Edition (legacy). See [CHANGELOG.md](../CHANGELOG.md) for the primary Qt Edition.
 
 **Last Updated:** October 30, 2025
 
