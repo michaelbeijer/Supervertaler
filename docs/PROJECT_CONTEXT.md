@@ -404,7 +404,7 @@ Today we released version 1.4.1, which adds the Superbench module - a powerful a
    - **Issue:** Window title and recent projects menu showed import filename instead of custom project name
    - **Root Cause:** `save_project_as()` saved file but didn't update `self.current_project.name`
    - **Fix:** Added logic to extract filename stem and update project name when saving
-   - **Files Modified:** [Supervertaler_Qt.py](../Supervertaler_Qt.py) (line 5915-5917)
+   - **Files Modified:** [Supervertaler.py](../Supervertaler.py) (line 5915-5917)
 
 3. **Excel Filename Sanitization:**
    - **Issue:** Export filenames could contain invalid Windows characters like `:`
@@ -434,7 +434,7 @@ Today we released version 1.4.1, which adds the Superbench module - a powerful a
 2. **Intelligent Export Paths:**
    - memoQ export dialog now defaults to original import file location
    - Significantly improves round-trip workflow convenience
-   - **Files Modified:** [Supervertaler_Qt.py](../Supervertaler_Qt.py) (line 6734-6742)
+   - **Files Modified:** [Supervertaler.py](../Supervertaler.py) (line 6734-6742)
 
 **📁 Technical Implementation:**
 
@@ -473,7 +473,7 @@ def _lang_code_to_name(self, code: str) -> str:
    - Enhanced Excel colors (lines 982-986)
    - Added comprehensive error handling to BenchmarkThread (lines 56-79)
 
-3. **Supervertaler_Qt.py:**
+3. **Supervertaler.py:**
    - Fixed `save_project_as()` project name update (lines 5915-5917)
    - Enhanced memoQ export path intelligence (lines 6734-6742)
    - Updated version to v1.4.1 (4 locations)
@@ -493,7 +493,7 @@ Today we released version 1.4.0, which includes the completed Supervoice voice d
 **✅ Version Update (1.3.4 → 1.4.0):**
 
 Updated all version references across the codebase:
-- **Supervertaler_Qt.py:**
+- **Supervertaler.py:**
   - Header docstring: "Version: 1.4.0 (Supervoice Voice Dictation + Detachable Log)"
   - `__version__ = "1.4.0"`
   - `__release_date__ = "2025-11-12"`
@@ -910,7 +910,7 @@ Implemented segment-level access for AI Assistant allowing querying of specific 
 - All document context integration now working correctly
 
 **Files Modified:**
-- [Supervertaler_Qt.py](../Supervertaler_Qt.py) - Fixed attribute names, added auto-markdown setting UI
+- [Supervertaler.py](../Supervertaler.py) - Fixed attribute names, added auto-markdown setting UI
 - [modules/unified_prompt_manager_qt.py](../modules/unified_prompt_manager_qt.py) - Added segment info method and auto-markdown generation
 - [modules/ai_actions.py](../modules/ai_actions.py) - Added segment actions and HTML escaping
 - [test_ai_actions.py](../test_ai_actions.py) - Added tests 9 and 10 for segment actions
@@ -952,7 +952,7 @@ Major additions to the System Prompts accessibility and planning for file attach
 - Stored in `user_data_private/Prompt_Library/system_prompts_layer1.json`
 
 **Files Modified:**
-- [Supervertaler_Qt.py](../Supervertaler_Qt.py) - Added System Prompts tab (lines 2965-3846)
+- [Supervertaler.py](../Supervertaler.py) - Added System Prompts tab (lines 2965-3846)
 - [modules/unified_prompt_manager_qt.py](../modules/unified_prompt_manager_qt.py) - Updated navigation (lines 1424-1439)
 
 **🔄 PLANNED: AI Assistant Enhancement (November 9, 2025)**
@@ -1661,7 +1661,7 @@ Files created and tested:
 - ✅ `docs/UNIFIED_PROMPT_LIBRARY_GUIDE.md`
 
 Next steps to complete:
-1. **Integrate into Supervertaler_Qt.py:**
+1. **Integrate into Supervertaler.py:**
    - Replace `from modules.prompt_manager_qt import PromptManagerQt`
    - With `from modules.unified_prompt_manager_qt import UnifiedPromptManagerQt`
    - Update all calls to `build_final_prompt()`
@@ -1699,7 +1699,7 @@ Next steps to complete:
 - `docs/UNIFIED_PROMPT_LIBRARY_GUIDE.md` (comprehensive guide)
 
 **Files to be Modified:**
-- `Supervertaler_Qt.py` (replace prompt manager integration)
+- `Supervertaler.py` (replace prompt manager integration)
 - Settings dialog (add System Templates section)
 
 **Old Files (to be deprecated):**
@@ -1719,7 +1719,7 @@ This refactoring demonstrates:
 
 **⚠️ Important Context:**
 
-- This ONLY affects Supervertaler_Qt.py (Qt version)
+- This ONLY affects Supervertaler.py (Qt version)
 - Supervertaler_tkinter.py is separate and unchanged
 - Old prompt manager kept in codebase temporarily for reference
 - Migration runs automatically on first launch of new version
@@ -1756,7 +1756,7 @@ Implemented a standalone, modular tag cleaning system that removes CAT tool tags
    - ✅ Clean separation of concerns - modular design
    - ✅ Optional on-the-fly tag cleaning when pasting from TMX to memoQ
 
-4. **User Interface Controls** (Supervertaler_Qt.py:12777-12843)
+4. **User Interface Controls** (Supervertaler.py:12777-12843)
    - ✅ Master switch: "Enable tag cleaning" checkbox
    - ✅ Granular tag type selection (indented hierarchy):
      - ✅ memoQ index tags ([1} {2]) - **Active and functional**
@@ -1779,7 +1779,7 @@ Implemented a standalone, modular tag cleaning system that removes CAT tool tags
 
 **Files Modified:**
 - `modules/autofingers_engine.py` - Integrated TagCleaner (line 15, 87, 290)
-- `Supervertaler_Qt.py` - Added UI controls and settings management
+- `Supervertaler.py` - Added UI controls and settings management
 - `user_data_private/autofingers_settings.json` - Extended structure
 
 **Architecture Highlights:**
@@ -1889,7 +1889,7 @@ Successfully integrated all translation sources (Termbase, TM, MT, LLM) with pro
 - Supports multiple API key locations (user_data_private/, root)
 - Handles both key naming conventions for backward compatibility
 
-**File: `Supervertaler_Qt.py`**
+**File: `Supervertaler.py`**
 - Fixed Gemini integration to check for both `gemini` and `google` API keys (line ~10620)
 - Enhanced Google Translate integration with comprehensive logging
 - Termbase match preservation through delayed search parameter passing
@@ -1943,7 +1943,7 @@ Successfully integrated all translation sources (Termbase, TM, MT, LLM) with pro
 
 | Aspect | Qt Edition | Tkinter Edition (Classic) |
 |--------|-----------|---------------------------|
-| **File** | `Supervertaler_Qt.py` | `Supervertaler_tkinter.py` |
+| **File** | `Supervertaler.py` | `Supervertaler_tkinter.py` |
 | **Version** | v1.0.1+ (Active Development) | v2.5.0+ (Maintenance) |
 | **Framework** | PyQt6 | Tkinter |
 | **Status** | Primary (new features) | Legacy (feature parity) |
@@ -1959,7 +1959,7 @@ Successfully integrated all translation sources (Termbase, TM, MT, LLM) with pro
 
 ```
 /
-├── Supervertaler_Qt.py              # Qt Edition (PRIMARY)
+├── Supervertaler.py              # Qt Edition (PRIMARY)
 ├── Supervertaler_tkinter.py         # Tkinter Edition (legacy)
 ├── README.md                         # Repository overview
 ├── CHANGELOG_Qt.md                   # Qt version history
@@ -2081,7 +2081,7 @@ Successfully integrated all translation sources (Termbase, TM, MT, LLM) with pro
 
 ### Qt Edition
 ```bash
-python Supervertaler_Qt.py
+python Supervertaler.py
 ```
 
 ### Tkinter Edition
@@ -2488,7 +2488,7 @@ Compare original and revised text and identify EXACTLY what changed.
 
 ### Implementation Details
 
-**Main Application File:** `Supervertaler_Qt.py` (5,800+ lines)
+**Main Application File:** `Supervertaler.py` (21,600+ lines)
 - Modern PyQt6 application with professional CAT interface
 - 14-tab main interface organized into 4 functional groups
 - Context-sensitive ribbon with 4 ribbon tabs
@@ -2575,7 +2575,7 @@ Ready to integrate into TranslationResultsPanel's compare boxes.
 ## 🔗 Related Files
 
 ### Qt Edition (v1.0.0)
-- **Main Application:** `Supervertaler_Qt.py` (Primary CAT interface, 5800+ lines)
+- **Main Application:** `Supervertaler.py` (Primary CAT interface, 21,600+ lines)
 - **UI Components:**
   - `modules/translation_results_panel.py` - Match display panel (345 lines, NEW)
   - `modules/ribbon_widget.py` - Modern ribbon UI
@@ -2671,5 +2671,5 @@ Fixed and enhanced the status column display in Grid view:
 - Background color now on table item, widget is transparent (prevents rendering issues)
 - Status icon size varies by status: 11px for ❌, 14px for others
 - Green color (#2e7d32) applied via CSS to confirmed checkmark
-- All changes in `Supervertaler_Qt.py` and `modules/statuses.py`
+- All changes in `Supervertaler.py` and `modules/statuses.py`
 

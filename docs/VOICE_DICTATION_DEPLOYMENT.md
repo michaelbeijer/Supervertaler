@@ -80,7 +80,7 @@ You have **two options** for distributing Supervertaler as a standalone .exe:
    ├── binaries\
    │   └── ffmpeg.exe      (place here)
    ├── modules\
-   ├── Supervertaler_Qt.py
+   ├── Supervertaler.py
    └── ...
    ```
 
@@ -88,7 +88,7 @@ You have **two options** for distributing Supervertaler as a standalone .exe:
    ```python
    # In your .spec file:
    a = Analysis(
-       ['Supervertaler_Qt.py'],
+       ['Supervertaler.py'],
        datas=[
            ('binaries/ffmpeg.exe', 'binaries'),  # Add this line
            # ... other data files
@@ -166,7 +166,7 @@ The code checks for FFmpeg in this order:
 
 ### Code Location
 - Detection logic: [modules/voice_dictation_lite.py](modules/voice_dictation_lite.py) - `ensure_ffmpeg_available()`
-- Error handling: [Supervertaler_Qt.py](Supervertaler_Qt.py) - `on_dictation_error()`
+- Error handling: [Supervertaler.py](Supervertaler.py) - `on_dictation_error()`
 
 ---
 
