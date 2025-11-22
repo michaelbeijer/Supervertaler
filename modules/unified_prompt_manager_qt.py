@@ -1878,19 +1878,43 @@ class UnifiedPromptManagerQt:
     
     def _open_system_templates_settings(self):
         """Open system templates in settings"""
-        # Navigate to Settings tab if main app has the method
-        if hasattr(self.app, 'right_tabs') and hasattr(self.app, 'settings_tabs'):
-            # Navigate to Settings tab (index 3)
-            self.app.right_tabs.setCurrentIndex(3)
-            # Navigate to System Prompts sub-tab (index 5 - after General, LLM, Language, MT, View)
-            self.app.settings_tabs.setCurrentIndex(5)
-        else:
-            # Fallback message
-            QMessageBox.information(
+        try:
+            # Navigate to Settings tab if main app has the method
+            if hasattr(self.app, 'right_tabs') and hasattr(self.app, 'settings_tabs'):
+                # Navigate to Settings tab (index 3)
+                self.app.right_tabs.setCurrentIndex(3)
+                # Navigate to System Prompts sub-tab (index 5 - after General, LLM, Language, MT, View)
+                # Verify the index is valid before setting it
+                if self.app.settings_tabs.count() > 5:
+                    self.app.settings_tabs.setCurrentIndex(5)
+                else:
+                    # Log warning and fall back to first tab
+                    print(f"[WARNING] settings_tabs only has {self.app.settings_tabs.count()} tabs, cannot navigate to index 5")
+                    self.app.settings_tabs.setCurrentIndex(0)
+                    QMessageBox.warning(
+                        self.main_widget,
+                        "Navigation Issue",
+                        f"Could not navigate to System Prompts tab (expected at index 5, but only {self.app.settings_tabs.count()} tabs exist).\n\n"
+                        "Please manually navigate to Settings → System Prompts."
+                    )
+            else:
+                # Fallback message
+                QMessageBox.information(
+                    self.main_widget,
+                    "System Templates",
+                    "System Templates (Layer 1) are configured in Settings → System Prompts tab.\n\n"
+                    "They are automatically selected based on the document type you're processing."
+                )
+        except Exception as e:
+            import traceback
+            error_msg = f"Error opening System Templates settings: {str(e)}"
+            print(f"[ERROR] {error_msg}")
+            print(traceback.format_exc())
+            QMessageBox.critical(
                 self.main_widget,
-                "System Templates",
-                "System Templates (Layer 1) are configured in Settings → System Prompts tab.\n\n"
-                "They are automatically selected based on the document type you're processing."
+                "Error",
+                f"Failed to open System Templates settings:\n\n{str(e)}\n\n"
+                "Please manually navigate to Settings → System Prompts tab."
             )
     
     # === System Templates Management ===
@@ -2144,24 +2168,40 @@ You are an expert [domain] translator ([source] → [target]) with 10+ years exp
 **Domain:** [domain]
 **Language pair:** [source] → [target]
 **Content:** [brief description]
+**Number of segments:** [count]
 
 # KEY TERMINOLOGY
 | [Source] | [Target] | Notes |
 |----------|----------|-------|
-[20+ key terms from document]
+[Extract 20+ key terms from termbases/document]
 
 # TRANSLATION CONSTRAINTS
 **MUST:**
-- Preserve all tags exactly
-- One segment per line
-- Follow glossary exactly
+- Preserve all tags, markers, and placeholders exactly as in the source
+- Translate strictly one segment per line, preserving segmentation and order
+- Follow the KEY TERMINOLOGY glossary exactly for all mapped terms
+- If a segment is already in the target language, leave it unchanged
 
 **MUST NOT:**
-- Add explanations
-- Modify formatting
+- Add explanations, comments, footnotes, or translator's notes
+- Modify formatting, tags, numbering, brackets, or spacing
+- Merge or split segments
+
+**CRITICAL:** Based on the language pair, include appropriate format localization rules:
+
+### NUMBERS, DATES & LOCALISATION
+- If translating FROM Dutch/French/German/Spanish/Italian TO English: Include number format conversion (comma decimal → period decimal, e.g., 718.592,01 → 718,592.01)
+- If translating FROM English TO Dutch/French/German/Spanish/Italian: Include number format conversion (period decimal → comma decimal)
+- Include date localization rules if relevant (e.g., Dutch month names → English: juni → June)
+
+### DOMAIN-SPECIFIC RULES
+- For LEGAL domain (Belgian): Include "Preserve 'Meester' + surname format for Belgian notaries"
+- For LEGAL domain: Include preservation of legal entity abbreviations (e.g., BV, NV, RPR)
+- For MEDICAL domain: Include anatomical term consistency
+- For TECHNICAL domain: Include measurement unit handling
 
 # OUTPUT FORMAT
-Provide ONLY the translation.
+Provide ONLY the translation, one segment per line, aligned 1:1 with the source lines.
 
 Output complete ACTION."""
         

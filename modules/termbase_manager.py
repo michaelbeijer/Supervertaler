@@ -619,48 +619,76 @@ class TermbaseManager:
     def search_termbase(self, termbase_id: int, search_term: str, 
                        search_source: bool = True, search_target: bool = True) -> List[Dict]:
         """
-        Search within a termbase
+        Search within a termbase (searches main terms AND synonyms)
         
         Args:
             termbase_id: Termbase ID to search in
             search_term: Term to search for
-            search_source: Search in source terms
-            search_target: Search in target terms
+            search_source: Search in source terms and source synonyms
+            search_target: Search in target terms and target synonyms
             
         Returns:
-            List of matching terms
+            List of matching terms (includes main term + synonyms as separate entries)
         """
         try:
             cursor = self.db_manager.cursor
             
-            conditions = ["termbase_id = ?"]
-            params = [termbase_id]
+            # Find matching term IDs (from main terms OR synonyms)
+            matching_term_ids = set()
             
-            # Build search condition
-            search_conds = []
             if search_source:
-                search_conds.append("source_term LIKE ?")
-                params.append(f"%{search_term}%")
+                # Search main source terms
+                cursor.execute("""
+                    SELECT id FROM termbase_terms
+                    WHERE termbase_id = ? AND source_term LIKE ?
+                """, (termbase_id, f"%{search_term}%"))
+                matching_term_ids.update(row[0] for row in cursor.fetchall())
+                
+                # Search source synonyms
+                cursor.execute("""
+                    SELECT term_id FROM termbase_synonyms
+                    WHERE term_id IN (SELECT id FROM termbase_terms WHERE termbase_id = ?)
+                    AND language = 'source' AND synonym_text LIKE ?
+                """, (termbase_id, f"%{search_term}%"))
+                matching_term_ids.update(row[0] for row in cursor.fetchall())
+            
             if search_target:
-                search_conds.append("target_term LIKE ?")
-                params.append(f"%{search_term}%")
+                # Search main target terms
+                cursor.execute("""
+                    SELECT id FROM termbase_terms
+                    WHERE termbase_id = ? AND target_term LIKE ?
+                """, (termbase_id, f"%{search_term}%"))
+                matching_term_ids.update(row[0] for row in cursor.fetchall())
+                
+                # Search target synonyms
+                cursor.execute("""
+                    SELECT term_id FROM termbase_synonyms
+                    WHERE term_id IN (SELECT id FROM termbase_terms WHERE termbase_id = ?)
+                    AND language = 'target' AND synonym_text LIKE ?
+                """, (termbase_id, f"%{search_term}%"))
+                matching_term_ids.update(row[0] for row in cursor.fetchall())
             
-            if search_conds:
-                conditions.append(f"({' OR '.join(search_conds)})")
+            if not matching_term_ids:
+                return []
             
+            # Get full details for matching terms
+            placeholders = ','.join('?' * len(matching_term_ids))
             sql = f"""
                 SELECT id, source_term, target_term, priority, domain, definition, forbidden
                 FROM termbase_terms
-                WHERE {' AND '.join(conditions)}
+                WHERE id IN ({placeholders})
                 ORDER BY priority ASC, source_term ASC
             """
             
-            cursor.execute(sql, params)
+            cursor.execute(sql, list(matching_term_ids))
             
             results = []
             for row in cursor.fetchall():
+                term_id = row[0]
+                
+                # Add main term
                 results.append({
-                    'id': row[0],
+                    'id': term_id,
                     'source_term': row[1],
                     'target_term': row[2],
                     'priority': row[3],
@@ -668,8 +696,203 @@ class TermbaseManager:
                     'definition': row[5],
                     'forbidden': row[6]
                 })
+                
+                # Add target synonyms as separate entries (memoQ style)
+                # Synonyms are ordered by display_order (position 0 = main/preferred)
+                target_synonyms = self.get_synonyms(term_id, language='target')
+                for syn in target_synonyms:
+                    results.append({
+                        'id': term_id,  # Same term ID
+                        'source_term': row[1],  # Same source
+                        'target_term': syn['synonym_text'],  # Synonym as target
+                        'priority': row[3],
+                        'domain': row[4],
+                        'definition': row[5],
+                        'forbidden': syn['forbidden']  # Use synonym's forbidden flag
+                    })
             
             return results
         except Exception as e:
             self.log(f"✗ Error searching termbase: {e}")
             return []
+    
+    # ========================================================================
+    # SYNONYM MANAGEMENT
+    # ========================================================================
+    
+    def add_synonym(self, term_id: int, synonym_text: str, language: str = 'target', 
+                    display_order: int = 0, forbidden: bool = False) -> bool:
+        """
+        Add a synonym to a term
+        
+        Args:
+            term_id: Term ID to add synonym to
+            synonym_text: The synonym text
+            language: 'source' or 'target' (default: 'target')
+            display_order: Position in list (0 = main/top, higher = lower priority)
+            forbidden: Whether this synonym is forbidden
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            cursor = self.db_manager.cursor
+            now = datetime.now().isoformat()
+            
+            # Check if synonym already exists
+            cursor.execute("""
+                SELECT id FROM termbase_synonyms 
+                WHERE term_id = ? AND synonym_text = ? AND language = ?
+            """, (term_id, synonym_text, language))
+            
+            if cursor.fetchone():
+                self.log(f"✗ Synonym already exists: {synonym_text}")
+                return False
+            
+            cursor.execute("""
+                INSERT INTO termbase_synonyms (term_id, synonym_text, language, display_order, forbidden, created_date, modified_date)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (term_id, synonym_text, language, display_order, 1 if forbidden else 0, now, now))
+            
+            self.db_manager.connection.commit()
+            self.log(f"✓ Added synonym: {synonym_text}")
+            return True
+        except Exception as e:
+            self.log(f"✗ Error adding synonym: {e}")
+            return False
+    
+    def get_synonyms(self, term_id: int, language: Optional[str] = None) -> List[Dict]:
+        """
+        Get synonyms for a term, ordered by display_order (position)
+        
+        Args:
+            term_id: Term ID to get synonyms for
+            language: Optional filter - 'source', 'target', or None for both
+            
+        Returns:
+            List of synonym dictionaries with fields: id, synonym_text, language, display_order, forbidden
+        """
+        try:
+            cursor = self.db_manager.cursor
+            
+            if language:
+                cursor.execute("""
+                    SELECT id, synonym_text, language, display_order, forbidden, created_date, modified_date
+                    FROM termbase_synonyms
+                    WHERE term_id = ? AND language = ?
+                    ORDER BY display_order ASC, created_date ASC
+                """, (term_id, language))
+            else:
+                cursor.execute("""
+                    SELECT id, synonym_text, language, display_order, forbidden, created_date, modified_date
+                    FROM termbase_synonyms
+                    WHERE term_id = ?
+                    ORDER BY language DESC, display_order ASC, created_date ASC
+                """, (term_id,))
+            
+            results = []
+            for row in cursor.fetchall():
+                results.append({
+                    'id': row[0],
+                    'synonym_text': row[1],
+                    'language': row[2],
+                    'display_order': row[3],
+                    'forbidden': bool(row[4]),
+                    'created_date': row[5],
+                    'modified_date': row[6]
+                })
+            
+            return results
+        except Exception as e:
+            self.log(f"✗ Error getting synonyms: {e}")
+            return []
+    
+    def update_synonym_order(self, synonym_id: int, new_order: int) -> bool:
+        """
+        Update the display order of a synonym
+        
+        Args:
+            synonym_id: Synonym ID to update
+            new_order: New display order (0 = top/main)
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            cursor = self.db_manager.cursor
+            now = datetime.now().isoformat()
+            cursor.execute("""
+                UPDATE termbase_synonyms 
+                SET display_order = ?, modified_date = ?
+                WHERE id = ?
+            """, (new_order, now, synonym_id))
+            self.db_manager.connection.commit()
+            return True
+        except Exception as e:
+            self.log(f"✗ Error updating synonym order: {e}")
+            return False
+    
+    def update_synonym_forbidden(self, synonym_id: int, forbidden: bool) -> bool:
+        """
+        Update the forbidden flag of a synonym
+        
+        Args:
+            synonym_id: Synonym ID to update
+            forbidden: New forbidden status
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            cursor = self.db_manager.cursor
+            now = datetime.now().isoformat()
+            cursor.execute("""
+                UPDATE termbase_synonyms 
+                SET forbidden = ?, modified_date = ?
+                WHERE id = ?
+            """, (1 if forbidden else 0, now, synonym_id))
+            self.db_manager.connection.commit()
+            return True
+        except Exception as e:
+            self.log(f"✗ Error updating synonym forbidden status: {e}")
+            return False
+    
+    def reorder_synonyms(self, term_id: int, language: str, synonym_ids_in_order: List[int]) -> bool:
+        """
+        Reorder synonyms for a term
+        
+        Args:
+            term_id: Term ID
+            language: 'source' or 'target'
+            synonym_ids_in_order: List of synonym IDs in desired order
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            for order, syn_id in enumerate(synonym_ids_in_order):
+                self.update_synonym_order(syn_id, order)
+            return True
+        except Exception as e:
+            self.log(f"✗ Error reordering synonyms: {e}")
+            return False
+    
+    def delete_synonym(self, synonym_id: int) -> bool:
+        """
+        Delete a synonym
+        
+        Args:
+            synonym_id: Synonym ID to delete
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            cursor = self.db_manager.cursor
+            cursor.execute("DELETE FROM termbase_synonyms WHERE id = ?", (synonym_id,))
+            self.db_manager.connection.commit()
+            self.log(f"✓ Deleted synonym {synonym_id}")
+            return True
+        except Exception as e:
+            self.log(f"✗ Error deleting synonym: {e}")
+            return False

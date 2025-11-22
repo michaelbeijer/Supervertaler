@@ -127,15 +127,25 @@ class TermbaseImporter:
                 for line_num, row in enumerate(reader, start=2):  # Start at 2 (line 1 is header)
                     try:
                         # Extract data using column mapping
-                        source_term = self._get_field(row, column_map.get('source', ''))
-                        target_term = self._get_field(row, column_map.get('target', ''))
+                        source_field = self._get_field(row, column_map.get('source', ''))
+                        target_field = self._get_field(row, column_map.get('target', ''))
                         term_uuid = self._get_field(row, column_map.get('term_uuid', ''))
                         
                         # Validate required fields
-                        if not source_term or not target_term:
+                        if not source_field or not target_field:
                             errors.append((line_num, "Missing source or target term"))
                             error_count += 1
                             continue
+                        
+                        # Parse source: first item = main term, rest = synonyms
+                        source_parts = [s.strip() for s in source_field.split('|') if s.strip()]
+                        source_term = source_parts[0] if source_parts else ''
+                        source_synonym_parts = source_parts[1:] if len(source_parts) > 1 else []
+                        
+                        # Parse target: first item = main term, rest = synonyms  
+                        target_parts = [s.strip() for s in target_field.split('|') if s.strip()]
+                        target_term = target_parts[0] if target_parts else ''
+                        target_synonym_parts = target_parts[1:] if len(target_parts) > 1 else []
                         
                         # Check for duplicates - UUID takes priority over source term matching
                         existing_term = None
@@ -169,7 +179,7 @@ class TermbaseImporter:
                         )
                         
                         # Add term to termbase (pass UUID if present, otherwise one will be generated)
-                        success = self.termbase_manager.add_term(
+                        term_id = self.termbase_manager.add_term(
                             termbase_id=termbase_id,
                             source_term=source_term,
                             target_term=target_term,
@@ -182,8 +192,44 @@ class TermbaseImporter:
                             term_uuid=term_uuid if term_uuid else None
                         )
                         
-                        if success:
+                        if term_id:
                             imported_count += 1
+                            
+                            # Add source synonyms (already parsed from source_field above)
+                            for order, syn_part in enumerate(source_synonym_parts):
+                                # Check for forbidden marker [!text]
+                                forbidden = False
+                                synonym_text = syn_part
+                                
+                                if syn_part.startswith('[!') and syn_part.endswith(']'):
+                                    forbidden = True
+                                    synonym_text = syn_part[2:-1]  # Remove [! and ]
+                                
+                                self.termbase_manager.add_synonym(
+                                    term_id, 
+                                    synonym_text, 
+                                    language='source',
+                                    display_order=order,
+                                    forbidden=forbidden
+                                )
+                            
+                            # Add target synonyms (already parsed from target_field above)
+                            for order, syn_part in enumerate(target_synonym_parts):
+                                # Check for forbidden marker [!text]
+                                forbidden = False
+                                synonym_text = syn_part
+                                
+                                if syn_part.startswith('[!') and syn_part.endswith(']'):
+                                    forbidden = True
+                                    synonym_text = syn_part[2:-1]  # Remove [! and ]
+                                
+                                self.termbase_manager.add_synonym(
+                                    term_id, 
+                                    synonym_text, 
+                                    language='target',
+                                    display_order=order,
+                                    forbidden=forbidden
+                                )
                         else:
                             errors.append((line_num, "Failed to add term to database"))
                             error_count += 1
@@ -335,10 +381,30 @@ class TermbaseExporter:
                 
                 # Write terms
                 for term in terms:
+                    # Build source term: main term + synonyms (pipe-delimited)
+                    source_parts = [term.get('source_term', '')]
+                    source_synonyms = self.termbase_manager.get_synonyms(term['id'], language='source')
+                    for s in source_synonyms:
+                        if s['forbidden']:
+                            source_parts.append(f"[!{s['synonym_text']}]")
+                        else:
+                            source_parts.append(s['synonym_text'])
+                    source_text = '|'.join(source_parts)
+                    
+                    # Build target term: main term + synonyms (pipe-delimited)
+                    target_parts = [term.get('target_term', '')]
+                    target_synonyms = self.termbase_manager.get_synonyms(term['id'], language='target')
+                    for s in target_synonyms:
+                        if s['forbidden']:
+                            target_parts.append(f"[!{s['synonym_text']}]")
+                        else:
+                            target_parts.append(s['synonym_text'])
+                    target_text = '|'.join(target_parts)
+                    
                     row = [
                         term.get('term_uuid', ''),  # UUID first for tracking
-                        term.get('source_term', ''),
-                        term.get('target_term', ''),
+                        source_text,  # Main source + synonyms pipe-delimited
+                        target_text,  # Main target + synonyms pipe-delimited
                         str(term.get('priority', 50)),
                         term.get('domain', ''),
                         term.get('notes', '')

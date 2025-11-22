@@ -224,6 +224,7 @@ class DatabaseManager:
                 target_lang TEXT,
                 project_id INTEGER,  -- NULL = global, set = project-specific
                 is_global BOOLEAN DEFAULT 1,
+                is_project_termbase BOOLEAN DEFAULT 0,  -- True if this is a project-specific termbase
                 priority INTEGER DEFAULT 50,  -- DEPRECATED: Use ranking instead
                 ranking INTEGER,  -- Termbase activation ranking: 1 = highest priority, 2 = second highest, etc. Only for activated termbases.
                 created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -254,7 +255,24 @@ class DatabaseManager:
         except Exception:
             # Column already exists, ignore
             pass
-        
+
+        # Data Migration: Set is_project_termbase=1 for termbases with non-NULL project_id
+        # This ensures existing project termbases are correctly flagged
+        try:
+            self.cursor.execute("""
+                UPDATE termbases
+                SET is_project_termbase = 1
+                WHERE project_id IS NOT NULL
+                AND (is_project_termbase IS NULL OR is_project_termbase = 0)
+            """)
+            updated_count = self.cursor.rowcount
+            if updated_count > 0:
+                self.log(f"✅ Data migration: Updated {updated_count} project termbase(s) with is_project_termbase=1")
+            self.connection.commit()
+        except Exception as e:
+            self.log(f"⚠️ Data migration warning (is_project_termbase): {e}")
+            pass
+
         # Legacy support: create glossaries as alias for termbases
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS glossaries (

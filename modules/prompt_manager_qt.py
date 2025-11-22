@@ -1493,6 +1493,27 @@ class PromptManagerQt:
             composition_parts.append("• Style Guide (Layer 4): None")
         
         composition_parts.append(f"• Total prompt length: {len(full_prompt)} characters")
+        
+        # Check for figure context
+        figure_info = ""
+        if hasattr(self.parent_app, 'figure_context') and self.parent_app.figure_context:
+            if self.parent_app.figure_context.has_images():
+                # Try to detect figure references in current segment
+                figure_refs = self.parent_app.figure_context.detect_figure_references(current_segment.source)
+                if figure_refs:
+                    images_available = self.parent_app.figure_context.get_images_for_text(current_segment.source)
+                    if images_available:
+                        figure_info = f"• 🖼️ Figure Context: {len(images_available)} image(s) will be included ({', '.join(figure_refs)})"
+                    else:
+                        figure_info = f"• ⚠️ Figure Context: References detected ({', '.join(figure_refs)}) but images not found"
+                else:
+                    figure_info = f"• ℹ️ Figure Context: {self.parent_app.figure_context.get_image_count()} image(s) loaded, but no references detected in this segment"
+            else:
+                figure_info = "• ℹ️ Figure Context: No images loaded"
+        
+        if figure_info:
+            composition_parts.append(figure_info)
+        
         composition_text = "\n".join(composition_parts)
         
         # Show preview dialog with full combined prompt
@@ -1522,7 +1543,15 @@ class PromptManagerQt:
         layout.addWidget(header_label)
         
         # Info panel (light blue like tkinter)
-        info_label = QLabel(f"💡 <b>This is the EXACT prompt that will be sent to the AI</b><br><br>📋 <b>Composition:</b><br>{composition_text.replace(chr(10), '<br>')}")
+        info_text = f"💡 <b>This is the EXACT TEXT prompt that will be sent to the AI</b>"
+        
+        # Add note about images if applicable
+        if "🖼️ Figure Context:" in composition_text and "will be included" in composition_text:
+            info_text += "<br><br><b>📸 Note:</b> Images are sent separately alongside this text prompt (binary data, not shown here)"
+        
+        info_text += f"<br><br>📋 <b>Composition:</b><br>{composition_text.replace(chr(10), '<br>')}"
+        
+        info_label = QLabel(info_text)
         info_label.setStyleSheet("background-color: #E3F2FD; padding: 10px; border-radius: 3px; margin: 5px 0;")
         info_label.setWordWrap(True)
         layout.addWidget(info_label)
@@ -2322,6 +2351,369 @@ Professional style guidelines for translating into {language}.
             "This will help you refine your prompts using AI.\n"
         )
     
+    def _detect_domain_from_analysis(self, analysis_text: str) -> str:
+        """
+        Detect document domain from AI analysis response.
+        Returns: 'legal', 'medical', 'technical', 'patent', or 'general'
+
+        Note: Searches for MULTILINGUAL keywords since analysis includes both source text
+        and English descriptions from the AI.
+        """
+        analysis_lower = analysis_text.lower()
+
+        # Load keywords from settings (or use defaults)
+        settings = self.parent_app.load_general_settings() if hasattr(self.parent_app, 'load_general_settings') else {}
+
+        # Default keywords - MULTILINGUAL (English + common European languages)
+        # These cover: document type descriptions (in English from AI) AND source text terms
+        legal_defaults = [
+            # English
+            'notarial deed', 'notary', 'legal contract', 'deed of', 'legal document',
+            'testament', 'mortgage', 'clause', 'hereby', 'whereas', 'contractual',
+            'court', 'judgment', 'plaintiff', 'defendant', 'attorney', 'barrister',
+            'articles of association', 'general meeting', 'extraordinary general meeting',
+            # Dutch/Flemish
+            'notariële akte', 'notaris', 'rechtbank', 'vonnis', 'statuten',
+            'algemene vergadering', 'buitengewone algemene vergadering', 'meester',
+            'advocaat', 'artikel', 'wetboek', 'rechtspersonenregister',
+            # French
+            'acte notarié', 'notaire', 'tribunal', 'jugement', 'statuts',
+            'assemblée générale', 'maître',
+            # German
+            'notarielle urkunde', 'notar', 'gericht', 'urteil', 'satzung'
+        ]
+
+        medical_defaults = [
+            # English
+            'patient', 'diagnosis', 'medical', 'clinical', 'procedure',
+            'treatment', 'symptom', 'disease', 'medication', 'pharmaceutical',
+            'surgery', 'anatomical', 'pathology', 'radiology', 'hospital',
+            # Dutch
+            'patiënt', 'diagnose', 'medisch', 'klinisch', 'behandeling',
+            'symptoom', 'ziekte', 'medicijn', 'chirurgie', 'ziekenhuis',
+            # French
+            'médical', 'clinique', 'traitement', 'symptôme', 'maladie',
+            'médicament', 'chirurgie', 'hôpital',
+            # German
+            'medizinisch', 'klinisch', 'behandlung', 'symptom', 'krankheit',
+            'medikament', 'krankenhaus'
+        ]
+
+        patent_defaults = [
+            # English
+            'patent', 'claim', 'invention', 'embodiment', 'prior art',
+            'apparatus', 'method comprising', 'said', 'wherein', 'configured to',
+            # Dutch
+            'octrooi', 'conclusie', 'uitvinding', 'uitvoeringsvorm',
+            # French
+            'brevet', 'revendication', 'invention', 'mode de réalisation',
+            # German
+            'patentanspruch', 'erfindung', 'ausführungsform'
+        ]
+
+        technical_defaults = [
+            # English
+            'specification', 'component', 'assembly', 'technical manual',
+            'installation', 'maintenance', 'user guide', 'operating instructions',
+            'safety warning', 'dimensions', 'tolerance',
+            # Dutch
+            'specificatie', 'onderdeel', 'montage', 'technische handleiding',
+            'installatie', 'onderhoud', 'gebruikershandleiding', 'veiligheidswaarschuwing',
+            # French
+            'spécification', 'composant', 'assemblage', 'manuel technique',
+            'entretien', 'avertissement de sécurité',
+            # German
+            'spezifikation', 'komponente', 'montage', 'technisches handbuch',
+            'wartung', 'sicherheitswarnung'
+        ]
+
+        # Get keywords from settings or use defaults
+        legal_keywords = settings.get('domain_keywords_legal', legal_defaults)
+        medical_keywords = settings.get('domain_keywords_medical', medical_defaults)
+        patent_keywords = settings.get('domain_keywords_patent', patent_defaults)
+        technical_keywords = settings.get('domain_keywords_technical', technical_defaults)
+
+        # Count keyword matches
+        legal_score = sum(1 for kw in legal_keywords if kw in analysis_lower)
+        medical_score = sum(1 for kw in medical_keywords if kw in analysis_lower)
+        patent_score = sum(1 for kw in patent_keywords if kw in analysis_lower)
+        technical_score = sum(1 for kw in technical_keywords if kw in analysis_lower)
+
+        # Determine domain (require minimum score of 2)
+        scores = {
+            'legal': legal_score,
+            'medical': medical_score,
+            'patent': patent_score,
+            'technical': technical_score
+        }
+
+        max_score = max(scores.values())
+        if max_score >= 2:
+            return max(scores, key=scores.get)
+
+        return 'general'
+
+    def _get_format_conversion_rules(self, source_lang: str, target_lang: str) -> str:
+        """
+        Generate number and date format conversion rules based on language pair.
+        """
+        # Normalize language codes
+        source = source_lang.lower()
+        target = target_lang.lower()
+
+        # Define number formatting conventions
+        comma_decimal_langs = ['dutch', 'nl', 'french', 'fr', 'german', 'de', 'spanish', 'es', 'italian', 'it']
+        period_decimal_langs = ['english', 'en', 'uk english', 'us english', 'irish', 'ie']
+
+        source_uses_comma = any(lang in source for lang in comma_decimal_langs)
+        target_uses_period = any(lang in target for lang in period_decimal_langs)
+        source_uses_period = any(lang in source for lang in period_decimal_langs)
+        target_uses_comma = any(lang in target for lang in comma_decimal_langs)
+
+        rules = []
+
+        # Number format conversion
+        if source_uses_comma and target_uses_period:
+            rules.append("""### Numbers
+- Convert continental European number format to English format:
+  - Decimal separator: comma (,) → period (.)
+  - Thousands separator: period (.) or space → comma (,)
+  - **Examples:** 718.592,01 → 718,592.01 | 1.000 → 1,000 | 17,5 → 17.5
+- Preserve the numerical value exactly.""")
+        elif source_uses_period and target_uses_comma:
+            rules.append("""### Numbers
+- Convert English number format to continental European format:
+  - Decimal separator: period (.) → comma (,)
+  - Thousands separator: comma (,) → period (.) or space
+  - **Examples:** 718,592.01 → 718.592,01 | 1,000 → 1.000 | 17.5 → 17,5
+- Preserve the numerical value exactly.""")
+
+        # Date conversion
+        if source_uses_comma and target_uses_period:
+            rules.append("""### Dates
+- Convert Dutch/French/German dates to English format:
+  - Translate month names: juni → June, maart → March, etc.
+  - Maintain day-month-year order unless different convention in target
+  - **Example:** 20 juni 2023 → 20 June 2023""")
+        elif source_uses_period and target_uses_comma:
+            rules.append("""### Dates
+- Convert English dates to Dutch/French/German format:
+  - Translate month names: June → juni, March → maart, etc.
+  - **Example:** 20 June 2023 → 20 juni 2023""")
+
+        if rules:
+            return "\n\n## NUMBERS, DATES & LOCALISATION (REQUIRED)\n\n" + "\n\n".join(rules)
+
+        return ""
+
+    def _get_domain_specific_rules(self, domain: str, source_lang: str, target_lang: str) -> str:
+        """
+        Get domain-specific prompt enhancement rules.
+        """
+        if domain == 'legal':
+            return self._get_legal_domain_rules(source_lang, target_lang)
+        elif domain == 'medical':
+            return self._get_medical_domain_rules()
+        elif domain == 'patent':
+            return self._get_patent_domain_rules()
+        elif domain == 'technical':
+            return self._get_technical_domain_rules()
+
+        return ""
+
+    def _get_legal_domain_rules(self, source_lang: str, target_lang: str) -> str:
+        """Legal/notarial document-specific rules"""
+        source = source_lang.lower()
+        target = target_lang.lower()
+
+        rules = []
+
+        # Belgian notarial title preservation
+        if 'dutch' in source or 'flemish' in source or 'nl' in source:
+            rules.append("""## TITLES & NAMES
+- Preserve "Meester + surname" exactly when referring to notaries in notarial context
+- Translate "notaris" as "notary" only when referring to the function/profession
+- **Example:** "Meester Van de Velde, notaris" → "Meester Van de Velde, notary" """)
+
+        # Legal terminology handling
+        rules.append("""## LEGAL TERMINOLOGY
+- Preserve legal terms of art that have specific meanings
+- For legal boilerplate ("hereby", "whereas", "aforementioned"), use standard target language equivalents
+- Maintain consistency of legal terms throughout document
+- Extract and include specialized legal terms in termbase (articles, clauses, obligations, regulatory references)""")
+
+        # Already-translated content
+        rules.append("""## CONTENT PRESERVATION
+- If a segment is already in the target language, copy it exactly as-is
+- Preserve all non-linguistic content: codes, tags, numbers, placeholders, formatting""")
+
+        if rules:
+            return "\n\n" + "\n\n".join(rules)
+
+        return ""
+
+    def _get_medical_domain_rules(self) -> str:
+        """Medical document-specific rules"""
+        return """
+
+## MEDICAL TERMINOLOGY
+- Preserve Latin anatomical terms unless target language convention differs
+- Maintain consistency of medication names (use INN when appropriate)
+- Include units of measurement with proper target language conventions
+- Extract specialized terms: anatomical terms, procedures, medications, conditions
+- Pay attention to dosage formats and maintain precision"""
+
+    def _get_patent_domain_rules(self) -> str:
+        """Patent document-specific rules"""
+        return """
+
+## PATENT-SPECIFIC RULES
+- Maintain claim structure and numbering exactly
+- Preserve technical precision in claim language
+- Use standard patent terminology for target language jurisdiction
+- Extract key terms: claimed elements, structural components, functional descriptions
+- Maintain antecedent basis ("said", "the", "a/an") consistently"""
+
+    def _get_technical_domain_rules(self) -> str:
+        """Technical manual-specific rules"""
+        return """
+
+## TECHNICAL DOCUMENTATION
+- Maintain consistency of component names and part numbers
+- Preserve safety warnings and notices with appropriate target language conventions
+- Extract key terms: technical components, processes, specifications
+- Maintain precision in measurements and specifications
+- Use imperative mood consistently for instructions"""
+
+    def _get_project_prompt_template(self, source_lang: str, target_lang: str, detected_domain: str) -> str:
+        """
+        Generate a project prompt template with language-pair-specific unchanging rules.
+        The AI will fill in the {{PLACEHOLDERS}} with document-specific content.
+
+        This template contains the rules that NEVER change for a given language pair,
+        such as number format conversion, date localization, etc.
+        """
+        # Get format conversion and domain rules (these never change for the language pair)
+        format_rules = self._get_format_conversion_rules(source_lang, target_lang)
+        domain_rules = self._get_domain_specific_rules(detected_domain, source_lang, target_lang)
+
+        # Build the template with placeholders for AI-generated content
+        template = f"""# DOCUMENT CONTEXT
+{{{{DOCUMENT_CONTEXT}}}}
+
+# KEY TERMINOLOGY
+{{{{TERMINOLOGY_TABLE}}}}
+
+# TRANSLATION CONSTRAINTS
+
+**MUST:**
+- Preserve all tags, markers, and placeholders exactly as in the source
+- Translate strictly one segment per line, preserving segmentation and order
+- Follow the KEY TERMINOLOGY glossary exactly for all mapped terms
+- If a segment is already in the target language, leave it unchanged
+
+**MUST NOT:**
+- Add explanations, comments, footnotes, or translator's notes
+- Modify formatting, tags, numbering, brackets, or spacing
+- Merge or split segments"""
+
+        # Add the unchanging format conversion rules
+        if format_rules:
+            template += "\n\n" + format_rules
+
+        # Add the unchanging domain-specific rules
+        if domain_rules:
+            template += "\n\n" + domain_rules
+
+        # Add output format section
+        template += """
+
+# OUTPUT FORMAT
+Provide ONLY the translation, one segment per line, aligned 1:1 with the source lines."""
+
+        return template
+
+    def _inject_enhancement_rules(self, ai_response: str, enhancement_rules: str, source_lang: str, target_lang: str) -> str:
+        """
+        Post-process AI-generated prompt to inject enhancement rules.
+
+        Steps:
+        1. Remove any AI-generated "preserve/keep formatting" instructions that contradict localization
+        2. Find the best insertion point
+        3. Insert the enhancement sections with explicit conversion examples
+        """
+        import re
+
+        # STEP 1: Remove problematic AI-generated "preserve formatting" instructions
+        # These contradict our need for number/date localization
+        problematic_patterns = [
+            # Match lines that say "keep/preserve numbers/dates/formatting as-is"
+            r'.*[Kk]eep\s+all\s+(numbers?|dates?|currencies?|formatting).*as\s+formatted.*',
+            r'.*[Pp]reserve\s+all\s+(numbers?|dates?|currencies?|formatting).*exactly.*',
+            r'.*[Dd]o\s+not\s+convert\s+(commas?|dots?|periods?|separators?).*',
+            r'.*[Mm]aintain\s+(original|source)\s+(number|date|currency)\s+format.*',
+            # Match "preserve...decimal separators" variations (catch the phrase anywhere in the line)
+            r'.*[Pp]reserve\s+all\s+original.*decimal\s+separators?.*',
+            r'.*[Pp]reserve.*decimal\s+separators?.*exactly.*',
+        ]
+
+        cleaned_response = ai_response
+        removed_count = 0
+        for pattern in problematic_patterns:
+            matches = re.findall(pattern, cleaned_response, re.MULTILINE)
+            if matches:
+                removed_count += len(matches)
+                cleaned_response = re.sub(pattern + r'\n?', '', cleaned_response, flags=re.MULTILINE)
+
+        if removed_count > 0:
+            log_msg = f"[POST-PROCESS] Removed {removed_count} problematic 'preserve formatting' instruction(s)"
+            print(log_msg)
+            if hasattr(self.parent_app, 'log'):
+                self.parent_app.log(log_msg)
+
+        # STEP 2: Find insertion points (try multiple patterns)
+        insertion_patterns = [
+            "OUTPUT FORMAT",  # Insert before this
+            "TRANSLATION CONSTRAINTS",  # Insert after this
+            "MUST NOT:",  # Insert after this section
+            "KEY TERMINOLOGY",  # Insert after the table ends
+        ]
+
+        best_insert_pos = -1
+        insert_after = None
+
+        for pattern in insertion_patterns:
+            pos = cleaned_response.find(pattern)
+            if pos != -1:
+                if pattern == "OUTPUT FORMAT":
+                    # Insert BEFORE "OUTPUT FORMAT"
+                    best_insert_pos = pos
+                    insert_after = False
+                    break
+                else:
+                    # For other patterns, find end of that section
+                    # Look for next double newline or next ## heading
+                    section_end = cleaned_response.find("\n\n", pos + len(pattern))
+                    if section_end != -1:
+                        best_insert_pos = section_end
+                        insert_after = True
+                        break
+
+        # STEP 3: Insert the enhancement rules
+        if best_insert_pos == -1:
+            # No good insertion point found, append to end
+            return cleaned_response + "\n\n" + enhancement_rules
+
+        # Insert the enhancement rules
+        if insert_after:
+            # Insert after the found position
+            enhanced = cleaned_response[:best_insert_pos] + "\n\n" + enhancement_rules + cleaned_response[best_insert_pos:]
+        else:
+            # Insert before the found position
+            enhanced = cleaned_response[:best_insert_pos] + "\n" + enhancement_rules + "\n\n" + cleaned_response[best_insert_pos:]
+
+        return enhanced
+
     def _analyze_current_document(self):
         """Analyze the currently loaded document"""
         print("[DOC ANALYSIS] ===== Document Analysis Started =====")
@@ -2778,114 +3170,58 @@ Your response will help configure an AI translation tool for professional-qualit
         source_lang = self.doc_analysis_result.get('source_lang', 'English')
         target_lang = self.doc_analysis_result.get('target_lang', 'Dutch')
         segment_count = self.doc_analysis_result.get('segment_count', 0)
-        
-        # Build prompt to generate actionable Domain Prompt + Project Prompt
-        system_prompt = f"""You are an expert translation workflow consultant helping configure a CAT tool.
 
-The user has just analyzed their document and received the following analysis:
+        # Detect domain from analysis
+        detected_domain = self._detect_domain_from_analysis(analysis_text)
+        print(f"[PROMPT GEN] Detected domain: {detected_domain}")
+        if hasattr(self.parent_app, 'log'):
+            self.parent_app.log(f"[PROMPT GEN] Detected domain: {detected_domain}")
+
+        # Generate the project prompt template with unchanging rules for this language pair
+        project_prompt_template = self._get_project_prompt_template(source_lang, target_lang, detected_domain)
+
+        print(f"[PROMPT GEN] Using template-based approach for {source_lang}→{target_lang}")
+        if hasattr(self.parent_app, 'log'):
+            self.parent_app.log(f"[PROMPT GEN] Generated template with format rules for '{detected_domain}' domain")
+
+        # Build prompt to ask AI to extract ONLY document context and terminology
+        system_prompt = f"""You are an expert translation workflow consultant.
+
+You have been provided with a document analysis. Your task is to extract ONLY two pieces of information:
+
+1. **DOCUMENT CONTEXT**: A brief summary including:
+   - Document type
+   - Domain: {detected_domain}
+   - Language pair: {source_lang} → {target_lang}
+   - Brief description of content
+   - Number of segments: {segment_count}
+
+2. **TERMINOLOGY TABLE**: Extract the complete bilingual termbase table from the analysis.
+   - Table header: | {source_lang} term | {target_lang} equivalent | Notes / context |
+   - Include separator line: |------------|-------------------| ----------------|
+   - Include EVERY term/row from the analysis
+
+**CRITICAL**: Do NOT add any translation instructions, formatting rules, or enhancement sections.
+Those are already in the template and will be added programmatically."""
+
+        user_prompt = f"""Here is the document analysis:
 
 {analysis_text}
 
-Your task is to generate TWO separate, ready-to-use prompts for the translator:
+Please extract:
+1. Document context (summary paragraph)
+2. Complete terminology table (markdown format)
 
-1. **DOMAIN PROMPT** (Domain-specific translation strategy - goes in "Domain Prompts" section, Layer 2)
-   
-   **CRITICAL: This must be a COMPLETE, comprehensive prompt (3-5 FULL paragraphs minimum).**
-   
-   The Domain Prompt should:
-   - Be a COMPLETE, ready-to-use prompt that defines HOW to translate
-   - Include the translation direction using PLACEHOLDERS: {{SOURCE_LANGUAGE}} → {{TARGET_LANGUAGE}}
-   - Specify the domain, tone, register, terminology handling GENERALLY (not document-specific)
-   - Include specific translation strategies for this document type
-   - Make it GENERIC and REUSABLE for similar documents in this domain
-   - Should be 3-5 FULL paragraphs, comprehensive but focused
-   - Do NOT include specific termbase terms - keep it general
-   - Use {{SOURCE_LANGUAGE}} and {{TARGET_LANGUAGE}} placeholders, NOT specific language names
-   
-   **MANDATORY SECTIONS - You MUST include ALL of these in your Domain Prompt (expand each into full sentences/paragraphs):**
-   
-   **LANGUAGE AGNOSTIC RULE**: All examples and instructions must use {{SOURCE_LANGUAGE}} and {{TARGET_LANGUAGE}} placeholders. NEVER hardcode specific language pairs (like English→Dutch). The prompt must work for ANY translation direction.
-   
-   a) **Professional Context** (1-2 sentences): Explain this is professional translation work for regulatory compliance, medical/technical terminology for legitimate professional purposes, NOT medical advice
-   
-   b) **Translation Role** (1-2 sentences): Define yourself as an expert {{SOURCE_LANGUAGE}} to {{TARGET_LANGUAGE}} translator with deep understanding of context and nuance, specializing in [DOMAIN FROM ANALYSIS]
-   
-   c) **Context Availability** (1 sentence): Mention that full document context may be provided for reference
-   
-   d) **Task Definition** (1-2 sentences): Clearly specify the translation task (translate ONLY specified text, not full document)
-   
-   e) **Output Format** (3-4 sentences): 
-     - Provide ONLY the translated text
-     - Do NOT include numbering, labels, or commentary
-     - Do NOT repeat the source text
-     - Maintain accuracy and natural fluency
-   
-   f) **CAT TOOL TAG PRESERVATION** (CRITICAL - preserve ALL of these - write 3-4 sentences with examples):
-     - memoQ tags: [1}}, {{2}}, [3}}, {{4}} (asymmetric bracket-brace pairs)
-     - Trados Studio tags: <410>text</410>, <434>text</434> (XML-style opening/closing tags)
-     - CafeTran tags: |formatted text| (pipe symbols mark formatted text - bold, italic, underline, etc.)
-     - Other CAT tools: various bracketed or special character sequences
-     - These are placeholder tags representing formatting (bold, italic, links, etc.)
-     - PRESERVE ALL tags - if source has N tags, target must have exactly N tags
-     - Keep tags with their content, adjust position for natural target language word order
-     - Never translate, omit, or modify the tags themselves - only reposition them
-     - Include MULTIPLE examples but use GENERIC examples that work for ANY language pair
-     - Examples should show structure/format, NOT specific language pairs (e.g., '[1}}Source Text{{2}}' → '[1}}Target Text{{2}}')
-  
-  g) **LANGUAGE-SPECIFIC NUMBER FORMATTING** (2-3 sentences with examples):
-     - For Dutch/French/German/Italian/Spanish (continental European): use comma as decimal separator, space or non-breaking space before unit (e.g., 17,1 cm)
-     - For English/Irish: use period as decimal separator, no space before unit (e.g., 17.1 cm)
-     - Always follow the number formatting conventions of the target language
-   
-   h) **Domain-Specific Guidelines** (1-2 sentences): Based on the analysis, mention key considerations for this domain (e.g., medical imaging: maintain technical precision, use standardized terminology)
-   
-   i) **Optional: Figure References** (1 sentence): If applicable, mention figures (e.g., 'Figure 1A') may have relevant images provided for visual context
-   
-   **DO NOT** write just 2-3 sentences. Write a FULL, comprehensive prompt with all sections expanded into proper paragraphs.
+Format your response as:
 
-2. **PROJECT PROMPT** (Project-specific guidance - goes in "Project Prompts" section, Layer 3)
-   - Start with 2-3 paragraphs of SPECIFIC guidance for THIS document
-   - Then include the KEY TERMINOLOGY section
-   
-   **CRITICAL: termbase TABLE REQUIREMENTS**
-   - You MUST copy the ENTIRE bilingual termbase table from the analysis above
-   - Copy it VERBATIM - every single row, word-for-word
-   - The table header must be: | {source_lang} term | {target_lang} equivalent | Notes / context |
-   - Include the separator line: |------------|--------------------|-----------------| 
-   - Then copy EVERY SINGLE ROW from the analysis termbase
-   - If there are 36 terms in the analysis, there must be 36 rows in your output
-   - DO NOT STOP until you've copied the LAST row of the termbase
-   - After the complete table, add 2-3 paragraphs with specific examples
-   
-   Reference specific key terms with translation examples
-   Mention specific challenges identified in the analysis
-   Include domain-specific requirements (e.g., for medical imaging: maintain technical precision, use standardized terminology)
-   List terminology consistency rules with concrete examples from the termbase
-   Highlight any special handling needed (measurements, figures, technical processes)
+---DOCUMENT CONTEXT---
+[Document context paragraph]
 
-Format your response EXACTLY like this:
+---TERMINOLOGY TABLE---
+[Complete markdown table]
 
----SYSTEM PROMPT---
-[Full Domain Prompt text here, ready to copy-paste]
+---"""
 
----CUSTOM INSTRUCTIONS---
-[Full Project Prompt text here, ready to copy-paste]
-
----
-
-Note: Even though the delimiters say "SYSTEM PROMPT" and "CUSTOM INSTRUCTIONS" (for backward compatibility), the first section should contain the Domain Prompt (Layer 2) and the second section should contain the Project Prompt (Layer 3).
-
-Be specific, practical, and actionable. The translator should be able to copy these directly into Supervertaler."""
-
-        user_prompt = f"""Based on the document analysis above, generate optimized translation prompts.
-
-Document context:
-- Source: {source_lang}
-- Target: {target_lang}
-- {segment_count} segments to translate
-
-Provide the two prompts in the specified format."""
-        
         # Import threading to run async
         import threading
         import time
@@ -3037,7 +3373,14 @@ Provide the two prompts in the specified format."""
                 print(log_msg)
                 if hasattr(self.parent_app, 'log'):
                     self.parent_app.log(log_msg)
-                
+
+                # Template-based approach: no post-processing needed
+                # The format rules are already in the template
+                log_msg = "[TEMPLATE] Using template-based approach - format rules already embedded"
+                print(log_msg)
+                if hasattr(self.parent_app, 'log'):
+                    self.parent_app.log(log_msg)
+
                 # Log first 500 chars and last 500 chars to see structure
                 if response_size > 1000:
                     log_msg = f"[PROMPT GEN] Response start (first 500 chars):\n{ai_response[:500]}"
@@ -3169,160 +3512,64 @@ Provide the two prompts in the specified format."""
     
     def _show_generated_prompts_dialog(self, ai_response, source_lang, target_lang):
         """Display generated prompts in an interactive dialog with copy/apply actions"""
-        # Parse the AI response to extract Domain Prompt and Project Prompt
+        # Parse the AI response to extract the filled-in project prompt template
         log_msg = f"[PROMPT GEN] Parsing AI response ({len(ai_response)} characters)..."
         print(log_msg)
         if hasattr(self.parent_app, 'log'):
             self.parent_app.log(log_msg)
-        
+
         try:
-            # Look for the delimiters as specified in the prompt
-            # The prompt asks for: ---SYSTEM PROMPT--- and ---CUSTOM INSTRUCTIONS---
-            domain_prompt_text = ""
+            # Template-based approach: Extract context and terminology, then inject into template
+            domain_prompt_text = ""  # No domain prompt needed - using System Templates instead
             project_prompt_text = ""
-            
-            # Try multiple delimiter variations
-            delimiter_patterns = [
-                ("---SYSTEM PROMPT---", "---CUSTOM INSTRUCTIONS---"),
-                ("---SYSTEM PROMPT---", "---CUSTOM INSTRUCTIONS---"),
-                ("SYSTEM PROMPT", "CUSTOM INSTRUCTIONS"),
-                ("**SYSTEM PROMPT**", "**CUSTOM INSTRUCTIONS**"),
-            ]
-            
-            found = False
-            for sys_delim, custom_delim in delimiter_patterns:
-                if sys_delim in ai_response and custom_delim in ai_response:
-                    log_msg = f"[PROMPT GEN] Found delimiters: '{sys_delim}' and '{custom_delim}'"
-                    print(log_msg)
-                    if hasattr(self.parent_app, 'log'):
-                        self.parent_app.log(log_msg)
-                    
-                    # Split exactly like tkinter version - simple and reliable
-                    parts = ai_response.split(sys_delim, 1)
-                    if len(parts) > 1:
-                        # parts[0] is everything BEFORE the first delimiter (should be empty or intro text)
-                        # parts[1] is everything AFTER the first delimiter
-                        remainder = parts[1].split(custom_delim, 1)
-                        domain_prompt_text = remainder[0].strip()
-                        
-                        # Log what we extracted
-                        log_msg = f"[PROMPT GEN] Extracted Domain Prompt (before cleanup): {len(domain_prompt_text)} chars"
-                        print(log_msg)
-                        if hasattr(self.parent_app, 'log'):
-                            self.parent_app.log(log_msg)
-                        
-                        if len(remainder) > 1:
-                            project_prompt_text = remainder[1].strip()
-                            # Remove trailing delimiters if present (like "---" at the end)
-                            if project_prompt_text.endswith("---"):
-                                project_prompt_text = project_prompt_text[:-3].strip()
-                            # Also remove any leading "---" if present
-                            if project_prompt_text.startswith("---"):
-                                project_prompt_text = project_prompt_text[3:].strip()
-                            
-                            log_msg = f"[PROMPT GEN] Extracted Project Prompt (before cleanup): {len(project_prompt_text)} chars"
-                            print(log_msg)
-                            if hasattr(self.parent_app, 'log'):
-                                self.parent_app.log(log_msg)
-                        else:
-                            # If custom delimiter not found after system delimiter, something's wrong
-                            log_msg = "[PROMPT GEN] ⚠ Custom delimiter not found after system delimiter"
-                            print(log_msg)
-                            if hasattr(self.parent_app, 'log'):
-                                self.parent_app.log(log_msg)
-                            project_prompt_text = ""
-                        found = True
-                        break
-                    else:
-                        # Split found delimiter but parts[1] doesn't exist - shouldn't happen
-                        log_msg = f"[PROMPT GEN] ⚠ Split on '{sys_delim}' but parts[1] missing"
-                        print(log_msg)
-                        if hasattr(self.parent_app, 'log'):
-                            self.parent_app.log(log_msg)
-            
-            if not found:
-                log_msg = "[PROMPT GEN] ⚠ Delimiters not found, trying fallback parsing..."
+
+            import re
+
+            # Extract document context
+            doc_context = ""
+            context_match = re.search(r'---DOCUMENT CONTEXT---\s*(.*?)\s*---', ai_response, re.DOTALL)
+            if context_match:
+                doc_context = context_match.group(1).strip()
+                log_msg = f"[TEMPLATE] Extracted document context: {len(doc_context)} chars"
                 print(log_msg)
                 if hasattr(self.parent_app, 'log'):
                     self.parent_app.log(log_msg)
-                
-                # Fallback: try to split by common patterns
-                # Look for any section markers
-                import re
-                # Try to find sections marked with headers
-                sections = re.split(r'(?i)(?:^|\n)(?:---|##|#)\s*(?:SYSTEM|DOMAIN)', ai_response)
-                if len(sections) >= 2:
-                    domain_prompt_text = sections[1].split("CUSTOM INSTRUCTIONS", 1)[0].strip()
-                    if "CUSTOM INSTRUCTIONS" in sections[1]:
-                        project_prompt_text = sections[1].split("CUSTOM INSTRUCTIONS", 1)[1].strip()
-                    else:
-                        project_prompt_text = ai_response[len(domain_prompt_text):].strip()
-                else:
-                    # Last resort: split in half
-                    domain_prompt_text = ai_response[:len(ai_response)//2].strip()
-                    project_prompt_text = ai_response[len(ai_response)//2:].strip()
-            
-            # Clean up extracted text - remove any remaining delimiter markers and variations
-            # Remove delimiters that might appear anywhere in the text
-            import re
-            cleanup_patterns = [
-                r'---SYSTEM PROMPT---',
-                r'---CUSTOM INSTRUCTIONS---',
-                r'--SYSTEM PROMPT--',
-                r'--CUSTOM INSTRUCTIONS--',
-                r'\*\*SYSTEM PROMPT\*\*',
-                r'\*\*CUSTOM INSTRUCTIONS\*\*',
-                r'##\s*SYSTEM PROMPT',
-                r'##\s*CUSTOM INSTRUCTIONS',
-                r'#\s*SYSTEM PROMPT',
-                r'#\s*CUSTOM INSTRUCTIONS',
-            ]
-            for pattern in cleanup_patterns:
-                domain_prompt_text = re.sub(pattern, '', domain_prompt_text, flags=re.IGNORECASE)
-                project_prompt_text = re.sub(pattern, '', project_prompt_text, flags=re.IGNORECASE)
-            
-            # Remove any standalone "---" lines
-            domain_prompt_text = re.sub(r'^---+$', '', domain_prompt_text, flags=re.MULTILINE)
-            project_prompt_text = re.sub(r'^---+$', '', project_prompt_text, flags=re.MULTILINE)
-            
-            # Final strip
-            domain_prompt_text = domain_prompt_text.strip()
-            project_prompt_text = project_prompt_text.strip()
-            
-            log_msg = f"[PROMPT GEN] Parsed Domain Prompt: {len(domain_prompt_text)} chars, Project Prompt: {len(project_prompt_text)} chars"
+            else:
+                log_msg = "[TEMPLATE] ⚠ No document context delimiter found"
+                print(log_msg)
+                if hasattr(self.parent_app, 'log'):
+                    self.parent_app.log(log_msg)
+
+            # Extract terminology table
+            terminology_table = ""
+            term_match = re.search(r'---TERMINOLOGY TABLE---\s*(.*?)(?:\s*---|\Z)', ai_response, re.DOTALL)
+            if term_match:
+                terminology_table = term_match.group(1).strip()
+                log_msg = f"[TEMPLATE] Extracted terminology table: {len(terminology_table)} chars"
+                print(log_msg)
+                if hasattr(self.parent_app, 'log'):
+                    self.parent_app.log(log_msg)
+            else:
+                log_msg = "[TEMPLATE] ⚠ No terminology table delimiter found"
+                print(log_msg)
+                if hasattr(self.parent_app, 'log'):
+                    self.parent_app.log(log_msg)
+
+            # Inject extracted content into template
+            project_prompt_text = project_prompt_template.replace("{{DOCUMENT_CONTEXT}}", doc_context)
+            project_prompt_text = project_prompt_text.replace("{{TERMINOLOGY_TABLE}}", terminology_table)
+
+            log_msg = f"[TEMPLATE] Injected content into template: {len(project_prompt_text)} chars"
             print(log_msg)
             if hasattr(self.parent_app, 'log'):
                 self.parent_app.log(log_msg)
-            
-            # Debug: show first 200 chars of each
-            if domain_prompt_text:
-                log_msg = f"[PROMPT GEN] Domain Prompt preview: {domain_prompt_text[:200]}..."
-                print(log_msg)
-                if hasattr(self.parent_app, 'log'):
-                    self.parent_app.log(log_msg)
+
+            # Preview
             if project_prompt_text:
-                log_msg = f"[PROMPT GEN] Project Prompt preview: {project_prompt_text[:200]}..."
+                log_msg = f"[TEMPLATE] Preview: {project_prompt_text[:200]}..."
                 print(log_msg)
                 if hasattr(self.parent_app, 'log'):
                     self.parent_app.log(log_msg)
-            
-            if not domain_prompt_text or len(domain_prompt_text) < 50:
-                log_msg = "[PROMPT GEN] ⚠ Domain Prompt seems empty or too short, checking full response..."
-                print(log_msg)
-                if hasattr(self.parent_app, 'log'):
-                    self.parent_app.log(log_msg)
-                # If domain prompt is empty, maybe the AI put everything in one section
-                # Try to extract meaningful content
-                if project_prompt_text and len(project_prompt_text) > 100:
-                    # Maybe the AI reversed them or put everything in custom instructions
-                    # But don't do this automatically - log a warning instead
-                    log_msg = "[PROMPT GEN] ⚠ Domain Prompt empty but Project Prompt has content - may need manual review"
-                    print(log_msg)
-                    if hasattr(self.parent_app, 'log'):
-                        self.parent_app.log(log_msg)
-                elif not domain_prompt_text:
-                    domain_prompt_text = ai_response
-                    project_prompt_text = "See Domain Prompt above for complete guidance."
                     
         except Exception as e:
             import traceback

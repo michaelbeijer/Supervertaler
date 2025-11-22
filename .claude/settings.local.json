@@ -8,7 +8,12 @@
       "Bash(git commit:*)",
       "Bash(git push)",
       "Bash(test:*)",
-      "Bash(git mv:*)"
+      "Bash(git mv:*)",
+      "Bash(python -m py_compile:*)",
+      "Bash(python:*)",
+      "Bash(nul)",
+      "Bash(timeout /t 2)",
+      "Bash(timeout /t 5)"
     ],
     "deny": [],
     "ask": []

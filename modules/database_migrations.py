@@ -115,6 +115,8 @@ def create_synonyms_table(db_manager) -> bool:
                 term_id INTEGER NOT NULL,
                 synonym_text TEXT NOT NULL,
                 language TEXT NOT NULL CHECK(language IN ('source', 'target')),
+                display_order INTEGER DEFAULT 0,
+                forbidden INTEGER DEFAULT 0,
                 created_date TEXT DEFAULT (datetime('now')),
                 modified_date TEXT DEFAULT (datetime('now')),
                 FOREIGN KEY (term_id) REFERENCES termbase_terms(id) ON DELETE CASCADE
@@ -173,6 +175,10 @@ def run_all_migrations(db_manager) -> bool:
     if not create_synonyms_table(db_manager):
         success = False
     
+    # Migration 3: Add display_order and forbidden fields to synonyms
+    if not migrate_synonym_fields(db_manager):
+        success = False
+    
     print("="*60)
     
     return success
@@ -227,7 +233,10 @@ def check_and_migrate(db_manager) -> bool:
         # Even if no schema migration needed, check for missing UUIDs
         print("✅ Database schema is current - checking UUIDs...")
         generate_missing_uuids(db_manager)
-        
+
+        # Fix project termbase flags if needed
+        fix_project_termbase_flags(db_manager)
+
         return True
         
     except Exception as e:
@@ -237,49 +246,163 @@ def check_and_migrate(db_manager) -> bool:
         return False
 
 
-def generate_missing_uuids(db_manager) -> bool:
+def migrate_synonym_fields(db_manager) -> bool:
     """
-    Generate UUIDs for any termbase terms that don't have them.
-    This ensures all existing terms get UUIDs after the term_uuid column is added.
+    Migrate termbase_synonyms table to add new fields:
+    - display_order (INTEGER) - position in synonym list (0 = main term)
+    - forbidden (INTEGER) - whether this synonym is forbidden (0/1)
     
     Args:
         db_manager: DatabaseManager instance
         
+    Returns:
+        True if migration successful
+    """
+    try:
+        cursor = db_manager.cursor
+        
+        # Check if table exists
+        cursor.execute("""
+            SELECT name FROM sqlite_master 
+            WHERE type='table' AND name='termbase_synonyms'
+        """)
+        
+        if not cursor.fetchone():
+            print("ℹ️ termbase_synonyms table doesn't exist yet - will be created with new schema")
+            return True
+        
+        # Check which columns exist
+        cursor.execute("PRAGMA table_info(termbase_synonyms)")
+        columns = {row[1] for row in cursor.fetchall()}
+        
+        migrations_needed = []
+        
+        # Add 'display_order' column if it doesn't exist
+        if 'display_order' not in columns:
+            migrations_needed.append(("display_order", "ALTER TABLE termbase_synonyms ADD COLUMN display_order INTEGER DEFAULT 0"))
+        
+        # Add 'forbidden' column if it doesn't exist
+        if 'forbidden' not in columns:
+            migrations_needed.append(("forbidden", "ALTER TABLE termbase_synonyms ADD COLUMN forbidden INTEGER DEFAULT 0"))
+        
+        # Execute migrations
+        for column_name, sql in migrations_needed:
+            print(f"📊 Adding column '{column_name}' to termbase_synonyms...")
+            cursor.execute(sql)
+            print(f"  ✓ Column '{column_name}' added successfully")
+        
+        db_manager.connection.commit()
+        
+        if migrations_needed:
+            print(f"✅ Synonym table migration completed: {len(migrations_needed)} column(s) added")
+        else:
+            print("✅ Synonym table schema is up to date")
+        
+        return True
+        
+    except Exception as e:
+        print(f"❌ Synonym table migration failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
+def generate_missing_uuids(db_manager) -> bool:
+    """
+    Generate UUIDs for any termbase terms that don't have them.
+    This ensures all existing terms get UUIDs after the term_uuid column is added.
+
+    Args:
+        db_manager: DatabaseManager instance
+
     Returns:
         True if successful
     """
     try:
         import uuid
         cursor = db_manager.cursor
-        
+
         # Find terms without UUIDs
         cursor.execute("""
-            SELECT id FROM termbase_terms 
+            SELECT id FROM termbase_terms
             WHERE term_uuid IS NULL OR term_uuid = ''
         """)
         terms_without_uuid = cursor.fetchall()
-        
+
         if not terms_without_uuid:
             return True  # Nothing to do
-        
+
         print(f"📊 Generating UUIDs for {len(terms_without_uuid)} existing terms...")
-        
+
         # Generate and assign UUIDs
         for (term_id,) in terms_without_uuid:
             term_uuid = str(uuid.uuid4())
             cursor.execute("""
-                UPDATE termbase_terms 
-                SET term_uuid = ? 
+                UPDATE termbase_terms
+                SET term_uuid = ?
                 WHERE id = ?
             """, (term_uuid, term_id))
-        
+
         db_manager.connection.commit()
         print(f"  ✓ Generated {len(terms_without_uuid)} UUIDs successfully")
-        
+
         return True
-        
+
     except Exception as e:
         print(f"❌ UUID generation failed: {e}")
         import traceback
         traceback.print_exc()
         return False
+
+
+def fix_project_termbase_flags(db_manager) -> int:
+    """
+    Fix is_project_termbase flags for termbases that have project_id but is_project_termbase=0.
+    This is a data repair function that should be called manually or in migrations.
+
+    Args:
+        db_manager: DatabaseManager instance
+
+    Returns:
+        Number of termbases fixed
+    """
+    try:
+        cursor = db_manager.cursor
+
+        # Find termbases with project_id but is_project_termbase=0
+        cursor.execute("""
+            SELECT id, name, project_id
+            FROM termbases
+            WHERE project_id IS NOT NULL
+            AND (is_project_termbase IS NULL OR is_project_termbase = 0)
+        """)
+        termbases_to_fix = cursor.fetchall()
+
+        if not termbases_to_fix:
+            print("✅ All project termbases are correctly flagged")
+            return 0
+
+        print(f"📊 Found {len(termbases_to_fix)} termbase(s) that need is_project_termbase flag fix:")
+        for tb_id, tb_name, project_id in termbases_to_fix:
+            print(f"  - ID {tb_id}: '{tb_name}' (project_id={project_id})")
+
+        # Fix the flags
+        cursor.execute("""
+            UPDATE termbases
+            SET is_project_termbase = 1
+            WHERE project_id IS NOT NULL
+            AND (is_project_termbase IS NULL OR is_project_termbase = 0)
+        """)
+
+        updated_count = cursor.rowcount
+        db_manager.connection.commit()
+
+        print(f"✅ Fixed is_project_termbase flag for {updated_count} termbase(s)")
+
+        return updated_count
+
+    except Exception as e:
+        print(f"❌ Failed to fix project termbase flags: {e}")
+        import traceback
+        traceback.print_exc()
+        return 0

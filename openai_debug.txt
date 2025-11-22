@@ -16358,3 +16358,995 @@ Choice[0] message.role: assistant
 Choice[0] message.content type: <class 'str'>
 Choice[0] message.content value: 'However, these systems make the removal of samples from the inner tube very cumbersome, and they involve a setup that takes up a lot of space, which makes them unsuitable for use with containers. The
 Choice[0] message.refusal: None
+
+============================================================
+[2025-11-19 23:14:52.576081] OpenAI API Call
+Model: gpt-5
+Prompt length: 22164 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '2. In particular, the invention relates to an apparatus comprising a pipe assembly of one or more pipes and/or pipe segments for the transport of a cooling gas through the said liquid.\n4. From the c
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-19 23:15:55.513039] OpenAI API Call
+Model: gpt-5
+Prompt length: 27739 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '23. The apparatus is designed to optimize the efficiency and effectiveness of the cooling process.\n24. The apparatus comprises at least a tank, comprising an inlet, an outlet, and a transport unit t
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-19 23:16:39.181681] OpenAI API Call
+Model: gpt-5
+Prompt length: 33026 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '43. This thermal insulation layer is selected from the group consisting of, but not limited to, glass wool, polystyrene, polyurethane foam, mineral wool, cork, or combinations thereof.\n44. The term 
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-19 23:17:27.691112] OpenAI API Call
+Model: gpt-5
+Prompt length: 35004 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '63. The inlet and outlet may be located on the same side of the tank, or they may be located on different sides of the tank.\n64. For example, the inlet may be located at a short side of the tank and
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-19 23:18:58.084257] OpenAI API Call
+Model: gpt-5
+Prompt length: 34922 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '83. In one embodiment, the pipe assembly of pipes and/or pipe segments has a heat-transfer coefficient of at least 10 W/mK, preferably at least 50 W/mK, more preferably at least 100 W/mK, most prefer
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-19 23:19:38.434522] OpenAI API Call
+Model: gpt-5
+Prompt length: 34632 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '103. The fins may have a width between 0.5 mm and 5 mm, more preferably between 0.5 mm and 2 mm.\n104. The fins may have a depth between 1 mm and 10 mm, more preferably between 5 mm and 10 mm.\n105. 
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-19 23:20:36.258588] OpenAI API Call
+Model: gpt-5
+Prompt length: 34962 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '123. The overpressure valves ensure the safety of users of the cooling system and limit potential damage to the system.\n124. According to some embodiments, the cooling gas has an inlet temperature b
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-19 23:22:07.146859] OpenAI API Call
+Model: gpt-5
+Prompt length: 36211 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '143. Additionally, the insulation layer serves to prevent the cold in the liquid from being lost to the external environment.\n144. In a second aspect, the present invention relates to a method for c
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-19 23:23:18.974761] OpenAI API Call
+Model: gpt-5
+Prompt length: 36239 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '163. However, an excessively high coolant gas velocity also results in a higher pressure drop, due to an increase in friction with the pipe segments.\n164. This results in a greater energy demand for
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-19 23:25:12.718301] OpenAI API Call
+Model: gpt-5
+Prompt length: 33745 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '183. In this case, the pipe assembly of one or more pipes and/or pipe segments (5) is present in triplicate, wherein the pipe segments are connected in parallel to a manifold (7).\n184. The pipes and
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-19 23:26:25.383898] OpenAI API Call
+Model: gpt-5
+Prompt length: 31273 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '203. The apparatus according to any of the preceding claims, wherein the ratio between the outer diameter and the wall thickness of the pipes and/or pipe segments (5) lies between 5:1 and 15:1, more 
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-20 20:00:48.425629] OpenAI API Call
+Model: gpt-5
+Prompt length: 9219 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'From the chemical industry to the food and beverage industry, and from HVAC systems to medical equipment: maintaining the correct liquid temperature is essential for ensuring product quality, safety,
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-21 14:38:21.200748] OpenAI API Call
+Model: gpt-5
+Prompt length: 51068 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'ACTION:create_prompt PARAMS:{"name":"WEI_2Docs_BE-NL_to_en-GB_Legal_Prompt_v1","content":"ROLE & EXPERTISE\\nYou are an expert legal and corporate-governance translator (Dutch Belgium → English Unite
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-21 15:11:52.756135] OpenAI API Call
+Model: gpt-5
+Prompt length: 11948 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'ACTION:create_prompt PARAMS:{"name":"CREAGEN NL→EN Legal Translation Prompt","content":"# ROLE & EXPERTISE\\nYou are an expert legal translator (Dutch → English) with 10+ years of experience in Belgi
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-21 15:21:15.329786] OpenAI API Call
+Model: gpt-5
+Prompt length: 11948 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'ACTION:create_prompt PARAMS:{"name":"CREAGEN_BV_Statutes_nl-en","content":"ROLE & EXPERTISE\\nYou are an expert legal/corporate/notarial translator (Dutch → English, Belgium) with 10+ years experienc
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-21 15:37:15.299061] OpenAI API Call
+Model: gpt-5
+Prompt length: 11948 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'ACTION:create_prompt PARAMS:{"name":"CREAGEN NL→EN Legal Translation Prompt","content":"ROLE & EXPERTISE\\nYou are an expert legal/corporate law translator (Dutch → English) with 10+ years of experie
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-21 15:44:16.394390] OpenAI API Call
+Model: gpt-5
+Prompt length: 11948 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'ACTION:create_prompt PARAMS:{"name":"NL→EN Legal Prompt — CREAGEN Notarial Deed (597 seg)","content":"# ROLE & EXPERTISE\\nYou are an expert legal/corporate law translator (Dutch (Belgium) → English 
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-21 15:49:21.805466] OpenAI API Call
+Model: gpt-5
+Prompt length: 11948 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'ACTION:create_prompt PARAMS:{"name":"CREAGEN NL to EN Legal Translation Prompt","content":"ROLE & EXPERTISE\\nYou are an expert legal and corporate law translator (Dutch Belgium → English UK) with 10
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-21 15:55:32.903677] OpenAI API Call
+Model: gpt-5
+Prompt length: 11948 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'ACTION:create_prompt PARAMS:{"name":"CREAGEN NL→EN Legal Translation Prompt","content":"# ROLE & EXPERTISE\\nYou are an expert legal/corporate law translator (Dutch → English) with 10+ years experien
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-21 16:12:26.352857] OpenAI API Call
+Model: gpt-5
+Prompt length: 11948 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'ACTION:create_prompt PARAMS:{"name":"CREAGEN Notarial Deed NL→EN Translation Prompt","content":"ROLE & EXPERTISE\\nYou are an expert legal/notarial translator (Dutch (Belgium) → English) with 10+ yea
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-21 16:42:35.124638] OpenAI API Call
+Model: gpt-5
+Prompt length: 11948 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'ACTION:create_prompt PARAMS:{"name":"CREAGEN NL→EN Legal Translation Prompt","content":"ROLE & EXPERTISE\\nYou are an expert legal/corporate translator (Dutch → English (UK)) with 10+ years experienc
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-21 16:50:35.495941] OpenAI API Call
+Model: gpt-5
+Prompt length: 13226 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'ACTION:create_prompt PARAMS:{"name":"CREAGEN_NL-EN_Legal_Statutes_597","content":"ROLE & EXPERTISE\\nYou are an expert legal translator (Dutch → English) with 10+ years experience.\\n\\nDOCUMENT CONT
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-21 17:01:10.279623] OpenAI API Call
+Model: gpt-5
+Prompt length: 34561 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '1. Mod PDF 19.01\n2. Copy to be published in the annexes to the Belgian Official Gazette after filing of the deed with the registry\n3. Reserved\n4. to the\n5. Belgian\n6. Official Gazette\n7. [1}Ent
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-21 17:04:36.360595] OpenAI API Call
+Model: gpt-5
+Prompt length: 43519 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '101. Nature of the shares .\n102. All shares are registered shares, they are provided with a serial number.\n103. They are entered in the register of registered shares; this register contains the ent
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-21 17:07:02.054910] OpenAI API Call
+Model: gpt-5
+Prompt length: 38941 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '201. Article 17.\n202. Access to the general meeting\n203. To be admitted to the general meeting and, for the shareholders, to exercise voting rights there, a holder of securities must meet the follo
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-21 17:09:52.247479] OpenAI API Call
+Model: gpt-5
+Prompt length: 46852 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '301. Annexes: - a conformed copy\n302. a proxy\n303. the coordinated text of the articles of association\n304. Notary Sandry Gypens\n305. On the last page of Section B mention :\n306. Front:\n307. Na
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-21 17:12:44.746665] OpenAI API Call
+Model: gpt-5
+Prompt length: 48815 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '401. Obligation to pay up\n402. Shares must be fully paid up upon their issue.\n403. In the event of a sole shareholder-director, the latter freely determines, according to the needs of the company a
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-21 17:16:08.358961] OpenAI API Call
+Model: gpt-5
+Prompt length: 38358 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '501. Sessions – minutes\n502. § 1.\n503. The general meeting shall be chaired by a director or, in the absence thereof, by the shareholder present who holds the most shares and, in the event of a tie
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-21 17:21:43.770869] OpenAI API Call
+Model: gpt-5
+Prompt length: 9153 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '---\nname: "WEI (nl → en-UK).md"\ndescription: "Dutch (Belgium) → English (UK) corporate law filings, notarial deeds, and coordinated articles"\ndomain: "Law"\nversion: "1.0"\ntask_type: "Translation
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-21 17:38:08.472350] OpenAI API Call
+Model: gpt-5
+Prompt length: 13346 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '1. Mod PDF 19.01\n2. Copy to be published in the Annexes to the Belgian Official Gazette after filing of the deed with the clerk’s office\n3. Reserved\n4. for the\n5. Belgian\n6. Official Gazette\n7.
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-21 17:39:41.099223] OpenAI API Call
+Model: gpt-5
+Prompt length: 19389 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '21. Pursuant to Article 39, §1, first and third paragraphs of the Law of 23 March 2019 introducing the Code of Companies and Associations (CCA) and containing various provisions, the general meeting 
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-21 17:41:09.178320] OpenAI API Call
+Model: gpt-5
+Prompt length: 20891 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: "41. A black arrow pointing to a line{MQ}AI-generated content may be incorrect.\n42. Reserved\n43. a the\n44. Belgian\n45. Official Gazette\n46. Mod PDF 19.01\n47. Section B -continued\n48. It bears t
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-21 17:42:19.026077] OpenAI API Call
+Model: gpt-5
+Prompt length: 18044 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '61. It may moreover act as broker, representative, commission agent or otherwise as an intermediary for all commercial transactions.\n62. It may furthermore carry out all commercial, industrial, mova
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-21 17:43:14.390313] OpenAI API Call
+Model: gpt-5
+Prompt length: 17765 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '81. Front :\n82. Name and capacity of the instrumenting notary, or of the person(s) authorised to represent the legal entity vis-à-vis third parties\n83. Back :\n84. Name and signature (this does not
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-21 17:44:44.630451] OpenAI API Call
+Model: gpt-5
+Prompt length: 19111 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '101. Nature of the shares .\n102. All shares are in registered form; they bear a serial number.\n103. They are recorded in the register of registered shares; this register contains the particulars pr
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-21 17:46:30.783520] OpenAI API Call
+Model: gpt-5
+Prompt length: 19510 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '121. Within eight days after the expiry of the period within which the shareholders were required to communicate their decision, the management body shall serve on the transferor the reply to his req
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-21 17:47:53.417037] OpenAI API Call
+Model: gpt-5
+Prompt length: 18441 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '141. The provisions of this Article shall apply to any inter vivos transfer, whether for consideration or gratuitous, whether voluntary or compulsory (exclusion and withdrawal), whether in usufruct, 
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-21 17:49:32.985652] OpenAI API Call
+Model: gpt-5
+Prompt length: 18010 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '161. Remuneration of the directors.\n162. The general meeting shall decide whether the director’s mandate is exercised free of charge.\n163. If the director’s mandate is remunerated, the general meet
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-21 17:50:29.129112] OpenAI API Call
+Model: gpt-5
+Prompt length: 18040 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '181. If there is only one shareholder, he shall sign the annual accounts for approval on that date.\n182. Front :\n183. Name and capacity of the officiating notary, or of the person(s) authorised to 
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-21 17:52:23.306925] OpenAI API Call
+Model: gpt-5
+Prompt length: 18483 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '201. Article 17.\n202. Access to the general meeting\n203. To be admitted to the general meeting and, for shareholders, to exercise the voting rights there, a holder of securities must satisfy the fo
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-21 17:54:06.863302] OpenAI API Call
+Model: gpt-5
+Prompt length: 18406 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '221. A vote cast in writing shall remain valid for each subsequent general meeting to the extent that the same agenda items are dealt with, unless the company is notified of a transfer of the shares 
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-21 17:55:18.112674] OpenAI API Call
+Model: gpt-5
+Prompt length: 17674 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '241. Belgian\n242. Official Gazette\n243. Mod PDF 19.01\n244. Part B -continued\n245. On this last date the company’s accounts are closed and the management body draws up an inventory and the annual 
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-21 17:56:08.244975] OpenAI API Call
+Model: gpt-5
+Prompt length: 16791 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '261. General measures.\n262. Article 26.\n263. Election of domicile\n264. For the implementation of these articles of association, each shareholder, director, statutory auditor, liquidator or bondhol
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-21 17:57:33.044712] OpenAI API Call
+Model: gpt-5
+Prompt length: 16698 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '281. The general meeting declares that the address of the registered office is established at:\n282. 1852 Grimbergen, Beigem, Kasteelhofstraat 19.\n283. Eighth resolution - proxy Crossroads Bank for 
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-21 17:58:43.250658] OpenAI API Call
+Model: gpt-5
+Prompt length: 15305 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '301. Annexes: - a conformed copy\n302. a proxy\n303. the coordinated text of the articles of association\n304. Notary Sandry Gypens\n305. On the last page of Part B mention :\n306. Front:\n307. Name 
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-21 18:00:04.099009] OpenAI API Call
+Model: gpt-5
+Prompt length: 16131 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '321. [1]The meeting is opened at ## under the chairmanship of Mr Van Mol Luc , hereinafter referred to, who will also perform the functions of secretary and scrutineer.\n322. [1]Composition of the me
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-21 18:01:22.347376] OpenAI API Call
+Model: gpt-5
+Prompt length: 18194 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '341. Resignation and reappointment of managers as directors\n342. 7.\n343. Address of the registered office\n344. 8.\n345. Proxy Crossroads Bank for Enterprises (CBE).[1]\n346. [1]II.\n347. The equit
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-21 18:03:12.511754] OpenAI API Call
+Model: gpt-5
+Prompt length: 21458 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '361. [1]In accordance with Article 39, §1, first and third paragraphs, of the Law of 23 March 2019 introducing the Code of Companies and Associations (CCA) and containing various provisions, the gene
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-21 18:04:55.487220] OpenAI API Call
+Model: gpt-5
+Prompt length: 22344 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '381. Article 3.\n382. Corporate purpose\n383. [1]The company has as its corporate purpose :\n384. in any form whatsoever, the acquisition and/or holding for its own account of participations in exist
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-21 18:06:08.388512] OpenAI API Call
+Model: gpt-5
+Prompt length: 20526 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '401. Obligation to pay up\n402. Shares must be fully paid up upon their issue.\n403. In the event of a sole shareholder-director, the latter shall freely determine, according to the needs of the comp
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-21 18:07:32.238221] OpenAI API Call
+Model: gpt-5
+Prompt length: 22232 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '421. If the ownership right in a share is split into bare ownership and usufruct, the usufructuary and the bare owner shall be entered separately in the register of registered shares, with an indicat
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-21 18:08:34.484228] OpenAI API Call
+Model: gpt-5
+Prompt length: 20863 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '441. No appeal to the courts shall lie against a refusal of approval.\n442. Nevertheless, the shareholder who wishes to transfer all or part of his shares may require the shareholders who object to p
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-21 18:09:28.256866] OpenAI API Call
+Model: gpt-5
+Prompt length: 20066 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '461. If the company is managed by more than one director, each director, acting alone, may perform all acts that are necessary or useful for the realisation of the corporate purpose, except for those
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-21 18:10:26.549358] OpenAI API Call
+Model: gpt-5
+Prompt length: 18959 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '481. Title V.\n482. General Meeting.\n483. Article 16.\n484. Organisation and convening\n485. Each year an ordinary general meeting of shareholders shall be held at the registered office, on the thir
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-21 18:11:21.967735] OpenAI API Call
+Model: gpt-5
+Prompt length: 18695 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '501. Meetings – minutes\n502. § 1.\n503. The general meeting shall be chaired by a director or, failing that, by the shareholder present who holds the most shares and, in the event of a tie, by the e
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-21 18:12:20.096983] OpenAI API Call
+Model: gpt-5
+Prompt length: 17811 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: "521. § 4.\n522. All general meetings may only decide on the proposals that are included on the agenda, except where all persons who must be convened are present or represented and, in the latter case
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-21 18:13:31.821078] OpenAI API Call
+Model: gpt-5
+Prompt length: 18329 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '541. Article 23.\n542. Dissolution\n543. The company may be dissolved at any time by a decision of the general meeting deciding in the forms required for an amendment to the articles of association.\
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-21 18:14:31.068802] OpenAI API Call
+Model: gpt-5
+Prompt length: 17530 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '561. [1]Fourth resolution - authorisation of the director\n562. [1]The meeting grants the director the authority to implement the foregoing resolutions.\n563. [1]Fifth resolution – Mandate to the und
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-21 18:16:05.739388] OpenAI API Call
+Model: gpt-5
+Prompt length: 16396 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '581. [1]1.\n582. The parties confirm that the instrumenting notary has duly informed them of the rights, obligations and charges arising from this deed and has provided them with advice in  an impart
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-21 18:20:01.712466] OpenAI API Call
+Model: gpt-5
+Prompt length: 9599 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'It appears from a deed executed before Meester Sandry Gypens, notary in Strombeek-Bever (Grimbergen), dated 20 December 2023, that the extraordinary general meeting of the shareholders of the private
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-21 18:23:04.745053] OpenAI API Call
+Model: gpt-5
+Prompt length: 89226 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '23. In accordance with Article 39, §2, second paragraph of the Act of 23 March 2019 introducing the Code of Companies and Associations (CCA) and containing various provisions, the meeting notes that 
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-21 18:24:35.261502] OpenAI API Call
+Model: gpt-5
+Prompt length: 46695 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '390. - The company may also participate by means of equity participation, transfer, merger, subscription, or any kind of intervention, financial or otherwise, in any other companies or undertakings i
+Choice[0] message.refusal: None
