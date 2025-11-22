@@ -3,8 +3,8 @@ Supervertaler Qt Edition
 ========================
 The ultimate companion tool for translators and writers.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.7.7 (Termbase Display Customization)
-Release Date: November 21, 2025
+Version: 1.7.8 (Filter Highlighting Fix)
+Release Date: November 22, 2025
 Framework: PyQt6
 
 This is the modern edition of Supervertaler using PyQt6 framework.
@@ -32,9 +32,9 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.7.7"
+__version__ = "1.7.8"
 __phase__ = "8.7"
-__release_date__ = "2025-11-21"
+__release_date__ = "2025-11-22"
 __edition__ = "Qt"
 
 import sys
@@ -100,7 +100,9 @@ try:
         QScrollArea, QSizePolicy, QSlider, QToolButton
     )
     from PyQt6.QtCore import Qt, QSize, QTimer, pyqtSignal, QObject, QUrl
-    from PyQt6.QtGui import QFont, QAction, QKeySequence, QIcon, QTextOption, QColor, QDesktopServices, QTextCharFormat, QTextCursor, QBrush, QSyntaxHighlighter
+    from PyQt6.QtGui import QFont, QAction, QKeySequence, QIcon, QTextOption, QColor, QDesktopServices, QTextCharFormat, QTextCursor, QBrush, QSyntaxHighlighter, QPalette
+    from PyQt6.QtWidgets import QStyleOptionViewItem, QStyle
+    from PyQt6.QtCore import QRectF
     from PyQt6 import sip
 except ImportError:
     print("PyQt6 not found. Installing...")
@@ -1047,6 +1049,116 @@ class EditableGridTextEditor(QTextEdit):
         super().keyPressEvent(event)
 
 
+class SearchHighlightDelegate(QStyledItemDelegate):
+    """
+    Custom delegate that highlights search terms in cells while preserving full editability.
+    Uses custom painting to draw highlights underneath the text.
+    """
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.search_terms = {}  # Dict of {(row, col): search_term}
+        self.highlight_color = QColor(255, 255, 0, 180)  # Yellow with some transparency
+
+    def set_highlight(self, row: int, col: int, search_term: str):
+        """Set a search term to highlight for a specific cell"""
+        self.search_terms[(row, col)] = search_term
+
+    def clear_highlight(self, row: int, col: int):
+        """Clear highlight for a specific cell"""
+        if (row, col) in self.search_terms:
+            del self.search_terms[(row, col)]
+
+    def clear_all_highlights(self):
+        """Clear all highlights"""
+        self.search_terms.clear()
+
+    def paint(self, painter, option, index):
+        """Custom paint method that highlights search terms"""
+        row = index.row()
+        col = index.column()
+
+        # Check if this cell has a search term to highlight
+        if (row, col) in self.search_terms:
+            search_term = self.search_terms[(row, col)]
+            text = index.data(Qt.ItemDataRole.DisplayRole) or ""
+
+            if text and search_term:
+                # Save painter state
+                painter.save()
+
+                # Draw the background first (handles selection, etc.)
+                option_copy = QStyleOptionViewItem(option)
+                self.initStyleOption(option_copy, index)
+
+                # Get the style
+                style = option.widget.style() if option.widget else QApplication.style()
+
+                # Draw background
+                style.drawPrimitive(QStyle.PrimitiveElement.PE_PanelItemViewItem, option_copy, painter, option.widget)
+
+                # Calculate text rect
+                text_rect = style.subElementRect(QStyle.SubElement.SE_ItemViewItemText, option_copy, option.widget)
+
+                # Get font metrics
+                fm = painter.fontMetrics()
+
+                # Find and highlight all occurrences of the search term
+                text_lower = text.lower()
+                search_lower = search_term.lower()
+                pos = 0
+
+                while True:
+                    found = text_lower.find(search_lower, pos)
+                    if found == -1:
+                        break
+
+                    # Calculate the position of this occurrence
+                    prefix = text[:found]
+                    prefix_width = fm.horizontalAdvance(prefix)
+                    term_width = fm.horizontalAdvance(text[found:found + len(search_term)])
+
+                    # Draw highlight rectangle
+                    highlight_rect = QRectF(
+                        text_rect.left() + prefix_width,
+                        text_rect.top(),
+                        term_width,
+                        text_rect.height()
+                    )
+                    painter.fillRect(highlight_rect, self.highlight_color)
+
+                    pos = found + len(search_term)
+
+                # Draw the text on top
+                painter.setPen(option_copy.palette.color(QPalette.ColorRole.Text))
+                painter.drawText(text_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, text)
+
+                painter.restore()
+                return
+
+        # Default painting for non-highlighted cells
+        super().paint(painter, option, index)
+
+
+class ClickableHighlightLabel(QLabel):
+    """
+    Custom QLabel for highlighted search results that allows double-click to edit.
+    When double-clicked, it removes itself from the table cell and triggers editing.
+
+    Mouse events are transparent by default - the table's viewport handles them.
+    We use installEventFilter on the table's viewport to catch double-clicks.
+    """
+
+    def __init__(self, table, row: int, col: int, plain_text: str, parent=None):
+        super().__init__(parent)
+        self.table = table
+        self.row = row
+        self.col = col
+        self.plain_text = plain_text  # Store the original plain text for restoration
+        # Make mouse events pass through to the table underneath
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+
+
 class TermbaseHighlightWidget(QLabel):
     """Custom label widget that displays source text with termbase highlights and tooltips"""
     
@@ -1164,13 +1276,112 @@ class TermbaseHighlightWidget(QLabel):
 
 
 class WordWrapDelegate(QStyledItemDelegate):
-    """Custom delegate to enable word wrap when editing cells"""
-    
+    """Custom delegate to enable word wrap when editing cells, with search term highlighting"""
+
     def __init__(self, assistance_panel=None, table_widget=None, allow_source_edit=False):
         super().__init__()
         self.assistance_panel = assistance_panel
         self.table_widget = table_widget
         self.allow_source_edit = allow_source_edit  # Controls whether source can be edited
+        self.search_terms = {}  # Dict of {(row, col): search_term} for highlighting
+        self.highlight_color = QColor(255, 255, 0, 180)  # Yellow with some transparency
+
+    def set_highlight(self, row: int, col: int, search_term: str):
+        """Set a search term to highlight for a specific cell"""
+        self.search_terms[(row, col)] = search_term
+
+    def clear_highlight(self, row: int, col: int):
+        """Clear highlight for a specific cell"""
+        if (row, col) in self.search_terms:
+            del self.search_terms[(row, col)]
+
+    def clear_all_highlights(self):
+        """Clear all highlights"""
+        self.search_terms.clear()
+
+    def paint(self, painter, option, index):
+        """Custom paint method that highlights search terms while keeping cells editable.
+
+        Uses QTextDocument with HTML for reliable cross-line highlighting.
+        Instead of storing per-cell terms, we store a global search term and check
+        if the cell's text contains it.
+        """
+        row = index.row()
+        col = index.column()
+
+        # Check if this cell has a search term to highlight
+        # Use global search term if set, otherwise check per-cell dict
+        search_term = None
+        if col == 3 and hasattr(self, 'global_search_term') and self.global_search_term:
+            # For target column, use global search term
+            search_term = self.global_search_term
+        elif col == 2 and hasattr(self, 'global_source_search_term') and self.global_source_search_term:
+            # For source column, use global source search term
+            search_term = self.global_source_search_term
+        elif (row, col) in self.search_terms:
+            search_term = self.search_terms[(row, col)]
+
+        # Debug: Log once per column 3 cell when global_search_term is set
+        if col == 3 and hasattr(self, 'global_search_term') and self.global_search_term and row == 0:
+            print(f"[PAINT DEBUG] Row 0, Col 3: global_search_term='{self.global_search_term}', search_term='{search_term}'")
+
+        if search_term:
+            text = index.data(Qt.ItemDataRole.DisplayRole) or ""
+
+            # Only highlight if the search term is actually in the text
+            if text and search_term.lower() in text.lower():
+                from PyQt6.QtGui import QColor, QTextDocument, QAbstractTextDocumentLayout, QPalette
+                from PyQt6.QtCore import QRectF, QSizeF
+                import html as html_module
+
+                # Get style and text rect
+                option_copy = QStyleOptionViewItem(option)
+                self.initStyleOption(option_copy, index)
+                style = option.widget.style() if option.widget else QApplication.style()
+
+                # Draw background first (handles selection state etc.)
+                style.drawPrimitive(QStyle.PrimitiveElement.PE_PanelItemViewItem, option_copy, painter, option.widget)
+
+                # Get the text rectangle
+                text_rect = style.subElementRect(QStyle.SubElement.SE_ItemViewItemText, option_copy, option.widget)
+
+                # Add small padding like default delegate
+                text_rect = text_rect.adjusted(3, 0, -3, 0)
+
+                # Create HTML with highlighted search terms
+                # Escape HTML special characters first
+                escaped_text = html_module.escape(text)
+                escaped_term = html_module.escape(search_term)
+
+                # Case-insensitive replacement with highlighting
+                import re
+                pattern = re.compile(re.escape(escaped_term), re.IGNORECASE)
+
+                def replace_with_highlight(match):
+                    return f'<span style="background-color: #FFFF00;">{match.group(0)}</span>'
+
+                html_text = pattern.sub(replace_with_highlight, escaped_text)
+
+                # Create QTextDocument with the highlighted HTML
+                doc = QTextDocument()
+                doc.setDefaultFont(option.font)
+                doc.setTextWidth(text_rect.width())
+                doc.setHtml(html_text)
+
+                painter.save()
+                painter.translate(text_rect.topLeft())
+
+                # Clip to text rect
+                painter.setClipRect(QRectF(0, 0, text_rect.width(), text_rect.height()))
+
+                # Draw the document
+                doc.drawContents(painter)
+
+                painter.restore()
+                return
+
+        # Default painting for non-highlighted cells
+        super().paint(painter, option, index)
     
     def createEditor(self, parent, option, index):
         """Create a QTextEdit for multi-line editing with word wrap"""
@@ -6666,12 +6877,16 @@ class SupervertalerQt(QMainWindow):
         debug_tab = self._create_debug_settings_tab()
         settings_tabs.addTab(scroll_area_wrapper(debug_tab), "🐛 Debug")
 
-        # ===== TAB 9: Keyboard Shortcuts =====
+        # ===== TAB 9: Domain Detection Keywords =====
+        domain_keywords_tab = self._create_domain_keywords_tab()
+        settings_tabs.addTab(scroll_area_wrapper(domain_keywords_tab), "🎯 Domain Detection")
+
+        # ===== TAB 10: Keyboard Shortcuts =====
         from modules.keyboard_shortcuts_widget import KeyboardShortcutsWidget
         shortcuts_tab = KeyboardShortcutsWidget(self)
         settings_tabs.addTab(shortcuts_tab, "⌨️ Keyboard Shortcuts")
 
-        # ===== TAB 9: Log (moved from main tabs) =====
+        # ===== TAB 11: Log (moved from main tabs) =====
         log_tab = self.create_log_tab()
         settings_tabs.addTab(log_tab, "📋 Log")
         
@@ -7998,9 +8213,9 @@ class SupervertalerQt(QMainWindow):
         selected_mode = mode_combo.currentText()
         mode_key = mode_map.get(selected_mode, "single")
 
-        # Load from unified_prompt_manager if available
-        if hasattr(self, 'unified_prompt_manager'):
-            prompt_text = self.unified_prompt_manager.get_system_template(mode_key)
+        # Load from prompt_manager_qt if available
+        if hasattr(self, 'prompt_manager_qt'):
+            prompt_text = self.prompt_manager_qt.get_system_template(mode_key)
         else:
             # Fallback: load from JSON file
             system_prompts_file = self.user_data_path / "Prompt_Library" / "system_prompts_layer1.json"
@@ -8026,9 +8241,9 @@ class SupervertalerQt(QMainWindow):
         mode_key = mode_map.get(selected_mode, "single")
         prompt_text = editor.toPlainText()
 
-        # Save to unified_prompt_manager if available
-        if hasattr(self, 'unified_prompt_manager'):
-            self.unified_prompt_manager.system_templates[mode_key] = prompt_text
+        # Save to prompt_manager_qt if available
+        if hasattr(self, 'prompt_manager_qt'):
+            self.prompt_manager_qt.system_templates[mode_key] = prompt_text
 
         # Always save to JSON file
         import json
@@ -8249,6 +8464,232 @@ class SupervertalerQt(QMainWindow):
         self.debug_log_buffer.clear()
         self.log(f"✓ Debug log buffer cleared ({buffer_size} entries removed)")
         QMessageBox.information(self, "Buffer Cleared", f"Debug log buffer cleared.\n{buffer_size} entries removed.")
+
+    def _create_domain_keywords_tab(self):
+        """Create Domain Detection Keywords tab content"""
+        from PyQt6.QtWidgets import QGroupBox, QPushButton, QTextEdit, QTabWidget
+
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
+
+        # Introduction
+        intro_label = QLabel(
+            "<h3>🎯 Automated Domain Detection</h3>"
+            "<p>Supervertaler automatically identifies document types (Legal, Medical, Technical, Patent) "
+            "to generate domain-appropriate translation prompts.</p>"
+            "<p><b>Keywords below</b> are used for detection. The system counts matches and selects the domain "
+            "with the highest score (minimum 2 matches required).</p>"
+            "<p>💡 <b>Tip:</b> Add domain-specific terminology to improve detection accuracy for your projects.</p>"
+        )
+        intro_label.setWordWrap(True)
+        intro_label.setStyleSheet("font-size: 10pt; color: #333; padding: 10px; background-color: #f0f7ff; border-radius: 4px;")
+        layout.addWidget(intro_label)
+
+        # Load current keywords from prompt_manager_qt.py default lists
+        keywords = self._load_domain_keywords()
+
+        # Create tab widget for each domain
+        domain_tabs = QTabWidget()
+
+        # Legal domain
+        legal_tab = QWidget()
+        legal_layout = QVBoxLayout(legal_tab)
+        legal_info = QLabel("<b>Legal/Notarial Documents:</b> Notarial deeds, contracts, court documents, Belgian law")
+        legal_info.setWordWrap(True)
+        legal_layout.addWidget(legal_info)
+        self.legal_keywords_edit = QTextEdit()
+        self.legal_keywords_edit.setPlainText("\n".join(keywords['legal']))
+        self.legal_keywords_edit.setPlaceholderText("Enter keywords, one per line...")
+        legal_layout.addWidget(self.legal_keywords_edit)
+        domain_tabs.addTab(legal_tab, "⚖️ Legal")
+
+        # Medical domain
+        medical_tab = QWidget()
+        medical_layout = QVBoxLayout(medical_tab)
+        medical_info = QLabel("<b>Medical Documents:</b> Clinical reports, procedures, pharmaceutical documents")
+        medical_info.setWordWrap(True)
+        medical_layout.addWidget(medical_info)
+        self.medical_keywords_edit = QTextEdit()
+        self.medical_keywords_edit.setPlainText("\n".join(keywords['medical']))
+        self.medical_keywords_edit.setPlaceholderText("Enter keywords, one per line...")
+        medical_layout.addWidget(self.medical_keywords_edit)
+        domain_tabs.addTab(medical_tab, "🏥 Medical")
+
+        # Patent domain
+        patent_tab = QWidget()
+        patent_layout = QVBoxLayout(patent_tab)
+        patent_info = QLabel("<b>Patent Documents:</b> Patent applications, claims, prior art references")
+        patent_info.setWordWrap(True)
+        patent_layout.addWidget(patent_info)
+        self.patent_keywords_edit = QTextEdit()
+        self.patent_keywords_edit.setPlainText("\n".join(keywords['patent']))
+        self.patent_keywords_edit.setPlaceholderText("Enter keywords, one per line...")
+        patent_layout.addWidget(self.patent_keywords_edit)
+        domain_tabs.addTab(patent_tab, "🔬 Patent")
+
+        # Technical domain
+        technical_tab = QWidget()
+        technical_layout = QVBoxLayout(technical_tab)
+        technical_info = QLabel("<b>Technical Documents:</b> Manuals, specifications, installation guides")
+        technical_info.setWordWrap(True)
+        technical_layout.addWidget(technical_info)
+        self.technical_keywords_edit = QTextEdit()
+        self.technical_keywords_edit.setPlainText("\n".join(keywords['technical']))
+        self.technical_keywords_edit.setPlaceholderText("Enter keywords, one per line...")
+        technical_layout.addWidget(self.technical_keywords_edit)
+        domain_tabs.addTab(technical_tab, "🔧 Technical")
+
+        layout.addWidget(domain_tabs)
+
+        # Save and Reset buttons
+        buttons_layout = QHBoxLayout()
+
+        reset_btn = QPushButton("🔄 Reset to Defaults")
+        reset_btn.setToolTip("Reset all keyword lists to default values")
+        reset_btn.clicked.connect(self._reset_domain_keywords_to_defaults)
+        buttons_layout.addWidget(reset_btn)
+
+        buttons_layout.addStretch()
+
+        save_btn = QPushButton("💾 Save Domain Keywords")
+        save_btn.setToolTip("Save custom domain detection keywords")
+        save_btn.clicked.connect(self._save_domain_keywords)
+        save_btn.setStyleSheet("font-weight: bold; padding: 8px 16px;")
+        buttons_layout.addWidget(save_btn)
+
+        layout.addLayout(buttons_layout)
+
+        return tab
+
+    def _load_domain_keywords(self):
+        """Load domain keywords from settings or use defaults"""
+        settings = self.load_general_settings()
+
+        # Default keywords - MULTILINGUAL (matches prompt_manager_qt.py)
+        # Includes English + Dutch + French + German keywords
+        defaults = {
+            'legal': [
+                # English
+                'notarial deed', 'notary', 'legal contract', 'deed of', 'legal document',
+                'testament', 'mortgage', 'clause', 'hereby', 'whereas', 'contractual',
+                'court', 'judgment', 'plaintiff', 'defendant', 'attorney', 'barrister',
+                'articles of association', 'general meeting', 'extraordinary general meeting',
+                # Dutch/Flemish
+                'notariële akte', 'notaris', 'rechtbank', 'vonnis', 'statuten',
+                'algemene vergadering', 'buitengewone algemene vergadering', 'meester',
+                'advocaat', 'artikel', 'wetboek', 'rechtspersonenregister',
+                # French
+                'acte notarié', 'notaire', 'tribunal', 'jugement', 'statuts',
+                'assemblée générale', 'maître',
+                # German
+                'notarielle urkunde', 'notar', 'gericht', 'urteil', 'satzung'
+            ],
+            'medical': [
+                # English
+                'patient', 'diagnosis', 'medical', 'clinical', 'procedure',
+                'treatment', 'symptom', 'disease', 'medication', 'pharmaceutical',
+                'surgery', 'anatomical', 'pathology', 'radiology', 'hospital',
+                # Dutch
+                'patiënt', 'diagnose', 'medisch', 'klinisch', 'behandeling',
+                'symptoom', 'ziekte', 'medicijn', 'chirurgie', 'ziekenhuis',
+                # French
+                'médical', 'clinique', 'traitement', 'symptôme', 'maladie',
+                'médicament', 'chirurgie', 'hôpital',
+                # German
+                'medizinisch', 'klinisch', 'behandlung', 'symptom', 'krankheit',
+                'medikament', 'krankenhaus'
+            ],
+            'patent': [
+                # English
+                'patent', 'claim', 'invention', 'embodiment', 'prior art',
+                'apparatus', 'method comprising', 'said', 'wherein', 'configured to',
+                # Dutch
+                'octrooi', 'conclusie', 'uitvinding', 'uitvoeringsvorm',
+                # French
+                'brevet', 'revendication', 'invention', 'mode de réalisation',
+                # German
+                'patentanspruch', 'erfindung', 'ausführungsform'
+            ],
+            'technical': [
+                # English
+                'specification', 'component', 'assembly', 'technical manual',
+                'installation', 'maintenance', 'user guide', 'operating instructions',
+                'safety warning', 'dimensions', 'tolerance',
+                # Dutch
+                'specificatie', 'onderdeel', 'montage', 'technische handleiding',
+                'installatie', 'onderhoud', 'gebruikershandleiding', 'veiligheidswaarschuwing',
+                # French
+                'spécification', 'composant', 'assemblage', 'manuel technique',
+                'entretien', 'avertissement de sécurité',
+                # German
+                'spezifikation', 'komponente', 'montage', 'technisches handbuch',
+                'wartung', 'sicherheitswarnung'
+            ]
+        }
+
+        # Load custom keywords if saved
+        return {
+            'legal': settings.get('domain_keywords_legal', defaults['legal']),
+            'medical': settings.get('domain_keywords_medical', defaults['medical']),
+            'patent': settings.get('domain_keywords_patent', defaults['patent']),
+            'technical': settings.get('domain_keywords_technical', defaults['technical'])
+        }
+
+    def _save_domain_keywords(self):
+        """Save domain detection keywords to settings"""
+        keywords = {
+            'domain_keywords_legal': [kw.strip() for kw in self.legal_keywords_edit.toPlainText().split('\n') if kw.strip()],
+            'domain_keywords_medical': [kw.strip() for kw in self.medical_keywords_edit.toPlainText().split('\n') if kw.strip()],
+            'domain_keywords_patent': [kw.strip() for kw in self.patent_keywords_edit.toPlainText().split('\n') if kw.strip()],
+            'domain_keywords_technical': [kw.strip() for kw in self.technical_keywords_edit.toPlainText().split('\n') if kw.strip()]
+        }
+
+        # Save to general settings
+        settings = self.load_general_settings()
+        settings.update(keywords)
+        self.save_general_settings(settings)
+
+        self.log(f"✓ Domain detection keywords saved")
+        QMessageBox.information(
+            self,
+            "Keywords Saved",
+            "Domain detection keywords have been saved successfully.\n\n"
+            "The updated keywords will be used for automatic domain detection "
+            "when generating translation prompts."
+        )
+
+    def _reset_domain_keywords_to_defaults(self):
+        """Reset all domain keywords to default values"""
+        reply = QMessageBox.question(
+            self,
+            "Reset to Defaults",
+            "Are you sure you want to reset all domain keywords to their default values?\n\n"
+            "This will overwrite any custom keywords you've added.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+
+        if reply == QMessageBox.StandardButton.Yes:
+            defaults = self._load_domain_keywords()  # Gets defaults when no custom settings exist
+
+            # Clear saved keywords from settings
+            settings = self.load_general_settings()
+            settings.pop('domain_keywords_legal', None)
+            settings.pop('domain_keywords_medical', None)
+            settings.pop('domain_keywords_patent', None)
+            settings.pop('domain_keywords_technical', None)
+            self.save_general_settings(settings)
+
+            # Reload defaults and update UI
+            defaults = self._load_domain_keywords()
+            self.legal_keywords_edit.setPlainText("\n".join(defaults['legal']))
+            self.medical_keywords_edit.setPlainText("\n".join(defaults['medical']))
+            self.patent_keywords_edit.setPlainText("\n".join(defaults['patent']))
+            self.technical_keywords_edit.setPlainText("\n".join(defaults['technical']))
+
+            self.log("✓ Domain keywords reset to defaults")
+            QMessageBox.information(self, "Reset Complete", "Domain keywords have been reset to default values.")
 
     def _save_llm_settings_from_ui(self, openai_radio, claude_radio, gemini_radio,
                                    openai_combo, claude_combo, gemini_combo,
@@ -9393,12 +9834,13 @@ class SupervertalerQt(QMainWindow):
         self.table.itemChanged.connect(self.on_cell_changed)
         self.table.currentCellChanged.connect(self.on_cell_selected)
         self.table.itemClicked.connect(self.on_cell_clicked)
-        
+        self.table.cellDoubleClicked.connect(self.on_cell_double_clicked)
+
         # Add additional selection signal for row-based selection mode
         self.table.itemSelectionChanged.connect(self.on_selection_changed)
-        
+
         # Debug: Confirm signal connections
-        self.log("🔌 Table signals connected: currentCellChanged, itemClicked, itemSelectionChanged")
+        self.log("🔌 Table signals connected: currentCellChanged, itemClicked, cellDoubleClicked, itemSelectionChanged")
         
         # Add precision scroll buttons (memoQ-style)
         self.add_precision_scroll_buttons()
@@ -14052,7 +14494,37 @@ class SupervertalerQt(QMainWindow):
         if col == 4:
             self.log(f"Status column click ignored - use Segment Editor to change status")
             return
-    
+
+    def on_cell_double_clicked(self, row: int, col: int):
+        """Handle double-click on a cell - remove highlight widget and start editing if needed"""
+        self.log(f"🖱️ on_cell_double_clicked called: row {row}, col {col}")
+
+        # Check if this cell has a highlight widget (ClickableHighlightLabel)
+        cell_widget = self.table.cellWidget(row, col)
+        if cell_widget and isinstance(cell_widget, ClickableHighlightLabel):
+            self.log(f"🖱️ Removing highlight widget and starting edit for row {row}, col {col}")
+
+            # Get the plain text stored in the widget
+            plain_text = cell_widget.plain_text
+
+            # Get or create the underlying QTableWidgetItem
+            item = self.table.item(row, col)
+            if item is None:
+                item = QTableWidgetItem(plain_text)
+                item.setFlags(item.flags() | Qt.ItemFlag.ItemIsEditable)
+                self.table.setItem(row, col, item)
+            else:
+                # Restore the plain text and ensure it's editable
+                item.setText(plain_text)
+                item.setFlags(item.flags() | Qt.ItemFlag.ItemIsEditable)
+
+            # Remove the cell widget
+            self.table.removeCellWidget(row, col)
+
+            # Start editing
+            self.table.setCurrentCell(row, col)
+            self.table.editItem(item)
+
     # ========================================================================
     # TRANSLATION MEMORY
     # ========================================================================
@@ -15290,40 +15762,51 @@ class SupervertalerQt(QMainWindow):
                 self.table.scrollToItem(self.table.item(row, 3))
                 break
     
-    def highlight_search_term(self, row: int, col: int, text: str, search_term: str):
-        """Highlight only the search term within the cell text using HTML"""
-        # Create a custom widget with HTML formatting
-        label = QLabel()
-        label.setWordWrap(True)
-        label.setTextFormat(Qt.TextFormat.RichText)
+    def _highlight_text_in_widget(self, row: int, col: int, search_term: str):
+        """Highlight search term within a QTextEdit cell widget.
         
-        # Set the same font as the table cells
-        font = QFont(self.default_font_family, self.default_font_size)
-        label.setFont(font)
+        Since source/target cells use setCellWidget() with QTextEdit editors,
+        the delegate's paint() method is bypassed. We must highlight the text
+        directly within the widget using QTextCursor and QTextCharFormat.
+        """
+        widget = self.table.cellWidget(row, col)
+        if not widget or not hasattr(widget, 'document'):
+            return
         
-        # Build HTML with highlighted search term (case-insensitive)
-        search_lower = search_term.lower()
+        # Clear any existing search highlights first
+        cursor = widget.textCursor()
+        cursor.select(QTextCursor.SelectionType.Document)
+        
+        # Create format with no background (clear previous highlights)
+        clear_format = QTextCharFormat()
+        cursor.setCharFormat(clear_format)
+        cursor.clearSelection()
+        
+        # Create yellow highlight format
+        highlight_format = QTextCharFormat()
+        highlight_format.setBackground(QColor("#FFFF00"))  # Yellow background
+        
+        # Find and highlight all occurrences (case-insensitive)
+        document = widget.document()
+        cursor = QTextCursor(document)
+        
+        search_term_lower = search_term.lower()
+        text = document.toPlainText()
         text_lower = text.lower()
         
-        # Find all occurrences and build highlighted HTML
-        html_text = ""
-        last_pos = 0
-        
+        # Find all occurrences
+        pos = 0
         while True:
-            pos = text_lower.find(search_lower, last_pos)
+            pos = text_lower.find(search_term_lower, pos)
             if pos == -1:
-                # Add remaining text
-                html_text += text[last_pos:]
                 break
             
-            # Add text before match
-            html_text += text[last_pos:pos]
-            # Add highlighted match
-            html_text += f'<span style="background-color: yellow;">{text[pos:pos+len(search_term)]}</span>'
-            last_pos = pos + len(search_term)
-        
-        label.setText(html_text)
-        self.table.setCellWidget(row, col, label)
+            # Select the match and apply highlight
+            cursor.setPosition(pos)
+            cursor.movePosition(QTextCursor.MoveOperation.Right, QTextCursor.MoveMode.KeepAnchor, len(search_term))
+            cursor.mergeCharFormat(highlight_format)
+            
+            pos += len(search_term)
     
     def apply_filters(self):
         """Apply source and target filters to show/hide rows and highlight matches"""
@@ -15348,7 +15831,7 @@ class SupervertalerQt(QMainWindow):
         
         # Set flag to disable auto-center scrolling during filtering
         self.filtering_active = True
-        
+
         # Clear previous highlights by reloading
         self.load_segments_to_grid()
         
@@ -15375,17 +15858,17 @@ class SupervertalerQt(QMainWindow):
             if show_row:
                 visible_count += 1
                 
-                # Highlight matching terms
+                # Highlight matching terms in the QTextEdit widgets
                 if source_filter_text and source_filter_text.lower() in segment.source.lower():
-                    self.highlight_search_term(row, 2, segment.source, source_filter_text)
+                    self._highlight_text_in_widget(row, 2, source_filter_text)
                 
                 if target_filter_text and target_filter_text.lower() in segment.target.lower():
-                    self.highlight_search_term(row, 3, segment.target, target_filter_text)
-        
+                    self._highlight_text_in_widget(row, 3, target_filter_text)
+
         # Update status
         if source_filter_text or target_filter_text:
             self.log(f"Filter applied: showing {visible_count} of {len(self.current_project.segments)} segments")
-    
+
     def clear_filters(self):
         """Clear all filter boxes, highlighting, and show all rows"""
         source_widget = getattr(self, 'source_filter', None)
@@ -15394,6 +15877,16 @@ class SupervertalerQt(QMainWindow):
         has_target = self._widget_is_alive(target_widget)
         if not has_source and not has_target:
             return
+
+        # Clear delegate highlights and global search terms
+        if hasattr(self, 'table') and self.table is not None:
+            delegate = self.table.itemDelegate()
+            if delegate:
+                if hasattr(delegate, 'clear_all_highlights'):
+                    delegate.clear_all_highlights()
+                # Clear global search terms
+                delegate.global_search_term = None
+                delegate.global_source_search_term = None
 
         # Remember which segment was selected before clearing
         selected_segment_id = None

@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.7.7 (November 21, 2025)
+**Current Version:** v1.7.8 (November 22, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -14,6 +14,7 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- 🔍 **Filter Highlighting Fix (v1.7.8)** - Fixed search term highlighting in source/target filter boxes using widget-internal highlighting
 - 🎯 **Termbase Display Customization (v1.7.7)** - User-configurable termbase match sorting and filtering for cleaner translation results
 - 💾 **Auto Backup System (v1.7.6)** - Automatic project.json and TMX backups at configurable intervals to prevent data loss
 - 🐛 **Critical TM Save Bug Fix (v1.7.5)** - Fixed massive unnecessary database writes during grid operations that caused 10+ second freezes
@@ -40,6 +41,44 @@ All notable changes to Supervertaler are documented in this file.
 - 🔄 **CAT Tool Integration** - memoQ, Trados, CafeTran bilingual table support
 
 **See full version history below** ↓
+
+---
+
+## [1.7.8] - November 22, 2025
+
+### 🔍 Filter Highlighting Fix
+
+**Fixed:**
+
+- ✨ **Filter Search Term Highlighting** - Fixed highlighting of search terms in filtered segments
+  - Source and target filter boxes now correctly highlight matching terms in yellow
+  - Previously used delegate-based highlighting which was bypassed by cell widgets
+  - New implementation uses widget-internal highlighting with QTextCursor + QTextCharFormat
+  - Case-insensitive matching: "test", "TEST", "TeSt" all match "test"
+  - Multiple matches per cell are highlighted correctly
+  - Highlights automatically clear when filters are removed
+
+**Technical Details:**
+
+- **Root Cause:** Source/target cells use `setCellWidget()` with QTextEdit widgets, which completely bypass `QStyledItemDelegate.paint()` method
+- **Solution:** Created `_highlight_text_in_widget()` method that applies highlighting directly within QTextEdit widgets
+- **Implementation:**
+  - Uses `QTextCursor` to find all occurrences of search term in widget's document
+  - Applies `QTextCharFormat` with yellow background (#FFFF00) to each match
+  - Clears previous highlights before applying new ones
+  - Modified `apply_filters()` to call widget highlighting instead of delegate approach
+  - `clear_filters()` automatically clears highlights by reloading grid
+- **Files Modified:**
+  - `Supervertaler.py` (lines ~15765-15810): New `_highlight_text_in_widget()` method
+  - `Supervertaler.py` (lines ~15779-15860): Modified `apply_filters()` to use widget highlighting
+- **Documentation Added:**
+  - `docs/FILTER_HIGHLIGHTING_FIX.md` - Complete technical explanation of the fix
+
+**User Experience:**
+
+- Filter boxes now work as expected with visible yellow highlighting
+- Improves searchability and visual feedback when filtering segments
+- No performance impact with large segment counts (tested with 219 segments)
 
 ---
 

@@ -1,12 +1,165 @@
 # Supervertaler Project Context
 
-**Last Updated:** November 21, 2025
+**Last Updated:** November 22, 2025
 **Repository:** https://github.com/michaelbeijer/Supervertaler
 **Maintainer:** Michael Beijer
 
 ---
 
 ## 📅 Recent Development Activity
+
+### November 22, 2025 - Version 1.7.8 Release: Filter Highlighting Fix
+
+**🔍 Version 1.7.8 Released - Search Term Highlighting in Filters**
+
+Fixed a critical issue where search terms entered in the source/target filter boxes were not being highlighted in the filtered segments. The problem was architectural: the existing delegate-based highlighting approach was incompatible with the QTextEdit cell widgets used for source and target columns.
+
+**🐛 Problem Identified:**
+
+- **Architectural Mismatch:** Source/target cells use `setCellWidget()` with QTextEdit-based editors (`EditableGridTextEditor`, `ReadOnlyGridTextEditor`)
+- **Delegate Bypass:** Qt completely bypasses `QStyledItemDelegate.paint()` when a cell has a widget, rendering the entire delegate highlighting system ineffective
+- **Previous Implementation:** The code was correctly setting `global_search_term` on the delegate and calling `viewport().repaint()`, but these had no effect because `paint()` was never called for widget cells
+- **Struggled Issue:** User and Claude Code had been working on this for over a day without identifying the root cause
+
+**✅ Solution Implemented:**
+
+**New Method: `_highlight_text_in_widget()`**
+```python
+def _highlight_text_in_widget(self, row: int, col: int, search_term: str):
+    """Highlight search term within a QTextEdit cell widget using QTextCursor."""
+    widget = self.table.cellWidget(row, col)
+    if not widget or not hasattr(widget, 'document'):
+        return
+    
+    # Clear existing highlights
+    cursor = widget.textCursor()
+    cursor.select(QTextCursor.SelectionType.Document)
+    clear_format = QTextCharFormat()
+    cursor.setCharFormat(clear_format)
+    cursor.clearSelection()
+    
+    # Create yellow highlight format
+    highlight_format = QTextCharFormat()
+    highlight_format.setBackground(QColor("#FFFF00"))
+    
+    # Find and highlight all occurrences (case-insensitive)
+    document = widget.document()
+    text = document.toPlainText()
+    text_lower = text.lower()
+    search_term_lower = search_term.lower()
+    
+    pos = 0
+    while True:
+        pos = text_lower.find(search_term_lower, pos)
+        if pos == -1:
+            break
+        cursor.setPosition(pos)
+        cursor.movePosition(QTextCursor.MoveOperation.Right, 
+                          QTextCursor.MoveMode.KeepAnchor, len(search_term))
+        cursor.mergeCharFormat(highlight_format)
+        pos += len(search_term)
+```
+
+**Modified `apply_filters()` Method:**
+- Replaced delegate-based highlighting calls with `_highlight_text_in_widget()`
+- Removed delegate `global_search_term` setting (no longer needed)
+- Removed `viewport().repaint()` calls (no longer needed)
+- Simplified code by removing unnecessary delegate interaction
+
+**Highlight Clearing:**
+- `clear_filters()` already calls `load_segments_to_grid()` which recreates all widgets
+- Fresh widgets automatically have no highlights → no additional clearing logic needed
+
+**📋 Technical Details:**
+
+- **Files Modified:**
+  - `Supervertaler.py` (lines ~15765-15810): New `_highlight_text_in_widget()` method
+  - `Supervertaler.py` (lines ~15779-15860): Modified `apply_filters()` method
+- **Key Technologies:**
+  - `QTextCursor` for text navigation and selection within QTextEdit
+  - `QTextCharFormat` for applying yellow background color
+  - `QTextDocument` for accessing widget's text content
+  - Case-insensitive matching using `.lower()` comparison
+- **Performance:** No impact with large segment counts (tested with 219 segments)
+- **Compatibility:** Works with both `EditableGridTextEditor` (target) and `ReadOnlyGridTextEditor` (source)
+
+**📖 Documentation Added:**
+- `docs/FILTER_HIGHLIGHTING_FIX.md` - Complete technical explanation with code examples, problem analysis, and solution details
+
+**🎯 User Experience:**
+- Filter source/target boxes now show yellow highlighting on matching terms
+- Case-insensitive matching: "test", "TEST", "TeSt" all match "test"
+- Multiple matches per cell highlighted correctly
+- Highlights clear automatically when filters are removed
+- Improves searchability and visual feedback during translation work
+
+---
+
+### November 21, 2025 - Automated Domain Detection & Prompt Generation Improvements
+
+**🔧 Automated Domain Detection System**
+
+Implemented comprehensive automated domain detection and enhancement rule generation for the AI-powered prompt assistant:
+
+**Domain Detection:**
+- Automatic identification of document domains (Legal, Medical, Technical, Patent) using multilingual keyword matching
+- Keywords in English, Dutch, French, and German for accurate cross-language detection
+- Minimum 2-match requirement to avoid false positives
+- User-customizable keyword lists in Settings → Domain Detection tab
+
+**Format Conversion Rules:**
+- Automatic generation of number/date format conversion rules based on language pairs
+- Dutch→English: comma decimal separator → period (718.592,01 → 718,592.01)
+- English→Dutch: period → comma (reversed conversion)
+- Thousands separator conversion included
+
+**Domain-Specific Enhancement Rules:**
+- Legal domain: "Meester + surname" preservation for Belgian notaries, notarial terminology
+- Medical domain: Technical precision, standardized medical terminology
+- Patent domain: Claims structure, technical specifications
+- Technical domain: Imperative mood for instructions, measurement precision
+
+**Post-Process Injection System:**
+- Direct text manipulation after AI generation to guarantee rule appearance
+- Removes problematic AI-generated "preserve formatting" instructions that contradict localization
+- Regex patterns detect and remove variations like:
+  - "Keep all numbers as formatted"
+  - "Preserve all decimal separators exactly"
+  - "Do not convert commas/dots"
+  - "Preserve all original...decimal separators"
+- Injects explicit conversion examples into PROJECT PROMPT section
+- Ensures enhancement sections appear regardless of AI behavior
+
+**Files Modified:**
+- `modules/prompt_manager_qt.py`:
+  - `_detect_domain_from_analysis()` (lines 2354-2448) - Multilingual domain detection
+  - `_get_format_conversion_rules()` (lines 2410-2461) - Language pair format rules
+  - `_get_legal_domain_rules()` (lines 2478-2507) - Legal-specific rules
+  - `_inject_enhancement_rules()` (lines 2588-2664) - Post-process injection with cleanup
+  - Integration in `_generate_translation_prompts()` (lines 3412-3438)
+- `Supervertaler.py`:
+  - `_create_domain_keywords_tab()` (lines 8257-8353) - Settings UI
+  - `_load_domain_keywords()` (lines 8355-8390) - Load multilingual keywords
+  - `_save_domain_keywords()` (lines 8392-8413) - Persist user customizations
+  - `_reset_domain_keywords_to_defaults()` (lines 8415-8444) - Reset functionality
+
+**Key Technical Details:**
+- Multilingual keyword detection necessary because analysis text includes source language
+- Legal keywords expanded from 18 → 38 (added Dutch: notariële akte, statuten, etc.)
+- Medical keywords expanded from 15 → 38
+- Patent keywords expanded from 10 → 18
+- Technical keywords expanded from 11 → 32
+- Post-process injection splits AI response by `---CUSTOM INSTRUCTIONS---` delimiter
+- Injects only into PROJECT PROMPT section, leaving DOMAIN PROMPT untouched
+
+**Identified Issue for Next Session:**
+- User observation: Current approach still produces inconsistent results
+- Better approach: Use **template-based system** with System Templates (already implemented)
+- Templates would contain unchanging rules (e.g., number conversion for Dutch→English)
+- AI would fill in document-specific parts (terminology, domain context)
+- Need to fix crash in System Templates button (in unified_prompt_manager_qt.py)
+
+---
 
 ### November 21, 2025 - Version 1.7.7 Release: Termbase Display Customization
 
