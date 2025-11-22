@@ -116,6 +116,46 @@ def get_simple_lang_code(lang_name_or_code_input):
     return "en"  # Ultimate fallback
 
 
+def get_base_lang_code(lang_code: str) -> str:
+    """Extract base language code from variant (e.g., 'en-US' → 'en', 'nl-BE' → 'nl')"""
+    if not lang_code:
+        return "en"
+    return lang_code.split('-')[0].split('_')[0].lower()
+
+
+def normalize_lang_variant(lang_code: str) -> str:
+    """Normalize language variant to lowercase-UPPERCASE format (e.g., 'en-us' → 'en-US', 'nl-be' → 'nl-BE').
+    
+    Handles various input formats:
+    - nl-nl → nl-NL
+    - nl-NL → nl-NL  
+    - NL-NL → nl-NL
+    - nl_BE → nl-BE
+    - nl → nl (base code unchanged)
+    """
+    if not lang_code:
+        return lang_code
+    
+    # Replace underscores with hyphens
+    lang_code = lang_code.replace('_', '-')
+    
+    parts = lang_code.split('-')
+    if len(parts) == 1:
+        # Base language code only (e.g., 'nl', 'en')
+        return parts[0].lower()
+    elif len(parts) == 2:
+        # Language variant (e.g., 'en-US', 'nl-BE')
+        return f"{parts[0].lower()}-{parts[1].upper()}"
+    else:
+        # Unexpected format, just lowercase the first part
+        return parts[0].lower()
+
+
+def languages_are_compatible(lang1: str, lang2: str) -> bool:
+    """Check if two language codes are compatible (same base language)"""
+    return get_base_lang_code(lang1) == get_base_lang_code(lang2)
+
+
 class TMXGenerator:
     """Helper class for generating TMX (Translation Memory eXchange) files"""
     

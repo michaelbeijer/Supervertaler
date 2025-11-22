@@ -3,7 +3,7 @@ Supervertaler Qt Edition
 ========================
 The ultimate companion tool for translators and writers.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.7.8 (Filter Highlighting Fix)
+Version: 1.7.9 (Find/Replace & TM Enhancements)
 Release Date: November 22, 2025
 Framework: PyQt6
 
@@ -32,8 +32,8 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.7.8"
-__phase__ = "8.7"
+__version__ = "1.7.9"
+__phase__ = "9.7"
 __release_date__ = "2025-11-22"
 __edition__ = "Qt"
 
@@ -220,6 +220,7 @@ class Project:
     created: str = ""
     modified: str = ""
     prompt_settings: Dict[str, Any] = None  # Store active prompt settings
+    tm_settings: Dict[str, Any] = None  # Store activated TM settings
     id: int = None  # Unique project ID for TM activation tracking
     
     def __post_init__(self):
@@ -231,6 +232,8 @@ class Project:
             self.modified = datetime.now().isoformat()
         if self.prompt_settings is None:
             self.prompt_settings = {}
+        if self.tm_settings is None:
+            self.tm_settings = {}
         # Generate ID if not set (for backward compatibility with old projects)
         if self.id is None:
             import hashlib
@@ -252,6 +255,9 @@ class Project:
         # Add prompt settings if they exist
         if hasattr(self, 'prompt_settings'):
             result['prompt_settings'] = self.prompt_settings
+        # Add TM settings if they exist
+        if hasattr(self, 'tm_settings') and self.tm_settings:
+            result['tm_settings'] = self.tm_settings
         return result
     
     @classmethod
@@ -274,6 +280,9 @@ class Project:
         # Store prompt settings if they exist
         if 'prompt_settings' in data:
             project.prompt_settings = data['prompt_settings']
+        # Store TM settings if they exist
+        if 'tm_settings' in data:
+            project.tm_settings = data['tm_settings']
         return project
 
 
@@ -4726,8 +4735,11 @@ class SupervertalerQt(QMainWindow):
                     name_item.setFont(font)
                 tm_table.setItem(row, 1, name_item)
                 
-                # Languages
-                langs = f"{tm['source_lang'] or '?'} → {tm['target_lang'] or '?'}"
+                # Languages (normalized format: nl-NL, en-US, etc.)
+                from modules.tmx_generator import normalize_lang_variant
+                src_lang = normalize_lang_variant(tm['source_lang']) if tm['source_lang'] else '?'
+                tgt_lang = normalize_lang_variant(tm['target_lang']) if tm['target_lang'] else '?'
+                langs = f"{src_lang} → {tgt_lang}"
                 tm_table.setItem(row, 2, QTableWidgetItem(langs))
                 
                 # Entry count
@@ -4784,7 +4796,7 @@ class SupervertalerQt(QMainWindow):
         return tab
     
     def import_tmx_file(self):
-        """Import TMX file into translation memory"""
+        """Import TMX file into translation memory with language variant handling"""
         try:
             file_path, _ = fdh.get_open_file_name(
                 self, 
@@ -4793,14 +4805,157 @@ class SupervertalerQt(QMainWindow):
             )
             
             if file_path and self.tm_database:
-                # Import TMX using the TM database
-                self.tm_database.import_tmx(file_path)
-                self.log(f"Successfully imported TMX file: {file_path}")
-                QMessageBox.information(self, "Import Complete", f"TMX file imported successfully!\n\nFile: {file_path}")
+                # Get target languages
+                source_lang = getattr(self.current_project, 'source_lang', 'en') if self.current_project else 'en'
+                target_lang = getattr(self.current_project, 'target_lang', 'nl') if self.current_project else 'nl'
+                
+                # Detect TMX languages
+                tmx_langs = self.tm_database.detect_tmx_languages(file_path)
+                self.log(f"TMX languages detected: {tmx_langs}")
+                
+                # Check compatibility
+                compat = self.tm_database.check_language_compatibility(tmx_langs, source_lang, target_lang)
+                
+                if not compat['compatible']:
+                    QMessageBox.warning(
+                        self, "Language Mismatch",
+                        f"TMX file languages ({', '.join(tmx_langs)}) don't match project languages ({source_lang}, {target_lang}).\n\n"
+                        "Cannot import this TMX file."
+                    )
+                    return
+                
+                # Handle variant mismatch
+                if compat.get('variant_match'):
+                    choice = self._show_language_variant_dialog(compat)
+                    
+                    if choice == 'cancel':
+                        return
+                    
+                    # Show progress dialog
+                    from PyQt6.QtWidgets import QProgressDialog
+                    from PyQt6.QtCore import Qt
+                    
+                    progress = QProgressDialog("Importing TMX file...", None, 0, 0, self)
+                    progress.setWindowTitle("TMX Import")
+                    progress.setWindowModality(Qt.WindowModality.WindowModal)
+                    progress.setMinimumDuration(0)
+                    progress.setValue(0)
+                    progress.show()
+                    QApplication.processEvents()
+                    
+                    if choice == 'import_strip':
+                        # Import with variant stripping
+                        tm_id, count = self.tm_database.load_tmx_file(
+                            file_path, source_lang, target_lang, 
+                            tm_name=None, read_only=False
+                        )
+                        progress.close()
+                        self.log(f"Imported {count} entries (variants stripped: {compat['tmx_source']}, {compat['tmx_target']} → {source_lang}, {target_lang})")
+                        QMessageBox.information(
+                            self, "Import Complete",
+                            f"TMX imported successfully!\n\nEntries: {count}\n"
+                            f"Mapped: {compat['tmx_source']}, {compat['tmx_target']} → {source_lang}, {target_lang}"
+                        )
+                    elif choice == 'create_new':
+                        # Create new TM with variant languages
+                        tm_id, count = self.tm_database.load_tmx_file(
+                            file_path, compat['tmx_source'], compat['tmx_target'],
+                            tm_name=None, read_only=False
+                        )
+                        progress.close()
+                        self.log(f"Created new TM with variants: {compat['tmx_source']}, {compat['tmx_target']}")
+                        QMessageBox.information(
+                            self, "Import Complete", 
+                            f"New TM created!\n\nTM ID: {tm_id}\nEntries: {count}\n"
+                            f"Languages: {compat['tmx_source']}, {compat['tmx_target']}"
+                        )
+                else:
+                    # Exact match - proceed normally with progress
+                    from PyQt6.QtWidgets import QProgressDialog
+                    from PyQt6.QtCore import Qt
+                    
+                    progress = QProgressDialog("Importing TMX file...", None, 0, 0, self)
+                    progress.setWindowTitle("TMX Import")
+                    progress.setWindowModality(Qt.WindowModality.WindowModal)
+                    progress.setMinimumDuration(0)
+                    progress.setValue(0)
+                    progress.show()
+                    QApplication.processEvents()
+                    
+                    tm_id, count = self.tm_database.load_tmx_file(file_path, source_lang, target_lang)
+                    progress.close()
+                    self.log(f"Successfully imported {count} entries from TMX file")
+                    QMessageBox.information(self, "Import Complete", f"TMX imported!\n\nEntries: {count}\nTM ID: {tm_id}")
             
         except Exception as e:
             self.log(f"Error importing TMX file: {e}")
-            QMessageBox.critical(self, "Import Error", f"Failed to import TMX file:\n\n{e}")
+            QMessageBox.critical(self, "Import Error", f"Failed to import TMX:\n\n{e}")
+    
+    def _show_language_variant_dialog(self, compat_info: dict) -> str:
+        """Show dialog for handling language variant mismatch. Returns 'import_strip', 'create_new', or 'cancel'"""
+        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QRadioButton, QButtonGroup
+        
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Language Variant Detected")
+        dialog.setMinimumWidth(500)
+        
+        layout = QVBoxLayout(dialog)
+        
+        # Explanation
+        info_text = (
+            f"<h3>⚠️ Language Variant Mismatch</h3>"
+            f"<p>The TMX file uses language variants that don't exactly match your TM:</p>"
+            f"<table style='margin: 10px 0;'>"
+            f"<tr><td><b>TMX languages:</b></td><td>{compat_info['tmx_source']} → {compat_info['tmx_target']}</td></tr>"
+            f"<tr><td><b>Your TM languages:</b></td><td>{compat_info['target_source']} → {compat_info['target_target']}</td></tr>"
+            f"</table>"
+            f"<p>How would you like to proceed?</p>"
+        )
+        
+        info_label = QLabel(info_text)
+        info_label.setWordWrap(True)
+        info_label.setTextFormat(Qt.TextFormat.RichText)
+        layout.addWidget(info_label)
+        
+        # Radio button group
+        button_group = QButtonGroup(dialog)
+        
+        option1 = QRadioButton(f"Import into existing TM (strip variants: {compat_info['tmx_source']},{compat_info['tmx_target']} → {compat_info['target_source']},{compat_info['target_target']})")
+        option1.setChecked(True)
+        option1.setToolTip("Import translations by matching base languages, ignoring regional variants")
+        button_group.addButton(option1, 1)
+        layout.addWidget(option1)
+        
+        option2 = QRadioButton(f"Create new TM with variant languages ({compat_info['tmx_source']}, {compat_info['tmx_target']})")
+        option2.setToolTip("Create a separate TM preserving the exact language variants from the TMX")
+        button_group.addButton(option2, 2)
+        layout.addWidget(option2)
+        
+        layout.addSpacing(20)
+        
+        # Buttons
+        from PyQt6.QtWidgets import QHBoxLayout
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+        
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(dialog.reject)
+        btn_layout.addWidget(cancel_btn)
+        
+        ok_btn = QPushButton("Continue")
+        ok_btn.setDefault(True)
+        ok_btn.clicked.connect(dialog.accept)
+        btn_layout.addWidget(ok_btn)
+        
+        layout.addLayout(btn_layout)
+        
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            if option1.isChecked():
+                return 'import_strip'
+            elif option2.isChecked():
+                return 'create_new'
+        
+        return 'cancel'
     
     def export_tmx_from_grid(self):
         """Export all segments from current project grid as TMX file"""
@@ -6659,12 +6814,33 @@ class SupervertalerQt(QMainWindow):
             tm_id = name.lower().replace(' ', '_').replace('-', '_')
             tm_id = ''.join(c for c in tm_id if c.isalnum() or c == '_')
             
-            # Create TM metadata entry
+            # Detect TMX languages BEFORE creating TM
+            if not self.tm_database:
+                self.initialize_tm_database()
+            
+            if not self.tm_database:
+                QMessageBox.critical(self, "Error", "TM database not available")
+                return
+            
+            tmx_langs = self.tm_database.detect_tmx_languages(filepath)
+            
+            if len(tmx_langs) < 2:
+                QMessageBox.warning(
+                    self, "Invalid TMX",
+                    f"TMX file must contain at least 2 languages.\nFound: {', '.join(tmx_langs) if tmx_langs else 'none'}"
+                )
+                return
+            
+            # Use first two detected languages (typically source and target)
+            detected_src = tmx_langs[0]
+            detected_tgt = tmx_langs[1]
+            
+            # Create TM metadata entry with detected languages
             db_id = tm_metadata_mgr.create_tm(
                 name=name,
                 tm_id=tm_id,
-                source_lang=None,  # Will be detected from TMX
-                target_lang=None,
+                source_lang=detected_src,
+                target_lang=detected_tgt,
                 description=f"Imported from {Path(filepath).name}"
             )
             
@@ -6687,12 +6863,85 @@ class SupervertalerQt(QMainWindow):
             
             if self.tm_database:
                 # Import using existing TM database import method
-                self.tm_database.import_tmx(filepath, tm_id=target_tm_id)
+                # Get TM languages from metadata
+                tm_info = tm_metadata_mgr.get_tm_by_tm_id(target_tm_id)
+                if not tm_info:
+                    QMessageBox.critical(self, "Error", f"TM '{target_tm_id}' not found")
+                    return
+                
+                tm_src_lang = tm_info.get('source_lang')
+                tm_tgt_lang = tm_info.get('target_lang')
+                
+                # If TM has NULL languages, detect from TMX and update metadata
+                if not tm_src_lang or not tm_tgt_lang:
+                    tmx_langs = self.tm_database.detect_tmx_languages(filepath)
+                    
+                    if len(tmx_langs) < 2:
+                        QMessageBox.warning(
+                            self, "Invalid TMX",
+                            f"TMX file must contain at least 2 languages.\nFound: {', '.join(tmx_langs) if tmx_langs else 'none'}"
+                        )
+                        return
+                    
+                    # Use detected languages
+                    tm_src_lang = tmx_langs[0]
+                    tm_tgt_lang = tmx_langs[1]
+                    
+                    # Update TM metadata with detected languages
+                    tm_metadata_mgr.update_tm(
+                        target_tm_id,
+                        source_lang=tm_src_lang,
+                        target_lang=tm_tgt_lang
+                    )
+                    self.log(f"✓ Updated TM '{target_tm_id}' with detected languages: {tm_src_lang} → {tm_tgt_lang}")
+                
+                # Detect TMX languages and check compatibility
+                tmx_langs = self.tm_database.detect_tmx_languages(filepath)
+                compat = self.tm_database.check_language_compatibility(tmx_langs, tm_src_lang, tm_tgt_lang)
+                
+                if not compat['compatible']:
+                    QMessageBox.warning(
+                        self, "Language Mismatch",
+                        f"TMX languages ({', '.join(tmx_langs)}) don't match TM languages ({tm_src_lang}, {tm_tgt_lang})"
+                    )
+                    return
+                
+                # Determine if we should strip variants
+                strip_variants = compat.get('variant_match', False)
+                if strip_variants:
+                    reply = QMessageBox.question(
+                        self, "Language Variants Detected",
+                        f"TMX has language variants:\n{compat['tmx_source']}, {compat['tmx_target']}\n\n"
+                        f"TM expects:\n{tm_src_lang}, {tm_tgt_lang}\n\n"
+                        "Import by matching base languages?",
+                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+                    )
+                    if reply != QMessageBox.StandardButton.Yes:
+                        return
+                
+                # Import into existing TM with progress dialog
+                from PyQt6.QtWidgets import QProgressDialog
+                from PyQt6.QtCore import Qt
+                
+                progress = QProgressDialog("Importing TMX file...", None, 0, 0, self)
+                progress.setWindowTitle("TMX Import")
+                progress.setWindowModality(Qt.WindowModality.WindowModal)
+                progress.setMinimumDuration(0)
+                progress.setValue(0)
+                progress.show()
+                QApplication.processEvents()
+                
+                count = self.tm_database._load_tmx_into_db(
+                    filepath, tm_src_lang, tm_tgt_lang, target_tm_id, strip_variants=strip_variants
+                )
+                
+                progress.close()
                 
                 # Update entry count
                 tm_metadata_mgr.update_entry_count(target_tm_id)
+                self.log(f"Imported {count} entries into TM '{target_tm_id}'")
                 
-                QMessageBox.information(self, "Success", f"TMX imported successfully into TM '{target_tm_id}'!")
+                QMessageBox.information(self, "Success", f"TMX imported successfully into TM '{target_tm_id}'!\n\nEntries imported: {count}")
                 refresh_callback()
             else:
                 QMessageBox.critical(self, "Error", "TM database not available")
@@ -10545,6 +10794,27 @@ class SupervertalerQt(QMainWindow):
             self.update_window_title()
             self.add_to_recent_projects(file_path)
             
+            # Restore activated TMs for this project
+            if hasattr(self, 'tm_metadata_mgr') and self.tm_metadata_mgr and self.current_project:
+                project_id = self.current_project.id if hasattr(self.current_project, 'id') else None
+                if project_id and hasattr(self.current_project, 'tm_settings') and self.current_project.tm_settings:
+                    activated_tm_ids = self.current_project.tm_settings.get('activated_tm_ids', [])
+                    if activated_tm_ids:
+                        # First deactivate all TMs for this project
+                        all_tms = self.tm_metadata_mgr.get_all_tms()
+                        for tm in all_tms:
+                            self.tm_metadata_mgr.deactivate_tm(tm['id'], project_id)
+                        
+                        # Then activate the saved TMs
+                        for tm_id in activated_tm_ids:
+                            # Find TM by tm_id (not db id)
+                            tm = next((t for t in all_tms if t['tm_id'] == tm_id), None)
+                            if tm:
+                                self.tm_metadata_mgr.activate_tm(tm['id'], project_id)
+                                self.log(f"✓ Restored activated TM: {tm['name']}")
+                            else:
+                                self.log(f"⚠️ Could not find TM with tm_id: {tm_id}")
+            
             # Assign rankings to activated termbases for this project
             if hasattr(self, 'termbase_mgr') and self.termbase_mgr and self.current_project:
                 project_id = self.current_project.id if hasattr(self.current_project, 'id') else None
@@ -11168,6 +11438,15 @@ class SupervertalerQt(QMainWindow):
                 if not self.current_project.prompt_settings:
                     self.current_project.prompt_settings = {}
                 self.current_project.prompt_settings['image_context_folder'] = self.figure_context.figure_context_folder
+            
+            # Save activated TM IDs for this project
+            if hasattr(self, 'tm_metadata_mgr') and self.tm_metadata_mgr and hasattr(self.current_project, 'id'):
+                project_id = self.current_project.id
+                if project_id:
+                    activated_tm_ids = self.tm_metadata_mgr.get_active_tm_ids(project_id)
+                    if not hasattr(self.current_project, 'tm_settings'):
+                        self.current_project.tm_settings = {}
+                    self.current_project.tm_settings['activated_tm_ids'] = activated_tm_ids or []
             
             # FINAL DEBUG: Log segment data at the exact moment before serialization
             self.log(f"💾💾💾 FINAL DEBUG before to_dict():")
@@ -13420,7 +13699,9 @@ class SupervertalerQt(QMainWindow):
         self._refresh_segment_status(segment)
         
         # Save to TM if status changed to translated/approved/confirmed and has content
-        if status in ['translated', 'approved', 'confirmed'] and segment.target.strip():
+        # BUT skip saving during find/replace navigation to avoid slowdowns
+        find_replace_active = getattr(self, 'find_replace_active', False)
+        if not find_replace_active and status in ['translated', 'approved', 'confirmed'] and segment.target.strip():
             try:
                 self.save_segment_to_activated_tms(segment.source, segment.target)
             except Exception as e:
@@ -13763,10 +14044,13 @@ class SupervertalerQt(QMainWindow):
                     # ONLY schedule if:
                     # 1. Cache miss (no prefetched matches)
                     # 2. TM matching is enabled
+                    # 3. Find/Replace is not active (to avoid slowdowns during navigation)
                     with self.translation_matches_cache_lock:
                         cache_hit = segment_id in self.translation_matches_cache
                     
-                    if not cache_hit and self.enable_tm_matching:
+                    find_replace_active = getattr(self, 'find_replace_active', False)
+                    
+                    if not cache_hit and self.enable_tm_matching and not find_replace_active:
                         # Get termbase matches if they exist (could be None or empty)
                         termbase_matches = matches_dict.get('Termbases', []) if matches_dict else []
                         self.log(f"🔍 Scheduling TM/MT/LLM lookup (with {len(termbase_matches)} termbase matches to preserve)")
@@ -14583,8 +14867,6 @@ class SupervertalerQt(QMainWindow):
                 project_id = self.current_project.id if hasattr(self.current_project, 'id') else None
                 if project_id:
                     tm_ids = self.tm_metadata_mgr.get_active_tm_ids(project_id)
-                    if tm_ids:
-                        self.log(f"🔍 Searching activated TMs: {tm_ids}")
             
             # Search for matches (using activated TMs if available)
             matches = self.tm_database.search_all(source_text, tm_ids=tm_ids, max_matches=5)
@@ -15188,10 +15470,21 @@ class SupervertalerQt(QMainWindow):
         
         from PyQt6.QtWidgets import QCheckBox, QGroupBox
         
+        # Disable background lookups while find/replace is active
+        self.find_replace_active = True
+        self.log("🔍 Find/Replace active - background lookups disabled")
+        
         dialog = QDialog(self)
         dialog.setWindowTitle("Find and Replace")
         dialog.setMinimumWidth(700)
         dialog.setMinimumHeight(450)
+        
+        # Re-enable lookups when dialog closes
+        def on_dialog_closed():
+            self.find_replace_active = False
+            self.log("✓ Find/Replace closed - background lookups re-enabled")
+        
+        dialog.finished.connect(on_dialog_closed)
         
         # Main horizontal layout - left side (options) and right side (buttons)
         main_layout = QHBoxLayout(dialog)
@@ -15345,11 +15638,12 @@ class SupervertalerQt(QMainWindow):
         self.current_match_index = (self.current_match_index + 1) % len(self.find_matches)
         row, col = self.find_matches[self.current_match_index]
         
-        # Highlight the search term in the matched cell
+        # Highlight the current match
         segment = self.current_project.segments[row]
         text = segment.source if col == 2 else segment.target
         self.highlight_search_term(row, col, text, find_text)
         
+        # Navigate to the match
         self.table.setCurrentCell(row, col)
         self.table.scrollToItem(self.table.item(row, col))
         self.log(f"Match {self.current_match_index + 1} of {len(self.find_matches)}")
@@ -15371,6 +15665,9 @@ class SupervertalerQt(QMainWindow):
             # First, reload grid to clear previous highlights
             self.load_segments_to_grid()
             
+            # Process events to ensure grid is fully loaded
+            QApplication.processEvents()
+            
             # Get unique rows that have matches
             matching_rows = set(row for row, col in self.find_matches)
             
@@ -15378,7 +15675,7 @@ class SupervertalerQt(QMainWindow):
             for row in range(len(self.current_project.segments)):
                 self.table.setRowHidden(row, row not in matching_rows)
             
-            # Highlight all matches with yellow
+            # Highlight all matches with yellow (after grid is loaded)
             for row, col in self.find_matches:
                 segment = self.current_project.segments[row]
                 text = segment.source if col == 2 else segment.target
@@ -15434,6 +15731,76 @@ class SupervertalerQt(QMainWindow):
                 return find_text in text
             else:
                 return find_text.lower() in text.lower()
+    
+    def highlight_search_term(self, row, col, text, find_text):
+        """Highlight only the search term within the cell with yellow background.
+        Uses the same system as filter highlighting - directly highlights within QTextEdit widget."""
+        import re
+        from PyQt6.QtGui import QTextCursor, QTextCharFormat, QColor
+        
+        if not text or not find_text:
+            return
+        
+        # Get the cell widget (QTextEdit)
+        widget = self.table.cellWidget(row, col)
+        if not widget or not hasattr(widget, 'document'):
+            return
+        
+        case_sensitive = self.case_sensitive_cb.isChecked()
+        match_mode = self.match_group.checkedId()
+        
+        # Clear any existing highlights first
+        cursor = widget.textCursor()
+        cursor.select(QTextCursor.SelectionType.Document)
+        clear_format = QTextCharFormat()
+        cursor.setCharFormat(clear_format)
+        cursor.clearSelection()
+        
+        # Create yellow highlight format
+        highlight_format = QTextCharFormat()
+        highlight_format.setBackground(QColor("#FFFF00"))  # Yellow background
+        
+        # Get document text
+        document = widget.document()
+        cursor = QTextCursor(document)
+        full_text = document.toPlainText()
+        
+        if match_mode == 2:  # Entire segment
+            # Highlight entire text
+            cursor.select(QTextCursor.SelectionType.Document)
+            cursor.mergeCharFormat(highlight_format)
+        elif match_mode == 1:  # Whole words
+            # Find whole word matches using regex
+            if case_sensitive:
+                pattern = r'\b' + re.escape(find_text) + r'\b'
+                matches = re.finditer(pattern, full_text)
+            else:
+                pattern = r'\b' + re.escape(find_text) + r'\b'
+                matches = re.finditer(pattern, full_text, re.IGNORECASE)
+            
+            for match in matches:
+                cursor.setPosition(match.start())
+                cursor.movePosition(QTextCursor.MoveOperation.Right, QTextCursor.MoveMode.KeepAnchor, len(match.group()))
+                cursor.mergeCharFormat(highlight_format)
+        else:  # Anything (0)
+            # Find all occurrences
+            if case_sensitive:
+                search_text = find_text
+                text_to_search = full_text
+            else:
+                search_text = find_text.lower()
+                text_to_search = full_text.lower()
+            
+            pos = 0
+            while True:
+                pos = text_to_search.find(search_text, pos)
+                if pos == -1:
+                    break
+                
+                cursor.setPosition(pos)
+                cursor.movePosition(QTextCursor.MoveOperation.Right, QTextCursor.MoveMode.KeepAnchor, len(find_text))
+                cursor.mergeCharFormat(highlight_format)
+                pos += len(find_text)
     
     def replace_current_match(self):
         """Replace the currently selected match"""
@@ -15615,26 +15982,29 @@ class SupervertalerQt(QMainWindow):
         self.log(f"✓ Replaced {replaced_count} occurrence(s) of '{find_text}'")
     
     def highlight_all_matches(self):
-        """Highlight all matches using the filter system"""
+        """Highlight all matches in the grid (without filtering rows)"""
         find_text = self.find_input.text()
         if not find_text:
             return
         
         search_source = self.search_source_cb.isChecked()
         search_target = self.search_target_cb.isChecked()
-
-        self._ensure_primary_filters_ready()
+        case_sensitive = self.case_sensitive_cb.isChecked()
+        match_mode = self.match_group.checkedId()
         
-        # Use filter boxes to highlight
-        if search_source:
-            self.source_filter.setText(find_text)
-        else:
-            self.source_filter.clear()
+        # Find all matches first
+        self.find_all_matches_internal(find_text, search_source, search_target, case_sensitive, match_mode)
         
-        if search_target:
-            self.target_filter.setText(find_text)
+        if self.find_matches:
+            # Highlight all matches with yellow (without hiding rows)
+            for row, col in self.find_matches:
+                segment = self.current_project.segments[row]
+                text = segment.source if col == 2 else segment.target
+                self.highlight_search_term(row, col, text, find_text)
+            
+            self.log(f"Highlighted {len(self.find_matches)} match(es)")
         else:
-            self.target_filter.clear()
+            QMessageBox.information(self.find_replace_dialog, "Highlight All", "No matches found.")
     
     def clear_search_highlights(self):
         """Clear all search highlights and unhide all rows (for Find & Replace dialog)"""
@@ -17387,7 +17757,7 @@ class SupervertalerQt(QMainWindow):
             
             try:
                 # Import TMX file
-                count = self.tm_database.import_tmx(
+                tm_id, count = self.tm_database.load_tmx_file(
                     selected_file[0],
                     self.current_project.source_lang,
                     self.current_project.target_lang
@@ -18316,6 +18686,87 @@ class SupervertalerQt(QMainWindow):
                 self.log(f"   ⚠️ Warning: {len(segments_with_target)} segments have existing target text")
             self.log(f"═══════════════════════════════════════════════════════════")
 
+            # Check TM before API calls if enabled (can save significant API costs!)
+            general_prefs = self.load_general_settings()
+            check_tm_before_api = general_prefs.get('check_tm_before_api', True)
+            tm_matches_found = 0
+            segments_needing_translation = []
+            
+            if check_tm_before_api and self.tm_database:
+                self.log(f"🔍 Pre-checking TM for 100% matches before API calls...")
+                
+                # Get activated TM IDs for current project
+                tm_ids = None
+                if hasattr(self, 'tm_metadata_mgr') and self.tm_metadata_mgr and self.current_project:
+                    project_id = self.current_project.id if hasattr(self.current_project, 'id') else None
+                    if project_id:
+                        tm_ids = self.tm_metadata_mgr.get_active_tm_ids(project_id)
+                        if tm_ids:
+                            self.log(f"   Using activated TMs: {tm_ids}")
+                
+                # Check each segment against TM
+                for row_index, segment in segments_to_translate:
+                    try:
+                        matches = self.tm_database.search_all(segment.source, tm_ids=tm_ids, max_matches=1)
+                        if matches and matches[0].get('match_pct', 0) == 100:
+                            # Found 100% match - auto-insert it
+                            tm_match = matches[0].get('target', '')
+                            segment.target = tm_match
+                            segment.status = "translated"
+                            tm_matches_found += 1
+                            
+                            # Update grid immediately
+                            if row_index < self.table.rowCount():
+                                target_widget = self.table.cellWidget(row_index, 3)
+                                if target_widget and isinstance(target_widget, EditableGridTextEditor):
+                                    target_widget.setPlainText(tm_match)
+                                else:
+                                    self.table.setItem(row_index, 3, QTableWidgetItem(tm_match))
+                                self.update_status_icon(row_index, "translated")
+                            
+                            translated_count += 1
+                            self.log(f"   ✓ TM 100%: Segment #{segment.id}")
+                        else:
+                            # No 100% match - needs translation
+                            segments_needing_translation.append((row_index, segment))
+                    except Exception as e:
+                        # TM check failed - add to translation queue
+                        segments_needing_translation.append((row_index, segment))
+                        self.log(f"   ⚠ TM check error for segment #{segment.id}: {e}")
+                
+                self.log(f"✓ TM pre-check complete: {tm_matches_found} 100% matches found, {len(segments_needing_translation)} segments need translation")
+                self.log(f"   API calls saved: {tm_matches_found} (cost savings!)")
+                
+                # Update progress to reflect TM matches
+                progress_bar.setValue(tm_matches_found)
+                stats_label.setText(f"Translated: {translated_count} | Failed: {failed_count} | Remaining: {len(segments_needing_translation)}")
+                QApplication.processEvents()
+                
+                # Replace segments_to_translate with only those needing translation
+                if segments_needing_translation:
+                    segments_to_translate = segments_needing_translation
+                    total_segments = len(segments_to_translate)
+                    segment_idx = tm_matches_found  # Start counting from TM matches
+                else:
+                    # All segments matched in TM - we're done!
+                    self.log(f"🎉 All segments found in TM - no API calls needed!")
+                    self.project_modified = True
+                    self.update_window_title()
+                    progress_bar.setValue(translated_count)
+                    current_label.setText(f"✓ Complete! All {translated_count} segments translated from TM")
+                    close_btn.setEnabled(True)
+                    self.log(f"═══════════════════════════════════════════════════════════")
+                    self.log(f"✓ Batch Translation Complete (100% from TM)")
+                    self.log(f"   Translated: {translated_count} | Failed: {failed_count}")
+                    self.log(f"═══════════════════════════════════════════════════════════")
+                    return
+            else:
+                if not check_tm_before_api:
+                    self.log(f"ℹ️ TM pre-check disabled in settings")
+                elif not self.tm_database:
+                    self.log(f"ℹ️ No TM database available")
+                segments_needing_translation = segments_to_translate
+
             # Initialize client based on provider type
             client = None
             mt_api_key = None
@@ -18352,14 +18803,13 @@ class SupervertalerQt(QMainWindow):
                 # Store provider code for MT calls
                 mt_provider_code = translation_provider_name.lower().replace(' ', '_')
 
-            general_prefs = self.load_general_settings()
             batch_size = general_prefs.get('batch_size', 100)
             total_batches = (total_segments + batch_size - 1) // batch_size
 
             for batch_num in range(total_batches):
                 batch_start = batch_num * batch_size
                 batch_end = min(batch_start + batch_size, total_segments)
-                batch_segments = segments_to_translate[batch_start:batch_end]
+                batch_segments = segments_needing_translation[batch_start:batch_end]
 
                 current_label.setText(f"Translating batch {batch_num + 1}/{total_batches} ({len(batch_segments)} segments)...")
                 progress_bar.setValue(segment_idx)
@@ -19406,46 +19856,26 @@ class SupervertalerQt(QMainWindow):
                 "Termbases": getattr(self, '_pending_termbase_matches', [])
             }
             
-            # 🔥 DELAYED TM SEARCH: Search TM database (moved from UI thread to prevent blocking)
-            if self.enable_tm_matching and hasattr(self, 'db_manager') and self.db_manager:
+            # 🔥 DELAYED TM SEARCH: Search TM database using new TMDatabase with activated TMs
+            if self.enable_tm_matching and hasattr(self, 'tm_database') and self.tm_database:
                 try:
                     self.log(f"🚀 DELAYED TM SEARCH: Searching for '{segment.source[:50]}...'")
                     self.log(f"🚀 DELAYED TM SEARCH: Project languages: {source_lang_code} → {target_lang_code}")
                     
-                    # Search in primary direction (current project direction)
-                    tm_matches = self.db_manager.search_all(segment.source, max_results=10)
+                    # Get activated TM IDs for current project
+                    tm_ids = None
+                    if hasattr(self, 'tm_metadata_mgr') and self.tm_metadata_mgr and self.current_project:
+                        project_id = self.current_project.id if hasattr(self.current_project, 'id') else None
+                        if project_id:
+                            tm_ids = self.tm_metadata_mgr.get_active_tm_ids(project_id)
+                            if tm_ids:
+                                self.log(f"🚀 DELAYED TM SEARCH: Searching activated TMs: {tm_ids}")
+                            else:
+                                self.log(f"⚠️ DELAYED TM SEARCH: No activated TMs for project {project_id}")
                     
-                    # Also search in reverse direction (bidirectional TM matching)
-                    reverse_matches = []
-                    if source_lang_code and target_lang_code and source_lang_code != target_lang_code:
-                        try:
-                            # Search for text as target text in reverse direction
-                            reverse_query = """
-                                SELECT source_text, target_text, source_lang, target_lang, tm_id, usage_count
-                                FROM translation_units 
-                                WHERE target_text = ? AND source_lang = ? AND target_lang = ?
-                                ORDER BY usage_count DESC
-                                LIMIT 5
-                            """
-                            self.db_manager.cursor.execute(reverse_query, (segment.source, target_lang_code, source_lang_code))
-                            reverse_rows = self.db_manager.cursor.fetchall()
-                            
-                            for row in reverse_rows:
-                                reverse_matches.append({
-                                    'source': row['target_text'],  # Swap source/target for reverse match
-                                    'target': row['source_text'],
-                                    'match_pct': 95,  # High relevance for reverse exact match
-                                    'tm_name': f"{row['tm_id'].replace('_', ' ').title()} (Reverse)",
-                                    'tm_id': row['tm_id']
-                                })
-                            
-                            self.log(f"🚀 DELAYED TM SEARCH: Found {len(reverse_matches)} reverse matches")
-                        except Exception as e:
-                            self.log(f"Error in reverse TM search: {e}")
-                    
-                    # Combine primary and reverse matches
-                    all_tm_matches = tm_matches + reverse_matches
-                    self.log(f"🚀 DELAYED TM SEARCH: Total matches found: {len(all_tm_matches)} ({len(tm_matches)} primary + {len(reverse_matches)} reverse)")
+                    # Search using TMDatabase (includes bidirectional + base language matching)
+                    all_tm_matches = self.tm_database.search_all(segment.source, tm_ids=tm_ids, max_matches=10)
+                    self.log(f"🚀 DELAYED TM SEARCH: Found {len(all_tm_matches)} matches (bidirectional + language variants)")
                     
                     for match in all_tm_matches:
                         match_obj = TranslationMatch(

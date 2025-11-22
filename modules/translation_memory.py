@@ -382,9 +382,18 @@ class TMDatabase:
         return self.get_tm_list(enabled_only=enabled_only)
     
     def load_tmx_file(self, filepath: str, src_lang: str, tgt_lang: str, 
-                      tm_name: str = None, read_only: bool = False) -> tuple[str, int]:
+                      tm_name: str = None, read_only: bool = False, 
+                      strip_variants: bool = True) -> tuple[str, int]:
         """
         Load TMX file into a new custom TM
+        
+        Args:
+            filepath: Path to TMX file
+            src_lang: Source language code
+            tgt_lang: Target language code
+            tm_name: Custom name for TM (default: filename)
+            read_only: Make TM read-only
+            strip_variants: Match base languages ignoring regional variants (default: True)
         
         Returns: (tm_id, entry_count)
         """
@@ -396,14 +405,24 @@ class TMDatabase:
         self.add_custom_tm(tm_name, tm_id, read_only=read_only)
         
         # Load TMX content
-        loaded_count = self._load_tmx_into_db(filepath, src_lang, tgt_lang, tm_id)
+        loaded_count = self._load_tmx_into_db(filepath, src_lang, tgt_lang, tm_id, strip_variants=strip_variants)
         
         self.log(f"✓ Loaded {loaded_count} entries from {os.path.basename(filepath)}")
         
         return tm_id, loaded_count
     
-    def _load_tmx_into_db(self, filepath: str, src_lang: str, tgt_lang: str, tm_id: str) -> int:
-        """Internal: Load TMX content into database"""
+    def _load_tmx_into_db(self, filepath: str, src_lang: str, tgt_lang: str, tm_id: str, 
+                          strip_variants: bool = False) -> int:
+        """
+        Internal: Load TMX content into database
+        
+        Args:
+            filepath: Path to TMX file
+            src_lang: Target source language code
+            tgt_lang: Target target language code  
+            tm_id: TM identifier
+            strip_variants: If True, match base languages ignoring regional variants
+        """
         loaded_count = 0
         
         try:
@@ -412,9 +431,14 @@ class TMDatabase:
             xml_ns = "http://www.w3.org/XML/1998/namespace"
             
             # Normalize language codes
-            from modules.tmx_generator import get_simple_lang_code
-            src_lang = get_simple_lang_code(src_lang)
-            tgt_lang = get_simple_lang_code(tgt_lang)
+            from modules.tmx_generator import get_simple_lang_code, get_base_lang_code
+            src_lang_normalized = get_simple_lang_code(src_lang)
+            tgt_lang_normalized = get_simple_lang_code(tgt_lang)
+            
+            # If stripping variants, get base codes for comparison
+            if strip_variants:
+                src_base = get_base_lang_code(src_lang_normalized)
+                tgt_base = get_base_lang_code(tgt_lang_normalized)
             
             for tu in root.findall('.//tu'):
                 src_text, tgt_text = None, None
@@ -433,17 +457,24 @@ class TMDatabase:
                         except:
                             text = "".join(seg_node.itertext()).strip()
                         
-                        if tmx_lang == src_lang:
-                            src_text = text
-                        elif tmx_lang == tgt_lang:
-                            tgt_text = text
+                        # Match languages (exact or base code match if stripping variants)
+                        if strip_variants:
+                            if get_base_lang_code(tmx_lang) == src_base:
+                                src_text = text
+                            elif get_base_lang_code(tmx_lang) == tgt_base:
+                                tgt_text = text
+                        else:
+                            if tmx_lang == src_lang_normalized:
+                                src_text = text
+                            elif tmx_lang == tgt_lang_normalized:
+                                tgt_text = text
                 
                 if src_text and tgt_text:
                     self.db.add_translation_unit(
                         source=src_text,
                         target=tgt_text,
-                        source_lang=src_lang,
-                        target_lang=tgt_lang,
+                        source_lang=src_lang_normalized,
+                        target_lang=tgt_lang_normalized,
                         tm_id=tm_id
                     )
                     loaded_count += 1
@@ -469,6 +500,52 @@ class TMDatabase:
             return sorted(list(languages))
         except:
             return []
+    
+    def check_language_compatibility(self, tmx_langs: List[str], target_src: str, target_tgt: str) -> dict:
+        """
+        Analyze if TMX languages match target TM languages, handling variants.
+        Returns dict with compatibility info and suggestions.
+        """
+        from modules.tmx_generator import get_base_lang_code, languages_are_compatible
+        
+        if len(tmx_langs) < 2:
+            return {'compatible': False, 'reason': 'tmx_incomplete'}
+        
+        # Get base codes
+        tmx_bases = [get_base_lang_code(lang) for lang in tmx_langs]
+        target_src_base = get_base_lang_code(target_src)
+        target_tgt_base = get_base_lang_code(target_tgt)
+        
+        # Check if we can find matching pair
+        src_match = None
+        tgt_match = None
+        
+        for tmx_lang in tmx_langs:
+            if get_base_lang_code(tmx_lang) == target_src_base and src_match is None:
+                src_match = tmx_lang
+            if get_base_lang_code(tmx_lang) == target_tgt_base and tgt_match is None:
+                tgt_match = tmx_lang
+        
+        if not src_match or not tgt_match:
+            return {
+                'compatible': False,
+                'reason': 'no_match',
+                'tmx_langs': tmx_langs,
+                'target_langs': [target_src, target_tgt]
+            }
+        
+        # Check if exact match or variant match
+        exact_match = (src_match == target_src and tgt_match == target_tgt)
+        
+        return {
+            'compatible': True,
+            'exact_match': exact_match,
+            'variant_match': not exact_match,
+            'tmx_source': src_match,
+            'tmx_target': tgt_match,
+            'target_source': target_src,
+            'target_target': target_tgt
+        }
     
     def close(self):
         """Close database connection"""

@@ -1,6 +1,6 @@
 name: "Feature"
 description: "Features and enhancements."
-title: "[Feature] "
+title: "[Feature]"
 labels:
   - feature
 body:

@@ -1,6 +1,6 @@
 name: Bug
 description: A bug that needs to be fixed.
-title: "[BUG] "
+title: "[BUG]"
 labels: ["bug"]
 body:
   - type: input

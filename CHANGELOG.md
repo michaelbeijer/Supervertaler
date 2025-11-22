@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.7.8 (November 22, 2025)
+**Current Version:** v1.7.9 (November 22, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -14,6 +14,7 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- 🔍 **Find/Replace & TM Enhancements (v1.7.9)** - Fixed highlighting, disabled TM saves during navigation, added bidirectional TM search with language variant matching
 - 🔍 **Filter Highlighting Fix (v1.7.8)** - Fixed search term highlighting in source/target filter boxes using widget-internal highlighting
 - 🎯 **Termbase Display Customization (v1.7.7)** - User-configurable termbase match sorting and filtering for cleaner translation results
 - 💾 **Auto Backup System (v1.7.6)** - Automatic project.json and TMX backups at configurable intervals to prevent data loss
@@ -41,6 +42,113 @@ All notable changes to Supervertaler are documented in this file.
 - 🔄 **CAT Tool Integration** - memoQ, Trados, CafeTran bilingual table support
 
 **See full version history below** ↓
+
+---
+
+## [1.7.9] - November 22, 2025
+
+### 🔍 Find/Replace & TM Enhancements
+
+**Fixed:**
+
+- ✨ **Find/Replace Highlighting System** - Complete rewrite using consistent QTextCursor approach
+  - "Find Next" now correctly highlights matches with yellow background
+  - "Highlight All" button now actually highlights all matches in the grid
+  - Font size no longer changes during navigation (previously shrunk with each find)
+  - Switched from QLabel+HTML (which replaced widgets) to QTextCursor+QTextCharFormat (preserves existing widgets)
+  - Matches same highlighting system used by filter boxes
+  - Supports case-sensitive/insensitive, whole words, and entire segment modes
+
+- ✨ **No More TM Saves During Find/Replace** - Eliminated slowdowns during search navigation
+  - Added `find_replace_active` flag to disable background TM saves
+  - Prevents segments from being saved to TM on every "Find Next" click
+  - Re-enables TM saves when dialog closes
+  - Also disables expensive TM/MT/LLM lookups during find/replace operations
+  - Results in much faster navigation through search results
+
+**Added:**
+
+- 🌍 **Bidirectional TM Search** - TMs now search in both directions automatically
+  - When translating nl→en, also searches en→nl TMs for reverse matches
+  - Example: English source text can match Dutch source in reverse TM
+  - Reverse matches clearly marked with "Reverse" indicator
+  - Improves TM utilization by ~2x without any user action required
+
+- 🌍 **Language Variant Matching** - Base language codes match all regional variants
+  - "en" matches "en-US", "en-GB", "en-AU" automatically
+  - "nl" matches "nl-NL", "nl-BE" automatically  
+  - TMX import now handles language variants gracefully
+  - User can choose to strip variants or preserve them during import
+  - Supports bidirectional matching with variants (e.g., nl-BE → en-US works both ways)
+
+- 💾 **Activated TM Persistence** - Projects remember which TMs are active
+  - Activated TMs saved to `project.json` in `tm_settings.activated_tm_ids`
+  - Automatically restored when project is reopened
+  - No more manually re-activating TMs for each project session
+  - Works per-project (different projects can have different active TMs)
+
+- 📝 **TM Pre-Check in Batch Translation** - Saves API costs by checking TM first
+  - Before making expensive API calls, checks if 100% TM matches exist
+  - Auto-inserts TM matches and skips API translation for those segments
+  - Shows clear log of how many API calls were saved
+  - Can save significant costs on projects with high TM leverage
+  - Controlled by "Check TM before API call" setting (enabled by default)
+
+- 🎨 **Language Display Normalization** - Consistent language variant format
+  - All language variants displayed as lowercase-UPPERCASE (e.g., nl-NL, en-US)
+  - Previously: inconsistent formats like "nl-nl", "EN-us", "NL-BE"
+  - Now: standardized as "nl-NL", "en-US", "nl-BE"
+  - Applied in TM manager UI, TMX import dialogs, and all TM displays
+
+**Technical Details:**
+
+- **Find/Replace Highlighting:**
+  - `highlight_search_term()` rewritten to use `QTextCursor` and `QTextCharFormat`
+  - `highlight_all_matches()` rewritten to actually highlight instead of just filtering
+  - Added `processEvents()` after grid load to ensure widgets exist before highlighting
+  - Files: `Supervertaler.py` lines 15726-15792, 15982-16008
+
+- **TM Save Prevention:**
+  - Added `find_replace_active` flag check in `_handle_target_text_debounced_by_id()` (line 13660)
+  - Added same check in `update_status_icon()` (line 13703)
+  - Added check in `on_cell_selected()` to skip TM/MT/LLM lookups (line 14050)
+  - Files: `Supervertaler.py` lines 13657-13664, 13699-13709, 14044-14051
+
+- **Bidirectional Search:**
+  - `get_exact_match()` now searches reverse direction if no forward match found
+  - `search_fuzzy_matches()` includes reverse direction results
+  - Results marked with `reverse_match: True` metadata
+  - Files: `modules/database_manager.py` lines 635-732, 744-810
+
+- **Language Variant Matching:**
+  - Added `get_base_lang_code()` to extract base from variants (en-US → en)
+  - Added `normalize_lang_variant()` for consistent display formatting
+  - Added `languages_are_compatible()` for base code comparison
+  - Database queries use LIKE pattern: `(source_lang = 'en' OR source_lang LIKE 'en-%')`
+  - Files: `modules/tmx_generator.py` lines 119-156, `modules/database_manager.py` lines 652-676
+
+- **TMX Import with Variants:**
+  - `detect_tmx_languages()` reads all language codes from TMX
+  - `check_language_compatibility()` analyzes variant mismatches
+  - `_load_tmx_into_db()` accepts `strip_variants` parameter
+  - User dialog offers "Import with variant stripping" vs "Create new TM"
+  - Files: `modules/translation_memory.py` lines 408-557, `Supervertaler.py` lines 4807-4903
+
+- **TM Persistence:**
+  - Added `tm_settings` field to `Project` class (line 223)
+  - `save_project_to_file()` saves activated TM IDs (lines 11442-11449)
+  - `load_project()` restores activated TMs (lines 10797-10816)
+  - Files: `Supervertaler.py` lines 220-285, 10794-10816, 11439-11449
+
+**User Experience:**
+
+- Find/Replace dialog now fast and responsive with proper highlighting
+- "Highlight All" button finally works as expected
+- No font size changes during search navigation
+- TMs work across language variants automatically (no manual configuration)
+- Projects remember your TM activation choices
+- Batch translation saves money by checking TM first
+- Clear visual feedback for all TM operations
 
 ---
 

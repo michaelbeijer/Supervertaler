@@ -632,19 +632,27 @@ class DatabaseManager:
             return None
     
     def get_exact_match(self, source: str, tm_ids: List[str] = None,
-                       source_lang: str = None, target_lang: str = None) -> Optional[Dict]:
+                       source_lang: str = None, target_lang: str = None, 
+                       bidirectional: bool = True) -> Optional[Dict]:
         """
         Get exact match from TM
         
         Args:
             source: Source text to match
             tm_ids: List of TM IDs to search (None = all)
-            source_lang: Filter by source language
-            target_lang: Filter by target language
+            source_lang: Filter by source language (base code matching: 'en' matches 'en-US', 'en-GB', etc.)
+            target_lang: Filter by target language (base code matching)
+            bidirectional: If True, search both directions (nl→en AND en→nl)
         
         Returns: Dictionary with match data or None
         """
+        from modules.tmx_generator import get_base_lang_code
+        
         source_hash = hashlib.md5(source.encode('utf-8')).hexdigest()
+        
+        # Get base language codes for comparison
+        src_base = get_base_lang_code(source_lang) if source_lang else None
+        tgt_base = get_base_lang_code(target_lang) if target_lang else None
         
         query = """
             SELECT * FROM translation_units 
@@ -657,13 +665,14 @@ class DatabaseManager:
             query += f" AND tm_id IN ({placeholders})"
             params.extend(tm_ids)
         
-        if source_lang:
-            query += " AND source_lang = ?"
-            params.append(source_lang)
+        # Use LIKE for base language matching (matches 'en', 'en-US', 'en-GB', etc.)
+        if src_base:
+            query += " AND (source_lang = ? OR source_lang LIKE ?)"
+            params.extend([src_base, f"{src_base}-%"])
         
-        if target_lang:
-            query += " AND target_lang = ?"
-            params.append(target_lang)
+        if tgt_base:
+            query += " AND (target_lang = ? OR target_lang LIKE ?)"
+            params.extend([tgt_base, f"{tgt_base}-%"])
         
         query += " ORDER BY usage_count DESC, modified_date DESC LIMIT 1"
         
@@ -681,6 +690,45 @@ class DatabaseManager:
             
             return dict(row)
         
+        # If bidirectional and no forward match, try reverse direction
+        if bidirectional and src_base and tgt_base:
+            # Search where our source text is in the target field (reverse direction)
+            query = """
+                SELECT * FROM translation_units 
+                WHERE target_text = ?
+            """
+            params = [source]
+            
+            if tm_ids:
+                placeholders = ','.join('?' * len(tm_ids))
+                query += f" AND tm_id IN ({placeholders})"
+                params.extend(tm_ids)
+            
+            # Reversed: search where TM source_lang matches our target_lang (base code)
+            query += " AND (source_lang = ? OR source_lang LIKE ?) AND (target_lang = ? OR target_lang LIKE ?)"
+            params.extend([tgt_base, f"{tgt_base}-%", src_base, f"{src_base}-%"])
+            
+            query += " ORDER BY usage_count DESC, modified_date DESC LIMIT 1"
+            
+            self.cursor.execute(query, params)
+            row = self.cursor.fetchone()
+            
+            if row:
+                # Update usage count
+                self.cursor.execute("""
+                    UPDATE translation_units 
+                    SET usage_count = usage_count + 1 
+                    WHERE id = ?
+                """, (row['id'],))
+                self.connection.commit()
+                
+                # Swap source/target since this is a reverse match
+                result = dict(row)
+                result['source_text'], result['target_text'] = result['target_text'], result['source_text']
+                result['source_lang'], result['target_lang'] = result['target_lang'], result['source_lang']
+                result['reverse_match'] = True
+                return result
+        
         return None
     
     def calculate_similarity(self, text1: str, text2: str) -> float:
@@ -693,15 +741,21 @@ class DatabaseManager:
     
     def search_fuzzy_matches(self, source: str, tm_ids: List[str] = None,
                             threshold: float = 0.75, max_results: int = 5,
-                            source_lang: str = None, target_lang: str = None) -> List[Dict]:
+                            source_lang: str = None, target_lang: str = None,
+                            bidirectional: bool = True) -> List[Dict]:
         """
         Search for fuzzy matches using FTS5 with proper similarity calculation
+        
+        Args:
+            bidirectional: If True, search both directions (nl→en AND en→nl)
         
         Returns: List of matches with similarity scores
         """
         # For better FTS5 matching, tokenize the query and escape special chars
         # FTS5 special characters: " ( ) - : , . ! ? 
         import re
+        from modules.tmx_generator import get_base_lang_code
+        
         # Remove special FTS5 characters and split into words
         clean_text = re.sub(r'[^\w\s]', ' ', source)  # Replace special chars with spaces
         search_terms = [term for term in clean_text.strip().split() if len(term) > 1]
@@ -712,6 +766,10 @@ class DatabaseManager:
         
         # Quote each term to prevent FTS5 syntax errors
         fts_query = ' OR '.join(f'"{term}"' for term in search_terms)
+        
+        # Get base language codes for comparison
+        src_base = get_base_lang_code(source_lang) if source_lang else None
+        tgt_base = get_base_lang_code(target_lang) if target_lang else None
         
         # Use FTS5 for initial candidate retrieval (fast)
         query = """
@@ -728,13 +786,14 @@ class DatabaseManager:
             query += f" AND tu.tm_id IN ({placeholders})"
             params.extend(tm_ids)
         
-        if source_lang:
-            query += " AND tu.source_lang = ?"
-            params.append(source_lang)
+        # Use base language matching (en matches en-US, en-GB, etc.)
+        if src_base:
+            query += " AND (tu.source_lang = ? OR tu.source_lang LIKE ?)"
+            params.extend([src_base, f"{src_base}-%"])
         
-        if target_lang:
-            query += " AND tu.target_lang = ?"
-            params.append(target_lang)
+        if tgt_base:
+            query += " AND (tu.target_lang = ? OR tu.target_lang LIKE ?)"
+            params.extend([tgt_base, f"{tgt_base}-%"])
         
         # Get more candidates than needed for proper scoring
         query += f" ORDER BY relevance DESC LIMIT {max_results * 5}"
@@ -752,6 +811,48 @@ class DatabaseManager:
                 match_dict['similarity'] = similarity
                 match_dict['match_pct'] = int(similarity * 100)
                 results.append(match_dict)
+        
+        # If bidirectional, also search reverse direction
+        if bidirectional and src_base and tgt_base:
+            query = """
+                SELECT tu.*, 
+                       bm25(translation_units_fts) as relevance
+                FROM translation_units tu
+                JOIN translation_units_fts ON tu.id = translation_units_fts.rowid
+                WHERE translation_units_fts MATCH ?
+            """
+            params = [fts_query]
+            
+            if tm_ids:
+                placeholders = ','.join('?' * len(tm_ids))
+                query += f" AND tu.tm_id IN ({placeholders})"
+                params.extend(tm_ids)
+            
+            # Reversed language filters with base matching
+            query += " AND (tu.target_lang = ? OR tu.target_lang LIKE ?)"
+            params.extend([src_base, f"{src_base}-%"])
+            
+            query += " AND (tu.source_lang = ? OR tu.source_lang LIKE ?)"
+            params.extend([tgt_base, f"{tgt_base}-%"])
+            
+            query += f" ORDER BY relevance DESC LIMIT {max_results * 5}"
+            
+            self.cursor.execute(query, params)
+            
+            for row in self.cursor.fetchall():
+                match_dict = dict(row)
+                # Calculate similarity against target_text (since we're reversing)
+                similarity = self.calculate_similarity(source, match_dict['target_text'])
+                
+                # Only include matches above threshold
+                if similarity >= threshold:
+                    # Swap source/target for reverse match
+                    match_dict['source_text'], match_dict['target_text'] = match_dict['target_text'], match_dict['source_text']
+                    match_dict['source_lang'], match_dict['target_lang'] = match_dict['target_lang'], match_dict['source_lang']
+                    match_dict['similarity'] = similarity
+                    match_dict['match_pct'] = int(similarity * 100)
+                    match_dict['reverse_match'] = True
+                    results.append(match_dict)
         
         # Sort by similarity (highest first) and limit results
         results.sort(key=lambda x: x['similarity'], reverse=True)
