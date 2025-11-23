@@ -299,6 +299,17 @@ class Project:
 # CUSTOM DELEGATES AND EDITORS
 # ============================================================================
 
+class InvertedPrioritySpinBox(QSpinBox):
+    """
+    Custom spinbox where UP arrow DECREASES value (increases priority)
+    and DOWN arrow INCREASES value (decreases priority).
+    
+    This makes the UI more intuitive: up arrow = higher priority (lower number).
+    """
+    def stepBy(self, steps):
+        """Invert the step direction"""
+        super().stepBy(-steps)
+
 class GridTableEventFilter:
     """Mixin to pass keyboard shortcuts from editor to table"""
     pass
@@ -5825,13 +5836,13 @@ class SupervertalerQt(QMainWindow):
                 
                 # Priority (editable spinbox for readable termbases)
                 if is_readable and refresh_project_id and num_active > 0:
-                    from PyQt6.QtWidgets import QSpinBox
-                    priority_spinbox = QSpinBox()
+                    # Use inverted spinbox: up arrow = higher priority (lower number)
+                    priority_spinbox = InvertedPrioritySpinBox()
                     priority_spinbox.setMinimum(1)
                     priority_spinbox.setMaximum(num_active)  # Max = number of active termbases
                     priority_spinbox.setValue(priority if priority else 1)
                     priority_spinbox.setPrefix("#")
-                    priority_spinbox.setButtonSymbols(QSpinBox.ButtonSymbols.UpDownArrows)
+                    priority_spinbox.setButtonSymbols(InvertedPrioritySpinBox.ButtonSymbols.UpDownArrows)
                     priority_spinbox.setWrapping(False)  # Don't wrap from max to min
                     priority_spinbox.setEnabled(True)
                     priority_spinbox.setKeyboardTracking(True)  # Emit signal on every key press
@@ -5840,9 +5851,9 @@ class SupervertalerQt(QMainWindow):
                     # Pink styling for priority #1
                     if priority == 1:
                         priority_spinbox.setStyleSheet("QSpinBox { color: #FF69B4; font-weight: bold; }")
-                        priority_spinbox.setToolTip("Priority #1 - Project Termbase (highest priority)")
+                        priority_spinbox.setToolTip("Priority #1 - Project Termbase (highest priority)\nUp arrow: keep at #1 | Down arrow: lower priority")
                     else:
-                        priority_spinbox.setToolTip(f"Priority (1=highest, {num_active}=lowest). Multiple termbases can share same priority.")
+                        priority_spinbox.setToolTip(f"Priority #{priority} (1=highest, {num_active}=lowest)\nUp arrow: increase priority | Down arrow: decrease priority\nMultiple termbases can share same priority.")
                     
                     def on_priority_change(new_priority, tb_id=tb['id'], row_idx=row):
                         self.log(f"🔄 Priority change triggered: TB {tb_id} → #{new_priority}")
@@ -5860,10 +5871,10 @@ class SupervertalerQt(QMainWindow):
                             if sender:
                                 if new_priority == 1:
                                     sender.setStyleSheet("QSpinBox { color: #FF69B4; font-weight: bold; }")
-                                    sender.setToolTip("Priority #1 - Project Termbase (highest priority)")
+                                    sender.setToolTip("Priority #1 - Project Termbase (highest priority)\nUp arrow: keep at #1 | Down arrow: lower priority")
                                 else:
                                     sender.setStyleSheet("")
-                                    sender.setToolTip(f"Priority (1=highest, {num_active}=lowest). Multiple termbases can share same priority.")
+                                    sender.setToolTip(f"Priority #{new_priority} (1=highest, {num_active}=lowest)\nUp arrow: increase priority | Down arrow: decrease priority\nMultiple termbases can share same priority.")
                             
                             # Update Type column and styling for all rows
                             for r in range(termbase_table.rowCount()):
@@ -5883,7 +5894,7 @@ class SupervertalerQt(QMainWindow):
                                             name_item.setForeground(QColor("#FF69B4"))
                                         # Update spinbox styling for #1
                                         priority_widget.setStyleSheet("QSpinBox { color: #FF69B4; font-weight: bold; }")
-                                        priority_widget.setToolTip("Priority #1 - Project Termbase (highest priority)")
+                                        priority_widget.setToolTip("Priority #1 - Project Termbase (highest priority)\nUp arrow: keep at #1 | Down arrow: lower priority")
                                     else:
                                         type_widget.setText("Background")
                                         type_widget.setStyleSheet("color: #666;")
@@ -5891,7 +5902,7 @@ class SupervertalerQt(QMainWindow):
                                             name_item.setForeground(QColor("#000"))
                                         # Update spinbox styling for non-#1
                                         priority_widget.setStyleSheet("")
-                                        priority_widget.setToolTip(f"Priority (1=highest, {num_active}=lowest). Multiple termbases can share same priority.")
+                                        priority_widget.setToolTip(f"Priority #{current_priority} (1=highest, {num_active}=lowest)\nUp arrow: increase priority | Down arrow: decrease priority\nMultiple termbases can share same priority.")
                                     
                                     # Unblock signals after update
                                     priority_widget.blockSignals(False)
