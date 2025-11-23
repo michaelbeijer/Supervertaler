@@ -407,8 +407,18 @@ class TermviewWidget(QWidget):
                 
                 # IMPORTANT: Use word boundary check for ALL terms (single and multi-word)
                 # This prevents "de" from matching "De uitvinding heeft betrekking op"
-                # Build pattern with word boundaries around the entire term
-                pattern = r'\b' + re.escape(source_term.lower()) + r'\b'
+                # For terms with punctuation (like "gew.%"), we need special handling
+                
+                term_escaped = re.escape(source_term.lower())
+                
+                # Check if term contains internal punctuation
+                if any(char in source_term for char in ['.', '%', ',', '-', '/']):
+                    # For terms with punctuation, match exactly as-is (no word boundaries on punctuation)
+                    # Use lookahead/lookbehind to ensure it's not part of a larger word
+                    pattern = r'(?<!\w)' + term_escaped + r'(?!\w)'
+                else:
+                    # For regular words, use standard word boundaries
+                    pattern = r'\b' + term_escaped + r'\b'
                 
                 if re.search(pattern, text_lower):
                     key = source_term.lower()
@@ -464,7 +474,8 @@ class TermviewWidget(QWidget):
         
         # Second pass: fill in gaps with ALL words/numbers/punctuation combos
         # Enhanced pattern to capture words, numbers, and combinations like "gew.%", "0,1", etc.
-        token_pattern = re.compile(r'\b[\w.,%-]+\b', re.UNICODE)
+        # Use (?<!\w) and (?!\w) instead of \b to handle punctuation properly
+        token_pattern = re.compile(r'(?<!\w)[\w.,%-]+(?!\w)', re.UNICODE)
         
         for match in token_pattern.finditer(text):
             word_start = match.start()
