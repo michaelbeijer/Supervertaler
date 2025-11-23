@@ -396,14 +396,32 @@ class TermviewWidget(QWidget):
                     min_length=2
                 )
                 
-                # Add results to matches dict
+                # Add results to matches dict, but ONLY if the source term actually exists in the text
                 for result in results:
                     source_term = result.get('source_term', '')
-                    if source_term:
-                        key = source_term.lower()
-                        if key not in matches:
-                            matches[key] = []
-                        matches[key].append(result)
+                    if not source_term:
+                        continue
+                    
+                    # CRITICAL FIX: Verify the source term actually exists in the segment
+                    # This prevents false positives like "het gebruik van" showing when only "het" exists
+                    source_lower = source_term.lower()
+                    text_lower = text.lower()
+                    
+                    # Use word boundaries to match complete words/phrases only
+                    if ' ' in source_term:
+                        # Multi-word term - must exist as exact phrase
+                        pattern = r'\b' + re.escape(source_lower) + r'\b'
+                    else:
+                        # Single word
+                        pattern = r'\b' + re.escape(source_lower) + r'\b'
+                    
+                    if not re.search(pattern, text_lower):
+                        continue  # Skip - term not actually in segment
+                    
+                    key = source_lower
+                    if key not in matches:
+                        matches[key] = []
+                    matches[key].append(result)
             
             return matches
         except Exception as e:
