@@ -1072,13 +1072,14 @@ class DatabaseManager:
             LEFT JOIN termbases tb ON CAST(t.termbase_id AS INTEGER) = tb.id
             LEFT JOIN termbase_activation ta ON ta.termbase_id = tb.id AND ta.project_id = ? AND ta.is_active = 1
             WHERE (
-                t.source_term = ? OR 
-                t.source_term LIKE ? OR 
-                t.source_term LIKE ? OR 
-                t.source_term LIKE ?
+                LOWER(t.source_term) = LOWER(?) OR 
+                LOWER(t.source_term) LIKE LOWER(?) OR 
+                LOWER(t.source_term) LIKE LOWER(?) OR 
+                LOWER(t.source_term) LIKE LOWER(?)
             )
         """
         # Exact match, word at start, word at end, word in middle
+        # Use LOWER() for case-insensitive matching (handles "Edelmetalen" = "edelmetalen")
         # IMPORTANT: project_id must be first param for the LEFT JOIN ta.project_id = ? above
         params = [
             project_id if project_id else 0,  # Use 0 if no project (won't match any activation records)
