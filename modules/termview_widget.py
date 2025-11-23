@@ -421,7 +421,16 @@ class TermviewWidget(QWidget):
                     key = source_lower
                     if key not in matches:
                         matches[key] = []
-                    matches[key].append(result)
+                    
+                    # DEDUPLICATION: Only add if not already present
+                    # Check by target_term to avoid duplicate translations
+                    target_term = result.get('target_term', '')
+                    already_exists = any(
+                        m.get('target_term', '') == target_term 
+                        for m in matches[key]
+                    )
+                    if not already_exists:
+                        matches[key].append(result)
             
             return matches
         except Exception as e:
