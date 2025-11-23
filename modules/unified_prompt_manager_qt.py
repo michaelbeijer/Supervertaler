@@ -481,6 +481,9 @@ class UnifiedPromptManagerQt:
         
         # Sub-tabs: Prompt Library and AI Assistant
         self.sub_tabs = QTabWidget()
+        self.sub_tabs.tabBar().setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.sub_tabs.tabBar().setDrawBase(False)
+        self.sub_tabs.setStyleSheet("QTabBar::tab { outline: 0; } QTabBar::tab:focus { outline: none; } QTabBar::tab:selected { border-bottom: 1px solid #2196F3; background-color: rgba(33, 150, 243, 0.08); }")
 
         # Tab 1: Prompt Library
         library_tab = self._create_prompt_library_tab()

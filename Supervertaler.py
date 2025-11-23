@@ -3,8 +3,8 @@ Supervertaler Qt Edition
 ========================
 The ultimate companion tool for translators and writers.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.7.9 (Find/Replace & TM Enhancements)
-Release Date: November 22, 2025
+Version: 1.8.0 (UI Refinements - Tab Styling)
+Release Date: November 23, 2025
 Framework: PyQt6
 
 This is the modern edition of Supervertaler using PyQt6 framework.
@@ -32,9 +32,9 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.7.9"
-__phase__ = "9.7"
-__release_date__ = "2025-11-22"
+__version__ = "1.8.0"
+__phase__ = "0.8"
+__release_date__ = "2025-11-23"
 __edition__ = "Qt"
 
 import sys
@@ -298,17 +298,6 @@ class Project:
 # ============================================================================
 # CUSTOM DELEGATES AND EDITORS
 # ============================================================================
-
-class InvertedPrioritySpinBox(QSpinBox):
-    """
-    Custom spinbox where UP arrow DECREASES value (increases priority)
-    and DOWN arrow INCREASES value (decreases priority).
-    
-    This makes the UI more intuitive: up arrow = higher priority (lower number).
-    """
-    def stepBy(self, steps):
-        """Invert the step direction"""
-        super().stepBy(-steps)
 
 class GridTableEventFilter:
     """Mixin to pass keyboard shortcuts from editor to table"""
@@ -3330,14 +3319,28 @@ class SupervertalerQt(QMainWindow):
         
         # Create main tab widget
         self.main_tabs = QTabWidget()
+        self.main_tabs.tabBar().setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.main_tabs.tabBar().setDrawBase(False)
         self.main_tabs.setStyleSheet("""
-            QTabBar::tab { padding: 8px 15px; }
+            QTabBar::tab { padding: 8px 15px; outline: 0; }
+            QTabBar::tab:focus { outline: none; }
+            QTabBar::tab:selected { 
+                border-bottom: 1px solid #2196F3; 
+                background-color: rgba(33, 150, 243, 0.08);
+            }
         """)
         
         # Create nested tab widget for Document Views (Grid, List, Document)
         self.document_views_widget = QTabWidget()
+        self.document_views_widget.tabBar().setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.document_views_widget.tabBar().setDrawBase(False)
         self.document_views_widget.setStyleSheet("""
-            QTabBar::tab { padding: 6px 12px; }
+            QTabBar::tab { padding: 6px 12px; outline: 0; }
+            QTabBar::tab:focus { outline: none; }
+            QTabBar::tab:selected { 
+                border-bottom: 1px solid #2196F3; 
+                background-color: rgba(33, 150, 243, 0.08);
+            }
         """)
         
         # Create view widgets
@@ -4521,6 +4524,9 @@ class SupervertalerQt(QMainWindow):
         
         # Create nested tab widget
         resources_tabs = QTabWidget()
+        resources_tabs.tabBar().setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        resources_tabs.tabBar().setDrawBase(False)
+        resources_tabs.setStyleSheet("QTabBar::tab { outline: 0; } QTabBar::tab:focus { outline: none; } QTabBar::tab:selected { border-bottom: 1px solid #2196F3; background-color: rgba(33, 150, 243, 0.08); }")
         self.resources_tabs = resources_tabs  # Store for navigation
         
         # Add nested tabs
@@ -4555,6 +4561,9 @@ class SupervertalerQt(QMainWindow):
         
         # Create nested tab widget
         modules_tabs = QTabWidget()
+        modules_tabs.tabBar().setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        modules_tabs.tabBar().setDrawBase(False)
+        modules_tabs.setStyleSheet("QTabBar::tab { outline: 0; } QTabBar::tab:focus { outline: none; } QTabBar::tab:selected { border-bottom: 1px solid #2196F3; background-color: rgba(33, 150, 243, 0.08); }")
         self.modules_tabs = modules_tabs  # Store for navigation
         
         # Add nested tabs
@@ -4613,6 +4622,9 @@ class SupervertalerQt(QMainWindow):
         
         # Create nested tab widget for TM functionality
         tm_tabs = QTabWidget()
+        tm_tabs.tabBar().setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        tm_tabs.tabBar().setDrawBase(False)
+        tm_tabs.setStyleSheet("QTabBar::tab { outline: 0; } QTabBar::tab:focus { outline: none; } QTabBar::tab:selected { border-bottom: 1px solid #2196F3; background-color: rgba(33, 150, 243, 0.08); }")
         
         # Tab 1: TM List (Management) - manage multiple TMs
         tm_list_tab = self._create_tm_list_tab(tm_metadata_mgr)
@@ -5834,34 +5846,41 @@ class SupervertalerQt(QMainWindow):
                 write_checkbox.toggled.connect(on_write_toggle)
                 termbase_table.setCellWidget(row, 5, write_checkbox)
                 
-                # Priority (editable spinbox for readable termbases)
+                # Priority (dropdown for readable termbases)
                 if is_readable and refresh_project_id and num_active > 0:
-                    # Use inverted spinbox: up arrow = higher priority (lower number)
-                    priority_spinbox = InvertedPrioritySpinBox()
-                    priority_spinbox.setMinimum(1)
-                    priority_spinbox.setMaximum(num_active)  # Max = number of active termbases
-                    priority_spinbox.setValue(priority if priority else 1)
-                    priority_spinbox.setPrefix("#")
-                    priority_spinbox.setButtonSymbols(InvertedPrioritySpinBox.ButtonSymbols.UpDownArrows)
-                    priority_spinbox.setWrapping(False)  # Don't wrap from max to min
-                    priority_spinbox.setEnabled(True)
-                    priority_spinbox.setKeyboardTracking(True)  # Emit signal on every key press
-                    priority_spinbox.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+                    priority_combo = QComboBox()
+                    
+                    # Populate dropdown with available priorities (1 to num_active)
+                    for p in range(1, num_active + 1):
+                        priority_combo.addItem(f"#{p}", p)
+                    
+                    # Set current priority
+                    if priority:
+                        priority_combo.setCurrentIndex(priority - 1)
+                    else:
+                        priority_combo.setCurrentIndex(0)
                     
                     # Pink styling for priority #1
                     if priority == 1:
-                        priority_spinbox.setStyleSheet("QSpinBox { color: #FF69B4; font-weight: bold; }")
-                        priority_spinbox.setToolTip("Priority #1 - Project Termbase (highest priority)\nUp arrow: keep at #1 | Down arrow: lower priority")
+                        priority_combo.setStyleSheet("QComboBox { color: #FF69B4; font-weight: bold; }")
+                        priority_combo.setToolTip("Priority #1 - Project Termbase (highest priority)\nSelect different priority from dropdown")
                     else:
-                        priority_spinbox.setToolTip(f"Priority #{priority} (1=highest, {num_active}=lowest)\nUp arrow: increase priority | Down arrow: decrease priority\nMultiple termbases can share same priority.")
+                        priority_combo.setToolTip(f"Priority #{priority} (1=highest, {num_active}=lowest)\nMultiple termbases can share same priority.")
                     
-                    def on_priority_change(new_priority, tb_id=tb['id'], row_idx=row):
+                    def on_priority_change(index, tb_id=tb['id'], row_idx=row):
+                        # Get selected priority from combo box
+                        combo = termbase_table.cellWidget(row_idx, 6)
+                        if not combo:
+                            return
+                        new_priority = combo.currentData()
+                        
                         self.log(f"🔄 Priority change triggered: TB {tb_id} → #{new_priority}")
                         curr_proj = self.current_project if hasattr(self, 'current_project') else None
                         curr_proj_id = curr_proj.id if (curr_proj and hasattr(curr_proj, 'id')) else None
                         if not curr_proj_id:
                             self.log(f"⚠️ No project loaded, cannot change priority")
                             return
+                        
                         self.log(f"🔄 Setting priority for TB {tb_id}, Project {curr_proj_id}")
                         success = termbase_mgr.set_termbase_priority(tb_id, curr_proj_id, new_priority)
                         if success:
@@ -5870,20 +5889,20 @@ class SupervertalerQt(QMainWindow):
                             sender = termbase_table.cellWidget(row_idx, 6)
                             if sender:
                                 if new_priority == 1:
-                                    sender.setStyleSheet("QSpinBox { color: #FF69B4; font-weight: bold; }")
-                                    sender.setToolTip("Priority #1 - Project Termbase (highest priority)\nUp arrow: keep at #1 | Down arrow: lower priority")
+                                    sender.setStyleSheet("QComboBox { color: #FF69B4; font-weight: bold; }")
+                                    sender.setToolTip("Priority #1 - Project Termbase (highest priority)\nSelect different priority from dropdown")
                                 else:
                                     sender.setStyleSheet("")
-                                    sender.setToolTip(f"Priority #{new_priority} (1=highest, {num_active}=lowest)\nUp arrow: increase priority | Down arrow: decrease priority\nMultiple termbases can share same priority.")
+                                    sender.setToolTip(f"Priority #{new_priority} (1=highest, {num_active}=lowest)\nMultiple termbases can share same priority.")
                             
                             # Update Type column and styling for all rows
                             for r in range(termbase_table.rowCount()):
                                 type_widget = termbase_table.cellWidget(r, 0)
                                 priority_widget = termbase_table.cellWidget(r, 6)
-                                if type_widget and priority_widget and isinstance(priority_widget, QSpinBox):
+                                if type_widget and priority_widget and isinstance(priority_widget, QComboBox):
                                     # Block signals during update to prevent recursion
                                     priority_widget.blockSignals(True)
-                                    current_priority = priority_widget.value()
+                                    current_priority = priority_widget.currentData()
                                     name_item = termbase_table.item(r, 1)
                                     
                                     # Update Type column
@@ -5892,17 +5911,17 @@ class SupervertalerQt(QMainWindow):
                                         type_widget.setStyleSheet("color: #FF69B4; font-weight: bold;")
                                         if name_item:
                                             name_item.setForeground(QColor("#FF69B4"))
-                                        # Update spinbox styling for #1
-                                        priority_widget.setStyleSheet("QSpinBox { color: #FF69B4; font-weight: bold; }")
-                                        priority_widget.setToolTip("Priority #1 - Project Termbase (highest priority)\nUp arrow: keep at #1 | Down arrow: lower priority")
+                                        # Update combobox styling for #1
+                                        priority_widget.setStyleSheet("QComboBox { color: #FF69B4; font-weight: bold; }")
+                                        priority_widget.setToolTip("Priority #1 - Project Termbase (highest priority)\nSelect different priority from dropdown")
                                     else:
                                         type_widget.setText("Background")
                                         type_widget.setStyleSheet("color: #666;")
                                         if name_item:
                                             name_item.setForeground(QColor("#000"))
-                                        # Update spinbox styling for non-#1
+                                        # Update combobox styling for non-#1
                                         priority_widget.setStyleSheet("")
-                                        priority_widget.setToolTip(f"Priority #{current_priority} (1=highest, {num_active}=lowest)\nUp arrow: increase priority | Down arrow: decrease priority\nMultiple termbases can share same priority.")
+                                        priority_widget.setToolTip(f"Priority #{current_priority} (1=highest, {num_active}=lowest)\nMultiple termbases can share same priority.")
                                     
                                     # Unblock signals after update
                                     priority_widget.blockSignals(False)
@@ -5911,8 +5930,8 @@ class SupervertalerQt(QMainWindow):
                             with self.termbase_cache_lock:
                                 self.termbase_cache.clear()
                     
-                    priority_spinbox.valueChanged.connect(on_priority_change)
-                    termbase_table.setCellWidget(row, 6, priority_spinbox)
+                    priority_combo.currentIndexChanged.connect(on_priority_change)
+                    termbase_table.setCellWidget(row, 6, priority_combo)
                 else:
                     # Non-readable termbase: show dash
                     priority_item = QTableWidgetItem("—")
@@ -7268,6 +7287,9 @@ class SupervertalerQt(QMainWindow):
         
         # Create nested tab widget
         settings_tabs = QTabWidget()
+        settings_tabs.tabBar().setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        settings_tabs.tabBar().setDrawBase(False)
+        settings_tabs.setStyleSheet("QTabBar::tab { outline: 0; } QTabBar::tab:focus { outline: none; } QTabBar::tab:selected { border-bottom: 1px solid #2196F3; background-color: rgba(33, 150, 243, 0.08); }")
         self.settings_tabs = settings_tabs  # Store for reference
         
         # Scroll area wrapper for each tab (for long content)
@@ -8920,6 +8942,9 @@ class SupervertalerQt(QMainWindow):
 
         # Create tab widget for each domain
         domain_tabs = QTabWidget()
+        domain_tabs.tabBar().setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        domain_tabs.tabBar().setDrawBase(False)
+        domain_tabs.setStyleSheet("QTabBar::tab { outline: 0; } QTabBar::tab:focus { outline: none; } QTabBar::tab:selected { border-bottom: 1px solid #2196F3; background-color: rgba(33, 150, 243, 0.08); }")
 
         # Legal domain
         legal_tab = QWidget()
@@ -10402,6 +10427,9 @@ class SupervertalerQt(QMainWindow):
         from modules.translation_results_panel import TranslationResultsPanel
         
         tabs = QTabWidget()
+        tabs.tabBar().setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        tabs.tabBar().setDrawBase(False)
+        tabs.setStyleSheet("QTabBar::tab { outline: 0; } QTabBar::tab:focus { outline: none; } QTabBar::tab:selected { border-bottom: 1px solid #2196F3; background-color: rgba(33, 150, 243, 0.08); }")
         tabs.setTabPosition(QTabWidget.TabPosition.South)  # Tabs at bottom for easy access
         
         # Get match limits from settings
@@ -10727,6 +10755,9 @@ class SupervertalerQt(QMainWindow):
         
         # Tab widget for different import methods
         import_tabs = QTabWidget()
+        import_tabs.tabBar().setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        import_tabs.tabBar().setDrawBase(False)
+        import_tabs.setStyleSheet("QTabBar::tab { outline: 0; } QTabBar::tab:focus { outline: none; } QTabBar::tab:selected { border-bottom: 1px solid #2196F3; background-color: rgba(33, 150, 243, 0.08); }")
         
         # Tab 1: Paste Text
         paste_tab = QWidget()
@@ -20678,6 +20709,9 @@ class UniversalLookupTab(QWidget):
         
         # Results area (with tabs for TM, termbase, MT)
         self.results_tabs = QTabWidget()
+        self.results_tabs.tabBar().setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.results_tabs.tabBar().setDrawBase(False)
+        self.results_tabs.setStyleSheet("QTabBar::tab { outline: 0; } QTabBar::tab:focus { outline: none; } QTabBar::tab:selected { border-bottom: 1px solid #2196F3; background-color: rgba(33, 150, 243, 0.08); }")
         
         # TM Results tab
         tm_tab = self.create_tm_results_tab()

@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.6.6 (November 23, 2025)
+**Current Version:** v1.8.0 (November 23, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -14,6 +14,7 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- 🎨 **UI Refinements - Tab Styling (v1.8.0)** - Refined selected tab appearance with subtle 1px blue underline and light background highlighting for cleaner visual design
 - ✅ **Simplified TM/Termbase System (v1.6.6)** - Redesigned with Read/Write checkboxes, auto-priority system, removed complex Active/Project concepts for clearer workflow
 - 🔍 **Find/Replace & TM Enhancements (v1.7.9)** - Fixed highlighting, disabled TM saves during navigation, added bidirectional TM search with language variant matching
 - 🔍 **Filter Highlighting Fix (v1.7.8)** - Fixed search term highlighting in source/target filter boxes using widget-internal highlighting
@@ -43,6 +44,21 @@ All notable changes to Supervertaler are documented in this file.
 - 🔄 **CAT Tool Integration** - memoQ, Trados, CafeTran bilingual table support
 
 **See full version history below** ↓
+
+---
+
+## [1.8.0] - November 23, 2025
+
+### UI/UX Improvements
+- **Tab Styling Refinement**: Reduced selected tab border-bottom from 3px to 1px for a more subtle, professional appearance
+- **Visual Consistency**: Maintained light blue background highlighting (rgba(33, 150, 243, 0.08)) with thinner accent line
+- **Applied Across Application**: Updated styling for all tab widgets including Resources, Modules, TM, Settings, Domain, Import, Results, and Prompt Manager tabs
+- **Theme Manager Update**: Global tab styling now uses refined 1px border-bottom for consistent appearance
+
+### Technical Changes
+- Updated border-bottom styling in 12 locations across main application and modules
+- Modified theme_manager.py for global tab appearance consistency
+- Maintained focus removal and outline suppression for cleaner tab interactions
 
 ---
 

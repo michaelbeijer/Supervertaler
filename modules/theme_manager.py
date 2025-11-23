@@ -335,7 +335,7 @@ class ThemeManager:
             
             QTabBar::tab:selected {{
                 background-color: {theme.tab_selected};
-                border-bottom: 2px solid {theme.highlight};
+                border-bottom: 1px solid {theme.highlight};
             }}
             
             QTabBar::tab:hover {{
