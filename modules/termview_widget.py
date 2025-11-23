@@ -412,9 +412,15 @@ class TermviewWidget(QWidget):
                 if not search_term or len(search_term) < 2:
                     continue
                 
+                # Strip trailing punctuation for search (but keep internal punctuation like "gew.%")
+                # This handles cases like "edelmetalen." → "edelmetalen"
+                search_term_clean = search_term.rstrip('.,;:!?')
+                if not search_term_clean or len(search_term_clean) < 2:
+                    continue
+                
                 # Use the SAME search method as translation results panel
                 results = self.db_manager.search_termbases(
-                    search_term=search_term,
+                    search_term=search_term_clean,
                     source_lang=self.current_source_lang,
                     target_lang=self.current_target_lang,
                     project_id=self.current_project_id,
