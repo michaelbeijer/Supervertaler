@@ -15597,10 +15597,14 @@ class SupervertalerQt(QMainWindow):
                 
                 self.log(f"    Searching for: '{clean_word}'")
                 
+                # Get project ID for termbase priority lookup
+                project_id = self.current_project.id if self.current_project and hasattr(self.current_project, 'id') else None
+                
                 termbase_results = self.db_manager.search_termbases(
                     clean_word,
                     source_lang=source_lang_code,
                     target_lang=target_lang_code,
+                    project_id=project_id,
                     min_length=2
                 )
                 
@@ -17585,7 +17589,8 @@ class SupervertalerQt(QMainWindow):
             try:
                 source_lang = getattr(self.current_project, 'source_lang', 'en')
                 target_lang = getattr(self.current_project, 'target_lang', 'nl')
-                self.termview_widget.update_for_segment(source_text, source_lang, target_lang)
+                project_id = getattr(self.current_project, 'id', None)
+                self.termview_widget.update_for_segment(source_text, source_lang, target_lang, project_id)
             except Exception as e:
                 self.log(f"Error updating termview: {e}")
     

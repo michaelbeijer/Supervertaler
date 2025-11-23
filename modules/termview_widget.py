@@ -263,6 +263,7 @@ class TermviewWidget(QWidget):
         self.current_source = ""
         self.current_source_lang = None
         self.current_target_lang = None
+        self.current_project_id = None  # Store project ID for termbase priority lookup
         
         self.init_ui()
     
@@ -312,7 +313,7 @@ class TermviewWidget(QWidget):
         self.info_label.setStyleSheet("color: #999; font-size: 10px; padding: 5px;")
         layout.addWidget(self.info_label)
     
-    def update_for_segment(self, source_text: str, source_lang: str, target_lang: str):
+    def update_for_segment(self, source_text: str, source_lang: str, target_lang: str, project_id: int = None):
         """
         Update the termview display for a new segment
         
@@ -320,10 +321,12 @@ class TermviewWidget(QWidget):
             source_text: Source segment text
             source_lang: Source language code
             target_lang: Target language code
+            project_id: Project ID for termbase priority lookup
         """
         self.current_source = source_text
         self.current_source_lang = source_lang
         self.current_target_lang = target_lang
+        self.current_project_id = project_id
         
         # Clear existing blocks
         self.clear_terms()
@@ -414,6 +417,7 @@ class TermviewWidget(QWidget):
                     search_term=search_term,
                     source_lang=self.current_source_lang,
                     target_lang=self.current_target_lang,
+                    project_id=self.current_project_id,
                     min_length=2
                 )
                 
@@ -566,6 +570,7 @@ class TermviewWidget(QWidget):
                 search_term=term,
                 source_lang=self.current_source_lang,
                 target_lang=self.current_target_lang,
+                project_id=self.current_project_id,
                 min_length=2
             )
             
