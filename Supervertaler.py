@@ -17590,7 +17590,22 @@ class SupervertalerQt(QMainWindow):
                 # Get termbase matches from the segment's cached data if available
                 termbase_matches = []
                 if hasattr(self, 'termbase_cache') and segment_id in self.termbase_cache:
-                    termbase_matches = self.termbase_cache[segment_id]
+                    cached_matches = self.termbase_cache[segment_id]
+                    # Convert dict format to list format expected by Termview
+                    if isinstance(cached_matches, dict):
+                        termbase_matches = [
+                            {
+                                'source_term': match_data.get('source', ''),
+                                'target_term': match_data.get('translation', ''),
+                                'termbase_name': match_data.get('termbase_name', ''),
+                                'ranking': match_data.get('ranking', 99),
+                                'is_project_termbase': match_data.get('is_project_termbase', False)
+                            }
+                            for match_data in cached_matches.values()
+                        ]
+                    else:
+                        # Already in list format (shouldn't happen, but handle it)
+                        termbase_matches = cached_matches
                 
                 self.termview_widget.update_with_matches(source_text, termbase_matches)
             except Exception as e:
