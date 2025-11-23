@@ -12,11 +12,117 @@ Features:
 """
 
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QLabel, QFrame, QScrollArea,
-                              QHBoxLayout, QPushButton, QToolTip)
-from PyQt6.QtCore import Qt, QPoint, pyqtSignal
+                              QHBoxLayout, QPushButton, QToolTip, QLayout, QLayoutItem, QSizePolicy, QStyle)
+from PyQt6.QtCore import Qt, QPoint, pyqtSignal, QRect, QSize
 from PyQt6.QtGui import QFont, QCursor
 from typing import Dict, List, Optional, Tuple
 import re
+
+
+class FlowLayout(QLayout):
+    """Flow layout that wraps widgets to next line when needed"""
+    
+    def __init__(self, parent=None, margin=0, spacing=-1):
+        super().__init__(parent)
+        self.itemList = []
+        self.m_hSpace = spacing
+        self.m_vSpace = spacing
+        self.setContentsMargins(margin, margin, margin, margin)
+    
+    def __del__(self):
+        item = self.takeAt(0)
+        while item:
+            item = self.takeAt(0)
+    
+    def addItem(self, item):
+        self.itemList.append(item)
+    
+    def horizontalSpacing(self):
+        if self.m_hSpace >= 0:
+            return self.m_hSpace
+        else:
+            return self.smartSpacing(QStyle.PixelMetric.PM_LayoutHorizontalSpacing)
+    
+    def verticalSpacing(self):
+        if self.m_vSpace >= 0:
+            return self.m_vSpace
+        else:
+            return self.smartSpacing(QStyle.PixelMetric.PM_LayoutVerticalSpacing)
+    
+    def count(self):
+        return len(self.itemList)
+    
+    def itemAt(self, index):
+        if 0 <= index < len(self.itemList):
+            return self.itemList[index]
+        return None
+    
+    def takeAt(self, index):
+        if 0 <= index < len(self.itemList):
+            return self.itemList.pop(index)
+        return None
+    
+    def expandingDirections(self):
+        return Qt.Orientation(0)
+    
+    def hasHeightForWidth(self):
+        return True
+    
+    def heightForWidth(self, width):
+        height = self.doLayout(QRect(0, 0, width, 0), True)
+        return height
+    
+    def setGeometry(self, rect):
+        super().setGeometry(rect)
+        self.doLayout(rect, False)
+    
+    def sizeHint(self):
+        return self.minimumSize()
+    
+    def minimumSize(self):
+        size = QSize()
+        for item in self.itemList:
+            size = size.expandedTo(item.minimumSize())
+        margin = self.contentsMargins().left()
+        size += QSize(2 * margin, 2 * margin)
+        return size
+    
+    def doLayout(self, rect, testOnly):
+        x = rect.x()
+        y = rect.y()
+        lineHeight = 0
+        spacing = self.horizontalSpacing()
+        if spacing < 0:
+            spacing = 5  # Default spacing
+        
+        for item in self.itemList:
+            wid = item.widget()
+            spaceX = spacing
+            spaceY = spacing
+            
+            nextX = x + item.sizeHint().width() + spaceX
+            if nextX - spaceX > rect.right() and lineHeight > 0:
+                x = rect.x()
+                y = y + lineHeight + spaceY
+                nextX = x + item.sizeHint().width() + spaceX
+                lineHeight = 0
+            
+            if not testOnly:
+                item.setGeometry(QRect(QPoint(x, y), item.sizeHint()))
+            
+            x = nextX
+            lineHeight = max(lineHeight, item.sizeHint().height())
+        
+        return y + lineHeight - rect.y()
+    
+    def smartSpacing(self, pm):
+        parent = self.parent()
+        if not parent:
+            return -1
+        if parent.isWidgetType():
+            return parent.style().pixelMetric(pm, None, parent)
+        else:
+            return parent.spacing()
 
 
 class TermBlock(QWidget):
@@ -36,56 +142,48 @@ class TermBlock(QWidget):
         self.init_ui()
         
     def init_ui(self):
-        """Create the visual layout for this term block"""
+        """Create the visual layout for this term block - COMPACT RYS-style"""
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(3, 2, 3, 2)
-        layout.setSpacing(2)
+        layout.setContentsMargins(1, 1, 1, 1)
+        layout.setSpacing(0)
         
-        # Source text (top)
+        # Source text (top) - compact
         source_label = QLabel(self.source_text)
         source_font = QFont()
-        source_font.setPointSize(10)
+        source_font.setPointSize(8)
         source_label.setFont(source_font)
         source_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         source_label.setStyleSheet("""
             QLabel {
                 color: #333;
-                padding: 2px 4px;
-                background-color: #f0f0f0;
-                border-radius: 3px;
+                padding: 1px 3px;
+                background-color: transparent;
             }
         """)
         layout.addWidget(source_label)
         
-        # Arrow indicator
-        arrow_label = QLabel("↓")
-        arrow_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        arrow_label.setStyleSheet("color: #999; font-size: 10px;")
-        layout.addWidget(arrow_label)
-        
-        # Target translation (bottom) - show first/best match
+        # Target translation (bottom) - show first/best match - COMPACT
         if self.translations:
             primary_translation = self.translations[0]
             target_text = primary_translation.get('target_term', primary_translation.get('target', ''))
             termbase_name = primary_translation.get('termbase_name', '')
             is_project = primary_translation.get('is_project_termbase', False)
             
-            # Color based on termbase type
-            bg_color = "#FFE5F0" if is_project else "#E3F2FD"  # Pink for project, blue for regular
+            # Color based on termbase type - more subtle
+            bg_color = "#FFE5F0" if is_project else "#D6EBFF"  # Pink for project, light blue for regular
             
             target_label = QLabel(target_text)
             target_font = QFont()
-            target_font.setPointSize(10)
-            target_font.setBold(True)
+            target_font.setPointSize(8)
+            target_font.setBold(False)  # Less bold for compactness
             target_label.setFont(target_font)
             target_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             target_label.setStyleSheet(f"""
                 QLabel {{
-                    color: #1565C0;
-                    padding: 3px 6px;
+                    color: #0052A3;
+                    padding: 1px 3px;
                     background-color: {bg_color};
-                    border-radius: 4px;
-                    border: 1px solid #90CAF9;
+                    border-radius: 2px;
                 }}
                 QLabel:hover {{
                     background-color: #BBDEFB;
@@ -109,23 +207,22 @@ class TermBlock(QWidget):
             
             layout.addWidget(target_label)
             
-            # Show count if multiple translations
+            # Show count if multiple translations - very compact
             if len(self.translations) > 1:
-                count_label = QLabel(f"+{len(self.translations) - 1} more")
+                count_label = QLabel(f"+{len(self.translations) - 1}")
                 count_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
                 count_label.setStyleSheet("""
                     QLabel {
-                        color: #666;
-                        font-size: 9px;
-                        font-style: italic;
+                        color: #999;
+                        font-size: 7px;
                     }
                 """)
                 layout.addWidget(count_label)
         else:
-            # No translation found
-            no_match_label = QLabel("—")
+            # No translation found - very subtle
+            no_match_label = QLabel("·")
             no_match_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            no_match_label.setStyleSheet("color: #ccc; font-size: 12px;")
+            no_match_label.setStyleSheet("color: #ddd; font-size: 8px;")
             layout.addWidget(no_match_label)
     
     def on_translation_clicked(self, target_text: str):
@@ -171,7 +268,7 @@ class TermviewWidget(QWidget):
         # Scroll area for term blocks
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)  # No horizontal scroll
         scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         scroll.setStyleSheet("""
             QScrollArea {
@@ -181,12 +278,9 @@ class TermviewWidget(QWidget):
             }
         """)
         
-        # Container for term blocks (horizontal layout)
+        # Container for term blocks (flow layout with wrapping)
         self.terms_container = QWidget()
-        self.terms_layout = QHBoxLayout(self.terms_container)
-        self.terms_layout.setContentsMargins(10, 10, 10, 10)
-        self.terms_layout.setSpacing(8)
-        self.terms_layout.addStretch()  # Push blocks to left initially
+        self.terms_layout = FlowLayout(self.terms_container, margin=5, spacing=4)
         
         scroll.setWidget(self.terms_container)
         layout.addWidget(scroll)
@@ -241,8 +335,8 @@ class TermviewWidget(QWidget):
             term_block = TermBlock(token, translations, self)
             term_block.term_clicked.connect(self.on_term_insert_requested)
             
-            # Insert before the stretch
-            self.terms_layout.insertWidget(self.terms_layout.count() - 1, term_block)
+            # Add to flow layout
+            self.terms_layout.addWidget(term_block)
             
             if translations:
                 term_blocks_created += 1
@@ -345,7 +439,7 @@ class TermviewWidget(QWidget):
             matches: Dict of termbase matches (from get_all_termbase_matches)
             
         Returns:
-            List of tokens (words/phrases), with multi-word terms kept together
+            List of tokens (words/phrases/numbers), with multi-word terms kept together
         """
         # Sort matched terms by length (longest first) to match multi-word terms first
         matched_terms = sorted(matches.keys(), key=len, reverse=True)
@@ -375,22 +469,21 @@ class TermviewWidget(QWidget):
                     
                     start = pos + 1
         
-        # Second pass: fill in gaps with single words
-        words = re.findall(r'\b[\w-]+\b', text, re.UNICODE)
-        word_pattern = re.compile(r'\b[\w-]+\b', re.UNICODE)
+        # Second pass: fill in gaps with ALL words/numbers/punctuation combos
+        # Enhanced pattern to capture words, numbers, and combinations like "gew.%", "0,1", etc.
+        token_pattern = re.compile(r'\b[\w.,%-]+\b', re.UNICODE)
         
-        for match in word_pattern.finditer(text):
+        for match in token_pattern.finditer(text):
             word_start = match.start()
             word_end = match.end()
             word_positions = set(range(word_start, word_end))
             
             # Only add if not already covered by a multi-word term
             if not word_positions.intersection(used_positions):
-                word = match.group()
-                # Filter out very short words unless they're all caps
-                if len(word) >= 3 or word.isupper():
-                    tokens_with_positions.append((word_start, len(word), word))
-                    used_positions.update(word_positions)
+                token = match.group()
+                # Include ALL tokens - no filtering by length
+                tokens_with_positions.append((word_start, len(token), token))
+                used_positions.update(word_positions)
         
         # Sort by position and extract tokens
         tokens_with_positions.sort(key=lambda x: x[0])
@@ -448,10 +541,10 @@ class TermviewWidget(QWidget):
     
     def clear_terms(self):
         """Clear all term blocks"""
-        # Remove all widgets except the stretch
-        while self.terms_layout.count() > 1:
+        # Remove all widgets from flow layout
+        while self.terms_layout.count() > 0:
             item = self.terms_layout.takeAt(0)
-            if item.widget():
+            if item and item.widget():
                 item.widget().deleteLater()
     
     def on_term_insert_requested(self, source_term: str, target_term: str):
