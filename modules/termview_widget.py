@@ -405,23 +405,16 @@ class TermviewWidget(QWidget):
                 if not source_term:
                     continue
                 
-                # Check if this term appears in the text (case-insensitive, word boundary check)
-                # Use word boundaries for single words, substring search for multi-word terms
-                if ' ' in source_term:
-                    # Multi-word term: check if it appears as substring
-                    if source_term.lower() in text_lower:
-                        key = source_term.lower()
-                        if key not in matches:
-                            matches[key] = []
-                        matches[key].append(result_dict)
-                else:
-                    # Single word: use word boundary check
-                    pattern = r'\b' + re.escape(source_term.lower()) + r'\b'
-                    if re.search(pattern, text_lower):
-                        key = source_term.lower()
-                        if key not in matches:
-                            matches[key] = []
-                        matches[key].append(result_dict)
+                # IMPORTANT: Use word boundary check for ALL terms (single and multi-word)
+                # This prevents "de" from matching "De uitvinding heeft betrekking op"
+                # Build pattern with word boundaries around the entire term
+                pattern = r'\b' + re.escape(source_term.lower()) + r'\b'
+                
+                if re.search(pattern, text_lower):
+                    key = source_term.lower()
+                    if key not in matches:
+                        matches[key] = []
+                    matches[key].append(result_dict)
             
             return matches
         except Exception as e:
