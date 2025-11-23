@@ -66,7 +66,7 @@ class TermBlock(QWidget):
         # Target translation (bottom) - show first/best match
         if self.translations:
             primary_translation = self.translations[0]
-            target_text = primary_translation.get('target', '')
+            target_text = primary_translation.get('target_term', primary_translation.get('target', ''))
             termbase_name = primary_translation.get('termbase_name', '')
             is_project = primary_translation.get('is_project_termbase', False)
             
@@ -100,7 +100,7 @@ class TermBlock(QWidget):
                 tooltip_lines = [f"<b>{target_text}</b> (click to insert)<br>"]
                 tooltip_lines.append("<br><b>Alternatives:</b>")
                 for i, trans in enumerate(self.translations[1:], 1):
-                    alt_target = trans.get('target', '')
+                    alt_target = trans.get('target_term', trans.get('target', ''))
                     alt_termbase = trans.get('termbase_name', '')
                     tooltip_lines.append(f"{i}. {alt_target} ({alt_termbase})")
                 target_label.setToolTip("<br>".join(tooltip_lines))
@@ -217,17 +217,25 @@ class TermviewWidget(QWidget):
             self.info_label.setText("No segment selected")
             return
         
-        # Tokenize source text into words
-        tokens = self.tokenize_source(source_text)
+        # Get all termbase matches first to detect multi-word terms
+        all_matches = self.get_all_termbase_matches(source_text)
+        
+        # Create tokens, respecting multi-word terms
+        tokens = self.tokenize_with_multiword_terms(source_text, all_matches)
         
         if not tokens:
             self.info_label.setText("No words to analyze")
             return
         
-        # Search termbases for each token
+        # Search termbases for each token (use pre-fetched matches)
         term_blocks_created = 0
         for token in tokens:
-            translations = self.search_term(token)
+            # Check if we already have matches for this token
+            translations = all_matches.get(token.lower(), [])
+            
+            # If no exact match, try searching (for single words)
+            if not translations and ' ' not in token:
+                translations = self.search_term(token)
             
             # Create term block
             term_block = TermBlock(token, translations, self)
@@ -241,15 +249,160 @@ class TermviewWidget(QWidget):
         
         # Update info
         if term_blocks_created > 0:
-            self.info_label.setText(f"✓ Found terminology for {term_blocks_created} of {len(tokens)} words")
+            self.info_label.setText(f"✓ Found terminology for {term_blocks_created} of {len(tokens)} terms/words")
         else:
             self.info_label.setText(f"No terminology matches found for this segment")
+    
+    def get_all_termbase_matches(self, text: str) -> Dict[str, List[Dict]]:
+        """
+        Get all termbase matches for text, including multi-word terms
+        
+        Strategy: Get all active termbase entries, then check which ones appear in the text
+        
+        Args:
+            text: Source text
+            
+        Returns:
+            Dict mapping source term (lowercase) to list of translation dicts
+        """
+        if not self.db_manager or not self.current_source_lang or not self.current_target_lang:
+            return {}
+        
+        matches = {}
+        
+        try:
+            # Get all termbase entries for this language pair
+            # Query database directly for efficiency
+            query = """
+                SELECT 
+                    t.id, t.source_term, t.target_term, t.termbase_id, t.priority, 
+                    t.forbidden, t.source_lang, t.target_lang, t.definition, t.domain,
+                    t.notes, t.project, t.client,
+                    tb.name as termbase_name,
+                    tb.is_project_termbase,
+                    tb.ranking
+                FROM termbase_terms t
+                LEFT JOIN termbases tb ON CAST(t.termbase_id AS INTEGER) = tb.id
+                WHERE tb.read_only = 0
+                AND (
+                    (t.source_lang = ? OR (t.source_lang IS NULL AND tb.source_lang = ?))
+                    OR (t.source_lang IS NULL AND tb.source_lang IS NULL)
+                )
+                AND (
+                    (t.target_lang = ? OR (t.target_lang IS NULL AND tb.target_lang = ?))
+                    OR (t.target_lang IS NULL AND tb.target_lang IS NULL)
+                )
+                ORDER BY LENGTH(t.source_term) DESC
+            """
+            
+            cursor = self.db_manager.cursor
+            cursor.execute(query, [
+                self.current_source_lang, self.current_source_lang,
+                self.current_target_lang, self.current_target_lang
+            ])
+            
+            text_lower = text.lower()
+            
+            # Check each termbase entry to see if it appears in the text
+            for row in cursor.fetchall():
+                result_dict = dict(row)
+                source_term = result_dict.get('source_term', '')
+                
+                if not source_term:
+                    continue
+                
+                # Check if this term appears in the text (case-insensitive, word boundary check)
+                # Use word boundaries for single words, substring search for multi-word terms
+                if ' ' in source_term:
+                    # Multi-word term: check if it appears as substring
+                    if source_term.lower() in text_lower:
+                        key = source_term.lower()
+                        if key not in matches:
+                            matches[key] = []
+                        matches[key].append(result_dict)
+                else:
+                    # Single word: use word boundary check
+                    pattern = r'\b' + re.escape(source_term.lower()) + r'\b'
+                    if re.search(pattern, text_lower):
+                        key = source_term.lower()
+                        if key not in matches:
+                            matches[key] = []
+                        matches[key].append(result_dict)
+            
+            return matches
+        except Exception as e:
+            self.log(f"✗ Error getting termbase matches: {e}")
+            import traceback
+            traceback.print_exc()
+            return {}
+    
+    def tokenize_with_multiword_terms(self, text: str, matches: Dict[str, List[Dict]]) -> List[str]:
+        """
+        Tokenize text, preserving multi-word terms found in termbase
+        
+        Args:
+            text: Source text
+            matches: Dict of termbase matches (from get_all_termbase_matches)
+            
+        Returns:
+            List of tokens (words/phrases), with multi-word terms kept together
+        """
+        # Sort matched terms by length (longest first) to match multi-word terms first
+        matched_terms = sorted(matches.keys(), key=len, reverse=True)
+        
+        # Track which parts of the text have been matched
+        text_lower = text.lower()
+        used_positions = set()
+        tokens_with_positions = []
+        
+        # First pass: find multi-word terms
+        for term in matched_terms:
+            if ' ' in term:  # Only process multi-word terms in first pass
+                # Find all occurrences of this term
+                start = 0
+                while True:
+                    pos = text_lower.find(term, start)
+                    if pos == -1:
+                        break
+                    
+                    # Check if this position overlaps with already matched terms
+                    term_positions = set(range(pos, pos + len(term)))
+                    if not term_positions.intersection(used_positions):
+                        # Extract the original case version
+                        original_term = text[pos:pos + len(term)]
+                        tokens_with_positions.append((pos, len(term), original_term))
+                        used_positions.update(term_positions)
+                    
+                    start = pos + 1
+        
+        # Second pass: fill in gaps with single words
+        words = re.findall(r'\b[\w-]+\b', text, re.UNICODE)
+        word_pattern = re.compile(r'\b[\w-]+\b', re.UNICODE)
+        
+        for match in word_pattern.finditer(text):
+            word_start = match.start()
+            word_end = match.end()
+            word_positions = set(range(word_start, word_end))
+            
+            # Only add if not already covered by a multi-word term
+            if not word_positions.intersection(used_positions):
+                word = match.group()
+                # Filter out very short words unless they're all caps
+                if len(word) >= 3 or word.isupper():
+                    tokens_with_positions.append((word_start, len(word), word))
+                    used_positions.update(word_positions)
+        
+        # Sort by position and extract tokens
+        tokens_with_positions.sort(key=lambda x: x[0])
+        tokens = [token for pos, length, token in tokens_with_positions]
+        
+        return tokens
     
     def tokenize_source(self, text: str) -> List[str]:
         """
         Tokenize source text into words/phrases
         
-        For now, simple word splitting. Can be enhanced later for multi-word terms.
+        DEPRECATED: Use tokenize_with_multiword_terms instead for proper multi-word handling
         
         Args:
             text: Source text
