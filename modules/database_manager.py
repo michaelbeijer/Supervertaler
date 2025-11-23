@@ -1057,6 +1057,7 @@ class DatabaseManager:
         # Build query with filters - include termbase name and ranking via JOIN
         # Note: termbase_id is stored as TEXT in termbase_terms but INTEGER in termbases
         # Use CAST to ensure proper comparison
+        # IMPORTANT: Join with termbase_activation to get the ACTUAL priority for this project
         query = """
             SELECT 
                 t.id, t.source_term, t.target_term, t.termbase_id, t.priority, 
@@ -1066,9 +1067,10 @@ class DatabaseManager:
                 tb.source_lang as termbase_source_lang,
                 tb.target_lang as termbase_target_lang,
                 tb.is_project_termbase,
-                tb.ranking
+                COALESCE(ta.priority, tb.ranking) as ranking
             FROM termbase_terms t
             LEFT JOIN termbases tb ON CAST(t.termbase_id AS INTEGER) = tb.id
+            LEFT JOIN termbase_activation ta ON ta.termbase_id = tb.id AND ta.project_id = ? AND ta.is_active = 1
             WHERE (
                 t.source_term = ? OR 
                 t.source_term LIKE ? OR 
@@ -1077,7 +1079,9 @@ class DatabaseManager:
             )
         """
         # Exact match, word at start, word at end, word in middle
+        # IMPORTANT: project_id must be first param for the LEFT JOIN ta.project_id = ? above
         params = [
+            project_id if project_id else 0,  # Use 0 if no project (won't match any activation records)
             search_term,
             f"{search_term} %",
             f"% {search_term}",
