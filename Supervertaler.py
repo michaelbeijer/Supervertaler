@@ -5831,6 +5831,8 @@ class SupervertalerQt(QMainWindow):
                     priority_spinbox.setMaximum(num_active)  # Max = number of active termbases
                     priority_spinbox.setValue(priority if priority else 1)
                     priority_spinbox.setPrefix("#")
+                    priority_spinbox.setButtonSymbols(QSpinBox.ButtonSymbols.UpDownArrows)
+                    priority_spinbox.setEnabled(True)
                     
                     # Pink styling for priority #1
                     if priority == 1:
@@ -5839,16 +5841,44 @@ class SupervertalerQt(QMainWindow):
                     else:
                         priority_spinbox.setToolTip(f"Priority (1=highest, {num_active}=lowest). Multiple termbases can share same priority.")
                     
-                    def on_priority_change(new_priority, tb_id=tb['id']):
+                    def on_priority_change(new_priority, tb_id=tb['id'], row_idx=row):
                         curr_proj = self.current_project if hasattr(self, 'current_project') else None
                         curr_proj_id = curr_proj.id if (curr_proj and hasattr(curr_proj, 'id')) else None
                         if curr_proj_id:
                             success = termbase_mgr.set_termbase_priority(tb_id, curr_proj_id, new_priority)
                             if success:
-                                # Clear cache and refresh to update Type column (Project/Background)
+                                self.log(f"✅ Set termbase priority to #{new_priority}")
+                                # Update styling based on new priority
+                                sender = termbase_table.cellWidget(row_idx, 6)
+                                if sender:
+                                    if new_priority == 1:
+                                        sender.setStyleSheet("QSpinBox { color: #FF69B4; font-weight: bold; }")
+                                        sender.setToolTip("Priority #1 - Project Termbase (highest priority)")
+                                    else:
+                                        sender.setStyleSheet("")
+                                        sender.setToolTip(f"Priority (1=highest, {num_active}=lowest). Multiple termbases can share same priority.")
+                                
+                                # Update Type column for affected rows (old #1 and new #1)
+                                for r in range(termbase_table.rowCount()):
+                                    type_widget = termbase_table.cellWidget(r, 0)
+                                    priority_widget = termbase_table.cellWidget(r, 6)
+                                    if type_widget and priority_widget and isinstance(priority_widget, QSpinBox):
+                                        current_priority = priority_widget.value()
+                                        name_item = termbase_table.item(r, 1)
+                                        if current_priority == 1:
+                                            type_widget.setText("📌 Project")
+                                            type_widget.setStyleSheet("color: #FF69B4; font-weight: bold;")
+                                            if name_item:
+                                                name_item.setForeground(QColor("#FF69B4"))
+                                        else:
+                                            type_widget.setText("Background")
+                                            type_widget.setStyleSheet("color: #666;")
+                                            if name_item:
+                                                name_item.setForeground(QColor("#000"))
+                                
+                                # Clear cache for termbase matching
                                 with self.termbase_cache_lock:
                                     self.termbase_cache.clear()
-                                refresh_termbase_list()
                     
                     priority_spinbox.valueChanged.connect(on_priority_change)
                     termbase_table.setCellWidget(row, 6, priority_spinbox)
