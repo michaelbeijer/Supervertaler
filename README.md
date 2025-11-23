@@ -413,7 +413,7 @@ This software is provided as-is for both personal and commercial use.
 ---
 
 **Last Updated:** November 16, 2025  
-**Current Version:** v1.6.0
+**Current Version:** v1.6.6
 
 ## 🎯 Roadmap
 

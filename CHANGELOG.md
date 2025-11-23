@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.7.9 (November 22, 2025)
+**Current Version:** v1.6.6 (November 23, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -14,6 +14,7 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- ✅ **Simplified TM/Termbase System (v1.6.6)** - Redesigned with Read/Write checkboxes, auto-priority system, removed complex Active/Project concepts for clearer workflow
 - 🔍 **Find/Replace & TM Enhancements (v1.7.9)** - Fixed highlighting, disabled TM saves during navigation, added bidirectional TM search with language variant matching
 - 🔍 **Filter Highlighting Fix (v1.7.8)** - Fixed search term highlighting in source/target filter boxes using widget-internal highlighting
 - 🎯 **Termbase Display Customization (v1.7.7)** - User-configurable termbase match sorting and filtering for cleaner translation results
@@ -42,6 +43,47 @@ All notable changes to Supervertaler are documented in this file.
 - 🔄 **CAT Tool Integration** - memoQ, Trados, CafeTran bilingual table support
 
 **See full version history below** ↓
+
+---
+
+## [1.6.6] - November 23, 2025
+
+### ✅ Simplified TM/Termbase Management System
+
+**Major Redesign:**
+
+- 🎯 **Simple Read/Write Checkbox System**
+  - Removed confusing "Active" checkbox and "Project TM/Termbase" concepts
+  - **Translation Memories:** Simple Read (green ✓) and Write (blue ✓) checkboxes
+  - **Termbases:** Simple Read (green ✓) and Write (blue ✓) checkboxes  
+  - All TMs and termbases start completely unchecked by default
+  - Users explicitly check Read to use for matching, Write to allow updates
+  
+- 📊 **Auto-Priority System for Termbases**
+  - Priorities 1-N automatically assigned to Read-enabled termbases
+  - Priority #1 = Project Termbase (pink highlighting, highest priority)
+  - Priority #2, #3, etc. = Background termbases (lower priorities)
+  - No manual project termbase designation needed - just check Read boxes
+  - Priority based on activation order (ranking in database)
+
+- 🎨 **Cleaner Column Layout**
+  - **TMs:** `TM Name | Languages | Entries | Read | Write | Last Modified | Description`
+  - **Termbases:** `Type | Name | Languages | Terms | Read | Write | Priority`
+  - Removed redundant columns and confusing labels
+  - Type auto-shows "📌 Project" for priority #1, "Background" for others
+
+- 🔒 **Read-Only Database Defaults**
+  - New TMs created with `read_only=1` (Write unchecked by default)
+  - New termbases created with `read_only=1` (Write unchecked by default)
+  - Prevents accidental updates to reference memories
+  - User must explicitly enable Write for TMs/termbases they want to update
+
+**Benefits:**
+- Much simpler mental model: Read = use for matching, Write = allow updates
+- No more confusion about "Active" vs "Project" vs "Background"
+- Project termbase is simply the highest priority (first activated)
+- Clear visual feedback with color-coded checkboxes (green Read, blue Write)
+- Safer defaults prevent accidental corruption of reference resources
 
 ---
 

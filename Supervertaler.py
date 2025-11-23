@@ -2703,7 +2703,7 @@ class SupervertalerQt(QMainWindow):
         # Create example API keys file on first launch (after UI is ready)
         self.ensure_example_api_keys()
         
-        self.log("Welcome to Supervertaler Qt v1.6.5")
+        self.log("Welcome to Supervertaler Qt v1.6.6")
         self.log("Supervertaler: The ultimate companion tool for translators and writers.")
         
         # Load general settings (including auto-propagation)
@@ -4643,8 +4643,10 @@ class SupervertalerQt(QMainWindow):
         
         # Help message for first-time users
         help_msg = QLabel(
-            "💡 <b>Getting Started:</b> Create or import TM files below, then activate them (checkboxes) for this project. "
-            "Segments will be saved to all activated TMs."
+            "💡 <b>Translation Memories</b><br>"
+            "• <b>Read</b> (green ✓): TM is used for matching segments<br>"
+            "• <b>Write</b> (blue ✓): TM is updated with new translations<br>"
+            "• <b>Typical Setup</b>: Main TM (Read + Write) + Reference TMs (Read only)"
         )
         help_msg.setWordWrap(True)
         help_msg.setStyleSheet("background-color: #e3f2fd; padding: 8px; border-radius: 4px; color: #1976d2;")
@@ -4652,14 +4654,15 @@ class SupervertalerQt(QMainWindow):
         
         # TM list with table
         tm_table = QTableWidget()
-        tm_table.setColumnCount(6)
-        tm_table.setHorizontalHeaderLabels(["Active", "TM Name", "Languages", "Entries", "Last Modified", "Description"])
+        tm_table.setColumnCount(7)
+        tm_table.setHorizontalHeaderLabels(["TM Name", "Languages", "Entries", "Read", "Write", "Last Modified", "Description"])
         tm_table.horizontalHeader().setStretchLastSection(True)
-        tm_table.setColumnWidth(0, 60)
-        tm_table.setColumnWidth(1, 250)
-        tm_table.setColumnWidth(2, 120)
-        tm_table.setColumnWidth(3, 80)
-        tm_table.setColumnWidth(4, 150)
+        tm_table.setColumnWidth(0, 250)
+        tm_table.setColumnWidth(1, 120)
+        tm_table.setColumnWidth(2, 80)
+        tm_table.setColumnWidth(3, 60)
+        tm_table.setColumnWidth(4, 60)
+        tm_table.setColumnWidth(5, 150)
         
         # Get current project (for lambda closures below)
         current_project = self.current_project if hasattr(self, 'current_project') else None
@@ -4675,75 +4678,99 @@ class SupervertalerQt(QMainWindow):
             tm_table.setRowCount(len(tms))
             
             for row, tm in enumerate(tms):
-                # Check if active for current project
-                is_active = tm_metadata_mgr.is_tm_active(tm['id'], refresh_project_id)
+                # Check if active (Read mode) for current project  
+                # Default: not activated (Read unchecked)
+                is_readable = tm_metadata_mgr.is_tm_active(tm['id'], refresh_project_id) if refresh_project_id else False
+                # Default: not writable (Write unchecked) - read_only=True means not writable
+                # If read_only is not set in database, treat as read-only by default
+                is_writable = not tm.get('read_only', True)  # Default to True (read-only) if not set
                 
-                # Active checkbox (use CheckmarkCheckBox for clear visual feedback)
-                checkbox = CheckmarkCheckBox()
-                checkbox.setChecked(is_active)
-                
-                def on_toggle(checked, tm_id=tm['id'], row_idx=row, name_item_ref=None):
-                    # Get current project ID dynamically (not from closure!)
-                    has_current_project = hasattr(self, 'current_project')
-                    curr_proj = self.current_project if has_current_project else None
-                    has_id = curr_proj and hasattr(curr_proj, 'id')
-                    curr_proj_id = curr_proj.id if has_id else None
-                    
-                    if curr_proj_id is None:
-                        self.log(f"⚠️ Cannot toggle TM - no project loaded. Please load a project first.")
-                        # Revert checkbox state
-                        sender_checkbox = tm_table.cellWidget(row_idx, 0)
-                        if sender_checkbox:
-                            sender_checkbox.blockSignals(True)
-                            sender_checkbox.setChecked(not checked)
-                            sender_checkbox.blockSignals(False)
-                        return
-                    
-                    # Perform activation/deactivation
-                    if checked:
-                        success = tm_metadata_mgr.activate_tm(tm_id, curr_proj_id)
-                        status = "activated" if success else "failed to activate"
-                    else:
-                        success = tm_metadata_mgr.deactivate_tm(tm_id, curr_proj_id)
-                        status = "deactivated" if success else "failed to deactivate"
-                    
-                    if success:
-                        self.log(f"✅ TM {tm_id} {status} for project {curr_proj_id}")
-                        # Update name to be bold if active, normal if inactive
-                        name_item = tm_table.item(row_idx, 1)
-                        if name_item:
-                            font = name_item.font()
-                            font.setBold(checked)
-                            name_item.setFont(font)
-                    else:
-                        self.log(f"❌ Failed to {status} TM {tm_id}")
-                        # Revert checkbox on failure
-                        sender_checkbox = tm_table.cellWidget(row_idx, 0)
-                        if sender_checkbox:
-                            sender_checkbox.blockSignals(True)
-                            sender_checkbox.setChecked(not checked)
-                            sender_checkbox.blockSignals(False)
-                
-                checkbox.toggled.connect(on_toggle)
-                tm_table.setCellWidget(row, 0, checkbox)
-                
-                # Name (bold if active)
+                # TM Name (bold if readable)
                 name_item = QTableWidgetItem(tm['name'])
-                if is_active:
+                if is_readable:
                     font = name_item.font()
                     font.setBold(True)
                     name_item.setFont(font)
-                tm_table.setItem(row, 1, name_item)
+                tm_table.setItem(row, 0, name_item)
                 
                 # Languages (normalized format: nl-NL, en-US, etc.)
                 from modules.tmx_generator import normalize_lang_variant
                 src_lang = normalize_lang_variant(tm['source_lang']) if tm['source_lang'] else '?'
                 tgt_lang = normalize_lang_variant(tm['target_lang']) if tm['target_lang'] else '?'
                 langs = f"{src_lang} → {tgt_lang}"
-                tm_table.setItem(row, 2, QTableWidgetItem(langs))
+                tm_table.setItem(row, 1, QTableWidgetItem(langs))
                 
                 # Entry count
-                tm_table.setItem(row, 3, QTableWidgetItem(str(tm['entry_count'])))
+                tm_table.setItem(row, 2, QTableWidgetItem(str(tm['entry_count'])))
+                
+                # Read checkbox (green checkmark)
+                read_checkbox = CheckmarkCheckBox()
+                read_checkbox.setChecked(is_readable)
+                read_checkbox.setToolTip("Read: TM is used for matching segments")
+                
+                def on_read_toggle(checked, tm_id=tm['id'], row_idx=row):
+                    # Get current project ID dynamically
+                    curr_proj = self.current_project if hasattr(self, 'current_project') else None
+                    curr_proj_id = curr_proj.id if (curr_proj and hasattr(curr_proj, 'id')) else None
+                    
+                    if curr_proj_id is None:
+                        self.log(f"⚠️ Cannot toggle TM - no project loaded. Please load a project first.")
+                        # Revert checkbox state
+                        sender_checkbox = tm_table.cellWidget(row_idx, 3)
+                        if sender_checkbox:
+                            sender_checkbox.blockSignals(True)
+                            sender_checkbox.setChecked(not checked)
+                            sender_checkbox.blockSignals(False)
+                        return
+                    
+                    # Activate/deactivate for reading
+                    if checked:
+                        success = tm_metadata_mgr.activate_tm(tm_id, curr_proj_id)
+                    else:
+                        success = tm_metadata_mgr.deactivate_tm(tm_id, curr_proj_id)
+                    
+                    if success:
+                        status = "readable" if checked else "not readable"
+                        self.log(f"✅ TM {tm_id} set to {status}")
+                        # Update name to be bold if readable
+                        name_item = tm_table.item(row_idx, 0)
+                        if name_item:
+                            font = name_item.font()
+                            font.setBold(checked)
+                            name_item.setFont(font)
+                    else:
+                        self.log(f"❌ Failed to toggle TM {tm_id}")
+                        # Revert checkbox on failure
+                        sender_checkbox = tm_table.cellWidget(row_idx, 3)
+                        if sender_checkbox:
+                            sender_checkbox.blockSignals(True)
+                            sender_checkbox.setChecked(not checked)
+                            sender_checkbox.blockSignals(False)
+                
+                read_checkbox.toggled.connect(on_read_toggle)
+                tm_table.setCellWidget(row, 3, read_checkbox)
+                
+                # Write checkbox (blue checkmark)
+                write_checkbox = BlueCheckmarkCheckBox()
+                write_checkbox.setChecked(is_writable)
+                write_checkbox.setToolTip("Write: TM is updated with new translations")
+                
+                def on_write_toggle(checked, tm_id=tm['id'], row_idx=row):
+                    # Invert logic: checked = writable, so set read_only to NOT checked
+                    success = tm_metadata_mgr.set_read_only(tm_id, not checked)
+                    if success:
+                        status = "writable" if checked else "read-only"
+                        self.log(f"✅ TM {tm_id} set to {status}")
+                    else:
+                        # Revert on failure
+                        sender = tm_table.cellWidget(row_idx, 4)
+                        if sender:
+                            sender.blockSignals(True)
+                            sender.setChecked(not checked)
+                            sender.blockSignals(False)
+                
+                write_checkbox.toggled.connect(on_write_toggle)
+                tm_table.setCellWidget(row, 4, write_checkbox)
                 
                 # Last modified
                 modified = tm['modified_date'] or tm['created_date'] or ''
@@ -4755,11 +4782,11 @@ class SupervertalerQt(QMainWindow):
                         modified = dt.strftime("%Y-%m-%d %H:%M")
                     except:
                         pass
-                tm_table.setItem(row, 4, QTableWidgetItem(modified))
+                tm_table.setItem(row, 5, QTableWidgetItem(modified))
                 
                 # Description
                 desc_text = tm['description'] or ''
-                tm_table.setItem(row, 5, QTableWidgetItem(desc_text))
+                tm_table.setItem(row, 6, QTableWidgetItem(desc_text))
         
         refresh_tm_list()
         layout.addWidget(tm_table, stretch=1)
@@ -4794,6 +4821,94 @@ class SupervertalerQt(QMainWindow):
         layout.addLayout(button_layout)
         
         return tab
+    
+    def _show_tm_context_menu(self, tm_table, tm_metadata_mgr, refresh_callback, pos):
+        """Show context menu for TM table"""
+        current_row = tm_table.rowAt(pos.y())
+        if current_row < 0:
+            return
+        
+        # Get TM info from the row
+        name_item = tm_table.item(current_row, 1)
+        if not name_item:
+            return
+        
+        tm_name = name_item.text()
+        
+        # Find the TM in the list
+        all_tms = tm_metadata_mgr.get_all_tms()
+        tm = None
+        for t in all_tms:
+            if t['name'] == tm_name:
+                tm = t
+                break
+        
+        if not tm:
+            return
+        
+        menu = QMenu(tm_table)
+        
+        # Check if this TM is already the project TM
+        is_project_tm = tm.get('is_project_tm', False)
+        
+        # Get current project
+        current_proj = self.current_project if hasattr(self, 'current_project') else None
+        project_id = current_proj.id if (current_proj and hasattr(current_proj, 'id')) else None
+        
+        if project_id:
+            if not is_project_tm:
+                set_project_action = menu.addAction("📌 Set as Project TM")
+                set_project_action.triggered.connect(
+                    lambda: self._set_tm_as_project(tm['id'], project_id, tm_metadata_mgr, refresh_callback)
+                )
+            else:
+                unset_project_action = menu.addAction("📌 Unset as Project TM")
+                unset_project_action.triggered.connect(
+                    lambda: self._unset_tm_as_project(tm['id'], tm_metadata_mgr, refresh_callback)
+                )
+        else:
+            no_project_action = menu.addAction("⚠️ Load a project first")
+            no_project_action.setEnabled(False)
+        
+        menu.addSeparator()
+        
+        # Read-only toggle
+        is_readonly = tm.get('read_only', False)
+        readonly_text = "✏️ Set as Writable" if is_readonly else "🔒 Set as Read-Only"
+        readonly_action = menu.addAction(readonly_text)
+        readonly_action.triggered.connect(
+            lambda: self._toggle_tm_readonly(tm['id'], not is_readonly, tm_metadata_mgr, refresh_callback)
+        )
+        
+        menu.exec(tm_table.viewport().mapToGlobal(pos))
+    
+    def _set_tm_as_project(self, tm_id, project_id, tm_metadata_mgr, refresh_callback):
+        """Set a TM as the project TM"""
+        success = tm_metadata_mgr.set_as_project_tm(tm_id, project_id)
+        if success:
+            self.log(f"✅ Set TM as Project TM")
+            refresh_callback()
+        else:
+            QMessageBox.warning(self, "Error", "Failed to set TM as Project TM")
+    
+    def _unset_tm_as_project(self, tm_id, tm_metadata_mgr, refresh_callback):
+        """Unset a TM as project TM"""
+        success = tm_metadata_mgr.unset_project_tm(tm_id)
+        if success:
+            self.log(f"✅ Unset Project TM")
+            refresh_callback()
+        else:
+            QMessageBox.warning(self, "Error", "Failed to unset Project TM")
+    
+    def _toggle_tm_readonly(self, tm_id, readonly, tm_metadata_mgr, refresh_callback):
+        """Toggle read-only status of a TM"""
+        success = tm_metadata_mgr.set_read_only(tm_id, readonly)
+        if success:
+            status = "read-only" if readonly else "writable"
+            self.log(f"✅ Set TM as {status}")
+            refresh_callback()
+        else:
+            QMessageBox.warning(self, "Error", f"Failed to set TM as {'read-only' if readonly else 'writable'}")
     
     def import_tmx_file(self):
         """Import TMX file into translation memory with language variant handling"""
@@ -5560,17 +5675,29 @@ class SupervertalerQt(QMainWindow):
         search_layout.addStretch()
         layout.addLayout(search_layout)
         
+        # Help message
+        help_msg = QLabel(
+            "💡 <b>Termbases</b><br>"
+            "• <b>Read</b> (green ✓): Termbase is used for terminology matching<br>"
+            "• <b>Write</b> (blue ✓): Termbase is updated with new terms<br>"
+            "• <b>Priority</b>: Auto-assigned 1-N to Read termbases (Priority #1 = Project Termbase)"
+        )
+        help_msg.setWordWrap(True)
+        help_msg.setStyleSheet("background-color: #e3f2fd; padding: 8px; border-radius: 4px; color: #1976d2;")
+        layout.addWidget(help_msg)
+        
         # Termbase list with table
         termbase_table = QTableWidget()
-        termbase_table.setColumnCount(6)
-        termbase_table.setHorizontalHeaderLabels(["Active", "Type", "Name", "Languages", "Terms", "Ranking"])
+        termbase_table.setColumnCount(7)
+        termbase_table.setHorizontalHeaderLabels(["Type", "Name", "Languages", "Terms", "Read", "Write", "Priority"])
         termbase_table.horizontalHeader().setStretchLastSection(False)
-        termbase_table.setColumnWidth(0, 60)   # Active checkbox
-        termbase_table.setColumnWidth(1, 100)  # Type (Project/Background)
-        termbase_table.setColumnWidth(2, 200)  # Name
-        termbase_table.setColumnWidth(3, 150)  # Languages
-        termbase_table.setColumnWidth(4, 80)   # Terms
-        termbase_table.setColumnWidth(5, 80)   # Ranking
+        termbase_table.setColumnWidth(0, 100)  # Type (Project/Background)
+        termbase_table.setColumnWidth(1, 200)  # Name
+        termbase_table.setColumnWidth(2, 150)  # Languages
+        termbase_table.setColumnWidth(3, 80)   # Terms
+        termbase_table.setColumnWidth(4, 60)   # Read checkbox
+        termbase_table.setColumnWidth(5, 60)   # Write checkbox
+        termbase_table.setColumnWidth(6, 80)   # Priority
         
         # Get current project
         current_project = self.current_project if hasattr(self, 'current_project') else None
@@ -5588,159 +5715,126 @@ class SupervertalerQt(QMainWindow):
             self.log(f"  Found {len(termbases)} termbase(s) in database")
             termbase_table.setRowCount(len(termbases))
             
+            # Get list of active readable termbases with rankings for priority calculation
+            active_termbases = []
+            for tb in termbases:
+                if termbase_mgr.is_termbase_active(tb['id'], refresh_project_id) if refresh_project_id else False:
+                    ranking = tb.get('ranking', 999)
+                    active_termbases.append((tb['id'], ranking))
+            # Sort by ranking to assign priorities 1, 2, 3...
+            active_termbases.sort(key=lambda x: x[1])
+            priority_map = {tb_id: idx + 1 for idx, (tb_id, _) in enumerate(active_termbases)}
+            
             for row, tb in enumerate(termbases):
-                # Check if active for current project
-                is_active = termbase_mgr.is_termbase_active(tb['id'], refresh_project_id) if refresh_project_id else True
-                self.log(f"  Row {row}: Termbase '{tb['name']}' (ID {tb['id']}) - Active: {is_active}")
+                # Check if readable (activated) for current project
+                is_readable = termbase_mgr.is_termbase_active(tb['id'], refresh_project_id) if refresh_project_id else False
+                # Check if writable (not read-only)
+                is_writable = not tb.get('read_only', True)  # Default to True (read-only) if not set
                 
-                # Active checkbox - pink for project termbase, standard green for others
-                is_project_tb = tb.get('is_project_termbase', False)
+                # Get priority (1-N for readable termbases)
+                priority = priority_map.get(tb['id'], None) if is_readable else None
+                is_project_tb = (priority == 1)  # Priority #1 = project termbase
+                
+                # Type (Project/Background) - auto-determined by priority
                 if is_project_tb:
-                    checkbox = PinkCheckmarkCheckBox()
-                else:
-                    checkbox = CheckmarkCheckBox()
-                checkbox.setChecked(is_active)
-                self.log(f"  🔗 Setting up checkbox for termbase {tb['id']} - Initial state: {is_active}")
-                def on_toggle(checked, tb_id=tb['id']):
-                    self.log(f"")
-                    self.log(f"=" * 80)
-                    self.log(f"🔘 CHECKBOX TOGGLE EVENT FIRED!")
-                    self.log(f"  termbase_id: {tb_id}")
-                    self.log(f"  checked (new state): {checked}")
-                    
-                    # CRITICAL FIX: Get project_id dynamically from current_project, not from closure
-                    current_proj = self.current_project if hasattr(self, 'current_project') else None
-                    current_project_id = current_proj.id if (current_proj and hasattr(current_proj, 'id')) else None
-                    self.log(f"  project_id (dynamic): {current_project_id}")
-                    self.log(f"=" * 80)
-                    
-                    if not current_project_id:
-                        self.log(f"⚠️ Cannot toggle termbase - no project loaded!")
-                        QMessageBox.warning(
-                            self,
-                            "No Project Loaded",
-                            "Please open or create a project before activating/deactivating termbases.\n\n"
-                            "Termbases can only be activated for specific projects."
-                        )
-                        # Revert checkbox state
-                        checkbox.setChecked(not checked)
-                        return
-                    
-                    if checked:
-                        self.log(f"▶️ Activating termbase {tb_id} for project {current_project_id}...")
-                        termbase_mgr.activate_termbase(tb_id, current_project_id)
-                        self.log(f"✓ Activated termbase {tb_id} for project {current_project_id}")
-                    else:
-                        self.log(f"▶️ Deactivating termbase {tb_id} for project {current_project_id}...")
-                        termbase_mgr.deactivate_termbase(tb_id, current_project_id)
-                        self.log(f"✓ Deactivated termbase {tb_id} for project {current_project_id}")
-                    
-                    # Clear termbase cache to force reload
-                    self.log(f"  Clearing termbase cache...")
-                    with self.termbase_cache_lock:
-                        self.termbase_cache.clear()
-                    
-                    self.log(f"  Refreshing termbase list...")
-                    refresh_termbase_list()
-                    self.log(f"✅ Toggle complete for termbase {tb_id}")
-                
-                # Connect the toggled signal
-                self.log(f"  🔗 Connecting checkbox.toggled signal for termbase {tb['id']}")
-                checkbox.toggled.connect(on_toggle)
-                self.log(f"  ✅ Signal connected successfully")
-                termbase_table.setCellWidget(row, 0, checkbox)
-                
-                # Get ranking first (needed for type determination)
-                ranking = tb.get('ranking', None)
-                
-                # Type (Project/Background) with button to set/unset
-                type_widget = QWidget()
-                type_layout = QHBoxLayout(type_widget)
-                type_layout.setContentsMargins(2, 2, 2, 2)
-                
-                # Treat ranking #1 as project termbase if not explicitly marked
-                is_effective_project = is_project_tb or (ranking == 1 and not is_project_tb)
-                
-                if is_effective_project:
                     type_label = QLabel("📌 Project")
                     type_label.setStyleSheet("color: #FF69B4; font-weight: bold;")  # Pink
-                    type_layout.addWidget(type_label)
-                    
-                    # Unset button (only show if explicitly marked as project termbase)
-                    if is_project_tb:
-                        unset_btn = QPushButton("✕")
-                        unset_btn.setFixedSize(20, 20)
-                        unset_btn.setToolTip("Remove project termbase designation")
-                        def on_unset(tb_id=tb['id']):
-                            termbase_mgr.unset_project_termbase(tb_id)
-                            refresh_termbase_list()
-                        unset_btn.clicked.connect(on_unset)
-                        type_layout.addWidget(unset_btn)
                 else:
                     type_label = QLabel("Background")
-                    type_layout.addWidget(type_label)
-                    
-                    # Set as project button (only if this termbase belongs to current project)
-                    if project_id and tb.get('project_id') == project_id:
-                        set_btn = QPushButton("Set")
-                        set_btn.setFixedSize(40, 20)
-                        set_btn.setToolTip("Set as project termbase")
-                        def on_set(tb_id=tb['id']):
-                            termbase_mgr.set_as_project_termbase(tb_id, project_id)
-                            refresh_termbase_list()
-                        set_btn.clicked.connect(on_set)
-                        type_layout.addWidget(set_btn)
+                    type_label.setStyleSheet("color: #666;")
+                termbase_table.setCellWidget(row, 0, type_label)
                 
-                type_layout.addStretch()
-                termbase_table.setCellWidget(row, 1, type_widget)
-                
-                # Name (bold if active or project termbase)
+                # Name (bold if readable, pink if project termbase)
                 name_item = QTableWidgetItem(tb['name'])
-                # Store termbase ID in row data for delete functionality
                 name_item.setData(Qt.ItemDataRole.UserRole, tb['id'])
-                if is_active or is_project_tb:
+                if is_readable:
                     font = name_item.font()
                     font.setBold(True)
                     name_item.setFont(font)
                 if is_project_tb:
-                    name_item.setForeground(QColor("#FF69B4"))  # Pink color for project termbase
-                termbase_table.setItem(row, 2, name_item)
+                    name_item.setForeground(QColor("#FF69B4"))  # Pink for project termbase
+                termbase_table.setItem(row, 1, name_item)
                 
                 # Languages
                 langs = f"{tb['source_lang'] or '?'} → {tb['target_lang'] or '?'}"
-                termbase_table.setItem(row, 3, QTableWidgetItem(langs))
+                termbase_table.setItem(row, 2, QTableWidgetItem(langs))
                 
                 # Term count
                 try:
-                    # Recalculate live term count to avoid stale values
-                    # IMPORTANT: termbase_id is stored as TEXT, so cast tb['id'] to TEXT for comparison
                     self.db_manager.cursor.execute("SELECT COUNT(*) FROM termbase_terms WHERE termbase_id = CAST(? AS TEXT)", (tb['id'],))
                     live_count = self.db_manager.cursor.fetchone()[0]
-                    self.log(f"  📊 Live term count for termbase {tb['id']} ('{tb['name']}'): {live_count}")
                 except Exception as e:
                     live_count = tb.get('term_count', 0)
-                    self.log(f"⚠️ Term count query failed for termbase {tb['id']}: {e}")
-                termbase_table.setItem(row, 4, QTableWidgetItem(str(live_count)))
+                termbase_table.setItem(row, 3, QTableWidgetItem(str(live_count)))
                 
-                # Ranking (read-only, assigned automatically on activation)
-                # Note: ranking already retrieved earlier for type determination
-                if is_project_tb:
-                    # Project termbases don't use ranking system
-                    ranking_item = QTableWidgetItem("—")
-                    ranking_item.setForeground(QColor("#999"))
-                    ranking_item.setToolTip("Project termbases don't use ranking (always highlighted pink)")
-                    self.log(f"  Termbase '{tb['name']}' (ID {tb['id']}): Project termbase (no ranking)")
-                elif ranking is not None:
-                    ranking_item = QTableWidgetItem(f"#{ranking}")
-                    ranking_item.setToolTip(f"Priority ranking #{ranking} (lower = higher priority)")
-                    self.log(f"  Termbase '{tb['name']}' (ID {tb['id']}): Ranking #{ranking}")
+                # Read checkbox (green)
+                read_checkbox = CheckmarkCheckBox()
+                read_checkbox.setChecked(is_readable)
+                read_checkbox.setToolTip("Read: Termbase is used for terminology matching")
+                
+                def on_read_toggle(checked, tb_id=tb['id'], row_idx=row):
+                    curr_proj = self.current_project if hasattr(self, 'current_project') else None
+                    curr_proj_id = curr_proj.id if (curr_proj and hasattr(curr_proj, 'id')) else None
+                    
+                    if not curr_proj_id:
+                        self.log(f"⚠️ Cannot toggle termbase - no project loaded")
+                        sender = termbase_table.cellWidget(row_idx, 4)
+                        if sender:
+                            sender.blockSignals(True)
+                            sender.setChecked(not checked)
+                            sender.blockSignals(False)
+                        return
+                    
+                    if checked:
+                        termbase_mgr.activate_termbase(tb_id, curr_proj_id)
+                    else:
+                        termbase_mgr.deactivate_termbase(tb_id, curr_proj_id)
+                    
+                    # Clear cache and refresh
+                    with self.termbase_cache_lock:
+                        self.termbase_cache.clear()
+                    refresh_termbase_list()
+                
+                read_checkbox.toggled.connect(on_read_toggle)
+                termbase_table.setCellWidget(row, 4, read_checkbox)
+                
+                # Write checkbox (blue)
+                write_checkbox = BlueCheckmarkCheckBox()
+                write_checkbox.setChecked(is_writable)
+                write_checkbox.setToolTip("Write: Termbase is updated with new terms")
+                
+                def on_write_toggle(checked, tb_id=tb['id'], row_idx=row):
+                    # Invert logic: checked = writable, so set read_only to NOT checked
+                    success = termbase_mgr.set_termbase_read_only(tb_id, not checked)
+                    if success:
+                        status = "writable" if checked else "read-only"
+                        self.log(f"✅ Termbase {tb_id} set to {status}")
+                    else:
+                        # Revert on failure
+                        sender = termbase_table.cellWidget(row_idx, 5)
+                        if sender:
+                            sender.blockSignals(True)
+                            sender.setChecked(not checked)
+                            sender.blockSignals(False)
+                
+                write_checkbox.toggled.connect(on_write_toggle)
+                termbase_table.setCellWidget(row, 5, write_checkbox)
+                
+                # Priority (only shown for readable termbases)
+                if priority is not None:
+                    priority_item = QTableWidgetItem(f"#{priority}")
+                    if priority == 1:
+                        priority_item.setToolTip("Priority #1 - Project Termbase (highest priority)")
+                        priority_item.setForeground(QColor("#FF69B4"))  # Pink
+                    else:
+                        priority_item.setToolTip(f"Priority #{priority} (lower number = higher priority)")
+                    priority_item.setFlags(priority_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
                 else:
-                    ranking_item = QTableWidgetItem("—")
-                    ranking_item.setForeground(QColor("#999"))
-                    ranking_item.setToolTip("No ranking - termbase not activated for current project")
-                    self.log(f"  Termbase '{tb['name']}' (ID {tb['id']}): No ranking (inactive or not assigned)")
-                ranking_item.setFlags(ranking_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
-                termbase_table.setItem(row, 5, ranking_item)
+                    priority_item = QTableWidgetItem("—")
+                    priority_item.setForeground(QColor("#999"))
+                    priority_item.setToolTip("No priority - termbase not readable")
+                    priority_item.setFlags(priority_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+                termbase_table.setItem(row, 6, priority_item)
         
         # Store callback as instance attribute so add_term_to_termbase can call it
         self.termbase_tab_refresh_callback = refresh_termbase_list
@@ -11322,10 +11416,17 @@ class SupervertalerQt(QMainWindow):
             self.log(f"   - To fix: Go to Translation Resources > Translation Memories > TM List and check the Active checkbox")
             return
         
-        # Save to each activated TM
+        # Save to each activated TM (skip read-only ones)
         saved_count = 0
+        skipped_readonly = 0
         for tm_id in tm_ids:
             try:
+                # Check if TM is read-only
+                tm_info = self.tm_metadata_mgr.get_tm_by_tm_id(tm_id)
+                if tm_info and tm_info.get('read_only'):
+                    skipped_readonly += 1
+                    continue
+                
                 self.db_manager.add_translation_unit(
                     source=source,
                     target=target,
@@ -11338,9 +11439,14 @@ class SupervertalerQt(QMainWindow):
                 self.log(f"⚠️ Could not save to TM '{tm_id}': {e}")
         
         if saved_count > 0:
-            self.log(f"💾 Saved segment to {saved_count} TM(s)")
+            msg = f"💾 Saved segment to {saved_count} TM(s)"
+            if skipped_readonly > 0:
+                msg += f" (skipped {skipped_readonly} read-only)"
+            self.log(msg)
             # Invalidate cache so prefetched segments get fresh TM matches
             self.invalidate_translation_cache()
+        elif skipped_readonly > 0:
+            self.log(f"ℹ️ Segment not saved - {skipped_readonly} activated TM(s) are read-only")
     
     def invalidate_translation_cache(self, smart_invalidation=True):
         """

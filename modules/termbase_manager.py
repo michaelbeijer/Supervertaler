@@ -98,7 +98,7 @@ class TermbaseManager:
                 SELECT 
                     t.id, t.name, t.source_lang, t.target_lang, t.project_id,
                     t.description, t.is_global, t.priority, t.is_project_termbase, 
-                    t.ranking, t.created_date, t.modified_date,
+                    t.ranking, t.read_only, t.created_date, t.modified_date,
                     COUNT(gt.id) as term_count
                 FROM termbases t
                 LEFT JOIN termbase_terms gt ON CAST(t.id AS TEXT) = gt.termbase_id
@@ -118,10 +118,11 @@ class TermbaseManager:
                     'is_global': row[6],
                     'priority': row[7] or 50,  # Default to 50 if NULL (legacy)
                     'is_project_termbase': bool(row[8]),
-                    'ranking': row[9],  # NEW: termbase ranking
-                    'created_date': row[10],
-                    'modified_date': row[11],
-                    'term_count': row[12] or 0
+                    'ranking': row[9],  # Termbase ranking
+                    'read_only': bool(row[10]) if row[10] is not None else True,  # Default to read-only if NULL
+                    'created_date': row[11],
+                    'modified_date': row[12],
+                    'term_count': row[13] or 0
                 })
             
             return termbases
@@ -331,6 +332,21 @@ class TermbaseManager:
             self.log(f"✗ Error deactivating termbase: {e}")
             import traceback
             self.log(f"Traceback: {traceback.format_exc()}")
+            return False
+    
+    def set_termbase_read_only(self, termbase_id: int, read_only: bool) -> bool:
+        """Set termbase read-only status (True = read-only, False = writable)"""
+        try:
+            cursor = self.db_manager.cursor
+            cursor.execute("""
+                UPDATE termbases SET read_only = ? WHERE id = ?
+            """, (1 if read_only else 0, termbase_id))
+            self.db_manager.connection.commit()
+            status = "read-only" if read_only else "writable"
+            self.log(f"✓ Set termbase {termbase_id} to {status}")
+            return True
+        except Exception as e:
+            self.log(f"✗ Error setting termbase read_only: {e}")
             return False
     
     def set_as_project_termbase(self, termbase_id: int, project_id: int) -> bool:

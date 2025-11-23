@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "Supervertaler"
-version = "1.6.0"
+version = "1.6.6"
 description = "Professional AI-powered CAT tool with complete termbase system, voice dictation, and modern PyQt6 interface"
 readme = "README.md"
 requires-python = ">=3.12"

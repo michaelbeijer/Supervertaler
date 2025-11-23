@@ -188,7 +188,10 @@ class DatabaseManager:
                 created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 modified_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 entry_count INTEGER DEFAULT 0,  -- Cached count, updated on changes
-                last_used TIMESTAMP
+                last_used TIMESTAMP,
+                is_project_tm BOOLEAN DEFAULT 0,  -- Whether this is the special project TM
+                read_only BOOLEAN DEFAULT 1,  -- Whether this TM should not be updated (default: read-only, Write unchecked)
+                project_id INTEGER  -- Which project this TM belongs to (NULL = global)
             )
         """)
         
@@ -210,6 +213,27 @@ class DatabaseManager:
             ON translation_memories(tm_id)
         """)
         
+        # Migration: Add is_project_tm, read_only, and project_id columns if they don't exist
+        try:
+            self.cursor.execute("PRAGMA table_info(translation_memories)")
+            columns = [row[1] for row in self.cursor.fetchall()]
+            
+            if 'is_project_tm' not in columns:
+                self.cursor.execute("ALTER TABLE translation_memories ADD COLUMN is_project_tm BOOLEAN DEFAULT 0")
+                print("✓ Added is_project_tm column to translation_memories")
+            
+            if 'read_only' not in columns:
+                self.cursor.execute("ALTER TABLE translation_memories ADD COLUMN read_only BOOLEAN DEFAULT 1")
+                print("✓ Added read_only column to translation_memories (default: read-only)")
+            
+            if 'project_id' not in columns:
+                self.cursor.execute("ALTER TABLE translation_memories ADD COLUMN project_id INTEGER")
+                print("✓ Added project_id column to translation_memories")
+            
+            self.connection.commit()
+        except Exception as e:
+            print(f"Migration info: {e}")
+        
         # ============================================
         # TERMBASE TABLES
         # ============================================
@@ -227,6 +251,7 @@ class DatabaseManager:
                 is_project_termbase BOOLEAN DEFAULT 0,  -- True if this is a project-specific termbase
                 priority INTEGER DEFAULT 50,  -- DEPRECATED: Use ranking instead
                 ranking INTEGER,  -- Termbase activation ranking: 1 = highest priority, 2 = second highest, etc. Only for activated termbases.
+                read_only BOOLEAN DEFAULT 1,  -- Whether this termbase should not be updated (default: read-only, Write unchecked)
                 created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 modified_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
@@ -251,6 +276,14 @@ class DatabaseManager:
         # Migration: Add ranking column if it doesn't exist
         try:
             self.cursor.execute("ALTER TABLE termbases ADD COLUMN ranking INTEGER")
+            self.connection.commit()
+        except Exception:
+            # Column already exists, ignore
+            pass
+        
+        # Migration: Add read_only column if it doesn't exist
+        try:
+            self.cursor.execute("ALTER TABLE termbases ADD COLUMN read_only BOOLEAN DEFAULT 1")
             self.connection.commit()
         except Exception:
             # Column already exists, ignore

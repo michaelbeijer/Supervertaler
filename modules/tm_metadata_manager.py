@@ -31,7 +31,9 @@ class TMMetadataManager:
     # ========================================================================
     
     def create_tm(self, name: str, tm_id: str, source_lang: Optional[str] = None, 
-                  target_lang: Optional[str] = None, description: str = "") -> Optional[int]:
+                  target_lang: Optional[str] = None, description: str = "",
+                  is_project_tm: bool = False, read_only: bool = False,
+                  project_id: Optional[int] = None) -> Optional[int]:
         """
         Create a new TM metadata entry
         
@@ -41,6 +43,9 @@ class TMMetadataManager:
             source_lang: Source language code (e.g., 'en', 'nl')
             target_lang: Target language code
             description: Optional description
+            is_project_tm: Whether this is the special project TM (only one per project)
+            read_only: Whether this TM should not be updated
+            project_id: Which project this TM belongs to (NULL = global)
             
         Returns:
             TM database ID or None if failed
@@ -49,15 +54,28 @@ class TMMetadataManager:
             cursor = self.db_manager.cursor
             now = datetime.now().isoformat()
             
+            # If this is a project TM, check if one already exists for this project
+            if is_project_tm and project_id:
+                cursor.execute("""
+                    SELECT id, name FROM translation_memories 
+                    WHERE project_id = ? AND is_project_tm = 1
+                """, (project_id,))
+                existing = cursor.fetchone()
+                if existing:
+                    self.log(f"✗ Project {project_id} already has a project TM: {existing[1]}")
+                    return None
+            
             cursor.execute("""
                 INSERT INTO translation_memories 
-                (name, tm_id, source_lang, target_lang, description, created_date, modified_date, entry_count)
-                VALUES (?, ?, ?, ?, ?, ?, ?, 0)
-            """, (name, tm_id, source_lang, target_lang, description, now, now))
+                (name, tm_id, source_lang, target_lang, description, created_date, modified_date, entry_count,
+                 is_project_tm, read_only, project_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)
+            """, (name, tm_id, source_lang, target_lang, description, now, now, is_project_tm, read_only, project_id))
             
             self.db_manager.connection.commit()
             db_id = cursor.lastrowid
-            self.log(f"✓ Created TM: {name} (ID: {db_id}, tm_id: {tm_id})")
+            tm_type = "project TM" if is_project_tm else "TM"
+            self.log(f"✓ Created {tm_type}: {name} (ID: {db_id}, tm_id: {tm_id})")
             return db_id
         except Exception as e:
             self.log(f"✗ Error creating TM: {e}")
@@ -69,7 +87,8 @@ class TMMetadataManager:
         
         Returns:
             List of TM dictionaries with fields: id, name, tm_id, source_lang, target_lang,
-            description, entry_count, created_date, modified_date, last_used
+            description, entry_count, created_date, modified_date, last_used,
+            is_project_tm, read_only, project_id
         """
         try:
             cursor = self.db_manager.cursor
@@ -79,11 +98,12 @@ class TMMetadataManager:
                 SELECT 
                     tm.id, tm.name, tm.tm_id, tm.source_lang, tm.target_lang,
                     tm.description, tm.created_date, tm.modified_date, tm.last_used,
-                    COUNT(tu.id) as actual_count
+                    COUNT(tu.id) as actual_count,
+                    tm.is_project_tm, tm.read_only, tm.project_id
                 FROM translation_memories tm
                 LEFT JOIN translation_units tu ON tm.tm_id = tu.tm_id
                 GROUP BY tm.id
-                ORDER BY tm.name ASC
+                ORDER BY tm.is_project_tm DESC, tm.name ASC
             """)
             
             tms = []
@@ -98,7 +118,10 @@ class TMMetadataManager:
                     'created_date': row[6],
                     'modified_date': row[7],
                     'last_used': row[8],
-                    'entry_count': row[9] or 0
+                    'entry_count': row[9],
+                    'is_project_tm': bool(row[10]) if len(row) > 10 else False,
+                    'read_only': bool(row[11]) if len(row) > 11 else False,
+                    'project_id': row[12] if len(row) > 12 else None
                 })
             
             return tms
@@ -141,41 +164,6 @@ class TMMetadataManager:
             return None
         except Exception as e:
             self.log(f"✗ Error fetching TM: {e}")
-            return None
-    
-    def get_tm_by_tm_id(self, tm_id: str) -> Optional[Dict]:
-        """Get TM metadata by tm_id string"""
-        try:
-            cursor = self.db_manager.cursor
-            
-            cursor.execute("""
-                SELECT 
-                    tm.id, tm.name, tm.tm_id, tm.source_lang, tm.target_lang,
-                    tm.description, tm.created_date, tm.modified_date, tm.last_used,
-                    COUNT(tu.id) as actual_count
-                FROM translation_memories tm
-                LEFT JOIN translation_units tu ON tm.tm_id = tu.tm_id
-                WHERE tm.tm_id = ?
-                GROUP BY tm.id
-            """, (tm_id,))
-            
-            row = cursor.fetchone()
-            if row:
-                return {
-                    'id': row[0],
-                    'name': row[1],
-                    'tm_id': row[2],
-                    'source_lang': row[3],
-                    'target_lang': row[4],
-                    'description': row[5],
-                    'created_date': row[6],
-                    'modified_date': row[7],
-                    'last_used': row[8],
-                    'entry_count': row[9] or 0
-                }
-            return None
-        except Exception as e:
-            self.log(f"✗ Error fetching TM by tm_id: {e}")
             return None
     
     def update_tm(self, tm_db_id: int, name: Optional[str] = None, 
@@ -367,3 +355,151 @@ class TMMetadataManager:
         except Exception as e:
             self.log(f"✗ Error fetching active tm_ids: {e}")
             return []
+    
+    # ========================================================================
+    # PROJECT TM MANAGEMENT (similar to termbases)
+    # ========================================================================
+    
+    def set_as_project_tm(self, tm_db_id: int, project_id: int) -> bool:
+        """
+        Set a TM as the project TM for a specific project.
+        Only one TM can be the project TM per project (automatically unsets others).
+        """
+        try:
+            cursor = self.db_manager.cursor
+            
+            # First, unset any existing project TM for this project
+            cursor.execute("""
+                UPDATE translation_memories 
+                SET is_project_tm = 0 
+                WHERE project_id = ? AND is_project_tm = 1
+            """, (project_id,))
+            
+            # Then set the new one
+            cursor.execute("""
+                UPDATE translation_memories 
+                SET is_project_tm = 1, project_id = ?
+                WHERE id = ?
+            """, (project_id, tm_db_id))
+            
+            self.db_manager.connection.commit()
+            self.log(f"✓ Set TM {tm_db_id} as project TM for project {project_id}")
+            return True
+        except Exception as e:
+            self.log(f"✗ Error setting project TM: {e}")
+            return False
+    
+    def unset_project_tm(self, tm_db_id: int) -> bool:
+        """Unset a TM as project TM"""
+        try:
+            cursor = self.db_manager.cursor
+            
+            cursor.execute("""
+                UPDATE translation_memories 
+                SET is_project_tm = 0 
+                WHERE id = ?
+            """, (tm_db_id,))
+            
+            self.db_manager.connection.commit()
+            self.log(f"✓ Unset TM {tm_db_id} as project TM")
+            return True
+        except Exception as e:
+            self.log(f"✗ Error unsetting project TM: {e}")
+            return False
+    
+    def get_project_tm(self, project_id: int) -> Optional[Dict]:
+        """Get the project TM for a specific project"""
+        try:
+            cursor = self.db_manager.cursor
+            
+            cursor.execute("""
+                SELECT 
+                    tm.id, tm.name, tm.tm_id, tm.source_lang, tm.target_lang,
+                    tm.description, tm.created_date, tm.modified_date, tm.last_used,
+                    COUNT(tu.id) as actual_count,
+                    tm.is_project_tm, tm.read_only, tm.project_id
+                FROM translation_memories tm
+                LEFT JOIN translation_units tu ON tm.tm_id = tu.tm_id
+                WHERE tm.project_id = ? AND tm.is_project_tm = 1
+                GROUP BY tm.id
+            """, (project_id,))
+            
+            row = cursor.fetchone()
+            if row:
+                return {
+                    'id': row[0],
+                    'name': row[1],
+                    'tm_id': row[2],
+                    'source_lang': row[3],
+                    'target_lang': row[4],
+                    'description': row[5],
+                    'created_date': row[6],
+                    'modified_date': row[7],
+                    'last_used': row[8],
+                    'entry_count': row[9],
+                    'is_project_tm': bool(row[10]),
+                    'read_only': bool(row[11]),
+                    'project_id': row[12]
+                }
+            return None
+        except Exception as e:
+            self.log(f"✗ Error fetching project TM: {e}")
+            return None
+    
+    def get_tm_by_tm_id(self, tm_id: str) -> Optional[Dict]:
+        """Get TM by its tm_id string"""
+        try:
+            cursor = self.db_manager.cursor
+            
+            cursor.execute("""
+                SELECT 
+                    tm.id, tm.name, tm.tm_id, tm.source_lang, tm.target_lang,
+                    tm.description, tm.created_date, tm.modified_date, tm.last_used,
+                    COUNT(tu.id) as actual_count,
+                    tm.is_project_tm, tm.read_only, tm.project_id
+                FROM translation_memories tm
+                LEFT JOIN translation_units tu ON tm.tm_id = tu.tm_id
+                WHERE tm.tm_id = ?
+                GROUP BY tm.id
+            """, (tm_id,))
+            
+            row = cursor.fetchone()
+            if row:
+                return {
+                    'id': row[0],
+                    'name': row[1],
+                    'tm_id': row[2],
+                    'source_lang': row[3],
+                    'target_lang': row[4],
+                    'description': row[5],
+                    'created_date': row[6],
+                    'modified_date': row[7],
+                    'last_used': row[8],
+                    'entry_count': row[9],
+                    'is_project_tm': bool(row[10]) if len(row) > 10 else False,
+                    'read_only': bool(row[11]) if len(row) > 11 else False,
+                    'project_id': row[12] if len(row) > 12 else None
+                }
+            return None
+        except Exception as e:
+            self.log(f"✗ Error fetching TM by tm_id: {e}")
+            return None
+    
+    def set_read_only(self, tm_db_id: int, read_only: bool) -> bool:
+        """Set whether a TM is read-only (cannot be updated)"""
+        try:
+            cursor = self.db_manager.cursor
+            
+            cursor.execute("""
+                UPDATE translation_memories 
+                SET read_only = ?
+                WHERE id = ?
+            """, (read_only, tm_db_id))
+            
+            self.db_manager.connection.commit()
+            status = "read-only" if read_only else "writable"
+            self.log(f"✓ Set TM {tm_db_id} as {status}")
+            return True
+        except Exception as e:
+            self.log(f"✗ Error setting read-only status: {e}")
+            return False
