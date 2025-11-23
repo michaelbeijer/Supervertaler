@@ -540,6 +540,12 @@ class TermviewWidget(QWidget):
                         original_term = text[pos:pos + len(term)]
                         tokens_with_positions.append((pos, len(term), original_term))
                         used_positions.update(term_positions)
+                        self.log(f"    ✅ Added multi-word token: '{original_term}' covering positions {pos}-{pos+len(term)}")
+        
+        # DEBUG: Log used_positions after first pass
+        if ' ' in sorted(matches.keys(), key=len, reverse=True)[0]:
+            self.log(f"🔍 After first pass: {len(used_positions)} positions marked as used")
+            self.log(f"    Used positions: {sorted(list(used_positions))[:20]}...")
         
         # Second pass: fill in gaps with ALL words/numbers/punctuation combos
         # Enhanced pattern to capture words, numbers, and combinations like "gew.%", "0,1", etc.
