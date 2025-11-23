@@ -337,8 +337,6 @@ class TermviewWidget(QWidget):
             return
         
         # Create one TermBlock for each match
-        self.source_label.setText(source_text)
-        
         for match in termbase_matches:
             source_term = match.get('source_term', match.get('source', ''))
             target_term = match.get('target_term', match.get('target', ''))
