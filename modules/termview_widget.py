@@ -452,15 +452,21 @@ class TermviewWidget(QWidget):
         used_positions = set()
         tokens_with_positions = []
         
-        # First pass: find multi-word terms
+        # First pass: find multi-word terms with proper word boundary checking
         for term in matched_terms:
             if ' ' in term:  # Only process multi-word terms in first pass
-                # Find all occurrences of this term
-                start = 0
-                while True:
-                    pos = text_lower.find(term, start)
-                    if pos == -1:
-                        break
+                # Use regex with word boundaries to find term
+                term_escaped = re.escape(term)
+                
+                # Check if term has punctuation - use different pattern
+                if any(char in term for char in ['.', '%', ',', '-', '/']):
+                    pattern = r'(?<!\w)' + term_escaped + r'(?!\w)'
+                else:
+                    pattern = r'\b' + term_escaped + r'\b'
+                
+                # Find all matches using regex
+                for match in re.finditer(pattern, text_lower):
+                    pos = match.start()
                     
                     # Check if this position overlaps with already matched terms
                     term_positions = set(range(pos, pos + len(term)))
@@ -469,8 +475,6 @@ class TermviewWidget(QWidget):
                         original_term = text[pos:pos + len(term)]
                         tokens_with_positions.append((pos, len(term), original_term))
                         used_positions.update(term_positions)
-                    
-                    start = pos + 1
         
         # Second pass: fill in gaps with ALL words/numbers/punctuation combos
         # Enhanced pattern to capture words, numbers, and combinations like "gew.%", "0,1", etc.
