@@ -357,14 +357,14 @@ class TermviewWidget(QWidget):
             self.info_label.setText("No words to analyze")
             return
         
-        # DEBUG: Log first 5 tokens with their lookups
+        # DEBUG: Log ALL tokens with their lookups
         if len(tokens) > 0:
-            self.log(f"🔍 First 5 tokens and lookups:")
-            for i, tok in enumerate(tokens[:5]):
+            self.log(f"🔍 ALL {len(tokens)} tokens and lookups:")
+            for i, tok in enumerate(tokens):
                 tok_clean = tok.rstrip('.,;:!?')
                 lookup_key = tok_clean.lower()
                 found = lookup_key in all_matches
-                self.log(f"  {i+1}. '{tok}' → clean:'{tok_clean}' → key:'{lookup_key}' → {'FOUND' if found else 'not found'}")
+                self.log(f"  {i+1}. '{tok}' → {'FOUND' if found else 'not found'}")
         
         # Search termbases for each token (use pre-fetched matches)
         term_blocks_created = 0
