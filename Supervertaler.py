@@ -9795,7 +9795,14 @@ class SupervertalerQt(QMainWindow):
         # Add grid container to top of left vertical splitter
         left_vertical_splitter.addWidget(grid_container)
         
-        # Bottom of left side: Comments panel only
+        # Bottom of left side: Tab widget with Comments and Termview
+        from PyQt6.QtWidgets import QTabWidget
+        from modules.termview_widget import TermviewWidget
+        
+        bottom_tabs = QTabWidget()
+        bottom_tabs.setStyleSheet("QTabBar::tab { outline: 0; } QTabBar::tab:focus { outline: none; } QTabBar::tab:selected { border-bottom: 1px solid #2196F3; background-color: rgba(33, 150, 243, 0.08); }")
+        
+        # Comments tab
         comments_widget = QWidget()
         comments_layout = QVBoxLayout(comments_widget)
         comments_layout.setContentsMargins(5, 5, 5, 5)
@@ -9809,7 +9816,15 @@ class SupervertalerQt(QMainWindow):
         self.tab_notes_edit.textChanged.connect(self.on_tab_notes_change)
         comments_layout.addWidget(self.tab_notes_edit)
         
-        left_vertical_splitter.addWidget(comments_widget)
+        # Termview tab
+        self.termview_widget = TermviewWidget(self, db_manager=self.db_manager, log_callback=self.log)
+        self.termview_widget.term_insert_requested.connect(self.insert_termview_text)
+        
+        # Add tabs
+        bottom_tabs.addTab(comments_widget, "💬 Comments")
+        bottom_tabs.addTab(self.termview_widget, "🔍 Termview")
+        
+        left_vertical_splitter.addWidget(bottom_tabs)
         
         # Set vertical splitter proportions: Grid larger, editor smaller
         left_vertical_splitter.setSizes([600, 200])
@@ -17470,6 +17485,37 @@ class SupervertalerQt(QMainWindow):
                 # Move cursor to end of text
                 target_widget.moveCursor(QTextCursor.MoveOperation.End)
     
+    def insert_termview_text(self, text: str):
+        """Insert text from Termview into the currently active target field"""
+        try:
+            # Find the active target editor
+            current_row = self.table.currentRow()
+            if current_row >= 0:
+                target_widget = self.table.cellWidget(current_row, 3)
+                if target_widget and hasattr(target_widget, 'textCursor'):
+                    # Insert at current cursor position
+                    cursor = target_widget.textCursor()
+                    cursor.insertText(text)
+                    target_widget.setFocus()
+                    self.log(f"✓ Inserted term: {text}")
+                    return
+            
+            # Fallback: try tab editor panels
+            if hasattr(self, 'tabbed_panels'):
+                for panel in self.tabbed_panels:
+                    if hasattr(panel, 'editor_widget'):
+                        editor = panel.editor_widget
+                        if editor.target_editor.hasFocus() or True:  # Insert into first available
+                            cursor = editor.target_editor.textCursor()
+                            cursor.insertText(text)
+                            editor.target_editor.setFocus()
+                            self.log(f"✓ Inserted term: {text}")
+                            return
+            
+            self.log("⚠️ No active target field found for insertion")
+        except Exception as e:
+            self.log(f"✗ Error inserting termview text: {e}")
+    
     def save_tab_notes(self):
         """Save comments in tab editor"""
         if not hasattr(self, 'tab_current_segment_id') or not self.tab_current_segment_id:
@@ -17517,6 +17563,15 @@ class SupervertalerQt(QMainWindow):
                         panel.notes_widget.notes_editor.setPlainText(notes)
                 except Exception as e:
                     self.log(f"Error updating tabbed panel: {e}")
+        
+        # Update Termview widget
+        if hasattr(self, 'termview_widget') and self.current_project:
+            try:
+                source_lang = getattr(self.current_project, 'source_lang', 'en')
+                target_lang = getattr(self.current_project, 'target_lang', 'nl')
+                self.termview_widget.update_for_segment(source_text, source_lang, target_lang)
+            except Exception as e:
+                self.log(f"Error updating termview: {e}")
     
     # ========================================================================
     # DOCUMENT VIEW METHODS
