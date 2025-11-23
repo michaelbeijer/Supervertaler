@@ -338,8 +338,20 @@ class TermviewWidget(QWidget):
         # Get all termbase matches first to detect multi-word terms
         all_matches = self.get_all_termbase_matches(source_text)
         
+        # DEBUG: Log what matches were found
+        if all_matches:
+            self.log(f"🔍 Termview: Found {len(all_matches)} unique terms in termbase")
+            for term_key in sorted(all_matches.keys(), key=len, reverse=True)[:5]:
+                self.log(f"  - '{term_key}' ({len(all_matches[term_key])} translation(s))")
+        
         # Create tokens, respecting multi-word terms
         tokens = self.tokenize_with_multiword_terms(source_text, all_matches)
+        
+        # DEBUG: Log the tokens created
+        if tokens:
+            self.log(f"🔍 Termview: Created {len(tokens)} tokens")
+            if len(tokens) <= 15:
+                self.log(f"  Tokens: {tokens}")
         
         if not tokens:
             self.info_label.setText("No words to analyze")
