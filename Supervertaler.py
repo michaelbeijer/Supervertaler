@@ -17589,10 +17589,8 @@ class SupervertalerQt(QMainWindow):
             try:
                 # Get termbase matches from the segment's cached data if available
                 termbase_matches = []
-                if hasattr(self, 'termbase_cache') and row in self.termbase_cache:
-                    cached_matches = self.termbase_cache[row]
-                    # Convert to simple format: [{source_term, target_term, ...}]
-                    termbase_matches = cached_matches
+                if hasattr(self, 'termbase_cache') and segment_id in self.termbase_cache:
+                    termbase_matches = self.termbase_cache[segment_id]
                 
                 self.termview_widget.update_with_matches(source_text, termbase_matches)
             except Exception as e:
