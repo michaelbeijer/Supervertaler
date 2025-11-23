@@ -272,13 +272,30 @@ class TermbaseManager:
             
             self.log(f"🔵 ACTIVATE: termbase_id={termbase_id}, project_id={project_id}")
             
-            # Insert or update activation record
+            # Check if activation record already exists
             cursor.execute("""
-                INSERT OR REPLACE INTO termbase_activation (termbase_id, project_id, is_active)
-                VALUES (?, ?, 1)
+                SELECT activated_date FROM termbase_activation 
+                WHERE termbase_id = ? AND project_id = ?
             """, (termbase_id, project_id))
+            existing = cursor.fetchone()
             
-            self.log(f"  ✓ Inserted activation record")
+            if existing:
+                # Preserve original activated_date when re-activating
+                cursor.execute("""
+                    UPDATE termbase_activation 
+                    SET is_active = 1
+                    WHERE termbase_id = ? AND project_id = ?
+                """, (termbase_id, project_id))
+                self.log(f"  ✓ Updated activation record (preserved timestamp: {existing[0]})")
+            else:
+                # Create new activation record with current timestamp
+                cursor.execute("""
+                    INSERT INTO termbase_activation (termbase_id, project_id, is_active)
+                    VALUES (?, ?, 1)
+                """, (termbase_id, project_id))
+                self.log(f"  ✓ Created new activation record")
+            
+            self.log(f"  ✓ Activation record updated")
             
             # Assign rankings to all activated termbases for this project
             self._reassign_rankings_for_project(project_id)
@@ -377,6 +394,30 @@ class TermbaseManager:
         except Exception as e:
             self.log(f"✗ Error setting project termbase: {e}")
             return False
+    
+    def get_active_termbase_ids(self, project_id: int) -> List[int]:
+        """
+        Get list of active termbase IDs for a project (for saving to project file)
+        
+        Returns:
+            List of termbase IDs (not database IDs)
+        """
+        try:
+            cursor = self.db_manager.cursor
+            cursor.execute("""
+                SELECT t.id
+                FROM termbases t
+                INNER JOIN termbase_activation ta ON t.id = ta.termbase_id
+                WHERE ta.project_id = ? AND ta.is_active = 1
+                ORDER BY ta.activated_date ASC
+            """, (project_id,))
+            
+            active_ids = [row[0] for row in cursor.fetchall()]
+            self.log(f"📋 Found {len(active_ids)} active termbases for project {project_id}: {active_ids}")
+            return active_ids
+        except Exception as e:
+            self.log(f"✗ Error getting active termbase IDs: {e}")
+            return []
     
     def _reassign_rankings_for_project(self, project_id: int):
         """

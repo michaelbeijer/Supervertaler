@@ -221,6 +221,7 @@ class Project:
     modified: str = ""
     prompt_settings: Dict[str, Any] = None  # Store active prompt settings
     tm_settings: Dict[str, Any] = None  # Store activated TM settings
+    termbase_settings: Dict[str, Any] = None  # Store activated termbase settings
     id: int = None  # Unique project ID for TM activation tracking
     
     def __post_init__(self):
@@ -234,6 +235,8 @@ class Project:
             self.prompt_settings = {}
         if self.tm_settings is None:
             self.tm_settings = {}
+        if self.termbase_settings is None:
+            self.termbase_settings = {}
         # Generate ID if not set (for backward compatibility with old projects)
         if self.id is None:
             import hashlib
@@ -258,6 +261,9 @@ class Project:
         # Add TM settings if they exist
         if hasattr(self, 'tm_settings') and self.tm_settings:
             result['tm_settings'] = self.tm_settings
+        # Add termbase settings if they exist
+        if hasattr(self, 'termbase_settings') and self.termbase_settings:
+            result['termbase_settings'] = self.termbase_settings
         return result
     
     @classmethod
@@ -283,6 +289,9 @@ class Project:
         # Store TM settings if they exist
         if 'tm_settings' in data:
             project.tm_settings = data['tm_settings']
+        # Store termbase settings if they exist
+        if 'termbase_settings' in data:
+            project.termbase_settings = data['termbase_settings']
         return project
 
 
@@ -10909,12 +10918,31 @@ class SupervertalerQt(QMainWindow):
                             else:
                                 self.log(f"⚠️ Could not find TM with tm_id: {tm_id}")
             
-            # Assign rankings to activated termbases for this project
+            # Restore activated termbases for this project
             if hasattr(self, 'termbase_mgr') and self.termbase_mgr and self.current_project:
                 project_id = self.current_project.id if hasattr(self.current_project, 'id') else None
                 if project_id:
-                    self.termbase_mgr._reassign_rankings_for_project(project_id)
-                    self.log(f"✓ Assigned termbase rankings for project {project_id}")
+                    # First deactivate all termbases for this project (start clean)
+                    all_termbases = self.termbase_mgr.get_all_termbases()
+                    for tb in all_termbases:
+                        self.termbase_mgr.deactivate_termbase(tb['id'], project_id)
+                    
+                    # Then restore saved active termbases (if any)
+                    if hasattr(self.current_project, 'termbase_settings') and self.current_project.termbase_settings:
+                        active_termbase_ids = self.current_project.termbase_settings.get('active_termbase_ids', [])
+                        if active_termbase_ids:
+                            for tb_id in active_termbase_ids:
+                                # Find termbase by id
+                                tb = next((t for t in all_termbases if t['id'] == tb_id), None)
+                                if tb:
+                                    self.termbase_mgr.activate_termbase(tb_id, project_id)
+                                    self.log(f"✓ Restored activated termbase: {tb['name']}")
+                                else:
+                                    self.log(f"⚠️ Could not find termbase with id: {tb_id}")
+                        else:
+                            self.log(f"📋 No active termbases saved for this project")
+                    else:
+                        self.log(f"📋 No termbase settings found in project file")
             
             self.log(f"✓ Loaded project: {self.current_project.name} ({len(self.current_project.segments)} segments)")
             
@@ -11553,6 +11581,15 @@ class SupervertalerQt(QMainWindow):
                     if not hasattr(self.current_project, 'tm_settings'):
                         self.current_project.tm_settings = {}
                     self.current_project.tm_settings['activated_tm_ids'] = activated_tm_ids or []
+            
+            # Save activated termbase IDs for this project
+            if hasattr(self, 'termbase_mgr') and self.termbase_mgr and hasattr(self.current_project, 'id'):
+                project_id = self.current_project.id
+                if project_id:
+                    active_termbase_ids = self.termbase_mgr.get_active_termbase_ids(project_id)
+                    if not hasattr(self.current_project, 'termbase_settings'):
+                        self.current_project.termbase_settings = {}
+                    self.current_project.termbase_settings['active_termbase_ids'] = active_termbase_ids or []
             
             # FINAL DEBUG: Log segment data at the exact moment before serialization
             self.log(f"💾💾💾 FINAL DEBUG before to_dict():")
