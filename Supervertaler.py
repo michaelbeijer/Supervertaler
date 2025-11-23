@@ -11052,6 +11052,8 @@ class SupervertalerQt(QMainWindow):
                     # Then restore saved active termbases (if any)
                     if hasattr(self.current_project, 'termbase_settings') and self.current_project.termbase_settings:
                         active_termbase_ids = self.current_project.termbase_settings.get('active_termbase_ids', [])
+                        termbase_priorities = self.current_project.termbase_settings.get('termbase_priorities', {})
+                        
                         if active_termbase_ids:
                             for tb_id in active_termbase_ids:
                                 # Find termbase by id
@@ -11059,6 +11061,12 @@ class SupervertalerQt(QMainWindow):
                                 if tb:
                                     self.termbase_mgr.activate_termbase(tb_id, project_id)
                                     self.log(f"✓ Restored activated termbase: {tb['name']}")
+                                    
+                                    # Restore priority if saved
+                                    if str(tb_id) in termbase_priorities:
+                                        priority = termbase_priorities[str(tb_id)]
+                                        self.termbase_mgr.set_termbase_priority(tb_id, project_id, priority)
+                                        self.log(f"✓ Restored termbase priority: {tb['name']} → #{priority}")
                                 else:
                                     self.log(f"⚠️ Could not find termbase with id: {tb_id}")
                         else:
@@ -11704,7 +11712,7 @@ class SupervertalerQt(QMainWindow):
                         self.current_project.tm_settings = {}
                     self.current_project.tm_settings['activated_tm_ids'] = activated_tm_ids or []
             
-            # Save activated termbase IDs for this project
+            # Save activated termbase IDs and priorities for this project
             if hasattr(self, 'termbase_mgr') and self.termbase_mgr and hasattr(self.current_project, 'id'):
                 project_id = self.current_project.id
                 if project_id:
@@ -11712,6 +11720,14 @@ class SupervertalerQt(QMainWindow):
                     if not hasattr(self.current_project, 'termbase_settings'):
                         self.current_project.termbase_settings = {}
                     self.current_project.termbase_settings['active_termbase_ids'] = active_termbase_ids or []
+                    
+                    # Also save priorities for each active termbase
+                    termbase_priorities = {}
+                    for tb_id in active_termbase_ids:
+                        priority = self.termbase_mgr.get_termbase_priority(tb_id, project_id)
+                        if priority is not None:
+                            termbase_priorities[str(tb_id)] = priority
+                    self.current_project.termbase_settings['termbase_priorities'] = termbase_priorities
             
             # FINAL DEBUG: Log segment data at the exact moment before serialization
             self.log(f"💾💾💾 FINAL DEBUG before to_dict():")
