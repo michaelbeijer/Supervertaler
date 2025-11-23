@@ -5726,7 +5726,7 @@ class SupervertalerQt(QMainWindow):
             
             # Count active readable termbases (for priority range)
             num_active = sum(1 for tb in termbases 
-                           if termbase_mgr.is_termbase_active(tb['id'], refresh_project_id) if refresh_project_id else False)
+                           if (termbase_mgr.is_termbase_active(tb['id'], refresh_project_id) if refresh_project_id else False))
             
             for row, tb in enumerate(termbases):
                 # Check if readable (activated) for current project
