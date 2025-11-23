@@ -281,12 +281,36 @@ class TermbaseManager:
             
             if existing:
                 # Preserve original activated_date when re-activating
+                # Check if priority is NULL and set default if needed
                 cursor.execute("""
-                    UPDATE termbase_activation 
-                    SET is_active = 1
+                    SELECT priority FROM termbase_activation 
                     WHERE termbase_id = ? AND project_id = ?
                 """, (termbase_id, project_id))
-                self.log(f"  ✓ Updated activation record (preserved timestamp: {existing[0]})")
+                existing_priority = cursor.fetchone()[0]
+                
+                if existing_priority is None:
+                    # Priority is NULL - assign default priority
+                    cursor.execute("""
+                        SELECT COALESCE(MAX(priority), 0) FROM termbase_activation 
+                        WHERE project_id = ? AND is_active = 1
+                    """, (project_id,))
+                    max_priority = cursor.fetchone()[0]
+                    default_priority = max_priority + 1
+                    
+                    cursor.execute("""
+                        UPDATE termbase_activation 
+                        SET is_active = 1, priority = ?
+                        WHERE termbase_id = ? AND project_id = ?
+                    """, (default_priority, termbase_id, project_id))
+                    self.log(f"  ✓ Updated activation record (preserved timestamp, set priority #{default_priority})")
+                else:
+                    # Priority already exists - just update is_active
+                    cursor.execute("""
+                        UPDATE termbase_activation 
+                        SET is_active = 1
+                        WHERE termbase_id = ? AND project_id = ?
+                    """, (termbase_id, project_id))
+                    self.log(f"  ✓ Updated activation record (preserved timestamp and priority #{existing_priority})")
             else:
                 # Create new activation record with default priority
                 # Default priority: Find highest existing priority and add 1
