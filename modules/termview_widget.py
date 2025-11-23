@@ -349,9 +349,10 @@ class TermviewWidget(QWidget):
     
     def get_all_termbase_matches(self, text: str) -> Dict[str, List[Dict]]:
         """
-        Get all termbase matches for text, including multi-word terms
+        Get all termbase matches for text by using the proper termbase search
         
-        Strategy: Get all active termbase entries, then check which ones appear in the text
+        This uses the SAME search logic as the Translation Results panel,
+        ensuring we only show terms that actually match, not false positives.
         
         Args:
             text: Source text
@@ -365,66 +366,44 @@ class TermviewWidget(QWidget):
         matches = {}
         
         try:
-            # Get all termbase entries for this language pair
-            # Query database directly for efficiency
-            query = """
-                SELECT 
-                    t.id, t.source_term, t.target_term, t.termbase_id, t.priority, 
-                    t.forbidden, t.source_lang, t.target_lang, t.definition, t.domain,
-                    t.notes, t.project, t.client,
-                    tb.name as termbase_name,
-                    tb.is_project_termbase,
-                    tb.ranking
-                FROM termbase_terms t
-                LEFT JOIN termbases tb ON CAST(t.termbase_id AS INTEGER) = tb.id
-                WHERE tb.read_only = 0
-                AND (
-                    (t.source_lang = ? OR (t.source_lang IS NULL AND tb.source_lang = ?))
-                    OR (t.source_lang IS NULL AND tb.source_lang IS NULL)
-                )
-                AND (
-                    (t.target_lang = ? OR (t.target_lang IS NULL AND tb.target_lang = ?))
-                    OR (t.target_lang IS NULL AND tb.target_lang IS NULL)
-                )
-                ORDER BY LENGTH(t.source_term) DESC
-            """
+            # Extract all words from the text to search
+            # Use the same token pattern as we use for display
+            token_pattern = re.compile(r'(?<!\w)[\w.,%-]+(?!\w)', re.UNICODE)
+            tokens = [match.group() for match in token_pattern.finditer(text)]
             
-            cursor = self.db_manager.cursor
-            cursor.execute(query, [
-                self.current_source_lang, self.current_source_lang,
-                self.current_target_lang, self.current_target_lang
-            ])
+            # Also check for multi-word phrases (up to 8 words)
+            words = re.findall(r'\b[\w-]+\b', text, re.UNICODE)
+            phrases_to_check = []
             
-            text_lower = text.lower()
+            # Generate n-grams for multi-word term detection
+            for n in range(2, min(9, len(words) + 1)):
+                for i in range(len(words) - n + 1):
+                    phrase = ' '.join(words[i:i+n])
+                    phrases_to_check.append(phrase)
             
-            # Check each termbase entry to see if it appears in the text
-            for row in cursor.fetchall():
-                result_dict = dict(row)
-                source_term = result_dict.get('source_term', '')
-                
-                if not source_term:
+            # Search each token and phrase using the database's search_termbases method
+            all_search_terms = set(tokens + phrases_to_check)
+            
+            for search_term in all_search_terms:
+                if not search_term or len(search_term) < 2:
                     continue
                 
-                # IMPORTANT: Use word boundary check for ALL terms (single and multi-word)
-                # This prevents "de" from matching "De uitvinding heeft betrekking op"
-                # For terms with punctuation (like "gew.%"), we need special handling
+                # Use the SAME search method as translation results panel
+                results = self.db_manager.search_termbases(
+                    search_term=search_term,
+                    source_lang=self.current_source_lang,
+                    target_lang=self.current_target_lang,
+                    min_length=2
+                )
                 
-                term_escaped = re.escape(source_term.lower())
-                
-                # Check if term contains internal punctuation
-                if any(char in source_term for char in ['.', '%', ',', '-', '/']):
-                    # For terms with punctuation, match exactly as-is (no word boundaries on punctuation)
-                    # Use lookahead/lookbehind to ensure it's not part of a larger word
-                    pattern = r'(?<!\w)' + term_escaped + r'(?!\w)'
-                else:
-                    # For regular words, use standard word boundaries
-                    pattern = r'\b' + term_escaped + r'\b'
-                
-                if re.search(pattern, text_lower):
-                    key = source_term.lower()
-                    if key not in matches:
-                        matches[key] = []
-                    matches[key].append(result_dict)
+                # Add results to matches dict
+                for result in results:
+                    source_term = result.get('source_term', '')
+                    if source_term:
+                        key = source_term.lower()
+                        if key not in matches:
+                            matches[key] = []
+                        matches[key].append(result)
             
             return matches
         except Exception as e:
