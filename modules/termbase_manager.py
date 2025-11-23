@@ -288,26 +288,20 @@ class TermbaseManager:
                 """, (termbase_id, project_id))
                 self.log(f"  ✓ Updated activation record (preserved timestamp: {existing[0]})")
             else:
-                # Create new activation record with current timestamp
+                # Create new activation record with default priority
+                # Default priority: Find highest existing priority and add 1
                 cursor.execute("""
-                    INSERT INTO termbase_activation (termbase_id, project_id, is_active)
-                    VALUES (?, ?, 1)
-                """, (termbase_id, project_id))
-                self.log(f"  ✓ Created new activation record")
-            
-            self.log(f"  ✓ Activation record updated")
-            
-            # Assign rankings to all activated termbases for this project
-            self._reassign_rankings_for_project(project_id)
-            
-            # Verify the ranking was assigned
-            cursor.execute("SELECT ranking FROM termbases WHERE id = ?", (termbase_id,))
-            result = cursor.fetchone()
-            if result:
-                ranking = result[0]
-                self.log(f"  ✓ Termbase {termbase_id} now has ranking: {ranking}")
-            else:
-                self.log(f"  ⚠️  Could not verify ranking for termbase {termbase_id}")
+                    SELECT COALESCE(MAX(priority), 0) FROM termbase_activation 
+                    WHERE project_id = ? AND is_active = 1
+                """, (project_id,))
+                max_priority = cursor.fetchone()[0]
+                default_priority = max_priority + 1
+                
+                cursor.execute("""
+                    INSERT INTO termbase_activation (termbase_id, project_id, is_active, priority)
+                    VALUES (?, ?, 1, ?)
+                """, (termbase_id, project_id, default_priority))
+                self.log(f"  ✓ Created new activation record with default priority #{default_priority}")
             
             self.db_manager.connection.commit()
             self.log(f"✓ Activated termbase {termbase_id} for project {project_id}")
@@ -332,15 +326,8 @@ class TermbaseManager:
             
             self.log(f"  ✓ Inserted deactivation record")
             
-            # Clear ranking for this termbase
-            cursor.execute("""
-                UPDATE termbases SET ranking = NULL WHERE id = ?
-            """, (termbase_id,))
-            
-            self.log(f"  ✓ Cleared ranking for termbase {termbase_id}")
-            
-            # Reassign rankings to remaining activated termbases
-            self._reassign_rankings_for_project(project_id)
+            # Note: Priority is preserved in termbase_activation table even when deactivated
+            # This way if user re-activates, the priority is remembered
             
             self.db_manager.connection.commit()
             self.log(f"✓ Deactivated termbase {termbase_id} for project {project_id}")
@@ -365,6 +352,54 @@ class TermbaseManager:
         except Exception as e:
             self.log(f"✗ Error setting termbase read_only: {e}")
             return False
+    
+    def set_termbase_priority(self, termbase_id: int, project_id: int, priority: int) -> bool:
+        """
+        Set manual priority for a termbase in a specific project.
+        Multiple termbases can have the same priority.
+        
+        Args:
+            termbase_id: Termbase ID
+            project_id: Project ID
+            priority: Priority level (1=highest, 2=second, etc.)
+        
+        Returns:
+            True if successful
+        """
+        try:
+            cursor = self.db_manager.cursor
+            
+            # Update priority in termbase_activation table
+            cursor.execute("""
+                UPDATE termbase_activation 
+                SET priority = ?
+                WHERE termbase_id = ? AND project_id = ?
+            """, (priority, termbase_id, project_id))
+            
+            if cursor.rowcount == 0:
+                self.log(f"⚠️ No activation record found for termbase {termbase_id}, project {project_id}")
+                return False
+            
+            self.db_manager.connection.commit()
+            self.log(f"✓ Set termbase {termbase_id} priority to #{priority} for project {project_id}")
+            return True
+        except Exception as e:
+            self.log(f"✗ Error setting termbase priority: {e}")
+            return False
+    
+    def get_termbase_priority(self, termbase_id: int, project_id: int) -> Optional[int]:
+        """Get priority for a termbase in a specific project"""
+        try:
+            cursor = self.db_manager.cursor
+            cursor.execute("""
+                SELECT priority FROM termbase_activation 
+                WHERE termbase_id = ? AND project_id = ? AND is_active = 1
+            """, (termbase_id, project_id))
+            result = cursor.fetchone()
+            return result[0] if result else None
+        except Exception as e:
+            self.log(f"✗ Error getting termbase priority: {e}")
+            return None
     
     def set_as_project_termbase(self, termbase_id: int, project_id: int) -> bool:
         """

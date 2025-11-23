@@ -327,10 +327,19 @@ class DatabaseManager:
                 project_id INTEGER NOT NULL,
                 is_active BOOLEAN DEFAULT 1,
                 activated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                priority INTEGER,  -- Manual priority (1=highest, 2=second, etc.). Multiple termbases can share same priority.
                 PRIMARY KEY (termbase_id, project_id),
                 FOREIGN KEY (termbase_id) REFERENCES termbases(id) ON DELETE CASCADE
             )
         """)
+        
+        # Migration: Add priority column to termbase_activation if it doesn't exist
+        try:
+            self.cursor.execute("ALTER TABLE termbase_activation ADD COLUMN priority INTEGER")
+            self.connection.commit()
+        except Exception:
+            # Column already exists, ignore
+            pass
         
         # Legacy support: termbase_project_activation as alias
         # Note: Foreign key now references termbases for consistency with Qt version

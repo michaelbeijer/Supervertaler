@@ -5689,7 +5689,7 @@ class SupervertalerQt(QMainWindow):
             "💡 <b>Termbases</b><br>"
             "• <b>Read</b> (green ✓): Termbase is used for terminology matching<br>"
             "• <b>Write</b> (blue ✓): Termbase is updated with new terms<br>"
-            "• <b>Priority</b>: Auto-assigned 1-N to Read termbases (Priority #1 = Project Termbase)"
+            "• <b>Priority</b>: Manually set 1-N (lower = higher priority). Multiple termbases can share same priority. Priority #1 = Project Termbase."
         )
         help_msg.setWordWrap(True)
         help_msg.setStyleSheet("background-color: #e3f2fd; padding: 8px; border-radius: 4px; color: #1976d2;")
@@ -5724,15 +5724,9 @@ class SupervertalerQt(QMainWindow):
             self.log(f"  Found {len(termbases)} termbase(s) in database")
             termbase_table.setRowCount(len(termbases))
             
-            # Get list of active readable termbases with rankings for priority calculation
-            active_termbases = []
-            for tb in termbases:
-                if termbase_mgr.is_termbase_active(tb['id'], refresh_project_id) if refresh_project_id else False:
-                    ranking = tb.get('ranking', 999)
-                    active_termbases.append((tb['id'], ranking))
-            # Sort by ranking to assign priorities 1, 2, 3...
-            active_termbases.sort(key=lambda x: x[1])
-            priority_map = {tb_id: idx + 1 for idx, (tb_id, _) in enumerate(active_termbases)}
+            # Count active readable termbases (for priority range)
+            num_active = sum(1 for tb in termbases 
+                           if termbase_mgr.is_termbase_active(tb['id'], refresh_project_id) if refresh_project_id else False)
             
             for row, tb in enumerate(termbases):
                 # Check if readable (activated) for current project
@@ -5740,8 +5734,8 @@ class SupervertalerQt(QMainWindow):
                 # Check if writable (not read-only)
                 is_writable = not tb.get('read_only', True)  # Default to True (read-only) if not set
                 
-                # Get priority (1-N for readable termbases)
-                priority = priority_map.get(tb['id'], None) if is_readable else None
+                # Get manual priority from termbase_activation table
+                priority = termbase_mgr.get_termbase_priority(tb['id'], refresh_project_id) if (is_readable and refresh_project_id) else None
                 is_project_tb = (priority == 1)  # Priority #1 = project termbase
                 
                 # Type (Project/Background) - auto-determined by priority
@@ -5829,21 +5823,42 @@ class SupervertalerQt(QMainWindow):
                 write_checkbox.toggled.connect(on_write_toggle)
                 termbase_table.setCellWidget(row, 5, write_checkbox)
                 
-                # Priority (only shown for readable termbases)
-                if priority is not None:
-                    priority_item = QTableWidgetItem(f"#{priority}")
+                # Priority (editable spinbox for readable termbases)
+                if is_readable and refresh_project_id and num_active > 0:
+                    from PyQt6.QtWidgets import QSpinBox
+                    priority_spinbox = QSpinBox()
+                    priority_spinbox.setMinimum(1)
+                    priority_spinbox.setMaximum(num_active)  # Max = number of active termbases
+                    priority_spinbox.setValue(priority if priority else 1)
+                    priority_spinbox.setPrefix("#")
+                    
+                    # Pink styling for priority #1
                     if priority == 1:
-                        priority_item.setToolTip("Priority #1 - Project Termbase (highest priority)")
-                        priority_item.setForeground(QColor("#FF69B4"))  # Pink
+                        priority_spinbox.setStyleSheet("QSpinBox { color: #FF69B4; font-weight: bold; }")
+                        priority_spinbox.setToolTip("Priority #1 - Project Termbase (highest priority)")
                     else:
-                        priority_item.setToolTip(f"Priority #{priority} (lower number = higher priority)")
-                    priority_item.setFlags(priority_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+                        priority_spinbox.setToolTip(f"Priority (1=highest, {num_active}=lowest). Multiple termbases can share same priority.")
+                    
+                    def on_priority_change(new_priority, tb_id=tb['id']):
+                        curr_proj = self.current_project if hasattr(self, 'current_project') else None
+                        curr_proj_id = curr_proj.id if (curr_proj and hasattr(curr_proj, 'id')) else None
+                        if curr_proj_id:
+                            success = termbase_mgr.set_termbase_priority(tb_id, curr_proj_id, new_priority)
+                            if success:
+                                # Clear cache and refresh to update Type column (Project/Background)
+                                with self.termbase_cache_lock:
+                                    self.termbase_cache.clear()
+                                refresh_termbase_list()
+                    
+                    priority_spinbox.valueChanged.connect(on_priority_change)
+                    termbase_table.setCellWidget(row, 6, priority_spinbox)
                 else:
+                    # Non-readable termbase: show dash
                     priority_item = QTableWidgetItem("—")
                     priority_item.setForeground(QColor("#999"))
                     priority_item.setToolTip("No priority - termbase not readable")
                     priority_item.setFlags(priority_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
-                termbase_table.setItem(row, 6, priority_item)
+                    termbase_table.setItem(row, 6, priority_item)
         
         # Store callback as instance attribute so add_term_to_termbase can call it
         self.termbase_tab_refresh_callback = refresh_termbase_list
