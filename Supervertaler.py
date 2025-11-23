@@ -5842,12 +5842,16 @@ class SupervertalerQt(QMainWindow):
                         priority_spinbox.setToolTip(f"Priority (1=highest, {num_active}=lowest). Multiple termbases can share same priority.")
                     
                     def on_priority_change(new_priority, tb_id=tb['id'], row_idx=row):
+                        self.log(f"🔄 Priority change triggered: TB {tb_id} → #{new_priority}")
                         curr_proj = self.current_project if hasattr(self, 'current_project') else None
                         curr_proj_id = curr_proj.id if (curr_proj and hasattr(curr_proj, 'id')) else None
-                        if curr_proj_id:
-                            success = termbase_mgr.set_termbase_priority(tb_id, curr_proj_id, new_priority)
-                            if success:
-                                self.log(f"✅ Set termbase priority to #{new_priority}")
+                        if not curr_proj_id:
+                            self.log(f"⚠️ No project loaded, cannot change priority")
+                            return
+                        self.log(f"🔄 Setting priority for TB {tb_id}, Project {curr_proj_id}")
+                        success = termbase_mgr.set_termbase_priority(tb_id, curr_proj_id, new_priority)
+                        if success:
+                            self.log(f"✅ Successfully set termbase {tb_id} priority to #{new_priority}")
                                 # Update styling based on new priority
                                 sender = termbase_table.cellWidget(row_idx, 6)
                                 if sender:
