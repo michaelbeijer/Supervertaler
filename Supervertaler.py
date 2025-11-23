@@ -5852,33 +5852,33 @@ class SupervertalerQt(QMainWindow):
                         success = termbase_mgr.set_termbase_priority(tb_id, curr_proj_id, new_priority)
                         if success:
                             self.log(f"✅ Successfully set termbase {tb_id} priority to #{new_priority}")
-                                # Update styling based on new priority
-                                sender = termbase_table.cellWidget(row_idx, 6)
-                                if sender:
-                                    if new_priority == 1:
-                                        sender.setStyleSheet("QSpinBox { color: #FF69B4; font-weight: bold; }")
-                                        sender.setToolTip("Priority #1 - Project Termbase (highest priority)")
+                            # Update styling based on new priority
+                            sender = termbase_table.cellWidget(row_idx, 6)
+                            if sender:
+                                if new_priority == 1:
+                                    sender.setStyleSheet("QSpinBox { color: #FF69B4; font-weight: bold; }")
+                                    sender.setToolTip("Priority #1 - Project Termbase (highest priority)")
+                                else:
+                                    sender.setStyleSheet("")
+                                    sender.setToolTip(f"Priority (1=highest, {num_active}=lowest). Multiple termbases can share same priority.")
+                            
+                            # Update Type column for affected rows (old #1 and new #1)
+                            for r in range(termbase_table.rowCount()):
+                                type_widget = termbase_table.cellWidget(r, 0)
+                                priority_widget = termbase_table.cellWidget(r, 6)
+                                if type_widget and priority_widget and isinstance(priority_widget, QSpinBox):
+                                    current_priority = priority_widget.value()
+                                    name_item = termbase_table.item(r, 1)
+                                    if current_priority == 1:
+                                        type_widget.setText("📌 Project")
+                                        type_widget.setStyleSheet("color: #FF69B4; font-weight: bold;")
+                                        if name_item:
+                                            name_item.setForeground(QColor("#FF69B4"))
                                     else:
-                                        sender.setStyleSheet("")
-                                        sender.setToolTip(f"Priority (1=highest, {num_active}=lowest). Multiple termbases can share same priority.")
-                                
-                                # Update Type column for affected rows (old #1 and new #1)
-                                for r in range(termbase_table.rowCount()):
-                                    type_widget = termbase_table.cellWidget(r, 0)
-                                    priority_widget = termbase_table.cellWidget(r, 6)
-                                    if type_widget and priority_widget and isinstance(priority_widget, QSpinBox):
-                                        current_priority = priority_widget.value()
-                                        name_item = termbase_table.item(r, 1)
-                                        if current_priority == 1:
-                                            type_widget.setText("📌 Project")
-                                            type_widget.setStyleSheet("color: #FF69B4; font-weight: bold;")
-                                            if name_item:
-                                                name_item.setForeground(QColor("#FF69B4"))
-                                        else:
-                                            type_widget.setText("Background")
-                                            type_widget.setStyleSheet("color: #666;")
-                                            if name_item:
-                                                name_item.setForeground(QColor("#000"))
+                                        type_widget.setText("Background")
+                                        type_widget.setStyleSheet("color: #666;")
+                                        if name_item:
+                                            name_item.setForeground(QColor("#000"))
                                 
                                 # Clear cache for termbase matching
                                 with self.termbase_cache_lock:
