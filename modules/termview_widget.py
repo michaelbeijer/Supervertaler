@@ -348,12 +348,15 @@ class TermviewWidget(QWidget):
         # Search termbases for each token (use pre-fetched matches)
         term_blocks_created = 0
         for token in tokens:
+            # Strip trailing punctuation for lookup (matches what we did in get_all_termbase_matches)
+            token_clean = token.rstrip('.,;:!?')
+            
             # Check if we already have matches for this token
-            translations = all_matches.get(token.lower(), [])
+            translations = all_matches.get(token_clean.lower(), [])
             
             # If no exact match, try searching (for single words)
-            if not translations and ' ' not in token:
-                translations = self.search_term(token)
+            if not translations and ' ' not in token_clean:
+                translations = self.search_term(token_clean)
             
             # Create term block
             term_block = TermBlock(token, translations, self)
