@@ -534,7 +534,7 @@ class TermviewWidget(QWidget):
             term: Source term to search
             
         Returns:
-            List of translation dicts
+            List of translation dicts (filtered to only include terms that exist in current segment)
         """
         if not self.db_manager or not self.current_source_lang or not self.current_target_lang:
             return []
@@ -548,7 +548,31 @@ class TermviewWidget(QWidget):
                 min_length=2
             )
             
-            return results
+            # CRITICAL FIX: Filter out results where the source term doesn't exist in the segment
+            # This prevents "het gebruik van" from showing when searching "het" if the phrase isn't in the segment
+            filtered_results = []
+            segment_lower = self.current_source.lower()
+            
+            for result in results:
+                source_term = result.get('source_term', '')
+                if not source_term:
+                    continue
+                
+                # Check if this term actually exists in the current segment
+                source_lower = source_term.lower()
+                
+                # Use word boundaries to match complete words/phrases only
+                if ' ' in source_term:
+                    # Multi-word term - must exist as exact phrase
+                    pattern = r'\b' + re.escape(source_lower) + r'\b'
+                else:
+                    # Single word
+                    pattern = r'\b' + re.escape(source_lower) + r'\b'
+                
+                if re.search(pattern, segment_lower):
+                    filtered_results.append(result)
+            
+            return filtered_results
         except Exception as e:
             self.log(f"✗ Error searching term '{term}': {e}")
             return []
