@@ -17587,10 +17587,14 @@ class SupervertalerQt(QMainWindow):
         # Update Termview widget - pass termbase matches from Translation Results
         if hasattr(self, 'termview_widget') and self.current_project:
             try:
+                self.log(f"🔍 TERMVIEW UPDATE: segment_id={segment_id}, has_termbase_cache={hasattr(self, 'termbase_cache')}")
+                
                 # Get termbase matches from the segment's cached data if available
                 termbase_matches = []
                 if hasattr(self, 'termbase_cache') and segment_id in self.termbase_cache:
                     cached_matches = self.termbase_cache[segment_id]
+                    self.log(f"🔍 TERMVIEW: Found cached_matches type={type(cached_matches)}, len={len(cached_matches) if isinstance(cached_matches, (dict, list)) else 'N/A'}")
+                    
                     # Convert dict format to list format expected by Termview
                     if isinstance(cached_matches, dict):
                         termbase_matches = [
@@ -17603,13 +17607,21 @@ class SupervertalerQt(QMainWindow):
                             }
                             for match_data in cached_matches.values()
                         ]
+                        self.log(f"🔍 TERMVIEW: Converted to {len(termbase_matches)} matches")
                     else:
                         # Already in list format (shouldn't happen, but handle it)
                         termbase_matches = cached_matches
+                        self.log(f"🔍 TERMVIEW: Using list format directly: {len(termbase_matches)} matches")
+                else:
+                    self.log(f"🔍 TERMVIEW: No cached matches for segment {segment_id}")
                 
+                self.log(f"🔍 TERMVIEW: Calling update_with_matches with {len(termbase_matches)} matches")
                 self.termview_widget.update_with_matches(source_text, termbase_matches)
+                self.log(f"🔍 TERMVIEW: update_with_matches completed successfully")
             except Exception as e:
                 self.log(f"Error updating termview: {e}")
+                import traceback
+                self.log(f"Traceback: {traceback.format_exc()}")
     
     # ========================================================================
     # DOCUMENT VIEW METHODS

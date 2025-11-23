@@ -323,25 +323,36 @@ class TermviewWidget(QWidget):
             source_text: Source segment text
             termbase_matches: List of termbase match dicts from Translation Results
         """
+        print(f"🔍 TERMVIEW.update_with_matches called: source_len={len(source_text) if source_text else 0}, matches={len(termbase_matches) if termbase_matches else 0}")
+        
         self.current_source = source_text
         
         # Clear existing blocks
         self.clear_terms()
+        print(f"🔍 TERMVIEW: Cleared existing terms")
         
         if not source_text or not source_text.strip():
             self.info_label.setText("No segment selected")
+            print(f"🔍 TERMVIEW: No source text")
             return
         
         if not termbase_matches:
             self.info_label.setText("No terminology matches for this segment")
+            print(f"🔍 TERMVIEW: No termbase matches")
             return
         
+        print(f"🔍 TERMVIEW: Processing {len(termbase_matches)} matches...")
+        
         # Create one TermBlock for each match
-        for match in termbase_matches:
+        blocks_created = 0
+        for i, match in enumerate(termbase_matches):
             source_term = match.get('source_term', match.get('source', ''))
             target_term = match.get('target_term', match.get('target', ''))
             
+            print(f"🔍 TERMVIEW: Match {i+1}: source='{source_term}', target='{target_term}'")
+            
             if not source_term or not target_term:
+                print(f"🔍 TERMVIEW: Skipping match {i+1} - missing source or target")
                 continue
             
             # Create term block with just this one translation
@@ -355,8 +366,11 @@ class TermviewWidget(QWidget):
             term_block = TermBlock(source_term, translations, self)
             term_block.term_clicked.connect(self.on_term_insert_requested)
             self.terms_layout.addWidget(term_block)
+            blocks_created += 1
+            print(f"🔍 TERMVIEW: Created block {blocks_created}")
         
         self.info_label.setText(f"✓ Found {len(termbase_matches)} terminology matches")
+        print(f"🔍 TERMVIEW: Completed - created {blocks_created} blocks")
     
     def update_for_segment(self, source_text: str, source_lang: str, target_lang: str, project_id: int = None):
         """
