@@ -5832,7 +5832,10 @@ class SupervertalerQt(QMainWindow):
                     priority_spinbox.setValue(priority if priority else 1)
                     priority_spinbox.setPrefix("#")
                     priority_spinbox.setButtonSymbols(QSpinBox.ButtonSymbols.UpDownArrows)
+                    priority_spinbox.setWrapping(False)  # Don't wrap from max to min
                     priority_spinbox.setEnabled(True)
+                    priority_spinbox.setKeyboardTracking(True)  # Emit signal on every key press
+                    priority_spinbox.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
                     
                     # Pink styling for priority #1
                     if priority == 1:
@@ -5867,6 +5870,8 @@ class SupervertalerQt(QMainWindow):
                                 type_widget = termbase_table.cellWidget(r, 0)
                                 priority_widget = termbase_table.cellWidget(r, 6)
                                 if type_widget and priority_widget and isinstance(priority_widget, QSpinBox):
+                                    # Block signals during update to prevent recursion
+                                    priority_widget.blockSignals(True)
                                     current_priority = priority_widget.value()
                                     name_item = termbase_table.item(r, 1)
                                     
@@ -5887,6 +5892,9 @@ class SupervertalerQt(QMainWindow):
                                         # Update spinbox styling for non-#1
                                         priority_widget.setStyleSheet("")
                                         priority_widget.setToolTip(f"Priority (1=highest, {num_active}=lowest). Multiple termbases can share same priority.")
+                                    
+                                    # Unblock signals after update
+                                    priority_widget.blockSignals(False)
                             
                             # Clear cache for termbase matching (once, outside loop)
                             with self.termbase_cache_lock:
