@@ -151,8 +151,13 @@ class TermBlock(QWidget):
         if self.translations:
             primary_translation = self.translations[0]
             is_project = primary_translation.get('is_project_termbase', False)
+            ranking = primary_translation.get('ranking', None)
+            
+            # IMPORTANT: Treat ranking #1 as project termbase (matches main app logic)
+            is_effective_project = is_project or (ranking == 1)
+            
             # Border color: pink for project termbase, blue for regular termbase
-            border_color = "#FF1493" if is_project else "#0078D4"
+            border_color = "#FF1493" if is_effective_project else "#0078D4"
         else:
             # Gray border for terms without matches
             border_color = "#E0E0E0"
@@ -186,7 +191,7 @@ class TermBlock(QWidget):
             termbase_name = primary_translation.get('termbase_name', '')
             
             # Color based on termbase type - more subtle
-            bg_color = "#FFE5F0" if is_project else "#D6EBFF"  # Pink for project, light blue for regular
+            bg_color = "#FFE5F0" if is_effective_project else "#D6EBFF"  # Pink for project, light blue for regular
             
             target_label = QLabel(target_text)
             target_font = QFont()
