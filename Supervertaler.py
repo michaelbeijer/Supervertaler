@@ -17584,13 +17584,17 @@ class SupervertalerQt(QMainWindow):
                 except Exception as e:
                     self.log(f"Error updating tabbed panel: {e}")
         
-        # Update Termview widget
+        # Update Termview widget - pass termbase matches from Translation Results
         if hasattr(self, 'termview_widget') and self.current_project:
             try:
-                source_lang = getattr(self.current_project, 'source_lang', 'en')
-                target_lang = getattr(self.current_project, 'target_lang', 'nl')
-                project_id = getattr(self.current_project, 'id', None)
-                self.termview_widget.update_for_segment(source_text, source_lang, target_lang, project_id)
+                # Get termbase matches from the segment's cached data if available
+                termbase_matches = []
+                if hasattr(self, 'termbase_cache') and row in self.termbase_cache:
+                    cached_matches = self.termbase_cache[row]
+                    # Convert to simple format: [{source_term, target_term, ...}]
+                    termbase_matches = cached_matches
+                
+                self.termview_widget.update_with_matches(source_text, termbase_matches)
             except Exception as e:
                 self.log(f"Error updating termview: {e}")
     
