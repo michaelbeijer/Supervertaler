@@ -496,6 +496,13 @@ class TermviewWidget(QWidget):
         Returns:
             List of tokens (words/phrases/numbers), with multi-word terms kept together
         """
+        # DEBUG: Log multi-word terms we're looking for
+        multi_word_terms = [k for k in matches.keys() if ' ' in k]
+        if multi_word_terms:
+            self.log(f"🔍 Tokenize: Looking for {len(multi_word_terms)} multi-word terms:")
+            for term in sorted(multi_word_terms, key=len, reverse=True)[:3]:
+                self.log(f"    - '{term}'")
+        
         # Sort matched terms by length (longest first) to match multi-word terms first
         matched_terms = sorted(matches.keys(), key=len, reverse=True)
         
@@ -515,6 +522,12 @@ class TermviewWidget(QWidget):
                     pattern = r'(?<!\w)' + term_escaped + r'(?!\w)'
                 else:
                     pattern = r'\b' + term_escaped + r'\b'
+                
+                # DEBUG: Check if multi-word term is found
+                found = re.search(pattern, text_lower)
+                self.log(f"🔍 Tokenize: Pattern '{pattern}' for '{term}' → {'FOUND' if found else 'NOT FOUND'}")
+                if found:
+                    self.log(f"    Match at position {found.span()}: '{text[found.start():found.end()]}'")
                 
                 # Find all matches using regex
                 for match in re.finditer(pattern, text_lower):
