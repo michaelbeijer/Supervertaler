@@ -317,7 +317,7 @@ class TermviewWidget(QWidget):
         """
         Update the termview display with pre-computed termbase matches
         
-        SIMPLIFIED APPROACH: Just use the matches from Translation Results panel
+        RYS-STYLE DISPLAY: Show source text as tokens with translations underneath
         
         Args:
             source_text: Source segment text
@@ -343,34 +343,56 @@ class TermviewWidget(QWidget):
         
         print(f"🔍 TERMVIEW: Processing {len(termbase_matches)} matches...")
         
-        # Create one TermBlock for each match
-        blocks_created = 0
-        for i, match in enumerate(termbase_matches):
+        # Convert matches list to dict for easy lookup: {source_term.lower(): [translations]}
+        matches_dict = {}
+        for match in termbase_matches:
             source_term = match.get('source_term', match.get('source', ''))
-            target_term = match.get('target_term', match.get('target', ''))
-            
-            print(f"🔍 TERMVIEW: Match {i+1}: source='{source_term}', target='{target_term}'")
+            target_term = match.get('target_term', match.get('translation', ''))
             
             if not source_term or not target_term:
-                print(f"🔍 TERMVIEW: Skipping match {i+1} - missing source or target")
                 continue
             
-            # Create term block with just this one translation
-            translations = [{
+            key = source_term.lower()
+            if key not in matches_dict:
+                matches_dict[key] = []
+            
+            matches_dict[key].append({
                 'target_term': target_term,
                 'termbase_name': match.get('termbase_name', ''),
                 'ranking': match.get('ranking', 99),
                 'is_project_termbase': match.get('is_project_termbase', False)
-            }]
+            })
+        
+        print(f"🔍 TERMVIEW: Organized into {len(matches_dict)} unique source terms")
+        
+        # Tokenize source text, respecting multi-word terms
+        tokens = self.tokenize_with_multiword_terms(source_text, matches_dict)
+        print(f"🔍 TERMVIEW: Created {len(tokens)} tokens from source text")
+        
+        if not tokens:
+            self.info_label.setText("No words to analyze")
+            return
+        
+        # Create one TermBlock per token
+        blocks_with_translations = 0
+        for token in tokens:
+            # Strip trailing punctuation for lookup
+            token_clean = token.rstrip('.,;:!?')
+            lookup_key = token_clean.lower()
             
-            term_block = TermBlock(source_term, translations, self)
+            # Get translations for this token
+            translations = matches_dict.get(lookup_key, [])
+            
+            # Create term block (even if no translation - shows source word)
+            term_block = TermBlock(token, translations, self)
             term_block.term_clicked.connect(self.on_term_insert_requested)
             self.terms_layout.addWidget(term_block)
-            blocks_created += 1
-            print(f"🔍 TERMVIEW: Created block {blocks_created}")
+            
+            if translations:
+                blocks_with_translations += 1
         
-        self.info_label.setText(f"✓ Found {len(termbase_matches)} terminology matches")
-        print(f"🔍 TERMVIEW: Completed - created {blocks_created} blocks")
+        self.info_label.setText(f"✓ Found terminology for {blocks_with_translations} of {len(tokens)} terms")
+        print(f"🔍 TERMVIEW: Completed - {blocks_with_translations}/{len(tokens)} tokens have translations")
     
     def update_for_segment(self, source_text: str, source_lang: str, target_lang: str, project_id: int = None):
         """
