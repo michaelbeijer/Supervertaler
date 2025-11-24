@@ -15651,9 +15651,14 @@ class SupervertalerQt(QMainWindow):
                         if not source_term or not target_term:
                             continue
                         # FILTER: Only keep if full source term appears in source text (case-insensitive)
-                        # Use word-boundary regex; fall back to simple substring if regex fails
+                        # Use lookaround word boundaries to handle terms with punctuation like "gew.%"
                         import re
-                        pattern = re.compile(r"\b" + re.escape(source_term.lower()) + r"\b")
+                        # Check if term has punctuation - use different pattern
+                        if any(char in source_term for char in ['.', '%', ',', '-', '/']):
+                            pattern = re.compile(r'(?<!\w)' + re.escape(source_term.lower()) + r'(?!\w)')
+                        else:
+                            pattern = re.compile(r"\b" + re.escape(source_term.lower()) + r"\b")
+                        
                         if not pattern.search(source_text_lower):
                             # Skip terms whose full phrase isn't in the segment
                             continue
