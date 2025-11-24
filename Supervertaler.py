@@ -21680,21 +21680,24 @@ class UniversalLookupTab(QWidget):
     def show_superlookup(self, text):
         """Show Superlookup with pre-filled text"""
         try:
-            # Switch to Superlookup tab
+            # Switch to Tools tab (right_tabs index 2)
             if hasattr(self, 'right_tabs'):
-                # Find Superlookup tab
-                for i in range(self.right_tabs.count()):
-                    if "Superlookup" in self.right_tabs.tabText(i):
-                        self.right_tabs.setCurrentIndex(i)
+                self.right_tabs.setCurrentIndex(2)
+            
+            # Switch to Superlookup within modules_tabs
+            if hasattr(self, 'modules_tabs'):
+                for i in range(self.modules_tabs.count()):
+                    if "Superlookup" in self.modules_tabs.tabText(i):
+                        self.modules_tabs.setCurrentIndex(i)
                         break
             
             # Fill in text if Superlookup tab exists
-            superlookup_tab = getattr(self, 'superlookup_tab', None)
-            if superlookup_tab and hasattr(superlookup_tab, 'input_text'):
-                superlookup_tab.input_text.setPlainText(text)
-                # Trigger lookup
-                if hasattr(superlookup_tab, 'lookup_button'):
-                    superlookup_tab.lookup_button.click()
+            if hasattr(self, 'lookup_tab') and self.lookup_tab:
+                if hasattr(self.lookup_tab, 'input_text'):
+                    self.lookup_tab.input_text.setPlainText(text)
+                    # Trigger lookup
+                    if hasattr(self.lookup_tab, 'lookup_button'):
+                        self.lookup_tab.lookup_button.click()
                     
         except Exception as e:
             print(f"[Superlookup] Error showing lookup: {e}")
