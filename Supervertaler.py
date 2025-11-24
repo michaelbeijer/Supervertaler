@@ -4490,7 +4490,7 @@ class SupervertalerQt(QMainWindow):
             self.prompt_manager_qt._init_llm_client()
     
     def detach_superlookup(self):
-        """Detach Superlookup into a separate window for second screen use"
+        """Detach Superlookup into a separate window for second screen use"""
         from PyQt6.QtWidgets import QDialog, QVBoxLayout, QPushButton
         
         try:
