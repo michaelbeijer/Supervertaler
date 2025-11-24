@@ -3,7 +3,7 @@ Supervertaler Qt Edition
 ========================
 The ultimate companion tool for translators and writers.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.9.0 (Termview - RYS-Style Inline Terminology)
+Version: 1.9.1 (Undo/Redo for Grid Edits)
 Release Date: November 24, 2025
 Framework: PyQt6
 
@@ -32,7 +32,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.0"
+__version__ = "1.9.1"
 __phase__ = "0.9"
 __release_date__ = "2025-11-24"
 __edition__ = "Qt"
@@ -2655,6 +2655,11 @@ class SupervertalerQt(QMainWindow):
         self.prefetch_stop_event = threading.Event()
         self.prefetch_queue = []  # List of segment IDs to prefetch
         
+        # Undo/Redo stack for grid edits
+        self.undo_stack = []  # List of (segment_id, old_target, new_target, old_status, new_status)
+        self.redo_stack = []  # List of undone actions that can be redone
+        self.max_undo_levels = 100  # Maximum number of undo levels to keep
+        
         # Global language settings (defaults)
         self.source_language = "English"
         self.target_language = "Dutch"
@@ -2901,13 +2906,17 @@ class SupervertalerQt(QMainWindow):
         # Edit Menu
         edit_menu = menubar.addMenu("&Edit")
         
-        undo_action = QAction("&Undo", self)
-        undo_action.setShortcut(QKeySequence.StandardKey.Undo)
-        edit_menu.addAction(undo_action)
+        self.undo_action = QAction("&Undo", self)
+        self.undo_action.setShortcut(QKeySequence.StandardKey.Undo)
+        self.undo_action.triggered.connect(self.undo_action_handler)
+        self.undo_action.setEnabled(False)
+        edit_menu.addAction(self.undo_action)
         
-        redo_action = QAction("&Redo", self)
-        redo_action.setShortcut(QKeySequence.StandardKey.Redo)
-        edit_menu.addAction(redo_action)
+        self.redo_action = QAction("&Redo", self)
+        self.redo_action.setShortcut(QKeySequence.StandardKey.Redo)
+        self.redo_action.triggered.connect(self.redo_action_handler)
+        self.redo_action.setEnabled(False)
+        edit_menu.addAction(self.redo_action)
         
         edit_menu.addSeparator()
         
@@ -3149,6 +3158,129 @@ class SupervertalerQt(QMainWindow):
         about_action = QAction("&About", self)
         about_action.triggered.connect(self.show_about)
         help_menu.addAction(about_action)
+    
+    def record_undo_state(self, segment_id, old_target, new_target, old_status, new_status):
+        """Record an undo state when grid cells are edited"""
+        # Don't record if nothing actually changed
+        if old_target == new_target and old_status == new_status:
+            return
+        
+        # Add to undo stack
+        undo_entry = {
+            "segment_id": segment_id,
+            "old_target": old_target,
+            "new_target": new_target,
+            "old_status": old_status,
+            "new_status": new_status
+        }
+        self.undo_stack.append(undo_entry)
+        
+        # Trim undo stack to max levels
+        if len(self.undo_stack) > self.max_undo_levels:
+            self.undo_stack.pop(0)
+        
+        # Clear redo stack (can't redo after new edit)
+        self.redo_stack.clear()
+        
+        # Update menu actions
+        self.update_undo_redo_actions()
+    
+    def undo_action_handler(self):
+        """Handle Undo (Ctrl+Z) action"""
+        if not self.undo_stack:
+            return
+        
+        # Pop last action from undo stack
+        action = self.undo_stack.pop()
+        
+        # Find the segment
+        segment_id = action["segment_id"]
+        segment = None
+        for seg in self.current_project.segments:
+            if seg.segment_id == segment_id:
+                segment = seg
+                break
+        
+        if not segment:
+            return
+        
+        # Revert to old values
+        segment.target_text = action["old_target"]
+        segment.status = action["old_status"]
+        
+        # Update grid display
+        row = self.find_grid_row_by_segment_id(segment_id)
+        if row is not None:
+            # Update target text cell
+            target_item = self.grid.item(row, 2)
+            if target_item:
+                target_item.setText(action["old_target"])
+            
+            # Update status cell
+            status_item = self.grid.item(row, 3)
+            if status_item:
+                status_item.setText(action["old_status"])
+        
+        # Move action to redo stack
+        self.redo_stack.append(action)
+        
+        # Update menu actions
+        self.update_undo_redo_actions()
+    
+    def redo_action_handler(self):
+        """Handle Redo (Ctrl+Shift+Z / Ctrl+Y) action"""
+        if not self.redo_stack:
+            return
+        
+        # Pop last action from redo stack
+        action = self.redo_stack.pop()
+        
+        # Find the segment
+        segment_id = action["segment_id"]
+        segment = None
+        for seg in self.current_project.segments:
+            if seg.segment_id == segment_id:
+                segment = seg
+                break
+        
+        if not segment:
+            return
+        
+        # Reapply new values
+        segment.target_text = action["new_target"]
+        segment.status = action["new_status"]
+        
+        # Update grid display
+        row = self.find_grid_row_by_segment_id(segment_id)
+        if row is not None:
+            # Update target text cell
+            target_item = self.grid.item(row, 2)
+            if target_item:
+                target_item.setText(action["new_target"])
+            
+            # Update status cell
+            status_item = self.grid.item(row, 3)
+            if status_item:
+                status_item.setText(action["new_status"])
+        
+        # Move action back to undo stack
+        self.undo_stack.append(action)
+        
+        # Update menu actions
+        self.update_undo_redo_actions()
+    
+    def update_undo_redo_actions(self):
+        """Update enabled/disabled state of undo/redo menu actions"""
+        self.undo_action.setEnabled(len(self.undo_stack) > 0)
+        self.redo_action.setEnabled(len(self.redo_stack) > 0)
+    
+    def find_grid_row_by_segment_id(self, segment_id):
+        """Find the grid row index for a given segment ID"""
+        for row in range(self.grid.rowCount()):
+            id_item = self.grid.item(row, 0)
+            if id_item and id_item.text() == str(segment_id):
+                return row
+        return None
     
     def create_quick_access_toolbar(self):
         """Create Quick Access Toolbar above ribbon"""
@@ -12941,12 +13073,19 @@ class SupervertalerQt(QMainWindow):
                         if not target_segment:
                             return
                         
+                        # Capture old values for undo
+                        old_target = target_segment.target
+                        old_status = target_segment.status
+                        
                         # SIMPLIFIED: Just update the target, NO status changes
                         if self.debug_mode_enabled:
                             self.log(f"📝 BEFORE update: seg {segment_id} target='{target_segment.target[:30] if target_segment.target else 'EMPTY'}...', status={target_segment.status}, obj_id={id(target_segment)}")
                         target_segment.target = new_text
                         if self.debug_mode_enabled:
                             self.log(f"📝 AFTER update: seg {segment_id} target='{target_segment.target[:30] if target_segment.target else 'EMPTY'}...', status={target_segment.status}, obj_id={id(target_segment)}")
+                        
+                        # Record undo state (status stays same here, changes happen elsewhere)
+                        self.record_undo_state(segment_id, old_target, new_text, old_status, old_status)
                         
                         # Mark project as modified
                         self.project_modified = True
@@ -13976,7 +14115,13 @@ class SupervertalerQt(QMainWindow):
         if not self.current_project or row >= len(self.current_project.segments):
             return
         segment = self.current_project.segments[row]
+        old_status = segment.status
+        old_target = segment.target
         segment.status = status
+        
+        # Record undo state for status change
+        self.record_undo_state(segment.id, old_target, segment.target, old_status, status)
+        
         self._refresh_segment_status(segment)
         
         # Save to TM if status changed to translated/approved/confirmed and has content
@@ -16277,7 +16422,11 @@ class SupervertalerQt(QMainWindow):
                 if col == 2:
                     segment.source = new_text
                 else:
+                    old_target = segment.target
+                    old_status = segment.status
                     segment.target = new_text
+                    # Record undo state for find/replace operation
+                    self.record_undo_state(segment.id, old_target, new_text, old_status, old_status)
                 
                 # Update table
                 item = self.table.item(row, col)
@@ -17483,11 +17632,16 @@ class SupervertalerQt(QMainWindow):
             target_widget = self.table.cellWidget(current_row, 3)  # Column 3 = Target
             if target_widget:
                 current_text = target_widget.toPlainText().strip()
+                old_target = segment.target
+                old_status = segment.status
                 segment.target = current_text
                 self.log(f"🔍 Target from widget: '{current_text[:50]}...'")
                 self.log(f"🔍 After assignment: segment.target = '{segment.target[:50] if segment.target else '<empty>'}...'")
             
             segment.status = 'confirmed'
+            
+            # Record undo state for Ctrl+Enter confirmation
+            self.record_undo_state(segment_id, old_target, segment.target, old_status, 'confirmed')
             self.log(f"🔍 After status assignment: segment.status = '{segment.status}', segment.target = '{segment.target[:50] if segment.target else '<empty>'}...')")
             self.update_status_icon(current_row, 'confirmed')
             self.project_modified = True
@@ -17687,7 +17841,13 @@ class SupervertalerQt(QMainWindow):
         
         segment = next((s for s in self.current_project.segments if s.id == self.doc_current_segment_id), None)
         if segment:
+            old_status = segment.status
+            old_target = segment.target
             segment.status = status
+            
+            # Record undo state for document view status change
+            self.record_undo_state(self.doc_current_segment_id, old_target, segment.target, old_status, status)
+            
             self.project_modified = True
             self.refresh_document_view()
             # Reselect segment after refresh

@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.0 (November 24, 2025)
+**Current Version:** v1.9.1 (November 24, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -14,6 +14,7 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- ↩️ **Undo/Redo for Grid Edits (v1.9.1)** - Full undo/redo support for grid editing operations with Ctrl+Z/Ctrl+Y. Tracks target text changes, status changes, and find/replace operations with 100-level history
 - 🔍 **Termview - RYS-Style Inline Terminology (v1.9.0)** - Visual inline terminology display showing source words with translations underneath, inspired by RYS Trados plugin. Supports multi-word terms, click-to-insert, hover tooltips, and terms with punctuation like "gew.%"
 - 🎨 **UI Refinements - Tab Styling (v1.8.0)** - Refined selected tab appearance with subtle 1px blue underline and light background highlighting for cleaner visual design
 - ✅ **Simplified TM/Termbase System (v1.6.6)** - Redesigned with Read/Write checkboxes, auto-priority system, removed complex Active/Project concepts for clearer workflow
@@ -45,6 +46,46 @@ All notable changes to Supervertaler are documented in this file.
 - 🔄 **CAT Tool Integration** - memoQ, Trados, CafeTran bilingual table support
 
 **See full version history below** ↓
+
+---
+
+## [1.9.1] - November 24, 2025
+
+### ↩️ Undo/Redo for Grid Edits
+
+**New Feature: Complete Undo/Redo System**
+- Full undo/redo support for all grid editing operations
+- Keyboard shortcuts: Ctrl+Z (Undo), Ctrl+Y/Ctrl+Shift+Z (Redo)
+- Edit menu actions with dynamic enabled/disabled states
+- 100-level undo history to prevent memory issues
+
+**What's Tracked:**
+- Target text changes as you type
+- Status changes (Not Started → Translated → Confirmed)
+- Ctrl+Enter confirmations
+- Find/Replace batch operations
+- Document view edits
+
+**Technical Implementation:**
+- Dual stack system (undo_stack + redo_stack) tracks segment changes
+- Records: segment_id, old_target, new_target, old_status, new_status
+- Smart recording: Only captures actual changes, ignores no-ops
+- Automatic redo stack clearing on new edits (standard undo behavior)
+- Stack trimming to max 100 levels for memory efficiency
+- Updates both segment data and grid display simultaneously
+
+**Integration Points:**
+- `on_target_text_changed()`: Text editing in grid cells
+- `update_status_icon()`: Status changes via toolbar/ribbon
+- `on_doc_status_change()`: Document view status changes
+- `replace_all_matches()`: Batch find/replace operations
+- Ctrl+Enter confirmation handler
+
+**User Experience:**
+- Menu actions show enabled/disabled state based on stack contents
+- Seamless integration with existing editing workflow
+- No performance impact on grid operations
+- Professional CAT tool behavior (like memoQ/Trados)
 
 ---
 
