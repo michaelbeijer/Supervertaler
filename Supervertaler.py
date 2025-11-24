@@ -21680,24 +21680,28 @@ class UniversalLookupTab(QWidget):
     def show_superlookup(self, text):
         """Show Superlookup with pre-filled text"""
         try:
+            # Get main window reference
+            main_window = self.main_window
+            if not main_window:
+                main_window = self.window()
+            
             # Switch to Tools tab (right_tabs index 2)
-            if hasattr(self, 'right_tabs'):
-                self.right_tabs.setCurrentIndex(2)
+            if hasattr(main_window, 'right_tabs'):
+                main_window.right_tabs.setCurrentIndex(2)
             
             # Switch to Superlookup within modules_tabs
-            if hasattr(self, 'modules_tabs'):
-                for i in range(self.modules_tabs.count()):
-                    if "Superlookup" in self.modules_tabs.tabText(i):
-                        self.modules_tabs.setCurrentIndex(i)
+            if hasattr(main_window, 'modules_tabs'):
+                for i in range(main_window.modules_tabs.count()):
+                    if "Superlookup" in main_window.modules_tabs.tabText(i):
+                        main_window.modules_tabs.setCurrentIndex(i)
                         break
             
-            # Fill in text if Superlookup tab exists
-            if hasattr(self, 'lookup_tab') and self.lookup_tab:
-                if hasattr(self.lookup_tab, 'input_text'):
-                    self.lookup_tab.input_text.setPlainText(text)
-                    # Trigger lookup
-                    if hasattr(self.lookup_tab, 'lookup_button'):
-                        self.lookup_tab.lookup_button.click()
+            # Fill in text and trigger lookup
+            if hasattr(self, 'input_text'):
+                self.input_text.setPlainText(text)
+                # Trigger lookup
+                if hasattr(self, 'lookup_button'):
+                    self.lookup_button.click()
                     
         except Exception as e:
             print(f"[Superlookup] Error showing lookup: {e}")
