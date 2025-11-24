@@ -21680,31 +21680,52 @@ class UniversalLookupTab(QWidget):
     def show_superlookup(self, text):
         """Show Superlookup with pre-filled text"""
         try:
+            print(f"[Superlookup] show_superlookup called with text: {text[:50]}...")
+            
             # Get main window reference
             main_window = self.main_window
             if not main_window:
                 main_window = self.window()
             
+            print(f"[Superlookup] Main window found: {main_window is not None}")
+            
             # Switch to Tools tab (right_tabs index 2)
             if hasattr(main_window, 'right_tabs'):
+                print(f"[Superlookup] Current right_tab index: {main_window.right_tabs.currentIndex()}")
                 main_window.right_tabs.setCurrentIndex(2)
+                print(f"[Superlookup] Switched to Tools tab (index 2)")
+                QApplication.processEvents()  # Force GUI update
             
             # Switch to Superlookup within modules_tabs
             if hasattr(main_window, 'modules_tabs'):
+                print(f"[Superlookup] Current modules_tab index: {main_window.modules_tabs.currentIndex()}")
                 for i in range(main_window.modules_tabs.count()):
                     if "Superlookup" in main_window.modules_tabs.tabText(i):
                         main_window.modules_tabs.setCurrentIndex(i)
+                        print(f"[Superlookup] Switched to Superlookup tab (index {i})")
+                        QApplication.processEvents()  # Force GUI update
                         break
             
-            # Fill in text and trigger lookup
-            if hasattr(self, 'input_text'):
-                self.input_text.setPlainText(text)
-                # Trigger lookup
-                if hasattr(self, 'lookup_button'):
-                    self.lookup_button.click()
+            # Delay text input and lookup to ensure tab is fully loaded
+            QTimer.singleShot(50, lambda: self._fill_and_search(text))
                     
         except Exception as e:
             print(f"[Superlookup] Error showing lookup: {e}")
+    
+    def _fill_and_search(self, text):
+        """Fill in text and trigger search (called after tab switching completes)"""
+        try:
+            print(f"[Superlookup] _fill_and_search called")
+            # Fill in text and trigger lookup
+            if hasattr(self, 'input_text'):
+                self.input_text.setPlainText(text)
+                print(f"[Superlookup] Text filled in input field")
+                # Trigger lookup
+                if hasattr(self, 'lookup_button'):
+                    self.lookup_button.click()
+                    print(f"[Superlookup] Lookup button clicked")
+        except Exception as e:
+            print(f"[Superlookup] Error in _fill_and_search: {e}")
 
 
 
