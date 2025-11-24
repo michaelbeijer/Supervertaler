@@ -4952,6 +4952,9 @@ class SupervertalerQt(QMainWindow):
                 desc_text = tm['description'] or ''
                 tm_table.setItem(row, 6, QTableWidgetItem(desc_text))
         
+        # Store callback as instance attribute so load_project can refresh UI after restoration
+        self.tm_tab_refresh_callback = refresh_tm_list
+        
         refresh_tm_list()
         layout.addWidget(tm_table, stretch=1)
         
@@ -11172,6 +11175,11 @@ class SupervertalerQt(QMainWindow):
                                 self.log(f"✓ Restored activated TM: {tm['name']}")
                             else:
                                 self.log(f"⚠️ Could not find TM with tm_id: {tm_id}")
+                        
+                        # Refresh TM UI to show restored activations
+                        if hasattr(self, 'tm_tab_refresh_callback'):
+                            self.tm_tab_refresh_callback()
+                            self.log(f"✓ Refreshed TM UI with restored activations")
             
             # Restore activated termbases for this project
             if hasattr(self, 'termbase_mgr') and self.termbase_mgr and self.current_project:
@@ -11206,6 +11214,11 @@ class SupervertalerQt(QMainWindow):
                             self.log(f"📋 No active termbases saved for this project")
                     else:
                         self.log(f"📋 No termbase settings found in project file")
+                    
+                    # Refresh termbase UI to show restored activations
+                    if hasattr(self, 'termbase_tab_refresh_callback'):
+                        self.termbase_tab_refresh_callback()
+                        self.log(f"✓ Refreshed termbase UI with restored activations")
             
             self.log(f"✓ Loaded project: {self.current_project.name} ({len(self.current_project.segments)} segments)")
             
