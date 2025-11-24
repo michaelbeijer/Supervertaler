@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.8.0 (November 23, 2025)
+**Current Version:** v1.9.0 (November 24, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -14,6 +14,7 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- 🔍 **Termview - RYS-Style Inline Terminology (v1.9.0)** - Visual inline terminology display showing source words with translations underneath, inspired by RYS Trados plugin. Supports multi-word terms, click-to-insert, hover tooltips, and terms with punctuation like "gew.%"
 - 🎨 **UI Refinements - Tab Styling (v1.8.0)** - Refined selected tab appearance with subtle 1px blue underline and light background highlighting for cleaner visual design
 - ✅ **Simplified TM/Termbase System (v1.6.6)** - Redesigned with Read/Write checkboxes, auto-priority system, removed complex Active/Project concepts for clearer workflow
 - 🔍 **Find/Replace & TM Enhancements (v1.7.9)** - Fixed highlighting, disabled TM saves during navigation, added bidirectional TM search with language variant matching
@@ -44,6 +45,43 @@ All notable changes to Supervertaler are documented in this file.
 - 🔄 **CAT Tool Integration** - memoQ, Trados, CafeTran bilingual table support
 
 **See full version history below** ↓
+
+---
+
+## [1.9.0] - November 24, 2025
+
+### 🔍 Termview - RYS-Style Inline Terminology Display
+
+**New Feature: Visual Inline Terminology**
+- Added "🔍 Termview" tab in bottom panel showing inline terminology like RYS Trados plugin
+- Source text displayed as flowing words with translations appearing underneath matched terms
+- Compact 8pt font with colored 2px top borders (pink for project termbase, blue for background)
+- Text wrapping with FlowLayout to adapt to window width
+- Click any translation to insert it into target segment
+- Hover tooltips show full term details and metadata
+
+**Technical Implementation:**
+- `modules/termview_widget.py`: New widget with FlowLayout, TermBlock classes for visual display
+- RYS-style tokenization preserves multi-word terms (e.g., "De uitvinding heeft betrekking op een werkwijze")
+- Direct integration with Translation Results termbase cache for instant updates
+- Smart refresh: Updates immediately after termbase search completes
+
+**Termbase Search Enhancements:**
+- Fixed punctuation handling: Terms like "gew.%" now matched correctly
+- Changed from `strip()` to `rstrip()/lstrip()` to preserve internal punctuation
+- Use lookaround word boundaries `(?<!\w)(?!\w)` for terms with punctuation
+- Standard `\b` boundaries for regular words
+
+**Bug Fixes:**
+- Fixed data format mismatch between termbase cache dict and Termview list format
+- Fixed timing issue where Termview updated before termbase search completed
+- Fixed tokenization regex to capture terms with special characters
+- Removed debug logging after successful implementation
+
+### 🎯 Priority & Visual Improvements
+- Project termbases (#1 priority) display with pink border for instant recognition
+- Background termbases display with blue border
+- Clean, minimal design with 1px padding and compact spacing
 
 ---
 
