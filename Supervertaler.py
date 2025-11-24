@@ -21671,8 +21671,8 @@ class UniversalLookupTab(QWidget):
                 main_window.raise_()
                 main_window.activateWindow()
                 
-            # Show Superlookup dialog
-            self.show_superlookup(text)
+            # Delay tab switching to allow window activation to complete
+            QTimer.singleShot(100, lambda: self.show_superlookup(text))
             
         except Exception as e:
             print(f"[Superlookup] Error handling capture: {e}")
