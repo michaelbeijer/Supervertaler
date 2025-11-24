@@ -47,7 +47,7 @@ from typing import List, Optional, Dict, Any, Tuple, Callable
 from dataclasses import dataclass, asdict
 from datetime import datetime
 import threading
-import time  # For delays in Universal Lookup
+import time  # For delays in Superlookup
 import re
 
 # Fix encoding for Windows console (UTF-8 support)
@@ -4638,7 +4638,7 @@ class SupervertalerQt(QMainWindow):
         if hasattr(self, 'lookup_detached_widget'):
             self.lookup_detached_widget = None
         
-        self.log("Universal Lookup re-attached to Home tab")
+        self.log("Superlookup re-attached to Home tab")
     
     def create_projects_manager_tab(self):
         """Create the Projects Manager tab - manage projects, attach TMs and termbases (legacy - content moved to Home)"""
@@ -4718,7 +4718,7 @@ class SupervertalerQt(QMainWindow):
         modules_tabs.addTab(tracked_tab, "🔄 Tracked Changes")
         
         lookup_tab = UniversalLookupTab(self)
-        modules_tabs.addTab(lookup_tab, "🔍 Universal Lookup")
+        modules_tabs.addTab(lookup_tab, "🔍 Superlookup")
 
         # Superbench
         leaderboard_tab = self.create_llm_leaderboard_tab()
@@ -11070,7 +11070,7 @@ class SupervertalerQt(QMainWindow):
                 try:
                     self.lookup_tab.ahk_process.terminate()
                     self.lookup_tab.ahk_process.wait(timeout=2)
-                    print("[Universal Lookup] AHK process terminated")
+                    print("[Superlookup] AHK process terminated")
                 except:
                     # Force kill if terminate doesn't work
                     try:
@@ -11078,7 +11078,7 @@ class SupervertalerQt(QMainWindow):
                     except:
                         pass
         except Exception as e:
-            print(f"[Universal Lookup] Error terminating AHK: {e}")
+            print(f"[Superlookup] Error terminating AHK: {e}")
         
         # Accept the close event
         event.accept()
@@ -15291,7 +15291,7 @@ class SupervertalerQt(QMainWindow):
                 log_callback=self.log
             )
             
-            # Update Universal Lookup tab with TM database
+            # Update Superlookup tab with TM database
             if hasattr(self, 'lookup_tab') and self.lookup_tab:
                 self.lookup_tab.set_tm_database(self.tm_database)
             
@@ -18057,15 +18057,15 @@ class SupervertalerQt(QMainWindow):
             self.right_tabs.setCurrentIndex(3)
     
     def _go_to_superlookup(self):
-        """Navigate to Universal Lookup in Tools tab"""
+        """Navigate to Superlookup in Tools tab"""
         if hasattr(self, 'right_tabs'):
             # Right tabs: Prompt Manager=0, Resources=1, Tools=2, Settings=3
             self.right_tabs.setCurrentIndex(2)  # Switch to Tools tab
-            # Then switch to Universal Lookup sub-tab
+            # Then switch to Superlookup sub-tab
             if hasattr(self, 'modules_tabs'):
-                # Find Universal Lookup index in modules tabs
+                # Find Superlookup index in modules tabs
                 for i in range(self.modules_tabs.count()):
-                    if "Universal Lookup" in self.modules_tabs.tabText(i):
+                    if "Superlookup" in self.modules_tabs.tabText(i):
                         self.modules_tabs.setCurrentIndex(i)
                         break
     
@@ -20897,12 +20897,12 @@ class SupervertalerQt(QMainWindow):
 
 
 # ============================================================================
-# UNIVERSAL LOOKUP TAB
+# SUPERLOOKUP TAB
 # ============================================================================
 
 class UniversalLookupTab(QWidget):
     """
-    Universal Lookup - System-wide translation lookup
+    Superlookup - System-wide translation lookup
     Works anywhere on your computer: in CAT tools, browsers, Word, any text box
     """
     
@@ -20945,7 +20945,7 @@ class UniversalLookupTab(QWidget):
         layout.setSpacing(5)  # Reduced from 10 to 5 for consistency
         
         # Header
-        header = QLabel("🔍 Universal Lookup")
+        header = QLabel("🔍 Superlookup")
         header.setStyleSheet("font-size: 16pt; font-weight: bold; color: #1976D2;")
         layout.addWidget(header, 0)  # 0 = no stretch, stays compact
         
@@ -21524,7 +21524,7 @@ class UniversalLookupTab(QWidget):
                     source_term=source,
                     target_term=target,
                     domain="",
-                    notes=f"Added via Universal Lookup",
+                    notes=f"Added via Superlookup",
                     project="",
                     client=""
                 )
@@ -21548,7 +21548,7 @@ class UniversalLookupTab(QWidget):
             self.engine.set_tm_database(tm_db)
     
     def register_global_hotkey(self):
-        """Register global hotkey for Universal Lookup"""
+        """Register global hotkey for Superlookup"""
         global _ahk_process
         try:
             # Kill any existing instances of the AHK script first
@@ -21594,8 +21594,8 @@ class UniversalLookupTab(QWidget):
                     break
             
             if not ahk_exe:
-                print("[Universal Lookup] AutoHotkey not found. Please install from https://www.autohotkey.com/")
-                print("[Universal Lookup] Searched paths:", ahk_paths)
+                print("[Superlookup] AutoHotkey not found. Please install from https://www.autohotkey.com/")
+                print("[Superlookup] Searched paths:", ahk_paths)
                 self.hotkey_registered = False
                 return
             
@@ -21606,16 +21606,16 @@ class UniversalLookupTab(QWidget):
                                                    creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0)
                 # Store in global variable for atexit cleanup
                 _ahk_process = self.ahk_process
-                print(f"[Universal Lookup] AHK hotkey registered: Ctrl+Alt+L")
+                print(f"[Superlookup] AHK hotkey registered: Ctrl+Alt+L")
                 
                 # Start file watcher
                 self.start_file_watcher()
                 self.hotkey_registered = True
             else:
-                print(f"[Universal Lookup] AHK script not found: {ahk_script}")
+                print(f"[Superlookup] AHK script not found: {ahk_script}")
                 self.hotkey_registered = False
         except Exception as e:
-            print(f"[Universal Lookup] Could not start AHK hotkey: {e}")
+            print(f"[Superlookup] Could not start AHK hotkey: {e}")
             self.hotkey_registered = False
     
     def start_file_watcher(self):
@@ -21643,7 +21643,7 @@ class UniversalLookupTab(QWidget):
                 if text:
                     self.on_ahk_capture(text)
             except Exception as e:
-                print(f"[Universal Lookup] Error reading capture: {e}")
+                print(f"[Superlookup] Error reading capture: {e}")
     
     def on_ahk_capture(self, text):
         """Handle text captured by AHK"""
@@ -21671,24 +21671,24 @@ class UniversalLookupTab(QWidget):
                 main_window.raise_()
                 main_window.activateWindow()
                 
-            # Show universal lookup dialog
+            # Show Superlookup dialog
             self.show_superlookup(text)
             
         except Exception as e:
-            print(f"[Universal Lookup] Error handling capture: {e}")
+            print(f"[Superlookup] Error handling capture: {e}")
     
     def show_superlookup(self, text):
-        """Show universal lookup with pre-filled text"""
+        """Show Superlookup with pre-filled text"""
         try:
-            # Switch to Universal Lookup tab
+            # Switch to Superlookup tab
             if hasattr(self, 'right_tabs'):
-                # Find Universal Lookup tab
+                # Find Superlookup tab
                 for i in range(self.right_tabs.count()):
-                    if "Universal Lookup" in self.right_tabs.tabText(i):
+                    if "Superlookup" in self.right_tabs.tabText(i):
                         self.right_tabs.setCurrentIndex(i)
                         break
             
-            # Fill in text if Universal Lookup tab exists
+            # Fill in text if Superlookup tab exists
             superlookup_tab = getattr(self, 'superlookup_tab', None)
             if superlookup_tab and hasattr(superlookup_tab, 'input_text'):
                 superlookup_tab.input_text.setPlainText(text)
@@ -21697,7 +21697,7 @@ class UniversalLookupTab(QWidget):
                     superlookup_tab.lookup_button.click()
                     
         except Exception as e:
-            print(f"[Universal Lookup] Error showing lookup: {e}")
+            print(f"[Superlookup] Error showing lookup: {e}")
 
 
 
@@ -22085,12 +22085,12 @@ class AutoFingersWidget(QWidget):
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(5)
         
-        # Header (matches Universal Lookup / PDF Rescue / TMX Editor style)
+        # Header (matches Superlookup / PDF Rescue / TMX Editor style)
         header = QLabel("🤖 AutoFingers")
         header.setStyleSheet("font-size: 16pt; font-weight: bold; color: #1976D2;")
         layout.addWidget(header, 0)  # 0 = no stretch, stays compact
         
-        # Description box (matches Universal Lookup / PDF Rescue / TMX Editor style)
+        # Description box (matches Superlookup / PDF Rescue / TMX Editor style)
         info = QLabel(
             "Automated Translation Pasting for memoQ.\n"
             "AutoFingers reads from a TMX file and pastes translations automatically."
