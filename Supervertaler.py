@@ -6485,8 +6485,8 @@ class SupervertalerQt(QMainWindow):
             QMessageBox.warning(self, "Error", "Please select a termbase to delete")
             return
         
-        # Get termbase info from Name column (column 2, not 1 which has Type widget)
-        name_item = termbase_table.item(selected_row, 2)
+        # Get termbase info from Name column (column 1 - has ID stored in UserRole)
+        name_item = termbase_table.item(selected_row, 1)
         if not name_item:
             QMessageBox.warning(self, "Error", "Could not read termbase information")
             return
@@ -6657,8 +6657,8 @@ class SupervertalerQt(QMainWindow):
             QMessageBox.warning(self, "Error", "Please select a termbase to export")
             return
         
-        # Get termbase info from Name column (column 2)
-        name_item = termbase_table.item(selected_row, 2)
+        # Get termbase info from Name column (column 1 - has ID stored in UserRole)
+        name_item = termbase_table.item(selected_row, 1)
         if not name_item:
             QMessageBox.warning(self, "Error", "Could not read termbase information")
             return
@@ -6755,17 +6755,18 @@ class SupervertalerQt(QMainWindow):
             QMessageBox.warning(self, "Error", "Please select a termbase first")
             return
         
-        # Get termbase ID from table (column 2 is Name, not column 1)
-        tb_name = termbase_table.item(selected_row, 2).text()
-        
-        # Find termbase ID
-        termbases = termbase_mgr.get_all_termbases()
-        termbase = next((tb for tb in termbases if tb['name'] == tb_name), None)
-        if not termbase:
+        # Get termbase ID and name from table (column 1 is Name with ID stored in UserRole)
+        name_item = termbase_table.item(selected_row, 1)
+        if not name_item:
             QMessageBox.warning(self, "Error", "Could not find selected termbase")
             return
         
-        termbase_id = termbase['id']
+        termbase_id = name_item.data(Qt.ItemDataRole.UserRole)
+        tb_name = name_item.text()
+        
+        if not termbase_id:
+            QMessageBox.warning(self, "Error", "Could not find selected termbase")
+            return
         
         # Create dialog
         dialog = QDialog(self)
