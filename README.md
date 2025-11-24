@@ -107,7 +107,7 @@ python Supervertaler.py
 - 🎨 **Translation Results Panel** - All match types (Termbase, TM, MT, LLM) in one view
 - 🔄 **CAT Tool Integration** - Import/export with memoQ, Trados, CafeTran
 - 📊 **Bilingual Review Interface** - Grid, List, and Document views
-- 🔍 **Universal Lookup** - System-wide search with global hotkey (Ctrl+Alt+L)
+- 🔍 **Superlookup** - System-wide search with global hotkey (Ctrl+Alt+L)
 - 📝 **TMX Editor** - Professional translation memory editor with database support
 - 🧹 **AutoFingers** - Automated translation pasting for memoQ with tag cleaning
 - 🔧 **PDF Rescue** - AI-powered OCR for poorly formatted PDFs
@@ -154,10 +154,10 @@ For comprehensive project information, see [docs/PROJECT_CONTEXT.md](docs/PROJEC
 **Current Version**: v1.0.0 Phase 5 (October 29, 2025)
 
 **Latest Features**:
-- 🔍 **Universal Lookup** - Search TM from anywhere (Ctrl+Alt+L)
+- 🔍 **Superlookup** - Search TM from anywhere (Ctrl+Alt+L)
 - 🎨 **Modern UI** - PyQt6 with 6 built-in themes + custom theme editor
 - ⚡ **Better Performance** - Faster, more responsive
-- 🎯 **Universal Lookup** - System-wide translation memory search
+- 🎯 **Superlookup** - System-wide translation memory search
 - 🤖 **AutoFingers** - Automated translation pasting for memoQ
 - 📋 **memoQ Integration** - Bilingual DOCX import/export
 - 💾 **Translation Memory** - SQLite-based with FTS5 search
@@ -243,7 +243,7 @@ Built with PyQt6, Supervertaler offers modern UI, advanced AI integration, compl
 - 🧹 **AutoFingers** - Automated translation pasting for memoQ with tag cleaning
 - 📊 **Superbench** - LLM translation quality benchmarking with chrF++ scoring
 - 🔧 **Encoding Repair** - Detect and fix text encoding corruption (mojibake)
-- 🔍 **Universal Lookup** - System-wide TM search with global hotkey (Ctrl+Alt+L)
+- 🔍 **Superlookup** - System-wide TM search with global hotkey (Ctrl+Alt+L)
 
 **CAT Tool Integration**:
 - 📊 **memoQ** - Bilingual DOCX import/export with perfect alignment

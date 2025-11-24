@@ -19,7 +19,7 @@ Key Features:
 - Multi-LLM Support: OpenAI GPT, Claude, Google Gemini
 - 2-Layer Prompt Architecture (System + Custom Prompts) with AI Assistant
 - AI Assistant with conversational interface for document analysis
-- Universal Lookup with global hotkey (Ctrl+Alt+L)
+- Superlookup with global hotkey (Ctrl+Alt+L)
 - Detachable Log window for multi-monitor setups
 - Modern theme system (6 themes + custom editor)
 - AutoFingers automation for memoQ with TagCleaner module
@@ -57,8 +57,8 @@ if sys.platform == 'win32':
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
 # External dependencies
-import pyperclip  # For clipboard operations in Universal Lookup
-from modules.universal_lookup import UniversalLookupEngine  # Universal Lookup engine
+import pyperclip  # For clipboard operations in Superlookup
+from modules.superlookup import SuperlookupEngine  # Superlookup engine
 from modules.voice_dictation_lite import QuickDictationThread  # Voice dictation
 from modules.statuses import (
     STATUSES,
@@ -143,11 +143,11 @@ def cleanup_ahk_process():
         try:
             _ahk_process.terminate()
             _ahk_process.wait(timeout=1)
-            print("[Universal Lookup] AHK process terminated on exit")
+            print("[Superlookup] AHK process terminated on exit")
         except:
             try:
                 _ahk_process.kill()
-                print("[Universal Lookup] AHK process killed on exit")
+                print("[Superlookup] AHK process killed on exit")
             except:
                 pass
 
@@ -2681,7 +2681,7 @@ class SupervertalerQt(QMainWindow):
         self._suppress_target_change_handlers = False
         self.warning_banners: Dict[str, QWidget] = {}
         
-        # Universal Lookup detached window
+        # Superlookup detached window
         self.lookup_detached_window = None
         
         # Database Manager for Termbases
@@ -3012,12 +3012,12 @@ class SupervertalerQt(QMainWindow):
         
         edit_menu.addSeparator()
         
-        # Universal Lookup
-        universal_lookup_action = QAction("🔍 &Universal Lookup...", self)
-        universal_lookup_action.setShortcut("Ctrl+Alt+L")
+        # Superlookup
+        superlookup_action = QAction("🔍 &Superlookup...", self)
+        superlookup_action.setShortcut("Ctrl+Alt+L")
         # Tab indices: Home=0, Resources=1, Tools=2, Settings=3 (Prompt Manager and Editor removed)
-        universal_lookup_action.triggered.connect(lambda: self.right_tabs.setCurrentIndex(2) if hasattr(self, 'right_tabs') else None)  # Tools tab
-        edit_menu.addAction(universal_lookup_action)
+        superlookup_action.triggered.connect(lambda: self.right_tabs.setCurrentIndex(2) if hasattr(self, 'right_tabs') else None)  # Tools tab
+        edit_menu.addAction(superlookup_action)
         
         # View Menu
         view_menu = menubar.addMenu("&View")
@@ -3410,7 +3410,7 @@ class SupervertalerQt(QMainWindow):
             "translate": self.translate_current_segment,
             "batch_translate": self.translate_batch,
             "tm_manager": self.show_tm_manager,
-            "universal_lookup": lambda: self._go_to_universal_lookup() if hasattr(self, 'right_tabs') else None,
+            "superlookup": lambda: self._go_to_superlookup() if hasattr(self, 'right_tabs') else None,
             
             # View actions
             "zoom_in": self.zoom_in,
@@ -3610,18 +3610,18 @@ class SupervertalerQt(QMainWindow):
         """Create the TMX Editor tab - Edit TMs"""
         from modules.tmx_editor_qt import TmxEditorUIQt
         
-        # Create container widget with Universal Lookup style header
+        # Create container widget with Superlookup style header
         container = QWidget()
         layout = QVBoxLayout(container)
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(5)  # Reduced from 10 to 5 for tighter spacing
         
-        # Header (matches Universal Lookup / AutoFingers / PDF Rescue style)
+        # Header (matches Superlookup / AutoFingers / PDF Rescue style)
         header = QLabel("📝 TMX Editor")
         header.setStyleSheet("font-size: 16pt; font-weight: bold; color: #1976D2;")
         layout.addWidget(header, 0)  # 0 = no stretch, stays compact
         
-        # Description box (matches Universal Lookup / AutoFingers / PDF Rescue style)
+        # Description box (matches Superlookup / AutoFingers / PDF Rescue style)
         description = QLabel(
             "Edit translation memory files directly - inspired by Heartsome TMX Editor.\n"
             "Open, edit, filter, and manage your TMX translation memories."
@@ -4489,8 +4489,8 @@ class SupervertalerQt(QMainWindow):
             # Reinitialize AI Assistant's LLM client
             self.prompt_manager_qt._init_llm_client()
     
-    def detach_universal_lookup(self):
-        """Detach Universal Lookup into a separate window for second screen use"""
+    def detach_superlookup(self):
+        """Detach Superlookup into a separate window for second screen use"
         from PyQt6.QtWidgets import QDialog, QVBoxLayout, QPushButton
         
         try:
@@ -4502,7 +4502,7 @@ class SupervertalerQt(QMainWindow):
             
             # Create detached window
             self.lookup_detached_window = QDialog(self)
-            self.lookup_detached_window.setWindowTitle("🔍 Universal Lookup - Supervertaler")
+            self.lookup_detached_window.setWindowTitle("🔍 Superlookup - Supervertaler")
             self.lookup_detached_window.setMinimumSize(600, 700)
             self.lookup_detached_window.resize(700, 800)
             
@@ -4556,21 +4556,21 @@ class SupervertalerQt(QMainWindow):
             # Header with reattach button
             header_layout = QVBoxLayout()
             
-            header_title = QLabel("🔍 Universal Lookup")
+            header_title = QLabel("🔍 Superlookup")
             header_title.setStyleSheet("font-size: 16px; font-weight: bold; color: #333;")
             header_layout.addWidget(header_title)
             
             button_layout = QVBoxLayout()
             reattach_btn = QPushButton("📥 Attach to Main Window")
-            reattach_btn.setToolTip("Re-attach Universal Lookup to the Home tab")
+            reattach_btn.setToolTip("Re-attach Superlookup to the Home tab")
             reattach_btn.setStyleSheet("font-size: 9pt; padding: 4px 12px; max-width: 200px;")
-            reattach_btn.clicked.connect(self.reattach_universal_lookup)
+            reattach_btn.clicked.connect(self.reattach_superlookup)
             button_layout.addWidget(reattach_btn, alignment=Qt.AlignmentFlag.AlignRight)
             header_layout.addLayout(button_layout)
             
             layout.addLayout(header_layout)
             
-            # Create new Universal Lookup instance for detached window
+            # Create new Superlookup instance for detached window
             # Or move the existing one - better to create new to avoid widget parenting issues
             detached_lookup = UniversalLookupTab(self.lookup_detached_window)
             
@@ -4609,15 +4609,15 @@ class SupervertalerQt(QMainWindow):
             # Show window (non-modal)
             self.lookup_detached_window.setWindowModality(Qt.WindowModality.NonModal)
             self.lookup_detached_window.show()
-            self.log("Universal Lookup detached to separate window")
+            self.log("Superlookup detached to separate window")
         except Exception as e:
             import traceback
-            error_msg = f"Error detaching Universal Lookup: {str(e)}\n{traceback.format_exc()}"
+            error_msg = f"Error detaching Superlookup: {str(e)}\n{traceback.format_exc()}"
             self.log(error_msg)
-            QMessageBox.warning(self, "Error", f"Could not detach Universal Lookup:\n{str(e)}")
+            QMessageBox.warning(self, "Error", f"Could not detach Superlookup:\n{str(e)}")
     
-    def reattach_universal_lookup(self):
-        """Re-attach Universal Lookup to the Home tab"""
+    def reattach_superlookup(self):
+        """Re-attach Superlookup to the Home tab"""
         if not self.lookup_detached_window:
             return
         
@@ -18056,7 +18056,7 @@ class SupervertalerQt(QMainWindow):
             # Right tabs: Prompt Manager=0, Resources=1, Tools=2, Settings=3
             self.right_tabs.setCurrentIndex(3)
     
-    def _go_to_universal_lookup(self):
+    def _go_to_superlookup(self):
         """Navigate to Universal Lookup in Tools tab"""
         if hasattr(self, 'right_tabs'):
             # Right tabs: Prompt Manager=0, Resources=1, Tools=2, Settings=3
@@ -20908,25 +20908,28 @@ class UniversalLookupTab(QWidget):
     
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.main_window = parent  # Store reference to main window for database access
         
         # Import lookup engine
         try:
-            from modules.universal_lookup import UniversalLookupEngine, LookupResult
-            self.UniversalLookupEngine = UniversalLookupEngine
+            from modules.superlookup import SuperlookupEngine, LookupResult
+            self.SuperlookupEngine = SuperlookupEngine
             self.LookupResult = LookupResult
         except ImportError:
             QMessageBox.critical(
                 self,
                 "Missing Module",
-                "Could not import universal_lookup module.\nPlease ensure modules/universal_lookup.py exists."
+                "Could not import superlookup module.\nPlease ensure modules/superlookup.py exists."
             )
-            self.UniversalLookupEngine = None
+            self.SuperlookupEngine = None
             self.LookupResult = None
             return
         
         # Initialize engine
         self.engine = None
         self.tm_database = None
+        self.termbase_mgr = None
+        self.db_manager = None
         self.hotkey_registered = False
         
         # UI setup
@@ -20951,12 +20954,13 @@ class UniversalLookupTab(QWidget):
             # Windows - full functionality
             description_text = (
                 "Look up translations anywhere on your computer.\n"
-                "Press Ctrl+Alt+L or paste text manually to search your translation memory."
+                "Press Ctrl+Alt+L or paste text manually to search your TMs and Termbases.\n"
+                "Perfect for translating in other CAT tools while accessing Supervertaler resources!"
             )
         else:
             # Mac/Linux - manual mode only
             description_text = (
-                "Look up translations in your translation memory.\n"
+                "Look up translations in your TMs and Termbases.\n"
                 "⚠️ Global hotkey not available on this platform. Paste text manually to search."
             )
         
@@ -21087,11 +21091,29 @@ class UniversalLookupTab(QWidget):
         self.termbase_results_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         self.termbase_results_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.termbase_results_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.termbase_results_table.doubleClicked.connect(lambda: self.copy_selected_termbase_target())
         
         layout.addWidget(self.termbase_results_table)
         
+        # Action buttons
+        button_layout = QHBoxLayout()
+        
+        add_term_btn = QPushButton("➕ Add to Termbase")
+        add_term_btn.setToolTip("Add source text and selected translation as new term")
+        add_term_btn.setStyleSheet("background-color: #4CAF50; color: white; padding: 5px;")
+        add_term_btn.clicked.connect(self.add_to_termbase)
+        button_layout.addWidget(add_term_btn)
+        
+        button_layout.addStretch()
+        
+        copy_target_btn = QPushButton("📋 Copy Translation")
+        copy_target_btn.clicked.connect(self.copy_selected_termbase_target)
+        button_layout.addWidget(copy_target_btn)
+        
+        layout.addLayout(button_layout)
+        
         # Info label
-        info = QLabel("💡 Tip: Double-click a term to copy it to clipboard")
+        info = QLabel("💡 Tip: Double-click a term to copy translation to clipboard")
         info.setStyleSheet("color: #666; font-size: 9pt; padding: 5px;")
         layout.addWidget(info)
         
@@ -21146,7 +21168,7 @@ class UniversalLookupTab(QWidget):
             delay: If True, wait 1.5 seconds before capturing (for manual button clicks)
                    If False, capture immediately (for global hotkey)
         """
-        if not self.UniversalLookupEngine:
+        if not self.SuperlookupEngine:
             return
         
         # Initialize engine if needed
@@ -21159,7 +21181,7 @@ class UniversalLookupTab(QWidget):
                 "CafeTran": "cafetran"
             }
             mode = mode_map.get(mode_text, "universal")
-            self.engine = self.UniversalLookupEngine(mode=mode)
+            self.engine = self.SuperlookupEngine(mode=mode)
             
             # Set TM database if available
             if self.tm_database:
@@ -21204,28 +21226,40 @@ class UniversalLookupTab(QWidget):
                 "CafeTran": "cafetran"
             }
             mode = mode_map.get(mode_text, "universal")
-            self.engine = UniversalLookupEngine(mode=mode)
+            self.engine = SuperlookupEngine(mode=mode)
             
-            # Set TM database if available
-            if self.tm_database:
-                self.engine.set_tm_database(self.tm_database)
+            # Get databases from main window if available
+            if self.main_window:
+                if hasattr(self.main_window, 'tm_database') and self.main_window.tm_database:
+                    self.tm_database = self.main_window.tm_database
+                    self.engine.set_tm_database(self.tm_database)
+                
+                if hasattr(self.main_window, 'termbase_mgr') and self.main_window.termbase_mgr:
+                    self.termbase_mgr = self.main_window.termbase_mgr
+                
+                if hasattr(self.main_window, 'db_manager') and self.main_window.db_manager:
+                    self.db_manager = self.main_window.db_manager
         
         self.status_label.setText("🔍 Searching...")
         QApplication.processEvents()
         
-        # Perform lookups
-        results = self.engine.lookup_all(text)
+        # Perform TM lookup
+        tm_results = []
+        if self.tm_database:
+            tm_results = self.engine.search_tm(text)
         
-        # Display TM results
-        self.display_tm_results(results.get('tm', []))
+        # Perform termbase lookup (search Supervertaler termbases directly)
+        termbase_results = self.search_termbases(text)
         
-        # Display termbase results
-        self.display_glossary_results(results.get('termbase', []))
+        # Perform MT lookup
+        mt_results = []  # TODO: Add MT integration
         
-        # Display MT results
-        self.display_mt_results(results.get('mt', []))
+        # Display results
+        self.display_tm_results(tm_results)
+        self.display_termbase_results(termbase_results)
+        self.display_mt_results(mt_results)
         
-        total_results = len(results.get('tm', [])) + len(results.get('termbase', [])) + len(results.get('mt', []))
+        total_results = len(tm_results) + len(termbase_results) + len(mt_results)
         self.status_label.setText(f"✓ Found {total_results} results")
     
     def display_tm_results(self, results):
@@ -21321,6 +21355,192 @@ class UniversalLookupTab(QWidget):
         self.termbase_results_table.setRowCount(0)
         self.status_label.setText("Cleared. Ready for new lookup.")
     
+    def search_termbases(self, text):
+        """Search Supervertaler termbases for matching terms"""
+        results = []
+        
+        if not self.termbase_mgr or not self.db_manager or not self.main_window:
+            return results
+        
+        try:
+            # Get active project ID
+            project_id = None
+            if hasattr(self.main_window, 'current_project') and self.main_window.current_project:
+                project_id = self.main_window.current_project.id if hasattr(self.main_window.current_project, 'id') else None
+            
+            # Get all active termbases for current project
+            all_termbases = self.termbase_mgr.get_all_termbases()
+            active_termbases = [tb for tb in all_termbases 
+                              if self.termbase_mgr.is_termbase_active(tb['id'], project_id)] if project_id else []
+            
+            # Search text for terms (split into words and phrases)
+            words = text.lower().split()
+            search_terms = words + [text.lower()]  # Include full text as well
+            
+            # Search each active termbase
+            for termbase in active_termbases:
+                termbase_id = termbase['id']
+                terms = self.termbase_mgr.get_terms(termbase_id)
+                
+                for term in terms:
+                    source_term = term.get('source_term', '').lower()
+                    target_term = term.get('target_term', '')
+                    
+                    # Check if source term appears in text
+                    if source_term in text.lower() or any(source_term in word for word in search_terms):
+                        # Create LookupResult
+                        from modules.superlookup import LookupResult
+                        results.append(LookupResult(
+                            source=term.get('source_term', ''),
+                            target=target_term,
+                            match_percent=100,
+                            source_type='termbase',
+                            metadata={'termbase': termbase['name'], 'termbase_id': termbase_id}
+                        ))
+            
+            # Remove duplicates
+            seen = set()
+            unique_results = []
+            for result in results:
+                key = (result.source.lower(), result.target.lower())
+                if key not in seen:
+                    seen.add(key)
+                    unique_results.append(result)
+            
+            return unique_results
+            
+        except Exception as e:
+            if hasattr(self.main_window, 'log'):
+                self.main_window.log(f"✗ Error searching termbases: {e}")
+            return results
+    
+    def copy_selected_termbase_target(self):
+        """Copy selected termbase translation to clipboard"""
+        selected = self.termbase_results_table.selectedItems()
+        if selected:
+            row = selected[0].row()
+            target_item = self.termbase_results_table.item(row, 1)
+            if target_item:
+                pyperclip.copy(target_item.text())
+                self.status_label.setText(f"✓ Copied to clipboard: {target_item.text()[:50]}...")
+    
+    def add_to_termbase(self):
+        """Add source text and selected translation as new term to termbase"""
+        # Get source text
+        source_text = self.source_text.toPlainText().strip()
+        if not source_text:
+            QMessageBox.warning(self, "No Source Text", "Please enter or capture source text first.")
+            return
+        
+        # Get selected termbase result if any
+        selected = self.termbase_results_table.selectedItems()
+        target_text = ""
+        if selected:
+            row = selected[0].row()
+            target_item = self.termbase_results_table.item(row, 1)
+            if target_item:
+                target_text = target_item.text()
+        
+        if not self.termbase_mgr or not self.db_manager or not self.main_window:
+            QMessageBox.warning(self, "Database Not Available", "Termbase database is not initialized.")
+            return
+        
+        # Show dialog to add term
+        self.show_add_term_dialog(source_text, target_text)
+    
+    def show_add_term_dialog(self, source_text, target_text=""):
+        """Show dialog to add new term to termbase"""
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Add Term to Termbase")
+        dialog.setMinimumWidth(500)
+        
+        layout = QVBoxLayout(dialog)
+        
+        # Source term
+        layout.addWidget(QLabel("Source Term:"))
+        source_edit = QLineEdit(source_text)
+        layout.addWidget(source_edit)
+        
+        # Target term
+        layout.addWidget(QLabel("Target Translation:"))
+        target_edit = QLineEdit(target_text)
+        layout.addWidget(target_edit)
+        
+        # Termbase selection
+        layout.addWidget(QLabel("Select Termbase:"))
+        termbase_combo = QComboBox()
+        
+        # Get writable termbases
+        try:
+            project_id = None
+            if hasattr(self.main_window, 'current_project') and self.main_window.current_project:
+                project_id = self.main_window.current_project.id if hasattr(self.main_window.current_project, 'id') else None
+            
+            all_termbases = self.termbase_mgr.get_all_termbases()
+            writable_termbases = [tb for tb in all_termbases if not tb.get('read_only', True)]
+            
+            if not writable_termbases:
+                QMessageBox.warning(self, "No Writable Termbases", 
+                    "No writable termbases found. Please enable Write for at least one termbase in Translation Resources → Termbases.")
+                return
+            
+            for tb in writable_termbases:
+                termbase_combo.addItem(tb['name'], tb['id'])
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Could not load termbases: {e}")
+            return
+        
+        layout.addWidget(termbase_combo)
+        
+        # Buttons
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+        
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(dialog.reject)
+        button_layout.addWidget(cancel_btn)
+        
+        add_btn = QPushButton("Add Term")
+        add_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 8px;")
+        add_btn.clicked.connect(dialog.accept)
+        button_layout.addWidget(add_btn)
+        
+        layout.addLayout(button_layout)
+        
+        # Show dialog
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            source = source_edit.text().strip()
+            target = target_edit.text().strip()
+            termbase_id = termbase_combo.currentData()
+            
+            if not source or not target:
+                QMessageBox.warning(self, "Missing Information", "Both source and target terms are required.")
+                return
+            
+            # Add term to termbase
+            try:
+                self.termbase_mgr.add_term(
+                    termbase_id=termbase_id,
+                    source_term=source,
+                    target_term=target,
+                    domain="",
+                    notes=f"Added via Universal Lookup",
+                    project="",
+                    client=""
+                )
+                
+                if hasattr(self.main_window, 'log'):
+                    self.main_window.log(f"✓ Added term to {termbase_combo.currentText()}: {source} → {target}")
+                
+                QMessageBox.information(self, "Term Added", 
+                    f"Successfully added term:\n\n{source} → {target}\n\nto termbase: {termbase_combo.currentText()}")
+                
+                # Refresh termbase results
+                self.perform_lookup()
+                
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Failed to add term:\n{str(e)}")
+    
     def set_tm_database(self, tm_db):
         """Set TM database (called from main window)"""
         self.tm_database = tm_db
@@ -21336,7 +21556,7 @@ class UniversalLookupTab(QWidget):
                 try:
                     # Use multiple methods to ensure cleanup
                     # Method 1: Kill by window title
-                    subprocess.run(['taskkill', '/F', '/FI', 'WINDOWTITLE eq universal_lookup_hotkey.ahk*'],
+                    subprocess.run(['taskkill', '/F', '/FI', 'WINDOWTITLE eq superlookup_hotkey.ahk*'],
                                  capture_output=True, creationflags=subprocess.CREATE_NO_WINDOW)
                     
                     # Method 2: Kill AutoHotkey processes more aggressively
@@ -21348,7 +21568,7 @@ class UniversalLookupTab(QWidget):
                     try:
                         for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
                             try:
-                                if 'universal_lookup_hotkey' in ' '.join(proc.cmdline() or []):
+                                if 'superlookup_hotkey' in ' '.join(proc.cmdline() or []):
                                     proc.kill()
                             except:
                                 pass
@@ -21379,7 +21599,7 @@ class UniversalLookupTab(QWidget):
                 self.hotkey_registered = False
                 return
             
-            ahk_script = Path(__file__).parent / "universal_lookup_hotkey.ahk"
+            ahk_script = Path(__file__).parent / "superlookup_hotkey.ahk"
             if ahk_script.exists():
                 # Start AHK script in background (hidden)
                 self.ahk_process = subprocess.Popen([ahk_exe, str(ahk_script)],
@@ -21452,12 +21672,12 @@ class UniversalLookupTab(QWidget):
                 main_window.activateWindow()
                 
             # Show universal lookup dialog
-            self.show_universal_lookup(text)
+            self.show_superlookup(text)
             
         except Exception as e:
             print(f"[Universal Lookup] Error handling capture: {e}")
     
-    def show_universal_lookup(self, text):
+    def show_superlookup(self, text):
         """Show universal lookup with pre-filled text"""
         try:
             # Switch to Universal Lookup tab
@@ -21469,12 +21689,12 @@ class UniversalLookupTab(QWidget):
                         break
             
             # Fill in text if Universal Lookup tab exists
-            universal_lookup_tab = getattr(self, 'universal_lookup_tab', None)
-            if universal_lookup_tab and hasattr(universal_lookup_tab, 'input_text'):
-                universal_lookup_tab.input_text.setPlainText(text)
+            superlookup_tab = getattr(self, 'superlookup_tab', None)
+            if superlookup_tab and hasattr(superlookup_tab, 'input_text'):
+                superlookup_tab.input_text.setPlainText(text)
                 # Trigger lookup
-                if hasattr(universal_lookup_tab, 'lookup_button'):
-                    universal_lookup_tab.lookup_button.click()
+                if hasattr(superlookup_tab, 'lookup_button'):
+                    superlookup_tab.lookup_button.click()
                     
         except Exception as e:
             print(f"[Universal Lookup] Error showing lookup: {e}")

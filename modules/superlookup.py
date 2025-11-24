@@ -1,6 +1,6 @@
 """
-Universal Lookup Engine
-========================
+Superlookup Engine
+==================
 System-wide translation lookup that works anywhere on your computer.
 Captures text from any application and provides:
 - TM matches from Supervertaler database
@@ -36,9 +36,9 @@ class LookupResult:
             self.metadata = {}
 
 
-class UniversalLookupEngine:
+class SuperlookupEngine:
     """
-    Universal text lookup engine.
+    Superlookup text lookup engine.
     Captures text from any application and provides translation results.
     """
     

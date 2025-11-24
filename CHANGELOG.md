@@ -1691,8 +1691,8 @@ Each match shows:
 ## [1.1.6] - November 3, 2025
 
 ### Added
-- **🔍 Detachable Universal Lookup:** Multi-screen support for Universal Lookup module
-  - Detach button on Home tab to open Universal Lookup in separate window
+- **🔍 Detachable Superlookup:** Multi-screen support for Superlookup module
+  - Detach button on Home tab to open Superlookup in separate window
   - Perfect for multi-monitor workflows - move lookup to second screen while translating
   - Proper window positioning and multi-monitor detection
   - Reattach functionality to return to embedded mode
@@ -1703,10 +1703,10 @@ Each match shows:
   - Better text styling with purple gradient for subtitle and version (larger, bold)
   - Reorganized layout: About in header, Resources & Support next, Projects at bottom
   - Projects section with distinct background color for visual separation
-  - Universal Lookup prominently featured on right side of Home tab
+  - Superlookup prominently featured on right side of Home tab
 
 ### Fixed
-- **Multi-Monitor Support:** Fixed window positioning for detached Universal Lookup
+- **Multi-Monitor Support:** Fixed window positioning for detached Superlookup
   - Correct screen detection using `QApplication.screenAt()` API
   - Proper window activation and focus handling
   - Window flags configured for proper minimize/maximize behavior
@@ -1726,7 +1726,7 @@ Each match shows:
   - Integrated About section with version info and purple gradient header
   - Quick access to resources (Website, GitHub, Discussions, Documentation)
   - Project management panel for recent projects
-  - Embedded Universal Lookup for instant translations
+  - Embedded Superlookup for instant translations
   - Clean, modern design with proper visual hierarchy
   
 - **Major UI Reorganization:** Complete restructuring of main interface
@@ -2007,13 +2007,13 @@ Each match shows:
 
 **1. ✅ Context-Sensitive Ribbon**
 - Ribbon automatically switches based on active tab
-- Universal Lookup tab → Shows Translation ribbon
+- Superlookup tab → Shows Translation ribbon
 - Project Editor tab → Shows Home ribbon
 - Intelligent tab selection for better workflow
 
 **2. ✅ Quick Access Toolbar (QAT)**
 - Mini toolbar above ribbon with most-used commands
-- **Actions**: New 📄, Open 📂, Save 💾, Universal Lookup 🔍, Translate 🤖
+- **Actions**: New 📄, Open 📂, Save 💾, Superlookup 🔍, Translate 🤖
 - **Minimize Ribbon toggle** ⌃ - Collapse ribbon to tabs-only
 - Always visible for quick access to favorites
 - Icon-only buttons for compact display
@@ -2022,7 +2022,7 @@ Each match shows:
 - memoQ-style left navigation panel
 - **Collapsible sections**:
   - **Quick Actions**: New, Open, Save
-  - **Translation Tools**: Universal Lookup, AutoFingers, TM Manager
+  - **Translation Tools**: Superlookup, AutoFingers, TM Manager
   - **Recent Files**: Double-click to open
 - Resizable via splitter
 - Toggle on/off via View menu
@@ -2056,7 +2056,7 @@ Each match shows:
 - ✅ **Modern Ribbon Interface** - Similar to memoQ, Trados Studio, Microsoft Office
 - ✅ **Four Ribbon Tabs**:
   - **Home**: New, Open, Save, Copy, Paste, Find, Replace, Go To
-  - **Translation**: Translate, Batch Translate, TM Manager, Universal Lookup
+  - **Translation**: Translate, Batch Translate, TM Manager, Superlookup
   - **View**: Zoom In/Out, Auto-Resize Rows, Themes
   - **Tools**: AutoFingers, Options
 - ✅ **Grouped Buttons** - Related functions organized into visual groups
@@ -2102,7 +2102,7 @@ Each match shows:
 - ✅ **PyQt6 Framework** - Modern, cross-platform UI
 - ✅ **Dual-Tab Interface**:
   - Project Editor - Main translation workspace
-  - Universal Lookup - Dictionary/search tool
+  - Superlookup - Dictionary/search tool
 - ✅ **Project Management** - Load/save translation projects
 - ✅ **Translation Memory** - Full TMX support
 - ✅ **Segment Grid** - Professional translation grid view

@@ -1,9 +1,9 @@
 ; ============================================================================
-; Universal Lookup Hotkey for Supervertaler Qt v1.0.0
+; Superlookup Hotkey for Supervertaler Qt v1.0.0
 ; ============================================================================
 ; 
 ; This AutoHotkey v2 script provides reliable clipboard capture for the
-; Universal Lookup feature. It runs silently in the background when
+; Superlookup feature. It runs silently in the background when
 ; Supervertaler starts.
 ;
 ; Hotkey: Ctrl+Alt+L
