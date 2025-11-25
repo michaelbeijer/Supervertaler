@@ -21742,15 +21742,18 @@ class UniversalLookupTab(QWidget):
         try:
             print(f"[Superlookup] _fill_and_search called")
             # Fill in text and trigger lookup
-            if hasattr(self, 'input_text'):
-                self.input_text.setPlainText(text)
-                print(f"[Superlookup] Text filled in input field")
-                # Trigger lookup
-                if hasattr(self, 'lookup_button'):
-                    self.lookup_button.click()
-                    print(f"[Superlookup] Lookup button clicked")
+            if hasattr(self, 'source_text'):
+                self.source_text.setPlainText(text)
+                print(f"[Superlookup] Text filled in source_text field")
+                # Trigger lookup by calling perform_lookup directly
+                self.perform_lookup()
+                print(f"[Superlookup] perform_lookup() called")
+            else:
+                print(f"[Superlookup] ERROR: source_text widget not found!")
         except Exception as e:
             print(f"[Superlookup] Error in _fill_and_search: {e}")
+            import traceback
+            traceback.print_exc()
 
 
 
