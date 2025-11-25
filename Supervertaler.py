@@ -4717,8 +4717,12 @@ class SupervertalerQt(QMainWindow):
         tracked_tab = self.create_tracked_changes_tab()
         modules_tabs.addTab(tracked_tab, "🔄 Tracked Changes")
         
+        print("[DEBUG] About to create UniversalLookupTab...")
         lookup_tab = UniversalLookupTab(self)
+        print("[DEBUG] UniversalLookupTab created successfully")
+        self.lookup_tab = lookup_tab  # Store reference for later use
         modules_tabs.addTab(lookup_tab, "🔍 Superlookup")
+        print("[DEBUG] Superlookup tab added to modules_tabs")
 
         # Superbench
         leaderboard_tab = self.create_llm_leaderboard_tab()
