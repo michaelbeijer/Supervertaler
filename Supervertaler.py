@@ -3015,8 +3015,8 @@ class SupervertalerQt(QMainWindow):
         # Superlookup
         superlookup_action = QAction("🔍 &Superlookup...", self)
         superlookup_action.setShortcut("Ctrl+Alt+L")
-        # Tab indices: Home=0, Resources=1, Tools=2, Settings=3 (Prompt Manager and Editor removed)
-        superlookup_action.triggered.connect(lambda: self.right_tabs.setCurrentIndex(2) if hasattr(self, 'right_tabs') else None)  # Tools tab
+        # Tab indices: Project Editor=0, Prompt Manager=1, Translation Resources=2, Tools=3, Settings=4
+        superlookup_action.triggered.connect(lambda: self._go_to_superlookup() if hasattr(self, 'main_tabs') else None)  # Navigate to Superlookup
         edit_menu.addAction(superlookup_action)
         
         # View Menu
@@ -3403,14 +3403,14 @@ class SupervertalerQt(QMainWindow):
             "close_project": self.close_project,
             
             # Navigation actions
-            "go_to_home": lambda: self.right_tabs.setCurrentIndex(0) if hasattr(self, 'right_tabs') else None,  # Prompt Manager tab
-            "go_to_settings": lambda: self.right_tabs.setCurrentIndex(3) if hasattr(self, 'right_tabs') else None,  # Settings tab
+            "go_to_home": lambda: self.main_tabs.setCurrentIndex(1) if hasattr(self, 'main_tabs') else None,  # Prompt Manager tab
+            "go_to_settings": lambda: self.main_tabs.setCurrentIndex(4) if hasattr(self, 'main_tabs') else None,  # Settings tab
             
             # Translation actions
             "translate": self.translate_current_segment,
             "batch_translate": self.translate_batch,
             "tm_manager": self.show_tm_manager,
-            "superlookup": lambda: self._go_to_superlookup() if hasattr(self, 'right_tabs') else None,
+            "superlookup": lambda: self._go_to_superlookup() if hasattr(self, 'main_tabs') else None,
             
             # View actions
             "zoom_in": self.zoom_in,
@@ -18056,15 +18056,15 @@ class SupervertalerQt(QMainWindow):
     
     def _go_to_settings_tab(self):
         """Navigate to Settings tab (from menu)"""
-        if hasattr(self, 'right_tabs'):
-            # Right tabs: Prompt Manager=0, Resources=1, Tools=2, Settings=3
-            self.right_tabs.setCurrentIndex(3)
+        if hasattr(self, 'main_tabs'):
+            # Main tabs: Project Editor=0, Prompt Manager=1, Translation Resources=2, Tools=3, Settings=4
+            self.main_tabs.setCurrentIndex(4)
     
     def _go_to_superlookup(self):
         """Navigate to Superlookup in Tools tab"""
-        if hasattr(self, 'right_tabs'):
-            # Right tabs: Prompt Manager=0, Resources=1, Tools=2, Settings=3
-            self.right_tabs.setCurrentIndex(2)  # Switch to Tools tab
+        if hasattr(self, 'main_tabs'):
+            # Main tabs: Project Editor=0, Prompt Manager=1, Translation Resources=2, Tools=3, Settings=4
+            self.main_tabs.setCurrentIndex(3)  # Switch to Tools tab
             # Then switch to Superlookup sub-tab
             if hasattr(self, 'modules_tabs'):
                 # Find Superlookup index in modules tabs
@@ -20318,9 +20318,9 @@ class SupervertalerQt(QMainWindow):
     def show_autofingers(self):
         """Show AutoFingers by switching to the AutoFingers tab"""
         # Find the AutoFingers tab index and activate it
-        # AutoFingers is in Tools tab (right_tabs index 2)
-        if hasattr(self, 'right_tabs'):
-            self.right_tabs.setCurrentIndex(2)  # Switch to Tools tab
+        # AutoFingers is in Tools tab (main_tabs index 3)
+        if hasattr(self, 'main_tabs'):
+            self.main_tabs.setCurrentIndex(3)  # Switch to Tools tab
             # Then switch to AutoFingers sub-tab
             if hasattr(self, 'modules_tabs'):
                 for i in range(self.modules_tabs.count()):
@@ -20330,9 +20330,9 @@ class SupervertalerQt(QMainWindow):
     
     def show_image_extractor_from_tools(self):
         """Show Image Extractor by switching to the Image Context tab in Translation Resources"""
-        # Switch to Translation Resources tab (right_tabs index 1)
-        if hasattr(self, 'right_tabs'):
-            self.right_tabs.setCurrentIndex(1)  # Switch to Translation Resources tab
+        # Switch to Translation Resources tab (main_tabs index 2)
+        if hasattr(self, 'main_tabs'):
+            self.main_tabs.setCurrentIndex(2)  # Switch to Translation Resources tab
             # Then switch to Image Context sub-tab
             if hasattr(self, 'resources_tabs'):
                 for i in range(self.resources_tabs.count()):
@@ -21710,16 +21710,16 @@ class UniversalLookupTab(QWidget):
             
             print(f"[Superlookup] Main window found: {main_window is not None}")
             print(f"[Superlookup] Main window type: {type(main_window).__name__}")
-            print(f"[Superlookup] Has right_tabs: {hasattr(main_window, 'right_tabs')}")
+            print(f"[Superlookup] Has main_tabs: {hasattr(main_window, 'main_tabs')}")
             
-            # Switch to Tools tab (right_tabs index 2)
-            if hasattr(main_window, 'right_tabs'):
-                print(f"[Superlookup] Current right_tab index: {main_window.right_tabs.currentIndex()}")
-                main_window.right_tabs.setCurrentIndex(2)
-                print(f"[Superlookup] Switched to Tools tab (index 2)")
+            # Switch to Tools tab (main_tabs index 3)
+            if hasattr(main_window, 'main_tabs'):
+                print(f"[Superlookup] Current main_tab index: {main_window.main_tabs.currentIndex()}")
+                main_window.main_tabs.setCurrentIndex(3)  # Tools tab is at index 3
+                print(f"[Superlookup] Switched to Tools tab (index 3)")
                 QApplication.processEvents()  # Force GUI update
             else:
-                print(f"[Superlookup] WARNING: Main window has no right_tabs attribute!")
+                print(f"[Superlookup] WARNING: Main window has no main_tabs attribute!")
             
             # Switch to Superlookup within modules_tabs
             if hasattr(main_window, 'modules_tabs'):
