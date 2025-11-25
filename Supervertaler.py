@@ -21648,6 +21648,8 @@ class UniversalLookupTab(QWidget):
     def on_ahk_capture(self, text):
         """Handle text captured by AHK"""
         try:
+            print(f"[Superlookup] on_ahk_capture called with text: {text[:50]}...")
+            
             # Bring Supervertaler to foreground
             main_window = self.window()
             if main_window:
@@ -21671,8 +21673,9 @@ class UniversalLookupTab(QWidget):
                 main_window.raise_()
                 main_window.activateWindow()
                 
-            # Delay tab switching to allow window activation to complete
-            QTimer.singleShot(100, lambda: self.show_superlookup(text))
+            # Longer delay to allow all window focus events to settle
+            # Window activation triggers focus restoration which takes time
+            QTimer.singleShot(250, lambda: self.show_superlookup(text))
             
         except Exception as e:
             print(f"[Superlookup] Error handling capture: {e}")
@@ -21707,7 +21710,7 @@ class UniversalLookupTab(QWidget):
                         break
             
             # Delay text input and lookup to ensure tab is fully loaded
-            QTimer.singleShot(50, lambda: self._fill_and_search(text))
+            QTimer.singleShot(100, lambda: self._fill_and_search(text))
                     
         except Exception as e:
             print(f"[Superlookup] Error showing lookup: {e}")
