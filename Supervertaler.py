@@ -21355,12 +21355,18 @@ class UniversalLookupTab(QWidget):
         """Refresh the list of available TMs"""
         self.tm_list_widget.clear()
         
+        print(f"[Superlookup] refresh_tm_list called")
+        print(f"[Superlookup]   main_window exists: {self.main_window is not None}")
+        
         # Get TMs from main window's database
         if self.main_window and hasattr(self.main_window, 'db_manager') and self.main_window.db_manager:
             try:
+                print(f"[Superlookup]   db_manager found, querying TMs...")
                 cursor = self.main_window.db_manager.cursor()
                 cursor.execute("SELECT id, name FROM translation_memories ORDER BY name")
                 tms = cursor.fetchall()
+                
+                print(f"[Superlookup]   Query returned {len(tms)} TMs")
                 
                 for tm_id, tm_name in tms:
                     item = QListWidgetItem(f"{tm_name} (ID: {tm_id})")
@@ -21369,12 +21375,15 @@ class UniversalLookupTab(QWidget):
                     # Select all by default
                     item.setSelected(True)
                 
-                print(f"[Superlookup] Loaded {len(tms)} TMs")
+                print(f"[Superlookup] ✓ Loaded {len(tms)} TMs")
             except Exception as e:
-                print(f"[Superlookup] Error loading TMs: {e}")
+                print(f"[Superlookup] ✗ Error loading TMs: {e}")
+                import traceback
+                traceback.print_exc()
         else:
+            print(f"[Superlookup]   db_manager not available")
             # Add placeholder
-            item = QListWidgetItem("No project loaded - TMs unavailable")
+            item = QListWidgetItem("No database connection - TMs unavailable")
             item.setFlags(Qt.ItemFlag.NoItemFlags)
             self.tm_list_widget.addItem(item)
     
@@ -21382,12 +21391,42 @@ class UniversalLookupTab(QWidget):
         """Refresh the list of available termbases"""
         self.tb_list_widget.clear()
         
-        # Get termbases from main window's database
+        print(f"[Superlookup] refresh_termbase_list called")
+        print(f"[Superlookup]   main_window exists: {self.main_window is not None}")
+        
+        # Try termbase_mgr first (preferred method)
+        if self.main_window and hasattr(self.main_window, 'termbase_mgr') and self.main_window.termbase_mgr:
+            try:
+                print(f"[Superlookup]   termbase_mgr found, querying termbases...")
+                termbases = self.main_window.termbase_mgr.get_all_termbases()
+                
+                print(f"[Superlookup]   get_all_termbases() returned {len(termbases)} termbases")
+                
+                for tb in termbases:
+                    tb_id = tb.get('id')
+                    tb_name = tb.get('name', 'Unnamed')
+                    item = QListWidgetItem(f"{tb_name} (ID: {tb_id})")
+                    item.setData(Qt.ItemDataRole.UserRole, tb_id)
+                    self.tb_list_widget.addItem(item)
+                    # Select all by default
+                    item.setSelected(True)
+                
+                print(f"[Superlookup] ✓ Loaded {len(termbases)} termbases via termbase_mgr")
+                return
+            except Exception as e:
+                print(f"[Superlookup] ✗ Error loading termbases via termbase_mgr: {e}")
+                import traceback
+                traceback.print_exc()
+        
+        # Fallback to direct database query
         if self.main_window and hasattr(self.main_window, 'db_manager') and self.main_window.db_manager:
             try:
+                print(f"[Superlookup]   db_manager found, querying termbases...")
                 cursor = self.main_window.db_manager.cursor()
                 cursor.execute("SELECT id, name FROM termbases ORDER BY name")
                 termbases = cursor.fetchall()
+                
+                print(f"[Superlookup]   Query returned {len(termbases)} termbases")
                 
                 for tb_id, tb_name in termbases:
                     item = QListWidgetItem(f"{tb_name} (ID: {tb_id})")
@@ -21396,12 +21435,15 @@ class UniversalLookupTab(QWidget):
                     # Select all by default
                     item.setSelected(True)
                 
-                print(f"[Superlookup] Loaded {len(termbases)} termbases")
+                print(f"[Superlookup] ✓ Loaded {len(termbases)} termbases via db_manager")
             except Exception as e:
-                print(f"[Superlookup] Error loading termbases: {e}")
+                print(f"[Superlookup] ✗ Error loading termbases via db_manager: {e}")
+                import traceback
+                traceback.print_exc()
         else:
+            print(f"[Superlookup]   Neither termbase_mgr nor db_manager available")
             # Add placeholder
-            item = QListWidgetItem("No project loaded - Termbases unavailable")
+            item = QListWidgetItem("No database connection - Termbases unavailable")
             item.setFlags(Qt.ItemFlag.NoItemFlags)
             self.tb_list_widget.addItem(item)
     
