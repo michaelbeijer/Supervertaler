@@ -21359,7 +21359,27 @@ class UniversalLookupTab(QWidget):
         
         # TM selection list (now with plenty of vertical space)
         self.tm_list_widget = QListWidget()
-        self.tm_list_widget.setSelectionMode(QListWidget.SelectionMode.MultiSelection)
+        # Use checkboxes instead of multi-selection for better visibility
+        self.tm_list_widget.setStyleSheet("""
+            QListWidget::indicator {
+                width: 18px;
+                height: 18px;
+                border: 2px solid #999;
+                border-radius: 3px;
+                background-color: white;
+            }
+            QListWidget::indicator:checked {
+                background-color: #4CAF50;
+                border-color: #4CAF50;
+            }
+            QListWidget::indicator:hover {
+                border-color: #666;
+            }
+            QListWidget::indicator:checked:hover {
+                background-color: #45a049;
+                border-color: #45a049;
+            }
+        """)
         layout.addWidget(self.tm_list_widget, stretch=1)  # Takes all available space
         
         # Info label
@@ -21370,11 +21390,11 @@ class UniversalLookupTab(QWidget):
         # TM buttons
         tm_btn_layout = QHBoxLayout()
         select_all_tm_btn = QPushButton("Select All")
-        select_all_tm_btn.clicked.connect(lambda: self.tm_list_widget.selectAll())
+        select_all_tm_btn.clicked.connect(self.check_all_tms)
         tm_btn_layout.addWidget(select_all_tm_btn)
         
         clear_all_tm_btn = QPushButton("Clear All")
-        clear_all_tm_btn.clicked.connect(lambda: self.tm_list_widget.clearSelection())
+        clear_all_tm_btn.clicked.connect(self.uncheck_all_tms)
         tm_btn_layout.addWidget(clear_all_tm_btn)
         
         refresh_tm_btn = QPushButton("🔄 Refresh List")
@@ -21416,7 +21436,27 @@ class UniversalLookupTab(QWidget):
         
         # Termbase selection list (now with plenty of vertical space)
         self.tb_list_widget = QListWidget()
-        self.tb_list_widget.setSelectionMode(QListWidget.SelectionMode.MultiSelection)
+        # Use checkboxes instead of multi-selection for better visibility
+        self.tb_list_widget.setStyleSheet("""
+            QListWidget::indicator {
+                width: 18px;
+                height: 18px;
+                border: 2px solid #999;
+                border-radius: 3px;
+                background-color: white;
+            }
+            QListWidget::indicator:checked {
+                background-color: #4CAF50;
+                border-color: #4CAF50;
+            }
+            QListWidget::indicator:hover {
+                border-color: #666;
+            }
+            QListWidget::indicator:checked:hover {
+                background-color: #45a049;
+                border-color: #45a049;
+            }
+        """)
         layout.addWidget(self.tb_list_widget, stretch=1)  # Takes all available space
         
         # Info label
@@ -21427,11 +21467,11 @@ class UniversalLookupTab(QWidget):
         # Termbase buttons
         tb_btn_layout = QHBoxLayout()
         select_all_tb_btn = QPushButton("Select All")
-        select_all_tb_btn.clicked.connect(lambda: self.tb_list_widget.selectAll())
+        select_all_tb_btn.clicked.connect(self.check_all_tbs)
         tb_btn_layout.addWidget(select_all_tb_btn)
         
         clear_all_tb_btn = QPushButton("Clear All")
-        clear_all_tb_btn.clicked.connect(lambda: self.tb_list_widget.clearSelection())
+        clear_all_tb_btn.clicked.connect(self.uncheck_all_tbs)
         tb_btn_layout.addWidget(clear_all_tb_btn)
         
         refresh_tb_btn = QPushButton("🔄 Refresh List")
@@ -21543,9 +21583,9 @@ class UniversalLookupTab(QWidget):
                 for tm_id, tm_name in tms:
                     item = QListWidgetItem(f"{tm_name} (ID: {tm_id})")
                     item.setData(Qt.ItemDataRole.UserRole, tm_id)
+                    item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+                    item.setCheckState(Qt.CheckState.Checked)  # Check all by default
                     self.tm_list_widget.addItem(item)
-                    # Select all by default
-                    item.setSelected(True)
                 
                 print(f"[Superlookup] ✓ Loaded {len(tms)} TMs")
             except Exception as e:
@@ -21579,9 +21619,9 @@ class UniversalLookupTab(QWidget):
                     tb_name = tb.get('name', 'Unnamed')
                     item = QListWidgetItem(f"{tb_name} (ID: {tb_id})")
                     item.setData(Qt.ItemDataRole.UserRole, tb_id)
+                    item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+                    item.setCheckState(Qt.CheckState.Checked)  # Check all by default
                     self.tb_list_widget.addItem(item)
-                    # Select all by default
-                    item.setSelected(True)
                 
                 print(f"[Superlookup] ✓ Loaded {len(termbases)} termbases via termbase_mgr")
                 return
@@ -21603,9 +21643,9 @@ class UniversalLookupTab(QWidget):
                 for tb_id, tb_name in termbases:
                     item = QListWidgetItem(f"{tb_name} (ID: {tb_id})")
                     item.setData(Qt.ItemDataRole.UserRole, tb_id)
+                    item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+                    item.setCheckState(Qt.CheckState.Checked)  # Check all by default
                     self.tb_list_widget.addItem(item)
-                    # Select all by default
-                    item.setSelected(True)
                 
                 print(f"[Superlookup] ✓ Loaded {len(termbases)} termbases via db_manager")
             except Exception as e:
@@ -21620,22 +21660,50 @@ class UniversalLookupTab(QWidget):
             self.tb_list_widget.addItem(item)
     
     def get_selected_tm_ids(self):
-        """Get list of selected TM IDs"""
+        """Get list of checked TM IDs"""
         selected_ids = []
-        for item in self.tm_list_widget.selectedItems():
-            tm_id = item.data(Qt.ItemDataRole.UserRole)
-            if tm_id is not None:
-                selected_ids.append(tm_id)
+        for i in range(self.tm_list_widget.count()):
+            item = self.tm_list_widget.item(i)
+            if item.checkState() == Qt.CheckState.Checked:
+                tm_id = item.data(Qt.ItemDataRole.UserRole)
+                if tm_id is not None:
+                    selected_ids.append(tm_id)
         return selected_ids
     
     def get_selected_termbase_ids(self):
-        """Get list of selected termbase IDs"""
+        """Get list of checked termbase IDs"""
         selected_ids = []
-        for item in self.tb_list_widget.selectedItems():
-            tb_id = item.data(Qt.ItemDataRole.UserRole)
-            if tb_id is not None:
-                selected_ids.append(tb_id)
+        for i in range(self.tb_list_widget.count()):
+            item = self.tb_list_widget.item(i)
+            if item.checkState() == Qt.CheckState.Checked:
+                tb_id = item.data(Qt.ItemDataRole.UserRole)
+                if tb_id is not None:
+                    selected_ids.append(tb_id)
         return selected_ids
+    
+    def check_all_tms(self):
+        """Check all TM checkboxes"""
+        for i in range(self.tm_list_widget.count()):
+            item = self.tm_list_widget.item(i)
+            item.setCheckState(Qt.CheckState.Checked)
+    
+    def uncheck_all_tms(self):
+        """Uncheck all TM checkboxes"""
+        for i in range(self.tm_list_widget.count()):
+            item = self.tm_list_widget.item(i)
+            item.setCheckState(Qt.CheckState.Unchecked)
+    
+    def check_all_tbs(self):
+        """Check all termbase checkboxes"""
+        for i in range(self.tb_list_widget.count()):
+            item = self.tb_list_widget.item(i)
+            item.setCheckState(Qt.CheckState.Checked)
+    
+    def uncheck_all_tbs(self):
+        """Uncheck all termbase checkboxes"""
+        for i in range(self.tb_list_widget.count()):
+            item = self.tb_list_widget.item(i)
+            item.setCheckState(Qt.CheckState.Unchecked)
     
     def on_mode_changed(self, mode_text):
         """Handle mode change"""

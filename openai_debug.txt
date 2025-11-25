@@ -278,3 +278,115 @@ Choice[0] message.role: assistant
 Choice[0] message.content type: <class 'str'>
 Choice[0] message.content value: '30. Since a choice for the investor between national treatment and most-favoured-nation treatment is unfeasible in China (national treatment is not included in any IPA concluded by China), the Dutch 
 Choice[0] message.refusal: None
+
+============================================================
+[2025-11-25 19:26:17.232240] OpenAI API Call
+Model: gpt-4o
+Prompt length: 21245 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '2. Dossier[text cut off]Ike [illegible], contain, must be securely stored  \n3. Verbind[text cut off]en are manufactured.  \n4. dgpz ps  \n5. doa,-/op  \n7. TEL Nos:  \n10. peking  \n11. for b e b  \
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-25 19:26:27.054603] OpenAI API Call
+Model: gpt-4o
+Prompt length: 25037 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '26. (3) claims to money, other assets or actions with economic value.,  \n27. (4) rights related to intellectual property, industrial property, technical processes and exclusive technology.,  \n28. (
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-25 19:26:36.545394] OpenAI API Call
+Model: gpt-4o
+Prompt length: 32281 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: "46. (direct [illegible]  \n47. (1) the procedures applicable under domestic law are followed.,  \n48. (2) the measures are non-discriminatory compared to investors from third countries.,  \n49. (3) c
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-25 19:26:49.951339] OpenAI API Call
+Model: gpt-4o
+Prompt length: 29791 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: "66. 1. This agreement shall enter into force thirty days after both Contracting Parties have notified each other of the fulfilment of their respective domestic legal procedures and it shall be in for
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-25 19:27:01.943319] OpenAI API Call
+Model: gpt-4o
+Prompt length: 25459 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '86. Guarantees are provided with regard to possible expropriation.  \n87. Certain disputes shall be submitted to neutral international arbitration.  \n88. The Agreement has a duration of 10 years, wi
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-25 19:27:09.701407] OpenAI API Call
+Model: gpt-4o
+Prompt length: 20722 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '106. none  \n107. Additional remarks:  \n108. The explanatory note to the Agreement could not yet be prepared as China only accepted a compromise proposal on 24 May last, which related to several imp
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-25 19:29:09.604317] OpenAI API Call
+Model: gpt-4o
+Prompt length: 36919 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: "20. The governments of the People's Republic of China and the government of the Kingdom of the Netherlands (hereinafter referred to as the Contracting Parties), desiring to promote and protect invest
+Choice[0] message.refusal: None
