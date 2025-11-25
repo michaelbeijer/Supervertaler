@@ -21357,30 +21357,22 @@ class UniversalLookupTab(QWidget):
         list_label.setStyleSheet("font-weight: bold; padding-top: 10px;")
         layout.addWidget(list_label, 0)
         
-        # TM selection list (now with plenty of vertical space)
-        self.tm_list_widget = QListWidget()
-        # Use checkboxes instead of multi-selection for better visibility
-        self.tm_list_widget.setStyleSheet("""
-            QListWidget::indicator {
-                width: 18px;
-                height: 18px;
-                border: 2px solid #999;
-                border-radius: 3px;
-                background-color: white;
-            }
-            QListWidget::indicator:checked {
-                background-color: #4CAF50;
-                border-color: #4CAF50;
-            }
-            QListWidget::indicator:hover {
-                border-color: #666;
-            }
-            QListWidget::indicator:checked:hover {
-                background-color: #45a049;
-                border-color: #45a049;
-            }
-        """)
-        layout.addWidget(self.tm_list_widget, stretch=1)  # Takes all available space
+        # TM selection scroll area with checkboxes
+        self.tm_scroll_area = QScrollArea()
+        self.tm_scroll_area.setWidgetResizable(True)
+        self.tm_scroll_area.setFrameShape(QFrame.Shape.StyledPanel)
+        
+        self.tm_scroll_widget = QWidget()
+        self.tm_scroll_layout = QVBoxLayout(self.tm_scroll_widget)
+        self.tm_scroll_layout.setContentsMargins(5, 5, 5, 5)
+        self.tm_scroll_layout.setSpacing(3)
+        self.tm_scroll_layout.addStretch()
+        
+        self.tm_scroll_area.setWidget(self.tm_scroll_widget)
+        layout.addWidget(self.tm_scroll_area, stretch=1)  # Takes all available space
+        
+        # Store checkboxes for easy access
+        self.tm_checkboxes = []
         
         # Info label
         tm_info = QLabel("💡 Tip: If no TMs are selected, all available TMs will be searched")
@@ -21434,30 +21426,22 @@ class UniversalLookupTab(QWidget):
         list_label.setStyleSheet("font-weight: bold; padding-top: 10px;")
         layout.addWidget(list_label, 0)
         
-        # Termbase selection list (now with plenty of vertical space)
-        self.tb_list_widget = QListWidget()
-        # Use checkboxes instead of multi-selection for better visibility
-        self.tb_list_widget.setStyleSheet("""
-            QListWidget::indicator {
-                width: 18px;
-                height: 18px;
-                border: 2px solid #999;
-                border-radius: 3px;
-                background-color: white;
-            }
-            QListWidget::indicator:checked {
-                background-color: #4CAF50;
-                border-color: #4CAF50;
-            }
-            QListWidget::indicator:hover {
-                border-color: #666;
-            }
-            QListWidget::indicator:checked:hover {
-                background-color: #45a049;
-                border-color: #45a049;
-            }
-        """)
-        layout.addWidget(self.tb_list_widget, stretch=1)  # Takes all available space
+        # Termbase selection scroll area with checkboxes
+        self.tb_scroll_area = QScrollArea()
+        self.tb_scroll_area.setWidgetResizable(True)
+        self.tb_scroll_area.setFrameShape(QFrame.Shape.StyledPanel)
+        
+        self.tb_scroll_widget = QWidget()
+        self.tb_scroll_layout = QVBoxLayout(self.tb_scroll_widget)
+        self.tb_scroll_layout.setContentsMargins(5, 5, 5, 5)
+        self.tb_scroll_layout.setSpacing(3)
+        self.tb_scroll_layout.addStretch()
+        
+        self.tb_scroll_area.setWidget(self.tb_scroll_widget)
+        layout.addWidget(self.tb_scroll_area, stretch=1)  # Takes all available space
+        
+        # Store checkboxes for easy access
+        self.tb_checkboxes = []
         
         # Info label
         tb_info = QLabel("💡 Tip: If no termbases are selected, all available termbases will be searched")
@@ -21565,7 +21549,11 @@ class UniversalLookupTab(QWidget):
     
     def refresh_tm_list(self):
         """Refresh the list of available TMs"""
-        self.tm_list_widget.clear()
+        # Clear existing checkboxes
+        for checkbox in self.tm_checkboxes:
+            self.tm_scroll_layout.removeWidget(checkbox)
+            checkbox.deleteLater()
+        self.tm_checkboxes.clear()
         
         print(f"[Superlookup] refresh_tm_list called")
         print(f"[Superlookup]   main_window exists: {self.main_window is not None}")
@@ -21581,11 +21569,12 @@ class UniversalLookupTab(QWidget):
                 print(f"[Superlookup]   Query returned {len(tms)} TMs")
                 
                 for tm_id, tm_name in tms:
-                    item = QListWidgetItem(f"{tm_name} (ID: {tm_id})")
-                    item.setData(Qt.ItemDataRole.UserRole, tm_id)
-                    item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
-                    item.setCheckState(Qt.CheckState.Checked)  # Check all by default
-                    self.tm_list_widget.addItem(item)
+                    checkbox = CheckmarkCheckBox(f"{tm_name} (ID: {tm_id})")
+                    checkbox.setChecked(True)  # Check all by default
+                    checkbox.setProperty("tm_id", tm_id)
+                    self.tm_checkboxes.append(checkbox)
+                    # Insert before the stretch at the end
+                    self.tm_scroll_layout.insertWidget(len(self.tm_checkboxes) - 1, checkbox)
                 
                 print(f"[Superlookup] ✓ Loaded {len(tms)} TMs")
             except Exception as e:
@@ -21594,14 +21583,18 @@ class UniversalLookupTab(QWidget):
                 traceback.print_exc()
         else:
             print(f"[Superlookup]   db_manager not available")
-            # Add placeholder
-            item = QListWidgetItem("No database connection - TMs unavailable")
-            item.setFlags(Qt.ItemFlag.NoItemFlags)
-            self.tm_list_widget.addItem(item)
+            # Add placeholder label
+            placeholder = QLabel("No database connection - TMs unavailable")
+            placeholder.setStyleSheet("color: #999; font-style: italic;")
+            self.tm_scroll_layout.insertWidget(0, placeholder)
     
     def refresh_termbase_list(self):
         """Refresh the list of available termbases"""
-        self.tb_list_widget.clear()
+        # Clear existing checkboxes
+        for checkbox in self.tb_checkboxes:
+            self.tb_scroll_layout.removeWidget(checkbox)
+            checkbox.deleteLater()
+        self.tb_checkboxes.clear()
         
         print(f"[Superlookup] refresh_termbase_list called")
         print(f"[Superlookup]   main_window exists: {self.main_window is not None}")
@@ -21617,11 +21610,12 @@ class UniversalLookupTab(QWidget):
                 for tb in termbases:
                     tb_id = tb.get('id')
                     tb_name = tb.get('name', 'Unnamed')
-                    item = QListWidgetItem(f"{tb_name} (ID: {tb_id})")
-                    item.setData(Qt.ItemDataRole.UserRole, tb_id)
-                    item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
-                    item.setCheckState(Qt.CheckState.Checked)  # Check all by default
-                    self.tb_list_widget.addItem(item)
+                    checkbox = CheckmarkCheckBox(f"{tb_name} (ID: {tb_id})")
+                    checkbox.setChecked(True)  # Check all by default
+                    checkbox.setProperty("tb_id", tb_id)
+                    self.tb_checkboxes.append(checkbox)
+                    # Insert before the stretch at the end
+                    self.tb_scroll_layout.insertWidget(len(self.tb_checkboxes) - 1, checkbox)
                 
                 print(f"[Superlookup] ✓ Loaded {len(termbases)} termbases via termbase_mgr")
                 return
@@ -21641,11 +21635,12 @@ class UniversalLookupTab(QWidget):
                 print(f"[Superlookup]   Query returned {len(termbases)} termbases")
                 
                 for tb_id, tb_name in termbases:
-                    item = QListWidgetItem(f"{tb_name} (ID: {tb_id})")
-                    item.setData(Qt.ItemDataRole.UserRole, tb_id)
-                    item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
-                    item.setCheckState(Qt.CheckState.Checked)  # Check all by default
-                    self.tb_list_widget.addItem(item)
+                    checkbox = CheckmarkCheckBox(f"{tb_name} (ID: {tb_id})")
+                    checkbox.setChecked(True)  # Check all by default
+                    checkbox.setProperty("tb_id", tb_id)
+                    self.tb_checkboxes.append(checkbox)
+                    # Insert before the stretch at the end
+                    self.tb_scroll_layout.insertWidget(len(self.tb_checkboxes) - 1, checkbox)
                 
                 print(f"[Superlookup] ✓ Loaded {len(termbases)} termbases via db_manager")
             except Exception as e:
@@ -21654,18 +21649,17 @@ class UniversalLookupTab(QWidget):
                 traceback.print_exc()
         else:
             print(f"[Superlookup]   Neither termbase_mgr nor db_manager available")
-            # Add placeholder
-            item = QListWidgetItem("No database connection - Termbases unavailable")
-            item.setFlags(Qt.ItemFlag.NoItemFlags)
-            self.tb_list_widget.addItem(item)
+            # Add placeholder label
+            placeholder = QLabel("No database connection - Termbases unavailable")
+            placeholder.setStyleSheet("color: #999; font-style: italic;")
+            self.tb_scroll_layout.insertWidget(0, placeholder)
     
     def get_selected_tm_ids(self):
         """Get list of checked TM IDs"""
         selected_ids = []
-        for i in range(self.tm_list_widget.count()):
-            item = self.tm_list_widget.item(i)
-            if item.checkState() == Qt.CheckState.Checked:
-                tm_id = item.data(Qt.ItemDataRole.UserRole)
+        for checkbox in self.tm_checkboxes:
+            if checkbox.isChecked():
+                tm_id = checkbox.property("tm_id")
                 if tm_id is not None:
                     selected_ids.append(tm_id)
         return selected_ids
@@ -21673,37 +21667,32 @@ class UniversalLookupTab(QWidget):
     def get_selected_termbase_ids(self):
         """Get list of checked termbase IDs"""
         selected_ids = []
-        for i in range(self.tb_list_widget.count()):
-            item = self.tb_list_widget.item(i)
-            if item.checkState() == Qt.CheckState.Checked:
-                tb_id = item.data(Qt.ItemDataRole.UserRole)
+        for checkbox in self.tb_checkboxes:
+            if checkbox.isChecked():
+                tb_id = checkbox.property("tb_id")
                 if tb_id is not None:
                     selected_ids.append(tb_id)
         return selected_ids
     
     def check_all_tms(self):
         """Check all TM checkboxes"""
-        for i in range(self.tm_list_widget.count()):
-            item = self.tm_list_widget.item(i)
-            item.setCheckState(Qt.CheckState.Checked)
+        for checkbox in self.tm_checkboxes:
+            checkbox.setChecked(True)
     
     def uncheck_all_tms(self):
         """Uncheck all TM checkboxes"""
-        for i in range(self.tm_list_widget.count()):
-            item = self.tm_list_widget.item(i)
-            item.setCheckState(Qt.CheckState.Unchecked)
+        for checkbox in self.tm_checkboxes:
+            checkbox.setChecked(False)
     
     def check_all_tbs(self):
         """Check all termbase checkboxes"""
-        for i in range(self.tb_list_widget.count()):
-            item = self.tb_list_widget.item(i)
-            item.setCheckState(Qt.CheckState.Checked)
+        for checkbox in self.tb_checkboxes:
+            checkbox.setChecked(True)
     
     def uncheck_all_tbs(self):
         """Uncheck all termbase checkboxes"""
-        for i in range(self.tb_list_widget.count()):
-            item = self.tb_list_widget.item(i)
-            item.setCheckState(Qt.CheckState.Unchecked)
+        for checkbox in self.tb_checkboxes:
+            checkbox.setChecked(False)
     
     def on_mode_changed(self, mode_text):
         """Handle mode change"""
