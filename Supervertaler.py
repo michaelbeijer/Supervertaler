@@ -21285,52 +21285,87 @@ class UniversalLookupTab(QWidget):
         return tab
     
     def create_settings_tab(self):
-        """Create the Settings tab for resource selection"""
+        """Create the Settings tab with sub-tabs for each resource type"""
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(5)
+        
+        # Header
+        header = QLabel("⚙️ Search Resources Configuration")
+        header.setStyleSheet("font-size: 14pt; font-weight: bold; color: #1976D2;")
+        layout.addWidget(header, 0)
+        
+        # Description
+        desc = QLabel(
+            "Configure which resources to search. Each resource type has its own tab below."
+        )
+        desc.setWordWrap(True)
+        desc.setStyleSheet("color: #666; padding: 5px 0;")
+        layout.addWidget(desc, 0)
+        
+        # Create sub-tabs for each resource type
+        self.settings_subtabs = QTabWidget()
+        self.settings_subtabs.tabBar().setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.settings_subtabs.tabBar().setDrawBase(False)
+        
+        # TM Settings sub-tab
+        tm_settings_tab = self.create_tm_settings_subtab()
+        self.settings_subtabs.addTab(tm_settings_tab, "📖 Translation Memories")
+        
+        # Termbase Settings sub-tab
+        tb_settings_tab = self.create_termbase_settings_subtab()
+        self.settings_subtabs.addTab(tb_settings_tab, "📚 Termbases")
+        
+        # MT Settings sub-tab
+        mt_settings_tab = self.create_mt_settings_subtab()
+        self.settings_subtabs.addTab(mt_settings_tab, "🤖 Machine Translation")
+        
+        # Web Settings sub-tab
+        web_settings_tab = self.create_web_settings_subtab()
+        self.settings_subtabs.addTab(web_settings_tab, "🌐 Web Resources")
+        
+        layout.addWidget(self.settings_subtabs, stretch=1)
+        
+        return tab
+    
+    def create_tm_settings_subtab(self):
+        """Create TM settings sub-tab"""
         tab = QWidget()
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(15, 15, 15, 15)
         layout.setSpacing(10)
         
-        # Header
-        header = QLabel("⚙️ Search Resources Configuration")
-        header.setStyleSheet("font-size: 14pt; font-weight: bold; color: #1976D2; margin-bottom: 10px;")
-        layout.addWidget(header)
-        
-        # Description
-        desc = QLabel(
-            "Select which resources to search when you perform a lookup.\n"
-            "Superlookup will search all enabled resources simultaneously and show results in separate tabs."
+        # Info section
+        info = QLabel(
+            "Select which Translation Memories to search in Superlookup.\n"
+            "You can search specific TMs or all available TMs."
         )
-        desc.setWordWrap(True)
-        desc.setStyleSheet("color: #666; margin-bottom: 15px;")
-        layout.addWidget(desc)
-        
-        # Scroll area for resource lists
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
-        
-        scroll_content = QWidget()
-        scroll_layout = QVBoxLayout(scroll_content)
-        scroll_layout.setSpacing(15)
-        
-        # ===== TRANSLATION MEMORIES SECTION =====
-        tm_group = QGroupBox("📖 Translation Memories")
-        tm_group.setStyleSheet("QGroupBox { font-weight: bold; padding-top: 10px; }")
-        tm_layout = QVBoxLayout()
+        info.setWordWrap(True)
+        info.setStyleSheet("color: #666; padding: 5px; background-color: #E3F2FD; border-radius: 3px;")
+        layout.addWidget(info, 0)
         
         # Enable/disable TM search
-        self.tm_search_checkbox = QCheckBox("Enable TM search")
+        self.tm_search_checkbox = QCheckBox("✓ Enable TM search in Superlookup")
         self.tm_search_checkbox.setChecked(self.search_tm_enabled)
-        self.tm_search_checkbox.setStyleSheet("font-weight: bold; color: #2196F3;")
+        self.tm_search_checkbox.setStyleSheet("font-weight: bold; font-size: 11pt; color: #2196F3; padding: 10px 0;")
         self.tm_search_checkbox.stateChanged.connect(self.on_tm_search_toggled)
-        tm_layout.addWidget(self.tm_search_checkbox)
+        layout.addWidget(self.tm_search_checkbox, 0)
         
-        # TM selection list
+        # TM selection label
+        list_label = QLabel("Select Translation Memories:")
+        list_label.setStyleSheet("font-weight: bold; padding-top: 10px;")
+        layout.addWidget(list_label, 0)
+        
+        # TM selection list (now with plenty of vertical space)
         self.tm_list_widget = QListWidget()
-        self.tm_list_widget.setMaximumHeight(150)
         self.tm_list_widget.setSelectionMode(QListWidget.SelectionMode.MultiSelection)
-        tm_layout.addWidget(self.tm_list_widget)
+        layout.addWidget(self.tm_list_widget, stretch=1)  # Takes all available space
+        
+        # Info label
+        tm_info = QLabel("💡 Tip: If no TMs are selected, all available TMs will be searched")
+        tm_info.setStyleSheet("color: #666; font-size: 9pt; font-style: italic; padding: 5px 0;")
+        layout.addWidget(tm_info, 0)
         
         # TM buttons
         tm_btn_layout = QHBoxLayout()
@@ -21347,32 +21382,47 @@ class UniversalLookupTab(QWidget):
         tm_btn_layout.addWidget(refresh_tm_btn)
         tm_btn_layout.addStretch()
         
-        tm_layout.addLayout(tm_btn_layout)
+        layout.addLayout(tm_btn_layout, 0)
         
-        tm_info = QLabel("💡 If no TMs are selected, all available TMs will be searched")
-        tm_info.setStyleSheet("color: #666; font-size: 9pt; font-style: italic;")
-        tm_layout.addWidget(tm_info)
+        return tab
+    
+    def create_termbase_settings_subtab(self):
+        """Create Termbase settings sub-tab"""
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(15, 15, 15, 15)
+        layout.setSpacing(10)
         
-        tm_group.setLayout(tm_layout)
-        scroll_layout.addWidget(tm_group)
-        
-        # ===== TERMBASES SECTION =====
-        tb_group = QGroupBox("📚 Termbases")
-        tb_group.setStyleSheet("QGroupBox { font-weight: bold; padding-top: 10px; }")
-        tb_layout = QVBoxLayout()
+        # Info section
+        info = QLabel(
+            "Select which Termbases to search in Superlookup.\n"
+            "You can search specific termbases or all available termbases."
+        )
+        info.setWordWrap(True)
+        info.setStyleSheet("color: #666; padding: 5px; background-color: #E3F2FD; border-radius: 3px;")
+        layout.addWidget(info, 0)
         
         # Enable/disable termbase search
-        self.tb_search_checkbox = QCheckBox("Enable Termbase search")
+        self.tb_search_checkbox = QCheckBox("✓ Enable Termbase search in Superlookup")
         self.tb_search_checkbox.setChecked(self.search_termbase_enabled)
-        self.tb_search_checkbox.setStyleSheet("font-weight: bold; color: #2196F3;")
+        self.tb_search_checkbox.setStyleSheet("font-weight: bold; font-size: 11pt; color: #2196F3; padding: 10px 0;")
         self.tb_search_checkbox.stateChanged.connect(self.on_termbase_search_toggled)
-        tb_layout.addWidget(self.tb_search_checkbox)
+        layout.addWidget(self.tb_search_checkbox, 0)
         
-        # Termbase selection list
+        # Termbase selection label
+        list_label = QLabel("Select Termbases:")
+        list_label.setStyleSheet("font-weight: bold; padding-top: 10px;")
+        layout.addWidget(list_label, 0)
+        
+        # Termbase selection list (now with plenty of vertical space)
         self.tb_list_widget = QListWidget()
-        self.tb_list_widget.setMaximumHeight(150)
         self.tb_list_widget.setSelectionMode(QListWidget.SelectionMode.MultiSelection)
-        tb_layout.addWidget(self.tb_list_widget)
+        layout.addWidget(self.tb_list_widget, stretch=1)  # Takes all available space
+        
+        # Info label
+        tb_info = QLabel("💡 Tip: If no termbases are selected, all available termbases will be searched")
+        tb_info.setStyleSheet("color: #666; font-size: 9pt; font-style: italic; padding: 5px 0;")
+        layout.addWidget(tb_info, 0)
         
         # Termbase buttons
         tb_btn_layout = QHBoxLayout()
@@ -21389,58 +21439,69 @@ class UniversalLookupTab(QWidget):
         tb_btn_layout.addWidget(refresh_tb_btn)
         tb_btn_layout.addStretch()
         
-        tb_layout.addLayout(tb_btn_layout)
+        layout.addLayout(tb_btn_layout, 0)
         
-        tb_info = QLabel("💡 If no termbases are selected, all available termbases will be searched")
-        tb_info.setStyleSheet("color: #666; font-size: 9pt; font-style: italic;")
-        tb_layout.addWidget(tb_info)
+        return tab
+    
+    def create_mt_settings_subtab(self):
+        """Create MT settings sub-tab"""
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(15, 15, 15, 15)
+        layout.setSpacing(10)
         
-        tb_group.setLayout(tb_layout)
-        scroll_layout.addWidget(tb_group)
+        # Info section
+        info = QLabel(
+            "Machine Translation integration is coming soon.\n"
+            "This will allow Superlookup to query DeepL, Google Translate, and other MT services."
+        )
+        info.setWordWrap(True)
+        info.setStyleSheet("color: #666; padding: 5px; background-color: #FFF3E0; border-radius: 3px;")
+        layout.addWidget(info, 0)
         
-        # ===== MACHINE TRANSLATION SECTION =====
-        mt_group = QGroupBox("🤖 Machine Translation")
-        mt_group.setStyleSheet("QGroupBox { font-weight: bold; padding-top: 10px; }")
-        mt_layout = QVBoxLayout()
-        
-        self.mt_search_checkbox = QCheckBox("Enable Machine Translation (Coming Soon)")
+        # Enable checkbox (disabled for now)
+        self.mt_search_checkbox = QCheckBox("✓ Enable Machine Translation (Coming Soon)")
         self.mt_search_checkbox.setChecked(False)
         self.mt_search_checkbox.setEnabled(False)
-        self.mt_search_checkbox.setStyleSheet("color: #999;")
-        mt_layout.addWidget(self.mt_search_checkbox)
+        self.mt_search_checkbox.setStyleSheet("font-weight: bold; font-size: 11pt; color: #999; padding: 10px 0;")
+        layout.addWidget(self.mt_search_checkbox, 0)
         
-        mt_info = QLabel("🚧 DeepL, OpenAI, and Google Translate integration coming soon")
-        mt_info.setStyleSheet("color: #666; font-size: 9pt; font-style: italic;")
-        mt_layout.addWidget(mt_info)
+        # Placeholder content
+        placeholder = QLabel("🚧 Under Construction\n\nComing soon:\n• DeepL integration\n• Google Translate\n• Microsoft Translator\n• Amazon Translate\n• ModernMT")
+        placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        placeholder.setStyleSheet("color: #999; padding: 40px; font-size: 11pt;")
+        layout.addWidget(placeholder, stretch=1)
         
-        mt_group.setLayout(mt_layout)
-        scroll_layout.addWidget(mt_group)
+        return tab
+    
+    def create_web_settings_subtab(self):
+        """Create Web Resources settings sub-tab"""
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(15, 15, 15, 15)
+        layout.setSpacing(10)
         
-        # ===== WEB RESOURCES SECTION =====
-        web_group = QGroupBox("🌐 Web Resources")
-        web_group.setStyleSheet("QGroupBox { font-weight: bold; padding-top: 10px; }")
-        web_layout = QVBoxLayout()
+        # Info section
+        info = QLabel(
+            "Web Resources integration is coming soon.\n"
+            "This will allow Superlookup to search online dictionaries, glossaries, and reference websites."
+        )
+        info.setWordWrap(True)
+        info.setStyleSheet("color: #666; padding: 5px; background-color: #E8F5E9; border-radius: 3px;")
+        layout.addWidget(info, 0)
         
-        self.web_search_checkbox = QCheckBox("Enable Web Resources (Coming Soon)")
+        # Enable checkbox (disabled for now)
+        self.web_search_checkbox = QCheckBox("✓ Enable Web Resources (Coming Soon)")
         self.web_search_checkbox.setChecked(False)
         self.web_search_checkbox.setEnabled(False)
-        self.web_search_checkbox.setStyleSheet("color: #999;")
-        web_layout.addWidget(self.web_search_checkbox)
+        self.web_search_checkbox.setStyleSheet("font-weight: bold; font-size: 11pt; color: #999; padding: 10px 0;")
+        layout.addWidget(self.web_search_checkbox, 0)
         
-        web_info = QLabel("🚧 Online dictionary and glossary search coming soon")
-        web_info.setStyleSheet("color: #666; font-size: 9pt; font-style: italic;")
-        web_layout.addWidget(web_info)
-        
-        web_group.setLayout(web_layout)
-        scroll_layout.addWidget(web_group)
-        
-        scroll_layout.addStretch()
-        scroll.setWidget(scroll_content)
-        layout.addWidget(scroll, stretch=1)
-        
-        # Don't load initial data here - will be loaded when tab is viewed
-        # self.refresh_tm_list()
-        # self.refresh_termbase_list()
+        # Placeholder content
+        placeholder = QLabel("🚧 Under Construction\n\nComing soon:\n• Linguee\n• Reverso Context\n• IATE\n• Custom dictionary URLs\n• Wikipedia references")
+        placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        placeholder.setStyleSheet("color: #999; padding: 40px; font-size: 11pt;")
+        layout.addWidget(placeholder, stretch=1)
         
         return tab
     
