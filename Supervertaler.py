@@ -4878,9 +4878,9 @@ class SupervertalerQt(QMainWindow):
                 # Check if active (Read mode) for current project  
                 # Default: not activated (Read unchecked)
                 is_readable = tm_metadata_mgr.is_tm_active(tm['id'], refresh_project_id) if refresh_project_id else False
-                # Default: not writable (Write unchecked) - read_only=True means not writable
-                # If read_only is not set in database, treat as read-only by default
-                is_writable = not tm.get('read_only', True)  # Default to True (read-only) if not set
+                # Default: writable (Write checked) - read_only=False means writable
+                # If read_only is not set in database, treat as writable by default
+                is_writable = not tm.get('read_only', False)  # Default to False (writable) if not set
                 
                 # TM Name (bold if readable)
                 name_item = QTableWidgetItem(tm['name'])
@@ -10038,9 +10038,21 @@ class SupervertalerQt(QMainWindow):
         self.termview_widget = TermviewWidget(self, db_manager=self.db_manager, log_callback=self.log)
         self.termview_widget.term_insert_requested.connect(self.insert_termview_text)
         
+        # Session Log tab
+        session_log_widget = QWidget()
+        session_log_layout = QVBoxLayout(session_log_widget)
+        session_log_layout.setContentsMargins(5, 5, 5, 5)
+        
+        self.session_log_text = QPlainTextEdit()
+        self.session_log_text.setReadOnly(True)
+        self.session_log_text.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
+        self.session_log_text.setStyleSheet("font-family: 'Consolas', 'Courier New', monospace; font-size: 9pt;")
+        session_log_layout.addWidget(self.session_log_text)
+        
         # Add tabs
         bottom_tabs.addTab(comments_widget, "💬 Comments")
         bottom_tabs.addTab(self.termview_widget, "🔍 Termview")
+        bottom_tabs.addTab(session_log_widget, "📋 Session Log")
         
         left_vertical_splitter.addWidget(bottom_tabs)
         
@@ -18069,17 +18081,17 @@ class SupervertalerQt(QMainWindow):
                 self.debug_log_buffer = self.debug_log_buffer[-10000:]
 
         # Also append to session log tab if it exists
-        if hasattr(self, 'session_log') and self.session_log:
+        if hasattr(self, 'session_log_text') and self.session_log_text:
             from datetime import datetime
             from PyQt6.QtGui import QTextCursor
             timestamp = datetime.now().strftime("%H:%M:%S")
             formatted_message = f"[{timestamp}] {message}"
             try:
                 # Append without newline (appendPlainText adds it automatically)
-                self.session_log.appendPlainText(formatted_message)
+                self.session_log_text.appendPlainText(formatted_message)
                 # Force scroll to bottom by moving cursor to end
-                self.session_log.moveCursor(QTextCursor.MoveOperation.End)
-                self.session_log.ensureCursorVisible()
+                self.session_log_text.moveCursor(QTextCursor.MoveOperation.End)
+                self.session_log_text.ensureCursorVisible()
             except Exception:
                 pass  # Silently fail if widget not ready
 
