@@ -20910,12 +20910,16 @@ class UniversalLookupTab(QWidget):
         super().__init__(parent)
         self.main_window = parent  # Store reference to main window for database access
         
+        print("[Superlookup] UniversalLookupTab.__init__ called")
+        
         # Import lookup engine
         try:
             from modules.superlookup import SuperlookupEngine, LookupResult
             self.SuperlookupEngine = SuperlookupEngine
             self.LookupResult = LookupResult
-        except ImportError:
+            print("[Superlookup] Successfully imported SuperlookupEngine")
+        except ImportError as e:
+            print(f"[Superlookup] IMPORT ERROR: {e}")
             QMessageBox.critical(
                 self,
                 "Missing Module",
@@ -20923,7 +20927,7 @@ class UniversalLookupTab(QWidget):
             )
             self.SuperlookupEngine = None
             self.LookupResult = None
-            return
+            # Don't return - still set up hotkey even if engine import fails
         
         # Initialize engine
         self.engine = None
