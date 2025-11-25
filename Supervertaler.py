@@ -19063,6 +19063,11 @@ class SupervertalerQt(QMainWindow):
         provider_group = QGroupBox("Translation Provider")
         provider_layout = QVBoxLayout()
 
+        # Translation Memory option
+        tm_checkbox = CheckmarkCheckBox("📖 TM (Translation Memory) - Pre-translate from activated TMs")
+        tm_checkbox.setChecked(False)
+        provider_layout.addWidget(tm_checkbox)
+
         llm_checkbox = CheckmarkCheckBox("🤖 LLM (AI) - Use configured LLM provider (GPT, Claude, Gemini)")
         llm_checkbox.setChecked(True)  # Default to LLM
         provider_layout.addWidget(llm_checkbox)
@@ -19097,14 +19102,22 @@ class SupervertalerQt(QMainWindow):
         provider_layout.addWidget(mt_checkbox)
 
         # Make checkboxes mutually exclusive
+        def on_tm_toggled(checked):
+            if checked:
+                llm_checkbox.setChecked(False)
+                mt_checkbox.setChecked(False)
+        
         def on_llm_toggled(checked):
             if checked:
+                tm_checkbox.setChecked(False)
                 mt_checkbox.setChecked(False)
 
         def on_mt_toggled(checked):
             if checked:
+                tm_checkbox.setChecked(False)
                 llm_checkbox.setChecked(False)
 
+        tm_checkbox.toggled.connect(on_tm_toggled)
         llm_checkbox.toggled.connect(on_llm_toggled)
         mt_checkbox.toggled.connect(on_mt_toggled)
 
@@ -19150,9 +19163,25 @@ class SupervertalerQt(QMainWindow):
             return
 
         # Determine which provider was selected
+        use_tm = tm_checkbox.isChecked()
         use_mt = mt_checkbox.isChecked()
 
-        if use_mt:
+        if use_tm:
+            # Use Translation Memory
+            translation_provider_type = 'TM'
+            translation_provider_name = 'Translation Memory'
+            
+            # Check if TM database is available
+            if not self.tm_database:
+                QMessageBox.critical(
+                    self, "No TM Database",
+                    "Translation Memory database is not initialized. Please load a project first."
+                )
+                return
+            
+            self.log("📖 Using Translation Memory for batch pre-translation")
+            
+        elif use_mt:
             # Use MT provider
             translation_provider_type = 'MT'
             translation_provider_name = mt_providers_available[0] if mt_providers_available else None
@@ -19328,7 +19357,78 @@ class SupervertalerQt(QMainWindow):
                     self.log(f"ℹ️ No TM database available")
                 segments_needing_translation = segments_to_translate
 
-            # Initialize client based on provider type
+            # TM-only mode: Skip API initialization and translate from TM only
+            if translation_provider_type == 'TM':
+                self.log(f"📖 TM-Only mode: Translating {len(segments_needing_translation)} segments from Translation Memory")
+                
+                # Get activated TM IDs for current project
+                tm_ids = None
+                if hasattr(self, 'tm_metadata_mgr') and self.tm_metadata_mgr and self.current_project:
+                    project_id = self.current_project.id if hasattr(self.current_project, 'id') else None
+                    if project_id:
+                        tm_ids = self.tm_metadata_mgr.get_active_tm_ids(project_id)
+                        if tm_ids:
+                            self.log(f"   Using activated TMs: {tm_ids}")
+                
+                # Translate each segment from TM
+                for row_index, segment in segments_needing_translation:
+                    try:
+                        # Search TM for best match
+                        matches = self.tm_database.search_all(segment.source, tm_ids=tm_ids, max_matches=1)
+                        
+                        if matches and len(matches) > 0:
+                            match = matches[0]
+                            match_pct = match.get('match_pct', 0)
+                            tm_match = match.get('target', '')
+                            
+                            if match_pct >= 70:  # Accept matches 70% and above
+                                segment.target = tm_match
+                                segment.status = "translated" if match_pct == 100 else "pre-translated"
+                                translated_count += 1
+                                
+                                # Update grid immediately
+                                if row_index < self.table.rowCount():
+                                    target_widget = self.table.cellWidget(row_index, 3)
+                                    if target_widget and isinstance(target_widget, EditableGridTextEditor):
+                                        target_widget.setPlainText(tm_match)
+                                    else:
+                                        self.table.setItem(row_index, 3, QTableWidgetItem(tm_match))
+                                    self.update_status_icon(row_index, segment.status)
+                                
+                                self.log(f"   ✓ TM {match_pct}%: Segment #{segment.id}")
+                            else:
+                                # Match below threshold - skip
+                                failed_count += 1
+                                self.log(f"   ⊘ TM {match_pct}% (below 70%): Segment #{segment.id} - skipped")
+                        else:
+                            # No match found
+                            failed_count += 1
+                            self.log(f"   ⊘ No TM match: Segment #{segment.id} - skipped")
+                        
+                        segment_idx += 1
+                        progress_bar.setValue(segment_idx)
+                        stats_label.setText(f"Translated: {translated_count} | Skipped: {failed_count} | Remaining: {len(segments_needing_translation) - segment_idx}")
+                        QApplication.processEvents()
+                        
+                    except Exception as e:
+                        failed_count += 1
+                        self.log(f"   ✗ Error translating segment #{segment.id}: {e}")
+                        segment_idx += 1
+                        progress_bar.setValue(segment_idx)
+                        QApplication.processEvents()
+                
+                # TM-only translation complete
+                self.project_modified = True
+                self.update_window_title()
+                current_label.setText(f"✓ Complete! {translated_count} segments translated from TM, {failed_count} skipped (no match/low match)")
+                close_btn.setEnabled(True)
+                self.log(f"═══════════════════════════════════════════════════════════")
+                self.log(f"✓ TM-Only Batch Translation Complete")
+                self.log(f"   Translated: {translated_count} | Skipped: {failed_count}")
+                self.log(f"═══════════════════════════════════════════════════════════")
+                return
+            
+            # Initialize client based on provider type (LLM or MT)
             client = None
             mt_api_key = None
             mt_provider_code = None
@@ -21060,6 +21160,9 @@ class UniversalLookupTab(QWidget):
         settings_tab = self.create_settings_tab()
         self.results_tabs.addTab(settings_tab, "⚙️ Settings")
         
+        # Connect tab change to refresh resources when Settings tab is viewed
+        self.results_tabs.currentChanged.connect(self.on_results_tab_changed)
+        
         layout.addWidget(self.results_tabs, stretch=1)
         
         # Status bar
@@ -21335,11 +21438,19 @@ class UniversalLookupTab(QWidget):
         scroll.setWidget(scroll_content)
         layout.addWidget(scroll, stretch=1)
         
-        # Load initial data
-        self.refresh_tm_list()
-        self.refresh_termbase_list()
+        # Don't load initial data here - will be loaded when tab is viewed
+        # self.refresh_tm_list()
+        # self.refresh_termbase_list()
         
         return tab
+    
+    def on_results_tab_changed(self, index):
+        """Handle results tab change - refresh resource lists when Settings tab is viewed"""
+        # Settings tab is at index 4 (TM=0, Termbase=1, MT=2, Web=3, Settings=4)
+        if index == 4:
+            print("[Superlookup] Settings tab viewed - refreshing resource lists")
+            self.refresh_tm_list()
+            self.refresh_termbase_list()
     
     def on_tm_search_toggled(self, state):
         """Handle TM search checkbox toggle"""
