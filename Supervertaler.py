@@ -21562,7 +21562,7 @@ class UniversalLookupTab(QWidget):
         if self.main_window and hasattr(self.main_window, 'db_manager') and self.main_window.db_manager:
             try:
                 print(f"[Superlookup]   db_manager found, querying TMs...")
-                cursor = self.main_window.db_manager.cursor()
+                cursor = self.main_window.db_manager.cursor
                 cursor.execute("SELECT id, name FROM translation_memories ORDER BY name")
                 tms = cursor.fetchall()
                 
@@ -21628,7 +21628,7 @@ class UniversalLookupTab(QWidget):
         if self.main_window and hasattr(self.main_window, 'db_manager') and self.main_window.db_manager:
             try:
                 print(f"[Superlookup]   db_manager found, querying termbases...")
-                cursor = self.main_window.db_manager.cursor()
+                cursor = self.main_window.db_manager.cursor
                 cursor.execute("SELECT id, name FROM termbases ORDER BY name")
                 termbases = cursor.fetchall()
                 
