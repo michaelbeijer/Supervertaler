@@ -4832,9 +4832,44 @@ class SupervertalerQt(QMainWindow):
         tm_table.setColumnWidth(4, 60)
         tm_table.setColumnWidth(5, 150)
         
+        # Add checkboxes to Read and Write column headers for select all/deselect all
+        read_header_widget = QWidget()
+        read_header_layout = QVBoxLayout(read_header_widget)
+        read_header_layout.setContentsMargins(0, 0, 0, 0)
+        read_header_layout.setSpacing(0)
+        read_header_checkbox = CheckmarkCheckBox("Read")
+        read_header_checkbox.setStyleSheet("font-weight: bold; font-size: 9pt;")
+        read_header_layout.addWidget(read_header_checkbox)
+        tm_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
+        
+        write_header_widget = QWidget()
+        write_header_layout = QVBoxLayout(write_header_widget)
+        write_header_layout.setContentsMargins(0, 0, 0, 0)
+        write_header_layout.setSpacing(0)
+        write_header_checkbox = BlueCheckmarkCheckBox("Write")
+        write_header_checkbox.setStyleSheet("font-weight: bold; font-size: 9pt;")
+        write_header_layout.addWidget(write_header_checkbox)
+        tm_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)
+        
         # Get current project (for lambda closures below)
         current_project = self.current_project if hasattr(self, 'current_project') else None
         project_id = current_project.id if (current_project and hasattr(current_project, 'id')) else None
+        
+        # Connect header checkboxes to toggle all
+        def toggle_all_read(checked):
+            for row in range(tm_table.rowCount()):
+                checkbox = tm_table.cellWidget(row, 3)
+                if checkbox and isinstance(checkbox, CheckmarkCheckBox):
+                    checkbox.setChecked(checked)
+        
+        def toggle_all_write(checked):
+            for row in range(tm_table.rowCount()):
+                checkbox = tm_table.cellWidget(row, 4)
+                if checkbox and isinstance(checkbox, BlueCheckmarkCheckBox):
+                    checkbox.setChecked(checked)
+        
+        read_header_checkbox.toggled.connect(toggle_all_read)
+        write_header_checkbox.toggled.connect(toggle_all_write)
         
         # Populate TM list
         def refresh_tm_list():
@@ -4955,6 +4990,16 @@ class SupervertalerQt(QMainWindow):
                 # Description
                 desc_text = tm['description'] or ''
                 tm_table.setItem(row, 6, QTableWidgetItem(desc_text))
+            
+            # Update header checkbox states based on current selection
+            read_header_checkbox.blockSignals(True)
+            write_header_checkbox.blockSignals(True)
+            all_read_checked = all(tm_table.cellWidget(r, 3).isChecked() if tm_table.cellWidget(r, 3) else False for r in range(tm_table.rowCount())) if tm_table.rowCount() > 0 else False
+            all_write_checked = all(tm_table.cellWidget(r, 4).isChecked() if tm_table.cellWidget(r, 4) else False for r in range(tm_table.rowCount())) if tm_table.rowCount() > 0 else False
+            read_header_checkbox.setChecked(all_read_checked)
+            write_header_checkbox.setChecked(all_write_checked)
+            read_header_checkbox.blockSignals(False)
+            write_header_checkbox.blockSignals(False)
         
         # Store callback as instance attribute so load_project can refresh UI after restoration
         self.tm_tab_refresh_callback = refresh_tm_list
@@ -5870,10 +5915,45 @@ class SupervertalerQt(QMainWindow):
         termbase_table.setColumnWidth(5, 60)   # Write checkbox
         termbase_table.setColumnWidth(6, 80)   # Priority
         
+        # Add checkboxes to Read and Write column headers
+        tb_read_header_widget = QWidget()
+        tb_read_header_layout = QVBoxLayout(tb_read_header_widget)
+        tb_read_header_layout.setContentsMargins(0, 0, 0, 0)
+        tb_read_header_layout.setSpacing(0)
+        tb_read_header_checkbox = CheckmarkCheckBox("Read")
+        tb_read_header_checkbox.setStyleSheet("font-weight: bold; font-size: 9pt;")
+        tb_read_header_layout.addWidget(tb_read_header_checkbox)
+        termbase_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)
+        
+        tb_write_header_widget = QWidget()
+        tb_write_header_layout = QVBoxLayout(tb_write_header_widget)
+        tb_write_header_layout.setContentsMargins(0, 0, 0, 0)
+        tb_write_header_layout.setSpacing(0)
+        tb_write_header_checkbox = BlueCheckmarkCheckBox("Write")
+        tb_write_header_checkbox.setStyleSheet("font-weight: bold; font-size: 9pt;")
+        tb_write_header_layout.addWidget(tb_write_header_checkbox)
+        termbase_table.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeMode.Fixed)
+        
         # Get current project
         current_project = self.current_project if hasattr(self, 'current_project') else None
         # current_project is a Project object, not a dict
         project_id = current_project.id if (current_project and hasattr(current_project, 'id')) else None
+        
+        # Connect header checkboxes to toggle all
+        def toggle_all_tb_read(checked):
+            for row in range(termbase_table.rowCount()):
+                checkbox = termbase_table.cellWidget(row, 4)
+                if checkbox and isinstance(checkbox, CheckmarkCheckBox):
+                    checkbox.setChecked(checked)
+        
+        def toggle_all_tb_write(checked):
+            for row in range(termbase_table.rowCount()):
+                checkbox = termbase_table.cellWidget(row, 5)
+                if checkbox and isinstance(checkbox, BlueCheckmarkCheckBox):
+                    checkbox.setChecked(checked)
+        
+        tb_read_header_checkbox.toggled.connect(toggle_all_tb_read)
+        tb_write_header_checkbox.toggled.connect(toggle_all_tb_write)
         
         # Populate termbase list
         def refresh_termbase_list():
@@ -6078,6 +6158,16 @@ class SupervertalerQt(QMainWindow):
                     priority_item.setToolTip("No priority - termbase not readable")
                     priority_item.setFlags(priority_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
                     termbase_table.setItem(row, 6, priority_item)
+            
+            # Update header checkbox states based on current selection
+            tb_read_header_checkbox.blockSignals(True)
+            tb_write_header_checkbox.blockSignals(True)
+            all_tb_read_checked = all(termbase_table.cellWidget(r, 4).isChecked() if termbase_table.cellWidget(r, 4) else False for r in range(termbase_table.rowCount())) if termbase_table.rowCount() > 0 else False
+            all_tb_write_checked = all(termbase_table.cellWidget(r, 5).isChecked() if termbase_table.cellWidget(r, 5) else False for r in range(termbase_table.rowCount())) if termbase_table.rowCount() > 0 else False
+            tb_read_header_checkbox.setChecked(all_tb_read_checked)
+            tb_write_header_checkbox.setChecked(all_tb_write_checked)
+            tb_read_header_checkbox.blockSignals(False)
+            tb_write_header_checkbox.blockSignals(False)
         
         # Store callback as instance attribute so add_term_to_termbase can call it
         self.termbase_tab_refresh_callback = refresh_termbase_list
@@ -11170,13 +11260,21 @@ class SupervertalerQt(QMainWindow):
                         for tm in all_tms:
                             self.tm_metadata_mgr.deactivate_tm(tm['id'], project_id)
                         
-                        # Then activate the saved TMs
+                        # Then activate the saved TMs and restore read_only status
+                        tm_read_only_status = self.current_project.tm_settings.get('tm_read_only_status', {})
                         for tm_id in activated_tm_ids:
                             # Find TM by tm_id (not db id)
                             tm = next((t for t in all_tms if t['tm_id'] == tm_id), None)
                             if tm:
                                 self.tm_metadata_mgr.activate_tm(tm['id'], project_id)
-                                self.log(f"✓ Restored activated TM: {tm['name']}")
+                                # Restore read_only status if saved
+                                if tm_id in tm_read_only_status:
+                                    read_only = tm_read_only_status[tm_id]
+                                    self.tm_metadata_mgr.set_read_only(tm['id'], read_only)
+                                    status = "read-only" if read_only else "writable"
+                                    self.log(f"✓ Restored TM: {tm['name']} (activated, {status})")
+                                else:
+                                    self.log(f"✓ Restored activated TM: {tm['name']}")
                             else:
                                 self.log(f"⚠️ Could not find TM with tm_id: {tm_id}")
                         
@@ -11853,7 +11951,7 @@ class SupervertalerQt(QMainWindow):
                     self.current_project.prompt_settings = {}
                 self.current_project.prompt_settings['image_context_folder'] = self.figure_context.figure_context_folder
             
-            # Save activated TM IDs for this project
+            # Save activated TM IDs and read_only status for this project
             if hasattr(self, 'tm_metadata_mgr') and self.tm_metadata_mgr and hasattr(self.current_project, 'id'):
                 project_id = self.current_project.id
                 if project_id:
@@ -11861,6 +11959,14 @@ class SupervertalerQt(QMainWindow):
                     if not hasattr(self.current_project, 'tm_settings'):
                         self.current_project.tm_settings = {}
                     self.current_project.tm_settings['activated_tm_ids'] = activated_tm_ids or []
+                    
+                    # Save read_only status for each activated TM
+                    tm_read_only_status = {}
+                    all_tms = self.tm_metadata_mgr.get_all_tms()
+                    for tm in all_tms:
+                        if tm['tm_id'] in activated_tm_ids:
+                            tm_read_only_status[tm['tm_id']] = tm.get('read_only', True)
+                    self.current_project.tm_settings['tm_read_only_status'] = tm_read_only_status
             
             # Save activated termbase IDs and priorities for this project
             if hasattr(self, 'termbase_mgr') and self.termbase_mgr and hasattr(self.current_project, 'id'):
