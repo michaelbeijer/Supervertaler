@@ -21550,6 +21550,7 @@ class UniversalLookupTab(QWidget):
     def register_global_hotkey(self):
         """Register global hotkey for Superlookup"""
         global _ahk_process
+        print("[Superlookup] register_global_hotkey called")
         try:
             # Kill any existing instances of the AHK script first
             if os.name == 'nt':
@@ -21599,7 +21600,12 @@ class UniversalLookupTab(QWidget):
                 self.hotkey_registered = False
                 return
             
+            print(f"[Superlookup] Found AutoHotkey at: {ahk_exe}")
+            
             ahk_script = Path(__file__).parent / "superlookup_hotkey.ahk"
+            print(f"[Superlookup] Looking for script at: {ahk_script}")
+            print(f"[Superlookup] Script exists: {ahk_script.exists()}")
+            
             if ahk_script.exists():
                 # Start AHK script in background (hidden)
                 self.ahk_process = subprocess.Popen([ahk_exe, str(ahk_script)],
