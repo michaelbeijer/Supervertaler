@@ -4820,6 +4820,19 @@ class SupervertalerQt(QMainWindow):
         help_msg.setStyleSheet("background-color: #e3f2fd; padding: 8px; border-radius: 4px; color: #1976d2;")
         layout.addWidget(help_msg)
         
+        # Bulk action controls
+        bulk_layout = QHBoxLayout()
+        bulk_layout.addWidget(QLabel("Quick Actions:"))
+        
+        read_header_checkbox = CheckmarkCheckBox("Select All Read")
+        bulk_layout.addWidget(read_header_checkbox)
+        
+        write_header_checkbox = BlueCheckmarkCheckBox("Select All Write")
+        bulk_layout.addWidget(write_header_checkbox)
+        
+        bulk_layout.addStretch()
+        layout.addLayout(bulk_layout)
+        
         # TM list with table
         tm_table = QTableWidget()
         tm_table.setColumnCount(7)
@@ -4831,25 +4844,6 @@ class SupervertalerQt(QMainWindow):
         tm_table.setColumnWidth(3, 60)
         tm_table.setColumnWidth(4, 60)
         tm_table.setColumnWidth(5, 150)
-        
-        # Add checkboxes to Read and Write column headers for select all/deselect all
-        read_header_widget = QWidget()
-        read_header_layout = QVBoxLayout(read_header_widget)
-        read_header_layout.setContentsMargins(0, 0, 0, 0)
-        read_header_layout.setSpacing(0)
-        read_header_checkbox = CheckmarkCheckBox("Read")
-        read_header_checkbox.setStyleSheet("font-weight: bold; font-size: 9pt;")
-        read_header_layout.addWidget(read_header_checkbox)
-        tm_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
-        
-        write_header_widget = QWidget()
-        write_header_layout = QVBoxLayout(write_header_widget)
-        write_header_layout.setContentsMargins(0, 0, 0, 0)
-        write_header_layout.setSpacing(0)
-        write_header_checkbox = BlueCheckmarkCheckBox("Write")
-        write_header_checkbox.setStyleSheet("font-weight: bold; font-size: 9pt;")
-        write_header_layout.addWidget(write_header_checkbox)
-        tm_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)
         
         # Get current project (for lambda closures below)
         current_project = self.current_project if hasattr(self, 'current_project') else None
@@ -5902,6 +5896,19 @@ class SupervertalerQt(QMainWindow):
         help_msg.setStyleSheet("background-color: #e3f2fd; padding: 8px; border-radius: 4px; color: #1976d2;")
         layout.addWidget(help_msg)
         
+        # Bulk action controls
+        tb_bulk_layout = QHBoxLayout()
+        tb_bulk_layout.addWidget(QLabel("Quick Actions:"))
+        
+        tb_read_header_checkbox = CheckmarkCheckBox("Select All Read")
+        tb_bulk_layout.addWidget(tb_read_header_checkbox)
+        
+        tb_write_header_checkbox = BlueCheckmarkCheckBox("Select All Write")
+        tb_bulk_layout.addWidget(tb_write_header_checkbox)
+        
+        tb_bulk_layout.addStretch()
+        layout.addLayout(tb_bulk_layout)
+        
         # Termbase list with table
         termbase_table = QTableWidget()
         termbase_table.setColumnCount(7)
@@ -5914,25 +5921,6 @@ class SupervertalerQt(QMainWindow):
         termbase_table.setColumnWidth(4, 60)   # Read checkbox
         termbase_table.setColumnWidth(5, 60)   # Write checkbox
         termbase_table.setColumnWidth(6, 80)   # Priority
-        
-        # Add checkboxes to Read and Write column headers
-        tb_read_header_widget = QWidget()
-        tb_read_header_layout = QVBoxLayout(tb_read_header_widget)
-        tb_read_header_layout.setContentsMargins(0, 0, 0, 0)
-        tb_read_header_layout.setSpacing(0)
-        tb_read_header_checkbox = CheckmarkCheckBox("Read")
-        tb_read_header_checkbox.setStyleSheet("font-weight: bold; font-size: 9pt;")
-        tb_read_header_layout.addWidget(tb_read_header_checkbox)
-        termbase_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)
-        
-        tb_write_header_widget = QWidget()
-        tb_write_header_layout = QVBoxLayout(tb_write_header_widget)
-        tb_write_header_layout.setContentsMargins(0, 0, 0, 0)
-        tb_write_header_layout.setSpacing(0)
-        tb_write_header_checkbox = BlueCheckmarkCheckBox("Write")
-        tb_write_header_checkbox.setStyleSheet("font-weight: bold; font-size: 9pt;")
-        tb_write_header_layout.addWidget(tb_write_header_checkbox)
-        termbase_table.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeMode.Fixed)
         
         # Get current project
         current_project = self.current_project if hasattr(self, 'current_project') else None
