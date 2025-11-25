@@ -21709,6 +21709,8 @@ class UniversalLookupTab(QWidget):
                 main_window = self.window()
             
             print(f"[Superlookup] Main window found: {main_window is not None}")
+            print(f"[Superlookup] Main window type: {type(main_window).__name__}")
+            print(f"[Superlookup] Has right_tabs: {hasattr(main_window, 'right_tabs')}")
             
             # Switch to Tools tab (right_tabs index 2)
             if hasattr(main_window, 'right_tabs'):
@@ -21716,6 +21718,8 @@ class UniversalLookupTab(QWidget):
                 main_window.right_tabs.setCurrentIndex(2)
                 print(f"[Superlookup] Switched to Tools tab (index 2)")
                 QApplication.processEvents()  # Force GUI update
+            else:
+                print(f"[Superlookup] WARNING: Main window has no right_tabs attribute!")
             
             # Switch to Superlookup within modules_tabs
             if hasattr(main_window, 'modules_tabs'):
