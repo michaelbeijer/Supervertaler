@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.1 (November 24, 2025)
+**Current Version:** v1.9.2 (November 25, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -14,6 +14,7 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- ⚙️ **Superlookup Settings UI (v1.9.2)** - Redesigned Settings tab with sub-tabs for TM/Termbase/MT/Web resources. Proper 18x18px checkboxes with green background and white checkmarks matching standard Supervertaler style. Each resource type has dedicated full-height space for easy selection
 - ↩️ **Undo/Redo for Grid Edits (v1.9.1)** - Full undo/redo support for grid editing operations with Ctrl+Z/Ctrl+Y. Tracks target text changes, status changes, and find/replace operations with 100-level history
 - 🔍 **Termview - RYS-Style Inline Terminology (v1.9.0)** - Visual inline terminology display showing source words with translations underneath, inspired by RYS Trados plugin. Supports multi-word terms, click-to-insert, hover tooltips, and terms with punctuation like "gew.%"
 - 🎨 **UI Refinements - Tab Styling (v1.8.0)** - Refined selected tab appearance with subtle 1px blue underline and light background highlighting for cleaner visual design
@@ -46,6 +47,45 @@ All notable changes to Supervertaler are documented in this file.
 - 🔄 **CAT Tool Integration** - memoQ, Trados, CafeTran bilingual table support
 
 **See full version history below** ↓
+
+---
+
+## [1.9.2] - November 25, 2025
+
+### ⚙️ Superlookup Settings UI Redesign
+
+**Improved Resource Selection Interface:**
+- Redesigned Settings tab with sub-tabs for TM, Termbase, MT, and Web Resources
+- Each resource type now has dedicated full-height space in its own sub-tab
+- Replaced cramped single-page layout with spacious tabbed interface
+
+**Proper Checkbox Styling:**
+- Replaced tiny multi-selection indicators with standard Supervertaler checkboxes
+- 18x18px checkbox size with green (#4CAF50) background when checked
+- White checkmark (✓) drawn on checked items matching AutoFingers style
+- QScrollArea + CheckmarkCheckBox widgets instead of QListWidget
+- Hover effects and proper visual feedback
+
+**Technical Implementation:**
+- `create_settings_tab()`: Creates QTabWidget with 4 sub-tabs
+- `create_tm_settings_subtab()`: Full-height TM selection with checkboxes
+- `create_termbase_settings_subtab()`: Full-height termbase selection
+- `create_mt_settings_subtab()`: Placeholder for future MT integration
+- `create_web_settings_subtab()`: Placeholder for future web resources
+- CheckmarkCheckBox widgets in QScrollArea provide proper green checkboxes
+- Fixed `cursor()` → `cursor` property access for database queries
+
+**Bug Fixes:**
+- Fixed Translation Memories list loading (was showing empty due to cursor() call error)
+- Fixed termbase loading timing (lazy loading when Settings tab viewed)
+- Proper checkbox state tracking with `setProperty()` and `property()` methods
+- Select All/Clear All buttons now work with checkbox widgets instead of selection
+
+**User Experience:**
+- Much more spacious and easier to read
+- Clear visual separation between resource types
+- Checkboxes are now clearly visible and clickable
+- Consistent styling across entire application
 
 ---
 
