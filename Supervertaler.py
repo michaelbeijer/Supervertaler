@@ -21637,6 +21637,8 @@ class UniversalLookupTab(QWidget):
         self.signal_file = Path(__file__).parent / "lookup_signal.txt"
         self.capture_file = Path(__file__).parent / "temp_capture.txt"
         
+        print(f"[Superlookup] File watcher started, watching: {self.signal_file}")
+        
         # Create timer to check for signal file
         self.file_check_timer = QTimer()
         self.file_check_timer.timeout.connect(self.check_for_signal)
@@ -21645,9 +21647,11 @@ class UniversalLookupTab(QWidget):
     def check_for_signal(self):
         """Check if AHK wrote a signal file"""
         if self.signal_file.exists():
+            print(f"[Superlookup] Signal file detected!")
             try:
                 # Delete signal file
                 self.signal_file.unlink()
+                print(f"[Superlookup] Signal file deleted")
                 
                 # Get text from clipboard (AHK already copied it)
                 time.sleep(0.1)  # Give clipboard a moment
