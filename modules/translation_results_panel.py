@@ -85,7 +85,8 @@ class CompactMatchItem(QFrame):
                 "TM": "Translation Memory (Previously approved)",
                 "Termbase": "Termbase",
                 "MT": "Machine Translation",
-                "NT": "New Translation"
+                "NT": "New Translation",
+                "NonTrans": "🚫 Non-Translatable (do not translate)"
             }
             tooltip_text = match_type_tooltips.get(match.match_type, "Translation Match")
             num_label.setToolTip(tooltip_text)
@@ -362,21 +363,23 @@ class CompactMatchItem(QFrame):
     
     def update_styling(self):
         """Update visual styling based on selection state and match type"""
-        # Color code by match type: LLM=purple, TM=red, Termbase=green, MT=orange, NT=gray
+        # Color code by match type: LLM=purple, TM=red, Termbase=green, MT=orange, NT=gray, NonTrans=yellow
         base_color_map = {
             "LLM": "#9c27b0",  # Purple for LLM translations
             "TM": "#ff6b6b",  # Red for Translation Memory
             "Termbase": "#4CAF50",  # Green for all termbase matches (Material Design Green 500)
             "MT": "#ff9800",  # Orange for Machine Translation
-            "NT": "#adb5bd"  # Gray for New Translation
+            "NT": "#adb5bd",  # Gray for New Translation
+            "NonTrans": "#E6C200"  # Pastel yellow for Non-Translatables
         }
 
         base_color = base_color_map.get(self.match.match_type, "#adb5bd")
-
+        
+        # Special styling for Non-Translatables
+        if self.match.match_type == "NonTrans":
+            type_color = "#FFFDD0"  # Pastel yellow background
         # For termbase matches, apply ranking-based green shading
-        # Darker green = higher priority (lower ranking number)
-        is_project_termbase = False
-        if self.match.match_type == "Termbase":
+        elif self.match.match_type == "Termbase":
             is_forbidden = self.match.metadata.get('forbidden', False)
             is_project_termbase_flag = self.match.metadata.get('is_project_termbase', False)
             termbase_ranking = self.match.metadata.get('ranking', None)
@@ -1309,12 +1312,13 @@ class TranslationResultsPanel(QWidget):
             "NT": 5,
             "MT": 3,
             "TM": 5,
-            "Termbases": 10
+            "Termbases": 10,
+            "NonTrans": 20  # Non-translatables (show more since they're important)
         })
         
         # Build flat list of all matches with global numbering
         global_number = 1
-        order = ["LLM", "NT", "MT", "TM", "Termbases"]  # LLM appears first (top)
+        order = ["LLM", "NonTrans", "NT", "MT", "TM", "Termbases"]  # LLM first, NonTrans early (important for translator)
         
         for match_type in order:
             if match_type in matches_dict and matches_dict[match_type]:

@@ -339,6 +339,13 @@ class ShortcutManager:
             "action": "add_to_termbase",
             "context": "grid_editor"
         },
+        "editor_add_to_non_translatables": {
+            "category": "Editor",
+            "description": "Add selected text to non-translatables list",
+            "default": "Ctrl+Alt+N",
+            "action": "add_to_non_translatables",
+            "context": "grid_editor"
+        },
         
         # Filter Operations
         "filter_selected_text": {

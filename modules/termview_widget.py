@@ -251,6 +251,84 @@ class TermBlock(QWidget):
         self.term_clicked.emit(self.source_text, target_text)
 
 
+class NTBlock(QWidget):
+    """Non-translatable block showing source word with pastel yellow styling"""
+    
+    nt_clicked = pyqtSignal(str)  # Emits NT text to insert as-is
+    
+    def __init__(self, source_text: str, list_name: str = "", parent=None):
+        """
+        Args:
+            source_text: Non-translatable word/phrase
+            list_name: Name of the NT list it comes from
+        """
+        super().__init__(parent)
+        self.source_text = source_text
+        self.list_name = list_name
+        self.init_ui()
+        
+    def init_ui(self):
+        """Create the visual layout for this NT block - pastel yellow styling"""
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(1, 1, 1, 1)
+        layout.setSpacing(0)
+        
+        # Pastel yellow border for non-translatables
+        border_color = "#E6C200"  # Darker yellow for border
+        
+        self.setStyleSheet(f"""
+            QWidget {{
+                border-top: 2px solid {border_color};
+                border-radius: 0px;
+            }}
+        """)
+        
+        # Source text (top)
+        source_label = QLabel(self.source_text)
+        source_font = QFont()
+        source_font.setPointSize(8)
+        source_label.setFont(source_font)
+        source_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        source_label.setStyleSheet("""
+            QLabel {
+                color: #5D4E37;
+                padding: 1px 3px;
+                background-color: transparent;
+            }
+        """)
+        layout.addWidget(source_label)
+        
+        # "Do not translate" indicator with pastel yellow background
+        nt_label = QLabel("🚫 NT")
+        nt_font = QFont()
+        nt_font.setPointSize(7)
+        nt_label.setFont(nt_font)
+        nt_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        nt_label.setStyleSheet("""
+            QLabel {
+                color: #5D4E37;
+                padding: 1px 3px;
+                background-color: #FFFDD0;
+                border-radius: 2px;
+            }
+            QLabel:hover {
+                background-color: #FFF9B0;
+                cursor: pointer;
+            }
+        """)
+        nt_label.setCursor(Qt.CursorShape.PointingHandCursor)
+        nt_label.mousePressEvent = lambda e: self.on_nt_clicked()
+        
+        tooltip = f"<b>🚫 Non-Translatable</b><br>{self.source_text}<br><br>From: {self.list_name}<br>(click to insert as-is)"
+        nt_label.setToolTip(tooltip)
+        
+        layout.addWidget(nt_label)
+    
+    def on_nt_clicked(self):
+        """Handle click on NT to insert source text as-is"""
+        self.nt_clicked.emit(self.source_text)
+
+
 class TermviewWidget(QWidget):
     """Main Termview widget showing inline terminology for current segment"""
     
@@ -313,17 +391,18 @@ class TermviewWidget(QWidget):
         self.info_label.setStyleSheet("color: #999; font-size: 10px; padding: 5px;")
         layout.addWidget(self.info_label)
     
-    def update_with_matches(self, source_text: str, termbase_matches: List[Dict]):
+    def update_with_matches(self, source_text: str, termbase_matches: List[Dict], nt_matches: List[Dict] = None):
         """
-        Update the termview display with pre-computed termbase matches
+        Update the termview display with pre-computed termbase and NT matches
         
         RYS-STYLE DISPLAY: Show source text as tokens with translations underneath
         
         Args:
             source_text: Source segment text
             termbase_matches: List of termbase match dicts from Translation Results
+            nt_matches: Optional list of NT match dicts with 'text', 'start', 'end', 'list_name' keys
         """
-        print(f"🔍 TERMVIEW.update_with_matches called: source_len={len(source_text) if source_text else 0}, matches={len(termbase_matches) if termbase_matches else 0}")
+        print(f"🔍 TERMVIEW.update_with_matches called: source_len={len(source_text) if source_text else 0}, matches={len(termbase_matches) if termbase_matches else 0}, nt={len(nt_matches) if nt_matches else 0}")
         
         self.current_source = source_text
         
@@ -336,63 +415,101 @@ class TermviewWidget(QWidget):
             print(f"🔍 TERMVIEW: No source text")
             return
         
-        if not termbase_matches:
-            self.info_label.setText("No terminology matches for this segment")
-            print(f"🔍 TERMVIEW: No termbase matches")
+        has_termbase = termbase_matches and len(termbase_matches) > 0
+        has_nt = nt_matches and len(nt_matches) > 0
+        
+        if not has_termbase and not has_nt:
+            self.info_label.setText("No terminology or NT matches for this segment")
+            print(f"🔍 TERMVIEW: No matches")
             return
         
-        print(f"🔍 TERMVIEW: Processing {len(termbase_matches)} matches...")
+        print(f"🔍 TERMVIEW: Processing {len(termbase_matches) if termbase_matches else 0} termbase + {len(nt_matches) if nt_matches else 0} NT matches...")
         
-        # Convert matches list to dict for easy lookup: {source_term.lower(): [translations]}
+        # Convert termbase matches to dict for easy lookup: {source_term.lower(): [translations]}
         matches_dict = {}
-        for match in termbase_matches:
-            source_term = match.get('source_term', match.get('source', ''))
-            target_term = match.get('target_term', match.get('translation', ''))
-            
-            if not source_term or not target_term:
-                continue
-            
-            key = source_term.lower()
-            if key not in matches_dict:
-                matches_dict[key] = []
-            
-            matches_dict[key].append({
-                'target_term': target_term,
-                'termbase_name': match.get('termbase_name', ''),
-                'ranking': match.get('ranking', 99),
-                'is_project_termbase': match.get('is_project_termbase', False)
-            })
+        if termbase_matches:
+            for match in termbase_matches:
+                source_term = match.get('source_term', match.get('source', ''))
+                target_term = match.get('target_term', match.get('translation', ''))
+                
+                if not source_term or not target_term:
+                    continue
+                
+                key = source_term.lower()
+                if key not in matches_dict:
+                    matches_dict[key] = []
+                
+                matches_dict[key].append({
+                    'target_term': target_term,
+                    'termbase_name': match.get('termbase_name', ''),
+                    'ranking': match.get('ranking', 99),
+                    'is_project_termbase': match.get('is_project_termbase', False)
+                })
         
-        print(f"🔍 TERMVIEW: Organized into {len(matches_dict)} unique source terms")
+        # Convert NT matches to dict: {text.lower(): list_name}
+        nt_dict = {}
+        if nt_matches:
+            for match in nt_matches:
+                nt_text = match.get('text', '')
+                if nt_text:
+                    nt_dict[nt_text.lower()] = match.get('list_name', 'Non-Translatables')
+        
+        print(f"🔍 TERMVIEW: Organized into {len(matches_dict)} termbase terms + {len(nt_dict)} NTs")
+        
+        # Combine all known multi-word terms for tokenization
+        all_terms_dict = dict(matches_dict)
+        for nt_key in nt_dict:
+            if nt_key not in all_terms_dict:
+                all_terms_dict[nt_key] = []  # Empty list = NT only
         
         # Tokenize source text, respecting multi-word terms
-        tokens = self.tokenize_with_multiword_terms(source_text, matches_dict)
+        tokens = self.tokenize_with_multiword_terms(source_text, all_terms_dict)
         print(f"🔍 TERMVIEW: Created {len(tokens)} tokens from source text")
         
         if not tokens:
             self.info_label.setText("No words to analyze")
             return
         
-        # Create one TermBlock per token
+        # Create blocks for each token
         blocks_with_translations = 0
+        blocks_with_nt = 0
+        
         for token in tokens:
             # Strip trailing punctuation for lookup
             token_clean = token.rstrip('.,;:!?')
             lookup_key = token_clean.lower()
             
-            # Get translations for this token
-            translations = matches_dict.get(lookup_key, [])
-            
-            # Create term block (even if no translation - shows source word)
-            term_block = TermBlock(token, translations, self)
-            term_block.term_clicked.connect(self.on_term_insert_requested)
-            self.terms_layout.addWidget(term_block)
-            
-            if translations:
-                blocks_with_translations += 1
+            # Check if this is a non-translatable
+            if lookup_key in nt_dict:
+                # Create NT block
+                nt_block = NTBlock(token, nt_dict[lookup_key], self)
+                nt_block.nt_clicked.connect(self.on_term_insert_requested)
+                self.terms_layout.addWidget(nt_block)
+                blocks_with_nt += 1
+            else:
+                # Get termbase translations for this token
+                translations = matches_dict.get(lookup_key, [])
+                
+                # Create term block (even if no translation - shows source word)
+                term_block = TermBlock(token, translations, self)
+                term_block.term_clicked.connect(self.on_term_insert_requested)
+                self.terms_layout.addWidget(term_block)
+                
+                if translations:
+                    blocks_with_translations += 1
         
-        self.info_label.setText(f"✓ Found terminology for {blocks_with_translations} of {len(tokens)} terms")
-        print(f"🔍 TERMVIEW: Completed - {blocks_with_translations}/{len(tokens)} tokens have translations")
+        info_parts = []
+        if blocks_with_translations > 0:
+            info_parts.append(f"{blocks_with_translations} terms")
+        if blocks_with_nt > 0:
+            info_parts.append(f"{blocks_with_nt} NTs")
+        
+        if info_parts:
+            self.info_label.setText(f"✓ Found {', '.join(info_parts)} in {len(tokens)} words")
+        else:
+            self.info_label.setText(f"No matches in {len(tokens)} words")
+        
+        print(f"🔍 TERMVIEW: Completed - {blocks_with_translations} terms, {blocks_with_nt} NTs in {len(tokens)} tokens")
     
     def update_for_segment(self, source_text: str, source_lang: str, target_lang: str, project_id: int = None):
         """

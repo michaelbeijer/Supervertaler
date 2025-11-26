@@ -3,7 +3,7 @@ Supervertaler Qt Edition
 ========================
 The ultimate companion tool for translators and writers.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.9.3 (Session Log Tab & TM Defaults Fix)
+Version: 1.9.4 (Tag-Based Formatting System)
 Release Date: November 26, 2025
 Framework: PyQt6
 
@@ -169,6 +169,256 @@ class LayoutMode:
 # DATA MODELS
 # ============================================================================
 
+# ============================================================================
+# INLINE FORMATTING TAG UTILITIES
+# ============================================================================
+
+def runs_to_tagged_text(paragraphs) -> str:
+    """
+    Convert Word document paragraphs with run formatting to HTML-tagged text.
+    
+    Args:
+        paragraphs: List of python-docx Paragraph objects
+        
+    Returns:
+        String with HTML tags for formatting (e.g., "<b>bold</b> normal <i>italic</i>")
+    """
+    result_parts = []
+    
+    for paragraph in paragraphs:
+        for run in paragraph.runs:
+            text = run.text
+            if not text:
+                continue
+            
+            # Determine which tags to apply
+            is_bold = run.bold == True
+            is_italic = run.italic == True
+            is_underline = run.underline == True
+            
+            # Build tagged text
+            if is_bold or is_italic or is_underline:
+                # Open tags (order: bold, italic, underline)
+                if is_bold:
+                    text = f"<b>{text}"
+                if is_italic:
+                    text = f"<i>{text}" if not is_bold else text.replace("<b>", "<b><i>", 1)
+                if is_underline:
+                    if is_bold and is_italic:
+                        text = text.replace("<b><i>", "<b><i><u>", 1)
+                    elif is_bold:
+                        text = text.replace("<b>", "<b><u>", 1)
+                    elif is_italic:
+                        text = text.replace("<i>", "<i><u>", 1)
+                    else:
+                        text = f"<u>{text}"
+                
+                # Close tags (reverse order: underline, italic, bold)
+                if is_underline:
+                    text = f"{text}</u>"
+                if is_italic:
+                    text = f"{text}</i>"
+                if is_bold:
+                    text = f"{text}</b>"
+            
+            result_parts.append(text)
+    
+    return ''.join(result_parts)
+
+
+def strip_formatting_tags(text: str) -> str:
+    """
+    Remove HTML formatting tags from text, leaving plain text.
+    
+    Args:
+        text: Text with HTML tags like <b>, </b>, <i>, </i>, <u>, </u>
+        
+    Returns:
+        Plain text without tags
+    """
+    import re
+    # Remove <b>, </b>, <i>, </i>, <u>, </u> tags
+    return re.sub(r'</?[biu]>', '', text)
+
+
+def has_formatting_tags(text: str) -> bool:
+    """
+    Check if text contains any formatting tags.
+    
+    Args:
+        text: Text to check
+        
+    Returns:
+        True if text contains <b>, <i>, or <u> tags
+    """
+    import re
+    return bool(re.search(r'</?[biu]>', text))
+
+
+def apply_formatting_tags(text: str, tag: str) -> str:
+    """
+    Wrap text with the specified formatting tag.
+    
+    Args:
+        text: Text to wrap
+        tag: Tag name ('b', 'i', or 'u')
+        
+    Returns:
+        Tagged text like "<b>text</b>"
+    """
+    if tag in ('b', 'i', 'u'):
+        return f"<{tag}>{text}</{tag}>"
+    return text
+
+
+def get_formatted_html_display(text: str) -> str:
+    """
+    Convert our simple tags to HTML for rich text display.
+    
+    Args:
+        text: Text with <b>, <i>, <u> tags
+        
+    Returns:
+        HTML string suitable for QTextEdit.setHtml()
+    """
+    # Escape HTML entities first (except our tags)
+    import html
+    
+    # Temporarily replace our tags with placeholders
+    text = text.replace('<b>', '\x00B_OPEN\x00')
+    text = text.replace('</b>', '\x00B_CLOSE\x00')
+    text = text.replace('<i>', '\x00I_OPEN\x00')
+    text = text.replace('</i>', '\x00I_CLOSE\x00')
+    text = text.replace('<u>', '\x00U_OPEN\x00')
+    text = text.replace('</u>', '\x00U_CLOSE\x00')
+    
+    # Escape other HTML
+    text = html.escape(text)
+    
+    # Restore our tags as real HTML
+    text = text.replace('\x00B_OPEN\x00', '<b>')
+    text = text.replace('\x00B_CLOSE\x00', '</b>')
+    text = text.replace('\x00I_OPEN\x00', '<i>')
+    text = text.replace('\x00I_CLOSE\x00', '</i>')
+    text = text.replace('\x00U_OPEN\x00', '<u>')
+    text = text.replace('\x00U_CLOSE\x00', '</u>')
+    
+    return text
+
+
+def tagged_text_to_runs(text: str) -> list:
+    """
+    Parse text with HTML formatting tags and return a list of runs with formatting info.
+    
+    Args:
+        text: Text with <b>, <i>, <u> tags (can be nested)
+        
+    Returns:
+        List of dicts: [{'text': str, 'bold': bool, 'italic': bool, 'underline': bool}, ...]
+    
+    Example:
+        "Hello <b>bold</b> and <i>italic</i> world"
+        -> [{'text': 'Hello ', 'bold': False, 'italic': False, 'underline': False},
+            {'text': 'bold', 'bold': True, 'italic': False, 'underline': False},
+            {'text': ' and ', 'bold': False, 'italic': False, 'underline': False},
+            {'text': 'italic', 'bold': False, 'italic': True, 'underline': False},
+            {'text': ' world', 'bold': False, 'italic': False, 'underline': False}]
+    """
+    import re
+    
+    runs = []
+    
+    # Track current formatting state
+    is_bold = False
+    is_italic = False
+    is_underline = False
+    
+    # Pattern to match opening/closing tags
+    tag_pattern = re.compile(r'(</?[biu]>)')
+    
+    # Split text by tags, keeping the tags as delimiters
+    parts = tag_pattern.split(text)
+    
+    current_text = ""
+    
+    for part in parts:
+        if part == '<b>':
+            # Save any accumulated text before changing state
+            if current_text:
+                runs.append({
+                    'text': current_text,
+                    'bold': is_bold,
+                    'italic': is_italic,
+                    'underline': is_underline
+                })
+                current_text = ""
+            is_bold = True
+        elif part == '</b>':
+            if current_text:
+                runs.append({
+                    'text': current_text,
+                    'bold': is_bold,
+                    'italic': is_italic,
+                    'underline': is_underline
+                })
+                current_text = ""
+            is_bold = False
+        elif part == '<i>':
+            if current_text:
+                runs.append({
+                    'text': current_text,
+                    'bold': is_bold,
+                    'italic': is_italic,
+                    'underline': is_underline
+                })
+                current_text = ""
+            is_italic = True
+        elif part == '</i>':
+            if current_text:
+                runs.append({
+                    'text': current_text,
+                    'bold': is_bold,
+                    'italic': is_italic,
+                    'underline': is_underline
+                })
+                current_text = ""
+            is_italic = False
+        elif part == '<u>':
+            if current_text:
+                runs.append({
+                    'text': current_text,
+                    'bold': is_bold,
+                    'italic': is_italic,
+                    'underline': is_underline
+                })
+                current_text = ""
+            is_underline = True
+        elif part == '</u>':
+            if current_text:
+                runs.append({
+                    'text': current_text,
+                    'bold': is_bold,
+                    'italic': is_italic,
+                    'underline': is_underline
+                })
+                current_text = ""
+            is_underline = False
+        else:
+            # Regular text - accumulate it
+            current_text += part
+    
+    # Don't forget any remaining text
+    if current_text:
+        runs.append({
+            'text': current_text,
+            'bold': is_bold,
+            'italic': is_italic,
+            'underline': is_underline
+        })
+    
+    return runs
+
+
 @dataclass
 class Segment:
     """Translation segment (matches tkinter version format)"""
@@ -222,6 +472,7 @@ class Project:
     prompt_settings: Dict[str, Any] = None  # Store active prompt settings
     tm_settings: Dict[str, Any] = None  # Store activated TM settings
     termbase_settings: Dict[str, Any] = None  # Store activated termbase settings
+    nt_settings: Dict[str, Any] = None  # Store activated non-translatables settings
     id: int = None  # Unique project ID for TM activation tracking
     
     def __post_init__(self):
@@ -237,6 +488,8 @@ class Project:
             self.tm_settings = {}
         if self.termbase_settings is None:
             self.termbase_settings = {}
+        if self.nt_settings is None:
+            self.nt_settings = {}
         # Generate ID if not set (for backward compatibility with old projects)
         if self.id is None:
             import hashlib
@@ -264,6 +517,9 @@ class Project:
         # Add termbase settings if they exist
         if hasattr(self, 'termbase_settings') and self.termbase_settings:
             result['termbase_settings'] = self.termbase_settings
+        # Add non-translatables settings if they exist
+        if hasattr(self, 'nt_settings') and self.nt_settings:
+            result['nt_settings'] = self.nt_settings
         return result
     
     @classmethod
@@ -292,6 +548,9 @@ class Project:
         # Store termbase settings if they exist
         if 'termbase_settings' in data:
             project.termbase_settings = data['termbase_settings']
+        # Store non-translatables settings if they exist
+        if 'nt_settings' in data:
+            project.nt_settings = data['nt_settings']
         return project
 
 
@@ -452,7 +711,32 @@ class ReadOnlyGridTextEditor(QTextEdit):
         
         # Add syntax highlighter for tags
         self.highlighter = TagHighlighter(self.document(), self.tag_highlight_color)
+        
+        # Store raw text (with tags) for mode switching
+        self._raw_text = text
     
+    def update_display_mode(self, text: str, show_tags: bool):
+        """
+        Update the display based on tag view mode.
+        
+        Args:
+            text: The raw text (with HTML tags like <b>bold</b>)
+            show_tags: If True, show raw tags. If False, show formatted WYSIWYG.
+        """
+        self._raw_text = text
+        
+        if show_tags:
+            # Show raw tags as plain text
+            self.setPlainText(text)
+        else:
+            # Show WYSIWYG - convert tags to actual formatting
+            html = get_formatted_html_display(text)
+            self.setHtml(html)
+    
+    def get_raw_text(self) -> str:
+        """Get the raw text with tags, regardless of display mode."""
+        return getattr(self, '_raw_text', self.toPlainText())
+
     def highlight_termbase_matches(self, matches_dict: Dict):
         """
         Highlight termbase matches in the text using background colors based on priority.
@@ -578,6 +862,57 @@ class ReadOnlyGridTextEditor(QTextEdit):
                 
                 start = end_idx
     
+    def highlight_non_translatables(self, nt_matches: list, highlighted_ranges: list = None):
+        """
+        Highlight non-translatable matches in the text using pastel yellow background.
+        
+        Args:
+            nt_matches: List of dicts with 'text', 'start', 'end' keys from NT manager
+            highlighted_ranges: Optional list of already-highlighted ranges to avoid overlap
+        """
+        from PyQt6.QtGui import QTextCursor, QTextCharFormat, QColor
+        
+        if not nt_matches:
+            return
+        
+        doc = self.document()
+        
+        # Track ranges we've highlighted (to avoid overlap with termbase matches)
+        if highlighted_ranges is None:
+            highlighted_ranges = []
+        
+        # Pastel yellow for non-translatables
+        nt_color = QColor(255, 253, 208)  # Pastel yellow (#FFFDD0)
+        
+        for match in nt_matches:
+            start_pos = match.get('start', 0)
+            end_pos = match.get('end', 0)
+            
+            if start_pos >= end_pos:
+                continue
+            
+            # Check for overlap with existing highlights
+            overlaps = any(
+                (start_pos < h_end and end_pos > h_start)
+                for h_start, h_end in highlighted_ranges
+            )
+            
+            if overlaps:
+                continue
+            
+            # Create cursor for this position
+            cursor = QTextCursor(doc)
+            cursor.setPosition(start_pos)
+            cursor.setPosition(end_pos, QTextCursor.MoveMode.KeepAnchor)
+            
+            # Create format with pastel yellow background
+            fmt = QTextCharFormat()
+            fmt.setBackground(nt_color)
+            fmt.setForeground(QColor("#5D4E37"))  # Dark brown text for contrast
+            
+            cursor.setCharFormat(fmt)
+            highlighted_ranges.append((start_pos, end_pos))
+    
     def event(self, event):
         """Override event() to catch Tab and Ctrl+T keys before Qt's default handling"""
         # Catch Tab key at event level (before keyPressEvent)
@@ -587,6 +922,11 @@ class ReadOnlyGridTextEditor(QTextEdit):
             # Ctrl+E: Add selected terms to termbase
             if key_event.key() == Qt.Key.Key_E and key_event.modifiers() == Qt.KeyboardModifier.ControlModifier:
                 self._handle_add_to_termbase()
+                return True  # Event handled
+            
+            # Ctrl+Alt+N: Add selected text to non-translatables
+            if key_event.key() == Qt.Key.Key_N and key_event.modifiers() == (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.AltModifier):
+                self._handle_add_to_nt()
                 return True  # Event handled
             
             if key_event.key() == Qt.Key.Key_Tab:
@@ -808,6 +1148,63 @@ class ReadOnlyGridTextEditor(QTextEdit):
             except Exception as e:
                 print(f"Error triggering manual cell selection: {e}")
 
+    def contextMenuEvent(self, event):
+        """Show context menu with Add to Termbase and Add to Non-Translatables options"""
+        from PyQt6.QtWidgets import QMenu
+        from PyQt6.QtGui import QAction
+        
+        menu = QMenu(self)
+        
+        # Add standard actions
+        if self.textCursor().hasSelection():
+            copy_action = QAction("Copy", self)
+            copy_action.triggered.connect(self.copy)
+            menu.addAction(copy_action)
+            menu.addSeparator()
+        
+        # Add to termbase action
+        add_to_tb_action = QAction("📖 Add to Termbase (Ctrl+E)", self)
+        add_to_tb_action.triggered.connect(self._handle_add_to_termbase)
+        menu.addAction(add_to_tb_action)
+        
+        # Add to non-translatables action
+        add_to_nt_action = QAction("🚫 Add to Non-Translatables (Ctrl+Alt+N)", self)
+        add_to_nt_action.triggered.connect(self._handle_add_to_nt)
+        menu.addAction(add_to_nt_action)
+        
+        menu.exec(event.globalPos())
+    
+    def _handle_add_to_nt(self):
+        """Handle Ctrl+Alt+N: Add selected text to active non-translatable list(s)"""
+        # Get selected text
+        selected_text = self.textCursor().selectedText().strip()
+        
+        if not selected_text:
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.warning(
+                self,
+                "Selection Required",
+                "Please select text in the Source cell before adding to non-translatables."
+            )
+            return
+        
+        # Find main window and call add_to_nt method
+        table = self.table_ref if hasattr(self, 'table_ref') else self.parent()
+        if table:
+            main_window = table.parent()
+            while main_window and not hasattr(main_window, 'add_text_to_non_translatables'):
+                main_window = main_window.parent()
+            
+            if main_window and hasattr(main_window, 'add_text_to_non_translatables'):
+                main_window.add_text_to_non_translatables(selected_text)
+            else:
+                from PyQt6.QtWidgets import QMessageBox
+                QMessageBox.warning(
+                    self,
+                    "Feature Not Available",
+                    "Non-translatables functionality not available."
+                )
+
 
 class TagHighlighter(QSyntaxHighlighter):
     """Syntax highlighter for HTML/XML tags in text editors"""
@@ -957,7 +1354,7 @@ class EditableGridTextEditor(QTextEdit):
             main_window.add_term_pair_to_termbase(source_text, target_text)
     
     def contextMenuEvent(self, event):
-        """Show context menu with Add to Termbase option"""
+        """Show context menu with Add to Termbase and Add to Non-Translatables options"""
         from PyQt6.QtWidgets import QMenu
         from PyQt6.QtGui import QAction
         
@@ -980,9 +1377,14 @@ class EditableGridTextEditor(QTextEdit):
         menu.addSeparator()
         
         # Add to termbase action
-        add_to_tb_action = QAction("Add to Termbase (Ctrl+E)", self)
+        add_to_tb_action = QAction("📖 Add to Termbase (Ctrl+E)", self)
         add_to_tb_action.triggered.connect(self._handle_add_to_termbase)
         menu.addAction(add_to_tb_action)
+        
+        # Add to non-translatables action
+        add_to_nt_action = QAction("🚫 Add to Non-Translatables (Ctrl+Alt+N)", self)
+        add_to_nt_action.triggered.connect(self._handle_add_to_nt)
+        menu.addAction(add_to_nt_action)
         
         menu.exec(event.globalPos())
     
@@ -1046,6 +1448,30 @@ class EditableGridTextEditor(QTextEdit):
             event.accept()
             return
         
+        # Ctrl+Alt+N: Add selected text to non-translatables
+        if event.key() == Qt.Key.Key_N and event.modifiers() == (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.AltModifier):
+            self._handle_add_to_nt()
+            event.accept()
+            return
+        
+        # Ctrl+B: Apply bold formatting to selection
+        if event.key() == Qt.Key.Key_B and event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+            self._apply_formatting_tag('b')
+            event.accept()
+            return
+        
+        # Ctrl+I: Apply italic formatting to selection
+        if event.key() == Qt.Key.Key_I and event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+            self._apply_formatting_tag('i')
+            event.accept()
+            return
+        
+        # Ctrl+U: Apply underline formatting to selection
+        if event.key() == Qt.Key.Key_U and event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+            self._apply_formatting_tag('u')
+            event.accept()
+            return
+        
         # Ctrl+Tab: Insert actual tab character
         if event.key() == Qt.Key.Key_Tab and event.modifiers() == Qt.KeyboardModifier.ControlModifier:
             self.insertPlainText('\t')
@@ -1065,6 +1491,115 @@ class EditableGridTextEditor(QTextEdit):
         
         # All other keys: Handle normally
         super().keyPressEvent(event)
+    
+    def _handle_add_to_nt(self):
+        """Handle Ctrl+Alt+N: Add selected text to active non-translatable list(s)"""
+        # Get selected text from source cell (for NT, we typically add from source)
+        # But if this is target and source is available, use source
+        selected_text = self.textCursor().selectedText().strip()
+        
+        # If no selection in target, try getting from source
+        if not selected_text and self.table and self.row >= 0:
+            source_widget = self.table.cellWidget(self.row, 2)
+            if source_widget and hasattr(source_widget, 'textCursor'):
+                selected_text = source_widget.textCursor().selectedText().strip()
+        
+        if not selected_text:
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.warning(
+                self,
+                "Selection Required",
+                "Please select text before adding to non-translatables."
+            )
+            return
+        
+        # Find main window and call add_to_nt method
+        if self.table:
+            main_window = self.table.parent()
+            while main_window and not hasattr(main_window, 'add_text_to_non_translatables'):
+                main_window = main_window.parent()
+            
+            if main_window and hasattr(main_window, 'add_text_to_non_translatables'):
+                main_window.add_text_to_non_translatables(selected_text)
+            else:
+                from PyQt6.QtWidgets import QMessageBox
+                QMessageBox.warning(
+                    self,
+                    "Feature Not Available",
+                    "Non-translatables functionality not available."
+                )
+
+    def _apply_formatting_tag(self, tag: str):
+        """
+        Apply or toggle a formatting tag on the selected text.
+        
+        Args:
+            tag: The tag to apply ('b', 'i', or 'u')
+        """
+        cursor = self.textCursor()
+        if not cursor.hasSelection():
+            return
+        
+        selected_text = cursor.selectedText()
+        
+        # Check if the text is already wrapped with this tag
+        open_tag = f"<{tag}>"
+        close_tag = f"</{tag}>"
+        
+        # Get the full text and selection position
+        full_text = self.toPlainText()
+        start = cursor.selectionStart()
+        end = cursor.selectionEnd()
+        
+        # Check for existing tags just before/after selection
+        prefix_has_tag = start >= len(open_tag) and full_text[start - len(open_tag):start] == open_tag
+        suffix_has_tag = end + len(close_tag) <= len(full_text) and full_text[end:end + len(close_tag)] == close_tag
+        
+        if prefix_has_tag and suffix_has_tag:
+            # Remove the tags (toggle off)
+            new_text = full_text[:start - len(open_tag)] + selected_text + full_text[end + len(close_tag):]
+            cursor.setPosition(start - len(open_tag))
+            cursor.setPosition(end + len(close_tag), cursor.MoveMode.KeepAnchor)
+            cursor.insertText(selected_text)
+        else:
+            # Add the tags (toggle on)
+            wrapped_text = f"{open_tag}{selected_text}{close_tag}"
+            cursor.insertText(wrapped_text)
+            
+            # Re-select the wrapped text (including tags)
+            cursor.setPosition(start)
+            cursor.setPosition(start + len(wrapped_text), cursor.MoveMode.KeepAnchor)
+            self.setTextCursor(cursor)
+
+    def update_display_mode(self, text: str, show_tags: bool):
+        """
+        Update the display based on tag view mode.
+        
+        Args:
+            text: The raw text (with HTML tags like <b>bold</b>)
+            show_tags: If True, show raw tags. If False, show formatted WYSIWYG.
+        """
+        # Store raw text as property for later retrieval
+        self._raw_text = text
+        
+        self.blockSignals(True)
+        if show_tags:
+            # Tag view: Show plain text with visible tags
+            # The TagHighlighter will colorize the tags
+            self.setPlainText(text)
+        else:
+            # WYSIWYG view: Apply formatting
+            if has_formatting_tags(text):
+                html = get_formatted_html_display(text)
+                self.setHtml(html)
+            else:
+                # No tags, just plain text
+                self.setPlainText(text)
+        self.blockSignals(False)
+    
+    def get_raw_text(self) -> str:
+        """Get the raw text with tags, regardless of display mode."""
+        return getattr(self, '_raw_text', self.toPlainText())
 
 
 class SearchHighlightDelegate(QStyledItemDelegate):
@@ -2822,6 +3357,10 @@ class SupervertalerQt(QMainWindow):
         # Ctrl+Shift+F - Filter on selected text
         self.shortcut_filter_selected = QShortcut(QKeySequence("Ctrl+Shift+F"), self)
         self.shortcut_filter_selected.activated.connect(self.filter_on_selected_text)
+        
+        # Ctrl+Alt+T - Toggle Tag View
+        self.shortcut_toggle_tags = QShortcut(QKeySequence("Ctrl+Alt+T"), self)
+        self.shortcut_toggle_tags.activated.connect(self._toggle_tag_view_via_shortcut)
 
     def create_menus(self):
         """Create application menus"""
@@ -3556,11 +4095,456 @@ class SupervertalerQt(QMainWindow):
         return tab
     
     def create_non_translatables_tab(self) -> QWidget:
-        """Create the Non-Translatables tab - NT management"""
-        return self._create_placeholder_tab(
-            "🚫 Non-Translatables",
-            "Non-Translatables Manager - Coming Soon\n\nFeatures:\n• Manage non-translatable content\n• Define NT patterns\n• Exclude from translation"
-        )
+        """Create the Non-Translatables tab - manage non-translatable content"""
+        from modules.non_translatables_manager import NonTranslatablesManager, NonTranslatableList
+        
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(10, 10, 10, 10)
+        
+        # Header
+        header = QLabel("🚫 Non-Translatables")
+        header.setStyleSheet("font-size: 14px; font-weight: bold; margin-bottom: 10px;")
+        layout.addWidget(header)
+        
+        # Description
+        desc = QLabel("Manage terms and phrases that should not be translated (brand names, product names, technical identifiers, etc.).\n"
+                      "Non-translatables are highlighted in pastel yellow in the source text and Translation Results panel.")
+        desc.setWordWrap(True)
+        desc.setStyleSheet("color: #666; font-size: 11px; margin-bottom: 10px;")
+        layout.addWidget(desc)
+        
+        # Initialize NT manager
+        nt_path = self.user_data_path / "Translation_Resources" / "Non-translatables"
+        nt_path.mkdir(parents=True, exist_ok=True)
+        self.nt_manager = NonTranslatablesManager(str(nt_path), self.log)
+        
+        # Try to load existing lists or convert from plain text
+        existing_ntl_files = list(nt_path.glob("*.ntl"))
+        if not existing_ntl_files:
+            # Check for plain text file to convert
+            txt_file = nt_path / "non-translatables.txt"
+            if txt_file.exists():
+                self.log("📄 Found plain text NT file, converting to .ntl format...")
+                nt_list = self.nt_manager.load_from_plain_text(str(txt_file), "Default Non-Translatables")
+                if nt_list:
+                    self.nt_manager.save_list(nt_list)
+                    self.nt_manager.lists[nt_list.name] = nt_list
+                    self.nt_manager.active_lists.append(nt_list.name)
+        else:
+            self.nt_manager.load_all_lists()
+        
+        # Toolbar
+        toolbar = QHBoxLayout()
+        
+        # List selection combo
+        list_combo = QComboBox()
+        list_combo.setMinimumWidth(200)
+        list_combo.setToolTip("Select a non-translatable list")
+        toolbar.addWidget(QLabel("List:"))
+        toolbar.addWidget(list_combo)
+        
+        # Buttons
+        new_btn = QPushButton("➕ New List")
+        new_btn.setToolTip("Create a new non-translatable list")
+        toolbar.addWidget(new_btn)
+        
+        import_btn = QPushButton("📥 Import")
+        import_btn.setToolTip("Import from file (.ntl, .txt, or memoQ .mqres)")
+        toolbar.addWidget(import_btn)
+        
+        export_btn = QPushButton("📤 Export")
+        export_btn.setToolTip("Export selected list")
+        toolbar.addWidget(export_btn)
+        
+        delete_btn = QPushButton("🗑️ Delete")
+        delete_btn.setToolTip("Delete selected list")
+        toolbar.addWidget(delete_btn)
+        
+        toolbar.addStretch()
+        
+        # Active checkbox
+        active_checkbox = CheckmarkCheckBox("Active")
+        active_checkbox.setToolTip("Toggle whether this list is active for matching")
+        toolbar.addWidget(active_checkbox)
+        
+        layout.addLayout(toolbar)
+        
+        # Split view: entry list on left, add/edit on right
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        
+        # Left: Entry list
+        left_widget = QWidget()
+        left_layout = QVBoxLayout(left_widget)
+        left_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Search box
+        search_box = QLineEdit()
+        search_box.setPlaceholderText("Search entries...")
+        left_layout.addWidget(search_box)
+        
+        # Entry table
+        entry_table = QTableWidget()
+        entry_table.setColumnCount(2)
+        entry_table.setHorizontalHeaderLabels(["Entry", "Category"])
+        entry_table.horizontalHeader().setStretchLastSection(True)
+        entry_table.setColumnWidth(0, 250)
+        entry_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        entry_table.setAlternatingRowColors(True)
+        left_layout.addWidget(entry_table)
+        
+        # Entry count
+        count_label = QLabel("0 entries")
+        count_label.setStyleSheet("color: #666; font-size: 10px;")
+        left_layout.addWidget(count_label)
+        
+        splitter.addWidget(left_widget)
+        
+        # Right: Add/Edit panel
+        right_widget = QWidget()
+        right_layout = QVBoxLayout(right_widget)
+        right_layout.setContentsMargins(10, 0, 0, 0)
+        
+        right_layout.addWidget(QLabel("<b>Add/Edit Entry</b>"))
+        
+        entry_input = QLineEdit()
+        entry_input.setPlaceholderText("Enter non-translatable term...")
+        right_layout.addWidget(entry_input)
+        
+        category_input = QLineEdit()
+        category_input.setPlaceholderText("Category (optional)")
+        right_layout.addWidget(category_input)
+        
+        notes_input = QTextEdit()
+        notes_input.setPlaceholderText("Notes (optional)")
+        notes_input.setMaximumHeight(80)
+        right_layout.addWidget(notes_input)
+        
+        add_btn = QPushButton("➕ Add Entry")
+        right_layout.addWidget(add_btn)
+        
+        remove_btn = QPushButton("🗑️ Remove Selected")
+        right_layout.addWidget(remove_btn)
+        
+        right_layout.addStretch()
+        
+        # Bulk operations
+        bulk_group = QGroupBox("Bulk Import")
+        bulk_layout = QVBoxLayout(bulk_group)
+        
+        bulk_text = QTextEdit()
+        bulk_text.setPlaceholderText("Paste multiple entries (one per line) for bulk import...")
+        bulk_text.setMaximumHeight(100)
+        bulk_layout.addWidget(bulk_text)
+        
+        bulk_btn = QPushButton("Import All")
+        bulk_layout.addWidget(bulk_btn)
+        
+        right_layout.addWidget(bulk_group)
+        
+        splitter.addWidget(right_widget)
+        splitter.setSizes([500, 300])
+        
+        layout.addWidget(splitter, stretch=1)
+        
+        # Store references for callbacks
+        self.nt_list_combo = list_combo
+        self.nt_entry_table = entry_table
+        self.nt_count_label = count_label
+        self.nt_active_checkbox = active_checkbox
+        
+        # Populate list combo
+        def refresh_list_combo():
+            list_combo.clear()
+            for name, nt_list in self.nt_manager.lists.items():
+                active_marker = "✓ " if nt_list.is_active else ""
+                list_combo.addItem(f"{active_marker}{name}", name)
+            
+            if list_combo.count() == 0:
+                list_combo.addItem("(No lists - create or import one)", "")
+        
+        # Populate entry table for selected list
+        def refresh_entry_table():
+            entry_table.setRowCount(0)
+            current_name = list_combo.currentData()
+            
+            if not current_name or current_name not in self.nt_manager.lists:
+                count_label.setText("0 entries")
+                active_checkbox.setChecked(False)
+                return
+            
+            nt_list = self.nt_manager.lists[current_name]
+            active_checkbox.blockSignals(True)
+            active_checkbox.setChecked(nt_list.is_active)
+            active_checkbox.blockSignals(False)
+            
+            search_term = search_box.text().lower()
+            
+            filtered = [e for e in nt_list.entries 
+                       if not search_term or search_term in e.text.lower()]
+            
+            entry_table.setRowCount(len(filtered))
+            for row, entry in enumerate(filtered):
+                entry_table.setItem(row, 0, QTableWidgetItem(entry.text))
+                entry_table.setItem(row, 1, QTableWidgetItem(entry.category))
+            
+            count_label.setText(f"{len(nt_list.entries)} entries ({len(filtered)} shown)")
+        
+        # Connect signals
+        list_combo.currentIndexChanged.connect(refresh_entry_table)
+        search_box.textChanged.connect(refresh_entry_table)
+        
+        # Helper to save NT settings to project
+        def save_nt_settings_to_project():
+            """Save active NT list names to project settings"""
+            if hasattr(self, 'current_project') and self.current_project:
+                active_list_names = [name for name, lst in self.nt_manager.lists.items() if lst.is_active]
+                if not hasattr(self.current_project, 'nt_settings'):
+                    self.current_project.nt_settings = {}
+                self.current_project.nt_settings['active_lists'] = active_list_names
+                self.log(f"💾 Saved NT settings to project: {len(active_list_names)} active list(s)")
+        
+        # Active toggle
+        def on_active_toggle(checked):
+            current_name = list_combo.currentData()
+            if current_name and current_name in self.nt_manager.lists:
+                self.nt_manager.set_list_active(current_name, checked)
+                refresh_list_combo()
+                # Keep selection
+                for i in range(list_combo.count()):
+                    if list_combo.itemData(i) == current_name:
+                        list_combo.setCurrentIndex(i)
+                        break
+                # Save to project settings
+                save_nt_settings_to_project()
+        
+        active_checkbox.toggled.connect(on_active_toggle)
+        
+        # New list
+        def on_new_list():
+            name, ok = QInputDialog.getText(tab, "New Non-Translatable List", "List name:")
+            if ok and name:
+                if name in self.nt_manager.lists:
+                    QMessageBox.warning(tab, "Error", f"List '{name}' already exists.")
+                    return
+                nt_list = self.nt_manager.create_list(name)
+                self.nt_manager.save_list(nt_list)
+                refresh_list_combo()
+                # Select new list
+                for i in range(list_combo.count()):
+                    if list_combo.itemData(i) == name:
+                        list_combo.setCurrentIndex(i)
+                        break
+        
+        new_btn.clicked.connect(on_new_list)
+        
+        # Add entry
+        def on_add_entry():
+            text = entry_input.text().strip()
+            if not text:
+                return
+            
+            current_name = list_combo.currentData()
+            if not current_name:
+                QMessageBox.warning(tab, "Error", "Please select or create a list first.")
+                return
+            
+            self.nt_manager.add_entry(current_name, text, 
+                                      notes_input.toPlainText(), 
+                                      category_input.text())
+            self.nt_manager.save_list(self.nt_manager.lists[current_name])
+            
+            entry_input.clear()
+            notes_input.clear()
+            category_input.clear()
+            refresh_entry_table()
+        
+        add_btn.clicked.connect(on_add_entry)
+        entry_input.returnPressed.connect(on_add_entry)
+        
+        # Remove entry
+        def on_remove_entry():
+            current_name = list_combo.currentData()
+            if not current_name:
+                return
+            
+            selected = entry_table.selectedItems()
+            if not selected:
+                return
+            
+            # Get unique row indices
+            rows = set(item.row() for item in selected)
+            
+            # Get entry texts to remove
+            for row in sorted(rows, reverse=True):
+                text_item = entry_table.item(row, 0)
+                if text_item:
+                    self.nt_manager.remove_entry(current_name, text_item.text())
+            
+            self.nt_manager.save_list(self.nt_manager.lists[current_name])
+            refresh_entry_table()
+        
+        remove_btn.clicked.connect(on_remove_entry)
+        
+        # Bulk import
+        def on_bulk_import():
+            current_name = list_combo.currentData()
+            if not current_name:
+                QMessageBox.warning(tab, "Error", "Please select or create a list first.")
+                return
+            
+            text = bulk_text.toPlainText()
+            lines = [l.strip() for l in text.splitlines() if l.strip()]
+            
+            if not lines:
+                return
+            
+            added = 0
+            for line in lines:
+                if line not in [e.text for e in self.nt_manager.lists[current_name].entries]:
+                    self.nt_manager.add_entry(current_name, line)
+                    added += 1
+            
+            self.nt_manager.save_list(self.nt_manager.lists[current_name])
+            bulk_text.clear()
+            refresh_entry_table()
+            
+            QMessageBox.information(tab, "Bulk Import", f"Added {added} entries ({len(lines) - added} duplicates skipped)")
+        
+        bulk_btn.clicked.connect(on_bulk_import)
+        
+        # Import from file
+        def on_import():
+            filepath, _ = QFileDialog.getOpenFileName(
+                tab, "Import Non-Translatables",
+                str(nt_path),
+                "All Supported (*.ntl *.txt *.mqres);;Supervertaler NT List (*.ntl);;Plain Text (*.txt);;memoQ Non-Translatables (*.mqres)"
+            )
+            
+            if not filepath:
+                return
+            
+            filepath_lower = filepath.lower()
+            
+            # Load based on file type
+            if filepath_lower.endswith('.mqres'):
+                imported_list = self.nt_manager.import_memoq_mqres(filepath)
+            elif filepath_lower.endswith('.ntl'):
+                imported_list = self.nt_manager.load_list(filepath)
+            else:
+                imported_list = self.nt_manager.load_from_plain_text(filepath)
+            
+            if not imported_list:
+                QMessageBox.warning(tab, "Import Error", "Failed to import file. Check the log for details.")
+                return
+            
+            # Ask user whether to create new list or merge
+            current_name = list_combo.currentData()
+            if current_name and current_name in self.nt_manager.lists:
+                # Create custom dialog with clear button labels
+                msg_box = QMessageBox(tab)
+                msg_box.setWindowTitle("Import Options")
+                msg_box.setText(f"Import {len(imported_list.entries)} entries")
+                msg_box.setInformativeText(f"Choose how to import into your non-translatables:")
+                msg_box.setIcon(QMessageBox.Icon.Question)
+                
+                create_btn = msg_box.addButton(f"Create New List", QMessageBox.ButtonRole.YesRole)
+                merge_btn = msg_box.addButton(f"Merge into '{current_name}'", QMessageBox.ButtonRole.NoRole)
+                cancel_btn = msg_box.addButton(QMessageBox.StandardButton.Cancel)
+                
+                msg_box.exec()
+                clicked = msg_box.clickedButton()
+                
+                if clicked == cancel_btn:
+                    return
+                elif clicked == merge_btn:
+                    # Merge into current list
+                    added, skipped = self.nt_manager.merge_into_list(current_name, imported_list)
+                    self.nt_manager.save_list(self.nt_manager.lists[current_name])
+                    refresh_entry_table()
+                    QMessageBox.information(tab, "Import Complete", 
+                                          f"Merged {added} entries into '{current_name}'\n({skipped} duplicates skipped)")
+                    return
+            
+            # Create new list
+            # Check for name collision
+            new_name = imported_list.name
+            counter = 1
+            while new_name in self.nt_manager.lists:
+                new_name = f"{imported_list.name} ({counter})"
+                counter += 1
+            
+            imported_list.name = new_name
+            self.nt_manager.lists[new_name] = imported_list
+            self.nt_manager.active_lists.append(new_name)
+            self.nt_manager.save_list(imported_list)
+            
+            refresh_list_combo()
+            
+            # Select imported list
+            for i in range(list_combo.count()):
+                if list_combo.itemData(i) == new_name:
+                    list_combo.setCurrentIndex(i)
+                    break
+            
+            QMessageBox.information(tab, "Import Complete", 
+                                  f"Created list '{new_name}' with {len(imported_list.entries)} entries")
+        
+        import_btn.clicked.connect(on_import)
+        
+        # Export
+        def on_export():
+            current_name = list_combo.currentData()
+            if not current_name or current_name not in self.nt_manager.lists:
+                QMessageBox.warning(tab, "Error", "Please select a list to export.")
+                return
+            
+            filepath, selected_filter = QFileDialog.getSaveFileName(
+                tab, "Export Non-Translatables",
+                str(nt_path / f"{current_name}.ntl"),
+                "Supervertaler NT List (*.ntl);;Plain Text (*.txt)"
+            )
+            
+            if not filepath:
+                return
+            
+            if "Plain Text" in selected_filter or filepath.lower().endswith('.txt'):
+                success = self.nt_manager.export_to_plain_text(current_name, filepath)
+            else:
+                success = self.nt_manager.export_list(current_name, filepath)
+            
+            if success:
+                QMessageBox.information(tab, "Export Complete", f"Exported to:\n{filepath}")
+            else:
+                QMessageBox.warning(tab, "Export Error", "Failed to export. Check the log for details.")
+        
+        export_btn.clicked.connect(on_export)
+        
+        # Delete list
+        def on_delete():
+            current_name = list_combo.currentData()
+            if not current_name or current_name not in self.nt_manager.lists:
+                return
+            
+            confirm = QMessageBox.question(
+                tab, "Delete List",
+                f"Are you sure you want to delete '{current_name}'?\n\nThis cannot be undone.",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
+            
+            if confirm == QMessageBox.StandardButton.Yes:
+                self.nt_manager.delete_list(current_name)
+                refresh_list_combo()
+                refresh_entry_table()
+        
+        delete_btn.clicked.connect(on_delete)
+        
+        # Initial population
+        refresh_list_combo()
+        if list_combo.count() > 0:
+            refresh_entry_table()
+        
+        return tab
     
     def create_prompt_manager_tab(self) -> QWidget:
         """Create the Unified Prompt Library tab - Simplified 2-Layer Architecture"""
@@ -5846,6 +6830,155 @@ class SupervertalerQt(QMainWindow):
                 self.log("⚠️ No termbase refresh callback found (tab not initialized yet)")
         else:
             QMessageBox.warning(self, "Error Adding Term", "Failed to add term to any termbase. Check the log for details.")
+    
+    def add_text_to_non_translatables(self, text: str):
+        """Add selected text to active non-translatable list(s)"""
+        if not text or not text.strip():
+            QMessageBox.warning(self, "No Text", "Please select text before adding to non-translatables.")
+            return
+        
+        text = text.strip()
+        
+        # Check if NT manager is available
+        if not hasattr(self, 'nt_manager') or not self.nt_manager:
+            QMessageBox.critical(self, "Error", "Non-translatables manager not initialized")
+            return
+        
+        # Get all NT lists
+        nt_lists = self.nt_manager.get_all_lists()
+        
+        if not nt_lists:
+            # No lists exist - offer to create one
+            result = QMessageBox.question(
+                self, 
+                "No Non-Translatables List",
+                "No non-translatables lists exist. Would you like to create one?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
+            if result == QMessageBox.StandardButton.Yes:
+                # Switch to NT tab to create a list
+                if hasattr(self, 'tr_tabs') and self.tr_tabs:
+                    for i in range(self.tr_tabs.count()):
+                        if "Non-Translatable" in self.tr_tabs.tabText(i):
+                            self.tr_tabs.setCurrentIndex(i)
+                            break
+            return
+        
+        # Get active lists for current project
+        project_id = None
+        if hasattr(self, 'project_file_path') and self.project_file_path:
+            import hashlib
+            project_id = int(hashlib.md5(self.project_file_path.encode()).hexdigest()[:8], 16)
+        
+        active_lists = [lst for lst in nt_lists if lst.active]
+        
+        if not active_lists:
+            # No active lists - show selection dialog
+            from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QListWidget, QDialogButtonBox, QListWidgetItem
+            from PyQt6.QtCore import Qt
+            
+            dialog = QDialog(self)
+            dialog.setWindowTitle("Select Non-Translatables List")
+            dialog.setMinimumWidth(350)
+            layout = QVBoxLayout(dialog)
+            
+            layout.addWidget(QLabel(f"Select list(s) to add \"{text}\" to:"))
+            
+            list_widget = QListWidget()
+            for lst in nt_lists:
+                item = QListWidgetItem(f"{lst.name} ({len(lst.entries)} entries)")
+                item.setData(Qt.ItemDataRole.UserRole, lst.id)
+                item.setCheckState(Qt.CheckState.Unchecked)
+                list_widget.addItem(item)
+            layout.addWidget(list_widget)
+            
+            buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+            buttons.accepted.connect(dialog.accept)
+            buttons.rejected.connect(dialog.reject)
+            layout.addWidget(buttons)
+            
+            if dialog.exec() != QDialog.DialogCode.Accepted:
+                return
+            
+            # Get selected lists
+            selected_lists = []
+            for i in range(list_widget.count()):
+                item = list_widget.item(i)
+                if item.checkState() == Qt.CheckState.Checked:
+                    list_id = item.data(Qt.ItemDataRole.UserRole)
+                    for lst in nt_lists:
+                        if lst.id == list_id:
+                            selected_lists.append(lst)
+                            break
+            
+            if not selected_lists:
+                QMessageBox.warning(self, "No List Selected", "Please select at least one list.")
+                return
+            
+            active_lists = selected_lists
+        
+        # Add to all active lists
+        from modules.non_translatables_manager import NonTranslatable
+        success_count = 0
+        duplicate_count = 0
+        
+        for lst in active_lists:
+            # Check if already exists
+            if any(entry.pattern.lower() == text.lower() for entry in lst.entries):
+                duplicate_count += 1
+                self.log(f"⚠️ '{text}' already exists in NT list '{lst.name}'")
+                continue
+            
+            # Create new entry
+            new_entry = NonTranslatable(
+                pattern=text,
+                pattern_type='exact',
+                description=f"Added from grid selection",
+                case_sensitive=True
+            )
+            lst.entries.append(new_entry)
+            
+            # Save the list
+            if self.nt_manager.save_list(lst):
+                success_count += 1
+                self.log(f"✅ Added '{text}' to NT list '{lst.name}'")
+            else:
+                self.log(f"❌ Failed to save NT list '{lst.name}'")
+        
+        # Show result
+        if success_count > 0:
+            QMessageBox.information(
+                self, 
+                "Added to Non-Translatables",
+                f"Added \"{text}\" to {success_count} list(s)." + 
+                (f"\n\n{duplicate_count} list(s) already contained this entry." if duplicate_count else "")
+            )
+            
+            # Refresh highlighting for current segment
+            current_row = self.table.currentRow()
+            if current_row >= 0 and current_row < len(self.current_project.segments):
+                # Clear any NT cache if exists
+                segment = self.current_project.segments[current_row]
+                
+                # Refresh the source cell highlighting
+                source_widget = self.table.cellWidget(current_row, 2)
+                if source_widget and hasattr(source_widget, 'highlight_termbase_matches'):
+                    source_text = source_widget.toPlainText()
+                    nt_matches = self.find_nt_matches_in_source(source_text)
+                    if nt_matches and hasattr(source_widget, 'highlight_non_translatables'):
+                        source_widget.highlight_non_translatables(nt_matches)
+                
+                # Trigger panel refresh
+                self._last_selected_row = -1
+                self.on_cell_selected(current_row, self.table.currentColumn(), -1, -1)
+        elif duplicate_count > 0:
+            QMessageBox.information(
+                self,
+                "Already Exists",
+                f"\"{text}\" already exists in all active non-translatables lists."
+            )
+        else:
+            QMessageBox.warning(self, "Error", "Failed to add to any non-translatables list.")
     
     def create_termbases_tab(self):
         """Create the Termbases tab - manage all termbases (global and project-specific)"""
@@ -9954,6 +11087,31 @@ class SupervertalerQt(QMainWindow):
         tm_toggle_btn.clicked.connect(lambda checked: self.toggle_tm_from_editor(checked, tm_toggle_btn))
         toolbar_layout.addWidget(tm_toggle_btn)
         
+        # Tag View toggle button
+        tag_view_btn = QPushButton("🏷️ Tags OFF")
+        tag_view_btn.setCheckable(True)
+        tag_view_btn.setChecked(False)  # Default: WYSIWYG mode (tags hidden)
+        tag_view_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #757575;
+                color: white;
+                font-weight: bold;
+                padding: 4px 8px;
+                border-radius: 3px;
+            }
+            QPushButton:checked {
+                background-color: #9C27B0;
+            }
+        """)
+        tag_view_btn.setToolTip("Toggle Tag View (Ctrl+Alt+T)\n\nTags OFF: Shows formatted text (WYSIWYG)\nTags ON: Shows raw tags like <b>bold</b>")
+        tag_view_btn.clicked.connect(lambda checked: self.toggle_tag_view(checked, tag_view_btn))
+        toolbar_layout.addWidget(tag_view_btn)
+        self.tag_view_btn = tag_view_btn  # Store reference
+        
+        # Initialize tag view state
+        if not hasattr(self, 'show_tags'):
+            self.show_tags = False
+        
         # Status selector
         from modules.statuses import get_status, STATUSES
         status_label = QLabel("Status:")
@@ -11322,6 +12480,35 @@ class SupervertalerQt(QMainWindow):
                         self.termbase_tab_refresh_callback()
                         self.log(f"✓ Refreshed termbase UI with restored activations")
             
+            # Restore activated non-translatables lists for this project
+            if hasattr(self, 'nt_manager') and self.nt_manager and self.current_project:
+                if hasattr(self.current_project, 'nt_settings') and self.current_project.nt_settings:
+                    active_list_names = self.current_project.nt_settings.get('active_lists', [])
+                    
+                    if active_list_names:
+                        # First deactivate all lists
+                        for name in list(self.nt_manager.lists.keys()):
+                            self.nt_manager.set_list_active(name, False)
+                        
+                        # Then activate the saved lists
+                        for list_name in active_list_names:
+                            if list_name in self.nt_manager.lists:
+                                self.nt_manager.set_list_active(list_name, True)
+                                self.log(f"✓ Restored active NT list: {list_name}")
+                            else:
+                                self.log(f"⚠️ Could not find NT list: {list_name}")
+                        
+                        # Refresh NT UI if available
+                        if hasattr(self, 'nt_list_combo') and self.nt_list_combo:
+                            # Trigger refresh by resetting combo selection
+                            current_idx = self.nt_list_combo.currentIndex()
+                            self.nt_list_combo.setCurrentIndex(-1)
+                            self.nt_list_combo.setCurrentIndex(current_idx if current_idx >= 0 else 0)
+                    else:
+                        self.log(f"📋 No active NT lists saved for this project")
+                else:
+                    self.log(f"📋 No NT settings found in project file")
+            
             self.log(f"✓ Loaded project: {self.current_project.name} ({len(self.current_project.segments)} segments)")
             
             # Start background batch processing of termbase matches for all segments
@@ -11676,7 +12863,8 @@ class SupervertalerQt(QMainWindow):
             "NT": [],
             "MT": [],
             "TM": [],
-            "Termbases": []
+            "Termbases": [],
+            "NonTrans": []  # Non-translatables
         }
         
         # Get project languages
@@ -12601,14 +13789,81 @@ class SupervertalerQt(QMainWindow):
         if not file_path:
             return
         
-        QMessageBox.information(
-            self,
-            "memoQ Bilingual Import",
-            "You selected the memoQ Bilingual DOCX import.\n\n"
-            "This workflow is designed for memoQ round-tripping and can be exported "
-            "back to memoQ bilingual DOCX. Other export formats (such as Monolingual DOCX) "
-            "are not available for this project."
+        # Show formatting options dialog
+        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QDialogButtonBox, QGroupBox
+        
+        dialog = QDialog(self)
+        dialog.setWindowTitle("memoQ Bilingual Import Options")
+        dialog.setMinimumWidth(450)
+        layout = QVBoxLayout(dialog)
+        
+        # Info text
+        info_label = QLabel(
+            "This workflow imports memoQ bilingual DOCX for round-tripping.\n"
+            "The project can be exported back to memoQ bilingual DOCX format."
         )
+        info_label.setWordWrap(True)
+        info_label.setStyleSheet("color: #666; margin-bottom: 10px;")
+        layout.addWidget(info_label)
+        
+        # Formatting options group
+        format_group = QGroupBox("Formatting Handling")
+        format_layout = QVBoxLayout(format_group)
+        
+        # Option 1: Ignore formatting (using CheckmarkCheckBox)
+        ignore_checkbox = CheckmarkCheckBox("Ignore inline formatting")
+        ignore_checkbox.setToolTip("Bold, italic, and underline formatting will not be transferred to translations.\nUse this if formatting causes issues or isn't needed.")
+        ignore_checkbox.setChecked(False)  # Default: use smart formatting
+        format_layout.addWidget(ignore_checkbox)
+        
+        ignore_desc = QLabel("    When checked, formatting (bold/italic/underline) will not be applied to translations.")
+        ignore_desc.setStyleSheet("color: #888; font-size: 10px; margin-left: 20px;")
+        format_layout.addWidget(ignore_desc)
+        
+        # Option 2: Smart formatting (using CheckmarkCheckBox)
+        smart_checkbox = CheckmarkCheckBox("Smart formatting transfer")
+        smart_checkbox.setToolTip("Attempts to identify formatted text in source and apply matching formatting to corresponding words in the translation.")
+        smart_checkbox.setChecked(True)  # Default
+        format_layout.addWidget(smart_checkbox)
+        
+        smart_desc = QLabel("    When checked, tries to match formatted source phrases to their translations.")
+        smart_desc.setStyleSheet("color: #888; font-size: 10px; margin-left: 20px;")
+        format_layout.addWidget(smart_desc)
+        
+        # Make checkboxes mutually exclusive
+        def on_ignore_changed(checked):
+            if checked:
+                smart_checkbox.setChecked(False)
+        
+        def on_smart_changed(checked):
+            if checked:
+                ignore_checkbox.setChecked(False)
+        
+        ignore_checkbox.toggled.connect(on_ignore_changed)
+        smart_checkbox.toggled.connect(on_smart_changed)
+        
+        layout.addWidget(format_group)
+        
+        # Note about tags - escape the angle brackets so they show literally
+        note_label = QLabel(
+            "ℹ️ Note: Inline XML tags (like &lt;b&gt;text&lt;/b&gt;) are always preserved regardless of this setting."
+        )
+        note_label.setWordWrap(True)
+        note_label.setStyleSheet("color: #2196F3; font-size: 10px; margin-top: 10px;")
+        layout.addWidget(note_label)
+        
+        # Buttons
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+        
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        
+        # Store formatting preference
+        self.memoq_smart_formatting = smart_checkbox.isChecked()
+        self.log(f"📄 memoQ import: {'Smart formatting transfer' if self.memoq_smart_formatting else 'Ignore formatting'}")
 
         try:
             from docx import Document
@@ -12647,8 +13902,13 @@ class SupervertalerQt(QMainWindow):
                     source_cell = row.cells[1]
                     target_cell = row.cells[2]
                     
-                    source_text = source_cell.text.strip()
-                    target_text = target_cell.text.strip()
+                    # Convert runs to HTML-tagged text if smart formatting is enabled
+                    if self.memoq_smart_formatting:
+                        source_text = runs_to_tagged_text(source_cell.paragraphs)
+                        target_text = runs_to_tagged_text(target_cell.paragraphs)
+                    else:
+                        source_text = source_cell.text.strip()
+                        target_text = target_cell.text.strip()
                     
                     # Always add (even if empty) to maintain alignment
                     source_segments.append(source_text)
@@ -12663,7 +13923,7 @@ class SupervertalerQt(QMainWindow):
                         'target': target_text
                     })
                     
-                    # Extract formatting from runs in source cell
+                    # Also extract formatting info for backwards compatibility / export
                     formatting_info = []
                     for paragraph in source_cell.paragraphs:
                         for run in paragraph.runs:
@@ -12771,6 +14031,10 @@ class SupervertalerQt(QMainWindow):
             self.update_window_title()
             self.load_segments_to_grid()
             self.initialize_tm_database()
+            
+            # If smart formatting was used, auto-enable Tags view so user sees the tags
+            if self.memoq_smart_formatting:
+                self._enable_tag_view_after_import()
             
             self.log(f"✓ Imported memoQ bilingual DOCX: {len(source_segments)} segments from {Path(file_path).name}")
 
@@ -12954,12 +14218,17 @@ class SupervertalerQt(QMainWindow):
                 if num_cells >= 3:
                     target_cell = row.cells[2]
 
-                    # Get formatting info for this segment (if available)
-                    formatting_info = None
-                    if hasattr(self, 'memoq_formatting_map') and i in self.memoq_formatting_map:
-                        formatting_info = self.memoq_formatting_map[i]
-                        if any(f['bold'] or f['italic'] or f['underline'] for f in formatting_info):
-                            segments_with_formatting += 1
+                    # Check for embedded HTML tags first (new approach)
+                    if has_formatting_tags(translation):
+                        segments_with_formatting += 1
+                        formatting_info = None  # Tags are in the text itself
+                    else:
+                        # Get formatting info for this segment (legacy approach)
+                        formatting_info = None
+                        if hasattr(self, 'memoq_formatting_map') and i in self.memoq_formatting_map:
+                            formatting_info = self.memoq_formatting_map[i]
+                            if any(f.get('bold') or f.get('italic') or f.get('underline') for f in formatting_info):
+                                segments_with_formatting += 1
 
                     # Apply formatting to the target cell
                     self._apply_formatting_to_cell(target_cell, translation, formatting_info)
@@ -13024,36 +14293,142 @@ class SupervertalerQt(QMainWindow):
             traceback.print_exc()
     
     def _apply_formatting_to_cell(self, cell, text, formatting_info=None):
-        """Apply formatting to a cell based on formatting info from source"""
+        """
+        Apply formatting to a cell based on embedded HTML tags or formatting info from source.
+        
+        Priority:
+        1. If text contains <b>, <i>, <u> tags, parse and apply them directly
+        2. Otherwise, use formatting_info for smart transfer (legacy approach)
+        3. If neither, just add plain text
+        """
         # Clear existing paragraphs
         cell._element.clear_content()
         
         # Add new paragraph
         paragraph = cell.add_paragraph()
         
-        if not formatting_info or not text:
-            # No formatting - just add plain text
+        if not text:
+            return
+        
+        # PRIORITY 1: Check for embedded HTML tags in the text
+        if has_formatting_tags(text):
+            # Parse the tags and create runs with formatting
+            runs = tagged_text_to_runs(text)
+            
+            for run_info in runs:
+                run_text = run_info.get('text', '')
+                if not run_text:
+                    continue
+                    
+                run = paragraph.add_run(run_text)
+                
+                if run_info.get('bold'):
+                    run.bold = True
+                if run_info.get('italic'):
+                    run.italic = True
+                if run_info.get('underline'):
+                    run.underline = True
+            
+            return
+        
+        # PRIORITY 2: Use formatting_info for smart transfer (legacy approach)
+        use_smart = getattr(self, 'memoq_smart_formatting', False)
+        
+        if not formatting_info or not use_smart:
+            # No formatting or smart formatting disabled - just add plain text
             paragraph.add_run(text)
             return
         
-        # Apply formatting based on source formatting
-        # For simplicity and safety, just apply the first formatting style found to the entire text
-        # This prevents text truncation issues that can occur with complex formatting algorithms
+        # Smart formatting transfer algorithm
+        # Step 1: Identify formatted regions in source
+        formatted_phrases = []
+        for fmt in formatting_info:
+            fmt_text = fmt.get('text', '')
+            if fmt_text and (fmt.get('bold') or fmt.get('italic') or fmt.get('underline')):
+                formatted_phrases.append({
+                    'text': fmt_text.strip(),
+                    'bold': fmt.get('bold', False),
+                    'italic': fmt.get('italic', False),
+                    'underline': fmt.get('underline', False)
+                })
         
-        # Check if we have any formatting at all
-        has_bold = any(fmt.get('bold', False) for fmt in formatting_info)
-        has_italic = any(fmt.get('italic', False) for fmt in formatting_info)
-        has_underline = any(fmt.get('underline', False) for fmt in formatting_info)
+        if not formatted_phrases:
+            # No formatted text found - add plain text
+            paragraph.add_run(text)
+            return
         
-        # Add the full text with formatting
-        run = paragraph.add_run(text)
+        # Step 2: Try to find matching phrases in target text
+        # Build a list of regions to format in the target
+        target_lower = text.lower()
+        format_regions = []  # List of (start, end, formatting_dict)
         
-        if has_bold:
-            run.bold = True
-        if has_italic:
-            run.italic = True
-        if has_underline:
-            run.underline = True
+        for phrase_info in formatted_phrases:
+            source_phrase = phrase_info['text'].lower()
+            
+            # Try exact match first
+            idx = target_lower.find(source_phrase)
+            if idx >= 0:
+                format_regions.append((idx, idx + len(source_phrase), phrase_info))
+                continue
+            
+            # Try word-by-word matching for multi-word phrases
+            source_words = source_phrase.split()
+            if len(source_words) > 1:
+                # Try to find the first and last word to estimate region
+                first_word = source_words[0]
+                last_word = source_words[-1]
+                
+                first_idx = target_lower.find(first_word)
+                # Search for last word after first word
+                if first_idx >= 0:
+                    last_idx = target_lower.find(last_word, first_idx)
+                    if last_idx >= 0:
+                        # Found a plausible region
+                        end_idx = last_idx + len(last_word)
+                        # Only use if the region is reasonable (not too different in length)
+                        region_len = end_idx - first_idx
+                        source_len = len(source_phrase)
+                        if 0.3 <= region_len / source_len <= 3.0:
+                            format_regions.append((first_idx, end_idx, phrase_info))
+        
+        if not format_regions:
+            # No matches found - just add plain text
+            paragraph.add_run(text)
+            return
+        
+        # Step 3: Sort regions and merge overlaps
+        format_regions.sort(key=lambda x: x[0])
+        
+        # Step 4: Build the formatted paragraph with runs
+        current_pos = 0
+        for start, end, fmt_info in format_regions:
+            # Ensure we don't go backwards
+            if start < current_pos:
+                start = current_pos
+            if end <= start:
+                continue
+            
+            # Add unformatted text before this region
+            if start > current_pos:
+                unformatted_text = text[current_pos:start]
+                paragraph.add_run(unformatted_text)
+            
+            # Add formatted text
+            formatted_text = text[start:end]
+            run = paragraph.add_run(formatted_text)
+            
+            if fmt_info.get('bold'):
+                run.bold = True
+            if fmt_info.get('italic'):
+                run.italic = True
+            if fmt_info.get('underline'):
+                run.underline = True
+            
+            current_pos = end
+        
+        # Add any remaining unformatted text
+        if current_pos < len(text):
+            paragraph.add_run(text[current_pos:])
     
     # ========================================================================
     # GRID MANAGEMENT
@@ -13263,6 +14638,11 @@ class SupervertalerQt(QMainWindow):
             self._enforce_status_row_heights()
             
             self.log(f"✓ Loaded {len(self.current_project.segments)} segments to grid")
+
+            # Apply current tag view mode (WYSIWYG or Tags)
+            if hasattr(self, 'show_tags') and self.show_tags:
+                # If tags mode is enabled, refresh to show raw tags
+                self._refresh_grid_display_mode()
 
             # Also refresh List and Document views if they exist
             if hasattr(self, 'list_tree'):
@@ -14488,8 +15868,10 @@ class SupervertalerQt(QMainWindow):
                                                 }
                                                 for match_data in stored_matches.values()
                                             ]
-                                            self.log(f"🔍 TERMVIEW REFRESH: Updating with {len(termbase_matches)} newly cached matches")
-                                            self.termview_widget.update_with_matches(segment.source, termbase_matches)
+                                            # Also get NT matches
+                                            nt_matches = self.find_nt_matches_in_source(segment.source)
+                                            self.log(f"🔍 TERMVIEW REFRESH: Updating with {len(termbase_matches)} termbase + {len(nt_matches)} NT matches")
+                                            self.termview_widget.update_with_matches(segment.source, termbase_matches, nt_matches)
                                         except Exception as e:
                                             self.log(f"Error refreshing termview: {e}")
 
@@ -14497,8 +15879,8 @@ class SupervertalerQt(QMainWindow):
                             if source_widget and hasattr(source_widget, 'termbase_matches'):
                                 source_widget.termbase_matches = stored_matches
                             
-                            # Highlight termbase matches in source cell with priority colors (if enabled)
-                            if stored_matches and self.enable_termbase_grid_highlighting:
+                            # Highlight termbase matches and NT matches in source cell (if enabled)
+                            if self.enable_termbase_grid_highlighting:
                                 self.highlight_source_with_termbase(current_row, segment.source, stored_matches)
                         else:
                             self.log("⏭️ Termbase matching disabled - skipping termbase lookup")
@@ -14511,8 +15893,27 @@ class SupervertalerQt(QMainWindow):
                                 "NT": [],
                                 "MT": [],
                                 "TM": [],
-                                "Termbases": []
+                                "Termbases": [],
+                                "NonTrans": []  # Non-translatables
                             }
+                            
+                            # Add non-translatable matches
+                            if hasattr(self, 'nt_manager') and self.nt_manager:
+                                nt_matches = self.find_nt_matches_in_source(segment.source)
+                                for nt_match in nt_matches:
+                                    nt_obj = TranslationMatch(
+                                        source=nt_match.get('text', ''),
+                                        target=nt_match.get('text', ''),  # Same as source (not translated)
+                                        relevance=100,  # Always 100% match
+                                        metadata={
+                                            'list_name': nt_match.get('list_name', 'Non-Translatables'),
+                                            'is_non_translatable': True
+                                        },
+                                        match_type='NonTrans',
+                                        compare_source=nt_match.get('text', ''),
+                                        provider_code='NT'
+                                    )
+                                    matches_dict["NonTrans"].append(nt_obj)
 
                             for term_id_key, match_info in stored_matches.items():
                                 # Extract all fields from match_info (including source term)
@@ -14591,19 +15992,45 @@ class SupervertalerQt(QMainWindow):
                                     except Exception as e:
                                         self.log(f"Error updating results panel: {e}")
                         else:
-                            # No termbase matches - clear panel and initialize empty dict
-                            self.log("📋 No termbase matches found - clearing panel")
+                            # No termbase matches - but still check for NT matches
+                            self.log("📋 No termbase matches found - checking for NT matches")
                             matches_dict = {
                                 "LLM": [],
                                 "NT": [],
                                 "MT": [],
                                 "TM": [],
-                                "Termbases": []
+                                "Termbases": [],
+                                "NonTrans": []  # Non-translatables
                             }
+                            
+                            # Add non-translatable matches even without termbase matches
+                            if hasattr(self, 'nt_manager') and self.nt_manager:
+                                from modules.translation_results_panel import TranslationMatch
+                                nt_matches = self.find_nt_matches_in_source(segment.source)
+                                for nt_match in nt_matches:
+                                    nt_obj = TranslationMatch(
+                                        source=nt_match.get('text', ''),
+                                        target=nt_match.get('text', ''),  # Same as source (not translated)
+                                        relevance=100,  # Always 100% match
+                                        metadata={
+                                            'list_name': nt_match.get('list_name', 'Non-Translatables'),
+                                            'is_non_translatable': True
+                                        },
+                                        match_type='NonTrans',
+                                        compare_source=nt_match.get('text', ''),
+                                        provider_code='NT'
+                                    )
+                                    matches_dict["NonTrans"].append(nt_obj)
+                                
+                                if matches_dict["NonTrans"]:
+                                    self.log(f"📋 Found {len(matches_dict['NonTrans'])} NT matches")
+                            
                             if hasattr(self, 'results_panels'):
                                 for panel in self.results_panels:
                                     try:
                                         panel.clear()
+                                        if matches_dict["NonTrans"]:
+                                            panel.set_matches(matches_dict)
                                     except Exception as e:
                                         self.log(f"Error clearing results panel: {e}")
                     except Exception as e:
@@ -15042,7 +16469,8 @@ class SupervertalerQt(QMainWindow):
                         "NT": [],      # No Translation
                         "MT": [],      # Machine Translation
                         "TM": [],      # Translation Memory
-                        "Termbases": [] # Terminology
+                        "Termbases": [], # Terminology
+                        "NonTrans": []  # Non-translatables
                     }
                     
                     # Generate TM matches from database if available (and enabled)
@@ -15964,6 +17392,25 @@ class SupervertalerQt(QMainWindow):
             self.log(f"Traceback: {traceback.format_exc()}")
             return {}
     
+    def find_nt_matches_in_source(self, source_text: str) -> list:
+        """
+        Find non-translatable matches in source text from all active NT lists.
+        
+        Args:
+            source_text: Source text to search in
+            
+        Returns:
+            List of match dicts with 'text', 'start', 'end', 'list_name' keys
+        """
+        if not hasattr(self, 'nt_manager') or not self.nt_manager:
+            return []
+        
+        try:
+            return self.nt_manager.find_all_matches(source_text)
+        except Exception as e:
+            self.log(f"Error finding NT matches: {e}")
+            return []
+    
     def highlight_source_with_termbase(self, row: int, source_text: str, termbase_matches: Optional[Dict] = None):
         """
         Highlight termbase matches in the source column using text formatting.
@@ -15985,19 +17432,23 @@ class SupervertalerQt(QMainWindow):
             else:
                 self.log(f"🟢 Using pre-computed termbase matches ({len(termbase_matches)} found)")
             
-            if not termbase_matches:
-                # No matches - nothing to highlight
-                return
-            
             # Get the existing source widget (ReadOnlyGridTextEditor)
             source_widget = self.table.cellWidget(row, 2)
             if not source_widget or not hasattr(source_widget, 'highlight_termbase_matches'):
                 self.log(f"⚠️ Source widget at row {row} is not a ReadOnlyGridTextEditor")
                 return
             
-            # Apply highlighting to the existing widget
-            source_widget.highlight_termbase_matches(termbase_matches)
-            self.log(f"✅ Applied termbase highlighting to {len(termbase_matches)} terms in row {row}")
+            # Apply termbase highlighting first
+            if termbase_matches:
+                source_widget.highlight_termbase_matches(termbase_matches)
+                self.log(f"✅ Applied termbase highlighting to {len(termbase_matches)} terms in row {row}")
+            
+            # Also highlight non-translatables (pastel yellow)
+            if hasattr(self, 'nt_manager') and self.nt_manager:
+                nt_matches = self.find_nt_matches_in_source(source_text)
+                if nt_matches and hasattr(source_widget, 'highlight_non_translatables'):
+                    source_widget.highlight_non_translatables(nt_matches)
+                    self.log(f"✅ Applied NT highlighting to {len(nt_matches)} non-translatables in row {row}")
             
         except Exception as e:
             self.log(f"Error highlighting termbase matches: {e}")
@@ -17861,6 +19312,61 @@ class SupervertalerQt(QMainWindow):
             button.setText("🚫 TM/Termbase OFF")
             self.log("⚠️ TM/Termbase lookups DISABLED from segment editor (faster editing)")
 
+    def _toggle_tag_view_via_shortcut(self):
+        """Toggle tag view using keyboard shortcut (Ctrl+Alt+T)"""
+        if hasattr(self, 'tag_view_btn'):
+            # Toggle the button state (which triggers toggle_tag_view)
+            new_state = not self.tag_view_btn.isChecked()
+            self.tag_view_btn.setChecked(new_state)
+            self.toggle_tag_view(new_state, self.tag_view_btn)
+
+    def _enable_tag_view_after_import(self):
+        """Auto-enable Tag View after importing a document with formatting tags"""
+        if hasattr(self, 'tag_view_btn'):
+            self.tag_view_btn.setChecked(True)
+            self.toggle_tag_view(True, self.tag_view_btn)
+            self.log("🏷️ Tag View auto-enabled (formatting tags detected in import)")
+
+    def toggle_tag_view(self, checked: bool, button: QPushButton = None):
+        """Toggle between Tag View (showing raw tags) and WYSIWYG View (formatted display)"""
+        self.show_tags = checked
+        
+        # Update button text
+        if button:
+            if checked:
+                button.setText("🏷️ Tags ON")
+            else:
+                button.setText("🏷️ Tags OFF")
+        
+        self.log(f"{'🏷️ Tag View ENABLED - showing raw tags' if checked else '✨ WYSIWYG View ENABLED - showing formatted text'}")
+        
+        # Refresh the grid to update display
+        if hasattr(self, 'table') and self.current_project:
+            self._refresh_grid_display_mode()
+    
+    def _refresh_grid_display_mode(self):
+        """Refresh all visible cells to reflect current tag view mode"""
+        if not hasattr(self, 'table') or not self.current_project:
+            return
+        
+        # Get current visible rows
+        for row in range(self.table.rowCount()):
+            # Get segment for this row
+            if row >= len(self.current_project.segments):
+                continue
+            
+            segment = self.current_project.segments[row]
+            
+            # Update source cell (column 2)
+            source_widget = self.table.cellWidget(row, 2)
+            if source_widget and hasattr(source_widget, 'update_display_mode'):
+                source_widget.update_display_mode(segment.source, self.show_tags)
+            
+            # Update target cell (column 3)
+            target_widget = self.table.cellWidget(row, 3)
+            if target_widget and hasattr(target_widget, 'update_display_mode'):
+                target_widget.update_display_mode(segment.target, self.show_tags)
+
     def update_tab_segment_editor(self, segment_id: int, source_text: str, target_text: str, 
                                    status: str = "untranslated", notes: str = ""):
         """Update the tab segment editor with current segment data"""
@@ -17921,8 +19427,11 @@ class SupervertalerQt(QMainWindow):
                 else:
                     self.log(f"🔍 TERMVIEW: No cached matches for segment {segment_id}")
                 
-                self.log(f"🔍 TERMVIEW: Calling update_with_matches with {len(termbase_matches)} matches")
-                self.termview_widget.update_with_matches(source_text, termbase_matches)
+                # Also get NT matches
+                nt_matches = self.find_nt_matches_in_source(source_text)
+                
+                self.log(f"🔍 TERMVIEW: Calling update_with_matches with {len(termbase_matches)} termbase + {len(nt_matches)} NT matches")
+                self.termview_widget.update_with_matches(source_text, termbase_matches, nt_matches)
                 self.log(f"🔍 TERMVIEW: update_with_matches completed successfully")
             except Exception as e:
                 self.log(f"Error updating termview: {e}")

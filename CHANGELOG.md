@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.3 (November 26, 2025)
+**Current Version:** v1.9.4 (November 26, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -14,6 +14,7 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- 🏷️ **Tag-Based Formatting System (v1.9.4)** - Complete inline formatting support for memoQ bilingual files. Import preserves bold/italic/underline as `<b>`, `<i>`, `<u>` tags. Toggle between WYSIWYG and Tag view with Ctrl+Alt+T. Ctrl+B/I/U shortcuts to apply formatting. AI translation preserves tags. Export converts tags back to Word formatting
 - 📋 **Session Log Tab & TM Defaults Fix (v1.9.3)** - Added Session Log tab to bottom panel for easy access to log messages. Fixed TM Read/Write checkbox defaults to respect project.json settings
 - ⚙️ **Superlookup Settings UI (v1.9.2)** - Redesigned Settings tab with sub-tabs for TM/Termbase/MT/Web resources. Proper 18x18px checkboxes with green background and white checkmarks matching standard Supervertaler style. Each resource type has dedicated full-height space for easy selection
 - ↩️ **Undo/Redo for Grid Edits (v1.9.1)** - Full undo/redo support for grid editing operations with Ctrl+Z/Ctrl+Y. Tracks target text changes, status changes, and find/replace operations with 100-level history
@@ -48,6 +49,47 @@ All notable changes to Supervertaler are documented in this file.
 - 🔄 **CAT Tool Integration** - memoQ, Trados, CafeTran bilingual table support
 
 **See full version history below** ↓
+
+---
+
+## [1.9.4] - November 26, 2025
+
+### 🏷️ Tag-Based Formatting System for memoQ Bilingual Files
+
+**Complete inline formatting support for professional translation workflows with memoQ bilingual DOCX files.**
+
+**Phase 1 - Import & Display:**
+- Import memoQ bilingual DOCX preserves bold, italic, underline as `<b>`, `<i>`, `<u>` HTML-style tags
+- New "🏷️ Tags ON/OFF" toggle button in grid toolbar
+- WYSIWYG mode: Shows formatted text (bold appears bold)
+- Tag mode: Shows raw tags like `<b>bold</b>` for precise editing
+- Keyboard shortcut: **Ctrl+Alt+T** to toggle between modes
+- Tags auto-enabled after import when formatting detected
+- TagHighlighter colorizes tags with pink background for visibility
+
+**Phase 2 - Export with Formatting:**
+- Export converts `<b>`, `<i>`, `<u>` tags back to actual Word formatting
+- New `tagged_text_to_runs()` function parses tags into Word runs
+- Round-trip fidelity: Import → Edit → Export preserves formatting
+- Handles nested tags correctly (e.g., `<b><i>bold italic</i></b>`)
+
+**Phase 3 - AI Translation with Tags:**
+- Updated default system prompt with inline formatting tag instructions
+- AI translates text while preserving and repositioning tags intelligently
+- Example: "Click the `<b>`Save`</b>` button" → "Klik op de knop `<b>`Opslaan`</b>`"
+- Tags placed around corresponding translated words, not just same position
+
+**Formatting Shortcuts in Target Editor:**
+- **Ctrl+B** - Apply/toggle bold tags on selected text
+- **Ctrl+I** - Apply/toggle italic tags on selected text
+- **Ctrl+U** - Apply/toggle underline tags on selected text
+
+**Helper Functions Added:**
+- `runs_to_tagged_text()` - Convert Word runs to tagged text on import
+- `tagged_text_to_runs()` - Parse tags back to Word runs on export
+- `strip_formatting_tags()` - Remove tags for plain text
+- `has_formatting_tags()` - Check if text contains formatting tags
+- `get_formatted_html_display()` - Convert tags to HTML for WYSIWYG display
 
 ---
 

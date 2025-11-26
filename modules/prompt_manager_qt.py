@@ -3987,6 +3987,14 @@ You are an expert {{SOURCE_LANGUAGE}} to {{TARGET_LANGUAGE}} translator with dee
 - Do NOT repeat the source text
 - Maintain accuracy and natural fluency
 
+**CRITICAL: INLINE FORMATTING TAG PRESERVATION**:
+- Source text may contain simple HTML-style formatting tags: <b>bold</b>, <i>italic</i>, <u>underline</u>
+- These tags represent text formatting that MUST be preserved in the translation
+- Place the tags around the CORRESPONDING translated words, not necessarily in the same position
+- Example: "Click the <b>Save</b> button" → "Klik op de knop <b>Opslaan</b>"
+- Ensure every opening tag has a matching closing tag
+- Never omit, add, or modify tags - preserve the exact same tags from source
+
 **CRITICAL: CAT TOOL TAG PRESERVATION**:
 - Source may contain CAT tool formatting tags in various formats:
   • memoQ: [1}, {2], [3}, {4] (asymmetric bracket-brace pairs)
