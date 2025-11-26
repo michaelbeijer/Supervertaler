@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.4 (November 26, 2025)
+**Current Version:** v1.9.5 (November 27, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -14,6 +14,7 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- 📤 **Send Segments to TM & memoQ Tag Shortcuts (v1.9.5)** - Bulk send translated segments to TMs via Edit > Bulk Operations. Filter by status (Translated, Reviewed, etc.) and scope. New Ctrl+, shortcut inserts memoQ tags pairs or wraps selection. Tab renamed to "Resources"
 - 🏷️ **Tag-Based Formatting System (v1.9.4)** - Complete inline formatting support for memoQ bilingual files. Import preserves bold/italic/underline as `<b>`, `<i>`, `<u>` tags. Toggle between WYSIWYG and Tag view with Ctrl+Alt+T. Ctrl+B/I/U shortcuts to apply formatting. AI translation preserves tags. Export converts tags back to Word formatting
 - 📋 **Session Log Tab & TM Defaults Fix (v1.9.3)** - Added Session Log tab to bottom panel for easy access to log messages. Fixed TM Read/Write checkbox defaults to respect project.json settings
 - ⚙️ **Superlookup Settings UI (v1.9.2)** - Redesigned Settings tab with sub-tabs for TM/Termbase/MT/Web resources. Proper 18x18px checkboxes with green background and white checkmarks matching standard Supervertaler style. Each resource type has dedicated full-height space for easy selection
@@ -90,6 +91,33 @@ All notable changes to Supervertaler are documented in this file.
 - `strip_formatting_tags()` - Remove tags for plain text
 - `has_formatting_tags()` - Check if text contains formatting tags
 - `get_formatted_html_display()` - Convert tags to HTML for WYSIWYG display
+
+---
+
+## [1.9.5] - November 27, 2025
+
+### 📤 Send Segments to TM & memoQ Tag Shortcuts
+
+**Send Segments to TM (Bulk Operation):**
+- New dialog under **Edit > Bulk Operations > Send Segments to TM**
+- Send translated segments directly to selected Translation Memories
+- **Scope filters:** All segments, Current selection, or specific row range
+- **Status filters:** Filter by Translated, Reviewed, Approved, Needs Review, or Final status
+- Select multiple TMs to write to simultaneously
+- Shows count of segments that will be sent before execution
+- Progress feedback with success/failure counts
+
+**memoQ Tag Insertion Shortcut:**
+- **Ctrl+,** (Ctrl+Comma) - Insert next memoQ tag pair or wrap selection
+- Smart tag insertion: Analyzes source segment for memoQ tags (`[1}`, `{1]`, `[3]`, etc.)
+- With selection: Wraps selected text with next unused tag pair
+- Without selection: Inserts next available tag pair at cursor
+- Works with paired tags (`[1}...{1]`) and standalone tags (`[3]`)
+- Respects tag order from source segment for consistency
+
+**UI Improvements:**
+- Renamed "Translation Resources" tab to "Resources" for cleaner UI
+- Resources tab contains TM, Termbase, and MT/Web resources sub-tabs
 
 ---
 

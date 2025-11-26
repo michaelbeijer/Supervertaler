@@ -32,9 +32,9 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.2"
+__version__ = "1.9.5"
 __phase__ = "0.9"
-__release_date__ = "2025-11-25"
+__release_date__ = "2025-11-27"
 __edition__ = "Qt"
 
 import sys
@@ -419,6 +419,117 @@ def tagged_text_to_runs(text: str) -> list:
     return runs
 
 
+# ============================================================================
+# MEMOQ TAG UTILITIES (for tag insertion shortcuts)
+# ============================================================================
+
+def extract_memoq_tags(text: str) -> list:
+    """
+    Extract all memoQ-style tags from text in order of appearance.
+    
+    memoQ uses several tag types:
+    - Paired opening tags: [1}, [2}, [3} etc.
+    - Paired closing tags: {1], {2], {3] etc.
+    - Standalone tags: [1], [2], [3] etc. (e.g., for tabs, special characters)
+    
+    Args:
+        text: Source text containing tags
+        
+    Returns:
+        List of tag strings in order of appearance: ['[1}', '{1]', '[2]', ...]
+    """
+    import re
+    # Match:
+    # - Opening paired tags: [N}
+    # - Closing paired tags: {N]
+    # - Standalone tags: [N]
+    pattern = r'(\[\d+\}|\{\d+\]|\[\d+\])'
+    return re.findall(pattern, text)
+
+
+def get_tag_pair(tag_number: int) -> tuple:
+    """
+    Get opening and closing tag pair for a given number.
+    
+    Args:
+        tag_number: The tag number (1, 2, 3, etc.)
+        
+    Returns:
+        Tuple of (opening_tag, closing_tag) e.g. ('[1}', '{1]')
+    """
+    return (f'[{tag_number}}}', f'{{{tag_number}]')
+
+
+def find_next_unused_tag(source_text: str, target_text: str) -> str:
+    """
+    Find the next tag from source that hasn't been used in target yet.
+    
+    Args:
+        source_text: Source segment text with tags
+        target_text: Current target text (may have some tags already)
+        
+    Returns:
+        The next tag to insert, or empty string if all tags are used
+    """
+    source_tags = extract_memoq_tags(source_text)
+    target_tags = extract_memoq_tags(target_text)
+    
+    # Count occurrences in target
+    from collections import Counter
+    target_tag_counts = Counter(target_tags)
+    source_tag_counts = Counter(source_tags)
+    
+    # Find first tag that needs more occurrences in target
+    for tag in source_tags:
+        source_count = source_tag_counts[tag]
+        target_count = target_tag_counts.get(tag, 0)
+        if target_count < source_count:
+            return tag
+    
+    return ""  # All tags already in target
+
+
+def get_wrapping_tag_pair(source_text: str, target_text: str) -> tuple:
+    """
+    Get the next available tag pair for wrapping selected text.
+    
+    Finds the first tag number from source where either opening or closing
+    tag is not yet in target.
+    
+    Args:
+        source_text: Source segment text with tags
+        target_text: Current target text
+        
+    Returns:
+        Tuple of (opening_tag, closing_tag) or (None, None) if no pairs available
+    """
+    import re
+    
+    # Extract all tag numbers from source
+    source_tags = extract_memoq_tags(source_text)
+    if not source_tags:
+        return (None, None)
+    
+    # Get unique tag numbers in order
+    tag_numbers = []
+    for tag in source_tags:
+        match = re.search(r'\d+', tag)
+        if match:
+            num = int(match.group())
+            if num not in tag_numbers:
+                tag_numbers.append(num)
+    
+    target_tags = extract_memoq_tags(target_text)
+    
+    # Find first tag number where pair is not complete in target
+    for num in tag_numbers:
+        opening, closing = get_tag_pair(num)
+        if opening not in target_tags or closing not in target_tags:
+            return (opening, closing)
+    
+    return (None, None)
+
+
 @dataclass
 class Segment:
     """Translation segment (matches tkinter version format)"""
@@ -613,6 +724,11 @@ class GridTextEditor(QTextEdit):
                 super().keyPressEvent(event)
                 event.accept()
                 return
+            # Ctrl+, (comma): Insert next memoQ tag or wrap selection with tag pair
+            elif event.key() == Qt.Key.Key_Comma:
+                self._insert_next_tag_or_wrap_selection()
+                event.accept()
+                return
         
         # Shift+Enter: Insert line break (for multi-line content)
         if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
@@ -630,6 +746,60 @@ class GridTextEditor(QTextEdit):
         # All other keys: Handle normally (including ESC for closing editor)
         print(f"🔑 GridTextEditor: Passing to super().keyPressEvent")
         super().keyPressEvent(event)
+    
+    def _insert_next_tag_or_wrap_selection(self):
+        """
+        Insert the next memoQ tag from source, or wrap selection with tag pair.
+        
+        Behavior:
+        - If text is selected: Wrap it with the next available tag pair [N}selection{N]
+        - If no selection: Insert the next unused tag from source at cursor position
+        
+        Shortcut: Ctrl+, (comma)
+        """
+        # Get the main window and current segment
+        if not self.table_widget or self.current_row is None:
+            return
+        
+        # Navigate up to find main window
+        main_window = self.table_widget.parent()
+        while main_window and not hasattr(main_window, 'current_project'):
+            main_window = main_window.parent()
+        
+        if not main_window or not hasattr(main_window, 'current_project'):
+            return
+        
+        if not main_window.current_project or self.current_row >= len(main_window.current_project.segments):
+            return
+        
+        segment = main_window.current_project.segments[self.current_row]
+        source_text = segment.source
+        current_target = self.toPlainText()
+        
+        # Check if there's a selection
+        cursor = self.textCursor()
+        if cursor.hasSelection():
+            # Wrap selection with tag pair
+            opening_tag, closing_tag = get_wrapping_tag_pair(source_text, current_target)
+            if opening_tag and closing_tag:
+                selected_text = cursor.selectedText()
+                wrapped_text = f"{opening_tag}{selected_text}{closing_tag}"
+                cursor.insertText(wrapped_text)
+                if hasattr(main_window, 'log'):
+                    main_window.log(f"🏷️ Wrapped selection with {opening_tag}...{closing_tag}")
+            else:
+                if hasattr(main_window, 'log'):
+                    main_window.log("⚠️ No tag pairs available from source")
+        else:
+            # Insert next unused tag at cursor
+            next_tag = find_next_unused_tag(source_text, current_target)
+            if next_tag:
+                cursor.insertText(next_tag)
+                if hasattr(main_window, 'log'):
+                    main_window.log(f"🏷️ Inserted tag: {next_tag}")
+            else:
+                if hasattr(main_window, 'log'):
+                    main_window.log("✓ All tags from source already in target")
 
 
 class ReadOnlyGridTextEditor(QTextEdit):
@@ -1454,6 +1624,12 @@ class EditableGridTextEditor(QTextEdit):
             event.accept()
             return
         
+        # Ctrl+, (comma): Insert next memoQ tag or wrap selection with tag pair
+        if event.key() == Qt.Key.Key_Comma and event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+            self._insert_next_tag_or_wrap_selection()
+            event.accept()
+            return
+        
         # Ctrl+B: Apply bold formatting to selection
         if event.key() == Qt.Key.Key_B and event.modifiers() == Qt.KeyboardModifier.ControlModifier:
             self._apply_formatting_tag('b')
@@ -1528,6 +1704,59 @@ class EditableGridTextEditor(QTextEdit):
                     "Feature Not Available",
                     "Non-translatables functionality not available."
                 )
+
+    def _insert_next_tag_or_wrap_selection(self):
+        """
+        Insert the next memoQ tag from source, or wrap selection with tag pair.
+        
+        Behavior:
+        - If text is selected: Wrap it with the next available tag pair [N}selection{N]
+        - If no selection: Insert the next unused tag from source at cursor position
+        
+        Shortcut: Ctrl+, (comma)
+        """
+        if not self.table or self.row < 0:
+            return
+        
+        # Navigate up to find main window
+        main_window = self.table.parent()
+        while main_window and not hasattr(main_window, 'current_project'):
+            main_window = main_window.parent()
+        
+        if not main_window or not hasattr(main_window, 'current_project'):
+            return
+        
+        if not main_window.current_project or self.row >= len(main_window.current_project.segments):
+            return
+        
+        segment = main_window.current_project.segments[self.row]
+        source_text = segment.source
+        current_target = self.toPlainText()
+        
+        # Check if there's a selection
+        cursor = self.textCursor()
+        if cursor.hasSelection():
+            # Wrap selection with tag pair
+            opening_tag, closing_tag = get_wrapping_tag_pair(source_text, current_target)
+            if opening_tag and closing_tag:
+                selected_text = cursor.selectedText()
+                wrapped_text = f"{opening_tag}{selected_text}{closing_tag}"
+                cursor.insertText(wrapped_text)
+                if hasattr(main_window, 'log'):
+                    main_window.log(f"🏷️ Wrapped selection with {opening_tag}...{closing_tag}")
+            else:
+                if hasattr(main_window, 'log'):
+                    main_window.log("⚠️ No tag pairs available from source")
+        else:
+            # Insert next unused tag at cursor
+            next_tag = find_next_unused_tag(source_text, current_target)
+            if next_tag:
+                cursor.insertText(next_tag)
+                if hasattr(main_window, 'log'):
+                    main_window.log(f"🏷️ Inserted tag: {next_tag}")
+            else:
+                if hasattr(main_window, 'log'):
+                    main_window.log("✓ All tags from source already in target")
 
     def _apply_formatting_tag(self, tag: str):
         """
@@ -3549,6 +3778,11 @@ class SupervertalerQt(QMainWindow):
         clear_translations_action.triggered.connect(self.clear_selected_translations_from_menu)
         bulk_menu.addAction(clear_translations_action)
         
+        send_to_tm_action = QAction("💾 &Send Segments to TM...", self)
+        send_to_tm_action.setToolTip("Send confirmed segments to a writable Translation Memory")
+        send_to_tm_action.triggered.connect(self.send_segments_to_tm_dialog)
+        bulk_menu.addAction(send_to_tm_action)
+        
         edit_menu.addSeparator()
         
         # Superlookup
@@ -3572,7 +3806,7 @@ class SupervertalerQt(QMainWindow):
         go_prompt_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(1) if hasattr(self, 'main_tabs') else None)
         nav_menu.addAction(go_prompt_action)
         
-        go_resources_action = QAction("📚 &Translation Resources", self)
+        go_resources_action = QAction("📚 &Resources", self)
         go_resources_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(2) if hasattr(self, 'main_tabs') else None)
         nav_menu.addAction(go_resources_action)
         
@@ -4035,9 +4269,9 @@ class SupervertalerQt(QMainWindow):
         self.prompt_manager_qt.create_tab(prompt_widget)
         self.main_tabs.addTab(prompt_widget, "🤖 Prompt Manager")
         
-        # 2. TRANSLATION RESOURCES
+        # 2. RESOURCES (Translation Memories, Termbases, etc.)
         resources_tab = self.create_resources_tab()
-        self.main_tabs.addTab(resources_tab, "📚 Translation Resources")
+        self.main_tabs.addTab(resources_tab, "📚 Resources")
         
         # 3. TOOLS
         tools_tab = self.create_specialised_tools_tab()
@@ -6707,7 +6941,7 @@ class SupervertalerQt(QMainWindow):
         active_termbases = self.termbase_mgr.get_all_termbases()
         
         if not active_termbases:
-            QMessageBox.warning(self, "No Termbase", "Please create or activate at least one termbase in Translation Resources → Termbases tab.")
+            QMessageBox.warning(self, "No Termbase", "Please create or activate at least one termbase in Resources → Termbases tab.")
             return
         
         # Show metadata dialog with termbase selection
@@ -13006,8 +13240,8 @@ class SupervertalerQt(QMainWindow):
         
         # If no TMs activated, skip saving (user must activate TMs explicitly)
         if not tm_ids:
-            self.log("⚠️ No TMs activated - segment not saved to TM. Please activate at least one TM in Translation Resources.")
-            self.log(f"   - To fix: Go to Translation Resources > Translation Memories > TM List and check the Active checkbox")
+            self.log("⚠️ No TMs activated - segment not saved to TM. Please activate at least one TM in Resources.")
+            self.log(f"   - To fix: Go to Resources > Translation Memories > TM List and check the Active checkbox")
             return
         
         # Save to each activated TM (skip read-only ones)
@@ -16338,6 +16572,300 @@ class SupervertalerQt(QMainWindow):
                 QMessageBox.information(self, "Not Available", "Bulk operations are only available in Grid view.")
         else:
             QMessageBox.information(self, "Not Available", "Please load a project first.")
+    
+    def send_segments_to_tm_dialog(self):
+        """
+        Show dialog to send segments to TM (similar to memoQ's Confirm and Update).
+        Allows user to select scope and status filters, then sends matching segments 
+        to the writable TM(s).
+        """
+        if not self.current_project or not self.current_project.segments:
+            QMessageBox.warning(self, "No Project", "Please load a project first.")
+            return
+        
+        if not hasattr(self, 'tm_metadata_mgr') or not self.tm_metadata_mgr:
+            QMessageBox.warning(self, "No TM Manager", "Translation Memory system is not initialized.")
+            return
+        
+        # Get available TMs
+        all_tms = self.tm_metadata_mgr.get_all_tms()
+        if not all_tms:
+            QMessageBox.warning(self, "No TMs", 
+                "No Translation Memories found.\n\nPlease create or import a TM in Resources → Translation Memories.")
+            return
+        
+        # Get writable TMs (those with Write enabled)
+        writable_tms = [tm for tm in all_tms if not tm.get('read_only', True)]
+        if not writable_tms:
+            QMessageBox.warning(self, "No Writable TMs", 
+                "No writable Translation Memories found.\n\n"
+                "Please enable Write (✓) for at least one TM in Resources → Translation Memories → TM List.")
+            return
+        
+        # Create dialog
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Send Segments to TM")
+        dialog.setMinimumWidth(500)
+        dialog.setMinimumHeight(400)
+        layout = QVBoxLayout(dialog)
+        
+        # Info text
+        info_label = QLabel(
+            "Send translated segments to a Translation Memory.\n"
+            "Only segments matching the selected criteria will be sent."
+        )
+        info_label.setWordWrap(True)
+        info_label.setStyleSheet("color: #666; margin-bottom: 10px;")
+        layout.addWidget(info_label)
+        
+        # Scope group
+        scope_group = QGroupBox("Scope")
+        scope_layout = QVBoxLayout(scope_group)
+        
+        scope_project = CheckmarkCheckBox("Entire project")
+        scope_project.setChecked(True)
+        scope_selected = CheckmarkCheckBox("Selected segments only")
+        scope_selected.setEnabled(False)  # Will enable if selection exists
+        scope_selected.setChecked(False)
+        
+        # Check if we have a selection
+        selected_segments = self.get_selected_segments_from_grid() if hasattr(self, 'get_selected_segments_from_grid') else []
+        if selected_segments:
+            scope_selected.setEnabled(True)
+            scope_selected.setText(f"Selected segments only ({len(selected_segments)} selected)")
+        
+        # Make scope checkboxes mutually exclusive
+        def on_scope_project_changed(checked):
+            if checked:
+                scope_selected.setChecked(False)
+        
+        def on_scope_selected_changed(checked):
+            if checked:
+                scope_project.setChecked(False)
+        
+        scope_project.toggled.connect(on_scope_project_changed)
+        scope_selected.toggled.connect(on_scope_selected_changed)
+        
+        scope_layout.addWidget(scope_project)
+        scope_layout.addWidget(scope_selected)
+        layout.addWidget(scope_group)
+        
+        # Status filter group
+        status_group = QGroupBox("Status of segments to send")
+        status_layout = QGridLayout(status_group)
+        
+        # Import status definitions
+        from modules.statuses import STATUSES
+        
+        # Create checkboxes for each status
+        status_checkboxes = {}
+        statuses_to_show = [
+            ("confirmed", "Confirmed", True),       # Default checked
+            ("tr_confirmed", "TR Confirmed", True), # Default checked
+            ("translated", "Translated", False),
+            ("proofread", "Proofread", True),       # Default checked
+            ("approved", "Approved", True),         # Default checked
+            ("pretranslated", "Pre-translated", False),
+        ]
+        
+        row = 0
+        col = 0
+        for status_key, status_label, default_checked in statuses_to_show:
+            status_def = STATUSES.get(status_key)
+            if status_def:
+                cb = CheckmarkCheckBox(f"{status_def.icon} {status_label}")
+                cb.setChecked(default_checked)
+                status_checkboxes[status_key] = cb
+                status_layout.addWidget(cb, row, col)
+                col += 1
+                if col >= 2:
+                    col = 0
+                    row += 1
+        
+        # Add "All statuses" checkbox
+        all_statuses_cb = CheckmarkCheckBox("All statuses (with translation)")
+        all_statuses_cb.setChecked(False)
+        
+        def on_all_statuses_changed(checked):
+            for cb in status_checkboxes.values():
+                cb.setEnabled(not checked)
+        
+        all_statuses_cb.toggled.connect(on_all_statuses_changed)
+        status_layout.addWidget(all_statuses_cb, row + 1, 0, 1, 2)
+        
+        layout.addWidget(status_group)
+        
+        # Target TM group
+        tm_group = QGroupBox("Target Translation Memory")
+        tm_layout = QVBoxLayout(tm_group)
+        
+        tm_combo = QComboBox()
+        for tm in writable_tms:
+            entry_count = tm.get('entry_count', 0)
+            tm_combo.addItem(f"{tm['name']} ({entry_count} entries)", tm['id'])
+        
+        tm_layout.addWidget(tm_combo)
+        
+        # Note about multiple writable TMs
+        if len(writable_tms) > 1:
+            multi_note = QLabel(
+                f"ℹ️ {len(writable_tms)} writable TMs available. Select which one to send segments to."
+            )
+            multi_note.setStyleSheet("color: #2196F3; font-size: 10px;")
+            tm_layout.addWidget(multi_note)
+        
+        layout.addWidget(tm_group)
+        
+        # Options group
+        options_group = QGroupBox("Options")
+        options_layout = QVBoxLayout(options_group)
+        
+        overwrite_cb = CheckmarkCheckBox("Update existing entries (overwrite if source matches)")
+        overwrite_cb.setChecked(True)
+        overwrite_cb.setToolTip("If a segment with the same source text exists, update its target.")
+        options_layout.addWidget(overwrite_cb)
+        
+        skip_empty_cb = CheckmarkCheckBox("Skip segments with empty translations")
+        skip_empty_cb.setChecked(True)
+        options_layout.addWidget(skip_empty_cb)
+        
+        layout.addWidget(options_group)
+        
+        # Preview section
+        preview_group = QGroupBox("Preview")
+        preview_layout = QVBoxLayout(preview_group)
+        preview_label = QLabel("Click 'Preview' to see how many segments will be sent.")
+        preview_label.setStyleSheet("color: #888;")
+        preview_layout.addWidget(preview_label)
+        
+        def update_preview():
+            # Count matching segments
+            segments_to_check = selected_segments if scope_selected.isChecked() else self.current_project.segments
+            
+            matching = 0
+            for seg in segments_to_check:
+                # Check if has translation
+                if skip_empty_cb.isChecked() and not seg.target.strip():
+                    continue
+                
+                # Check status
+                if all_statuses_cb.isChecked():
+                    if seg.target.strip():  # Has any translation
+                        matching += 1
+                else:
+                    for status_key, cb in status_checkboxes.items():
+                        if cb.isChecked() and seg.status == status_key:
+                            matching += 1
+                            break
+            
+            preview_label.setText(f"✓ {matching} segment(s) will be sent to TM")
+            preview_label.setStyleSheet("color: #2e7d32; font-weight: bold;")
+        
+        preview_btn = QPushButton("Preview")
+        preview_btn.clicked.connect(update_preview)
+        preview_layout.addWidget(preview_btn)
+        
+        layout.addWidget(preview_group)
+        
+        # Buttons
+        layout.addStretch()
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        buttons.button(QDialogButtonBox.StandardButton.Ok).setText("Send to TM")
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+        
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        
+        # Perform the operation
+        target_tm_id = tm_combo.currentData()
+        target_tm_name = tm_combo.currentText()
+        
+        segments_to_check = selected_segments if scope_selected.isChecked() else self.current_project.segments
+        
+        sent_count = 0
+        skipped_count = 0
+        error_count = 0
+        
+        # Get language codes
+        source_lang = self.current_project.source_lang or "en"
+        target_lang = self.current_project.target_lang or "nl"
+        
+        self.status_bar.showMessage(f"Sending segments to TM '{target_tm_name}'...")
+        QApplication.processEvents()
+        
+        for seg in segments_to_check:
+            try:
+                # Check if has translation
+                if skip_empty_cb.isChecked() and not seg.target.strip():
+                    skipped_count += 1
+                    continue
+                
+                # Check status
+                should_send = False
+                if all_statuses_cb.isChecked():
+                    if seg.target.strip():
+                        should_send = True
+                else:
+                    for status_key, cb in status_checkboxes.items():
+                        if cb.isChecked() and seg.status == status_key:
+                            should_send = True
+                            break
+                
+                if not should_send:
+                    skipped_count += 1
+                    continue
+                
+                # Strip formatting tags for TM (store clean text)
+                source_clean = strip_formatting_tags(seg.source) if has_formatting_tags(seg.source) else seg.source
+                target_clean = strip_formatting_tags(seg.target) if has_formatting_tags(seg.target) else seg.target
+                
+                # Add to TM using the correct method
+                try:
+                    self.tm_database.add_entry(
+                        source=source_clean,
+                        target=target_clean,
+                        tm_id=target_tm_id
+                    )
+                    sent_count += 1
+                except Exception as add_error:
+                    self.log(f"⚠ Failed to add segment {seg.id}: {add_error}")
+                    error_count += 1
+                    
+            except Exception as e:
+                error_count += 1
+                self.log(f"⚠ Error sending segment {seg.id} to TM: {e}")
+        
+        # Update TM entry count in metadata
+        if hasattr(self, 'tm_metadata_mgr') and self.tm_metadata_mgr:
+            try:
+                self.tm_metadata_mgr.update_entry_count(target_tm_id)
+            except Exception as e:
+                self.log(f"⚠ Could not update TM entry count: {e}")
+        
+        # Refresh TM list if visible
+        if hasattr(self, 'refresh_tm_list'):
+            try:
+                self.refresh_tm_list()
+            except:
+                pass
+        
+        # Report results
+        self.log(f"✓ Sent {sent_count} segments to TM '{target_tm_name}'")
+        if skipped_count > 0:
+            self.log(f"  Skipped: {skipped_count} (empty or non-matching status)")
+        if error_count > 0:
+            self.log(f"  Errors: {error_count}")
+        
+        self.status_bar.showMessage(f"✓ Sent {sent_count} segments to TM", 5000)
+        
+        QMessageBox.information(
+            self, "Send to TM Complete",
+            f"Sent {sent_count} segment(s) to TM '{target_tm_name}'.\n\n"
+            f"Skipped: {skipped_count}\n"
+            f"Errors: {error_count}"
+        )
     
     def _restore_active_prompt(self, prompt_type: str, prompt_name: str):
         """Restore an active prompt by name"""
@@ -22044,10 +22572,10 @@ class SupervertalerQt(QMainWindow):
                         break
     
     def show_image_extractor_from_tools(self):
-        """Show Image Extractor by switching to the Image Context tab in Translation Resources"""
-        # Switch to Translation Resources tab (main_tabs index 2)
+        """Show Image Extractor by switching to the Image Context tab in Resources"""
+        # Switch to Resources tab (main_tabs index 2)
         if hasattr(self, 'main_tabs'):
-            self.main_tabs.setCurrentIndex(2)  # Switch to Translation Resources tab
+            self.main_tabs.setCurrentIndex(2)  # Switch to Resources tab
             # Then switch to Image Context sub-tab
             if hasattr(self, 'resources_tabs'):
                 for i in range(self.resources_tabs.count()):
@@ -23652,7 +24180,7 @@ class UniversalLookupTab(QWidget):
             
             if not writable_termbases:
                 QMessageBox.warning(self, "No Writable Termbases", 
-                    "No writable termbases found. Please enable Write for at least one termbase in Translation Resources → Termbases.")
+                    "No writable termbases found. Please enable Write for at least one termbase in Resources → Termbases.")
                 return
             
             for tb in writable_termbases:
