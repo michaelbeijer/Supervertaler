@@ -303,7 +303,7 @@ class TMMetadataManager:
     def is_tm_active(self, tm_db_id: int, project_id: Optional[int]) -> bool:
         """Check if a TM is active for a project"""
         if project_id is None:
-            return True  # If no project, consider all TMs active
+            return False  # If no project, default to inactive
         
         try:
             cursor = self.db_manager.cursor
@@ -317,11 +317,11 @@ class TMMetadataManager:
             if row:
                 return bool(row[0])
             
-            # If no activation record exists, TM is active by default
-            return True
+            # If no activation record exists, TM is inactive by default
+            return False
         except Exception as e:
             self.log(f"✗ Error checking TM activation: {e}")
-            return True
+            return False
     
     def get_active_tm_ids(self, project_id: Optional[int]) -> List[str]:
         """

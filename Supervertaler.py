@@ -4878,9 +4878,9 @@ class SupervertalerQt(QMainWindow):
                 # Check if active (Read mode) for current project  
                 # Default: not activated (Read unchecked)
                 is_readable = tm_metadata_mgr.is_tm_active(tm['id'], refresh_project_id) if refresh_project_id else False
-                # Default: writable (Write checked) - read_only=False means writable
-                # If read_only is not set in database, treat as writable by default
-                is_writable = not tm.get('read_only', False)  # Default to False (writable) if not set
+                # Default: read-only (Write unchecked) - read_only=True means not writable
+                # If read_only is not set in database, treat as read-only by default
+                is_writable = not tm.get('read_only', True)  # Default to True (read-only) if not set
                 
                 # TM Name (bold if readable)
                 name_item = QTableWidgetItem(tm['name'])
