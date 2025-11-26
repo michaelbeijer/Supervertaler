@@ -3,8 +3,8 @@ Supervertaler Qt Edition
 ========================
 The ultimate companion tool for translators and writers.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.9.2 (Superlookup Settings UI)
-Release Date: November 25, 2025
+Version: 1.9.3 (Session Log Tab & TM Defaults Fix)
+Release Date: November 26, 2025
 Framework: PyQt6
 
 This is the modern edition of Supervertaler using PyQt6 framework.

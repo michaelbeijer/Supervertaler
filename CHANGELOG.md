@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.2 (November 25, 2025)
+**Current Version:** v1.9.3 (November 26, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -14,6 +14,7 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- 📋 **Session Log Tab & TM Defaults Fix (v1.9.3)** - Added Session Log tab to bottom panel for easy access to log messages. Fixed TM Read/Write checkbox defaults to respect project.json settings
 - ⚙️ **Superlookup Settings UI (v1.9.2)** - Redesigned Settings tab with sub-tabs for TM/Termbase/MT/Web resources. Proper 18x18px checkboxes with green background and white checkmarks matching standard Supervertaler style. Each resource type has dedicated full-height space for easy selection
 - ↩️ **Undo/Redo for Grid Edits (v1.9.1)** - Full undo/redo support for grid editing operations with Ctrl+Z/Ctrl+Y. Tracks target text changes, status changes, and find/replace operations with 100-level history
 - 🔍 **Termview - RYS-Style Inline Terminology (v1.9.0)** - Visual inline terminology display showing source words with translations underneath, inspired by RYS Trados plugin. Supports multi-word terms, click-to-insert, hover tooltips, and terms with punctuation like "gew.%"
@@ -47,6 +48,31 @@ All notable changes to Supervertaler are documented in this file.
 - 🔄 **CAT Tool Integration** - memoQ, Trados, CafeTran bilingual table support
 
 **See full version history below** ↓
+
+---
+
+## [1.9.3] - November 26, 2025
+
+### 📋 Session Log Tab & TM/Termbase Defaults Fix
+
+**Session Log Tab:**
+- Added Session Log tab to bottom panel alongside Comments and Termview
+- Real-time log display with timestamps in monospace font
+- Easy access to log messages without detaching window
+- Read-only display with automatic scrolling to latest entries
+
+**TM/Termbase Checkbox Defaults Fixed:**
+- Read checkboxes now default to unchecked (inactive) when no project loaded
+- Read checkboxes default to unchecked when no activation record exists
+- Write checkboxes default to unchecked (read-only) by default
+- All settings properly restored from project.json when project is loaded
+- Fixed `is_tm_active()` in tm_metadata_manager.py to return False by default
+
+**Quick Actions for Bulk Selection:**
+- Added "Select All Read" and "Select All Write" checkboxes above TM table
+- Added "Select All Read" and "Select All Write" checkboxes above Termbase table
+- Green checkbox for Read, blue checkbox for Write matching table style
+- Quickly activate/deactivate all resources with single click
 
 ---
 
