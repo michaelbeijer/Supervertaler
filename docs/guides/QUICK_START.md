@@ -1,6 +1,6 @@
 # Supervertaler Quick Start Guide
 
-**Version:** v1.9.5 | **Last Updated:** November 27, 2025
+**Version:** v1.9.6 | **Last Updated:** November 27, 2025
 
 Get translating in 5 minutes. This guide covers the essentials to start using Supervertaler with your CAT tool workflow.
 

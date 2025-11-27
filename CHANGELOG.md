@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.5 (November 27, 2025)
+**Current Version:** v1.9.6 (November 27, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -14,6 +14,7 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- 📁 **Custom File Extensions & Monolingual Export (v1.9.6)** - New branded file extensions: `.svproj` (projects), `.svprompt` (prompts), `.svntl` (non-translatables). All formats maintain backward compatibility. Monolingual DOCX import now prompts for language pair. New "Target Only (DOCX)" export preserves original document structure (tables, formatting). Original DOCX path saved in project files for reliable exports
 - 📤 **Send Segments to TM & memoQ Tag Shortcuts (v1.9.5)** - Bulk send translated segments to TMs via Edit > Bulk Operations. Filter by status (Translated, Reviewed, etc.) and scope. New Ctrl+, shortcut inserts memoQ tags pairs or wraps selection. Tab renamed to "Resources"
 - 🏷️ **Tag-Based Formatting System (v1.9.4)** - Complete inline formatting support for memoQ bilingual files. Import preserves bold/italic/underline as `<b>`, `<i>`, `<u>` tags. Toggle between WYSIWYG and Tag view with Ctrl+Alt+T. Ctrl+B/I/U shortcuts to apply formatting. AI translation preserves tags. Export converts tags back to Word formatting
 - 📋 **Session Log Tab & TM Defaults Fix (v1.9.3)** - Added Session Log tab to bottom panel for easy access to log messages. Fixed TM Read/Write checkbox defaults to respect project.json settings
@@ -91,6 +92,43 @@ All notable changes to Supervertaler are documented in this file.
 - `strip_formatting_tags()` - Remove tags for plain text
 - `has_formatting_tags()` - Check if text contains formatting tags
 - `get_formatted_html_display()` - Convert tags to HTML for WYSIWYG display
+
+---
+
+## [1.9.6] - November 27, 2025
+
+### 📁 Custom File Extensions & Monolingual Export
+
+**New Branded File Extensions:**
+- **Projects:** `.svproj` (was `.json`) - Supervertaler Project files
+- **Prompts:** `.svprompt` (was `.md`/`.json`) - Supervertaler Prompt files  
+- **Non-Translatables:** `.svntl` (was `.ntl`) - Supervertaler Non-Translatable lists
+- All formats maintain full backward compatibility - opens legacy files seamlessly
+- New files created with branded extensions for professional consistency
+- Industry standards retained: `.tmx` for TM exports, `.srx` planned for segmentation
+
+**Monolingual DOCX Import Improvements:**
+- Language pair selection dialog when importing monolingual DOCX files
+- Dropdown selectors for source and target language (12 languages supported)
+- Prevents language detection issues - user explicitly sets translation direction
+- Removed unreliable auto-detect language feature
+
+**Target-Only DOCX Export:**
+- New **Export > Target Only (DOCX)...** menu option for monolingual exports
+- Preserves original document structure (tables, formatting, styles, headers)
+- Copies original DOCX as template before replacing text
+- Replaces text in both paragraphs and table cells
+- Falls back gracefully if original document unavailable
+
+**Project Persistence:**
+- Original DOCX path now saved in project files (`original_docx_path`)
+- Path restored when reopening projects for reliable exports
+- Enables structure-preserving exports even after closing and reopening
+
+**Documentation Updates:**
+- New modular documentation: QUICK_START.md, KEYBOARD_SHORTCUTS.md, CAT_WORKFLOW.md
+- Archived legacy USER_GUIDE.md and INSTALLATION.md
+- FAQ.md copied to repository root (fixes dead link)
 
 ---
 

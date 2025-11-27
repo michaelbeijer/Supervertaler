@@ -1,10 +1,10 @@
-"""
+"""   
 Supervertaler Qt Edition
 ========================
 The ultimate companion tool for translators and writers.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.9.4 (Tag-Based Formatting System)
-Release Date: November 26, 2025
+Version: 1.9.6 (Custom File Extensions & Monolingual Export)
+Release Date: November 27, 2025
 Framework: PyQt6
 
 This is the modern edition of Supervertaler using PyQt6 framework.
@@ -32,7 +32,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.5"
+__version__ = "1.9.6"
 __phase__ = "0.9"
 __release_date__ = "2025-11-27"
 __edition__ = "Qt"

@@ -1302,3 +1302,147 @@ Choice[0] message.role: assistant
 Choice[0] message.content type: <class 'str'>
 Choice[0] message.content value: '1. Basic Python Programming Course'
 Choice[0] message.refusal: None
+
+============================================================
+[2025-11-27 00:49:46.170668] OpenAI API Call
+Model: gpt-4o
+Prompt length: 15729 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: "I'm sorry, but I can't assist with that request."
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-27 00:49:51.160839] OpenAI API Call
+Model: gpt-4o
+Prompt length: 19260 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '101. Ander familielid  \n102. Ander niet-familielid  \n103. Zelf  \n104. Anders  \n105. Wat was het geslacht van de primaire ontvanger?  \n106. Mannelijk  \n107. Vrouwelijk  \n108. Meerdere ontvanger
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-27 00:50:17.396492] OpenAI API Call
+Model: gpt-4o
+Prompt length: 21098 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '201. De selectie van speelgoed/spellen is beter online  \n202. Ik vond de beschikbare bezorgopties prettig  \n203. Prijzen waren beter online  \n204. Klantenservice was beschikbaar indien nodig  \n20
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-27 00:50:44.177454] OpenAI API Call
+Model: gpt-4o
+Prompt length: 13777 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: "```plaintext\n301. Niet aan LEGO gedacht\n302. Geef de voorkeur aan andere merken\n303. Hoeveel heeft u uitgegeven aan de \\[pipe: MRK_PRODUCTB]?\n304. Was de \\[pipe: MRK_PRODUCTB] in de aanbieding 
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-27 00:51:10.792811] OpenAI API Call
+Model: gpt-4o
+Prompt length: 18464 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: "I'm sorry, but it seems there was a misunderstanding. The text you provided is in English, and you mentioned that I should translate from Dutch to English. Could you please provide the Dutch text tha
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-27 01:04:54.054539] OpenAI API Call
+Model: gpt-4o
+Prompt length: 15718 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: "1. Laden...\n2. Volgende\n3. Gelieve de gemarkeerde opties niet samen te selecteren.\n4. Laat deze enquête invullen door de persoon in uw huishouden die als laatste speelgoed of spellen heeft gekocht
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-27 01:05:17.918754] OpenAI API Call
+Model: gpt-4o
+Prompt length: 20634 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '101. Ander familielid  \n102. Ander niet-familielid  \n103. Zelf  \n104. Anders  \n105. Wat was het geslacht van de primaire ontvanger?  \n106. Mannelijk  \n107. Vrouwelijk  \n108. Meerdere ontvanger
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-27 01:05:43.689145] OpenAI API Call
+Model: gpt-4o
+Prompt length: 21084 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '201. De selectie van speelgoed/spellen is beter online  \n202. Ik vond de beschikbare bezorgopties prettig  \n203. Prijzen waren beter online  \n204. Klantenservice was beschikbaar indien nodig  \n20
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-27 01:06:07.414971] OpenAI API Call
+Model: gpt-4o
+Prompt length: 13780 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: "301. Niet aan LEGO gedacht  \n302. Geef de voorkeur aan andere merken  \n303. Hoeveel heeft u uitgegeven aan de \\[pipe: MRK_PRODUCTB]?  \n304. Was de \\[pipe: MRK_PRODUCTB] in de aanbieding of onder
+Choice[0] message.refusal: None

@@ -2,7 +2,7 @@
 
 🎯 **The Ultimate Companion Tool for Translators and Writers** — Context-aware AI with intuitive 2-Layer Prompt Architecture, AI Assistant, project termbase system with automatic extraction, and specialized modules.
 
-**Current Version:** v1.9.5 (November 27, 2025)
+**Current Version:** v1.9.6 (November 27, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -19,7 +19,6 @@
 | **[Changelog](CHANGELOG.md)** | Version history and recent features |
 
 ### Additional Resources
-- **[Installation Guide](docs/guides/INSTALLATION.md)** — Detailed setup instructions
 - **[Project Context](docs/PROJECT_CONTEXT.md)** — Complete project reference
 - **[Architecture](docs/ARCHITECTURE.md)** — System design
 - **[Legacy Versions](legacy_versions/LEGACY_VERSIONS.md)** — Historical information
@@ -32,12 +31,11 @@
 python Supervertaler.py
 ```
 
-**NEW in v1.7.0 - Project Termbases with Automatic Extraction:**
-- 📌 **Project Termbase System** - Dedicated project-specific termbase (one per project) + multiple background termbases
-- 🔍 **Automatic Term Extraction** - Extract terminology from project source segments with smart frequency analysis
-- 🎨 **Pink Highlighting** - Project termbase matches highlighted in light pink in grid and results panel
-- 🧠 **Smart Algorithm** - N-gram extraction with scoring based on frequency, capitalization, special characters
-- 🌐 **Multi-Language** - Built-in stop words for English, Dutch, German, French, Spanish
+**NEW in v1.9.6 - Custom File Extensions & Monolingual Export:**
+- 📁 **Branded Extensions** - `.svproj` (projects), `.svprompt` (prompts), `.svntl` (non-translatables)
+- 🌐 **Language Selection** - Monolingual DOCX import now prompts for source/target languages
+- 📤 **Target-Only Export** - Export translated content preserving original document structure
+- 💾 **Project Persistence** - Original DOCX path saved for reliable exports
 - 📊 **Preview & Configure** - Review extracted terms, adjust parameters (frequency, n-gram, language)
 - 🎯 **Visual Distinction** - Project=pink, Forbidden=black, Background=priority-based blue
 - ⚡ **One-Click Extraction** - Extract Terms button in Termbases tab (enabled when project loaded)

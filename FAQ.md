@@ -1,6 +1,6 @@
 # Supervertaler - Frequently Asked Questions
 
-**Current Version:** v1.9.5 (November 27, 2025)  
+**Current Version:** v1.9.6 (November 27, 2025)  
 **Framework:** PyQt6  
 **Last Updated:** November 27, 2025
 
@@ -197,16 +197,31 @@ Full guide: [INSTALLATION.md](INSTALLATION.md)
 
 ## Features & Capabilities
 
-### What are the key features of v1.9.5?
+### What are the key features of v1.9.6?
 
-**📤 Send Segments to TM (NEW in v1.9.5)**
+**📁 Custom File Extensions (NEW in v1.9.6)**
+- Branded file extensions: `.svproj` (projects), `.svprompt` (prompts), `.svntl` (non-translatables)
+- Full backward compatibility - opens legacy `.json`, `.md`, `.ntl` files
+- Industry standards retained: `.tmx` for TM exports
+
+**🌐 Monolingual DOCX Import (NEW in v1.9.6)**
+- Language pair selection dialog when importing monolingual DOCX files
+- Explicitly set source and target languages (12 languages supported)
+- No more unreliable auto-detection
+
+**📤 Target-Only DOCX Export (NEW in v1.9.6)**
+- Export > Target Only (DOCX)... preserves original document structure
+- Tables, formatting, styles, headers/footers all preserved
+- Original DOCX path saved in project for reliable exports
+
+**📤 Send Segments to TM (v1.9.5)**
 - Bulk send translated segments to Translation Memories
 - Access via Edit > Bulk Operations > Send Segments to TM
 - Filter by scope: All segments, Current selection, or row range
 - Filter by status: Translated, Reviewed, Approved, Needs Review, Final
 - Select multiple TMs to write to simultaneously
 
-**🏷️ memoQ Tag Shortcuts (NEW in v1.9.5)**
+**🏷️ memoQ Tag Shortcuts (v1.9.5)**
 - **Ctrl+,** - Insert next memoQ tag pair or wrap selection with tags
 - Smart detection of memoQ tags from source: `[1}`, `{1]`, `[3]`, etc.
 - With selection: Wraps text with next unused tag pair
