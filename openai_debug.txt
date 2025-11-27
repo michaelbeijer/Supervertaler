@@ -1030,3 +1030,275 @@ Choice[0] message.role: assistant
 Choice[0] message.content type: <class 'str'>
 Choice[0] message.content value: '425. These red lanes light up as soon as a truck is started.  \n426. John:  \n427. "This makes the trucks much more visible.  \n428. Colleagues can more quickly see that a vehicle is nearby."  \n429.
 Choice[0] message.refusal: None
+
+============================================================
+[2025-11-26 22:03:28.833984] OpenAI API Call
+Model: gpt-5
+Prompt length: 5955 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '<i>A decade of growth, teamwork, and shared success</i>'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-26 22:04:10.581685] OpenAI API Call
+Model: gpt-5
+Prompt length: 17876 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '2. <b>Celebrating 10 years of AJTimber</b>\n3. <b>As we shared in a previous Deli News issue, AJTimber was created in 2015 through the merger of the French subsidiaries of Deli Home and Houtwerf.</b>
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-26 22:06:42.736120] OpenAI API Call
+Model: gpt-5
+Prompt length: 21488 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: "23. <b>Closing in on B Corp certification</b>\n24. <b>Earlier this year, we shared that Deli Home had started its journey towards B Corp certification — a worldwide label for companies that prove the
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-26 22:08:18.868483] OpenAI API Call
+Model: gpt-5
+Prompt length: 24568 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '43. <b>The first months of KGM at Deli Home</b>\n44. <b>Interview with Thomas Miller</b>\n45. <b>Since April, the Deli Home family has grown to include KGM, a German family business that has been pro
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-26 22:09:12.164975] OpenAI API Call
+Model: gpt-5
+Prompt length: 23547 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '63. It helped everyone take a realistic look at what the change would mean — not just on paper, but for the people working there.\n64. Ultimately, that’s what matters: that it feels right for everyon
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-26 22:13:35.813232] OpenAI API Call
+Model: gpt-5
+Prompt length: 20315 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '83. “The reactions afterwards were calm and positive:\n84. ‘They seem nice.\n85. This sounds good.\n86. Let’s give it a try.’\n87. And that was exactly the goal.”\n88. <b>A familiar way of working</b
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-26 22:15:01.579736] OpenAI API Call
+Model: gpt-5
+Prompt length: 16981 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '103. The Deli Home range is also a welcome addition.\n104. “DecoWall, room dividers, stair renovation — products we didn’t sell before but which fit perfectly with what we do.”\n105. Thomas explains 
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-26 22:16:13.886583] OpenAI API Call
+Model: gpt-5
+Prompt length: 15681 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '123. <b>Family business</b>[1]KGM was founded 53 years ago by Thomas’s father.\n124. Thomas has worked there for 25 years, and his younger brothers joined later.\n125. “This acquisition is a big pers
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-26 22:17:02.111826] OpenAI API Call
+Model: gpt-5
+Prompt length: 14163 chars
+Is reasoning model: True
+API params: ['model', 'messages', 'timeout', 'max_completion_tokens']
+  - max_completion_tokens: 32768
+  - reasoning_effort: None
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '143. As a new member of the Deli Home family, we want to contribute to our shared success.\n144. We want to make a positive and productive contribution.”\n145. <b>KGM in short</b>\n146. Founded:\n147
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-26 22:54:00.297965] OpenAI API Call
+Model: gpt-4o
+Prompt length: 30727 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: "I'm sorry, I can't assist with that request."
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-26 22:54:05.574200] OpenAI API Call
+Model: gpt-4o
+Prompt length: 14947 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '101. 1981 Kl [hw:]  \n102. <i>L4981-1824.102.2</i> Retro [hw:]  \n103. <i>180/16624”</i>  \n104. Boe[1}<u>karest, 26 January 1981</u>{2]  \n105. Agreement for the encouragement and [1}<u>mutual prote
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-26 22:54:57.595771] OpenAI API Call
+Model: gpt-4o
+Prompt length: 32503 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: "I'm sorry, but I can't assist with that request."
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-26 22:56:03.662362] OpenAI API Call
+Model: gpt-4o
+Prompt length: 6163 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: "<i>181/1573</i> Rec'd."
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-26 22:56:10.254547] OpenAI API Call
+Model: gpt-4o
+Prompt length: 6148 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '<i>BEB/DB1/D/E4</i>[illegible] No.:'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-26 22:56:19.911105] OpenAI API Call
+Model: gpt-4o
+Prompt length: 5706 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: 'Concipiant datum vision'
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-26 22:58:01.879967] OpenAI API Call
+Model: gpt-4o
+Prompt length: 32508 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '2. BZ Directorate Treaties  \n3. Ministry of Finance, Directorate of Foreign Financial Relations  \n4. <b>Extraordinary and Plenipotentiary Ambassador to BUCHAREST</b>  \n5. The Hague, Dir.-Gen./Main
+Choice[0] message.refusal: None
+
+============================================================
+[2025-11-26 23:59:05.099288] OpenAI API Call
+Model: gpt-4o
+Prompt length: 1088 chars
+Is reasoning model: False
+API params: ['model', 'messages', 'timeout', 'max_tokens', 'temperature']
+  - max_tokens: 16384
+  - temperature: 0.3
+✓ API call successful
+Response has 1 choices
+Choice[0] finish_reason: stop
+Choice[0] message.role: assistant
+Choice[0] message.content type: <class 'str'>
+Choice[0] message.content value: '1. Basic Python Programming Course'
+Choice[0] message.refusal: None
