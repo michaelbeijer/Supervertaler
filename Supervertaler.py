@@ -6505,7 +6505,7 @@ class SupervertalerQt(QMainWindow):
         return 'cancel'
     
     def export_target_only_docx(self):
-        """Export target text only as a monolingual DOCX document"""
+        """Export target text only as a monolingual DOCX document, preserving original formatting"""
         try:
             if not self.current_project or not self.current_project.segments:
                 QMessageBox.warning(self, "No Project", "Please open a project with segments first")
@@ -6555,35 +6555,89 @@ class SupervertalerQt(QMainWindow):
                 file_path += '.docx'
             
             from docx import Document
-            from docx.shared import Pt
+            import shutil
             
-            # Create new document
-            doc = Document()
+            # Check if we have the original document to use as template
+            original_path = getattr(self, 'original_docx', None) or getattr(self, 'current_document_path', None)
             
-            # Add each segment's target (or source if no target)
-            for seg in segments:
-                text = seg.target.strip() if seg.target and seg.target.strip() else seg.source
+            if original_path and os.path.exists(original_path):
+                # Copy original document and replace text - preserves all formatting
+                self.log(f"Using original document as template: {os.path.basename(original_path)}")
+                shutil.copy2(original_path, file_path)
                 
-                # Create paragraph with appropriate style based on segment style
-                para = doc.add_paragraph()
+                doc = Document(file_path)
                 
-                # Try to apply heading style if segment has heading style
-                if hasattr(seg, 'style') and seg.style:
-                    style_lower = seg.style.lower()
-                    if 'heading 1' in style_lower:
-                        para.style = 'Heading 1'
-                    elif 'heading 2' in style_lower:
-                        para.style = 'Heading 2'
-                    elif 'heading 3' in style_lower:
-                        para.style = 'Heading 3'
-                    elif 'title' in style_lower:
-                        para.style = 'Title'
+                # Build a mapping of source text to target text
+                text_map = {}
+                for seg in segments:
+                    source = seg.source.strip()
+                    target = seg.target.strip() if seg.target and seg.target.strip() else source
+                    if source:
+                        text_map[source] = target
                 
-                # Add the text
-                para.add_run(text)
-            
-            # Save document
-            doc.save(file_path)
+                replaced_count = 0
+                
+                # Replace text in paragraphs (outside tables)
+                for para in doc.paragraphs:
+                    para_text = para.text.strip()
+                    if para_text in text_map:
+                        # Clear existing runs and add new text
+                        target_text = text_map[para_text]
+                        if para.runs:
+                            # Keep first run's formatting, clear others
+                            first_run = para.runs[0]
+                            for run in para.runs[1:]:
+                                run.clear()
+                            first_run.text = target_text
+                        else:
+                            para.add_run(target_text)
+                        replaced_count += 1
+                
+                # Replace text in tables
+                for table in doc.tables:
+                    for row in table.rows:
+                        for cell in row.cells:
+                            for para in cell.paragraphs:
+                                para_text = para.text.strip()
+                                if para_text in text_map:
+                                    target_text = text_map[para_text]
+                                    if para.runs:
+                                        first_run = para.runs[0]
+                                        for run in para.runs[1:]:
+                                            run.clear()
+                                        first_run.text = target_text
+                                    else:
+                                        para.add_run(target_text)
+                                    replaced_count += 1
+                
+                doc.save(file_path)
+                self.log(f"✓ Replaced {replaced_count} text segments in original document structure")
+                
+            else:
+                # No original document - create simple paragraph-based export
+                self.log("No original document found - creating new document (formatting may differ)")
+                
+                doc = Document()
+                
+                for seg in segments:
+                    text = seg.target.strip() if seg.target and seg.target.strip() else seg.source
+                    para = doc.add_paragraph()
+                    
+                    # Try to apply heading style if segment has heading style
+                    if hasattr(seg, 'style') and seg.style:
+                        style_lower = seg.style.lower()
+                        if 'heading 1' in style_lower:
+                            para.style = 'Heading 1'
+                        elif 'heading 2' in style_lower:
+                            para.style = 'Heading 2'
+                        elif 'heading 3' in style_lower:
+                            para.style = 'Heading 3'
+                        elif 'title' in style_lower:
+                            para.style = 'Title'
+                    
+                    para.add_run(text)
+                
+                doc.save(file_path)
             
             self.log(f"✓ Exported {len(segments)} segments to: {os.path.basename(file_path)}")
             
