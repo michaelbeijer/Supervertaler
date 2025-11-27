@@ -2,7 +2,7 @@
 
 🎯 **The Ultimate Companion Tool for Translators and Writers** — Context-aware AI with intuitive 2-Layer Prompt Architecture, AI Assistant, project termbase system with automatic extraction, and specialized modules.
 
-**Current Version:** v1.9.3 (November 26, 2025)
+**Current Version:** v1.9.5 (November 27, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -10,15 +10,19 @@
 
 ## 📚 Documentation
 
-**⭐ START HERE:** [PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md) — Complete project reference  
-**📝 Release Info:** [CHANGELOG.md](CHANGELOG.md) — Complete version history and recent highlights
+| Guide | Description |
+|-------|-------------|
+| **[Quick Start](docs/guides/QUICK_START.md)** | Get translating in 5 minutes |
+| **[CAT Workflow](docs/guides/CAT_WORKFLOW.md)** | memoQ, Trados, CafeTran integration |
+| **[Keyboard Shortcuts](docs/guides/KEYBOARD_SHORTCUTS.md)** | Complete shortcut reference |
+| **[FAQ](FAQ.md)** | Common questions answered |
+| **[Changelog](CHANGELOG.md)** | Version history and recent features |
 
-### Resources
-- **Changelog:** [CHANGELOG.md](CHANGELOG.md) — Version history
-- **Legacy Versions:** [legacy_versions/LEGACY_VERSIONS.md](legacy_versions/LEGACY_VERSIONS.md) — Historical information
-- **Architecture:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — System design
-- **Database Schema:** [docs/DATABASE.md](docs/DATABASE.md) — Data structure
-- **Quick Start:** [docs/QUICK_START.md](docs/QUICK_START.md) — Getting started
+### Additional Resources
+- **[Installation Guide](docs/guides/INSTALLATION.md)** — Detailed setup instructions
+- **[Project Context](docs/PROJECT_CONTEXT.md)** — Complete project reference
+- **[Architecture](docs/ARCHITECTURE.md)** — System design
+- **[Legacy Versions](legacy_versions/LEGACY_VERSIONS.md)** — Historical information
 
 ---
 
