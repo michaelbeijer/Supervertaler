@@ -32,7 +32,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.6"
+__version__ = "1.9.7"
 __phase__ = "0.9"
 __release_date__ = "2025-11-27"
 __edition__ = "Qt"
@@ -3651,11 +3651,19 @@ class SupervertalerQt(QMainWindow):
         import_memoq_action.triggered.connect(self.import_memoq_bilingual)
         import_menu.addAction(import_memoq_action)
         
+        import_cafetran_action = QAction("&CafeTran Bilingual Table (DOCX)...", self)
+        import_cafetran_action.triggered.connect(self.import_cafetran_bilingual)
+        import_menu.addAction(import_cafetran_action)
+        
         export_menu = file_menu.addMenu("&Export")
         
         export_memoq_action = QAction("memoQ &Bilingual Table - Translated (DOCX)...", self)
         export_memoq_action.triggered.connect(self.export_memoq_bilingual)
         export_menu.addAction(export_memoq_action)
+        
+        export_cafetran_action = QAction("&CafeTran Bilingual Table - Translated (DOCX)...", self)
+        export_cafetran_action.triggered.connect(self.export_cafetran_bilingual)
+        export_menu.addAction(export_cafetran_action)
         
         export_target_docx_action = QAction("&Target Only (DOCX)...", self)
         export_target_docx_action.triggered.connect(self.export_target_only_docx)
@@ -14809,6 +14817,213 @@ class SupervertalerQt(QMainWindow):
         # Add any remaining unformatted text
         if current_pos < len(text):
             paragraph.add_run(text[current_pos:])
+    
+    # ========================================================================
+    # CAFETRAN BILINGUAL DOCX IMPORT/EXPORT
+    # ========================================================================
+    
+    def import_cafetran_bilingual(self):
+        """Import CafeTran bilingual DOCX file (table format with pipe symbols)"""
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select CafeTran Bilingual DOCX File",
+            "",
+            "Word Documents (*.docx);;All Files (*.*)"
+        )
+        
+        if not file_path:
+            return
+        
+        try:
+            from modules.cafetran_docx_handler import CafeTranDOCXHandler
+            
+            # Check if this is a valid CafeTran bilingual DOCX
+            if not CafeTranDOCXHandler.is_cafetran_bilingual_docx(file_path):
+                QMessageBox.warning(
+                    self, "Invalid Format",
+                    "This file does not appear to be a CafeTran bilingual DOCX.\n\n"
+                    "Expected format: Table with columns ID | Source | Target | Notes | *"
+                )
+                return
+            
+            # Load the file
+            handler = CafeTranDOCXHandler()
+            if not handler.load(file_path):
+                QMessageBox.critical(
+                    self, "Error",
+                    "Failed to load CafeTran bilingual DOCX file."
+                )
+                return
+            
+            # Extract segments
+            cafetran_segments = handler.extract_source_segments()
+            
+            if not cafetran_segments:
+                QMessageBox.warning(
+                    self, "No Segments",
+                    "No segments found in the CafeTran bilingual DOCX file."
+                )
+                return
+            
+            # Convert to internal Segment format
+            segments = []
+            for i, ct_seg in enumerate(cafetran_segments):
+                segment = Segment(
+                    id=i + 1,
+                    source=ct_seg.plain_text,  # Use plain text (pipes removed) for translation
+                    target=ct_seg.target_with_pipes.replace('|', '') if ct_seg.target_with_pipes else "",
+                    status=STATUSES["pretranslated"].key if ct_seg.target_with_pipes else DEFAULT_STATUS.key,
+                    notes=ct_seg.notes,
+                )
+                segments.append(segment)
+            
+            # Store the handler and original path for round-trip export
+            self.cafetran_handler = handler
+            self.cafetran_source_file = file_path
+            
+            # Create new project
+            file_name = Path(file_path).stem
+            self.current_project = Project(
+                name=file_name,
+                segments=segments,
+                source_lang=self.source_lang_combo.currentText() if hasattr(self, 'source_lang_combo') else "en",
+                target_lang=self.target_lang_combo.currentText() if hasattr(self, 'target_lang_combo') else "nl"
+            )
+            
+            # Update UI
+            self.load_segments_to_grid()
+            self.update_segment_count()
+            
+            # Log success
+            self.log(f"✓ Imported {len(segments)} segments from CafeTran bilingual DOCX: {Path(file_path).name}")
+            
+            QMessageBox.information(
+                self, "Import Successful",
+                f"Successfully imported {len(segments)} segment(s) from CafeTran bilingual DOCX.\n\n"
+                f"File: {Path(file_path).name}\n\n"
+                f"Note: Pipe symbol formatting (|) is preserved for export.\n"
+                f"You can export back to CafeTran format after translation."
+            )
+            
+        except ImportError:
+            QMessageBox.critical(
+                self, "Missing Dependency",
+                "The 'python-docx' library is required for CafeTran bilingual DOCX import.\n\n"
+                "Install it with: pip install python-docx"
+            )
+        except Exception as e:
+            QMessageBox.critical(self, "Import Error", f"Failed to import CafeTran bilingual DOCX:\n\n{str(e)}")
+            self.log(f"✗ CafeTran import failed: {str(e)}")
+            import traceback
+            traceback.print_exc()
+    
+    def export_cafetran_bilingual(self):
+        """Export to CafeTran bilingual DOCX format with translations"""
+        # Check if we have segments
+        if not self.current_project or not self.current_project.segments:
+            QMessageBox.warning(self, "No Data", "No segments to export")
+            return
+        
+        # Check if a CafeTran source file was imported, or prompt for it
+        if not hasattr(self, 'cafetran_source_file') or not self.cafetran_source_file:
+            # Prompt user to select the original CafeTran bilingual file
+            reply = QMessageBox.question(
+                self, "Select CafeTran Source File",
+                "To export to CafeTran format, please select the original CafeTran bilingual DOCX file.\n\n"
+                "This is the file you originally imported from CafeTran.\n\n"
+                "Would you like to select it now?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
+            
+            if reply == QMessageBox.StandardButton.Yes:
+                file_path, _ = QFileDialog.getOpenFileName(
+                    self,
+                    "Select Original CafeTran Bilingual DOCX",
+                    "",
+                    "Word Documents (*.docx);;All Files (*.*)"
+                )
+                
+                if file_path:
+                    self.cafetran_source_file = file_path
+                    self.log(f"✓ CafeTran source file set: {Path(file_path).name}")
+                    
+                    # Load the handler
+                    try:
+                        from modules.cafetran_docx_handler import CafeTranDOCXHandler
+                        self.cafetran_handler = CafeTranDOCXHandler()
+                        if not self.cafetran_handler.load(file_path):
+                            QMessageBox.critical(self, "Error", "Failed to load CafeTran source file")
+                            return
+                        self.cafetran_handler.extract_source_segments()
+                    except Exception as e:
+                        QMessageBox.critical(self, "Error", f"Failed to load CafeTran file: {str(e)}")
+                        return
+                else:
+                    self.log("Export cancelled - no source file selected")
+                    return
+            else:
+                self.log("Export cancelled")
+                return
+        
+        try:
+            from modules.cafetran_docx_handler import CafeTranDOCXHandler
+            
+            segments = list(self.current_project.segments)
+            translations = [seg.target for seg in segments]
+            
+            if not translations or all(not t.strip() for t in translations):
+                QMessageBox.warning(self, "Warning", "No translations found to export.")
+                return
+            
+            # Update the handler with translations
+            if hasattr(self, 'cafetran_handler') and self.cafetran_handler:
+                handler = self.cafetran_handler
+            else:
+                handler = CafeTranDOCXHandler()
+                if not handler.load(self.cafetran_source_file):
+                    QMessageBox.critical(self, "Error", "Failed to load CafeTran source file")
+                    return
+                handler.extract_source_segments()
+            
+            # Update target segments with translations
+            handler.update_target_segments(translations)
+            
+            # Prompt user to save the file
+            source_path = Path(self.cafetran_source_file)
+            default_name = str(source_path.parent / (source_path.stem + "_translated.docx"))
+            save_path, _ = QFileDialog.getSaveFileName(
+                self,
+                "Save CafeTran Bilingual DOCX",
+                default_name,
+                "Word Documents (*.docx);;All Files (*.*)"
+            )
+            
+            if save_path:
+                if handler.save(save_path):
+                    self.log(f"✓ Exported {len(translations)} translations to CafeTran bilingual DOCX: {Path(save_path).name}")
+                    
+                    QMessageBox.information(
+                        self, "Export Successful",
+                        f"Successfully exported {len(translations)} translation(s) to CafeTran bilingual DOCX!\n\n"
+                        f"File saved: {Path(save_path).name}\n\n"
+                        f"✓ Pipe symbol formatting preserved\n"
+                        f"✓ Table structure preserved\n\n"
+                        f"You can now import this file back into CafeTran."
+                    )
+                else:
+                    QMessageBox.critical(self, "Error", "Failed to save CafeTran bilingual DOCX")
+            
+        except ImportError:
+            QMessageBox.critical(
+                self, "Missing Dependency",
+                "The 'python-docx' library is required for CafeTran bilingual DOCX export.\n\n"
+                "Install it with: pip install python-docx"
+            )
+        except Exception as e:
+            QMessageBox.critical(self, "Export Error", f"Failed to export CafeTran bilingual DOCX:\n\n{str(e)}")
+            self.log(f"✗ CafeTran export failed: {str(e)}")
+            import traceback
+            traceback.print_exc()
     
     # ========================================================================
     # GRID MANAGEMENT

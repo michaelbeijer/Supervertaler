@@ -1,13 +1,30 @@
 # Supervertaler Project Context
 
 **Last Updated:** November 27, 2025
-**Current Version:** v1.9.6
+**Current Version:** v1.9.7
 **Repository:** https://github.com/michaelbeijer/Supervertaler
 **Maintainer:** Michael Beijer
 
 ---
 
 ## 📅 Recent Development Activity
+
+### November 27, 2025 - Version 1.9.7 Release: CafeTran Bilingual DOCX Support
+
+**🔄 CafeTran Import/Export**
+- Added full import/export support for CafeTran bilingual DOCX files
+- New menu items: Import > CafeTran Bilingual Table (DOCX)...
+- New menu items: Export > CafeTran Bilingual Table - Translated (DOCX)...
+- Preserves pipe symbol formatting markers for round-trip workflows
+- Uses existing `modules/cafetran_docx_handler.py` module
+
+**Files Changed:**
+- `Supervertaler.py` - Version bump, added menu items, added import/export methods
+- `CHANGELOG.md` - Added v1.9.7 entry
+- `docs/index.html` - Updated website version
+- `PROJECT_CONTEXT.md` - Updated with session notes
+
+---
 
 ### November 27, 2025 - Version 1.9.6 Release: Custom File Extensions & Monolingual Export
 

@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.6 (November 27, 2025)
+**Current Version:** v1.9.7 (November 27, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -14,6 +14,7 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- 🔄 **CafeTran Bilingual DOCX Support (v1.9.7)** - Full import/export support for CafeTran bilingual DOCX files. Import preserves pipe symbol formatting markers. Export writes translations back with formatting preserved. Round-trip workflow for CafeTran users
 - 📁 **Custom File Extensions & Monolingual Export (v1.9.6)** - New branded file extensions: `.svproj` (projects), `.svprompt` (prompts), `.svntl` (non-translatables). All formats maintain backward compatibility. Monolingual DOCX import now prompts for language pair. New "Target Only (DOCX)" export preserves original document structure (tables, formatting). Original DOCX path saved in project files for reliable exports
 - 📤 **Send Segments to TM & memoQ Tag Shortcuts (v1.9.5)** - Bulk send translated segments to TMs via Edit > Bulk Operations. Filter by status (Translated, Reviewed, etc.) and scope. New Ctrl+, shortcut inserts memoQ tags pairs or wraps selection. Tab renamed to "Resources"
 - 🏷️ **Tag-Based Formatting System (v1.9.4)** - Complete inline formatting support for memoQ bilingual files. Import preserves bold/italic/underline as `<b>`, `<i>`, `<u>` tags. Toggle between WYSIWYG and Tag view with Ctrl+Alt+T. Ctrl+B/I/U shortcuts to apply formatting. AI translation preserves tags. Export converts tags back to Word formatting
@@ -51,6 +52,34 @@ All notable changes to Supervertaler are documented in this file.
 - 🔄 **CAT Tool Integration** - memoQ, Trados, CafeTran bilingual table support
 
 **See full version history below** ↓
+
+---
+
+## [1.9.7] - November 27, 2025
+
+### 🔄 CafeTran Bilingual DOCX Support
+
+**Full import/export support for CafeTran bilingual table format:**
+
+**CafeTran Import:**
+- New **Import > CafeTran Bilingual Table (DOCX)...** menu option
+- Validates CafeTran bilingual format (ID | Source | Target | Notes table)
+- Extracts segments with pipe symbol formatting markers preserved
+- Converts to internal segment format for translation
+- Stores handler for round-trip export
+
+**CafeTran Export:**
+- New **Export > CafeTran Bilingual Table - Translated (DOCX)...** menu option
+- Writes translations back to Target column
+- Preserves pipe symbol formatting (bold/underline markers)
+- Maintains original table structure
+- File can be imported back into CafeTran
+
+**Technical Implementation:**
+- Uses `modules/cafetran_docx_handler.py` module
+- `CafeTranDOCXHandler` class handles file I/O
+- `FormattedSegment` class preserves pipe symbol markers
+- Red/bold formatting for pipe symbols in export
 
 ---
 
