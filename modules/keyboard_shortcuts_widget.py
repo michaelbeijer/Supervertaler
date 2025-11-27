@@ -228,6 +228,7 @@ class KeyboardShortcutsWidget(QWidget):
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.table.setSortingEnabled(True)  # Enable column sorting
         self.table.doubleClicked.connect(self.edit_selected_shortcut)
         
         # Style the table

@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.7 (November 27, 2025)
+**Current Version:** v1.9.8 (November 27, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -14,6 +14,7 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- 🔄 **CafeTran Integration & Editor Shortcuts (v1.9.8)** - Full CafeTran bilingual DOCX support with pipe symbol formatting. New Ctrl+Shift+S copies source to target. Ctrl+, inserts pipe symbols for CafeTran. Pipes highlighted in red/bold. Sortable keyboard shortcuts table. Batch size default changed to 20
 - 🔄 **CafeTran Bilingual DOCX Support (v1.9.7)** - Full import/export support for CafeTran bilingual DOCX files. Import preserves pipe symbol formatting markers. Export writes translations back with formatting preserved. Round-trip workflow for CafeTran users
 - 📁 **Custom File Extensions & Monolingual Export (v1.9.6)** - New branded file extensions: `.svproj` (projects), `.svprompt` (prompts), `.svntl` (non-translatables). All formats maintain backward compatibility. Monolingual DOCX import now prompts for language pair. New "Target Only (DOCX)" export preserves original document structure (tables, formatting). Original DOCX path saved in project files for reliable exports
 - 📤 **Send Segments to TM & memoQ Tag Shortcuts (v1.9.5)** - Bulk send translated segments to TMs via Edit > Bulk Operations. Filter by status (Translated, Reviewed, etc.) and scope. New Ctrl+, shortcut inserts memoQ tags pairs or wraps selection. Tab renamed to "Resources"

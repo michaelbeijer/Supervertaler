@@ -1,13 +1,40 @@
 # Supervertaler Project Context
 
 **Last Updated:** November 27, 2025
-**Current Version:** v1.9.7
+**Current Version:** v1.9.8
 **Repository:** https://github.com/michaelbeijer/Supervertaler
 **Maintainer:** Michael Beijer
 
 ---
 
 ## 📅 Recent Development Activity
+
+### November 27, 2025 - Version 1.9.8 Release: CafeTran Integration & Editor Shortcuts
+
+**🔄 CafeTran Enhancements**
+- Pipe symbols (|) now highlighted in red/bold in grid editor
+- Ctrl+, inserts pipe symbols for CafeTran formatting
+- Ctrl+Shift+S copies source text to target cell
+- Full round-trip workflow with CafeTran bilingual DOCX files
+
+**⌨️ Keyboard Shortcuts Improvements**
+- Keyboard shortcuts table now sortable by clicking column headers
+- Removed "Save Project As" shortcut (Ctrl+Shift+S now dedicated to copy source)
+- Fixed shortcut conflict that was intercepting editor shortcuts
+
+**⚙️ Settings Changes**
+- Batch size default changed from 100 to 20 segments per API call
+- Better balance of speed vs. cost for typical workflows
+
+**Files Changed:**
+- `Supervertaler.py` - Version bump, pipe styling, shortcuts, batch size
+- `modules/shortcut_manager.py` - Removed Save As shortcut, added editor shortcuts
+- `modules/keyboard_shortcuts_widget.py` - Added sortable columns
+- `CHANGELOG.md` - Added v1.9.8 entry
+- `docs/index.html` - Updated website version
+- `PROJECT_CONTEXT.md` - Updated with session notes
+
+---
 
 ### November 27, 2025 - Version 1.9.7 Release: CafeTran Bilingual DOCX Support
 

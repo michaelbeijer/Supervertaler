@@ -3,7 +3,7 @@ Supervertaler Qt Edition
 ========================
 The ultimate companion tool for translators and writers.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.9.6 (Custom File Extensions & Monolingual Export)
+Version: 1.9.8 (CafeTran Integration & Editor Shortcuts)
 Release Date: November 27, 2025
 Framework: PyQt6
 
@@ -32,7 +32,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.7"
+__version__ = "1.9.8"
 __phase__ = "0.9"
 __release_date__ = "2025-11-27"
 __edition__ = "Qt"
@@ -447,6 +447,27 @@ def extract_memoq_tags(text: str) -> list:
     return re.findall(pattern, text)
 
 
+def count_pipe_symbols(text: str) -> int:
+    """Count the number of CafeTran pipe symbols in text."""
+    return text.count('|')
+
+
+def get_next_pipe_count_needed(source_text: str, target_text: str) -> int:
+    """
+    Get how many more pipe symbols are needed in target to match source.
+    
+    Args:
+        source_text: Source segment text with pipe symbols
+        target_text: Current target text
+        
+    Returns:
+        Number of additional pipe symbols needed (0 if target has enough or more)
+    """
+    source_pipes = count_pipe_symbols(source_text)
+    target_pipes = count_pipe_symbols(target_text)
+    return max(0, source_pipes - target_pipes)
+
+
 def get_tag_pair(tag_number: int) -> tuple:
     """
     Get opening and closing tag pair for a given number.
@@ -756,11 +777,15 @@ class GridTextEditor(QTextEdit):
     
     def _insert_next_tag_or_wrap_selection(self):
         """
-        Insert the next memoQ tag from source, or wrap selection with tag pair.
+        Insert the next memoQ tag or CafeTran pipe symbol from source, or wrap selection.
         
         Behavior:
-        - If text is selected: Wrap it with the next available tag pair [N}selection{N]
-        - If no selection: Insert the next unused tag from source at cursor position
+        - If text is selected: Wrap it with the next available tag pair [N}selection{N] or |selection|
+        - If no selection: Insert the next unused tag/pipe from source at cursor position
+        
+        Supports:
+        - memoQ tags: [1}, {1], [2}, {2], etc.
+        - CafeTran pipe symbols: |
         
         Shortcut: Ctrl+, (comma)
         """
@@ -783,30 +808,61 @@ class GridTextEditor(QTextEdit):
         source_text = segment.source
         current_target = self.toPlainText()
         
+        # Check what type of tags are in the source
+        has_memoq_tags = bool(extract_memoq_tags(source_text))
+        has_pipe_symbols = '|' in source_text
+        
         # Check if there's a selection
         cursor = self.textCursor()
         if cursor.hasSelection():
-            # Wrap selection with tag pair
-            opening_tag, closing_tag = get_wrapping_tag_pair(source_text, current_target)
-            if opening_tag and closing_tag:
-                selected_text = cursor.selectedText()
-                wrapped_text = f"{opening_tag}{selected_text}{closing_tag}"
-                cursor.insertText(wrapped_text)
-                if hasattr(main_window, 'log'):
-                    main_window.log(f"🏷️ Wrapped selection with {opening_tag}...{closing_tag}")
-            else:
-                if hasattr(main_window, 'log'):
-                    main_window.log("⚠️ No tag pairs available from source")
+            selected_text = cursor.selectedText()
+            
+            # Try memoQ tag pair first
+            if has_memoq_tags:
+                opening_tag, closing_tag = get_wrapping_tag_pair(source_text, current_target)
+                if opening_tag and closing_tag:
+                    wrapped_text = f"{opening_tag}{selected_text}{closing_tag}"
+                    cursor.insertText(wrapped_text)
+                    if hasattr(main_window, 'log'):
+                        main_window.log(f"🏷️ Wrapped selection with {opening_tag}...{closing_tag}")
+                    return
+            
+            # Try CafeTran pipe symbols
+            if has_pipe_symbols:
+                pipes_needed = get_next_pipe_count_needed(source_text, current_target)
+                if pipes_needed >= 2:
+                    # Wrap with pipes
+                    wrapped_text = f"|{selected_text}|"
+                    cursor.insertText(wrapped_text)
+                    if hasattr(main_window, 'log'):
+                        main_window.log(f"🏷️ Wrapped selection with |...|")
+                    return
+            
+            if hasattr(main_window, 'log'):
+                main_window.log("⚠️ No tag pairs available from source")
         else:
-            # Insert next unused tag at cursor
-            next_tag = find_next_unused_tag(source_text, current_target)
-            if next_tag:
-                cursor.insertText(next_tag)
-                if hasattr(main_window, 'log'):
-                    main_window.log(f"🏷️ Inserted tag: {next_tag}")
-            else:
-                if hasattr(main_window, 'log'):
-                    main_window.log("✓ All tags from source already in target")
+            # No selection - insert next unused tag or pipe at cursor
+            
+            # Try memoQ tags first
+            if has_memoq_tags:
+                next_tag = find_next_unused_tag(source_text, current_target)
+                if next_tag:
+                    cursor.insertText(next_tag)
+                    if hasattr(main_window, 'log'):
+                        main_window.log(f"🏷️ Inserted tag: {next_tag}")
+                    return
+            
+            # Try CafeTran pipe symbols
+            if has_pipe_symbols:
+                pipes_needed = get_next_pipe_count_needed(source_text, current_target)
+                if pipes_needed > 0:
+                    cursor.insertText('|')
+                    if hasattr(main_window, 'log'):
+                        main_window.log(f"🏷️ Inserted pipe symbol (|)")
+                    return
+            
+            if hasattr(main_window, 'log'):
+                main_window.log("✓ All tags from source already in target")
 
 
 class ReadOnlyGridTextEditor(QTextEdit):
@@ -1384,7 +1440,7 @@ class ReadOnlyGridTextEditor(QTextEdit):
 
 
 class TagHighlighter(QSyntaxHighlighter):
-    """Syntax highlighter for HTML/XML tags in text editors"""
+    """Syntax highlighter for HTML/XML tags and CafeTran pipe symbols in text editors"""
     
     def __init__(self, document, tag_color='#FFB6C1'):
         super().__init__(document)
@@ -1396,6 +1452,11 @@ class TagHighlighter(QSyntaxHighlighter):
         from PyQt6.QtGui import QTextCharFormat, QColor
         self.tag_format = QTextCharFormat()
         self.tag_format.setForeground(QColor(self.tag_color))
+        
+        # CafeTran pipe symbols - red and bold like in CafeTran
+        self.pipe_format = QTextCharFormat()
+        self.pipe_format.setForeground(QColor('#FF0000'))  # Red
+        self.pipe_format.setFontWeight(700)  # Bold
     
     def set_tag_color(self, color: str):
         """Update tag highlight color"""
@@ -1413,6 +1474,11 @@ class TagHighlighter(QSyntaxHighlighter):
             start = match.start()
             length = match.end() - start
             self.setFormat(start, length, self.tag_format)
+        
+        # Match CafeTran pipe symbols (red and bold)
+        for i, char in enumerate(text):
+            if char == '|':
+                self.setFormat(i, 1, self.pipe_format)
 
 
 class EditableGridTextEditor(QTextEdit):
@@ -1637,6 +1703,12 @@ class EditableGridTextEditor(QTextEdit):
             event.accept()
             return
         
+        # Ctrl+Shift+S: Copy source text to target
+        if event.key() == Qt.Key.Key_S and event.modifiers() == (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier):
+            self._copy_source_to_target()
+            event.accept()
+            return
+        
         # Ctrl+B: Apply bold formatting to selection
         if event.key() == Qt.Key.Key_B and event.modifiers() == Qt.KeyboardModifier.ControlModifier:
             self._apply_formatting_tag('b')
@@ -1714,11 +1786,15 @@ class EditableGridTextEditor(QTextEdit):
 
     def _insert_next_tag_or_wrap_selection(self):
         """
-        Insert the next memoQ tag from source, or wrap selection with tag pair.
+        Insert the next memoQ tag or CafeTran pipe symbol from source, or wrap selection.
         
         Behavior:
-        - If text is selected: Wrap it with the next available tag pair [N}selection{N]
-        - If no selection: Insert the next unused tag from source at cursor position
+        - If text is selected: Wrap it with the next available tag pair [N}selection{N] or |selection|
+        - If no selection: Insert the next unused tag/pipe from source at cursor position
+        
+        Supports:
+        - memoQ tags: [1}, {1], [2}, {2], etc.
+        - CafeTran pipe symbols: |
         
         Shortcut: Ctrl+, (comma)
         """
@@ -1740,30 +1816,90 @@ class EditableGridTextEditor(QTextEdit):
         source_text = segment.source
         current_target = self.toPlainText()
         
+        # Check what type of tags are in the source
+        has_memoq_tags = bool(extract_memoq_tags(source_text))
+        has_pipe_symbols = '|' in source_text
+        
         # Check if there's a selection
         cursor = self.textCursor()
         if cursor.hasSelection():
-            # Wrap selection with tag pair
-            opening_tag, closing_tag = get_wrapping_tag_pair(source_text, current_target)
-            if opening_tag and closing_tag:
-                selected_text = cursor.selectedText()
-                wrapped_text = f"{opening_tag}{selected_text}{closing_tag}"
-                cursor.insertText(wrapped_text)
-                if hasattr(main_window, 'log'):
-                    main_window.log(f"🏷️ Wrapped selection with {opening_tag}...{closing_tag}")
-            else:
-                if hasattr(main_window, 'log'):
-                    main_window.log("⚠️ No tag pairs available from source")
+            selected_text = cursor.selectedText()
+            
+            # Try memoQ tag pair first
+            if has_memoq_tags:
+                opening_tag, closing_tag = get_wrapping_tag_pair(source_text, current_target)
+                if opening_tag and closing_tag:
+                    wrapped_text = f"{opening_tag}{selected_text}{closing_tag}"
+                    cursor.insertText(wrapped_text)
+                    if hasattr(main_window, 'log'):
+                        main_window.log(f"🏷️ Wrapped selection with {opening_tag}...{closing_tag}")
+                    return
+            
+            # Try CafeTran pipe symbols
+            if has_pipe_symbols:
+                pipes_needed = get_next_pipe_count_needed(source_text, current_target)
+                if pipes_needed >= 2:
+                    # Wrap with pipes
+                    wrapped_text = f"|{selected_text}|"
+                    cursor.insertText(wrapped_text)
+                    if hasattr(main_window, 'log'):
+                        main_window.log(f"🏷️ Wrapped selection with |...|")
+                    return
+            
+            if hasattr(main_window, 'log'):
+                main_window.log("⚠️ No tag pairs available from source")
         else:
-            # Insert next unused tag at cursor
-            next_tag = find_next_unused_tag(source_text, current_target)
-            if next_tag:
-                cursor.insertText(next_tag)
-                if hasattr(main_window, 'log'):
-                    main_window.log(f"🏷️ Inserted tag: {next_tag}")
-            else:
-                if hasattr(main_window, 'log'):
-                    main_window.log("✓ All tags from source already in target")
+            # No selection - insert next unused tag or pipe at cursor
+            
+            # Try memoQ tags first
+            if has_memoq_tags:
+                next_tag = find_next_unused_tag(source_text, current_target)
+                if next_tag:
+                    cursor.insertText(next_tag)
+                    if hasattr(main_window, 'log'):
+                        main_window.log(f"🏷️ Inserted tag: {next_tag}")
+                    return
+            
+            # Try CafeTran pipe symbols
+            if has_pipe_symbols:
+                pipes_needed = get_next_pipe_count_needed(source_text, current_target)
+                if pipes_needed > 0:
+                    cursor.insertText('|')
+                    if hasattr(main_window, 'log'):
+                        main_window.log(f"🏷️ Inserted pipe symbol (|)")
+                    return
+            
+            if hasattr(main_window, 'log'):
+                main_window.log("✓ All tags from source already in target")
+    
+    def _copy_source_to_target(self):
+        """
+        Copy source text to target cell.
+        
+        Shortcut: Ctrl+Shift+S
+        """
+        if not self.table or self.row < 0:
+            return
+        
+        # Navigate up to find main window
+        main_window = self.table.parent()
+        while main_window and not hasattr(main_window, 'current_project'):
+            main_window = main_window.parent()
+        
+        if not main_window or not hasattr(main_window, 'current_project'):
+            return
+        
+        if not main_window.current_project or self.row >= len(main_window.current_project.segments):
+            return
+        
+        segment = main_window.current_project.segments[self.row]
+        source_text = segment.source
+        
+        # Set the target text
+        self.setPlainText(source_text)
+        
+        if hasattr(main_window, 'log'):
+            main_window.log(f"📋 Copied source to target (segment {self.row + 1})")
 
     def _apply_formatting_tag(self, tag: str):
         """
@@ -3582,9 +3718,7 @@ class SupervertalerQt(QMainWindow):
         self.shortcut_confirm_next = QShortcut(QKeySequence("Ctrl+Return"), self)
         self.shortcut_confirm_next.activated.connect(self.confirm_and_next_unconfirmed)
         
-        # Ctrl+Shift+S - Copy source to target
-        self.shortcut_copy_source = QShortcut(QKeySequence("Ctrl+Shift+S"), self)
-        self.shortcut_copy_source.activated.connect(self.copy_source_to_grid_target)
+        # Note: Ctrl+Shift+S (Copy source to target) is handled in EditableGridTextEditor.keyPressEvent
         
         # Ctrl+K - Concordance Search
         self.shortcut_concordance = QShortcut(QKeySequence("Ctrl+K"), self)
@@ -3627,7 +3761,7 @@ class SupervertalerQt(QMainWindow):
         file_menu.addAction(save_action)
         
         save_as_action = QAction("Save &As...", self)
-        save_as_action.setShortcut(QKeySequence.StandardKey.SaveAs)
+        # No keyboard shortcut - Ctrl+Shift+S is used for Copy Source to Target in editor
         save_as_action.triggered.connect(self.save_project_as)
         file_menu.addAction(save_as_action)
         
@@ -9416,7 +9550,7 @@ class SupervertalerQt(QMainWindow):
         
         # Load current preferences
         general_prefs = self.load_general_settings()
-        batch_size = general_prefs.get('batch_size', 100)
+        batch_size = general_prefs.get('batch_size', 20)
         surrounding_segments = general_prefs.get('surrounding_segments', 5)
         use_full_context = general_prefs.get('use_full_context', True)
         auto_insert_100 = general_prefs.get('auto_insert_100', False)
@@ -9435,7 +9569,7 @@ class SupervertalerQt(QMainWindow):
         batch_size_layout.addWidget(batch_size_spin)
         batch_size_layout.addStretch()
         prefs_layout.addLayout(batch_size_layout)
-        batch_size_info = QLabel("  ⓘ Larger batches = faster but higher API cost per call. Default: 100")
+        batch_size_info = QLabel("  ⓘ Larger batches = faster but higher API cost per call. Default: 20")
         batch_size_info.setStyleSheet("font-size: 9pt; color: #666; padding-left: 20px;")
         prefs_layout.addWidget(batch_size_info)
         
@@ -14865,13 +14999,13 @@ class SupervertalerQt(QMainWindow):
                 )
                 return
             
-            # Convert to internal Segment format
+            # Convert to internal Segment format - preserve pipe symbols for round-trip
             segments = []
             for i, ct_seg in enumerate(cafetran_segments):
                 segment = Segment(
                     id=i + 1,
-                    source=ct_seg.plain_text,  # Use plain text (pipes removed) for translation
-                    target=ct_seg.target_with_pipes.replace('|', '') if ct_seg.target_with_pipes else "",
+                    source=ct_seg.source_with_pipes,  # Preserve pipe symbols for formatting
+                    target=ct_seg.target_with_pipes if ct_seg.target_with_pipes else "",
                     status=STATUSES["pretranslated"].key if ct_seg.target_with_pipes else DEFAULT_STATUS.key,
                     notes=ct_seg.notes,
                 )
@@ -14891,8 +15025,11 @@ class SupervertalerQt(QMainWindow):
             )
             
             # Update UI
+            self.project_file_path = None
+            self.project_modified = True
+            self.update_window_title()
             self.load_segments_to_grid()
-            self.update_segment_count()
+            self.initialize_tm_database()
             
             # Log success
             self.log(f"✓ Imported {len(segments)} segments from CafeTran bilingual DOCX: {Path(file_path).name}")
@@ -21968,7 +22105,7 @@ class SupervertalerQt(QMainWindow):
                 # Store provider code for MT calls
                 mt_provider_code = translation_provider_name.lower().replace(' ', '_')
 
-            batch_size = general_prefs.get('batch_size', 100)
+            batch_size = general_prefs.get('batch_size', 20)
             total_batches = (total_segments + batch_size - 1) // batch_size
 
             for batch_num in range(total_batches):

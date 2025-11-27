@@ -33,12 +33,7 @@ class ShortcutManager:
             "default": "Ctrl+S",
             "action": "save_project"
         },
-        "file_save_as": {
-            "category": "File",
-            "description": "Save Project As",
-            "default": "Ctrl+Shift+S",
-            "action": "save_project_as"
-        },
+
         "file_quit": {
             "category": "File",
             "description": "Quit Application",
@@ -344,6 +339,20 @@ class ShortcutManager:
             "description": "Add selected text to non-translatables list",
             "default": "Ctrl+Alt+N",
             "action": "add_to_non_translatables",
+            "context": "grid_editor"
+        },
+        "editor_insert_next_tag": {
+            "category": "Editor",
+            "description": "Insert next tag (memoQ/CafeTran) or wrap selection",
+            "default": "Ctrl+,",
+            "action": "insert_next_tag",
+            "context": "grid_editor"
+        },
+        "editor_copy_source_to_target": {
+            "category": "Editor",
+            "description": "Copy source text to target",
+            "default": "Ctrl+Shift+S",
+            "action": "copy_source_to_target",
             "context": "grid_editor"
         },
         
