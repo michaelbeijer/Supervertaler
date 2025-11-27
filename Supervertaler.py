@@ -585,6 +585,7 @@ class Project:
     termbase_settings: Dict[str, Any] = None  # Store activated termbase settings
     nt_settings: Dict[str, Any] = None  # Store activated non-translatables settings
     id: int = None  # Unique project ID for TM activation tracking
+    original_docx_path: str = None  # Path to original DOCX for structure-preserving export
     
     def __post_init__(self):
         if self.segments is None:
@@ -631,6 +632,9 @@ class Project:
         # Add non-translatables settings if they exist
         if hasattr(self, 'nt_settings') and self.nt_settings:
             result['nt_settings'] = self.nt_settings
+        # Add original DOCX path if it exists
+        if hasattr(self, 'original_docx_path') and self.original_docx_path:
+            result['original_docx_path'] = self.original_docx_path
         return result
     
     @classmethod
@@ -662,6 +666,9 @@ class Project:
         # Store non-translatables settings if they exist
         if 'nt_settings' in data:
             project.nt_settings = data['nt_settings']
+        # Store original DOCX path if it exists
+        if 'original_docx_path' in data:
+            project.original_docx_path = data['original_docx_path']
         return project
 
 
@@ -12794,6 +12801,16 @@ class SupervertalerQt(QMainWindow):
                     except Exception as e:
                         self.log(f"❌ Error restoring image context: {e}")
             
+            # Restore original DOCX path for structure-preserving export
+            if hasattr(self.current_project, 'original_docx_path') and self.current_project.original_docx_path:
+                docx_path = self.current_project.original_docx_path
+                if os.path.exists(docx_path):
+                    self.original_docx = docx_path
+                    self.current_document_path = docx_path
+                    self.log(f"✓ Restored original DOCX path: {Path(docx_path).name}")
+                else:
+                    self.log(f"⚠️ Original DOCX not found: {docx_path}")
+            
             self.load_segments_to_grid()
             self.initialize_tm_database()  # Initialize TM for this project
             self.update_window_title()
@@ -13564,6 +13581,11 @@ class SupervertalerQt(QMainWindow):
                         if priority is not None:
                             termbase_priorities[str(tb_id)] = priority
                     self.current_project.termbase_settings['termbase_priorities'] = termbase_priorities
+            
+            # Save original DOCX path for structure-preserving export
+            original_path = getattr(self, 'original_docx', None) or getattr(self, 'current_document_path', None)
+            if original_path and os.path.exists(original_path):
+                self.current_project.original_docx_path = original_path
             
             # FINAL DEBUG: Log segment data at the exact moment before serialization
             self.log(f"💾💾💾 FINAL DEBUG before to_dict():")
