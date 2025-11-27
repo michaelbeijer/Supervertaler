@@ -191,8 +191,8 @@ class PromptLibraryMigration:
                 count += self._migrate_folder(item, sub_dest, add_metadata)
                 continue
             
-            # Only process .md, .txt, .json files
-            if item.suffix.lower() not in ['.md', '.txt', '.json']:
+            # Only process .svprompt, .md, .txt, .json files
+            if item.suffix.lower() not in ['.svprompt', '.md', '.txt', '.json']:
                 continue
             
             try:
@@ -200,7 +200,7 @@ class PromptLibraryMigration:
                 if item.suffix.lower() == '.json':
                     count += self._migrate_json_prompt(item, destination, add_metadata)
                 else:
-                    # Copy and update metadata if needed
+                    # Copy and update metadata if needed (.svprompt, .md, .txt are all markdown-based)
                     count += self._migrate_markdown_prompt(item, destination, add_metadata)
                     
             except Exception as e:

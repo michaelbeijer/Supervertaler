@@ -131,7 +131,8 @@ class NonTranslatablesManager:
     """Manages non-translatable lists: loading, saving, searching, import/export"""
     
     # File extension for native format
-    FILE_EXTENSION = ".ntl"
+    FILE_EXTENSION = ".svntl"
+    LEGACY_EXTENSION = ".ntl"  # For backward compatibility
     
     def __init__(self, base_path: str, log_callback=None):
         """
@@ -442,7 +443,7 @@ class NonTranslatablesManager:
     
     def load_all_lists(self) -> int:
         """
-        Load all .ntl files from the base directory.
+        Load all .svntl and legacy .ntl files from the base directory.
         
         Returns:
             Number of lists loaded
@@ -450,9 +451,19 @@ class NonTranslatablesManager:
         self.lists.clear()
         count = 0
         
+        # Load new .svntl files
         for filepath in self.base_path.glob(f"*{self.FILE_EXTENSION}"):
             nt_list = self.load_list(str(filepath))
             if nt_list:
+                self.lists[nt_list.name] = nt_list
+                if nt_list.is_active:
+                    self.active_lists.append(nt_list.name)
+                count += 1
+        
+        # Also load legacy .ntl files (backward compatibility)
+        for filepath in self.base_path.glob(f"*{self.LEGACY_EXTENSION}"):
+            nt_list = self.load_list(str(filepath))
+            if nt_list and nt_list.name not in self.lists:  # Don't overwrite if already loaded
                 self.lists[nt_list.name] = nt_list
                 if nt_list.is_active:
                     self.active_lists.append(nt_list.name)

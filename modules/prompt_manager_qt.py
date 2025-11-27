@@ -1928,7 +1928,7 @@ class PromptManagerQt:
         # Create sanitized filename
         base_filename = name.lower().replace(' ', '_').replace('-', '_')
         base_filename = ''.join(c for c in base_filename if c.isalnum() or c == '_')
-        filename = f"{base_filename} (system prompt).md"
+        filename = f"{base_filename} (domain prompt).svprompt"
         
         # Check if exists
         domain_prompts_dir = self.user_data_path / "Prompt_Library" / "2_Domain_Prompts"
@@ -2008,7 +2008,7 @@ Add your translation guidelines here...
         # Create sanitized filename
         base_filename = name.lower().replace(' ', '_').replace('-', '_')
         base_filename = ''.join(c for c in base_filename if c.isalnum() or c == '_')
-        filename = f"{base_filename} (project_prompt).md"
+        filename = f"{base_filename} (project prompt).svprompt"
         
         # Check if exists
         project_dir = self.user_data_path / "Prompt_Library" / "3_Project_Prompts"
@@ -3688,11 +3688,11 @@ Format your response as:
                 "proofread_prompt": ""
             }
             
-            # Save file as Markdown
+            # Save file as Markdown (with .svprompt extension)
             try:
                 # Use prompt library's dict_to_markdown
                 domain_prompts_dir = self.user_data_path / "Prompt_Library" / "2_Domain_Prompts"
-                filename = f"{name} (domain prompt).md"
+                filename = f"{name} (domain prompt).svprompt"
                 filepath = domain_prompts_dir / filename
                 
                 self.prompt_library.dict_to_markdown(prompt_data, str(filepath))
@@ -3821,11 +3821,11 @@ Format your response as:
             
             # Sanitize filename and add descriptor
             safe_filename = "".join(c for c in name if c.isalnum() or c in (' ', '-', '_')).strip()
-            filename = f"{safe_filename} (project prompt).md"
+            filename = f"{safe_filename} (project prompt).svprompt"
             filepath = project_prompts_dir / filename
             
             try:
-                # Save as Markdown
+                # Save as Markdown (with .svprompt extension)
                 self.prompt_library.dict_to_markdown(project_data, str(filepath))
                 
                 self.log_message(f"✅ Project Prompt saved: {filename}")

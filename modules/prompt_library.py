@@ -37,8 +37,13 @@ class PromptLibrary:
     - System Prompts: Define AI role and expertise
     - Custom Instructions: Additional context and preferences
     
-    Loads JSON files from appropriate folders based on dev mode.
+    Loads prompt files from appropriate folders based on dev mode.
     """
+    
+    # File extensions
+    FILE_EXTENSION = ".svprompt"  # New Supervertaler prompt format
+    LEGACY_EXTENSIONS = [".md", ".json"]  # Backward compatibility
+    
     def __init__(self, system_prompts_dir=None, custom_instructions_dir=None, log_callback=None, domain_prompts_dir=None, project_prompts_dir=None):
         """
         Initialize the Prompt Library.
@@ -102,7 +107,7 @@ class PromptLibrary:
         return total
     
     def _load_from_directory(self, directory, prompt_type="system_prompt"):
-        """Load prompts from a specific directory (both .json and .md files)
+        """Load prompts from a specific directory (.svprompt, .md and .json files)
         
         Args:
             directory: Path to directory
@@ -126,8 +131,12 @@ class PromptLibrary:
             
             prompt_data = None
             
-            # Try Markdown first (preferred format)
-            if filename.endswith('.md'):
+            # Try .svprompt first (new format - uses markdown internally)
+            if filename.endswith('.svprompt'):
+                prompt_data = self.parse_markdown(filepath)
+            
+            # Then try Markdown (legacy)
+            elif filename.endswith('.md'):
                 prompt_data = self.parse_markdown(filepath)
                 
             # Fall back to JSON (legacy format)
@@ -411,14 +420,14 @@ class PromptLibrary:
     
     def create_new_prompt(self, name, description, domain, translate_prompt, proofread_prompt="", 
                          version="1.0", task_type="Translation", prompt_type="system_prompt"):
-        """Create a new prompt and save to JSON
+        """Create a new prompt and save as .svprompt
         
         Args:
             prompt_type: Either 'system_prompt' or 'custom_instruction'
             task_type: Type of translation task
         """
-        # Create filename from name
-        filename = name.replace(' ', '_').replace('/', '_') + '.json'
+        # Create filename from name with .svprompt extension
+        filename = name.replace(' ', '_').replace('/', '_') + '.svprompt'
         
         # Choose directory based on type
         if prompt_type == "custom_instruction":

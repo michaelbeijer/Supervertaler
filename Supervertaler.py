@@ -4365,12 +4365,12 @@ class SupervertalerQt(QMainWindow):
         self.nt_manager = NonTranslatablesManager(str(nt_path), self.log)
         
         # Try to load existing lists or convert from plain text
-        existing_ntl_files = list(nt_path.glob("*.ntl"))
-        if not existing_ntl_files:
+        existing_nt_files = list(nt_path.glob("*.svntl")) + list(nt_path.glob("*.ntl"))
+        if not existing_nt_files:
             # Check for plain text file to convert
             txt_file = nt_path / "non-translatables.txt"
             if txt_file.exists():
-                self.log("📄 Found plain text NT file, converting to .ntl format...")
+                self.log("📄 Found plain text NT file, converting to .svntl format...")
                 nt_list = self.nt_manager.load_from_plain_text(str(txt_file), "Default Non-Translatables")
                 if nt_list:
                     self.nt_manager.save_list(nt_list)
@@ -4395,7 +4395,7 @@ class SupervertalerQt(QMainWindow):
         toolbar.addWidget(new_btn)
         
         import_btn = QPushButton("📥 Import")
-        import_btn.setToolTip("Import from file (.ntl, .txt, or memoQ .mqres)")
+        import_btn.setToolTip("Import from file (.svntl, .ntl, .txt, or memoQ .mqres)")
         toolbar.addWidget(import_btn)
         
         export_btn = QPushButton("📤 Export")
@@ -4663,7 +4663,7 @@ class SupervertalerQt(QMainWindow):
             filepath, _ = QFileDialog.getOpenFileName(
                 tab, "Import Non-Translatables",
                 str(nt_path),
-                "All Supported (*.ntl *.txt *.mqres);;Supervertaler NT List (*.ntl);;Plain Text (*.txt);;memoQ Non-Translatables (*.mqres)"
+                "All Supported (*.svntl *.ntl *.txt *.mqres);;Supervertaler NT List (*.svntl *.ntl);;Plain Text (*.txt);;memoQ Non-Translatables (*.mqres)"
             )
             
             if not filepath:
@@ -4674,7 +4674,7 @@ class SupervertalerQt(QMainWindow):
             # Load based on file type
             if filepath_lower.endswith('.mqres'):
                 imported_list = self.nt_manager.import_memoq_mqres(filepath)
-            elif filepath_lower.endswith('.ntl'):
+            elif filepath_lower.endswith('.svntl') or filepath_lower.endswith('.ntl'):
                 imported_list = self.nt_manager.load_list(filepath)
             else:
                 imported_list = self.nt_manager.load_from_plain_text(filepath)
@@ -4746,8 +4746,8 @@ class SupervertalerQt(QMainWindow):
             
             filepath, selected_filter = QFileDialog.getSaveFileName(
                 tab, "Export Non-Translatables",
-                str(nt_path / f"{current_name}.ntl"),
-                "Supervertaler NT List (*.ntl);;Plain Text (*.txt)"
+                str(nt_path / f"{current_name}.svntl"),
+                "Supervertaler NT List (*.svntl);;Plain Text (*.txt)"
             )
             
             if not filepath:
@@ -12739,7 +12739,7 @@ class SupervertalerQt(QMainWindow):
         file_path, _ = fdh.get_open_file_name(
             self,
             "Open Project",
-            "JSON Files (*.json);;All Files (*.*)"
+            "Supervertaler Projects (*.svproj);;Legacy Projects (*.json);;All Files (*.*)"
         )
         
         if file_path:
@@ -13510,10 +13510,13 @@ class SupervertalerQt(QMainWindow):
         file_path, _ = fdh.get_save_file_name(
             self,
             "Save Project As",
-            "JSON Files (*.json);;All Files (*.*)"
+            "Supervertaler Projects (*.svproj);;All Files (*.*)"
         )
 
         if file_path:
+            # Ensure .svproj extension
+            if not file_path.lower().endswith('.svproj'):
+                file_path += '.svproj'
             # Update project name to match the new filename
             new_name = Path(file_path).stem
             self.current_project.name = new_name
