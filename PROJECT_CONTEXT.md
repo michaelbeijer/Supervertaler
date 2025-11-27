@@ -1,12 +1,64 @@
 # Supervertaler Project Context
 
-**Last Updated:** November 22, 2025
+**Last Updated:** November 27, 2025
+**Current Version:** v1.9.6
 **Repository:** https://github.com/michaelbeijer/Supervertaler
 **Maintainer:** Michael Beijer
 
 ---
 
 ## 📅 Recent Development Activity
+
+### November 27, 2025 - Version 1.9.6 Release: Custom File Extensions & Monolingual Export
+
+**📁 Custom File Extensions**
+- Introduced branded file extensions for Supervertaler formats:
+  - `.svproj` - Project files (was `.json`)
+  - `.svprompt` - Prompt files (was `.md`/`.json`)
+  - `.svntl` - Non-translatable lists (was `.ntl`)
+- Full backward compatibility maintained - loads all legacy formats
+- Industry standards retained: `.tmx` for TM exports, `.srx` planned for segmentation
+
+**🌐 Monolingual DOCX Import Improvements**
+- Added language pair selection dialog when importing monolingual DOCX
+- User explicitly selects source and target languages (12 languages supported)
+- Removed unreliable auto-detect language feature
+
+**📤 Target-Only DOCX Export**
+- New "Export > Target Only (DOCX)..." menu option
+- Preserves original document structure (tables, formatting, styles)
+- Copies original DOCX as template before replacing text
+- Original DOCX path saved in project files for reliable exports
+
+**📚 Documentation Reorganization**
+- Created modular docs: QUICK_START.md, KEYBOARD_SHORTCUTS.md, CAT_WORKFLOW.md
+- Archived legacy USER_GUIDE.md and INSTALLATION.md
+- Copied FAQ.md to repository root (fixed dead link)
+- Moved PROJECT_CONTEXT.md to repository root for AI agent access
+
+**Files Changed:**
+- `Supervertaler.py` - Version bump, new features, export function
+- `modules/non_translatables_manager.py` - .svntl extension
+- `modules/prompt_library.py` - .svprompt extension
+- `modules/prompt_manager_qt.py` - Updated prompt creation
+- `modules/prompt_library_migration.py` - Support new extensions
+- `docs/index.html` - Updated website
+- Various documentation files
+
+---
+
+### November 27, 2025 - Version 1.9.5 Release: Send Segments to TM & memoQ Tags
+
+**📤 Send Segments to TM (Bulk Operation)**
+- New dialog: Edit > Bulk Operations > Send Segments to TM
+- Filter by scope (all, selection, range) and status
+- Select multiple TMs to write to
+
+**🏷️ memoQ Tag Insertion Shortcut**
+- Ctrl+, inserts next memoQ tag pair or wraps selection
+- Smart tag detection from source segment
+
+---
 
 ### November 22, 2025 - Version 1.7.8 Release: Filter Highlighting Fix
 

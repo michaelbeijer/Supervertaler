@@ -19,7 +19,7 @@
 | **[Changelog](CHANGELOG.md)** | Version history and recent features |
 
 ### Additional Resources
-- **[Project Context](docs/PROJECT_CONTEXT.md)** — Complete project reference
+- **[Project Context](PROJECT_CONTEXT.md)** — Complete project reference
 - **[Architecture](docs/ARCHITECTURE.md)** — System design
 - **[Legacy Versions](legacy_versions/LEGACY_VERSIONS.md)** — Historical information
 
@@ -140,7 +140,7 @@ This repository follows a **lean structure** optimized for efficiency:
 
 ## 📖 Learn More
 
-For comprehensive project information, see [docs/PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md).
+For comprehensive project information, see [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md).
 
 ---
 
@@ -288,7 +288,7 @@ python Supervertaler.py
 
 - **Changelog**: [CHANGELOG.md](CHANGELOG.md) - Complete version history
 - **Legacy Versions**: [legacy_versions/LEGACY_VERSIONS.md](legacy_versions/LEGACY_VERSIONS.md) - Historical information
-- **Project Context**: [docs/PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md) - Complete project reference
+- **Project Context**: [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) - Complete project reference
 - **Website**: [michaelbeijer.github.io/Supervertaler](https://michaelbeijer.github.io/Supervertaler)
 
 ---
@@ -441,7 +441,7 @@ We're looking for:
 Check out:
 1. **README.md** (this file) - Overview
 2. **[CHANGELOG.md](CHANGELOG.md)** - Complete version history
-3. **[docs/PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md)** - Complete project reference
+3. **[PROJECT_CONTEXT.md](PROJECT_CONTEXT.md)** - Complete project reference
 4. **[GitHub Discussions](https://github.com/michaelbeijer/Supervertaler/discussions)** - Ask questions & share ideas
 5. **[Website Documentation](https://supervertaler.com)** - Guides and tutorials
 6. **[GitHub Issues](https://github.com/michaelbeijer/Supervertaler/issues)** - Bug reports & feature requests
