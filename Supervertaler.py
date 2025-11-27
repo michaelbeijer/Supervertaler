@@ -13775,7 +13775,55 @@ class SupervertalerQt(QMainWindow):
         info_label.setWordWrap(True)
         layout.addWidget(info_label)
 
-        layout.addSpacing(20)
+        layout.addSpacing(15)
+
+        # Language pair selection
+        lang_group = QGroupBox("Language Pair")
+        lang_layout = QHBoxLayout(lang_group)
+        
+        # Common languages for translation
+        languages = [
+            ("English", "en"),
+            ("Dutch", "nl"),
+            ("German", "de"),
+            ("French", "fr"),
+            ("Spanish", "es"),
+            ("Italian", "it"),
+            ("Portuguese", "pt"),
+            ("Polish", "pl"),
+            ("Russian", "ru"),
+            ("Chinese", "zh"),
+            ("Japanese", "ja"),
+            ("Korean", "ko"),
+        ]
+        
+        source_label = QLabel("Source:")
+        source_combo = QComboBox()
+        for name, code in languages:
+            source_combo.addItem(name, code)
+        # Default to English as source
+        source_combo.setCurrentIndex(0)
+        
+        arrow_label = QLabel(" → ")
+        arrow_label.setStyleSheet("font-weight: bold; font-size: 14px;")
+        
+        target_label = QLabel("Target:")
+        target_combo = QComboBox()
+        for name, code in languages:
+            target_combo.addItem(name, code)
+        # Default to Dutch as target
+        target_combo.setCurrentIndex(1)
+        
+        lang_layout.addWidget(source_label)
+        lang_layout.addWidget(source_combo)
+        lang_layout.addWidget(arrow_label)
+        lang_layout.addWidget(target_label)
+        lang_layout.addWidget(target_combo)
+        lang_layout.addStretch()
+        
+        layout.addWidget(lang_group)
+
+        layout.addSpacing(10)
 
         # Supercleaner option
         clean_checkbox = QCheckBox("🧹 Clean document before import (Supercleaner)")
@@ -13808,6 +13856,10 @@ class SupervertalerQt(QMainWindow):
         # Show dialog
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
+        
+        # Store selected languages for import
+        self._import_source_lang = source_combo.currentData()
+        self._import_target_lang = target_combo.currentData()
 
         # Clean document if requested
         import_path = file_path
@@ -13950,13 +14002,22 @@ class SupervertalerQt(QMainWindow):
                 segments.append(segment)
             
             # Create new project using the proper Project class
-            # Use detected language if available, otherwise use defaults
-            detected_source = detected_lang if detected_lang else getattr(self, 'source_language', 'en')
-            target_lang = getattr(self, 'target_language', 'nl')
+            # Use user-selected languages from import dialog, fall back to detected/defaults
+            if hasattr(self, '_import_source_lang') and self._import_source_lang:
+                source_lang = self._import_source_lang
+            elif detected_lang:
+                source_lang = detected_lang
+            else:
+                source_lang = getattr(self, 'source_language', 'en')
+            
+            if hasattr(self, '_import_target_lang') and self._import_target_lang:
+                target_lang = self._import_target_lang
+            else:
+                target_lang = getattr(self, 'target_language', 'nl')
             
             project = Project(
                 name=f"DOCX Import - {os.path.basename(file_path)}",
-                source_lang=detected_source,
+                source_lang=source_lang,
                 target_lang=target_lang,
                 segments=segments
             )
