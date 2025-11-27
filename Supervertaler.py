@@ -13906,11 +13906,6 @@ class SupervertalerQt(QMainWindow):
                 from modules.docx_handler import DOCXHandler
                 self.docx_handler = DOCXHandler()
             
-            # Detect document language automatically
-            detected_lang = self._detect_docx_language(file_path)
-            if detected_lang:
-                self.log(f"📍 Detected document language: {detected_lang.upper()}")
-            
             paragraphs = self.docx_handler.import_docx(file_path)
             self.original_docx = file_path
             
@@ -14002,18 +13997,9 @@ class SupervertalerQt(QMainWindow):
                 segments.append(segment)
             
             # Create new project using the proper Project class
-            # Use user-selected languages from import dialog, fall back to detected/defaults
-            if hasattr(self, '_import_source_lang') and self._import_source_lang:
-                source_lang = self._import_source_lang
-            elif detected_lang:
-                source_lang = detected_lang
-            else:
-                source_lang = getattr(self, 'source_language', 'en')
-            
-            if hasattr(self, '_import_target_lang') and self._import_target_lang:
-                target_lang = self._import_target_lang
-            else:
-                target_lang = getattr(self, 'target_language', 'nl')
+            # Use user-selected languages from import dialog
+            source_lang = getattr(self, '_import_source_lang', None) or 'en'
+            target_lang = getattr(self, '_import_target_lang', None) or 'nl'
             
             project = Project(
                 name=f"DOCX Import - {os.path.basename(file_path)}",
@@ -14044,17 +14030,11 @@ class SupervertalerQt(QMainWindow):
             if hasattr(self, 'prompt_manager_qt'):
                 self.prompt_manager_qt.refresh_context()
             
-            # Build success message with language info
-            lang_info = ""
-            if detected_lang:
-                lang_info = f"\n\n📍 Detected document language: {detected_lang.upper()}"
-                if detected_lang != 'en':
-                    lang_info += f"\n🔄 Language pair: {detected_lang.upper()} → {project.target_lang.upper()}"
-            
             QMessageBox.information(
                 self, 
                 "Import Complete", 
-                f"Successfully imported {len(segments)} segments from:\n{os.path.basename(file_path)}{lang_info}"
+                f"Successfully imported {len(segments)} segments from:\n{os.path.basename(file_path)}\n\n"
+                f"📍 Language pair: {source_lang.upper()} → {target_lang.upper()}"
             )
             
         except Exception as e:
@@ -14363,84 +14343,6 @@ class SupervertalerQt(QMainWindow):
             self.log(f"✗ memoQ import failed: {str(e)}")
             import traceback
             traceback.print_exc()
-    
-    def _detect_docx_language(self, docx_path):
-        """
-        Detect language from DOCX file metadata and content
-        Returns detected language code (e.g., 'nl', 'en') or None
-        """
-        try:
-            import zipfile
-            import xml.etree.ElementTree as ET
-            
-            languages_found = set()
-            
-            with zipfile.ZipFile(docx_path, 'r') as docx:
-                # Method 1: Check document.xml for language attributes
-                try:
-                    doc_xml = docx.read('word/document.xml')
-                    root = ET.fromstring(doc_xml)
-                    
-                    # Define XML namespace
-                    namespaces = {
-                        'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
-                    }
-                    
-                    # Look for w:lang elements with val attribute
-                    for lang_elem in root.findall('.//w:lang', namespaces):
-                        val = lang_elem.get('val')
-                        if val and val != 'none':
-                            # Extract language code (e.g., "nl-NL" -> "nl")
-                            lang_code = val.split('-')[0].lower()
-                            if len(lang_code) == 2 and lang_code.isalpha():
-                                languages_found.add(lang_code)
-                    
-                    # Look for eastAsia and bidi attributes too
-                    for lang_elem in root.findall('.//w:lang', namespaces):
-                        for attr in ['eastAsia', 'bidi']:
-                            val = lang_elem.get(attr)
-                            if val and val != 'none':
-                                lang_code = val.split('-')[0].lower()
-                                if len(lang_code) == 2 and lang_code.isalpha():
-                                    languages_found.add(lang_code)
-                                    
-                except Exception as e:
-                    self.log(f"Language detection warning (document.xml): {e}")
-                
-                # Method 2: Check settings.xml for default language
-                try:
-                    settings_xml = docx.read('word/settings.xml')
-                    root = ET.fromstring(settings_xml)
-                    
-                    namespaces = {
-                        'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
-                    }
-                    
-                    # Look for default language settings
-                    for lang_elem in root.findall('.//w:themeFontLang', namespaces):
-                        val = lang_elem.get('val')
-                        if val and val != 'none':
-                            lang_code = val.split('-')[0].lower()
-                            if len(lang_code) == 2 and lang_code.isalpha():
-                                languages_found.add(lang_code)
-                                
-                except Exception as e:
-                    self.log(f"Language detection warning (settings.xml): {e}")
-            
-            # Return the most common language found, or None if none detected
-            if languages_found:
-                # Remove 'en' if other languages are found (often default fallback)
-                if len(languages_found) > 1 and 'en' in languages_found:
-                    languages_found.discard('en')
-                
-                detected = list(languages_found)[0]  # Take first available
-                return detected
-            
-            return None
-            
-        except Exception as e:
-            self.log(f"Language detection error: {e}")
-            return None
     
     def export_memoq_bilingual(self):
         """Export to memoQ bilingual DOCX format with translations"""
