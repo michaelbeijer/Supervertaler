@@ -3650,6 +3650,10 @@ class SupervertalerQt(QMainWindow):
         export_memoq_action.triggered.connect(self.export_memoq_bilingual)
         export_menu.addAction(export_memoq_action)
         
+        export_target_docx_action = QAction("&Target Only (DOCX)...", self)
+        export_target_docx_action.triggered.connect(self.export_target_only_docx)
+        export_menu.addAction(export_target_docx_action)
+        
         export_menu.addSeparator()
         
         export_grid_action = QAction("TMX from &Grid (all segments)...", self)
@@ -6499,6 +6503,106 @@ class SupervertalerQt(QMainWindow):
                 return 'create_new'
         
         return 'cancel'
+    
+    def export_target_only_docx(self):
+        """Export target text only as a monolingual DOCX document"""
+        try:
+            if not self.current_project or not self.current_project.segments:
+                QMessageBox.warning(self, "No Project", "Please open a project with segments first")
+                return
+            
+            # Check if there are any translations
+            segments = list(self.current_project.segments)
+            translated_count = sum(1 for seg in segments if seg.target and seg.target.strip())
+            
+            if translated_count == 0:
+                QMessageBox.warning(
+                    self, "No Translations", 
+                    "No translated segments found.\n\nPlease translate some segments before exporting."
+                )
+                return
+            
+            # Warn if not all segments are translated
+            total_count = len(segments)
+            if translated_count < total_count:
+                reply = QMessageBox.question(
+                    self, "Incomplete Translation",
+                    f"Only {translated_count} of {total_count} segments are translated.\n\n"
+                    f"Untranslated segments will use source text.\n\n"
+                    f"Continue with export?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+                )
+                if reply != QMessageBox.StandardButton.Yes:
+                    return
+            
+            # Get save path
+            default_name = ""
+            if self.current_project.name:
+                default_name = self.current_project.name.replace(" ", "_") + "_translated.docx"
+            
+            file_path, _ = QFileDialog.getSaveFileName(
+                self,
+                "Export Target Only DOCX",
+                default_name,
+                "Word Documents (*.docx);;All Files (*.*)"
+            )
+            
+            if not file_path:
+                return
+            
+            # Ensure .docx extension
+            if not file_path.lower().endswith('.docx'):
+                file_path += '.docx'
+            
+            from docx import Document
+            from docx.shared import Pt
+            
+            # Create new document
+            doc = Document()
+            
+            # Add each segment's target (or source if no target)
+            for seg in segments:
+                text = seg.target.strip() if seg.target and seg.target.strip() else seg.source
+                
+                # Create paragraph with appropriate style based on segment style
+                para = doc.add_paragraph()
+                
+                # Try to apply heading style if segment has heading style
+                if hasattr(seg, 'style') and seg.style:
+                    style_lower = seg.style.lower()
+                    if 'heading 1' in style_lower:
+                        para.style = 'Heading 1'
+                    elif 'heading 2' in style_lower:
+                        para.style = 'Heading 2'
+                    elif 'heading 3' in style_lower:
+                        para.style = 'Heading 3'
+                    elif 'title' in style_lower:
+                        para.style = 'Title'
+                
+                # Add the text
+                para.add_run(text)
+            
+            # Save document
+            doc.save(file_path)
+            
+            self.log(f"✓ Exported {len(segments)} segments to: {os.path.basename(file_path)}")
+            
+            QMessageBox.information(
+                self, "Export Complete",
+                f"Successfully exported {translated_count} translated segments to:\n\n{os.path.basename(file_path)}"
+            )
+            
+        except ImportError:
+            QMessageBox.critical(
+                self, "Missing Dependency",
+                "The 'python-docx' library is required for DOCX export.\n\n"
+                "Install it with: pip install python-docx"
+            )
+        except Exception as e:
+            self.log(f"✗ Export failed: {str(e)}")
+            QMessageBox.critical(self, "Export Error", f"Failed to export DOCX:\n\n{str(e)}")
+            import traceback
+            traceback.print_exc()
     
     def export_tmx_from_grid(self):
         """Export all segments from current project grid as TMX file"""
