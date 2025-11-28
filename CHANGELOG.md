@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.8 (November 27, 2025)
+**Current Version:** v1.9.9 (November 27, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -14,6 +14,7 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- 🎨 **memoQ-style Alternating Row Colors (v1.9.9)** - Grid now displays alternating row colors across all columns (ID, Type, Source, Target) like memoQ. User-configurable colors in Settings → View Settings with even/odd row color pickers. Colors are consistent across the entire row including QTextEdit widgets
 - 🔄 **CafeTran Integration & Editor Shortcuts (v1.9.8)** - Full CafeTran bilingual DOCX support with pipe symbol formatting. New Ctrl+Shift+S copies source to target. Ctrl+, inserts pipe symbols for CafeTran. Pipes highlighted in red/bold. Sortable keyboard shortcuts table. Batch size default changed to 20
 - 🔄 **CafeTran Bilingual DOCX Support (v1.9.7)** - Full import/export support for CafeTran bilingual DOCX files. Import preserves pipe symbol formatting markers. Export writes translations back with formatting preserved. Round-trip workflow for CafeTran users
 - 📁 **Custom File Extensions & Monolingual Export (v1.9.6)** - New branded file extensions: `.svproj` (projects), `.svprompt` (prompts), `.svntl` (non-translatables). All formats maintain backward compatibility. Monolingual DOCX import now prompts for language pair. New "Target Only (DOCX)" export preserves original document structure (tables, formatting). Original DOCX path saved in project files for reliable exports
@@ -53,6 +54,51 @@ All notable changes to Supervertaler are documented in this file.
 - 🔄 **CAT Tool Integration** - memoQ, Trados, CafeTran bilingual table support
 
 **See full version history below** ↓
+
+---
+
+## [1.9.9] - November 27, 2025
+
+### 🎨 memoQ-style Alternating Row Colors
+
+**Grid now displays consistent alternating row colors across all columns:**
+
+**Visual Improvements:**
+- Even and odd rows have distinct background colors (like memoQ)
+- Color applies consistently to ID, Type, Source, and Target columns
+- Previously, Source was always gray and Target was always white - now both follow the same alternating pattern
+- Special type indicators (H1, H2, Title, li) retain their distinctive background colors
+
+**New View Settings:**
+- **Enable alternating row colors** checkbox (default: enabled)
+- **Even Row Color** picker (default: white #FFFFFF)
+- **Odd Row Color** picker (default: light gray #F0F0F0)
+- **Reset to Default Colors** button to restore defaults
+- Settings persist in ui_preferences.json
+
+**Technical Implementation:**
+- Added `set_background_color()` method to `ReadOnlyGridTextEditor` and `EditableGridTextEditor`
+- Added `_apply_row_color()` method for applying colors to individual rows
+- Added `apply_alternating_row_colors()` method for refreshing all row colors
+- Uses caching mechanism for row color settings to optimize performance
+
+---
+
+## [1.9.8] - November 27, 2025
+
+### 🔄 CafeTran Integration & Editor Shortcuts
+
+**CafeTran Formatting Support:**
+- Pipe symbols (|) now highlighted in red/bold in grid editor (like CafeTran)
+- Ctrl+, inserts pipe symbols for CafeTran formatting (or wraps selection)
+- Ctrl+Shift+S copies source text to target cell
+
+**Keyboard Shortcuts Improvements:**
+- Keyboard shortcuts table now sortable by clicking column headers
+- Removed "Save Project As" shortcut (Ctrl+Shift+S now dedicated to copy source)
+
+**Settings Changes:**
+- Batch size default changed from 100 to 20 segments per API call
 
 ---
 

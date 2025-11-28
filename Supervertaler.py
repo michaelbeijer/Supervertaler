@@ -3,7 +3,7 @@ Supervertaler Qt Edition
 ========================
 The ultimate companion tool for translators and writers.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.9.8 (CafeTran Integration & Editor Shortcuts)
+Version: 1.9.9 (memoQ-style Alternating Row Colors)
 Release Date: November 27, 2025
 Framework: PyQt6
 
@@ -32,7 +32,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.8"
+__version__ = "1.9.9"
 __phase__ = "0.9"
 __release_date__ = "2025-11-27"
 __edition__ = "Qt"
@@ -1438,6 +1438,26 @@ class ReadOnlyGridTextEditor(QTextEdit):
                     "Non-translatables functionality not available."
                 )
 
+    def set_background_color(self, color: str):
+        """Set the background color for this text editor (for alternating row colors)"""
+        self.setStyleSheet(f"""
+            QTextEdit {{
+                border: none;
+                background-color: {color};
+                padding: 0px;
+                color: black;
+            }}
+            QTextEdit:focus {{
+                border: 1px solid #2196F3;
+                background-color: white;
+                color: black;
+            }}
+            QTextEdit::selection {{
+                background-color: #D0E7FF;
+                color: black;
+            }}
+        """)
+
 
 class TagHighlighter(QSyntaxHighlighter):
     """Syntax highlighter for HTML/XML tags and CafeTran pipe symbols in text editors"""
@@ -1972,6 +1992,26 @@ class EditableGridTextEditor(QTextEdit):
     def get_raw_text(self) -> str:
         """Get the raw text with tags, regardless of display mode."""
         return getattr(self, '_raw_text', self.toPlainText())
+
+    def set_background_color(self, color: str):
+        """Set the background color for this text editor (for alternating row colors)"""
+        self.setStyleSheet(f"""
+            QTextEdit {{
+                border: none;
+                background-color: {color};
+                padding: 0px;
+                color: black;
+            }}
+            QTextEdit:focus {{
+                border: 1px solid #2196F3;
+                background-color: white;
+                color: black;
+            }}
+            QTextEdit::selection {{
+                background-color: #D0E7FF;
+                color: black;
+            }}
+        """)
 
 
 class SearchHighlightDelegate(QStyledItemDelegate):
@@ -3527,6 +3567,11 @@ class SupervertalerQt(QMainWindow):
         # Termbase display settings
         self.termbase_display_order = 'appearance'  # Options: 'alphabetical', 'appearance', 'length'
         self.termbase_hide_shorter_matches = False  # Hide shorter terms included in longer ones
+
+        # Grid row color settings (memoQ-style alternating row colors)
+        self.enable_alternating_row_colors = True  # Enable alternating row colors by default
+        self.even_row_color = '#FFFFFF'  # White for even rows
+        self.odd_row_color = '#F0F0F0'  # Light gray for odd rows
 
         # Debug mode settings (for troubleshooting performance issues)
         self.debug_mode_enabled = False  # Enables verbose debug logging
@@ -10280,6 +10325,84 @@ class SupervertalerQt(QMainWindow):
         results_group.setLayout(results_layout)
         layout.addWidget(results_group)
         
+        # Grid Row Colors section (memoQ-style alternating row colors)
+        row_colors_group = QGroupBox("🎨 Grid Row Colors")
+        row_colors_layout = QVBoxLayout()
+        
+        row_colors_info = QLabel(
+            "Configure alternating row colors for the translation grid.\n"
+            "This creates a visual distinction between rows (like memoQ)."
+        )
+        row_colors_info.setStyleSheet("font-size: 8pt; color: #666; padding: 8px; background-color: #f3f4f6; border-radius: 2px;")
+        row_colors_info.setWordWrap(True)
+        row_colors_layout.addWidget(row_colors_info)
+        
+        # Enable alternating colors checkbox
+        alt_colors_check = QCheckBox("Enable alternating row colors")
+        alt_colors_check.setChecked(font_settings.get('enable_alternating_row_colors', True))
+        alt_colors_check.setToolTip("When enabled, even and odd rows have different background colors")
+        row_colors_layout.addWidget(alt_colors_check)
+        
+        # Even row color picker (lighter/default)
+        even_color_layout = QHBoxLayout()
+        even_color_layout.addWidget(QLabel("Even Row Color:"))
+        
+        even_row_color = font_settings.get('even_row_color', '#FFFFFF')
+        even_color_btn = QPushButton()
+        even_color_btn.setFixedSize(80, 25)
+        even_color_btn.setStyleSheet(f"background-color: {even_row_color}; border: 1px solid #999;")
+        even_color_btn.setToolTip("Background color for even rows (0, 2, 4, ...)")
+        
+        def choose_even_color():
+            color = QColorDialog.getColor(QColor(even_row_color), self, "Choose Even Row Color")
+            if color.isValid():
+                hex_color = color.name()
+                even_color_btn.setStyleSheet(f"background-color: {hex_color}; border: 1px solid #999;")
+                even_color_btn.setProperty('selected_color', hex_color)
+        
+        even_color_btn.clicked.connect(choose_even_color)
+        even_color_btn.setProperty('selected_color', even_row_color)
+        even_color_layout.addWidget(even_color_btn)
+        even_color_layout.addStretch()
+        row_colors_layout.addLayout(even_color_layout)
+        
+        # Odd row color picker (darker/alternate)
+        odd_color_layout = QHBoxLayout()
+        odd_color_layout.addWidget(QLabel("Odd Row Color:"))
+        
+        odd_row_color = font_settings.get('odd_row_color', '#F0F0F0')
+        odd_color_btn = QPushButton()
+        odd_color_btn.setFixedSize(80, 25)
+        odd_color_btn.setStyleSheet(f"background-color: {odd_row_color}; border: 1px solid #999;")
+        odd_color_btn.setToolTip("Background color for odd rows (1, 3, 5, ...)")
+        
+        def choose_odd_color():
+            color = QColorDialog.getColor(QColor(odd_row_color), self, "Choose Odd Row Color")
+            if color.isValid():
+                hex_color = color.name()
+                odd_color_btn.setStyleSheet(f"background-color: {hex_color}; border: 1px solid #999;")
+                odd_color_btn.setProperty('selected_color', hex_color)
+        
+        odd_color_btn.clicked.connect(choose_odd_color)
+        odd_color_btn.setProperty('selected_color', odd_row_color)
+        odd_color_layout.addWidget(odd_color_btn)
+        odd_color_layout.addStretch()
+        row_colors_layout.addLayout(odd_color_layout)
+        
+        # Reset to defaults button
+        reset_colors_btn = QPushButton("Reset to Default Colors")
+        reset_colors_btn.setToolTip("Reset to white (#FFFFFF) and light gray (#F0F0F0)")
+        def reset_row_colors():
+            even_color_btn.setStyleSheet("background-color: #FFFFFF; border: 1px solid #999;")
+            even_color_btn.setProperty('selected_color', '#FFFFFF')
+            odd_color_btn.setStyleSheet("background-color: #F0F0F0; border: 1px solid #999;")
+            odd_color_btn.setProperty('selected_color', '#F0F0F0')
+        reset_colors_btn.clicked.connect(reset_row_colors)
+        row_colors_layout.addWidget(reset_colors_btn)
+        
+        row_colors_group.setLayout(row_colors_layout)
+        layout.addWidget(row_colors_group)
+        
         # Quick Reference section
         reference_group = QGroupBox("⌨️ Font Size Quick Reference")
         reference_layout = QVBoxLayout()
@@ -10305,7 +10428,8 @@ class SupervertalerQt(QMainWindow):
         save_btn = QPushButton("💾 Save View Settings")
         save_btn.setStyleSheet("font-weight: bold; padding: 8px;")
         save_btn.clicked.connect(lambda: self._save_view_settings_from_ui(
-            grid_font_spin, match_font_spin, compare_font_spin, show_tags_check, tag_color_btn
+            grid_font_spin, match_font_spin, compare_font_spin, show_tags_check, tag_color_btn,
+            alt_colors_check, even_color_btn, odd_color_btn
         ))
         layout.addWidget(save_btn)
         
@@ -11185,7 +11309,8 @@ class SupervertalerQt(QMainWindow):
         self.log("✓ General settings saved")
         QMessageBox.information(self, "Settings Saved", "General settings have been saved successfully.")
     
-    def _save_view_settings_from_ui(self, grid_spin, match_spin, compare_spin, show_tags_check=None, tag_color_btn=None):
+    def _save_view_settings_from_ui(self, grid_spin, match_spin, compare_spin, show_tags_check=None, tag_color_btn=None,
+                                     alt_colors_check=None, even_color_btn=None, odd_color_btn=None):
         """Save view settings from UI"""
         general_settings = {
             'restore_last_project': self.load_general_settings().get('restore_last_project', False),
@@ -11202,6 +11327,23 @@ class SupervertalerQt(QMainWindow):
             if tag_color:
                 general_settings['tag_highlight_color'] = tag_color
                 EditableGridTextEditor.tag_highlight_color = tag_color
+        
+        # Add alternating row color settings
+        if alt_colors_check is not None:
+            general_settings['enable_alternating_row_colors'] = alt_colors_check.isChecked()
+            self.enable_alternating_row_colors = alt_colors_check.isChecked()
+        
+        if even_color_btn is not None:
+            even_color = even_color_btn.property('selected_color')
+            if even_color:
+                general_settings['even_row_color'] = even_color
+                self.even_row_color = even_color
+        
+        if odd_color_btn is not None:
+            odd_color = odd_color_btn.property('selected_color')
+            if odd_color:
+                general_settings['odd_row_color'] = odd_color
+                self.odd_row_color = odd_color
         
         self.save_general_settings(general_settings)
         
@@ -11247,6 +11389,8 @@ class SupervertalerQt(QMainWindow):
         # Refresh grid to apply tag colors
         if hasattr(self, 'table') and self.table is not None:
             self.refresh_grid_tag_colors()
+            # Also refresh row colors
+            self.apply_alternating_row_colors()
         
         self.log("✓ View settings saved and applied")
         QMessageBox.information(self, "Settings Saved", "View settings have been saved and applied successfully.")
@@ -15170,6 +15314,10 @@ class SupervertalerQt(QMainWindow):
         """Load segments into the grid with termbase highlighting"""
         self.log(f"🔄🔄🔄 load_segments_to_grid CALLED - this will RELOAD grid from segment data!")
         
+        # Clear row color settings cache to ensure fresh settings are loaded
+        if hasattr(self, '_row_color_settings_cached'):
+            delattr(self, '_row_color_settings_cached')
+        
         # DEBUG: Log segment data BEFORE loading to grid
         if self.current_project and self.current_project.segments:
             self.log(f"🔄 BEFORE LOAD: First 7 segments:")
@@ -15361,6 +15509,9 @@ class SupervertalerQt(QMainWindow):
 
                 # Status column (icon + match + comment)
                 self._update_status_cell(row, segment)
+                
+                # Apply alternating row colors to source and target widgets
+                self._apply_row_color(row, source_editor, target_editor)
             
             # Apply current font
             self.apply_font_to_grid()
@@ -15886,6 +16037,70 @@ class SupervertalerQt(QMainWindow):
             if target_widget and isinstance(target_widget, EditableGridTextEditor):
                 if hasattr(target_widget, 'highlighter'):
                     target_widget.highlighter.set_tag_color(EditableGridTextEditor.tag_highlight_color)
+
+    def _apply_row_color(self, row: int, source_widget, target_widget):
+        """Apply alternating row color to source and target widgets for a specific row"""
+        # Load settings (with caching to avoid repeated file reads)
+        if not hasattr(self, '_row_color_settings_cached'):
+            settings = self.load_general_settings()
+            self._row_color_settings_cached = {
+                'enabled': settings.get('enable_alternating_row_colors', True),
+                'even_color': settings.get('even_row_color', '#FFFFFF'),
+                'odd_color': settings.get('odd_row_color', '#F0F0F0')
+            }
+        
+        settings = self._row_color_settings_cached
+        
+        if not settings['enabled']:
+            # Use default colors when disabled
+            if hasattr(source_widget, 'set_background_color'):
+                source_widget.set_background_color('#f5f5f5')  # Original source color
+            if hasattr(target_widget, 'set_background_color'):
+                target_widget.set_background_color('#FFFFFF')  # Original target color
+            return
+        
+        # Determine color based on row index (even/odd)
+        color = settings['even_color'] if row % 2 == 0 else settings['odd_color']
+        row_color = QColor(color)
+        
+        # Apply to ID column (column 0)
+        id_item = self.table.item(row, 0)
+        if id_item:
+            id_item.setBackground(row_color)
+        
+        # Apply to Type column (column 1) - but preserve heading/list item colors
+        type_item = self.table.item(row, 1)
+        if type_item:
+            type_text = type_item.text()
+            # Only apply row color if it's not a special type (headings/list items have their own colors)
+            if type_text not in ("H1", "H2", "H3", "H4", "Title", "li"):
+                type_item.setBackground(row_color)
+        
+        # Apply to source widget
+        if hasattr(source_widget, 'set_background_color'):
+            source_widget.set_background_color(color)
+        
+        # Apply to target widget
+        if hasattr(target_widget, 'set_background_color'):
+            target_widget.set_background_color(color)
+    
+    def apply_alternating_row_colors(self):
+        """Apply alternating row colors to all source and target cells in the grid"""
+        if not hasattr(self, 'table') or not self.table:
+            return
+        
+        # Clear cached settings to force reload
+        if hasattr(self, '_row_color_settings_cached'):
+            delattr(self, '_row_color_settings_cached')
+        
+        for row in range(self.table.rowCount()):
+            source_widget = self.table.cellWidget(row, 2)
+            target_widget = self.table.cellWidget(row, 3)
+            
+            if source_widget and target_widget:
+                self._apply_row_color(row, source_widget, target_widget)
+        
+        self.log("✓ Alternating row colors applied")
     
     def on_font_changed(self):
         """Handle font change - legacy method for compatibility"""
@@ -15981,6 +16196,11 @@ class SupervertalerQt(QMainWindow):
         # Load termbase display settings
         self.termbase_display_order = settings.get('termbase_display_order', 'appearance')
         self.termbase_hide_shorter_matches = settings.get('termbase_hide_shorter_matches', False)
+        
+        # Load alternating row color settings
+        self.enable_alternating_row_colors = settings.get('enable_alternating_row_colors', True)
+        self.even_row_color = settings.get('even_row_color', '#FFFFFF')
+        self.odd_row_color = settings.get('odd_row_color', '#F0F0F0')
 
         # Load LLM provider settings for AI Assistant
         llm_settings = self.load_llm_settings()

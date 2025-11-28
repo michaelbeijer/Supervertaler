@@ -1,13 +1,41 @@
 # Supervertaler Project Context
 
 **Last Updated:** November 27, 2025
-**Current Version:** v1.9.8
+**Current Version:** v1.9.9
 **Repository:** https://github.com/michaelbeijer/Supervertaler
 **Maintainer:** Michael Beijer
 
 ---
 
 ## 📅 Recent Development Activity
+
+### November 27, 2025 - Version 1.9.9 Release: memoQ-style Alternating Row Colors
+
+**🎨 Grid Row Colors Enhancement**
+- Added memoQ-style alternating row colors across all grid columns (ID, Type, Source, Target)
+- Source and Target columns now have consistent alternating colors (previously Source was always gray, Target was always white)
+- New user-configurable settings in Settings → View Settings tab:
+  - Enable/disable alternating row colors checkbox
+  - Color picker for even row color (default: white #FFFFFF)
+  - Color picker for odd row color (default: light gray #F0F0F0)
+  - "Reset to Default Colors" button
+- Colors apply consistently to all columns including Source and Target QTextEdit widgets
+- Settings are persisted in ui_preferences.json
+
+**Technical Changes:**
+- Added `set_background_color()` method to `ReadOnlyGridTextEditor` class
+- Added `set_background_color()` method to `EditableGridTextEditor` class
+- Added `_apply_row_color()` method for applying colors to individual rows
+- Added `apply_alternating_row_colors()` method for refreshing all row colors
+- Extended `_save_view_settings_from_ui()` to handle new color settings
+- Added row color settings to `load_general_settings()`
+- Added caching mechanism for row color settings to optimize performance
+
+**Files Changed:**
+- `Supervertaler.py` - All changes in main application file
+- `PROJECT_CONTEXT.md` - Updated with session notes
+
+---
 
 ### November 27, 2025 - Version 1.9.8 Release: CafeTran Integration & Editor Shortcuts
 
