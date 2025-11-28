@@ -707,14 +707,27 @@ class DatabaseManager:
             query += f" AND tm_id IN ({placeholders})"
             params.extend(tm_ids)
         
-        # Use LIKE for base language matching (matches 'en', 'en-US', 'en-GB', etc.)
+        # Use flexible language matching (matches 'nl', 'nl-NL', 'Dutch', etc.)
+        from modules.tmx_generator import get_lang_match_variants
         if src_base:
-            query += " AND (source_lang = ? OR source_lang LIKE ?)"
-            params.extend([src_base, f"{src_base}-%"])
+            src_variants = get_lang_match_variants(source_lang)
+            src_conditions = []
+            for variant in src_variants:
+                src_conditions.append("source_lang = ?")
+                params.append(variant)
+                src_conditions.append("source_lang LIKE ?")
+                params.append(f"{variant}-%")
+            query += f" AND ({' OR '.join(src_conditions)})"
         
         if tgt_base:
-            query += " AND (target_lang = ? OR target_lang LIKE ?)"
-            params.extend([tgt_base, f"{tgt_base}-%"])
+            tgt_variants = get_lang_match_variants(target_lang)
+            tgt_conditions = []
+            for variant in tgt_variants:
+                tgt_conditions.append("target_lang = ?")
+                params.append(variant)
+                tgt_conditions.append("target_lang LIKE ?")
+                params.append(f"{variant}-%")
+            query += f" AND ({' OR '.join(tgt_conditions)})"
         
         query += " ORDER BY usage_count DESC, modified_date DESC LIMIT 1"
         
@@ -746,9 +759,26 @@ class DatabaseManager:
                 query += f" AND tm_id IN ({placeholders})"
                 params.extend(tm_ids)
             
-            # Reversed: search where TM source_lang matches our target_lang (base code)
-            query += " AND (source_lang = ? OR source_lang LIKE ?) AND (target_lang = ? OR target_lang LIKE ?)"
-            params.extend([tgt_base, f"{tgt_base}-%", src_base, f"{src_base}-%"])
+            # Reversed: search where TM source_lang matches our target_lang (flexible matching)
+            # Note: for reverse, we swap - TM source_lang should match our target_lang
+            tgt_variants = get_lang_match_variants(target_lang)
+            src_variants = get_lang_match_variants(source_lang)
+            
+            src_conditions = []
+            for variant in tgt_variants:  # TM source_lang = our target_lang
+                src_conditions.append("source_lang = ?")
+                params.append(variant)
+                src_conditions.append("source_lang LIKE ?")
+                params.append(f"{variant}-%")
+            
+            tgt_conditions = []
+            for variant in src_variants:  # TM target_lang = our source_lang
+                tgt_conditions.append("target_lang = ?")
+                params.append(variant)
+                tgt_conditions.append("target_lang LIKE ?")
+                params.append(f"{variant}-%")
+            
+            query += f" AND ({' OR '.join(src_conditions)}) AND ({' OR '.join(tgt_conditions)})"
             
             query += " ORDER BY usage_count DESC, modified_date DESC LIMIT 1"
             
@@ -828,14 +858,27 @@ class DatabaseManager:
             query += f" AND tu.tm_id IN ({placeholders})"
             params.extend(tm_ids)
         
-        # Use base language matching (en matches en-US, en-GB, etc.)
+        # Use flexible language matching (matches 'nl', 'nl-NL', 'Dutch', etc.)
+        from modules.tmx_generator import get_lang_match_variants
         if src_base:
-            query += " AND (tu.source_lang = ? OR tu.source_lang LIKE ?)"
-            params.extend([src_base, f"{src_base}-%"])
+            src_variants = get_lang_match_variants(source_lang)
+            src_conditions = []
+            for variant in src_variants:
+                src_conditions.append("tu.source_lang = ?")
+                params.append(variant)
+                src_conditions.append("tu.source_lang LIKE ?")
+                params.append(f"{variant}-%")
+            query += f" AND ({' OR '.join(src_conditions)})"
         
         if tgt_base:
-            query += " AND (tu.target_lang = ? OR tu.target_lang LIKE ?)"
-            params.extend([tgt_base, f"{tgt_base}-%"])
+            tgt_variants = get_lang_match_variants(target_lang)
+            tgt_conditions = []
+            for variant in tgt_variants:
+                tgt_conditions.append("tu.target_lang = ?")
+                params.append(variant)
+                tgt_conditions.append("tu.target_lang LIKE ?")
+                params.append(f"{variant}-%")
+            query += f" AND ({' OR '.join(tgt_conditions)})"
         
         # Get more candidates than needed for proper scoring
         query += f" ORDER BY relevance DESC LIMIT {max_results * 5}"
@@ -870,12 +913,28 @@ class DatabaseManager:
                 query += f" AND tu.tm_id IN ({placeholders})"
                 params.extend(tm_ids)
             
-            # Reversed language filters with base matching
-            query += " AND (tu.target_lang = ? OR tu.target_lang LIKE ?)"
-            params.extend([src_base, f"{src_base}-%"])
+            # Reversed language filters with flexible matching
+            # For reverse: TM target_lang should match our source_lang, TM source_lang should match our target_lang
+            src_variants = get_lang_match_variants(source_lang)
+            tgt_variants = get_lang_match_variants(target_lang)
             
-            query += " AND (tu.source_lang = ? OR tu.source_lang LIKE ?)"
-            params.extend([tgt_base, f"{tgt_base}-%"])
+            # TM target_lang = our source_lang
+            tgt_conditions = []
+            for variant in src_variants:
+                tgt_conditions.append("tu.target_lang = ?")
+                params.append(variant)
+                tgt_conditions.append("tu.target_lang LIKE ?")
+                params.append(f"{variant}-%")
+            query += f" AND ({' OR '.join(tgt_conditions)})"
+            
+            # TM source_lang = our target_lang  
+            src_conditions = []
+            for variant in tgt_variants:
+                src_conditions.append("tu.source_lang = ?")
+                params.append(variant)
+                src_conditions.append("tu.source_lang LIKE ?")
+                params.append(f"{variant}-%")
+            query += f" AND ({' OR '.join(src_conditions)})"
             
             query += f" ORDER BY relevance DESC LIMIT {max_results * 5}"
             

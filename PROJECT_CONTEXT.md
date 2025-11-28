@@ -1,13 +1,42 @@
 # Supervertaler Project Context
 
-**Last Updated:** November 27, 2025
-**Current Version:** v1.9.9
+**Last Updated:** November 28, 2025
+**Current Version:** v1.9.10
 **Repository:** https://github.com/michaelbeijer/Supervertaler
 **Maintainer:** Michael Beijer
 
 ---
 
 ## 📅 Recent Development Activity
+
+### November 28, 2025 - Version 1.9.10 Release: TM Search Fixes & Language Matching
+
+**🔧 Fixed TM matches not appearing in Translation Results panel**
+
+**Root Causes Found:**
+1. `tm_metadata_mgr` was only initialized when user opened TM List tab, but TM search runs immediately on segment navigation
+2. Database had mixed language formats ("Dutch", "nl", "nl-NL") but search only looked for ISO codes
+3. Legacy hardcoded `enabled_only=True` filter would search only 'project' and 'big_mama' TMs that don't exist
+
+**Fixes Applied:**
+- Early initialization: `tm_metadata_mgr` now initializes in `initialize_tm_database()` when project loads
+- Flexible language matching: New `get_lang_match_variants()` returns both ISO codes and full language names
+- Bypass legacy filter: Added `enabled_only=False` to all `search_all()` calls
+- Fallback search: When no TMs are explicitly activated, search now falls back to all TMs
+
+**Database Cleanup:**
+- Cleaned public database for new GitHub users
+- Removed legacy 'project' and 'big_mama' TM hardcoding from TMDatabase class
+- All TMs now managed through TMMetadataManager with proper database storage
+
+**Files Changed:**
+- `Supervertaler.py` - TM metadata manager early init, enabled_only=False for searches
+- `modules/translation_memory.py` - Removed legacy tm_metadata dict
+- `modules/database_manager.py` - Flexible language matching in get_exact_match() and search_fuzzy_matches()
+- `modules/tmx_generator.py` - Added get_lang_match_variants() and updated get_base_lang_code()
+- `user_data/Translation_Resources/supervertaler.db` - Cleaned for new users
+
+---
 
 ### November 27, 2025 - Version 1.9.9 Release: memoQ-style Alternating Row Colors
 

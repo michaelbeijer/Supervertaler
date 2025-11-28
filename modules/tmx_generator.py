@@ -117,11 +117,62 @@ def get_simple_lang_code(lang_name_or_code_input):
 
 
 def get_base_lang_code(lang_code: str) -> str:
-    """Extract base language code from variant (e.g., 'en-US' → 'en', 'nl-BE' → 'nl')"""
+    """Extract base language code from variant (e.g., 'en-US' → 'en', 'nl-BE' → 'nl', 'Dutch' → 'nl')"""
     if not lang_code:
         return "en"
-    return lang_code.split('-')[0].split('_')[0].lower()
+    
+    # First convert full language names to ISO codes
+    iso_code = get_simple_lang_code(lang_code)
+    
+    # Then extract base code from variant
+    return iso_code.split('-')[0].split('_')[0].lower()
 
+
+def get_lang_match_variants(lang_code: str) -> list:
+    """
+    Get all possible string variants for matching a language in database queries.
+    
+    Returns list of strings that could be used to match this language, including:
+    - Base ISO code (e.g., 'nl', 'en')
+    - Full language names (e.g., 'Dutch', 'English')
+    - Common variants (e.g., 'nl-NL', 'en-US')
+    
+    This helps match database entries that may have inconsistent language formats.
+    """
+    if not lang_code:
+        return ['en', 'English']
+    
+    # Reverse mapping from ISO codes to full names
+    code_to_name = {
+        "en": "English",
+        "nl": "Dutch",
+        "de": "German",
+        "fr": "French",
+        "es": "Spanish",
+        "it": "Italian",
+        "pt": "Portuguese",
+        "ru": "Russian",
+        "zh": "Chinese",
+        "ja": "Japanese",
+        "ko": "Korean",
+        "ar": "Arabic",
+        "pl": "Polish",
+        "sv": "Swedish",
+        "da": "Danish",
+        "no": "Norwegian",
+        "fi": "Finnish",
+    }
+    
+    # Get the base ISO code
+    base_code = get_base_lang_code(lang_code)
+    
+    variants = [base_code]
+    
+    # Add full language name if we know it
+    if base_code in code_to_name:
+        variants.append(code_to_name[base_code])
+    
+    return variants
 
 def normalize_lang_variant(lang_code: str) -> str:
     """Normalize language variant to lowercase-UPPERCASE format (e.g., 'en-us' → 'en-US', 'nl-be' → 'nl-BE').

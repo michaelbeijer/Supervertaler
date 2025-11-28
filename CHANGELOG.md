@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.9 (November 27, 2025)
+**Current Version:** v1.9.10 (November 28, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -14,6 +14,7 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- 🔧 **TM Search Fixes & Language Matching (v1.9.10)** - Fixed TM matches not appearing in Translation Results panel. Added flexible language matching ("Dutch", "nl", "nl-NL" all match). TM metadata manager now initializes with project load. Removed legacy Project TM/Big Mama hardcoding. Cleaned public database for new users. Non-Translatables: sortable columns, right-click delete, Delete key support
 - 🎨 **memoQ-style Alternating Row Colors (v1.9.9)** - Grid now displays alternating row colors across all columns (ID, Type, Source, Target) like memoQ. User-configurable colors in Settings → View Settings with even/odd row color pickers. Colors are consistent across the entire row including QTextEdit widgets
 - 🔄 **CafeTran Integration & Editor Shortcuts (v1.9.8)** - Full CafeTran bilingual DOCX support with pipe symbol formatting. New Ctrl+Shift+S copies source to target. Ctrl+, inserts pipe symbols for CafeTran. Pipes highlighted in red/bold. Sortable keyboard shortcuts table. Batch size default changed to 20
 - 🔄 **CafeTran Bilingual DOCX Support (v1.9.7)** - Full import/export support for CafeTran bilingual DOCX files. Import preserves pipe symbol formatting markers. Export writes translations back with formatting preserved. Round-trip workflow for CafeTran users
@@ -84,9 +85,58 @@ All notable changes to Supervertaler are documented in this file.
 
 ---
 
-## [1.9.8] - November 27, 2025
+## [1.9.10] - November 28, 2025
 
-### 🔄 CafeTran Integration & Editor Shortcuts
+### 🔧 TM Search Fixes & Flexible Language Matching
+
+**Fixed TM matches not appearing in Translation Results panel:**
+
+**Root Cause Analysis:**
+- `tm_metadata_mgr` was only initialized when user opened TM List tab, but TM search runs immediately on segment navigation
+- Database had mixed language formats ("Dutch", "nl", "nl-NL") but search only looked for ISO codes
+- Legacy hardcoded `enabled_only=True` filter would search only 'project' and 'big_mama' TMs that don't exist
+
+**Fixes Applied:**
+- **Early initialization:** `tm_metadata_mgr` now initializes in `initialize_tm_database()` when project loads
+- **Flexible language matching:** New `get_lang_match_variants()` function returns both ISO codes and full language names
+- **Bypass legacy filter:** Added `enabled_only=False` to all `search_all()` calls
+- **Fallback search:** When no TMs are explicitly activated, search now falls back to all TMs
+
+**Database Improvements:**
+- Cleaned public database (`user_data/Translation_Resources/supervertaler.db`) for new GitHub users
+- Removed sample data that had orphaned TM entries without proper metadata
+- Schema preserved - new users start with empty, properly structured database
+
+**Code Cleanup:**
+- Removed legacy `project` and `big_mama` TM hardcoding from `TMDatabase` class
+- These were from the previous Supervertaler architecture and are no longer used
+- All TMs now managed through `TMMetadataManager` with proper database storage
+
+**Files Modified:**
+- `Supervertaler.py` - TM metadata manager early init, enabled_only=False for searches
+- `modules/translation_memory.py` - Removed legacy tm_metadata dict
+- `modules/database_manager.py` - Flexible language matching in get_exact_match() and search_fuzzy_matches()
+- `modules/tmx_generator.py` - Added get_lang_match_variants() and updated get_base_lang_code()
+
+### 📊 Non-Translatables Entry Table Enhancements
+
+**Sortable Columns:**
+- Columns in the Non-Translatables entry table are now sortable by clicking on column headers
+- Click on Pattern, Type, or other columns to sort alphabetically ascending/descending
+- Default sort by Pattern column (ascending)
+- Sorting is temporarily disabled during table refresh to prevent UI issues
+
+**Delete Entries:**
+- Right-click on selected entries to access context menu with delete option
+- Press Delete key to remove selected entries
+- Menu dynamically shows "Delete 1 entry" or "Delete N entries" based on selection
+- Existing "🗑️ Remove Selected" button also still available
+
+---
+
+## [1.9.9] - November 27, 2025
+
+### 🎨 memoQ-style Alternating Row Colors
 
 **CafeTran Formatting Support:**
 - Pipe symbols (|) now highlighted in red/bold in grid editor (like CafeTran)

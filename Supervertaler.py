@@ -3,8 +3,8 @@ Supervertaler Qt Edition
 ========================
 The ultimate companion tool for translators and writers.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.9.9 (memoQ-style Alternating Row Colors)
-Release Date: November 27, 2025
+Version: 1.9.10 (TM Search Fixes & Language Matching)
+Release Date: November 28, 2025
 Framework: PyQt6
 
 This is the modern edition of Supervertaler using PyQt6 framework.
@@ -32,9 +32,9 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.9"
+__version__ = "1.9.10"
 __phase__ = "0.9"
-__release_date__ = "2025-11-27"
+__release_date__ = "2025-11-28"
 __edition__ = "Qt"
 
 import sys
@@ -4623,6 +4623,9 @@ class SupervertalerQt(QMainWindow):
         entry_table.setColumnWidth(0, 250)
         entry_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         entry_table.setAlternatingRowColors(True)
+        entry_table.setSortingEnabled(True)  # Enable column sorting
+        entry_table.horizontalHeader().setSortIndicatorShown(True)
+        entry_table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)  # Enable right-click menu
         left_layout.addWidget(entry_table)
         
         # Entry count
@@ -4697,12 +4700,15 @@ class SupervertalerQt(QMainWindow):
         
         # Populate entry table for selected list
         def refresh_entry_table():
+            # Disable sorting while populating to avoid performance issues
+            entry_table.setSortingEnabled(False)
             entry_table.setRowCount(0)
             current_name = list_combo.currentData()
             
             if not current_name or current_name not in self.nt_manager.lists:
                 count_label.setText("0 entries")
                 active_checkbox.setChecked(False)
+                entry_table.setSortingEnabled(True)
                 return
             
             nt_list = self.nt_manager.lists[current_name]
@@ -4719,6 +4725,9 @@ class SupervertalerQt(QMainWindow):
             for row, entry in enumerate(filtered):
                 entry_table.setItem(row, 0, QTableWidgetItem(entry.text))
                 entry_table.setItem(row, 1, QTableWidgetItem(entry.category))
+            
+            # Re-enable sorting after populating
+            entry_table.setSortingEnabled(True)
             
             count_label.setText(f"{len(nt_list.entries)} entries ({len(filtered)} shown)")
         
@@ -4817,6 +4826,35 @@ class SupervertalerQt(QMainWindow):
             refresh_entry_table()
         
         remove_btn.clicked.connect(on_remove_entry)
+        
+        # Right-click context menu for entry table
+        def on_entry_context_menu(pos):
+            selected = entry_table.selectedItems()
+            if not selected:
+                return
+            
+            menu = QMenu(entry_table)
+            
+            # Get selected row count
+            rows = set(item.row() for item in selected)
+            count_text = f"Delete {len(rows)} entr{'ies' if len(rows) > 1 else 'y'}"
+            
+            delete_action = QAction(f"🗑️ {count_text}", menu)
+            delete_action.triggered.connect(on_remove_entry)
+            menu.addAction(delete_action)
+            
+            menu.exec(entry_table.viewport().mapToGlobal(pos))
+        
+        entry_table.customContextMenuRequested.connect(on_entry_context_menu)
+        
+        # Delete key shortcut for entry table
+        def on_entry_key_press(event):
+            if event.key() == Qt.Key.Key_Delete:
+                on_remove_entry()
+            else:
+                QTableWidget.keyPressEvent(entry_table, event)
+        
+        entry_table.keyPressEvent = on_entry_key_press
         
         # Bulk import
         def on_bulk_import():
@@ -18075,6 +18113,13 @@ class SupervertalerQt(QMainWindow):
                 log_callback=self.log
             )
             
+            # Initialize TM metadata manager if not already done
+            # This is needed for TM activation/deactivation tracking
+            if not hasattr(self, 'tm_metadata_mgr') or not self.tm_metadata_mgr:
+                from modules.tm_metadata_manager import TMMetadataManager
+                self.tm_metadata_mgr = TMMetadataManager(self.db_manager, self.log)
+                self.log("TM metadata manager initialized")
+            
             # Update Superlookup tab with TM database
             if hasattr(self, 'lookup_tab') and self.lookup_tab:
                 self.lookup_tab.set_tm_database(self.tm_database)
@@ -21503,7 +21548,7 @@ class SupervertalerQt(QMainWindow):
                         tm_ids = self.tm_metadata_mgr.get_active_tm_ids(project_id)
                 
                 try:
-                    matches = self.tm_database.search_all(segment.source, tm_ids=tm_ids, max_matches=1)
+                    matches = self.tm_database.search_all(segment.source, tm_ids=tm_ids, enabled_only=False, max_matches=1)
                     if matches and matches[0].get('match_pct', 0) == 100:
                         tm_match = matches[0].get('target', '')
                         self.log(f"✓ Found 100% TM match for segment #{segment.id}")
@@ -22158,7 +22203,7 @@ class SupervertalerQt(QMainWindow):
                 # Check each segment against TM
                 for row_index, segment in segments_to_translate:
                     try:
-                        matches = self.tm_database.search_all(segment.source, tm_ids=tm_ids, max_matches=1)
+                        matches = self.tm_database.search_all(segment.source, tm_ids=tm_ids, enabled_only=False, max_matches=1)
                         if matches and matches[0].get('match_pct', 0) == 100:
                             # Found 100% match - auto-insert it
                             tm_match = matches[0].get('target', '')
@@ -22235,7 +22280,7 @@ class SupervertalerQt(QMainWindow):
                 for row_index, segment in segments_needing_translation:
                     try:
                         # Search TM for best match
-                        matches = self.tm_database.search_all(segment.source, tm_ids=tm_ids, max_matches=1)
+                        matches = self.tm_database.search_all(segment.source, tm_ids=tm_ids, enabled_only=False, max_matches=1)
                         
                         if matches and len(matches) > 0:
                             match = matches[0]
@@ -23388,15 +23433,23 @@ class SupervertalerQt(QMainWindow):
                     tm_ids = None
                     if hasattr(self, 'tm_metadata_mgr') and self.tm_metadata_mgr and self.current_project:
                         project_id = self.current_project.id if hasattr(self.current_project, 'id') else None
+                        self.log(f"🚀 DELAYED TM SEARCH: Current project ID: {project_id}")
                         if project_id:
                             tm_ids = self.tm_metadata_mgr.get_active_tm_ids(project_id)
                             if tm_ids:
                                 self.log(f"🚀 DELAYED TM SEARCH: Searching activated TMs: {tm_ids}")
                             else:
                                 self.log(f"⚠️ DELAYED TM SEARCH: No activated TMs for project {project_id}")
+                                # Fallback: search all TMs if none are activated
+                                tm_ids = None  # None means search all
+                                self.log(f"🚀 DELAYED TM SEARCH: Falling back to searching ALL TMs")
+                    else:
+                        self.log(f"🚀 DELAYED TM SEARCH: tm_metadata_mgr available: {hasattr(self, 'tm_metadata_mgr') and self.tm_metadata_mgr is not None}")
+                        self.log(f"🚀 DELAYED TM SEARCH: current_project available: {self.current_project is not None}")
                     
                     # Search using TMDatabase (includes bidirectional + base language matching)
-                    all_tm_matches = self.tm_database.search_all(segment.source, tm_ids=tm_ids, max_matches=10)
+                    # Pass enabled_only=False to bypass the hardcoded tm_metadata filter
+                    all_tm_matches = self.tm_database.search_all(segment.source, tm_ids=tm_ids, enabled_only=False, max_matches=10)
                     self.log(f"🚀 DELAYED TM SEARCH: Found {len(all_tm_matches)} matches (bidirectional + language variants)")
                     
                     for match in all_tm_matches:

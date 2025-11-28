@@ -126,11 +126,10 @@ class TMDatabase:
         # Global fuzzy threshold
         self.fuzzy_threshold = 0.75
         
-        # TM metadata (for UI display)
-        self.tm_metadata = {
-            'project': {'name': 'Project TM', 'enabled': True, 'read_only': False},
-            'big_mama': {'name': 'Big Mama', 'enabled': True, 'read_only': False},
-        }
+        # TM metadata cache (populated from database as needed)
+        # Note: Legacy 'project' and 'big_mama' TMs are no longer used.
+        # All TMs are now managed through TMMetadataManager and stored in translation_memories table.
+        self.tm_metadata = {}
     
     def set_tm_languages(self, source_lang: str, target_lang: str):
         """Set language pair for TMs"""
