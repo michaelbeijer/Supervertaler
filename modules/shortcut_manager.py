@@ -37,7 +37,7 @@ class ShortcutManager:
         "file_quit": {
             "category": "File",
             "description": "Quit Application",
-            "default": "Ctrl+Q",
+            "default": "Alt+F4",
             "action": "close"
         },
         
@@ -329,9 +329,16 @@ class ShortcutManager:
         },
         "editor_add_to_termbase": {
             "category": "Editor",
-            "description": "Add selected term pair to termbase",
+            "description": "Add selected term pair to termbase (with dialog)",
             "default": "Ctrl+E",
             "action": "add_to_termbase",
+            "context": "grid_editor"
+        },
+        "editor_quick_add_to_termbase": {
+            "category": "Editor",
+            "description": "Quick add term pair to last-used termbase",
+            "default": "Ctrl+Q",
+            "action": "quick_add_to_termbase",
             "context": "grid_editor"
         },
         "editor_add_to_non_translatables": {

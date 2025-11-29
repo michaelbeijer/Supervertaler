@@ -1204,8 +1204,8 @@ class ReadOnlyGridTextEditor(QTextEdit):
                 self._handle_add_to_termbase()
                 return True  # Event handled
             
-            # Ctrl+R: Quick add selected terms to termbase (no dialog)
-            if key_event.key() == Qt.Key.Key_R and key_event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+            # Ctrl+Q: Quick add selected terms to last-used termbase (no dialog)
+            if key_event.key() == Qt.Key.Key_Q and key_event.modifiers() == Qt.KeyboardModifier.ControlModifier:
                 self._handle_quick_add_to_termbase()
                 return True  # Event handled
             
@@ -1485,8 +1485,8 @@ class ReadOnlyGridTextEditor(QTextEdit):
         add_to_tb_action.triggered.connect(self._handle_add_to_termbase)
         menu.addAction(add_to_tb_action)
         
-        # Quick add to termbase action (no dialog)
-        quick_add_action = QAction("⚡ Quick Add to Termbase (Ctrl+R)", self)
+        # Quick add to termbase action (no dialog) - uses last-selected termbase from Ctrl+E
+        quick_add_action = QAction("⚡ Quick Add to Termbase (Ctrl+Q)", self)
         quick_add_action.triggered.connect(self._handle_quick_add_to_termbase)
         menu.addAction(quick_add_action)
         
@@ -1767,8 +1767,8 @@ class EditableGridTextEditor(QTextEdit):
         add_to_tb_action.triggered.connect(self._handle_add_to_termbase)
         menu.addAction(add_to_tb_action)
         
-        # Quick add to termbase action (no dialog)
-        quick_add_action = QAction("⚡ Quick Add to Termbase (Ctrl+R)", self)
+        # Quick add to termbase action (no dialog) - uses last-selected termbase from Ctrl+E
+        quick_add_action = QAction("⚡ Quick Add to Termbase (Ctrl+Q)", self)
         quick_add_action.triggered.connect(self._handle_quick_add_to_termbase)
         menu.addAction(quick_add_action)
         
@@ -1839,8 +1839,8 @@ class EditableGridTextEditor(QTextEdit):
             event.accept()
             return
         
-        # Ctrl+R: Quick add selected terms to termbase (no dialog)
-        if event.key() == Qt.Key.Key_R and event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+        # Ctrl+Q: Quick add selected terms to last-used termbase (no dialog)
+        if event.key() == Qt.Key.Key_Q and event.modifiers() == Qt.KeyboardModifier.ControlModifier:
             self._handle_quick_add_to_termbase()
             event.accept()
             return
@@ -7541,6 +7541,10 @@ class SupervertalerQt(QMainWindow):
             QMessageBox.warning(self, "No Termbase Selected", "Please select at least one termbase to save the term to.")
             return
         
+        # Store the selected termbase IDs for quick add (Ctrl+Q)
+        self._last_selected_termbase_ids = selected_termbase_ids
+        self.log(f"💾 Stored last-selected termbase IDs for Ctrl+Q: {selected_termbase_ids}")
+        
         # Get source and target languages from current project
         source_lang = self.current_project.source_lang if self.current_project else 'English'
         target_lang = self.current_project.target_lang if self.current_project else 'Dutch'
@@ -7649,7 +7653,11 @@ class SupervertalerQt(QMainWindow):
             QMessageBox.warning(self, "Error Adding Term", "Failed to add term to any termbase. Check the log for details.")
     
     def quick_add_term_pair_to_termbase(self, source_text: str, target_text: str):
-        """Quick add a term pair to the project termbase without showing any dialogs (Ctrl+R)"""
+        """Quick add a term pair to the last-used termbase without showing any dialogs (Ctrl+Q)
+        
+        Uses the termbase(s) selected in the last Ctrl+E dialog. If none selected yet,
+        prompts the user to use Ctrl+E first.
+        """
         # Check if we have a current project
         if not hasattr(self, 'current_project') or not self.current_project:
             QMessageBox.warning(self, "No Active Project", "Please open or create a project before adding terms to termbase.")
@@ -7660,48 +7668,30 @@ class SupervertalerQt(QMainWindow):
             QMessageBox.critical(self, "Error", "Termbase manager not initialized")
             return
         
-        # Generate project ID from the project file path
-        import hashlib
-        project_id = None
-        if hasattr(self, 'project_file_path') and self.project_file_path:
-            project_id = int(hashlib.md5(self.project_file_path.encode()).hexdigest()[:8], 16)
-        else:
-            project_id = int(hashlib.md5(self.current_project.name.encode()).hexdigest()[:8], 16)
+        # Check if we have a last-selected termbase from Ctrl+E
+        if not hasattr(self, '_last_selected_termbase_ids') or not self._last_selected_termbase_ids:
+            QMessageBox.information(self, "No Termbase Selected", 
+                "Please use Ctrl+E first to select which termbase to save terms to.\n\n"
+                "After that, Ctrl+Q will quick-save to the same termbase(s).")
+            return
         
-        # Find the target termbase: prioritize project termbase, then first active termbase
+        # Get all termbases to find the ones matching the saved IDs
         all_termbases = self.termbase_mgr.get_all_termbases()
         
         if not all_termbases:
             QMessageBox.warning(self, "No Termbase", 
-                "Please create at least one termbase in Resources → Termbases tab.\n\n"
-                "Tip: Use Ctrl+E to add with full options, or create a termbase first.")
+                "Please create at least one termbase in Resources → Termbases tab.")
             return
         
-        # Look for a project-specific termbase first
-        target_termbase = None
+        # Find the termbases that match the saved IDs
+        target_termbases = [tb for tb in all_termbases if tb['id'] in self._last_selected_termbase_ids]
         
-        # Priority 1: Project termbase (is_project_termbase = true)
-        for tb in all_termbases:
-            if tb.get('is_project_termbase') and tb.get('project_id') == project_id:
-                target_termbase = tb
-                break
-        
-        # Priority 2: First active termbase for this project
-        if not target_termbase:
-            active_termbases = self.termbase_mgr.get_active_termbases_for_project(project_id)
-            if active_termbases:
-                target_termbase = active_termbases[0]
-        
-        # Priority 3: First global termbase
-        if not target_termbase:
-            for tb in all_termbases:
-                if tb.get('is_global'):
-                    target_termbase = tb
-                    break
-        
-        # Priority 4: Just use the first termbase
-        if not target_termbase:
-            target_termbase = all_termbases[0]
+        if not target_termbases:
+            QMessageBox.warning(self, "Termbase Not Found", 
+                "The previously selected termbase(s) could not be found.\n\n"
+                "Please use Ctrl+E to select a termbase again.")
+            self._last_selected_termbase_ids = None
+            return
         
         # Get source and target languages from current project
         source_lang = self.current_project.source_lang if self.current_project else 'English'
@@ -7711,58 +7701,63 @@ class SupervertalerQt(QMainWindow):
         source_lang_code = self._convert_language_to_code(source_lang)
         target_lang_code = self._convert_language_to_code(target_lang)
         
+        termbase_names = [tb['name'] for tb in target_termbases]
         self.log(f"⚡ Quick-adding term: {source_text} → {target_text}")
-        self.log(f"   To termbase: {target_termbase['name']}")
+        self.log(f"   To termbase(s): {', '.join(termbase_names)}")
         
-        try:
-            term_id = self.termbase_mgr.add_term(
-                termbase_id=target_termbase['id'],
-                source_term=source_text,
-                target_term=target_text,
-                source_lang=source_lang_code,
-                target_lang=target_lang_code,
-                notes="",
-                domain="",
-                project="",
-                client="",
-                forbidden=False
-            )
+        success_count = 0
+        for target_termbase in target_termbases:
+            try:
+                term_id = self.termbase_mgr.add_term(
+                    termbase_id=target_termbase['id'],
+                    source_term=source_text,
+                    target_term=target_text,
+                    source_lang=source_lang_code,
+                    target_lang=target_lang_code,
+                    notes="",
+                    domain="",
+                    project="",
+                    client="",
+                    forbidden=False
+                )
+                
+                if term_id:
+                    success_count += 1
+                    self.log(f"✓ Quick-added term to '{target_termbase['name']}': {source_text} → {target_text}")
+            except Exception as e:
+                self.log(f"✗ Error quick-adding term to '{target_termbase['name']}': {e}")
+        
+        if success_count > 0:
+            # Show brief success notification in statusbar instead of dialog
+            if hasattr(self, 'statusBar') and self.statusBar():
+                if success_count == 1:
+                    self.statusBar().showMessage(f"✓ Added: {source_text} → {target_text} (to {termbase_names[0]})", 3000)
+                else:
+                    self.statusBar().showMessage(f"✓ Added: {source_text} → {target_text} (to {success_count} termbases)", 3000)
             
-            if term_id:
-                self.log(f"✓ Quick-added term to '{target_termbase['name']}': {source_text} → {target_text}")
+            # Refresh translation results to show new termbase match immediately
+            current_row = self.table.currentRow()
+            if current_row >= 0 and current_row < len(self.current_project.segments):
+                segment = self.current_project.segments[current_row]
                 
-                # Show brief success notification in statusbar instead of dialog
-                if hasattr(self, 'statusBar') and self.statusBar():
-                    self.statusBar().showMessage(f"✓ Added: {source_text} → {target_text} (to {target_termbase['name']})", 3000)
+                # Clear BOTH caches for this segment to force refresh
+                with self.translation_matches_cache_lock:
+                    if segment.id in self.translation_matches_cache:
+                        del self.translation_matches_cache[segment.id]
                 
-                # Refresh translation results to show new termbase match immediately
-                current_row = self.table.currentRow()
-                if current_row >= 0 and current_row < len(self.current_project.segments):
-                    segment = self.current_project.segments[current_row]
-                    
-                    # Clear BOTH caches for this segment to force refresh
-                    with self.translation_matches_cache_lock:
-                        if segment.id in self.translation_matches_cache:
-                            del self.translation_matches_cache[segment.id]
-                    
-                    with self.termbase_cache_lock:
-                        if segment.id in self.termbase_cache:
-                            del self.termbase_cache[segment.id]
-                    
-                    # Trigger lookup refresh by simulating segment change
-                    self._last_selected_row = -1  # Reset to force refresh
-                    self.on_cell_selected(current_row, self.table.currentColumn(), -1, -1)
+                with self.termbase_cache_lock:
+                    if segment.id in self.termbase_cache:
+                        del self.termbase_cache[segment.id]
                 
-                # Refresh termbase list UI if open
-                if hasattr(self, 'termbase_tab_refresh_callback') and self.termbase_tab_refresh_callback:
-                    self.termbase_tab_refresh_callback()
-            else:
-                self.log(f"✗ Failed to quick-add term")
-                QMessageBox.warning(self, "Error", "Failed to add term. It may already exist in the termbase.")
-                
-        except Exception as e:
-            self.log(f"✗ Error quick-adding term: {e}")
-            QMessageBox.critical(self, "Error", f"Failed to add term: {e}")
+                # Trigger lookup refresh by simulating segment change
+                self._last_selected_row = -1  # Reset to force refresh
+                self.on_cell_selected(current_row, self.table.currentColumn(), -1, -1)
+            
+            # Refresh termbase list UI if open
+            if hasattr(self, 'termbase_tab_refresh_callback') and self.termbase_tab_refresh_callback:
+                self.termbase_tab_refresh_callback()
+        else:
+            QMessageBox.warning(self, "Error", "Failed to add term. It may already exist in the termbase.")
 
     def add_text_to_non_translatables(self, text: str):
         """Add selected text to active non-translatable list(s)"""

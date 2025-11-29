@@ -144,8 +144,15 @@ class TermBlock(QWidget):
     def init_ui(self):
         """Create the visual layout for this term block - COMPACT RYS-style"""
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(1, 1, 1, 1)
+        layout.setContentsMargins(1, 0, 1, 1)
         layout.setSpacing(0)
+        
+        # Add thin gray separator line at top (like RYS)
+        separator = QFrame()
+        separator.setFrameShape(QFrame.Shape.HLine)
+        separator.setFixedHeight(1)
+        separator.setStyleSheet("background-color: #CCCCCC; border: none;")
+        layout.addWidget(separator)
         
         # Determine border color based on whether we have translations
         if self.translations:
@@ -156,19 +163,12 @@ class TermBlock(QWidget):
             # IMPORTANT: Treat ranking #1 as project termbase (matches main app logic)
             is_effective_project = is_project or (ranking == 1)
             
-            # Border color: pink for project termbase, blue for regular termbase
-            border_color = "#FF1493" if is_effective_project else "#0078D4"
+            # Background color: pink for project termbase, blue for regular termbase
+            self.bg_color = "#FFE5F0" if is_effective_project else "#D6EBFF"
+            self.is_effective_project = is_effective_project
         else:
-            # Gray border for terms without matches
-            border_color = "#E0E0E0"
-        
-        # Set top border on the widget itself to separate terms visually
-        self.setStyleSheet(f"""
-            QWidget {{
-                border-top: 2px solid {border_color};
-                border-radius: 0px;
-            }}
-        """)
+            self.bg_color = "#F5F5F5"  # Light gray for no matches
+            self.is_effective_project = False
         
         # Source text (top) - compact
         source_label = QLabel(self.source_text)
@@ -181,6 +181,7 @@ class TermBlock(QWidget):
                 color: #333;
                 padding: 1px 3px;
                 background-color: transparent;
+                border: none;
             }
         """)
         layout.addWidget(source_label)
@@ -190,8 +191,8 @@ class TermBlock(QWidget):
             target_text = primary_translation.get('target_term', primary_translation.get('target', ''))
             termbase_name = primary_translation.get('termbase_name', '')
             
-            # Color based on termbase type - more subtle
-            bg_color = "#FFE5F0" if is_effective_project else "#D6EBFF"  # Pink for project, light blue for regular
+            # Background color based on termbase type
+            bg_color = "#FFE5F0" if self.is_effective_project else "#D6EBFF"  # Pink for project, light blue for regular
             
             target_label = QLabel(target_text)
             target_font = QFont()
@@ -203,8 +204,8 @@ class TermBlock(QWidget):
                 QLabel {{
                     color: #0052A3;
                     padding: 1px 3px;
-                    background-color: transparent;
-                    border-radius: 2px;
+                    background-color: {bg_color};
+                    border: none;
                 }}
                 QLabel:hover {{
                     background-color: #BBDEFB;
