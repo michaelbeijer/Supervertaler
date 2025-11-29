@@ -3949,6 +3949,13 @@ class SupervertalerQt(QMainWindow):
         self.shortcut_segment_down = QShortcut(QKeySequence("Alt+Down"), self)
         self.shortcut_segment_down.activated.connect(self.go_to_next_segment)
         
+        # Ctrl+Home/End - Navigate to first/last segment
+        self.shortcut_go_to_top = QShortcut(QKeySequence("Ctrl+Home"), self)
+        self.shortcut_go_to_top.activated.connect(self.go_to_first_segment)
+        
+        self.shortcut_go_to_bottom = QShortcut(QKeySequence("Ctrl+End"), self)
+        self.shortcut_go_to_bottom.activated.connect(self.go_to_last_segment)
+        
         # Ctrl+Enter - Confirm segment and go to next unconfirmed
         self.shortcut_confirm_next = QShortcut(QKeySequence("Ctrl+Return"), self)
         self.shortcut_confirm_next.activated.connect(self.confirm_and_next_unconfirmed)
@@ -19200,12 +19207,35 @@ class SupervertalerQt(QMainWindow):
     def show_find_replace_dialog(self):
         """Show unified Find & Replace dialog (Ctrl+F and Ctrl+H both open same dialog)
         Filters grid to show only matching segments, like filter boxes.
+        Pre-fills selected text from source (Find) or target (Replace).
         """
         if not self.current_project or not self.current_project.segments:
             QMessageBox.information(self, "No Project", "Please open a project first.")
             return
         
         from PyQt6.QtWidgets import QCheckBox, QGroupBox
+        
+        # Get selected text from source or target cells to pre-fill the dialog
+        prefill_find = ""
+        prefill_replace = ""
+        
+        current_row = self.table.currentRow() if hasattr(self, 'table') and self.table else -1
+        if current_row >= 0:
+            # Check source cell for selection
+            source_widget = self.table.cellWidget(current_row, 2)
+            if source_widget and hasattr(source_widget, 'textCursor'):
+                source_selection = source_widget.textCursor().selectedText().strip()
+                if source_selection:
+                    prefill_find = source_selection
+                    self.log(f"🔍 Pre-filling Find with source selection: '{source_selection}'")
+            
+            # Check target cell for selection
+            target_widget = self.table.cellWidget(current_row, 3)
+            if target_widget and hasattr(target_widget, 'textCursor'):
+                target_selection = target_widget.textCursor().selectedText().strip()
+                if target_selection:
+                    prefill_replace = target_selection
+                    self.log(f"🔍 Pre-filling Replace with target selection: '{target_selection}'")
         
         # Disable background lookups while find/replace is active
         self.find_replace_active = True
@@ -19236,6 +19266,7 @@ class SupervertalerQt(QMainWindow):
         find_layout = QHBoxLayout()
         find_layout.addWidget(QLabel("Find what:"))
         self.find_input = QLineEdit()
+        self.find_input.setText(prefill_find)  # Pre-fill with source selection
         find_layout.addWidget(self.find_input, stretch=1)
         left_layout.addLayout(find_layout)
         
@@ -19243,6 +19274,7 @@ class SupervertalerQt(QMainWindow):
         replace_layout = QHBoxLayout()
         replace_layout.addWidget(QLabel("Replace with:"))
         self.replace_input = QLineEdit()
+        self.replace_input.setText(prefill_replace)  # Pre-fill with target selection
         replace_layout.addWidget(self.replace_input, stretch=1)
         left_layout.addLayout(replace_layout)
         
@@ -20884,6 +20916,31 @@ class SupervertalerQt(QMainWindow):
                     target_widget.setFocus()
                     # Move cursor to end of text
                     target_widget.moveCursor(QTextCursor.MoveOperation.End)
+    
+    def go_to_first_segment(self):
+        """Navigate to first segment (Ctrl+Home)"""
+        if hasattr(self, 'table') and self.table and self.table.rowCount() > 0:
+            self.table.setCurrentCell(0, 3)  # Column 3 = Target (widget column)
+            self.log(f"⏫ Moved to first segment")
+            # Get the target cell widget and set focus to it
+            target_widget = self.table.cellWidget(0, 3)
+            if target_widget:
+                target_widget.setFocus()
+                # Move cursor to start of text
+                target_widget.moveCursor(QTextCursor.MoveOperation.Start)
+    
+    def go_to_last_segment(self):
+        """Navigate to last segment (Ctrl+End)"""
+        if hasattr(self, 'table') and self.table and self.table.rowCount() > 0:
+            last_row = self.table.rowCount() - 1
+            self.table.setCurrentCell(last_row, 3)  # Column 3 = Target (widget column)
+            self.log(f"⏬ Moved to last segment ({last_row + 1})")
+            # Get the target cell widget and set focus to it
+            target_widget = self.table.cellWidget(last_row, 3)
+            if target_widget:
+                target_widget.setFocus()
+                # Move cursor to end of text
+                target_widget.moveCursor(QTextCursor.MoveOperation.End)
     
     def confirm_and_next_unconfirmed(self):
         """Set current segment to confirmed and move to next unconfirmed segment (Ctrl+Enter)"""

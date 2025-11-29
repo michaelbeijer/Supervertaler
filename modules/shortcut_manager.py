@@ -297,6 +297,18 @@ class ShortcutManager:
             "default": "Alt+Up",
             "action": "go_to_previous_segment"
         },
+        "segment_go_to_top": {
+            "category": "Grid Navigation",
+            "description": "Go to First Segment",
+            "default": "Ctrl+Home",
+            "action": "go_to_first_segment"
+        },
+        "segment_go_to_bottom": {
+            "category": "Grid Navigation",
+            "description": "Go to Last Segment",
+            "default": "Ctrl+End",
+            "action": "go_to_last_segment"
+        },
         
         # Editor Operations
         "editor_save_and_next": {
