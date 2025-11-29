@@ -203,7 +203,7 @@ class TermBlock(QWidget):
                 QLabel {{
                     color: #0052A3;
                     padding: 1px 3px;
-                    background-color: {bg_color};
+                    background-color: transparent;
                     border-radius: 2px;
                 }}
                 QLabel:hover {{
