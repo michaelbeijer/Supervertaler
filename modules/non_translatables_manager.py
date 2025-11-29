@@ -36,7 +36,7 @@ from datetime import datetime
 class NonTranslatable:
     """Single non-translatable entry"""
     text: str
-    case_sensitive: bool = False
+    case_sensitive: bool = True  # Default to case-sensitive matching
     category: str = ""
     notes: str = ""
     
@@ -44,30 +44,63 @@ class NonTranslatable:
         """
         Find all occurrences of this NT in source text.
         
+        Matching is:
+        - Case-sensitive by default (case_sensitive=True)
+        - Full word only (uses word boundaries to avoid matching inside other words)
+        - Special characters (®, ™, etc.) are handled specially
+        
         Returns:
             List of (start_pos, end_pos) tuples for each match
         """
         matches = []
-        text_to_search = source_text if self.case_sensitive else source_text.lower()
-        pattern = self.text if self.case_sensitive else self.text.lower()
+        pattern = self.text
         
-        # Use word boundaries for better matching
         # Escape special regex characters in the pattern
         escaped_pattern = re.escape(pattern)
         
-        # Try to match as whole word (but allow embedded in text for things like ™, ®)
+        # Set regex flags based on case sensitivity
+        flags = 0 if self.case_sensitive else re.IGNORECASE
+        
+        # Check if pattern starts/ends with word characters (letters, digits, underscore)
+        # Word boundaries only work properly between word and non-word characters
+        starts_with_word_char = pattern and pattern[0].isalnum()
+        ends_with_word_char = pattern and pattern[-1].isalnum()
+        
+        # Build pattern with appropriate boundaries
+        if starts_with_word_char:
+            boundary_pattern = r'\b' + escaped_pattern
+        else:
+            # For patterns starting with special chars, use start of string or whitespace/punctuation
+            boundary_pattern = r'(?:^|(?<=\s)|(?<=[^\w]))' + escaped_pattern
+        
+        if ends_with_word_char:
+            boundary_pattern = boundary_pattern + r'\b'
+        else:
+            # For patterns ending with special chars (like ®, ™), no trailing boundary needed
+            # The special char itself acts as a natural boundary
+            pass
+        
         try:
-            for match in re.finditer(escaped_pattern, text_to_search):
+            for match in re.finditer(boundary_pattern, source_text, flags):
                 matches.append((match.start(), match.end()))
         except re.error:
-            # Fallback to simple string search
-            start = 0
-            while True:
-                pos = text_to_search.find(pattern, start)
-                if pos == -1:
-                    break
-                matches.append((pos, pos + len(pattern)))
-                start = pos + 1
+            # Fallback: try simpler word boundary pattern
+            try:
+                simple_pattern = r'\b' + escaped_pattern + r'\b'
+                for match in re.finditer(simple_pattern, source_text, flags):
+                    matches.append((match.start(), match.end()))
+            except re.error:
+                # Final fallback: match anywhere but verify it's not inside a word
+                try:
+                    for match in re.finditer(escaped_pattern, source_text, flags):
+                        start, end = match.start(), match.end()
+                        # Check if this is a standalone match (not inside a word)
+                        before_ok = start == 0 or not source_text[start-1].isalnum()
+                        after_ok = end == len(source_text) or not source_text[end].isalnum()
+                        if before_ok and after_ok:
+                            matches.append((start, end))
+                except re.error:
+                    pass
         
         return matches
 

@@ -32,7 +32,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.10"
+__version__ = "1.9.11"
 __phase__ = "0.9"
 __release_date__ = "2025-11-28"
 __edition__ = "Qt"
@@ -22623,6 +22623,20 @@ class SupervertalerQt(QMainWindow):
                             self.log(f"  ⚠️ {len(fig_missing)} missing segments start with 'FIG': {fig_missing}")
                         if long_missing:
                             self.log(f"  ⚠️ {len(long_missing)} missing segments are very long (>500 chars): {long_missing}")
+                        
+                        # Check for LLM refusal patterns
+                        refusal_patterns = [
+                            "I'm sorry", "I can't assist", "I cannot assist", 
+                            "I'm not able to", "I cannot help", "I can't help",
+                            "against my guidelines", "policy", "unable to"
+                        ]
+                        response_lower = batch_response.lower()
+                        is_refusal = any(pattern.lower() in response_lower for pattern in refusal_patterns)
+                        
+                        if is_refusal:
+                            self.log(f"  🚫 LLM REFUSAL DETECTED: The AI provider refused to translate this content.")
+                            self.log(f"  💡 TRY: Switch to Claude or Gemini in Settings - they may be less restrictive.")
+                            self.log(f"  💡 TRY: Use a different model (e.g., gpt-4-turbo instead of gpt-4o).")
                         self.log(f"  Expected {len(batch_segments)} translations, got {len(segment_translations)}")
                         
                         response_preview = batch_response[:800].replace('\n', ' ')

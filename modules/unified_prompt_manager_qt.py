@@ -1450,8 +1450,8 @@ class UnifiedPromptManagerQt:
                 # Recurse
                 self._build_tree_recursive(folder_item, item, rel_path)
             
-            elif item.suffix.lower() in ['.md', '.txt']:
-                # Prompt file
+            elif item.suffix.lower() in ['.svprompt', '.md', '.txt']:
+                # Prompt file (.svprompt is new format, .md/.txt legacy)
                 rel_path = str(Path(relative_path) / item.name) if relative_path else item.name
                 
                 self.log_message(f"🔍 DEBUG: Checking prompt file: {rel_path}")

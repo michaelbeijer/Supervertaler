@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.10 (November 28, 2025)
+**Current Version:** v1.9.11 (November 28, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -14,6 +14,7 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- 🔧 **Non-Translatables: Case-Sensitive & Full-Word Matching (v1.9.11)** - Non-translatables matching is now case-sensitive by default and only matches full words (not partial words). Added LLM refusal detection with helpful error messages for batch translation. Fixed crash when closing project (missing stop_termbase_batch_worker). Fixed .svprompt files not showing in Prompt Library tree
 - 🔧 **TM Search Fixes & Language Matching (v1.9.10)** - Fixed TM matches not appearing in Translation Results panel. Added flexible language matching ("Dutch", "nl", "nl-NL" all match). TM metadata manager now initializes with project load. Removed legacy Project TM/Big Mama hardcoding. Cleaned public database for new users. Non-Translatables: sortable columns, right-click delete, Delete key support
 - 🎨 **memoQ-style Alternating Row Colors (v1.9.9)** - Grid now displays alternating row colors across all columns (ID, Type, Source, Target) like memoQ. User-configurable colors in Settings → View Settings with even/odd row color pickers. Colors are consistent across the entire row including QTextEdit widgets
 - 🔄 **CafeTran Integration & Editor Shortcuts (v1.9.8)** - Full CafeTran bilingual DOCX support with pipe symbol formatting. New Ctrl+Shift+S copies source to target. Ctrl+, inserts pipe symbols for CafeTran. Pipes highlighted in red/bold. Sortable keyboard shortcuts table. Batch size default changed to 20
@@ -82,6 +83,31 @@ All notable changes to Supervertaler are documented in this file.
 - Added `_apply_row_color()` method for applying colors to individual rows
 - Added `apply_alternating_row_colors()` method for refreshing all row colors
 - Uses caching mechanism for row color settings to optimize performance
+
+---
+
+## [1.9.11] - November 28, 2025
+
+### 🔧 Non-Translatables: Case-Sensitive & Full-Word Matching
+
+**Improved non-translatables matching to prevent false positives:**
+
+**Matching Improvements:**
+- Non-translatables matching is now **case-sensitive by default**
+- Only matches **full words** (not partial words like "Product" inside "ProductName")
+- Uses word boundary detection (`\b`) for accurate term matching
+- Smart fallback for special characters like ® and ™ that don't work with word boundaries
+- Prevents unwanted replacements in the middle of compound terms
+
+**Bug Fixes:**
+- Fixed crash when closing project: added missing `stop_termbase_batch_worker()` method
+- Fixed `.svprompt` files not showing in Prompt Library tree (added extension to both library and manager)
+- Added LLM refusal detection for batch translation with helpful error messages when AI refuses content
+
+**Technical Details:**
+- Changed `case_sensitive` default to `True` in `NonTranslatablesManager.matches()`
+- Rewrote matching logic to use regex word boundaries for full-word matching
+- Added proper error handling for OpenAI content policy refusals during batch translation
 
 ---
 

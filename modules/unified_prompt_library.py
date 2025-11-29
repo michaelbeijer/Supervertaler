@@ -102,8 +102,8 @@ class UnifiedPromptLibrary:
                 count += self._load_from_directory_recursive(item, sub_relative)
                 continue
             
-            # Load prompt files
-            if item.suffix.lower() in ['.md', '.txt']:
+            # Load prompt files (.svprompt is the new format, .md and .txt for legacy)
+            if item.suffix.lower() in ['.svprompt', '.md', '.txt']:
                 prompt_data = self._parse_markdown(item)
                 
                 if prompt_data:

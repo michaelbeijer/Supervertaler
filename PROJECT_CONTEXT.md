@@ -1,13 +1,36 @@
 # Supervertaler Project Context
 
 **Last Updated:** November 28, 2025
-**Current Version:** v1.9.10
+**Current Version:** v1.9.11
 **Repository:** https://github.com/michaelbeijer/Supervertaler
 **Maintainer:** Michael Beijer
 
 ---
 
 ## 📅 Recent Development Activity
+
+### November 28, 2025 - Version 1.9.11 Release: Non-Translatables Matching Improvements
+
+**🔧 Case-Sensitive & Full-Word Matching for Non-Translatables**
+
+**Matching Improvements:**
+- Non-translatables matching is now **case-sensitive by default**
+- Only matches **full words** (not partial words like "Product" inside "ProductName")
+- Uses word boundary detection (`\b`) for accurate term matching
+- Smart fallback for special characters like ® and ™ that don't work with word boundaries
+
+**Bug Fixes:**
+- Fixed crash when closing project: added missing `stop_termbase_batch_worker()` method in Supervertaler.py
+- Fixed `.svprompt` files not showing in Prompt Library tree (added extension to both unified_prompt_library.py and unified_prompt_manager_qt.py)
+- Added LLM refusal detection for batch translation with helpful error messages when AI refuses content (e.g., OpenAI refusing patent content)
+
+**Files Changed:**
+- `modules/non_translatables_manager.py` - Changed `case_sensitive` default to True, rewrote `matches()` method with word boundary regex
+- `Supervertaler.py` - Added `stop_termbase_batch_worker()` method, added LLM refusal detection in batch translate
+- `modules/unified_prompt_library.py` - Added `.svprompt` to file extension checks
+- `modules/unified_prompt_manager_qt.py` - Added `.svprompt` to tree builder extension list
+
+---
 
 ### November 28, 2025 - Version 1.9.10 Release: TM Search Fixes & Language Matching
 
