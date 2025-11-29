@@ -14,6 +14,7 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- ⚡ **Quick Termbase Add (Ctrl+R) & List Number Display (v1.9.11)** - New Ctrl+R shortcut for instant term pair saving without dialogs (saves to project termbase). Type column now shows #1, #2, #3 for numbered list items and • for bullet points. HTML/XML tags now work with Ctrl+, shortcut. Fixed target synonyms display in Translation Results panel
 - 🔧 **Non-Translatables: Case-Sensitive & Full-Word Matching (v1.9.11)** - Non-translatables matching is now case-sensitive by default and only matches full words (not partial words). Added LLM refusal detection with helpful error messages for batch translation. Fixed crash when closing project (missing stop_termbase_batch_worker). Fixed .svprompt files not showing in Prompt Library tree
 - 🔧 **TM Search Fixes & Language Matching (v1.9.10)** - Fixed TM matches not appearing in Translation Results panel. Added flexible language matching ("Dutch", "nl", "nl-NL" all match). TM metadata manager now initializes with project load. Removed legacy Project TM/Big Mama hardcoding. Cleaned public database for new users. Non-Translatables: sortable columns, right-click delete, Delete key support
 - 🎨 **memoQ-style Alternating Row Colors (v1.9.9)** - Grid now displays alternating row colors across all columns (ID, Type, Source, Target) like memoQ. User-configurable colors in Settings → View Settings with even/odd row color pickers. Colors are consistent across the entire row including QTextEdit widgets

@@ -46,6 +46,10 @@ def migrate_termbase_fields(db_manager) -> bool:
         if 'term_uuid' not in columns:
             migrations_needed.append(("term_uuid", "ALTER TABLE termbase_terms ADD COLUMN term_uuid TEXT"))
         
+        # Add 'note' column if it doesn't exist (used by termbase entry editor)
+        if 'note' not in columns:
+            migrations_needed.append(("note", "ALTER TABLE termbase_terms ADD COLUMN note TEXT"))
+        
         # Execute migrations
         for column_name, sql in migrations_needed:
             print(f"📊 Adding column '{column_name}' to termbase_terms...")
@@ -207,7 +211,8 @@ def check_and_migrate(db_manager) -> bool:
         needs_migration = (
             'project' not in columns or 
             'client' not in columns or
-            'term_uuid' not in columns
+            'term_uuid' not in columns or
+            'note' not in columns
         )
         
         # Check if synonyms table exists
@@ -218,7 +223,7 @@ def check_and_migrate(db_manager) -> bool:
         needs_synonyms_table = cursor.fetchone() is None
         
         if needs_migration:
-            print(f"⚠️ Migration needed - missing columns: {', '.join([c for c in ['project', 'client', 'term_uuid'] if c not in columns])}")
+            print(f"⚠️ Migration needed - missing columns: {', '.join([c for c in ['project', 'client', 'term_uuid', 'note'] if c not in columns])}")
         
         if needs_synonyms_table:
             print("⚠️ Migration needed - termbase_synonyms table missing")

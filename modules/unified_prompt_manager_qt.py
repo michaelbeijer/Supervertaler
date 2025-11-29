@@ -2573,7 +2573,7 @@ Output complete ACTION."""
         Get structured segment information for AI context.
 
         Returns:
-            Formatted string with segment count and sample segments, or None if no segments available
+            Formatted string with segment count and ALL segments, or None if no segments available
         """
         try:
             segments = None
@@ -2597,27 +2597,22 @@ Output complete ACTION."""
             translated_count = sum(1 for seg in segments if seg.target and seg.target.strip())
             lines.append(f"- Translated: {translated_count}/{total_count}")
 
-            # Add sample segments (first 10)
-            sample_count = min(10, total_count)
-            lines.append(f"\nFirst {sample_count} segments (use segment numbers to reference specific segments):")
+            # Include ALL segments (up to 500 to stay within token limits)
+            # This allows the AI to search and answer questions about the full document
+            max_segments = min(500, total_count)
+            lines.append(f"\nDocument segments ({max_segments} of {total_count}):")
 
-            for i, seg in enumerate(segments[:sample_count], 1):
-                source_preview = seg.source[:80] + "..." if len(seg.source) > 80 else seg.source
-                target_preview = ""
+            for seg in segments[:max_segments]:
+                # Use full source text (not truncated) so AI can search for terms
+                source_text = seg.source.replace('\n', ' ')  # Normalize newlines
+                target_text = ""
                 if seg.target:
-                    target_preview = seg.target[:80] + "..." if len(seg.target) > 80 else seg.target
+                    target_text = seg.target.replace('\n', ' ')
 
-                lines.append(f"\n  Segment {seg.id}:")
-                lines.append(f"    Source: {source_preview}")
-                if target_preview:
-                    lines.append(f"    Target: {target_preview}")
-                lines.append(f"    Status: {seg.status}")
+                lines.append(f"\nSegment {seg.id}: Source:{source_text}; Target:{target_text}; Status:{seg.status}")
 
-            if total_count > sample_count:
-                lines.append(f"\n  ... and {total_count - sample_count} more segments")
-
-            lines.append("\nNOTE: You can access individual segments by their segment number.")
-            lines.append("Use get_segment_info action to retrieve details of specific segments.")
+            if total_count > max_segments:
+                lines.append(f"\n... and {total_count - max_segments} more segments (not shown)")
 
             return "\n".join(lines)
 

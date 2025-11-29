@@ -9,6 +9,38 @@
 
 ## 📅 Recent Development Activity
 
+### November 28, 2025 - Version 1.9.11 Additional Fixes: Status Reset & TM Improvements
+
+**🔧 Status Reset When Editing Confirmed Segments**
+- When user edits the target text of a **confirmed** segment, status now resets to **translated**
+- This prevents auto-saving edited text to TM until user re-confirms
+- Applied to both grid editor (`on_target_text_changed`) and tab editor (`on_tab_target_change`)
+- Added `_refresh_segment_status_by_id()` helper method for status display updates
+
+**🔧 TM List Button Fixes**
+- Fixed "Delete TM" button not working (wrong column index 1→0)
+- Fixed "Edit/Maintain TM" button not working (wrong column index 1→0)  
+- Fixed "Export to TMX" not working (wrong column index 1→0)
+- Fixed right-click context menu on TM list (wrong column index 1→0)
+
+**🔧 TM Cache Invalidation**
+- TM matches cache is now properly invalidated when TM Read activation toggle changes
+- This ensures deactivated TMs don't continue showing matches until navigation
+
+**🔧 Compare Box for MT/LLM Matches**
+- MT and LLM translation matches now show in the compare box (bottom panel)
+- Added `compare_source` field to TranslationMatch creation for MT results
+
+**🔧 TM Save Only on Confirmed**
+- Changed 7 locations to only save to TM when segment status is 'confirmed'
+- Previously was saving on 'translated' and 'approved' as well
+
+**🔧 Termbase Selection Persistence**
+- "Add Term to Termbase" dialog now remembers selected termbases between sessions
+- Stored per-user in `termbase_dialog_selections.json`
+
+---
+
 ### November 28, 2025 - Version 1.9.11 Release: Non-Translatables Matching Improvements
 
 **🔧 Case-Sensitive & Full-Word Matching for Non-Translatables**

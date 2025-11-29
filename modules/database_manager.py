@@ -382,6 +382,10 @@ class DatabaseManager:
                 modified_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 usage_count INTEGER DEFAULT 0,
                 notes TEXT,
+                note TEXT,
+                project TEXT,
+                client TEXT,
+                term_uuid TEXT,
                 
                 FOREIGN KEY (tm_source_id) REFERENCES translation_units(id) ON DELETE SET NULL
             )
@@ -1185,6 +1189,26 @@ class DatabaseManager:
             # SQLite stores booleans as 0/1, explicitly convert to Python bool
             if 'is_project_termbase' in result_dict:
                 result_dict['is_project_termbase'] = bool(result_dict['is_project_termbase'])
+            
+            # Fetch target synonyms for this term and include them in the result
+            term_id = result_dict.get('id')
+            if term_id:
+                try:
+                    self.cursor.execute("""
+                        SELECT synonym_text, forbidden FROM termbase_synonyms
+                        WHERE term_id = ? AND language = 'target'
+                        ORDER BY display_order ASC
+                    """, (term_id,))
+                    synonyms = []
+                    for syn_row in self.cursor.fetchall():
+                        syn_text = syn_row[0]
+                        syn_forbidden = bool(syn_row[1])
+                        if not syn_forbidden:  # Only include non-forbidden synonyms
+                            synonyms.append(syn_text)
+                    result_dict['target_synonyms'] = synonyms
+                except Exception:
+                    result_dict['target_synonyms'] = []
+            
             results.append(result_dict)
         return results
     

@@ -439,12 +439,23 @@ class TermviewWidget(QWidget):
                 if key not in matches_dict:
                     matches_dict[key] = []
                 
+                # Add main target term
                 matches_dict[key].append({
                     'target_term': target_term,
                     'termbase_name': match.get('termbase_name', ''),
                     'ranking': match.get('ranking', 99),
                     'is_project_termbase': match.get('is_project_termbase', False)
                 })
+                
+                # Add synonyms as additional translations
+                target_synonyms = match.get('target_synonyms', [])
+                for synonym in target_synonyms:
+                    matches_dict[key].append({
+                        'target_term': synonym,
+                        'termbase_name': match.get('termbase_name', '') + ' (syn)',
+                        'ranking': match.get('ranking', 99) + 1,  # Slightly lower priority
+                        'is_project_termbase': match.get('is_project_termbase', False)
+                    })
         
         # Convert NT matches to dict: {text.lower(): list_name}
         nt_dict = {}

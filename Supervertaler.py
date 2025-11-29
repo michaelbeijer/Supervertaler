@@ -3,8 +3,8 @@ Supervertaler Qt Edition
 ========================
 The ultimate companion tool for translators and writers.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.9.10 (TM Search Fixes & Language Matching)
-Release Date: November 28, 2025
+Version: 1.9.11 (Quick Termbase Add & List Numbering)
+Release Date: November 29, 2025
 Framework: PyQt6
 
 This is the modern edition of Supervertaler using PyQt6 framework.
@@ -447,6 +447,45 @@ def extract_memoq_tags(text: str) -> list:
     return re.findall(pattern, text)
 
 
+def extract_html_tags(text: str) -> list:
+    """
+    Extract all HTML/XML tags from text in order of appearance.
+    
+    Supports common formatting tags used in translation:
+    - Opening tags: <b>, <i>, <u>, <li>, <p>, <span>, etc.
+    - Closing tags: </b>, </i>, </u>, </li>, </p>, </span>, etc.
+    - Self-closing tags: <br/>, <hr/>, etc.
+    
+    Args:
+        text: Source text containing HTML tags
+        
+    Returns:
+        List of tag strings in order of appearance: ['<li>', '</li>', '<b>', '</b>', ...]
+    """
+    import re
+    # Match HTML/XML tags: <tagname>, </tagname>, <tagname/>, <tagname attr="value">
+    pattern = r'(</?[a-zA-Z][a-zA-Z0-9]*(?:\s+[^>]*)?>)'
+    return re.findall(pattern, text)
+
+
+def extract_all_tags(text: str) -> list:
+    """
+    Extract all tags (memoQ and HTML) from text in order of appearance.
+    
+    Args:
+        text: Source text containing tags
+        
+    Returns:
+        List of all tag strings in order of appearance
+    """
+    import re
+    # Combined pattern for both memoQ tags and HTML tags
+    # memoQ: [N}, {N], [N]
+    # HTML: <tag>, </tag>, <tag/>, <tag attr="value">
+    pattern = r'(\[\d+\}|\{\d+\]|\[\d+\]|</?[a-zA-Z][a-zA-Z0-9]*(?:\s+[^>]*)?>)'
+    return re.findall(pattern, text)
+
+
 def count_pipe_symbols(text: str) -> int:
     """Count the number of CafeTran pipe symbols in text."""
     return text.count('|')
@@ -485,6 +524,8 @@ def find_next_unused_tag(source_text: str, target_text: str) -> str:
     """
     Find the next tag from source that hasn't been used in target yet.
     
+    Supports both memoQ tags ([1}, {1], [1]) and HTML tags (<li>, </li>, <b>, etc.)
+    
     Args:
         source_text: Source segment text with tags
         target_text: Current target text (may have some tags already)
@@ -492,8 +533,9 @@ def find_next_unused_tag(source_text: str, target_text: str) -> str:
     Returns:
         The next tag to insert, or empty string if all tags are used
     """
-    source_tags = extract_memoq_tags(source_text)
-    target_tags = extract_memoq_tags(target_text)
+    # Use combined extraction for both memoQ and HTML tags
+    source_tags = extract_all_tags(source_text)
+    target_tags = extract_all_tags(target_text)
     
     # Count occurrences in target
     from collections import Counter
@@ -571,6 +613,8 @@ class Segment:
     modified: bool = False  # Track if segment has been edited
     created_at: str = ""  # Creation timestamp
     modified_at: str = ""  # Last modification timestamp
+    list_number: Optional[int] = None  # For numbered lists: 1, 2, 3, etc. None for bullets or non-lists
+    list_type: str = ""  # "numbered", "bullet", or "" for non-list items
     
     def __post_init__(self):
         """Initialize timestamps if not provided"""
@@ -777,7 +821,7 @@ class GridTextEditor(QTextEdit):
     
     def _insert_next_tag_or_wrap_selection(self):
         """
-        Insert the next memoQ tag or CafeTran pipe symbol from source, or wrap selection.
+        Insert the next memoQ tag, HTML tag, or CafeTran pipe symbol from source, or wrap selection.
         
         Behavior:
         - If text is selected: Wrap it with the next available tag pair [N}selection{N] or |selection|
@@ -785,6 +829,7 @@ class GridTextEditor(QTextEdit):
         
         Supports:
         - memoQ tags: [1}, {1], [2}, {2], etc.
+        - HTML/XML tags: <li>, </li>, <b>, </b>, <i>, </i>, etc.
         - CafeTran pipe symbols: |
         
         Shortcut: Ctrl+, (comma)
@@ -810,6 +855,8 @@ class GridTextEditor(QTextEdit):
         
         # Check what type of tags are in the source
         has_memoq_tags = bool(extract_memoq_tags(source_text))
+        has_html_tags = bool(extract_html_tags(source_text))
+        has_any_tags = has_memoq_tags or has_html_tags
         has_pipe_symbols = '|' in source_text
         
         # Check if there's a selection
@@ -843,8 +890,8 @@ class GridTextEditor(QTextEdit):
         else:
             # No selection - insert next unused tag or pipe at cursor
             
-            # Try memoQ tags first
-            if has_memoq_tags:
+            # Try memoQ tags and HTML tags (find_next_unused_tag handles both)
+            if has_any_tags:
                 next_tag = find_next_unused_tag(source_text, current_target)
                 if next_tag:
                     cursor.insertText(next_tag)
@@ -1152,9 +1199,14 @@ class ReadOnlyGridTextEditor(QTextEdit):
         if event.type() == event.Type.KeyPress:
             key_event = event
             
-            # Ctrl+E: Add selected terms to termbase
+            # Ctrl+E: Add selected terms to termbase (with dialog)
             if key_event.key() == Qt.Key.Key_E and key_event.modifiers() == Qt.KeyboardModifier.ControlModifier:
                 self._handle_add_to_termbase()
+                return True  # Event handled
+            
+            # Ctrl+R: Quick add selected terms to termbase (no dialog)
+            if key_event.key() == Qt.Key.Key_R and key_event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+                self._handle_quick_add_to_termbase()
                 return True  # Event handled
             
             # Ctrl+Alt+N: Add selected text to non-translatables
@@ -1234,6 +1286,39 @@ class ReadOnlyGridTextEditor(QTextEdit):
         
         if main_window and hasattr(main_window, 'add_term_pair_to_termbase'):
             main_window.add_term_pair_to_termbase(source_text, target_text)
+    
+    def _handle_quick_add_to_termbase(self):
+        """Handle Ctrl+R: Quick add selected source and target terms to termbase (no dialog)"""
+        if not self.table_ref or self.row < 0:
+            return
+        
+        # Get source selection (from this widget)
+        source_text = self.textCursor().selectedText().strip()
+        
+        # Get target cell widget and its selection
+        target_widget = self.table_ref.cellWidget(self.row, 3)
+        target_text = ""
+        if target_widget and hasattr(target_widget, 'textCursor'):
+            target_text = target_widget.textCursor().selectedText().strip()
+        
+        # Validate we have both selections
+        if not source_text or not target_text:
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.warning(
+                self,
+                "Selection Required",
+                "Please select text in both Source and Target cells before quick-adding to termbase.\n\n"
+                "Tip: Use Ctrl+E to add with a dialog where you can choose termbase and add metadata."
+            )
+            return
+        
+        # Find main window and call quick_add_to_termbase method
+        main_window = self.table_ref.parent()
+        while main_window and not hasattr(main_window, 'quick_add_term_pair_to_termbase'):
+            main_window = main_window.parent()
+        
+        if main_window and hasattr(main_window, 'quick_add_term_pair_to_termbase'):
+            main_window.quick_add_term_pair_to_termbase(source_text, target_text)
     
     def mouseMoveEvent(self, event):
         """Show tooltip when hovering over highlighted termbase matches"""
@@ -1395,10 +1480,15 @@ class ReadOnlyGridTextEditor(QTextEdit):
             menu.addAction(copy_action)
             menu.addSeparator()
         
-        # Add to termbase action
+        # Add to termbase action (with dialog)
         add_to_tb_action = QAction("📖 Add to Termbase (Ctrl+E)", self)
         add_to_tb_action.triggered.connect(self._handle_add_to_termbase)
         menu.addAction(add_to_tb_action)
+        
+        # Quick add to termbase action (no dialog)
+        quick_add_action = QAction("⚡ Quick Add to Termbase (Ctrl+R)", self)
+        quick_add_action.triggered.connect(self._handle_quick_add_to_termbase)
+        menu.addAction(quick_add_action)
         
         # Add to non-translatables action
         add_to_nt_action = QAction("🚫 Add to Non-Translatables (Ctrl+Alt+N)", self)
@@ -1616,6 +1706,39 @@ class EditableGridTextEditor(QTextEdit):
         if main_window and hasattr(main_window, 'add_term_pair_to_termbase'):
             main_window.add_term_pair_to_termbase(source_text, target_text)
     
+    def _handle_quick_add_to_termbase(self):
+        """Handle Ctrl+R: Quick add selected source and target terms to termbase (no dialog)"""
+        if not self.table or self.row < 0:
+            return
+        
+        # Get target selection (from this widget)
+        target_text = self.textCursor().selectedText().strip()
+        
+        # Get source cell widget and its selection
+        source_widget = self.table.cellWidget(self.row, 2)
+        source_text = ""
+        if source_widget and hasattr(source_widget, 'textCursor'):
+            source_text = source_widget.textCursor().selectedText().strip()
+        
+        # Validate we have both selections
+        if not source_text or not target_text:
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.warning(
+                self,
+                "Selection Required",
+                "Please select text in both Source and Target cells before quick-adding to termbase.\n\n"
+                "Tip: Use Ctrl+E to add with a dialog where you can choose termbase and add metadata."
+            )
+            return
+        
+        # Find main window and call quick_add_to_termbase method
+        main_window = self.table.parent()
+        while main_window and not hasattr(main_window, 'quick_add_term_pair_to_termbase'):
+            main_window = main_window.parent()
+        
+        if main_window and hasattr(main_window, 'quick_add_term_pair_to_termbase'):
+            main_window.quick_add_term_pair_to_termbase(source_text, target_text)
+    
     def contextMenuEvent(self, event):
         """Show context menu with Add to Termbase and Add to Non-Translatables options"""
         from PyQt6.QtWidgets import QMenu
@@ -1639,10 +1762,15 @@ class EditableGridTextEditor(QTextEdit):
         menu.addAction(paste_action)
         menu.addSeparator()
         
-        # Add to termbase action
+        # Add to termbase action (with dialog)
         add_to_tb_action = QAction("📖 Add to Termbase (Ctrl+E)", self)
         add_to_tb_action.triggered.connect(self._handle_add_to_termbase)
         menu.addAction(add_to_tb_action)
+        
+        # Quick add to termbase action (no dialog)
+        quick_add_action = QAction("⚡ Quick Add to Termbase (Ctrl+R)", self)
+        quick_add_action.triggered.connect(self._handle_quick_add_to_termbase)
+        menu.addAction(quick_add_action)
         
         # Add to non-translatables action
         add_to_nt_action = QAction("🚫 Add to Non-Translatables (Ctrl+Alt+N)", self)
@@ -1705,9 +1833,15 @@ class EditableGridTextEditor(QTextEdit):
     
     def keyPressEvent(self, event):
         """Handle Tab and Ctrl+E keys to cycle between source and target cells"""
-        # Ctrl+E: Add selected terms to termbase
+        # Ctrl+E: Add selected terms to termbase (with dialog)
         if event.key() == Qt.Key.Key_E and event.modifiers() == Qt.KeyboardModifier.ControlModifier:
             self._handle_add_to_termbase()
+            event.accept()
+            return
+        
+        # Ctrl+R: Quick add selected terms to termbase (no dialog)
+        if event.key() == Qt.Key.Key_R and event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+            self._handle_quick_add_to_termbase()
             event.accept()
             return
         
@@ -1806,7 +1940,7 @@ class EditableGridTextEditor(QTextEdit):
 
     def _insert_next_tag_or_wrap_selection(self):
         """
-        Insert the next memoQ tag or CafeTran pipe symbol from source, or wrap selection.
+        Insert the next memoQ tag, HTML tag, or CafeTran pipe symbol from source, or wrap selection.
         
         Behavior:
         - If text is selected: Wrap it with the next available tag pair [N}selection{N] or |selection|
@@ -1814,6 +1948,7 @@ class EditableGridTextEditor(QTextEdit):
         
         Supports:
         - memoQ tags: [1}, {1], [2}, {2], etc.
+        - HTML/XML tags: <li>, </li>, <b>, </b>, <i>, </i>, etc.
         - CafeTran pipe symbols: |
         
         Shortcut: Ctrl+, (comma)
@@ -1838,6 +1973,8 @@ class EditableGridTextEditor(QTextEdit):
         
         # Check what type of tags are in the source
         has_memoq_tags = bool(extract_memoq_tags(source_text))
+        has_html_tags = bool(extract_html_tags(source_text))
+        has_any_tags = has_memoq_tags or has_html_tags
         has_pipe_symbols = '|' in source_text
         
         # Check if there's a selection
@@ -1871,8 +2008,8 @@ class EditableGridTextEditor(QTextEdit):
         else:
             # No selection - insert next unused tag or pipe at cursor
             
-            # Try memoQ tags first
-            if has_memoq_tags:
+            # Try memoQ tags and HTML tags (find_next_unused_tag handles both)
+            if has_any_tags:
                 next_tag = find_next_unused_tag(source_text, current_target)
                 if next_tag:
                     cursor.insertText(next_tag)
@@ -2750,13 +2887,57 @@ class DetachedLogWindow(QWidget):
 class TermMetadataDialog(QDialog):
     """Dialog for adding/editing term metadata before saving to termbase"""
     
-    def __init__(self, source_term: str, target_term: str, active_termbases: list, parent=None):
+    def __init__(self, source_term: str, target_term: str, active_termbases: list, parent=None, user_data_path=None):
         super().__init__(parent)
         self.source_term = source_term
         self.target_term = target_term
         self.active_termbases = active_termbases
         self.termbase_checkboxes = {}  # Store checkbox references
+        self.user_data_path = user_data_path
+        self.saved_selections = self._load_termbase_selections()
         self.setup_ui()
+    
+    def _load_termbase_selections(self):
+        """Load saved termbase selections from preferences"""
+        if not self.user_data_path:
+            return None
+        
+        prefs_file = self.user_data_path / "ui_preferences.json"
+        if not prefs_file.exists():
+            return None
+        
+        try:
+            with open(prefs_file, 'r') as f:
+                prefs = json.load(f)
+                return prefs.get('add_term_termbase_selections', None)
+        except:
+            return None
+    
+    def _save_termbase_selections(self):
+        """Save current termbase selections to preferences"""
+        if not self.user_data_path:
+            return
+        
+        prefs_file = self.user_data_path / "ui_preferences.json"
+        
+        # Load existing preferences
+        prefs = {}
+        if prefs_file.exists():
+            try:
+                with open(prefs_file, 'r') as f:
+                    prefs = json.load(f)
+            except:
+                pass
+        
+        # Save the selected termbase IDs
+        selected_ids = [tb_id for tb_id, cb in self.termbase_checkboxes.items() if cb.isChecked()]
+        prefs['add_term_termbase_selections'] = selected_ids
+        
+        try:
+            with open(prefs_file, 'w') as f:
+                json.dump(prefs, f, indent=2)
+        except:
+            pass
         
     def setup_ui(self):
         self.setWindowTitle("Add Term to Termbase")
@@ -2849,7 +3030,11 @@ class TermMetadataDialog(QDialog):
                 else:
                     cb = CheckmarkCheckBox(tb['name'])
                 
-                cb.setChecked(True)  # Default: all selected
+                # Use saved selection if available, otherwise default to all selected
+                if self.saved_selections is not None:
+                    cb.setChecked(tb['id'] in self.saved_selections)
+                else:
+                    cb.setChecked(True)  # Default: all selected
                 cb.setToolTip(f"Languages: {tb.get('source_lang', '?')} → {tb.get('target_lang', '?')}")
                 
                 self.termbase_checkboxes[tb['id']] = cb
@@ -3088,7 +3273,7 @@ class TermMetadataDialog(QDialog):
         
         save_btn = QPushButton("Add to Termbase")
         save_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 5px 15px;")
-        save_btn.clicked.connect(self.accept)
+        save_btn.clicked.connect(self._accept_and_save)
         save_btn.setDefault(True)
         button_layout.addWidget(save_btn)
 
@@ -3347,6 +3532,11 @@ class TermMetadataDialog(QDialog):
     def get_selected_termbases(self):
         """Return list of selected termbase IDs"""
         return [tb_id for tb_id, cb in self.termbase_checkboxes.items() if cb.isChecked()]
+    
+    def _accept_and_save(self):
+        """Save termbase selections and accept the dialog"""
+        self._save_termbase_selections()
+        self.accept()
 
 
 class AdvancedFiltersDialog(QDialog):
@@ -6389,6 +6579,9 @@ class SupervertalerQt(QMainWindow):
                             font = name_item.font()
                             font.setBold(checked)
                             name_item.setFont(font)
+                        
+                        # Invalidate translation cache so matches are refreshed with new TM settings
+                        self.invalidate_translation_cache(smart_invalidation=False)
                     else:
                         self.log(f"❌ Failed to toggle TM {tm_id}")
                         # Revert checkbox on failure
@@ -6492,8 +6685,8 @@ class SupervertalerQt(QMainWindow):
         if current_row < 0:
             return
         
-        # Get TM info from the row
-        name_item = tm_table.item(current_row, 1)
+        # Get TM info from the row (column 0 = TM Name)
+        name_item = tm_table.item(current_row, 0)
         if not name_item:
             return
         
@@ -7335,7 +7528,7 @@ class SupervertalerQt(QMainWindow):
             return
         
         # Show metadata dialog with termbase selection
-        dialog = TermMetadataDialog(source_text, target_text, active_termbases, self)
+        dialog = TermMetadataDialog(source_text, target_text, active_termbases, self, user_data_path=self.user_data_path)
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return  # User cancelled
         
@@ -7455,6 +7648,122 @@ class SupervertalerQt(QMainWindow):
         else:
             QMessageBox.warning(self, "Error Adding Term", "Failed to add term to any termbase. Check the log for details.")
     
+    def quick_add_term_pair_to_termbase(self, source_text: str, target_text: str):
+        """Quick add a term pair to the project termbase without showing any dialogs (Ctrl+R)"""
+        # Check if we have a current project
+        if not hasattr(self, 'current_project') or not self.current_project:
+            QMessageBox.warning(self, "No Active Project", "Please open or create a project before adding terms to termbase.")
+            return
+        
+        # Get termbase manager
+        if not hasattr(self, 'termbase_mgr') or not self.termbase_mgr:
+            QMessageBox.critical(self, "Error", "Termbase manager not initialized")
+            return
+        
+        # Generate project ID from the project file path
+        import hashlib
+        project_id = None
+        if hasattr(self, 'project_file_path') and self.project_file_path:
+            project_id = int(hashlib.md5(self.project_file_path.encode()).hexdigest()[:8], 16)
+        else:
+            project_id = int(hashlib.md5(self.current_project.name.encode()).hexdigest()[:8], 16)
+        
+        # Find the target termbase: prioritize project termbase, then first active termbase
+        all_termbases = self.termbase_mgr.get_all_termbases()
+        
+        if not all_termbases:
+            QMessageBox.warning(self, "No Termbase", 
+                "Please create at least one termbase in Resources → Termbases tab.\n\n"
+                "Tip: Use Ctrl+E to add with full options, or create a termbase first.")
+            return
+        
+        # Look for a project-specific termbase first
+        target_termbase = None
+        
+        # Priority 1: Project termbase (is_project_termbase = true)
+        for tb in all_termbases:
+            if tb.get('is_project_termbase') and tb.get('project_id') == project_id:
+                target_termbase = tb
+                break
+        
+        # Priority 2: First active termbase for this project
+        if not target_termbase:
+            active_termbases = self.termbase_mgr.get_active_termbases_for_project(project_id)
+            if active_termbases:
+                target_termbase = active_termbases[0]
+        
+        # Priority 3: First global termbase
+        if not target_termbase:
+            for tb in all_termbases:
+                if tb.get('is_global'):
+                    target_termbase = tb
+                    break
+        
+        # Priority 4: Just use the first termbase
+        if not target_termbase:
+            target_termbase = all_termbases[0]
+        
+        # Get source and target languages from current project
+        source_lang = self.current_project.source_lang if self.current_project else 'English'
+        target_lang = self.current_project.target_lang if self.current_project else 'Dutch'
+        
+        # Convert to language codes for database storage
+        source_lang_code = self._convert_language_to_code(source_lang)
+        target_lang_code = self._convert_language_to_code(target_lang)
+        
+        self.log(f"⚡ Quick-adding term: {source_text} → {target_text}")
+        self.log(f"   To termbase: {target_termbase['name']}")
+        
+        try:
+            term_id = self.termbase_mgr.add_term(
+                termbase_id=target_termbase['id'],
+                source_term=source_text,
+                target_term=target_text,
+                source_lang=source_lang_code,
+                target_lang=target_lang_code,
+                notes="",
+                domain="",
+                project="",
+                client="",
+                forbidden=False
+            )
+            
+            if term_id:
+                self.log(f"✓ Quick-added term to '{target_termbase['name']}': {source_text} → {target_text}")
+                
+                # Show brief success notification in statusbar instead of dialog
+                if hasattr(self, 'statusBar') and self.statusBar():
+                    self.statusBar().showMessage(f"✓ Added: {source_text} → {target_text} (to {target_termbase['name']})", 3000)
+                
+                # Refresh translation results to show new termbase match immediately
+                current_row = self.table.currentRow()
+                if current_row >= 0 and current_row < len(self.current_project.segments):
+                    segment = self.current_project.segments[current_row]
+                    
+                    # Clear BOTH caches for this segment to force refresh
+                    with self.translation_matches_cache_lock:
+                        if segment.id in self.translation_matches_cache:
+                            del self.translation_matches_cache[segment.id]
+                    
+                    with self.termbase_cache_lock:
+                        if segment.id in self.termbase_cache:
+                            del self.termbase_cache[segment.id]
+                    
+                    # Trigger lookup refresh by simulating segment change
+                    self._last_selected_row = -1  # Reset to force refresh
+                    self.on_cell_selected(current_row, self.table.currentColumn(), -1, -1)
+                
+                # Refresh termbase list UI if open
+                if hasattr(self, 'termbase_tab_refresh_callback') and self.termbase_tab_refresh_callback:
+                    self.termbase_tab_refresh_callback()
+            else:
+                self.log(f"✗ Failed to quick-add term")
+                QMessageBox.warning(self, "Error", "Failed to add term. It may already exist in the termbase.")
+                
+        except Exception as e:
+            self.log(f"✗ Error quick-adding term: {e}")
+            QMessageBox.critical(self, "Error", f"Failed to add term: {e}")
+
     def add_text_to_non_translatables(self, text: str):
         """Add selected text to active non-translatable list(s)"""
         if not text or not text.strip():
@@ -9131,8 +9440,8 @@ class SupervertalerQt(QMainWindow):
             QMessageBox.warning(self, "Error", "Please select a TM to export")
             return
         
-        # Get TM
-        tm_name = tm_table.item(selected_row, 1).text()
+        # Get TM (column 0 = TM Name)
+        tm_name = tm_table.item(selected_row, 0).text()
         tms = tm_metadata_mgr.get_all_tms()
         tm = next((t for t in tms if t['name'] == tm_name), None)
         if not tm:
@@ -9205,8 +9514,8 @@ class SupervertalerQt(QMainWindow):
             QMessageBox.warning(self, "Error", "Please select a TM to delete")
             return
         
-        # Get TM
-        tm_name = tm_table.item(selected_row, 1).text()
+        # Get TM (column 0 = TM Name)
+        tm_name = tm_table.item(selected_row, 0).text()
         tms = tm_metadata_mgr.get_all_tms()
         tm = next((t for t in tms if t['name'] == tm_name), None)
         if not tm:
@@ -9235,8 +9544,8 @@ class SupervertalerQt(QMainWindow):
             QMessageBox.warning(self, "Error", "Please select a TM to edit")
             return
         
-        # Get TM
-        tm_name = tm_table.item(selected_row, 1).text()
+        # Get TM (column 0 = TM Name)
+        tm_name = tm_table.item(selected_row, 0).text()
         tms = tm_metadata_mgr.get_all_tms()
         tm = next((t for t in tms if t['name'] == tm_name), None)
         if not tm:
@@ -13487,8 +13796,23 @@ class SupervertalerQt(QMainWindow):
                             'client': client or '',
                             'forbidden': forbidden or False,
                             'is_project_termbase': bool(is_project_tb),
-                            'termbase_name': termbase_name or ''
+                            'termbase_name': termbase_name or '',
+                            'target_synonyms': []  # Will be populated below
                         }
+                        
+                        # Fetch synonyms for this term
+                        try:
+                            cursor.execute("""
+                                SELECT synonym_text FROM termbase_synonyms 
+                                WHERE term_id = ? AND language = 'target' AND forbidden = 0
+                            """, (term_id,))
+                            synonym_rows = cursor.fetchall()
+                            for syn_row in synonym_rows:
+                                synonym = syn_row[0] if isinstance(syn_row, tuple) else syn_row['synonym_text']
+                                if synonym:
+                                    matches[source_term.strip()]['target_synonyms'].append(synonym)
+                        except Exception:
+                            pass  # Synonyms are optional, don't fail on error
                 except Exception:
                     # Skip word on any error; continue with next word
                     continue
@@ -13689,7 +14013,8 @@ class SupervertalerQt(QMainWindow):
                             'domain': match_info.get('domain', '') if isinstance(match_info, dict) else '',
                             'notes': match_info.get('notes', '') if isinstance(match_info, dict) else '',
                             'project': match_info.get('project', '') if isinstance(match_info, dict) else '',
-                            'client': match_info.get('client', '') if isinstance(match_info, dict) else ''
+                            'client': match_info.get('client', '') if isinstance(match_info, dict) else '',
+                            'target_synonyms': match_info.get('target_synonyms', []) if isinstance(match_info, dict) else []
                         },
                         match_type='Termbase',
                         compare_source=source_term,
@@ -15370,6 +15695,42 @@ class SupervertalerQt(QMainWindow):
 
         previous_suppression = self._suppress_target_change_handlers
         self._suppress_target_change_handlers = True
+        
+        # Pre-calculate list numbers for numbered lists
+        # Track consecutive <li> items and assign numbers
+        list_counter = 0
+        last_was_list = False
+        list_numbers = {}  # {segment_index: list_number}
+        
+        for idx, segment in enumerate(self.current_project.segments):
+            source_text = segment.source.strip()
+            is_list_item = source_text.startswith('<li>')
+            
+            # Check if it's a numbered list item (vs bullet)
+            # If text inside <li> starts with a number pattern, extract it
+            # Otherwise, if it's part of a consecutive list sequence, count it
+            if is_list_item:
+                import re
+                # Check for number at start: <li>1. or <li>2) etc
+                num_match = re.match(r'^<li>\s*(\d+)[.)\s]', source_text)
+                if num_match:
+                    # Has explicit number in text
+                    list_numbers[idx] = int(num_match.group(1))
+                    list_counter = int(num_match.group(1))
+                    last_was_list = True
+                elif last_was_list:
+                    # Continue numbering from previous
+                    list_counter += 1
+                    list_numbers[idx] = list_counter
+                else:
+                    # First item, start at 1
+                    list_counter = 1
+                    list_numbers[idx] = list_counter
+                    last_was_list = True
+            else:
+                # Not a list item, reset counter
+                last_was_list = False
+                list_counter = 0
 
         try:
             for row, segment in enumerate(self.current_project.segments):
@@ -15392,9 +15753,16 @@ class SupervertalerQt(QMainWindow):
                 # Determine type display from style attribute and segment type
                 style = getattr(segment, 'style', 'Normal')
                 
-                # Check for list items (bullets/numbering or <li> tags)
+                # Check for list items - use stored list_type/list_number if available
+                list_type = getattr(segment, 'list_type', '')
+                list_number_stored = getattr(segment, 'list_number', None)
+                
+                # Use pre-calculated list number from our loop above
+                list_number_calculated = list_numbers.get(row, None)
+                
+                # Fallback: detect from source text if list_type not set
                 source_text = segment.source.strip()
-                is_list_item = (
+                is_list_item = bool(list_type) or (
                     source_text.startswith('<li>') or  # Tagged list item
                     source_text.lstrip().startswith(('• ', '- ', '* ', '· ')) or
                     (len(source_text) > 2 and source_text[0].isdigit() and source_text[1:3] in ('. ', ') '))
@@ -15414,7 +15782,26 @@ class SupervertalerQt(QMainWindow):
                 elif 'Subtitle' in style:
                     type_display = "Sub"
                 elif is_list_item:
-                    type_display = "li"
+                    # Show list number for numbered lists, bullet for unordered
+                    # Check for bullet patterns first
+                    if source_text.lstrip().startswith(('• ', '- ', '* ', '· ')):
+                        type_display = "•"
+                    elif list_type == "bullet":
+                        type_display = "•"
+                    elif list_number_stored is not None:
+                        type_display = f"#{list_number_stored}"
+                    elif list_number_calculated is not None:
+                        type_display = f"#{list_number_calculated}"
+                    elif list_type == "numbered":
+                        type_display = "#?"
+                    else:
+                        # Fallback: check for number at start of text (not inside <li>)
+                        import re
+                        num_match = re.match(r'^(\d+)[.)\s]', source_text)
+                        if num_match:
+                            type_display = f"#{num_match.group(1)}"
+                        else:
+                            type_display = "li"
                 elif segment.type and segment.type != "para":
                     type_display = segment.type.upper()
                 else:
@@ -15428,7 +15815,7 @@ class SupervertalerQt(QMainWindow):
                 if type_display in ("H1", "H2", "H3", "H4", "Title"):
                     type_item.setForeground(QColor("#003366"))  # Dark blue for headings
                     type_item.setBackground(QColor("#e6f3ff"))  # Light blue background
-                elif type_display == "li":
+                elif type_display.startswith("#") or type_display in ("•", "li"):
                     type_item.setForeground(QColor("#006600"))  # Dark green for list items
                     type_item.setBackground(QColor("#f0f8f0"))  # Light green background
                 
@@ -15494,15 +15881,28 @@ class SupervertalerQt(QMainWindow):
                         old_target = target_segment.target
                         old_status = target_segment.status
                         
-                        # SIMPLIFIED: Just update the target, NO status changes
+                        # Update the target text
                         if self.debug_mode_enabled:
                             self.log(f"📝 BEFORE update: seg {segment_id} target='{target_segment.target[:30] if target_segment.target else 'EMPTY'}...', status={target_segment.status}, obj_id={id(target_segment)}")
                         target_segment.target = new_text
+                        
+                        # Reset 'confirmed' status to 'translated' when user edits the segment
+                        # This prevents auto-saving to TM until user re-confirms the edit
+                        new_status = old_status
+                        if old_status == 'confirmed' and new_text != old_target:
+                            from PyQt6.QtCore import QTimer as QTimerLocal
+                            new_status = 'translated'
+                            target_segment.status = new_status
+                            if self.debug_mode_enabled:
+                                self.log(f"📝 Status reset: confirmed → translated (segment edited)")
+                            # Refresh the status icon in the grid (debounced to avoid UI lag)
+                            QTimerLocal.singleShot(0, lambda sid=segment_id: self._refresh_segment_status_by_id(sid))
+                        
                         if self.debug_mode_enabled:
                             self.log(f"📝 AFTER update: seg {segment_id} target='{target_segment.target[:30] if target_segment.target else 'EMPTY'}...', status={target_segment.status}, obj_id={id(target_segment)}")
                         
-                        # Record undo state (status stays same here, changes happen elsewhere)
-                        self.record_undo_state(segment_id, old_target, new_text, old_status, old_status)
+                        # Record undo state with any status change
+                        self.record_undo_state(segment_id, old_target, new_text, old_status, new_status)
                         
                         # Mark project as modified
                         self.project_modified = True
@@ -15689,6 +16089,14 @@ class SupervertalerQt(QMainWindow):
                 item.setToolTip(2, status_tooltip)
                 item.setBackground(2, QColor(status_def.color))
         self._enforce_status_row_heights()
+
+    def _refresh_segment_status_by_id(self, segment_id: int):
+        """Refresh the status display for a segment by its ID."""
+        if not self.current_project:
+            return
+        segment = next((seg for seg in self.current_project.segments if seg.id == segment_id), None)
+        if segment:
+            self._refresh_segment_status(segment)
 
     def _enforce_status_row_heights(self):
         """No longer needed - status widgets now adapt to row height."""
@@ -16569,8 +16977,9 @@ class SupervertalerQt(QMainWindow):
             if hasattr(self, 'table') and self.table:
                 self.table.resizeRowToContents(row)
             
-            # Save to TM if segment is translated/approved/confirmed and has content
-            if segment.status in ['translated', 'approved', 'confirmed'] and new_text.strip():
+            # Save to TM ONLY if segment is confirmed (user explicitly approved)
+            # Do NOT save for 'translated' status - that's just machine/batch translated
+            if segment.status == 'confirmed' and new_text.strip():
                 try:
                     self.save_segment_to_activated_tms(segment.source, new_text)
                 except Exception as e:
@@ -16595,8 +17004,9 @@ class SupervertalerQt(QMainWindow):
             if hasattr(self, 'table') and self.table:
                 self.table.resizeRowToContents(row)
             
-            # Save to TM if segment is translated/approved/confirmed and has content
-            if segment.status in ['translated', 'approved', 'confirmed'] and new_text.strip():
+            # Save to TM ONLY if segment is confirmed (user explicitly approved)
+            # Do NOT save for 'translated' status - that's just machine/batch translated
+            if segment.status == 'confirmed' and new_text.strip():
                 try:
                     self.save_segment_to_activated_tms(segment.source, new_text)
                 except Exception as e:
@@ -16618,10 +17028,10 @@ class SupervertalerQt(QMainWindow):
         
         self._refresh_segment_status(segment)
         
-        # Save to TM if status changed to translated/approved/confirmed and has content
-        # BUT skip saving during find/replace navigation to avoid slowdowns
+        # Save to TM ONLY if status changed to confirmed (user explicitly approved)
+        # Do NOT save for 'translated' or 'approved' status - user must confirm first
         find_replace_active = getattr(self, 'find_replace_active', False)
-        if not find_replace_active and status in ['translated', 'approved', 'confirmed'] and segment.target.strip():
+        if not find_replace_active and status == 'confirmed' and segment.target.strip():
             try:
                 self.save_segment_to_activated_tms(segment.source, segment.target)
             except Exception as e:
@@ -16937,6 +17347,9 @@ class SupervertalerQt(QMainWindow):
                                     project = ''
                                     client = ''
                                 
+                                # Get target synonyms from match_info
+                                target_synonyms = match_info.get('target_synonyms', []) if isinstance(match_info, dict) else []
+                                
                                 match_obj = TranslationMatch(
                                     source=source_term,
                                     target=target_term,
@@ -16952,7 +17365,8 @@ class SupervertalerQt(QMainWindow):
                                         'priority': priority,
                                         'forbidden': forbidden,
                                         'term_id': term_id,
-                                        'termbase_id': termbase_id
+                                        'termbase_id': termbase_id,
+                                        'target_synonyms': target_synonyms
                                     },
                                     match_type='Termbase',
                                     compare_source=source_term,
@@ -17946,7 +18360,8 @@ class SupervertalerQt(QMainWindow):
                                                     'notes': tb_match.get('notes', ''),
                                                     'project': tb_match.get('project', ''),
                                                     'client': tb_match.get('client', ''),
-                                                    'forbidden': tb_match.get('forbidden', False)
+                                                    'forbidden': tb_match.get('forbidden', False),
+                                                    'target_synonyms': tb_match.get('target_synonyms', [])
                                                 },
                                                 match_type='Termbase',
                                                 compare_source=source_term,
@@ -18317,7 +18732,8 @@ class SupervertalerQt(QMainWindow):
                                             'project': tb_match.get('project', ''),
                                             'client': tb_match.get('client', ''),
                                             'forbidden': tb_match.get('forbidden', False),
-                                            'is_project_termbase': tb_match.get('is_project_termbase', False)
+                                            'is_project_termbase': tb_match.get('is_project_termbase', False),
+                                            'target_synonyms': tb_match.get('target_synonyms', [])
                                         },
                                         match_type='Termbase',
                                         compare_source=source_term_full
@@ -18668,11 +19084,13 @@ class SupervertalerQt(QMainWindow):
                             'domain': domain,
                             'notes': notes,
                             'project': project,
-                            'client': client
+                            'client': client,
+                            'target_synonyms': result.get('target_synonyms', [])  # Include synonyms
                         }
                         forbidden_marker = " [FORBIDDEN]" if forbidden else ""
                         ranking_info = f" ranking=#{ranking}" if ranking is not None else " (no ranking)"
-                        self.log(f"    → {source_term} = {target_term} (priority: {priority}{ranking_info}){forbidden_marker}")
+                        synonyms_info = f" (synonyms: {', '.join(result.get('target_synonyms', []))})" if result.get('target_synonyms') else ""
+                        self.log(f"    → {source_term} = {target_term}{synonyms_info} (priority: {priority}{ranking_info}){forbidden_marker}")
             
             self.log(f"🔍 Total unique matches: {len(matches)}")
             return matches
@@ -19853,9 +20271,22 @@ class SupervertalerQt(QMainWindow):
         if self.current_project and hasattr(self.current_project, 'segments'):
             for seg in self.current_project.segments:
                 if seg.id == self.tab_current_segment_id:
+                    # Check if text actually changed
+                    old_target = seg.target
+                    old_status = seg.status
+                    
                     # IMMEDIATE: Update segment data
                     seg.target = new_text
                     self.project_modified = True
+                    
+                    # Reset 'confirmed' status to 'translated' when user edits the segment
+                    # This prevents auto-saving to TM until user re-confirms the edit
+                    if old_status == 'confirmed' and new_text != old_target:
+                        seg.status = 'translated'
+                        if self.debug_mode_enabled:
+                            self.log(f"📝 Tab editor: Status reset confirmed → translated (segment edited)")
+                        # Refresh status in all views
+                        self._refresh_segment_status(seg)
                     
                     # Update all other panels to keep them in sync
                     if hasattr(self, 'tabbed_panels'):
@@ -19887,7 +20318,8 @@ class SupervertalerQt(QMainWindow):
     def _save_tab_target_to_tm(self, segment, text):
         """Save tab target text to TM after debounce delay"""
         try:
-            if segment.status in ['translated', 'approved', 'confirmed'] and text.strip():
+            # Only save to TM if segment is confirmed (user explicitly approved)
+            if segment.status == 'confirmed' and text.strip():
                 self.save_segment_to_activated_tms(segment.source, text)
         except Exception as e:
             self.log(f"Warning: Could not save to TM: {e}")
@@ -19929,8 +20361,8 @@ class SupervertalerQt(QMainWindow):
                                 self.log(f"Error syncing status combo: {e}")
                     self._refresh_segment_status(seg)
                     
-                    # Save to TM if status changed to translated/approved/confirmed and has content
-                    if status_key in ['translated', 'approved', 'confirmed'] and seg.target.strip():
+                    # Save to TM ONLY if status changed to confirmed (user explicitly approved)
+                    if status_key == 'confirmed' and seg.target.strip():
                         try:
                             self.save_segment_to_activated_tms(seg.source, seg.target)
                             self.log(f"✓ Saved to TM: {seg.source[:30]}... → {seg.target[:30]}...")
@@ -20228,8 +20660,8 @@ class SupervertalerQt(QMainWindow):
         if self.current_project and hasattr(self.current_project, 'segments'):
             for seg in self.current_project.segments:
                 if seg.id == self.tab_current_segment_id:
-                    # Save to TM if status is translated/approved/confirmed and has content
-                    if seg.status in ['translated', 'approved', 'confirmed'] and seg.target.strip():
+                    # Save to TM ONLY if status is confirmed (user explicitly approved)
+                    if seg.status == 'confirmed' and seg.target.strip():
                         try:
                             self.save_segment_to_activated_tms(seg.source, seg.target)
                             self.log(f"✓ Saved segment {self.tab_current_segment_id} to TM")
@@ -20354,8 +20786,8 @@ class SupervertalerQt(QMainWindow):
         
         segment = self.current_project.segments[current_row]
         
-        # Save to TM if status is translated/approved/confirmed and has content
-        if segment.status in ['translated', 'approved', 'confirmed'] and segment.target.strip():
+        # Save to TM ONLY if status is confirmed (user explicitly approved)
+        if segment.status == 'confirmed' and segment.target.strip():
             try:
                 self.save_segment_to_activated_tms(segment.source, segment.target)
                 self.log(f"💾 Saved segment {segment.id} to TM")
@@ -20702,13 +21134,14 @@ class SupervertalerQt(QMainWindow):
                     if isinstance(cached_matches, dict):
                         termbase_matches = [
                             {
-                                'source_term': match_data.get('source', ''),
+                                'source_term': source_key,  # Use dict key as source term
                                 'target_term': match_data.get('translation', ''),
                                 'termbase_name': match_data.get('termbase_name', ''),
                                 'ranking': match_data.get('ranking', 99),
-                                'is_project_termbase': match_data.get('is_project_termbase', False)
+                                'is_project_termbase': match_data.get('is_project_termbase', False),
+                                'target_synonyms': match_data.get('target_synonyms', [])
                             }
-                            for match_data in cached_matches.values()
+                            for source_key, match_data in cached_matches.items()
                         ]
                         self.log(f"🔍 TERMVIEW: Converted to {len(termbase_matches)} matches")
                     else:
@@ -23624,6 +24057,7 @@ class SupervertalerQt(QMainWindow):
                         relevance=95,
                         metadata=google_result.get('metadata', {}),
                         match_type="MT",
+                        compare_source=segment.source,
                         provider_code='GT'
                     )
                     # Show MT match immediately (deduplicated by panel)
@@ -23763,6 +24197,7 @@ class SupervertalerQt(QMainWindow):
                         relevance=95,  # High confidence for MT
                         metadata=google_result.get('metadata', {}),
                         match_type="MT",
+                        compare_source=segment.source,
                         provider_code='GT'
                     )
                     matches_dict["MT"].append(match)

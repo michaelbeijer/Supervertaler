@@ -739,16 +739,20 @@ class TranslationResultsPanel(QWidget):
         # Box 1: Current Source
         box1 = self._create_compare_text_box("Current Source:", "#e3f2fd")
         self.compare_current = box1[1]
+        self.compare_current_label = box1[2]
         layout.addWidget(box1[0], 1)  # stretch factor 1
         
         # Box 2: TM Source (with diff highlighting capability)
         box2 = self._create_compare_text_box("TM Source:", "#fff3cd")
         self.compare_tm_source = box2[1]
+        self.compare_source_label = box2[2]
+        self.compare_source_container = box2[0]
         layout.addWidget(box2[0], 1)  # stretch factor 1
         
         # Box 3: TM Target
         box3 = self._create_compare_text_box("TM Target:", "#d4edda")
         self.compare_tm_target = box3[1]
+        self.compare_target_label = box3[2]
         layout.addWidget(box3[0], 1)  # stretch factor 1
         
         return frame
@@ -781,7 +785,7 @@ class TranslationResultsPanel(QWidget):
         # Track this text edit for font size updates
         self.compare_text_edits.append(text_edit)
         
-        return (container, text_edit)
+        return (container, text_edit, label_widget)
     
     def _create_termbase_viewer(self) -> QFrame:
         """Create termbase data viewer frame"""
@@ -1074,7 +1078,15 @@ class TranslationResultsPanel(QWidget):
         
         # Display source and target terms
         self.termbase_source.setText(match.source)
-        self.termbase_target.setText(match.target)
+        
+        # Include synonyms in target display if available
+        target_synonyms = match.metadata.get('target_synonyms', [])
+        if target_synonyms:
+            # Show main term with synonyms
+            synonyms_text = ", ".join(target_synonyms)
+            self.termbase_target.setText(f"{match.target} | {synonyms_text}")
+        else:
+            self.termbase_target.setText(match.target)
         
         # Build metadata text
         metadata_parts = []
@@ -1376,12 +1388,32 @@ class TranslationResultsPanel(QWidget):
             self.tm_info_frame.show()  # Show TM metadata below compare box
             self.termbase_frame.hide()
             
+            # Update labels for TM
+            self.compare_source_label.setText("TM Source:")
+            self.compare_target_label.setText("TM Target:")
+            self.compare_source_container.show()  # Show TM source box
+            
             # Current source is already set via set_segment_info
             self.compare_tm_source.setText(match.compare_source)
             self.compare_tm_target.setText(match.target)
             
             # Populate TM metadata panel
             self._display_tm_metadata(match)
+            
+        elif match.match_type in ("MT", "LLM") and match.compare_source:
+            # Show MT/LLM compare box (simplified - just current source and translation)
+            print(f"🤖 DEBUG: Showing {match.match_type} compare box")
+            self.compare_frame.show()
+            self.tm_info_frame.hide()  # No TM metadata for MT/LLM
+            self.termbase_frame.hide()
+            
+            # Update labels for MT/LLM
+            provider_name = match.metadata.get('provider', match.match_type)
+            self.compare_source_container.hide()  # Hide source box for MT/LLM (source = current)
+            self.compare_target_label.setText(f"{match.match_type} Translation ({provider_name}):")
+            
+            # Set target text
+            self.compare_tm_target.setText(match.target)
             
         elif match.match_type == "Termbase":
             # Show termbase data viewer
