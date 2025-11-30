@@ -12,7 +12,7 @@ File Format: .ntl (Non-Translatable List)
 - Blank lines are ignored
 
 Import Support:
-- Native .ntl format
+- Native .svntl format
 - memoQ .mqres non-translatable lists (XML format)
 
 Features:

@@ -1,13 +1,84 @@
 # Supervertaler Project Context
 
-**Last Updated:** November 28, 2025
-**Current Version:** v1.9.11
+**Last Updated:** November 30, 2025
+**Current Version:** v1.9.13
 **Repository:** https://github.com/michaelbeijer/Supervertaler
 **Maintainer:** Michael Beijer
 
 ---
 
 ## 📅 Recent Development Activity
+
+### November 30, 2025 - Version 1.9.13: Document Preview & List Formatting Tags
+
+**📄 New Preview Tab**
+Added a new "Preview" tab alongside Source/Target views in the main panel:
+
+**Preview Tab Features:**
+- Shows formatted document view with headings, paragraphs, and lists
+- Headings (H1-H6) displayed with proper font sizing and styling
+- List items show correct prefix: numbers (1. 2. 3.) for ordered lists, bullets (•) for bullets
+- Click any text to instantly navigate to that segment in the grid
+- Read-only view provides document context during translation
+
+**🔢 List Type Detection from DOCX**
+New `_get_list_type()` method in docx_handler.py:
+- Examines Word's numPr XML structure to distinguish bullet from numbered lists
+- Looks for "bullet" in numFmt value or bullet characters (•, ○, ●, ■) in lvlText
+- Caches list type lookups for performance
+- Works for both regular paragraphs and table cells
+
+**🏷️ New Short List Tags**
+- `<li-o>` - Ordered list items (numbered: 1. 2. 3.)
+- `<li-b>` - Bullet list items (•)
+- Both tags are colored by the tag highlighter
+- Both work with Ctrl+, shortcut for quick insertion
+- Updated tag regex pattern to `[a-zA-Z][a-zA-Z0-9-]*` to support hyphenated tags
+
+**Type Column Improvements:**
+- Shows `#1`, `#2`, `#3` for ordered list items
+- Shows `•` for bullet list items
+- Shows `¶` (paragraph mark) for continuation paragraphs instead of `#`
+
+**Files Changed:**
+- `Supervertaler.py`:
+  - Added `_setup_preview_tab()`, `_render_preview()`, `_render_formatted_text()` methods
+  - Updated `extract_all_tags()` and `highlightBlock()` patterns for hyphenated tags
+  - Updated Type column display logic in `load_segments_to_grid()`
+- `modules/docx_handler.py`:
+  - Added `_get_list_type()` method (lines 139-180)
+  - Changed `<li>` to `<li-o>` or `<li-b>` based on detected list type
+  - Added `self._list_type_cache` for performance
+
+---
+
+### November 28, 2025 - Version 1.9.12: Progress Indicator Status Bar
+
+**📊 New Progress Status Bar**
+Added permanent progress indicators to the status bar showing real-time translation progress:
+
+**Features:**
+- **Words translated**: X/Y words with percentage (counts words in segments that have translations)
+- **Confirmed segments**: X/Y segments with percentage (confirmed, tr_confirmed, proofread, approved)
+- **Remaining segments**: Count of segments still needing work (not_started, pretranslated, rejected)
+
+**Color Coding:**
+- Red (<50%): Low progress
+- Orange (50-80%): Making progress
+- Green (>80%): Almost done
+
+**Auto-Updates:**
+- Updates when project is loaded (`load_segments_to_grid`)
+- Updates when segment is confirmed (Ctrl+Enter)
+- Updates after AI translation completes
+- Updates after user finishes typing (debounced)
+- Resets to "--" when project is closed
+
+**Files Changed:**
+- `Supervertaler.py` - Added `_setup_progress_indicators()`, `update_progress_stats()`, `_get_progress_color()` methods
+- Called from `load_segments_to_grid`, `confirm_and_next_unconfirmed`, `translate_current_segment`, `_handle_target_text_debounced_by_id`, `close_project`
+
+---
 
 ### November 28, 2025 - Version 1.9.11 Additional Fixes: Status Reset & TM Improvements
 

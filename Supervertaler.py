@@ -32,7 +32,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.11"
+__version__ = "1.9.12"
 __phase__ = "0.9"
 __release_date__ = "2025-11-28"
 __edition__ = "Qt"
@@ -481,8 +481,20 @@ def extract_all_tags(text: str) -> list:
     import re
     # Combined pattern for both memoQ tags and HTML tags
     # memoQ: [N}, {N], [N]
-    # HTML: <tag>, </tag>, <tag/>, <tag attr="value">
-    pattern = r'(\[\d+\}|\{\d+\]|\[\d+\]|</?[a-zA-Z][a-zA-Z0-9]*(?:\s+[^>]*)?>)'
+    # HTML: <tag>, </tag>, <tag/>, <tag attr="value"> - includes hyphenated tags like li-bullet
+    pattern = r'(\[\d+\}|\{\d+\]|\[\d+\]|</?[a-zA-Z][a-zA-Z0-9-]*(?:\s+[^>]*)?>)'
+    return re.findall(pattern, text)
+
+
+def count_pipe_symbols(text: str) -> int:
+    """Count the number of CafeTran pipe symbols in text."""
+    return text.count('|')
+
+
+def get_next_pipe_count_needed(source_text: str, target_text: str) -> int:
+    """
+    Get how many more pipe symbols are needed in ta    # HTML: <tag>, </tag>, <tag/>, <tag attr="value"> - includes hyphenated tags like li-b
+    pattern = r'(\[\d+\}|\{\d+\]|\[\d+\]|</?[a-zA-Z][a-zA-Z0-9-]*(?:\s+[^>]*)?>)'
     return re.findall(pattern, text)
 
 
@@ -1577,8 +1589,8 @@ class TagHighlighter(QSyntaxHighlighter):
     def highlightBlock(self, text):
         """Highlight all tags in the text block"""
         import re
-        # Match opening and closing tags: <tag>, </tag>, <tag/>
-        tag_pattern = re.compile(r'</?[a-zA-Z][a-zA-Z0-9]*/?>')
+        # Match opening and closing tags: <tag>, </tag>, <tag/> - includes hyphenated tags like li-b, li-o
+        tag_pattern = re.compile(r'</?[a-zA-Z][a-zA-Z0-9-]*/?>')
         
         for match in tag_pattern.finditer(text):
             start = match.start()
@@ -3908,10 +3920,13 @@ class SupervertalerQt(QMainWindow):
         # Create main layout
         self.create_main_layout()
         
-        # Create status bar
+        # Create status bar with progress indicators
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
         self.status_bar.showMessage("Ready")
+        
+        # Add permanent progress widgets to status bar (right side)
+        self._setup_progress_indicators()
 
         # Setup global shortcuts
         self.setup_global_shortcuts()
@@ -3973,6 +3988,107 @@ class SupervertalerQt(QMainWindow):
         # Ctrl+Alt+T - Toggle Tag View
         self.shortcut_toggle_tags = QShortcut(QKeySequence("Ctrl+Alt+T"), self)
         self.shortcut_toggle_tags.activated.connect(self._toggle_tag_view_via_shortcut)
+
+    def _setup_progress_indicators(self):
+        """Setup permanent progress indicator widgets in the status bar"""
+        from PyQt6.QtWidgets import QLabel, QFrame
+        
+        # Create a container frame for all progress info
+        progress_frame = QFrame()
+        progress_layout = QHBoxLayout(progress_frame)
+        progress_layout.setContentsMargins(0, 0, 10, 0)
+        progress_layout.setSpacing(20)
+        
+        # Words translated label
+        self.progress_words_label = QLabel("Words: --")
+        self.progress_words_label.setStyleSheet("color: #555; font-size: 11px;")
+        self.progress_words_label.setToolTip("Words with translation / Total words (percentage)")
+        progress_layout.addWidget(self.progress_words_label)
+        
+        # Segments confirmed label
+        self.progress_confirmed_label = QLabel("Confirmed: --")
+        self.progress_confirmed_label.setStyleSheet("color: #555; font-size: 11px;")
+        self.progress_confirmed_label.setToolTip("Confirmed segments / Total segments (percentage)")
+        progress_layout.addWidget(self.progress_confirmed_label)
+        
+        # Remaining segments label
+        self.progress_remaining_label = QLabel("Remaining: --")
+        self.progress_remaining_label.setStyleSheet("color: #555; font-size: 11px;")
+        self.progress_remaining_label.setToolTip("Segments still requiring work")
+        progress_layout.addWidget(self.progress_remaining_label)
+        
+        # Add as permanent widget (stays on right side)
+        self.status_bar.addPermanentWidget(progress_frame)
+    
+    def update_progress_stats(self):
+        """Update the progress indicator labels in the status bar"""
+        try:
+            if not self.current_project or not self.current_project.segments:
+                self.progress_words_label.setText("Words: --")
+                self.progress_confirmed_label.setText("Confirmed: --")
+                self.progress_remaining_label.setText("Remaining: --")
+                return
+            
+            segments = self.current_project.segments
+            total_segments = len(segments)
+            
+            # Count words in source text for each segment
+            total_words = 0
+            translated_words = 0
+            confirmed_count = 0
+            remaining_count = 0
+            
+            # Statuses that indicate "done" (confirmed or higher)
+            confirmed_statuses = {'confirmed', 'tr_confirmed', 'proofread', 'approved'}
+            # Statuses that need work
+            unfinished_statuses = {'not_started', 'pretranslated', 'rejected'}
+            
+            for segment in segments:
+                # Count words in source (simple split on whitespace)
+                source_words = len(segment.source.split()) if segment.source else 0
+                total_words += source_words
+                
+                # If segment has a non-empty translation, count those words as translated
+                if segment.target and segment.target.strip():
+                    translated_words += source_words
+                
+                # Count confirmed (or higher status)
+                if segment.status in confirmed_statuses:
+                    confirmed_count += 1
+                
+                # Count remaining (not_started, pretranslated, or rejected)
+                if segment.status in unfinished_statuses:
+                    remaining_count += 1
+            
+            # Calculate percentages
+            word_percent = (translated_words / total_words * 100) if total_words > 0 else 0
+            confirmed_percent = (confirmed_count / total_segments * 100) if total_segments > 0 else 0
+            
+            # Update labels with color-coding based on progress
+            word_color = self._get_progress_color(word_percent)
+            confirmed_color = self._get_progress_color(confirmed_percent)
+            remaining_color = "#c00" if remaining_count > 0 else "#080"
+            
+            self.progress_words_label.setText(f"Words: {translated_words}/{total_words} ({word_percent:.0f}%)")
+            self.progress_words_label.setStyleSheet(f"color: {word_color}; font-size: 11px;")
+            
+            self.progress_confirmed_label.setText(f"Confirmed: {confirmed_count}/{total_segments} ({confirmed_percent:.0f}%)")
+            self.progress_confirmed_label.setStyleSheet(f"color: {confirmed_color}; font-size: 11px;")
+            
+            self.progress_remaining_label.setText(f"Remaining: {remaining_count}")
+            self.progress_remaining_label.setStyleSheet(f"color: {remaining_color}; font-size: 11px;")
+            
+        except Exception as e:
+            self.log(f"⚠️ Error updating progress stats: {e}")
+    
+    def _get_progress_color(self, percent: float) -> str:
+        """Get color for progress percentage: red < 50%, orange < 80%, green >= 80%"""
+        if percent < 50:
+            return "#c00"  # Red
+        elif percent < 80:
+            return "#c60"  # Orange
+        else:
+            return "#080"  # Green
 
     def create_menus(self):
         """Create application menus"""
@@ -12256,9 +12372,17 @@ class SupervertalerQt(QMainWindow):
         # Add left side to main horizontal splitter
         main_horizontal_splitter.addWidget(left_vertical_splitter)
         
-        # Right side: Translation Results panel (standalone, no tabs)
+        # Right side: Translation Results panel with Preview tab
         from modules.translation_results_panel import TranslationResultsPanel
-        self.translation_results_panel = TranslationResultsPanel(self, parent_app=self)
+        
+        # Create tabbed container for right panel
+        right_tabs = QTabWidget()
+        right_tabs.tabBar().setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        right_tabs.tabBar().setDrawBase(False)
+        right_tabs.setStyleSheet("QTabBar::tab { outline: 0; } QTabBar::tab:focus { outline: none; } QTabBar::tab:selected { border-bottom: 1px solid #2196F3; background-color: rgba(33, 150, 243, 0.08); }")
+        
+        # Tab 1: Translation Results
+        self.translation_results_panel = TranslationResultsPanel(right_tabs, parent_app=self)
         
         # Connect signals for match selection/insertion
         self.translation_results_panel.match_selected.connect(self.on_match_selected)
@@ -12269,7 +12393,13 @@ class SupervertalerQt(QMainWindow):
             self.results_panels = []
         self.results_panels.append(self.translation_results_panel)
         
-        main_horizontal_splitter.addWidget(self.translation_results_panel)
+        right_tabs.addTab(self.translation_results_panel, "🔍 Translation Results")
+        
+        # Tab 2: Document Preview
+        preview_widget = self._create_preview_tab()
+        right_tabs.addTab(preview_widget, "📄 Preview")
+        
+        main_horizontal_splitter.addWidget(right_tabs)
         
         # Set horizontal splitter proportions: Grid area larger, results smaller
         # Give more space to the grid+editor on the left
@@ -14377,6 +14507,12 @@ class SupervertalerQt(QMainWindow):
         # Clear the grid
         self.clear_grid()
         
+        # Update progress stats (reset to ---)
+        self.update_progress_stats()
+        
+        # Clear document preview
+        self.refresh_preview()
+        
         # Clear translation results in all panels
         if hasattr(self, 'results_panels'):
             for panel in self.results_panels:
@@ -14773,6 +14909,8 @@ class SupervertalerQt(QMainWindow):
                 style: str = "Normal"
                 doc_position: int = 0
                 type: str = "#"  # Default segment type
+                list_type: str = ""  # "bullet", "numbered", or ""
+                list_number: Optional[int] = None
             
             # Convert segments
             imported_segments = []
@@ -14786,10 +14924,14 @@ class SupervertalerQt(QMainWindow):
                 table_info = None
                 style = "Normal"
                 doc_position = para_id if para_id else seg_id
+                list_type = ""
+                list_number = None
                 
                 if para_info:
                     style = para_info.style or "Normal"
                     doc_position = getattr(para_info, 'document_position', para_id)
+                    list_type = getattr(para_info, 'list_type', '') or ""
+                    list_number = getattr(para_info, 'list_number', None)
                     if getattr(para_info, 'is_table_cell', False):
                         is_table = True
                         table_info = (
@@ -14797,6 +14939,13 @@ class SupervertalerQt(QMainWindow):
                             getattr(para_info, 'row_index', 0),
                             getattr(para_info, 'cell_index', 0)
                         )
+                
+                # Also detect list type from text if not set
+                if not list_type:
+                    if '<li-b>' in text:
+                        list_type = "bullet"
+                    elif '<li-o>' in text:
+                        list_type = "numbered"
                 
                 segment = ImportedSegment(
                     id=seg_id,
@@ -14808,7 +14957,9 @@ class SupervertalerQt(QMainWindow):
                     is_table=is_table,
                     table_info=table_info,
                     style=style,
-                    doc_position=doc_position
+                    doc_position=doc_position,
+                    list_type=list_type,
+                    list_number=list_number
                 )
                 imported_segments.append(segment)
             
@@ -14826,7 +14977,9 @@ class SupervertalerQt(QMainWindow):
                     style=imported_seg.style,  # CRITICAL: Preserve style for heading detection!
                     document_position=imported_seg.doc_position,
                     is_table_cell=imported_seg.is_table,
-                    table_info=imported_seg.table_info
+                    table_info=imported_seg.table_info,
+                    list_type=imported_seg.list_type,  # Bullet vs numbered
+                    list_number=imported_seg.list_number
                 )
                 segments.append(segment)
             
@@ -15699,22 +15852,22 @@ class SupervertalerQt(QMainWindow):
         self._suppress_target_change_handlers = True
         
         # Pre-calculate list numbers for numbered lists
-        # Track consecutive <li> items and assign numbers
+        # Track consecutive <li-o> items and assign numbers
         list_counter = 0
         last_was_list = False
         list_numbers = {}  # {segment_index: list_number}
         
         for idx, segment in enumerate(self.current_project.segments):
             source_text = segment.source.strip()
-            is_list_item = source_text.startswith('<li>')
+            is_list_item = source_text.startswith('<li-o>')
             
             # Check if it's a numbered list item (vs bullet)
-            # If text inside <li> starts with a number pattern, extract it
+            # If text inside <li-o> starts with a number pattern, extract it
             # Otherwise, if it's part of a consecutive list sequence, count it
             if is_list_item:
                 import re
-                # Check for number at start: <li>1. or <li>2) etc
-                num_match = re.match(r'^<li>\s*(\d+)[.)\s]', source_text)
+                # Check for number at start: <li-o>1. or <li-o>2) etc
+                num_match = re.match(r'^<li-o>\s*(\d+)[.)\s]', source_text)
                 if num_match:
                     # Has explicit number in text
                     list_numbers[idx] = int(num_match.group(1))
@@ -15765,7 +15918,8 @@ class SupervertalerQt(QMainWindow):
                 # Fallback: detect from source text if list_type not set
                 source_text = segment.source.strip()
                 is_list_item = bool(list_type) or (
-                    source_text.startswith('<li>') or  # Tagged list item
+                    source_text.startswith('<li-o>') or  # Tagged ordered list item
+                    source_text.startswith('<li-b>') or  # Tagged bullet list item
                     source_text.lstrip().startswith(('• ', '- ', '* ', '· ')) or
                     (len(source_text) > 2 and source_text[0].isdigit() and source_text[1:3] in ('. ', ') '))
                 )
@@ -15785,8 +15939,11 @@ class SupervertalerQt(QMainWindow):
                     type_display = "Sub"
                 elif is_list_item:
                     # Show list number for numbered lists, bullet for unordered
-                    # Check for bullet patterns first
-                    if source_text.lstrip().startswith(('• ', '- ', '* ', '· ')):
+                    # Check for <li-b> tag first (explicit bullet)
+                    if '<li-b>' in source_text:
+                        type_display = "•"
+                    # Check for bullet patterns in text
+                    elif source_text.lstrip().startswith(('• ', '- ', '* ', '· ')):
                         type_display = "•"
                     elif list_type == "bullet":
                         type_display = "•"
@@ -15797,15 +15954,26 @@ class SupervertalerQt(QMainWindow):
                     elif list_type == "numbered":
                         type_display = "#?"
                     else:
-                        # Fallback: check for number at start of text (not inside <li>)
+                        # Fallback: check for number at start of text
                         import re
                         num_match = re.match(r'^(\d+)[.)\s]', source_text)
                         if num_match:
                             type_display = f"#{num_match.group(1)}"
+                        elif '<li-o>' in source_text:
+                            # Has <li-o> but no number - numbered list
+                            type_display = "#?"
                         else:
                             type_display = "li"
                 elif segment.type and segment.type != "para":
-                    type_display = segment.type.upper()
+                    # Handle # type specially - only show #N for actual numbered items
+                    if segment.type == "#":
+                        # Plain "#" means continuation text within a list, show as paragraph
+                        type_display = "¶"
+                    elif segment.type.startswith("#") and len(segment.type) > 1:
+                        # Has a number like "#1", "#2" - keep it
+                        type_display = segment.type
+                    else:
+                        type_display = segment.type.upper()
                 else:
                     type_display = "¶"  # Paragraph symbol
                 
@@ -15981,6 +16149,12 @@ class SupervertalerQt(QMainWindow):
                 target_widget = self.table.cellWidget(row, 3)
                 if target_widget:
                     target_widget.blockSignals(False)
+            
+            # Update progress stats in status bar
+            self.update_progress_stats()
+            
+            # Refresh document preview
+            self.refresh_preview()
 
     def _create_status_cell_widget(self, segment: Segment) -> QWidget:
         widget = QWidget()
@@ -16105,6 +16279,528 @@ class SupervertalerQt(QMainWindow):
         # This method is kept for backward compatibility but does nothing
         pass
 
+    # =========================================================================
+    # DOCUMENT PREVIEW TAB
+    # =========================================================================
+    
+    def _create_preview_tab(self) -> QWidget:
+        """Create the Preview tab widget with live document preview and click-to-navigate"""
+        from PyQt6.QtWidgets import QScrollArea
+        
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        
+        # Create scroll area for the preview
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setStyleSheet("background-color: white; border: none;")
+        
+        # Create the preview text widget
+        preview_text = QTextEdit()
+        preview_text.setReadOnly(True)
+        preview_text.setStyleSheet("""
+            QTextEdit {
+                background-color: white;
+                border: none;
+                padding: 20px 30px;
+                font-family: Georgia, 'Times New Roman', serif;
+                font-size: 11pt;
+                line-height: 1.5;
+            }
+        """)
+        
+        # Enable click handling for navigation
+        preview_text.mousePressEvent = lambda event: self._on_preview_click(event, preview_text)
+        preview_text.setCursor(Qt.CursorShape.PointingHandCursor)
+        
+        scroll_area.setWidget(preview_text)
+        layout.addWidget(scroll_area)
+        
+        # Store reference for updates
+        widget.preview_text = preview_text
+        widget.scroll_area = scroll_area
+        
+        # Track segment positions for click navigation
+        widget.segment_positions = {}  # {(start_pos, end_pos): segment_id}
+        
+        # Track current highlighted segment
+        widget.current_highlighted_segment_id = None
+        
+        # Store reference in instance for easy access
+        if not hasattr(self, 'preview_widgets'):
+            self.preview_widgets = []
+        self.preview_widgets.append(widget)
+        
+        return widget
+    
+    def _on_preview_click(self, event, preview_text: QTextEdit):
+        """Handle click on preview text to navigate to corresponding segment"""
+        from PyQt6.QtGui import QMouseEvent
+        
+        # Get cursor position from click
+        cursor = preview_text.cursorForPosition(event.pos())
+        click_pos = cursor.position()
+        
+        # Find which segment this position belongs to
+        parent_widget = preview_text.parent()
+        while parent_widget and not hasattr(parent_widget, 'segment_positions'):
+            parent_widget = parent_widget.parent()
+        
+        if not parent_widget or not hasattr(parent_widget, 'segment_positions'):
+            return
+        
+        segment_positions = parent_widget.segment_positions
+        
+        for (start_pos, end_pos), segment_id in segment_positions.items():
+            if start_pos <= click_pos <= end_pos:
+                # Navigate to this segment in the grid
+                self._navigate_to_segment_in_grid(segment_id)
+                break
+        
+        # Call parent's mousePressEvent for default behavior
+        QTextEdit.mousePressEvent(preview_text, event)
+    
+    def _navigate_to_segment_in_grid(self, segment_id: int):
+        """Navigate to a specific segment by ID in the grid"""
+        if not self.current_project or not hasattr(self, 'table') or not self.table:
+            return
+        
+        # Find the row for this segment ID
+        for row in range(self.table.rowCount()):
+            id_item = self.table.item(row, 0)
+            if id_item:
+                try:
+                    row_segment_id = int(id_item.text())
+                    if row_segment_id == segment_id:
+                        # Switch to Grid tab if we're in Document view
+                        if hasattr(self, 'document_views_widget'):
+                            self.document_views_widget.setCurrentIndex(0)  # Grid tab
+                        
+                        # Select this row and focus the target cell
+                        self.table.setCurrentCell(row, 3)  # Column 3 = Target
+                        target_widget = self.table.cellWidget(row, 3)
+                        if target_widget:
+                            target_widget.setFocus()
+                        
+                        self.log(f"📍 Preview: Navigated to segment {segment_id}")
+                        return
+                except (ValueError, AttributeError):
+                    continue
+    
+    def refresh_preview(self):
+        """Refresh all preview tabs with current document content"""
+        if not self.current_project or not self.current_project.segments:
+            # Clear previews if no project
+            if hasattr(self, 'preview_widgets'):
+                for widget in self.preview_widgets:
+                    if hasattr(widget, 'preview_text'):
+                        widget.preview_text.clear()
+                        widget.segment_positions = {}
+            return
+        
+        if not hasattr(self, 'preview_widgets'):
+            return
+        
+        for widget in self.preview_widgets:
+            self._render_preview(widget)
+    
+    def _render_preview(self, widget):
+        """Render the document preview with realistic formatting"""
+        if not hasattr(widget, 'preview_text'):
+            return
+        
+        preview_text = widget.preview_text
+        preview_text.clear()
+        widget.segment_positions = {}
+        
+        if not self.current_project or not self.current_project.segments:
+            return
+        
+        cursor = preview_text.textCursor()
+        cursor.movePosition(QTextCursor.MoveOperation.Start)
+        
+        # Pre-calculate list numbers for numbered lists
+        # Only segments with actual <li> tags get a number
+        # Also detect bullet points vs numbered lists
+        import re
+        list_numbers = {}  # {segment_id: list_number}
+        bullet_items = set()  # segment_ids that are bullet points
+        list_counter = 0
+        
+        for seg in self.current_project.segments:
+            source_text = seg.source.strip() if seg.source else ""
+            target_text = seg.target.strip() if seg.target else ""
+            seg_type = getattr(seg, 'type', '')
+            list_type = getattr(seg, 'list_type', '')
+            stored_list_number = getattr(seg, 'list_number', None)
+            
+            # Check for <li-b> tag (explicit bullet) or <li-o> tag (numbered)
+            has_li_bullet_tag = '<li-b>' in source_text or '<li-b>' in target_text
+            has_li_ordered_tag = '<li-o>' in source_text or '<li-o>' in target_text
+            
+            # Also check for bullet point patterns in text
+            is_bullet_text = (
+                source_text.lstrip().startswith(('• ', '- ', '* ', '· ', '○ ', '■ ', '□ ', '► ')) or
+                list_type == 'bullet'
+            )
+            
+            # Determine if this is a numbered list or bullet list
+            is_numbered = (
+                (list_type == 'numbered') or
+                has_li_ordered_tag or  # <li-o> tag means numbered
+                (seg_type and seg_type.startswith('#') and seg_type != '#') or  # #1, #2, etc.
+                stored_list_number is not None or
+                bool(re.match(r'^(\d+)[\.\)]\s', source_text))  # Starts with "1. " or "1) "
+            )
+            
+            # Explicit bullet tag takes precedence
+            is_bullet = has_li_bullet_tag or (is_bullet_text and not is_numbered) or list_type == 'bullet'
+            
+            if has_li_bullet_tag or has_li_ordered_tag or is_bullet_text:
+                if is_bullet:
+                    # This is a bullet point
+                    bullet_items.add(seg.id)
+                elif is_numbered or (has_li_ordered_tag and seg_type.startswith('#')):
+                    # This is a numbered list item
+                    if stored_list_number:
+                        # Use stored number if available
+                        list_numbers[seg.id] = stored_list_number
+                        list_counter = stored_list_number
+                    elif seg_type and seg_type.startswith('#'):
+                        # Extract number from type like "#1"
+                        type_match = re.match(r'#(\d+)', seg_type)
+                        if type_match:
+                            list_numbers[seg.id] = int(type_match.group(1))
+                            list_counter = int(type_match.group(1))
+                        else:
+                            # Type is just "#", increment counter
+                            list_counter += 1
+                            list_numbers[seg.id] = list_counter
+                    elif re.match(r'^(\d+)[\.\)]\s', source_text):
+                        # Extract from text like "1. "
+                        num_match = re.match(r'^(\d+)[\.\)]\s', source_text)
+                        list_numbers[seg.id] = int(num_match.group(1))
+                        list_counter = int(num_match.group(1))
+                    else:
+                        # Default: increment counter
+                        list_counter += 1
+                        list_numbers[seg.id] = list_counter
+                elif has_li_ordered_tag:
+                    # Has <li-o> but couldn't determine number - still add with counter
+                    list_counter += 1
+                    list_numbers[seg.id] = list_counter
+        
+        # Group segments by paragraph
+        paragraphs = {}
+        current_para = 0
+        prev_seg = None
+        
+        for seg in self.current_project.segments:
+            # Use paragraph_id if available, otherwise use heuristics
+            if hasattr(seg, 'paragraph_id') and seg.paragraph_id > 0:
+                para_id = seg.paragraph_id
+            else:
+                if prev_seg:
+                    prev_text = prev_seg.source.strip()
+                    curr_text = seg.source.strip()
+                    style = getattr(seg, 'style', 'Normal')
+                    
+                    is_new_paragraph = (
+                        (prev_text and prev_text[-1] in '.!?' and curr_text and curr_text[0].isupper()) or
+                        'Heading' in style or
+                        'Title' in style
+                    )
+                    
+                    if is_new_paragraph:
+                        current_para += 1
+                
+                para_id = current_para
+            
+            if para_id not in paragraphs:
+                paragraphs[para_id] = []
+            paragraphs[para_id].append(seg)
+            prev_seg = seg
+        
+        # Render each paragraph
+        prev_para_id = None
+        prev_was_heading = False
+        for para_id in sorted(paragraphs.keys()):
+            para_segments = paragraphs[para_id]
+            
+            # Get style from first segment
+            first_seg = para_segments[0]
+            style = getattr(first_seg, 'style', 'Normal')
+            is_heading = 'Heading' in style or 'Title' in style or 'Subtitle' in style
+            
+            # Add paragraph break between paragraphs
+            if prev_para_id is not None:
+                if prev_was_heading or is_heading:
+                    cursor.insertText("\n\n")  # Extra space around headings
+                else:
+                    cursor.insertText("\n\n")
+            prev_para_id = para_id
+            prev_was_heading = is_heading
+            
+            # Determine formatting based on style
+            char_format = QTextCharFormat()
+            char_format.setFontFamily("Georgia")
+            
+            if 'Heading 1' in style or style == 'Title':
+                char_format.setFontPointSize(20)
+                char_format.setFontWeight(QFont.Weight.Bold)
+                char_format.setForeground(QColor('#1a1a2e'))
+                # Add slight letter spacing for headings
+                char_format.setFontLetterSpacing(101)
+            elif 'Heading 2' in style:
+                char_format.setFontPointSize(16)
+                char_format.setFontWeight(QFont.Weight.Bold)
+                char_format.setForeground(QColor('#16213e'))
+            elif 'Heading 3' in style:
+                char_format.setFontPointSize(14)
+                char_format.setFontWeight(QFont.Weight.Bold)
+                char_format.setForeground(QColor('#1f4068'))
+            elif 'Heading 4' in style:
+                char_format.setFontPointSize(12)
+                char_format.setFontWeight(QFont.Weight.Bold)
+                char_format.setForeground(QColor('#2d4a6d'))
+            elif 'Subtitle' in style:
+                char_format.setFontPointSize(14)
+                char_format.setFontItalic(True)
+                char_format.setForeground(QColor('#4a4a68'))
+            else:
+                char_format.setFontPointSize(11)
+                char_format.setForeground(QColor('#2d2d2d'))
+            
+            # Insert each segment in the paragraph
+            for i, seg in enumerate(para_segments):
+                # Determine display text (prefer target if available)
+                if seg.target and seg.target.strip():
+                    display_text = seg.target
+                    is_translated = True
+                else:
+                    display_text = seg.source
+                    is_translated = False
+                
+                # Handle list items - check for list formatting
+                list_type = getattr(seg, 'list_type', '')
+                stored_list_number = getattr(seg, 'list_number', None)
+                seg_type = getattr(seg, 'type', '')
+                
+                # Use pre-calculated list number if available
+                calculated_list_number = list_numbers.get(seg.id, None)
+                list_number = stored_list_number or calculated_list_number
+                
+                # Detect if this is a list item using our pre-calculated sets
+                is_numbered = seg.id in list_numbers
+                is_bullet = seg.id in bullet_items
+                is_list_item = is_numbered or is_bullet
+                
+                # Add newline before list items (but not paragraph break)
+                if is_list_item and i > 0:
+                    cursor.insertText("\n")
+                elif i > 0:
+                    # Add space between sentences (except for first)
+                    cursor.insertText(" ")
+                
+                # Check if this is the currently selected segment
+                current_segment_id = self._get_current_segment_id()
+                is_current_segment = (seg.id == current_segment_id)
+                
+                # Store position for click navigation
+                start_pos = cursor.position()
+                
+                # Determine effective list type for rendering
+                effective_list_type = 'numbered' if is_numbered else ('bullet' if is_bullet else list_type)
+                
+                # Render text with inline formatting
+                self._render_formatted_text(
+                    cursor, display_text, char_format, 
+                    is_translated=is_translated,
+                    is_current=is_current_segment,
+                    list_type=effective_list_type,
+                    list_number=list_number
+                )
+                
+                end_pos = cursor.position()
+                
+                # Map positions to segment ID
+                widget.segment_positions[(start_pos, end_pos)] = seg.id
+        
+        # Set cursor to beginning
+        cursor.movePosition(QTextCursor.MoveOperation.Start)
+        preview_text.setTextCursor(cursor)
+    
+    def _render_formatted_text(self, cursor, text: str, base_format: QTextCharFormat, 
+                                is_translated: bool = True, is_current: bool = False,
+                                list_type: str = "", list_number: Optional[int] = None):
+        """Render text with inline formatting tags (<b>, <i>, <u>) preserved"""
+        import re
+        
+        # Check if this segment contains list item tags
+        has_li_bullet_tag = '<li-b>' in text
+        has_li_ordered_tag = '<li-o>' in text
+        
+        # Remove list tags from display
+        text = re.sub(r'</?li-b>', '', text)
+        text = re.sub(r'</?li-o>', '', text)
+        
+        # Add list prefix ONLY if segment has list tag (start of a list item)
+        if has_li_bullet_tag or has_li_ordered_tag:
+            bullet_format = QTextCharFormat(base_format)
+            bullet_format.setForeground(QColor('#ff6600'))  # Orange bullet/number
+            bullet_format.setFontWeight(QFont.Weight.Bold)
+            
+            if has_li_ordered_tag:
+                # Ordered list - use number
+                if list_number:
+                    cursor.insertText(f"{list_number}. ", bullet_format)
+                else:
+                    cursor.insertText("? ", bullet_format)  # Unknown number
+            elif has_li_bullet_tag:
+                # Bullet point
+                cursor.insertText("• ", bullet_format)
+            elif list_type == 'numbered' and list_number:
+                # Fallback: numbered list with known number
+                cursor.insertText(f"{list_number}. ", bullet_format)
+            elif list_type == 'bullet':
+                # Fallback: bullet
+                cursor.insertText("• ", bullet_format)
+            else:
+                # Default to bullet if no other info
+                cursor.insertText("• ", bullet_format)
+        
+        # Parse text into segments with formatting
+        # Pattern matches: <b>, </b>, <i>, </i>, <u>, </u>, <bi>, </bi>
+        tag_pattern = re.compile(r'(</?(?:b|i|u|bi)>)')
+        parts = tag_pattern.split(text)
+        
+        # Track current formatting state
+        is_bold = False
+        is_italic = False
+        is_underline = False
+        
+        for part in parts:
+            if not part:
+                continue
+            
+            # Check for opening/closing tags
+            if part == '<b>':
+                is_bold = True
+                continue
+            elif part == '</b>':
+                is_bold = False
+                continue
+            elif part == '<i>':
+                is_italic = True
+                continue
+            elif part == '</i>':
+                is_italic = False
+                continue
+            elif part == '<u>':
+                is_underline = True
+                continue
+            elif part == '</u>':
+                is_underline = False
+                continue
+            elif part == '<bi>':
+                is_bold = True
+                is_italic = True
+                continue
+            elif part == '</bi>':
+                is_bold = False
+                is_italic = False
+                continue
+            
+            # This is actual text content - apply formatting
+            text_format = QTextCharFormat(base_format)
+            
+            # Apply bold
+            if is_bold:
+                text_format.setFontWeight(QFont.Weight.Bold)
+            
+            # Apply italic
+            if is_italic:
+                text_format.setFontItalic(True)
+            
+            # Apply underline
+            if is_underline:
+                text_format.setUnderlineStyle(QTextCharFormat.UnderlineStyle.SingleUnderline)
+                text_format.setUnderlineColor(QColor('#333333'))
+            
+            # Apply untranslated styling (gray italic)
+            if not is_translated:
+                text_format.setForeground(QColor('#888888'))
+                if not is_italic:  # Don't override explicit italic tags
+                    text_format.setFontItalic(True)
+            
+            # Apply current segment highlighting
+            if is_current:
+                text_format.setBackground(QColor('#fff9c4'))  # Light yellow
+                # Orange underline for current segment (overrides other underlines)
+                text_format.setUnderlineStyle(QTextCharFormat.UnderlineStyle.SingleUnderline)
+                text_format.setUnderlineColor(QColor('#ff9800'))
+            
+            # Insert the formatted text
+            cursor.insertText(part, text_format)
+    
+    def _get_current_segment_id(self) -> Optional[int]:
+        """Get the ID of the currently selected segment in the grid"""
+        if not hasattr(self, 'table') or not self.table:
+            return None
+        
+        current_row = self.table.currentRow()
+        if current_row < 0:
+            return None
+        
+        id_item = self.table.item(current_row, 0)
+        if id_item:
+            try:
+                return int(id_item.text())
+            except (ValueError, AttributeError):
+                pass
+        return None
+    
+    def highlight_preview_segment(self, segment_id: Optional[int] = None):
+        """Update the preview to highlight the specified segment (or current if None)"""
+        if segment_id is None:
+            segment_id = self._get_current_segment_id()
+        
+        if not hasattr(self, 'preview_widgets'):
+            return
+        
+        # Refresh the preview to apply new highlighting
+        # This is simpler than trying to update formatting in-place
+        for widget in self.preview_widgets:
+            if hasattr(widget, 'current_highlighted_segment_id'):
+                # Only refresh if the highlighted segment changed
+                if widget.current_highlighted_segment_id != segment_id:
+                    widget.current_highlighted_segment_id = segment_id
+                    self._render_preview(widget)
+                    
+                    # Scroll to the highlighted segment
+                    if segment_id and hasattr(widget, 'segment_positions'):
+                        self._scroll_preview_to_segment(widget, segment_id)
+    
+    def _scroll_preview_to_segment(self, widget, segment_id: int):
+        """Scroll the preview to show the specified segment"""
+        if not hasattr(widget, 'preview_text') or not hasattr(widget, 'segment_positions'):
+            return
+        
+        preview_text = widget.preview_text
+        
+        # Find the position of this segment
+        for (start_pos, end_pos), seg_id in widget.segment_positions.items():
+            if seg_id == segment_id:
+                # Create a cursor at the segment position
+                cursor = preview_text.textCursor()
+                cursor.setPosition(start_pos)
+                preview_text.setTextCursor(cursor)
+                
+                # Ensure it's visible
+                preview_text.ensureCursorVisible()
+                break
 
     
     def refresh_document_view(self, host: Optional[str] = None):
@@ -16270,364 +16966,16 @@ class SupervertalerQt(QMainWindow):
                 # Store position for click handling
                 start_pos = cursor.position()
                 
-                # Parse and render inline formatting tags (<b>, <i>, <u>, <bi>, <li>)
+                # Parse and render inline formatting tags (<b>, <i>, <u>, <bi>, <li-o>, <li-b>)
                 import re
                 
-                # Pattern to match formatting tags: <b>, </b>, <i>, </i>, <u>, </u>, <bi>, </bi>, <li>, </li>
-                tag_pattern = re.compile(r'<(/?)([biu]|bi|li)>')
+                # Pattern to match formatting tags: <b>, </b>, <i>, </i>, <u>, </u>, <bi>, </bi>
+                tag_pattern = re.compile(r'<(/?)([biu]|bi)>')
                 
-                # Check for list item tag at the start
-                list_item_match = re.match(r'^<li>(.*)</li>$', display_text, re.DOTALL)
-                if list_item_match:
-                    # This is a list item - insert bullet and extract content
-                    bullet_format = QTextCharFormat(char_format)
-                    bullet_format.setFontWeight(QFont.Weight.Bold)
-                    bullet_format.setForeground(QColor('#FF6600'))  # Orange bullet
-                    cursor.insertText("• ", bullet_format)
-                    
-                    # Process the content inside <li> tags
-                    display_text = list_item_match.group(1)
-                
-                # Split text into parts (text and tags)
-                parts = []
-                last_end = 0
-                formatting_stack = []  # Stack to track nested formatting
-                
-                for match in tag_pattern.finditer(display_text):
-                    # Add text before tag
-                    if match.start() > last_end:
-                        text_part = display_text[last_end:match.start()]
-                        parts.append(('text', text_part, formatting_stack.copy()))
-                    
-                    # Process tag
-                    is_closing = match.group(1) == '/'
-                    tag_type = match.group(2)
-                    
-                    if is_closing:
-                        # Remove from stack if present
-                        if tag_type in formatting_stack:
-                            formatting_stack.remove(tag_type)
-                    else:
-                        # Add to stack
-                        if tag_type not in formatting_stack:
-                            formatting_stack.append(tag_type)
-                    
-                    last_end = match.end()
-                
-                # Add remaining text
-                if last_end < len(display_text):
-                    parts.append(('text', display_text[last_end:], formatting_stack.copy()))
-                
-                # If no tags found, render as plain text
-                if not parts:
-                    cursor.insertText(display_text, char_format)
-                else:
-                    # Render each part with appropriate formatting
-                    for part_type, text, format_tags in parts:
-                        if part_type == 'text' and text:
-                            # Create format with current formatting
-                            part_format = QTextCharFormat(char_format)
-                            
-                            # Apply formatting based on tags
-                            if 'bi' in format_tags or ('b' in format_tags and 'i' in format_tags):
-                                part_format.setFontWeight(QFont.Weight.Bold)
-                                part_format.setFontItalic(True)
-                            elif 'b' in format_tags:
-                                part_format.setFontWeight(QFont.Weight.Bold)
-                            elif 'i' in format_tags:
-                                part_format.setFontItalic(True)
-                            
-                            if 'u' in format_tags:
-                                part_format.setFontUnderline(True)
-                            
-                            cursor.insertText(text, part_format)
-                
-                end_pos = cursor.position()
-                
-                # Store segment info for click handling
-                self.doc_segment_widgets[seg.id] = {
-                    'start': start_pos,
-                    'end': end_pos,
-                    'segment': seg
-                }
-        
-        # Enable mouse tracking for click handling
-        doc_text.setMouseTracking(True)
-        doc_text.viewport().setCursor(Qt.CursorShape.PointingHandCursor)
-        
-        # Connect mouse click event
-        def handle_click(event):
-            cursor = doc_text.cursorForPosition(event.pos())
-            pos = cursor.position()
-            
-            # Find which segment was clicked
-            for seg_id, info in self.doc_segment_widgets.items():
-                if info['start'] <= pos <= info['end']:
-                    self.on_doc_segment_clicked(seg_id)
-                    break
-        
-        doc_text.mousePressEvent = handle_click
-        
-        # Add the text widget to the layout - it will expand to fill available space
-        layout.addWidget(doc_text)
-        
-        self.log(f"✓ Refreshed Document View with {len(self.doc_segment_widgets)} segments (natural flow)")
-    
-    def clear_grid(self):
-        """Clear all rows from grid"""
-        self.table.setRowCount(0)
-    
-    def auto_resize_rows(self):
-        """Auto-resize all rows to fit content - Compact version"""
-        if not hasattr(self, 'table') or not self.table:
-            return
-        
-        # Manually calculate and set row heights for compact display
-        for row in range(self.table.rowCount()):
-            max_height = 1
-            
-            # Check source cell (column 2)
-            source_widget = self.table.cellWidget(row, 2)
-            if source_widget and isinstance(source_widget, ReadOnlyGridTextEditor):
-                doc = source_widget.document()
-                if doc:  # Safety check
-                    col_width = self.table.columnWidth(2)
-                    if col_width > 0:
-                        doc.setTextWidth(col_width)
-                        size = doc.size()
-                        if size.isValid():  # Safety check
-                            height = int(size.height())
-                            max_height = max(max_height, height)
-            
-            # Check target cell (column 3)
-            target_widget = self.table.cellWidget(row, 3)
-            if target_widget and isinstance(target_widget, EditableGridTextEditor):
-                doc = target_widget.document()
-                if doc:  # Safety check
-                    col_width = self.table.columnWidth(3)
-                    if col_width > 0:
-                        doc.setTextWidth(col_width)
-                        size = doc.size()
-                        if size.isValid():  # Safety check
-                            height = int(size.height())
-                            max_height = max(max_height, height)
-            
-            # Set row height with minimal padding (2px total)
-            # Minimum 32px to accommodate status icons (16px) + match text + padding without any cutoff
-            compact_height = max(max_height + 2, 32)
-            self.table.setRowHeight(row, compact_height)
-        
-        self.log("✓ Auto-resized rows to fit content (compact)")
-        self._enforce_status_row_heights()
-    
-    def apply_font_to_grid(self):
-        """Apply selected font to all grid cells"""
-        font = QFont(self.default_font_family, self.default_font_size)
-        
-        self.table.setFont(font)
-        
-        # Also update header font
-        header_font = QFont(self.default_font_family, self.default_font_size, QFont.Weight.Bold)
-        self.table.horizontalHeader().setFont(header_font)
-        
-        # Update fonts in QTextEdit widgets (source and target columns)
-        if hasattr(self, 'table') and self.table:
-            for row in range(self.table.rowCount()):
-                # Source column (2) - ReadOnlyGridTextEditor
-                source_widget = self.table.cellWidget(row, 2)
-                if source_widget and isinstance(source_widget, ReadOnlyGridTextEditor):
-                    source_widget.setFont(font)
-                
-                # Target column (3) - EditableGridTextEditor
-                target_widget = self.table.cellWidget(row, 3)
-                if target_widget and isinstance(target_widget, EditableGridTextEditor):
-                    target_widget.setFont(font)
-    
-    def set_font_family(self, family_name: str):
-        """Set font family from menu"""
-        self.default_font_family = family_name
-        self.apply_font_to_grid()
-        self.auto_resize_rows()
-        self.log(f"✓ Font changed to {family_name}")
-    
-    def increase_font_size(self):
-        """Increase font size (Ctrl++)"""
-        self.default_font_size = min(72, self.default_font_size + 1)
-        self.apply_font_to_grid()
-        self.auto_resize_rows()
-        self.log(f"✓ Font size: {self.default_font_size}")
-        # Save font size to preferences
-        self.save_current_font_sizes()
-    
-    def decrease_font_size(self):
-        """Decrease font size (Ctrl+-)"""
-        self.default_font_size = max(7, self.default_font_size - 1)
-        self.apply_font_to_grid()
-        self.auto_resize_rows()
-        self.log(f"✓ Font size: {self.default_font_size}")
-        # Save font size to preferences
-        self.save_current_font_sizes()
-    
-    def refresh_grid_tag_colors(self):
-        """Refresh tag highlight colors in all grid cells"""
-        if not hasattr(self, 'table') or not self.table:
-            return
-        
-        for row in range(self.table.rowCount()):
-            # Source column (2) - ReadOnlyGridTextEditor
-            source_widget = self.table.cellWidget(row, 2)
-            if source_widget and isinstance(source_widget, ReadOnlyGridTextEditor):
-                if hasattr(source_widget, 'highlighter'):
-                    source_widget.highlighter.set_tag_color(EditableGridTextEditor.tag_highlight_color)
-            
-            # Target column (3) - EditableGridTextEditor
-            target_widget = self.table.cellWidget(row, 3)
-            if target_widget and isinstance(target_widget, EditableGridTextEditor):
-                if hasattr(target_widget, 'highlighter'):
-                    target_widget.highlighter.set_tag_color(EditableGridTextEditor.tag_highlight_color)
-
-    def _apply_row_color(self, row: int, source_widget, target_widget):
-        """Apply alternating row color to source and target widgets for a specific row"""
-        # Load settings (with caching to avoid repeated file reads)
-        if not hasattr(self, '_row_color_settings_cached'):
-            settings = self.load_general_settings()
-            self._row_color_settings_cached = {
-                'enabled': settings.get('enable_alternating_row_colors', True),
-                'even_color': settings.get('even_row_color', '#FFFFFF'),
-                'odd_color': settings.get('odd_row_color', '#F0F0F0')
-            }
-        
-        settings = self._row_color_settings_cached
-        
-        if not settings['enabled']:
-            # Use default colors when disabled
-            if hasattr(source_widget, 'set_background_color'):
-                source_widget.set_background_color('#f5f5f5')  # Original source color
-            if hasattr(target_widget, 'set_background_color'):
-                target_widget.set_background_color('#FFFFFF')  # Original target color
-            return
-        
-        # Determine color based on row index (even/odd)
-        color = settings['even_color'] if row % 2 == 0 else settings['odd_color']
-        row_color = QColor(color)
-        
-        # Apply to ID column (column 0)
-        id_item = self.table.item(row, 0)
-        if id_item:
-            id_item.setBackground(row_color)
-        
-        # Apply to Type column (column 1) - but preserve heading/list item colors
-        type_item = self.table.item(row, 1)
-        if type_item:
-            type_text = type_item.text()
-            # Only apply row color if it's not a special type (headings/list items have their own colors)
-            if type_text not in ("H1", "H2", "H3", "H4", "Title", "li"):
-                type_item.setBackground(row_color)
-        
-        # Apply to source widget
-        if hasattr(source_widget, 'set_background_color'):
-            source_widget.set_background_color(color)
-        
-        # Apply to target widget
-        if hasattr(target_widget, 'set_background_color'):
-            target_widget.set_background_color(color)
-    
-    def apply_alternating_row_colors(self):
-        """Apply alternating row colors to all source and target cells in the grid"""
-        if not hasattr(self, 'table') or not self.table:
-            return
-        
-        # Clear cached settings to force reload
-        if hasattr(self, '_row_color_settings_cached'):
-            delattr(self, '_row_color_settings_cached')
-        
-        for row in range(self.table.rowCount()):
-            source_widget = self.table.cellWidget(row, 2)
-            target_widget = self.table.cellWidget(row, 3)
-            
-            if source_widget and target_widget:
-                self._apply_row_color(row, source_widget, target_widget)
-        
-        self.log("✓ Alternating row colors applied")
-    
-    def on_font_changed(self):
-        """Handle font change - legacy method for compatibility"""
-        self.apply_font_to_grid()
-        self.auto_resize_rows()
-
-    
-    def zoom_in(self):
-        """Increase font size (same as Ctrl++)"""
-        self.increase_font_size()
-    
-    def zoom_out(self):
-        """Decrease font size (same as Ctrl+-)"""
-        self.decrease_font_size()
-    
-    def results_pane_zoom_in(self):
-        """Increase font size in translation results pane"""
-        if hasattr(self, 'results_panels'):
-            for panel in self.results_panels:
-                if hasattr(panel, 'zoom_in'):
-                    panel.zoom_in()
-            # Save font sizes to preferences
-            self.save_current_font_sizes()
-    
-    def results_pane_zoom_out(self):
-        """Decrease font size in translation results pane"""
-        if hasattr(self, 'results_panels'):
-            for panel in self.results_panels:
-                if hasattr(panel, 'zoom_out'):
-                    panel.zoom_out()
-            # Save font sizes to preferences
-            self.save_current_font_sizes()
-    
-    def results_pane_zoom_reset(self):
-        """Reset font size in translation results pane to default"""
-        if hasattr(self, 'results_panels'):
-            for panel in self.results_panels:
-                if hasattr(panel, 'reset_zoom'):
-                    panel.reset_zoom()
-            # Save font sizes to preferences
-            self.save_current_font_sizes()
-    
-    def save_current_font_sizes(self):
-        """Save current font sizes to preferences"""
-        try:
-            from modules.translation_results_panel import CompactMatchItem, TranslationResultsPanel
-            general_settings = self.load_general_settings()
-            general_settings['grid_font_size'] = self.default_font_size
-            if hasattr(CompactMatchItem, 'font_size_pt'):
-                general_settings['results_match_font_size'] = CompactMatchItem.font_size_pt
-            if hasattr(TranslationResultsPanel, 'compare_box_font_size'):
-                general_settings['results_compare_font_size'] = TranslationResultsPanel.compare_box_font_size
-            if hasattr(CompactMatchItem, 'show_tags'):
-                general_settings['results_show_tags'] = CompactMatchItem.show_tags
-            if hasattr(EditableGridTextEditor, 'tag_highlight_color'):
-                general_settings['tag_highlight_color'] = EditableGridTextEditor.tag_highlight_color
-            # Preserve other settings
-            if 'restore_last_project' not in general_settings:
-                general_settings['restore_last_project'] = False
-            self.save_general_settings(general_settings)
-        except Exception as e:
-            # Silently fail - don't interrupt user workflow
-            pass
-    
-    def load_general_settings(self) -> Dict[str, Any]:
-        """Load general application settings"""
-        # Initialize auto-propagation from loaded settings
-        settings = self._load_general_settings_from_file()
-        if 'auto_propagate_exact_matches' in settings:
-            self.auto_propagate_exact_matches = settings['auto_propagate_exact_matches']
-        if 'auto_insert_100_percent_matches' in settings:
-            self.auto_insert_100_percent_matches = settings['auto_insert_100_percent_matches']
-        # Load TM/termbase matching setting
-        if 'enable_tm_termbase_matching' in settings:
-            self.enable_tm_matching = settings['enable_tm_termbase_matching']
-            self.enable_termbase_matching = settings['enable_tm_termbase_matching']
-        # Load termbase grid highlighting setting
-        if 'enable_termbase_grid_highlighting' in settings:
-            self.enable_termbase_grid_highlighting = settings['enable_termbase_grid_highlighting']
+                # Check for list item tag at the start (both ordered and bullet)
+                list_ordered_match = re.match(r'^<li-o>(.*)</li-o>$', display_text, re.DOTALL)
+                list_bullet_match = re.match(r'^<li-b>(.*)</li-b>$', display_text, re.DOTALL)
+ing']
         # Load auto-markdown setting
         self.auto_generate_markdown = settings.get('auto_generate_markdown', False)
         # Load TM save mode
@@ -16975,6 +17323,12 @@ class SupervertalerQt(QMainWindow):
             # Update window title
             self.update_window_title()
             
+            # Update progress stats (debounced to avoid lag during typing)
+            self.update_progress_stats()
+            
+            # Refresh document preview (debounced to avoid lag during typing)
+            self.refresh_preview()
+            
             # Auto-resize the row
             if hasattr(self, 'table') and self.table:
                 self.table.resizeRowToContents(row)
@@ -17131,6 +17485,9 @@ class SupervertalerQt(QMainWindow):
                             panel.set_segment_info(segment.id, segment.source)
                         except Exception as e:
                             self.log(f"Error updating Translation Results panel header: {e}")
+                
+                # Update Preview tab highlighting to show current segment
+                self.highlight_preview_segment(segment.id)
                 
                 # Update toolbar segment info and status
                 if hasattr(self, 'tab_seg_info'):
@@ -20997,6 +21354,9 @@ class SupervertalerQt(QMainWindow):
             self.project_modified = True
             self.log(f"✅ Segment {segment.id} confirmed")
             
+            # Update progress stats in status bar
+            self.update_progress_stats()
+            
             # VERIFICATION: Check the segment ONE MORE TIME to ensure target wasn't corrupted
             verification_seg = next((s for s in self.current_project.segments if s.id == segment.id), None)
             if verification_seg:
@@ -22188,6 +22548,12 @@ class SupervertalerQt(QMainWindow):
                 # Mark project as modified
                 self.project_modified = True
                 self.update_window_title()
+                
+                # Update progress stats in status bar
+                self.update_progress_stats()
+                
+                # Refresh document preview
+                self.refresh_preview()
                 
                 self.log(f"✓ Segment #{segment.id} translated with {provider}/{model}")
                 self.status_bar.showMessage(f"✓ Segment #{segment.id} translated", 3000)

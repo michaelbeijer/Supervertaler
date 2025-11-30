@@ -39,6 +39,8 @@ class ParagraphInfo:
     table_index: int = None
     row_index: int = None
     cell_index: int = None
+    list_type: str = ""  # "bullet", "numbered", or ""
+    list_number: int = None  # For numbered lists
 
 
 class DOCXHandler:
@@ -52,6 +54,94 @@ class DOCXHandler:
         self.original_path = None
         self.paragraphs_info: List[ParagraphInfo] = []
         self.tag_manager = TagManager() if TagManager else None
+        self._list_type_cache = {}  # Cache for numId -> list_type mapping
+    
+    def _get_list_type(self, para) -> tuple:
+        """
+        Determine if a paragraph is a bullet or numbered list item.
+        Returns: (list_type, list_number) where list_type is "bullet", "numbered", or ""
+        """
+        try:
+            # Check if paragraph has numbering
+            if not hasattr(para._element, 'pPr') or para._element.pPr is None:
+                return ("", None)
+            
+            numPr = para._element.pPr.numPr
+            if numPr is None:
+                return ("", None)
+            
+            # Get numId - the reference to the numbering definition
+            numId_elem = numPr.numId
+            if numId_elem is None:
+                return ("", None)
+            
+            numId = numId_elem.val
+            
+            # Check cache first
+            if numId in self._list_type_cache:
+                list_type = self._list_type_cache[numId]
+            else:
+                # Need to look up the numbering definition to determine type
+                # Access the numbering part of the document
+                list_type = "numbered"  # Default assumption
+                
+                try:
+                    numbering_part = self.original_document.part.numbering_part
+                    if numbering_part is not None:
+                        # Get the numbering element
+                        numbering_xml = numbering_part._element
+                        
+                        # Find the num element with matching numId
+                        for num in numbering_xml.findall('.//{http://schemas.openxmlformats.org/wordprocessingml/2006/main}num'):
+                            if num.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}numId') == str(numId):
+                                # Get abstractNumId
+                                abstractNumId_elem = num.find('.//{http://schemas.openxmlformats.org/wordprocessingml/2006/main}abstractNumId')
+                                if abstractNumId_elem is not None:
+                                    abstractNumId = abstractNumId_elem.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}val')
+                                    
+                                    # Find the abstractNum with this ID
+                                    for abstractNum in numbering_xml.findall('.//{http://schemas.openxmlformats.org/wordprocessingml/2006/main}abstractNum'):
+                                        if abstractNum.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}abstractNumId') == abstractNumId:
+                                            # Check the first level (lvl) for numFmt
+                                            for lvl in abstractNum.findall('.//{http://schemas.openxmlformats.org/wordprocessingml/2006/main}lvl'):
+                                                numFmt = lvl.find('.//{http://schemas.openxmlformats.org/wordprocessingml/2006/main}numFmt')
+                                                if numFmt is not None:
+                                                    fmt_val = numFmt.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}val')
+                                                    # bullet = bullet point, decimal/upperLetter/lowerLetter/upperRoman/lowerRoman = numbered
+                                                    if fmt_val == 'bullet':
+                                                        list_type = "bullet"
+                                                    else:
+                                                        list_type = "numbered"
+                                                break
+                                            break
+                                break
+                except Exception as e:
+                    # If we can't determine, check the text for bullet characters
+                    text = para.text.strip() if para.text else ""
+                    if text.startswith(('•', '·', '○', '■', '□', '►', '-', '*')):
+                        list_type = "bullet"
+                    else:
+                        list_type = "numbered"
+                
+                self._list_type_cache[numId] = list_type
+            
+            # For numbered lists, try to get the actual number
+            list_number = None
+            if list_type == "numbered":
+                # We can't easily get the actual number from python-docx
+                # It will be calculated later based on position
+                pass
+            
+            return (list_type, list_number)
+            
+        except Exception as e:
+            # Fallback: check text for bullet characters
+            text = para.text.strip() if para.text else ""
+            if text.startswith(('•', '·', '○', '■', '□', '►', '-', '*')):
+                return ("bullet", None)
+            elif text and text[0].isdigit():
+                return ("numbered", None)
+            return ("", None)
     
     def import_docx(self, file_path: str, extract_formatting: bool = True) -> List[str]:
         """
@@ -113,28 +203,30 @@ class DOCXHandler:
                                 text_with_tags = self.tag_manager.runs_to_tagged_text(runs)
                                 
                                 # Check if this is a list item (bullet or numbered)
-                                # Look for list numbering in paragraph
-                                is_list_item = False
-                                try:
-                                    # Check if paragraph has numbering format (bullets or numbers)
-                                    numPr = para._element.pPr.numPr if hasattr(para._element, 'pPr') and para._element.pPr is not None else None
-                                    if numPr is not None:
+                                list_type, list_number = self._get_list_type(para)
+                                is_list_item = bool(list_type)
+                                
+                                # Also detect from text if not detected from XML
+                                if not is_list_item:
+                                    if text_with_tags.lstrip().startswith(('• ', '· ', '- ', '* ', '○ ', '■ ')):
                                         is_list_item = True
-                                    # Also detect common bullet characters at start
-                                    elif text_with_tags.lstrip().startswith(('• ', '· ', '- ', '* ')):
-                                        is_list_item = True
-                                    # Detect numbered lists like "1. " or "1) "
+                                        list_type = "bullet"
                                     elif len(text_with_tags) > 2 and text_with_tags[0].isdigit() and text_with_tags[1:3] in ('. ', ') '):
                                         is_list_item = True
-                                except:
-                                    pass
+                                        list_type = "numbered"
                                 
-                                # Wrap list items in <li> tag
+                                # Wrap list items in appropriate tag
+                                # Use <li-b> for bullets, <li-o> for numbered
                                 if is_list_item:
-                                    text_with_tags = f"<li>{text_with_tags}</li>"
+                                    if list_type == "bullet":
+                                        text_with_tags = f"<li-b>{text_with_tags}</li-b>"
+                                    else:
+                                        text_with_tags = f"<li-o>{text_with_tags}</li-o>"
                                 
                                 paragraphs.append(text_with_tags)
                             else:
+                                # Even without formatting extraction, detect list type
+                                list_type, list_number = self._get_list_type(para)
                                 paragraphs.append(text)
                             
                             # Store paragraph info for reconstruction
@@ -144,7 +236,9 @@ class DOCXHandler:
                                 alignment=str(para.alignment) if para.alignment else None,
                                 paragraph_index=para_counter,
                                 document_position=doc_position,
-                                is_table_cell=False
+                                is_table_cell=False,
+                                list_type=list_type,
+                                list_number=list_number
                             )
                             self.paragraphs_info.append(para_info)
                             para_counter += 1
@@ -165,26 +259,26 @@ class DOCXHandler:
                                     text = para.text.strip()
                                     
                                     if text:  # Only include non-empty cells
+                                        # Check list type
+                                        list_type, list_number = self._get_list_type(para)
+                                        
                                         # Extract formatting if requested
                                         if extract_formatting and self.tag_manager:
                                             runs = self.tag_manager.extract_runs(para)
                                             text_with_tags = self.tag_manager.runs_to_tagged_text(runs)
                                             
-                                            # Check if this is a list item (even in tables)
-                                            is_list_item = False
-                                            try:
-                                                numPr = para._element.pPr.numPr if hasattr(para._element, 'pPr') and para._element.pPr is not None else None
-                                                if numPr is not None:
-                                                    is_list_item = True
-                                                elif text_with_tags.lstrip().startswith(('• ', '· ', '- ', '* ')):
-                                                    is_list_item = True
+                                            # Detect from text if not detected from XML
+                                            if not list_type:
+                                                if text_with_tags.lstrip().startswith(('• ', '· ', '- ', '* ', '○ ', '■ ')):
+                                                    list_type = "bullet"
                                                 elif len(text_with_tags) > 2 and text_with_tags[0].isdigit() and text_with_tags[1:3] in ('. ', ') '):
-                                                    is_list_item = True
-                                            except:
-                                                pass
+                                                    list_type = "numbered"
                                             
-                                            if is_list_item:
-                                                text_with_tags = f"<li>{text_with_tags}</li>"
+                                            # Wrap in appropriate tag
+                                            if list_type == "bullet":
+                                                text_with_tags = f"<li-b>{text_with_tags}</li-b>"
+                                            elif list_type == "numbered":
+                                                text_with_tags = f"<li-o>{text_with_tags}</li-o>"
                                             
                                             paragraphs.append(text_with_tags)
                                         else:
@@ -200,7 +294,9 @@ class DOCXHandler:
                                             is_table_cell=True,
                                             table_index=table_idx,
                                             row_index=row_idx,
-                                            cell_index=cell_idx
+                                            cell_index=cell_idx,
+                                            list_type=list_type,
+                                            list_number=list_number
                                         )
                                         self.paragraphs_info.append(para_info)
                                         para_counter += 1

@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.11 (November 28, 2025)
+**Current Version:** v1.9.13 (November 30, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -14,7 +14,9 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
-- ⚡ **Quick Termbase Add (Ctrl+R) & List Number Display (v1.9.11)** - New Ctrl+R shortcut for instant term pair saving without dialogs (saves to project termbase). Type column now shows #1, #2, #3 for numbered list items and • for bullet points. HTML/XML tags now work with Ctrl+, shortcut. Fixed target synonyms display in Translation Results panel
+- 📄 **Document Preview & List Tags (v1.9.13)** - New Preview tab shows formatted document view with headings, paragraphs, and list formatting. Click any text to navigate to that segment. Distinct list tags: `<li-o>` for ordered/numbered lists (1. 2. 3.) and `<li-b>` for bullet points (•). DOCX import now properly detects bullet vs numbered lists from Word's numbering XML. Type column shows `¶` for continuation paragraphs instead of `#`
+- 📊 **Progress Indicator Status Bar (v1.9.12)** - New permanent status bar showing real-time translation progress: Words translated (X/Y with percentage), Confirmed segments (X/Y with percentage), and Remaining segments count. Color-coded: red (<50%), orange (50-80%), green (>80%). Updates automatically as you work
+- ⚡ **Navigation & Find/Replace Improvements (v1.9.11)** - Ctrl+Home/End to jump to first/last segment. Find/Replace dialog now pre-fills selected text from source or target grid. Ctrl+Q shortcut for instant term pair saving (remembers last-used termbase from Ctrl+E dialog)
 - 🔧 **Non-Translatables: Case-Sensitive & Full-Word Matching (v1.9.11)** - Non-translatables matching is now case-sensitive by default and only matches full words (not partial words). Added LLM refusal detection with helpful error messages for batch translation. Fixed crash when closing project (missing stop_termbase_batch_worker). Fixed .svprompt files not showing in Prompt Library tree
 - 🔧 **TM Search Fixes & Language Matching (v1.9.10)** - Fixed TM matches not appearing in Translation Results panel. Added flexible language matching ("Dutch", "nl", "nl-NL" all match). TM metadata manager now initializes with project load. Removed legacy Project TM/Big Mama hardcoding. Cleaned public database for new users. Non-Translatables: sortable columns, right-click delete, Delete key support
 - 🎨 **memoQ-style Alternating Row Colors (v1.9.9)** - Grid now displays alternating row colors across all columns (ID, Type, Source, Target) like memoQ. User-configurable colors in Settings → View Settings with even/odd row color pickers. Colors are consistent across the entire row including QTextEdit widgets
@@ -60,30 +62,74 @@ All notable changes to Supervertaler are documented in this file.
 
 ---
 
-## [1.9.9] - November 27, 2025
+## [1.9.13] - November 30, 2025
 
-### 🎨 memoQ-style Alternating Row Colors
+### 📄 Document Preview & List Formatting Tags
 
-**Grid now displays consistent alternating row colors across all columns:**
+**New Preview tab shows formatted document view:**
 
-**Visual Improvements:**
-- Even and odd rows have distinct background colors (like memoQ)
-- Color applies consistently to ID, Type, Source, and Target columns
-- Previously, Source was always gray and Target was always white - now both follow the same alternating pattern
-- Special type indicators (H1, H2, Title, li) retain their distinctive background colors
+**Preview Tab Features:**
+- New "Preview" tab alongside Source/Target views in the main panel
+- Shows formatted document with headings (H1-H6 with proper sizing), paragraphs, and lists
+- List items display with correct prefix: numbers (1. 2. 3.) for ordered lists, bullets (•) for bullet points
+- Click any text in preview to instantly navigate to that segment in the grid
+- Read-only view for document context during translation
 
-**New View Settings:**
-- **Enable alternating row colors** checkbox (default: enabled)
-- **Even Row Color** picker (default: white #FFFFFF)
-- **Odd Row Color** picker (default: light gray #F0F0F0)
-- **Reset to Default Colors** button to restore defaults
-- Settings persist in ui_preferences.json
+**List Type Detection from DOCX:**
+- New `_get_list_type()` method in docx_handler.py examines Word's numPr XML structure
+- Properly distinguishes numbered lists from bullet points by analyzing abstractNum definitions
+- Looks for "bullet" in numFmt value or bullet characters (•, ○, ●, ■) in lvlText
+- Caches list type lookups for performance
+
+**New List Tags:**
+- `<li-o>` - Ordered list items (numbered: 1. 2. 3.)
+- `<li-b>` - Bullet list items (•)
+- Both tags are colored with the tag highlighter
+- Both work with Ctrl+, shortcut for quick insertion
+
+**Type Column Improvements:**
+- Type column now shows `#1`, `#2`, `#3` for ordered list items (numbered)
+- Shows `•` for bullet list items
+- Shows `¶` (paragraph mark) for continuation paragraphs instead of `#`
+- Provides clearer visual distinction between list types
 
 **Technical Implementation:**
-- Added `set_background_color()` method to `ReadOnlyGridTextEditor` and `EditableGridTextEditor`
-- Added `_apply_row_color()` method for applying colors to individual rows
-- Added `apply_alternating_row_colors()` method for refreshing all row colors
-- Uses caching mechanism for row color settings to optimize performance
+- Added `_setup_preview_tab()` for Preview tab creation
+- Added `_render_preview()` method with formatted text rendering
+- Added `_render_formatted_text()` helper for styled QTextEdit output
+- Updated tag regex pattern to support hyphenated tags: `[a-zA-Z][a-zA-Z0-9-]*`
+- Preview connects to `_preview_navigation_requested()` for click-to-navigate
+
+---
+
+## [1.9.12] - November 28, 2025
+
+### 📊 Progress Indicator Status Bar
+
+**New permanent status bar showing real-time translation progress:**
+
+**Progress Display:**
+- **Words translated**: Shows X/Y words with percentage (counts words in segments that have translations)
+- **Confirmed segments**: Shows X/Y segments with percentage (confirmed, tr_confirmed, proofread, approved statuses)
+- **Remaining segments**: Count of segments still needing work (not_started, pretranslated, rejected statuses)
+
+**Color Coding:**
+- **Red** (<50%): Low progress - needs attention
+- **Orange** (50-80%): Making progress - keep going
+- **Green** (>80%): Almost done - near completion
+
+**Auto-Updates:**
+- Updates when project is loaded
+- Updates when segment is confirmed (Ctrl+Enter)
+- Updates after AI translation completes
+- Updates after user finishes typing (debounced)
+- Resets to "--" when project is closed
+
+**Technical Implementation:**
+- Added `_setup_progress_indicators()` method for status bar widget setup
+- Added `update_progress_stats()` method for calculating and updating progress
+- Added `_get_progress_color()` helper for color-based progress feedback
+- Progress widgets are permanent status bar items (right-aligned)
 
 ---
 
