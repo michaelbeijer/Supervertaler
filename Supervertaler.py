@@ -1,6 +1,6 @@
 """   
-Supervertaler Qt Edition
-========================
+Supervertaler
+=============
 The ultimate companion tool for translators and writers.
 Modern PyQt6 interface with specialised modules to handle any problem.
 Version: 1.9.15 (Bilingual Table Export/Import)
@@ -3909,7 +3909,7 @@ class SupervertalerQt(QMainWindow):
         # Create example API keys file on first launch (after UI is ready)
         self.ensure_example_api_keys()
         
-        self.log("Welcome to Supervertaler Qt v1.6.6")
+        self.log(f"Welcome to Supervertaler v{__version__}")
         self.log("Supervertaler: The ultimate companion tool for translators and writers.")
         
         # Load general settings (including auto-propagation)
@@ -3940,7 +3940,7 @@ class SupervertalerQt(QMainWindow):
     def init_ui(self):
         """Initialize the user interface"""
         # Build window title with dev mode indicator
-        title = f"Supervertaler Qt v{__version__}"
+        title = f"Supervertaler v{__version__}"
         if ENABLE_PRIVATE_FEATURES:
             title += " [🛠️ DEV MODE]"
         self.setWindowTitle(title)
@@ -22776,7 +22776,7 @@ class SupervertalerQt(QMainWindow):
     
     def update_window_title(self):
         """Update window title with project name and modified state"""
-        title = f"Supervertaler Qt v{__version__}"
+        title = f"Supervertaler v{__version__}"
         if ENABLE_PRIVATE_FEATURES:
             title += " [🛠️ DEV MODE]"
         if self.current_project:
@@ -23267,7 +23267,7 @@ class SupervertalerQt(QMainWindow):
     def show_about(self):
         """Show about dialog with clickable website link"""
         dialog = QDialog(self)
-        dialog.setWindowTitle("About Supervertaler Qt")
+        dialog.setWindowTitle("About Supervertaler")
         dialog.setMinimumWidth(400)
         
         layout = QVBoxLayout(dialog)
@@ -23275,7 +23275,7 @@ class SupervertalerQt(QMainWindow):
         layout.setContentsMargins(20, 20, 20, 20)
         
         # Title
-        title = QLabel(f"<h2>Supervertaler Qt v{__version__}</h2>")
+        title = QLabel(f"<h2>Supervertaler v{__version__}</h2>")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title)
         
@@ -28326,7 +28326,7 @@ def main():
     QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
     
     app = QApplication(sys.argv)
-    app.setApplicationName("Supervertaler Qt")
+    app.setApplicationName("Supervertaler")
     app.setOrganizationName("Supervertaler")
     
     window = SupervertalerQt()
