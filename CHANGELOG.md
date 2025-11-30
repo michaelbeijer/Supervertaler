@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.13 (November 30, 2025)
+**Current Version:** v1.9.14 (November 30, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -14,6 +14,7 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- 📤 **Improved DOCX Export & Keyboard Navigation (v1.9.14)** - Fixed DOCX export to properly handle formatting tags (`<b>`, `<i>`, `<u>`) and convert them to actual Word formatting. Export now handles multi-segment paragraphs with partial replacement. Added cleanup for Unicode replacement characters (U+FFFC). Ctrl+Home/End now properly navigate to first/last segment even when editing in grid cells
 - 📄 **Document Preview & List Tags (v1.9.13)** - New Preview tab shows formatted document view with headings, paragraphs, and list formatting. Click any text to navigate to that segment. Distinct list tags: `<li-o>` for ordered/numbered lists (1. 2. 3.) and `<li-b>` for bullet points (•). DOCX import now properly detects bullet vs numbered lists from Word's numbering XML. Type column shows `¶` for continuation paragraphs instead of `#`
 - 📊 **Progress Indicator Status Bar (v1.9.12)** - New permanent status bar showing real-time translation progress: Words translated (X/Y with percentage), Confirmed segments (X/Y with percentage), and Remaining segments count. Color-coded: red (<50%), orange (50-80%), green (>80%). Updates automatically as you work
 - ⚡ **Navigation & Find/Replace Improvements (v1.9.11)** - Ctrl+Home/End to jump to first/last segment. Find/Replace dialog now pre-fills selected text from source or target grid. Ctrl+Q shortcut for instant term pair saving (remembers last-used termbase from Ctrl+E dialog)

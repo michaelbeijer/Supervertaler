@@ -1,13 +1,36 @@
 # Supervertaler Project Context
 
 **Last Updated:** November 30, 2025
-**Current Version:** v1.9.13
+**Current Version:** v1.9.14
 **Repository:** https://github.com/michaelbeijer/Supervertaler
 **Maintainer:** Michael Beijer
 
 ---
 
 ## 📅 Recent Development Activity
+
+### November 30, 2025 - Version 1.9.14: Improved DOCX Export & Keyboard Navigation
+
+**📤 DOCX Export Improvements**
+Fixed critical issues with DOCX export:
+- **Formatting Preservation:** Export now properly converts `<b>`, `<i>`, `<u>`, `<bi>` tags to actual Word formatting (bold, italic, underline)
+- **Multi-Segment Paragraphs:** Export now handles paragraphs that contain multiple segments (e.g., "Our Ref. ZP10628EPNL" split across two segments)
+- **Unicode Cleanup:** Removes problematic characters like U+FFFC (Object Replacement Character) that could appear in exports
+- **Tag Stripping:** Properly strips all list tags (`<li-o>`, `<li-b>`, `<li>`) while preserving formatting tags
+
+**⌨️ Keyboard Navigation Fix**
+- Ctrl+Home now properly navigates to first segment even when editing inside a grid cell
+- Ctrl+End now properly navigates to last segment even when editing inside a grid cell
+- Added `_get_main_window()` helper to both `EditableGridTextEditor` and `ReadOnlyGridTextEditor`
+
+**🔧 Technical Changes:**
+- `export_target_only_docx()`: Added `apply_formatted_text_to_paragraph()` function that parses tags and creates properly formatted Word runs
+- `export_target_only_docx()`: Added `replace_segments_in_text()` for partial segment replacement within paragraphs
+- `export_target_only_docx()`: Added `clean_special_chars()` to remove Unicode replacement characters
+- `EditableGridTextEditor.keyPressEvent()`: Added Ctrl+Home/End handlers
+- `ReadOnlyGridTextEditor.event()`: Added Ctrl+Home/End handlers
+
+---
 
 ### November 30, 2025 - Version 1.9.13: Document Preview & List Formatting Tags
 

@@ -32,7 +32,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.13"
+__version__ = "1.9.14"
 __phase__ = "0.9"
 __release_date__ = "2025-11-30"
 __edition__ = "Qt"
@@ -995,6 +995,16 @@ class ReadOnlyGridTextEditor(QTextEdit):
         # Store raw text (with tags) for mode switching
         self._raw_text = text
     
+    def _get_main_window(self):
+        """Get the main application window by traversing the parent hierarchy"""
+        table = self.table_ref if hasattr(self, 'table_ref') else self.parent()
+        if not table:
+            return None
+        main_window = table.parent()
+        while main_window and not hasattr(main_window, 'go_to_first_segment'):
+            main_window = main_window.parent()
+        return main_window
+    
     def update_display_mode(self, text: str, show_tags: bool):
         """
         Update the display based on tag view mode.
@@ -1212,6 +1222,20 @@ class ReadOnlyGridTextEditor(QTextEdit):
             # Ctrl+Alt+N: Add selected text to non-translatables
             if key_event.key() == Qt.Key.Key_N and key_event.modifiers() == (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.AltModifier):
                 self._handle_add_to_nt()
+                return True  # Event handled
+            
+            # Ctrl+Home: Navigate to first segment (pass to main window)
+            if key_event.key() == Qt.Key.Key_Home and key_event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+                main_window = self._get_main_window()
+                if main_window and hasattr(main_window, 'go_to_first_segment'):
+                    main_window.go_to_first_segment()
+                return True  # Event handled
+            
+            # Ctrl+End: Navigate to last segment (pass to main window)
+            if key_event.key() == Qt.Key.Key_End and key_event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+                main_window = self._get_main_window()
+                if main_window and hasattr(main_window, 'go_to_last_segment'):
+                    main_window.go_to_last_segment()
                 return True  # Event handled
             
             if key_event.key() == Qt.Key.Key_Tab:
@@ -1669,6 +1693,15 @@ class EditableGridTextEditor(QTextEdit):
         self.setMinimumHeight(0)
         self.setMaximumHeight(16777215)  # Qt's max int
     
+    def _get_main_window(self):
+        """Get the main application window by traversing the parent hierarchy"""
+        if not self.table:
+            return None
+        main_window = self.table.parent()
+        while main_window and not hasattr(main_window, 'go_to_first_segment'):
+            main_window = main_window.parent()
+        return main_window
+    
     def _handle_add_to_termbase(self):
         """Handle Ctrl+T: Add selected source and target terms to termbase"""
         if not self.table or self.row < 0:
@@ -1848,6 +1881,22 @@ class EditableGridTextEditor(QTextEdit):
         # Ctrl+Alt+N: Add selected text to non-translatables
         if event.key() == Qt.Key.Key_N and event.modifiers() == (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.AltModifier):
             self._handle_add_to_nt()
+            event.accept()
+            return
+        
+        # Ctrl+Home: Navigate to first segment (pass to main window)
+        if event.key() == Qt.Key.Key_Home and event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+            main_window = self._get_main_window()
+            if main_window and hasattr(main_window, 'go_to_first_segment'):
+                main_window.go_to_first_segment()
+            event.accept()
+            return
+        
+        # Ctrl+End: Navigate to last segment (pass to main window)
+        if event.key() == Qt.Key.Key_End and event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+            main_window = self._get_main_window()
+            if main_window and hasattr(main_window, 'go_to_last_segment'):
+                main_window.go_to_last_segment()
             event.accept()
             return
         
@@ -7103,31 +7152,130 @@ class SupervertalerQt(QMainWindow):
                 
                 doc = Document(file_path)
                 
-                # Build a mapping of source text to target text
+                # Helper function to strip all formatting tags (for matching only)
+                import re
+                def strip_all_tags(text):
+                    """Remove all formatting and list tags from text"""
+                    text = re.sub(r'</?li-[bo]>', '', text)  # <li-b>, </li-b>, <li-o>, </li-o>
+                    text = re.sub(r'</?li>', '', text)       # <li>, </li>
+                    text = re.sub(r'</?[biu]>', '', text)    # <b>, </b>, <i>, </i>, <u>, </u>
+                    text = re.sub(r'</?bi>', '', text)       # <bi>, </bi>
+                    return text.strip()
+                
+                def clean_special_chars(text):
+                    """Remove problematic Unicode characters like object replacement char"""
+                    # Remove Unicode Object Replacement Character (U+FFFC) and similar
+                    text = text.replace('\ufffc', '')  # Object Replacement Character
+                    text = text.replace('\ufffe', '')  # Noncharacter
+                    text = text.replace('\uffff', '')  # Noncharacter
+                    text = text.replace('\u0000', '')  # Null character
+                    return text
+                
+                def apply_formatted_text_to_paragraph(para, tagged_text):
+                    """
+                    Replace paragraph text with tagged text, applying bold/italic/underline formatting.
+                    Parses tags like <b>, <i>, <u>, <bi> and creates appropriate runs.
+                    """
+                    # Clean special characters first
+                    text = clean_special_chars(tagged_text)
+                    
+                    # Strip list tags - they don't affect formatting
+                    text = re.sub(r'</?li-[bo]>', '', text)
+                    text = re.sub(r'</?li>', '', text)
+                    
+                    # Clear existing runs
+                    for run in para.runs:
+                        run.clear()
+                    # Remove the cleared runs
+                    for run in list(para.runs):
+                        run._element.getparent().remove(run._element)
+                    
+                    # Parse tags and create runs with formatting
+                    # Pattern matches tags or text between tags
+                    tag_pattern = re.compile(r'(</?(?:b|i|u|bi)>)')
+                    parts = tag_pattern.split(text)
+                    
+                    is_bold = False
+                    is_italic = False
+                    is_underline = False
+                    
+                    for part in parts:
+                        if not part:
+                            continue
+                        
+                        # Check if this is a tag
+                        if part == '<b>':
+                            is_bold = True
+                        elif part == '</b>':
+                            is_bold = False
+                        elif part == '<i>':
+                            is_italic = True
+                        elif part == '</i>':
+                            is_italic = False
+                        elif part == '<u>':
+                            is_underline = True
+                        elif part == '</u>':
+                            is_underline = False
+                        elif part == '<bi>':
+                            is_bold = True
+                            is_italic = True
+                        elif part == '</bi>':
+                            is_bold = False
+                            is_italic = False
+                        else:
+                            # This is text content - create a run with current formatting
+                            if part.strip() or part:  # Include whitespace
+                                run = para.add_run(part)
+                                run.bold = is_bold
+                                run.italic = is_italic
+                                run.underline = is_underline
+                
+                # Build a mapping of source text (without tags) to raw target text (with tags)
                 text_map = {}
                 for seg in segments:
-                    source = seg.source.strip()
-                    target = seg.target.strip() if seg.target and seg.target.strip() else source
-                    if source:
-                        text_map[source] = target
+                    # Strip tags from source for matching against original DOCX
+                    source_clean = strip_all_tags(seg.source) if seg.source else ""
+                    source_clean = clean_special_chars(source_clean)
+                    # Keep raw target text WITH tags for formatting
+                    target_raw = seg.target.strip() if seg.target and seg.target.strip() else seg.source
+                    if source_clean and target_raw:
+                        text_map[source_clean] = target_raw
+                
+                def replace_segments_in_text(original_text, text_map):
+                    """Replace all matching segments in text, handling partial matches."""
+                    result = original_text
+                    # Sort by length (longest first) to avoid partial replacement issues
+                    for source_clean, target_raw in sorted(text_map.items(), key=lambda x: len(x[0]), reverse=True):
+                        if source_clean in result:
+                            # Get clean target (no tags) for text replacement
+                            target_clean = strip_all_tags(target_raw)
+                            target_clean = clean_special_chars(target_clean)
+                            result = result.replace(source_clean, target_clean)
+                    return result
                 
                 replaced_count = 0
                 
                 # Replace text in paragraphs (outside tables)
                 for para in doc.paragraphs:
                     para_text = para.text.strip()
+                    
+                    # First try exact match (single segment = whole paragraph)
                     if para_text in text_map:
-                        # Clear existing runs and add new text
                         target_text = text_map[para_text]
-                        if para.runs:
-                            # Keep first run's formatting, clear others
-                            first_run = para.runs[0]
-                            for run in para.runs[1:]:
-                                run.clear()
-                            first_run.text = target_text
-                        else:
-                            para.add_run(target_text)
+                        apply_formatted_text_to_paragraph(para, target_text)
                         replaced_count += 1
+                    else:
+                        # Try partial replacement (paragraph contains multiple segments)
+                        new_text = replace_segments_in_text(para_text, text_map)
+                        if new_text != para_text:
+                            # Text was changed - update paragraph
+                            # For partial replacements, we lose formatting tags but at least translate
+                            for run in para.runs:
+                                run.clear()
+                            for run in list(para.runs):
+                                run._element.getparent().remove(run._element)
+                            para.add_run(new_text)
+                            replaced_count += 1
                 
                 # Replace text in tables
                 for table in doc.tables:
@@ -7135,16 +7283,22 @@ class SupervertalerQt(QMainWindow):
                         for cell in row.cells:
                             for para in cell.paragraphs:
                                 para_text = para.text.strip()
+                                
+                                # First try exact match
                                 if para_text in text_map:
                                     target_text = text_map[para_text]
-                                    if para.runs:
-                                        first_run = para.runs[0]
-                                        for run in para.runs[1:]:
-                                            run.clear()
-                                        first_run.text = target_text
-                                    else:
-                                        para.add_run(target_text)
+                                    apply_formatted_text_to_paragraph(para, target_text)
                                     replaced_count += 1
+                                else:
+                                    # Try partial replacement
+                                    new_text = replace_segments_in_text(para_text, text_map)
+                                    if new_text != para_text:
+                                        for run in para.runs:
+                                            run.clear()
+                                        for run in list(para.runs):
+                                            run._element.getparent().remove(run._element)
+                                        para.add_run(new_text)
+                                        replaced_count += 1
                 
                 doc.save(file_path)
                 self.log(f"✓ Replaced {replaced_count} text segments in original document structure")
@@ -7153,10 +7307,73 @@ class SupervertalerQt(QMainWindow):
                 # No original document - create simple paragraph-based export
                 self.log("No original document found - creating new document (formatting may differ)")
                 
+                # Helper function to strip all formatting tags (if not already defined)
+                import re
+                def strip_all_tags(text):
+                    """Remove all formatting and list tags from text"""
+                    text = re.sub(r'</?li-[bo]>', '', text)  # <li-b>, </li-b>, <li-o>, </li-o>
+                    text = re.sub(r'</?li>', '', text)       # <li>, </li>
+                    text = re.sub(r'</?[biu]>', '', text)    # <b>, </b>, <i>, </i>, <u>, </u>
+                    text = re.sub(r'</?bi>', '', text)       # <bi>, </bi>
+                    return text.strip()
+                
+                def clean_special_chars(text):
+                    """Remove problematic Unicode characters"""
+                    text = text.replace('\ufffc', '')  # Object Replacement Character
+                    text = text.replace('\ufffe', '')  # Noncharacter
+                    text = text.replace('\uffff', '')  # Noncharacter
+                    text = text.replace('\u0000', '')  # Null character
+                    return text
+                
+                def add_formatted_text_to_paragraph(para, tagged_text):
+                    """Add text with formatting tags to a paragraph."""
+                    # Clean special characters first
+                    text = clean_special_chars(tagged_text)
+                    
+                    # Strip list tags
+                    text = re.sub(r'</?li-[bo]>', '', text)
+                    text = re.sub(r'</?li>', '', text)
+                    
+                    # Parse and apply formatting
+                    tag_pattern = re.compile(r'(</?(?:b|i|u|bi)>)')
+                    parts = tag_pattern.split(text)
+                    
+                    is_bold = False
+                    is_italic = False
+                    is_underline = False
+                    
+                    for part in parts:
+                        if not part:
+                            continue
+                        if part == '<b>':
+                            is_bold = True
+                        elif part == '</b>':
+                            is_bold = False
+                        elif part == '<i>':
+                            is_italic = True
+                        elif part == '</i>':
+                            is_italic = False
+                        elif part == '<u>':
+                            is_underline = True
+                        elif part == '</u>':
+                            is_underline = False
+                        elif part == '<bi>':
+                            is_bold = True
+                            is_italic = True
+                        elif part == '</bi>':
+                            is_bold = False
+                            is_italic = False
+                        else:
+                            if part:
+                                run = para.add_run(part)
+                                run.bold = is_bold
+                                run.italic = is_italic
+                                run.underline = is_underline
+                
                 doc = Document()
                 
                 for seg in segments:
-                    text = seg.target.strip() if seg.target and seg.target.strip() else seg.source
+                    raw_text = seg.target.strip() if seg.target and seg.target.strip() else seg.source
                     para = doc.add_paragraph()
                     
                     # Try to apply heading style if segment has heading style
@@ -7171,7 +7388,9 @@ class SupervertalerQt(QMainWindow):
                         elif 'title' in style_lower:
                             para.style = 'Title'
                     
-                    para.add_run(text)
+                    # Add text with formatting
+                    if raw_text:
+                        add_formatted_text_to_paragraph(para, raw_text)
                 
                 doc.save(file_path)
             
