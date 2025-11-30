@@ -7670,6 +7670,8 @@ class SupervertalerQt(QMainWindow):
             # Helper function to add formatted text to a cell
             def add_formatted_text_to_cell(cell, text, apply_fmt=False):
                 """Add text to cell, optionally applying formatting."""
+                from docx.shared import RGBColor
+                
                 # Clear existing content
                 for para in cell.paragraphs:
                     para.clear()
@@ -7682,9 +7684,25 @@ class SupervertalerQt(QMainWindow):
                 para.paragraph_format.space_after = Pt(2)
                 
                 if not apply_fmt:
-                    # Show raw text with tags visible
-                    run = para.add_run(text)
-                    run.font.size = Pt(9)
+                    # Show raw text with tags highlighted in pink (like in Supervertaler)
+                    # Parse to find tags and highlight them
+                    tag_pattern = re.compile(r'(</?(?:b|i|u|bi|li|li-[bo])>)')
+                    parts = tag_pattern.split(text)
+                    
+                    for part in parts:
+                        if not part:
+                            continue
+                        run = para.add_run(part)
+                        run.font.size = Pt(9)
+                        
+                        # Check if this is a tag - highlight with pink background
+                        if re.match(r'^</?(?:b|i|u|bi|li|li-[bo])>$', part):
+                            # Apply pink highlight (shading) - #FFB6C1 = RGB(255, 182, 193)
+                            from docx.oxml.ns import qn
+                            from docx.oxml import OxmlElement
+                            shd = OxmlElement('w:shd')
+                            shd.set(qn('w:fill'), 'FFB6C1')  # Light pink
+                            run._r.get_or_add_rPr().append(shd)
                 else:
                     # Parse tags and apply formatting
                     # First handle list tags - convert to visible markers
