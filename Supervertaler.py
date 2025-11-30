@@ -7562,38 +7562,86 @@ class SupervertalerQt(QMainWindow):
                 section.top_margin = Inches(0.5)
                 section.bottom_margin = Inches(0.5)
             
+            # Get language names for column headers
+            source_lang = "Source"
+            target_lang = "Target"
+            if self.current_project:
+                source_lang = self.current_project.source_lang or "Source"
+                target_lang = self.current_project.target_lang or "Target"
+            
+            # === HEADER SECTION ===
+            # Add decorative line above title
+            header_line = doc.add_paragraph()
+            header_line.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            line_run = header_line.add_run("━" * 50)
+            line_run.font.color.rgb = RGBColor(0, 102, 204)
+            line_run.font.size = Pt(10)
+            header_line.paragraph_format.space_after = Pt(6)
+            
             # Add title with link to Supervertaler website
             title = doc.add_paragraph()
             title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            title.paragraph_format.space_before = Pt(0)
+            title.paragraph_format.space_after = Pt(6)
             
-            # Add "Supervertaler" as a blue hyperlink
+            # Add globe emoji and "Supervertaler" as blue hyperlink
+            globe_run = title.add_run("🌐 ")
+            globe_run.font.size = Pt(18)
+            
             hyperlink = self._add_hyperlink_to_paragraph(title, "https://supervertaler.com/", "Supervertaler")
-            hyperlink.font.size = Pt(16)
+            hyperlink.font.size = Pt(18)
             hyperlink.font.bold = True
-            hyperlink.font.color.rgb = RGBColor(0, 102, 204)  # Blue
+            hyperlink.font.color.rgb = RGBColor(0, 102, 204)
+            hyperlink.font.underline = True  # Make link more obvious
             
-            if not apply_formatting:
-                # Add " Bilingual Table" in blue
-                rest_run = title.add_run(" Bilingual Table")
-                rest_run.bold = True
-                rest_run.font.size = Pt(16)
-                rest_run.font.color.rgb = RGBColor(0, 102, 204)  # Blue
-            else:
-                # Add " Bilingual Table" in blue for formatted version too
-                rest_run = title.add_run(" Bilingual Table")
-                rest_run.bold = True
-                rest_run.font.size = Pt(16)
-                rest_run.font.color.rgb = RGBColor(0, 102, 204)  # Blue
+            # Add " Bilingual Table" in blue
+            rest_run = title.add_run(" Bilingual Table")
+            rest_run.bold = True
+            rest_run.font.size = Pt(18)
+            rest_run.font.color.rgb = RGBColor(0, 102, 204)
             
-            # Add project info
+            # Add subtitle with website URL visible
+            subtitle = doc.add_paragraph()
+            subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            subtitle.paragraph_format.space_before = Pt(0)
+            subtitle.paragraph_format.space_after = Pt(6)
+            url_run = subtitle.add_run("supervertaler.com")
+            url_run.font.size = Pt(9)
+            url_run.font.color.rgb = RGBColor(100, 100, 100)
+            url_run.italic = True
+            
+            # Add decorative line below title
+            footer_line = doc.add_paragraph()
+            footer_line.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            line_run2 = footer_line.add_run("━" * 50)
+            line_run2.font.color.rgb = RGBColor(0, 102, 204)
+            line_run2.font.size = Pt(10)
+            footer_line.paragraph_format.space_after = Pt(12)
+            
+            # Add project info in a nice format
             info = doc.add_paragraph()
-            info.add_run(f"Project: {project_name}\n").bold = True
-            info.add_run(f"Segments: {len(segments)}\n")
-            info.add_run(f"Exported: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n")
-            if not apply_formatting:
-                info.add_run("\nNote: This file can be re-imported into Supervertaler after review.\n").italic = True
+            info.add_run(f"Project: ").bold = True
+            info.add_run(f"{project_name}\n")
+            info.add_run(f"Languages: ").bold = True
+            info.add_run(f"{source_lang} → {target_lang}\n")
+            info.add_run(f"Segments: ").bold = True
+            info.add_run(f"{len(segments)}\n")
+            info.add_run(f"Exported: ").bold = True
+            info.add_run(f"{datetime.now().strftime('%Y-%m-%d %H:%M')}\n")
             
-            # Create table with 5 columns: #, Source, Target, Status, Notes
+            # Add important notice
+            notice = doc.add_paragraph()
+            notice.paragraph_format.space_before = Pt(6)
+            if not apply_formatting:
+                warning_run = notice.add_run("⚠️ Important: ")
+                warning_run.bold = True
+                warning_run.font.color.rgb = RGBColor(180, 100, 0)
+                notice.add_run("Do not change segment numbers (#) or source text. ").italic = True
+                notice.add_run("This file can be re-imported into Supervertaler after review.").italic = True
+            else:
+                notice.add_run("Note: This formatted version is for review only and cannot be re-imported.").italic = True
+            
+            # Create table with 5 columns: #, Source Language, Target Language, Status, Notes
             table = doc.add_table(rows=1, cols=5)
             table.style = 'Table Grid'
             table.alignment = WD_TABLE_ALIGNMENT.CENTER
@@ -7604,9 +7652,9 @@ class SupervertalerQt(QMainWindow):
                 for cell in table.columns[i].cells:
                     cell.width = width
             
-            # Add header row
+            # Add header row with actual language names
             header_cells = table.rows[0].cells
-            headers = ['#', 'Source', 'Target', 'Status', 'Notes']
+            headers = ['#', source_lang, target_lang, 'Status', 'Notes']
             for i, header in enumerate(headers):
                 header_cells[i].text = header
                 # Make header bold and shaded
