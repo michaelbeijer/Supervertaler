@@ -7663,9 +7663,9 @@ class SupervertalerQt(QMainWindow):
                 warning_run.bold = True
                 warning_run.font.color.rgb = RGBColor(180, 100, 0)
                 notice.add_run("Do not change segment numbers (#) or source text. ").italic = True
-                notice.add_run("This file can be re-imported into Supervertaler after review.").italic = True
+                notice.add_run("This file can be re-imported into Supervertaler after proofreading.").italic = True
             else:
-                notice.add_run("Note: This formatted version is for review only and cannot be re-imported.").italic = True
+                notice.add_run("Note: This version shows applied formatting and is for client delivery or archiving. It cannot be re-imported.").italic = True
             
             # Create table with 5 columns: #, Source Language, Target Language, Status, Notes
             table = doc.add_table(rows=1, cols=5)

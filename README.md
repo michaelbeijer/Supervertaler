@@ -2,7 +2,7 @@
 
 🎯 **The Ultimate Companion Tool for Translators and Writers** — Context-aware AI with intuitive 2-Layer Prompt Architecture, AI Assistant, project termbase system with automatic extraction, and specialized modules.
 
-**Current Version:** v1.9.13 (November 30, 2025)
+**Current Version:** v1.9.15 (November 30, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -31,12 +31,20 @@
 python Supervertaler.py
 ```
 
-**NEW in v1.9.13 - Document Preview & List Formatting Tags:**
+**NEW in v1.9.15 - Bilingual Table Export/Import:**
+- 📋 **With Tags Export** - Export bilingual table with Supervertaler tags for proofreading (can be re-imported)
+- 📄 **Formatted Export** - Export bilingual table with applied formatting for clients/archives
+- 🔄 **Import Changes** - Re-import edited bilingual table to update translations with diff preview
+- 📊 **5-Column Table** - Segment #, Source, Target, Status, Notes - perfect for review workflow
+
+**v1.9.14 - DOCX Export & Keyboard Navigation:**
+- 📤 **Formatting Preservation** - Export properly converts `<b>`, `<i>`, `<u>` tags to Word formatting
+- ⌨️ **Ctrl+Home/End** - Navigate to first/last segment even when editing in grid cells
+
+**v1.9.13 - Document Preview & List Formatting Tags:**
 - 📄 **Preview Tab** - New Preview tab shows formatted document with headings, paragraphs, and lists
 - 🔢 **List Type Detection** - DOCX import properly detects bullet vs numbered lists from Word XML
 - 🏷️ **Short List Tags** - `<li-o>` for ordered/numbered lists (1. 2. 3.), `<li-b>` for bullet points (•)
-- 🖱️ **Click to Navigate** - Click any text in preview to jump to that segment in the grid
-- ¶ **Continuation Symbol** - Type column shows `¶` for continuation paragraphs instead of `#`
 
 **v1.9.12 - Progress Indicator Status Bar:**
 - 📊 **Words Translated** - Shows X/Y words with percentage

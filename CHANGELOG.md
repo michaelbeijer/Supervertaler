@@ -64,6 +64,59 @@ All notable changes to Supervertaler are documented in this file.
 
 ---
 
+## [1.9.15] - November 30, 2025
+
+### 📋 Supervertaler Bilingual Table Export/Import
+
+**New bilingual table format for proofreading and review workflows:**
+
+**Export Options (File → Export):**
+- **"Bilingual Table - With Tags (DOCX)"**: Exports 5-column table (Segment #, Source, Target, Status, Notes) with raw Supervertaler tags preserved. Intended for proofreaders to review and edit - can be re-imported after editing
+- **"Bilingual Table - Formatted (DOCX)"**: Same structure but applies formatting: `<b>` becomes actual bold, `<i>` becomes italic, `<u>` becomes underline, list tags become visible markers (• for bullets, ◦ for nested). For client delivery or archiving - cannot be re-imported
+
+**Import Option (File → Import):**
+- **"Bilingual Table (DOCX) - Update Project"**: Re-imports edited bilingual table, compares with current project by segment number, shows preview of all changes (old vs new target), applies approved changes with status reset to "Not Started"
+
+**Document Format:**
+- Header with "Supervertaler Bilingual Table" title linking to Supervertaler.com
+- Language names in column headers (e.g., "English", "Dutch" instead of "Source", "Target")
+- Pink highlighting for tags in the With Tags version
+- Footer with Supervertaler.com branding
+- Decorative underlines for professional appearance
+
+**Technical Implementation:**
+- `export_review_table_with_tags()` - Wrapper for tag-visible export
+- `export_review_table_formatted()` - Wrapper for formatted export with warning dialog
+- `_export_review_table(apply_formatting)` - Core export logic with python-docx
+- `_add_hyperlink_to_paragraph()` - Helper for Word hyperlinks via XML manipulation
+- `import_review_table()` - Import logic with change detection and diff preview
+
+---
+
+## [1.9.14] - November 30, 2025
+
+### 📤 Improved DOCX Export & Keyboard Navigation
+
+**DOCX Export Improvements:**
+- **Formatting Preservation:** Export now properly converts `<b>`, `<i>`, `<u>`, `<bi>` tags to actual Word formatting (bold, italic, underline)
+- **Multi-Segment Paragraphs:** Export handles paragraphs containing multiple segments with partial replacement
+- **Unicode Cleanup:** Removes problematic characters like U+FFFC (Object Replacement Character)
+- **Tag Stripping:** Properly strips all list tags (`<li-o>`, `<li-b>`, `<li>`) while preserving formatting tags
+
+**Keyboard Navigation Fix:**
+- Ctrl+Home now properly navigates to first segment even when editing inside a grid cell
+- Ctrl+End now properly navigates to last segment even when editing inside a grid cell
+- Added `_get_main_window()` helper to both `EditableGridTextEditor` and `ReadOnlyGridTextEditor`
+
+**Technical Changes:**
+- `export_target_only_docx()`: Added `apply_formatted_text_to_paragraph()` for parsing tags into Word runs
+- `export_target_only_docx()`: Added `replace_segments_in_text()` for partial segment replacement
+- `export_target_only_docx()`: Added `clean_special_chars()` to remove Unicode replacement characters
+- `EditableGridTextEditor.keyPressEvent()`: Added Ctrl+Home/End handlers
+- `ReadOnlyGridTextEditor.event()`: Added Ctrl+Home/End handlers
+
+---
+
 ## [1.9.13] - November 30, 2025
 
 ### 📄 Document Preview & List Formatting Tags
