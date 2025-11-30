@@ -3,7 +3,7 @@ Supervertaler Qt Edition
 ========================
 The ultimate companion tool for translators and writers.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.9.15 (Review Table Export/Import)
+Version: 1.9.15 (Bilingual Table Export/Import)
 Release Date: November 30, 2025
 Framework: PyQt6
 
@@ -24,7 +24,7 @@ Key Features:
 - Modern theme system (6 themes + custom editor)
 - AutoFingers automation for memoQ with TagCleaner module
 - memoQ bilingual DOCX import/export
-- Review Table export/import for proofreading workflow
+- Bilingual Table export/import for review workflow
 - SQLite-based translation memory with FTS5 search
 - Professional TMX editor
 
@@ -4187,7 +4187,7 @@ class SupervertalerQt(QMainWindow):
         
         import_menu.addSeparator()
         
-        import_review_table_action = QAction("&Review Table (DOCX) - Update Project...", self)
+        import_review_table_action = QAction("&Bilingual Table (DOCX) - Update Project...", self)
         import_review_table_action.triggered.connect(self.import_review_table)
         import_menu.addAction(import_review_table_action)
         
@@ -4207,12 +4207,12 @@ class SupervertalerQt(QMainWindow):
         
         export_menu.addSeparator()
         
-        # Supervertaler Review Table exports
-        export_review_table_action = QAction("&Review Table - With Tags (DOCX)...", self)
+        # Supervertaler Bilingual Table exports
+        export_review_table_action = QAction("Bilingual Table - With &Tags (DOCX)...", self)
         export_review_table_action.triggered.connect(self.export_review_table_with_tags)
         export_menu.addAction(export_review_table_action)
         
-        export_review_table_formatted_action = QAction("Review Table - &Formatted (DOCX)...", self)
+        export_review_table_formatted_action = QAction("Bilingual Table - &Formatted (DOCX)...", self)
         export_review_table_formatted_action.triggered.connect(self.export_review_table_formatted)
         export_menu.addAction(export_review_table_formatted_action)
         
@@ -7432,7 +7432,7 @@ class SupervertalerQt(QMainWindow):
             traceback.print_exc()
     
     def export_review_table_with_tags(self):
-        """Export bilingual review table with Supervertaler formatting tags visible.
+        """Export Supervertaler Bilingual Table with formatting tags visible.
         
         This format is intended for proofreaders who will edit and return the file
         for re-import into Supervertaler.
@@ -7440,7 +7440,7 @@ class SupervertalerQt(QMainWindow):
         self._export_review_table(apply_formatting=False)
     
     def export_review_table_formatted(self):
-        """Export bilingual review table with formatting applied (bold, italic, underline).
+        """Export Supervertaler Bilingual Table with formatting applied (bold, italic, underline).
         
         This format is intended for end clients who want to see the actual formatting
         rather than the tags.
@@ -7451,7 +7451,7 @@ class SupervertalerQt(QMainWindow):
             "This export applies formatting (bold, italic, underline) to the text.\n\n"
             "⚠️ Formatting tags will be converted to actual Word formatting.\n"
             "This version CANNOT be re-imported to restore tagged formatting.\n\n"
-            "Use 'Review Table - With Tags' if you need to re-import after review.\n\n"
+            "Use 'Bilingual Table - With Tags' if you need to re-import after review.\n\n"
             "Continue with formatted export?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No
@@ -7506,7 +7506,7 @@ class SupervertalerQt(QMainWindow):
         return Run(new_run, paragraph)
     
     def _export_review_table(self, apply_formatting=False):
-        """Internal method to export bilingual review table.
+        """Internal method to export Supervertaler Bilingual Table.
         
         Args:
             apply_formatting: If True, apply bold/italic/underline formatting.
@@ -7536,7 +7536,7 @@ class SupervertalerQt(QMainWindow):
         # Get save path
         file_path, _ = QFileDialog.getSaveFileName(
             self,
-            "Export Review Table" if not apply_formatting else "Export Formatted Review Table",
+            "Export Bilingual Table" if not apply_formatting else "Export Bilingual Table (Formatted)",
             default_name,
             "Word Documents (*.docx);;All Files (*.*)"
         )
@@ -7573,14 +7573,14 @@ class SupervertalerQt(QMainWindow):
             hyperlink.font.color.rgb = RGBColor(0, 102, 204)  # Blue
             
             if not apply_formatting:
-                # Add " Review Table" in blue
-                rest_run = title.add_run(" Review Table")
+                # Add " Bilingual Table" in blue
+                rest_run = title.add_run(" Bilingual Table")
                 rest_run.bold = True
                 rest_run.font.size = Pt(16)
                 rest_run.font.color.rgb = RGBColor(0, 102, 204)  # Blue
             else:
-                # Add " Translation Review" in blue for formatted version
-                rest_run = title.add_run(" Translation Review")
+                # Add " Bilingual Table" in blue for formatted version too
+                rest_run = title.add_run(" Bilingual Table")
                 rest_run.bold = True
                 rest_run.font.size = Pt(16)
                 rest_run.font.color.rgb = RGBColor(0, 102, 204)  # Blue
@@ -7745,11 +7745,11 @@ class SupervertalerQt(QMainWindow):
             doc.save(file_path)
             
             format_type = "formatted" if apply_formatting else "with tags"
-            self.log(f"✓ Exported review table ({format_type}) with {len(segments)} segments to: {Path(file_path).name}")
+            self.log(f"✓ Exported bilingual table ({format_type}) with {len(segments)} segments to: {Path(file_path).name}")
             
             QMessageBox.information(
                 self, "Export Complete",
-                f"Successfully exported {len(segments)} segments to review table:\n\n{os.path.basename(file_path)}\n\n"
+                f"Successfully exported {len(segments)} segments to bilingual table:\n\n{os.path.basename(file_path)}\n\n"
                 + ("This formatted version is suitable for client review." if apply_formatting 
                    else "This version with tags can be re-imported after proofreading.")
             )
@@ -7762,7 +7762,7 @@ class SupervertalerQt(QMainWindow):
             )
         except Exception as e:
             self.log(f"✗ Export failed: {str(e)}")
-            QMessageBox.critical(self, "Export Error", f"Failed to export review table:\n\n{str(e)}")
+            QMessageBox.critical(self, "Export Error", f"Failed to export bilingual table:\n\n{str(e)}")
             import traceback
             traceback.print_exc()
     
@@ -16249,9 +16249,9 @@ class SupervertalerQt(QMainWindow):
             traceback.print_exc()
     
     def import_review_table(self):
-        """Import a Supervertaler Review Table to update translations in current project.
+        """Import a Supervertaler Bilingual Table to update translations in current project.
         
-        This allows proofreaders to make changes in the exported DOCX review table
+        This allows proofreaders to make changes in the exported DOCX bilingual table
         and have those changes re-imported back into the project.
         """
         import re
@@ -16260,14 +16260,14 @@ class SupervertalerQt(QMainWindow):
         if not self.current_project or not self.current_project.segments:
             QMessageBox.warning(
                 self, "No Project Open",
-                "Please open a project first before importing a review table.\n\n"
-                "The review table will update translations in the current project."
+                "Please open a project first before importing a bilingual table.\n\n"
+                "The bilingual table will update translations in the current project."
             )
             return
         
         file_path, _ = QFileDialog.getOpenFileName(
             self,
-            "Select Review Table DOCX to Import",
+            "Select Bilingual Table DOCX to Import",
             "",
             "Word Documents (*.docx);;All Files (*.*)"
         )
@@ -16285,7 +16285,7 @@ class SupervertalerQt(QMainWindow):
                 QMessageBox.warning(
                     self, "Invalid Format",
                     "No table found in the document.\n\n"
-                    "Expected a Supervertaler Review Table with columns:\n"
+                    "Expected a Supervertaler Bilingual Table with columns:\n"
                     "#, Source, Target, Status, Notes"
                 )
                 return
@@ -16348,7 +16348,7 @@ class SupervertalerQt(QMainWindow):
             if not imported_data:
                 QMessageBox.warning(
                     self, "No Data Found",
-                    "No valid segment data found in the review table."
+                    "No valid segment data found in the bilingual table."
                 )
                 return
             
@@ -16422,7 +16422,7 @@ class SupervertalerQt(QMainWindow):
             )
             
             if reply != QMessageBox.StandardButton.Yes:
-                self.log("Review table import cancelled by user")
+                self.log("Bilingual table import cancelled by user")
                 return
             
             # Apply changes
@@ -16454,11 +16454,11 @@ class SupervertalerQt(QMainWindow):
             self.update_window_title()
             self.load_segments_to_grid()
             
-            self.log(f"✓ Applied {applied_count} change(s) from review table: {Path(file_path).name}")
+            self.log(f"✓ Applied {applied_count} change(s) from bilingual table: {Path(file_path).name}")
             
             QMessageBox.information(
                 self, "Import Complete",
-                f"Successfully applied {applied_count} change(s) from the review table.\n\n"
+                f"Successfully applied {applied_count} change(s) from the bilingual table.\n\n"
                 f"Changed segments set to 'Not Started' for translator review.\n"
                 f"Notes from the review have been added to segment notes."
             )
@@ -16466,12 +16466,12 @@ class SupervertalerQt(QMainWindow):
         except ImportError:
             QMessageBox.critical(
                 self, "Missing Dependency",
-                "The 'python-docx' library is required for review table import.\n\n"
+                "The 'python-docx' library is required for bilingual table import.\n\n"
                 "Install it with: pip install python-docx"
             )
         except Exception as e:
-            QMessageBox.critical(self, "Import Error", f"Failed to import review table:\n\n{str(e)}")
-            self.log(f"✗ Review table import failed: {str(e)}")
+            QMessageBox.critical(self, "Import Error", f"Failed to import bilingual table:\n\n{str(e)}")
+            self.log(f"✗ Bilingual table import failed: {str(e)}")
             import traceback
             traceback.print_exc()
     

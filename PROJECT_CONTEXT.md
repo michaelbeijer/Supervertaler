@@ -9,19 +9,19 @@
 
 ## 📅 Recent Development Activity
 
-### November 30, 2025 - Version 1.9.15: Review Table Export/Import
+### November 30, 2025 - Version 1.9.15: Bilingual Table Export/Import
 
-**📋 New Bilingual Review Table Feature**
-Complete proofreading workflow for monolingual imports and all project types:
+**📋 New Supervertaler Bilingual Table Feature**
+Complete bilingual export/import workflow for all project types:
 
 **Export Options (File → Export):**
-- **"Review Table - With Tags (DOCX)"**: Exports 5-column table with segment numbers, source, target (with raw Supervertaler tags), status, and notes column. Intended for proofreaders who will return the file for re-import
-- **"Review Table - Formatted (DOCX)"**: Same structure but applies formatting: `<b>` becomes actual bold, `<i>` becomes italic, `<u>` becomes underline, and list tags become visible markers (• for bullets, ◦ for nested). Intended for end clients
+- **"Bilingual Table - With Tags (DOCX)"**: Exports 5-column table with segment numbers, source, target (with raw Supervertaler tags), status, and notes column. Intended for proofreaders who will return the file for re-import
+- **"Bilingual Table - Formatted (DOCX)"**: Same structure but applies formatting: `<b>` becomes actual bold, `<i>` becomes italic, `<u>` becomes underline, and list tags become visible markers (• for bullets, ◦ for nested). Shows warning that this version cannot be re-imported with tags
 
 **Import Option (File → Import):**
-- **"Review Table (DOCX) - Update Project"**: Re-imports edited review table, compares with current project by segment number, shows preview of all changes (old vs new target), applies approved changes with:
+- **"Bilingual Table (DOCX) - Update Project"**: Re-imports edited bilingual table, compares with current project by segment number, shows preview of all changes (old vs new target), applies approved changes with:
   - Target text updated
-  - Status changed to "Edited" for translated segments
+  - Status reset to "Not Started" for translator review
   - Review notes appended to segment notes
   - Validation: Source text must match (sanity check)
 
@@ -30,20 +30,16 @@ Complete proofreading workflow for monolingual imports and all project types:
 |---|--------|--------|--------|-------|
 | 1 | Hello  | Hallo  | Translated | |
 
+**Document Header:**
+- Title: "Supervertaler Bilingual Table" with hyperlink to supervertaler.com
+- Title styled in blue (RGB 0, 102, 204)
+
 **Technical Implementation:**
 - `export_review_table_with_tags()` - Wrapper for tag-visible export
-- `export_review_table_formatted()` - Wrapper for formatted export
-- `_export_review_table(apply_formatting)` - Core export logic with:
-  - python-docx table creation with styled headers
-  - `add_formatted_text_to_cell()` helper for tag parsing and formatting
-  - `get_status_display()` for user-friendly status text
-  - Color-coded status column (green=confirmed, red=rejected, orange=draft)
-- `import_review_table()` - Import logic with:
-  - Table validation and header checking
-  - Row-by-row parsing with segment number extraction
-  - Change detection and source verification
-  - Preview dialog showing diffs before applying
-  - Status update and notes merging
+- `export_review_table_formatted()` - Wrapper for formatted export with warning dialog
+- `_export_review_table(apply_formatting)` - Core export logic
+- `_add_hyperlink_to_paragraph()` - Helper for Word hyperlinks
+- `import_review_table()` - Import logic with change detection and preview
 
 ---
 
