@@ -493,18 +493,6 @@ def count_pipe_symbols(text: str) -> int:
 
 def get_next_pipe_count_needed(source_text: str, target_text: str) -> int:
     """
-    Get how many more pipe symbols are needed in ta    # HTML: <tag>, </tag>, <tag/>, <tag attr="value"> - includes hyphenated tags like li-b
-    pattern = r'(\[\d+\}|\{\d+\]|\[\d+\]|</?[a-zA-Z][a-zA-Z0-9-]*(?:\s+[^>]*)?>)'
-    return re.findall(pattern, text)
-
-
-def count_pipe_symbols(text: str) -> int:
-    """Count the number of CafeTran pipe symbols in text."""
-    return text.count('|')
-
-
-def get_next_pipe_count_needed(source_text: str, target_text: str) -> int:
-    """
     Get how many more pipe symbols are needed in target to match source.
     
     Args:
@@ -16975,7 +16963,33 @@ class SupervertalerQt(QMainWindow):
                 # Check for list item tag at the start (both ordered and bullet)
                 list_ordered_match = re.match(r'^<li-o>(.*)</li-o>$', display_text, re.DOTALL)
                 list_bullet_match = re.match(r'^<li-b>(.*)</li-b>$', display_text, re.DOTALL)
-ing']
+                
+                # Handle list items - strip tags and just use the inner content
+                if list_ordered_match:
+                    display_text = list_ordered_match.group(1)
+                elif list_bullet_match:
+                    display_text = list_bullet_match.group(1)
+                
+                # Insert the text with formatting
+                cursor.insertText(display_text, char_format)
+                
+                # Store position mapping for click handling
+                end_pos = cursor.position()
+                self._segment_positions[seg.id] = (start_pos, end_pos)
+        
+        # Scroll to highlighted segment if any
+        if hasattr(self, '_highlighted_segment_id') and self._highlighted_segment_id:
+            self.highlight_preview_segment(self._highlighted_segment_id)
+
+    def _apply_settings_to_instance(self, settings: Dict[str, Any]):
+        """Apply loaded settings to the instance"""
+        # Load TM/termbase matching setting
+        if 'enable_tm_termbase_matching' in settings:
+            self.enable_tm_matching = settings['enable_tm_termbase_matching']
+            self.enable_termbase_matching = settings['enable_tm_termbase_matching']
+        # Load termbase grid highlighting setting
+        if 'enable_termbase_grid_highlighting' in settings:
+            self.enable_termbase_grid_highlighting = settings['enable_termbase_grid_highlighting']
         # Load auto-markdown setting
         self.auto_generate_markdown = settings.get('auto_generate_markdown', False)
         # Load TM save mode
