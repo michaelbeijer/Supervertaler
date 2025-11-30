@@ -23300,7 +23300,7 @@ class SupervertalerQt(QMainWindow):
             "<p><b>Author:</b> Michael Beijer</p>"
             "<p><b>License:</b> MIT</p>"
             "<hr>"
-            "<p><i>v1.2.2 - Translation Results Panels, Document Formatting & Tag System</i></p>"
+            f"<p><i>v{__version__} - Bilingual Table Export/Import</i></p>"
         )
         info.setWordWrap(True)
         layout.addWidget(info)
