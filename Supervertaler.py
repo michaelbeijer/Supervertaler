@@ -3,8 +3,8 @@ Supervertaler Qt Edition
 ========================
 The ultimate companion tool for translators and writers.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.9.11 (Quick Termbase Add & List Numbering)
-Release Date: November 29, 2025
+Version: 1.9.15 (Review Table Export/Import)
+Release Date: November 30, 2025
 Framework: PyQt6
 
 This is the modern edition of Supervertaler using PyQt6 framework.
@@ -24,6 +24,7 @@ Key Features:
 - Modern theme system (6 themes + custom editor)
 - AutoFingers automation for memoQ with TagCleaner module
 - memoQ bilingual DOCX import/export
+- Review Table export/import for proofreading workflow
 - SQLite-based translation memory with FTS5 search
 - Professional TMX editor
 
@@ -32,7 +33,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.14"
+__version__ = "1.9.15"
 __phase__ = "0.9"
 __release_date__ = "2025-11-30"
 __edition__ = "Qt"
@@ -4184,6 +4185,12 @@ class SupervertalerQt(QMainWindow):
         import_cafetran_action.triggered.connect(self.import_cafetran_bilingual)
         import_menu.addAction(import_cafetran_action)
         
+        import_menu.addSeparator()
+        
+        import_review_table_action = QAction("&Review Table (DOCX) - Update Project...", self)
+        import_review_table_action.triggered.connect(self.import_review_table)
+        import_menu.addAction(import_review_table_action)
+        
         export_menu = file_menu.addMenu("&Export")
         
         export_memoq_action = QAction("memoQ &Bilingual Table - Translated (DOCX)...", self)
@@ -4197,6 +4204,17 @@ class SupervertalerQt(QMainWindow):
         export_target_docx_action = QAction("&Target Only (DOCX)...", self)
         export_target_docx_action.triggered.connect(self.export_target_only_docx)
         export_menu.addAction(export_target_docx_action)
+        
+        export_menu.addSeparator()
+        
+        # Supervertaler Review Table exports
+        export_review_table_action = QAction("&Review Table - With Tags (DOCX)...", self)
+        export_review_table_action.triggered.connect(self.export_review_table_with_tags)
+        export_menu.addAction(export_review_table_action)
+        
+        export_review_table_formatted_action = QAction("Review Table - &Formatted (DOCX)...", self)
+        export_review_table_formatted_action.triggered.connect(self.export_review_table_formatted)
+        export_menu.addAction(export_review_table_formatted_action)
         
         export_menu.addSeparator()
         
@@ -7410,6 +7428,268 @@ class SupervertalerQt(QMainWindow):
         except Exception as e:
             self.log(f"✗ Export failed: {str(e)}")
             QMessageBox.critical(self, "Export Error", f"Failed to export DOCX:\n\n{str(e)}")
+            import traceback
+            traceback.print_exc()
+    
+    def export_review_table_with_tags(self):
+        """Export bilingual review table with Supervertaler formatting tags visible.
+        
+        This format is intended for proofreaders who will edit and return the file
+        for re-import into Supervertaler.
+        """
+        self._export_review_table(apply_formatting=False)
+    
+    def export_review_table_formatted(self):
+        """Export bilingual review table with formatting applied (bold, italic, underline).
+        
+        This format is intended for end clients who want to see the actual formatting
+        rather than the tags.
+        """
+        self._export_review_table(apply_formatting=True)
+    
+    def _export_review_table(self, apply_formatting=False):
+        """Internal method to export bilingual review table.
+        
+        Args:
+            apply_formatting: If True, apply bold/italic/underline formatting.
+                            If False, show raw Supervertaler tags.
+        """
+        import re
+        
+        # Check if we have segments
+        if not self.current_project or not self.current_project.segments:
+            QMessageBox.warning(self, "No Data", "No segments to export")
+            return
+        
+        segments = list(self.current_project.segments)
+        
+        if not segments:
+            QMessageBox.warning(self, "No Data", "No segments to export")
+            return
+        
+        # Determine default filename
+        project_name = getattr(self.current_project, 'name', 'project')
+        if hasattr(self, 'current_project_path') and self.current_project_path:
+            project_name = Path(self.current_project_path).stem
+        
+        format_suffix = "_formatted" if apply_formatting else "_review"
+        default_name = f"{project_name}{format_suffix}.docx"
+        
+        # Get save path
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export Review Table" if not apply_formatting else "Export Formatted Review Table",
+            default_name,
+            "Word Documents (*.docx);;All Files (*.*)"
+        )
+        
+        if not file_path:
+            return
+        
+        try:
+            from docx import Document
+            from docx.shared import Inches, Pt, RGBColor
+            from docx.enum.table import WD_TABLE_ALIGNMENT
+            from docx.enum.text import WD_ALIGN_PARAGRAPH
+            from docx.oxml.ns import qn
+            from docx.oxml import OxmlElement
+            
+            doc = Document()
+            
+            # Set up document margins
+            sections = doc.sections
+            for section in sections:
+                section.left_margin = Inches(0.5)
+                section.right_margin = Inches(0.5)
+                section.top_margin = Inches(0.5)
+                section.bottom_margin = Inches(0.5)
+            
+            # Add title
+            title_text = "Supervertaler Review Table" if not apply_formatting else "Translation Review"
+            title = doc.add_paragraph(title_text)
+            title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            title_run = title.runs[0]
+            title_run.bold = True
+            title_run.font.size = Pt(16)
+            
+            # Add project info
+            info = doc.add_paragraph()
+            info.add_run(f"Project: {project_name}\n").bold = True
+            info.add_run(f"Segments: {len(segments)}\n")
+            info.add_run(f"Exported: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n")
+            if not apply_formatting:
+                info.add_run("\nNote: This file can be re-imported into Supervertaler after review.\n").italic = True
+            
+            # Create table with 5 columns: #, Source, Target, Status, Notes
+            table = doc.add_table(rows=1, cols=5)
+            table.style = 'Table Grid'
+            table.alignment = WD_TABLE_ALIGNMENT.CENTER
+            
+            # Set column widths
+            widths = [Inches(0.5), Inches(3.0), Inches(3.0), Inches(0.8), Inches(1.2)]
+            for i, width in enumerate(widths):
+                for cell in table.columns[i].cells:
+                    cell.width = width
+            
+            # Add header row
+            header_cells = table.rows[0].cells
+            headers = ['#', 'Source', 'Target', 'Status', 'Notes']
+            for i, header in enumerate(headers):
+                header_cells[i].text = header
+                # Make header bold and shaded
+                for para in header_cells[i].paragraphs:
+                    for run in para.runs:
+                        run.bold = True
+                        run.font.size = Pt(10)
+                # Add shading to header
+                shading = OxmlElement('w:shd')
+                shading.set(qn('w:fill'), 'DDDDDD')
+                header_cells[i]._tc.get_or_add_tcPr().append(shading)
+            
+            # Helper function to add formatted text to a cell
+            def add_formatted_text_to_cell(cell, text, apply_fmt=False):
+                """Add text to cell, optionally applying formatting."""
+                # Clear existing content
+                for para in cell.paragraphs:
+                    para.clear()
+                
+                if not text:
+                    return
+                
+                para = cell.paragraphs[0]
+                para.paragraph_format.space_before = Pt(2)
+                para.paragraph_format.space_after = Pt(2)
+                
+                if not apply_fmt:
+                    # Show raw text with tags visible
+                    run = para.add_run(text)
+                    run.font.size = Pt(9)
+                else:
+                    # Parse tags and apply formatting
+                    # First handle list tags - convert to visible markers
+                    text = re.sub(r'<li-b>\s*', '• ', text)
+                    text = re.sub(r'<li-o>\s*', '◦ ', text)  # Open circle for nested
+                    text = re.sub(r'<li>\s*', '– ', text)
+                    text = re.sub(r'</li-[bo]>', '', text)
+                    text = re.sub(r'</li>', '', text)
+                    
+                    # Parse formatting tags
+                    tag_pattern = re.compile(r'(</?(?:b|i|u|bi)>)')
+                    parts = tag_pattern.split(text)
+                    
+                    is_bold = False
+                    is_italic = False
+                    is_underline = False
+                    
+                    for part in parts:
+                        if not part:
+                            continue
+                        if part == '<b>':
+                            is_bold = True
+                        elif part == '</b>':
+                            is_bold = False
+                        elif part == '<i>':
+                            is_italic = True
+                        elif part == '</i>':
+                            is_italic = False
+                        elif part == '<u>':
+                            is_underline = True
+                        elif part == '</u>':
+                            is_underline = False
+                        elif part == '<bi>':
+                            is_bold = True
+                            is_italic = True
+                        elif part == '</bi>':
+                            is_bold = False
+                            is_italic = False
+                        else:
+                            # Regular text
+                            run = para.add_run(part)
+                            run.font.size = Pt(9)
+                            run.bold = is_bold
+                            run.italic = is_italic
+                            run.underline = is_underline
+            
+            # Helper to get status display text
+            def get_status_display(status):
+                """Convert status to user-friendly display text."""
+                status_map = {
+                    'translated': 'Translated',
+                    'tr_confirmed': 'Confirmed',
+                    'confirmed': 'Confirmed',
+                    'draft': 'Draft',
+                    'not_translated': 'Not Translated',
+                    'proofread': 'Proofread',
+                    'approved': 'Approved',
+                    'rejected': 'Rejected',
+                    'needs_review': 'Needs Review',
+                    'edited': 'Edited',
+                    'mt': 'MT',
+                    'tm_match': 'TM Match',
+                    'fuzzy_match': 'Fuzzy'
+                }
+                return status_map.get(status, status.replace('_', ' ').title() if status else '')
+            
+            # Add segment rows
+            for i, seg in enumerate(segments):
+                row = table.add_row()
+                cells = row.cells
+                
+                # Segment number
+                cells[0].text = str(i + 1)
+                for para in cells[0].paragraphs:
+                    para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    for run in para.runs:
+                        run.font.size = Pt(9)
+                
+                # Source text
+                source_text = seg.source if hasattr(seg, 'source') else ''
+                add_formatted_text_to_cell(cells[1], source_text, apply_formatting)
+                
+                # Target text
+                target_text = seg.target if hasattr(seg, 'target') else ''
+                add_formatted_text_to_cell(cells[2], target_text, apply_formatting)
+                
+                # Status
+                status = seg.status if hasattr(seg, 'status') else ''
+                cells[3].text = get_status_display(status)
+                for para in cells[3].paragraphs:
+                    para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    for run in para.runs:
+                        run.font.size = Pt(8)
+                        # Color-code status
+                        if status in ('confirmed', 'tr_confirmed', 'proofread', 'approved'):
+                            run.font.color.rgb = RGBColor(0, 128, 0)  # Green
+                        elif status in ('not_translated', 'rejected'):
+                            run.font.color.rgb = RGBColor(200, 0, 0)  # Red
+                        elif status in ('draft', 'needs_review'):
+                            run.font.color.rgb = RGBColor(200, 100, 0)  # Orange
+                
+                # Notes column - empty for user to fill
+                cells[4].text = ''
+            
+            # Save the document
+            doc.save(file_path)
+            
+            format_type = "formatted" if apply_formatting else "with tags"
+            self.log(f"✓ Exported review table ({format_type}) with {len(segments)} segments to: {Path(file_path).name}")
+            
+            QMessageBox.information(
+                self, "Export Complete",
+                f"Successfully exported {len(segments)} segments to review table:\n\n{os.path.basename(file_path)}\n\n"
+                + ("This formatted version is suitable for client review." if apply_formatting 
+                   else "This version with tags can be re-imported after proofreading.")
+            )
+            
+        except ImportError:
+            QMessageBox.critical(
+                self, "Missing Dependency",
+                "The 'python-docx' library is required for DOCX export.\n\n"
+                "Install it with: pip install python-docx"
+            )
+        except Exception as e:
+            self.log(f"✗ Export failed: {str(e)}")
+            QMessageBox.critical(self, "Export Error", f"Failed to export review table:\n\n{str(e)}")
             import traceback
             traceback.print_exc()
     
@@ -15892,6 +16172,234 @@ class SupervertalerQt(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, "Import Error", f"Failed to import CafeTran bilingual DOCX:\n\n{str(e)}")
             self.log(f"✗ CafeTran import failed: {str(e)}")
+            import traceback
+            traceback.print_exc()
+    
+    def import_review_table(self):
+        """Import a Supervertaler Review Table to update translations in current project.
+        
+        This allows proofreaders to make changes in the exported DOCX review table
+        and have those changes re-imported back into the project.
+        """
+        import re
+        
+        # Check if we have a project open
+        if not self.current_project or not self.current_project.segments:
+            QMessageBox.warning(
+                self, "No Project Open",
+                "Please open a project first before importing a review table.\n\n"
+                "The review table will update translations in the current project."
+            )
+            return
+        
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select Review Table DOCX to Import",
+            "",
+            "Word Documents (*.docx);;All Files (*.*)"
+        )
+        
+        if not file_path:
+            return
+        
+        try:
+            from docx import Document
+            
+            doc = Document(file_path)
+            
+            # Find the table
+            if not doc.tables:
+                QMessageBox.warning(
+                    self, "Invalid Format",
+                    "No table found in the document.\n\n"
+                    "Expected a Supervertaler Review Table with columns:\n"
+                    "#, Source, Target, Status, Notes"
+                )
+                return
+            
+            table = doc.tables[0]
+            
+            # Check header row
+            if len(table.rows) < 2:
+                QMessageBox.warning(
+                    self, "Invalid Format",
+                    "The table appears to be empty or has no data rows."
+                )
+                return
+            
+            header_row = table.rows[0]
+            headers = [cell.text.strip().lower() for cell in header_row.cells]
+            
+            # Validate headers
+            expected_headers = ['#', 'source', 'target', 'status', 'notes']
+            if len(headers) < 3:  # At minimum we need #, source, target
+                QMessageBox.warning(
+                    self, "Invalid Format",
+                    f"Expected columns: #, Source, Target, Status, Notes\n"
+                    f"Found: {', '.join(headers)}"
+                )
+                return
+            
+            # Parse table rows
+            imported_data = []
+            parse_errors = []
+            
+            for row_idx, row in enumerate(table.rows[1:], start=1):
+                cells = row.cells
+                if len(cells) < 3:
+                    continue
+                
+                try:
+                    seg_num_text = cells[0].text.strip()
+                    if not seg_num_text:
+                        continue
+                    seg_num = int(seg_num_text)
+                    source_text = cells[1].text.strip()
+                    target_text = cells[2].text.strip()
+                    
+                    # Optional fields
+                    status_text = cells[3].text.strip() if len(cells) > 3 else ''
+                    notes_text = cells[4].text.strip() if len(cells) > 4 else ''
+                    
+                    imported_data.append({
+                        'segment_num': seg_num,
+                        'source': source_text,
+                        'target': target_text,
+                        'status': status_text,
+                        'notes': notes_text,
+                        'row_idx': row_idx
+                    })
+                except ValueError as e:
+                    parse_errors.append(f"Row {row_idx}: Could not parse segment number")
+            
+            if not imported_data:
+                QMessageBox.warning(
+                    self, "No Data Found",
+                    "No valid segment data found in the review table."
+                )
+                return
+            
+            # Compare with current project and find changes
+            current_segments = list(self.current_project.segments)
+            changes = []
+            mismatches = []
+            
+            for data in imported_data:
+                seg_num = data['segment_num']
+                seg_idx = seg_num - 1  # Convert to 0-based index
+                
+                if seg_idx < 0 or seg_idx >= len(current_segments):
+                    mismatches.append(f"Segment {seg_num}: Not found in project (project has {len(current_segments)} segments)")
+                    continue
+                
+                current_seg = current_segments[seg_idx]
+                current_source = current_seg.source if hasattr(current_seg, 'source') else ''
+                current_target = current_seg.target if hasattr(current_seg, 'target') else ''
+                
+                # Check if source matches (sanity check)
+                if data['source'] != current_source:
+                    # Allow for minor whitespace differences
+                    if data['source'].strip() != current_source.strip():
+                        mismatches.append(f"Segment {seg_num}: Source text mismatch")
+                        continue
+                
+                # Check if target changed
+                if data['target'] != current_target:
+                    changes.append({
+                        'segment_num': seg_num,
+                        'segment_idx': seg_idx,
+                        'old_target': current_target,
+                        'new_target': data['target'],
+                        'notes': data['notes']
+                    })
+            
+            if not changes and not mismatches:
+                QMessageBox.information(
+                    self, "No Changes",
+                    f"Compared {len(imported_data)} segments - no changes detected."
+                )
+                return
+            
+            # Show preview dialog for changes
+            preview_text = f"Found {len(changes)} change(s) to apply:\n\n"
+            
+            for i, change in enumerate(changes[:10]):  # Show first 10
+                preview_text += f"Segment {change['segment_num']}:\n"
+                old_preview = change['old_target'][:50] + ('...' if len(change['old_target']) > 50 else '')
+                new_preview = change['new_target'][:50] + ('...' if len(change['new_target']) > 50 else '')
+                preview_text += f"  Old: {old_preview}\n"
+                preview_text += f"  New: {new_preview}\n\n"
+            
+            if len(changes) > 10:
+                preview_text += f"... and {len(changes) - 10} more changes\n\n"
+            
+            if mismatches:
+                preview_text += f"\n⚠ {len(mismatches)} segment(s) could not be matched:\n"
+                for mismatch in mismatches[:5]:
+                    preview_text += f"  • {mismatch}\n"
+                if len(mismatches) > 5:
+                    preview_text += f"  ... and {len(mismatches) - 5} more\n"
+            
+            preview_text += "\nApply these changes?"
+            
+            reply = QMessageBox.question(
+                self, "Review Changes",
+                preview_text,
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
+            
+            if reply != QMessageBox.StandardButton.Yes:
+                self.log("Review table import cancelled by user")
+                return
+            
+            # Apply changes
+            applied_count = 0
+            for change in changes:
+                seg_idx = change['segment_idx']
+                current_segments[seg_idx].target = change['new_target']
+                
+                # Update status to 'edited' if it was translated
+                if hasattr(current_segments[seg_idx], 'status'):
+                    old_status = current_segments[seg_idx].status
+                    if old_status in ('translated', 'draft', 'mt'):
+                        current_segments[seg_idx].status = 'edited'
+                
+                # Add note if provided
+                if change['notes']:
+                    if hasattr(current_segments[seg_idx], 'notes'):
+                        existing_notes = current_segments[seg_idx].notes or ''
+                        if existing_notes:
+                            current_segments[seg_idx].notes = f"{existing_notes}\n[Review: {change['notes']}]"
+                        else:
+                            current_segments[seg_idx].notes = f"[Review: {change['notes']}]"
+                    else:
+                        current_segments[seg_idx].notes = f"[Review: {change['notes']}]"
+                
+                applied_count += 1
+            
+            # Mark project as modified and refresh UI
+            self.project_modified = True
+            self.update_window_title()
+            self.load_segments_to_grid()
+            
+            self.log(f"✓ Applied {applied_count} change(s) from review table: {Path(file_path).name}")
+            
+            QMessageBox.information(
+                self, "Import Complete",
+                f"Successfully applied {applied_count} change(s) from the review table.\n\n"
+                f"Segment status updated to 'Edited' where applicable.\n"
+                f"Notes from the review have been added to segment notes."
+            )
+            
+        except ImportError:
+            QMessageBox.critical(
+                self, "Missing Dependency",
+                "The 'python-docx' library is required for review table import.\n\n"
+                "Install it with: pip install python-docx"
+            )
+        except Exception as e:
+            QMessageBox.critical(self, "Import Error", f"Failed to import review table:\n\n{str(e)}")
+            self.log(f"✗ Review table import failed: {str(e)}")
             import traceback
             traceback.print_exc()
     

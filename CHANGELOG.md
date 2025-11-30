@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.14 (November 30, 2025)
+**Current Version:** v1.9.15 (November 30, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -14,6 +14,7 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- 📋 **Review Table Export/Import (v1.9.15)** - New bilingual review workflow for proofreading. Export → Import menu options: **"Review Table - With Tags (DOCX)"** preserves Supervertaler formatting tags for re-import after review. **"Review Table - Formatted (DOCX)"** applies formatting (bold/italic/underline, bullet markers) for client-ready output. Tables include segment number, source, target, status, and notes columns. **"Import Review Table"** compares edited DOCX with current project, shows diff preview, and applies changes with status update to "Edited"
 - 📤 **Improved DOCX Export & Keyboard Navigation (v1.9.14)** - Fixed DOCX export to properly handle formatting tags (`<b>`, `<i>`, `<u>`) and convert them to actual Word formatting. Export now handles multi-segment paragraphs with partial replacement. Added cleanup for Unicode replacement characters (U+FFFC). Ctrl+Home/End now properly navigate to first/last segment even when editing in grid cells
 - 📄 **Document Preview & List Tags (v1.9.13)** - New Preview tab shows formatted document view with headings, paragraphs, and list formatting. Click any text to navigate to that segment. Distinct list tags: `<li-o>` for ordered/numbered lists (1. 2. 3.) and `<li-b>` for bullet points (•). DOCX import now properly detects bullet vs numbered lists from Word's numbering XML. Type column shows `¶` for continuation paragraphs instead of `#`
 - 📊 **Progress Indicator Status Bar (v1.9.12)** - New permanent status bar showing real-time translation progress: Words translated (X/Y with percentage), Confirmed segments (X/Y with percentage), and Remaining segments count. Color-coded: red (<50%), orange (50-80%), green (>80%). Updates automatically as you work
