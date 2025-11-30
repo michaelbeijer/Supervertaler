@@ -7447,6 +7447,49 @@ class SupervertalerQt(QMainWindow):
         """
         self._export_review_table(apply_formatting=True)
     
+    def _add_hyperlink_to_paragraph(self, paragraph, url, text):
+        """Add a hyperlink to a paragraph in a Word document.
+        
+        Args:
+            paragraph: The paragraph to add the hyperlink to
+            url: The URL for the hyperlink
+            text: The display text for the hyperlink
+            
+        Returns:
+            The run containing the hyperlink text (for further formatting)
+        """
+        from docx.oxml.ns import qn
+        from docx.oxml import OxmlElement
+        
+        # Get the document part
+        part = paragraph.part
+        
+        # Create the relationship
+        r_id = part.relate_to(url, 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink', is_external=True)
+        
+        # Create the hyperlink element
+        hyperlink = OxmlElement('w:hyperlink')
+        hyperlink.set(qn('r:id'), r_id)
+        
+        # Create a new run for the hyperlink text
+        new_run = OxmlElement('w:r')
+        rPr = OxmlElement('w:rPr')
+        
+        # Add the text
+        text_elem = OxmlElement('w:t')
+        text_elem.text = text
+        new_run.append(rPr)
+        new_run.append(text_elem)
+        hyperlink.append(new_run)
+        
+        # Add hyperlink to paragraph
+        paragraph._p.append(hyperlink)
+        
+        # Return a reference to the run for further formatting
+        # We need to return a proper Run object
+        from docx.text.run import Run
+        return Run(new_run, paragraph)
+    
     def _export_review_table(self, apply_formatting=False):
         """Internal method to export bilingual review table.
         
@@ -7504,13 +7547,28 @@ class SupervertalerQt(QMainWindow):
                 section.top_margin = Inches(0.5)
                 section.bottom_margin = Inches(0.5)
             
-            # Add title
-            title_text = "Supervertaler Review Table" if not apply_formatting else "Translation Review"
-            title = doc.add_paragraph(title_text)
+            # Add title with link to Supervertaler website
+            title = doc.add_paragraph()
             title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            title_run = title.runs[0]
-            title_run.bold = True
-            title_run.font.size = Pt(16)
+            
+            if not apply_formatting:
+                # "Supervertaler Review Table" - make "Supervertaler" a blue hyperlink
+                # Add hyperlink for "Supervertaler"
+                hyperlink = self._add_hyperlink_to_paragraph(title, "https://supervertaler.com/", "Supervertaler")
+                hyperlink.font.size = Pt(16)
+                hyperlink.font.bold = True
+                hyperlink.font.color.rgb = RGBColor(0, 102, 204)  # Blue
+                
+                # Add " Review Table" in regular blue
+                rest_run = title.add_run(" Review Table")
+                rest_run.bold = True
+                rest_run.font.size = Pt(16)
+                rest_run.font.color.rgb = RGBColor(0, 102, 204)  # Blue
+            else:
+                # For formatted version, just "Translation Review" in black
+                title_run = title.add_run("Translation Review")
+                title_run.bold = True
+                title_run.font.size = Pt(16)
             
             # Add project info
             info = doc.add_paragraph()
@@ -16358,11 +16416,9 @@ class SupervertalerQt(QMainWindow):
                 seg_idx = change['segment_idx']
                 current_segments[seg_idx].target = change['new_target']
                 
-                # Update status to 'edited' if it was translated
+                # Update status to 'edited' - indicates human review/modification
                 if hasattr(current_segments[seg_idx], 'status'):
-                    old_status = current_segments[seg_idx].status
-                    if old_status in ('translated', 'draft', 'mt'):
-                        current_segments[seg_idx].status = 'edited'
+                    current_segments[seg_idx].status = 'edited'
                 
                 # Add note if provided
                 if change['notes']:
