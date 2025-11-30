@@ -7684,8 +7684,8 @@ class SupervertalerQt(QMainWindow):
                 para.paragraph_format.space_after = Pt(2)
                 
                 if not apply_fmt:
-                    # Show raw text with tags highlighted in pink (like in Supervertaler)
-                    # Parse to find tags and highlight them
+                    # Show raw text with tags in pink text (like in Supervertaler)
+                    # Parse to find tags and color them
                     tag_pattern = re.compile(r'(</?(?:b|i|u|bi|li|li-[bo])>)')
                     parts = tag_pattern.split(text)
                     
@@ -7695,14 +7695,9 @@ class SupervertalerQt(QMainWindow):
                         run = para.add_run(part)
                         run.font.size = Pt(9)
                         
-                        # Check if this is a tag - highlight with pink background
+                        # Check if this is a tag - make text pink
                         if re.match(r'^</?(?:b|i|u|bi|li|li-[bo])>$', part):
-                            # Apply pink highlight (shading) - #FFB6C1 = RGB(255, 182, 193)
-                            from docx.oxml.ns import qn
-                            from docx.oxml import OxmlElement
-                            shd = OxmlElement('w:shd')
-                            shd.set(qn('w:fill'), 'FFB6C1')  # Light pink
-                            run._r.get_or_add_rPr().append(shd)
+                            run.font.color.rgb = RGBColor(255, 105, 180)  # Hot pink (#FF69B4)
                 else:
                     # Parse tags and apply formatting
                     # First handle list tags - convert to visible markers
