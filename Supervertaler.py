@@ -7445,6 +7445,21 @@ class SupervertalerQt(QMainWindow):
         This format is intended for end clients who want to see the actual formatting
         rather than the tags.
         """
+        # Warn user that this format cannot be re-imported with tags
+        reply = QMessageBox.warning(
+            self, "Formatted Export - Tags Will Be Applied",
+            "This export applies formatting (bold, italic, underline) to the text.\n\n"
+            "⚠️ Formatting tags will be converted to actual Word formatting.\n"
+            "This version CANNOT be re-imported to restore tagged formatting.\n\n"
+            "Use 'Review Table - With Tags' if you need to re-import after review.\n\n"
+            "Continue with formatted export?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+        
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        
         self._export_review_table(apply_formatting=True)
     
     def _add_hyperlink_to_paragraph(self, paragraph, url, text):
@@ -7551,24 +7566,24 @@ class SupervertalerQt(QMainWindow):
             title = doc.add_paragraph()
             title.alignment = WD_ALIGN_PARAGRAPH.CENTER
             
+            # Add "Supervertaler" as a blue hyperlink
+            hyperlink = self._add_hyperlink_to_paragraph(title, "https://supervertaler.com/", "Supervertaler")
+            hyperlink.font.size = Pt(16)
+            hyperlink.font.bold = True
+            hyperlink.font.color.rgb = RGBColor(0, 102, 204)  # Blue
+            
             if not apply_formatting:
-                # "Supervertaler Review Table" - make "Supervertaler" a blue hyperlink
-                # Add hyperlink for "Supervertaler"
-                hyperlink = self._add_hyperlink_to_paragraph(title, "https://supervertaler.com/", "Supervertaler")
-                hyperlink.font.size = Pt(16)
-                hyperlink.font.bold = True
-                hyperlink.font.color.rgb = RGBColor(0, 102, 204)  # Blue
-                
-                # Add " Review Table" in regular blue
+                # Add " Review Table" in blue
                 rest_run = title.add_run(" Review Table")
                 rest_run.bold = True
                 rest_run.font.size = Pt(16)
                 rest_run.font.color.rgb = RGBColor(0, 102, 204)  # Blue
             else:
-                # For formatted version, just "Translation Review" in black
-                title_run = title.add_run("Translation Review")
-                title_run.bold = True
-                title_run.font.size = Pt(16)
+                # Add " Translation Review" in blue for formatted version
+                rest_run = title.add_run(" Translation Review")
+                rest_run.bold = True
+                rest_run.font.size = Pt(16)
+                rest_run.font.color.rgb = RGBColor(0, 102, 204)  # Blue
             
             # Add project info
             info = doc.add_paragraph()
@@ -16416,9 +16431,10 @@ class SupervertalerQt(QMainWindow):
                 seg_idx = change['segment_idx']
                 current_segments[seg_idx].target = change['new_target']
                 
-                # Update status to 'edited' - indicates human review/modification
+                # Reset status to 'not_started' - flags segment for translator review
+                # This matches the behavior when manually editing a segment
                 if hasattr(current_segments[seg_idx], 'status'):
-                    current_segments[seg_idx].status = 'edited'
+                    current_segments[seg_idx].status = 'not_started'
                 
                 # Add note if provided
                 if change['notes']:
@@ -16443,7 +16459,7 @@ class SupervertalerQt(QMainWindow):
             QMessageBox.information(
                 self, "Import Complete",
                 f"Successfully applied {applied_count} change(s) from the review table.\n\n"
-                f"Segment status updated to 'Edited' where applicable.\n"
+                f"Changed segments set to 'Not Started' for translator review.\n"
                 f"Notes from the review have been added to segment notes."
             )
             
