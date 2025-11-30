@@ -7562,12 +7562,43 @@ class SupervertalerQt(QMainWindow):
                 section.top_margin = Inches(0.5)
                 section.bottom_margin = Inches(0.5)
             
+            # Language code to display name mapping
+            LANG_DISPLAY_NAMES = {
+                'en': 'English', 'en-US': 'English (US)', 'en-GB': 'English (UK)', 'en-AU': 'English (AU)',
+                'nl': 'Dutch', 'nl-NL': 'Dutch (NL)', 'nl-BE': 'Dutch (Belgium)',
+                'de': 'German', 'de-DE': 'German (DE)', 'de-AT': 'German (AT)', 'de-CH': 'German (CH)',
+                'fr': 'French', 'fr-FR': 'French (FR)', 'fr-CA': 'French (CA)', 'fr-BE': 'French (BE)',
+                'es': 'Spanish', 'es-ES': 'Spanish (ES)', 'es-MX': 'Spanish (MX)', 'es-AR': 'Spanish (AR)',
+                'it': 'Italian', 'it-IT': 'Italian (IT)',
+                'pt': 'Portuguese', 'pt-PT': 'Portuguese (PT)', 'pt-BR': 'Portuguese (BR)',
+                'ru': 'Russian', 'zh': 'Chinese', 'zh-CN': 'Chinese (Simplified)', 'zh-TW': 'Chinese (Traditional)',
+                'ja': 'Japanese', 'ko': 'Korean', 'ar': 'Arabic', 'pl': 'Polish', 'sv': 'Swedish',
+                'da': 'Danish', 'no': 'Norwegian', 'fi': 'Finnish', 'cs': 'Czech', 'hu': 'Hungarian',
+                'tr': 'Turkish', 'el': 'Greek', 'he': 'Hebrew', 'th': 'Thai', 'vi': 'Vietnamese',
+            }
+            
+            def get_language_display_name(lang_value):
+                """Convert language code or name to display name."""
+                if not lang_value:
+                    return "Unknown"
+                # If it's already a nice display name (contains space or parentheses), use it
+                if ' ' in lang_value or '(' in lang_value:
+                    return lang_value
+                # Look up in our mapping
+                if lang_value in LANG_DISPLAY_NAMES:
+                    return LANG_DISPLAY_NAMES[lang_value]
+                # Try lowercase
+                if lang_value.lower() in LANG_DISPLAY_NAMES:
+                    return LANG_DISPLAY_NAMES[lang_value.lower()]
+                # Capitalize first letter as fallback
+                return lang_value.capitalize() if lang_value else "Unknown"
+            
             # Get language names for column headers
             source_lang = "Source"
             target_lang = "Target"
             if self.current_project:
-                source_lang = self.current_project.source_lang or "Source"
-                target_lang = self.current_project.target_lang or "Target"
+                source_lang = get_language_display_name(self.current_project.source_lang) or "Source"
+                target_lang = get_language_display_name(self.current_project.target_lang) or "Target"
             
             # === HEADER SECTION ===
             # Add decorative line above title
