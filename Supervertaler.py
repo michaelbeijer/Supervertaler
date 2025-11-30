@@ -7630,8 +7630,8 @@ class SupervertalerQt(QMainWindow):
             subtitle.paragraph_format.space_before = Pt(0)
             subtitle.paragraph_format.space_after = Pt(6)
             
-            # Make supervertaler.com a clickable link
-            url_link = self._add_hyperlink_to_paragraph(subtitle, "https://supervertaler.com/", "supervertaler.com")
+            # Make Supervertaler.com a clickable link
+            url_link = self._add_hyperlink_to_paragraph(subtitle, "https://supervertaler.com/", "Supervertaler.com")
             url_link.font.size = Pt(10)
             url_link.font.color.rgb = RGBColor(0, 102, 204)
             url_link.font.underline = True
@@ -7838,7 +7838,7 @@ class SupervertalerQt(QMainWindow):
             footer_line_run.font.size = Pt(10)
             footer_line_run.font.color.rgb = RGBColor(0, 102, 204)
             
-            # Add footer text: "Supervertaler Bilingual Table | supervertaler.com"
+            # Add footer text: "Supervertaler Bilingual Table | Supervertaler.com"
             footer_text = doc.add_paragraph()
             footer_text.alignment = WD_ALIGN_PARAGRAPH.CENTER
             
@@ -7851,7 +7851,7 @@ class SupervertalerQt(QMainWindow):
             separator_run.font.color.rgb = RGBColor(150, 150, 150)
             
             # Add clickable website link in footer
-            footer_link = self._add_hyperlink_to_paragraph(footer_text, "https://supervertaler.com/", "supervertaler.com")
+            footer_link = self._add_hyperlink_to_paragraph(footer_text, "https://supervertaler.com/", "Supervertaler.com")
             footer_link.font.size = Pt(9)
             footer_link.font.color.rgb = RGBColor(0, 102, 204)
             footer_link.font.underline = True
