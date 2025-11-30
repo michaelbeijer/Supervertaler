@@ -7530,7 +7530,7 @@ class SupervertalerQt(QMainWindow):
         if hasattr(self, 'current_project_path') and self.current_project_path:
             project_name = Path(self.current_project_path).stem
         
-        format_suffix = "_formatted" if apply_formatting else "_review"
+        format_suffix = "_bilingual_formatted" if apply_formatting else "_bilingual"
         default_name = f"{project_name}{format_suffix}.docx"
         
         # Get save path
@@ -7615,31 +7615,26 @@ class SupervertalerQt(QMainWindow):
             title.paragraph_format.space_before = Pt(0)
             title.paragraph_format.space_after = Pt(6)
             
-            # Add globe emoji and "Supervertaler" as blue hyperlink
+            # Add globe emoji and "Supervertaler Bilingual Table" in blue (no link on title)
             globe_run = title.add_run("🌐 ")
             globe_run.font.size = Pt(18)
             
-            hyperlink = self._add_hyperlink_to_paragraph(title, "https://supervertaler.com/", "Supervertaler")
-            hyperlink.font.size = Pt(18)
-            hyperlink.font.bold = True
-            hyperlink.font.color.rgb = RGBColor(0, 102, 204)
-            hyperlink.font.underline = True  # Make link more obvious
+            title_run = title.add_run("Supervertaler Bilingual Table")
+            title_run.font.size = Pt(18)
+            title_run.font.bold = True
+            title_run.font.color.rgb = RGBColor(0, 102, 204)
             
-            # Add " Bilingual Table" in blue
-            rest_run = title.add_run(" Bilingual Table")
-            rest_run.bold = True
-            rest_run.font.size = Pt(18)
-            rest_run.font.color.rgb = RGBColor(0, 102, 204)
-            
-            # Add subtitle with website URL visible
+            # Add subtitle with clickable website URL
             subtitle = doc.add_paragraph()
             subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
             subtitle.paragraph_format.space_before = Pt(0)
             subtitle.paragraph_format.space_after = Pt(6)
-            url_run = subtitle.add_run("supervertaler.com")
-            url_run.font.size = Pt(9)
-            url_run.font.color.rgb = RGBColor(100, 100, 100)
-            url_run.italic = True
+            
+            # Make supervertaler.com a clickable link
+            url_link = self._add_hyperlink_to_paragraph(subtitle, "https://supervertaler.com/", "supervertaler.com")
+            url_link.font.size = Pt(10)
+            url_link.font.color.rgb = RGBColor(0, 102, 204)
+            url_link.font.underline = True
             
             # Add decorative line below title
             footer_line = doc.add_paragraph()
@@ -7832,6 +7827,34 @@ class SupervertalerQt(QMainWindow):
                 
                 # Notes column - empty for user to fill
                 cells[4].text = ''
+            
+            # Add footer with branding
+            footer_para = doc.add_paragraph()
+            footer_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            footer_para.paragraph_format.space_before = Pt(12)
+            
+            # Add decorative line
+            footer_line_run = footer_para.add_run("\n" + "━" * 50 + "\n")
+            footer_line_run.font.size = Pt(10)
+            footer_line_run.font.color.rgb = RGBColor(0, 102, 204)
+            
+            # Add footer text: "Supervertaler Bilingual Table | supervertaler.com"
+            footer_text = doc.add_paragraph()
+            footer_text.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            
+            brand_run = footer_text.add_run("Supervertaler Bilingual Table")
+            brand_run.font.size = Pt(9)
+            brand_run.font.color.rgb = RGBColor(100, 100, 100)
+            
+            separator_run = footer_text.add_run(" | ")
+            separator_run.font.size = Pt(9)
+            separator_run.font.color.rgb = RGBColor(150, 150, 150)
+            
+            # Add clickable website link in footer
+            footer_link = self._add_hyperlink_to_paragraph(footer_text, "https://supervertaler.com/", "supervertaler.com")
+            footer_link.font.size = Pt(9)
+            footer_link.font.color.rgb = RGBColor(0, 102, 204)
+            footer_link.font.underline = True
             
             # Save the document
             doc.save(file_path)
