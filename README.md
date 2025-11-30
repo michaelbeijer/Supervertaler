@@ -2,7 +2,7 @@
 
 🎯 **The Ultimate Companion Tool for Translators and Writers** — Context-aware AI with intuitive 2-Layer Prompt Architecture, AI Assistant, project termbase system with automatic extraction, and specialized modules.
 
-**Current Version:** v1.9.6 (November 27, 2025)
+**Current Version:** v1.9.13 (November 30, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -31,7 +31,25 @@
 python Supervertaler.py
 ```
 
-**NEW in v1.9.6 - Custom File Extensions & Monolingual Export:**
+**NEW in v1.9.13 - Document Preview & List Formatting Tags:**
+- 📄 **Preview Tab** - New Preview tab shows formatted document with headings, paragraphs, and lists
+- 🔢 **List Type Detection** - DOCX import properly detects bullet vs numbered lists from Word XML
+- 🏷️ **Short List Tags** - `<li-o>` for ordered/numbered lists (1. 2. 3.), `<li-b>` for bullet points (•)
+- 🖱️ **Click to Navigate** - Click any text in preview to jump to that segment in the grid
+- ¶ **Continuation Symbol** - Type column shows `¶` for continuation paragraphs instead of `#`
+
+**v1.9.12 - Progress Indicator Status Bar:**
+- 📊 **Words Translated** - Shows X/Y words with percentage
+- ✅ **Confirmed Segments** - Shows X/Y segments with percentage
+- 🔢 **Remaining Count** - Segments still needing work
+- 🎨 **Color Coding** - Red (<50%), Orange (50-80%), Green (>80%)
+
+**v1.9.11 - Navigation & Find/Replace Improvements:**
+- ⚡ **Quick Navigation** - Ctrl+Home/End to jump to first/last segment
+- 🔍 **Smart Pre-fill** - Find/Replace dialog pre-fills selected text
+- ⌨️ **Ctrl+Q Shortcut** - Instant term pair saving (remembers last-used termbase)
+
+**v1.9.6 - Custom File Extensions & Monolingual Export:**
 - 📁 **Branded Extensions** - `.svproj` (projects), `.svprompt` (prompts), `.svntl` (non-translatables)
 - 🌐 **Language Selection** - Monolingual DOCX import now prompts for source/target languages
 - 📤 **Target-Only Export** - Export translated content preserving original document structure
