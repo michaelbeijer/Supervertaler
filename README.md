@@ -2,7 +2,7 @@
 
 🎯 **The Ultimate Companion Tool for Translators and Writers** — Context-aware AI with intuitive 2-Layer Prompt Architecture, AI Assistant, project termbase system with automatic extraction, and specialized modules.
 
-**Current Version:** v1.9.15 (November 30, 2025)
+**Current Version:** v1.9.17 (December 3, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -131,6 +131,7 @@ python Supervertaler.py
 - 🤖 **AI Assistant** - Conversational interface for document analysis and prompt generation
 - 🧠 **Context-aware AI** - Leverages full document context, images, TM, and termbases
 - 🤖 **Multiple AI Providers** - OpenAI GPT-4o/5, Claude 3.5 Sonnet, Google Gemini 2.0
+- 🖥️ **Local LLM (Ollama)** - Run AI translation offline, no API keys needed, complete privacy
 - 🌐 **Machine Translation** - Google Cloud Translation API integration
 - 🎨 **Translation Results Panel** - All match types (Termbase, TM, MT, LLM) in one view
 - 🔄 **CAT Tool Integration** - Import/export with memoQ, Trados, CafeTran

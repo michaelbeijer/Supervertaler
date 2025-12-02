@@ -575,10 +575,53 @@ Supervertaler provides AI with multiple layers of context:
 - Downloads once, runs locally on your machine
 - No internet required after initial model download
 
-**Future:**
-- Local LLM support (Ollama, LM Studio) planned
-- Would enable fully offline AI translation
-- Not currently implemented
+**Local LLM (Ollama):**
+- Fully offline AI translation on your own computer
+- No API keys or internet required
+- Complete privacy - your text never leaves your machine
+- See "How do I set up Local LLM?" below
+
+### How do I set up Local LLM (Ollama)?
+
+Local LLM allows you to run AI translation entirely on your computer - no API costs, complete privacy, works offline.
+
+**Step 1: Install Ollama**
+1. Download Ollama from https://ollama.com
+2. Run the installer (Windows/Mac/Linux supported)
+3. Ollama starts automatically in the background
+
+**Step 2: Download a Model**
+Open a terminal/command prompt and run:
+```bash
+# Recommended for most users (8GB+ RAM):
+ollama pull qwen2.5:7b
+
+# For 16GB+ RAM (better quality):
+ollama pull qwen2.5:14b
+
+# For 4GB RAM (lighter, faster):
+ollama pull qwen2.5:3b
+```
+
+**Step 3: Configure Supervertaler**
+1. Go to **Settings → LLM Settings**
+2. Select **"🖥️ Local LLM (Ollama)"** as your provider
+3. Choose your downloaded model from the dropdown
+4. Click **Save LLM Settings**
+
+**Model Recommendations by RAM:**
+| RAM | Recommended Model | Quality |
+|-----|------------------|---------|
+| 4 GB | qwen2.5:3b | ★★★☆☆ |
+| 8 GB | qwen2.5:7b | ★★★★☆ |
+| 10 GB | gemma2:9b | ★★★★★ |
+| 16 GB+ | qwen2.5:14b | ★★★★★ |
+
+**Tips:**
+- First translation may take 30-60 seconds (model loading)
+- Subsequent translations are much faster
+- Use the **Setup...** button in Settings for guided installation
+- GPU acceleration is automatic if you have NVIDIA/AMD GPU
 
 ### What are the system requirements?
 
@@ -599,6 +642,12 @@ Supervertaler provides AI with multiple layers of context:
 - **RAM:** 8 GB minimum (16 GB for "large" model)
 - **Disk:** 1-3 GB for Whisper models (varies by size)
 - **Microphone:** Any USB or built-in microphone
+
+**For Local LLM (Ollama):**
+- **RAM:** 4 GB minimum (8 GB+ recommended)
+- **Disk:** 2-10 GB per model (varies by size)
+- **GPU:** Optional but recommended (NVIDIA/AMD for faster inference)
+- **Internet:** Only needed for initial model download
 
 **For Superbench:**
 - Multiple API keys (GPT-4o, Claude, Gemini)
@@ -985,12 +1034,17 @@ Michael Beijer, a professional translator, created Supervertaler to:
 - Sort options (appearance/alphabetical/length)
 - Hide shorter matches setting
 
-**v1.7.8 (November 22, 2025 - Current):**
+**v1.7.8 (November 22, 2025):**
 - Filter highlighting with yellow background
 - Bug fixes and stability improvements
 
+**v1.9.16 (December 2025):**
+- **Local LLM support (Ollama)** - Run AI translation offline on your computer
+- No API keys needed for local models
+- Complete privacy - text never leaves your machine
+- Automatic hardware detection and model recommendations
+
 **Future Plans:**
-- Local LLM support (Ollama, LM Studio)
 - Advanced QA tools
 - Enhanced collaboration features
 - More CAT tool integrations
@@ -1140,14 +1194,18 @@ Michael Beijer, a professional translator, created Supervertaler to:
 
 ### What's next for Supervertaler?
 
-**Near Future (v1.8 - v1.9):**
+**Recently Added (v1.9.16):**
+- ✅ Local LLM support (Ollama) - Run AI translation offline on your computer
+- ✅ Automatic hardware detection and model recommendations
+- ✅ No API keys or internet required for local models
+
+**Near Future (v1.10+):**
 - Enhanced QA tools (consistency checks, tag validation)
 - Improved Superbench (more models, better scoring)
 - Advanced filtering options
 - Performance optimizations for very large projects
 
 **Medium Term (v2.0):**
-- Local LLM support (Ollama, LM Studio) for offline translation
 - Enhanced termbase management (bulk import, merge, deduplication)
 - Advanced statistics and project analytics
 - Team collaboration features (shared TMs, cloud sync)

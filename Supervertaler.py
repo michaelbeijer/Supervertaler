@@ -33,9 +33,9 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.15"
+__version__ = "1.9.17"
 __phase__ = "0.9"
-__release_date__ = "2025-11-30"
+__release_date__ = "2025-12-03"
 __edition__ = "Qt"
 
 import sys
@@ -3936,6 +3936,40 @@ class SupervertalerQt(QMainWindow):
         # Load font sizes from preferences (after UI is fully initialized)
         QApplication.instance().processEvents()  # Allow UI to finish initializing
         self.load_font_sizes_from_preferences()
+        
+        # Auto-initialize Supermemory if enabled in settings
+        if general_settings.get('supermemory_auto_init', False):
+            from PyQt6.QtCore import QTimer
+            QTimer.singleShot(1000, self._auto_init_supermemory)  # 1 second delay to not block startup
+    
+    def _auto_init_supermemory(self):
+        """Auto-initialize Supermemory in the background at startup."""
+        try:
+            # Check if Supermemory widget exists (it's lazy-loaded)
+            if not hasattr(self, 'supermemory_widget') or self.supermemory_widget is None:
+                # Import and create the widget to trigger initialization
+                try:
+                    from modules.supermemory import SupermemoryWidget
+                    self.supermemory_widget = SupermemoryWidget(self.user_data_path)
+                    self.log("🧠 Supermemory auto-initialized at startup")
+                    
+                    # Check if engine initialized successfully
+                    if self.supermemory_widget.engine and self.supermemory_widget.engine.is_initialized():
+                        stats = self.supermemory_widget.engine.get_stats()
+                        if stats.get('total_entries', 0) > 0:
+                            self.log(f"  ✓ {stats['total_entries']:,} entries ready for semantic search")
+                        else:
+                            self.log("  ℹ No entries indexed yet. Go to Tools → Supermemory to index TMX files.")
+                except ImportError as e:
+                    self.log(f"  ⚠ Supermemory dependencies not installed: {e}")
+                    self.log("  Run: pip install chromadb sentence-transformers")
+            else:
+                # Widget already exists, just ensure engine is initialized
+                if self.supermemory_widget.engine and not self.supermemory_widget.engine.is_initialized():
+                    self.supermemory_widget.engine.initialize()
+                    self.log("🧠 Supermemory engine initialized")
+        except Exception as e:
+            self.log(f"⚠ Supermemory auto-init failed: {e}")
     
     def init_ui(self):
         """Initialize the user interface"""
@@ -4037,6 +4071,15 @@ class SupervertalerQt(QMainWindow):
         progress_layout.setContentsMargins(0, 0, 10, 0)
         progress_layout.setSpacing(20)
 
+        # LLM Provider/Model indicator (leftmost in the permanent area)
+        self.llm_indicator_label = QLabel("")
+        self.llm_indicator_label.setStyleSheet("color: #888; font-size: 11px;")
+        self.llm_indicator_label.setToolTip("Current LLM provider and model")
+        progress_layout.addWidget(self.llm_indicator_label)
+        
+        # Update LLM indicator on startup
+        self._update_llm_indicator()
+
         # Words translated label
         self.progress_words_label = QLabel("Words: --")
         self.progress_words_label.setStyleSheet("color: #555; font-size: 11px;")
@@ -4057,6 +4100,102 @@ class SupervertalerQt(QMainWindow):
 
         # Add as permanent widget (stays on right side)
         self.status_bar.addPermanentWidget(progress_frame)
+        
+        # Initialize Ollama keep-warm timer
+        self.ollama_keepwarm_timer = None
+        self._setup_ollama_keepwarm()
+    
+    def _update_llm_indicator(self):
+        """Update the LLM provider/model indicator in the status bar"""
+        try:
+            settings = self.load_llm_settings()
+            provider = settings.get('provider', 'openai')
+            model_key = f'{provider}_model'
+            model = settings.get(model_key, 'gpt-4o')
+            
+            # Format nicely
+            if provider == 'ollama':
+                icon = "🖥️"
+                display = f"{icon} Local: {model}"
+            elif provider == 'openai':
+                icon = "🤖"
+                display = f"{icon} {model}"
+            elif provider == 'claude':
+                icon = "🟣"
+                display = f"{icon} {model}"
+            elif provider == 'gemini':
+                icon = "💎"
+                display = f"{icon} {model}"
+            else:
+                display = f"{provider}: {model}"
+            
+            if hasattr(self, 'llm_indicator_label'):
+                self.llm_indicator_label.setText(display)
+                self.llm_indicator_label.setToolTip(f"LLM Provider: {provider.title()}\nModel: {model}")
+        except Exception as e:
+            if hasattr(self, 'llm_indicator_label'):
+                self.llm_indicator_label.setText("")
+    
+    def _setup_ollama_keepwarm(self):
+        """Setup timer to keep Ollama model warm (loaded in memory)"""
+        from PyQt6.QtCore import QTimer
+        
+        # Check settings to see if keep-warm is enabled
+        general_settings = self.load_general_settings()
+        keepwarm_enabled = general_settings.get('ollama_keepwarm', False)
+        
+        if keepwarm_enabled:
+            self._start_ollama_keepwarm_timer()
+    
+    def _start_ollama_keepwarm_timer(self):
+        """Start the Ollama keep-warm timer (pings every 4 minutes)"""
+        from PyQt6.QtCore import QTimer
+        
+        if self.ollama_keepwarm_timer is None:
+            self.ollama_keepwarm_timer = QTimer(self)
+            self.ollama_keepwarm_timer.timeout.connect(self._ping_ollama_keepwarm)
+        
+        # Ping every 4 minutes (Ollama unloads after 5 min of inactivity)
+        self.ollama_keepwarm_timer.start(4 * 60 * 1000)  # 4 minutes in ms
+        self.log("🔥 Ollama keep-warm enabled (pinging every 4 minutes)")
+    
+    def _stop_ollama_keepwarm_timer(self):
+        """Stop the Ollama keep-warm timer"""
+        if self.ollama_keepwarm_timer:
+            self.ollama_keepwarm_timer.stop()
+            self.log("❄️ Ollama keep-warm disabled")
+    
+    def _ping_ollama_keepwarm(self):
+        """Send a minimal request to Ollama to keep the model loaded"""
+        import threading
+        
+        def ping():
+            try:
+                import requests
+                settings = self.load_llm_settings()
+                if settings.get('provider') != 'ollama':
+                    return
+                
+                model = settings.get('ollama_model', 'qwen2.5:7b')
+                endpoint = "http://localhost:11434"
+                
+                # Send minimal request to keep model warm
+                response = requests.post(
+                    f"{endpoint}/api/generate",
+                    json={
+                        "model": model,
+                        "prompt": "hi",
+                        "options": {"num_predict": 1}  # Generate just 1 token
+                    },
+                    timeout=30
+                )
+                if response.status_code == 200:
+                    print(f"🔥 Ollama keep-warm ping successful ({model})")
+            except Exception as e:
+                print(f"⚠️ Ollama keep-warm ping failed: {e}")
+        
+        # Run in background thread to not block UI
+        threading.Thread(target=ping, daemon=True).start()
 
     def update_progress_stats(self):
         """Update the progress indicator labels in the status bar"""
@@ -6114,6 +6253,27 @@ class SupervertalerQt(QMainWindow):
         superbrowser_widget = SuperbrowserWidget(parent=self)
         
         return superbrowser_widget
+    
+    def create_supermemory_tab(self) -> QWidget:
+        """Create the Supermemory tab - Vector-Indexed Translation Memory"""
+        try:
+            from modules.supermemory import SupermemoryWidget
+            
+            # Create and return the Supermemory widget
+            supermemory_widget = SupermemoryWidget(main_window=self, parent=self)
+            self.supermemory_widget = supermemory_widget  # Store reference
+            
+            return supermemory_widget
+        except Exception as e:
+            self.log(f"[Supermemory] Error creating tab: {e}")
+            # Return placeholder if module fails to load
+            placeholder = QWidget()
+            layout = QVBoxLayout(placeholder)
+            label = QLabel(f"🧠 Supermemory\n\nFailed to load: {e}\n\nInstall dependencies with:\npip install chromadb sentence-transformers")
+            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            label.setStyleSheet("color: #888; font-size: 12px;")
+            layout.addWidget(label)
+            return placeholder
 
     def _get_api_keys(self) -> dict:
         """Get API keys from settings"""
@@ -6553,6 +6713,10 @@ class SupervertalerQt(QMainWindow):
         # Superbrowser - Multi-Chat AI Browser
         superbrowser_tab = self.create_superbrowser_tab()
         modules_tabs.addTab(superbrowser_tab, "🌐 Superbrowser")
+        
+        # Supermemory - Vector-Indexed Translation Memory
+        supermemory_tab = self.create_supermemory_tab()
+        modules_tabs.addTab(supermemory_tab, "🧠 Supermemory")
 
         layout.addWidget(modules_tabs)
 
@@ -10376,9 +10540,9 @@ class SupervertalerQt(QMainWindow):
         general_tab = self._create_general_settings_tab()
         settings_tabs.addTab(scroll_area_wrapper(general_tab), "⚙️ General")
         
-        # ===== TAB 2: LLM Settings =====
-        llm_tab = self._create_llm_settings_tab()
-        settings_tabs.addTab(scroll_area_wrapper(llm_tab), "🤖 LLM Settings")
+        # ===== TAB 2: AI Settings (LLM, Ollama, Supermemory) =====
+        ai_tab = self._create_ai_settings_tab()
+        settings_tabs.addTab(scroll_area_wrapper(ai_tab), "🤖 AI Settings")
         
         # ===== TAB 3: Language Pair Settings =====
         lang_tab = self._create_language_pair_tab()
@@ -10510,8 +10674,8 @@ class SupervertalerQt(QMainWindow):
         
         return tab
     
-    def _create_llm_settings_tab(self):
-        """Create LLM Settings tab content"""
+    def _create_ai_settings_tab(self):
+        """Create unified AI Settings tab - combines LLM, Ollama, Supermemory, and AI Assistant settings"""
         from PyQt6.QtWidgets import QCheckBox, QGroupBox, QPushButton
         
         tab = QWidget()
@@ -10522,12 +10686,14 @@ class SupervertalerQt(QMainWindow):
         # Load current settings
         settings = self.load_llm_settings()
         enabled_providers = self.load_provider_enabled_states()
+        general_settings = self.load_general_settings()
+        general_prefs = self.load_general_settings()
         
-        # LLM Provider Selection
-        provider_group = QGroupBox("LLM Provider")
+        # ========== SECTION 1: LLM Provider Selection ==========
+        provider_group = QGroupBox("🤖 LLM Provider Selection")
         provider_layout = QVBoxLayout()
         
-        provider_label = QLabel("Select your preferred translation provider:")
+        provider_label = QLabel("Select your preferred AI translation provider:")
         provider_layout.addWidget(provider_label)
         
         # Provider radio buttons (custom styled)
@@ -10548,11 +10714,17 @@ class SupervertalerQt(QMainWindow):
         provider_button_group.addButton(gemini_radio)
         provider_layout.addWidget(gemini_radio)
         
+        # Local LLM option (Ollama)
+        ollama_radio = CustomRadioButton("🖥️ Local LLM (Ollama - runs on your computer)")
+        ollama_radio.setChecked(settings.get('provider', 'openai') == 'ollama')
+        provider_button_group.addButton(ollama_radio)
+        provider_layout.addWidget(ollama_radio)
+        
         provider_group.setLayout(provider_layout)
         layout.addWidget(provider_group)
         
-        # Model Selection
-        model_group = QGroupBox("Model Selection")
+        # ========== SECTION 2: Model Selection ==========
+        model_group = QGroupBox("📦 Model Selection")
         model_layout = QVBoxLayout()
         
         model_label = QLabel("Choose the specific model to use:")
@@ -10573,20 +10745,9 @@ class SupervertalerQt(QMainWindow):
         ])
         openai_combo.setToolTip(
             "GPT-4o (Recommended): Fast, reliable, excellent for general translation.\n"
-            "  • Best for: 90% of translation tasks\n"
-            "  • Speed: 2-10 seconds per segment\n"
-            "  • Use for: Business documents, technical manuals, general content\n\n"
             "GPT-4o-mini: Faster and cheaper, good quality for simple text.\n"
-            "  • Best for: High-volume simple translations\n"
-            "  • Speed: 1-5 seconds per segment\n\n"
-            "GPT-5 (Reasoning): Deep analysis, handles complex/ambiguous text.\n"
-            "  • Best for: Legal contracts, literary translation, marketing copy\n"
-            "  • Speed: 30 seconds to 5+ minutes per segment\n"
-            "  • Use when: Accuracy > speed, complex context, cultural nuances\n"
-            "  • Cost: Premium pricing\n\n"
-            "o3-mini/o1: Similar to GPT-5 but different reasoning approaches."
+            "GPT-5/o1/o3-mini: Deep reasoning models for complex text."
         )
-        # Set current selection
         current_openai_model = settings.get('openai_model', 'gpt-4o')
         for i in range(openai_combo.count()):
             if current_openai_model in openai_combo.itemText(i).lower():
@@ -10608,18 +10769,9 @@ class SupervertalerQt(QMainWindow):
             "claude-opus-4-1-20250805 (Premium - Complex Reasoning)"
         ])
         claude_combo.setToolTip(
-            "Claude Sonnet 4.5 (Recommended): Best balance of speed, quality, and cost.\n"
-            "  • Pricing: $3/$15 per million tokens (input/output)\n"
-            "  • Best for: General translation, multilingual content\n"
-            "  • Strengths: Fast, cost-effective, excellent quality\n\n"
-            "Claude Haiku 4.5: 2x faster, 1/3 the cost of Sonnet.\n"
-            "  • Pricing: $1/$5 per million tokens\n"
-            "  • Best for: Large translation projects, high-volume batch processing\n"
-            "  • Use when: Speed and budget are priorities\n\n"
-            "Claude Opus 4.1: Premium model with deep reasoning.\n"
-            "  • Pricing: $15/$75 per million tokens (5x more expensive)\n"
-            "  • Best for: Legal documents, technical specifications, complex reasoning\n"
-            "  • Use when: Highest accuracy is critical, budget is not a concern"
+            "Claude Sonnet 4.5: Best balance of speed, quality, and cost.\n"
+            "Claude Haiku 4.5: 2x faster, 1/3 the cost.\n"
+            "Claude Opus 4.1: Premium model for complex reasoning."
         )
         current_claude_model = settings.get('claude_model', 'claude-sonnet-4-5-20250929')
         for i in range(claude_combo.count()):
@@ -10643,22 +10795,9 @@ class SupervertalerQt(QMainWindow):
             "gemini-2.0-flash-exp (Experimental)"
         ])
         gemini_combo.setToolTip(
-            "Gemini 2.5 Flash (Recommended): Best price-performance balance.\n"
-            "  • Best for: General translation, high-volume tasks\n"
-            "  • Context: 1M tokens input, 65K output\n"
-            "  • Strengths: Fast, cost-effective, well-rounded\n"
-            "  • Use for: Most translation tasks\n\n"
-            "Gemini 2.5 Flash-Lite: Fastest and most economical option.\n"
-            "  • Best for: High-throughput batch translation\n"
-            "  • Context: 1M tokens input, 65K output\n"
-            "  • Strengths: Maximum speed, lowest cost\n"
-            "  • Use when: Budget and speed are top priorities\n\n"
-            "Gemini 2.5 Pro: State-of-the-art reasoning for complex problems.\n"
-            "  • Best for: Complex analytical translation, legal documents\n"
-            "  • Context: 1M tokens input, 65K output\n"
-            "  • Strengths: Highest accuracy, complex reasoning\n"
-            "  • Use when: Maximum quality needed, regardless of cost\n\n"
-            "Gemini 2.0 Flash Exp: Experimental model for testing."
+            "Gemini 2.5 Flash: Best price-performance balance.\n"
+            "Gemini 2.5 Flash-Lite: Fastest and cheapest.\n"
+            "Gemini 2.5 Pro: Premium for complex problems."
         )
         current_gemini_model = settings.get('gemini_model', 'gemini-2.5-flash')
         for i in range(gemini_combo.count()):
@@ -10668,25 +10807,85 @@ class SupervertalerQt(QMainWindow):
         gemini_combo.setEnabled(gemini_radio.isChecked())
         model_layout.addWidget(gemini_combo)
         
+        model_layout.addSpacing(10)
+        
+        # Local LLM (Ollama) models
+        ollama_model_label = QLabel("<b>🖥️ Local LLM Models (Ollama):</b>")
+        model_layout.addWidget(ollama_model_label)
+        
+        # Import the LocalLLMStatusWidget for embedded status
+        try:
+            from modules.local_llm_setup import LocalLLMStatusWidget, check_ollama_status, RECOMMENDED_MODELS
+            
+            # Create embedded status widget
+            ollama_status_widget = LocalLLMStatusWidget()
+            ollama_status_widget.setEnabled(ollama_radio.isChecked())
+            model_layout.addWidget(ollama_status_widget)
+            
+            # Store reference for saving settings
+            tab.ollama_status_widget = ollama_status_widget
+            
+        except ImportError as e:
+            # Fallback if module not available
+            ollama_fallback = QLabel("⚠️ Local LLM module not available")
+            ollama_fallback.setStyleSheet("color: orange;")
+            model_layout.addWidget(ollama_fallback)
+            ollama_status_widget = None
+            tab.ollama_status_widget = None
+        
         # Connect radio buttons to enable/disable combos
         def update_combo_states():
             openai_combo.setEnabled(openai_radio.isChecked())
             claude_combo.setEnabled(claude_radio.isChecked())
             gemini_combo.setEnabled(gemini_radio.isChecked())
+            if ollama_status_widget:
+                ollama_status_widget.setEnabled(ollama_radio.isChecked())
+        
+        # Handler to show setup dialog when Ollama is selected but not running
+        def on_ollama_selected(checked):
+            if checked:
+                try:
+                    from modules.local_llm_setup import check_ollama_status, LocalLLMSetupDialog
+                    status = check_ollama_status()
+                    
+                    if not status.get('running', False):
+                        from PyQt6.QtWidgets import QMessageBox
+                        msg = QMessageBox(self)
+                        msg.setWindowTitle("Local LLM Setup Required")
+                        msg.setIcon(QMessageBox.Icon.Information)
+                        msg.setText(
+                            "<b>🖥️ Local LLM (Ollama) Selected</b><br><br>"
+                            "Ollama is not currently running on your computer.<br><br>"
+                            "Would you like to open the setup wizard?"
+                        )
+                        msg.setStandardButtons(
+                            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+                        )
+                        msg.setDefaultButton(QMessageBox.StandardButton.Yes)
+                        
+                        if msg.exec() == QMessageBox.StandardButton.Yes:
+                            setup_dialog = LocalLLMSetupDialog(self)
+                            setup_dialog.exec()
+                            if ollama_status_widget:
+                                ollama_status_widget.refresh_status()
+                except Exception as e:
+                    self.log(f"Error checking Ollama status: {e}")
         
         openai_radio.toggled.connect(update_combo_states)
         claude_radio.toggled.connect(update_combo_states)
         gemini_radio.toggled.connect(update_combo_states)
+        ollama_radio.toggled.connect(update_combo_states)
+        ollama_radio.toggled.connect(on_ollama_selected)
         
         model_group.setLayout(model_layout)
         layout.addWidget(model_group)
         
-        # Enable/Disable Providers
-        provider_enable_group = QGroupBox("Enable/Disable LLM Providers")
+        # ========== SECTION 3: Enable/Disable LLM Providers ==========
+        provider_enable_group = QGroupBox("✅ Enable/Disable LLM Providers")
         provider_enable_layout = QVBoxLayout()
         
         provider_enable_info = QLabel(
-            "Uncheck providers you don't want to use. Only enabled providers will be available for translation."
+            "Uncheck providers you don't want to use. Only enabled providers will be available."
         )
         provider_enable_info.setWordWrap(True)
         provider_enable_info.setStyleSheet("font-size: 9pt; color: #666; padding: 5px;")
@@ -10704,41 +10903,67 @@ class SupervertalerQt(QMainWindow):
         gemini_enable_cb.setChecked(enabled_providers.get('llm_gemini', True))
         provider_enable_layout.addWidget(gemini_enable_cb)
         
+        ollama_enable_cb = CheckmarkCheckBox("Enable Local LLM (Ollama)")
+        ollama_enable_cb.setChecked(enabled_providers.get('llm_ollama', True))
+        provider_enable_layout.addWidget(ollama_enable_cb)
+        
         provider_enable_group.setLayout(provider_enable_layout)
         layout.addWidget(provider_enable_group)
         
-        # API Keys info
-        api_keys_group = QGroupBox("API Keys")
-        api_keys_layout = QVBoxLayout()
+        # ========== SECTION 4: Local LLM (Ollama) Advanced Settings ==========
+        ollama_group = QGroupBox("🖥️ Local LLM (Ollama) Advanced Settings")
+        ollama_layout = QVBoxLayout()
         
-        api_keys_info = QLabel(
-            f"Configure your API keys in:<br>"
-            f"<code>{self.user_data_path / 'api_keys.txt'}</code><br><br>"
-            f"See example file for format:<br>"
-            f"<code>{self.user_data_path / 'api_keys.example.txt'}</code>"
+        ollama_keepwarm_cb = QCheckBox("Keep model warm (prevent unloading)")
+        ollama_keepwarm_cb.setChecked(general_settings.get('ollama_keepwarm', False))
+        ollama_keepwarm_cb.setToolTip(
+            "When enabled, sends a small ping to Ollama every 4 minutes\n"
+            "to keep the model loaded in memory for faster translations.\n\n"
+            "Drawback: Model keeps using RAM even when not translating."
         )
-        api_keys_info.setWordWrap(True)
-        api_keys_layout.addWidget(api_keys_info)
+        ollama_layout.addWidget(ollama_keepwarm_cb)
         
-        # Button to open API keys file
-        open_keys_btn = QPushButton("📝 Open API Keys File")
-        open_keys_btn.clicked.connect(lambda: self.open_api_keys_file())
-        api_keys_layout.addWidget(open_keys_btn)
+        # Supermemory context injection setting
+        supermemory_cb = QCheckBox("🧠 Use Supermemory for Ollama translations")
+        supermemory_cb.setChecked(general_settings.get('supermemory_ollama_context', True))
+        supermemory_cb.setToolTip(
+            "When enabled, Supermemory searches your indexed TMX files for similar segments\n"
+            "and injects them into the Ollama prompt as reference translations.\n\n"
+            "Benefits: Better terminology, learns from your TMs, domain-specific accuracy.\n\n"
+            "Requirements: TMX files indexed in Tools → Supermemory"
+        )
+        ollama_layout.addWidget(supermemory_cb)
         
-        api_keys_group.setLayout(api_keys_layout)
-        layout.addWidget(api_keys_group)
+        # Supermemory auto-initialize at startup
+        supermemory_autoinit_cb = QCheckBox("🚀 Auto-initialize Supermemory at startup")
+        supermemory_autoinit_cb.setChecked(general_settings.get('supermemory_auto_init', False))
+        supermemory_autoinit_cb.setToolTip(
+            "When enabled, Supermemory automatically initializes at startup.\n"
+            "Pre-loads the vector database for faster first searches.\n\n"
+            "Note: Adds ~2-5 seconds to startup time (runs in background)."
+        )
+        ollama_layout.addWidget(supermemory_autoinit_cb)
         
-        # Translation Preferences
-        prefs_group = QGroupBox("Translation Preferences")
+        ollama_info = QLabel(
+            "💡 <b>Tip:</b> Ollama normally unloads models after 5 minutes of inactivity.\n"
+            "Enable 'Keep warm' for faster translations if you translate frequently."
+        )
+        ollama_info.setWordWrap(True)
+        ollama_info.setStyleSheet("color: #666; font-size: 9pt; padding: 5px;")
+        ollama_layout.addWidget(ollama_info)
+        
+        ollama_group.setLayout(ollama_layout)
+        layout.addWidget(ollama_group)
+        
+        # ========== SECTION 5: AI Translation Preferences ==========
+        prefs_group = QGroupBox("⚙️ AI Translation Preferences")
         prefs_layout = QVBoxLayout()
         prefs_layout.setSpacing(10)
         
         # Load current preferences
-        general_prefs = self.load_general_settings()
         batch_size = general_prefs.get('batch_size', 20)
         surrounding_segments = general_prefs.get('surrounding_segments', 5)
         use_full_context = general_prefs.get('use_full_context', True)
-        auto_insert_100 = general_prefs.get('auto_insert_100', False)
         check_tm_before_api = general_prefs.get('check_tm_before_api', True)
         auto_propagate_100 = general_prefs.get('auto_propagate_100', True)
         
@@ -10754,7 +10979,7 @@ class SupervertalerQt(QMainWindow):
         batch_size_layout.addWidget(batch_size_spin)
         batch_size_layout.addStretch()
         prefs_layout.addLayout(batch_size_layout)
-        batch_size_info = QLabel("  ⓘ Larger batches = faster but higher API cost per call. Default: 20")
+        batch_size_info = QLabel("  ⓘ Larger batches = faster but higher API cost. Default: 20")
         batch_size_info.setStyleSheet("font-size: 9pt; color: #666; padding-left: 20px;")
         prefs_layout.addWidget(batch_size_info)
         
@@ -10768,13 +10993,12 @@ class SupervertalerQt(QMainWindow):
         surrounding_spin.setMinimum(0)
         surrounding_spin.setMaximum(20)
         surrounding_spin.setValue(surrounding_segments)
-        surrounding_spin.setToolTip("Send nearby segments for context without full document")
         surrounding_layout.addWidget(surrounding_spin)
         surrounding_segments_label = QLabel("segments before/after")
         surrounding_layout.addWidget(surrounding_segments_label)
         surrounding_layout.addStretch()
         prefs_layout.addLayout(surrounding_layout)
-        surrounding_info = QLabel("  ⓘ Send nearby segments for context without full document. 0 = no context. Default: 5")
+        surrounding_info = QLabel("  ⓘ Context for single-segment translation. 0 = no context. Default: 5")
         surrounding_info.setStyleSheet("font-size: 9pt; color: #666; padding-left: 20px;")
         prefs_layout.addWidget(surrounding_info)
         
@@ -10784,9 +11008,6 @@ class SupervertalerQt(QMainWindow):
         full_context_cb = CheckmarkCheckBox("Include surrounding context in batch translation")
         full_context_cb.setChecked(use_full_context)
         prefs_layout.addWidget(full_context_cb)
-        full_context_info = QLabel("  ⓘ Sends nearby segments (NOT full document) for consistency - prevents timeouts")
-        full_context_info.setStyleSheet("font-size: 9pt; color: #666; padding-left: 20px;")
-        prefs_layout.addWidget(full_context_info)
         
         # Context window size slider
         context_window_size = general_prefs.get('context_window_size', 50)
@@ -10821,10 +11042,6 @@ class SupervertalerQt(QMainWindow):
         full_context_cb.stateChanged.connect(lambda: context_slider.setEnabled(full_context_cb.isChecked()))
         update_context_label(context_window_size)
         
-        context_slider_info = QLabel("  ⓘ Segments before/after batch to include. 50=100 seg window, 0=no context. Default: 50")
-        context_slider_info.setStyleSheet("font-size: 9pt; color: #666; padding-left: 20px;")
-        prefs_layout.addWidget(context_slider_info)
-        
         prefs_layout.addSpacing(5)
         
         # Check TM before API call
@@ -10842,7 +11059,7 @@ class SupervertalerQt(QMainWindow):
         prefs_layout.addSpacing(5)
         
         # TM/Termbase lookup delay
-        lookup_delay = general_prefs.get('lookup_delay', 1500)  # Default 1.5 seconds
+        lookup_delay = general_prefs.get('lookup_delay', 1500)
         delay_layout = QHBoxLayout()
         delay_label = QLabel("TM/Termbase lookup delay:")
         delay_layout.addWidget(delay_label)
@@ -10852,33 +11069,101 @@ class SupervertalerQt(QMainWindow):
         delay_spin.setSingleStep(100)
         delay_spin.setValue(lookup_delay)
         delay_spin.setSuffix(" ms")
-        delay_spin.setToolTip("Delay before searching TM/Termbase when selecting segment (prevents searches while navigating quickly)")
         delay_layout.addWidget(delay_spin)
         delay_layout.addStretch()
         prefs_layout.addLayout(delay_layout)
-        delay_info = QLabel("  ⓘ Prevents searches while navigating quickly. 0 = instant, 1500 = 1.5 seconds")
+        delay_info = QLabel("  ⓘ Prevents searches while navigating quickly. Default: 1500ms")
         delay_info.setStyleSheet("font-size: 9pt; color: #666; padding-left: 20px;")
         prefs_layout.addWidget(delay_info)
         
         prefs_group.setLayout(prefs_layout)
         layout.addWidget(prefs_group)
         
-        # Save button
-        save_btn = QPushButton("💾 Save LLM Settings")
+        # ========== SECTION 6: AI Behavior Settings ==========
+        behavior_group = QGroupBox("🎯 AI Behavior Settings")
+        behavior_layout = QVBoxLayout()
+        
+        # LLM matching toggle
+        llm_matching_cb = QCheckBox("Enable LLM (AI) matching on segment selection")
+        llm_matching_cb.setChecked(self.enable_llm_matching)
+        llm_matching_cb.setToolTip(
+            "⚠️ WARNING: LLM translations take 10-20 seconds per segment!\n\n"
+            "When enabled, AI translations are automatically generated when you select a segment.\n"
+            "RECOMMENDED: Keep DISABLED. Use 'Translate with AI' button instead."
+        )
+        behavior_layout.addWidget(llm_matching_cb)
+        self.llm_matching_checkbox = llm_matching_cb
+        
+        # Auto-generate markdown
+        auto_markdown_cb = QCheckBox("Auto-generate markdown for imported documents")
+        auto_markdown_cb.setChecked(general_settings.get('auto_generate_markdown', False))
+        auto_markdown_cb.setToolTip(
+            "Automatically convert imported documents to markdown format\n"
+            "for AI Assistant access in user_data_private/AI_Assistant/current_document/"
+        )
+        behavior_layout.addWidget(auto_markdown_cb)
+        
+        # LLM match limits
+        behavior_layout.addSpacing(10)
+        llm_limits_label = QLabel("<b>LLM Match Limits:</b>")
+        behavior_layout.addWidget(llm_limits_label)
+        
+        current_limits = general_settings.get('match_limits', {"LLM": 3, "MT": 3, "TM": 5, "Termbases": 10})
+        
+        llm_limit_layout = QHBoxLayout()
+        llm_limit_layout.addWidget(QLabel("🧠 Maximum LLM matches to display:"))
+        llm_spin = QSpinBox()
+        llm_spin.setRange(1, 10)
+        llm_spin.setValue(current_limits.get("LLM", 3))
+        llm_spin.setSuffix(" matches")
+        llm_limit_layout.addWidget(llm_spin)
+        llm_limit_layout.addStretch()
+        behavior_layout.addLayout(llm_limit_layout)
+        
+        behavior_group.setLayout(behavior_layout)
+        layout.addWidget(behavior_group)
+        
+        # ========== SECTION 7: API Keys ==========
+        api_keys_group = QGroupBox("🔑 API Keys")
+        api_keys_layout = QVBoxLayout()
+        
+        api_keys_info = QLabel(
+            f"Configure your API keys in:<br>"
+            f"<code>{self.user_data_path / 'api_keys.txt'}</code>"
+        )
+        api_keys_info.setWordWrap(True)
+        api_keys_layout.addWidget(api_keys_info)
+        
+        open_keys_btn = QPushButton("📝 Open API Keys File")
+        open_keys_btn.clicked.connect(lambda: self.open_api_keys_file())
+        api_keys_layout.addWidget(open_keys_btn)
+        
+        api_keys_group.setLayout(api_keys_layout)
+        layout.addWidget(api_keys_group)
+        
+        # ========== SAVE BUTTON ==========
+        save_btn = QPushButton("💾 Save AI Settings")
         save_btn.setStyleSheet("font-weight: bold; padding: 8px;")
-        save_btn.clicked.connect(lambda: self._save_llm_settings_from_ui(
-            openai_radio, claude_radio, gemini_radio, 
+        save_btn.clicked.connect(lambda: self._save_ai_settings_from_ui(
+            openai_radio, claude_radio, gemini_radio, ollama_radio,
             openai_combo, claude_combo, gemini_combo,
-            openai_enable_cb, claude_enable_cb, gemini_enable_cb,
+            tab.ollama_status_widget,
+            openai_enable_cb, claude_enable_cb, gemini_enable_cb, ollama_enable_cb,
             batch_size_spin, surrounding_spin, full_context_cb, context_slider,
-            check_tm_cb, auto_propagate_cb,
-            delay_spin
+            check_tm_cb, auto_propagate_cb, delay_spin,
+            ollama_keepwarm_cb, supermemory_cb, supermemory_autoinit_cb,
+            llm_matching_cb, auto_markdown_cb, llm_spin
         ))
         layout.addWidget(save_btn)
         
         layout.addStretch()
         
         return tab
+    
+    def _create_llm_settings_tab(self):
+        """Create LLM Settings tab content - DEPRECATED, redirects to AI Settings"""
+        # This function is kept for compatibility but now just returns AI settings tab
+        return self._create_ai_settings_tab()
     
     def _create_mt_settings_tab(self):
         """Create MT Settings tab content"""
@@ -11094,18 +11379,6 @@ class SupervertalerQt(QMainWindow):
         tm_matching_cb.toggled.connect(self.toggle_tm_termbase_matching)
         tm_termbase_layout.addWidget(tm_matching_cb)
         
-        # LLM matching toggle (separate from TM/Termbase)
-        llm_matching_cb = QCheckBox("Enable LLM (AI) matching on segment selection")
-        llm_matching_cb.setChecked(self.enable_llm_matching)
-        llm_matching_cb.setToolTip(
-            "⚠️ WARNING: LLM translations take 10-20 seconds per segment!\n\n"
-            "When enabled, AI translations are automatically generated when you select a segment.\n"
-            "This is VERY SLOW and will make the UI freeze for 10-20 seconds on each segment.\n\n"
-            "RECOMMENDED: Keep this DISABLED (default).\n"
-            "Use the 'Translate with AI' button in the toolbar when you need LLM translations instead."
-        )
-        tm_termbase_layout.addWidget(llm_matching_cb)
-        
         # Termbase grid highlighting toggle
         tb_highlight_cb = QCheckBox("Highlight termbase matches in source cells")
         tb_highlight_cb.setChecked(general_settings.get('enable_termbase_grid_highlighting', True))
@@ -11151,26 +11424,9 @@ class SupervertalerQt(QMainWindow):
         self.auto_propagate_checkbox = auto_propagate_cb  # Store reference for updates
         self.auto_insert_100_checkbox = auto_insert_100_cb  # Store reference for updates
         self.tb_highlight_checkbox = tb_highlight_cb  # Store reference for updates
-        self.llm_matching_checkbox = llm_matching_cb  # Store reference for LLM matching
         
         tm_termbase_group.setLayout(tm_termbase_layout)
         layout.addWidget(tm_termbase_group)
-
-        # AI Assistant settings group
-        ai_group = QGroupBox("AI Assistant Settings")
-        ai_layout = QVBoxLayout()
-
-        auto_markdown_cb = QCheckBox("Auto-generate markdown for imported documents")
-        auto_markdown_cb.setChecked(general_settings.get('auto_generate_markdown', False))
-        auto_markdown_cb.setToolTip(
-            "When enabled, Supervertaler will automatically convert imported documents\n"
-            "to markdown format and save them in user_data_private/AI_Assistant/current_document/.\n"
-            "This allows the AI Assistant and you to access a markdown version of your documents."
-        )
-        ai_layout.addWidget(auto_markdown_cb)
-
-        ai_group.setLayout(ai_layout)
-        layout.addWidget(ai_group)
 
         # Find & Replace settings group
         find_replace_group = QGroupBox("Find && Replace Settings")
@@ -11338,7 +11594,7 @@ class SupervertalerQt(QMainWindow):
         save_btn = QPushButton("💾 Save General Settings")
         save_btn.setStyleSheet("font-weight: bold; padding: 8px;")
         save_btn.clicked.connect(lambda: self._save_general_settings_from_ui(
-            restore_last_project_cb, allow_replace_cb, auto_propagate_cb, auto_markdown_cb,
+            restore_last_project_cb, allow_replace_cb, auto_propagate_cb,
             llm_spin, mt_spin, tm_limit_spin, tb_spin,
             auto_open_log_cb, auto_insert_100_cb, tm_save_mode_combo, tb_highlight_cb,
             enable_backup_cb, backup_interval_spin,
@@ -12300,19 +12556,39 @@ class SupervertalerQt(QMainWindow):
             self.log("✓ Domain keywords reset to defaults")
             QMessageBox.information(self, "Reset Complete", "Domain keywords have been reset to default values.")
 
-    def _save_llm_settings_from_ui(self, openai_radio, claude_radio, gemini_radio,
+    def _save_llm_settings_from_ui(self, openai_radio, claude_radio, gemini_radio, ollama_radio,
                                    openai_combo, claude_combo, gemini_combo,
-                                   openai_enable_cb, claude_enable_cb, gemini_enable_cb,
+                                   ollama_status_widget,
+                                   openai_enable_cb, claude_enable_cb, gemini_enable_cb, ollama_enable_cb,
                                    batch_size_spin, surrounding_spin, full_context_cb, context_slider,
                                    check_tm_cb, auto_propagate_cb,
                                    delay_spin):
         """Save LLM settings from UI"""
+        # Determine selected provider
+        if openai_radio.isChecked():
+            provider = 'openai'
+        elif claude_radio.isChecked():
+            provider = 'claude'
+        elif gemini_radio.isChecked():
+            provider = 'gemini'
+        elif ollama_radio.isChecked():
+            provider = 'ollama'
+        else:
+            provider = 'openai'  # Default fallback
+        
+        # Get Ollama model from widget if available
+        ollama_model = 'qwen2.5:7b'  # Default
+        if ollama_status_widget and hasattr(ollama_status_widget, 'get_selected_model'):
+            selected = ollama_status_widget.get_selected_model()
+            if selected:
+                ollama_model = selected
+        
         new_settings = {
-            'provider': 'openai' if openai_radio.isChecked() else 
-                       'claude' if claude_radio.isChecked() else 'gemini',
+            'provider': provider,
             'openai_model': openai_combo.currentText().split()[0],
             'claude_model': claude_combo.currentText().split()[0],
-            'gemini_model': gemini_combo.currentText().split()[0]
+            'gemini_model': gemini_combo.currentText().split()[0],
+            'ollama_model': ollama_model
         }
         self.save_llm_settings(new_settings)
 
@@ -12324,7 +12600,8 @@ class SupervertalerQt(QMainWindow):
         enabled_states = {
             'llm_openai': openai_enable_cb.isChecked(),
             'llm_claude': claude_enable_cb.isChecked(),
-            'llm_gemini': gemini_enable_cb.isChecked()
+            'llm_gemini': gemini_enable_cb.isChecked(),
+            'llm_ollama': ollama_enable_cb.isChecked()
         }
         # Merge with existing MT settings
         existing = self.load_provider_enabled_states()
@@ -12342,8 +12619,111 @@ class SupervertalerQt(QMainWindow):
         general_prefs['lookup_delay'] = delay_spin.value()
         self.save_general_settings(general_prefs)
         
+        # Update LLM indicator in status bar
+        self._update_llm_indicator()
+        
         self.log(f"✓ LLM settings saved: Provider={new_settings['provider']}, Batch Size={batch_size_spin.value()}")
         QMessageBox.information(self, "Settings Saved", "LLM settings have been saved successfully.")
+    
+    def _save_ai_settings_from_ui(self, openai_radio, claude_radio, gemini_radio, ollama_radio,
+                                   openai_combo, claude_combo, gemini_combo,
+                                   ollama_status_widget,
+                                   openai_enable_cb, claude_enable_cb, gemini_enable_cb, ollama_enable_cb,
+                                   batch_size_spin, surrounding_spin, full_context_cb, context_slider,
+                                   check_tm_cb, auto_propagate_cb, delay_spin,
+                                   ollama_keepwarm_cb, supermemory_cb, supermemory_autoinit_cb,
+                                   llm_matching_cb, auto_markdown_cb, llm_spin):
+        """Save all AI settings from the unified AI Settings tab"""
+        # Determine selected provider
+        if openai_radio.isChecked():
+            provider = 'openai'
+        elif claude_radio.isChecked():
+            provider = 'claude'
+        elif gemini_radio.isChecked():
+            provider = 'gemini'
+        elif ollama_radio.isChecked():
+            provider = 'ollama'
+        else:
+            provider = 'openai'  # Default fallback
+        
+        # Get Ollama model from widget if available
+        ollama_model = 'qwen2.5:7b'  # Default
+        if ollama_status_widget and hasattr(ollama_status_widget, 'get_selected_model'):
+            selected = ollama_status_widget.get_selected_model()
+            if selected:
+                ollama_model = selected
+        
+        new_settings = {
+            'provider': provider,
+            'openai_model': openai_combo.currentText().split()[0],
+            'claude_model': claude_combo.currentText().split()[0],
+            'gemini_model': gemini_combo.currentText().split()[0],
+            'ollama_model': ollama_model
+        }
+        self.save_llm_settings(new_settings)
+
+        # Update current provider and model attributes for AI Assistant
+        self.current_provider = new_settings['provider']
+        provider_key = f"{self.current_provider}_model"
+        self.current_model = new_settings.get(provider_key)
+
+        # Save LLM provider enabled states
+        enabled_states = {
+            'llm_openai': openai_enable_cb.isChecked(),
+            'llm_claude': claude_enable_cb.isChecked(),
+            'llm_gemini': gemini_enable_cb.isChecked(),
+            'llm_ollama': ollama_enable_cb.isChecked()
+        }
+        # Merge with existing MT settings
+        existing = self.load_provider_enabled_states()
+        enabled_states.update({k: v for k, v in existing.items() if k.startswith('mt_')})
+        self.save_provider_enabled_states(enabled_states)
+        
+        # Update LLM matching setting
+        self.enable_llm_matching = llm_matching_cb.isChecked()
+        
+        # Update auto-markdown setting
+        self.auto_generate_markdown = auto_markdown_cb.isChecked()
+        
+        # Save all general settings including AI-related ones
+        general_prefs = self.load_general_settings()
+        general_prefs['batch_size'] = batch_size_spin.value()
+        general_prefs['surrounding_segments'] = surrounding_spin.value()
+        general_prefs['use_full_context'] = full_context_cb.isChecked()
+        general_prefs['context_window_size'] = context_slider.value()
+        general_prefs['check_tm_before_api'] = check_tm_cb.isChecked()
+        general_prefs['auto_propagate_100'] = auto_propagate_cb.isChecked()
+        general_prefs['lookup_delay'] = delay_spin.value()
+        general_prefs['ollama_keepwarm'] = ollama_keepwarm_cb.isChecked()
+        general_prefs['supermemory_ollama_context'] = supermemory_cb.isChecked()
+        general_prefs['supermemory_auto_init'] = supermemory_autoinit_cb.isChecked()
+        general_prefs['enable_llm_matching'] = llm_matching_cb.isChecked()
+        general_prefs['auto_generate_markdown'] = auto_markdown_cb.isChecked()
+        
+        # Update LLM match limits
+        if 'match_limits' not in general_prefs:
+            general_prefs['match_limits'] = {}
+        general_prefs['match_limits']['LLM'] = llm_spin.value()
+        
+        self.save_general_settings(general_prefs)
+        
+        # Handle Ollama keep-warm timer
+        if ollama_keepwarm_cb.isChecked():
+            self._start_ollama_keepwarm_timer()
+        else:
+            self._stop_ollama_keepwarm_timer()
+        
+        # Apply LLM match limits to results panels
+        if hasattr(self, 'results_panels'):
+            for panel in self.results_panels:
+                if hasattr(panel, 'match_limits'):
+                    panel.match_limits['LLM'] = llm_spin.value()
+        
+        # Update LLM indicator in status bar
+        self._update_llm_indicator()
+        
+        self.log(f"✓ AI settings saved: Provider={provider}, Model={self.current_model}")
+        QMessageBox.information(self, "Settings Saved", "AI settings have been saved successfully.")
     
     def _save_mt_settings_from_ui(self, google_cb, deepl_cb, microsoft_cb, amazon_cb, modernmt_cb, mymemory_cb):
         """Save MT settings from UI"""
@@ -12363,21 +12743,17 @@ class SupervertalerQt(QMainWindow):
         self.log("✓ MT settings saved")
         QMessageBox.information(self, "Settings Saved", "MT settings have been saved successfully.")
     
-    def _save_general_settings_from_ui(self, restore_cb, allow_replace_cb, auto_propagate_cb, auto_markdown_cb=None,
+    def _save_general_settings_from_ui(self, restore_cb, allow_replace_cb, auto_propagate_cb,
                                        llm_spin=None, mt_spin=None, tm_limit_spin=None, tb_spin=None,
                                        auto_open_log_cb=None, auto_insert_100_cb=None, tm_save_mode_combo=None, tb_highlight_cb=None,
                                        enable_backup_cb=None, backup_interval_spin=None,
                                        tb_order_combo=None, tb_hide_shorter_cb=None):
-        """Save general settings from UI"""
+        """Save general settings from UI (non-AI settings only)"""
         self.allow_replace_in_source = allow_replace_cb.isChecked()
         self.update_warning_banner()
 
         # Update auto-propagate state
         self.auto_propagate_exact_matches = auto_propagate_cb.isChecked()
-
-        # Update auto-markdown setting
-        if auto_markdown_cb is not None:
-            self.auto_generate_markdown = auto_markdown_cb.isChecked()
         
         # Update auto-insert setting
         if auto_insert_100_cb is not None:
@@ -12393,34 +12769,37 @@ class SupervertalerQt(QMainWindow):
         if tb_hide_shorter_cb is not None:
             self.termbase_hide_shorter_matches = tb_hide_shorter_cb.isChecked()
 
-        # Update LLM matching setting
-        if hasattr(self, 'llm_matching_checkbox'):
-            self.enable_llm_matching = self.llm_matching_checkbox.isChecked()
-
+        # Load existing settings to preserve AI-related ones
+        existing_settings = self.load_general_settings()
+        
         general_settings = {
             'restore_last_project': restore_cb.isChecked(),
             'auto_open_log': auto_open_log_cb.isChecked() if auto_open_log_cb is not None else False,
             'auto_propagate_exact_matches': self.auto_propagate_checkbox.isChecked() if hasattr(self, 'auto_propagate_checkbox') else self.auto_propagate_exact_matches,
             'auto_insert_100_percent_matches': auto_insert_100_cb.isChecked() if auto_insert_100_cb is not None else (self.auto_insert_100_checkbox.isChecked() if hasattr(self, 'auto_insert_100_checkbox') else True),
             'tm_save_mode': tm_save_mode_combo.currentData() if tm_save_mode_combo is not None else 'latest',
-            'auto_generate_markdown': self.auto_generate_markdown if hasattr(self, 'auto_generate_markdown') else False,
+            'auto_generate_markdown': existing_settings.get('auto_generate_markdown', False),  # Preserve AI setting
             'enable_termbase_grid_highlighting': tb_highlight_cb.isChecked() if tb_highlight_cb is not None else True,
-            'enable_llm_matching': self.enable_llm_matching,  # Save LLM matching state
+            'enable_llm_matching': existing_settings.get('enable_llm_matching', False),  # Preserve AI setting
             'termbase_display_order': tb_order_combo.currentData() if tb_order_combo is not None else 'appearance',
             'termbase_hide_shorter_matches': tb_hide_shorter_cb.isChecked() if tb_hide_shorter_cb is not None else False,
-            'precision_scroll_divisor': self.precision_spin.value() if hasattr(self, 'precision_spin') else 3,  # Save precision scroll setting
-            'auto_center_active_segment': self.auto_center_cb.isChecked() if hasattr(self, 'auto_center_cb') else False,  # Save auto-center setting
-            'enable_auto_backup': enable_backup_cb.isChecked() if enable_backup_cb is not None else True,  # Auto backup enabled by default
-            'backup_interval_minutes': backup_interval_spin.value() if backup_interval_spin is not None else 5,  # Default 5 minutes
-            'grid_font_size': self.default_font_size,  # Keep existing or update separately
-            'results_match_font_size': 9,  # Keep existing
-            'results_compare_font_size': 9  # Keep existing
+            'precision_scroll_divisor': self.precision_spin.value() if hasattr(self, 'precision_spin') else 3,
+            'auto_center_active_segment': self.auto_center_cb.isChecked() if hasattr(self, 'auto_center_cb') else False,
+            'enable_auto_backup': enable_backup_cb.isChecked() if enable_backup_cb is not None else True,
+            'backup_interval_minutes': backup_interval_spin.value() if backup_interval_spin is not None else 5,
+            'ollama_keepwarm': existing_settings.get('ollama_keepwarm', False),  # Preserve AI setting
+            'supermemory_ollama_context': existing_settings.get('supermemory_ollama_context', True),  # Preserve AI setting
+            'supermemory_auto_init': existing_settings.get('supermemory_auto_init', False),  # Preserve AI setting
+            'grid_font_size': self.default_font_size,
+            'results_match_font_size': 9,
+            'results_compare_font_size': 9
         }
         
-        # Add match limits if provided
-        if all([llm_spin, mt_spin, tm_limit_spin, tb_spin]):
+        # Add match limits if provided (MT, TM, Termbase - LLM is handled in AI Settings)
+        if all([mt_spin, tm_limit_spin, tb_spin]):
+            existing_limits = existing_settings.get('match_limits', {})
             general_settings['match_limits'] = {
-                'LLM': llm_spin.value(),
+                'LLM': existing_limits.get('LLM', 3),  # Preserve LLM limit from AI settings
                 'MT': mt_spin.value(),
                 'TM': tm_limit_spin.value(),
                 'Termbases': tb_spin.value()
@@ -22953,7 +23332,8 @@ class SupervertalerQt(QMainWindow):
                 'provider': 'openai',
                 'openai_model': 'gpt-4o',
                 'claude_model': 'claude-sonnet-4-5-20250929',
-                'gemini_model': 'gemini-2.5-flash'
+                'gemini_model': 'gemini-2.5-flash',
+                'ollama_model': 'qwen2.5:7b'
             }
         
         try:
@@ -22963,14 +23343,16 @@ class SupervertalerQt(QMainWindow):
                     'provider': 'openai',
                     'openai_model': 'gpt-4o',
                     'claude_model': 'claude-sonnet-4-5-20250929',
-                    'gemini_model': 'gemini-2.5-flash'
+                    'gemini_model': 'gemini-2.5-flash',
+                    'ollama_model': 'qwen2.5:7b'
                 })
         except:
             return {
                 'provider': 'openai',
                 'openai_model': 'gpt-4o',
                 'claude_model': 'claude-sonnet-4-5-20250929',
-                'gemini_model': 'gemini-2.5-flash'
+                'gemini_model': 'gemini-2.5-flash',
+                'ollama_model': 'qwen2.5:7b'
             }
     
     def save_llm_settings(self, settings: Dict[str, str]):
@@ -23006,6 +23388,7 @@ class SupervertalerQt(QMainWindow):
                 'llm_openai': True,
                 'llm_claude': True,
                 'llm_gemini': True,
+                'llm_ollama': True,
                 'mt_google_translate': True,
                 'mt_deepl': True,
                 'mt_microsoft': True,
@@ -23021,6 +23404,7 @@ class SupervertalerQt(QMainWindow):
                     'llm_openai': True,
                     'llm_claude': True,
                     'llm_gemini': True,
+                    'llm_ollama': True,
                     'mt_google_translate': True,
                     'mt_deepl': True,
                     'mt_microsoft': True,
@@ -23034,6 +23418,7 @@ class SupervertalerQt(QMainWindow):
                 'llm_openai': True,
                 'llm_claude': True,
                 'llm_gemini': True,
+                'llm_ollama': True,
                 'mt_google_translate': True,
                 'mt_deepl': True,
                 'mt_microsoft': True,
@@ -23300,7 +23685,7 @@ class SupervertalerQt(QMainWindow):
             "<p><b>Author:</b> Michael Beijer</p>"
             "<p><b>License:</b> MIT</p>"
             "<hr>"
-            f"<p><i>v{__version__} - Bilingual Table Export/Import</i></p>"
+            f"<p><i>v{__version__} - Local LLM Support (Ollama)</i></p>"
         )
         info.setWordWrap(True)
         layout.addWidget(info)
@@ -23410,20 +23795,7 @@ class SupervertalerQt(QMainWindow):
             QMessageBox.warning(self, "Empty Source", "Cannot translate empty source text.")
             return
         
-        # Load API keys
-        api_keys = self.load_api_keys()
-        if not api_keys:
-            reply = QMessageBox.question(
-                self, "API Keys Missing",
-                "No API keys found. Would you like to configure them now?\n\n"
-                f"Keys should be in: {self.user_data_path / 'api_keys.txt'}",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-            )
-            if reply == QMessageBox.StandardButton.Yes:
-                self._go_to_settings_tab()
-            return
-        
-        # Load LLM settings
+        # Load LLM settings first to check provider
         settings = self.load_llm_settings()
         provider = settings.get('provider', 'openai')
         
@@ -23431,21 +23803,99 @@ class SupervertalerQt(QMainWindow):
         model_key = f'{provider}_model'
         model = settings.get(model_key, 'gpt-4o')
         
-        # Check if API key exists for selected provider
-        if provider not in api_keys:
-            reply = QMessageBox.question(
-                self, f"{provider.title()} API Key Missing",
-                f"{provider.title()} API key not found in api_keys.txt\n\n"
-                f"Would you like to configure it now?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-            )
-            if reply == QMessageBox.StandardButton.Yes:
-                self._go_to_settings_tab()
-            return
+        # Ollama doesn't need API keys - it's local
+        if provider == 'ollama':
+            api_keys = {'ollama': 'not-needed'}  # Placeholder - Ollama doesn't use API keys
+        else:
+            # Load API keys for cloud providers
+            api_keys = self.load_api_keys()
+            if not api_keys:
+                reply = QMessageBox.question(
+                    self, "API Keys Missing",
+                    "No API keys found. Would you like to configure them now?\n\n"
+                    f"Keys should be in: {self.user_data_path / 'api_keys.txt'}",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+                )
+                if reply == QMessageBox.StandardButton.Yes:
+                    self._go_to_settings_tab()
+                return
+            
+            # Check if API key exists for selected provider
+            if provider not in api_keys:
+                reply = QMessageBox.question(
+                    self, f"{provider.title()} API Key Missing",
+                    f"{provider.title()} API key not found in api_keys.txt\n\n"
+                    f"Would you like to configure it now?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+                )
+                if reply == QMessageBox.StandardButton.Yes:
+                    self._go_to_settings_tab()
+                return
         
         try:
             self.status_bar.showMessage(f"Translating segment #{segment.id} with {provider} ({model})...")
             QApplication.processEvents()  # Update UI
+            
+            # For Ollama (local LLM), show a progress dialog since it can take a while
+            progress_dialog = None
+            elapsed_timer = None
+            start_time = None
+            
+            if provider == 'ollama':
+                from PyQt6.QtCore import QTimer, QElapsedTimer
+                import time
+                
+                progress_dialog = QDialog(self)
+                progress_dialog.setWindowTitle("Local LLM Translation")
+                progress_dialog.setModal(False)  # Non-modal so we can update it
+                progress_dialog.setMinimumWidth(400)
+                progress_layout = QVBoxLayout(progress_dialog)
+                
+                progress_header = QLabel(f"<h3>🖥️ Translating with Local LLM</h3>")
+                progress_layout.addWidget(progress_header)
+                
+                progress_info = QLabel(
+                    f"<b>Model:</b> {model}<br>"
+                    f"<b>Segment:</b> #{segment.id}<br><br>"
+                    f"<i>Local LLM translation may take 10-60 seconds depending on your hardware...</i>"
+                )
+                progress_info.setWordWrap(True)
+                progress_layout.addWidget(progress_info)
+                
+                # Animated progress bar (indeterminate)
+                progress_bar = QProgressBar()
+                progress_bar.setRange(0, 0)  # Indeterminate mode
+                progress_bar.setTextVisible(False)
+                progress_layout.addWidget(progress_bar)
+                
+                # Elapsed time label
+                elapsed_label = QLabel("⏱️ Elapsed: 0 seconds")
+                elapsed_label.setStyleSheet("color: #333; font-weight: bold; padding: 5px 0;")
+                progress_layout.addWidget(elapsed_label)
+                
+                progress_status = QLabel("⏳ Processing... (CPU usage is normal)")
+                progress_status.setStyleSheet("color: #666; padding: 5px 0;")
+                progress_layout.addWidget(progress_status)
+                
+                # Store references
+                progress_dialog.status_label = progress_status
+                progress_dialog.elapsed_label = elapsed_label
+                
+                # Setup elapsed time counter
+                start_time = time.time()
+                
+                def update_elapsed():
+                    if start_time and hasattr(progress_dialog, 'elapsed_label'):
+                        elapsed = int(time.time() - start_time)
+                        progress_dialog.elapsed_label.setText(f"⏱️ Elapsed: {elapsed} seconds")
+                        QApplication.processEvents()
+                
+                elapsed_timer = QTimer()
+                elapsed_timer.timeout.connect(update_elapsed)
+                elapsed_timer.start(1000)  # Update every second
+                
+                progress_dialog.show()
+                QApplication.processEvents()
             
             # Use modular LLM client with user's settings
             from modules.llm_clients import LLMClient
@@ -23506,9 +23956,80 @@ class SupervertalerQt(QMainWindow):
                 self.status_bar.showMessage(f"✓ Segment #{segment.id} translated from TM (100% match)", 3000)
                 return
             
-            # Build full prompt using prompt manager (includes UICONTROL tags, etc.)
+            # Build prompt - use optimized prompt for local LLM (Ollama)
             custom_prompt = None
-            if hasattr(self, 'prompt_manager_qt') and self.prompt_manager_qt:
+            
+            if provider == 'ollama':
+                # Use a focused but context-aware prompt for local LLMs
+                source_lang = self.current_project.source_lang
+                target_lang = self.current_project.target_lang
+                
+                # Get 2-3 surrounding segments for context (not 5+ like cloud LLMs)
+                context_lines = []
+                surrounding_count = 2  # Fewer segments for faster inference
+                
+                try:
+                    start_idx = max(0, current_row - surrounding_count)
+                    end_idx = min(len(self.current_project.segments), current_row + surrounding_count + 1)
+                    
+                    for i in range(start_idx, end_idx):
+                        seg = self.current_project.segments[i]
+                        if i == current_row:
+                            continue  # Skip current segment
+                        if seg.target and seg.target.strip():
+                            # Show already translated segments as reference
+                            context_lines.append(f"• {seg.source[:80]}{'...' if len(seg.source) > 80 else ''}")
+                            context_lines.append(f"  → {seg.target[:80]}{'...' if len(seg.target) > 80 else ''}")
+                except:
+                    pass
+                
+                # Get Supermemory context (TM matches from vector database)
+                supermemory_context = ""
+                supermemory_enabled = general_prefs.get('supermemory_ollama_context', True)
+                
+                if supermemory_enabled:
+                    try:
+                        if hasattr(self, 'supermemory_widget') and self.supermemory_widget:
+                            engine = self.supermemory_widget.engine
+                            if engine and engine.is_initialized():
+                                supermemory_context = engine.get_context_for_llm(
+                                    segment.source,
+                                    n_examples=3,
+                                    source_lang=source_lang,
+                                    target_lang=target_lang
+                                )
+                                if supermemory_context:
+                                    self.log(f"  [Supermemory] Injecting {supermemory_context.count('Source:')} TM examples into prompt")
+                    except Exception as e:
+                        self.log(f"  [Supermemory] Error getting context: {e}")
+                
+                # Build optimized prompt with Supermemory context
+                prompt_parts = [f"You are a professional translator ({source_lang} → {target_lang})."]
+                
+                # Add Supermemory TM matches first (most important for terminology)
+                if supermemory_context:
+                    prompt_parts.append("")
+                    prompt_parts.append(supermemory_context)
+                
+                # Add surrounding segment context
+                if context_lines:
+                    context_section = "\n".join(context_lines)
+                    prompt_parts.append("")
+                    prompt_parts.append("Context from surrounding segments:")
+                    prompt_parts.append(context_section)
+                
+                # Add the segment to translate
+                prompt_parts.append("")
+                prompt_parts.append("Translate this segment accurately. Output ONLY the translation:")
+                prompt_parts.append(segment.source)
+                prompt_parts.append("")
+                prompt_parts.append("Translation:")
+                
+                custom_prompt = "\n".join(prompt_parts)
+                
+                self.log(f"  Using optimized Ollama prompt ({len(custom_prompt)} chars, {len(context_lines)//2} context segs)")
+            
+            elif hasattr(self, 'prompt_manager_qt') and self.prompt_manager_qt:
                 try:
                     # Get surrounding segments if enabled
                     surrounding_segments = general_prefs.get('surrounding_segments', 5)
@@ -23628,11 +24149,27 @@ class SupervertalerQt(QMainWindow):
                 
                 self.log(f"✓ Segment #{segment.id} translated with {provider}/{model}")
                 self.status_bar.showMessage(f"✓ Segment #{segment.id} translated", 3000)
+                
+                # Stop elapsed timer and close progress dialog
+                if elapsed_timer:
+                    elapsed_timer.stop()
+                if progress_dialog:
+                    progress_dialog.close()
             else:
                 self.log(f"✗ Translation failed for segment #{segment.id}")
+                # Stop elapsed timer and close progress dialog
+                if elapsed_timer:
+                    elapsed_timer.stop()
+                if progress_dialog:
+                    progress_dialog.close()
                 QMessageBox.warning(self, "Translation Failed", "No translation received from LLM.")
                 
         except Exception as e:
+            # Stop elapsed timer and close progress dialog
+            if 'elapsed_timer' in locals() and elapsed_timer:
+                elapsed_timer.stop()
+            if 'progress_dialog' in locals() and progress_dialog:
+                progress_dialog.close()
             self.log(f"✗ Translation error: {str(e)}")
             QMessageBox.critical(self, "Translation Error", f"Failed to translate segment:\n\n{str(e)}")
             self.status_bar.showMessage("Translation failed", 3000)
@@ -24022,14 +24559,17 @@ class SupervertalerQt(QMainWindow):
         else:
             # Use LLM provider
             translation_provider_type = 'LLM'
-            if not api_keys:
+            
+            # Ollama doesn't need API keys - it's local
+            if llm_provider == 'ollama':
+                api_keys = {'ollama': 'not-needed'}  # Placeholder - Ollama doesn't use API keys
+            elif not api_keys:
                 QMessageBox.critical(
                     self, "API Keys Missing",
                     "Please configure your API keys in Settings first."
                 )
                 return
-
-            if llm_provider not in api_keys:
+            elif llm_provider not in api_keys:
                 QMessageBox.critical(
                     self, f"{llm_provider.title()} API Key Missing",
                     f"Please configure your {llm_provider.title()} API key in Settings."
@@ -25986,7 +26526,7 @@ class UniversalLookupTab(QWidget):
         
         layout.addLayout(button_layout)
         
-        # Results area (with tabs for TM, termbase, MT)
+        # Results area (with tabs for TM, termbase, MT, Supermemory)
         self.results_tabs = QTabWidget()
         self.results_tabs.tabBar().setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.results_tabs.tabBar().setDrawBase(False)
@@ -25999,6 +26539,10 @@ class UniversalLookupTab(QWidget):
         # Termbase Results tab
         termbase_tab = self.create_termbase_results_tab()
         self.results_tabs.addTab(termbase_tab, "📚 Termbase Terms")
+        
+        # Supermemory Results tab (semantic search)
+        supermemory_tab = self.create_supermemory_results_tab()
+        self.results_tabs.addTab(supermemory_tab, "🧠 Supermemory")
         
         # MT Results tab
         mt_tab = self.create_mt_results_tab()
@@ -26097,6 +26641,113 @@ class UniversalLookupTab(QWidget):
         layout.addWidget(info)
         
         return tab
+    
+    def create_supermemory_results_tab(self):
+        """Create the Supermemory semantic search results tab"""
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        
+        # Info label
+        info = QLabel("🧠 Semantic search across your indexed Translation Memories")
+        info.setStyleSheet("color: #666; padding: 5px;")
+        layout.addWidget(info)
+        
+        # Status / availability check
+        self.supermemory_status = QLabel("Checking Supermemory availability...")
+        self.supermemory_status.setStyleSheet("padding: 5px;")
+        layout.addWidget(self.supermemory_status)
+        
+        # Results table
+        self.supermemory_results_table = QTableWidget()
+        self.supermemory_results_table.setColumnCount(5)
+        self.supermemory_results_table.setHorizontalHeaderLabels(["Similarity", "Source", "Target", "Domain", "TM"])
+        self.supermemory_results_table.horizontalHeader().setStretchLastSection(False)
+        self.supermemory_results_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.supermemory_results_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        self.supermemory_results_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.supermemory_results_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.supermemory_results_table.doubleClicked.connect(self.on_supermemory_result_double_click)
+        layout.addWidget(self.supermemory_results_table)
+        
+        # Action buttons
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+        
+        copy_btn = QPushButton("📋 Copy Target")
+        copy_btn.clicked.connect(self.copy_selected_supermemory_target)
+        button_layout.addWidget(copy_btn)
+        
+        layout.addLayout(button_layout)
+        
+        # Initialize Supermemory engine reference
+        self.supermemory_engine = None
+        
+        return tab
+    
+    def init_supermemory(self):
+        """Initialize connection to Supermemory engine from main window"""
+        try:
+            if hasattr(self.main_window, 'supermemory_engine') and self.main_window.supermemory_engine:
+                self.supermemory_engine = self.main_window.supermemory_engine
+                if self.supermemory_engine.is_initialized():
+                    stats = self.supermemory_engine.get_stats()
+                    self.supermemory_status.setText(
+                        f"✅ Ready: {stats['total_entries']:,} entries in {stats['total_tms']} TMs"
+                    )
+                    self.supermemory_status.setStyleSheet("color: green; padding: 5px;")
+                else:
+                    self.supermemory_status.setText("⚠️ Supermemory not initialized. Go to Tools → Supermemory to set up.")
+                    self.supermemory_status.setStyleSheet("color: orange; padding: 5px;")
+            else:
+                self.supermemory_status.setText("⚠️ Supermemory not available. Enable in Tools → Supermemory.")
+                self.supermemory_status.setStyleSheet("color: orange; padding: 5px;")
+        except Exception as e:
+            self.supermemory_status.setText(f"❌ Error: {e}")
+            self.supermemory_status.setStyleSheet("color: red; padding: 5px;")
+    
+    def search_supermemory(self, query: str):
+        """Search Supermemory for semantic matches"""
+        if not self.supermemory_engine or not self.supermemory_engine.is_initialized():
+            self.init_supermemory()
+            if not self.supermemory_engine or not self.supermemory_engine.is_initialized():
+                return
+        
+        try:
+            # Use active domains for filtering
+            results = self.supermemory_engine.search_by_active_domains(query, n_results=10)
+            
+            self.supermemory_results_table.setRowCount(len(results))
+            
+            for i, r in enumerate(results):
+                sim_pct = f"{int(r.similarity * 100)}%"
+                self.supermemory_results_table.setItem(i, 0, QTableWidgetItem(sim_pct))
+                self.supermemory_results_table.setItem(i, 1, QTableWidgetItem(r.entry.source))
+                self.supermemory_results_table.setItem(i, 2, QTableWidgetItem(r.entry.target))
+                self.supermemory_results_table.setItem(i, 3, QTableWidgetItem(r.domain or "—"))
+                self.supermemory_results_table.setItem(i, 4, QTableWidgetItem(r.entry.tm_name))
+            
+            if not results:
+                self.supermemory_status.setText("No semantic matches found")
+            else:
+                self.supermemory_status.setText(f"Found {len(results)} semantic matches")
+                
+        except Exception as e:
+            self.supermemory_status.setText(f"Search error: {e}")
+    
+    def on_supermemory_result_double_click(self):
+        """Handle double-click on Supermemory result"""
+        self.copy_selected_supermemory_target()
+    
+    def copy_selected_supermemory_target(self):
+        """Copy selected Supermemory target to clipboard"""
+        selected = self.supermemory_results_table.selectedItems()
+        if selected:
+            row = selected[0].row()
+            target = self.supermemory_results_table.item(row, 2)
+            if target:
+                import pyperclip
+                pyperclip.copy(target.text())
+                self.status_label.setText(f"✓ Copied: {target.text()[:50]}...")
     
     def create_mt_results_tab(self):
         """Create the MT results tab"""
@@ -26658,6 +27309,9 @@ class UniversalLookupTab(QWidget):
         
         # Perform termbase lookup (search Supervertaler termbases directly)
         termbase_results = self.search_termbases(text)
+        
+        # Perform Supermemory semantic search
+        self.search_supermemory(text)
         
         # Perform MT lookup
         mt_results = []  # TODO: Add MT integration

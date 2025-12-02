@@ -1,13 +1,154 @@
 # Supervertaler Project Context
 
-**Last Updated:** November 30, 2025
-**Current Version:** v1.9.15
+**Last Updated:** December 3, 2025
+**Current Version:** v1.9.17
 **Repository:** https://github.com/michaelbeijer/Supervertaler
 **Maintainer:** Michael Beijer
 
 ---
 
 ## 📅 Recent Development Activity
+
+### December 3, 2025 - Version 1.9.17: Supermemory Enhanced - Domains & Filtering
+
+**🧠 Major Supermemory Enhancements**
+Complete domain management system, filtering, Superlookup integration, and export functionality.
+
+**New Features:**
+- **Domain Management System**
+  - New `domains` table in metadata database with default domains (General, Patents, Medical, Legal, Technical, Marketing, Financial, Software)
+  - Domain Manager dialog (🏷️ Domains... button) for creating/editing/deleting domains
+  - Each domain has name, description, color, and active status
+  - Domain column added to indexed TMs table with color coding
+  
+- **TMX Import with Domain Selection**
+  - When adding TMX files, a dialog now asks to select a domain category
+  - Domain is stored with TMX metadata and all ChromaDB entries
+  
+- **Advanced Filtering**
+  - Language pair filter dropdown (populated from indexed TMs)
+  - Domain filter with multi-select activation
+  - "Use active domains only" checkbox for search filtering
+  - Filter button shows active count (e.g., "3/8 Domains ▼")
+  
+- **Dynamic Column Headers**
+  - Search results now show actual language codes (e.g., "Source (EN)", "Target (NL)")
+  - Updates automatically based on search results
+  
+- **Superlookup Integration**
+  - New 🧠 Supermemory tab in Superlookup (Tools → Superlookup)
+  - Semantic search runs automatically alongside TM and termbase searches
+  - Results table with Similarity, Source, Target, Domain, TM columns
+  - Copy target on double-click
+  
+- **Export Functionality**
+  - New 📤 Export button in Supermemory header
+  - Export to TMX or CSV format
+  - Filter by domain or specific TM before export
+  - Progress feedback during export
+  
+- **AI Settings Consolidation**
+  - All AI settings moved to new "🤖 AI Settings" tab
+  - Includes: Provider selection, API models, Ollama settings, Supermemory options
+  - Removed AI settings from General tab for cleaner organization
+
+**Technical Implementation:**
+- `modules/supermemory.py` - Expanded to 2100+ lines
+  - Added `Domain` dataclass
+  - Added `domain` field to `MemoryEntry`, `IndexedTM`, `SearchResult`
+  - New database migration for `domain` column
+  - `domains` table with CRUD operations
+  - `search()` now supports `domains` parameter
+  - `search_by_active_domains()` convenience method
+  - `get_context_for_llm()` now respects active domains
+  - `export_to_tmx()` and `export_to_csv()` methods
+  - `DomainManagerDialog` class
+  - Updated `SupermemoryWidget` with filter UI
+
+- `Supervertaler.py`
+  - New `_create_ai_settings_tab()` method
+  - New `_save_ai_settings_from_ui()` method
+  - `UniversalLookupTab` updated:
+    - Added `create_supermemory_results_tab()` method
+    - Added `search_supermemory()`, `init_supermemory()` methods
+    - `perform_lookup()` now includes Supermemory search
+
+**Files Changed:**
+- `modules/supermemory.py` - Major expansion (~900 new lines)
+- `Supervertaler.py` - AI Settings tab, Superlookup integration
+
+**Database Changes:**
+- New `domains` table in `user_data/supermemory/metadata.db`
+- New `domain` column in `indexed_tms` table (auto-migrated)
+
+---
+
+### December 2, 2025 - Supermemory: Vector-Indexed Translation Memory (Phase 1)
+
+**🧠 New Feature: Supermemory**
+Semantic search across translation memories using AI embeddings. Find translations by meaning, not just fuzzy text matching.
+
+**What It Does:**
+- **Import TMX files** into a local vector database
+- **Semantic search** - find translations by meaning, not exact text match
+- **Cross-TM search** - search ALL your indexed TMs at once
+- **LLM context injection** - provide relevant TM examples to Ollama/Claude
+
+**Technical Stack (all local, no cloud):**
+- **ChromaDB** - Local vector database for embeddings
+- **Sentence-Transformers** - Multilingual text embeddings (paraphrase-multilingual-MiniLM-L12-v2)
+- **SQLite** - Metadata storage
+
+**Installation:**
+```
+pip install chromadb sentence-transformers
+```
+First run downloads embedding model (~420MB), then everything runs offline.
+
+**Files Created:**
+- `modules/supermemory.py` - Complete module (800+ lines initially, now 2100+)
+
+**UI Location:** Tools → 🧠 Supermemory
+
+**Completed Phases:**
+- ✅ Phase 1: TMX indexer + semantic search UI
+- ✅ Phase 2: Domain management + filtering + Superlookup integration
+- 🔮 Phase 3: OPUS corpus integration, consistency checking
+
+---
+
+### December 1, 2025 - Version 1.9.16: Local LLM Support (Ollama)
+
+**Feature Request:** Add UI to create custom Ollama models with optimized settings.
+
+**Why Needed:**
+- Default Ollama context window (2K-4K tokens) may be too small for long segments
+- Custom system prompts improve translation quality for specific domains
+- Lower temperature (0.2) is better for translation accuracy vs creativity
+
+**Planned Implementation:**
+A "Create Custom Model" button in Local LLM Setup that:
+1. Lets user pick base model (qwen2.5:32b, aya-expanse:8b, etc.)
+2. Sets optimal parameters:
+   - `num_ctx 32768` (32K context window)
+   - `temperature 0.2` (precision over creativity)
+3. Adds configurable system prompt (e.g., patent translator persona)
+4. Creates model via `ollama create <name> -f <Modelfile>`
+
+**Manual Workaround (Current):**
+Users can manually create a Modelfile:
+```
+FROM qwen2.5:32b
+PARAMETER num_ctx 32768
+PARAMETER temperature 0.2
+SYSTEM """
+You are a specialized translator. Preserve terminology, be literal over fluent.
+Output only the translation without preamble.
+"""
+```
+Then run: `ollama create my-translator -f Modelfile`
+
+---
 
 ### November 30, 2025 - Version 1.9.15: Bilingual Table Export/Import
 

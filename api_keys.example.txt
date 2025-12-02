@@ -23,6 +23,12 @@ claude=YOUR_ANTHROPIC_API_KEY_HERE
 # NOTE: Use "google" as the key name (not "gemini")
 google=YOUR_GOOGLE_GEMINI_API_KEY_HERE
 
+# === Local LLM (Ollama) ===
+# No API key needed! Ollama runs locally on your computer.
+# Install from: https://ollama.com
+# Default endpoint (change only if using non-standard port):
+ollama_endpoint=http://localhost:11434
+
 # === Optional Translation APIs ===
 
 # DeepL (Optional - for DeepL translation)

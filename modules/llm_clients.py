@@ -73,7 +73,8 @@ def load_api_keys() -> Dict[str, str]:
         "claude": "",
         "openai": "",
         "deepl": "",
-        "mymemory": ""
+        "mymemory": "",
+        "ollama_endpoint": "http://localhost:11434"  # Local LLM endpoint (no key needed)
     }
 
     if os.path.exists(api_keys_file):
@@ -87,8 +88,15 @@ def load_api_keys() -> Dict[str, str]:
                         value = value.strip()
                         if key in api_keys:
                             api_keys[key] = value
+                        # Also check for ollama_endpoint
+                        elif key == 'ollama_endpoint' and value:
+                            api_keys['ollama_endpoint'] = value
         except Exception as e:
             print(f"Error loading API keys: {e}")
+    
+    # Set environment variable for Ollama endpoint if configured
+    if api_keys.get('ollama_endpoint'):
+        os.environ['OLLAMA_ENDPOINT'] = api_keys['ollama_endpoint']
 
     return api_keys
 
@@ -110,7 +118,75 @@ class LLMClient:
     DEFAULT_MODELS = {
         "openai": "gpt-4o",
         "claude": "claude-sonnet-4-5-20250929",  # Claude Sonnet 4.5 (Sept 2025)
-        "gemini": "gemini-2.5-flash"  # Gemini 2.5 Flash (2025)
+        "gemini": "gemini-2.5-flash",  # Gemini 2.5 Flash (2025)
+        "ollama": "qwen2.5:7b"  # Local LLM via Ollama - excellent multilingual quality
+    }
+    
+    # Available Ollama models with descriptions (for UI display)
+    OLLAMA_MODELS = {
+        "qwen2.5:3b": {
+            "name": "Qwen 2.5 3B",
+            "description": "Fast & lightweight - good for simple translations",
+            "size_gb": 2.0,
+            "ram_required": 4,
+            "quality_stars": 3,
+            "strengths": ["Fast", "Low memory", "Multilingual"],
+            "use_case": "Quick drafts, simple text, low-end hardware"
+        },
+        "qwen2.5:7b": {
+            "name": "Qwen 2.5 7B",
+            "description": "Recommended - excellent multilingual quality",
+            "size_gb": 4.4,
+            "ram_required": 8,
+            "quality_stars": 4,
+            "strengths": ["Excellent multilingual", "Good quality", "Balanced speed"],
+            "use_case": "General translation, most European languages"
+        },
+        "llama3.2:3b": {
+            "name": "Llama 3.2 3B",
+            "description": "Meta's efficient model - good English",
+            "size_gb": 2.0,
+            "ram_required": 4,
+            "quality_stars": 3,
+            "strengths": ["Fast", "Good English", "Efficient"],
+            "use_case": "English-centric translations, quick drafts"
+        },
+        "mistral:7b": {
+            "name": "Mistral 7B",
+            "description": "Strong European language support",
+            "size_gb": 4.1,
+            "ram_required": 8,
+            "quality_stars": 4,
+            "strengths": ["European languages", "French", "Fast inference"],
+            "use_case": "French, German, Spanish translations"
+        },
+        "gemma2:9b": {
+            "name": "Gemma 2 9B",
+            "description": "Google's quality model - best for size",
+            "size_gb": 5.5,
+            "ram_required": 10,
+            "quality_stars": 5,
+            "strengths": ["High quality", "Good reasoning", "Multilingual"],
+            "use_case": "Quality-focused translation, technical content"
+        },
+        "qwen2.5:14b": {
+            "name": "Qwen 2.5 14B",
+            "description": "Premium quality - needs 16GB+ RAM",
+            "size_gb": 9.0,
+            "ram_required": 16,
+            "quality_stars": 5,
+            "strengths": ["Excellent quality", "Complex text", "Nuanced translation"],
+            "use_case": "Premium translations, complex documents, high-end hardware"
+        },
+        "llama3.1:8b": {
+            "name": "Llama 3.1 8B",
+            "description": "Meta's capable model - good all-rounder",
+            "size_gb": 4.7,
+            "ram_required": 8,
+            "quality_stars": 4,
+            "strengths": ["Versatile", "Good quality", "Well-tested"],
+            "use_case": "General purpose translation"
+        }
     }
     
     # Vision-capable models (support image inputs)
@@ -199,6 +275,73 @@ class LLMClient:
         return cls.CLAUDE_MODELS
     
     @classmethod
+    def get_ollama_model_info(cls, model_id: Optional[str] = None) -> Dict:
+        """
+        Get information about available Ollama models
+        
+        Args:
+            model_id: Specific model ID to get info for, or None for all models
+            
+        Returns:
+            Dict with model information
+        """
+        if model_id:
+            return cls.OLLAMA_MODELS.get(model_id, {})
+        return cls.OLLAMA_MODELS
+    
+    @classmethod
+    def check_ollama_status(cls, endpoint: str = None) -> Dict:
+        """
+        Check if Ollama is running and get available models
+        
+        Args:
+            endpoint: Ollama API endpoint (default: http://localhost:11434)
+            
+        Returns:
+            Dict with:
+                - running: bool - whether Ollama is running
+                - models: list - available model names
+                - error: str - error message if not running
+        """
+        import requests
+        
+        endpoint = endpoint or os.environ.get('OLLAMA_ENDPOINT', 'http://localhost:11434')
+        
+        try:
+            # Check if Ollama is running
+            response = requests.get(f"{endpoint}/api/tags", timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                models = [m['name'] for m in data.get('models', [])]
+                return {
+                    'running': True,
+                    'models': models,
+                    'endpoint': endpoint,
+                    'error': None
+                }
+            else:
+                return {
+                    'running': False,
+                    'models': [],
+                    'endpoint': endpoint,
+                    'error': f"Ollama returned status {response.status_code}"
+                }
+        except requests.exceptions.ConnectionError:
+            return {
+                'running': False,
+                'models': [],
+                'endpoint': endpoint,
+                'error': "Cannot connect to Ollama. Please ensure Ollama is installed and running."
+            }
+        except Exception as e:
+            return {
+                'running': False,
+                'models': [],
+                'endpoint': endpoint,
+                'error': str(e)
+            }
+    
+    @classmethod
     def model_supports_vision(cls, provider: str, model_name: str) -> bool:
         """
         Check if a model supports vision (image) inputs
@@ -214,15 +357,15 @@ class LLMClient:
         vision_models = cls.VISION_MODELS.get(provider, [])
         return model_name in vision_models
 
-    def __init__(self, api_key: str, provider: str = "openai", model: Optional[str] = None, max_tokens: int = 16384):
+    def __init__(self, api_key: str = None, provider: str = "openai", model: Optional[str] = None, max_tokens: int = 16384):
         """
         Initialize LLM client
         
         Args:
-            api_key: API key for the provider
-            provider: "openai", "claude", or "gemini"
+            api_key: API key for the provider (not required for 'ollama')
+            provider: "openai", "claude", "gemini", or "ollama"
             model: Model name (uses default if None)
-            max_tokens: Maximum tokens for responses (default: 4096)
+            max_tokens: Maximum tokens for responses (default: 16384)
         """
         self.provider = provider.lower()
         self.api_key = api_key
@@ -231,6 +374,10 @@ class LLMClient:
         
         if not self.model:
             raise ValueError(f"Unknown provider: {provider}")
+        
+        # Validate API key for cloud providers (not needed for Ollama)
+        if self.provider != "ollama" and not self.api_key:
+            raise ValueError(f"API key required for provider: {provider}")
         
         # Auto-detect temperature based on model
         self.temperature = self._get_temperature()
@@ -473,6 +620,8 @@ class LLMClient:
             return self._call_claude(prompt, max_tokens=max_tokens, images=images)
         elif self.provider == "gemini":
             return self._call_gemini(prompt, max_tokens=max_tokens, images=images)
+        elif self.provider == "ollama":
+            return self._call_ollama(prompt, max_tokens=max_tokens)
         else:
             raise ValueError(f"Unsupported provider: {self.provider}")
     
@@ -702,6 +851,127 @@ class LLMClient:
         translation = self._clean_translation_response(translation, prompt)
         
         return translation
+    
+    def _call_ollama(self, prompt: str, max_tokens: Optional[int] = None) -> str:
+        """
+        Call local Ollama server for translation.
+        
+        Ollama provides a simple REST API compatible with local LLM inference.
+        Models run entirely on the user's computer - no API keys, no internet required.
+        
+        Args:
+            prompt: The full prompt to send
+            max_tokens: Maximum tokens to generate (default: 4096)
+            
+        Returns:
+            Translated text
+            
+        Raises:
+            ConnectionError: If Ollama is not running
+            ValueError: If model is not available
+        """
+        try:
+            import requests
+        except ImportError:
+            raise ImportError(
+                "Requests library not installed. Install with: pip install requests"
+            )
+        
+        # Get Ollama endpoint from environment or use default
+        endpoint = os.environ.get('OLLAMA_ENDPOINT', 'http://localhost:11434')
+        
+        # Use provided max_tokens or default
+        tokens_to_use = max_tokens if max_tokens is not None else min(self.max_tokens, 8192)
+        
+        print(f"🟠 _call_ollama START: model={self.model}, prompt_len={len(prompt)}, max_tokens={tokens_to_use}")
+        print(f"🟠 Ollama endpoint: {endpoint}")
+        
+        # Build request payload
+        # Using /api/chat for chat-style interaction (better for translation prompts)
+        payload = {
+            "model": self.model,
+            "messages": [
+                {"role": "user", "content": prompt}
+            ],
+            "stream": False,  # Get complete response at once
+            "options": {
+                "temperature": 0.3,  # Low temperature for consistent translations
+                "num_predict": tokens_to_use,
+                "top_p": 0.9,
+                "repeat_penalty": 1.1
+            }
+        }
+        
+        try:
+            # Make API call with generous timeout (local models can be slow, especially first load)
+            # First call loads model into memory which can take 30-60 seconds
+            # Large models (14B+) on CPU can take 2-5 minutes per translation
+            print(f"🟠 Calling Ollama API...")
+            
+            # Determine timeout based on model size
+            model_lower = self.model.lower()
+            if '14b' in model_lower or '13b' in model_lower or '20b' in model_lower:
+                timeout_seconds = 600  # 10 minutes for large models on CPU
+            elif '7b' in model_lower or '8b' in model_lower or '9b' in model_lower:
+                timeout_seconds = 300  # 5 minutes for medium models
+            else:
+                timeout_seconds = 180  # 3 minutes for small models
+            
+            response = requests.post(
+                f"{endpoint}/api/chat",
+                json=payload,
+                timeout=timeout_seconds
+            )
+            
+            if response.status_code == 404:
+                raise ValueError(
+                    f"Model '{self.model}' not found in Ollama. "
+                    f"Please download it first with: ollama pull {self.model}"
+                )
+            
+            response.raise_for_status()
+            
+            result = response.json()
+            print(f"🟠 Ollama API call completed")
+            
+            # Extract translation from response
+            if 'message' in result and 'content' in result['message']:
+                translation = result['message']['content'].strip()
+            else:
+                raise ValueError(f"Unexpected Ollama response format: {result}")
+            
+            # Log some stats if available
+            if 'eval_count' in result:
+                print(f"🟠 Ollama stats: {result.get('eval_count', 0)} tokens generated")
+            
+            # Clean up translation: remove any prompt remnants
+            translation = self._clean_translation_response(translation, prompt)
+            
+            return translation
+            
+        except requests.exceptions.ConnectionError:
+            raise ConnectionError(
+                f"Cannot connect to Ollama at {endpoint}. "
+                "Please ensure Ollama is installed and running.\n\n"
+                "To start Ollama:\n"
+                "  1. Install from https://ollama.com\n"
+                "  2. Run 'ollama serve' in a terminal\n"
+                "  3. Try again"
+            )
+        except requests.exceptions.Timeout:
+            raise TimeoutError(
+                f"Ollama request timed out after {timeout_seconds} seconds.\n\n"
+                "This usually means:\n"
+                "  1. System is low on RAM (check Task Manager)\n"
+                "  2. Model is too large for your hardware\n"
+                "  3. First-time model loading takes longer\n\n"
+                "Solutions:\n"
+                "  • Close other applications to free RAM\n"
+                "  • Use a smaller model: 'qwen2.5:7b' or 'qwen2.5:3b'\n"
+                "  • Try again (subsequent runs are faster)"
+            )
+        except requests.exceptions.RequestException as e:
+            raise RuntimeError(f"Ollama API error: {str(e)}")
 
 
 # ============================================================================

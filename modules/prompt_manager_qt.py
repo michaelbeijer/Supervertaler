@@ -2757,24 +2757,29 @@ Provide ONLY the translation, one segment per line, aligned 1:1 with the source 
         provider = settings.get('provider', 'openai')
         print(f"[DOC ANALYSIS] Provider: {provider}")
         
-        # Map provider to API key name
-        api_key_map = {
-            'openai': 'openai',
-            'claude': 'claude',
-            'gemini': 'google'
-        }
-        api_key_name = api_key_map.get(provider)
-        
-        if not api_keys.get(api_key_name):
-            print(f"[DOC ANALYSIS] ✗ API key missing for {provider}")
-            QMessageBox.warning(
-                self.parent_app if self.parent_app else None,
-                "API Key Missing",
-                f"Please configure {provider.upper()} API key in Settings → LLM Settings first."
-            )
-            return
-        
-        print(f"[DOC ANALYSIS] ✓ API key found for {provider}")
+        # Ollama doesn't need API keys - it's local
+        if provider == 'ollama':
+            api_keys = {'ollama': 'not-needed'}  # Placeholder
+            print(f"[DOC ANALYSIS] ✓ Using local Ollama (no API key needed)")
+        else:
+            # Map provider to API key name
+            api_key_map = {
+                'openai': 'openai',
+                'claude': 'claude',
+                'gemini': 'google'
+            }
+            api_key_name = api_key_map.get(provider)
+            
+            if not api_keys.get(api_key_name):
+                print(f"[DOC ANALYSIS] ✗ API key missing for {provider}")
+                QMessageBox.warning(
+                    self.parent_app if self.parent_app else None,
+                    "API Key Missing",
+                    f"Please configure {provider.upper()} API key in Settings → LLM Settings first."
+                )
+                return
+            
+            print(f"[DOC ANALYSIS] ✓ API key found for {provider}")
         
         # Update status
         self.doc_analysis_status.setText("⏳ Analyzing document with AI...")
@@ -3147,20 +3152,22 @@ Your response will help configure an AI translation tool for professional-qualit
         settings = self.parent_app.load_llm_settings()
         provider = settings.get('provider', 'openai')
         
-        api_key_map = {
-            'openai': 'openai',
-            'claude': 'claude',
-            'gemini': 'google'
-        }
-        api_key_name = api_key_map.get(provider)
-        
-        if not api_keys.get(api_key_name):
-            QMessageBox.warning(
-                self.parent_app if self.parent_app else None,
-                "API Key Missing",
-                f"Please configure {provider.upper()} API key in Settings → LLM Settings first."
-            )
-            return
+        # Ollama doesn't need API keys - it's local
+        if provider != 'ollama':
+            api_key_map = {
+                'openai': 'openai',
+                'claude': 'claude',
+                'gemini': 'google'
+            }
+            api_key_name = api_key_map.get(provider)
+            
+            if not api_keys.get(api_key_name):
+                QMessageBox.warning(
+                    self.parent_app if self.parent_app else None,
+                    "API Key Missing",
+                    f"Please configure {provider.upper()} API key in Settings → LLM Settings first."
+                )
+                return
         
         # Show thinking indicator
         self._add_chat_message("system", "🤔 Generating optimized prompts based on your document analysis...")

@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.15 (November 30, 2025)
+**Current Version:** v1.9.17 (December 3, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -14,6 +14,8 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- 🧠 **Supermemory Enhancements (v1.9.17)** - Complete domain management system for translation memories with domain categorization (Legal, Medical, Patents, etc.), multi-language filtering in search, integration with Superlookup for unified lookup, and TMX/CSV export. Color-coded domain tags, dynamic column headers showing actual languages, and professional search/filter interface
+- 🖥️ **Local LLM Support - Ollama (v1.9.16)** - Run AI translation entirely on your computer with no API costs, complete privacy, and offline capability. New "Local LLM (Ollama)" provider option in Settings with automatic hardware detection and model recommendations. Supports qwen2.5 (3B/7B/14B), llama3.2, mistral, and gemma2 models. Built-in setup wizard guides installation and model downloads. See FAQ for setup instructions
 - 📋 **Bilingual Table Export/Import (v1.9.15)** - New Supervertaler Bilingual Table format for review workflows. Export menu options: **"Bilingual Table - With Tags (DOCX)"** preserves Supervertaler formatting tags for re-import after review. **"Bilingual Table - Formatted (DOCX)"** applies formatting (bold/italic/underline, bullet markers) for client-ready output. Tables include segment number, source, target, status, and notes columns. **"Import Bilingual Table"** compares edited DOCX with current project, shows diff preview, and applies changes. Document title links to supervertaler.com
 - 📤 **Improved DOCX Export & Keyboard Navigation (v1.9.14)** - Fixed DOCX export to properly handle formatting tags (`<b>`, `<i>`, `<u>`) and convert them to actual Word formatting. Export now handles multi-segment paragraphs with partial replacement. Added cleanup for Unicode replacement characters (U+FFFC). Ctrl+Home/End now properly navigate to first/last segment even when editing in grid cells
 - 📄 **Document Preview & List Tags (v1.9.13)** - New Preview tab shows formatted document view with headings, paragraphs, and list formatting. Click any text to navigate to that segment. Distinct list tags: `<li-o>` for ordered/numbered lists (1. 2. 3.) and `<li-b>` for bullet points (•). DOCX import now properly detects bullet vs numbered lists from Word's numbering XML. Type column shows `¶` for continuation paragraphs instead of `#`
@@ -61,6 +63,106 @@ All notable changes to Supervertaler are documented in this file.
 - 🔄 **CAT Tool Integration** - memoQ, Trados, CafeTran bilingual table support
 
 **See full version history below** ↓
+
+---
+
+## [1.9.17] - December 3, 2025
+
+### 🧠 Supermemory Enhancements - Domain Management & Superlookup Integration
+
+**Major upgrade to the vector-indexed translation memory system:**
+
+**Domain Management System:**
+- Added **Domain dataclass** with name, description, color, and active status
+- New database schema: `domains` table and `domain` column in `indexed_tms`
+- **8 default domains:** General, Patents, Medical, Legal, Technical, Marketing, Financial, Software
+- **DomainManagerDialog:** Full CRUD interface with color pickers and active toggles
+- Assign domains during TMX import with intuitive dropdown selector
+- Color-coded domain tags in search results for visual categorization
+
+**Enhanced Search & Filtering:**
+- **Language pair filter:** Dropdown to filter by source-target language combination
+- **Multi-domain filter:** Select multiple active domains to search within
+- **Dynamic column headers:** Results table shows actual language codes (e.g., "Source (EN)", "Target (NL)")
+- Search respects both language pair and domain filters simultaneously
+
+**Superlookup Integration:**
+- **New "Supermemory" tab** in Superlookup for unified terminology/TM lookup
+- Semantic search results appear alongside TM, termbase, and MT matches
+- Click to insert matches directly into target segment
+- Seamless integration with existing Superlookup workflow
+
+**Export Functionality:**
+- **Export to TMX:** Full TMX export with language headers and segment metadata
+- **Export to CSV:** Simple source-target pairs for spreadsheet workflows
+- Export dialog lets you choose format before exporting
+
+### Consolidated AI Settings
+
+- Merged Gemini and Mistral settings into unified **"AI Settings"** tab
+- Cleaner Settings panel with fewer tabs
+- All API keys and model selections in one place
+
+---
+
+## [1.9.16] - December 1, 2025
+
+### 🖥️ Local LLM Support - Ollama Integration
+
+**Run AI translation entirely on your computer with no API costs, complete privacy, and offline capability:**
+
+**New Provider Option:**
+- Added **"Local LLM (Ollama)"** as new provider in Settings → LLM Provider tab
+- Appears alongside OpenAI, Anthropic, Google, etc. with familiar radio button selection
+- Works with single translation, batch translation, and AI Assistant chat
+
+**Intelligent Hardware Detection:**
+- Automatically detects system RAM and GPU capabilities
+- Recommends optimal model based on your hardware:
+  - **4GB RAM:** qwen2.5:3b (2.5GB download) - Basic functionality
+  - **8GB RAM:** qwen2.5:7b (5.5GB download) - Recommended default
+  - **16GB+ RAM:** qwen2.5:14b (10GB download) - Premium quality
+- GPU detection for NVIDIA, AMD, and Apple Silicon
+
+**Built-in Setup Wizard:**
+- One-click access via "Setup Local LLM..." button in Settings
+- Guides users through complete Ollama installation
+- Platform-specific instructions (Windows, macOS, Linux)
+- Real-time connection testing to verify Ollama is running
+- Model download with progress tracking and cancellation
+
+**Recommended Models for Translation:**
+- **qwen2.5** (3B/7B/14B) - Excellent multilingual capabilities, recommended for translation
+- **llama3.2** (3B/7B) - Strong general purpose, good European languages
+- **mistral:7b** - Fast inference, good quality/speed balance
+- **gemma2:9b** - Google's efficient model, good multilingual
+
+**Status Widget in Settings:**
+- Shows real-time Ollama connection status
+- Displays currently selected model
+- Quick-access button to Setup dialog
+- Hardware specification summary
+
+**Technical Implementation:**
+- `modules/local_llm_setup.py` (NEW) - Complete setup module with:
+  - `LocalLLMSetupDialog` - Full wizard UI with model recommendations
+  - `LocalLLMStatusWidget` - Compact status widget for Settings panel
+  - `detect_system_specs()` - RAM and GPU detection
+  - `get_model_recommendations()` - Hardware-based model suggestions
+  - `ModelDownloadWorker` - Background download with progress
+  - `ConnectionTestWorker` - Async connection verification
+- `modules/llm_clients.py` - Extended with Ollama support:
+  - `OLLAMA_MODELS` dict with 7 supported models
+  - `check_ollama_status()` - Connection and model detection
+  - `_call_ollama()` - REST API integration (OpenAI-compatible)
+  - `translate()` routes to Ollama when selected
+
+**Privacy & Cost Benefits:**
+- All translation processing stays on your computer
+- No data sent to external servers
+- No API key required
+- No per-token costs - unlimited translations
+- Works completely offline after model download
 
 ---
 
