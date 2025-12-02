@@ -31,7 +31,19 @@
 python Supervertaler.py
 ```
 
-**NEW in v1.9.15 - Bilingual Table Export/Import:**
+**NEW in v1.9.17 - Supermemory Enhancements:**
+- 🧠 **Domain Management** - Categorize TMs by domain (Legal, Medical, Patents, Technical, etc.)
+- 🔍 **Semantic Search** - Find translations by meaning using AI embeddings
+- 🌐 **Language Filtering** - Filter by language pairs with dynamic column headers
+- 🔗 **Superlookup Integration** - New Supermemory tab for unified lookup
+- 📤 **Export Options** - Export to TMX or CSV format
+
+**v1.9.16 - Local LLM Support (Ollama):**
+- 🖥️ **Offline AI** - Run translation entirely on your computer with no API costs
+- 🔧 **Hardware Detection** - Automatic model recommendations based on RAM/GPU
+- 📦 **Setup Wizard** - One-click Ollama installation and model downloads
+
+**v1.9.15 - Bilingual Table Export/Import:**
 - 📋 **With Tags Export** - Export bilingual table with Supervertaler tags for proofreading (can be re-imported)
 - 📄 **Formatted Export** - Export bilingual table with applied formatting for clients/archives
 - 🔄 **Import Changes** - Re-import edited bilingual table to update translations with diff preview
