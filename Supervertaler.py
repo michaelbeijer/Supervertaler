@@ -4324,6 +4324,10 @@ class SupervertalerQt(QMainWindow):
         import_cafetran_action.triggered.connect(self.import_cafetran_bilingual)
         import_menu.addAction(import_cafetran_action)
         
+        import_trados_action = QAction("&Trados Bilingual Review (DOCX)...", self)
+        import_trados_action.triggered.connect(self.import_trados_bilingual)
+        import_menu.addAction(import_trados_action)
+        
         import_menu.addSeparator()
         
         import_review_table_action = QAction("&Bilingual Table (DOCX) - Update Project...", self)
@@ -4339,6 +4343,10 @@ class SupervertalerQt(QMainWindow):
         export_cafetran_action = QAction("&CafeTran Bilingual Table - Translated (DOCX)...", self)
         export_cafetran_action.triggered.connect(self.export_cafetran_bilingual)
         export_menu.addAction(export_cafetran_action)
+        
+        export_trados_action = QAction("&Trados Bilingual Review - Translated (DOCX)...", self)
+        export_trados_action.triggered.connect(self.export_trados_bilingual)
+        export_menu.addAction(export_trados_action)
         
         export_target_docx_action = QAction("&Target Only (DOCX)...", self)
         export_target_docx_action.triggered.connect(self.export_target_only_docx)
@@ -16772,6 +16780,176 @@ class SupervertalerQt(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, "Import Error", f"Failed to import CafeTran bilingual DOCX:\n\n{str(e)}")
             self.log(f"✗ CafeTran import failed: {str(e)}")
+            import traceback
+            traceback.print_exc()
+    
+    def import_trados_bilingual(self):
+        """Import Trados Studio bilingual review DOCX file"""
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select Trados Bilingual Review DOCX File",
+            "",
+            "Word Documents (*.docx);;All Files (*.*)"
+        )
+        
+        if not file_path:
+            return
+        
+        try:
+            from modules.trados_docx_handler import TradosDOCXHandler, detect_bilingual_docx_type
+            
+            # Check if this is a valid Trados bilingual DOCX
+            file_type = detect_bilingual_docx_type(file_path)
+            if file_type != "trados":
+                QMessageBox.warning(
+                    self, "Invalid Format",
+                    "This file does not appear to be a Trados bilingual review DOCX.\n\n"
+                    "Expected format: Table with columns:\n"
+                    "Segment ID | Segment status | Source segment | Target segment"
+                )
+                return
+            
+            # Load the file
+            handler = TradosDOCXHandler()
+            if not handler.load(file_path):
+                QMessageBox.critical(
+                    self, "Error",
+                    "Failed to load Trados bilingual review DOCX file."
+                )
+                return
+            
+            # Extract segments
+            trados_segments = handler.extract_source_segments()
+            
+            if not trados_segments:
+                QMessageBox.warning(
+                    self, "No Segments",
+                    "No segments found in the Trados bilingual review DOCX file."
+                )
+                return
+            
+            # Convert to internal Segment format - preserve tags for round-trip
+            segments = []
+            for i, t_seg in enumerate(trados_segments):
+                segment = Segment(
+                    id=i + 1,
+                    source=t_seg.source_text,  # Preserve tags like <11>text</11>
+                    target=t_seg.target_text if t_seg.target_text else "",
+                    status=STATUSES["pretranslated"].key if t_seg.target_text else DEFAULT_STATUS.key,
+                    notes=f"Trados Status: {t_seg.status}",
+                )
+                segments.append(segment)
+            
+            # Store the handler and original path for round-trip export
+            self.trados_handler = handler
+            self.trados_source_file = file_path
+            
+            # Create new project
+            file_name = Path(file_path).stem
+            self.current_project = Project(
+                name=file_name,
+                segments=segments,
+                source_lang=self.source_lang_combo.currentText() if hasattr(self, 'source_lang_combo') else "en",
+                target_lang=self.target_lang_combo.currentText() if hasattr(self, 'target_lang_combo') else "nl"
+            )
+            
+            # Update UI
+            self.project_file_path = None
+            self.project_modified = True
+            self.update_window_title()
+            self.load_segments_to_grid()
+            self.initialize_tm_database()
+            
+            # Count segments with tags
+            tagged_count = sum(1 for s in trados_segments if s.source_tags)
+            
+            # Log success
+            self.log(f"✓ Imported {len(segments)} segments from Trados bilingual DOCX: {Path(file_path).name}")
+            if tagged_count:
+                self.log(f"  {tagged_count} segments contain inline tags")
+            
+            QMessageBox.information(
+                self, "Import Successful",
+                f"Successfully imported {len(segments)} segment(s) from Trados bilingual review DOCX.\n\n"
+                f"File: {Path(file_path).name}\n"
+                f"Segments with tags: {tagged_count}\n\n"
+                f"Note: Inline tags (e.g., <11>text</11>) are preserved for export.\n"
+                f"Export back to Trados format after translation to maintain tag styling."
+            )
+            
+        except ImportError as e:
+            QMessageBox.critical(
+                self, "Missing Dependency",
+                f"Required library is missing: {e}\n\n"
+                "Install dependencies with: pip install python-docx lxml"
+            )
+        except Exception as e:
+            QMessageBox.critical(self, "Import Error", f"Failed to import Trados bilingual DOCX:\n\n{str(e)}")
+            self.log(f"✗ Trados import failed: {str(e)}")
+            import traceback
+            traceback.print_exc()
+    
+    def export_trados_bilingual(self):
+        """Export translations back to Trados bilingual review DOCX format"""
+        if not self.current_project or not self.current_project.segments:
+            QMessageBox.warning(self, "No Project", "No project is currently loaded.")
+            return
+        
+        # Check if we have a Trados handler
+        if not hasattr(self, 'trados_handler') or not self.trados_handler:
+            QMessageBox.warning(
+                self, "No Trados Source",
+                "This project was not imported from a Trados bilingual DOCX file.\n\n"
+                "Export to Trados format is only available when you first import "
+                "a Trados bilingual review file."
+            )
+            return
+        
+        # Suggest output filename
+        source_path = Path(self.trados_source_file)
+        suggested_name = source_path.stem + "_translated" + source_path.suffix
+        
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export Trados Bilingual DOCX",
+            str(source_path.parent / suggested_name),
+            "Word Documents (*.docx);;All Files (*.*)"
+        )
+        
+        if not file_path:
+            return
+        
+        try:
+            # Collect translations from grid
+            translations = {}
+            for row in range(self.table.rowCount()):
+                target_widget = self.table.cellWidget(row, 3)  # Target column
+                if target_widget:
+                    target_text = target_widget.toPlainText().strip()
+                    if target_text:
+                        # Row index in handler is 1-based (row 0 is header)
+                        translations[row + 1] = target_text
+            
+            # Update the handler with translations
+            updated = self.trados_handler.update_target_segments(translations)
+            
+            # Save to new file
+            if self.trados_handler.save(file_path):
+                self.log(f"✓ Exported {updated} translated segments to Trados DOCX: {Path(file_path).name}")
+                
+                QMessageBox.information(
+                    self, "Export Successful",
+                    f"Successfully exported {updated} translation(s) to Trados bilingual DOCX.\n\n"
+                    f"File: {Path(file_path).name}\n\n"
+                    f"This file can be imported back into Trados Studio.\n"
+                    f"Tag formatting has been preserved."
+                )
+            else:
+                QMessageBox.critical(self, "Export Error", "Failed to save the Trados bilingual DOCX file.")
+                
+        except Exception as e:
+            QMessageBox.critical(self, "Export Error", f"Failed to export Trados bilingual DOCX:\n\n{str(e)}")
+            self.log(f"✗ Trados export failed: {str(e)}")
             import traceback
             traceback.print_exc()
     
