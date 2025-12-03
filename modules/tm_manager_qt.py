@@ -383,7 +383,7 @@ class ConcordanceSearchDialog(QDialog):
             highlighted_target = self._highlight_term(target, search_text)
             
             html += f"""
-            <div style='background: white; border: 1px solid #e0e0e0; border-radius: 6px; padding: 12px; margin-bottom: 10px;'>
+            <div style='background: white; border-bottom: 2px solid #999; padding: 12px 8px; margin-bottom: 0;'>
                 <div style='color: #666; font-size: 11px; margin-bottom: 8px;'>
                     #{idx} - TM: <b>{tm_id}</b> - Used: {usage_count} times
                 </div>
@@ -455,24 +455,25 @@ class ConcordanceSearchDialog(QDialog):
             meta_widget.setStyleSheet("background-color: #f8f8f8; padding: 4px;")
             meta_widget.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
             
-            # Set widgets in cells
+            # Calculate row height based on actual widget size hint
+            # This is more accurate than estimating from text length
             self.results_table.setCellWidget(row, 0, source_widget)
             self.results_table.setCellWidget(row, 1, target_widget)
             self.results_table.setCellWidget(row, 2, meta_widget)
             
-            # Calculate row height based on text content and column width
-            # Use font metrics for more accurate height calculation
-            from PyQt6.QtGui import QFontMetrics
-            fm = QFontMetrics(source_widget.font())
+            # Force layout update and get actual height needed
+            source_widget.adjustSize()
+            target_widget.adjustSize()
+            meta_widget.adjustSize()
             
-            # Estimate lines needed based on text length and column width
-            chars_per_line = max(1, (source_col_width - 20) // fm.averageCharWidth()) if source_col_width > 50 else 60
-            source_lines = max(1, (len(source) // chars_per_line) + 1)
-            target_lines = max(1, (len(target) // chars_per_line) + 1)
+            # Use the widget's size hint with the actual column width
+            source_hint = source_widget.heightForWidth(source_col_width - 10) if source_col_width > 50 else source_widget.sizeHint().height()
+            target_hint = target_widget.heightForWidth(target_col_width - 10) if target_col_width > 50 else target_widget.sizeHint().height()
+            meta_hint = meta_widget.sizeHint().height()
             
-            line_height = fm.height() + 2
-            content_height = max(source_lines, target_lines) * line_height + 16  # 16px padding
-            row_height = max(50, min(content_height, 200))  # Min 50px, max 200px
+            # Use the maximum height needed, with reasonable bounds
+            row_height = max(60, source_hint, target_hint, meta_hint) + 10  # Add padding
+            row_height = min(row_height, 300)  # Cap at 300px max
             
             self.results_table.setRowHeight(row, row_height)
     
@@ -487,23 +488,23 @@ class ConcordanceSearchDialog(QDialog):
         self._updating_heights = True
         try:
             source_col_width = self.results_table.columnWidth(0)
+            target_col_width = self.results_table.columnWidth(1)
             
-            from PyQt6.QtGui import QFontMetrics
-            fm = QFontMetrics(self.results_table.font())
-            chars_per_line = max(1, (source_col_width - 20) // fm.averageCharWidth()) if source_col_width > 50 else 60
-            line_height = fm.height() + 2
-            
-            for row, match in enumerate(self.current_results):
-                source = match.get('source_text', '')
-                target = match.get('target_text', '')
+            for row in range(self.results_table.rowCount()):
+                source_widget = self.results_table.cellWidget(row, 0)
+                target_widget = self.results_table.cellWidget(row, 1)
+                meta_widget = self.results_table.cellWidget(row, 2)
                 
-                source_lines = max(1, (len(source) // chars_per_line) + 1)
-                target_lines = max(1, (len(target) // chars_per_line) + 1)
-                
-                content_height = max(source_lines, target_lines) * line_height + 16
-                row_height = max(50, min(content_height, 200))
-                
-                self.results_table.setRowHeight(row, row_height)
+                if source_widget and target_widget:
+                    # Get height for width based on current column sizes
+                    source_hint = source_widget.heightForWidth(source_col_width - 10) if source_col_width > 50 else source_widget.sizeHint().height()
+                    target_hint = target_widget.heightForWidth(target_col_width - 10) if target_col_width > 50 else target_widget.sizeHint().height()
+                    meta_hint = meta_widget.sizeHint().height() if meta_widget else 60
+                    
+                    row_height = max(60, source_hint, target_hint, meta_hint) + 10
+                    row_height = min(row_height, 300)
+                    
+                    self.results_table.setRowHeight(row, row_height)
         finally:
             self._updating_heights = False
     
