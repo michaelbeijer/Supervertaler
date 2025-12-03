@@ -382,9 +382,12 @@ class ConcordanceSearchDialog(QDialog):
             highlighted_source = self._highlight_term(source, search_text)
             highlighted_target = self._highlight_term(target, search_text)
             
+            # Alternating background colors for better visibility
+            bg_color = '#f5f5f5' if idx % 2 == 0 else '#ffffff'
+            
             html += f"""
-            <div style='background: white; border: 1px solid #888; padding: 10px; margin-bottom: 8px;'>
-                <div style='color: #555; font-size: 11px; margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1px solid #ddd;'>
+            <div style='background-color: {bg_color}; padding: 10px 8px; margin: 0;'>
+                <div style='color: #555; font-size: 11px; margin-bottom: 6px;'>
                     #{idx} - TM: <b>{tm_id}</b> - Used: {usage_count} times - Modified: {modified_date}
                 </div>
                 <div style='margin-bottom: 4px;'>
@@ -394,6 +397,7 @@ class ConcordanceSearchDialog(QDialog):
                     <b style='color: #388E3C;'>Target:</b> {highlighted_target}
                 </div>
             </div>
+            <hr style='border: none; border-top: 2px solid #666; margin: 0;'>
             """
         
         self.search_results.setHtml(html)
