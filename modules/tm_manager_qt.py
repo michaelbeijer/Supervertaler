@@ -12,9 +12,9 @@ from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QTabWidget,
                               QTableWidget, QTableWidgetItem, QLineEdit, QPushButton,
                               QLabel, QMessageBox, QFileDialog, QHeaderView,
                               QGroupBox, QTextEdit, QComboBox, QSpinBox, QCheckBox,
-                              QProgressBar)
-from PyQt6.QtCore import Qt, QThread, pyqtSignal
-from PyQt6.QtGui import QColor, QFont
+                              QProgressBar, QWidget, QStyle, QStyledItemDelegate)
+from PyQt6.QtCore import Qt, QThread, pyqtSignal, QSize
+from PyQt6.QtGui import QColor, QFont, QPalette
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from pathlib import Path
@@ -96,10 +96,87 @@ class TMXImportThread(QThread):
             self.finished.emit(False, f"Import failed: {str(e)}", 0)
 
 
+class HighlightDelegate(QStyledItemDelegate):
+    """Custom delegate to render HTML with highlighted text in table cells"""
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.search_term = ""
+    
+    def set_search_term(self, term: str):
+        """Set the term to highlight"""
+        self.search_term = term
+    
+    def paint(self, painter, option, index):
+        """Paint the cell with HTML rendering for highlighting"""
+        from PyQt6.QtGui import QTextDocument, QAbstractTextDocumentLayout
+        from PyQt6.QtCore import QRectF
+        
+        # Get the text
+        text = index.data(Qt.ItemDataRole.DisplayRole)
+        if not text:
+            super().paint(painter, option, index)
+            return
+        
+        # Create HTML with highlighting
+        if self.search_term:
+            import re
+            pattern = re.compile(re.escape(self.search_term), re.IGNORECASE)
+            html_text = pattern.sub(
+                lambda m: f"<span style='background-color: #FFD54F; font-weight: bold;'>{m.group()}</span>",
+                text
+            )
+        else:
+            html_text = text
+        
+        # Setup painter
+        painter.save()
+        
+        # Draw selection background if selected
+        if option.state & QStyle.StateFlag.State_Selected:
+            painter.fillRect(option.rect, option.palette.highlight())
+        
+        # Create document for HTML rendering
+        doc = QTextDocument()
+        doc.setDefaultFont(option.font)
+        doc.setHtml(html_text)
+        doc.setTextWidth(option.rect.width() - 6)  # Some padding
+        
+        # Translate to cell position
+        painter.translate(option.rect.left() + 3, option.rect.top() + 2)
+        
+        # Create clip rect
+        clip = QRectF(0, 0, option.rect.width() - 6, option.rect.height() - 4)
+        
+        # Draw the document
+        ctx = QAbstractTextDocumentLayout.PaintContext()
+        if option.state & QStyle.StateFlag.State_Selected:
+            ctx.palette.setColor(QPalette.ColorRole.Text, option.palette.highlightedText().color())
+        doc.documentLayout().draw(painter, ctx)
+        
+        painter.restore()
+    
+    def sizeHint(self, option, index):
+        """Return size hint based on content"""
+        from PyQt6.QtGui import QTextDocument
+        
+        text = index.data(Qt.ItemDataRole.DisplayRole)
+        if not text:
+            return super().sizeHint(option, index)
+        
+        doc = QTextDocument()
+        doc.setDefaultFont(option.font)
+        doc.setHtml(text)
+        doc.setTextWidth(option.rect.width() if option.rect.width() > 0 else 400)
+        
+        return QSize(int(doc.idealWidth()), max(int(doc.size().height()) + 8, 50))
+
+
 class ConcordanceSearchDialog(QDialog):
     """
     Lightweight Concordance Search dialog for Ctrl+K.
     Focused on quick concordance search without other TM management features.
+    Features two view modes: List view and Table view (memoQ-style side-by-side).
     """
     
     def __init__(self, parent, db_manager, log_callback: Optional[Callable] = None, initial_query: str = None):
@@ -107,9 +184,11 @@ class ConcordanceSearchDialog(QDialog):
         self.db_manager = db_manager
         self.log = log_callback if log_callback else lambda x: None
         self.parent_app = parent
+        self.current_results = []  # Store results for both views
+        self.current_search_term = ""
         
         self.setWindowTitle("Concordance Search")
-        self.resize(900, 600)
+        self.resize(1100, 650)
         
         self.setup_ui()
         
@@ -119,7 +198,7 @@ class ConcordanceSearchDialog(QDialog):
             self.do_search()
     
     def setup_ui(self):
-        """Setup the UI"""
+        """Setup the UI with tabbed view modes"""
         layout = QVBoxLayout()
         layout.setContentsMargins(15, 15, 15, 15)
         
@@ -152,12 +231,68 @@ class ConcordanceSearchDialog(QDialog):
         
         layout.addLayout(search_layout)
         
-        # Results display
+        # Tab widget for view modes
+        self.view_tabs = QTabWidget()
+        
+        # Tab 1: List View (current style)
+        self.list_tab = QWidget()
+        list_layout = QVBoxLayout(self.list_tab)
+        list_layout.setContentsMargins(0, 10, 0, 0)
+        
         self.search_results = QTextEdit()
         self.search_results.setReadOnly(True)
         self.search_results.setFont(QFont("Segoe UI", 10))
         self.search_results.setStyleSheet("background-color: #fafafa; border: 1px solid #ddd; border-radius: 4px;")
-        layout.addWidget(self.search_results)
+        list_layout.addWidget(self.search_results)
+        
+        # Tab 2: Table View (memoQ-style side-by-side)
+        self.table_tab = QWidget()
+        table_layout = QVBoxLayout(self.table_tab)
+        table_layout.setContentsMargins(0, 10, 0, 0)
+        
+        # Create table for side-by-side view
+        self.results_table = QTableWidget()
+        self.results_table.setColumnCount(3)
+        self.results_table.setHorizontalHeaderLabels(["Source", "Target", "Meta-information"])
+        self.results_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        self.results_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.results_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
+        self.results_table.horizontalHeader().resizeSection(2, 180)
+        self.results_table.setAlternatingRowColors(True)
+        self.results_table.setWordWrap(True)
+        self.results_table.verticalHeader().setVisible(False)
+        self.results_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.results_table.setStyleSheet("""
+            QTableWidget {
+                background-color: #ffffff;
+                gridline-color: #e0e0e0;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+            }
+            QTableWidget::item {
+                padding: 8px;
+                border-bottom: 1px solid #e8e8e8;
+            }
+            QTableWidget::item:selected {
+                background-color: #e3f2fd;
+                color: #000000;
+            }
+            QHeaderView::section {
+                background-color: #f5f5f5;
+                padding: 8px;
+                border: none;
+                border-bottom: 2px solid #2196F3;
+                font-weight: bold;
+            }
+        """)
+        table_layout.addWidget(self.results_table)
+        
+        # Add tabs
+        self.view_tabs.addTab(self.list_tab, "📋 List View")
+        self.view_tabs.addTab(self.table_tab, "📊 Table View (Side-by-Side)")
+        self.view_tabs.currentChanged.connect(self.on_tab_changed)
+        
+        layout.addWidget(self.view_tabs)
         
         # Status bar
         status_layout = QHBoxLayout()
@@ -179,8 +314,16 @@ class ConcordanceSearchDialog(QDialog):
         # Focus on search input
         self.search_input.setFocus()
     
+    def on_tab_changed(self, index):
+        """Handle tab change - refresh the view if we have results"""
+        if self.current_results:
+            if index == 0:
+                self.update_list_view()
+            else:
+                self.update_table_view()
+    
     def do_search(self):
-        """Perform concordance search"""
+        """Perform concordance search using db_manager's concordance_search method"""
         search_text = self.search_input.text().strip()
         if not search_text:
             self.status_label.setText("⚠️ Please enter a search term")
@@ -188,21 +331,13 @@ class ConcordanceSearchDialog(QDialog):
         
         self.status_label.setText("🔍 Searching...")
         self.search_results.clear()
+        self.results_table.setRowCount(0)
+        self.current_search_term = search_text
         
         try:
-            # Build search query - search both source and target
-            query = """
-                SELECT id, source, target, tm_id, usage_count, modified_date
-                FROM translation_memory
-                WHERE source LIKE ? OR target LIKE ?
-                ORDER BY usage_count DESC, modified_date DESC
-                LIMIT 100
-            """
-            search_pattern = f"%{search_text}%"
-            
-            cursor = self.db_manager.connection.cursor()
-            cursor.execute(query, (search_pattern, search_pattern))
-            results = cursor.fetchall()
+            # Use the database manager's concordance_search method
+            results = self.db_manager.concordance_search(search_text)
+            self.current_results = results if results else []
             
             if not results:
                 self.search_results.setHtml(
@@ -212,36 +347,11 @@ class ConcordanceSearchDialog(QDialog):
                 self.status_label.setText("No matches found")
                 return
             
-            # Format results with highlighting
-            html = f"<h3 style='color: #333; margin-bottom: 15px;'>Found {len(results)} matches for '<span style='color: #2196F3;'>{search_text}</span>'</h3>"
+            # Update both views
+            self.update_list_view()
+            self.update_table_view()
             
-            for idx, row in enumerate(results, 1):
-                entry_id, source, target, tm_id, usage_count, modified_date = row
-                
-                # Highlight search term in source and target
-                highlighted_source = self._highlight_term(source, search_text)
-                highlighted_target = self._highlight_term(target, search_text)
-                
-                html += f"""
-                <div style='background: white; border: 1px solid #e0e0e0; border-radius: 6px; padding: 12px; margin-bottom: 10px;'>
-                    <div style='color: #666; font-size: 11px; margin-bottom: 8px;'>
-                        #{idx} - TM: <b>{tm_id}</b> - Used: {usage_count} times
-                    </div>
-                    <div style='margin-bottom: 6px;'>
-                        <b style='color: #1976D2;'>Source:</b> {highlighted_source}
-                    </div>
-                    <div>
-                        <b style='color: #388E3C;'>Target:</b> {highlighted_target}
-                    </div>
-                    <div style='color: #999; font-size: 10px; margin-top: 6px;'>
-                        Modified: {modified_date or 'Unknown'}
-                    </div>
-                </div>
-                """
-            
-            self.search_results.setHtml(html)
             self.status_label.setText(f"✓ Found {len(results)} matches")
-            
             self.log(f"TM Concordance: Found {len(results)} matches for '{search_text}'")
             
         except Exception as e:
@@ -249,8 +359,113 @@ class ConcordanceSearchDialog(QDialog):
             self.status_label.setText(f"❌ Search error: {e}")
             self.log(f"Concordance search error: {e}")
     
+    def update_list_view(self):
+        """Update the list view with current results"""
+        if not self.current_results:
+            return
+        
+        search_text = self.current_search_term
+        results = self.current_results
+        
+        # Format results with highlighting
+        html = f"<h3 style='color: #333; margin-bottom: 15px;'>Found {len(results)} matches for '<span style='color: #2196F3;'>{search_text}</span>'</h3>"
+        
+        for idx, match in enumerate(results, 1):
+            source = match.get('source_text', '')
+            target = match.get('target_text', '')
+            tm_id = match.get('tm_id', 'Unknown')
+            usage_count = match.get('usage_count', 0)
+            modified_date = match.get('modified_date', 'Unknown')
+            
+            # Highlight search term in source and target
+            highlighted_source = self._highlight_term(source, search_text)
+            highlighted_target = self._highlight_term(target, search_text)
+            
+            html += f"""
+            <div style='background: white; border: 1px solid #e0e0e0; border-radius: 6px; padding: 12px; margin-bottom: 10px;'>
+                <div style='color: #666; font-size: 11px; margin-bottom: 8px;'>
+                    #{idx} - TM: <b>{tm_id}</b> - Used: {usage_count} times
+                </div>
+                <div style='margin-bottom: 6px;'>
+                    <b style='color: #1976D2;'>Source:</b> {highlighted_source}
+                </div>
+                <div>
+                    <b style='color: #388E3C;'>Target:</b> {highlighted_target}
+                </div>
+                <div style='color: #999; font-size: 10px; margin-top: 6px;'>
+                    Modified: {modified_date}
+                </div>
+            </div>
+            """
+        
+        self.search_results.setHtml(html)
+    
+    def update_table_view(self):
+        """Update the table view with current results (memoQ-style side-by-side)"""
+        if not self.current_results:
+            return
+        
+        search_text = self.current_search_term
+        results = self.current_results
+        
+        self.results_table.setRowCount(len(results))
+        
+        for row, match in enumerate(results):
+            source = match.get('source_text', '')
+            target = match.get('target_text', '')
+            tm_id = match.get('tm_id', 'Unknown')
+            usage_count = match.get('usage_count', 0)
+            modified_date = match.get('modified_date', 'Unknown')
+            
+            # Create source cell with highlighted text using QTextEdit
+            source_widget = QTextEdit()
+            source_widget.setReadOnly(True)
+            source_widget.setFrameStyle(0)
+            source_widget.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+            source_widget.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+            highlighted_source = self._highlight_term(source, search_text)
+            source_widget.setHtml(f"<div style='color: #c62828;'>{highlighted_source}</div>")
+            source_widget.setStyleSheet("background-color: transparent; padding: 4px;")
+            
+            # Create target cell with highlighted text
+            target_widget = QTextEdit()
+            target_widget.setReadOnly(True)
+            target_widget.setFrameStyle(0)
+            target_widget.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+            target_widget.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+            highlighted_target = self._highlight_term(target, search_text)
+            target_widget.setHtml(f"<div style='color: #1565c0;'>{highlighted_target}</div>")
+            target_widget.setStyleSheet("background-color: transparent; padding: 4px;")
+            
+            # Create meta-information cell
+            meta_html = f"""
+            <div style='font-size: 11px;'>
+                <div style='color: #2e7d32; font-weight: bold;'>📁 {tm_id}</div>
+                <div style='color: #666; margin-top: 4px;'>Modified: {modified_date}</div>
+                <div style='color: #666;'>Used: {usage_count} times</div>
+            </div>
+            """
+            meta_widget = QTextEdit()
+            meta_widget.setReadOnly(True)
+            meta_widget.setFrameStyle(0)
+            meta_widget.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+            meta_widget.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+            meta_widget.setHtml(meta_html)
+            meta_widget.setStyleSheet("background-color: #f8f8f8; padding: 4px;")
+            
+            # Set widgets in cells
+            self.results_table.setCellWidget(row, 0, source_widget)
+            self.results_table.setCellWidget(row, 1, target_widget)
+            self.results_table.setCellWidget(row, 2, meta_widget)
+            
+            # Calculate row height based on content
+            source_height = max(60, len(source) // 2 + 40)
+            target_height = max(60, len(target) // 2 + 40)
+            row_height = min(max(source_height, target_height), 150)  # Cap at 150px
+            self.results_table.setRowHeight(row, row_height)
+    
     def _highlight_term(self, text: str, search_term: str) -> str:
-        """Highlight search term in text with yellow background"""
+        """Highlight search term in text with yellow/orange background"""
         if not text or not search_term:
             return text or ""
         
@@ -258,7 +473,7 @@ class ConcordanceSearchDialog(QDialog):
         # Case-insensitive highlighting
         pattern = re.compile(re.escape(search_term), re.IGNORECASE)
         return pattern.sub(
-            lambda m: f"<span style='background-color: #FFEB3B; padding: 1px 2px;'>{m.group()}</span>",
+            lambda m: f"<span style='background-color: #FFD54F; padding: 1px 3px; border-radius: 2px; font-weight: bold;'>{m.group()}</span>",
             text
         )
 

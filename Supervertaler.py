@@ -6287,7 +6287,16 @@ class SupervertalerQt(QMainWindow):
         try:
             # Get selected text if available and no initial query
             if not initial_query:
-                if hasattr(self, 'table') and self.table:
+                # First check the currently focused widget (most reliable)
+                focus_widget = QApplication.focusWidget()
+                if focus_widget and hasattr(focus_widget, 'textCursor'):
+                    cursor = focus_widget.textCursor()
+                    if cursor.hasSelection():
+                        initial_query = cursor.selectedText()
+                        self.log(f"[Concordance] Got selection from focus widget: '{initial_query[:30]}...'")
+                
+                # Fallback: check source/target cells directly
+                if not initial_query and hasattr(self, 'table') and self.table:
                     current_row = self.table.currentRow()
                     if current_row >= 0:
                         # Try source column first (column 2)
@@ -6308,6 +6317,8 @@ class SupervertalerQt(QMainWindow):
             # Log for debugging
             if initial_query:
                 self.log(f"[Concordance] Opening with query: '{initial_query[:50]}...'")
+            else:
+                self.log(f"[Concordance] No selection detected, opening empty")
             
             # Open lightweight Concordance Search dialog
             dialog = ConcordanceSearchDialog(self, self.db_manager, self.log, initial_query)
