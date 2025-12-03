@@ -6281,8 +6281,8 @@ class SupervertalerQt(QMainWindow):
         return load_api_keys()
     
     def show_concordance_search(self, initial_query: str = None):
-        """Show concordance search dialog (Ctrl+K)"""
-        from modules.tm_manager_qt import TMManagerDialog
+        """Show concordance search dialog (Ctrl+K) - lightweight focused dialog"""
+        from modules.tm_manager_qt import ConcordanceSearchDialog
         
         try:
             # Get selected text if available and no initial query
@@ -6296,15 +6296,8 @@ class SupervertalerQt(QMainWindow):
                             if cursor.hasSelection():
                                 initial_query = cursor.selectedText()
             
-            # Open TM Manager to concordance tab
-            dialog = TMManagerDialog(self, self.db_manager, self.log)
-            dialog.tabs.setCurrentIndex(1)  # Switch to Concordance tab
-            
-            # Set initial query if provided
-            if initial_query and hasattr(dialog, 'search_input'):
-                dialog.search_input.setText(initial_query)
-                dialog.do_concordance_search()
-            
+            # Open lightweight Concordance Search dialog
+            dialog = ConcordanceSearchDialog(self, self.db_manager, self.log, initial_query)
             dialog.exec()
         except Exception as e:
             self.log(f"Error opening concordance search: {e}")
@@ -6760,8 +6753,14 @@ class SupervertalerQt(QMainWindow):
         # Tab 3: Concordance - search across ALL active TMs
         tm_tabs.addTab(temp_manager.search_tab, "🔍 Concordance")
         
-        # Tab 4: Statistics - aggregate stats for all TMs
+        # Tab 4: Import/Export - TMX import and export
+        tm_tabs.addTab(temp_manager.import_export_tab, "📥 Import/Export")
+        
+        # Tab 5: Statistics - aggregate stats for all TMs
         tm_tabs.addTab(temp_manager.stats_tab, "📊 Statistics")
+        
+        # Tab 6: Maintenance - cleanup and maintenance tools
+        tm_tabs.addTab(temp_manager.maintenance_tab, "🧹 Maintenance")
         
         # Store reference to prevent garbage collection
         tab._tm_manager = temp_manager

@@ -96,6 +96,173 @@ class TMXImportThread(QThread):
             self.finished.emit(False, f"Import failed: {str(e)}", 0)
 
 
+class ConcordanceSearchDialog(QDialog):
+    """
+    Lightweight Concordance Search dialog for Ctrl+K.
+    Focused on quick concordance search without other TM management features.
+    """
+    
+    def __init__(self, parent, db_manager, log_callback: Optional[Callable] = None, initial_query: str = None):
+        super().__init__(parent)
+        self.db_manager = db_manager
+        self.log = log_callback if log_callback else lambda x: None
+        self.parent_app = parent
+        
+        self.setWindowTitle("Concordance Search")
+        self.resize(900, 600)
+        
+        self.setup_ui()
+        
+        # Set initial query and search if provided
+        if initial_query:
+            self.search_input.setText(initial_query)
+            self.do_search()
+    
+    def setup_ui(self):
+        """Setup the UI"""
+        layout = QVBoxLayout()
+        layout.setContentsMargins(15, 15, 15, 15)
+        
+        # Header
+        header = QLabel("🔍 Concordance Search")
+        header_font = QFont()
+        header_font.setPointSize(14)
+        header_font.setBold(True)
+        header.setFont(header_font)
+        layout.addWidget(header)
+        
+        # Description
+        desc = QLabel("Search across all translation memories for matching source or target text")
+        desc.setStyleSheet("color: #666; margin-bottom: 10px;")
+        layout.addWidget(desc)
+        
+        # Search controls
+        search_layout = QHBoxLayout()
+        search_layout.addWidget(QLabel("Search:"))
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("Enter text to search in source and target...")
+        self.search_input.returnPressed.connect(self.do_search)
+        self.search_input.setStyleSheet("padding: 8px; font-size: 13px;")
+        search_layout.addWidget(self.search_input)
+        
+        search_btn = QPushButton("🔍 Search")
+        search_btn.clicked.connect(self.do_search)
+        search_btn.setStyleSheet("padding: 8px 16px;")
+        search_layout.addWidget(search_btn)
+        
+        layout.addLayout(search_layout)
+        
+        # Results display
+        self.search_results = QTextEdit()
+        self.search_results.setReadOnly(True)
+        self.search_results.setFont(QFont("Segoe UI", 10))
+        self.search_results.setStyleSheet("background-color: #fafafa; border: 1px solid #ddd; border-radius: 4px;")
+        layout.addWidget(self.search_results)
+        
+        # Status bar
+        status_layout = QHBoxLayout()
+        self.status_label = QLabel("Enter a search term and press Search or Enter")
+        self.status_label.setStyleSheet("color: #666;")
+        status_layout.addWidget(self.status_label)
+        status_layout.addStretch()
+        
+        # Close button
+        close_btn = QPushButton("Close")
+        close_btn.clicked.connect(self.accept)
+        close_btn.setStyleSheet("padding: 6px 20px;")
+        status_layout.addWidget(close_btn)
+        
+        layout.addLayout(status_layout)
+        
+        self.setLayout(layout)
+        
+        # Focus on search input
+        self.search_input.setFocus()
+    
+    def do_search(self):
+        """Perform concordance search"""
+        search_text = self.search_input.text().strip()
+        if not search_text:
+            self.status_label.setText("⚠️ Please enter a search term")
+            return
+        
+        self.status_label.setText("🔍 Searching...")
+        self.search_results.clear()
+        
+        try:
+            # Build search query - search both source and target
+            query = """
+                SELECT id, source, target, tm_id, usage_count, modified_date
+                FROM translation_memory
+                WHERE source LIKE ? OR target LIKE ?
+                ORDER BY usage_count DESC, modified_date DESC
+                LIMIT 100
+            """
+            search_pattern = f"%{search_text}%"
+            
+            cursor = self.db_manager.conn.cursor()
+            cursor.execute(query, (search_pattern, search_pattern))
+            results = cursor.fetchall()
+            
+            if not results:
+                self.search_results.setHtml(
+                    f"<p style='color: #666; padding: 20px; text-align: center;'>"
+                    f"No matches found for '<b>{search_text}</b>'</p>"
+                )
+                self.status_label.setText("No matches found")
+                return
+            
+            # Format results with highlighting
+            html = f"<h3 style='color: #333; margin-bottom: 15px;'>Found {len(results)} matches for '<span style='color: #2196F3;'>{search_text}</span>'</h3>"
+            
+            for idx, row in enumerate(results, 1):
+                entry_id, source, target, tm_id, usage_count, modified_date = row
+                
+                # Highlight search term in source and target
+                highlighted_source = self._highlight_term(source, search_text)
+                highlighted_target = self._highlight_term(target, search_text)
+                
+                html += f"""
+                <div style='background: white; border: 1px solid #e0e0e0; border-radius: 6px; padding: 12px; margin-bottom: 10px;'>
+                    <div style='color: #666; font-size: 11px; margin-bottom: 8px;'>
+                        #{idx} - TM: <b>{tm_id}</b> - Used: {usage_count} times
+                    </div>
+                    <div style='margin-bottom: 6px;'>
+                        <b style='color: #1976D2;'>Source:</b> {highlighted_source}
+                    </div>
+                    <div>
+                        <b style='color: #388E3C;'>Target:</b> {highlighted_target}
+                    </div>
+                    <div style='color: #999; font-size: 10px; margin-top: 6px;'>
+                        Modified: {modified_date or 'Unknown'}
+                    </div>
+                </div>
+                """
+            
+            self.search_results.setHtml(html)
+            self.status_label.setText(f"✓ Found {len(results)} matches")
+            
+            self.log(f"TM Concordance: Found {len(results)} matches for '{search_text}'")
+            
+        except Exception as e:
+            self.search_results.setHtml(f"<p style='color: red; padding: 20px;'>Error: {str(e)}</p>")
+            self.status_label.setText(f"❌ Search error: {e}")
+            self.log(f"Concordance search error: {e}")
+    
+    def _highlight_term(self, text: str, search_term: str) -> str:
+        """Highlight search term in text with yellow background"""
+        if not text or not search_term:
+            return text or ""
+        
+        import re
+        # Case-insensitive highlighting
+        pattern = re.compile(re.escape(search_term), re.IGNORECASE)
+        return pattern.sub(
+            lambda m: f"<span style='background-color: #FFEB3B; padding: 1px 2px;'>{m.group()}</span>",
+            text
+        )
+
+
 class TMManagerDialog(QDialog):
     """Translation Memory Manager dialog"""
     
