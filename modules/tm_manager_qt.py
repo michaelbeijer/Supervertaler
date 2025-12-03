@@ -186,6 +186,7 @@ class ConcordanceSearchDialog(QDialog):
         self.parent_app = parent
         self.current_results = []  # Store results for both views
         self.current_search_term = ""
+        self._updating_heights = False  # Flag to prevent recursive updates
         
         self.setWindowTitle("Concordance Search")
         self.resize(1100, 650)
@@ -410,6 +411,10 @@ class ConcordanceSearchDialog(QDialog):
         
         self.results_table.setRowCount(len(results))
         
+        # Get column widths for text wrapping calculation
+        source_col_width = self.results_table.columnWidth(0)
+        target_col_width = self.results_table.columnWidth(1)
+        
         for row, match in enumerate(results):
             source = match.get('source_text', '')
             target = match.get('target_text', '')
@@ -417,52 +422,97 @@ class ConcordanceSearchDialog(QDialog):
             usage_count = match.get('usage_count', 0)
             modified_date = match.get('modified_date', 'Unknown')
             
-            # Create source cell with highlighted text using QTextEdit
-            source_widget = QTextEdit()
-            source_widget.setReadOnly(True)
-            source_widget.setFrameStyle(0)
-            source_widget.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-            source_widget.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+            # Highlight search term
             highlighted_source = self._highlight_term(source, search_text)
-            source_widget.setHtml(f"<div style='color: #c62828;'>{highlighted_source}</div>")
-            source_widget.setStyleSheet("background-color: transparent; padding: 4px;")
-            
-            # Create target cell with highlighted text
-            target_widget = QTextEdit()
-            target_widget.setReadOnly(True)
-            target_widget.setFrameStyle(0)
-            target_widget.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-            target_widget.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
             highlighted_target = self._highlight_term(target, search_text)
-            target_widget.setHtml(f"<div style='color: #1565c0;'>{highlighted_target}</div>")
-            target_widget.setStyleSheet("background-color: transparent; padding: 4px;")
             
-            # Create meta-information cell
-            meta_html = f"""
-            <div style='font-size: 11px;'>
+            # Create source cell with QLabel (more compact than QTextEdit)
+            source_widget = QLabel()
+            source_widget.setWordWrap(True)
+            source_widget.setTextFormat(Qt.TextFormat.RichText)
+            source_widget.setText(f"<div style='color: #000000;'>{highlighted_source}</div>")
+            source_widget.setStyleSheet("background-color: transparent; padding: 4px;")
+            source_widget.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+            
+            # Create target cell with QLabel
+            target_widget = QLabel()
+            target_widget.setWordWrap(True)
+            target_widget.setTextFormat(Qt.TextFormat.RichText)
+            target_widget.setText(f"<div style='color: #000000;'>{highlighted_target}</div>")
+            target_widget.setStyleSheet("background-color: transparent; padding: 4px;")
+            target_widget.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+            
+            # Create meta-information cell with QLabel
+            meta_html = f"""<div style='font-size: 11px;'>
                 <div style='color: #2e7d32; font-weight: bold;'>📁 {tm_id}</div>
-                <div style='color: #666; margin-top: 4px;'>Modified: {modified_date}</div>
+                <div style='color: #666;'>Modified: {modified_date}</div>
                 <div style='color: #666;'>Used: {usage_count} times</div>
-            </div>
-            """
-            meta_widget = QTextEdit()
-            meta_widget.setReadOnly(True)
-            meta_widget.setFrameStyle(0)
-            meta_widget.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-            meta_widget.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-            meta_widget.setHtml(meta_html)
+            </div>"""
+            meta_widget = QLabel()
+            meta_widget.setWordWrap(True)
+            meta_widget.setTextFormat(Qt.TextFormat.RichText)
+            meta_widget.setText(meta_html)
             meta_widget.setStyleSheet("background-color: #f8f8f8; padding: 4px;")
+            meta_widget.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
             
             # Set widgets in cells
             self.results_table.setCellWidget(row, 0, source_widget)
             self.results_table.setCellWidget(row, 1, target_widget)
             self.results_table.setCellWidget(row, 2, meta_widget)
             
-            # Calculate row height based on content
-            source_height = max(60, len(source) // 2 + 40)
-            target_height = max(60, len(target) // 2 + 40)
-            row_height = min(max(source_height, target_height), 150)  # Cap at 150px
+            # Calculate row height based on text content and column width
+            # Use font metrics for more accurate height calculation
+            from PyQt6.QtGui import QFontMetrics
+            fm = QFontMetrics(source_widget.font())
+            
+            # Estimate lines needed based on text length and column width
+            chars_per_line = max(1, (source_col_width - 20) // fm.averageCharWidth()) if source_col_width > 50 else 60
+            source_lines = max(1, (len(source) // chars_per_line) + 1)
+            target_lines = max(1, (len(target) // chars_per_line) + 1)
+            
+            line_height = fm.height() + 2
+            content_height = max(source_lines, target_lines) * line_height + 16  # 16px padding
+            row_height = max(50, min(content_height, 200))  # Min 50px, max 200px
+            
             self.results_table.setRowHeight(row, row_height)
+    
+    def _recalculate_row_heights(self):
+        """Recalculate row heights based on current column widths"""
+        if not self.current_results or not hasattr(self, '_updating_heights'):
+            return
+        
+        if self._updating_heights:
+            return
+        
+        self._updating_heights = True
+        try:
+            source_col_width = self.results_table.columnWidth(0)
+            
+            from PyQt6.QtGui import QFontMetrics
+            fm = QFontMetrics(self.results_table.font())
+            chars_per_line = max(1, (source_col_width - 20) // fm.averageCharWidth()) if source_col_width > 50 else 60
+            line_height = fm.height() + 2
+            
+            for row, match in enumerate(self.current_results):
+                source = match.get('source_text', '')
+                target = match.get('target_text', '')
+                
+                source_lines = max(1, (len(source) // chars_per_line) + 1)
+                target_lines = max(1, (len(target) // chars_per_line) + 1)
+                
+                content_height = max(source_lines, target_lines) * line_height + 16
+                row_height = max(50, min(content_height, 200))
+                
+                self.results_table.setRowHeight(row, row_height)
+        finally:
+            self._updating_heights = False
+    
+    def resizeEvent(self, event):
+        """Handle window resize - recalculate row heights for table view"""
+        super().resizeEvent(event)
+        # Only recalculate if we're on the table view tab and have results
+        if hasattr(self, 'view_tabs') and self.view_tabs.currentIndex() == 1 and self.current_results:
+            self._recalculate_row_heights()
     
     def _highlight_term(self, text: str, search_term: str) -> str:
         """Highlight search term in text with yellow/orange background"""
