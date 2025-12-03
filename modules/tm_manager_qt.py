@@ -383,18 +383,15 @@ class ConcordanceSearchDialog(QDialog):
             highlighted_target = self._highlight_term(target, search_text)
             
             html += f"""
-            <div style='background: white; border-bottom: 2px solid #999; padding: 12px 8px; margin-bottom: 0;'>
-                <div style='color: #666; font-size: 11px; margin-bottom: 8px;'>
-                    #{idx} - TM: <b>{tm_id}</b> - Used: {usage_count} times
+            <div style='background: white; border: 1px solid #888; padding: 10px; margin-bottom: 8px;'>
+                <div style='color: #555; font-size: 11px; margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1px solid #ddd;'>
+                    #{idx} - TM: <b>{tm_id}</b> - Used: {usage_count} times - Modified: {modified_date}
                 </div>
-                <div style='margin-bottom: 6px;'>
+                <div style='margin-bottom: 4px;'>
                     <b style='color: #1976D2;'>Source:</b> {highlighted_source}
                 </div>
                 <div>
                     <b style='color: #388E3C;'>Target:</b> {highlighted_target}
-                </div>
-                <div style='color: #999; font-size: 10px; margin-top: 6px;'>
-                    Modified: {modified_date}
                 </div>
             </div>
             """
@@ -426,23 +423,21 @@ class ConcordanceSearchDialog(QDialog):
             highlighted_source = self._highlight_term(source, search_text)
             highlighted_target = self._highlight_term(target, search_text)
             
-            # Create source cell with QLabel (more compact than QTextEdit)
-            source_widget = QLabel()
-            source_widget.setWordWrap(True)
-            source_widget.setTextFormat(Qt.TextFormat.RichText)
-            source_widget.setText(f"<div style='color: #000000;'>{highlighted_source}</div>")
-            source_widget.setStyleSheet("background-color: transparent; padding: 4px;")
-            source_widget.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+            # Create source cell with QTextEdit for proper text display with scrolling
+            source_widget = QTextEdit()
+            source_widget.setReadOnly(True)
+            source_widget.setFrameStyle(0)
+            source_widget.setHtml(f"<div style='color: #000000;'>{highlighted_source}</div>")
+            source_widget.setStyleSheet("background-color: transparent; padding: 2px;")
             
-            # Create target cell with QLabel
-            target_widget = QLabel()
-            target_widget.setWordWrap(True)
-            target_widget.setTextFormat(Qt.TextFormat.RichText)
-            target_widget.setText(f"<div style='color: #000000;'>{highlighted_target}</div>")
-            target_widget.setStyleSheet("background-color: transparent; padding: 4px;")
-            target_widget.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+            # Create target cell with QTextEdit
+            target_widget = QTextEdit()
+            target_widget.setReadOnly(True)
+            target_widget.setFrameStyle(0)
+            target_widget.setHtml(f"<div style='color: #000000;'>{highlighted_target}</div>")
+            target_widget.setStyleSheet("background-color: transparent; padding: 2px;")
             
-            # Create meta-information cell with QLabel
+            # Create meta-information cell with QLabel (compact is fine here)
             meta_html = f"""<div style='font-size: 11px;'>
                 <div style='color: #2e7d32; font-weight: bold;'>📁 {tm_id}</div>
                 <div style='color: #666;'>Modified: {modified_date}</div>
@@ -455,25 +450,19 @@ class ConcordanceSearchDialog(QDialog):
             meta_widget.setStyleSheet("background-color: #f8f8f8; padding: 4px;")
             meta_widget.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
             
-            # Calculate row height based on actual widget size hint
-            # This is more accurate than estimating from text length
+            # Set widgets in cells
             self.results_table.setCellWidget(row, 0, source_widget)
             self.results_table.setCellWidget(row, 1, target_widget)
             self.results_table.setCellWidget(row, 2, meta_widget)
             
-            # Force layout update and get actual height needed
-            source_widget.adjustSize()
-            target_widget.adjustSize()
-            meta_widget.adjustSize()
-            
-            # Use the widget's size hint with the actual column width
-            source_hint = source_widget.heightForWidth(source_col_width - 10) if source_col_width > 50 else source_widget.sizeHint().height()
-            target_hint = target_widget.heightForWidth(target_col_width - 10) if target_col_width > 50 else target_widget.sizeHint().height()
+            # Calculate row height based on document size
+            source_doc_height = source_widget.document().size().height()
+            target_doc_height = target_widget.document().size().height()
             meta_hint = meta_widget.sizeHint().height()
             
             # Use the maximum height needed, with reasonable bounds
-            row_height = max(60, source_hint, target_hint, meta_hint) + 10  # Add padding
-            row_height = min(row_height, 300)  # Cap at 300px max
+            row_height = int(max(70, source_doc_height, target_doc_height, meta_hint) + 16)
+            row_height = min(row_height, 250)  # Cap at 250px max
             
             self.results_table.setRowHeight(row, row_height)
     
@@ -487,22 +476,19 @@ class ConcordanceSearchDialog(QDialog):
         
         self._updating_heights = True
         try:
-            source_col_width = self.results_table.columnWidth(0)
-            target_col_width = self.results_table.columnWidth(1)
-            
             for row in range(self.results_table.rowCount()):
                 source_widget = self.results_table.cellWidget(row, 0)
                 target_widget = self.results_table.cellWidget(row, 1)
                 meta_widget = self.results_table.cellWidget(row, 2)
                 
                 if source_widget and target_widget:
-                    # Get height for width based on current column sizes
-                    source_hint = source_widget.heightForWidth(source_col_width - 10) if source_col_width > 50 else source_widget.sizeHint().height()
-                    target_hint = target_widget.heightForWidth(target_col_width - 10) if target_col_width > 50 else target_widget.sizeHint().height()
+                    # Get document height for QTextEdit widgets
+                    source_height = source_widget.document().size().height() if hasattr(source_widget, 'document') else source_widget.sizeHint().height()
+                    target_height = target_widget.document().size().height() if hasattr(target_widget, 'document') else target_widget.sizeHint().height()
                     meta_hint = meta_widget.sizeHint().height() if meta_widget else 60
                     
-                    row_height = max(60, source_hint, target_hint, meta_hint) + 10
-                    row_height = min(row_height, 300)
+                    row_height = int(max(70, source_height, target_height, meta_hint) + 16)
+                    row_height = min(row_height, 250)
                     
                     self.results_table.setRowHeight(row, row_height)
         finally:
