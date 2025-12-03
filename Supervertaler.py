@@ -15213,6 +15213,14 @@ class SupervertalerQt(QMainWindow):
             self.prefetch_worker_thread.join(timeout=2)
             self.log("✓ Prefetch worker stopped")
     
+    def stop_termbase_batch_worker(self):
+        """Stop the background termbase batch worker gracefully"""
+        if self.termbase_batch_worker_thread and self.termbase_batch_worker_thread.is_alive():
+            self.log("⏹️  Stopping termbase batch worker...")
+            self.termbase_batch_stop_event.set()
+            self.termbase_batch_worker_thread.join(timeout=2)
+            self.log("✓ Termbase batch worker stopped")
+    
     def save_segment_to_activated_tms(self, source: str, target: str):
         """
         Save segment to all activated TMs for current project.
