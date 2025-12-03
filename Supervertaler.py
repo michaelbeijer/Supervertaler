@@ -26687,18 +26687,42 @@ class UniversalLookupTab(QWidget):
     def init_supermemory(self):
         """Initialize connection to Supermemory engine from main window"""
         try:
-            if hasattr(self.main_window, 'supermemory_engine') and self.main_window.supermemory_engine:
-                self.supermemory_engine = self.main_window.supermemory_engine
+            # Check if main window has supermemory_widget with an engine
+            if hasattr(self.main_window, 'supermemory_widget') and self.main_window.supermemory_widget:
+                widget = self.main_window.supermemory_widget
+                if hasattr(widget, 'engine') and widget.engine:
+                    self.supermemory_engine = widget.engine
+                    if self.supermemory_engine.is_initialized():
+                        stats = self.supermemory_engine.get_stats()
+                        self.supermemory_status.setText(
+                            f"✅ Ready: {stats['total_entries']:,} entries in {stats['total_tms']} TMs"
+                        )
+                        self.supermemory_status.setStyleSheet("color: green; padding: 5px;")
+                        return
+                    else:
+                        self.supermemory_status.setText("⚠️ Supermemory not initialized. Go to Tools → Supermemory to set up.")
+                        self.supermemory_status.setStyleSheet("color: orange; padding: 5px;")
+                        return
+            
+            # Fallback: Try to initialize Supermemory directly
+            try:
+                from modules.supermemory import SupermemoryEngine
+                user_data_path = getattr(self.main_window, 'user_data_path', 'user_data')
+                self.supermemory_engine = SupermemoryEngine(user_data_path)
                 if self.supermemory_engine.is_initialized():
                     stats = self.supermemory_engine.get_stats()
-                    self.supermemory_status.setText(
-                        f"✅ Ready: {stats['total_entries']:,} entries in {stats['total_tms']} TMs"
-                    )
-                    self.supermemory_status.setStyleSheet("color: green; padding: 5px;")
+                    if stats['total_entries'] > 0:
+                        self.supermemory_status.setText(
+                            f"✅ Ready: {stats['total_entries']:,} entries in {stats['total_tms']} TMs"
+                        )
+                        self.supermemory_status.setStyleSheet("color: green; padding: 5px;")
+                    else:
+                        self.supermemory_status.setText("⚠️ No TMs indexed. Go to Tools → Supermemory to add TMX files.")
+                        self.supermemory_status.setStyleSheet("color: orange; padding: 5px;")
                 else:
                     self.supermemory_status.setText("⚠️ Supermemory not initialized. Go to Tools → Supermemory to set up.")
                     self.supermemory_status.setStyleSheet("color: orange; padding: 5px;")
-            else:
+            except ImportError:
                 self.supermemory_status.setText("⚠️ Supermemory not available. Enable in Tools → Supermemory.")
                 self.supermemory_status.setStyleSheet("color: orange; padding: 5px;")
         except Exception as e:
@@ -27034,8 +27058,14 @@ class UniversalLookupTab(QWidget):
     
     def on_results_tab_changed(self, index):
         """Handle results tab change - refresh resource lists when Settings tab is viewed"""
-        # Settings tab is at index 4 (TM=0, Termbase=1, MT=2, Web=3, Settings=4)
-        if index == 4:
+        # Supermemory tab is at index 2 (TM=0, Termbase=1, Supermemory=2, MT=3, Web=4, Settings=5)
+        if index == 2:
+            # Initialize Supermemory when tab is first viewed
+            if not self.supermemory_engine:
+                print("[Superlookup] Supermemory tab viewed - initializing engine")
+                self.init_supermemory()
+        # Settings tab is at index 5
+        elif index == 5:
             print("[Superlookup] Settings tab viewed - refreshing resource lists")
             self.refresh_tm_list()
             self.refresh_termbase_list()
