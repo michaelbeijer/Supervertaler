@@ -200,7 +200,7 @@ class ConcordanceSearchDialog(QDialog):
             """
             search_pattern = f"%{search_text}%"
             
-            cursor = self.db_manager.conn.cursor()
+            cursor = self.db_manager.connection.cursor()
             cursor.execute(query, (search_pattern, search_pattern))
             results = cursor.fetchall()
             

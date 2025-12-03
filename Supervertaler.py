@@ -6290,17 +6290,32 @@ class SupervertalerQt(QMainWindow):
                 if hasattr(self, 'table') and self.table:
                     current_row = self.table.currentRow()
                     if current_row >= 0:
-                        source_widget = self.table.cellWidget(current_row, 2)  # Source column
+                        # Try source column first (column 2)
+                        source_widget = self.table.cellWidget(current_row, 2)
                         if source_widget and hasattr(source_widget, 'textCursor'):
                             cursor = source_widget.textCursor()
                             if cursor.hasSelection():
                                 initial_query = cursor.selectedText()
+                        
+                        # If no selection in source, try target column (column 3)
+                        if not initial_query:
+                            target_widget = self.table.cellWidget(current_row, 3)
+                            if target_widget and hasattr(target_widget, 'textCursor'):
+                                cursor = target_widget.textCursor()
+                                if cursor.hasSelection():
+                                    initial_query = cursor.selectedText()
+            
+            # Log for debugging
+            if initial_query:
+                self.log(f"[Concordance] Opening with query: '{initial_query[:50]}...'")
             
             # Open lightweight Concordance Search dialog
             dialog = ConcordanceSearchDialog(self, self.db_manager, self.log, initial_query)
             dialog.exec()
         except Exception as e:
             self.log(f"Error opening concordance search: {e}")
+            import traceback
+            traceback.print_exc()
             QMessageBox.critical(self, "Error", f"Failed to open concordance search:\n{str(e)}")
     
     def show_tm_manager_tab(self, tab_index: int = 0):
