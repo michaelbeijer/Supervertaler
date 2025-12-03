@@ -188,10 +188,16 @@ class ConcordanceSearchDialog(QDialog):
         self.current_search_term = ""
         self._updating_heights = False  # Flag to prevent recursive updates
         
+        # Get language names from parent app
+        self.source_lang_name = getattr(parent, 'source_language', 'Source')
+        self.target_lang_name = getattr(parent, 'target_language', 'Target')
+        
         self.setWindowTitle("Concordance Search")
-        self.resize(1100, 650)
         
         self.setup_ui()
+        
+        # Open maximized
+        self.showMaximized()
         
         # Set initial query and search if provided
         if initial_query:
@@ -254,7 +260,7 @@ class ConcordanceSearchDialog(QDialog):
         # Create table for side-by-side view
         self.results_table = QTableWidget()
         self.results_table.setColumnCount(3)
-        self.results_table.setHorizontalHeaderLabels(["Source", "Target", "Meta-information"])
+        self.results_table.setHorizontalHeaderLabels([self.source_lang_name, self.target_lang_name, "Meta-information"])
         self.results_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         self.results_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         self.results_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
@@ -391,10 +397,10 @@ class ConcordanceSearchDialog(QDialog):
                     #{idx} - TM: <b>{tm_id}</b> - Used: {usage_count} times - Modified: {modified_date}
                 </div>
                 <div style='margin-bottom: 4px;'>
-                    <b style='color: #1976D2;'>Source:</b> {highlighted_source}
+                    <b style='color: #1976D2;'>{self.source_lang_name}:</b> {highlighted_source}
                 </div>
                 <div>
-                    <b style='color: #388E3C;'>Target:</b> {highlighted_target}
+                    <b style='color: #388E3C;'>{self.target_lang_name}:</b> {highlighted_target}
                 </div>
             </div>
             <hr style='border: none; border-top: 2px solid #666; margin: 0;'>
