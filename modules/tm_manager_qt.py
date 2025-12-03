@@ -187,6 +187,7 @@ class ConcordanceSearchDialog(QDialog):
         self.current_results = []  # Store results for both views
         self.current_search_term = ""
         self._updating_heights = False  # Flag to prevent recursive updates
+        self._initial_query = initial_query  # Store for after show
         
         # Get language names from parent app
         self.source_lang_name = getattr(parent, 'source_language', 'Source')
@@ -195,14 +196,17 @@ class ConcordanceSearchDialog(QDialog):
         self.setWindowTitle("Concordance Search")
         
         self.setup_ui()
-        
-        # Open maximized
+    
+    def exec(self):
+        """Override exec to show maximized"""
         self.showMaximized()
         
         # Set initial query and search if provided
-        if initial_query:
-            self.search_input.setText(initial_query)
+        if self._initial_query:
+            self.search_input.setText(self._initial_query)
             self.do_search()
+        
+        return super().exec()
     
     def setup_ui(self):
         """Setup the UI with tabbed view modes"""
