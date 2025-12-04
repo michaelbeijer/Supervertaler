@@ -88,14 +88,23 @@ STATUSES: Dict[str, StatusDefinition] = {
         memoQ_equivalents=("approved", "final", "proofread confirmed"),
         match_symbol="🏁",
     ),
+    "cm": StatusDefinition(
+        key="cm",
+        label="CM (101%)",
+        icon="💎",  # Diamond - highest quality match (context match)
+        color="#c3e6cb",  # Darker green - very high confidence
+        memoq_label="Pre-translated (101%)",
+        memoQ_equivalents=("pre-translated (101%)", "context match", "cm", "101%"),
+        match_symbol="💎",
+    ),
     "tm_100": StatusDefinition(
         key="tm_100",
         label="TM 100%",
-        icon="💎",  # Diamond - high quality match
-        color="#d4edda",  # Light green - indicates good match
+        icon="✅",  # Checkmark - exact match
+        color="#d4edda",  # Light green - high confidence
         memoq_label="Pre-translated (100%)",
-        memoQ_equivalents=("pre-translated (100%)", "pre-translated (101%)", "context match", "cm"),
-        match_symbol="💎",
+        memoQ_equivalents=("pre-translated (100%)", "100%", "exact match"),
+        match_symbol="✅",
     ),
     "tm_fuzzy": StatusDefinition(
         key="tm_fuzzy",
@@ -105,6 +114,15 @@ STATUSES: Dict[str, StatusDefinition] = {
         memoq_label="Pre-translated (fuzzy)",
         memoQ_equivalents=("fuzzy", "fuzzy match"),
         match_symbol="🔶",
+    ),
+    "repetition": StatusDefinition(
+        key="repetition",
+        label="Repetition",
+        icon="🔁",  # Repeat icon - internal repetition
+        color="#e2e3e5",  # Light gray - auto-propagated
+        memoq_label="Repetition",
+        memoQ_equivalents=("repetition", "rep", "auto-propagated"),
+        match_symbol="🔁",
     ),
     "machine_translated": StatusDefinition(
         key="machine_translated",

@@ -58,7 +58,8 @@ class SDLSegment:
     target_xml: str  # Target XML with tags
     status: str  # not_translated, draft, translated, etc.
     match_percent: int = 0  # TM match percentage
-    origin: str = ""  # mt, tm, etc.
+    origin: str = ""  # mt, tm, document-match, etc.
+    text_match: str = ""  # SourceAndTarget = CM, Source = 100%
     locked: bool = False
     file_path: str = ""  # Source SDLXLIFF file
 
@@ -213,6 +214,7 @@ class SDLXLIFFParser:
             status = self._get_segment_status(tu, sdl_seg)
             match_percent = self._get_match_percent(sdl_seg)
             origin = self._get_origin(sdl_seg)
+            text_match = self._get_text_match(sdl_seg)
             locked = self._is_locked(tu, sdl_seg)
             
             segment = SDLSegment(
@@ -225,6 +227,7 @@ class SDLXLIFFParser:
                 status=status,
                 match_percent=match_percent,
                 origin=origin,
+                text_match=text_match,
                 locked=locked,
                 file_path=file_path
             )
@@ -282,6 +285,7 @@ class SDLXLIFFParser:
             status = self._get_segment_status(tu, seg_def)
             match_percent = self._get_match_percent(seg_def)
             origin = self._get_origin(seg_def)
+            text_match = self._get_text_match(seg_def)
             locked = self._is_locked(tu, seg_def)
             
             segment = SDLSegment(
@@ -294,6 +298,7 @@ class SDLXLIFFParser:
                 status=status,
                 match_percent=match_percent,
                 origin=origin,
+                text_match=text_match,
                 locked=locked,
                 file_path=file_path
             )
@@ -377,11 +382,19 @@ class SDLXLIFFParser:
         return 0
     
     def _get_origin(self, seg_def: ET.Element) -> str:
-        """Get segment origin (tm, mt, etc.)."""
+        """Get segment origin (tm, mt, document-match, etc.)."""
         if seg_def is not None:
             origin = seg_def.get('origin')
             if origin:
                 return origin.lower()
+        return ""
+    
+    def _get_text_match(self, seg_def: ET.Element) -> str:
+        """Get text-match attribute (SourceAndTarget = CM, Source = 100%)."""
+        if seg_def is not None:
+            text_match = seg_def.get('text-match')
+            if text_match:
+                return text_match
         return ""
     
     def _is_locked(self, tu: ET.Element, seg_def: ET.Element) -> bool:

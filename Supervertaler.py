@@ -17258,16 +17258,22 @@ class SupervertalerQt(QMainWindow):
             # Convert to internal Segment format with proper status mapping
             segments = []
             for i, sdl_seg in enumerate(all_segments):
-                # Determine status based on origin and match percent
+                # Determine status based on origin, match percent, and text-match attribute
                 if sdl_seg.target_text:
                     if sdl_seg.origin == 'tm':
-                        # TM match - check percentage
+                        # TM match - check for context match vs regular 100%
                         if sdl_seg.match_percent >= 100:
-                            status = STATUSES["tm_100"].key  # 100% or context match
+                            # Check if it's a context match (text-match="SourceAndTarget")
+                            if getattr(sdl_seg, 'text_match', '') == 'SourceAndTarget':
+                                status = STATUSES["cm"].key  # Context match (101%)
+                            else:
+                                status = STATUSES["tm_100"].key  # Regular 100% match
                         elif sdl_seg.match_percent >= 75:
                             status = STATUSES["tm_fuzzy"].key  # Fuzzy match
                         else:
                             status = STATUSES["pretranslated"].key
+                    elif sdl_seg.origin in ('document-match', 'auto-propagated'):
+                        status = STATUSES["repetition"].key  # Internal repetition
                     elif sdl_seg.origin in ('nmt', 'mt', 'machine-translation', 'auto-translation'):
                         status = STATUSES["machine_translated"].key  # Machine translation
                     elif sdl_seg.origin == 'interactive':
@@ -17281,9 +17287,14 @@ class SupervertalerQt(QMainWindow):
                 origin_info = ""
                 if sdl_seg.origin:
                     if sdl_seg.origin == 'tm' and sdl_seg.match_percent > 0:
-                        origin_info = f" | Origin: TM {sdl_seg.match_percent}%"
+                        if getattr(sdl_seg, 'text_match', '') == 'SourceAndTarget':
+                            origin_info = f" | Origin: CM (101%)"
+                        else:
+                            origin_info = f" | Origin: TM {sdl_seg.match_percent}%"
                     elif sdl_seg.origin in ('nmt', 'mt'):
                         origin_info = " | Origin: MT"
+                    elif sdl_seg.origin in ('document-match', 'auto-propagated'):
+                        origin_info = " | Origin: Repetition"
                     else:
                         origin_info = f" | Origin: {sdl_seg.origin}"
                 
