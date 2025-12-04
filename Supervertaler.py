@@ -17255,15 +17255,44 @@ class SupervertalerQt(QMainWindow):
                 handler.cleanup()
                 return
             
-            # Convert to internal Segment format
+            # Convert to internal Segment format with proper status mapping
             segments = []
             for i, sdl_seg in enumerate(all_segments):
+                # Determine status based on origin and match percent
+                if sdl_seg.target_text:
+                    if sdl_seg.origin == 'tm':
+                        # TM match - check percentage
+                        if sdl_seg.match_percent >= 100:
+                            status = STATUSES["tm_100"].key  # 100% or context match
+                        elif sdl_seg.match_percent >= 75:
+                            status = STATUSES["tm_fuzzy"].key  # Fuzzy match
+                        else:
+                            status = STATUSES["pretranslated"].key
+                    elif sdl_seg.origin in ('nmt', 'mt', 'machine-translation', 'auto-translation'):
+                        status = STATUSES["machine_translated"].key  # Machine translation
+                    elif sdl_seg.origin == 'interactive':
+                        status = STATUSES["translated"].key  # Manually translated
+                    else:
+                        status = STATUSES["pretranslated"].key  # Default for other pretranslated
+                else:
+                    status = DEFAULT_STATUS.key  # Not translated
+                
+                # Build notes with origin info
+                origin_info = ""
+                if sdl_seg.origin:
+                    if sdl_seg.origin == 'tm' and sdl_seg.match_percent > 0:
+                        origin_info = f" | Origin: TM {sdl_seg.match_percent}%"
+                    elif sdl_seg.origin in ('nmt', 'mt'):
+                        origin_info = " | Origin: MT"
+                    else:
+                        origin_info = f" | Origin: {sdl_seg.origin}"
+                
                 segment = Segment(
                     id=i + 1,
                     source=sdl_seg.source_text,
                     target=sdl_seg.target_text if sdl_seg.target_text else "",
-                    status=STATUSES["pretranslated"].key if sdl_seg.target_text else DEFAULT_STATUS.key,
-                    notes=f"SDLXLIFF: {Path(sdl_seg.file_path).name} | Segment: {sdl_seg.segment_id}"
+                    status=status,
+                    notes=f"SDLXLIFF: {Path(sdl_seg.file_path).name} | Segment: {sdl_seg.segment_id}{origin_info}"
                 )
                 segments.append(segment)
             

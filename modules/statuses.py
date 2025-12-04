@@ -88,6 +88,33 @@ STATUSES: Dict[str, StatusDefinition] = {
         memoQ_equivalents=("approved", "final", "proofread confirmed"),
         match_symbol="🏁",
     ),
+    "tm_100": StatusDefinition(
+        key="tm_100",
+        label="TM 100%",
+        icon="💎",  # Diamond - high quality match
+        color="#d4edda",  # Light green - indicates good match
+        memoq_label="Pre-translated (100%)",
+        memoQ_equivalents=("pre-translated (100%)", "pre-translated (101%)", "context match", "cm"),
+        match_symbol="💎",
+    ),
+    "tm_fuzzy": StatusDefinition(
+        key="tm_fuzzy",
+        label="TM Fuzzy",
+        icon="🔶",  # Orange diamond - partial match
+        color="#fff3cd",  # Light yellow/orange - needs review
+        memoq_label="Pre-translated (fuzzy)",
+        memoQ_equivalents=("fuzzy", "fuzzy match"),
+        match_symbol="🔶",
+    ),
+    "machine_translated": StatusDefinition(
+        key="machine_translated",
+        label="MT",
+        icon="🤖",  # Robot - machine translation
+        color="#ffeaa7",  # Light orange/yellow - needs review
+        memoq_label="Machine Translated",
+        memoQ_equivalents=("machine translated", "mt", "nmt", "auto-translated"),
+        match_symbol="🤖",
+    ),
 }
 
 DEFAULT_STATUS = STATUSES["not_started"]
