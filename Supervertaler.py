@@ -33,7 +33,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.18"
+__version__ = "1.9.19"
 __phase__ = "0.9"
 __release_date__ = "2025-12-04"
 __edition__ = "Qt"
@@ -4354,9 +4354,16 @@ class SupervertalerQt(QMainWindow):
         import_cafetran_action.triggered.connect(self.import_cafetran_bilingual)
         import_menu.addAction(import_cafetran_action)
         
-        import_trados_action = QAction("&Trados Bilingual Review (DOCX)...", self)
-        import_trados_action.triggered.connect(self.import_trados_bilingual)
-        import_menu.addAction(import_trados_action)
+        # Trados submenu - group all Trados imports together
+        trados_submenu = import_menu.addMenu("&Trados Studio")
+        
+        import_trados_bilingual_action = QAction("Bilingual &Review (DOCX)...", self)
+        import_trados_bilingual_action.triggered.connect(self.import_trados_bilingual)
+        trados_submenu.addAction(import_trados_bilingual_action)
+        
+        import_sdlppx_action = QAction("&Package (SDLPPX)...", self)
+        import_sdlppx_action.triggered.connect(self.import_sdlppx_package)
+        trados_submenu.addAction(import_sdlppx_action)
         
         import_menu.addSeparator()
         
@@ -4374,9 +4381,16 @@ class SupervertalerQt(QMainWindow):
         export_cafetran_action.triggered.connect(self.export_cafetran_bilingual)
         export_menu.addAction(export_cafetran_action)
         
-        export_trados_action = QAction("&Trados Bilingual Review - Translated (DOCX)...", self)
-        export_trados_action.triggered.connect(self.export_trados_bilingual)
-        export_menu.addAction(export_trados_action)
+        # Trados submenu - group all Trados exports together
+        trados_export_submenu = export_menu.addMenu("&Trados Studio")
+        
+        export_trados_bilingual_action = QAction("Bilingual &Review - Translated (DOCX)...", self)
+        export_trados_bilingual_action.triggered.connect(self.export_trados_bilingual)
+        trados_export_submenu.addAction(export_trados_bilingual_action)
+        
+        export_sdlrpx_action = QAction("Return &Package (SDLRPX)...", self)
+        export_sdlrpx_action.triggered.connect(self.export_sdlrpx_package)
+        trados_export_submenu.addAction(export_sdlrpx_action)
         
         export_target_docx_action = QAction("&Target Only (DOCX)...", self)
         export_target_docx_action.triggered.connect(self.export_target_only_docx)
@@ -17166,6 +17180,286 @@ class SupervertalerQt(QMainWindow):
             import traceback
             traceback.print_exc()
     
+    def import_sdlppx_package(self):
+        """Import a Trados Studio SDLPPX package file."""
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select Trados Studio Package (SDLPPX)",
+            "",
+            "Trados Packages (*.sdlppx);;All Files (*.*)"
+        )
+        
+        if not file_path:
+            return
+        
+        try:
+            from modules.sdlppx_handler import TradosPackageHandler
+            
+            # Load the package
+            handler = TradosPackageHandler(log_callback=self.log)
+            package = handler.load_package(file_path)
+            
+            if not package:
+                QMessageBox.critical(
+                    self, "Error",
+                    "Failed to load the Trados Studio package.\n\n"
+                    "Please ensure the file is a valid .sdlppx file."
+                )
+                return
+            
+            # Show package info dialog
+            from PyQt6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QDialogButtonBox, QGroupBox, QTextEdit
+            
+            info_dialog = QDialog(self)
+            info_dialog.setWindowTitle("Trados Package Information")
+            info_dialog.setMinimumWidth(500)
+            info_layout = QVBoxLayout(info_dialog)
+            
+            # Project info and file list
+            info_text = f"<b>Project:</b> {package.project_name}<br>"
+            info_text += f"<b>Languages:</b> {package.source_lang} → {package.target_lang}<br>"
+            
+            # Count segments
+            total_segments = sum(len(f.segments) for f in package.xliff_files)
+            file_info = [(Path(f.file_path).name, len(f.segments)) for f in package.xliff_files]
+            
+            info_text += f"<b>Total segments:</b> {total_segments}<br><br>"
+            info_text += "<b>Files in package:</b><br>"
+            for fname, count in file_info:
+                info_text += f"  • {fname}: {count} segments<br>"
+            
+            info_label = QLabel(info_text)
+            info_label.setWordWrap(True)
+            info_layout.addWidget(info_label)
+            
+            # Buttons
+            buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+            buttons.button(QDialogButtonBox.StandardButton.Ok).setText("Import")
+            buttons.accepted.connect(info_dialog.accept)
+            buttons.rejected.connect(info_dialog.reject)
+            info_layout.addWidget(buttons)
+            
+            if info_dialog.exec() != QDialog.DialogCode.Accepted:
+                self.log("✗ User cancelled SDLPPX import")
+                handler.cleanup()
+                return
+            
+            # Get all segments from the package
+            all_segments = handler.get_all_segments()
+            
+            if not all_segments:
+                QMessageBox.warning(
+                    self, "No Segments",
+                    "No translatable segments found in the package."
+                )
+                handler.cleanup()
+                return
+            
+            # Convert to internal Segment format
+            segments = []
+            for i, sdl_seg in enumerate(all_segments):
+                segment = Segment(
+                    id=i + 1,
+                    source=sdl_seg.source_text,
+                    target=sdl_seg.target_text if sdl_seg.target_text else "",
+                    status=STATUSES["pretranslated"].key if sdl_seg.target_text else DEFAULT_STATUS.key,
+                    notes=f"SDLXLIFF: {Path(sdl_seg.file_path).name} | Segment: {sdl_seg.segment_id}"
+                )
+                segments.append(segment)
+            
+            # Map language codes to full names
+            lang_map = {
+                'en': 'English', 'en-us': 'English', 'en-gb': 'English',
+                'nl': 'Dutch', 'nl-nl': 'Dutch', 'nl-be': 'Dutch',
+                'de': 'German', 'de-de': 'German', 'de-at': 'German', 'de-ch': 'German',
+                'fr': 'French', 'fr-fr': 'French', 'fr-be': 'French', 'fr-ca': 'French',
+                'es': 'Spanish', 'es-es': 'Spanish', 'es-mx': 'Spanish',
+                'it': 'Italian', 'it-it': 'Italian',
+                'pt': 'Portuguese', 'pt-pt': 'Portuguese', 'pt-br': 'Portuguese',
+                'pl': 'Polish', 'pl-pl': 'Polish',
+                'zh': 'Chinese', 'zh-cn': 'Chinese', 'zh-tw': 'Chinese',
+                'ja': 'Japanese', 'ja-jp': 'Japanese',
+                'ko': 'Korean', 'ko-kr': 'Korean',
+                'ru': 'Russian', 'ru-ru': 'Russian',
+            }
+            
+            source_lang = lang_map.get(package.source_lang.lower(), package.source_lang)
+            target_lang = lang_map.get(package.target_lang.lower(), package.target_lang)
+            
+            # Create new project
+            self.current_project = Project(
+                name=package.project_name or Path(file_path).stem,
+                segments=segments,
+                source_lang=source_lang,
+                target_lang=target_lang
+            )
+            
+            # Store handler and package info for round-trip export
+            self.sdlppx_handler = handler
+            self.sdlppx_source_file = file_path
+            self.current_project.sdlppx_source_path = file_path
+            
+            # Update UI
+            self.project_file_path = None
+            self.project_modified = True
+            self.update_window_title()
+            self.load_segments_to_grid()
+            self.initialize_tm_database()
+            
+            # Count pretranslated segments
+            pretrans_count = sum(1 for s in segments if s.target)
+            
+            self.log(f"✓ Imported {len(segments)} segments from Trados package: {Path(file_path).name}")
+            if pretrans_count:
+                self.log(f"  {pretrans_count} segments are pretranslated")
+            
+            QMessageBox.information(
+                self, "Import Successful",
+                f"Successfully imported {len(segments)} segment(s) from Trados Studio package.\n\n"
+                f"File: {Path(file_path).name}\n"
+                f"Languages: {source_lang} → {target_lang}\n"
+                f"Pretranslated: {pretrans_count}\n\n"
+                f"After translation, export back as SDLRPX to return to the Trados user."
+            )
+            
+        except ImportError as e:
+            QMessageBox.critical(
+                self, "Missing Dependency",
+                f"Required library is missing: {e}\n\n"
+                "Install dependencies with: pip install lxml"
+            )
+        except Exception as e:
+            QMessageBox.critical(self, "Import Error", f"Failed to import Trados package:\n\n{str(e)}")
+            self.log(f"✗ SDLPPX import failed: {str(e)}")
+            import traceback
+            traceback.print_exc()
+    
+    def export_sdlrpx_package(self):
+        """Export translations back to a Trados Studio SDLRPX return package."""
+        if not self.current_project or not self.current_project.segments:
+            QMessageBox.warning(self, "No Project", "No project is currently loaded.")
+            return
+        
+        # Check if we have an SDLPPX handler
+        sdlppx_source = None
+        
+        if hasattr(self, 'sdlppx_handler') and self.sdlppx_handler:
+            sdlppx_source = getattr(self, 'sdlppx_source_file', None)
+        
+        if not sdlppx_source and hasattr(self.current_project, 'sdlppx_source_path'):
+            sdlppx_source = self.current_project.sdlppx_source_path
+        
+        if not sdlppx_source:
+            QMessageBox.warning(
+                self, "No SDLPPX Source",
+                "This project was not imported from an SDLPPX package.\n\n"
+                "To export as SDLRPX, you must first import an SDLPPX package."
+            )
+            return
+        
+        # Check if source exists
+        if not Path(sdlppx_source).exists():
+            # Try to locate the file
+            reply = QMessageBox.question(
+                self, "Source Package Not Found",
+                f"The original SDLPPX package cannot be found:\n\n"
+                f"{sdlppx_source}\n\n"
+                f"Would you like to browse for the file?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
+            
+            if reply == QMessageBox.StandardButton.Yes:
+                file_path, _ = QFileDialog.getOpenFileName(
+                    self,
+                    "Select Original SDLPPX Package",
+                    "",
+                    "Trados Packages (*.sdlppx);;All Files (*.*)"
+                )
+                
+                if file_path:
+                    sdlppx_source = file_path
+                    self.sdlppx_source_file = file_path
+                    self.current_project.sdlppx_source_path = file_path
+                else:
+                    return
+            else:
+                return
+        
+        # Reload handler if needed
+        if not hasattr(self, 'sdlppx_handler') or not self.sdlppx_handler:
+            try:
+                from modules.sdlppx_handler import TradosPackageHandler
+                self.sdlppx_handler = TradosPackageHandler(log_callback=self.log)
+                package = self.sdlppx_handler.load_package(sdlppx_source)
+                if not package:
+                    QMessageBox.critical(self, "Error", "Failed to reload the SDLPPX package.")
+                    return
+                self.sdlppx_source_file = sdlppx_source
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Failed to reload SDLPPX:\n\n{str(e)}")
+                return
+        
+        # Suggest output filename
+        source_path = Path(sdlppx_source)
+        suggested_name = source_path.stem + ".sdlrpx"
+        
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export Trados Return Package (SDLRPX)",
+            str(source_path.parent / suggested_name),
+            "Trados Return Packages (*.sdlrpx);;All Files (*.*)"
+        )
+        
+        if not file_path:
+            return
+        
+        try:
+            # Collect translations from grid
+            # Build mapping from segment_id to translation
+            translations = {}
+            
+            for row in range(self.table.rowCount()):
+                target_widget = self.table.cellWidget(row, 3)  # Target column
+                notes_item = self.table.item(row, 5)  # Notes column
+                
+                if target_widget and notes_item:
+                    target_text = target_widget.toPlainText().strip()
+                    notes = notes_item.text()
+                    
+                    # Extract segment_id from notes
+                    # Format: "SDLXLIFF: filename.sdlxliff | Segment: 123"
+                    if "Segment:" in notes:
+                        parts = notes.split("|")
+                        if len(parts) >= 2:
+                            seg_part = parts[1].replace("Segment:", "").strip()
+                            if target_text:
+                                translations[seg_part] = target_text
+            
+            # Update the handler with translations
+            updated = self.sdlppx_handler.update_translations(translations)
+            
+            # Export return package
+            result_path = self.sdlppx_handler.create_return_package(file_path)
+            
+            if result_path:
+                self.log(f"✓ Exported {updated} translated segments to SDLRPX: {Path(file_path).name}")
+                
+                QMessageBox.information(
+                    self, "Export Successful",
+                    f"Successfully exported Trados return package.\n\n"
+                    f"File: {Path(file_path).name}\n"
+                    f"Translations updated: {updated}\n\n"
+                    f"This file can be imported back into Trados Studio by the project manager."
+                )
+            else:
+                QMessageBox.critical(self, "Export Error", "Failed to create the SDLRPX return package.")
+                
+        except Exception as e:
+            QMessageBox.critical(self, "Export Error", f"Failed to export SDLRPX:\n\n{str(e)}")
+            self.log(f"✗ SDLRPX export failed: {str(e)}")
+            import traceback
+            traceback.print_exc()
+
     def import_review_table(self):
         """Import a Supervertaler Bilingual Table to update translations in current project.
         

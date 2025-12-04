@@ -1,13 +1,43 @@
 # Supervertaler Project Context
 
 **Last Updated:** December 4, 2025
-**Current Version:** v1.9.18
+**Current Version:** v1.9.19
 **Repository:** https://github.com/michaelbeijer/Supervertaler
 **Maintainer:** Michael Beijer
 
 ---
 
 ## 📅 Recent Development Activity
+
+### December 4, 2025 - Version 1.9.19: Trados Studio Package Support
+
+**📦 SDLPPX/SDLRPX Package Support**
+Full round-trip support for Trados Studio project packages:
+
+- **New Handler Module:** `modules/sdlppx_handler.py` (767 lines)
+  - `TradosPackageHandler` class for package management
+  - `SDLXLIFFParser` for parsing SDL-extended XLIFF files
+  - Handles `<g>`, `<x/>`, `<mrk mtype="seg">` tags
+  - Preserves SDL namespaces and attributes
+
+- **Import SDLPPX:**
+  - File → Import → Trados Studio → Package (SDLPPX)
+  - Extracts and parses SDLXLIFF files from package
+  - Shows package info dialog with file list and segment counts
+  - Automatic language detection from package metadata
+  - Preserves segment IDs in notes for round-trip export
+
+- **Export SDLRPX:**
+  - File → Export → Trados Studio → Return Package (SDLRPX)
+  - Updates SDLXLIFF files with translations
+  - Creates properly formatted return package ZIP
+  - Workflow for freelance translators receiving packages
+
+- **Menu Reorganization:**
+  - New "Trados Studio" submenu under Import and Export
+  - Groups bilingual review DOCX and package options together
+
+---
 
 ### December 4, 2025 - Version 1.9.18: Supermemory Concordance Integration
 

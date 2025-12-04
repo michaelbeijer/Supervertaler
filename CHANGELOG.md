@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.18 (December 4, 2025)
+**Current Version:** v1.9.19 (December 4, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -14,6 +14,7 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- 📦 **Trados Studio Package Support (v1.9.19)** - Import SDLPPX packages directly from Trados Studio project managers. New File → Import → Trados Studio submenu with Package (SDLPPX) option. Translates SDLXLIFF files within the package, preserves SDL-specific markup and segment IDs. Export as SDLRPX return package (File → Export → Trados Studio → Return Package) for seamless delivery back to Trados users. Full round-trip workflow for freelance translators receiving packages
 - 🔍 **Supermemory Concordance Integration (v1.9.18)** - Concordance Search (Ctrl+K) now includes Supermemory semantic search with two-tab interface. TM Matches tab for exact text search, Supermemory tab for meaning-based search. Active checkbox column in Supermemory to control which TMs are searched. Fixed Trados bilingual DOCX round-trip issues (xml:space, language settings). Supermemory moved to Resources tab
 - 🧠 **Supermemory Enhancements (v1.9.17)** - Complete domain management system for translation memories with domain categorization (Legal, Medical, Patents, etc.), multi-language filtering in search, integration with Superlookup for unified lookup, and TMX/CSV export. Color-coded domain tags, dynamic column headers showing actual languages, and professional search/filter interface
 - 🖥️ **Local LLM Support - Ollama (v1.9.16)** - Run AI translation entirely on your computer with no API costs, complete privacy, and offline capability. New "Local LLM (Ollama)" provider option in Settings with automatic hardware detection and model recommendations. Supports qwen2.5 (3B/7B/14B), llama3.2, mistral, and gemma2 models. Built-in setup wizard guides installation and model downloads. See FAQ for setup instructions
@@ -64,6 +65,42 @@ All notable changes to Supervertaler are documented in this file.
 - 🔄 **CAT Tool Integration** - memoQ, Trados, CafeTran bilingual table support
 
 **See full version history below** ↓
+
+---
+
+## [1.9.19] - December 4, 2025
+
+### 📦 Trados Studio Package Support
+- **SDLPPX Import**: Import Trados Studio project packages directly
+  - File → Import → Trados Studio → Package (SDLPPX)
+  - Parses SDLXLIFF files within the package
+  - Shows package info dialog with file list and segment counts
+  - Preserves SDL-specific markup and segment IDs
+  - Automatic language detection from package metadata
+- **SDLRPX Export**: Create return packages for delivery
+  - File → Export → Trados Studio → Return Package (SDLRPX)
+  - Writes translations back to SDLXLIFF files
+  - Creates properly formatted return package
+  - Round-trip workflow for freelance translators
+- **Menu Reorganization**: Grouped all Trados import/export options
+  - New "Trados Studio" submenu under Import and Export
+  - Contains both bilingual review DOCX and package options
+- **New Module**: `modules/sdlppx_handler.py` (767 lines)
+  - `TradosPackageHandler` class for package management
+  - `SDLXLIFFParser` for parsing SDL-extended XLIFF files
+  - Handles `<g>`, `<x/>`, `<mrk mtype="seg">` tags
+  - Preserves SDL namespaces and attributes
+
+---
+
+## [1.9.18] - December 4, 2025
+
+### 🔍 Supermemory Concordance Integration
+- Concordance Search (Ctrl+K) now includes Supermemory semantic search
+- Two-tab interface: TM Matches tab for exact text, Supermemory tab for meaning
+- Active checkbox column in Supermemory to control which TMs are searched
+- Fixed Trados bilingual DOCX round-trip issues (xml:space, language settings)
+- Supermemory moved from Tools tab to Resources tab
 
 ---
 
