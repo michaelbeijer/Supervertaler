@@ -4071,9 +4071,15 @@ class SupervertalerQt(QMainWindow):
         self.shortcut_go_to_bottom = QShortcut(QKeySequence("Ctrl+End"), self)
         self.shortcut_go_to_bottom.activated.connect(self.go_to_last_segment)
         
-        # Ctrl+Enter - Confirm segment and go to next unconfirmed
+        # Ctrl+Enter - Confirm segment(s) and go to next unconfirmed
+        # If multiple segments selected: confirm all selected
+        # If single segment: confirm and go to next unconfirmed
         self.shortcut_confirm_next = QShortcut(QKeySequence("Ctrl+Return"), self)
-        self.shortcut_confirm_next.activated.connect(self.confirm_and_next_unconfirmed)
+        self.shortcut_confirm_next.activated.connect(self.confirm_selected_or_next)
+        
+        # Ctrl+Shift+Enter - Always confirm all selected segments
+        self.shortcut_confirm_selected = QShortcut(QKeySequence("Ctrl+Shift+Return"), self)
+        self.shortcut_confirm_selected.activated.connect(self.confirm_selected_segments)
         
         # Note: Ctrl+Shift+S (Copy source to target) is handled in EditableGridTextEditor.keyPressEvent
         
@@ -4529,6 +4535,12 @@ class SupervertalerQt(QMainWindow):
         
         # Bulk Operations submenu
         bulk_menu = edit_menu.addMenu("Bulk &Operations")
+        
+        confirm_selected_action = QAction("✅ &Confirm Selected Segments", self)
+        confirm_selected_action.setShortcut("Ctrl+Shift+Return")
+        confirm_selected_action.setToolTip("Confirm all selected segments (Ctrl+Shift+Enter)")
+        confirm_selected_action.triggered.connect(self.confirm_selected_segments_from_menu)
+        bulk_menu.addAction(confirm_selected_action)
         
         clear_translations_action = QAction("🗑️ &Clear Translations", self)
         clear_translations_action.setToolTip("Clear translations for selected segments")
@@ -20296,6 +20308,12 @@ class SupervertalerQt(QMainWindow):
         
         menu = QMenu(self)
         
+        # Confirm selected segments action
+        if len(selected_segments) >= 1:
+            confirm_action = menu.addAction(f"✅ Confirm {len(selected_segments)} Segment(s)")
+            confirm_action.setToolTip(f"Confirm {len(selected_segments)} selected segment(s)")
+            confirm_action.triggered.connect(self.confirm_selected_segments)
+        
         # Clear translations action
         clear_action = menu.addAction("🗑️ Clear Translations")
         clear_action.setToolTip(f"Clear translations for {len(selected_segments)} selected segment(s)")
@@ -23648,6 +23666,115 @@ class SupervertalerQt(QMainWindow):
                 # Move cursor to end of text
                 target_widget.moveCursor(QTextCursor.MoveOperation.End)
     
+    def confirm_selected_or_next(self):
+        """Smart confirm: if multiple segments selected, confirm all; otherwise confirm and go to next.
+        
+        This is the handler for Ctrl+Enter:
+        - Multiple segments selected: confirm all selected segments
+        - Single segment: confirm current and go to next unconfirmed
+        """
+        selected_segments = self.get_selected_segments_from_grid()
+        
+        if len(selected_segments) > 1:
+            # Multiple segments selected - confirm all
+            self.confirm_selected_segments()
+        else:
+            # Single segment - use original behavior
+            self.confirm_and_next_unconfirmed()
+    
+    def confirm_selected_segments(self):
+        """Confirm all selected segments in the grid.
+        
+        Sets status to 'confirmed' for all selected segments and saves them to TM.
+        """
+        if not self.current_project:
+            self.log("⚠️ No project loaded")
+            return
+        
+        selected_segments = self.get_selected_segments_from_grid()
+        
+        if not selected_segments:
+            self.log("⚠️ No segments selected")
+            return
+        
+        # Sync all target text from grid widgets first
+        self._sync_grid_targets_to_segments(selected_segments)
+        
+        confirmed_count = 0
+        tm_saved_count = 0
+        
+        for segment in selected_segments:
+            # Skip already confirmed segments
+            if segment.status == 'confirmed':
+                continue
+            
+            old_status = segment.status
+            segment.status = 'confirmed'
+            confirmed_count += 1
+            
+            # Update grid status icon
+            row = self._find_row_for_segment(segment.id)
+            if row >= 0:
+                self.update_status_icon(row, 'confirmed')
+            
+            # Save to TM if target has content
+            if segment.target and segment.target.strip():
+                try:
+                    self.save_segment_to_activated_tms(segment.source, segment.target)
+                    tm_saved_count += 1
+                except Exception as e:
+                    self.log(f"⚠️ Error saving segment {segment.id} to TM: {e}")
+        
+        if confirmed_count > 0:
+            self.project_modified = True
+            self.update_window_title()
+            self.log(f"✅ Confirmed {confirmed_count} segment(s), saved {tm_saved_count} to TM")
+        else:
+            self.log(f"ℹ️ All {len(selected_segments)} selected segment(s) were already confirmed")
+    
+    def confirm_selected_segments_from_menu(self):
+        """Confirm selected segments (called from Edit > Bulk Operations menu)"""
+        if not hasattr(self, 'home_view_stack') or not self.home_view_stack:
+            QMessageBox.information(self, "Not Available", "Please load a project first.")
+            return
+        
+        current_index = self.home_view_stack.currentIndex()
+        if current_index == 0:  # Grid view
+            selected_segments = self.get_selected_segments_from_grid()
+            if selected_segments:
+                self.confirm_selected_segments()
+            else:
+                QMessageBox.information(self, "No Selection", "Please select one or more segments to confirm.")
+        else:
+            QMessageBox.information(self, "Not Available", "Bulk operations are only available in Grid view.")
+    
+    def _sync_grid_targets_to_segments(self, segments):
+        """Sync target text from grid widgets to segment objects.
+        
+        This ensures any edits in the grid are captured before confirming.
+        """
+        for segment in segments:
+            row = self._find_row_for_segment(segment.id)
+            if row >= 0:
+                target_widget = self.table.cellWidget(row, 3)
+                if target_widget:
+                    segment.target = target_widget.toPlainText().strip()
+    
+    def _find_row_for_segment(self, segment_id: int) -> int:
+        """Find the grid row index for a segment by ID."""
+        if not hasattr(self, 'table') or not self.table:
+            return -1
+        
+        for row in range(self.table.rowCount()):
+            id_item = self.table.item(row, 0)
+            if id_item:
+                try:
+                    if int(id_item.text()) == segment_id:
+                        return row
+                except (ValueError, AttributeError):
+                    continue
+        return -1
+
     def insert_termview_text(self, text: str):
         """Insert text from Termview into the currently active target field"""
         try:
