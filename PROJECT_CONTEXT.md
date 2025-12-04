@@ -1,13 +1,41 @@
 # Supervertaler Project Context
 
-**Last Updated:** December 3, 2025
-**Current Version:** v1.9.17
+**Last Updated:** December 4, 2025
+**Current Version:** v1.9.18
 **Repository:** https://github.com/michaelbeijer/Supervertaler
 **Maintainer:** Michael Beijer
 
 ---
 
 ## 📅 Recent Development Activity
+
+### December 4, 2025 - Version 1.9.18: Supermemory Concordance Integration
+
+**🔍 Concordance Search Supermemory Integration**
+- Added Supermemory semantic search tab to Concordance Search (Ctrl+K)
+- Two-tab interface: "TM Matches" (exact) and "Supermemory" (semantic)
+- Tab headers show result counts
+- Similarity scores with color-coded High/Medium/Low indicators
+
+**🧠 Supermemory UI Improvements**
+- Moved Supermemory from Tools to Resources tab
+- Added "Active" checkbox column to TM table
+- Only active TMs are searched in Concordance
+- Checkbox state persists in database
+
+**📄 Trados Bilingual DOCX Fixes**
+- Fixed `xml:space="preserve"` on text elements
+- Fixed target language (was incorrectly setting nl-NL on runs)
+- Added language selection dialog on import
+- Source file path persisted in project
+- "Source File Not Found" offers browse option
+
+**Other Changes:**
+- Renamed export menus to "Supervertaler Bilingual Table"
+- memoQ/CafeTran source paths persisted
+- Concordance window geometry saved to project
+
+---
 
 ### December 3, 2025 - Version 1.9.17: Supermemory Enhanced - Domains & Filtering
 

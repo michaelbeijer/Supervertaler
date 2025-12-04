@@ -81,6 +81,7 @@ class IndexedTM:
     file_hash: str
     status: str = "ready"  # ready, indexing, error
     domain: str = ""  # Domain category for this TM
+    active: bool = True  # Whether this TM is active for searching
 
 
 @dataclass
@@ -223,6 +224,9 @@ class SupermemoryEngine:
         
         if 'domain' not in columns:
             cursor.execute("ALTER TABLE indexed_tms ADD COLUMN domain TEXT DEFAULT ''")
+        
+        if 'active' not in columns:
+            cursor.execute("ALTER TABLE indexed_tms ADD COLUMN active INTEGER DEFAULT 1")
         
         # Insert default domains if table is empty
         cursor.execute("SELECT COUNT(*) FROM domains")
@@ -599,10 +603,36 @@ class SupermemoryEngine:
                 tm_id=row[0], name=row[1], file_path=row[2],
                 source_lang=row[3], target_lang=row[4], entry_count=row[5],
                 indexed_date=row[6], file_hash=row[7], status=row[8],
-                domain=row[9] if len(row) > 9 else ""
+                domain=row[9] if len(row) > 9 else "",
+                active=bool(row[10]) if len(row) > 10 else True
             )
             for row in rows
         ]
+    
+    def set_tm_active(self, tm_id: str, active: bool) -> bool:
+        """Set the active state of a TM"""
+        try:
+            conn = sqlite3.connect(str(self.metadata_db_path))
+            cursor = conn.cursor()
+            cursor.execute(
+                "UPDATE indexed_tms SET active = ? WHERE tm_id = ?",
+                (1 if active else 0, tm_id)
+            )
+            conn.commit()
+            conn.close()
+            return True
+        except Exception as e:
+            self.log(f"[Supermemory] Error setting TM active state: {e}")
+            return False
+    
+    def get_active_tm_ids(self) -> List[str]:
+        """Get list of TM IDs that are marked as active"""
+        conn = sqlite3.connect(str(self.metadata_db_path))
+        cursor = conn.cursor()
+        cursor.execute("SELECT tm_id FROM indexed_tms WHERE active = 1")
+        rows = cursor.fetchall()
+        conn.close()
+        return [row[0] for row in rows]
     
     def remove_indexed_tm(self, tm_id: str) -> bool:
         """Remove an indexed TM completely"""
@@ -1492,14 +1522,16 @@ class SupermemoryWidget(QWidget):
         
         layout.addLayout(toolbar)
         
-        # TM table with domain column
+        # TM table with domain column and active checkbox
         self.tm_table = QTableWidget()
-        self.tm_table.setColumnCount(6)
-        self.tm_table.setHorizontalHeaderLabels(["Name", "Domain", "Languages", "Entries", "Indexed", "Status"])
-        self.tm_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        self.tm_table.setColumnCount(7)
+        self.tm_table.setHorizontalHeaderLabels(["Active", "Name", "Domain", "Languages", "Entries", "Indexed", "Status"])
+        self.tm_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)  # Name column stretches
+        self.tm_table.setColumnWidth(0, 50)  # Active column is narrow
         self.tm_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.tm_table.setAlternatingRowColors(True)
         self.tm_table.itemSelectionChanged.connect(self._on_selection_changed)
+        self.tm_table.cellChanged.connect(self._on_cell_changed)
         layout.addWidget(self.tm_table)
         
         return group
@@ -1605,12 +1637,24 @@ class SupermemoryWidget(QWidget):
             return
         
         tms = self.engine.get_all_indexed_tms()
+        
+        # Block signals while updating to avoid triggering cellChanged
+        self.tm_table.blockSignals(True)
         self.tm_table.setRowCount(len(tms))
         
         for i, tm in enumerate(tms):
-            self.tm_table.setItem(i, 0, QTableWidgetItem(tm.name))
+            # Active checkbox column (column 0)
+            active_item = QTableWidgetItem()
+            active_item.setFlags(Qt.ItemFlag.ItemIsUserCheckable | Qt.ItemFlag.ItemIsEnabled)
+            active_item.setCheckState(Qt.CheckState.Checked if tm.active else Qt.CheckState.Unchecked)
+            active_item.setData(Qt.ItemDataRole.UserRole, tm.tm_id)  # Store tm_id here
+            self.tm_table.setItem(i, 0, active_item)
             
-            # Domain column
+            # Name column (column 1)
+            name_item = QTableWidgetItem(tm.name)
+            self.tm_table.setItem(i, 1, name_item)
+            
+            # Domain column (column 2)
             domain_item = QTableWidgetItem(tm.domain or "—")
             if tm.domain:
                 # Try to get domain color
@@ -1618,26 +1662,43 @@ class SupermemoryWidget(QWidget):
                 domain_obj = next((d for d in domains if d.name == tm.domain), None)
                 if domain_obj:
                     domain_item.setBackground(QColor(domain_obj.color).lighter(170))
-            self.tm_table.setItem(i, 1, domain_item)
+            self.tm_table.setItem(i, 2, domain_item)
             
-            self.tm_table.setItem(i, 2, QTableWidgetItem(f"{tm.source_lang} → {tm.target_lang}"))
-            self.tm_table.setItem(i, 3, QTableWidgetItem(f"{tm.entry_count:,}"))
+            # Languages (column 3)
+            self.tm_table.setItem(i, 3, QTableWidgetItem(f"{tm.source_lang} → {tm.target_lang}"))
             
-            # Format date nicely
+            # Entry count (column 4)
+            self.tm_table.setItem(i, 4, QTableWidgetItem(f"{tm.entry_count:,}"))
+            
+            # Format date nicely (column 5)
             try:
                 dt = datetime.fromisoformat(tm.indexed_date)
                 date_str = dt.strftime("%Y-%m-%d %H:%M")
             except:
                 date_str = tm.indexed_date[:16] if tm.indexed_date else ""
-            self.tm_table.setItem(i, 4, QTableWidgetItem(date_str))
+            self.tm_table.setItem(i, 5, QTableWidgetItem(date_str))
             
+            # Status (column 6)
             status_item = QTableWidgetItem(tm.status)
             if tm.status == "ready":
                 status_item.setForeground(Qt.GlobalColor.darkGreen)
-            self.tm_table.setItem(i, 5, status_item)
-            
-            # Store tm_id in first column
-            self.tm_table.item(i, 0).setData(Qt.ItemDataRole.UserRole, tm.tm_id)
+            self.tm_table.setItem(i, 6, status_item)
+        
+        # Re-enable signals
+        self.tm_table.blockSignals(False)
+        
+        self._update_stats()
+        self._update_filters()
+    
+    def _on_cell_changed(self, row: int, column: int):
+        """Handle cell changes (for checkbox clicks)"""
+        if column == 0:  # Active checkbox column
+            item = self.tm_table.item(row, column)
+            if item:
+                tm_id = item.data(Qt.ItemDataRole.UserRole)
+                is_active = item.checkState() == Qt.CheckState.Checked
+                if tm_id and self.engine:
+                    self.engine.set_tm_active(tm_id, is_active)
         
         self._update_stats()
         self._update_filters()
@@ -1747,8 +1808,8 @@ class SupermemoryWidget(QWidget):
             return
         
         row = selected[0].row()
-        tm_name = self.tm_table.item(row, 0).text()
-        tm_id = self.tm_table.item(row, 0).data(Qt.ItemDataRole.UserRole)
+        tm_name = self.tm_table.item(row, 1).text()  # Name is now column 1
+        tm_id = self.tm_table.item(row, 0).data(Qt.ItemDataRole.UserRole)  # tm_id stored in checkbox column
         
         reply = QMessageBox.question(
             self, "Remove TM",

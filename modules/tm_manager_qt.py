@@ -194,12 +194,27 @@ class ConcordanceSearchDialog(QDialog):
         self.target_lang_name = getattr(parent, 'target_language', 'Target')
         
         self.setWindowTitle("Concordance Search")
+        self.setMinimumSize(800, 600)
         
         self.setup_ui()
     
     def exec(self):
-        """Override exec to show maximized"""
-        self.showMaximized()
+        """Override exec to restore saved geometry or match parent window"""
+        # Try to restore saved geometry from project
+        geometry_restored = False
+        if hasattr(self.parent_app, 'current_project') and self.parent_app.current_project:
+            project = self.parent_app.current_project
+            if hasattr(project, 'concordance_geometry') and project.concordance_geometry:
+                geom = project.concordance_geometry
+                self.setGeometry(geom['x'], geom['y'], geom['width'], geom['height'])
+                geometry_restored = True
+        
+        # If no saved geometry, match parent window size and position
+        if not geometry_restored and self.parent_app:
+            parent_geom = self.parent_app.geometry()
+            self.setGeometry(parent_geom)
+        
+        self.show()
         
         # Set initial query and search if provided
         if self._initial_query:
@@ -208,8 +223,20 @@ class ConcordanceSearchDialog(QDialog):
         
         return super().exec()
     
+    def closeEvent(self, event):
+        """Save window geometry to project when closing"""
+        if hasattr(self.parent_app, 'current_project') and self.parent_app.current_project:
+            geom = self.geometry()
+            self.parent_app.current_project.concordance_geometry = {
+                'x': geom.x(),
+                'y': geom.y(),
+                'width': geom.width(),
+                'height': geom.height()
+            }
+        super().closeEvent(event)
+    
     def setup_ui(self):
-        """Setup the UI with tabbed view modes"""
+        """Setup the UI with TM and Supermemory tabs"""
         layout = QVBoxLayout()
         layout.setContentsMargins(15, 15, 15, 15)
         
@@ -222,7 +249,7 @@ class ConcordanceSearchDialog(QDialog):
         layout.addWidget(header)
         
         # Description
-        desc = QLabel("Search across all translation memories for matching source or target text")
+        desc = QLabel("Search across translation memories (exact match) and Supermemory (semantic/meaning-based)")
         desc.setStyleSheet("color: #666; margin-bottom: 10px;")
         layout.addWidget(desc)
         
@@ -230,7 +257,7 @@ class ConcordanceSearchDialog(QDialog):
         search_layout = QHBoxLayout()
         search_layout.addWidget(QLabel("Search:"))
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Enter text to search in source and target...")
+        self.search_input.setPlaceholderText("Enter text to search...")
         self.search_input.returnPressed.connect(self.do_search)
         self.search_input.setStyleSheet("padding: 8px; font-size: 13px;")
         search_layout.addWidget(self.search_input)
@@ -242,66 +269,34 @@ class ConcordanceSearchDialog(QDialog):
         
         layout.addLayout(search_layout)
         
-        # Tab widget for view modes
+        # Tab widget for TM vs Supermemory
         self.view_tabs = QTabWidget()
         
-        # Tab 1: List View (current style)
-        self.list_tab = QWidget()
-        list_layout = QVBoxLayout(self.list_tab)
-        list_layout.setContentsMargins(0, 10, 0, 0)
+        # Tab 1: TM Concordance (exact/fuzzy text matching)
+        self.tm_tab = QWidget()
+        tm_layout = QVBoxLayout(self.tm_tab)
+        tm_layout.setContentsMargins(0, 10, 0, 0)
         
         self.search_results = QTextEdit()
         self.search_results.setReadOnly(True)
         self.search_results.setFont(QFont("Segoe UI", 10))
         self.search_results.setStyleSheet("background-color: #fafafa; border: 1px solid #ddd; border-radius: 4px;")
-        list_layout.addWidget(self.search_results)
+        tm_layout.addWidget(self.search_results)
         
-        # Tab 2: Table View (memoQ-style side-by-side)
-        self.table_tab = QWidget()
-        table_layout = QVBoxLayout(self.table_tab)
-        table_layout.setContentsMargins(0, 10, 0, 0)
+        # Tab 2: Supermemory (semantic search)
+        self.supermemory_tab = QWidget()
+        supermemory_layout = QVBoxLayout(self.supermemory_tab)
+        supermemory_layout.setContentsMargins(0, 10, 0, 0)
         
-        # Create table for side-by-side view
-        self.results_table = QTableWidget()
-        self.results_table.setColumnCount(3)
-        self.results_table.setHorizontalHeaderLabels([self.source_lang_name, self.target_lang_name, "Meta-information"])
-        self.results_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        self.results_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
-        self.results_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
-        self.results_table.horizontalHeader().resizeSection(2, 180)
-        self.results_table.setAlternatingRowColors(True)
-        self.results_table.setWordWrap(True)
-        self.results_table.verticalHeader().setVisible(False)
-        self.results_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
-        self.results_table.setStyleSheet("""
-            QTableWidget {
-                background-color: #ffffff;
-                gridline-color: #e0e0e0;
-                border: 1px solid #ddd;
-                border-radius: 4px;
-            }
-            QTableWidget::item {
-                padding: 8px;
-                border-bottom: 1px solid #e8e8e8;
-            }
-            QTableWidget::item:selected {
-                background-color: #e3f2fd;
-                color: #000000;
-            }
-            QHeaderView::section {
-                background-color: #f5f5f5;
-                padding: 8px;
-                border: none;
-                border-bottom: 2px solid #2196F3;
-                font-weight: bold;
-            }
-        """)
-        table_layout.addWidget(self.results_table)
+        self.supermemory_results = QTextEdit()
+        self.supermemory_results.setReadOnly(True)
+        self.supermemory_results.setFont(QFont("Segoe UI", 10))
+        self.supermemory_results.setStyleSheet("background-color: #f8f5ff; border: 1px solid #d0c4e8; border-radius: 4px;")
+        supermemory_layout.addWidget(self.supermemory_results)
         
-        # Add tabs
-        self.view_tabs.addTab(self.list_tab, "📋 List View")
-        self.view_tabs.addTab(self.table_tab, "📊 Table View (Side-by-Side)")
-        self.view_tabs.currentChanged.connect(self.on_tab_changed)
+        # Add tabs with result counts (will be updated after search)
+        self.view_tabs.addTab(self.tm_tab, "📋 TM Matches")
+        self.view_tabs.addTab(self.supermemory_tab, "🧠 Supermemory")
         
         layout.addWidget(self.view_tabs)
         
@@ -324,17 +319,16 @@ class ConcordanceSearchDialog(QDialog):
         
         # Focus on search input
         self.search_input.setFocus()
-    
-    def on_tab_changed(self, index):
-        """Handle tab change - refresh the view if we have results"""
-        if self.current_results:
-            if index == 0:
-                self.update_list_view()
-            else:
-                self.update_table_view()
+        
+        # Check if Supermemory is available
+        # The engine is stored in supermemory_widget.engine
+        self.supermemory = None
+        if hasattr(self.parent_app, 'supermemory_widget') and self.parent_app.supermemory_widget:
+            if hasattr(self.parent_app.supermemory_widget, 'engine'):
+                self.supermemory = self.parent_app.supermemory_widget.engine
     
     def do_search(self):
-        """Perform concordance search using db_manager's concordance_search method"""
+        """Perform both TM concordance and Supermemory semantic search"""
         search_text = self.search_input.text().strip()
         if not search_text:
             self.status_label.setText("⚠️ Please enter a search term")
@@ -342,36 +336,80 @@ class ConcordanceSearchDialog(QDialog):
         
         self.status_label.setText("🔍 Searching...")
         self.search_results.clear()
-        self.results_table.setRowCount(0)
+        self.supermemory_results.clear()
         self.current_search_term = search_text
         
+        tm_count = 0
+        supermemory_count = 0
+        
+        # Search TM (concordance)
         try:
-            # Use the database manager's concordance_search method
             results = self.db_manager.concordance_search(search_text)
             self.current_results = results if results else []
+            tm_count = len(self.current_results)
             
             if not results:
                 self.search_results.setHtml(
                     f"<p style='color: #666; padding: 20px; text-align: center;'>"
-                    f"No matches found for '<b>{search_text}</b>'</p>"
+                    f"No TM matches found for '<b>{search_text}</b>'</p>"
                 )
-                self.status_label.setText("No matches found")
-                return
-            
-            # Update both views
-            self.update_list_view()
-            self.update_table_view()
-            
-            self.status_label.setText(f"✓ Found {len(results)} matches")
-            self.log(f"TM Concordance: Found {len(results)} matches for '{search_text}'")
-            
+            else:
+                self.update_tm_view()
+                
         except Exception as e:
-            self.search_results.setHtml(f"<p style='color: red; padding: 20px;'>Error: {str(e)}</p>")
-            self.status_label.setText(f"❌ Search error: {e}")
-            self.log(f"Concordance search error: {e}")
+            self.search_results.setHtml(f"<p style='color: red; padding: 20px;'>TM Search Error: {str(e)}</p>")
+            self.log(f"TM Concordance search error: {e}")
+        
+        # Search Supermemory (semantic)
+        try:
+            if self.supermemory and self.supermemory.is_initialized():
+                # Get only active TM IDs for filtering
+                active_tm_ids = self.supermemory.get_active_tm_ids()
+                
+                # Search with active TM filter
+                semantic_results = self.supermemory.search(
+                    search_text, 
+                    n_results=25,
+                    tm_ids=active_tm_ids if active_tm_ids else None  # None = search all
+                )
+                self.current_semantic_results = semantic_results if semantic_results else []
+                supermemory_count = len(self.current_semantic_results)
+                
+                if not semantic_results:
+                    self.supermemory_results.setHtml(
+                        f"<p style='color: #666; padding: 20px; text-align: center;'>"
+                        f"No semantic matches found for '<b>{search_text}</b>'</p>"
+                    )
+                else:
+                    self.update_supermemory_view()
+            else:
+                self.current_semantic_results = []
+                self.supermemory_results.setHtml(
+                    "<p style='color: #888; padding: 20px; text-align: center;'>"
+                    "<b>🧠 Supermemory not available</b><br><br>"
+                    "Supermemory provides semantic search (find by meaning, not just text).<br><br>"
+                    "To enable: Go to <b>Resources → Supermemory</b> and index your TMX files."
+                    "</p>"
+                )
+                
+        except Exception as e:
+            self.supermemory_results.setHtml(f"<p style='color: red; padding: 20px;'>Supermemory Error: {str(e)}</p>")
+            self.log(f"Supermemory search error: {e}")
+        
+        # Update tab titles with counts
+        self.view_tabs.setTabText(0, f"📋 TM Matches ({tm_count})")
+        self.view_tabs.setTabText(1, f"🧠 Supermemory ({supermemory_count})")
+        
+        # Update status
+        total = tm_count + supermemory_count
+        if total > 0:
+            self.status_label.setText(f"✓ Found {tm_count} TM + {supermemory_count} semantic matches")
+            self.log(f"Concordance: Found {tm_count} TM + {supermemory_count} semantic matches for '{search_text}'")
+        else:
+            self.status_label.setText("No matches found")
     
-    def update_list_view(self):
-        """Update the list view with current results"""
+    def update_tm_view(self):
+        """Update the TM concordance view with current results"""
         if not self.current_results:
             return
         
@@ -379,7 +417,7 @@ class ConcordanceSearchDialog(QDialog):
         results = self.current_results
         
         # Format results with highlighting
-        html = f"<h3 style='color: #333; margin-bottom: 15px;'>Found {len(results)} matches for '<span style='color: #2196F3;'>{search_text}</span>'</h3>"
+        html = f"<h3 style='color: #333; margin-bottom: 15px;'>Found {len(results)} TM matches for '<span style='color: #2196F3;'>{search_text}</span>'</h3>"
         
         for idx, match in enumerate(results, 1):
             source = match.get('source_text', '')
@@ -412,108 +450,67 @@ class ConcordanceSearchDialog(QDialog):
         
         self.search_results.setHtml(html)
     
-    def update_table_view(self):
-        """Update the table view with current results (memoQ-style side-by-side)"""
-        if not self.current_results:
+    def update_supermemory_view(self):
+        """Update the Supermemory semantic search view"""
+        if not hasattr(self, 'current_semantic_results') or not self.current_semantic_results:
             return
         
         search_text = self.current_search_term
-        results = self.current_results
+        results = self.current_semantic_results
         
-        self.results_table.setRowCount(len(results))
+        # Format results with similarity scores
+        html = f"""<h3 style='color: #5e35b1; margin-bottom: 15px;'>
+            Found {len(results)} semantic matches for '<span style='color: #7c4dff;'>{search_text}</span>'
+        </h3>
+        <p style='color: #666; font-size: 11px; margin-bottom: 15px;'>
+            Semantic search finds translations with similar <i>meaning</i>, even if the exact words differ.
+        </p>"""
         
-        # Get column widths for text wrapping calculation
-        source_col_width = self.results_table.columnWidth(0)
-        target_col_width = self.results_table.columnWidth(1)
+        for result in results:
+            entry = result.entry
+            similarity = result.similarity
+            rank = result.rank
+            
+            source = entry.source
+            target = entry.target
+            tm_name = entry.tm_name
+            domain = entry.domain or "General"
+            
+            # Color-coded similarity
+            if similarity >= 0.8:
+                sim_color = '#2e7d32'  # Green - high
+                sim_label = 'High'
+            elif similarity >= 0.6:
+                sim_color = '#f57c00'  # Orange - medium
+                sim_label = 'Medium'
+            else:
+                sim_color = '#757575'  # Gray - low
+                sim_label = 'Low'
+            
+            # Alternating background colors with purple tint
+            bg_color = '#f3e5f5' if rank % 2 == 0 else '#ffffff'
+            
+            html += f"""
+            <div style='background-color: {bg_color}; padding: 10px 8px; margin: 0;'>
+                <div style='color: #555; font-size: 11px; margin-bottom: 6px;'>
+                    #{rank} - 
+                    <span style='color: {sim_color}; font-weight: bold;'>
+                        {similarity:.0%} {sim_label}
+                    </span>
+                    - TM: <b>{tm_name}</b>
+                    - Domain: <span style='color: #7c4dff;'>{domain}</span>
+                </div>
+                <div style='margin-bottom: 4px;'>
+                    <b style='color: #5e35b1;'>{self.source_lang_name}:</b> {source}
+                </div>
+                <div>
+                    <b style='color: #00897b;'>{self.target_lang_name}:</b> {target}
+                </div>
+            </div>
+            <hr style='border: none; border-top: 2px solid #9575cd; margin: 0;'>
+            """
         
-        for row, match in enumerate(results):
-            source = match.get('source_text', '')
-            target = match.get('target_text', '')
-            tm_id = match.get('tm_id', 'Unknown')
-            usage_count = match.get('usage_count', 0)
-            modified_date = match.get('modified_date', 'Unknown')
-            
-            # Highlight search term
-            highlighted_source = self._highlight_term(source, search_text)
-            highlighted_target = self._highlight_term(target, search_text)
-            
-            # Create source cell with QTextEdit for proper text display with scrolling
-            source_widget = QTextEdit()
-            source_widget.setReadOnly(True)
-            source_widget.setFrameStyle(0)
-            source_widget.setHtml(f"<div style='color: #000000;'>{highlighted_source}</div>")
-            source_widget.setStyleSheet("background-color: transparent; padding: 2px;")
-            
-            # Create target cell with QTextEdit
-            target_widget = QTextEdit()
-            target_widget.setReadOnly(True)
-            target_widget.setFrameStyle(0)
-            target_widget.setHtml(f"<div style='color: #000000;'>{highlighted_target}</div>")
-            target_widget.setStyleSheet("background-color: transparent; padding: 2px;")
-            
-            # Create meta-information cell with QLabel (compact is fine here)
-            meta_html = f"""<div style='font-size: 11px;'>
-                <div style='color: #2e7d32; font-weight: bold;'>📁 {tm_id}</div>
-                <div style='color: #666;'>Modified: {modified_date}</div>
-                <div style='color: #666;'>Used: {usage_count} times</div>
-            </div>"""
-            meta_widget = QLabel()
-            meta_widget.setWordWrap(True)
-            meta_widget.setTextFormat(Qt.TextFormat.RichText)
-            meta_widget.setText(meta_html)
-            meta_widget.setStyleSheet("background-color: #f8f8f8; padding: 4px;")
-            meta_widget.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-            
-            # Set widgets in cells
-            self.results_table.setCellWidget(row, 0, source_widget)
-            self.results_table.setCellWidget(row, 1, target_widget)
-            self.results_table.setCellWidget(row, 2, meta_widget)
-            
-            # Calculate row height based on document size
-            source_doc_height = source_widget.document().size().height()
-            target_doc_height = target_widget.document().size().height()
-            meta_hint = meta_widget.sizeHint().height()
-            
-            # Use the maximum height needed, with reasonable bounds
-            row_height = int(max(70, source_doc_height, target_doc_height, meta_hint) + 16)
-            row_height = min(row_height, 250)  # Cap at 250px max
-            
-            self.results_table.setRowHeight(row, row_height)
-    
-    def _recalculate_row_heights(self):
-        """Recalculate row heights based on current column widths"""
-        if not self.current_results or not hasattr(self, '_updating_heights'):
-            return
-        
-        if self._updating_heights:
-            return
-        
-        self._updating_heights = True
-        try:
-            for row in range(self.results_table.rowCount()):
-                source_widget = self.results_table.cellWidget(row, 0)
-                target_widget = self.results_table.cellWidget(row, 1)
-                meta_widget = self.results_table.cellWidget(row, 2)
-                
-                if source_widget and target_widget:
-                    # Get document height for QTextEdit widgets
-                    source_height = source_widget.document().size().height() if hasattr(source_widget, 'document') else source_widget.sizeHint().height()
-                    target_height = target_widget.document().size().height() if hasattr(target_widget, 'document') else target_widget.sizeHint().height()
-                    meta_hint = meta_widget.sizeHint().height() if meta_widget else 60
-                    
-                    row_height = int(max(70, source_height, target_height, meta_hint) + 16)
-                    row_height = min(row_height, 250)
-                    
-                    self.results_table.setRowHeight(row, row_height)
-        finally:
-            self._updating_heights = False
-    
-    def resizeEvent(self, event):
-        """Handle window resize - recalculate row heights for table view"""
-        super().resizeEvent(event)
-        # Only recalculate if we're on the table view tab and have results
-        if hasattr(self, 'view_tabs') and self.view_tabs.currentIndex() == 1 and self.current_results:
-            self._recalculate_row_heights()
+        self.supermemory_results.setHtml(html)
     
     def _highlight_term(self, text: str, search_term: str) -> str:
         """Highlight search term in text with yellow/orange background"""

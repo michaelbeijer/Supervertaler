@@ -341,6 +341,38 @@ class UnifiedPromptLibrary:
         self.log(f"✓ Set primary prompt: {self.prompts[relative_path].get('name', relative_path)}")
         return True
     
+    def set_external_primary_prompt(self, file_path: str) -> Tuple[bool, str]:
+        """
+        Set an external file (not in library) as the primary prompt.
+        
+        Args:
+            file_path: Absolute path to the external prompt file
+        
+        Returns:
+            Tuple of (success, display_name or error_message)
+        """
+        path = Path(file_path)
+        
+        if not path.exists():
+            self.log(f"✗ File not found: {file_path}")
+            return False, "File not found"
+        
+        try:
+            content = path.read_text(encoding='utf-8')
+        except Exception as e:
+            self.log(f"✗ Error reading file: {e}")
+            return False, f"Error reading file: {e}"
+        
+        # Use filename (without extension) as display name
+        display_name = path.stem
+        
+        # Mark as external with special prefix
+        self.active_primary_prompt = content
+        self.active_primary_prompt_path = f"[EXTERNAL] {file_path}"
+        
+        self.log(f"✓ Set external primary prompt: {display_name}")
+        return True, display_name
+    
     def attach_prompt(self, relative_path: str) -> bool:
         """Attach a prompt to the active configuration"""
         if relative_path not in self.prompts:

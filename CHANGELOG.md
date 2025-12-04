@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.17 (December 3, 2025)
+**Current Version:** v1.9.18 (December 4, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -14,6 +14,7 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- 🔍 **Supermemory Concordance Integration (v1.9.18)** - Concordance Search (Ctrl+K) now includes Supermemory semantic search with two-tab interface. TM Matches tab for exact text search, Supermemory tab for meaning-based search. Active checkbox column in Supermemory to control which TMs are searched. Fixed Trados bilingual DOCX round-trip issues (xml:space, language settings). Supermemory moved to Resources tab
 - 🧠 **Supermemory Enhancements (v1.9.17)** - Complete domain management system for translation memories with domain categorization (Legal, Medical, Patents, etc.), multi-language filtering in search, integration with Superlookup for unified lookup, and TMX/CSV export. Color-coded domain tags, dynamic column headers showing actual languages, and professional search/filter interface
 - 🖥️ **Local LLM Support - Ollama (v1.9.16)** - Run AI translation entirely on your computer with no API costs, complete privacy, and offline capability. New "Local LLM (Ollama)" provider option in Settings with automatic hardware detection and model recommendations. Supports qwen2.5 (3B/7B/14B), llama3.2, mistral, and gemma2 models. Built-in setup wizard guides installation and model downloads. See FAQ for setup instructions
 - 📋 **Bilingual Table Export/Import (v1.9.15)** - New Supervertaler Bilingual Table format for review workflows. Export menu options: **"Bilingual Table - With Tags (DOCX)"** preserves Supervertaler formatting tags for re-import after review. **"Bilingual Table - Formatted (DOCX)"** applies formatting (bold/italic/underline, bullet markers) for client-ready output. Tables include segment number, source, target, status, and notes columns. **"Import Bilingual Table"** compares edited DOCX with current project, shows diff preview, and applies changes. Document title links to supervertaler.com
@@ -102,6 +103,39 @@ All notable changes to Supervertaler are documented in this file.
 - Merged Gemini and Mistral settings into unified **"AI Settings"** tab
 - Cleaner Settings panel with fewer tabs
 - All API keys and model selections in one place
+
+---
+
+## [1.9.18] - December 4, 2025
+
+### 🔍 Supermemory Concordance Integration & Trados Fixes
+
+**Concordance Search now includes Supermemory semantic search:**
+
+**Concordance Search Enhancements:**
+- **Two-tab interface:** "TM Matches" (exact text) and "Supermemory" (semantic/meaning-based)
+- Semantic search finds translations by meaning, not just exact words
+- Tab headers show result counts (e.g., "📋 TM Matches (9)" and "🧠 Supermemory (25)")
+- Results display similarity scores with color-coded High/Medium/Low indicators
+- Window remembers position and size across sessions (saved to project)
+
+**Supermemory UI Improvements:**
+- **Moved to Resources tab** - now under Resources → Supermemory (was Tools)
+- **Active checkbox column** in TM table - toggle which TMs are searched
+- Only active TMs are included in Concordance semantic search
+- Checkbox state persists in database
+
+**Trados Bilingual DOCX Fixes:**
+- Fixed `xml:space="preserve"` attribute on text elements for proper whitespace handling
+- Fixed target language settings - runs now inherit from paragraph (was incorrectly setting nl-NL)
+- Added language selection dialog on import (Trados files don't specify languages)
+- Source file path now persisted in project for reliable re-export
+- "Source File Not Found" now offers to browse for file in new location
+
+**Other Improvements:**
+- Renamed export menu items to "Supervertaler Bilingual Table" for clarity
+- memoQ and CafeTran source paths also persisted in project
+- Fixed Concordance accessing Supermemory engine (was checking wrong attribute)
 
 ---
 

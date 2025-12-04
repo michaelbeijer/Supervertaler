@@ -1263,6 +1263,12 @@ class UnifiedPromptManagerQt:
         self.primary_prompt_label.setStyleSheet("color: #999;")
         primary_layout.addWidget(self.primary_prompt_label, 1)
         
+        btn_load_external = QPushButton("Load External...")
+        btn_load_external.clicked.connect(self._load_external_primary_prompt)
+        btn_load_external.setToolTip("Load a prompt file from anywhere on your computer")
+        btn_load_external.setMaximumWidth(100)
+        primary_layout.addWidget(btn_load_external)
+        
         btn_clear_primary = QPushButton("Clear")
         btn_clear_primary.clicked.connect(self._clear_primary_prompt)
         btn_clear_primary.setMaximumWidth(60)
@@ -1682,6 +1688,30 @@ class UnifiedPromptManagerQt:
         self.primary_prompt_label.setStyleSheet("color: #999;")
         self.log_message("✓ Cleared primary prompt")
     
+    def _load_external_primary_prompt(self):
+        """Load an external prompt file (not in library) as primary"""
+        file_path, _ = QFileDialog.getOpenFileName(
+            self.main_widget,
+            "Select External Prompt File",
+            "",
+            "Prompt Files (*.svprompt *.txt *.md);;Supervertaler Prompts (*.svprompt);;Text Files (*.txt);;Markdown Files (*.md);;All Files (*.*)"
+        )
+        
+        if not file_path:
+            return  # User cancelled
+        
+        success, result = self.library.set_external_primary_prompt(file_path)
+        
+        if success:
+            # result is the display name
+            self.primary_prompt_label.setText(f"📁 {result}")
+            self.primary_prompt_label.setStyleSheet("color: #0066cc; font-weight: bold;")
+            self.primary_prompt_label.setToolTip(f"External file: {file_path}")
+            self.log_message(f"✓ Loaded external prompt: {result}")
+        else:
+            # result is the error message
+            QMessageBox.warning(self.main_widget, "Error", f"Could not load file: {result}")
+
     def _clear_all_attachments(self):
         """Clear all attached prompts"""
         self.library.clear_attachments()

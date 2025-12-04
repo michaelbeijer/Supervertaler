@@ -33,9 +33,9 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.17"
+__version__ = "1.9.18"
 __phase__ = "0.9"
-__release_date__ = "2025-12-03"
+__release_date__ = "2025-12-04"
 __edition__ = "Qt"
 
 import sys
@@ -652,6 +652,10 @@ class Project:
     nt_settings: Dict[str, Any] = None  # Store activated non-translatables settings
     id: int = None  # Unique project ID for TM activation tracking
     original_docx_path: str = None  # Path to original DOCX for structure-preserving export
+    trados_source_path: str = None  # Path to original Trados bilingual DOCX for round-trip export
+    memoq_source_path: str = None  # Path to original memoQ bilingual DOCX for round-trip export
+    cafetran_source_path: str = None  # Path to original CafeTran bilingual DOCX for round-trip export
+    concordance_geometry: Dict[str, int] = None  # Window geometry for Concordance Search {x, y, width, height}
     
     def __post_init__(self):
         if self.segments is None:
@@ -701,6 +705,18 @@ class Project:
         # Add original DOCX path if it exists
         if hasattr(self, 'original_docx_path') and self.original_docx_path:
             result['original_docx_path'] = self.original_docx_path
+        # Add Trados source path if it exists
+        if hasattr(self, 'trados_source_path') and self.trados_source_path:
+            result['trados_source_path'] = self.trados_source_path
+        # Add memoQ source path if it exists
+        if hasattr(self, 'memoq_source_path') and self.memoq_source_path:
+            result['memoq_source_path'] = self.memoq_source_path
+        # Add CafeTran source path if it exists
+        if hasattr(self, 'cafetran_source_path') and self.cafetran_source_path:
+            result['cafetran_source_path'] = self.cafetran_source_path
+        # Add concordance window geometry if it exists
+        if hasattr(self, 'concordance_geometry') and self.concordance_geometry:
+            result['concordance_geometry'] = self.concordance_geometry
         return result
     
     @classmethod
@@ -735,6 +751,18 @@ class Project:
         # Store original DOCX path if it exists
         if 'original_docx_path' in data:
             project.original_docx_path = data['original_docx_path']
+        # Store Trados source path if it exists
+        if 'trados_source_path' in data:
+            project.trados_source_path = data['trados_source_path']
+        # Store memoQ source path if it exists
+        if 'memoq_source_path' in data:
+            project.memoq_source_path = data['memoq_source_path']
+        # Store CafeTran source path if it exists
+        if 'cafetran_source_path' in data:
+            project.cafetran_source_path = data['cafetran_source_path']
+        # Store concordance window geometry if it exists
+        if 'concordance_geometry' in data:
+            project.concordance_geometry = data['concordance_geometry']
         return project
 
 
@@ -3959,7 +3987,7 @@ class SupervertalerQt(QMainWindow):
                         if stats.get('total_entries', 0) > 0:
                             self.log(f"  ✓ {stats['total_entries']:,} entries ready for semantic search")
                         else:
-                            self.log("  ℹ No entries indexed yet. Go to Tools → Supermemory to index TMX files.")
+                            self.log("  ℹ No entries indexed yet. Go to Resources → Supermemory to index TMX files.")
                 except ImportError as e:
                     self.log(f"  ⚠ Supermemory dependencies not installed: {e}")
                     self.log("  Run: pip install chromadb sentence-transformers")
@@ -4316,6 +4344,8 @@ class SupervertalerQt(QMainWindow):
         import_docx_action.setShortcut("Ctrl+O")
         import_menu.addAction(import_docx_action)
         
+        import_menu.addSeparator()  # Separate monolingual from bilingual tools
+        
         import_memoq_action = QAction("memoQ &Bilingual Table (DOCX)...", self)
         import_memoq_action.triggered.connect(self.import_memoq_bilingual)
         import_menu.addAction(import_memoq_action)
@@ -4355,11 +4385,11 @@ class SupervertalerQt(QMainWindow):
         export_menu.addSeparator()
         
         # Supervertaler Bilingual Table exports
-        export_review_table_action = QAction("Bilingual Table - With &Tags (DOCX)...", self)
+        export_review_table_action = QAction("Supervertaler Bilingual Table - With &Tags (DOCX)...", self)
         export_review_table_action.triggered.connect(self.export_review_table_with_tags)
         export_menu.addAction(export_review_table_action)
         
-        export_review_table_formatted_action = QAction("Bilingual Table - &Formatted (DOCX)...", self)
+        export_review_table_formatted_action = QAction("Supervertaler Bilingual Table - &Formatted (DOCX)...", self)
         export_review_table_formatted_action.triggered.connect(self.export_review_table_formatted)
         export_menu.addAction(export_review_table_formatted_action)
         
@@ -6687,6 +6717,10 @@ class SupervertalerQt(QMainWindow):
         ref_tab = self.create_reference_images_tab()
         resources_tabs.addTab(ref_tab, "🎯 Image Context")
         
+        # Supermemory - Vector-Indexed Translation Memory (semantic search)
+        supermemory_tab = self.create_supermemory_tab()
+        resources_tabs.addTab(supermemory_tab, "🧠 Supermemory")
+        
         layout.addWidget(resources_tabs)
         
         return tab
@@ -6740,10 +6774,6 @@ class SupervertalerQt(QMainWindow):
         # Superbrowser - Multi-Chat AI Browser
         superbrowser_tab = self.create_superbrowser_tab()
         modules_tabs.addTab(superbrowser_tab, "🌐 Superbrowser")
-        
-        # Supermemory - Vector-Indexed Translation Memory
-        supermemory_tab = self.create_supermemory_tab()
-        modules_tabs.addTab(supermemory_tab, "🧠 Supermemory")
 
         layout.addWidget(modules_tabs)
 
@@ -16338,6 +16368,9 @@ class SupervertalerQt(QMainWindow):
                 segments=[]
             )
             
+            # Store memoQ source path in project for persistence across saves
+            self.current_project.memoq_source_path = file_path
+            
             # Create segments with simple sequential IDs
             for idx, source_text in enumerate(source_segments):
                 existing_target = target_segments[idx] if idx < len(target_segments) else ""
@@ -16405,8 +16438,20 @@ class SupervertalerQt(QMainWindow):
             QMessageBox.warning(self, "No Data", "No segments to export")
             return
 
-        # Check if a memoQ source file was imported, or prompt for it
-        if not hasattr(self, 'memoq_source_file') or not self.memoq_source_file:
+        # Check if a memoQ source file was imported - check both instance var and project
+        memoq_source = None
+        if hasattr(self, 'memoq_source_file') and self.memoq_source_file:
+            memoq_source = self.memoq_source_file
+        elif hasattr(self.current_project, 'memoq_source_path') and self.current_project.memoq_source_path:
+            memoq_source = self.current_project.memoq_source_path
+            # Verify it still exists
+            if Path(memoq_source).exists():
+                self.memoq_source_file = memoq_source
+                self.log(f"✓ Restored memoQ source from project: {Path(memoq_source).name}")
+            else:
+                memoq_source = None
+        
+        if not memoq_source:
             # Prompt user to select the original memoQ bilingual file
             reply = QMessageBox.question(
                 self, "Select memoQ Source File",
@@ -16753,6 +16798,9 @@ class SupervertalerQt(QMainWindow):
                 target_lang=self.target_lang_combo.currentText() if hasattr(self, 'target_lang_combo') else "nl"
             )
             
+            # Store CafeTran source path in project for persistence across saves
+            self.current_project.cafetran_source_path = file_path
+            
             # Update UI
             self.project_file_path = None
             self.project_modified = True
@@ -16793,6 +16841,26 @@ class SupervertalerQt(QMainWindow):
         )
         
         if not file_path:
+            return
+        
+        # Show confirmation dialog
+        reply = QMessageBox.question(
+            self,
+            "Confirm Trados Bilingual Import",
+            f"You are about to import a Trados Studio bilingual review DOCX file.\n\n"
+            f"File: {Path(file_path).name}\n\n"
+            f"This workflow is specifically for Trados bilingual review files with:\n"
+            f"• Table format with columns: Segment ID | Status | Source | Target\n"
+            f"• Inline tags like <11>text</11>\n"
+            f"• \"Tag\" character style for formatting\n\n"
+            f"The project can be exported back to Trados format after translation.\n\n"
+            f"Continue with import?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.Yes
+        )
+        
+        if reply != QMessageBox.StandardButton.Yes:
+            self.log("✗ User cancelled Trados import")
             return
         
         try:
@@ -16844,14 +16912,81 @@ class SupervertalerQt(QMainWindow):
             self.trados_handler = handler
             self.trados_source_file = file_path
             
-            # Create new project
+            # Note: trados_source_path will be set on the project after it's created
+            
+            # Show language selection dialog (Trados files don't specify languages)
+            from PyQt6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, QDialogButtonBox, QGroupBox
+            
+            lang_dialog = QDialog(self)
+            lang_dialog.setWindowTitle("Select Languages")
+            lang_dialog.setMinimumWidth(350)
+            lang_layout = QVBoxLayout(lang_dialog)
+            
+            # Info text
+            info_label = QLabel(
+                "Trados bilingual review files do not specify the source and target languages.\n"
+                "Please select the correct language pair for this project:"
+            )
+            info_label.setWordWrap(True)
+            info_label.setStyleSheet("color: #666; margin-bottom: 10px;")
+            lang_layout.addWidget(info_label)
+            
+            # Language group
+            lang_group = QGroupBox("Language Pair")
+            lang_group_layout = QVBoxLayout(lang_group)
+            
+            # Source language
+            source_row = QHBoxLayout()
+            source_row.addWidget(QLabel("Source Language:"))
+            source_combo = QComboBox()
+            source_combo.addItems(["English", "Dutch", "German", "French", "Spanish", "Italian", "Portuguese", "Polish", "Chinese", "Japanese", "Korean", "Russian"])
+            # Try to match current UI selection
+            current_source = self.source_lang_combo.currentText() if hasattr(self, 'source_lang_combo') else "English"
+            source_idx = source_combo.findText(current_source)
+            if source_idx >= 0:
+                source_combo.setCurrentIndex(source_idx)
+            source_row.addWidget(source_combo)
+            lang_group_layout.addLayout(source_row)
+            
+            # Target language
+            target_row = QHBoxLayout()
+            target_row.addWidget(QLabel("Target Language:"))
+            target_combo = QComboBox()
+            target_combo.addItems(["English", "Dutch", "German", "French", "Spanish", "Italian", "Portuguese", "Polish", "Chinese", "Japanese", "Korean", "Russian"])
+            # Try to match current UI selection
+            current_target = self.target_lang_combo.currentText() if hasattr(self, 'target_lang_combo') else "Dutch"
+            target_idx = target_combo.findText(current_target)
+            if target_idx >= 0:
+                target_combo.setCurrentIndex(target_idx)
+            target_row.addWidget(target_combo)
+            lang_group_layout.addLayout(target_row)
+            
+            lang_layout.addWidget(lang_group)
+            
+            # Buttons
+            lang_buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+            lang_buttons.accepted.connect(lang_dialog.accept)
+            lang_buttons.rejected.connect(lang_dialog.reject)
+            lang_layout.addWidget(lang_buttons)
+            
+            if lang_dialog.exec() != QDialog.DialogCode.Accepted:
+                self.log("✗ User cancelled Trados import during language selection")
+                return
+            
+            source_lang = source_combo.currentText()
+            target_lang = target_combo.currentText()
+            
+            # Create new project with user-selected languages
             file_name = Path(file_path).stem
             self.current_project = Project(
                 name=file_name,
                 segments=segments,
-                source_lang=self.source_lang_combo.currentText() if hasattr(self, 'source_lang_combo') else "en",
-                target_lang=self.target_lang_combo.currentText() if hasattr(self, 'target_lang_combo') else "nl"
+                source_lang=source_lang,
+                target_lang=target_lang
             )
+            
+            # Store Trados source path in project for persistence across saves
+            self.current_project.trados_source_path = file_path
             
             # Update UI
             self.project_file_path = None
@@ -16872,6 +17007,7 @@ class SupervertalerQt(QMainWindow):
                 self, "Import Successful",
                 f"Successfully imported {len(segments)} segment(s) from Trados bilingual review DOCX.\n\n"
                 f"File: {Path(file_path).name}\n"
+                f"Languages: {source_lang} → {target_lang}\n"
                 f"Segments with tags: {tagged_count}\n\n"
                 f"Note: Inline tags (e.g., <11>text</11>) are preserved for export.\n"
                 f"Export back to Trados format after translation to maintain tag styling."
@@ -16895,15 +17031,92 @@ class SupervertalerQt(QMainWindow):
             QMessageBox.warning(self, "No Project", "No project is currently loaded.")
             return
         
-        # Check if we have a Trados handler
-        if not hasattr(self, 'trados_handler') or not self.trados_handler:
-            QMessageBox.warning(
-                self, "No Trados Source",
-                "This project was not imported from a Trados bilingual DOCX file.\n\n"
-                "Export to Trados format is only available when you first import "
-                "a Trados bilingual review file."
+        # Check if we have a Trados source - either from handler or project data
+        trados_source = None
+        
+        # First check if handler is already loaded
+        if hasattr(self, 'trados_handler') and self.trados_handler:
+            trados_source = getattr(self, 'trados_source_file', None)
+        
+        # If not, check if project has the source path saved
+        if not trados_source and hasattr(self.current_project, 'trados_source_path') and self.current_project.trados_source_path:
+            trados_source = self.current_project.trados_source_path
+        
+        if not trados_source:
+            # Prompt user to select the original Trados bilingual file
+            reply = QMessageBox.question(
+                self, "Select Trados Source File",
+                "To export to Trados format, please select the original Trados bilingual review DOCX file.\n\n"
+                "This is the file you originally imported from Trados.\n\n"
+                "Would you like to select it now?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
             )
-            return
+            
+            if reply == QMessageBox.StandardButton.Yes:
+                file_path, _ = QFileDialog.getOpenFileName(
+                    self,
+                    "Select Original Trados Bilingual Review DOCX",
+                    "",
+                    "Word Documents (*.docx);;All Files (*.*)"
+                )
+                
+                if file_path:
+                    trados_source = file_path
+                    self.trados_source_file = file_path
+                    # Also save to project for future exports
+                    self.current_project.trados_source_path = file_path
+                    self.log(f"✓ Trados source file set: {Path(file_path).name}")
+                else:
+                    self.log("Export cancelled - no source file selected")
+                    return
+            else:
+                self.log("Export cancelled")
+                return
+        
+        # Check if source file still exists
+        if not Path(trados_source).exists():
+            # File not found - give user a chance to locate it
+            reply = QMessageBox.question(
+                self, "Source File Not Found",
+                f"The original Trados source file cannot be found:\n\n"
+                f"{trados_source}\n\n"
+                f"Would you like to browse for the file in its new location?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
+            
+            if reply == QMessageBox.StandardButton.Yes:
+                file_path, _ = QFileDialog.getOpenFileName(
+                    self,
+                    "Select Original Trados Bilingual Review DOCX",
+                    "",
+                    "Word Documents (*.docx);;All Files (*.*)"
+                )
+                
+                if file_path:
+                    trados_source = file_path
+                    self.trados_source_file = file_path
+                    self.current_project.trados_source_path = file_path
+                    self.log(f"✓ Trados source file relocated: {Path(file_path).name}")
+                else:
+                    self.log("Export cancelled - no source file selected")
+                    return
+            else:
+                self.log("Export cancelled")
+                return
+        
+        # Reload the handler if needed
+        if not hasattr(self, 'trados_handler') or not self.trados_handler:
+            try:
+                from modules.trados_docx_handler import TradosDOCXHandler
+                self.trados_handler = TradosDOCXHandler()
+                if not self.trados_handler.load(trados_source):
+                    QMessageBox.critical(self, "Error", "Failed to reload the Trados source file.")
+                    return
+                self.trados_source_file = trados_source
+                self.log(f"✓ Reloaded Trados source file for export")
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Failed to reload Trados source:\n\n{str(e)}")
+                return
         
         # Suggest output filename
         source_path = Path(self.trados_source_file)
@@ -17187,8 +17400,31 @@ class SupervertalerQt(QMainWindow):
             QMessageBox.warning(self, "No Data", "No segments to export")
             return
         
-        # Check if a CafeTran source file was imported, or prompt for it
-        if not hasattr(self, 'cafetran_source_file') or not self.cafetran_source_file:
+        # Check if a CafeTran source file was imported - check both instance var and project
+        cafetran_source = None
+        if hasattr(self, 'cafetran_source_file') and self.cafetran_source_file:
+            cafetran_source = self.cafetran_source_file
+        elif hasattr(self.current_project, 'cafetran_source_path') and self.current_project.cafetran_source_path:
+            cafetran_source = self.current_project.cafetran_source_path
+            # Verify it still exists
+            if Path(cafetran_source).exists():
+                self.cafetran_source_file = cafetran_source
+                self.log(f"✓ Restored CafeTran source from project: {Path(cafetran_source).name}")
+                # Reload the handler
+                try:
+                    from modules.cafetran_docx_handler import CafeTranDOCXHandler
+                    self.cafetran_handler = CafeTranDOCXHandler()
+                    if not self.cafetran_handler.load(cafetran_source):
+                        QMessageBox.critical(self, "Error", "Failed to reload CafeTran source file")
+                        return
+                    self.cafetran_handler.extract_source_segments()
+                except Exception as e:
+                    QMessageBox.critical(self, "Error", f"Failed to reload CafeTran file: {str(e)}")
+                    return
+            else:
+                cafetran_source = None
+        
+        if not cafetran_source:
             # Prompt user to select the original CafeTran bilingual file
             reply = QMessageBox.question(
                 self, "Select CafeTran Source File",

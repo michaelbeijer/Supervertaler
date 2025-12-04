@@ -279,29 +279,41 @@ class TradosDOCXHandler:
             
         para = target_cell.paragraphs[0]
         
-        # Split text by tags
-        parts = self.TAG_PATTERN.split(text)
+        # Use finditer to find all tags and their positions
+        # This avoids the complexity of split() with capturing groups
+        tag_pattern = re.compile(r'</?(\d+)>')
         
-        # parts will be: [text, full_tag, tag_num, text, full_tag, tag_num, ...]
-        i = 0
-        while i < len(parts):
-            part = parts[i]
+        last_end = 0
+        for match in tag_pattern.finditer(text):
+            # Add any text before this tag
+            if match.start() > last_end:
+                plain_text = text[last_end:match.start()]
+                if plain_text:
+                    run = para.add_run(plain_text)
+                    self._apply_default_style(run)
+                    self._set_xml_space_preserve(run)
             
-            if self.TAG_PATTERN.match(part):
-                # This is a tag - apply Tag style
-                run = para.add_run(part)
-                self._apply_tag_style(run)
-                i += 2  # Skip the captured group (tag number)
-            elif part:
-                # Regular text
-                run = para.add_run(part)
-                # Copy language settings from source if available
+            # Add the tag itself with Tag style
+            tag_text = match.group(0)  # e.g., "<11>" or "</11>"
+            run = para.add_run(tag_text)
+            self._apply_tag_style(run)
+            self._set_xml_space_preserve(run)
+            
+            last_end = match.end()
+        
+        # Add any remaining text after the last tag
+        if last_end < len(text):
+            remaining_text = text[last_end:]
+            if remaining_text:
+                run = para.add_run(remaining_text)
                 self._apply_default_style(run)
-            else:
-                i += 1
-                continue
-            
-            i += 1
+                self._set_xml_space_preserve(run)
+    
+    def _set_xml_space_preserve(self, run):
+        """Set xml:space='preserve' on the run's text element for proper whitespace handling."""
+        t_elem = run._r.find(qn('w:t'))
+        if t_elem is not None:
+            t_elem.set('{http://www.w3.org/XML/1998/namespace}space', 'preserve')
     
     def _apply_tag_style(self, run):
         """Apply the Tag character style to a run."""
@@ -318,18 +330,16 @@ class TradosDOCXHandler:
         style_elem.set(qn('w:val'), 'Tag')
     
     def _apply_default_style(self, run):
-        """Apply default style (language settings) to a run."""
-        # Copy language from tag_style_xml if available
-        if self.tag_style_xml is not None:
-            lang_elem = self.tag_style_xml.find(qn('w:lang'))
-            if lang_elem is not None:
-                rPr = run._r.find(qn('w:rPr'))
-                if rPr is None:
-                    rPr = etree.SubElement(run._r, qn('w:rPr'))
-                    run._r.insert(0, rPr)
-                
-                new_lang = deepcopy(lang_elem)
-                rPr.append(new_lang)
+        """Apply default style (language settings) to a run.
+        
+        Note: For target text, we DON'T set language at run level.
+        The paragraph has its own default language (en-US for target),
+        and runs will inherit from that. Setting the source language 
+        on target runs would confuse Trados.
+        """
+        # We intentionally don't set language here anymore
+        # Target runs should inherit from paragraph-level language setting
+        pass
     
     def _set_cell_text(self, cell, text: str):
         """Set cell text, preserving formatting."""
