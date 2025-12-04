@@ -523,17 +523,52 @@ class TradosPackageHandler:
         return info
     
     def _load_xliff_files(self):
-        """Find and load all SDLXLIFF files in the extracted package."""
+        """Find and load SDLXLIFF files from the TARGET language folder only.
+        
+        Trados packages contain SDLXLIFF files in both source and target language
+        folders. We only want to load from the target folder (e.g., nl-nl/) since
+        that's where the translator works.
+        """
         if not self.package or not self.extract_dir:
             return
         
         extract_path = Path(self.extract_dir)
+        target_lang = self.package.target_lang.lower()
         
-        # SDLXLIFF files are typically in language folders
-        for xliff_path in extract_path.glob('**/*.sdlxliff'):
-            xliff_file = self.parser.parse_file(str(xliff_path))
-            if xliff_file:
-                self.package.xliff_files.append(xliff_file)
+        # Look for SDLXLIFF files in the target language folder
+        target_folder = extract_path / target_lang
+        
+        if target_folder.exists():
+            # Load from target language folder
+            self.log(f"Loading SDLXLIFF files from target folder: {target_lang}/")
+            for xliff_path in target_folder.glob('*.sdlxliff'):
+                xliff_file = self.parser.parse_file(str(xliff_path))
+                if xliff_file:
+                    self.package.xliff_files.append(xliff_file)
+        else:
+            # Fallback: try to find target folder by matching language code patterns
+            # (e.g., nl-NL, nl-nl, nl_NL, etc.)
+            self.log(f"Target folder '{target_lang}' not found, searching alternatives...")
+            found = False
+            for folder in extract_path.iterdir():
+                if folder.is_dir():
+                    folder_lower = folder.name.lower().replace('_', '-')
+                    if folder_lower == target_lang or folder_lower.startswith(target_lang.split('-')[0]):
+                        # Skip if this looks like the source language
+                        source_lang = self.package.source_lang.lower()
+                        if folder_lower == source_lang or folder_lower.startswith(source_lang.split('-')[0]):
+                            continue
+                        
+                        self.log(f"Loading SDLXLIFF files from folder: {folder.name}/")
+                        for xliff_path in folder.glob('*.sdlxliff'):
+                            xliff_file = self.parser.parse_file(str(xliff_path))
+                            if xliff_file:
+                                self.package.xliff_files.append(xliff_file)
+                        found = True
+                        break
+            
+            if not found:
+                self.log(f"Warning: Could not find target language folder for {target_lang}")
     
     def get_all_segments(self) -> List[SDLSegment]:
         """Get all segments from all files in the package."""
