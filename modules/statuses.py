@@ -88,10 +88,19 @@ STATUSES: Dict[str, StatusDefinition] = {
         memoQ_equivalents=("approved", "final", "proofread confirmed"),
         match_symbol="🏁",
     ),
+    "pm": StatusDefinition(
+        key="pm",
+        label="PM (102%)",
+        icon="⭐",  # Star - perfect/double context match
+        color="#b8daff",  # Light blue - highest confidence
+        memoq_label="Pre-translated (102%)",
+        memoQ_equivalents=("pre-translated (102%)", "102%", "xlt", "double context", "perfect match", "pm"),
+        match_symbol="⭐",
+    ),
     "cm": StatusDefinition(
         key="cm",
         label="CM (101%)",
-        icon="💎",  # Diamond - highest quality match (context match)
+        icon="💎",  # Diamond - context match
         color="#c3e6cb",  # Darker green - very high confidence
         memoq_label="Pre-translated (101%)",
         memoQ_equivalents=("pre-translated (101%)", "context match", "cm", "101%"),

@@ -17259,12 +17259,21 @@ class SupervertalerQt(QMainWindow):
             segments = []
             for i, sdl_seg in enumerate(all_segments):
                 # Determine status based on origin, match percent, and text-match attribute
+                # Match type hierarchy (highest to lowest confidence):
+                # - PM (102%): PerfectMatch or double context (memoQ XLT)
+                # - CM (101%): Context match (text + preceding segment match)
+                # - 100%: Exact text match only
+                # - Fuzzy: 75-99%
+                # - Repetition: document-match or auto-propagated
+                # - MT: machine translation
+                
                 if sdl_seg.target_text:
                     if sdl_seg.origin == 'tm':
                         # TM match - check for context match vs regular 100%
                         if sdl_seg.match_percent >= 100:
-                            # Check if it's a context match (text-match="SourceAndTarget")
-                            if getattr(sdl_seg, 'text_match', '') == 'SourceAndTarget':
+                            # Check text-match attribute for match type
+                            text_match = getattr(sdl_seg, 'text_match', '')
+                            if text_match == 'SourceAndTarget':
                                 status = STATUSES["cm"].key  # Context match (101%)
                             else:
                                 status = STATUSES["tm_100"].key  # Regular 100% match
@@ -17272,6 +17281,8 @@ class SupervertalerQt(QMainWindow):
                             status = STATUSES["tm_fuzzy"].key  # Fuzzy match
                         else:
                             status = STATUSES["pretranslated"].key
+                    elif sdl_seg.origin == 'perfect-match':
+                        status = STATUSES["pm"].key  # PerfectMatch (102%)
                     elif sdl_seg.origin in ('document-match', 'auto-propagated'):
                         status = STATUSES["repetition"].key  # Internal repetition
                     elif sdl_seg.origin in ('nmt', 'mt', 'machine-translation', 'auto-translation'):
@@ -17286,11 +17297,14 @@ class SupervertalerQt(QMainWindow):
                 # Build notes with origin info
                 origin_info = ""
                 if sdl_seg.origin:
+                    text_match = getattr(sdl_seg, 'text_match', '')
                     if sdl_seg.origin == 'tm' and sdl_seg.match_percent > 0:
-                        if getattr(sdl_seg, 'text_match', '') == 'SourceAndTarget':
+                        if text_match == 'SourceAndTarget':
                             origin_info = f" | Origin: CM (101%)"
                         else:
                             origin_info = f" | Origin: TM {sdl_seg.match_percent}%"
+                    elif sdl_seg.origin == 'perfect-match':
+                        origin_info = " | Origin: PM (102%)"
                     elif sdl_seg.origin in ('nmt', 'mt'):
                         origin_info = " | Origin: MT"
                     elif sdl_seg.origin in ('document-match', 'auto-propagated'):
