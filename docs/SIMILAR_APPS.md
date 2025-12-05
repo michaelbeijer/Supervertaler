@@ -30,7 +30,7 @@ A curated list of translation tools and AI-powered assistants that offer similar
 
 | Feature | Supervertaler | CotranslatorAI | TWAS Suite |
 |---------|---------------|----------------|------------|
-| Multi-LLM Support | ✅ GPT, Claude, Gemini, Ollama | ✅ | ❓ |
+| Multi-LLM Support | ✅ GPT, Claude, Gemini, Ollama | ❌ (only GPT) | ❓ |
 | Local/Offline Mode | ✅ Ollama | ❌ | ✅ |
 | memoQ Integration | ✅ | ✅ | ✅ |
 | Trados Integration | ✅ SDLPPX/SDLRPX | ✅ | ✅ |
