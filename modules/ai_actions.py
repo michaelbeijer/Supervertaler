@@ -329,7 +329,7 @@ class AIActionSystem:
 
         # Build relative path
         folder = params.get('folder', '')
-        filename = name.replace('/', '-').replace('\\', '-') + '.md'
+        filename = name.replace('/', '-').replace('\\', '-') + '.svprompt'
         relative_path = f"{folder}/{filename}" if folder else filename
 
         # Build prompt data

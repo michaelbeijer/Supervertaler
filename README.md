@@ -22,7 +22,7 @@
 - **[Project Context](PROJECT_CONTEXT.md)** — Complete project reference
 - **[Architecture](docs/ARCHITECTURE.md)** — System design
 - **[Legacy Versions](legacy_versions/LEGACY_VERSIONS.md)** — Historical information
-- **Apps similar to Supervertaler** (CotranslatorAI, TWAS Suite/TWAS Assistant) 
+- **[Similar Apps](docs/SIMILAR_APPS.md)** — CotranslatorAI, TWAS Suite, and other translation tools 
 
 ---
 
