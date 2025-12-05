@@ -1,4 +1,4 @@
-# API Keys for Supervertaler & LLM Leaderboard
+# API Keys for Supervertaler
 # ============================================
 #
 # INSTRUCTIONS:
@@ -6,45 +6,58 @@
 # 2. Replace the placeholder values with your actual API keys
 # 3. Keep api_keys.txt secure and never commit it to version control
 #
-# Format: key_name=your_api_key_here (no spaces around =, no quotes)
+# Format: key_name = your_api_key_here
+#         (spaces around = are optional, no quotes needed)
 
-# === LLM Translation APIs ===
+# ============================================
+# LLM PROVIDERS (for AI Translation & AI Assistant)
+# ============================================
 
-# OpenAI (GPT-4o, GPT-5)
+# OpenAI (GPT-4o, GPT-4o-mini, GPT-5)
 # Get your key at: https://platform.openai.com/api-keys
-openai=YOUR_OPENAI_API_KEY_HERE
+openai = YOUR_OPENAI_API_KEY_HERE
 
-# Anthropic Claude (Claude Sonnet 4.5, Haiku, Opus)
+# Anthropic Claude (Claude Sonnet 4.5, Haiku 4.5, Opus 4.1)
 # Get your key at: https://console.anthropic.com/settings/keys
-claude=YOUR_ANTHROPIC_API_KEY_HERE
+claude = YOUR_ANTHROPIC_API_KEY_HERE
 
-# Google Gemini (Gemini 2.5 Flash, Pro)
+# Google Gemini (Gemini 2.5 Flash, 2.5 Pro)
 # Get your key at: https://aistudio.google.com/app/apikey
-# NOTE: Use "google" as the key name (not "gemini")
-google=YOUR_GOOGLE_GEMINI_API_KEY_HERE
+# NOTE: You can use either "google" or "gemini" as the key name (they're aliases)
+google = YOUR_GOOGLE_GEMINI_API_KEY_HERE
 
-# === Local LLM (Ollama) ===
-# No API key needed! Ollama runs locally on your computer.
+# ============================================
+# LOCAL LLM (Ollama) - No API key needed!
+# ============================================
+# Ollama runs locally on your computer.
 # Install from: https://ollama.com
 # Default endpoint (change only if using non-standard port):
-ollama_endpoint=http://localhost:11434
+ollama_endpoint = http://localhost:11434
 
-# === Optional Translation APIs ===
+# ============================================
+# MACHINE TRANSLATION APIs (for MT Preview panel)
+# ============================================
+# These are DIFFERENT from the LLM APIs above!
+# MT APIs provide quick machine translations, not AI-powered translation.
 
-# DeepL (Optional - for DeepL translation)
+# DeepL (Recommended for European languages)
 # Get your key at: https://www.deepl.com/pro-api
-deepl=
+deepl = 
 
-# MyMemory (Optional - free translation API)
-mymemory=
+# Google Cloud Translation API
+# NOTE: This is DIFFERENT from Gemini! It's traditional machine translation.
+# Get your key at: https://console.cloud.google.com/apis/credentials
+# (Enable "Cloud Translation API" in your Google Cloud project)
+google_translate = 
 
-# Google Cloud Translation API (Optional - different from Gemini)
-google_translate=
+# MyMemory (Free translation API - limited usage)
+mymemory = 
 
 # ============================================
 # SECURITY NOTES:
 # - Keep this file private and secure
-# - Never share your API keys publicly
+# - Never share your API keys publicly  
+# - Never commit api_keys.txt to version control
 # - Monitor your API usage regularly
 # - Each provider has different pricing and rate limits
 # ============================================
