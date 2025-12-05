@@ -3,7 +3,8 @@ Lightweight Voice Dictation for Supervertaler
 Minimal version for integration into target editors
 """
 
-import whisper
+# Note: 'whisper' is imported lazily in run() to avoid slow startup
+# (PyTorch + Whisper model architecture takes several seconds to import)
 import sounddevice as sd
 import numpy as np
 import tempfile
@@ -148,6 +149,8 @@ class QuickDictationThread(QThread):
             else:
                 self.status_update.emit(f"⏳ Loading {self.model_name} model...")
 
+            # Lazy import whisper to avoid slow startup (PyTorch takes seconds to import)
+            import whisper
             model = whisper.load_model(self.model_name)
             self.model_loading_finished.emit()
 
