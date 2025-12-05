@@ -1,13 +1,36 @@
 # Supervertaler Project Context
 
-**Last Updated:** December 4, 2025
-**Current Version:** v1.9.19
+**Last Updated:** December 5, 2025
+**Current Version:** v1.9.20
 **Repository:** https://github.com/michaelbeijer/Supervertaler
 **Maintainer:** Michael Beijer
 
 ---
 
 ## 📅 Recent Development Activity
+
+### December 5, 2025 - Version 1.9.20: SDLPPX Project Persistence
+
+**📦 SDLPPX/SDLRPX Persistence & Bug Fixes**
+Complete round-trip workflow now persists across sessions:
+
+- **Project Persistence:**
+  - Added `sdlppx_source_path` field to Project dataclass (line 658)
+  - Added serialization in `to_dict()` - saves path when saving project
+  - Added deserialization in `from_dict()` - loads path when opening project
+  - Handler automatically restored in `load_project()` when .svproj has sdlppx_source_path
+
+- **Export Bug Fix:**
+  - Fixed SDLRPX export showing "0 translations updated"
+  - Root cause: export was reading notes from `table.item(row, 5)` but notes column never populated as QTableWidgetItem
+  - Fix: read from `segment.notes` in `self.current_project.segments` instead
+  - Verified translations correctly written to return package via PowerShell ZIP inspection
+
+- **Complete Workflow Now Supported:**
+  1. Import SDLPPX → 2. Translate → 3. Save .svproj → 4. Close
+  5. Reopen → 6. Open .svproj → 7. Continue translating → 8. Export SDLRPX ✅
+
+---
 
 ### December 4, 2025 - Version 1.9.19: Trados Studio Package Support
 

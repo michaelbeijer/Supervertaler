@@ -33,7 +33,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.19"
+__version__ = "1.9.20"
 __phase__ = "0.9"
 __release_date__ = "2025-12-04"
 __edition__ = "Qt"
@@ -655,6 +655,7 @@ class Project:
     trados_source_path: str = None  # Path to original Trados bilingual DOCX for round-trip export
     memoq_source_path: str = None  # Path to original memoQ bilingual DOCX for round-trip export
     cafetran_source_path: str = None  # Path to original CafeTran bilingual DOCX for round-trip export
+    sdlppx_source_path: str = None  # Path to original Trados SDLPPX package for SDLRPX export
     concordance_geometry: Dict[str, int] = None  # Window geometry for Concordance Search {x, y, width, height}
     
     def __post_init__(self):
@@ -714,6 +715,9 @@ class Project:
         # Add CafeTran source path if it exists
         if hasattr(self, 'cafetran_source_path') and self.cafetran_source_path:
             result['cafetran_source_path'] = self.cafetran_source_path
+        # Add SDLPPX source path if it exists
+        if hasattr(self, 'sdlppx_source_path') and self.sdlppx_source_path:
+            result['sdlppx_source_path'] = self.sdlppx_source_path
         # Add concordance window geometry if it exists
         if hasattr(self, 'concordance_geometry') and self.concordance_geometry:
             result['concordance_geometry'] = self.concordance_geometry
@@ -760,6 +764,9 @@ class Project:
         # Store CafeTran source path if it exists
         if 'cafetran_source_path' in data:
             project.cafetran_source_path = data['cafetran_source_path']
+        # Store SDLPPX source path if it exists
+        if 'sdlppx_source_path' in data:
+            project.sdlppx_source_path = data['sdlppx_source_path']
         # Store concordance window geometry if it exists
         if 'concordance_geometry' in data:
             project.concordance_geometry = data['concordance_geometry']
@@ -14714,6 +14721,22 @@ class SupervertalerQt(QMainWindow):
                 else:
                     self.log(f"⚠️ Original DOCX not found: {docx_path}")
             
+            # Restore SDLPPX handler for Trados package projects
+            if hasattr(self.current_project, 'sdlppx_source_path') and self.current_project.sdlppx_source_path:
+                sdlppx_path = self.current_project.sdlppx_source_path
+                if os.path.exists(sdlppx_path):
+                    try:
+                        from modules.sdlppx_handler import TradosPackageHandler
+                        self.sdlppx_handler = TradosPackageHandler(sdlppx_path)
+                        self.log(f"✓ Restored Trados package handler: {Path(sdlppx_path).name}")
+                        self.log(f"  → SDLRPX export enabled for this project")
+                    except Exception as e:
+                        self.log(f"⚠️ Could not restore SDLPPX handler: {e}")
+                        self.sdlppx_handler = None
+                else:
+                    self.log(f"⚠️ SDLPPX package not found: {sdlppx_path}")
+                    self.sdlppx_handler = None
+            
             self.load_segments_to_grid()
             self.initialize_tm_database()  # Initialize TM for this project
             self.update_window_title()
@@ -17480,26 +17503,25 @@ class SupervertalerQt(QMainWindow):
             return
         
         try:
-            # Collect translations from grid
+            # Collect translations from segments (notes are stored in segment objects, not table items)
             # Build mapping from segment_id to translation
             translations = {}
             
-            for row in range(self.table.rowCount()):
-                target_widget = self.table.cellWidget(row, 3)  # Target column
-                notes_item = self.table.item(row, 5)  # Notes column
+            # First sync grid targets to segment objects to ensure we have latest edits
+            self._sync_grid_targets_to_segments(self.current_project.segments)
+            
+            for idx, segment in enumerate(self.current_project.segments):
+                notes = getattr(segment, 'notes', '') or ''
+                target_text = segment.target.strip() if segment.target else ''
                 
-                if target_widget and notes_item:
-                    target_text = target_widget.toPlainText().strip()
-                    notes = notes_item.text()
-                    
-                    # Extract segment_id from notes
-                    # Format: "SDLXLIFF: filename.sdlxliff | Segment: 123"
-                    if "Segment:" in notes:
-                        parts = notes.split("|")
-                        if len(parts) >= 2:
-                            seg_part = parts[1].replace("Segment:", "").strip()
-                            if target_text:
-                                translations[seg_part] = target_text
+                # Extract segment_id from notes
+                # Format: "SDLXLIFF: filename.sdlxliff | Segment: {segment_id} | Origin: ..."
+                if "Segment:" in notes:
+                    parts = notes.split("|")
+                    if len(parts) >= 2:
+                        seg_part = parts[1].replace("Segment:", "").strip()
+                        if target_text:
+                            translations[seg_part] = target_text
             
             # Update the handler with translations
             updated = self.sdlppx_handler.update_translations(translations)
@@ -23734,19 +23756,19 @@ class SupervertalerQt(QMainWindow):
     
     def confirm_selected_segments_from_menu(self):
         """Confirm selected segments (called from Edit > Bulk Operations menu)"""
-        if not hasattr(self, 'home_view_stack') or not self.home_view_stack:
+        if not self.current_project:
             QMessageBox.information(self, "Not Available", "Please load a project first.")
             return
         
-        current_index = self.home_view_stack.currentIndex()
-        if current_index == 0:  # Grid view
-            selected_segments = self.get_selected_segments_from_grid()
-            if selected_segments:
-                self.confirm_selected_segments()
-            else:
-                QMessageBox.information(self, "No Selection", "Please select one or more segments to confirm.")
+        if not hasattr(self, 'table') or not self.table:
+            QMessageBox.information(self, "Not Available", "Grid view is not available.")
+            return
+        
+        selected_segments = self.get_selected_segments_from_grid()
+        if selected_segments:
+            self.confirm_selected_segments()
         else:
-            QMessageBox.information(self, "Not Available", "Bulk operations are only available in Grid view.")
+            QMessageBox.information(self, "No Selection", "Please select one or more segments to confirm.")
     
     def _sync_grid_targets_to_segments(self, segments):
         """Sync target text from grid widgets to segment objects.

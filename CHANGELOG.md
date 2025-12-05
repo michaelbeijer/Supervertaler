@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.19 (December 4, 2025)
+**Current Version:** v1.9.20 (December 5, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -14,6 +14,7 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- 📦 **SDLPPX Project Persistence (v1.9.20)** - SDLPPX package path now saved in .svproj files. Full round-trip workflow persists across sessions - import SDLPPX, translate, save project, close, reopen, continue translating, export SDLRPX. Fixed export bug that showed "0 translations updated". Handler automatically restored on project load
 - 📦 **Trados Studio Package Support (v1.9.19)** - Import SDLPPX packages directly from Trados Studio project managers. New File → Import → Trados Studio submenu with Package (SDLPPX) option. Translates SDLXLIFF files within the package, preserves SDL-specific markup and segment IDs. Export as SDLRPX return package (File → Export → Trados Studio → Return Package) for seamless delivery back to Trados users. Full round-trip workflow for freelance translators receiving packages
 - 🔍 **Supermemory Concordance Integration (v1.9.18)** - Concordance Search (Ctrl+K) now includes Supermemory semantic search with two-tab interface. TM Matches tab for exact text search, Supermemory tab for meaning-based search. Active checkbox column in Supermemory to control which TMs are searched. Fixed Trados bilingual DOCX round-trip issues (xml:space, language settings). Supermemory moved to Resources tab
 - 🧠 **Supermemory Enhancements (v1.9.17)** - Complete domain management system for translation memories with domain categorization (Legal, Medical, Patents, etc.), multi-language filtering in search, integration with Superlookup for unified lookup, and TMX/CSV export. Color-coded domain tags, dynamic column headers showing actual languages, and professional search/filter interface
@@ -65,6 +66,24 @@ All notable changes to Supervertaler are documented in this file.
 - 🔄 **CAT Tool Integration** - memoQ, Trados, CafeTran bilingual table support
 
 **See full version history below** ↓
+
+---
+
+## [1.9.20] - December 5, 2025
+
+### 📦 SDLPPX Project Persistence
+- **Project Save/Restore**: SDLPPX package path now saved in .svproj files
+  - Added `sdlppx_source_path` field to Project dataclass
+  - Serialized in `to_dict()`, deserialized in `from_dict()`
+  - Full round-trip workflow now persists across sessions
+- **Handler Restoration**: SDLPPX handler automatically restored on project load
+  - When opening a .svproj from an SDLPPX import, handler is recreated
+  - SDLRPX export available immediately without reimporting
+  - Log message confirms: "✓ Restored Trados package handler"
+- **Export Bug Fix**: Fixed SDLRPX export showing "0 translations updated"
+  - Export now reads from segment objects instead of table widget items
+  - Notes column was never populated as QTableWidgetItem - data is in segment.notes
+  - Verified translations correctly written to return package
 
 ---
 
