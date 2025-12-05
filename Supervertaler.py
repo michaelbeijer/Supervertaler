@@ -24140,6 +24140,19 @@ class SupervertalerQt(QMainWindow):
             except Exception:
                 pass  # Silently fail if widget not ready
 
+        # Also append to Settings tab session log if it exists (separate widget)
+        if hasattr(self, 'session_log') and self.session_log:
+            from datetime import datetime
+            from PyQt6.QtGui import QTextCursor
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            formatted_message = f"[{timestamp}] {message}"
+            try:
+                self.session_log.appendPlainText(formatted_message)
+                self.session_log.moveCursor(QTextCursor.MoveOperation.End)
+                self.session_log.ensureCursorVisible()
+            except Exception:
+                pass  # Silently fail if widget not ready
+
         # Also send to detached log windows
         if hasattr(self, 'detached_log_windows'):
             from datetime import datetime
