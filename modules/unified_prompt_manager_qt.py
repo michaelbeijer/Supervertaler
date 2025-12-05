@@ -2080,7 +2080,9 @@ You are an expert {{SOURCE_LANGUAGE}} to {{TARGET_LANGUAGE}} translator.
                     provider = "gemini"
             
             if provider:
-                api_key = api_keys.get(provider) or api_keys.get("openai") or api_keys.get("claude") or api_keys.get("google")
+                # Map provider names to API key names (gemini uses 'google' key)
+                key_name = "google" if provider == "gemini" else provider
+                api_key = api_keys.get(key_name) or api_keys.get("gemini") or api_keys.get("openai") or api_keys.get("claude") or api_keys.get("google")
                 if api_key:
                     self.llm_client = LLMClient(
                         api_key=api_key,

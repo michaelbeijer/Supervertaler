@@ -68,7 +68,8 @@ def load_api_keys() -> Dict[str, str]:
                 print(f"Could not create api_keys.txt: {e}")
 
     api_keys = {
-        "google": "",           # For Gemini
+        "google": "",           # For Gemini (primary key name)
+        "gemini": "",           # For Gemini (alias - synced with 'google')
         "google_translate": "", # For Google Cloud Translation API
         "claude": "",
         "openai": "",
@@ -93,6 +94,13 @@ def load_api_keys() -> Dict[str, str]:
                             api_keys['ollama_endpoint'] = value
         except Exception as e:
             print(f"Error loading API keys: {e}")
+    
+    # Sync 'google' and 'gemini' keys (they're aliases for the same API)
+    # If one is set and the other isn't, copy the value
+    if api_keys.get('google') and not api_keys.get('gemini'):
+        api_keys['gemini'] = api_keys['google']
+    elif api_keys.get('gemini') and not api_keys.get('google'):
+        api_keys['google'] = api_keys['gemini']
     
     # Set environment variable for Ollama endpoint if configured
     if api_keys.get('ollama_endpoint'):
