@@ -2,7 +2,7 @@
 
 🎯 **The Ultimate Companion Tool for Translators and Writers** — Context-aware AI with intuitive 2-Layer Prompt Architecture, AI Assistant, project termbase system with automatic extraction, and specialized modules.
 
-**Current Version:** v1.9.17 (December 3, 2025)
+**Current Version:** v1.9.20 (December 5, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -31,7 +31,17 @@
 python Supervertaler.py
 ```
 
-**NEW in v1.9.17 - Supermemory Enhancements:**
+**NEW in v1.9.20 - Trados Studio Package Support:**
+- 📦 **SDLPPX Import** - Import Trados Studio project packages directly
+- 📤 **SDLRPX Export** - Create return packages for delivery back to Trados users
+- 💾 **Project Persistence** - Save/restore SDLPPX projects across sessions
+- 🔄 **Full Round-Trip** - Import → Translate → Save → Close → Reopen → Continue → Export
+
+**v1.9.18 - Supermemory Concordance Integration:**
+- 🔍 **Semantic Concordance** - Concordance Search (Ctrl+K) now includes Supermemory tab
+- 🧠 **Two-Tab Interface** - TM Matches (exact) and Supermemory (meaning-based)
+
+**v1.9.17 - Supermemory Enhancements:**
 - 🧠 **Domain Management** - Categorize TMs by domain (Legal, Medical, Patents, Technical, etc.)
 - 🔍 **Semantic Search** - Find translations by meaning using AI embeddings
 - 🌐 **Language Filtering** - Filter by language pairs with dynamic column headers
