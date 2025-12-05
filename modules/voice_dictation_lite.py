@@ -3,10 +3,8 @@ Lightweight Voice Dictation for Supervertaler
 Minimal version for integration into target editors
 """
 
-# Note: 'whisper' is imported lazily in run() to avoid slow startup
-# (PyTorch + Whisper model architecture takes several seconds to import)
-import sounddevice as sd
-import numpy as np
+# Note: Heavy imports (whisper, sounddevice, numpy) are loaded lazily in run()
+# to avoid slow startup. These libraries add 5+ seconds of import time.
 import tempfile
 import wave
 import os
@@ -71,6 +69,10 @@ class QuickDictationThread(QThread):
     def run(self):
         """Record and transcribe audio"""
         try:
+            # Lazy import heavy libraries to avoid slow startup
+            import sounddevice as sd
+            import numpy as np
+            
             # Check FFmpeg availability first
             if not ensure_ffmpeg_available():
                 self.error_occurred.emit(
@@ -185,4 +187,8 @@ class QuickDictationThread(QThread):
         """Stop recording"""
         if self.is_recording:
             self.is_recording = False
-            sd.stop()
+            try:
+                import sounddevice as sd
+                sd.stop()
+            except:
+                pass

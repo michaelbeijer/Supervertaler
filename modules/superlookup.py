@@ -15,7 +15,6 @@ Can operate in different modes:
 - Universal mode (works in any text box)
 """
 
-import pyautogui
 import pyperclip
 import time
 from typing import Dict, List, Tuple, Optional
