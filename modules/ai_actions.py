@@ -329,7 +329,16 @@ class AIActionSystem:
 
         # Build relative path
         folder = params.get('folder', '')
-        filename = name.replace('/', '-').replace('\\', '-') + '.svprompt'
+        # Sanitize filename - remove/replace invalid Windows filename characters
+        # Invalid chars: < > : " / \ | ? * and also → (arrow) which AI likes to use
+        filename = name
+        invalid_chars = ['/', '\\', '<', '>', ':', '"', '|', '?', '*', '→', '←', '↔']
+        for char in invalid_chars:
+            filename = filename.replace(char, '-')
+        # Also clean up multiple dashes and trim
+        import re
+        filename = re.sub(r'-+', '-', filename).strip('-')
+        filename = filename + '.svprompt'
         relative_path = f"{folder}/{filename}" if folder else filename
 
         # Build prompt data
