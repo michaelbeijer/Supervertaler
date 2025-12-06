@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.20 (December 5, 2025)
+**Current Version:** v1.9.21 (December 6, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -66,6 +66,19 @@ All notable changes to Supervertaler are documented in this file.
 - 🔄 **CAT Tool Integration** - memoQ, Trados, CafeTran bilingual table support
 
 **See full version history below** ↓
+
+---
+
+## [1.9.21] - December 6, 2025
+
+### 🐛 Critical SDLPPX Handler Bug Fix
+- **Fixed SDLRPX Export Failure After Project Reload**: Fixed "'str' object is not callable" error when exporting SDLRPX return packages after reopening a saved project
+  - Root cause: Handler was initialized with path string instead of log_callback parameter
+  - The path was incorrectly assigned to `self.log`, causing export to fail when trying to call log function
+  - Now correctly initializes handler with `TradosPackageHandler(log_callback=self.log)` and calls `load_package(path)` separately
+  - Also fixed missing `self.sdlppx_source_file` assignment during handler restoration
+  - Full SDLPPX workflow now works correctly: import package → translate → save project → close → reopen → export SDLRPX ✓
+- **Impact**: This bug prevented translators from exporting return packages after reopening saved SDLPPX projects, breaking the workflow for Trados Studio package handling
 
 ---
 

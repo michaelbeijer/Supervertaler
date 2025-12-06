@@ -33,9 +33,9 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.20"
+__version__ = "1.9.21"
 __phase__ = "0.9"
-__release_date__ = "2025-12-04"
+__release_date__ = "2025-12-06"
 __edition__ = "Qt"
 
 import sys
@@ -52,10 +52,13 @@ import time  # For delays in Superlookup
 import re
 
 # Fix encoding for Windows console (UTF-8 support)
+# Only set if stdout/stderr exist (they're None in PyInstaller --windowed mode)
 if sys.platform == 'win32':
     import io
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+    if sys.stdout is not None and hasattr(sys.stdout, 'buffer'):
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    if sys.stderr is not None and hasattr(sys.stderr, 'buffer'):
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
 # External dependencies
 import pyperclip  # For clipboard operations in Superlookup
@@ -14727,9 +14730,15 @@ class SupervertalerQt(QMainWindow):
                 if os.path.exists(sdlppx_path):
                     try:
                         from modules.sdlppx_handler import TradosPackageHandler
-                        self.sdlppx_handler = TradosPackageHandler(sdlppx_path)
-                        self.log(f"✓ Restored Trados package handler: {Path(sdlppx_path).name}")
-                        self.log(f"  → SDLRPX export enabled for this project")
+                        self.sdlppx_handler = TradosPackageHandler(log_callback=self.log)
+                        package = self.sdlppx_handler.load_package(sdlppx_path)
+                        if package:
+                            self.sdlppx_source_file = sdlppx_path  # Store source file path for export
+                            self.log(f"✓ Restored Trados package handler: {Path(sdlppx_path).name}")
+                            self.log(f"  → SDLRPX export enabled for this project")
+                        else:
+                            self.log(f"⚠️ Could not load SDLPPX package: {sdlppx_path}")
+                            self.sdlppx_handler = None
                     except Exception as e:
                         self.log(f"⚠️ Could not restore SDLPPX handler: {e}")
                         self.sdlppx_handler = None
