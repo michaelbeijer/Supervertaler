@@ -34,6 +34,7 @@ import threading
 # Optional imports - will be checked at runtime
 CHROMADB_AVAILABLE = False
 SENTENCE_TRANSFORMERS_AVAILABLE = False
+SENTENCE_TRANSFORMERS_ERROR = None  # Store error message if import fails
 
 try:
     import chromadb
@@ -304,9 +305,21 @@ class SupermemoryEngine:
             
             self.log(f"[Supermemory] Initialized with {self.collection.count()} entries")
             return True
-            
+
         except Exception as e:
-            self.log(f"[Supermemory] Initialization error: {e}")
+            error_msg = str(e)
+            self.log(f"[Supermemory] Initialization error: {error_msg}")
+
+            # Provide helpful instructions for common Windows DLL errors
+            if "DLL" in error_msg or "c10.dll" in error_msg or "torch" in error_msg.lower():
+                self.log("[Supermemory] 💡 PyTorch DLL loading failed. Try these fixes:")
+                self.log("[Supermemory]   1. Install Visual C++ Redistributables:")
+                self.log("[Supermemory]      https://aka.ms/vs/17/release/vc_redist.x64.exe")
+                self.log("[Supermemory]   2. Reinstall PyTorch:")
+                self.log("[Supermemory]      pip uninstall torch sentence-transformers")
+                self.log("[Supermemory]      pip install torch sentence-transformers")
+                self.log("[Supermemory]   3. Or disable Supermemory auto-init in Settings → AI Settings")
+
             return False
     
     def is_initialized(self) -> bool:
@@ -1606,10 +1619,20 @@ class SupermemoryWidget(QWidget):
             
             # Check dependencies
             deps = self.engine.check_dependencies()
-            
+
             if not deps["ready"]:
                 missing = self.engine.get_missing_dependencies()
-                self.status_label.setText(f"⚠️ Missing: {', '.join(missing)}. Install with: pip install {' '.join(missing)}")
+                error_msg = f"⚠️ Missing: {', '.join(missing)}. Install with: pip install {' '.join(missing)}"
+
+                # If sentence-transformers import failed with an error, show the actual error
+                if 'sentence-transformers' in missing and SENTENCE_TRANSFORMERS_ERROR:
+                    error_msg = f"⚠️ Error loading sentence-transformers: {SENTENCE_TRANSFORMERS_ERROR}"
+                    # Log detailed error to console
+                    if hasattr(self.main_window, 'log'):
+                        self.main_window.log(f"Supermemory initialization failed:")
+                        self.main_window.log(f"  {SENTENCE_TRANSFORMERS_ERROR}")
+
+                self.status_label.setText(error_msg)
                 self.add_tmx_btn.setEnabled(False)
                 self.search_btn.setEnabled(False)
                 return
