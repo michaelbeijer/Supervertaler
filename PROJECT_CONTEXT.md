@@ -1,13 +1,45 @@
 # Supervertaler Project Context
 
-**Last Updated:** December 5, 2025
-**Current Version:** v1.9.20
+**Last Updated:** December 7, 2025
+**Current Version:** v1.9.22
 **Repository:** https://github.com/michaelbeijer/Supervertaler
 **Maintainer:** Michael Beijer
 
 ---
 
 ## 📅 Recent Development Activity
+
+### December 7, 2025 - Version 1.9.22: Gemini 3 Pro Preview Support
+
+**🤖 Google Gemini 3 Integration**
+Added support for Google's latest AI model released November 2025:
+
+- **Model Addition:**
+  - Added `gemini-3-pro-preview` to Settings → LLM Settings → Gemini Models dropdown
+  - Label: "gemini-3-pro-preview (Latest - Superior Performance)"
+  - Tooltip updated to describe capabilities: "Latest model with superior reasoning and coding"
+  - Also added missing models: `gemini-2.5-flash-lite` and `gemini-2.5-pro`
+
+- **Implementation:**
+  - Modified `Supervertaler.py` lines 10889-10902 (model dropdown)
+  - Modified `modules/llm_clients.py` lines 220-229 (supported models list)
+  - Updated module header documentation (lines 8-11)
+  - Works in both single segment translation (Ctrl+T) and batch translation
+
+- **Performance vs Gemini 2.5 Pro:**
+  - 10-20% average improvement across benchmarks
+  - 6.3x improvement on ARC-AGI-2 abstract reasoning
+  - 20x improvement on MathArena Apex (23.4% vs <5%)
+  - 35-50% higher accuracy on software engineering tasks
+  - Pricing: $2/$12 per MTok (input/output) vs $1.25/$10 for 2.5 Pro
+
+- **Technical Details:**
+  - Model properly integrated with existing LLMClient architecture
+  - Settings correctly loaded via `settings.get('gemini_model', 'gemini-2.5-flash')`
+  - Batch translation uses model parameter from settings at line 25468-25471
+  - Direct LLM search uses model parameter at line 27321
+
+---
 
 ### December 5, 2025 - Version 1.9.20: SDLPPX Project Persistence
 

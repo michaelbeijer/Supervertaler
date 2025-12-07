@@ -8,7 +8,7 @@ Can be used standalone or imported by other applications.
 Supported Providers:
 - OpenAI (GPT-4, GPT-4o, GPT-5, o1, o3)
 - Anthropic (Claude Sonnet 4.5, Haiku 4.5, Opus 4.1)
-- Google (Gemini 2.0 Flash, Pro)
+- Google (Gemini 2.5 Flash, 2.5 Pro, 3 Pro Preview)
 
 Claude 4 Models (Released 2025):
 - Sonnet 4.5: Best balance - flagship model for general translation ($3/$15 per MTok)
@@ -222,7 +222,10 @@ class LLMClient:
             "gemini-1.5-pro",
             "gemini-1.5-flash",
             "gemini-2.0-flash",
-            "gemini-2.5-flash"
+            "gemini-2.5-flash",
+            "gemini-2.5-flash-lite",
+            "gemini-2.5-pro",
+            "gemini-3-pro-preview"
         ]
     }
 

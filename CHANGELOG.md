@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.21 (December 6, 2025)
+**Current Version:** v1.9.22 (December 7, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -66,6 +66,26 @@ All notable changes to Supervertaler are documented in this file.
 - 🔄 **CAT Tool Integration** - memoQ, Trados, CafeTran bilingual table support
 
 **See full version history below** ↓
+
+---
+
+## [1.9.22] - December 7, 2025
+
+### 🤖 Gemini 3 Pro Preview Support
+- **Latest Google AI Model**: Added support for Gemini 3 Pro Preview (November 2025 release)
+  - New model option in Settings → LLM Settings → Gemini Models dropdown
+  - Listed as "gemini-3-pro-preview (Latest - Superior Performance)"
+  - Works in both single segment translation (Ctrl+T) and batch translation
+  - Performance: 10-20% improvement on average, 6-20x better on reasoning/math tasks
+  - Pricing: $2/$12 per million tokens (vs $1.25/$10 for Gemini 2.5 Pro)
+- **LLM Client Update**: Added all current Gemini models to supported list
+  - `gemini-2.5-flash-lite` (Fastest & Most Economical)
+  - `gemini-2.5-pro` (Premium - Complex Reasoning)
+  - `gemini-3-pro-preview` (Latest - Superior Performance)
+  - Updated module documentation to reflect Gemini 3 support
+- **Files Modified**:
+  - `Supervertaler.py`: Lines 10889-10902 (model dropdown and tooltip)
+  - `modules/llm_clients.py`: Lines 8-11 (docs), 220-229 (supported models)
 
 ---
 

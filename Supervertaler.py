@@ -33,9 +33,9 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.21"
+__version__ = "1.9.22"
 __phase__ = "0.9"
-__release_date__ = "2025-12-06"
+__release_date__ = "2025-12-07"
 __edition__ = "Qt"
 
 import sys
@@ -10891,12 +10891,14 @@ class SupervertalerQt(QMainWindow):
             "gemini-2.5-flash (Recommended - Best Balance)",
             "gemini-2.5-flash-lite (Fastest & Most Economical)",
             "gemini-2.5-pro (Premium - Complex Reasoning)",
+            "gemini-3-pro-preview (Latest - Superior Performance)",
             "gemini-2.0-flash-exp (Experimental)"
         ])
         gemini_combo.setToolTip(
             "Gemini 2.5 Flash: Best price-performance balance.\n"
             "Gemini 2.5 Flash-Lite: Fastest and cheapest.\n"
-            "Gemini 2.5 Pro: Premium for complex problems."
+            "Gemini 2.5 Pro: Premium for complex problems.\n"
+            "Gemini 3 Pro Preview: Latest model with superior reasoning and coding."
         )
         current_gemini_model = settings.get('gemini_model', 'gemini-2.5-flash')
         for i in range(gemini_combo.count()):
