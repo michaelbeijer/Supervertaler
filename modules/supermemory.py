@@ -45,8 +45,10 @@ except ImportError:
 try:
     from sentence_transformers import SentenceTransformer
     SENTENCE_TRANSFORMERS_AVAILABLE = True
-except ImportError:
-    pass
+except (ImportError, OSError, Exception) as e:
+    # Catch DLL loading errors on Windows (common with PyTorch)
+    SENTENCE_TRANSFORMERS_AVAILABLE = False
+    SENTENCE_TRANSFORMERS_ERROR = str(e)
 
 
 # =============================================================================

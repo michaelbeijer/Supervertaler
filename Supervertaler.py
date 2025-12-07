@@ -33,7 +33,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.23"
+__version__ = "1.9.24"
 __phase__ = "0.9"
 __release_date__ = "2025-12-07"
 __edition__ = "Qt"
@@ -1481,7 +1481,7 @@ class ReadOnlyGridTextEditor(QTextEdit):
     def mousePressEvent(self, event):
         """Allow text selection on click and trigger row selection"""
         super().mousePressEvent(event)
-        
+
         # Find the table and row number by checking which row this widget belongs to
         if self.parent():
             try:
@@ -1491,7 +1491,7 @@ class ReadOnlyGridTextEditor(QTextEdit):
                     if table.cellWidget(row, 2) == self:  # Source is column 2
                         table.selectRow(row)
                         table.setCurrentCell(row, 2)
-                        
+
                         # CRITICAL: Manually trigger on_cell_selected since signals aren't firing
                         # Find the main window and call the method directly
                         main_window = table.parent()
@@ -1502,6 +1502,64 @@ class ReadOnlyGridTextEditor(QTextEdit):
                         break
             except Exception as e:
                 print(f"Error triggering manual cell selection: {e}")
+
+    def mouseReleaseEvent(self, event):
+        """Smart word selection - expand partial selections to full words"""
+        super().mouseReleaseEvent(event)
+
+        # Check if smart selection is enabled
+        main_window = self._get_main_window()
+        if main_window and hasattr(main_window, 'enable_smart_word_selection'):
+            if not main_window.enable_smart_word_selection:
+                return  # Feature disabled
+
+        # Get the current cursor
+        cursor = self.textCursor()
+
+        # Only expand if there's a selection
+        if cursor.hasSelection():
+            # Get selection boundaries
+            start = cursor.selectionStart()
+            end = cursor.selectionEnd()
+
+            # Get the full text
+            text = self.toPlainText()
+
+            # Helper function to check if character is part of a word
+            # Includes alphanumeric, underscore, hyphen, and apostrophe
+            def is_word_char(char):
+                return char.isalnum() or char in "_-'"
+
+            # Check if we're at word boundaries
+            at_start_boundary = start == 0 or not is_word_char(text[start - 1])
+            at_end_boundary = end == len(text) or not is_word_char(text[end])
+
+            # If selection is partial (not at both boundaries) and reasonably small
+            # (to avoid interfering with intentional multi-word selections)
+            selection_length = end - start
+            if (not at_start_boundary or not at_end_boundary) and selection_length < 50:
+                # Expand to word boundaries
+                # Move start backward to word boundary
+                while start > 0 and is_word_char(text[start - 1]):
+                    start -= 1
+
+                # Move end forward to word boundary
+                while end < len(text) and is_word_char(text[end]):
+                    end += 1
+
+                # Set the new selection
+                cursor.setPosition(start)
+                cursor.setPosition(end, cursor.MoveMode.KeepAnchor)
+                self.setTextCursor(cursor)
+
+    def _get_main_window(self):
+        """Get the main application window by traversing the parent hierarchy"""
+        if not self.parent():
+            return None
+        main_window = self.parent()
+        while main_window and not hasattr(main_window, 'go_to_first_segment'):
+            main_window = main_window.parent()
+        return main_window
     
     def focusInEvent(self, event):
         """Select text when focused for easy copying and trigger row selection"""
@@ -1869,7 +1927,7 @@ class EditableGridTextEditor(QTextEdit):
         if self.table and self.row >= 0:
             self.table.selectRow(self.row)
             self.table.setCurrentCell(self.row, 3)  # Column 3 is Target
-            
+
             # CRITICAL: Manually trigger on_cell_selected since signals aren't firing
             # Find the main window and call the method directly
             try:
@@ -1880,7 +1938,56 @@ class EditableGridTextEditor(QTextEdit):
                     main_window.on_cell_selected(self.row, 3, -1, -1)
             except Exception as e:
                 print(f"Error triggering manual cell selection: {e}")
-    
+
+    def mouseReleaseEvent(self, event):
+        """Smart word selection - expand partial selections to full words"""
+        super().mouseReleaseEvent(event)
+
+        # Check if smart selection is enabled
+        main_window = self._get_main_window()
+        if main_window and hasattr(main_window, 'enable_smart_word_selection'):
+            if not main_window.enable_smart_word_selection:
+                return  # Feature disabled
+
+        # Get the current cursor
+        cursor = self.textCursor()
+
+        # Only expand if there's a selection
+        if cursor.hasSelection():
+            # Get selection boundaries
+            start = cursor.selectionStart()
+            end = cursor.selectionEnd()
+
+            # Get the full text
+            text = self.toPlainText()
+
+            # Helper function to check if character is part of a word
+            # Includes alphanumeric, underscore, hyphen, and apostrophe
+            def is_word_char(char):
+                return char.isalnum() or char in "_-'"
+
+            # Check if we're at word boundaries
+            at_start_boundary = start == 0 or not is_word_char(text[start - 1])
+            at_end_boundary = end == len(text) or not is_word_char(text[end])
+
+            # If selection is partial (not at both boundaries) and reasonably small
+            # (to avoid interfering with intentional multi-word selections)
+            selection_length = end - start
+            if (not at_start_boundary or not at_end_boundary) and selection_length < 50:
+                # Expand to word boundaries
+                # Move start backward to word boundary
+                while start > 0 and is_word_char(text[start - 1]):
+                    start -= 1
+
+                # Move end forward to word boundary
+                while end < len(text) and is_word_char(text[end]):
+                    end += 1
+
+                # Set the new selection
+                cursor.setPosition(start)
+                cursor.setPosition(end, cursor.MoveMode.KeepAnchor)
+                self.setTextCursor(cursor)
+
     def focusInEvent(self, event):
         """Ensure text remains visible when focused and auto-select row"""
         super().focusInEvent(event)
@@ -4007,7 +4114,16 @@ class SupervertalerQt(QMainWindow):
                     self.supermemory_widget.engine.initialize()
                     self.log("🧠 Supermemory engine initialized")
         except Exception as e:
-            self.log(f"⚠ Supermemory auto-init failed: {e}")
+            error_msg = str(e)
+            self.log(f"⚠ Supermemory auto-init failed: {error_msg}")
+
+            # Provide helpful instructions for common Windows DLL errors
+            if "DLL" in error_msg or "c10.dll" in error_msg or "torch" in error_msg.lower():
+                self.log("  💡 PyTorch DLL loading failed. Try these fixes:")
+                self.log("  1. Install Visual C++ Redistributables: https://aka.ms/vs/17/release/vc_redist.x64.exe")
+                self.log("  2. Reinstall PyTorch: pip uninstall torch sentence-transformers")
+                self.log("     Then: pip install torch sentence-transformers")
+                self.log("  3. If still failing, disable Supermemory auto-init in Settings → AI Settings")
     
     def init_ui(self):
         """Initialize the user interface"""
@@ -11531,9 +11647,28 @@ class SupervertalerQt(QMainWindow):
         self.auto_propagate_checkbox = auto_propagate_cb  # Store reference for updates
         self.auto_insert_100_checkbox = auto_insert_100_cb  # Store reference for updates
         self.tb_highlight_checkbox = tb_highlight_cb  # Store reference for updates
-        
+
         tm_termbase_group.setLayout(tm_termbase_layout)
         layout.addWidget(tm_termbase_group)
+
+        # Editor Settings group
+        editor_group = QGroupBox("✍️ Editor Settings")
+        editor_layout = QVBoxLayout()
+
+        # Smart word selection toggle
+        smart_selection_cb = QCheckBox("Enable smart word selection")
+        smart_selection_cb.setChecked(general_settings.get('enable_smart_word_selection', True))
+        smart_selection_cb.setToolTip(
+            "When enabled, selecting part of a word automatically expands to the full word.\n\n"
+            "Example: Selecting 'ductiv' in 'productivity' will automatically select the full word 'productivity'.\n\n"
+            "This makes word selection faster and less stressful during translation.\n"
+            "Works with hyphens (self-contained) and apostrophes (don't, l'homme)."
+        )
+        editor_layout.addWidget(smart_selection_cb)
+        self.smart_selection_checkbox = smart_selection_cb  # Store reference
+
+        editor_group.setLayout(editor_layout)
+        layout.addWidget(editor_group)
 
         # Find & Replace settings group
         find_replace_group = QGroupBox("Find && Replace Settings")
@@ -11705,7 +11840,7 @@ class SupervertalerQt(QMainWindow):
             llm_spin, mt_spin, tm_limit_spin, tb_spin,
             auto_open_log_cb, auto_insert_100_cb, tm_save_mode_combo, tb_highlight_cb,
             enable_backup_cb, backup_interval_spin,
-            tb_order_combo, tb_hide_shorter_cb
+            tb_order_combo, tb_hide_shorter_cb, smart_selection_cb
         ))
         layout.addWidget(save_btn)
         
@@ -12854,7 +12989,7 @@ class SupervertalerQt(QMainWindow):
                                        llm_spin=None, mt_spin=None, tm_limit_spin=None, tb_spin=None,
                                        auto_open_log_cb=None, auto_insert_100_cb=None, tm_save_mode_combo=None, tb_highlight_cb=None,
                                        enable_backup_cb=None, backup_interval_spin=None,
-                                       tb_order_combo=None, tb_hide_shorter_cb=None):
+                                       tb_order_combo=None, tb_hide_shorter_cb=None, smart_selection_cb=None):
         """Save general settings from UI (non-AI settings only)"""
         self.allow_replace_in_source = allow_replace_cb.isChecked()
         self.update_warning_banner()
@@ -12890,6 +13025,7 @@ class SupervertalerQt(QMainWindow):
             'enable_llm_matching': existing_settings.get('enable_llm_matching', False),  # Preserve AI setting
             'termbase_display_order': tb_order_combo.currentData() if tb_order_combo is not None else 'appearance',
             'termbase_hide_shorter_matches': tb_hide_shorter_cb.isChecked() if tb_hide_shorter_cb is not None else False,
+            'enable_smart_word_selection': smart_selection_cb.isChecked() if smart_selection_cb is not None else True,
             'precision_scroll_divisor': self.precision_spin.value() if hasattr(self, 'precision_spin') else 3,
             'auto_center_active_segment': self.auto_center_cb.isChecked() if hasattr(self, 'auto_center_cb') else False,
             'enable_auto_backup': enable_backup_cb.isChecked() if enable_backup_cb is not None else True,
@@ -19306,6 +19442,8 @@ class SupervertalerQt(QMainWindow):
         # Load termbase display settings
         self.termbase_display_order = settings.get('termbase_display_order', 'appearance')
         self.termbase_hide_shorter_matches = settings.get('termbase_hide_shorter_matches', False)
+        # Load smart word selection setting
+        self.enable_smart_word_selection = settings.get('enable_smart_word_selection', True)
         
         # Load alternating row color settings
         self.enable_alternating_row_colors = settings.get('enable_alternating_row_colors', True)

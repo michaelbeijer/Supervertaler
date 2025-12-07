@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.23 (December 7, 2025)
+**Current Version:** v1.9.24 (December 7, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -66,6 +66,45 @@ All notable changes to Supervertaler are documented in this file.
 - 🔄 **CAT Tool Integration** - memoQ, Trados, CafeTran bilingual table support
 
 **See full version history below** ↓
+
+---
+
+## [1.9.24] - December 7, 2025
+
+### ✨ Smart Word Selection
+- **Intelligent Text Selection**: Selecting part of a word automatically expands to the full word
+  - Makes word selection faster and less stressful during translation
+  - Works in both source (read-only) and target (editable) columns
+  - Supports compound words with hyphens (e.g., "self-contained")
+  - Supports contractions with apostrophes (e.g., "don't", "l'homme")
+  - Threshold-based: Only expands selections under 50 characters (prevents interference with multi-word selections)
+- **Settings Toggle**: New "Enable smart word selection" checkbox in Settings → General → Editor Settings
+  - Enabled by default
+  - Helpful tooltip explains the feature with examples
+  - Can be disabled if user prefers traditional selection behavior
+- **Implementation**:
+  - Added `mouseReleaseEvent()` to both `ReadOnlyGridTextEditor` and `EditableGridTextEditor`
+  - Word character detection includes alphanumeric, underscore, hyphen, and apostrophe
+  - Boundary detection ensures expansion only occurs when selection is partial
+  - Respects settings toggle across the application
+- **Documentation**: Complete feature documentation in `SMART_WORD_SELECTION.md`
+  - Implementation details, testing checklist, known limitations, future enhancements
+
+### 🛡️ Supermemory Error Handling Improvements
+- **Better DLL Error Messages**: Enhanced PyTorch DLL loading failure handling
+  - `modules/supermemory.py` now catches `OSError` and `Exception` (not just `ImportError`)
+  - Windows-specific DLL errors are properly caught and handled
+  - Stores error message in `SENTENCE_TRANSFORMERS_ERROR` for debugging
+- **Helpful Instructions**: Auto-detects DLL errors and provides actionable solutions
+  - Detects "DLL", "c10.dll", or "torch" in error messages
+  - Provides 3 specific fixes with direct links and exact commands:
+    1. Install Visual C++ Redistributables (https://aka.ms/vs/17/release/vc_redist.x64.exe)
+    2. Reinstall PyTorch with exact pip commands
+    3. Disable Supermemory auto-init in Settings as fallback
+  - Instructions appear automatically in the log when error occurs
+- **Technical Details**:
+  - Modified `Supervertaler.py`: Lines 4116-4126 (error handler in `_auto_init_supermemory()`)
+  - Modified `modules/supermemory.py`: Lines 45-51 (exception catching)
 
 ---
 

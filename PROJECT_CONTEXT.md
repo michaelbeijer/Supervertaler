@@ -1,13 +1,92 @@
 # Supervertaler Project Context
 
 **Last Updated:** December 7, 2025
-**Current Version:** v1.9.23
+**Current Version:** v1.9.24
 **Repository:** https://github.com/michaelbeijer/Supervertaler
 **Maintainer:** Michael Beijer
 
 ---
 
 ## 📅 Recent Development Activity
+
+### December 7, 2025 - Version 1.9.24: Smart Word Selection & Error Handling
+
+**✨ Smart Word Selection Feature**
+Implemented intelligent word selection inspired by CafeTran's UX:
+
+- **Feature Behavior:**
+  - Selecting part of a word (e.g., "ductiv" in "productivity") automatically expands to full word
+  - Works in both source (read-only) and target (editable) grid columns
+  - Supports compound words with hyphens: "self-contained", "mother-in-law"
+  - Supports contractions with apostrophes: "don't", "can't", "l'homme"
+  - 50-character threshold prevents interference with multi-word selections
+  - Boundary detection only expands when selection is partial
+
+- **Settings Integration:**
+  - Added toggle checkbox in Settings → General → Editor Settings
+  - Option: "Enable smart word selection" (enabled by default)
+  - Helpful tooltip with examples and use cases
+  - Setting persists in `general_settings.json`
+  - Loaded on startup into `self.enable_smart_word_selection`
+
+- **Implementation Details:**
+  - Modified `ReadOnlyGridTextEditor` (lines 1506-1562): Added `mouseReleaseEvent()`
+  - Modified `EditableGridTextEditor` (lines 1942-1989): Added identical `mouseReleaseEvent()`
+  - Word character detection: `char.isalnum() or char in "_-'"` (alphanumeric + underscore + hyphen + apostrophe)
+  - Both classes include `_get_main_window()` helper to access settings
+  - Checks `main_window.enable_smart_word_selection` before expanding
+  - Uses `QTextCursor` with `MoveMode.KeepAnchor` for selection
+
+- **Settings UI Changes:**
+  - Lines 11645-11662: New "Editor Settings" QGroupBox
+  - Checkbox with tooltip explaining feature
+  - Stored as `self.smart_selection_checkbox` for save operation
+  - Line 11834: Added parameter to save button connection
+  - Line 12983: Added `smart_selection_cb=None` parameter to save function
+  - Line 13019: Saves to settings dict
+  - Line 19437: Loads setting on startup
+
+- **Documentation:**
+  - Created `user_data_private/Development docs/SMART_WORD_SELECTION.md`
+  - Comprehensive feature documentation with testing checklist
+  - Known limitations, future enhancements, implementation details
+
+**🛡️ Supermemory Error Handling**
+Fixed PyTorch DLL loading errors with helpful user guidance:
+
+- **Problem:**
+  - User reported: `[WinError 1114] A dynamic link library (DLL) initialization routine failed`
+  - PyTorch's `c10.dll` failed to load on Windows
+  - Common issue: Missing Visual C++ Redistributables
+
+- **Solution:**
+  - Modified `modules/supermemory.py` (lines 45-51):
+    - Changed `except ImportError` to `except (ImportError, OSError, Exception) as e`
+    - Now properly catches Windows DLL errors (OSError)
+    - Stores error message in `SENTENCE_TRANSFORMERS_ERROR`
+  - Modified `Supervertaler.py` (lines 4116-4126):
+    - Enhanced exception handler in `_auto_init_supermemory()`
+    - Detects DLL-related errors ("DLL", "c10.dll", "torch" in error message)
+    - Provides 3 specific fixes with direct links and commands:
+      1. Install Visual C++ Redistributables (https://aka.ms/vs/17/release/vc_redist.x64.exe)
+      2. Reinstall PyTorch: `pip uninstall torch sentence-transformers` then `pip install torch sentence-transformers`
+      3. Disable Supermemory auto-init in Settings → AI Settings
+    - Instructions appear automatically in log when DLL error occurs
+
+- **User Impact:**
+  - Clear, actionable error messages instead of cryptic Windows errors
+  - Direct download links for required software
+  - Exact pip commands to fix PyTorch installation
+  - Fallback option to disable feature if fixes don't work
+
+**Files Modified:**
+- `Supervertaler.py`: Version 1.9.24, smart selection, error messages, settings UI
+- `modules/supermemory.py`: Enhanced exception catching
+- `CHANGELOG.md`: v1.9.24 entry
+- `PROJECT_CONTEXT.md`: This update
+- `user_data_private/Development docs/SMART_WORD_SELECTION.md`: Feature documentation
+
+---
 
 ### December 7, 2025 - Version 1.9.23: Bilingual Table Landscape Orientation
 
