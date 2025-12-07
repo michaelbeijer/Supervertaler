@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.22 (December 7, 2025)
+**Current Version:** v1.9.23 (December 7, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -66,6 +66,21 @@ All notable changes to Supervertaler are documented in this file.
 - 🔄 **CAT Tool Integration** - memoQ, Trados, CafeTran bilingual table support
 
 **See full version history below** ↓
+
+---
+
+## [1.9.23] - December 7, 2025
+
+### 📄 Bilingual Table Landscape Orientation
+- **Improved Visualization**: Supervertaler Bilingual Table exports now use landscape orientation
+  - Better visualization of long segments (source and target columns have more horizontal space)
+  - Applies to both "With Tags" and "Formatted" export options
+  - Page dimensions automatically swapped for landscape layout
+  - Maintains 0.5-inch margins on all sides
+- **Technical Details**:
+  - Added `WD_ORIENT.LANDSCAPE` to document sections
+  - Swapped page width/height for proper landscape rendering
+  - Modified `Supervertaler.py`: Lines 7820-7832 (document setup)
 
 ---
 

@@ -33,7 +33,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.22"
+__version__ = "1.9.23"
 __phase__ = "0.9"
 __release_date__ = "2025-12-07"
 __edition__ = "Qt"
@@ -537,7 +537,7 @@ def find_next_unused_tag(source_text: str, target_text: str) -> str:
     Returns:
         The next tag to insert, or empty string if all tags are used
     """
-    # Use combined extraction for both memoQ and HTML tags
+    # Use combined extraction for both memoQ and HTML 	
     source_tags = extract_all_tags(source_text)
     target_tags = extract_all_tags(target_text)
     
@@ -7816,10 +7816,16 @@ class SupervertalerQt(QMainWindow):
             from docx.oxml import OxmlElement
             
             doc = Document()
-            
-            # Set up document margins
+
+            # Set up document margins and landscape orientation
+            from docx.enum.section import WD_ORIENT
             sections = doc.sections
             for section in sections:
+                # Set landscape orientation for better visualization of long segments
+                section.orientation = WD_ORIENT.LANDSCAPE
+                # Swap page dimensions for landscape
+                section.page_width, section.page_height = section.page_height, section.page_width
+                # Set margins
                 section.left_margin = Inches(0.5)
                 section.right_margin = Inches(0.5)
                 section.top_margin = Inches(0.5)

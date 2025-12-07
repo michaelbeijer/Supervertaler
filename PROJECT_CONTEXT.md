@@ -1,13 +1,38 @@
 # Supervertaler Project Context
 
 **Last Updated:** December 7, 2025
-**Current Version:** v1.9.22
+**Current Version:** v1.9.23
 **Repository:** https://github.com/michaelbeijer/Supervertaler
 **Maintainer:** Michael Beijer
 
 ---
 
 ## 📅 Recent Development Activity
+
+### December 7, 2025 - Version 1.9.23: Bilingual Table Landscape Orientation
+
+**📄 Export Format Improvement**
+Improved bilingual table exports for better readability:
+
+- **Landscape Orientation:**
+  - Changed Supervertaler Bilingual Table exports from portrait to landscape
+  - Provides significantly more horizontal space for source and target columns
+  - Improves visualization of long segments (common in technical/legal translation)
+  - Applies to both export options: "With Tags" and "Formatted"
+
+- **Implementation:**
+  - Modified `Supervertaler.py` line 7820-7832 in `_export_review_table()` method
+  - Added `from docx.enum.section import WD_ORIENT`
+  - Set `section.orientation = WD_ORIENT.LANDSCAPE`
+  - Swapped page dimensions: `section.page_width, section.page_height = section.page_height, section.page_width`
+  - Maintained existing 0.5-inch margins on all sides
+
+- **User Impact:**
+  - Files → Export → Supervertaler Bilingual Table (both options) now create landscape documents
+  - No changes to import functionality
+  - Backwards compatible - can still import old portrait-mode tables
+
+---
 
 ### December 7, 2025 - Version 1.9.22: Gemini 3 Pro Preview Support
 
