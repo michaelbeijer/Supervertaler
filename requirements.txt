@@ -37,6 +37,9 @@ sentence-transformers>=2.2.0
 # YAML Support
 pyyaml>=6.0.0
 
+# Markdown Rendering (Superdocs)
+markdown>=3.4.0
+
 # ===== Optional Dependencies =====
 # Uncomment the sections below to enable optional features
 

@@ -6554,12 +6554,32 @@ class SupervertalerQt(QMainWindow):
     def create_superbrowser_tab(self) -> QWidget:
         """Create the Superbrowser tab - Multi-Chat AI Browser"""
         from modules.superbrowser import SuperbrowserWidget
-        
+
         # Create and return the Superbrowser widget
         superbrowser_widget = SuperbrowserWidget(parent=self)
-        
+
         return superbrowser_widget
-    
+
+    def create_superdocs_tab(self) -> QWidget:
+        """Create the Superdocs tab - Automated Documentation Viewer"""
+        try:
+            from modules.superdocs_viewer_qt import SuperdocsViewerQt
+
+            # Create and return the Superdocs viewer widget
+            superdocs_widget = SuperdocsViewerQt(parent=self, app=self)
+
+            return superdocs_widget
+        except Exception as e:
+            self.log(f"[Superdocs] Error creating tab: {e}")
+            # Return placeholder if module fails to load
+            placeholder = QWidget()
+            layout = QVBoxLayout(placeholder)
+            label = QLabel(f"📚 Superdocs\n\nFailed to load: {e}\n\nInstall dependencies with:\npip install markdown")
+            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            label.setStyleSheet("color: #888; font-size: 12px;")
+            layout.addWidget(label)
+            return placeholder
+
     def create_supermemory_tab(self) -> QWidget:
         """Create the Supermemory tab - Vector-Indexed Translation Memory"""
         try:
@@ -7042,6 +7062,10 @@ class SupervertalerQt(QMainWindow):
         # Superbrowser - Multi-Chat AI Browser
         superbrowser_tab = self.create_superbrowser_tab()
         modules_tabs.addTab(superbrowser_tab, "🌐 Superbrowser")
+
+        # Superdocs - Automated Documentation Viewer
+        superdocs_tab = self.create_superdocs_tab()
+        modules_tabs.addTab(superdocs_tab, "📚 Superdocs")
 
         layout.addWidget(modules_tabs)
 
