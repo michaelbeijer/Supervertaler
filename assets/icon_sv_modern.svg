@@ -8,7 +8,7 @@
     </linearGradient>
   </defs>
 
-  <rect width="256" height="256" fill="white"/>
+  <!-- Transparent background -->
   <circle cx="128" cy="128" r="112" fill="url(#circleGrad)"/>
 
   <!-- Sv text -->

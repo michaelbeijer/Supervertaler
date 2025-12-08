@@ -30356,7 +30356,16 @@ def main():
     app = QApplication(sys.argv)
     app.setApplicationName("Supervertaler")
     app.setOrganizationName("Supervertaler")
-    
+
+    # Set Windows AppUserModelID for taskbar icon grouping (Windows 7+)
+    if sys.platform == 'win32':
+        try:
+            import ctypes
+            myappid = 'com.michaelbeijer.supervertaler.1.9.26'
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+        except Exception:
+            pass  # Fail silently if not on Windows or ctypes unavailable
+
     window = SupervertalerQt()
     window.show()
     
