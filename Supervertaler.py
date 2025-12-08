@@ -25007,29 +25007,30 @@ class SupervertalerQt(QMainWindow):
         title = QLabel(f"<h2>Supervertaler v{__version__}</h2>")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title)
-        
+
         # Description
         desc = QLabel("<p><b>AI-powered tool for translators & writers</b></p>")
         desc.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(desc)
-        
-        # Website link
-        website_label = QLabel(
+
+        # Links section
+        links_label = QLabel(
             '<p style="text-align: center;">'
-            '<a href="https://supervertaler.com/" style="color: #1976D2; text-decoration: none;">'
-            'https://supervertaler.com/'
-            '</a></p>'
+            '<b>Project:</b> <a href="https://supervertaler.com/" style="color: #1976D2; text-decoration: none;">supervertaler.com</a><br>'
+            '<b>Author:</b> <a href="https://michaelbeijer.co.uk/" style="color: #1976D2; text-decoration: none;">michaelbeijer.co.uk</a>'
+            '</p>'
         )
-        website_label.setOpenExternalLinks(True)
-        website_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(website_label)
-        
+        links_label.setOpenExternalLinks(True)
+        links_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(links_label)
+
         # Additional info
         info = QLabel(
-            "<p><b>Author:</b> Michael Beijer</p>"
-            "<p><b>License:</b> MIT</p>"
+            "<p style='text-align: center;'><b>License:</b> MIT</p>"
             "<hr>"
-            f"<p><i>v{__version__} - Local LLM Support (Ollama)</i></p>"
+            "<p style='text-align: center; color: #666; font-size: 9pt;'>"
+            "Built with PyQt6 • Supports OpenAI, Claude, Gemini & Ollama"
+            "</p>"
         )
         info.setWordWrap(True)
         layout.addWidget(info)
