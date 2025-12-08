@@ -66,31 +66,43 @@ class SuperdocsViewerQt(QWidget):
     def init_ui(self):
         """Initialize the user interface"""
         main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(10, 10, 10, 10)
+        main_layout.setSpacing(5)
 
-        # Header with title and generation controls
-        header_layout = QHBoxLayout()
+        # Header (matches AutoFingers style)
+        header = QLabel("📚 Superdocs - Automated Documentation")
+        header.setStyleSheet("font-size: 16pt; font-weight: bold; color: #1976D2;")
+        main_layout.addWidget(header, 0)  # 0 = no stretch, stays compact
 
-        title_label = QLabel("📚 Superdocs - Automated Documentation")
-        title_font = QFont()
-        title_font.setPointSize(12)
-        title_font.setBold(True)
-        title_label.setFont(title_font)
-        header_layout.addWidget(title_label)
+        # Description box (matches AutoFingers style)
+        desc = QLabel("Automated translation pasting for memoQ.\nAutoFingers reads from a TMX file and pastes translations automatically.")
+        desc.setWordWrap(True)
+        desc.setStyleSheet("""
+            background-color: #E3F2FD;
+            color: #1565C0;
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 9pt;
+        """)
+        desc.setText("Superdocs automatically generates documentation from your codebase using AST parsing. Documentation includes architecture, module details, and dependency graphs.")
+        main_layout.addWidget(desc, 0)  # 0 = no stretch, stays compact
 
-        header_layout.addStretch()
+        # Button row
+        button_layout = QHBoxLayout()
 
-        # Generation controls
         self.generate_btn = QPushButton("🔄 Generate Documentation")
         self.generate_btn.setToolTip("Scan codebase and generate fresh documentation")
         self.generate_btn.clicked.connect(self.generate_documentation)
-        header_layout.addWidget(self.generate_btn)
+        button_layout.addWidget(self.generate_btn)
 
         self.refresh_btn = QPushButton("🔃 Refresh View")
         self.refresh_btn.setToolTip("Reload documentation tree")
         self.refresh_btn.clicked.connect(self.load_documentation_tree)
-        header_layout.addWidget(self.refresh_btn)
+        button_layout.addWidget(self.refresh_btn)
 
-        main_layout.addLayout(header_layout)
+        button_layout.addStretch()
+
+        main_layout.addLayout(button_layout)
 
         # Progress bar (hidden by default)
         self.progress_bar = QProgressBar()
@@ -100,15 +112,16 @@ class SuperdocsViewerQt(QWidget):
 
         # Status label
         self.status_label = QLabel("")
-        self.status_label.setStyleSheet("color: #666; font-style: italic;")
-        main_layout.addWidget(self.status_label)
+        self.status_label.setStyleSheet("color: #666; font-style: italic; font-size: 8pt;")
+        main_layout.addWidget(self.status_label, 0)  # 0 = no stretch
 
         # Main content area with splitter
         splitter = QSplitter(Qt.Orientation.Horizontal)
 
-        # Left side: Documentation tree
-        tree_group = QGroupBox("Documentation Structure")
-        tree_layout = QVBoxLayout()
+        # Left side: Documentation tree (no GroupBox for cleaner look)
+        tree_widget = QWidget()
+        tree_layout = QVBoxLayout(tree_widget)
+        tree_layout.setContentsMargins(0, 0, 0, 0)
 
         self.doc_tree = QTreeWidget()
         self.doc_tree.setHeaderLabel("📑 Documentation Files")
@@ -118,62 +131,51 @@ class SuperdocsViewerQt(QWidget):
         # Quick stats
         self.stats_label = QLabel("")
         self.stats_label.setStyleSheet("color: #666; font-size: 8pt; padding: 5px;")
-        tree_layout.addWidget(self.stats_label)
+        tree_layout.addWidget(self.stats_label, 0)  # 0 = no stretch
 
-        tree_group.setLayout(tree_layout)
-        splitter.addWidget(tree_group)
+        splitter.addWidget(tree_widget)
 
-        # Right side: Document viewer
-        viewer_group = QGroupBox("Document Preview")
-        viewer_layout = QVBoxLayout()
+        # Right side: Document viewer (no GroupBox for cleaner look)
+        viewer_widget = QWidget()
+        viewer_layout = QVBoxLayout(viewer_widget)
+        viewer_layout.setContentsMargins(0, 0, 0, 0)
 
-        # Document title
+        # Document title bar with controls
+        title_bar_layout = QHBoxLayout()
+
         self.doc_title_label = QLabel("Select a document to preview")
         doc_title_font = QFont()
         doc_title_font.setPointSize(10)
         doc_title_font.setBold(True)
         self.doc_title_label.setFont(doc_title_font)
-        viewer_layout.addWidget(self.doc_title_label)
+        title_bar_layout.addWidget(self.doc_title_label)
 
-        # Markdown viewer
-        self.doc_viewer = QTextBrowser()
-        self.doc_viewer.setOpenExternalLinks(False)
-        self.doc_viewer.anchorClicked.connect(self.on_link_clicked)
-        viewer_layout.addWidget(self.doc_viewer)
+        title_bar_layout.addStretch()
 
-        # Viewer controls
-        viewer_controls = QHBoxLayout()
+        self.word_count_label = QLabel("")
+        self.word_count_label.setStyleSheet("color: #666; font-size: 8pt;")
+        title_bar_layout.addWidget(self.word_count_label)
 
         self.open_external_btn = QPushButton("📂 Open in Editor")
         self.open_external_btn.setToolTip("Open current file in default markdown editor")
         self.open_external_btn.clicked.connect(self.open_in_external_editor)
         self.open_external_btn.setEnabled(False)
-        viewer_controls.addWidget(self.open_external_btn)
+        title_bar_layout.addWidget(self.open_external_btn)
 
-        viewer_controls.addStretch()
+        viewer_layout.addLayout(title_bar_layout)
 
-        self.word_count_label = QLabel("")
-        self.word_count_label.setStyleSheet("color: #666; font-size: 8pt;")
-        viewer_controls.addWidget(self.word_count_label)
+        # Markdown viewer
+        self.doc_viewer = QTextBrowser()
+        self.doc_viewer.setOpenExternalLinks(False)
+        self.doc_viewer.anchorClicked.connect(self.on_link_clicked)
+        viewer_layout.addWidget(self.doc_viewer)  # This gets all the stretch
 
-        viewer_layout.addLayout(viewer_controls)
+        splitter.addWidget(viewer_widget)
 
-        viewer_group.setLayout(viewer_layout)
-        splitter.addWidget(viewer_group)
+        # Set splitter proportions (25% tree, 75% viewer for more reading space)
+        splitter.setSizes([250, 750])
 
-        # Set splitter proportions (30% tree, 70% viewer)
-        splitter.setSizes([300, 700])
-
-        main_layout.addWidget(splitter)
-
-        # Info footer
-        info_label = QLabel(
-            "💡 Superdocs automatically generates documentation from your codebase using AST parsing. "
-            "Documentation includes architecture, module details, and dependency graphs."
-        )
-        info_label.setWordWrap(True)
-        info_label.setStyleSheet("background-color: #f0f0f0; padding: 8px; border-radius: 4px; font-size: 8pt;")
-        main_layout.addWidget(info_label)
+        main_layout.addWidget(splitter, 1)  # 1 = stretch to fill available space
 
     def load_documentation_tree(self):
         """Load documentation structure into tree view"""
