@@ -33,7 +33,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.25"
+__version__ = "1.9.26"
 __phase__ = "0.9"
 __release_date__ = "2025-12-08"
 __edition__ = "Qt"

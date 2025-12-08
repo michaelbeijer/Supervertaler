@@ -1,7 +1,7 @@
 # Supervertaler Project Context
 
 **Last Updated:** December 8, 2025
-**Current Version:** v1.9.25
+**Current Version:** v1.9.26
 **Repository:** https://github.com/michaelbeijer/Supervertaler
 **Maintainer:** Michael Beijer
 
@@ -9,7 +9,7 @@
 
 ## 📅 Recent Development Activity
 
-### December 8, 2025 - Version 1.9.25: Automatic Model Version Checker
+### December 8, 2025 - Version 1.9.26: Automatic Model Version Checker
 
 **🔄 Smart LLM Model Updates**
 Implemented automatic checking system for new models from OpenAI, Anthropic, and Google:
@@ -82,10 +82,10 @@ Fixed checkbox inconsistencies throughout the application:
   - Provides audit checklist for future development
 
 **Files Modified:**
-- `Supervertaler.py`: Version 1.9.25, model checker integration, checkbox fixes
+- `Supervertaler.py`: Version 1.9.26, model checker integration, checkbox fixes
 - `modules/model_version_checker.py`: NEW - Core checking logic
 - `modules/model_update_dialog.py`: NEW - UI dialogs
-- `CHANGELOG.md`: v1.9.25 entry with full feature description
+- `CHANGELOG.md`: v1.9.26 entry with full feature description
 - `docs/index.html`: Updated badge to "Auto Model Checker"
 - `PROJECT_CONTEXT.md`: This update
 

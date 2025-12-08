@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.25 (December 8, 2025)
+**Current Version:** v1.9.26 (December 8, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -69,7 +69,7 @@ All notable changes to Supervertaler are documented in this file.
 
 ---
 
-## [1.9.25] - December 8, 2025
+## [1.9.26] - December 8, 2025
 
 ### 🔄 Automatic Model Version Checker
 
@@ -106,6 +106,10 @@ All notable changes to Supervertaler are documented in this file.
 - "Enable LLM (AI) matching on segment selection"
 - "Auto-generate markdown for imported documents"
 - "Enable automatic model checking (once per day on startup)"
+
+---
+
+## [1.9.25] - December 8, 2025
 
 ### 🐧 Linux Compatibility Release
 
