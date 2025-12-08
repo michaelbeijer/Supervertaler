@@ -9,6 +9,7 @@ PyQt6-WebEngine>=6.5.0
 python-docx>=0.8.11
 openpyxl>=3.1.0
 Pillow>=10.0.0
+lxml>=4.9.0
 
 # AI/LLM Providers
 openai>=1.0.0
@@ -36,15 +37,20 @@ sentence-transformers>=2.2.0
 # YAML Support
 pyyaml>=6.0.0
 
-# Voice Dictation (Supervoice) - Optional
-# Uncomment these lines if you want to use Supervoice feature:
+# ===== Optional Dependencies =====
+# Uncomment the sections below to enable optional features
+
+# Voice Dictation (Supervoice)
+# Requires: ffmpeg installed on your system
 # openai-whisper>=20230314
 # sounddevice>=0.4.6
-# numpy>=1.24.0
 
-# Automation (AutoFingers/Universal Lookup) - Optional
+# Automation Features (AutoFingers/Universal Lookup)
+# Note: AutoFingers is Windows/memoQ-specific
 # pyautogui>=0.9.53
 
-# Note: Some features require system-level dependencies:
-# - Supervoice: ffmpeg must be installed on your system
-# - Voice dictation: A microphone must be available
+# ===== Platform-Specific Notes =====
+# - Linux: tkinter is not needed (removed from imports)
+# - Windows: All features available including AutoFingers
+# - macOS: All features available except AutoFingers
+# - Supervoice: Requires ffmpeg system package on all platforms
