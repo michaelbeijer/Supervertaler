@@ -1,13 +1,95 @@
 # Supervertaler Project Context
 
-**Last Updated:** December 7, 2025
-**Current Version:** v1.9.24
+**Last Updated:** December 8, 2025
+**Current Version:** v1.9.25
 **Repository:** https://github.com/michaelbeijer/Supervertaler
 **Maintainer:** Michael Beijer
 
 ---
 
 ## 📅 Recent Development Activity
+
+### December 8, 2025 - Version 1.9.25: Automatic Model Version Checker
+
+**🔄 Smart LLM Model Updates**
+Implemented automatic checking system for new models from OpenAI, Anthropic, and Google:
+
+- **Core Functionality:**
+  - Checks once per 24 hours on startup (configurable)
+  - Queries OpenAI models.list(), Anthropic patterns, Gemini models API
+  - Compares against known models baseline
+  - Shows popup dialog only when new models detected
+  - Silent operation when no new models found
+  - Intelligent caching in `user_data/model_version_cache.json`
+
+- **User Interface:**
+  - Settings → AI Settings: New "Model Version Checker" section
+  - Checkbox: "Enable automatic model checking (once per day on startup)"
+  - Button: "Check for New Models Now" (force manual check)
+  - Dialog: Checkbox selection for each new model found
+  - "Select All" / "Deselect All" buttons
+  - Shows errors per provider if API fails
+
+- **New Modules:**
+  - `modules/model_version_checker.py` (355 lines):
+    - `ModelVersionChecker` class with caching
+    - Methods: `check_openai_models()`, `check_claude_models()`, `check_gemini_models()`
+    - 24-hour throttling logic
+    - JSON cache management
+  - `modules/model_update_dialog.py` (279 lines):
+    - `ModelUpdateDialog`: Main selection dialog
+    - `NoNewModelsDialog`: "Up to date" confirmation
+    - PyQt6 QGroupBox with checkboxes per provider
+
+- **Integration Points:**
+  - Line 4090-4093: Startup check with 2-second delay
+  - Lines 11466-11496: Settings UI (checkbox + button)
+  - Lines 4133-4242: `_check_for_new_models()` and `_on_new_models_selected()`
+  - Line 12977: Save `auto_check_models` to general_settings.json
+
+- **Provider Support:**
+  - **OpenAI**: Uses `client.models.list()` - full model enumeration
+  - **Anthropic Claude**: Pattern testing (no list endpoint available)
+  - **Google Gemini**: Uses `genai.list_models()` - filters for generateContent support
+
+- **Error Handling:**
+  - Missing API keys: Per-provider warnings
+  - Import errors: Graceful degradation
+  - Network errors: Logged, doesn't crash app
+  - Manual checks: Show error dialogs
+  - Auto checks: Silent logging
+
+**🎨 UI Standardization & Polish**
+Fixed checkbox inconsistencies throughout the application:
+
+- **Checkbox Standardization:**
+  - Replaced 3 blue `QCheckBox` instances with `CheckmarkCheckBox`
+  - Line 11426: "Enable LLM (AI) matching on segment selection"
+  - Line 11437: "Auto-generate markdown for imported documents"
+  - Line 11478: "Enable automatic model checking"
+  - All checkboxes now use green background with white checkmark
+
+- **Size Refinement:**
+  - Reduced from 18x18px to 16x16px (all 3 checkbox classes)
+  - Applied to `CheckmarkCheckBox`, `PinkCheckmarkCheckBox`, `BlueCheckmarkCheckBox`
+  - Better visual proportion and cleaner appearance
+
+- **Documentation:**
+  - Created `user_data_private/Development docs/UI_STANDARDS.md`
+  - Defines `CheckmarkCheckBox` as the standard
+  - Includes anti-patterns and quick reference
+  - Documents all 3 checkbox classes
+  - Provides audit checklist for future development
+
+**Files Modified:**
+- `Supervertaler.py`: Version 1.9.25, model checker integration, checkbox fixes
+- `modules/model_version_checker.py`: NEW - Core checking logic
+- `modules/model_update_dialog.py`: NEW - UI dialogs
+- `CHANGELOG.md`: v1.9.25 entry with full feature description
+- `docs/index.html`: Updated badge to "Auto Model Checker"
+- `PROJECT_CONTEXT.md`: This update
+
+---
 
 ### December 7, 2025 - Version 1.9.24: Smart Word Selection & Error Handling
 

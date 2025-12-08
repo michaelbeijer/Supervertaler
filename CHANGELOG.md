@@ -71,6 +71,42 @@ All notable changes to Supervertaler are documented in this file.
 
 ## [1.9.25] - December 8, 2025
 
+### 🔄 Automatic Model Version Checker
+
+**Smart Model Updates:**
+- 🆕 **Auto-detect New LLM Models**: Automatically checks for new models from OpenAI, Anthropic, and Google
+- 📅 **Daily Checks**: Runs once per 24 hours on startup (configurable)
+- 🔔 **Smart Notifications**: Popup dialog only when new models are detected
+- ✅ **Easy Selection**: Click to select which models to add to Supervertaler
+- 💾 **Intelligent Caching**: Remembers last check to avoid unnecessary API calls
+- ⚙️ **Fully Configurable**: Enable/disable auto-check in Settings → AI Settings
+- 🔍 **Manual Check**: "Check for New Models Now" button for on-demand checking
+
+**Implementation:**
+- New module: `modules/model_version_checker.py` - Core checking logic with 24-hour throttling
+- New module: `modules/model_update_dialog.py` - User-friendly PyQt6 dialogs
+- Settings integration: New "Model Version Checker" section in AI Settings
+- Cache system: Stores results in `user_data/model_version_cache.json`
+- Provider support: OpenAI (models.list API), Claude (pattern testing), Gemini (models API)
+
+**User Experience:**
+- Silent operation: No interruption if no new models found
+- Error handling: Graceful degradation if APIs unavailable
+- Documentation: Complete UI standards guide to maintain consistency
+
+### 🎨 UI Polish & Standardization
+
+**Checkbox Consistency:**
+- ✅ **Standardized All Checkboxes**: Replaced 3 blue QCheckBox instances with green CheckmarkCheckBox
+- 📏 **Refined Size**: Reduced checkbox size from 18x18px to 16x16px for cleaner appearance
+- 📚 **Documentation**: Created UI_STANDARDS.md to prevent future inconsistencies
+- 🎯 **Visual Consistency**: All checkboxes now use custom green style with white checkmarks
+
+**Fixed Checkboxes:**
+- "Enable LLM (AI) matching on segment selection"
+- "Auto-generate markdown for imported documents"
+- "Enable automatic model checking (once per day on startup)"
+
 ### 🐧 Linux Compatibility Release
 
 **Platform Support:**
