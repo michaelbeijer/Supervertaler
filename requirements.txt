@@ -36,3 +36,4 @@ pyperclip>=1.8.2
 # Note: Some features require system-level dependencies:
 # - Supervoice: ffmpeg must be installed on your system
 # - Voice dictation: A microphone must be available
+pyyaml>=6.0.0

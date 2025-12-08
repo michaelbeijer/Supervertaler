@@ -23,8 +23,6 @@ Based on concepts from: Heartsome TMX Editor 8 (Java/Eclipse RCP)
 License: MIT - Open Source and Free
 """
 
-import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
 import xml.etree.ElementTree as ET
 from datetime import datetime
 import os
