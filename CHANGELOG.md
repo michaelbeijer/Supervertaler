@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.24 (December 7, 2025)
+**Current Version:** v1.9.25 (December 8, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -66,6 +66,44 @@ All notable changes to Supervertaler are documented in this file.
 - 🔄 **CAT Tool Integration** - memoQ, Trados, CafeTran bilingual table support
 
 **See full version history below** ↓
+
+---
+
+## [1.9.25] - December 8, 2025
+
+### 🐧 Linux Compatibility Release
+
+**Platform Support:**
+- ✅ **Full Linux Compatibility**: Supervertaler now runs perfectly on Ubuntu and other Linux distributions
+- ✅ **Removed Legacy Dependencies**: Eliminated tkinter imports from TMX editor module
+- ✅ **Complete requirements.txt**: All dependencies now properly documented and installable
+- ✅ **Graceful Platform Detection**: AutoFingers shows helpful message on Linux (Windows/memoQ-specific feature)
+
+**Installation Improvements:**
+- 📦 **One-Command Setup**: `pip install -r requirements.txt` installs all dependencies
+- 📝 **Added Missing Dependencies**:
+  - `pyyaml` - YAML support for Non-Translatables manager
+  - `PyMuPDF` - PDF processing for PDF Rescue module
+  - `sentence-transformers` - Semantic search for Supermemory
+  - `keyboard` - Keyboard control for AutoFingers
+  - `lxml` - XML processing for Trados DOCX handler
+- 🛠️ **Platform-Specific Notes**: Clear documentation for Linux, Windows, and macOS compatibility
+- 🔧 **Optional Dependencies**: Voice dictation and automation features clearly marked as optional
+
+**Bug Fixes:**
+- 🐛 **Fixed AutoFingers Import**: Made `pyautogui` import optional with graceful fallback for Linux
+- 🐛 **Fixed TMX Editor**: Removed unnecessary tkinter dependency from core module
+- 🐛 **Fixed Import Errors**: Proper error handling for platform-specific features
+
+**Technical Changes:**
+- 🔄 **AutoFingers Engine**: Added `HAS_PYAUTOGUI` flag for cross-platform compatibility
+- 🔄 **Import Guards**: Platform-specific features now detect availability at runtime
+- 📚 **Documentation**: Enhanced requirements.txt with feature descriptions and platform notes
+
+**For Users:**
+- 🎯 **Fresh Installation**: Works out-of-the-box on fresh Ubuntu installations
+- 🎯 **Virtual Environment**: Full support for Python venv isolated installations
+- 🎯 **Cross-Platform**: Same codebase works on Windows, Linux, and macOS
 
 ---
 

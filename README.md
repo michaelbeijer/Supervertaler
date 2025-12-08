@@ -2,7 +2,7 @@
 
 🎯 **The Ultimate Companion Tool for Translators and Writers** — Context-aware AI with intuitive 2-Layer Prompt Architecture, AI Assistant, project termbase system with automatic extraction, and specialized modules.
 
-**Current Version:** v1.9.21 (December 6, 2025)
+**Current Version:** v1.9.25 (December 8, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -32,7 +32,13 @@
 python Supervertaler.py
 ```
 
-**NEW in v1.9.20 - Trados Studio Package Support:**
+**NEW in v1.9.25 - Linux Compatibility:**
+- 🐧 **Full Linux Support** - Works perfectly on Ubuntu and other Linux distributions
+- 📦 **Complete Dependencies** - One-command installation with requirements.txt
+- 🔧 **Platform Detection** - Graceful handling of Windows-specific features on Linux
+- 🛠️ **Fresh Install Ready** - Tested on fresh Ubuntu installation with virtual environment
+
+**v1.9.20 - Trados Studio Package Support:**
 - 📦 **SDLPPX Import** - Import Trados Studio project packages directly
 - 📤 **SDLRPX Export** - Create return packages for delivery back to Trados users
 - 💾 **Project Persistence** - Save/restore SDLPPX projects across sessions
