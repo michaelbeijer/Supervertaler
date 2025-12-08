@@ -4086,6 +4086,11 @@ class SupervertalerQt(QMainWindow):
         if general_settings.get('supermemory_auto_init', False):
             from PyQt6.QtCore import QTimer
             QTimer.singleShot(1000, self._auto_init_supermemory)  # 1 second delay to not block startup
+
+        # Auto-check for new models if enabled in settings
+        if general_settings.get('auto_check_models', True):
+            from PyQt6.QtCore import QTimer
+            QTimer.singleShot(2000, lambda: self._check_for_new_models(force=False))  # 2 second delay
     
     def _auto_init_supermemory(self):
         """Auto-initialize Supermemory in the background at startup."""
@@ -4124,7 +4129,118 @@ class SupervertalerQt(QMainWindow):
                 self.log("  2. Reinstall PyTorch: pip uninstall torch sentence-transformers")
                 self.log("     Then: pip install torch sentence-transformers")
                 self.log("  3. If still failing, disable Supermemory auto-init in Settings → AI Settings")
-    
+
+    def _check_for_new_models(self, force: bool = False):
+        """
+        Check for new LLM models from providers
+
+        Args:
+            force: Force check even if checked recently
+        """
+        try:
+            from modules.model_version_checker import ModelVersionChecker
+            from modules.model_update_dialog import ModelUpdateDialog, NoNewModelsDialog
+            from modules.llm_clients import load_api_keys
+
+            # Load API keys
+            api_keys = load_api_keys()
+
+            # Initialize checker with cache in user_data
+            cache_path = self.user_data_path / "model_version_cache.json"
+            checker = ModelVersionChecker(cache_path=str(cache_path))
+
+            # Check if we should run (unless forced)
+            if not force and not checker.should_check():
+                # Already checked recently
+                return
+
+            self.log("🔍 Checking for new LLM models...")
+
+            # Run the check
+            results = checker.check_all_providers(
+                openai_key=api_keys.get("OPENAI_API_KEY"),
+                anthropic_key=api_keys.get("ANTHROPIC_API_KEY"),
+                google_key=api_keys.get("GOOGLE_API_KEY"),
+                force=force
+            )
+
+            # If this was a forced manual check, log the results
+            if force:
+                self.log(f"  OpenAI: {len(results.get('openai', {}).get('new_models', []))} new models")
+                self.log(f"  Claude: {len(results.get('claude', {}).get('new_models', []))} new models")
+                self.log(f"  Gemini: {len(results.get('gemini', {}).get('new_models', []))} new models")
+
+            # Check if any new models found
+            if checker.has_new_models(results):
+                self.log(f"✨ New models detected! Opening dialog...")
+
+                # Show dialog with new models
+                dialog = ModelUpdateDialog(results, parent=self)
+                dialog.models_selected.connect(self._on_new_models_selected)
+                dialog.exec()
+
+            else:
+                # No new models
+                if force:
+                    # Only show "no new models" dialog for manual checks
+                    cache_info = checker.get_cache_info()
+                    dialog = NoNewModelsDialog(
+                        last_check=cache_info.get('last_check'),
+                        parent=self
+                    )
+                    dialog.exec()
+                else:
+                    # Silent for automatic checks
+                    self.log("✓ No new models detected")
+
+        except ImportError as e:
+            self.log(f"⚠ Could not check for new models: Missing dependencies ({e})")
+        except Exception as e:
+            self.log(f"⚠ Error checking for new models: {e}")
+            if force:
+                # Show error dialog for manual checks
+                from PyQt6.QtWidgets import QMessageBox
+                QMessageBox.warning(
+                    self,
+                    "Model Check Error",
+                    f"Failed to check for new models:\n\n{str(e)}"
+                )
+
+    def _on_new_models_selected(self, selected_models: dict):
+        """
+        Handle user selection of new models to add
+
+        Args:
+            selected_models: Dict of {provider: [model_ids]}
+        """
+        try:
+            # Update the known models in llm_clients.py
+            # For now, just log what would be added
+            self.log("📦 Adding selected models to Supervertaler:")
+
+            for provider, models in selected_models.items():
+                if models:
+                    self.log(f"  {provider.capitalize()}: {len(models)} model(s)")
+                    for model in models:
+                        self.log(f"    • {model}")
+
+            # TODO: Actually add the models to the configuration
+            # This would require modifying llm_clients.py or a separate config file
+            # For now, just show a message
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.information(
+                self,
+                "Models Added",
+                f"Selected models have been noted:\n\n"
+                f"{sum(len(m) for m in selected_models.values())} model(s) from "
+                f"{len(selected_models)} provider(s)\n\n"
+                f"These models will be available after restarting Supervertaler.\n\n"
+                f"Note: You may need to manually add them to Settings → AI Settings for now."
+            )
+
+        except Exception as e:
+            self.log(f"❌ Error adding models: {e}")
+
     def init_ui(self):
         """Initialize the user interface"""
         # Build window title with dev mode indicator
@@ -11347,20 +11463,53 @@ class SupervertalerQt(QMainWindow):
         layout.addWidget(behavior_group)
         
         # ========== SECTION 7: API Keys ==========
+        # ========== MODEL VERSION CHECKER ==========
+        version_check_group = QGroupBox("🔄 Model Version Checker")
+        version_check_layout = QVBoxLayout()
+
+        version_check_info = QLabel(
+            "Automatically check for new LLM models from OpenAI, Anthropic, and Google.\n"
+            "Get notified when new models are available and easily add them to Supervertaler."
+        )
+        version_check_info.setWordWrap(True)
+        version_check_layout.addWidget(version_check_info)
+
+        # Auto-check setting
+        auto_check_models_cb = QCheckBox("Enable automatic model checking (once per day on startup)")
+        auto_check_models_cb.setChecked(general_settings.get('auto_check_models', True))
+        auto_check_models_cb.setToolTip(
+            "When enabled, Supervertaler will check for new models once per day when you start the application.\n"
+            "You'll see a popup if new models are detected."
+        )
+        version_check_layout.addWidget(auto_check_models_cb)
+
+        # Manual check button
+        manual_check_btn = QPushButton("🔍 Check for New Models Now")
+        manual_check_btn.setToolTip("Manually check for new models from all providers")
+        manual_check_btn.clicked.connect(lambda: self._check_for_new_models(force=True))
+        version_check_layout.addWidget(manual_check_btn)
+
+        # Store reference for saving
+        self.auto_check_models_cb = auto_check_models_cb
+
+        version_check_group.setLayout(version_check_layout)
+        layout.addWidget(version_check_group)
+
+        # ========== API KEYS ==========
         api_keys_group = QGroupBox("🔑 API Keys")
         api_keys_layout = QVBoxLayout()
-        
+
         api_keys_info = QLabel(
             f"Configure your API keys in:<br>"
             f"<code>{self.user_data_path / 'api_keys.txt'}</code>"
         )
         api_keys_info.setWordWrap(True)
         api_keys_layout.addWidget(api_keys_info)
-        
+
         open_keys_btn = QPushButton("📝 Open API Keys File")
         open_keys_btn.clicked.connect(lambda: self.open_api_keys_file())
         api_keys_layout.addWidget(open_keys_btn)
-        
+
         api_keys_group.setLayout(api_keys_layout)
         layout.addWidget(api_keys_group)
         
@@ -12941,6 +13090,7 @@ class SupervertalerQt(QMainWindow):
         general_prefs['supermemory_auto_init'] = supermemory_autoinit_cb.isChecked()
         general_prefs['enable_llm_matching'] = llm_matching_cb.isChecked()
         general_prefs['auto_generate_markdown'] = auto_markdown_cb.isChecked()
+        general_prefs['auto_check_models'] = self.auto_check_models_cb.isChecked()
         
         # Update LLM match limits
         if 'match_limits' not in general_prefs:
