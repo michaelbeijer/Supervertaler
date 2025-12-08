@@ -4939,17 +4939,17 @@ class SupervertalerQt(QMainWindow):
         # Help Menu
         help_menu = menubar.addMenu("&Help")
 
-        # Documentation links
+        # Documentation links (GitHub URLs for universal access)
         quickstart_action = QAction("📖 Quick Start Guide", self)
-        quickstart_action.triggered.connect(lambda: self._open_help_file("docs/guides/QUICK_START.md"))
+        quickstart_action.triggered.connect(lambda: self._open_url("https://github.com/michaelbeijer/Supervertaler/blob/main/docs/guides/QUICK_START.md"))
         help_menu.addAction(quickstart_action)
 
         workflow_action = QAction("🔄 CAT Tool Workflow Guide", self)
-        workflow_action.triggered.connect(lambda: self._open_help_file("docs/guides/CAT_WORKFLOW.md"))
+        workflow_action.triggered.connect(lambda: self._open_url("https://github.com/michaelbeijer/Supervertaler/blob/main/docs/guides/CAT_WORKFLOW.md"))
         help_menu.addAction(workflow_action)
 
         faq_action = QAction("❓ FAQ", self)
-        faq_action.triggered.connect(lambda: self._open_help_file("FAQ.md"))
+        faq_action.triggered.connect(lambda: self._open_url("https://github.com/michaelbeijer/Supervertaler/blob/main/FAQ.md"))
         help_menu.addAction(faq_action)
 
         superdocs_action = QAction("📚 Superdocs (Interactive)", self)
@@ -4959,11 +4959,11 @@ class SupervertalerQt(QMainWindow):
         help_menu.addSeparator()
 
         shortcuts_action = QAction("⌨️ Keyboard Shortcuts", self)
-        shortcuts_action.triggered.connect(lambda: self._open_help_file("docs/guides/KEYBOARD_SHORTCUTS.md"))
+        shortcuts_action.triggered.connect(lambda: self._open_url("https://github.com/michaelbeijer/Supervertaler/blob/main/docs/guides/KEYBOARD_SHORTCUTS.md"))
         help_menu.addAction(shortcuts_action)
 
         changelog_action = QAction("📝 Changelog", self)
-        changelog_action.triggered.connect(lambda: self._open_help_file("CHANGELOG.md"))
+        changelog_action.triggered.connect(lambda: self._open_url("https://github.com/michaelbeijer/Supervertaler/blob/main/CHANGELOG.md"))
         help_menu.addAction(changelog_action)
 
         help_menu.addSeparator()
@@ -24970,32 +24970,6 @@ class SupervertalerQt(QMainWindow):
         
         dialog.exec()
     
-    def _open_help_file(self, filepath):
-        """Open a markdown help file in system default viewer"""
-        import os
-        import subprocess
-        import sys
-        from pathlib import Path
-
-        full_path = Path(filepath)
-        if not full_path.exists():
-            QMessageBox.warning(
-                self,
-                "File Not Found",
-                f"Help file not found:\n{filepath}\n\nPlease check the documentation at:\nhttps://github.com/michaelbeijer/Supervertaler"
-            )
-            return
-
-        try:
-            if sys.platform == 'win32':
-                os.startfile(str(full_path))
-            elif sys.platform == 'darwin':
-                subprocess.run(['open', str(full_path)])
-            else:
-                subprocess.run(['xdg-open', str(full_path)])
-        except Exception as e:
-            QMessageBox.warning(self, "Error", f"Could not open help file: {e}")
-
     def _open_url(self, url):
         """Open a URL in system default browser"""
         import webbrowser
