@@ -9,8 +9,14 @@ import xml.etree.ElementTree as ET
 from typing import Dict, Optional, Tuple, NamedTuple
 from difflib import SequenceMatcher
 import pyperclip
-import pyautogui
 import re
+
+try:
+    import pyautogui
+    HAS_PYAUTOGUI = True
+except ImportError:
+    HAS_PYAUTOGUI = False
+    print("[WARN] pyautogui not available - AutoFingers will have limited functionality on this platform")
 
 from modules.tag_cleaner import TagCleaner
 
@@ -227,15 +233,18 @@ class AutoFingersEngine:
         """
         Process a single translation segment in memoQ.
         Automates: copy source to target, lookup translation, paste, confirm.
-        
+
         Behavior for fuzzy matches:
         - If fuzzy match found: paste it but DON'T auto-confirm
         - Translator can then review and press Ctrl+Enter to confirm
         - AutoFingers automatically moves to next segment
-        
+
         Returns:
             Tuple of (success: bool, message: str)
         """
+        if not HAS_PYAUTOGUI:
+            return False, "AutoFingers requires pyautogui (Windows/AutoHotkey feature not available on this platform)"
+
         try:
             # Clear clipboard
             pyperclip.copy('')

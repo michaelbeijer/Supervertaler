@@ -24,6 +24,9 @@ sacrebleu>=2.3.1
 # Clipboard Operations (Universal Lookup)
 pyperclip>=1.8.2
 
+# Keyboard Control (AutoFingers)
+keyboard>=0.13.5
+
 # PDF Processing (PDF Rescue)
 PyMuPDF>=1.23.0
 
