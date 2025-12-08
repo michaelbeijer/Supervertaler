@@ -11423,7 +11423,7 @@ class SupervertalerQt(QMainWindow):
         behavior_layout = QVBoxLayout()
         
         # LLM matching toggle
-        llm_matching_cb = QCheckBox("Enable LLM (AI) matching on segment selection")
+        llm_matching_cb = CheckmarkCheckBox("Enable LLM (AI) matching on segment selection")
         llm_matching_cb.setChecked(self.enable_llm_matching)
         llm_matching_cb.setToolTip(
             "⚠️ WARNING: LLM translations take 10-20 seconds per segment!\n\n"
@@ -11434,7 +11434,7 @@ class SupervertalerQt(QMainWindow):
         self.llm_matching_checkbox = llm_matching_cb
         
         # Auto-generate markdown
-        auto_markdown_cb = QCheckBox("Auto-generate markdown for imported documents")
+        auto_markdown_cb = CheckmarkCheckBox("Auto-generate markdown for imported documents")
         auto_markdown_cb.setChecked(general_settings.get('auto_generate_markdown', False))
         auto_markdown_cb.setToolTip(
             "Automatically convert imported documents to markdown format\n"
@@ -11475,7 +11475,7 @@ class SupervertalerQt(QMainWindow):
         version_check_layout.addWidget(version_check_info)
 
         # Auto-check setting
-        auto_check_models_cb = QCheckBox("Enable automatic model checking (once per day on startup)")
+        auto_check_models_cb = CheckmarkCheckBox("Enable automatic model checking (once per day on startup)")
         auto_check_models_cb.setChecked(general_settings.get('auto_check_models', True))
         auto_check_models_cb.setToolTip(
             "When enabled, Supervertaler will check for new models once per day when you start the application.\n"
@@ -29121,8 +29121,8 @@ class CheckmarkCheckBox(QCheckBox):
                 spacing: 6px;
             }
             QCheckBox::indicator {
-                width: 18px;
-                height: 18px;
+                width: 16px;
+                height: 16px;
                 border: 2px solid #999;
                 border-radius: 3px;
                 background-color: white;
@@ -29207,8 +29207,8 @@ class PinkCheckmarkCheckBox(QCheckBox):
                 spacing: 6px;
             }
             QCheckBox::indicator {
-                width: 18px;
-                height: 18px;
+                width: 16px;
+                height: 16px;
                 border: 2px solid #999;
                 border-radius: 3px;
                 background-color: white;
@@ -29287,8 +29287,8 @@ class BlueCheckmarkCheckBox(QCheckBox):
                 spacing: 6px;
             }
             QCheckBox::indicator {
-                width: 18px;
-                height: 18px;
+                width: 16px;
+                height: 16px;
                 border: 2px solid #999;
                 border-radius: 3px;
                 background-color: white;
