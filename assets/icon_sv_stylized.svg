@@ -12,6 +12,6 @@
 
   <!-- Capital S and lowercase v with custom positioning -->
   <text x="128" y="180" font-family="Arial, sans-serif" font-size="140" font-weight="bold" fill="white" text-anchor="middle">
-    <tspan font-size="140">S</tspan><tspan font-size="120" dy="10">v</tspan>
+    <tspan font-size="140">S</tspan><tspan font-size="120" dy="3">v</tspan>
   </text>
 </svg>

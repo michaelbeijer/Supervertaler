@@ -13,6 +13,6 @@
 
   <!-- Sv text -->
   <text x="128" y="175" font-family="Arial, sans-serif" font-weight="bold" fill="white" text-anchor="middle">
-    <tspan font-size="120">S</tspan><tspan font-size="100" dy="8">v</tspan>
+    <tspan font-size="120">S</tspan><tspan font-size="100" dy="2">v</tspan>
   </text>
 </svg>
