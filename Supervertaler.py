@@ -25034,17 +25034,10 @@ class SupervertalerQt(QMainWindow):
         )
         info.setWordWrap(True)
         layout.addWidget(info)
-        
-        # OK button
-        ok_btn = QPushButton("OK")
-        ok_btn.clicked.connect(dialog.accept)
-        ok_btn.setDefault(True)
-        button_layout = QHBoxLayout()
-        button_layout.addStretch()
-        button_layout.addWidget(ok_btn)
-        button_layout.addStretch()
-        layout.addLayout(button_layout)
-        
+
+        # Click anywhere to close
+        dialog.mousePressEvent = lambda event: dialog.accept()
+
         dialog.exec()
     
     def closeEvent(self, event):

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <!-- Stylized Overlapping SV - Option 4 -->
+  <defs>
+    <linearGradient id="sGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#1976D2;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1565C0;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="vGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#2196F3;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1976D2;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <rect width="256" height="256" fill="white" rx="32"/>
+
+  <!-- Large S -->
+  <path d="M 70 80 Q 70 50, 100 50 L 140 50 Q 170 50, 170 80 Q 170 110, 140 110 L 100 110 Q 70 110, 70 140 Q 70 170, 100 170 L 140 170 Q 170 170, 170 140"
+        fill="none" stroke="url(#sGradient)" stroke-width="24" stroke-linecap="round"/>
+
+  <!-- Large V -->
+  <path d="M 100 80 L 128 170 L 156 80"
+        fill="none" stroke="url(#vGradient)" stroke-width="24" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
+</svg>
