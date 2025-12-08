@@ -1,8 +1,8 @@
 # Supervertaler - Frequently Asked Questions
 
-**Current Version:** v1.9.6 (November 27, 2025)  
-**Framework:** PyQt6  
-**Last Updated:** November 27, 2025
+**Current Version:** v1.9.26 (December 8, 2025)
+**Framework:** PyQt6
+**Last Updated:** December 8, 2025
 
 Welcome to the Supervertaler FAQ! Find answers to common questions about installation, features, workflow, and troubleshooting.
 
@@ -197,19 +197,31 @@ Full guide: [INSTALLATION.md](INSTALLATION.md)
 
 ## Features & Capabilities
 
-### What are the key features of v1.9.6?
+### What are the key features of v1.9.26?
 
-**📁 Custom File Extensions (NEW in v1.9.6)**
+**🔄 Automatic Model Version Checker (NEW in v1.9.26)**
+- Auto-detects new LLM models from OpenAI, Anthropic, and Google
+- Checks once per 24 hours on startup (configurable)
+- Popup dialog with easy model selection when new models detected
+- Settings → AI Settings → Model Version Checker
+- Manual "Check for New Models Now" button
+
+**🎨 UI Standardization (NEW in v1.9.26)**
+- All checkboxes standardized to green with white checkmark design
+- Refined 16x16px size for cleaner, modern appearance
+- Consistent visual language throughout entire application
+
+**📁 Custom File Extensions (v1.9.6)**
 - Branded file extensions: `.svproj` (projects), `.svprompt` (prompts), `.svntl` (non-translatables)
 - Full backward compatibility - opens legacy `.json`, `.md`, `.ntl` files
 - Industry standards retained: `.tmx` for TM exports
 
-**🌐 Monolingual DOCX Import (NEW in v1.9.6)**
+**🌐 Monolingual DOCX Import (v1.9.6)**
 - Language pair selection dialog when importing monolingual DOCX files
 - Explicitly set source and target languages (12 languages supported)
 - No more unreliable auto-detection
 
-**📤 Target-Only DOCX Export (NEW in v1.9.6)**
+**📤 Target-Only DOCX Export (v1.9.6)**
 - Export > Target Only (DOCX)... preserves original document structure
 - Tables, formatting, styles, headers/footers all preserved
 - Original DOCX path saved in project for reliable exports
@@ -1044,6 +1056,13 @@ Michael Beijer, a professional translator, created Supervertaler to:
 - Complete privacy - text never leaves your machine
 - Automatic hardware detection and model recommendations
 
+**v1.9.26 (December 8, 2025):**
+- **Automatic Model Version Checker** - Auto-detects new LLM models from providers
+- Daily checks with popup notifications for new models
+- Manual "Check Now" button in AI Settings
+- **UI Standardization** - All checkboxes use consistent green design (16x16px)
+- Cleaner, more professional appearance throughout application
+
 **Future Plans:**
 - Advanced QA tools
 - Enhanced collaboration features
@@ -1194,10 +1213,11 @@ Michael Beijer, a professional translator, created Supervertaler to:
 
 ### What's next for Supervertaler?
 
-**Recently Added (v1.9.16):**
-- ✅ Local LLM support (Ollama) - Run AI translation offline on your computer
+**Recently Added (v1.9.26):**
+- ✅ Automatic Model Version Checker - Get notified of new LLM models
+- ✅ UI Standardization - Consistent green checkbox design throughout
+- ✅ Local LLM support (Ollama) - Run AI translation offline (v1.9.16)
 - ✅ Automatic hardware detection and model recommendations
-- ✅ No API keys or internet required for local models
 
 **Near Future (v1.10+):**
 - Enhanced QA tools (consistency checks, tag validation)
