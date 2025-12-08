@@ -503,11 +503,11 @@ class TmxEditorUIQt(QWidget):
         self.filter_all_segments.addItems(["All Segments"])
         filter_options_layout.addWidget(self.filter_all_segments)
         
-        self.filter_ignore_case = QCheckBox("✔ Ignore case")
+        self.filter_ignore_case = CheckmarkCheckBox("✔ Ignore case")
         self.filter_ignore_case.setChecked(True)
         filter_options_layout.addWidget(self.filter_ignore_case)
-        
-        self.filter_ignore_tags = QCheckBox("Ignore tags")
+
+        self.filter_ignore_tags = CheckmarkCheckBox("Ignore tags")
         filter_options_layout.addWidget(self.filter_ignore_tags)
         
         filter_layout.addLayout(filter_options_layout)

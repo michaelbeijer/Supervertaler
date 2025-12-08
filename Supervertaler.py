@@ -3309,7 +3309,7 @@ class TermMetadataDialog(QDialog):
         self.source_synonym_edit.setPlaceholderText("Enter source synonym and press Add or Enter...")
         source_add_layout.addWidget(self.source_synonym_edit)
         
-        self.source_synonym_forbidden_check = QCheckBox("Forbidden")
+        self.source_synonym_forbidden_check = CheckmarkCheckBox("Forbidden")
         self.source_synonym_forbidden_check.setToolTip("Mark this source synonym as forbidden")
         source_add_layout.addWidget(self.source_synonym_forbidden_check)
         
@@ -3402,7 +3402,7 @@ class TermMetadataDialog(QDialog):
         self.target_synonym_edit.setPlaceholderText("Enter synonym and press Add or Enter...")
         target_add_layout.addWidget(self.target_synonym_edit)
         
-        self.target_synonym_forbidden_check = QCheckBox("Forbidden")
+        self.target_synonym_forbidden_check = CheckmarkCheckBox("Forbidden")
         self.target_synonym_forbidden_check.setToolTip("Mark this synonym as forbidden (warning when used)")
         target_add_layout.addWidget(self.target_synonym_forbidden_check)
         
@@ -3760,7 +3760,7 @@ class AdvancedFiltersDialog(QDialog):
         match_group = QGroupBox("Match Rate (%)")
         match_layout = QHBoxLayout()
         
-        self.match_rate_check = QCheckBox("Enable")
+        self.match_rate_check = CheckmarkCheckBox("Enable")
         match_layout.addWidget(self.match_rate_check)
         
         match_layout.addWidget(QLabel("From:"))
@@ -3785,11 +3785,11 @@ class AdvancedFiltersDialog(QDialog):
         status_group = QGroupBox("Row Status")
         status_layout = QVBoxLayout()
         
-        self.status_not_started = QCheckBox("Not started")
-        self.status_edited = QCheckBox("Edited")
-        self.status_translated = QCheckBox("Translated")
-        self.status_confirmed = QCheckBox("Confirmed")
-        self.status_draft = QCheckBox("Draft")
+        self.status_not_started = CheckmarkCheckBox("Not started")
+        self.status_edited = CheckmarkCheckBox("Edited")
+        self.status_translated = CheckmarkCheckBox("Translated")
+        self.status_confirmed = CheckmarkCheckBox("Confirmed")
+        self.status_draft = CheckmarkCheckBox("Draft")
         
         status_layout.addWidget(self.status_not_started)
         status_layout.addWidget(self.status_edited)
@@ -3820,9 +3820,9 @@ class AdvancedFiltersDialog(QDialog):
         other_group = QGroupBox("Other Properties")
         other_layout = QVBoxLayout()
         
-        self.has_comments_check = QCheckBox("Has comments/notes")
-        self.repetitions_check = QCheckBox("Repetitions only")
-        self.auto_propagated_check = QCheckBox("Auto-propagated")
+        self.has_comments_check = CheckmarkCheckBox("Has comments/notes")
+        self.repetitions_check = CheckmarkCheckBox("Repetitions only")
+        self.auto_propagated_check = CheckmarkCheckBox("Auto-propagated")
         
         other_layout.addWidget(self.has_comments_check)
         other_layout.addWidget(self.repetitions_check)
@@ -6021,7 +6021,7 @@ class SupervertalerQt(QMainWindow):
         controls_layout.addWidget(self.image_extractor_file_list, 1)
         
         # Auto-folder checkbox
-        self.image_extractor_auto_folder = QCheckBox("📁 Auto-folder")
+        self.image_extractor_auto_folder = CheckmarkCheckBox("📁 Auto-folder")
         self.image_extractor_auto_folder.setChecked(False)
         self.image_extractor_auto_folder.setToolTip("Create 'Images' folder next to each DOCX file")
         self.image_extractor_auto_folder.toggled.connect(self._on_auto_folder_toggled)
@@ -10141,7 +10141,7 @@ class SupervertalerQt(QMainWindow):
         layout.addWidget(info_label)
         
         # Metadata checkbox
-        metadata_check = QCheckBox("Include all metadata (project, client, forbidden)")
+        metadata_check = CheckmarkCheckBox("Include all metadata (project, client, forbidden)")
         metadata_check.setChecked(True)
         layout.addWidget(metadata_check)
         
@@ -10263,7 +10263,7 @@ class SupervertalerQt(QMainWindow):
                 terms_table.setItem(row, 6, QTableWidgetItem(term.get('client', '') or ""))
                 
                 # Forbidden checkbox
-                forbidden_check = QCheckBox()
+                forbidden_check = CheckmarkCheckBox()
                 forbidden_check.setChecked(term['forbidden'])
                 forbidden_check.toggled.connect(lambda checked, t_id=term['id']: self._update_term_forbidden(t_id, checked))
                 terms_table.setCellWidget(row, 7, forbidden_check)
@@ -11253,7 +11253,7 @@ class SupervertalerQt(QMainWindow):
         ollama_group = QGroupBox("🖥️ Local LLM (Ollama) Advanced Settings")
         ollama_layout = QVBoxLayout()
         
-        ollama_keepwarm_cb = QCheckBox("Keep model warm (prevent unloading)")
+        ollama_keepwarm_cb = CheckmarkCheckBox("Keep model warm (prevent unloading)")
         ollama_keepwarm_cb.setChecked(general_settings.get('ollama_keepwarm', False))
         ollama_keepwarm_cb.setToolTip(
             "When enabled, sends a small ping to Ollama every 4 minutes\n"
@@ -11263,7 +11263,7 @@ class SupervertalerQt(QMainWindow):
         ollama_layout.addWidget(ollama_keepwarm_cb)
         
         # Supermemory context injection setting
-        supermemory_cb = QCheckBox("🧠 Use Supermemory for Ollama translations")
+        supermemory_cb = CheckmarkCheckBox("🧠 Use Supermemory for Ollama translations")
         supermemory_cb.setChecked(general_settings.get('supermemory_ollama_context', True))
         supermemory_cb.setToolTip(
             "When enabled, Supermemory searches your indexed TMX files for similar segments\n"
@@ -11274,7 +11274,7 @@ class SupervertalerQt(QMainWindow):
         ollama_layout.addWidget(supermemory_cb)
         
         # Supermemory auto-initialize at startup
-        supermemory_autoinit_cb = QCheckBox("🚀 Auto-initialize Supermemory at startup")
+        supermemory_autoinit_cb = CheckmarkCheckBox("🚀 Auto-initialize Supermemory at startup")
         supermemory_autoinit_cb.setChecked(general_settings.get('supermemory_auto_init', False))
         supermemory_autoinit_cb.setToolTip(
             "When enabled, Supermemory automatically initializes at startup.\n"
@@ -11560,27 +11560,27 @@ class SupervertalerQt(QMainWindow):
         mt_info.setStyleSheet("font-size: 9pt; color: #666; padding: 5px;")
         mt_provider_layout.addWidget(mt_info)
         
-        google_translate_enable_cb = QCheckBox("Enable Google Translate")
+        google_translate_enable_cb = CheckmarkCheckBox("Enable Google Translate")
         google_translate_enable_cb.setChecked(enabled_providers.get('mt_google_translate', True))
         mt_provider_layout.addWidget(google_translate_enable_cb)
         
-        deepl_enable_cb = QCheckBox("Enable DeepL")
+        deepl_enable_cb = CheckmarkCheckBox("Enable DeepL")
         deepl_enable_cb.setChecked(enabled_providers.get('mt_deepl', True))
         mt_provider_layout.addWidget(deepl_enable_cb)
         
-        microsoft_enable_cb = QCheckBox("Enable Microsoft Translator")
+        microsoft_enable_cb = CheckmarkCheckBox("Enable Microsoft Translator")
         microsoft_enable_cb.setChecked(enabled_providers.get('mt_microsoft', True))
         mt_provider_layout.addWidget(microsoft_enable_cb)
         
-        amazon_enable_cb = QCheckBox("Enable Amazon Translate")
+        amazon_enable_cb = CheckmarkCheckBox("Enable Amazon Translate")
         amazon_enable_cb.setChecked(enabled_providers.get('mt_amazon', True))
         mt_provider_layout.addWidget(amazon_enable_cb)
         
-        modernmt_enable_cb = QCheckBox("Enable ModernMT")
+        modernmt_enable_cb = CheckmarkCheckBox("Enable ModernMT")
         modernmt_enable_cb.setChecked(enabled_providers.get('mt_modernmt', True))
         mt_provider_layout.addWidget(modernmt_enable_cb)
         
-        mymemory_enable_cb = QCheckBox("Enable MyMemory (Free tier)")
+        mymemory_enable_cb = CheckmarkCheckBox("Enable MyMemory (Free tier)")
         mymemory_enable_cb.setChecked(enabled_providers.get('mt_mymemory', True))
         mt_provider_layout.addWidget(mymemory_enable_cb)
         
@@ -11636,14 +11636,14 @@ class SupervertalerQt(QMainWindow):
         startup_group = QGroupBox("Startup Settings")
         startup_layout = QVBoxLayout()
         
-        restore_last_project_cb = QCheckBox("Restore last project on startup")
+        restore_last_project_cb = CheckmarkCheckBox("Restore last project on startup")
         restore_last_project_cb.setChecked(general_settings.get('restore_last_project', False))
         restore_last_project_cb.setToolTip(
             "When enabled, Supervertaler will automatically open the last project you were working on when the application starts."
         )
         startup_layout.addWidget(restore_last_project_cb)
         
-        auto_open_log_cb = QCheckBox("Auto-open log window on startup (detached)")
+        auto_open_log_cb = CheckmarkCheckBox("Auto-open log window on startup (detached)")
         auto_open_log_cb.setChecked(general_settings.get('auto_open_log', False))
         auto_open_log_cb.setToolTip(
             "When enabled, the log window will automatically open in a separate detached window when Supervertaler starts."
@@ -11666,7 +11666,7 @@ class SupervertalerQt(QMainWindow):
         backup_layout.addWidget(backup_info)
 
         # Enable auto backup checkbox
-        enable_backup_cb = QCheckBox("Enable automatic backups")
+        enable_backup_cb = CheckmarkCheckBox("Enable automatic backups")
         enable_backup_cb.setChecked(general_settings.get('enable_auto_backup', True))
         enable_backup_cb.setToolTip(
             "When enabled, Supervertaler will automatically save your project and export\n"
@@ -11703,7 +11703,7 @@ class SupervertalerQt(QMainWindow):
         tm_termbase_layout = QVBoxLayout()
         
         # Auto-propagate exact TM matches
-        auto_propagate_cb = QCheckBox("Auto-propagate exact TM matches (100%)")
+        auto_propagate_cb = CheckmarkCheckBox("Auto-propagate exact TM matches (100%)")
         auto_propagate_cb.setChecked(general_settings.get('auto_propagate_exact_matches', True))
         auto_propagate_cb.setToolTip(
             "Automatically fill target with 100% TM matches when a segment is selected and empty.\n"
@@ -11712,7 +11712,7 @@ class SupervertalerQt(QMainWindow):
         tm_termbase_layout.addWidget(auto_propagate_cb)
         
         # Auto-insert 100% matches on segment selection
-        auto_insert_100_cb = QCheckBox("Auto-insert 100% TM matches when selecting segment")
+        auto_insert_100_cb = CheckmarkCheckBox("Auto-insert 100% TM matches when selecting segment")
         auto_insert_100_cb.setChecked(general_settings.get('auto_insert_100_percent_matches', True))
         auto_insert_100_cb.setToolTip(
             "When enabled, 100% TM matches are automatically inserted into the target field\n"
@@ -11741,7 +11741,7 @@ class SupervertalerQt(QMainWindow):
         tm_termbase_layout.addLayout(tm_save_layout_h)
         
         # TM/Termbase matching toggle
-        tm_matching_cb = QCheckBox("Enable TM && Termbase Matching")
+        tm_matching_cb = CheckmarkCheckBox("Enable TM && Termbase Matching")
         tm_matching_cb.setChecked(self.enable_tm_matching)  # Load current state
         tm_matching_cb.setToolTip(
             "When enabled, translation memory and termbase searches are performed automatically\n"
@@ -11752,7 +11752,7 @@ class SupervertalerQt(QMainWindow):
         tm_termbase_layout.addWidget(tm_matching_cb)
         
         # Termbase grid highlighting toggle
-        tb_highlight_cb = QCheckBox("Highlight termbase matches in source cells")
+        tb_highlight_cb = CheckmarkCheckBox("Highlight termbase matches in source cells")
         tb_highlight_cb.setChecked(general_settings.get('enable_termbase_grid_highlighting', True))
         tb_highlight_cb.setToolTip(
             "When enabled, termbase matches are highlighted with colored backgrounds in the source column.\n"
@@ -11783,7 +11783,7 @@ class SupervertalerQt(QMainWindow):
         tm_termbase_layout.addLayout(tb_order_layout)
 
         # Hide shorter matches checkbox
-        tb_hide_shorter_cb = QCheckBox("Hide shorter termbase matches included in longer ones")
+        tb_hide_shorter_cb = CheckmarkCheckBox("Hide shorter termbase matches included in longer ones")
         tb_hide_shorter_cb.setChecked(general_settings.get('termbase_hide_shorter_matches', False))
         tb_hide_shorter_cb.setToolTip(
             "When enabled, shorter terms that are fully contained within longer matched terms are hidden.\n\n"
@@ -11805,7 +11805,7 @@ class SupervertalerQt(QMainWindow):
         editor_layout = QVBoxLayout()
 
         # Smart word selection toggle
-        smart_selection_cb = QCheckBox("Enable smart word selection")
+        smart_selection_cb = CheckmarkCheckBox("Enable smart word selection")
         smart_selection_cb.setChecked(general_settings.get('enable_smart_word_selection', True))
         smart_selection_cb.setToolTip(
             "When enabled, selecting part of a word automatically expands to the full word.\n\n"
@@ -11823,7 +11823,7 @@ class SupervertalerQt(QMainWindow):
         find_replace_group = QGroupBox("Find && Replace Settings")
         find_replace_layout = QVBoxLayout()
         
-        allow_replace_cb = QCheckBox("Allow Replace in Source Text")
+        allow_replace_cb = CheckmarkCheckBox("Allow Replace in Source Text")
         allow_replace_cb.setChecked(self.allow_replace_in_source)
         allow_replace_cb.setToolTip(
             "⚠️ WARNING: Enabling this allows replacing text in the source column.\n"
@@ -11894,7 +11894,7 @@ class SupervertalerQt(QMainWindow):
         scroll_layout.addLayout(scroll_control_layout)
         
         # Auto-center active segment toggle
-        auto_center_cb = QCheckBox("Keep active segment centered (like memoQ/Trados)")
+        auto_center_cb = CheckmarkCheckBox("Keep active segment centered (like memoQ/Trados)")
         auto_center_cb.setChecked(general_settings.get('auto_center_active_segment', False))
         auto_center_cb.setToolTip(
             "When enabled, the grid automatically scrolls to keep the currently selected segment\n"
@@ -12075,7 +12075,7 @@ class SupervertalerQt(QMainWindow):
         
         # Show tags checkbox
         show_tags_layout = QHBoxLayout()
-        show_tags_check = QCheckBox("Show HTML/XML tags in match text")
+        show_tags_check = CheckmarkCheckBox("Show HTML/XML tags in match text")
         show_tags_check.setChecked(font_settings.get('results_show_tags', False))
         show_tags_check.setToolTip("When enabled, tags like <b>, <li>, etc. are displayed. When disabled, only the text content is shown.")
         show_tags_layout.addWidget(show_tags_check)
@@ -12125,7 +12125,7 @@ class SupervertalerQt(QMainWindow):
         row_colors_layout.addWidget(row_colors_info)
         
         # Enable alternating colors checkbox
-        alt_colors_check = QCheckBox("Enable alternating row colors")
+        alt_colors_check = CheckmarkCheckBox("Enable alternating row colors")
         alt_colors_check.setChecked(font_settings.get('enable_alternating_row_colors', True))
         alt_colors_check.setToolTip("When enabled, even and odd rows have different background colors")
         row_colors_layout.addWidget(alt_colors_check)
@@ -12582,7 +12582,7 @@ class SupervertalerQt(QMainWindow):
         debug_layout.addSpacing(10)
         
         # Enable debug mode checkbox
-        debug_mode_cb = QCheckBox("Enable verbose debug logging")
+        debug_mode_cb = CheckmarkCheckBox("Enable verbose debug logging")
         debug_mode_cb.setChecked(debug_settings.get('debug_mode_enabled', False))
         debug_mode_cb.setToolTip(
             "When enabled, shows detailed debug messages in the log.\n"
@@ -12591,7 +12591,7 @@ class SupervertalerQt(QMainWindow):
         debug_layout.addWidget(debug_mode_cb)
         
         # Auto-export debug logs checkbox
-        debug_export_cb = QCheckBox("Auto-export debug logs to file")
+        debug_export_cb = CheckmarkCheckBox("Auto-export debug logs to file")
         debug_export_cb.setChecked(debug_settings.get('debug_auto_export', False))
         debug_export_cb.setToolTip(
             "When enabled, automatically saves debug logs to:\n"
@@ -16262,7 +16262,7 @@ class SupervertalerQt(QMainWindow):
         layout.addSpacing(10)
 
         # Supercleaner option
-        clean_checkbox = QCheckBox("🧹 Clean document before import (Supercleaner)")
+        clean_checkbox = CheckmarkCheckBox("🧹 Clean document before import (Supercleaner)")
         clean_checkbox.setChecked(False)  # Default to disabled
         clean_checkbox.setToolTip(
             "Automatically clean the document before importing:\n"
@@ -22238,8 +22238,8 @@ class SupervertalerQt(QMainWindow):
         search_in_group = QGroupBox("Search in")
         search_in_layout = QVBoxLayout()
         
-        self.search_source_cb = QCheckBox("Source text")
-        self.search_target_cb = QCheckBox("Target text")
+        self.search_source_cb = CheckmarkCheckBox("Source text")
+        self.search_target_cb = CheckmarkCheckBox("Target text")
         self.search_target_cb.setChecked(True)  # Default to target
         
         search_in_layout.addWidget(self.search_source_cb)
@@ -22265,7 +22265,7 @@ class SupervertalerQt(QMainWindow):
         match_layout.addWidget(match_whole_words)
         match_layout.addWidget(match_entire)
         
-        self.case_sensitive_cb = QCheckBox("Case sensitive")
+        self.case_sensitive_cb = CheckmarkCheckBox("Case sensitive")
         match_layout.addWidget(self.case_sensitive_cb)
         
         match_group.setLayout(match_layout)
@@ -28135,7 +28135,7 @@ class UniversalLookupTab(QWidget):
         layout.addWidget(info, 0)
         
         # Enable/disable TM search
-        self.tm_search_checkbox = QCheckBox("✓ Enable TM search in Superlookup")
+        self.tm_search_checkbox = CheckmarkCheckBox("✓ Enable TM search in Superlookup")
         self.tm_search_checkbox.setChecked(self.search_tm_enabled)
         self.tm_search_checkbox.setStyleSheet("font-weight: bold; font-size: 11pt; color: #2196F3; padding: 10px 0;")
         self.tm_search_checkbox.stateChanged.connect(self.on_tm_search_toggled)
@@ -28204,7 +28204,7 @@ class UniversalLookupTab(QWidget):
         layout.addWidget(info, 0)
         
         # Enable/disable termbase search
-        self.tb_search_checkbox = QCheckBox("✓ Enable Termbase search in Superlookup")
+        self.tb_search_checkbox = CheckmarkCheckBox("✓ Enable Termbase search in Superlookup")
         self.tb_search_checkbox.setChecked(self.search_termbase_enabled)
         self.tb_search_checkbox.setStyleSheet("font-weight: bold; font-size: 11pt; color: #2196F3; padding: 10px 0;")
         self.tb_search_checkbox.stateChanged.connect(self.on_termbase_search_toggled)
@@ -28273,7 +28273,7 @@ class UniversalLookupTab(QWidget):
         layout.addWidget(info, 0)
         
         # Enable checkbox (disabled for now)
-        self.mt_search_checkbox = QCheckBox("✓ Enable Machine Translation (Coming Soon)")
+        self.mt_search_checkbox = CheckmarkCheckBox("✓ Enable Machine Translation (Coming Soon)")
         self.mt_search_checkbox.setChecked(False)
         self.mt_search_checkbox.setEnabled(False)
         self.mt_search_checkbox.setStyleSheet("font-weight: bold; font-size: 11pt; color: #999; padding: 10px 0;")
@@ -28304,7 +28304,7 @@ class UniversalLookupTab(QWidget):
         layout.addWidget(info, 0)
         
         # Enable checkbox (disabled for now)
-        self.web_search_checkbox = QCheckBox("✓ Enable Web Resources (Coming Soon)")
+        self.web_search_checkbox = CheckmarkCheckBox("✓ Enable Web Resources (Coming Soon)")
         self.web_search_checkbox.setChecked(False)
         self.web_search_checkbox.setEnabled(False)
         self.web_search_checkbox.setStyleSheet("font-weight: bold; font-size: 11pt; color: #999; padding: 10px 0;")

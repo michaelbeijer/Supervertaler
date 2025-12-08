@@ -3593,6 +3593,86 @@ Format your response as:
         
         # Store generated prompts in project for later retrieval
         from datetime import datetime
+
+class CheckmarkCheckBox(QCheckBox):
+    """Custom checkbox with green background and white checkmark when checked"""
+
+    def __init__(self, text="", parent=None):
+        super().__init__(text, parent)
+        self.setCheckable(True)
+        self.setEnabled(True)
+        self.setStyleSheet("""
+            QCheckBox {
+                font-size: 9pt;
+                spacing: 6px;
+            }
+            QCheckBox::indicator {
+                width: 16px;
+                height: 16px;
+                border: 2px solid #999;
+                border-radius: 3px;
+                background-color: white;
+            }
+            QCheckBox::indicator:checked {
+                background-color: #4CAF50;
+                border-color: #4CAF50;
+            }
+            QCheckBox::indicator:hover {
+                border-color: #666;
+            }
+            QCheckBox::indicator:checked:hover {
+                background-color: #45a049;
+                border-color: #45a049;
+            }
+        """)
+
+    def paintEvent(self, event):
+        """Override paint event to draw white checkmark when checked"""
+        super().paintEvent(event)
+
+        if self.isChecked():
+            from PyQt6.QtWidgets import QStyleOptionButton
+            from PyQt6.QtGui import QPainter, QPen, QColor
+            from PyQt6.QtCore import QPointF, Qt
+
+            opt = QStyleOptionButton()
+            self.initStyleOption(opt)
+            indicator_rect = self.style().subElementRect(
+                self.style().SubElement.SE_CheckBoxIndicator,
+                opt,
+                self
+            )
+
+            if indicator_rect.isValid():
+                painter = QPainter(self)
+                painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+                pen_width = max(2.0, min(indicator_rect.width(), indicator_rect.height()) * 0.12)
+                painter.setPen(QPen(QColor(255, 255, 255), pen_width, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin))
+                painter.setBrush(QColor(255, 255, 255))
+
+                x = indicator_rect.x()
+                y = indicator_rect.y()
+                w = indicator_rect.width()
+                h = indicator_rect.height()
+
+                padding = min(w, h) * 0.15
+                x += padding
+                y += padding
+                w -= padding * 2
+                h -= padding * 2
+
+                check_x1 = x + w * 0.10
+                check_y1 = y + h * 0.50
+                check_x2 = x + w * 0.35
+                check_y2 = y + h * 0.70
+                check_x3 = x + w * 0.90
+                check_y3 = y + h * 0.25
+
+                painter.drawLine(QPointF(check_x2, check_y2), QPointF(check_x3, check_y3))
+                painter.drawLine(QPointF(check_x1, check_y1), QPointF(check_x2, check_y2))
+
+                painter.end()
+
         self.generated_prompts = {
             'domain_prompt': domain_prompt_text,
             'project_prompt': project_prompt_text,
@@ -3642,7 +3722,7 @@ Format your response as:
         
         domain_btn_layout = QHBoxLayout()
         
-        auto_activate_domain = QCheckBox("✓ Automatically activate for this project")
+        auto_activate_domain = CheckmarkCheckBox("✓ Automatically activate for this project")
         auto_activate_domain.setChecked(True)
         domain_btn_layout.addWidget(auto_activate_domain)
         domain_btn_layout.addStretch()
@@ -3778,7 +3858,7 @@ Format your response as:
         
         project_btn_layout = QHBoxLayout()
         
-        auto_activate_project = QCheckBox("✓ Automatically activate for this project")
+        auto_activate_project = CheckmarkCheckBox("✓ Automatically activate for this project")
         auto_activate_project.setChecked(True)
         project_btn_layout.addWidget(auto_activate_project)
         project_btn_layout.addStretch()

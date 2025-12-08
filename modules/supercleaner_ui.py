@@ -64,19 +64,19 @@ class SupercleanerUI(QWidget):
         cleaner_group = QGroupBox("🧹 Document Cleaner Operations")
         cleaner_layout = QVBoxLayout()
         
-        self.cb_remove_shading = QCheckBox("Remove text shading")
-        self.cb_remove_highlighting = QCheckBox("Remove text highlighting")
-        self.cb_font_color_automatic = QCheckBox("Change font color from Black to Automatic")
-        self.cb_normalize_font_color = QCheckBox("Normalize font color in each paragraph")
-        self.cb_normalize_font_size = QCheckBox("Normalize font size in each paragraph")
-        self.cb_normalize_font = QCheckBox("Normalize font in each paragraph")
-        self.cb_set_default_spacing = QCheckBox("Set default text spacing")
-        self.cb_remove_hyphens = QCheckBox("Remove manual hyphens")
-        self.cb_replace_symbols = QCheckBox("Replace special symbols (non-breaking spaces, ellipsis)")
+        self.cb_remove_shading = CheckmarkCheckBox("Remove text shading")
+        self.cb_remove_highlighting = CheckmarkCheckBox("Remove text highlighting")
+        self.cb_font_color_automatic = CheckmarkCheckBox("Change font color from Black to Automatic")
+        self.cb_normalize_font_color = CheckmarkCheckBox("Normalize font color in each paragraph")
+        self.cb_normalize_font_size = CheckmarkCheckBox("Normalize font size in each paragraph")
+        self.cb_normalize_font = CheckmarkCheckBox("Normalize font in each paragraph")
+        self.cb_set_default_spacing = CheckmarkCheckBox("Set default text spacing")
+        self.cb_remove_hyphens = CheckmarkCheckBox("Remove manual hyphens")
+        self.cb_replace_symbols = CheckmarkCheckBox("Replace special symbols (non-breaking spaces, ellipsis)")
         self.cb_replace_symbols.setToolTip("Replaces non-breaking spaces and ellipsis characters that can cause TM matching issues")
-        self.cb_simplify_quotes = QCheckBox("Simplify quotes & dashes to ASCII (optional)")
+        self.cb_simplify_quotes = CheckmarkCheckBox("Simplify quotes & dashes to ASCII (optional)")
         self.cb_simplify_quotes.setToolTip("Convert curly quotes ("")  and em-dashes (—) to straight quotes (\") and hyphens (-)")
-        self.cb_remove_styles = QCheckBox("Remove character styles (aggressive)")
+        self.cb_remove_styles = CheckmarkCheckBox("Remove character styles (aggressive)")
         
         # Set defaults (checked)
         for cb in [self.cb_remove_shading, self.cb_remove_highlighting, 
@@ -98,8 +98,8 @@ class SupercleanerUI(QWidget):
         unbreaker_group = QGroupBox("🔗 Unbreaker Operations")
         unbreaker_layout = QVBoxLayout()
         
-        self.cb_fix_line_breaks = QCheckBox("Fix incorrect line breaks (within paragraphs)")
-        self.cb_join_sentences = QCheckBox("Join broken sentences (across paragraphs) - EXPERIMENTAL")
+        self.cb_fix_line_breaks = CheckmarkCheckBox("Fix incorrect line breaks (within paragraphs)")
+        self.cb_join_sentences = CheckmarkCheckBox("Join broken sentences (across paragraphs) - EXPERIMENTAL")
         
         self.cb_fix_line_breaks.setChecked(True)
         # join_sentences disabled by default due to word spacing issues
@@ -120,7 +120,7 @@ class SupercleanerUI(QWidget):
         spaces_group = QGroupBox("␣ Remove Excessive Spaces")
         spaces_layout = QVBoxLayout()
         
-        self.cb_remove_spaces = QCheckBox("Remove excessive spaces (2+ spaces become 1)")
+        self.cb_remove_spaces = CheckmarkCheckBox("Remove excessive spaces (2+ spaces become 1)")
         self.cb_remove_spaces.setChecked(True)
         
         spaces_layout.addWidget(self.cb_remove_spaces)
@@ -355,6 +355,86 @@ if __name__ == "__main__":
     """Standalone mode for testing"""
     import sys
     from PyQt6.QtWidgets import QApplication
+
+class CheckmarkCheckBox(QCheckBox):
+    """Custom checkbox with green background and white checkmark when checked"""
+
+    def __init__(self, text="", parent=None):
+        super().__init__(text, parent)
+        self.setCheckable(True)
+        self.setEnabled(True)
+        self.setStyleSheet("""
+            QCheckBox {
+                font-size: 9pt;
+                spacing: 6px;
+            }
+            QCheckBox::indicator {
+                width: 16px;
+                height: 16px;
+                border: 2px solid #999;
+                border-radius: 3px;
+                background-color: white;
+            }
+            QCheckBox::indicator:checked {
+                background-color: #4CAF50;
+                border-color: #4CAF50;
+            }
+            QCheckBox::indicator:hover {
+                border-color: #666;
+            }
+            QCheckBox::indicator:checked:hover {
+                background-color: #45a049;
+                border-color: #45a049;
+            }
+        """)
+
+    def paintEvent(self, event):
+        """Override paint event to draw white checkmark when checked"""
+        super().paintEvent(event)
+
+        if self.isChecked():
+            from PyQt6.QtWidgets import QStyleOptionButton
+            from PyQt6.QtGui import QPainter, QPen, QColor
+            from PyQt6.QtCore import QPointF, Qt
+
+            opt = QStyleOptionButton()
+            self.initStyleOption(opt)
+            indicator_rect = self.style().subElementRect(
+                self.style().SubElement.SE_CheckBoxIndicator,
+                opt,
+                self
+            )
+
+            if indicator_rect.isValid():
+                painter = QPainter(self)
+                painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+                pen_width = max(2.0, min(indicator_rect.width(), indicator_rect.height()) * 0.12)
+                painter.setPen(QPen(QColor(255, 255, 255), pen_width, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin))
+                painter.setBrush(QColor(255, 255, 255))
+
+                x = indicator_rect.x()
+                y = indicator_rect.y()
+                w = indicator_rect.width()
+                h = indicator_rect.height()
+
+                padding = min(w, h) * 0.15
+                x += padding
+                y += padding
+                w -= padding * 2
+                h -= padding * 2
+
+                check_x1 = x + w * 0.10
+                check_y1 = y + h * 0.50
+                check_x2 = x + w * 0.35
+                check_y2 = y + h * 0.70
+                check_x3 = x + w * 0.90
+                check_y3 = y + h * 0.25
+
+                painter.drawLine(QPointF(check_x2, check_y2), QPointF(check_x3, check_y3))
+                painter.drawLine(QPointF(check_x1, check_y1), QPointF(check_x2, check_y2))
+
+                painter.end()
+
     
     app = QApplication(sys.argv)
     window = SupercleanerUI()
