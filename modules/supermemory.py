@@ -2188,6 +2188,39 @@ No cloud services are used.</i></p>
                 import subprocess
                 import sys
 
+                if sys.platform == 'win32':
+                    subprocess.Popen(['explorer', info['storage_path']])
+                elif sys.platform == 'darwin':
+                    subprocess.Popen(['open', info['storage_path']])
+                else:
+                    subprocess.Popen(['xdg-open', info['storage_path']])
+                    
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Could not get storage info:\n{e}")
+
+
+# =============================================================================
+# INSTALLATION HELPER
+# =============================================================================
+
+def get_install_instructions() -> str:
+    """Get instructions for installing Supermemory dependencies"""
+    return """
+Supermemory requires additional Python packages for vector search:
+
+    pip install chromadb sentence-transformers
+
+This will install:
+• ChromaDB - Local vector database (no cloud, fully private)
+• Sentence-Transformers - Multilingual text embeddings
+
+First run will download the embedding model (~420MB).
+After that, everything runs locally and offline.
+
+Recommended: Use a Python virtual environment.
+"""
+
+
 class CheckmarkCheckBox(QCheckBox):
     """Custom checkbox with green background and white checkmark when checked"""
 
@@ -2266,35 +2299,3 @@ class CheckmarkCheckBox(QCheckBox):
                 painter.drawLine(QPointF(check_x1, check_y1), QPointF(check_x2, check_y2))
 
                 painter.end()
-
-                if sys.platform == 'win32':
-                    subprocess.Popen(['explorer', info['storage_path']])
-                elif sys.platform == 'darwin':
-                    subprocess.Popen(['open', info['storage_path']])
-                else:
-                    subprocess.Popen(['xdg-open', info['storage_path']])
-                    
-        except Exception as e:
-            QMessageBox.warning(self, "Error", f"Could not get storage info:\n{e}")
-
-
-# =============================================================================
-# INSTALLATION HELPER
-# =============================================================================
-
-def get_install_instructions() -> str:
-    """Get instructions for installing Supermemory dependencies"""
-    return """
-Supermemory requires additional Python packages for vector search:
-
-    pip install chromadb sentence-transformers
-
-This will install:
-• ChromaDB - Local vector database (no cloud, fully private)
-• Sentence-Transformers - Multilingual text embeddings
-
-First run will download the embedding model (~420MB).
-After that, everything runs locally and offline.
-
-Recommended: Use a Python virtual environment.
-"""

@@ -351,11 +351,6 @@ class SupercleanerUI(QWidget):
         scrollbar.setValue(scrollbar.maximum())
 
 
-if __name__ == "__main__":
-    """Standalone mode for testing"""
-    import sys
-    from PyQt6.QtWidgets import QApplication
-
 class CheckmarkCheckBox(QCheckBox):
     """Custom checkbox with green background and white checkmark when checked"""
 
@@ -435,7 +430,12 @@ class CheckmarkCheckBox(QCheckBox):
 
                 painter.end()
 
-    
+
+if __name__ == "__main__":
+    """Standalone mode for testing"""
+    import sys
+    from PyQt6.QtWidgets import QApplication
+
     app = QApplication(sys.argv)
     window = SupercleanerUI()
     window.setWindowTitle("Supercleaner - Document Cleaner")

@@ -282,6 +282,24 @@ class NoNewModelsDialog(QDialog):
 
         if self.last_check:
             from datetime import datetime
+            try:
+                check_time = datetime.fromisoformat(self.last_check)
+                time_str = check_time.strftime("%Y-%m-%d %H:%M")
+                last_check_label = QLabel(f"Last checked: {time_str}")
+                last_check_label.setStyleSheet("color: #666; font-style: italic;")
+                layout.addWidget(last_check_label)
+            except:
+                pass
+
+        layout.addStretch()
+
+        # Close button
+        close_btn = QPushButton("OK")
+        close_btn.clicked.connect(self.accept)
+        layout.addWidget(close_btn)
+
+        self.setLayout(layout)
+
 
 class CheckmarkCheckBox(QCheckBox):
     """Custom checkbox with green background and white checkmark when checked"""
@@ -361,21 +379,3 @@ class CheckmarkCheckBox(QCheckBox):
                 painter.drawLine(QPointF(check_x1, check_y1), QPointF(check_x2, check_y2))
 
                 painter.end()
-
-            try:
-                check_time = datetime.fromisoformat(self.last_check)
-                time_str = check_time.strftime("%Y-%m-%d %H:%M")
-                last_check_label = QLabel(f"Last checked: {time_str}")
-                last_check_label.setStyleSheet("color: #666; font-style: italic;")
-                layout.addWidget(last_check_label)
-            except:
-                pass
-
-        layout.addStretch()
-
-        # Close button
-        close_btn = QPushButton("OK")
-        close_btn.clicked.connect(self.accept)
-        layout.addWidget(close_btn)
-
-        self.setLayout(layout)
