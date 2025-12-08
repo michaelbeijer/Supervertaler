@@ -1,6 +1,6 @@
 # CAT Tool Workflow Guide
 
-**Version:** v1.9.5 | **Last Updated:** November 27, 2025
+**Version:** v1.9.26 | **Last Updated:** December 8, 2025
 
 How to use Supervertaler alongside your CAT tool (memoQ, Trados, CafeTran) for professional translation workflows.
 
@@ -9,11 +9,12 @@ How to use Supervertaler alongside your CAT tool (memoQ, Trados, CafeTran) for p
 ## 📋 Table of Contents
 
 1. [Overview](#overview)
-2. [Exporting from CAT Tools](#exporting-from-cat-tools)
-3. [Working in Supervertaler](#working-in-supervertaler)
-4. [Reimporting to CAT Tools](#reimporting-to-cat-tools)
-5. [Formatting Preservation](#formatting-preservation-v194)
-6. [Best Practices](#best-practices)
+2. [What's New in v1.9.26](#whats-new-in-v1926)
+3. [Exporting from CAT Tools](#exporting-from-cat-tools)
+4. [Working in Supervertaler](#working-in-supervertaler)
+5. [Reimporting to CAT Tools](#reimporting-to-cat-tools)
+6. [Formatting Preservation](#formatting-preservation-v194)
+7. [Best Practices](#best-practices)
 
 ---
 
@@ -38,6 +39,39 @@ Supervertaler is a **companion tool** that works alongside your CAT tool:
 3. Translate/review with AI assistance
 4. Export bilingual DOCX
 5. Reimport to CAT tool
+
+---
+
+## What's New in v1.9.26
+
+### 🔄 Automatic Model Version Checker
+
+Supervertaler now automatically checks for new LLM models from OpenAI, Anthropic (Claude), and Google (Gemini):
+
+- **Daily Checks**: Runs once per 24 hours on startup (configurable in Settings)
+- **Smart Notifications**: Only shows popup when new models are detected
+- **Easy Selection**: Check the models you want to add, click OK
+- **Manual Check**: Use **Help → Settings → AI Settings** or the toolbar button
+
+**Why this matters for translators:**
+- Stay current with latest AI capabilities
+- Get access to improved models automatically
+- No need to manually track model releases
+
+### 📚 Superdocs - Interactive Documentation
+
+Access comprehensive, auto-generated documentation directly from within Supervertaler:
+
+- **Location**: **Tools → Superdocs** or **Help → Superdocs (Interactive)**
+- **Content**: Architecture overview, module documentation, dependency graphs
+- **Features**: Tree navigation, rich markdown preview, one-click generation
+- **Always Current**: Regenerate documentation anytime to reflect code changes
+
+### 🎨 UI Improvements
+
+- All 68 checkboxes standardized to green with white checkmarks
+- Refined 16×16px size for modern, consistent appearance
+- Improved visual consistency throughout the application
 
 ---
 
