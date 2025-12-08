@@ -12,7 +12,7 @@
   <circle cx="128" cy="128" r="112" fill="url(#circleGrad)"/>
 
   <!-- Sv text -->
-  <text x="128" y="175" font-family="Arial, sans-serif" font-weight="bold" fill="white" text-anchor="middle">
-    <tspan font-size="120">S</tspan><tspan font-size="100" dy="2">v</tspan>
+  <text x="128" y="178" font-family="Arial, sans-serif" font-weight="bold" fill="white" text-anchor="middle">
+    <tspan font-size="135">S</tspan><tspan font-size="112" dy="2">v</tspan>
   </text>
 </svg>

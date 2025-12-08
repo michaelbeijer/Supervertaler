@@ -4249,7 +4249,13 @@ class SupervertalerQt(QMainWindow):
             title += " [🛠️ DEV MODE]"
         self.setWindowTitle(title)
         self.setGeometry(100, 100, 1400, 800)
-        
+
+        # Set application icon
+        from PyQt6.QtGui import QIcon
+        icon_path = Path("assets/icon_sv_modern.svg")
+        if icon_path.exists():
+            self.setWindowIcon(QIcon(str(icon_path)))
+
         # Ensure window can be resized (no minimum size constraint)
         self.setMinimumSize(400, 300)  # Very small minimum to allow resizing
         
