@@ -4252,7 +4252,7 @@ class SupervertalerQt(QMainWindow):
 
         # Set application icon
         from PyQt6.QtGui import QIcon
-        icon_path = Path("assets/icon_sv_modern.svg")
+        icon_path = Path("assets/icon.ico")
         if icon_path.exists():
             self.setWindowIcon(QIcon(str(icon_path)))
 
