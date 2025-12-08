@@ -32,7 +32,15 @@
 python Supervertaler.py
 ```
 
-**NEW in v1.9.25 - Linux Compatibility:**
+**NEW in v1.9.26 - Automatic Model Version Checker & UI Polish:**
+- 🔄 **Auto Model Detection** - Automatically checks for new LLM models from OpenAI, Anthropic, and Google
+- 📅 **Daily Checks** - Runs once per 24 hours on startup (configurable)
+- 🔔 **Smart Notifications** - Popup dialog only when new models detected
+- ✅ **Easy Selection** - Click to select which models to add with pre-selection
+- 🎨 **UI Standardization** - All 68 checkboxes now use consistent green (16x16px) design
+- 📏 **Refined Size** - Reduced from 18x18px to 16x16px for cleaner appearance
+
+**v1.9.25 - Linux Compatibility:**
 - 🐧 **Full Linux Support** - Works perfectly on Ubuntu and other Linux distributions
 - 📦 **Complete Dependencies** - One-command installation with requirements.txt
 - 🔧 **Platform Detection** - Graceful handling of Windows-specific features on Linux
