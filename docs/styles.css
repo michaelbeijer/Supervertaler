@@ -117,6 +117,8 @@ body {
 .logo {
     font-size: 2rem;
     text-decoration: none !important;
+    vertical-align: middle;
+    margin-right: 8px;
 }
 
 .logo-img {
