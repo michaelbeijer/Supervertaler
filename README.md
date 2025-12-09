@@ -2,7 +2,7 @@
 
 🎯 **The Ultimate Companion Tool for Translators and Writers** — Context-aware AI with intuitive 2-Layer Prompt Architecture, AI Assistant, project termbase system with automatic extraction, and specialized modules.
 
-**Current Version:** v1.9.27 (December 9, 2025)
+**Current Version:** v1.9.28 (December 9, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -32,7 +32,12 @@
 python Supervertaler.py
 ```
 
-**NEW in v1.9.27 - Simple Text File Import/Export:**
+**NEW in v1.9.28 - Phrase DOCX Support & Show Invisibles:**
+- 📄 **Phrase (Memsource) Bilingual DOCX** - Full round-trip support for Phrase TMS files
+- 👁️ **Show Invisibles** - Display spaces (·), tabs (→), NBSPs (°), line breaks (¶) in the grid
+- 🎨 **Smart Handling** - Copy/paste, word selection, and navigation work correctly with invisibles shown
+
+**v1.9.27 - Simple Text File Import/Export:**
 - 📄 **Simple TXT Import** - Import plain text files where each line becomes a source segment
 - 📤 **Simple TXT Export** - Export translations as matching text file with target text
 - 🌐 **Encoding Support** - UTF-8, Latin-1, Windows-1252 with automatic detection

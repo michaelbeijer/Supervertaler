@@ -1,13 +1,64 @@
 # Supervertaler Project Context
 
 **Last Updated:** December 9, 2025
-**Current Version:** v1.9.27
+**Current Version:** v1.9.28
 **Repository:** https://github.com/michaelbeijer/Supervertaler
 **Maintainer:** Michael Beijer
 
 ---
 
 ## 📅 Recent Development Activity
+
+### December 9, 2025 - Version 1.9.28: Phrase DOCX Support & Show Invisibles
+
+**📄 Phrase (Memsource) Bilingual DOCX Support**
+Full round-trip workflow for Phrase TMS bilingual DOCX files:
+
+- **Import Feature (File → Import → Phrase (Memsource) Bilingual (DOCX)...):**
+  - Opens Phrase bilingual DOCX files with 7-column table structure
+  - Auto-detects Phrase format (segment IDs containing `:`)
+  - Preserves inline tags like `{1}`, `{1>text<1}` for round-trip
+  - Language pair selection dialog
+  - Segment ID and status preserved in notes field
+
+- **Export Feature (File → Export → Phrase (Memsource) Bilingual - Translated (DOCX)...):**
+  - Updates only Column 5 (target text) as Phrase expects
+  - Preserves original document structure
+  - Project persistence: Phrase source path saved in .svproj
+
+- **Implementation:**
+  - New module: `modules/phrase_docx_handler.py` (~300 lines)
+  - `PhraseDOCXHandler` class with `load()`, `extract_source_segments()`, `update_target_segments()`, `save()`
+  - Extended `detect_bilingual_docx_type()` in `trados_docx_handler.py` to detect Phrase format
+
+**👁️ Show Invisibles Feature**
+Display invisible characters in the translation grid:
+
+- **UI:**
+  - "¶ Show Invisibles" button with dropdown menu in filter toolbar
+  - Individual toggles: Spaces (·), Tabs (→), Non-breaking Spaces (°), Line Breaks (¶)
+  - "Toggle All" option for quick on/off
+  - Configurable symbol color in Settings → View Settings
+
+- **Smart Handling:**
+  - Uses character substitution with zero-width spaces (U+200B) for line-break opportunities
+  - Ctrl+C copies original characters (not symbols)
+  - Double-click word selection works correctly
+  - Ctrl+Arrow word navigation works correctly
+  - Data safety: Segment data never modified, only display text
+
+- **Implementation:**
+  - `apply_invisible_replacements()` and `reverse_invisible_replacements()` methods
+  - Extended `TagHighlighter` to color invisible symbols
+  - Added `mouseDoubleClickEvent` and enhanced `keyPressEvent` handlers
+  - `invisible_display_settings` dict tracks toggle states
+
+**Files Modified:**
+- `Supervertaler.py`: Show Invisibles UI, Phrase import/export, text editor enhancements
+- `modules/phrase_docx_handler.py`: New module for Phrase DOCX handling
+- `modules/trados_docx_handler.py`: Extended format detection
+
+---
 
 ### December 9, 2025 - Version 1.9.27: Simple Text File Import/Export
 

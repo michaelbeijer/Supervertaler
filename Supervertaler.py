@@ -3,8 +3,8 @@ Supervertaler
 =============
 The ultimate companion tool for translators and writers.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.9.15 (Bilingual Table Export/Import)
-Release Date: November 30, 2025
+Version: 1.9.28 (Phrase DOCX Support & Show Invisibles)
+Release Date: December 9, 2025
 Framework: PyQt6
 
 This is the modern edition of Supervertaler using PyQt6 framework.
@@ -974,19 +974,15 @@ class ReadOnlyGridTextEditor(QTextEdit):
         self.table_ref = parent  # Store table reference (parent is the table)
         self.setReadOnly(True)  # Prevent typing but allow selection
         self.setPlainText(text)
-        self.setWordWrapMode(QTextOption.WrapMode.WordWrap)
-        self.setAcceptRichText(False)
-        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        
+
         # CRITICAL: Enable keyboard focus and text selection
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         # Enable text interaction: selection with keyboard and mouse
         self.setTextInteractionFlags(
-            Qt.TextInteractionFlag.TextSelectableByKeyboard | 
+            Qt.TextInteractionFlag.TextSelectableByKeyboard |
             Qt.TextInteractionFlag.TextSelectableByMouse
         )
-        
+
         # Make inactive selections stay visible with same color
         from PyQt6.QtGui import QPalette
         palette = self.palette()
@@ -995,14 +991,14 @@ class ReadOnlyGridTextEditor(QTextEdit):
         palette.setColor(QPalette.ColorGroup.Inactive, QPalette.ColorRole.Highlight, QColor("#D0E7FF"))
         palette.setColor(QPalette.ColorGroup.Inactive, QPalette.ColorRole.HighlightedText, QColor("black"))
         self.setPalette(palette)
-        
+
         # Style to look like a normal cell with subtle selection
         # IMPORTANT: Use light gray background instead of transparent to avoid text visibility issues
         self.setStyleSheet("""
             QTextEdit {
                 border: none;
                 background-color: #f5f5f5;
-                padding: 0px;
+                padding: 0px 4px 0px 0px;
                 color: black;
             }
             QTextEdit:focus {
@@ -1015,14 +1011,23 @@ class ReadOnlyGridTextEditor(QTextEdit):
                 color: black;
             }
         """)
-        
+
         # Set document margins to 0 for compact display
         doc = self.document()
         doc.setDocumentMargin(0)
-        
+
         # Configure text option for minimal line spacing
+        # With zero-width spaces inserted after invisible character markers,
+        # normal WordWrap will work correctly
+        wrap_mode = QTextOption.WrapMode.WordWrap
+
+        self.setWordWrapMode(wrap_mode)
+        self.setAcceptRichText(False)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+
         text_option = QTextOption()
-        text_option.setWrapMode(QTextOption.WrapMode.WordWrap)
+        text_option.setWrapMode(wrap_mode)
         doc.setDefaultTextOption(text_option)
         
         # Set minimum height to 0 - let content determine size
@@ -1034,12 +1039,114 @@ class ReadOnlyGridTextEditor(QTextEdit):
         
         # Enable mouse tracking for hover tooltips
         self.setMouseTracking(True)
-        
+
         # Add syntax highlighter for tags
-        self.highlighter = TagHighlighter(self.document(), self.tag_highlight_color)
-        
+        # Get invisible char color from main window if available
+        main_window = self._get_main_window()
+        invisible_char_color = main_window.invisible_char_color if main_window and hasattr(main_window, 'invisible_char_color') else '#999999'
+        self.highlighter = TagHighlighter(self.document(), self.tag_highlight_color, invisible_char_color)
+
         # Store raw text (with tags) for mode switching
         self._raw_text = text
+    
+    def keyPressEvent(self, event):
+        """Override to fix clipboard and word navigation when invisible characters shown"""
+        from PyQt6.QtCore import Qt
+        from PyQt6.QtWidgets import QApplication
+        from PyQt6.QtGui import QTextCursor
+        
+        # Check for Ctrl+C (copy)
+        if event.modifiers() == Qt.KeyboardModifier.ControlModifier and event.key() == Qt.Key.Key_C:
+            # Get selected text
+            cursor = self.textCursor()
+            if cursor.hasSelection():
+                selected_text = cursor.selectedText()
+                # Reverse invisible character replacements before copying
+                main_window = self._get_main_window()
+                if main_window and hasattr(main_window, 'reverse_invisible_replacements'):
+                    clean_text = main_window.reverse_invisible_replacements(selected_text)
+                    # Also replace paragraph separator with newline (Qt uses U+2029)
+                    clean_text = clean_text.replace('\u2029', '\n')
+                    # Set clipboard with clean text
+                    clipboard = QApplication.clipboard()
+                    clipboard.setText(clean_text)
+                    return  # Don't call parent - we handled it
+        
+        # Handle Ctrl+Arrow word navigation when invisibles are shown
+        main_window = self._get_main_window()
+        if main_window and hasattr(main_window, 'invisible_display_settings'):
+            if main_window.invisible_display_settings.get('spaces', False):
+                ctrl_only = event.modifiers() == Qt.KeyboardModifier.ControlModifier
+                ctrl_shift = event.modifiers() == (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier)
+                
+                if (ctrl_only or ctrl_shift) and event.key() in (Qt.Key.Key_Left, Qt.Key.Key_Right):
+                    cursor = self.textCursor()
+                    text = self.toPlainText()
+                    pos = cursor.position()
+                    word_chars = ('·', '\u200B', '\n', '\t', '→', '°', '¶', ' ')
+                    
+                    if event.key() == Qt.Key.Key_Right:
+                        # Move to end of current word, then skip delimiters to start of next word
+                        # First skip any delimiters we're on
+                        while pos < len(text) and text[pos] in word_chars:
+                            pos += 1
+                        # Then skip to end of word (next delimiter)
+                        while pos < len(text) and text[pos] not in word_chars:
+                            pos += 1
+                    else:  # Key_Left
+                        # Move backwards: skip delimiters, then find start of word
+                        if pos > 0:
+                            pos -= 1
+                        # Skip any delimiters
+                        while pos > 0 and text[pos] in word_chars:
+                            pos -= 1
+                        # Find start of word
+                        while pos > 0 and text[pos - 1] not in word_chars:
+                            pos -= 1
+                    
+                    # Apply cursor movement
+                    if ctrl_shift:
+                        cursor.setPosition(pos, QTextCursor.MoveMode.KeepAnchor)
+                    else:
+                        cursor.setPosition(pos)
+                    self.setTextCursor(cursor)
+                    return
+        
+        super().keyPressEvent(event)
+    
+    def mouseDoubleClickEvent(self, event):
+        """Handle double-click to select words properly when invisibles are shown"""
+        from PyQt6.QtCore import Qt
+        from PyQt6.QtGui import QTextCursor
+        
+        main_window = self._get_main_window()
+        # Check if invisible spaces are being shown
+        if main_window and hasattr(main_window, 'invisible_display_settings'):
+            if main_window.invisible_display_settings.get('spaces', False):
+                # Get cursor position at click
+                cursor = self.cursorForPosition(event.pos())
+                pos = cursor.position()
+                text = self.toPlainText()
+                
+                # Find word boundaries using middle dot (·) or zero-width space as delimiters
+                # Find start of word (search backwards for · or start of text)
+                start = pos
+                while start > 0 and text[start - 1] not in ('·', '\u200B', '\n', '\t', '→', '°', '¶'):
+                    start -= 1
+                
+                # Find end of word (search forwards for · or end of text)
+                end = pos
+                while end < len(text) and text[end] not in ('·', '\u200B', '\n', '\t', '→', '°', '¶'):
+                    end += 1
+                
+                # Select the word
+                cursor.setPosition(start)
+                cursor.setPosition(end, QTextCursor.MoveMode.KeepAnchor)
+                self.setTextCursor(cursor)
+                return
+        
+        # Default behavior
+        super().mouseDoubleClickEvent(event)
     
     def _get_main_window(self):
         """Get the main application window by traversing the parent hierarchy"""
@@ -1679,26 +1786,37 @@ class ReadOnlyGridTextEditor(QTextEdit):
 
 class TagHighlighter(QSyntaxHighlighter):
     """Syntax highlighter for HTML/XML tags and CafeTran pipe symbols in text editors"""
-    
-    def __init__(self, document, tag_color='#FFB6C1'):
+
+    def __init__(self, document, tag_color='#FFB6C1', invisible_char_color='#999999'):
         super().__init__(document)
         self.tag_color = tag_color
+        self.invisible_char_color = invisible_char_color
         self.update_tag_format()
-    
+
     def update_tag_format(self):
         """Update the tag format with current color"""
         from PyQt6.QtGui import QTextCharFormat, QColor
         self.tag_format = QTextCharFormat()
         self.tag_format.setForeground(QColor(self.tag_color))
-        
+
         # CafeTran pipe symbols - red and bold like in CafeTran
         self.pipe_format = QTextCharFormat()
         self.pipe_format.setForeground(QColor('#FF0000'))  # Red
         self.pipe_format.setFontWeight(700)  # Bold
-    
+
+        # Invisible character symbols - use configured color
+        self.invisible_format = QTextCharFormat()
+        self.invisible_format.setForeground(QColor(self.invisible_char_color))
+
     def set_tag_color(self, color: str):
         """Update tag highlight color"""
         self.tag_color = color
+        self.update_tag_format()
+        self.rehighlight()
+
+    def set_invisible_char_color(self, color: str):
+        """Update invisible character color"""
+        self.invisible_char_color = color
         self.update_tag_format()
         self.rehighlight()
     
@@ -1707,16 +1825,18 @@ class TagHighlighter(QSyntaxHighlighter):
         import re
         # Match opening and closing tags: <tag>, </tag>, <tag/> - includes hyphenated tags like li-o, li-b
         tag_pattern = re.compile(r'</?[a-zA-Z][a-zA-Z0-9-]*/?>')
-        
+
         for match in tag_pattern.finditer(text):
             start = match.start()
             length = match.end() - start
             self.setFormat(start, length, self.tag_format)
-        
-        # Match CafeTran pipe symbols (red and bold)
+
+        # Match CafeTran pipe symbols (red and bold) and invisible character symbols (light blue)
         for i, char in enumerate(text):
             if char == '|':
                 self.setFormat(i, 1, self.pipe_format)
+            elif char in '·→°¶':  # Invisible character replacement symbols
+                self.setFormat(i, 1, self.invisible_format)
 
 
 class EditableGridTextEditor(QTextEdit):
@@ -1743,15 +1863,10 @@ class EditableGridTextEditor(QTextEdit):
         self.blockSignals(True)
         self.setPlainText(text)
         # DO NOT unblock signals here - they will be unblocked after handler connection
-        
-        self.setWordWrapMode(QTextOption.WrapMode.WordWrap)
-        self.setAcceptRichText(False)
-        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        
+
         # CRITICAL: Enable strong focus to receive Tab key events
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-        
+
         # Make inactive selections stay visible with same color
         from PyQt6.QtGui import QPalette
         palette = self.palette()
@@ -1760,17 +1875,20 @@ class EditableGridTextEditor(QTextEdit):
         palette.setColor(QPalette.ColorGroup.Inactive, QPalette.ColorRole.Highlight, QColor("#D0E7FF"))
         palette.setColor(QPalette.ColorGroup.Inactive, QPalette.ColorRole.HighlightedText, QColor("black"))
         self.setPalette(palette)
-        
+
         # Add syntax highlighter for tags
-        self.highlighter = TagHighlighter(self.document(), self.tag_highlight_color)
-        
+        # Get invisible char color from main window if available
+        main_window = self._get_main_window()
+        invisible_char_color = main_window.invisible_char_color if main_window and hasattr(main_window, 'invisible_char_color') else '#999999'
+        self.highlighter = TagHighlighter(self.document(), self.tag_highlight_color, invisible_char_color)
+
         # Style to look like a normal cell with subtle selection
         # IMPORTANT: Use white background instead of transparent to avoid text visibility issues
         self.setStyleSheet("""
             QTextEdit {
                 border: none;
                 background-color: white;
-                padding: 0px;
+                padding: 0px 4px 0px 0px;
                 color: black;
             }
             QTextEdit:focus {
@@ -1783,19 +1901,61 @@ class EditableGridTextEditor(QTextEdit):
                 color: black;
             }
         """)
-        
+
         # Set document margins to 0 for compact display
         doc = self.document()
         doc.setDocumentMargin(0)
-        
+
         # Configure text option for minimal line spacing
+        # With zero-width spaces inserted after invisible character markers,
+        # normal WordWrap will work correctly
+        wrap_mode = QTextOption.WrapMode.WordWrap
+
+        self.setWordWrapMode(wrap_mode)
+        self.setAcceptRichText(False)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+
         text_option = QTextOption()
-        text_option.setWrapMode(QTextOption.WrapMode.WordWrap)
+        text_option.setWrapMode(wrap_mode)
         doc.setDefaultTextOption(text_option)
         
         # Set minimum height to 0 - let content determine size
         self.setMinimumHeight(0)
         self.setMaximumHeight(16777215)  # Qt's max int
+    
+    def mouseDoubleClickEvent(self, event):
+        """Handle double-click to select words properly when invisibles are shown"""
+        from PyQt6.QtGui import QTextCursor
+        
+        main_window = self._get_main_window()
+        # Check if invisible spaces are being shown
+        if main_window and hasattr(main_window, 'invisible_display_settings'):
+            if main_window.invisible_display_settings.get('spaces', False):
+                # Get cursor position at click
+                cursor = self.cursorForPosition(event.pos())
+                pos = cursor.position()
+                text = self.toPlainText()
+                
+                # Find word boundaries using middle dot (·) or zero-width space as delimiters
+                # Find start of word (search backwards for · or start of text)
+                start = pos
+                while start > 0 and text[start - 1] not in ('·', '\u200B', '\n', '\t', '→', '°', '¶'):
+                    start -= 1
+                
+                # Find end of word (search forwards for · or end of text)
+                end = pos
+                while end < len(text) and text[end] not in ('·', '\u200B', '\n', '\t', '→', '°', '¶'):
+                    end += 1
+                
+                # Select the word
+                cursor.setPosition(start)
+                cursor.setPosition(end, QTextCursor.MoveMode.KeepAnchor)
+                self.setTextCursor(cursor)
+                return
+        
+        # Default behavior
+        super().mouseDoubleClickEvent(event)
     
     def _get_main_window(self):
         """Get the main application window by traversing the parent hierarchy"""
@@ -2019,6 +2179,67 @@ class EditableGridTextEditor(QTextEdit):
     
     def keyPressEvent(self, event):
         """Handle Tab and Ctrl+E keys to cycle between source and target cells"""
+        from PyQt6.QtWidgets import QApplication
+        from PyQt6.QtGui import QTextCursor
+        
+        # Ctrl+C: Fix clipboard when copying with invisible characters shown
+        if event.key() == Qt.Key.Key_C and event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+            cursor = self.textCursor()
+            if cursor.hasSelection():
+                selected_text = cursor.selectedText()
+                # Reverse invisible character replacements before copying
+                main_window = self._get_main_window()
+                if main_window and hasattr(main_window, 'reverse_invisible_replacements'):
+                    clean_text = main_window.reverse_invisible_replacements(selected_text)
+                    # Also replace paragraph separator with newline (Qt uses U+2029)
+                    clean_text = clean_text.replace('\u2029', '\n')
+                    # Set clipboard with clean text
+                    clipboard = QApplication.clipboard()
+                    clipboard.setText(clean_text)
+                    event.accept()
+                    return
+        
+        # Handle Ctrl+Arrow word navigation when invisibles are shown
+        main_window = self._get_main_window()
+        if main_window and hasattr(main_window, 'invisible_display_settings'):
+            if main_window.invisible_display_settings.get('spaces', False):
+                ctrl_only = event.modifiers() == Qt.KeyboardModifier.ControlModifier
+                ctrl_shift = event.modifiers() == (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier)
+                
+                if (ctrl_only or ctrl_shift) and event.key() in (Qt.Key.Key_Left, Qt.Key.Key_Right):
+                    cursor = self.textCursor()
+                    text = self.toPlainText()
+                    pos = cursor.position()
+                    word_chars = ('·', '\u200B', '\n', '\t', '→', '°', '¶', ' ')
+                    
+                    if event.key() == Qt.Key.Key_Right:
+                        # Move to end of current word, then skip delimiters to start of next word
+                        # First skip any delimiters we're on
+                        while pos < len(text) and text[pos] in word_chars:
+                            pos += 1
+                        # Then skip to end of word (next delimiter)
+                        while pos < len(text) and text[pos] not in word_chars:
+                            pos += 1
+                    else:  # Key_Left
+                        # Move backwards: skip delimiters, then find start of word
+                        if pos > 0:
+                            pos -= 1
+                        # Skip any delimiters
+                        while pos > 0 and text[pos] in word_chars:
+                            pos -= 1
+                        # Find start of word
+                        while pos > 0 and text[pos - 1] not in word_chars:
+                            pos -= 1
+                    
+                    # Apply cursor movement
+                    if ctrl_shift:
+                        cursor.setPosition(pos, QTextCursor.MoveMode.KeepAnchor)
+                    else:
+                        cursor.setPosition(pos)
+                    self.setTextCursor(cursor)
+                    event.accept()
+                    return
+        
         # Ctrl+E: Add selected terms to termbase (with dialog)
         if event.key() == Qt.Key.Key_E and event.modifiers() == Qt.KeyboardModifier.ControlModifier:
             self._handle_add_to_termbase()
@@ -3960,6 +4181,16 @@ class SupervertalerQt(QMainWindow):
         self.termbase_display_order = 'appearance'  # Options: 'alphabetical', 'appearance', 'length'
         self.termbase_hide_shorter_matches = False  # Hide shorter terms included in longer ones
 
+        # Invisible character display settings
+        self.showing_invisible_spaces = False  # Track whether spaces are shown as middle dots
+        self.invisible_char_color = '#999999'  # Light gray color for invisible characters
+        self.invisible_display_settings = {
+            'spaces': False,
+            'tabs': False,
+            'nbsp': False,
+            'linebreaks': False
+        }
+
         # Grid row color settings (memoQ-style alternating row colors)
         self.enable_alternating_row_colors = True  # Enable alternating row colors by default
         self.even_row_color = '#FFFFFF'  # White for even rows
@@ -4621,15 +4852,20 @@ class SupervertalerQt(QMainWindow):
         
         # Trados submenu - group all Trados imports together
         trados_submenu = import_menu.addMenu("&Trados Studio")
-        
+
         import_trados_bilingual_action = QAction("Bilingual &Review (DOCX)...", self)
         import_trados_bilingual_action.triggered.connect(self.import_trados_bilingual)
         trados_submenu.addAction(import_trados_bilingual_action)
-        
+
         import_sdlppx_action = QAction("&Package (SDLPPX)...", self)
         import_sdlppx_action.triggered.connect(self.import_sdlppx_package)
         trados_submenu.addAction(import_sdlppx_action)
-        
+
+        # Phrase (Memsource) import
+        import_phrase_bilingual_action = QAction("&Phrase (Memsource) Bilingual (DOCX)...", self)
+        import_phrase_bilingual_action.triggered.connect(self.import_phrase_bilingual)
+        import_menu.addAction(import_phrase_bilingual_action)
+
         import_menu.addSeparator()
         
         import_review_table_action = QAction("&Bilingual Table (DOCX) - Update Project...", self)
@@ -4648,14 +4884,19 @@ class SupervertalerQt(QMainWindow):
         
         # Trados submenu - group all Trados exports together
         trados_export_submenu = export_menu.addMenu("&Trados Studio")
-        
+
         export_trados_bilingual_action = QAction("Bilingual &Review - Translated (DOCX)...", self)
         export_trados_bilingual_action.triggered.connect(self.export_trados_bilingual)
         trados_export_submenu.addAction(export_trados_bilingual_action)
-        
+
         export_sdlrpx_action = QAction("Return &Package (SDLRPX)...", self)
         export_sdlrpx_action.triggered.connect(self.export_sdlrpx_package)
         trados_export_submenu.addAction(export_sdlrpx_action)
+
+        # Phrase (Memsource) export
+        export_phrase_bilingual_action = QAction("&Phrase (Memsource) Bilingual - Translated (DOCX)...", self)
+        export_phrase_bilingual_action.triggered.connect(self.export_phrase_bilingual)
+        export_menu.addAction(export_phrase_bilingual_action)
         
         export_target_docx_action = QAction("&Target Only (DOCX)...", self)
         export_target_docx_action.triggered.connect(self.export_target_only_docx)
@@ -12188,10 +12429,34 @@ class SupervertalerQt(QMainWindow):
         tag_color_layout.addWidget(tag_color_btn)
         tag_color_layout.addStretch()
         results_layout.addLayout(tag_color_layout)
-        
+
+        # Invisible character color picker
+        invisible_char_color_layout = QHBoxLayout()
+        invisible_char_color_layout.addWidget(QLabel("Invisible Char Color:"))
+
+        # Get current invisible character color or default to light gray
+        current_invisible_color = font_settings.get('invisible_char_color', '#999999')
+        invisible_char_color_btn = QPushButton()
+        invisible_char_color_btn.setFixedSize(80, 25)
+        invisible_char_color_btn.setStyleSheet(f"background-color: {current_invisible_color}; border: 1px solid #999;")
+        invisible_char_color_btn.setToolTip("Color for invisible character symbols (·→°¶)")
+
+        def choose_invisible_char_color():
+            color = QColorDialog.getColor(QColor(current_invisible_color), self, "Choose Invisible Character Color")
+            if color.isValid():
+                hex_color = color.name()
+                invisible_char_color_btn.setStyleSheet(f"background-color: {hex_color}; border: 1px solid #999;")
+                invisible_char_color_btn.setProperty('selected_color', hex_color)
+
+        invisible_char_color_btn.clicked.connect(choose_invisible_char_color)
+        invisible_char_color_btn.setProperty('selected_color', current_invisible_color)
+        invisible_char_color_layout.addWidget(invisible_char_color_btn)
+        invisible_char_color_layout.addStretch()
+        results_layout.addLayout(invisible_char_color_layout)
+
         results_group.setLayout(results_layout)
         layout.addWidget(results_group)
-        
+
         # Grid Row Colors section (memoQ-style alternating row colors)
         row_colors_group = QGroupBox("🎨 Grid Row Colors")
         row_colors_layout = QVBoxLayout()
@@ -12296,7 +12561,7 @@ class SupervertalerQt(QMainWindow):
         save_btn.setStyleSheet("font-weight: bold; padding: 8px;")
         save_btn.clicked.connect(lambda: self._save_view_settings_from_ui(
             grid_font_spin, match_font_spin, compare_font_spin, show_tags_check, tag_color_btn,
-            alt_colors_check, even_color_btn, odd_color_btn
+            alt_colors_check, even_color_btn, odd_color_btn, invisible_char_color_btn
         ))
         layout.addWidget(save_btn)
         
@@ -13302,7 +13567,7 @@ class SupervertalerQt(QMainWindow):
         QMessageBox.information(self, "Settings Saved", "General settings have been saved successfully.")
     
     def _save_view_settings_from_ui(self, grid_spin, match_spin, compare_spin, show_tags_check=None, tag_color_btn=None,
-                                     alt_colors_check=None, even_color_btn=None, odd_color_btn=None):
+                                     alt_colors_check=None, even_color_btn=None, odd_color_btn=None, invisible_char_color_btn=None):
         """Save view settings from UI"""
         general_settings = {
             'restore_last_project': self.load_general_settings().get('restore_last_project', False),
@@ -13312,13 +13577,20 @@ class SupervertalerQt(QMainWindow):
             'results_compare_font_size': compare_spin.value(),
             'enable_tm_termbase_matching': self.enable_tm_matching  # Save TM/termbase matching state
         }
-        
+
         # Add tag color if provided
         if tag_color_btn:
             tag_color = tag_color_btn.property('selected_color')
             if tag_color:
                 general_settings['tag_highlight_color'] = tag_color
                 EditableGridTextEditor.tag_highlight_color = tag_color
+
+        # Add invisible character color if provided
+        if invisible_char_color_btn:
+            invisible_char_color = invisible_char_color_btn.property('selected_color')
+            if invisible_char_color:
+                general_settings['invisible_char_color'] = invisible_char_color
+                self.invisible_char_color = invisible_char_color
         
         # Add alternating row color settings
         if alt_colors_check is not None:
@@ -13377,7 +13649,18 @@ class SupervertalerQt(QMainWindow):
                     for panel in self.results_panels:
                         if hasattr(panel, 'set_tag_color'):
                             panel.set_tag_color(tag_color)
-        
+
+        # Apply invisible char color to grid cells
+        if invisible_char_color_btn and hasattr(self, 'table') and self.table is not None:
+            invisible_char_color = invisible_char_color_btn.property('selected_color')
+            if invisible_char_color:
+                # Update all cell highlighters
+                for row in range(self.table.rowCount()):
+                    for col in [2, 3]:  # Source and target columns
+                        widget = self.table.cellWidget(row, col)
+                        if widget and hasattr(widget, 'highlighter'):
+                            widget.highlighter.set_invisible_char_color(invisible_char_color)
+
         # Refresh grid to apply tag colors
         if hasattr(self, 'table') and self.table is not None:
             self.refresh_grid_tag_colors()
@@ -13528,12 +13811,48 @@ class SupervertalerQt(QMainWindow):
         clear_filters_btn = QPushButton("Clear Filters")
         clear_filters_btn.clicked.connect(self.clear_filters)
         clear_filters_btn.setMaximumWidth(100)
-        
+
+        # Show Invisibles button with dropdown menu
+        show_invisibles_btn = QPushButton("¶ Show Invisibles")
+        show_invisibles_btn.setMaximumWidth(140)
+        show_invisibles_btn.setStyleSheet("background-color: #607D8B; color: white; font-weight: bold;")
+        show_invisibles_menu = QMenu(show_invisibles_btn)
+
+        # Create checkable actions for each invisible character type
+        self.show_spaces_action = show_invisibles_menu.addAction("Spaces (·)")
+        self.show_spaces_action.setCheckable(True)
+        self.show_spaces_action.setChecked(False)
+        self.show_spaces_action.triggered.connect(lambda: self.toggle_invisible_display('spaces'))
+
+        self.show_tabs_action = show_invisibles_menu.addAction("Tabs (→)")
+        self.show_tabs_action.setCheckable(True)
+        self.show_tabs_action.setChecked(False)
+        self.show_tabs_action.triggered.connect(lambda: self.toggle_invisible_display('tabs'))
+
+        self.show_nbsp_action = show_invisibles_menu.addAction("Non-breaking Spaces (°)")
+        self.show_nbsp_action.setCheckable(True)
+        self.show_nbsp_action.setChecked(False)
+        self.show_nbsp_action.triggered.connect(lambda: self.toggle_invisible_display('nbsp'))
+
+        self.show_linebreaks_action = show_invisibles_menu.addAction("Line Breaks (¶)")
+        self.show_linebreaks_action.setCheckable(True)
+        self.show_linebreaks_action.setChecked(False)
+        self.show_linebreaks_action.triggered.connect(lambda: self.toggle_invisible_display('linebreaks'))
+
+        show_invisibles_menu.addSeparator()
+
+        # Toggle All option
+        toggle_all_action = show_invisibles_menu.addAction("Toggle All")
+        toggle_all_action.triggered.connect(self.toggle_all_invisibles)
+
+        show_invisibles_btn.setMenu(show_invisibles_menu)
+
         filter_layout.addWidget(source_filter_label)
         filter_layout.addWidget(self.source_filter, stretch=1)
         filter_layout.addWidget(target_filter_label)
         filter_layout.addWidget(self.target_filter, stretch=1)
         filter_layout.addWidget(clear_filters_btn)
+        filter_layout.addWidget(show_invisibles_btn)
         
         grid_layout.addWidget(filter_panel)
         
@@ -13614,7 +13933,7 @@ class SupervertalerQt(QMainWindow):
         # Quick Filters dropdown menu
         quick_filter_btn = QPushButton("⚡ Quick Filters")
         quick_filter_btn.setMaximumWidth(130)
-        quick_filter_btn.setStyleSheet("background-color: #FF9800; color: white; font-weight: bold;")
+        quick_filter_btn.setStyleSheet("background-color: #D84315; color: white; font-weight: bold;")
         quick_filter_menu = QMenu(self)
         quick_filter_menu.addAction("🔍 Empty segments", lambda: self.apply_quick_filter("empty"))
         quick_filter_menu.addAction("❌ Not translated", lambda: self.apply_quick_filter("not_translated"))
@@ -13627,9 +13946,54 @@ class SupervertalerQt(QMainWindow):
         # Advanced Filters dialog button
         advanced_filter_btn = QPushButton("⚙️ Advanced Filters")
         advanced_filter_btn.clicked.connect(self.show_advanced_filters_dialog)
-        advanced_filter_btn.setMaximumWidth(140)
+        advanced_filter_btn.setMaximumWidth(160)
         advanced_filter_btn.setStyleSheet("background-color: #2196F3; color: white; font-weight: bold;")
-        
+
+        # Show Invisibles button with dropdown menu
+        show_invisibles_btn_home = QPushButton("¶ Show Invisibles")
+        show_invisibles_btn_home.setMaximumWidth(140)
+        show_invisibles_btn_home.setStyleSheet("background-color: #607D8B; color: white; font-weight: bold;")
+        show_invisibles_menu_home = QMenu(show_invisibles_btn_home)
+
+        # Use the same actions (they're stored as instance variables)
+        if not hasattr(self, 'show_spaces_action'):
+            # Create actions if they don't exist yet (first time)
+            self.show_spaces_action = show_invisibles_menu_home.addAction("Spaces (·)")
+            self.show_spaces_action.setCheckable(True)
+            self.show_spaces_action.setChecked(False)
+            self.show_spaces_action.triggered.connect(lambda: self.toggle_invisible_display('spaces'))
+
+            self.show_tabs_action = show_invisibles_menu_home.addAction("Tabs (→)")
+            self.show_tabs_action.setCheckable(True)
+            self.show_tabs_action.setChecked(False)
+            self.show_tabs_action.triggered.connect(lambda: self.toggle_invisible_display('tabs'))
+
+            self.show_nbsp_action = show_invisibles_menu_home.addAction("Non-breaking Spaces (°)")
+            self.show_nbsp_action.setCheckable(True)
+            self.show_nbsp_action.setChecked(False)
+            self.show_nbsp_action.triggered.connect(lambda: self.toggle_invisible_display('nbsp'))
+
+            self.show_linebreaks_action = show_invisibles_menu_home.addAction("Line Breaks (¶)")
+            self.show_linebreaks_action.setCheckable(True)
+            self.show_linebreaks_action.setChecked(False)
+            self.show_linebreaks_action.triggered.connect(lambda: self.toggle_invisible_display('linebreaks'))
+
+            show_invisibles_menu_home.addSeparator()
+
+            toggle_all_action = show_invisibles_menu_home.addAction("Toggle All")
+            toggle_all_action.triggered.connect(self.toggle_all_invisibles)
+        else:
+            # Reuse existing actions
+            show_invisibles_menu_home.addAction(self.show_spaces_action)
+            show_invisibles_menu_home.addAction(self.show_tabs_action)
+            show_invisibles_menu_home.addAction(self.show_nbsp_action)
+            show_invisibles_menu_home.addAction(self.show_linebreaks_action)
+            show_invisibles_menu_home.addSeparator()
+            toggle_all_action = show_invisibles_menu_home.addAction("Toggle All")
+            toggle_all_action.triggered.connect(self.toggle_all_invisibles)
+
+        show_invisibles_btn_home.setMenu(show_invisibles_menu_home)
+
         filter_layout.addWidget(source_filter_label)
         filter_layout.addWidget(self.source_filter, stretch=1)
         filter_layout.addWidget(target_filter_label)
@@ -13638,6 +14002,7 @@ class SupervertalerQt(QMainWindow):
         filter_layout.addWidget(clear_filters_btn)
         filter_layout.addWidget(quick_filter_btn)
         filter_layout.addWidget(advanced_filter_btn)
+        filter_layout.addWidget(show_invisibles_btn_home)
         
         grid_layout.addWidget(filter_panel)
         
@@ -18359,6 +18724,348 @@ class SupervertalerQt(QMainWindow):
             import traceback
             traceback.print_exc()
 
+    def import_phrase_bilingual(self):
+        """Import Phrase (Memsource) bilingual DOCX file"""
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select Phrase Bilingual DOCX File",
+            "",
+            "Word Documents (*.docx);;All Files (*.*)"
+        )
+
+        if not file_path:
+            return
+
+        # Show confirmation dialog
+        reply = QMessageBox.question(
+            self,
+            "Confirm Phrase Bilingual Import",
+            f"You are about to import a Phrase (Memsource) bilingual DOCX file.\n\n"
+            f"File: {Path(file_path).name}\n\n"
+            f"This workflow is specifically for Phrase bilingual files with:\n"
+            f"• Multiple tables with 7 columns\n"
+            f"• Inline tags like {{1}}, {{1>text<1}}\n"
+            f"• Editable target column (Column 5)\n\n"
+            f"The project can be exported back to Phrase format after translation.\n\n"
+            f"Continue with import?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.Yes
+        )
+
+        if reply != QMessageBox.StandardButton.Yes:
+            self.log("✗ User cancelled Phrase import")
+            return
+
+        try:
+            from modules.phrase_docx_handler import PhraseDOCXHandler
+            from modules.trados_docx_handler import detect_bilingual_docx_type
+
+            # Check if this is a valid Phrase bilingual DOCX
+            file_type = detect_bilingual_docx_type(file_path)
+            if file_type != "phrase":
+                QMessageBox.warning(
+                    self, "Invalid Format",
+                    "This file does not appear to be a Phrase bilingual DOCX.\n\n"
+                    "Expected format: Multiple tables with 7-8 columns and segment IDs containing ':'."
+                )
+                return
+
+            # Load the file
+            handler = PhraseDOCXHandler()
+            if not handler.load(file_path):
+                QMessageBox.critical(
+                    self, "Error",
+                    "Failed to load Phrase bilingual DOCX file."
+                )
+                return
+
+            # Extract segments
+            phrase_segments = handler.extract_source_segments()
+
+            if not phrase_segments:
+                QMessageBox.warning(
+                    self, "No Segments",
+                    "No segments found in the Phrase bilingual DOCX file."
+                )
+                return
+
+            # Convert to internal Segment format - preserve tags for round-trip
+            segments = []
+            for i, p_seg in enumerate(phrase_segments):
+                segment = Segment(
+                    id=i + 1,
+                    source=p_seg.source_text,  # Preserve tags like {1}text{1}
+                    target=p_seg.target_text if p_seg.target_text else "",
+                    status=STATUSES["pretranslated"].key if p_seg.target_text else DEFAULT_STATUS.key,
+                    notes=f"Phrase ID: {p_seg.segment_id} | Status: {p_seg.status_code}",
+                )
+                segments.append(segment)
+
+            # Store the handler and original path for round-trip export
+            self.phrase_handler = handler
+            self.phrase_source_file = file_path
+
+            # Show language selection dialog (Phrase files may not clearly specify languages)
+            from PyQt6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, QDialogButtonBox, QGroupBox
+
+            lang_dialog = QDialog(self)
+            lang_dialog.setWindowTitle("Select Languages")
+            lang_dialog.setMinimumWidth(350)
+            lang_layout = QVBoxLayout(lang_dialog)
+
+            # Info text
+            info_label = QLabel(
+                "Please confirm or select the correct language pair for this project:"
+            )
+            info_label.setWordWrap(True)
+            info_label.setStyleSheet("color: #666; margin-bottom: 10px;")
+            lang_layout.addWidget(info_label)
+
+            # Language group
+            lang_group = QGroupBox("Language Pair")
+            lang_group_layout = QVBoxLayout(lang_group)
+
+            # Source language
+            source_row = QHBoxLayout()
+            source_row.addWidget(QLabel("Source Language:"))
+            source_combo = QComboBox()
+            source_combo.addItems(["English", "Dutch", "German", "French", "Spanish", "Italian", "Portuguese", "Polish", "Chinese", "Japanese", "Korean", "Russian"])
+            # Try to match current UI selection
+            current_source = self.source_lang_combo.currentText() if hasattr(self, 'source_lang_combo') else "English"
+            source_idx = source_combo.findText(current_source)
+            if source_idx >= 0:
+                source_combo.setCurrentIndex(source_idx)
+            source_row.addWidget(source_combo)
+            lang_group_layout.addLayout(source_row)
+
+            # Target language
+            target_row = QHBoxLayout()
+            target_row.addWidget(QLabel("Target Language:"))
+            target_combo = QComboBox()
+            target_combo.addItems(["English", "Dutch", "German", "French", "Spanish", "Italian", "Portuguese", "Polish", "Chinese", "Japanese", "Korean", "Russian"])
+            # Try to match current UI selection
+            current_target = self.target_lang_combo.currentText() if hasattr(self, 'target_lang_combo') else "Dutch"
+            target_idx = target_combo.findText(current_target)
+            if target_idx >= 0:
+                target_combo.setCurrentIndex(target_idx)
+            target_row.addWidget(target_combo)
+            lang_group_layout.addLayout(target_row)
+
+            lang_layout.addWidget(lang_group)
+
+            # Buttons
+            lang_buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+            lang_buttons.accepted.connect(lang_dialog.accept)
+            lang_buttons.rejected.connect(lang_dialog.reject)
+            lang_layout.addWidget(lang_buttons)
+
+            if lang_dialog.exec() != QDialog.DialogCode.Accepted:
+                self.log("✗ User cancelled Phrase import during language selection")
+                return
+
+            source_lang = source_combo.currentText()
+            target_lang = target_combo.currentText()
+
+            # Create new project with user-selected languages
+            file_name = Path(file_path).stem
+            self.current_project = Project(
+                name=file_name,
+                segments=segments,
+                source_lang=source_lang,
+                target_lang=target_lang
+            )
+
+            # Store Phrase source path in project for persistence across saves
+            self.current_project.phrase_source_path = file_path
+
+            # Update UI
+            self.project_file_path = None
+            self.project_modified = True
+            self.update_window_title()
+            self.load_segments_to_grid()
+            self.initialize_tm_database()
+
+            # Count segments with tags
+            tagged_count = sum(1 for s in phrase_segments if s.source_tags)
+
+            # Log success
+            self.log(f"✓ Imported {len(segments)} segments from Phrase bilingual DOCX: {Path(file_path).name}")
+            if tagged_count:
+                self.log(f"  {tagged_count} segments contain inline tags")
+
+            QMessageBox.information(
+                self, "Import Successful",
+                f"Successfully imported {len(segments)} segment(s) from Phrase bilingual DOCX.\n\n"
+                f"File: {Path(file_path).name}\n"
+                f"Languages: {source_lang} → {target_lang}\n"
+                f"Segments with tags: {tagged_count}\n\n"
+                f"Note: Inline tags (e.g., {{1}}, {{1>text<1}}) are preserved for export.\n"
+                f"Export back to Phrase format after translation to maintain compatibility."
+            )
+
+        except ImportError as e:
+            QMessageBox.critical(
+                self, "Missing Dependency",
+                f"Required library is missing: {e}\n\n"
+                "Install dependencies with: pip install python-docx"
+            )
+        except Exception as e:
+            QMessageBox.critical(self, "Import Error", f"Failed to import Phrase bilingual DOCX:\n\n{str(e)}")
+            self.log(f"✗ Phrase import failed: {str(e)}")
+            import traceback
+            traceback.print_exc()
+
+    def export_phrase_bilingual(self):
+        """Export translations back to Phrase bilingual DOCX format"""
+        if not self.current_project or not self.current_project.segments:
+            QMessageBox.warning(self, "No Project", "No project is currently loaded.")
+            return
+
+        # Check if we have a Phrase source - either from handler or project data
+        phrase_source = None
+
+        # First check if handler is already loaded
+        if hasattr(self, 'phrase_handler') and self.phrase_handler:
+            phrase_source = getattr(self, 'phrase_source_file', None)
+
+        # If not, check if project has the source path saved
+        if not phrase_source and hasattr(self.current_project, 'phrase_source_path') and self.current_project.phrase_source_path:
+            phrase_source = self.current_project.phrase_source_path
+
+        if not phrase_source:
+            # Prompt user to select the original Phrase bilingual file
+            reply = QMessageBox.question(
+                self, "Select Phrase Source File",
+                "To export to Phrase format, please select the original Phrase bilingual DOCX file.\n\n"
+                "This is the file you originally imported from Phrase.\n\n"
+                "Would you like to select it now?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
+
+            if reply == QMessageBox.StandardButton.Yes:
+                file_path, _ = QFileDialog.getOpenFileName(
+                    self,
+                    "Select Original Phrase Bilingual DOCX",
+                    "",
+                    "Word Documents (*.docx);;All Files (*.*)"
+                )
+
+                if file_path:
+                    phrase_source = file_path
+                    self.phrase_source_file = file_path
+                    # Also save to project for future exports
+                    self.current_project.phrase_source_path = file_path
+                    self.log(f"✓ Phrase source file set: {Path(file_path).name}")
+                else:
+                    self.log("Export cancelled - no source file selected")
+                    return
+            else:
+                self.log("Export cancelled")
+                return
+
+        # Check if source file still exists
+        if not Path(phrase_source).exists():
+            # File not found - give user a chance to locate it
+            reply = QMessageBox.question(
+                self, "Source File Not Found",
+                f"The original Phrase source file cannot be found:\n\n"
+                f"{phrase_source}\n\n"
+                f"Would you like to browse for the file in its new location?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
+
+            if reply == QMessageBox.StandardButton.Yes:
+                file_path, _ = QFileDialog.getOpenFileName(
+                    self,
+                    "Select Original Phrase Bilingual DOCX",
+                    "",
+                    "Word Documents (*.docx);;All Files (*.*)"
+                )
+
+                if file_path:
+                    phrase_source = file_path
+                    self.phrase_source_file = file_path
+                    self.current_project.phrase_source_path = file_path
+                    self.log(f"✓ Phrase source file relocated: {Path(file_path).name}")
+                else:
+                    self.log("Export cancelled - no source file selected")
+                    return
+            else:
+                self.log("Export cancelled")
+                return
+
+        # Reload the handler if needed
+        if not hasattr(self, 'phrase_handler') or not self.phrase_handler:
+            try:
+                from modules.phrase_docx_handler import PhraseDOCXHandler
+                self.phrase_handler = PhraseDOCXHandler()
+                if not self.phrase_handler.load(phrase_source):
+                    QMessageBox.critical(self, "Error", "Failed to reload the Phrase source file.")
+                    return
+                self.phrase_handler.extract_source_segments()  # Ensure segments are loaded
+                self.phrase_source_file = phrase_source
+                self.log(f"✓ Reloaded Phrase source file for export")
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Failed to reload Phrase source:\n\n{str(e)}")
+                return
+
+        # Suggest output filename
+        source_path = Path(self.phrase_source_file)
+        suggested_name = source_path.stem + "_translated" + source_path.suffix
+
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export Phrase Bilingual DOCX",
+            str(source_path.parent / suggested_name),
+            "Word Documents (*.docx);;All Files (*.*)"
+        )
+
+        if not file_path:
+            return
+
+        try:
+            # Collect translations from grid - map by segment ID
+            # Extract segment IDs from notes field where we stored them
+            translations = {}
+            for row in range(self.table.rowCount()):
+                target_widget = self.table.cellWidget(row, 3)  # Target column
+                notes_widget = self.table.cellWidget(row, 4)  # Notes column
+
+                if target_widget and notes_widget:
+                    target_text = target_widget.toPlainText().strip()
+                    notes_text = notes_widget.toPlainText().strip()
+
+                    # Extract Phrase segment ID from notes (format: "Phrase ID: xxx:nnn | Status: XX")
+                    if "Phrase ID:" in notes_text:
+                        import re
+                        match = re.search(r'Phrase ID: ([^\s|]+)', notes_text)
+                        if match and target_text:
+                            segment_id = match.group(1)
+                            translations[segment_id] = target_text
+
+            # Update the handler with translations
+            updated = self.phrase_handler.update_target_segments(translations)
+
+            # Save to new file
+            if self.phrase_handler.save(file_path):
+                self.log(f"✓ Exported {updated} translated segments to Phrase DOCX: {Path(file_path).name}")
+
+                QMessageBox.information(
+                    self, "Export Successful",
+                    f"Successfully exported {updated} translation(s) to Phrase bilingual DOCX.\n\n"
+                    f"File: {Path(file_path).name}\n\n"
+                    f"This file can be imported back into Phrase (Memsource).\n"
+                    f"Only Column 5 (target text) has been updated."
+                )
+            else:
+                QMessageBox.critical(self, "Export Error", "Failed to save the Phrase bilingual DOCX file.")
+
+        except Exception as e:
+            QMessageBox.critical(self, "Export Error", f"Failed to export Phrase bilingual DOCX:\n\n{str(e)}")
+            self.log(f"✗ Phrase export failed: {str(e)}")
+            import traceback
+            traceback.print_exc()
+
     def import_review_table(self):
         """Import a Supervertaler Bilingual Table to update translations in current project.
         
@@ -18892,7 +19599,9 @@ class SupervertalerQt(QMainWindow):
                 self.table.setItem(row, 1, type_item)
                 
                 # Source - Use read-only QTextEdit widget for easy text selection
-                source_editor = ReadOnlyGridTextEditor(segment.source, self.table, row)
+                # Apply invisible character replacements for display only
+                source_display_text = self.apply_invisible_replacements(segment.source)
+                source_editor = ReadOnlyGridTextEditor(source_display_text, self.table, row)
                 
                 # Initialize empty termbase matches (will be populated lazily on segment selection or by background worker)
                 source_editor.termbase_matches = {}
@@ -18910,7 +19619,9 @@ class SupervertalerQt(QMainWindow):
                 self.table.setItem(row, 2, source_item)
                 
                 # Target - Use editable QTextEdit widget for easy text selection and editing
-                target_editor = EditableGridTextEditor(segment.target, self.table, row, self.table)
+                # Apply invisible character replacements for display (will be reversed when saving)
+                target_display_text = self.apply_invisible_replacements(segment.target)
+                target_editor = EditableGridTextEditor(target_display_text, self.table, row, self.table)
                 target_editor.setFont(font)
                 
                 # Connect text changes to update segment
@@ -18922,6 +19633,9 @@ class SupervertalerQt(QMainWindow):
                     def on_target_text_changed():
                         nonlocal debounce_timer
                         new_text = editor_widget.toPlainText()
+
+                        # Reverse invisible character replacements before saving
+                        new_text = self.reverse_invisible_replacements(new_text)
 
                         # DEBUG: Log EVERY call to catch the culprit (only in debug mode)
                         if self.debug_mode_enabled:
@@ -19838,6 +20552,9 @@ class SupervertalerQt(QMainWindow):
         if not hasattr(self, 'table') or not self.table:
             return
         
+        # Reduce width slightly to account for padding and prevent text cut-off
+        width_reduction = 8
+        
         # Manually calculate and set row heights for compact display
         for row in range(self.table.rowCount()):
             max_height = 1
@@ -19847,7 +20564,7 @@ class SupervertalerQt(QMainWindow):
             if source_widget and isinstance(source_widget, ReadOnlyGridTextEditor):
                 doc = source_widget.document()
                 if doc:  # Safety check
-                    col_width = self.table.columnWidth(2)
+                    col_width = self.table.columnWidth(2) - width_reduction
                     if col_width > 0:
                         doc.setTextWidth(col_width)
                         size = doc.size()
@@ -19860,7 +20577,7 @@ class SupervertalerQt(QMainWindow):
             if target_widget and isinstance(target_widget, EditableGridTextEditor):
                 doc = target_widget.document()
                 if doc:  # Safety check
-                    col_width = self.table.columnWidth(3)
+                    col_width = self.table.columnWidth(3) - width_reduction
                     if col_width > 0:
                         doc.setTextWidth(col_width)
                         size = doc.size()
@@ -19868,7 +20585,7 @@ class SupervertalerQt(QMainWindow):
                             height = int(size.height())
                             max_height = max(max_height, height)
             
-            # Set row height with minimal padding (2px total)
+            # Set row height with minimal padding
             # Minimum 32px to accommodate status icons (16px) + match text + padding without any cutoff
             compact_height = max(max_height + 2, 32)
             self.table.setRowHeight(row, compact_height)
@@ -20100,6 +20817,8 @@ class SupervertalerQt(QMainWindow):
         # Load termbase display settings
         self.termbase_display_order = settings.get('termbase_display_order', 'appearance')
         self.termbase_hide_shorter_matches = settings.get('termbase_hide_shorter_matches', False)
+        # Load invisible character color
+        self.invisible_char_color = settings.get('invisible_char_color', '#999999')
         # Load smart word selection setting
         self.enable_smart_word_selection = settings.get('enable_smart_word_selection', True)
         
@@ -23559,7 +24278,145 @@ class SupervertalerQt(QMainWindow):
                 self.table.setRowHidden(row, False)
         
         self.log("Filters cleared")
-    
+
+    def toggle_invisible_display(self, char_type):
+        """Toggle display of specific invisible character type"""
+        if not hasattr(self, 'invisible_display_settings'):
+            self.invisible_display_settings = {
+                'spaces': False,
+                'tabs': False,
+                'nbsp': False,
+                'linebreaks': False
+            }
+
+        # Toggle the setting
+        self.invisible_display_settings[char_type] = not self.invisible_display_settings[char_type]
+
+        # Refresh the grid to show/hide invisibles
+        self.refresh_grid_invisibles()
+
+        # Log the change
+        status = "enabled" if self.invisible_display_settings[char_type] else "disabled"
+        char_names = {
+            'spaces': 'Spaces',
+            'tabs': 'Tabs',
+            'nbsp': 'Non-breaking Spaces',
+            'linebreaks': 'Line Breaks'
+        }
+        self.log(f"Show invisibles: {char_names[char_type]} {status}")
+
+    def toggle_all_invisibles(self):
+        """Toggle all invisible characters on or off"""
+        if not hasattr(self, 'invisible_display_settings'):
+            self.invisible_display_settings = {
+                'spaces': False,
+                'tabs': False,
+                'nbsp': False,
+                'linebreaks': False
+            }
+
+        # Check if any are currently on
+        any_on = any(self.invisible_display_settings.values())
+
+        # Toggle all to opposite state
+        new_state = not any_on
+        self.invisible_display_settings = {
+            'spaces': new_state,
+            'tabs': new_state,
+            'nbsp': new_state,
+            'linebreaks': new_state
+        }
+
+        # Update menu checkboxes
+        if hasattr(self, 'show_spaces_action'):
+            self.show_spaces_action.setChecked(new_state)
+        if hasattr(self, 'show_tabs_action'):
+            self.show_tabs_action.setChecked(new_state)
+        if hasattr(self, 'show_nbsp_action'):
+            self.show_nbsp_action.setChecked(new_state)
+        if hasattr(self, 'show_linebreaks_action'):
+            self.show_linebreaks_action.setChecked(new_state)
+
+        # Refresh the grid
+        self.refresh_grid_invisibles()
+
+        status = "enabled" if new_state else "disabled"
+        self.log(f"Show invisibles: All {status}")
+
+    def refresh_grid_invisibles(self):
+        """Refresh the grid to show/hide invisible characters"""
+        if not hasattr(self, 'table') or not self.table:
+            return
+
+        if not hasattr(self, 'invisible_display_settings'):
+            return
+
+        # Check if spaces are being shown (which affects word wrapping)
+        self.showing_invisible_spaces = self.invisible_display_settings.get('spaces', False)
+
+        # Simply reload the grid - the apply_invisible_replacements will be called
+        # during load_segments_to_grid when creating cell widgets
+        self.load_segments_to_grid()
+
+    def apply_invisible_replacements(self, text):
+        """Apply invisible character replacements to text based on settings"""
+        if not hasattr(self, 'invisible_display_settings'):
+            return text
+
+        result = text
+
+        # Replace spaces with middle dot (·) followed by zero-width space for word-wrap capability
+        # The zero-width space (U+200B) provides a line-break opportunity
+        if self.invisible_display_settings.get('spaces', False):
+            result = result.replace(' ', '·\u200B')
+
+        # Replace tabs with right arrow (→) followed by zero-width space
+        if self.invisible_display_settings.get('tabs', False):
+            result = result.replace('\t', '→\u200B')
+
+        # Replace non-breaking spaces with degree symbol (°)
+        # Note: We don't add zero-width space here since NBSP should NOT break
+        if self.invisible_display_settings.get('nbsp', False):
+            result = result.replace('\u00A0', '°')  # Unicode NBSP
+            result = result.replace('\u202F', '°')  # Narrow NBSP
+
+        # Replace line breaks with pilcrow (¶)
+        if self.invisible_display_settings.get('linebreaks', False):
+            result = result.replace('\n', '¶\n')
+            result = result.replace('\r', '¶')
+
+        return result
+
+    def reverse_invisible_replacements(self, text):
+        """Reverse invisible character replacements to get original text"""
+        if not hasattr(self, 'invisible_display_settings'):
+            return text
+
+        result = text
+
+        # Reverse spaces (middle dot + zero-width space → space)
+        if self.invisible_display_settings.get('spaces', False):
+            result = result.replace('·\u200B', ' ')
+            result = result.replace('·', ' ')  # Fallback for any without zero-width space
+
+        # Reverse tabs (right arrow + zero-width space → tab)
+        if self.invisible_display_settings.get('tabs', False):
+            result = result.replace('→\u200B', '\t')
+            result = result.replace('→', '\t')  # Fallback
+
+        # Reverse non-breaking spaces (degree symbol → NBSP)
+        if self.invisible_display_settings.get('nbsp', False):
+            # We can't distinguish between \u00A0 and \u202F after replacement,
+            # so we default to the more common \u00A0
+            result = result.replace('°', '\u00A0')
+
+        # Reverse line breaks (pilcrow → line break)
+        if self.invisible_display_settings.get('linebreaks', False):
+            result = result.replace('¶\n', '\n')
+            result = result.replace('¶', '\r')
+
+        return result
+
     def filter_empty_segments(self):
         """Quick filter to show only segments with empty target"""
         if not self.current_project:
@@ -26382,6 +27239,8 @@ class SupervertalerQt(QMainWindow):
         # Provider info
         if translation_provider_type == 'MT':
             info_label = QLabel(f"<b>Provider:</b> {translation_provider_name} (Machine Translation)")
+        elif translation_provider_type == 'TM':
+            info_label = QLabel(f"<b>Provider:</b> {translation_provider_name}")
         else:
             info_label = QLabel(f"<b>Provider:</b> {translation_provider_name.title()} | <b>Model:</b> {model}")
         layout.addWidget(info_label)
@@ -26423,6 +27282,8 @@ class SupervertalerQt(QMainWindow):
             self.log(f"   Provider Type: {translation_provider_type}")
             if translation_provider_type == 'MT':
                 self.log(f"   MT Provider: {translation_provider_name}")
+            elif translation_provider_type == 'TM':
+                self.log(f"   TM Provider: {translation_provider_name}")
             else:
                 self.log(f"   LLM Provider: {translation_provider_name} ({model})")
             self.log(f"   Source → Target: {source_lang} → {target_lang}")
@@ -26583,7 +27444,7 @@ class SupervertalerQt(QMainWindow):
                 self.log(f"═══════════════════════════════════════════════════════════")
                 return
             
-            # Initialize client based on provider type (LLM or MT)
+            # Initialize client based on provider type (LLM, MT, or TM)
             client = None
             mt_api_key = None
             mt_provider_code = None
@@ -26595,7 +27456,7 @@ class SupervertalerQt(QMainWindow):
                     provider=translation_provider_name,
                     model=model
                 )
-            else:
+            elif translation_provider_type == 'MT':
                 # MT provider - get API key
                 provider_map = {
                     'Google Translate': 'google_translate',
@@ -26632,8 +27493,42 @@ class SupervertalerQt(QMainWindow):
                 QApplication.processEvents()
 
                 try:
+                    # TM provider - get matches from translation memory
+                    if translation_provider_type == 'TM':
+                        current_label.setText(f"Translating batch {batch_num + 1}/{total_batches} ({len(batch_segments)} segments)...")
+                        progress_bar.setValue(segment_idx)
+                        QApplication.processEvents()
+
+                        # Translate each segment using TM
+                        for row_index, segment in batch_segments:
+                            try:
+                                # Query TM for 100% match
+                                tm_match = self.tm_database.query_tm(segment.source, threshold=100)
+
+                                if tm_match and len(tm_match) > 0:
+                                    translation = tm_match[0]['target']
+                                    segment.target = translation
+                                    segment.status = 'pre-translated'
+                                    translated_count += 1
+                                    self.log(f"  ✓ Segment {segment.id}: {segment.source[:40]}... → {translation[:40]}... (TM 100%)")
+                                else:
+                                    failed_count += 1
+                                    self.log(f"  ✗ Segment {segment.id}: No 100% TM match found")
+
+                                segment_idx += 1
+                                progress_bar.setValue(segment_idx)
+                                stats_label.setText(f"Translated: {translated_count} | Failed: {failed_count} | Remaining: {total_segments - segment_idx}")
+                                QApplication.processEvents()
+
+                            except Exception as e:
+                                failed_count += 1
+                                self.log(f"  ✗ Segment {segment.id}: Error - {e}")
+                                segment_idx += 1
+
+                        continue  # Skip to next batch
+
                     # MT provider - simpler segment-by-segment translation
-                    if translation_provider_type == 'MT':
+                    elif translation_provider_type == 'MT':
                         current_label.setText(f"Translating batch {batch_num + 1}/{total_batches} ({len(batch_segments)} segments)...")
                         progress_bar.setValue(segment_idx)
                         QApplication.processEvents()

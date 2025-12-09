@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.27 (December 9, 2025)
+**Current Version:** v1.9.28 (December 9, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -14,6 +14,8 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- 📄 **Phrase (Memsource) Bilingual DOCX Support (v1.9.28)** - Full round-trip support for Phrase TMS bilingual DOCX files. Import preserves inline tags like `{1}`, `{1>text<1}`. Export writes translations back to Column 5 for seamless return to Phrase workflow. File → Import → Phrase (Memsource) Bilingual (DOCX) and File → Export → Phrase (Memsource) Bilingual
+- 👁️ **Show Invisibles Feature (v1.9.28)** - Display invisible characters in the translation grid: spaces (·), tabs (→), non-breaking spaces (°), and line breaks (¶). Dropdown menu with granular control for each character type. Toggle All option. Smart handling preserves copy/paste (Ctrl+C copies original characters), double-click word selection, and Ctrl+Arrow word navigation. Configurable symbol color in Settings → View Settings
 - 📄 **Simple Text File Import/Export (v1.9.27)** - Import simple text files where each line becomes a source segment. Translate with AI, then export a matching file with translations. Perfect for line-by-line translation of plain text content. Language pair selection, encoding options (UTF-8, Latin-1, etc.), and empty line handling. File → Import → Simple Text File (TXT) and File → Export → Simple Text File - Translated (TXT)
 - 📦 **SDLPPX Project Persistence (v1.9.20)** - SDLPPX package path now saved in .svproj files. Full round-trip workflow persists across sessions - import SDLPPX, translate, save project, close, reopen, continue translating, export SDLRPX. Fixed export bug that showed "0 translations updated". Handler automatically restored on project load
 - 📦 **Trados Studio Package Support (v1.9.19)** - Import SDLPPX packages directly from Trados Studio project managers. New File → Import → Trados Studio submenu with Package (SDLPPX) option. Translates SDLXLIFF files within the package, preserves SDL-specific markup and segment IDs. Export as SDLRPX return package (File → Export → Trados Studio → Return Package) for seamless delivery back to Trados users. Full round-trip workflow for freelance translators receiving packages
@@ -67,6 +69,47 @@ All notable changes to Supervertaler are documented in this file.
 - 🔄 **CAT Tool Integration** - memoQ, Trados, CafeTran bilingual table support
 
 **See full version history below** ↓
+
+---
+
+## [1.9.28] - December 9, 2025
+
+### 📄 Phrase (Memsource) Bilingual DOCX Support
+
+**Full Round-Trip Workflow:**
+- 📥 **Import Phrase Bilingual DOCX**: File → Import → Phrase (Memsource) Bilingual (DOCX)
+- 📤 **Export Back to Phrase**: File → Export → Phrase (Memsource) Bilingual - Translated (DOCX)
+- 🏷️ **Inline Tag Preservation**: Tags like `{1}`, `{1>text<1}` preserved for round-trip
+- 🔍 **Auto-Detection**: Detects Phrase format (7-column tables, segment IDs with `:`)
+- 💾 **Project Persistence**: Phrase source path saved in .svproj for future sessions
+
+**Implementation:**
+- New module: `modules/phrase_docx_handler.py` - Complete Phrase DOCX handling
+- Language pair selection dialog for imported files
+- Segment ID and status preserved in notes field
+- Export updates only Column 5 (target text) as Phrase expects
+
+### 👁️ Show Invisibles Feature
+
+**Display Invisible Characters:**
+- 🔘 **Dropdown Menu**: Show Invisibles button with granular control
+- ·  **Spaces**: Displayed as middle dot (·)
+- →  **Tabs**: Displayed as right arrow (→)
+- °  **Non-Breaking Spaces**: Displayed as degree symbol (°)
+- ¶  **Line Breaks**: Displayed as pilcrow (¶)
+- 🎯 **Toggle All**: Quick on/off for all invisible types
+
+**Smart Handling:**
+- 📋 **Clipboard Safety**: Ctrl+C copies original characters, not symbols
+- 🖱️ **Double-Click Selection**: Properly selects words when invisibles shown
+- ⌨️ **Ctrl+Arrow Navigation**: Word-by-word navigation works correctly
+- 🎨 **Configurable Color**: Symbol color in Settings → View Settings (default: light gray)
+- ✅ **Zero-Width Space Technique**: Uses U+200B for line-break opportunities without breaking word boundaries
+
+**Technical Details:**
+- Replacements applied only at display time (segment data never modified)
+- Automatic reversal when text is saved or edited
+- TagHighlighter extended to color invisible symbols
 
 ---
 

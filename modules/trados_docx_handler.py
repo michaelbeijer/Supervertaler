@@ -388,35 +388,43 @@ class TradosDOCXHandler:
 def detect_bilingual_docx_type(file_path: str) -> str:
     """
     Detect the type of bilingual DOCX file.
-    
+
     Returns:
-        str: "trados", "cafetran", "memoq", or "unknown"
+        str: "trados", "cafetran", "memoq", "phrase", or "unknown"
     """
     try:
         doc = Document(file_path)
-        
+
         if len(doc.tables) == 0:
             return "unknown"
-        
+
         table = doc.tables[0]
         if len(table.rows) < 1:
             return "unknown"
-        
+
         headers = [cell.text.strip() for cell in table.rows[0].cells]
-        
+
         # Trados: Segment ID | Segment status | Source segment | Target segment
         if headers and headers[0] == "Segment ID" and "Segment status" in headers:
             return "trados"
-        
+
         # CafeTran: ID | filename | filename | Notes | *
         if headers and headers[0] == "ID":
             return "cafetran"
-        
+
+        # Phrase (Memsource): Check for multiple large tables with 7-8 columns and segment IDs containing ':'
+        # Look for content tables with Phrase characteristics
+        for table in doc.tables:
+            if len(table.rows) > 100 and len(table.rows[0].cells) >= 7:
+                first_cell = table.rows[0].cells[0].text.strip()
+                if ':' in first_cell:  # Segment IDs have format "xxx:nnn"
+                    return "phrase"
+
         # memoQ: Usually has different structure
         # TODO: Add memoQ detection
-        
+
         return "unknown"
-        
+
     except Exception as e:
         print(f"Error detecting bilingual DOCX type: {e}")
         return "unknown"
