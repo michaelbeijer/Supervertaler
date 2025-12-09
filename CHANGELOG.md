@@ -111,6 +111,14 @@ All notable changes to Supervertaler are documented in this file.
 - Automatic reversal when text is saved or edited
 - TagHighlighter extended to color invisible symbols
 
+### 🔧 TM Pre-Translation Fix
+
+**Batch Translate with TM:**
+- 🐛 **Fixed TM-Only Mode**: Batch Translate dialog now properly handles TM as a translation provider
+- 📖 **TM Provider Support**: Select "Translation Memory" in provider dropdown for TM-only batch translation
+- 🎯 **Respects Activated TMs**: Uses project's activated TMs for matching
+- 📊 **Match Threshold**: Accepts matches 70% and above for pre-translation
+
 ---
 
 ## [1.9.26] - December 8, 2025

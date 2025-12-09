@@ -53,8 +53,16 @@ Display invisible characters in the translation grid:
   - Added `mouseDoubleClickEvent` and enhanced `keyPressEvent` handlers
   - `invisible_display_settings` dict tracks toggle states
 
+**🔧 TM Pre-Translation Fix**
+Fixed Batch Translate dialog to properly handle TM as a translation provider:
+
+- TM-Only mode now works in Batch Translate
+- Respects project's activated TMs for matching
+- Accepts matches 70% and above for pre-translation
+- Proper logging for TM-only translation mode
+
 **Files Modified:**
-- `Supervertaler.py`: Show Invisibles UI, Phrase import/export, text editor enhancements
+- `Supervertaler.py`: Show Invisibles UI, Phrase import/export, text editor enhancements, TM batch translate fix
 - `modules/phrase_docx_handler.py`: New module for Phrase DOCX handling
 - `modules/trados_docx_handler.py`: Extended format detection
 
