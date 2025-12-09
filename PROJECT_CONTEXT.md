@@ -1,13 +1,50 @@
 # Supervertaler Project Context
 
-**Last Updated:** December 8, 2025
-**Current Version:** v1.9.26
+**Last Updated:** December 9, 2025
+**Current Version:** v1.9.27
 **Repository:** https://github.com/michaelbeijer/Supervertaler
 **Maintainer:** Michael Beijer
 
 ---
 
 ## 📅 Recent Development Activity
+
+### December 9, 2025 - Version 1.9.27: Simple Text File Import/Export
+
+**📄 Simple Text File Support**
+Re-implemented simple text file import/export functionality from the classic tkinter version:
+
+- **Import Feature (File → Import → Simple Text File (TXT)...):**
+  - Opens a text file where each line becomes one source segment
+  - Language pair selection dialog (source and target language)
+  - Option to skip empty lines or preserve them for structure
+  - Automatic encoding detection (UTF-8, Latin-1, Windows-1252)
+  - Creates a project ready for AI translation
+
+- **Export Feature (File → Export → Simple Text File - Translated (TXT)...):**
+  - Exports translations as plain text, one line per segment
+  - Options for handling untranslated segments (use source or leave empty)
+  - Multiple encoding options (UTF-8, UTF-8 with BOM, Latin-1, Windows-1252)
+  - Output file matches the exact structure of the input
+
+- **Use Case:**
+  - Perfect for translating simple line-by-line text content
+  - Each line is translated independently via AI
+  - Export produces an identical document structure in target language
+
+- **Implementation Details:**
+  - New `Project.original_txt_path` field for round-trip support
+  - Added to Project dataclass, `to_dict()`, and `from_dict()` methods
+  - Lines ~4608-4611: Import menu item added after DOCX import
+  - Lines ~4664-4667: Export menu item added after Target Only DOCX
+  - Lines ~16568-16830: `import_simple_txt()` method
+  - Lines ~16832-16980: `export_simple_txt()` method
+
+**Files Modified:**
+- `Supervertaler.py`: Added import/export methods, menu items, Project class updates
+- `PROJECT_CONTEXT.md`: This update
+
+---
 
 ### December 8, 2025 - Version 1.9.26: Automatic Model Version Checker
 

@@ -2,7 +2,7 @@
 
 🎯 **The Ultimate Companion Tool for Translators and Writers** — Context-aware AI with intuitive 2-Layer Prompt Architecture, AI Assistant, project termbase system with automatic extraction, and specialized modules.
 
-**Current Version:** v1.9.26 (December 8, 2025)
+**Current Version:** v1.9.27 (December 9, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -32,7 +32,13 @@
 python Supervertaler.py
 ```
 
-**NEW in v1.9.26 - Automatic Model Version Checker & UI Polish:**
+**NEW in v1.9.27 - Simple Text File Import/Export:**
+- 📄 **Simple TXT Import** - Import plain text files where each line becomes a source segment
+- 📤 **Simple TXT Export** - Export translations as matching text file with target text
+- 🌐 **Encoding Support** - UTF-8, Latin-1, Windows-1252 with automatic detection
+- 📝 **Line-by-Line** - Perfect for translating simple text content
+
+**v1.9.26 - Automatic Model Version Checker & UI Polish:**
 - 🔄 **Auto Model Detection** - Automatically checks for new LLM models from OpenAI, Anthropic, and Google
 - 📅 **Daily Checks** - Runs once per 24 hours on startup (configurable)
 - 🔔 **Smart Notifications** - Popup dialog only when new models detected

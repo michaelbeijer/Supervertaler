@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.26 (December 8, 2025)
+**Current Version:** v1.9.27 (December 9, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -14,6 +14,7 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- 📄 **Simple Text File Import/Export (v1.9.27)** - Import simple text files where each line becomes a source segment. Translate with AI, then export a matching file with translations. Perfect for line-by-line translation of plain text content. Language pair selection, encoding options (UTF-8, Latin-1, etc.), and empty line handling. File → Import → Simple Text File (TXT) and File → Export → Simple Text File - Translated (TXT)
 - 📦 **SDLPPX Project Persistence (v1.9.20)** - SDLPPX package path now saved in .svproj files. Full round-trip workflow persists across sessions - import SDLPPX, translate, save project, close, reopen, continue translating, export SDLRPX. Fixed export bug that showed "0 translations updated". Handler automatically restored on project load
 - 📦 **Trados Studio Package Support (v1.9.19)** - Import SDLPPX packages directly from Trados Studio project managers. New File → Import → Trados Studio submenu with Package (SDLPPX) option. Translates SDLXLIFF files within the package, preserves SDL-specific markup and segment IDs. Export as SDLRPX return package (File → Export → Trados Studio → Return Package) for seamless delivery back to Trados users. Full round-trip workflow for freelance translators receiving packages
 - 🔍 **Supermemory Concordance Integration (v1.9.18)** - Concordance Search (Ctrl+K) now includes Supermemory semantic search with two-tab interface. TM Matches tab for exact text search, Supermemory tab for meaning-based search. Active checkbox column in Supermemory to control which TMs are searched. Fixed Trados bilingual DOCX round-trip issues (xml:space, language settings). Supermemory moved to Resources tab

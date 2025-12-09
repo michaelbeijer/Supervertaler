@@ -33,9 +33,9 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.26"
+__version__ = "1.9.27"
 __phase__ = "0.9"
-__release_date__ = "2025-12-08"
+__release_date__ = "2025-12-09"
 __edition__ = "Qt"
 
 import sys
@@ -659,6 +659,7 @@ class Project:
     memoq_source_path: str = None  # Path to original memoQ bilingual DOCX for round-trip export
     cafetran_source_path: str = None  # Path to original CafeTran bilingual DOCX for round-trip export
     sdlppx_source_path: str = None  # Path to original Trados SDLPPX package for SDLRPX export
+    original_txt_path: str = None  # Path to original simple text file for round-trip export
     concordance_geometry: Dict[str, int] = None  # Window geometry for Concordance Search {x, y, width, height}
     
     def __post_init__(self):
@@ -721,6 +722,9 @@ class Project:
         # Add SDLPPX source path if it exists
         if hasattr(self, 'sdlppx_source_path') and self.sdlppx_source_path:
             result['sdlppx_source_path'] = self.sdlppx_source_path
+        # Add original TXT path if it exists
+        if hasattr(self, 'original_txt_path') and self.original_txt_path:
+            result['original_txt_path'] = self.original_txt_path
         # Add concordance window geometry if it exists
         if hasattr(self, 'concordance_geometry') and self.concordance_geometry:
             result['concordance_geometry'] = self.concordance_geometry
@@ -770,6 +774,9 @@ class Project:
         # Store SDLPPX source path if it exists
         if 'sdlppx_source_path' in data:
             project.sdlppx_source_path = data['sdlppx_source_path']
+        # Store original TXT path if it exists
+        if 'original_txt_path' in data:
+            project.original_txt_path = data['original_txt_path']
         # Store concordance window geometry if it exists
         if 'concordance_geometry' in data:
             project.concordance_geometry = data['concordance_geometry']
@@ -4598,6 +4605,10 @@ class SupervertalerQt(QMainWindow):
         import_docx_action.setShortcut("Ctrl+O")
         import_menu.addAction(import_docx_action)
         
+        import_txt_action = QAction("Simple &Text File (TXT)...", self)
+        import_txt_action.triggered.connect(self.import_simple_txt)
+        import_menu.addAction(import_txt_action)
+        
         import_menu.addSeparator()  # Separate monolingual from bilingual tools
         
         import_memoq_action = QAction("memoQ &Bilingual Table (DOCX)...", self)
@@ -4649,6 +4660,10 @@ class SupervertalerQt(QMainWindow):
         export_target_docx_action = QAction("&Target Only (DOCX)...", self)
         export_target_docx_action.triggered.connect(self.export_target_only_docx)
         export_menu.addAction(export_target_docx_action)
+        
+        export_txt_action = QAction("Simple &Text File - Translated (TXT)...", self)
+        export_txt_action.triggered.connect(self.export_simple_txt)
+        export_menu.addAction(export_txt_action)
         
         export_menu.addSeparator()
         
@@ -16544,6 +16559,434 @@ class SupervertalerQt(QMainWindow):
                 self, 
                 "Import Error", 
                 f"Failed to import DOCX:\n\n{str(e)}"
+            )
+    
+    # ========================================================================
+    # SIMPLE TEXT FILE IMPORT/EXPORT
+    # ========================================================================
+    
+    def import_simple_txt(self):
+        """
+        Import a simple text file where each line is a source segment.
+        
+        This is the simplest possible import format:
+        - Each line becomes one source segment
+        - Empty lines are preserved as empty segments (for structure)
+        - After translation, export produces a matching file with translations
+        """
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select Simple Text File",
+            "",
+            "Text Files (*.txt);;All Files (*.*)"
+        )
+        
+        if not file_path:
+            return
+        
+        # Show import options dialog
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Import Simple Text File")
+        dialog.setMinimumWidth(500)
+        
+        layout = QVBoxLayout(dialog)
+        
+        # Info message
+        info_label = QLabel(
+            "📄 <b>Simple Text File Import</b><br><br>"
+            "Each line in the file will become one source segment.<br>"
+            "After translation, you can export a matching file with translations.<br><br>"
+            "Empty lines are preserved to maintain document structure."
+        )
+        info_label.setWordWrap(True)
+        info_label.setTextFormat(Qt.TextFormat.RichText)
+        layout.addWidget(info_label)
+        
+        layout.addSpacing(15)
+        
+        # Language pair selection
+        lang_group = QGroupBox("Language Pair")
+        lang_layout = QHBoxLayout(lang_group)
+        
+        # Common languages for translation
+        languages = [
+            ("English", "en"),
+            ("Dutch", "nl"),
+            ("German", "de"),
+            ("French", "fr"),
+            ("Spanish", "es"),
+            ("Italian", "it"),
+            ("Portuguese", "pt"),
+            ("Polish", "pl"),
+            ("Russian", "ru"),
+            ("Chinese", "zh"),
+            ("Japanese", "ja"),
+            ("Korean", "ko"),
+        ]
+        
+        source_label = QLabel("Source:")
+        source_combo = QComboBox()
+        for name, code in languages:
+            source_combo.addItem(name, code)
+        # Default to English as source
+        source_combo.setCurrentIndex(0)
+        
+        arrow_label = QLabel(" → ")
+        arrow_label.setStyleSheet("font-weight: bold; font-size: 14px;")
+        
+        target_label = QLabel("Target:")
+        target_combo = QComboBox()
+        for name, code in languages:
+            target_combo.addItem(name, code)
+        # Default to Dutch as target
+        target_combo.setCurrentIndex(1)
+        
+        lang_layout.addWidget(source_label)
+        lang_layout.addWidget(source_combo)
+        lang_layout.addWidget(arrow_label)
+        lang_layout.addWidget(target_label)
+        lang_layout.addWidget(target_combo)
+        lang_layout.addStretch()
+        
+        layout.addWidget(lang_group)
+        
+        layout.addSpacing(10)
+        
+        # Empty line handling option
+        empty_checkbox = CheckmarkCheckBox("Skip empty lines (remove blank segments)")
+        empty_checkbox.setChecked(False)  # Default: preserve empty lines
+        empty_checkbox.setToolTip(
+            "When checked, empty lines in the file will be skipped.\n"
+            "When unchecked, empty lines become empty segments to preserve structure."
+        )
+        layout.addWidget(empty_checkbox)
+        
+        layout.addSpacing(20)
+        
+        # Buttons
+        button_layout = QHBoxLayout()
+        ok_btn = QPushButton("Import")
+        ok_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold;")
+        ok_btn.clicked.connect(dialog.accept)
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(dialog.reject)
+        
+        button_layout.addStretch()
+        button_layout.addWidget(cancel_btn)
+        button_layout.addWidget(ok_btn)
+        layout.addLayout(button_layout)
+        
+        # Show dialog
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        
+        # Store selected options
+        source_lang = source_combo.currentData()
+        target_lang = target_combo.currentData()
+        skip_empty = empty_checkbox.isChecked()
+        
+        try:
+            self.log(f"📄 Importing simple text file: {os.path.basename(file_path)}")
+            
+            # Read the file
+            with open(file_path, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+            
+            # Create segments from lines
+            segments = []
+            for line_num, line in enumerate(lines, 1):
+                # Strip trailing newline but preserve the text
+                text = line.rstrip('\r\n')
+                
+                # Skip empty lines if requested
+                if skip_empty and not text.strip():
+                    continue
+                
+                segment = Segment(
+                    id=len(segments) + 1,
+                    source=text,
+                    target="",
+                    status="untranslated",
+                    notes="",
+                    type="para",
+                    paragraph_id=line_num,
+                    document_position=line_num
+                )
+                segments.append(segment)
+            
+            if not segments:
+                QMessageBox.warning(
+                    self, "Empty File",
+                    "The file contains no text to import."
+                )
+                return
+            
+            # Create new project
+            project = Project(
+                name=f"TXT Import - {os.path.basename(file_path)}",
+                source_lang=source_lang,
+                target_lang=target_lang,
+                segments=segments
+            )
+            
+            # Store original file path for export
+            project.original_txt_path = file_path
+            
+            # Set as current project and load into grid
+            self.current_project = project
+            self.current_document_path = file_path
+            self.load_segments_to_grid()
+            
+            # Initialize TM for this project
+            self.initialize_tm_database()
+            
+            # Update status
+            empty_count = sum(1 for seg in segments if not seg.source.strip())
+            self.log(f"✓ Loaded {len(segments)} lines from text file")
+            if empty_count > 0:
+                self.log(f"  ({empty_count} empty lines preserved for structure)")
+            self.log(f"📍 Project language pair: {source_lang.upper()} → {target_lang.upper()}")
+            self.update_window_title()
+            
+            # Refresh AI Assistant context
+            if hasattr(self, 'prompt_manager_qt'):
+                self.prompt_manager_qt.refresh_context()
+            
+            QMessageBox.information(
+                self,
+                "Import Complete",
+                f"Successfully imported {len(segments)} lines from:\n{os.path.basename(file_path)}\n\n"
+                f"📍 Language pair: {source_lang.upper()} → {target_lang.upper()}"
+            )
+            
+        except UnicodeDecodeError:
+            # Try with different encodings
+            self.log("⚠️ UTF-8 failed, trying other encodings...")
+            for encoding in ['latin-1', 'cp1252', 'iso-8859-1']:
+                try:
+                    with open(file_path, 'r', encoding=encoding) as f:
+                        lines = f.readlines()
+                    self.log(f"✓ Successfully read file with {encoding} encoding")
+                    # Re-run import with this encoding
+                    # (simplified - just create segments directly)
+                    segments = []
+                    for line_num, line in enumerate(lines, 1):
+                        text = line.rstrip('\r\n')
+                        if skip_empty and not text.strip():
+                            continue
+                        segment = Segment(
+                            id=len(segments) + 1,
+                            source=text,
+                            target="",
+                            status="untranslated",
+                            notes="",
+                            type="para",
+                            paragraph_id=line_num,
+                            document_position=line_num
+                        )
+                        segments.append(segment)
+                    
+                    if segments:
+                        project = Project(
+                            name=f"TXT Import - {os.path.basename(file_path)}",
+                            source_lang=source_lang,
+                            target_lang=target_lang,
+                            segments=segments
+                        )
+                        project.original_txt_path = file_path
+                        self.current_project = project
+                        self.current_document_path = file_path
+                        self.load_segments_to_grid()
+                        self.initialize_tm_database()
+                        self.log(f"✓ Loaded {len(segments)} lines from text file")
+                        self.update_window_title()
+                        if hasattr(self, 'prompt_manager_qt'):
+                            self.prompt_manager_qt.refresh_context()
+                        QMessageBox.information(
+                            self,
+                            "Import Complete",
+                            f"Successfully imported {len(segments)} lines from:\n{os.path.basename(file_path)}\n\n"
+                            f"📍 Language pair: {source_lang.upper()} → {target_lang.upper()}\n"
+                            f"📝 Encoding: {encoding}"
+                        )
+                        return
+                except:
+                    continue
+            
+            QMessageBox.critical(
+                self,
+                "Encoding Error",
+                "Could not read the text file.\n\n"
+                "The file may use an unsupported character encoding.\n"
+                "Try saving the file as UTF-8 and importing again."
+            )
+            
+        except Exception as e:
+            self.log(f"✗ Import failed: {str(e)}")
+            QMessageBox.critical(
+                self,
+                "Import Error",
+                f"Failed to import text file:\n\n{str(e)}"
+            )
+    
+    def export_simple_txt(self):
+        """
+        Export translations as a simple text file, one line per segment.
+        
+        The output file will have the exact same structure as the input:
+        - Each segment becomes one line
+        - Empty segments become empty lines
+        - Target text is used (or source if no translation)
+        """
+        try:
+            if not self.current_project or not self.current_project.segments:
+                QMessageBox.warning(self, "No Project", "Please open a project with segments first")
+                return
+            
+            segments = list(self.current_project.segments)
+            
+            # Check translation status
+            translated_count = sum(1 for seg in segments if seg.target and seg.target.strip())
+            total_count = len(segments)
+            
+            if translated_count == 0:
+                QMessageBox.warning(
+                    self, "No Translations",
+                    "No translated segments found.\n\n"
+                    "Please translate some segments before exporting."
+                )
+                return
+            
+            # Show export options dialog
+            dialog = QDialog(self)
+            dialog.setWindowTitle("Export Simple Text File")
+            dialog.setMinimumWidth(450)
+            
+            layout = QVBoxLayout(dialog)
+            
+            # Status info
+            if translated_count < total_count:
+                status_label = QLabel(
+                    f"⚠️ <b>{translated_count} of {total_count}</b> segments are translated."
+                )
+                status_label.setTextFormat(Qt.TextFormat.RichText)
+                status_label.setStyleSheet("color: #FF9800;")
+            else:
+                status_label = QLabel(
+                    f"✅ All <b>{total_count}</b> segments are translated."
+                )
+                status_label.setTextFormat(Qt.TextFormat.RichText)
+                status_label.setStyleSheet("color: #4CAF50;")
+            layout.addWidget(status_label)
+            
+            layout.addSpacing(10)
+            
+            # Options group
+            options_group = QGroupBox("Untranslated Segments")
+            options_layout = QVBoxLayout(options_group)
+            
+            # Radio buttons for handling untranslated
+            use_source_radio = QRadioButton("Use source text for untranslated segments")
+            use_source_radio.setChecked(True)
+            use_empty_radio = QRadioButton("Leave untranslated segments empty")
+            
+            options_layout.addWidget(use_source_radio)
+            options_layout.addWidget(use_empty_radio)
+            layout.addWidget(options_group)
+            
+            layout.addSpacing(10)
+            
+            # Encoding option
+            encoding_group = QGroupBox("File Encoding")
+            encoding_layout = QHBoxLayout(encoding_group)
+            
+            encoding_combo = QComboBox()
+            encoding_combo.addItem("UTF-8 (recommended)", "utf-8")
+            encoding_combo.addItem("UTF-8 with BOM", "utf-8-sig")
+            encoding_combo.addItem("Latin-1 (ISO-8859-1)", "latin-1")
+            encoding_combo.addItem("Windows-1252", "cp1252")
+            encoding_layout.addWidget(encoding_combo)
+            encoding_layout.addStretch()
+            layout.addWidget(encoding_group)
+            
+            layout.addSpacing(20)
+            
+            # Buttons
+            button_layout = QHBoxLayout()
+            ok_btn = QPushButton("Export")
+            ok_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold;")
+            ok_btn.clicked.connect(dialog.accept)
+            cancel_btn = QPushButton("Cancel")
+            cancel_btn.clicked.connect(dialog.reject)
+            
+            button_layout.addStretch()
+            button_layout.addWidget(cancel_btn)
+            button_layout.addWidget(ok_btn)
+            layout.addLayout(button_layout)
+            
+            if dialog.exec() != QDialog.DialogCode.Accepted:
+                return
+            
+            # Get options
+            use_source_fallback = use_source_radio.isChecked()
+            encoding = encoding_combo.currentData()
+            
+            # Get save path
+            default_name = ""
+            if hasattr(self.current_project, 'original_txt_path') and self.current_project.original_txt_path:
+                base = os.path.splitext(os.path.basename(self.current_project.original_txt_path))[0]
+                default_name = f"{base}_translated.txt"
+            elif self.current_project.name:
+                default_name = self.current_project.name.replace(" ", "_") + "_translated.txt"
+            
+            file_path, _ = QFileDialog.getSaveFileName(
+                self,
+                "Export Simple Text File",
+                default_name,
+                "Text Files (*.txt);;All Files (*.*)"
+            )
+            
+            if not file_path:
+                return
+            
+            # Ensure .txt extension
+            if not file_path.lower().endswith('.txt'):
+                file_path += '.txt'
+            
+            # Build output lines
+            output_lines = []
+            for segment in segments:
+                if segment.target and segment.target.strip():
+                    # Use translation
+                    output_lines.append(segment.target)
+                elif use_source_fallback:
+                    # Use source text as fallback
+                    output_lines.append(segment.source)
+                else:
+                    # Leave empty
+                    output_lines.append("")
+            
+            # Write file
+            with open(file_path, 'w', encoding=encoding, newline='\n') as f:
+                for line in output_lines:
+                    f.write(line + '\n')
+            
+            self.log(f"✓ Exported {len(segments)} lines to: {os.path.basename(file_path)}")
+            self.log(f"  Encoding: {encoding}")
+            
+            QMessageBox.information(
+                self,
+                "Export Complete",
+                f"Successfully exported {len(segments)} lines to:\n{os.path.basename(file_path)}\n\n"
+                f"Translated: {translated_count} / {total_count} segments"
+            )
+            
+        except Exception as e:
+            self.log(f"✗ Export failed: {str(e)}")
+            QMessageBox.critical(
+                self,
+                "Export Error",
+                f"Failed to export text file:\n\n{str(e)}"
             )
     
     def _interpret_memoq_status(self, status_text: str, has_target: bool) -> Tuple[str, Optional[int]]:
@@ -30361,7 +30804,7 @@ def main():
     if sys.platform == 'win32':
         try:
             import ctypes
-            myappid = 'com.michaelbeijer.supervertaler.1.9.26'
+            myappid = 'com.michaelbeijer.supervertaler.1.9.27'
             ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
         except Exception:
             pass  # Fail silently if not on Windows or ctypes unavailable

@@ -1,8 +1,8 @@
 # Supervertaler - Frequently Asked Questions
 
-**Current Version:** v1.9.26 (December 8, 2025)
+**Current Version:** v1.9.27 (December 9, 2025)
 **Framework:** PyQt6
-**Last Updated:** December 8, 2025
+**Last Updated:** December 9, 2025
 
 Welcome to the Supervertaler FAQ! Find answers to common questions about installation, features, workflow, and troubleshooting.
 
@@ -197,9 +197,16 @@ Full guide: [INSTALLATION.md](INSTALLATION.md)
 
 ## Features & Capabilities
 
-### What are the key features of v1.9.26?
+### What are the key features of v1.9.27?
 
-**🔄 Automatic Model Version Checker (NEW in v1.9.26)**
+**📄 Simple Text File Import/Export (NEW in v1.9.27)**
+- Import plain text files where each line becomes a source segment
+- Export translations as matching text file with target text
+- UTF-8, Latin-1, Windows-1252 encoding support with auto-detection
+- Perfect for translating simple line-by-line text content
+- File → Import → Simple Text File (TXT) / File → Export → Simple Text File - Translated (TXT)
+
+**🔄 Automatic Model Version Checker (v1.9.26)**
 - Auto-detects new LLM models from OpenAI, Anthropic, and Google
 - Checks once per 24 hours on startup (configurable)
 - Popup dialog with easy model selection when new models detected
@@ -1056,6 +1063,11 @@ Michael Beijer, a professional translator, created Supervertaler to:
 - Complete privacy - text never leaves your machine
 - Automatic hardware detection and model recommendations
 
+**v1.9.27 (December 9, 2025):**
+- **Simple Text File Import/Export** - Import TXT files line-by-line, translate, export
+- Language pair selection and multiple encoding options
+- Perfect for simple text translation workflows
+
 **v1.9.26 (December 8, 2025):**
 - **Automatic Model Version Checker** - Auto-detects new LLM models from providers
 - Daily checks with popup notifications for new models
@@ -1213,8 +1225,9 @@ Michael Beijer, a professional translator, created Supervertaler to:
 
 ### What's next for Supervertaler?
 
-**Recently Added (v1.9.26):**
-- ✅ Automatic Model Version Checker - Get notified of new LLM models
+**Recently Added (v1.9.27):**
+- ✅ Simple Text File Import/Export - Line-by-line text translation
+- ✅ Automatic Model Version Checker - Get notified of new LLM models (v1.9.26)
 - ✅ UI Standardization - Consistent green checkbox design throughout
 - ✅ Local LLM support (Ollama) - Run AI translation offline (v1.9.16)
 - ✅ Automatic hardware detection and model recommendations

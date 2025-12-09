@@ -1,6 +1,6 @@
 # CAT Tool Workflow Guide
 
-**Version:** v1.9.26 | **Last Updated:** December 8, 2025
+**Version:** v1.9.27 | **Last Updated:** December 9, 2025
 
 How to use Supervertaler alongside your CAT tool (memoQ, Trados, CafeTran) for professional translation workflows.
 
@@ -9,7 +9,7 @@ How to use Supervertaler alongside your CAT tool (memoQ, Trados, CafeTran) for p
 ## 📋 Table of Contents
 
 1. [Overview](#overview)
-2. [What's New in v1.9.26](#whats-new-in-v1926)
+2. [What's New in v1.9.27](#whats-new-in-v1927)
 3. [Exporting from CAT Tools](#exporting-from-cat-tools)
 4. [Working in Supervertaler](#working-in-supervertaler)
 5. [Reimporting to CAT Tools](#reimporting-to-cat-tools)
@@ -42,11 +42,22 @@ Supervertaler is a **companion tool** that works alongside your CAT tool:
 
 ---
 
-## What's New in v1.9.26
+## What's New in v1.9.27
 
-### 🔄 Automatic Model Version Checker
+### 📄 Simple Text File Import/Export
 
-Supervertaler now automatically checks for new LLM models from OpenAI, Anthropic (Claude), and Google (Gemini):
+For simple text files that don't need CAT tool processing:
+
+- **Import**: File → Import → Simple Text File (TXT)
+- Each line becomes one source segment
+- **Export**: File → Export → Simple Text File - Translated (TXT)
+- Output matches input structure exactly
+
+**Ideal for:** Simple line-by-line text content, subtitle files, configuration files
+
+### 🔄 Automatic Model Version Checker (v1.9.26)
+
+Supervertaler automatically checks for new LLM models from OpenAI, Anthropic (Claude), and Google (Gemini):
 
 - **Daily Checks**: Runs once per 24 hours on startup (configurable in Settings)
 - **Smart Notifications**: Only shows popup when new models are detected
