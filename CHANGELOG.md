@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.28 (December 9, 2025)
+**Current Version:** v1.9.29 (December 10, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -14,6 +14,7 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- 📝 **Spellcheck Integration (v1.9.29)** - Built-in spellcheck for target language with Hunspell/pyspellchecker backend. Red wavy underlines for misspelled words. Right-click for suggestions, Add to Dictionary, or Ignore. Custom dictionary support with persistent word list. Supports English, Dutch, German, French, Spanish, Portuguese, Italian, Russian. Toggle on/off with Spellcheck button in filter bar. Manage custom dictionary from dropdown menu
 - 📄 **Phrase (Memsource) Bilingual DOCX Support (v1.9.28)** - Full round-trip support for Phrase TMS bilingual DOCX files. Import preserves inline tags like `{1}`, `{1>text<1}`. Export writes translations back to Column 5 for seamless return to Phrase workflow. File → Import → Phrase (Memsource) Bilingual (DOCX) and File → Export → Phrase (Memsource) Bilingual
 - 👁️ **Show Invisibles Feature (v1.9.28)** - Display invisible characters in the translation grid: spaces (·), tabs (→), non-breaking spaces (°), and line breaks (¶). Dropdown menu with granular control for each character type. Toggle All option. Smart handling preserves copy/paste (Ctrl+C copies original characters), double-click word selection, and Ctrl+Arrow word navigation. Configurable symbol color in Settings → View Settings
 - 📄 **Simple Text File Import/Export (v1.9.27)** - Import simple text files where each line becomes a source segment. Translate with AI, then export a matching file with translations. Perfect for line-by-line translation of plain text content. Language pair selection, encoding options (UTF-8, Latin-1, etc.), and empty line handling. File → Import → Simple Text File (TXT) and File → Export → Simple Text File - Translated (TXT)
@@ -69,6 +70,34 @@ All notable changes to Supervertaler are documented in this file.
 - 🔄 **CAT Tool Integration** - memoQ, Trados, CafeTran bilingual table support
 
 **See full version history below** ↓
+
+---
+
+## [1.9.29] - December 10, 2025
+
+### 📝 Spellcheck Integration
+
+**Built-in Spellchecking for Target Language:**
+- 📝 **Spellcheck Button**: Toggle in filter bar enables/disables spellchecking
+- 〰️ **Red Wavy Underlines**: Misspelled words highlighted with red wavy underline
+- 💬 **Right-Click Suggestions**: Click misspelled word for spelling suggestions
+- ➕ **Add to Dictionary**: Add words to custom dictionary (persistent)
+- 🔇 **Ignore Word**: Ignore word for current session only
+- 📖 **Custom Dictionary**: Manage custom words from dropdown menu
+- ℹ️ **Spellcheck Info**: View backend, language, and dictionary status
+
+**Language Support:**
+- 🇬🇧 English, 🇳🇱 Dutch, 🇩🇪 German, 🇫🇷 French, 🇪🇸 Spanish, 🇵🇹 Portuguese, 🇮🇹 Italian, 🇷🇺 Russian
+- Uses pyspellchecker for built-in dictionaries
+- Hunspell support for additional dictionaries (.dic/.aff files)
+- Auto-matches project target language
+
+**Technical Details:**
+- New module: `modules/spellcheck_manager.py` - Complete spellcheck handling
+- Custom dictionary stored in `user_data/dictionaries/custom_words.txt`
+- TagHighlighter extended for spell underline formatting
+- Spellcheck only applied to target column (not source)
+- Settings persisted in `ui_preferences.json`
 
 ---
 

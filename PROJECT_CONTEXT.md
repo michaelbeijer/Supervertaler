@@ -1,13 +1,41 @@
 # Supervertaler Project Context
 
-**Last Updated:** December 9, 2025
-**Current Version:** v1.9.28
+**Last Updated:** December 10, 2025
+**Current Version:** v1.9.29
 **Repository:** https://github.com/michaelbeijer/Supervertaler
 **Maintainer:** Michael Beijer
 
 ---
 
 ## 📅 Recent Development Activity
+
+### December 10, 2025 - Version 1.9.29: Spellcheck Integration
+
+**📝 Built-in Spellcheck for Target Language**
+Complete spellchecking system for the translation grid:
+
+- **Features:**
+  - Red wavy underlines for misspelled words in target column
+  - Right-click context menu with spelling suggestions
+  - Add to Dictionary (persistent custom word list)
+  - Ignore Word (session only)
+  - Spellcheck button toggle in filter toolbar
+  - Manage Custom Dictionary dialog
+
+- **Language Support:**
+  - English, Dutch, German, French, Spanish, Portuguese, Italian, Russian
+  - Uses pyspellchecker library with built-in dictionaries
+  - Hunspell support for additional dictionaries (.dic/.aff files)
+  - Auto-matches project target language
+
+- **Implementation:**
+  - New module: `modules/spellcheck_manager.py` (~450 lines)
+  - Extended `TagHighlighter` class with spellcheck underline format
+  - Context menu in `EditableGridTextEditor` with suggestions
+  - Settings persisted in `ui_preferences.json`
+  - Custom dictionary stored in `user_data/dictionaries/custom_words.txt`
+
+---
 
 ### December 9, 2025 - Version 1.9.28: Phrase DOCX Support & Show Invisibles
 

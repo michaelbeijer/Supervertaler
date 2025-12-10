@@ -3,8 +3,8 @@ Supervertaler
 =============
 The ultimate companion tool for translators and writers.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.9.28 (Phrase DOCX Support & Show Invisibles)
-Release Date: December 9, 2025
+Version: 1.9.29 (Spellcheck Integration)
+Release Date: December 10, 2025
 Framework: PyQt6
 
 This is the modern edition of Supervertaler using PyQt6 framework.
@@ -27,15 +27,16 @@ Key Features:
 - Bilingual Table export/import for review workflow
 - SQLite-based translation memory with FTS5 search
 - Professional TMX editor
+- Spellcheck integration with Hunspell and custom dictionary support
 
 Author: Michael Beijer
 License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.27"
+__version__ = "1.9.29"
 __phase__ = "0.9"
-__release_date__ = "2025-12-09"
+__release_date__ = "2025-12-10"
 __edition__ = "Qt"
 
 import sys
@@ -73,6 +74,7 @@ from modules.statuses import (
     compose_memoq_status,
 )
 from modules import file_dialog_helper as fdh  # File dialog helper with last directory memory
+from modules.spellcheck_manager import SpellcheckManager, get_spellcheck_manager  # Spellcheck with Hunspell
 
 
 STATUS_ORDER = [
@@ -1040,11 +1042,11 @@ class ReadOnlyGridTextEditor(QTextEdit):
         # Enable mouse tracking for hover tooltips
         self.setMouseTracking(True)
 
-        # Add syntax highlighter for tags
+        # Add syntax highlighter for tags (no spellcheck for source cells)
         # Get invisible char color from main window if available
         main_window = self._get_main_window()
         invisible_char_color = main_window.invisible_char_color if main_window and hasattr(main_window, 'invisible_char_color') else '#999999'
-        self.highlighter = TagHighlighter(self.document(), self.tag_highlight_color, invisible_char_color)
+        self.highlighter = TagHighlighter(self.document(), self.tag_highlight_color, invisible_char_color, enable_spellcheck=False)
 
         # Store raw text (with tags) for mode switching
         self._raw_text = text
@@ -1785,13 +1787,28 @@ class ReadOnlyGridTextEditor(QTextEdit):
 
 
 class TagHighlighter(QSyntaxHighlighter):
-    """Syntax highlighter for HTML/XML tags and CafeTran pipe symbols in text editors"""
+    """Syntax highlighter for HTML/XML tags, CafeTran pipe symbols, and spell checking in text editors"""
 
-    def __init__(self, document, tag_color='#FFB6C1', invisible_char_color='#999999'):
+    # Class-level reference to spellcheck manager (shared across all instances)
+    _spellcheck_manager = None
+    _spellcheck_enabled = False
+
+    def __init__(self, document, tag_color='#FFB6C1', invisible_char_color='#999999', enable_spellcheck=False):
         super().__init__(document)
         self.tag_color = tag_color
         self.invisible_char_color = invisible_char_color
+        self._local_spellcheck_enabled = enable_spellcheck
         self.update_tag_format()
+
+    @classmethod
+    def set_spellcheck_manager(cls, manager):
+        """Set the shared spellcheck manager instance"""
+        cls._spellcheck_manager = manager
+
+    @classmethod
+    def set_spellcheck_enabled(cls, enabled: bool):
+        """Enable or disable spellchecking globally"""
+        cls._spellcheck_enabled = enabled
 
     def update_tag_format(self):
         """Update the tag format with current color"""
@@ -1808,6 +1825,11 @@ class TagHighlighter(QSyntaxHighlighter):
         self.invisible_format = QTextCharFormat()
         self.invisible_format.setForeground(QColor(self.invisible_char_color))
 
+        # Spellcheck format - red wavy underline
+        self.spellcheck_format = QTextCharFormat()
+        self.spellcheck_format.setUnderlineColor(QColor('#FF0000'))
+        self.spellcheck_format.setUnderlineStyle(QTextCharFormat.UnderlineStyle.WaveUnderline)
+
     def set_tag_color(self, color: str):
         """Update tag highlight color"""
         self.tag_color = color
@@ -1819,9 +1841,14 @@ class TagHighlighter(QSyntaxHighlighter):
         self.invisible_char_color = color
         self.update_tag_format()
         self.rehighlight()
+
+    def set_local_spellcheck(self, enabled: bool):
+        """Enable or disable spellcheck for this specific highlighter"""
+        self._local_spellcheck_enabled = enabled
+        self.rehighlight()
     
     def highlightBlock(self, text):
-        """Highlight all tags in the text block"""
+        """Highlight all tags, pipe symbols, invisible chars, and misspelled words in the text block"""
         import re
         # Match opening and closing tags: <tag>, </tag>, <tag/> - includes hyphenated tags like li-o, li-b
         tag_pattern = re.compile(r'</?[a-zA-Z][a-zA-Z0-9-]*/?>')
@@ -1837,6 +1864,40 @@ class TagHighlighter(QSyntaxHighlighter):
                 self.setFormat(i, 1, self.pipe_format)
             elif char in '·→°¶':  # Invisible character replacement symbols
                 self.setFormat(i, 1, self.invisible_format)
+
+        # Spell checking - only for target editors when enabled
+        if self._local_spellcheck_enabled and TagHighlighter._spellcheck_enabled and TagHighlighter._spellcheck_manager:
+            self._highlight_misspelled_words(text)
+
+    def _highlight_misspelled_words(self, text):
+        """Highlight misspelled words with red wavy underline"""
+        import re
+        # Find all words (letters only, including accented characters)
+        # Skip words inside tags or that look like technical content
+        word_pattern = re.compile(r'\b([a-zA-ZÀ-ÿ\']+)\b', re.UNICODE)
+        
+        for match in word_pattern.finditer(text):
+            word = match.group(1)
+            start = match.start(1)
+            length = len(word)
+            
+            # Skip very short words and words with apostrophes at start/end
+            if len(word) < 2:
+                continue
+            
+            # Check if this word is inside a tag (approximate check)
+            # Look for < before and > after without the opposite
+            before_text = text[:start]
+            after_text = text[start + length:]
+            last_open = before_text.rfind('<')
+            last_close = before_text.rfind('>')
+            if last_open > last_close:
+                # We're inside a tag, skip
+                continue
+            
+            # Check spelling
+            if not TagHighlighter._spellcheck_manager.check_word(word):
+                self.setFormat(start, length, self.spellcheck_format)
 
 
 class EditableGridTextEditor(QTextEdit):
@@ -1876,11 +1937,11 @@ class EditableGridTextEditor(QTextEdit):
         palette.setColor(QPalette.ColorGroup.Inactive, QPalette.ColorRole.HighlightedText, QColor("black"))
         self.setPalette(palette)
 
-        # Add syntax highlighter for tags
+        # Add syntax highlighter for tags (with spellcheck enabled for target cells)
         # Get invisible char color from main window if available
         main_window = self._get_main_window()
         invisible_char_color = main_window.invisible_char_color if main_window and hasattr(main_window, 'invisible_char_color') else '#999999'
-        self.highlighter = TagHighlighter(self.document(), self.tag_highlight_color, invisible_char_color)
+        self.highlighter = TagHighlighter(self.document(), self.tag_highlight_color, invisible_char_color, enable_spellcheck=True)
 
         # Style to look like a normal cell with subtle selection
         # IMPORTANT: Use white background instead of transparent to avoid text visibility issues
@@ -2037,11 +2098,48 @@ class EditableGridTextEditor(QTextEdit):
             main_window.quick_add_term_pair_to_termbase(source_text, target_text)
     
     def contextMenuEvent(self, event):
-        """Show context menu with Add to Termbase and Add to Non-Translatables options"""
+        """Show context menu with Add to Termbase, Non-Translatables, and Spellcheck options"""
         from PyQt6.QtWidgets import QMenu
         from PyQt6.QtGui import QAction
         
         menu = QMenu(self)
+        
+        # Check if cursor is on a misspelled word for spellcheck suggestions
+        cursor_pos = self.cursorForPosition(event.pos())
+        misspelled_word, word_start, word_end = self._get_misspelled_word_at_cursor(cursor_pos)
+        
+        if misspelled_word:
+            # Get spellcheck suggestions
+            if TagHighlighter._spellcheck_manager:
+                suggestions = TagHighlighter._spellcheck_manager.get_suggestions(misspelled_word)
+                
+                if suggestions:
+                    # Add suggestions at the top
+                    for suggestion in suggestions[:5]:  # Limit to 5 suggestions
+                        suggestion_action = QAction(f"✓ {suggestion}", self)
+                        # Use default argument to capture current value
+                        suggestion_action.triggered.connect(
+                            lambda checked, s=suggestion, start=word_start, end=word_end: 
+                            self._replace_word(start, end, s)
+                        )
+                        suggestion_action.setFont(menu.font())
+                        menu.addAction(suggestion_action)
+                    menu.addSeparator()
+                
+                # Add to dictionary action
+                add_to_dict_action = QAction(f"📖 Add '{misspelled_word}' to Dictionary", self)
+                add_to_dict_action.triggered.connect(
+                    lambda checked, w=misspelled_word: self._add_to_dictionary(w)
+                )
+                menu.addAction(add_to_dict_action)
+                
+                # Ignore this session action
+                ignore_action = QAction(f"🔇 Ignore '{misspelled_word}' (this session)", self)
+                ignore_action.triggered.connect(
+                    lambda checked, w=misspelled_word: self._ignore_word(w)
+                )
+                menu.addAction(ignore_action)
+                menu.addSeparator()
         
         # Add standard edit actions
         if self.textCursor().hasSelection():
@@ -2075,6 +2173,63 @@ class EditableGridTextEditor(QTextEdit):
         menu.addAction(add_to_nt_action)
         
         menu.exec(event.globalPos())
+
+    def _get_misspelled_word_at_cursor(self, cursor):
+        """Get the misspelled word at the cursor position, if any"""
+        import re
+        
+        if not TagHighlighter._spellcheck_enabled or not TagHighlighter._spellcheck_manager:
+            return None, 0, 0
+        
+        text = self.toPlainText()
+        pos = cursor.position()
+        
+        # Find word boundaries around cursor position
+        word_pattern = re.compile(r'\b([a-zA-ZÀ-ÿ\']+)\b', re.UNICODE)
+        
+        for match in word_pattern.finditer(text):
+            start = match.start(1)
+            end = match.end(1)
+            
+            if start <= pos <= end:
+                word = match.group(1)
+                # Check if this word is misspelled
+                if not TagHighlighter._spellcheck_manager.check_word(word):
+                    return word, start, end
+                break
+        
+        return None, 0, 0
+
+    def _replace_word(self, start: int, end: int, replacement: str):
+        """Replace a word at the given position with the replacement"""
+        cursor = self.textCursor()
+        cursor.setPosition(start)
+        cursor.setPosition(end, cursor.MoveMode.KeepAnchor)
+        cursor.insertText(replacement)
+
+    def _add_to_dictionary(self, word: str):
+        """Add word to the custom dictionary"""
+        if TagHighlighter._spellcheck_manager:
+            TagHighlighter._spellcheck_manager.add_to_dictionary(word)
+            # Rehighlight to remove the underline
+            self.highlighter.rehighlight()
+            
+            # Show confirmation in main window log
+            main_window = self._get_main_window()
+            if main_window and hasattr(main_window, 'log'):
+                main_window.log(f"✓ Added '{word}' to custom dictionary")
+
+    def _ignore_word(self, word: str):
+        """Ignore word for this session"""
+        if TagHighlighter._spellcheck_manager:
+            TagHighlighter._spellcheck_manager.ignore_word(word)
+            # Rehighlight to remove the underline
+            self.highlighter.rehighlight()
+            
+            # Show confirmation in main window log
+            main_window = self._get_main_window()
+            if main_window and hasattr(main_window, 'log'):
+                main_window.log(f"🔇 Ignoring '{word}' for this session")
     
     def sizeHint(self):
         """Return compact size based on content"""
@@ -4267,6 +4422,13 @@ class SupervertalerQt(QMainWindow):
             log_callback=self.log
         )
         self.db_manager.connect()
+        
+        # Spellcheck Manager for target language spell checking
+        self.spellcheck_manager = get_spellcheck_manager(str(self.user_data_path))
+        self.spellcheck_enabled = False  # Disabled by default
+        # Set up the shared spellcheck manager for TagHighlighter instances
+        TagHighlighter.set_spellcheck_manager(self.spellcheck_manager)
+        TagHighlighter.set_spellcheck_enabled(self.spellcheck_enabled)
         
         # Figure Context Manager for multimodal AI translation
         from modules.figure_context_manager import FigureContextManager
@@ -13847,12 +14009,43 @@ class SupervertalerQt(QMainWindow):
 
         show_invisibles_btn.setMenu(show_invisibles_menu)
 
+        # Spellcheck toggle button with dropdown menu
+        self.spellcheck_btn = QPushButton("📝 Spellcheck")
+        self.spellcheck_btn.setMaximumWidth(120)
+        self.spellcheck_btn.setCheckable(True)
+        self.spellcheck_btn.setChecked(self.spellcheck_enabled)
+        self._update_spellcheck_button_style()
+        
+        # Create dropdown menu for spellcheck options
+        spellcheck_menu = QMenu(self.spellcheck_btn)
+        
+        # Toggle spellcheck action
+        self.spellcheck_toggle_action = spellcheck_menu.addAction("Enable Spellcheck")
+        self.spellcheck_toggle_action.setCheckable(True)
+        self.spellcheck_toggle_action.setChecked(self.spellcheck_enabled)
+        self.spellcheck_toggle_action.triggered.connect(self._toggle_spellcheck)
+        
+        spellcheck_menu.addSeparator()
+        
+        # Open custom dictionary action
+        open_dict_action = spellcheck_menu.addAction("📖 Manage Custom Dictionary...")
+        open_dict_action.triggered.connect(self._open_custom_dictionary_dialog)
+        
+        # Show spellcheck info
+        info_action = spellcheck_menu.addAction("ℹ️ Spellcheck Info")
+        info_action.triggered.connect(self._show_spellcheck_info)
+        
+        self.spellcheck_btn.setMenu(spellcheck_menu)
+        # Also allow clicking the button itself to toggle
+        self.spellcheck_btn.clicked.connect(self._toggle_spellcheck_from_button)
+
         filter_layout.addWidget(source_filter_label)
         filter_layout.addWidget(self.source_filter, stretch=1)
         filter_layout.addWidget(target_filter_label)
         filter_layout.addWidget(self.target_filter, stretch=1)
         filter_layout.addWidget(clear_filters_btn)
         filter_layout.addWidget(show_invisibles_btn)
+        filter_layout.addWidget(self.spellcheck_btn)
         
         grid_layout.addWidget(filter_panel)
         
@@ -13994,6 +14187,37 @@ class SupervertalerQt(QMainWindow):
 
         show_invisibles_btn_home.setMenu(show_invisibles_menu_home)
 
+        # Spellcheck toggle button (reuse the same instance variable from Editor tab)
+        if not hasattr(self, 'spellcheck_btn') or self.spellcheck_btn is None:
+            # Create spellcheck button if it doesn't exist yet
+            self.spellcheck_btn = QPushButton("📝 Spellcheck")
+            self.spellcheck_btn.setMaximumWidth(120)
+            self.spellcheck_btn.setCheckable(True)
+            self.spellcheck_btn.setChecked(self.spellcheck_enabled)
+            self._update_spellcheck_button_style()
+            
+            # Create dropdown menu for spellcheck options
+            spellcheck_menu = QMenu(self.spellcheck_btn)
+            
+            # Toggle spellcheck action
+            self.spellcheck_toggle_action = spellcheck_menu.addAction("Enable Spellcheck")
+            self.spellcheck_toggle_action.setCheckable(True)
+            self.spellcheck_toggle_action.setChecked(self.spellcheck_enabled)
+            self.spellcheck_toggle_action.triggered.connect(self._toggle_spellcheck)
+            
+            spellcheck_menu.addSeparator()
+            
+            # Open custom dictionary action
+            open_dict_action = spellcheck_menu.addAction("📖 Manage Custom Dictionary...")
+            open_dict_action.triggered.connect(self._open_custom_dictionary_dialog)
+            
+            # Show spellcheck info
+            info_action = spellcheck_menu.addAction("ℹ️ Spellcheck Info")
+            info_action.triggered.connect(self._show_spellcheck_info)
+            
+            self.spellcheck_btn.setMenu(spellcheck_menu)
+            self.spellcheck_btn.clicked.connect(self._toggle_spellcheck_from_button)
+
         filter_layout.addWidget(source_filter_label)
         filter_layout.addWidget(self.source_filter, stretch=1)
         filter_layout.addWidget(target_filter_label)
@@ -14003,6 +14227,7 @@ class SupervertalerQt(QMainWindow):
         filter_layout.addWidget(quick_filter_btn)
         filter_layout.addWidget(advanced_filter_btn)
         filter_layout.addWidget(show_invisibles_btn_home)
+        filter_layout.addWidget(self.spellcheck_btn)
         
         grid_layout.addWidget(filter_panel)
         
@@ -20990,6 +21215,18 @@ class SupervertalerQt(QMainWindow):
                 lang_settings = prefs.get('language_settings', {})
                 self.source_language = lang_settings.get('source_language', defaults['source_language'])
                 self.target_language = lang_settings.get('target_language', defaults['target_language'])
+                
+                # Load spellcheck settings
+                spellcheck_settings = prefs.get('spellcheck_settings', {})
+                self.spellcheck_enabled = spellcheck_settings.get('enabled', False)
+                TagHighlighter.set_spellcheck_enabled(self.spellcheck_enabled)
+                
+                # Set spellcheck language based on target language
+                if self.spellcheck_manager and self.spellcheck_enabled:
+                    if self.spellcheck_manager.set_language(self.target_language):
+                        self.log(f"✓ Spellcheck initialized for {self.target_language}")
+                    else:
+                        self.log(f"⚠ Spellcheck dictionary not available for {self.target_language}")
         except:
             pass
     
@@ -24416,6 +24653,211 @@ class SupervertalerQt(QMainWindow):
             result = result.replace('¶', '\r')
 
         return result
+
+    # ========================================================================
+    # SPELLCHECK METHODS
+    # ========================================================================
+
+    def _update_spellcheck_button_style(self):
+        """Update spellcheck button style based on enabled state"""
+        if hasattr(self, 'spellcheck_btn'):
+            if self.spellcheck_enabled:
+                self.spellcheck_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold;")
+            else:
+                self.spellcheck_btn.setStyleSheet("background-color: #9E9E9E; color: white; font-weight: bold;")
+
+    def _toggle_spellcheck(self, checked=None):
+        """Toggle spellcheck on/off"""
+        self.spellcheck_enabled = not self.spellcheck_enabled
+        TagHighlighter.set_spellcheck_enabled(self.spellcheck_enabled)
+        
+        # Update UI
+        self._update_spellcheck_button_style()
+        if hasattr(self, 'spellcheck_btn'):
+            self.spellcheck_btn.setChecked(self.spellcheck_enabled)
+        if hasattr(self, 'spellcheck_toggle_action'):
+            self.spellcheck_toggle_action.setChecked(self.spellcheck_enabled)
+        
+        # Initialize spellcheck for target language if enabling
+        if self.spellcheck_enabled:
+            if self.spellcheck_manager.set_language(self.target_language):
+                self.log(f"✓ Spellcheck enabled for {self.target_language}")
+            else:
+                self.log(f"⚠ Spellcheck dictionary not available for {self.target_language}")
+                # Show warning
+                QMessageBox.warning(
+                    self, "Dictionary Not Found",
+                    f"Spellcheck dictionary for '{self.target_language}' is not available.\n\n"
+                    f"Available dictionaries: {', '.join(self.spellcheck_manager.get_available_languages())}\n\n"
+                    f"Using pyspellchecker will be used as fallback for English."
+                )
+        else:
+            self.log("✗ Spellcheck disabled")
+        
+        # Save setting
+        self._save_spellcheck_settings()
+        
+        # Refresh grid to show/hide underlines
+        self._refresh_all_highlighters()
+
+    def _toggle_spellcheck_from_button(self, checked):
+        """Handle button click (separate from menu action to avoid double-toggle)"""
+        # The button click already toggles the checked state, so we need to sync
+        self.spellcheck_enabled = checked
+        TagHighlighter.set_spellcheck_enabled(self.spellcheck_enabled)
+        
+        # Update menu action
+        if hasattr(self, 'spellcheck_toggle_action'):
+            self.spellcheck_toggle_action.setChecked(self.spellcheck_enabled)
+        
+        # Same logic as _toggle_spellcheck
+        self._update_spellcheck_button_style()
+        
+        if self.spellcheck_enabled:
+            if self.spellcheck_manager.set_language(self.target_language):
+                self.log(f"✓ Spellcheck enabled for {self.target_language}")
+            else:
+                self.log(f"⚠ Spellcheck dictionary not available for {self.target_language}")
+        else:
+            self.log("✗ Spellcheck disabled")
+        
+        self._save_spellcheck_settings()
+        self._refresh_all_highlighters()
+
+    def _save_spellcheck_settings(self):
+        """Save spellcheck settings to preferences"""
+        prefs_file = self.user_data_path / "ui_preferences.json"
+        
+        prefs = {}
+        if prefs_file.exists():
+            try:
+                with open(prefs_file, 'r') as f:
+                    prefs = json.load(f)
+            except:
+                pass
+        
+        prefs['spellcheck_settings'] = {
+            'enabled': self.spellcheck_enabled
+        }
+        
+        try:
+            with open(prefs_file, 'w') as f:
+                json.dump(prefs, f, indent=2)
+        except Exception as e:
+            self.log(f"⚠ Could not save spellcheck settings: {e}")
+
+    def _refresh_all_highlighters(self):
+        """Refresh all syntax highlighters in the grid to update spellcheck"""
+        if not hasattr(self, 'table') or not self.table:
+            return
+        
+        for row in range(self.table.rowCount()):
+            # Target column (3) has editable text editor with spellcheck
+            target_widget = self.table.cellWidget(row, 3)
+            if target_widget and hasattr(target_widget, 'highlighter'):
+                target_widget.highlighter.rehighlight()
+
+    def _open_custom_dictionary_dialog(self):
+        """Open dialog to manage custom dictionary words"""
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Custom Dictionary")
+        dialog.setMinimumSize(400, 500)
+        
+        layout = QVBoxLayout(dialog)
+        
+        # Info label
+        info_label = QLabel(
+            "Words added to the custom dictionary will not be marked as spelling errors.\n"
+            "One word per line. Changes are saved automatically."
+        )
+        info_label.setWordWrap(True)
+        layout.addWidget(info_label)
+        
+        # Word list editor
+        self.custom_dict_editor = QPlainTextEdit()
+        self.custom_dict_editor.setPlaceholderText("Enter custom words here, one per line...")
+        
+        # Load current words
+        words = self.spellcheck_manager.get_custom_words()
+        self.custom_dict_editor.setPlainText('\n'.join(words))
+        
+        layout.addWidget(self.custom_dict_editor)
+        
+        # Word count label
+        self.word_count_label = QLabel(f"{len(words)} words in dictionary")
+        layout.addWidget(self.word_count_label)
+        
+        # Update count when text changes
+        def update_word_count():
+            text = self.custom_dict_editor.toPlainText()
+            count = len([w for w in text.split('\n') if w.strip()])
+            self.word_count_label.setText(f"{count} words in dictionary")
+        
+        self.custom_dict_editor.textChanged.connect(update_word_count)
+        
+        # Buttons
+        button_layout = QHBoxLayout()
+        
+        save_btn = QPushButton("💾 Save")
+        save_btn.clicked.connect(lambda: self._save_custom_dictionary(dialog))
+        button_layout.addWidget(save_btn)
+        
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(dialog.reject)
+        button_layout.addWidget(cancel_btn)
+        
+        layout.addLayout(button_layout)
+        
+        dialog.exec()
+
+    def _save_custom_dictionary(self, dialog):
+        """Save custom dictionary from dialog"""
+        text = self.custom_dict_editor.toPlainText()
+        words = [w.strip().lower() for w in text.split('\n') if w.strip()]
+        
+        # Clear and re-add all words
+        current_words = self.spellcheck_manager.get_custom_words()
+        for word in current_words:
+            self.spellcheck_manager.remove_from_dictionary(word)
+        
+        for word in words:
+            self.spellcheck_manager.add_to_dictionary(word)
+        
+        self.log(f"✓ Custom dictionary saved with {len(words)} words")
+        
+        # Refresh highlighters
+        self._refresh_all_highlighters()
+        
+        dialog.accept()
+
+    def _show_spellcheck_info(self):
+        """Show information about spellcheck configuration"""
+        backend = self.spellcheck_manager.get_backend_info()
+        language = self.spellcheck_manager.get_current_language() or "Not set"
+        available = ', '.join(self.spellcheck_manager.get_available_languages()) or "None"
+        custom_count = len(self.spellcheck_manager.get_custom_words())
+        
+        info = f"""Spellcheck Information
+═══════════════════════
+
+Status: {'Enabled ✓' if self.spellcheck_enabled else 'Disabled'}
+Backend: {backend}
+Current Language: {language}
+Target Language: {self.target_language}
+
+Available Languages:
+{available}
+
+Custom Dictionary: {custom_count} words
+Location: {self.spellcheck_manager.custom_words_file}
+
+To add more languages:
+• Download Hunspell dictionaries (.dic and .aff files)
+• Place them in: {self.spellcheck_manager.dictionaries_path}
+• Name them as: en_US.dic, nl_NL.dic, etc.
+"""
+        
+        QMessageBox.information(self, "Spellcheck Info", info)
 
     def filter_empty_segments(self):
         """Quick filter to show only segments with empty target"""
