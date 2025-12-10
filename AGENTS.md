@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** December 10, 2025 | **Version:** v1.9.32
+> **Last Updated:** December 10, 2025 | **Version:** v1.9.33
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.32 (December 2025) |
+| **Version** | v1.9.33 (December 2025) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -309,6 +309,15 @@ google_api_key=AI...
 
 ---
 
+### December 10, 2025 - Version 1.9.33: Spellcheck Update Fix
+
+**🐛 Fixed Spellcheck Highlighting Bug**
+- Fixed issue where adding/ignoring words only removed underline in the current cell
+- Now triggers global refresh of all highlighters
+- Modified `_add_to_dictionary` and `_ignore_word` in `EditableGridTextEditor`
+
+---
+
 ### December 10, 2025 - Version 1.9.31: Spellcheck Language Fix
 
 - Spellcheck now correctly uses the project's target language instead of defaulting to English
@@ -452,4 +461,4 @@ google_api_key=AI...
 ---
 
 *This file replaces the previous CLAUDE.md and PROJECT_CONTEXT.md files.*
-*Last updated: December 10, 2025 - v1.9.32*
+*Last updated: December 10, 2025 - v1.9.33*

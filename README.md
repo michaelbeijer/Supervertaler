@@ -2,7 +2,7 @@
 
 🎯 **The Ultimate Companion Tool for Translators and Writers** — Context-aware AI with intuitive 2-Layer Prompt Architecture, AI Assistant, project termbase system with automatic extraction, and specialized modules.
 
-**Current Version:** v1.9.32 (December 10, 2025)
+**Current Version:** v1.9.33 (December 10, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -33,7 +33,13 @@
 python Supervertaler.py
 ```
 
-**NEW in v1.9.30 - Critical LLM Fix:**
+**NEW in v1.9.33 - Spellcheck Update Fix:**
+- 🐛 **Spellcheck Fix** - Fixed issue where adding/ignoring words only removed underline in the current cell. Now triggers instant global refresh of all highlighters.
+
+**v1.9.32 - Trados SDLRPX Status Fix:**
+- 📦 **Trados SDLRPX Status Fix** - Fixed critical bug where exported SDLRPX return packages kept segments in "Draft" status instead of updating to "Translated".
+
+**v1.9.30 - Critical LLM Fix:**
 - 🐛 **Fixed OpenAI Translation** - Removed hardcoded debug path that caused "No such file or directory" errors
 - 📝 **Spellcheck Integration** - Built-in spellcheck with 8 languages bundled (EN, NL, DE, FR, ES, PT, IT, RU)
 - 📚 **Optional Hunspell** - Add more languages with .dic/.aff dictionary files

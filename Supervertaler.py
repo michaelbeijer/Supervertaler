@@ -3,7 +3,7 @@ Supervertaler
 =============
 The ultimate companion tool for translators and writers.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.9.31 (Spellcheck Language Fix)
+Version: 1.9.33 (Spellcheck Update Fix)
 Release Date: December 10, 2025
 Framework: PyQt6
 
@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.32"
+__version__ = "1.9.33"
 __phase__ = "0.9"
 __release_date__ = "2025-12-10"
 __edition__ = "Qt"
@@ -2228,25 +2228,35 @@ class EditableGridTextEditor(QTextEdit):
         """Add word to the custom dictionary"""
         if TagHighlighter._spellcheck_manager:
             TagHighlighter._spellcheck_manager.add_to_dictionary(word)
-            # Rehighlight to remove the underline
-            self.highlighter.rehighlight()
             
             # Show confirmation in main window log
             main_window = self._get_main_window()
             if main_window and hasattr(main_window, 'log'):
                 main_window.log(f"✓ Added '{word}' to custom dictionary")
 
+            # Refresh all highlighters to update other occurrences
+            if main_window and hasattr(main_window, '_refresh_all_highlighters'):
+                main_window._refresh_all_highlighters()
+            else:
+                # Fallback to local rehighlight
+                self.highlighter.rehighlight()
+
     def _ignore_word(self, word: str):
         """Ignore word for this session"""
         if TagHighlighter._spellcheck_manager:
             TagHighlighter._spellcheck_manager.ignore_word(word)
-            # Rehighlight to remove the underline
-            self.highlighter.rehighlight()
             
             # Show confirmation in main window log
             main_window = self._get_main_window()
             if main_window and hasattr(main_window, 'log'):
                 main_window.log(f"🔇 Ignoring '{word}' for this session")
+
+            # Refresh all highlighters to update other occurrences
+            if main_window and hasattr(main_window, '_refresh_all_highlighters'):
+                main_window._refresh_all_highlighters()
+            else:
+                # Fallback to local rehighlight
+                self.highlighter.rehighlight()
     
     def sizeHint(self):
         """Return compact size based on content"""

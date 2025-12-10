@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.32 (December 10, 2025)
+**Current Version:** v1.9.33 (December 10, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -13,6 +13,8 @@ All notable changes to Supervertaler are documented in this file.
 ## 🌟 Recent Highlights - What's New in Supervertaler
 
 **Latest Major Features:**
+
+- 🐛 **Spellcheck Update Fix (v1.9.33)** - Fixed issue where adding/ignoring words only removed underline in the current cell. Now triggers instant global refresh of all highlighters across the entire grid. No more false positive red underlines after you've whitelisted a word
 
 - 📦 **Trados SDLRPX Status Fix (v1.9.32)** - Fixed critical bug where exported SDLRPX return packages kept segments in "Draft" status instead of updating to "Translated". Trados Studio now correctly recognizes translated segments. Client deliverables no longer show as MT draft content
 
@@ -92,6 +94,19 @@ All notable changes to Supervertaler are documented in this file.
 - Updates `conf` attribute in `sdl:seg-defs` section during export
 - Maps internal status ('translated', 'approved') to SDL status ('Translated', 'ApprovedTranslation')
 - Proper namespace handling for SDL elements in ElementTree
+
+---
+
+---
+
+## [1.9.33] - December 10, 2025
+
+### 🐛 Spellcheck Update Fix
+
+**Fixed Spellcheck Highlighting Update:**
+- 🔧 **Global Refresh**: Adding a word to custom dictionary or ignoring it now immediately updates all occurrences in the grid
+- ✅ **No More False Positives**: Red wavy underlines vanish instantly across the entire document when you whitelist a word
+- 🖱️ **Context Menu Fix**: Right-click "Add to Dictionary" and "Ignore Word" actions now trigger full grid refresh
 
 ---
 
