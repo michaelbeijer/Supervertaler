@@ -1804,11 +1804,12 @@ class ReadOnlyGridTextEditor(QTextEdit):
 
 
 class TagHighlighter(QSyntaxHighlighter):
-    """Syntax highlighter for HTML/XML tags, CafeTran pipe symbols, and spell checking in text editors"""
+    """Syntax highlighter for HTML/XML tags, CAT tool tags, CafeTran pipe symbols, and spell checking in text editors"""
 
     # Class-level reference to spellcheck manager (shared across all instances)
     _spellcheck_manager = None
     _spellcheck_enabled = False
+    _is_cafetran_project = False  # Only highlight pipe symbols for CafeTran projects
 
     def __init__(self, document, tag_color='#FFB6C1', invisible_char_color='#999999', enable_spellcheck=False):
         super().__init__(document)
@@ -1867,20 +1868,34 @@ class TagHighlighter(QSyntaxHighlighter):
     def highlightBlock(self, text):
         """Highlight all tags, pipe symbols, invisible chars, and misspelled words in the text block"""
         import re
-        # Match opening and closing tags: <tag>, </tag>, <tag/> - includes hyphenated tags like li-o, li-b
-        tag_pattern = re.compile(r'</?[a-zA-Z][a-zA-Z0-9-]*/?>')
+        # Combined pattern for ALL CAT tool tag types:
+        # 1. HTML/XML: <tag>, </tag>, <tag/>, <tag attr="val">
+        # 2. Trados numeric: <1>, </1>
+        # 3. memoQ: {1}, [1}, {1], [1]
+        tag_patterns = [
+            r'</?[a-zA-Z][a-zA-Z0-9-]*/?(?:\s[^>]*)?>',  # HTML/XML tags (includes attributes)
+            r'</?\d+>',                                   # Trados numeric: <1>, </1>
+            r'\{\d+\}',                                  # memoQ: {1}
+            r'\[\d+[}\]]',                               # memoQ: [1}, [1]
+            r'\{\d+\]',                                  # memoQ: {1]
+        ]
+        combined_pattern = re.compile('|'.join(tag_patterns))
 
-        for match in tag_pattern.finditer(text):
+        for match in combined_pattern.finditer(text):
             start = match.start()
             length = match.end() - start
             self.setFormat(start, length, self.tag_format)
 
-        # Match CafeTran pipe symbols (red and bold) and invisible character symbols (light blue)
+        # Match invisible character symbols (light blue)
         for i, char in enumerate(text):
-            if char == '|':
-                self.setFormat(i, 1, self.pipe_format)
-            elif char in '·→°¶':  # Invisible character replacement symbols
+            if char in '·→°¶':  # Invisible character replacement symbols
                 self.setFormat(i, 1, self.invisible_format)
+        
+        # CafeTran pipe symbols (red and bold) - ONLY for CafeTran projects
+        if TagHighlighter._is_cafetran_project:
+            for i, char in enumerate(text):
+                if char == '|':
+                    self.setFormat(i, 1, self.pipe_format)
 
         # Spell checking - only for target editors when enabled
         if self._local_spellcheck_enabled and TagHighlighter._spellcheck_enabled and TagHighlighter._spellcheck_manager:
@@ -18389,6 +18404,9 @@ class SupervertalerQt(QMainWindow):
             # Store the handler and original path for round-trip export
             self.cafetran_handler = handler
             self.cafetran_source_file = file_path
+            
+            # Enable CafeTran-specific highlighting (red pipe symbols)
+            TagHighlighter._is_cafetran_project = True
             
             # Create new project
             file_name = Path(file_path).stem
