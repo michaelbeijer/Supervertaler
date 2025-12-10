@@ -18049,41 +18049,41 @@ class SupervertalerQt(QMainWindow):
                                 for run in paragraph.runs:
                                     if run.text:
                                         # Capture color if present
-                                    color_hex = None
-                                    try:
-                                        # Method 1: Check standard rgb property
-                                        if run.font.color and run.font.color.rgb:
-                                            color_hex = str(run.font.color.rgb)
-                                        # Method 2: Check XML directly for w:color val (more robust)
-                                        elif run.element.rPr is not None:
-                                            # We need to access w:color in the rPr element
-                                            # This handles cases where python-docx doesn't parse the color correctly
-                                            from docx.oxml.ns import qn
-                                            color_elem = run.element.rPr.find(qn('w:color'))
-                                            if color_elem is not None:
-                                                color_hex = color_elem.get(qn('w:val'))
-                                    except Exception as e:
-                                        if i == 0: 
-                                            print(f"Color extract error: {e}")
-                                    
-                                    # Split run text by tags to allow granular formatting transfer
-                                    # This ensures that if a tag like {1} is merged with text in one run,
-                                    # we still extract {1} as a separate formatting unit.
-                                    import re
-                                    # Matches {1}, [1], <tag>, or </tag>
-                                    parts = re.split(r'(\{\d+\}|\[\d+\]|<\/?[a-zA-Z0-9_]+[^>]*>)', run.text)
-                                    
-                                    for part in parts:
-                                        if not part:
-                                            continue
-                                            
-                                        formatting_info.append({
-                                            'text': part,
-                                            'bold': run.bold == True,
-                                            'italic': run.italic == True,
-                                            'underline': run.underline == True,
-                                            'color': color_hex
-                                        })
+                                        color_hex = None
+                                        try:
+                                            # Method 1: Check standard rgb property
+                                            if run.font.color and run.font.color.rgb:
+                                                color_hex = str(run.font.color.rgb)
+                                            # Method 2: Check XML directly for w:color val (more robust)
+                                            elif run.element.rPr is not None:
+                                                # We need to access w:color in the rPr element
+                                                # This handles cases where python-docx doesn't parse the color correctly
+                                                from docx.oxml.ns import qn
+                                                color_elem = run.element.rPr.find(qn('w:color'))
+                                                if color_elem is not None:
+                                                    color_hex = color_elem.get(qn('w:val'))
+                                        except Exception as e:
+                                            if i == 0: 
+                                                print(f"Color extract error: {e}")
+                                        
+                                        # Split run text by tags to allow granular formatting transfer
+                                        # This ensures that if a tag like {1} is merged with text in one run,
+                                        # we still extract {1} as a separate formatting unit.
+                                        import re
+                                        # Matches {1}, [1], <tag>, or </tag>
+                                        parts = re.split(r'(\{\d+\}|\[\d+\]|<\/?[a-zA-Z0-9_]+[^>]*>)', run.text)
+                                        
+                                        for part in parts:
+                                            if not part:
+                                                continue
+                                                
+                                            formatting_info.append({
+                                                'text': part,
+                                                'bold': run.bold == True,
+                                                'italic': run.italic == True,
+                                                'underline': run.underline == True,
+                                                'color': color_hex
+                                            })
             
             # Debug logging for first segment to help troubleshoot
             if i == 0 and formatting_info:
