@@ -24831,33 +24831,117 @@ class SupervertalerQt(QMainWindow):
         dialog.accept()
 
     def _show_spellcheck_info(self):
-        """Show information about spellcheck configuration"""
+        """Show information about spellcheck configuration with clickable links"""
         backend = self.spellcheck_manager.get_backend_info()
         language = self.spellcheck_manager.get_current_language() or "Not set"
         available = ', '.join(self.spellcheck_manager.get_available_languages()) or "None"
         custom_count = len(self.spellcheck_manager.get_custom_words())
+        dict_path = str(self.spellcheck_manager.dictionaries_path)
+        custom_words_path = str(self.spellcheck_manager.custom_words_file)
         
-        info = f"""Spellcheck Information
-═══════════════════════
-
-Status: {'Enabled ✓' if self.spellcheck_enabled else 'Disabled'}
-Backend: {backend}
-Current Language: {language}
-Target Language: {self.target_language}
-
-Available Languages:
-{available}
-
-Custom Dictionary: {custom_count} words
-Location: {self.spellcheck_manager.custom_words_file}
-
-To add more languages:
-• Download Hunspell dictionaries (.dic and .aff files)
-• Place them in: {self.spellcheck_manager.dictionaries_path}
-• Name them as: en_US.dic, nl_NL.dic, etc.
-"""
+        # Create a custom dialog with clickable links
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Spellcheck Info")
+        dialog.setMinimumWidth(500)
         
-        QMessageBox.information(self, "Spellcheck Info", info)
+        layout = QVBoxLayout(dialog)
+        
+        # Status section
+        status_group = QGroupBox("Status")
+        status_layout = QFormLayout(status_group)
+        
+        status_label = QLabel(f"{'✓ Enabled' if self.spellcheck_enabled else '✗ Disabled'}")
+        status_label.setStyleSheet(f"color: {'green' if self.spellcheck_enabled else 'red'}; font-weight: bold;")
+        status_layout.addRow("Spellcheck:", status_label)
+        status_layout.addRow("Backend:", QLabel(backend))
+        status_layout.addRow("Spellcheck Language:", QLabel(language))
+        
+        layout.addWidget(status_group)
+        
+        # Languages section
+        lang_group = QGroupBox("Available Languages")
+        lang_layout = QVBoxLayout(lang_group)
+        lang_layout.addWidget(QLabel(available))
+        layout.addWidget(lang_group)
+        
+        # Custom Dictionary section
+        custom_group = QGroupBox("Custom Dictionary")
+        custom_layout = QVBoxLayout(custom_group)
+        custom_layout.addWidget(QLabel(f"{custom_count} words"))
+        
+        # Clickable path to custom words file
+        custom_path_label = QLabel(f'<a href="file:///{custom_words_path.replace(chr(92), "/")}">{custom_words_path}</a>')
+        custom_path_label.setOpenExternalLinks(False)
+        custom_path_label.linkActivated.connect(lambda: self._open_folder_in_explorer(custom_words_path))
+        custom_path_label.setToolTip("Click to open folder location")
+        custom_layout.addWidget(custom_path_label)
+        
+        layout.addWidget(custom_group)
+        
+        # Hunspell Dictionaries section
+        hunspell_group = QGroupBox("Add More Languages (Hunspell)")
+        hunspell_layout = QVBoxLayout(hunspell_group)
+        
+        hunspell_layout.addWidget(QLabel("To add more language dictionaries:"))
+        hunspell_layout.addWidget(QLabel("1. Download Hunspell dictionaries (.dic and .aff files)"))
+        hunspell_layout.addWidget(QLabel("2. Place them in the dictionaries folder"))
+        hunspell_layout.addWidget(QLabel("3. Rename as: en_US.dic/aff, nl_NL.dic/aff, etc."))
+        
+        # Clickable path to dictionaries folder
+        dict_path_label = QLabel(f'📁 <a href="file:///{dict_path.replace(chr(92), "/")}">Open dictionaries folder</a>')
+        dict_path_label.setOpenExternalLinks(False)
+        dict_path_label.linkActivated.connect(lambda: self._open_folder_in_explorer(dict_path))
+        dict_path_label.setToolTip("Click to open dictionaries folder")
+        hunspell_layout.addWidget(dict_path_label)
+        
+        # Download link
+        download_label = QLabel('🌐 <a href="https://github.com/wooorm/dictionaries/tree/main/dictionaries">Download Hunspell dictionaries online</a>')
+        download_label.setOpenExternalLinks(True)
+        download_label.setToolTip("Opens GitHub repository with 92+ language dictionaries")
+        hunspell_layout.addWidget(download_label)
+        
+        # LibreOffice dictionaries (alternative)
+        libreoffice_label = QLabel('🌐 <a href="https://extensions.libreoffice.org/?Tags%5B%5D=50">LibreOffice Dictionary Extensions</a>')
+        libreoffice_label.setOpenExternalLinks(True)
+        libreoffice_label.setToolTip("LibreOffice extension dictionaries (extract .oxt files to get .dic/.aff)")
+        hunspell_layout.addWidget(libreoffice_label)
+        
+        layout.addWidget(hunspell_group)
+        
+        # OK button
+        button_layout = QHBoxLayout()
+        ok_btn = QPushButton("OK")
+        ok_btn.clicked.connect(dialog.accept)
+        button_layout.addStretch()
+        button_layout.addWidget(ok_btn)
+        layout.addLayout(button_layout)
+        
+        dialog.exec()
+
+    def _open_folder_in_explorer(self, path: str):
+        """Open a folder or file location in the system file explorer"""
+        import os
+        import subprocess
+        from pathlib import Path
+        
+        path_obj = Path(path)
+        
+        # If it's a file, open the containing folder
+        if path_obj.is_file():
+            folder = path_obj.parent
+        else:
+            folder = path_obj
+        
+        # Create folder if it doesn't exist
+        folder.mkdir(parents=True, exist_ok=True)
+        
+        # Open in explorer
+        if sys.platform == 'win32':
+            os.startfile(str(folder))
+        elif sys.platform == 'darwin':
+            subprocess.run(['open', str(folder)])
+        else:
+            subprocess.run(['xdg-open', str(folder)])
 
     def filter_empty_segments(self):
         """Quick filter to show only segments with empty target"""
