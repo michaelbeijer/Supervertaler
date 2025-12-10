@@ -1,8 +1,8 @@
-# 🚀 Supervertaler v1.9.35
+# 🚀 Supervertaler v1.9.36
 
 🎯 **The Ultimate Companion Tool for Translators and Writers** — Context-aware AI with intuitive 2-Layer Prompt Architecture, AI Assistant, project termbase system with automatic extraction, and specialized modules.
 
-**Current Version:** v1.9.35 (December 10, 2025)
+**Current Version:** v1.9.36 (December 10, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -33,10 +33,14 @@
 python Supervertaler.py
 ```
 
-### NEW in v1.9.35 - memoQ Red Tags
+### NEW in v1.9.36 - Universal Tag Coloring
+*   **Universal Tag Coloring**: All CAT tool tags now highlighted in pink: memoQ `{1}`, `[2}`, Trados `<1>`, `</1>`, Phrase `{1}`, and HTML `<b>`, `<i>`.
+*   **CafeTran Pipe Fix**: Pipe symbols (`|`) now only highlighted red in CafeTran projects (was incorrectly red in all projects).
+
+### v1.9.35 - memoQ Red Tags
 *   **memoQ Red Tags**: Fixed issue where red formatting tags (e.g. `{1}`) in memoQ bilingual exports appeared as plain text. The target column now correctly inherits the red color from the source column.
 
-### NEW in v1.9.34 - UI & Spellcheck Fixes
+### v1.9.34 - UI & Spellcheck Fixes
 *   **UI Standardization**: Replaced all standard radio buttons with custom green `CheckmarkRadioButton` for consistent UI across 6+ dialogs including Find/Replace, Filters, and AutoFingers
 *   **Spellcheck Update Fix**: Fixed bug where adding/ignoring words didn't update all grid instances immediately
 *   **Spellcheck Language**: Now correctly defaults to project target languages
