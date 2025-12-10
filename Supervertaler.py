@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.34"
+__version__ = "1.9.35"
 __phase__ = "0.9"
 __release_date__ = "2025-12-10"
 __edition__ = "Qt"
@@ -18041,12 +18041,31 @@ class SupervertalerQt(QMainWindow):
                         segments_with_formatting += 1
                         formatting_info = None  # Tags are in the text itself
                     else:
-                        # Get formatting info for this segment (legacy approach)
-                        formatting_info = None
-                        if hasattr(self, 'memoq_formatting_map') and i in self.memoq_formatting_map:
-                            formatting_info = self.memoq_formatting_map[i]
-                            if any(f.get('bold') or f.get('italic') or f.get('underline') for f in formatting_info):
-                                segments_with_formatting += 1
+                        # Get formatting info directly from source cell (preserves color/formatting across sessions)
+                        formatting_info = []
+                        if num_cells >= 2:
+                            source_cell = row.cells[1]
+                            for paragraph in source_cell.paragraphs:
+                                for run in paragraph.runs:
+                                    if run.text:
+                                        # Capture color if present
+                                        color_hex = None
+                                        try:
+                                            if run.font.color and run.font.color.rgb:
+                                                color_hex = str(run.font.color.rgb)
+                                        except:
+                                            pass
+                                            
+                                        formatting_info.append({
+                                            'text': run.text,
+                                            'bold': run.bold == True,
+                                            'italic': run.italic == True,
+                                            'underline': run.underline == True,
+                                            'color': color_hex
+                                        })
+
+                        if any(f.get('bold') or f.get('italic') or f.get('underline') or f.get('color') for f in formatting_info):
+                            segments_with_formatting += 1
 
                     # Apply formatting to the target cell
                     self._apply_formatting_to_cell(target_cell, translation, formatting_info)
@@ -18162,12 +18181,13 @@ class SupervertalerQt(QMainWindow):
         formatted_phrases = []
         for fmt in formatting_info:
             fmt_text = fmt.get('text', '')
-            if fmt_text and (fmt.get('bold') or fmt.get('italic') or fmt.get('underline')):
+            if fmt_text and (fmt.get('bold') or fmt.get('italic') or fmt.get('underline') or fmt.get('color')):
                 formatted_phrases.append({
                     'text': fmt_text.strip(),
                     'bold': fmt.get('bold', False),
                     'italic': fmt.get('italic', False),
-                    'underline': fmt.get('underline', False)
+                    'underline': fmt.get('underline', False),
+                    'color': fmt.get('color')
                 })
         
         if not formatted_phrases:
@@ -18241,6 +18261,20 @@ class SupervertalerQt(QMainWindow):
                 run.italic = True
             if fmt_info.get('underline'):
                 run.underline = True
+            
+            # Apply color if present
+            if fmt_info.get('color'):
+                try:
+                    from docx.shared import RGBColor
+                    hex_color = fmt_info['color']
+                    # Convert "FF0000" hex to RGB
+                    if len(hex_color) == 6:
+                        r = int(hex_color[0:2], 16)
+                        g = int(hex_color[2:4], 16)
+                        b = int(hex_color[4:6], 16)
+                        run.font.color.rgb = RGBColor(r, g, b)
+                except Exception:
+                    pass
             
             current_pos = end
         

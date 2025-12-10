@@ -1,8 +1,8 @@
-# 🚀 Supervertaler v1.9.34
+# 🚀 Supervertaler v1.9.35
 
 🎯 **The Ultimate Companion Tool for Translators and Writers** — Context-aware AI with intuitive 2-Layer Prompt Architecture, AI Assistant, project termbase system with automatic extraction, and specialized modules.
 
-**Current Version:** v1.9.34 (December 10, 2025)
+**Current Version:** v1.9.35 (December 10, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -32,6 +32,9 @@
 ```bash
 python Supervertaler.py
 ```
+
+### NEW in v1.9.35 - memoQ Red Tags
+*   **memoQ Red Tags**: Fixed issue where red formatting tags (e.g. `{1}`) in memoQ bilingual exports appeared as plain text. The target column now correctly inherits the red color from the source column.
 
 ### NEW in v1.9.34 - UI & Spellcheck Fixes
 *   **UI Standardization**: Replaced all standard radio buttons with custom green `CheckmarkRadioButton` for consistent UI across 6+ dialogs including Find/Replace, Filters, and AutoFingers

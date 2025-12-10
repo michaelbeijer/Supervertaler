@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** December 10, 2025 | **Version:** v1.9.34
+> **Last Updated:** December 10, 2025 | **Version:** v1.9.35
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.34 (December 2025) |
+| **Version** | v1.9.35 (December 2025) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -296,6 +296,9 @@ google_api_key=AI...
 ---
 
 ## 🔄 Recent Development History
+
+### December 10, 2025 - Version 1.9.35: memoQ Formatting
+- **Red Tags Preserved**: Exporting to memoQ bilingual DOCX now preserves red text color for tags (e.g. `{1}`) by dynamically reading the source column.
 
 ### December 10, 2025 - Version 1.9.34: UI Fixes
 

@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.34 (December 10, 2025)
+**Current Version:** v1.9.35 (December 10, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -14,7 +14,8 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
-- 🎨 **UI Fixes (v1.9.34)** - Fixed checkboxes/radio buttons style in Import TMX dialogue.
+- 🎨 **memoQ Red Tags Support (v1.9.35)** - Fixed memoQ bilingual export not preserving red tag color. Tags in the target column now correctly inherit the red/magenta color from the source column, ensuring perfect formatting for memoQ re-import.
+- 🎨 **UI Fixes (v1.9.34)** - Replaced all standard radio buttons with green-themed CheckmarkRadioButton.
 - 🐛 **Spellcheck Update Fix (v1.9.33)** - Fixed issue where adding/ignoring words only removed underline in the current cell. Now triggers instant global refresh of all highlighters across the entire grid. No more false positive red underlines after you've whitelisted a word
 
 - 📦 **Trados SDLRPX Status Fix (v1.9.32)** - Fixed critical bug where exported SDLRPX return packages kept segments in "Draft" status instead of updating to "Translated". Trados Studio now correctly recognizes translated segments. Client deliverables no longer show as MT draft content
@@ -77,6 +78,14 @@ All notable changes to Supervertaler are documented in this file.
 - 🔄 **CAT Tool Integration** - memoQ, Trados, CafeTran bilingual table support
 
 **See full version history below** ↓
+
+---
+
+## [1.9.35] - December 10, 2025
+
+### 🎨 formatting
+- **memoQ Red Tags**: Fixed issue where red formatting tags (e.g. `{1}`) in memoQ bilingual files were being exported as black text.
+- **Smart Color Transfer**: Export now dynamically reads the source column color and applies it to the corresponding text in the target column.
 
 ---
 
