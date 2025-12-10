@@ -40,6 +40,10 @@ pyyaml>=6.0.0
 # Markdown Rendering (Superdocs)
 markdown>=3.4.0
 
+# Spellchecking
+pyspellchecker>=0.7.0
+cyhunspell>=2.0.0
+
 # ===== Optional Dependencies =====
 # Uncomment the sections below to enable optional features
 
