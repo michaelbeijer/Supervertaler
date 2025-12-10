@@ -1,13 +1,19 @@
 # Supervertaler Project Context
 
 **Last Updated:** December 10, 2025
-**Current Version:** v1.9.29
+**Current Version:** v1.9.30
 **Repository:** https://github.com/michaelbeijer/Supervertaler
 **Maintainer:** Michael Beijer
 
 ---
 
 ## 📅 Recent Development Activity
+
+### December 10, 2025 - Version 1.9.30: Critical LLM Fix
+
+**🐛 Fixed OpenAI/LLM Translation Bug**
+- Removed hardcoded debug file path in `modules/llm_clients.py` that caused "No such file or directory" errors
+- LLM translation now works regardless of installation directory
 
 ### December 10, 2025 - Version 1.9.29: Spellcheck Integration
 

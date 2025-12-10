@@ -2,7 +2,7 @@
 
 🎯 **The Ultimate Companion Tool for Translators and Writers** — Context-aware AI with intuitive 2-Layer Prompt Architecture, AI Assistant, project termbase system with automatic extraction, and specialized modules.
 
-**Current Version:** v1.9.29 (December 10, 2025)
+**Current Version:** v1.9.30 (December 10, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -33,9 +33,9 @@
 python Supervertaler.py
 ```
 
-**NEW in v1.9.29 - Spellcheck Integration:**
-- 📝 **Built-in Spellcheck** - Red wavy underlines for misspelled words in target text
-- 🐍 **Works Out of the Box** - 8 languages bundled (EN, NL, DE, FR, ES, PT, IT, RU)
+**NEW in v1.9.30 - Critical LLM Fix:**
+- 🐛 **Fixed OpenAI Translation** - Removed hardcoded debug path that caused "No such file or directory" errors
+- 📝 **Spellcheck Integration** - Built-in spellcheck with 8 languages bundled (EN, NL, DE, FR, ES, PT, IT, RU)
 - 📚 **Optional Hunspell** - Add more languages with .dic/.aff dictionary files
 - 💬 **Right-Click Menu** - Spelling suggestions, Add to Dictionary, Ignore
 - 💾 **Project Settings** - Spellcheck state saved per-project in .svproj files
