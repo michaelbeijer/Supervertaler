@@ -695,6 +695,9 @@ class TradosPackageHandler:
                 if segment and target_elem is not None:
                     # Update target text
                     self._set_element_text(target_elem, segment.target_text)
+            
+            # Update segment confirmation status in sdl:seg-defs
+            self._update_segment_status(tu, segment_map, tu_id)
     
     def _update_segmented_target(self, tu: ET.Element, target_elem: ET.Element, 
                                   segment_map: Dict[str, SDLSegment]):
@@ -718,6 +721,63 @@ class TradosPackageHandler:
                     # Update the mrk element text
                     self._set_element_text(mrk, segment.target_text)
     
+    def _update_segment_status(self, tu: ET.Element, segment_map: Dict[str, SDLSegment], tu_id: str):
+        """
+        Update segment confirmation status in sdl:seg-defs.
+        
+        Changes the conf attribute from 'Draft' to 'Translated' for segments
+        that have been translated in Supervertaler.
+        """
+        # Status mapping from internal to SDL format
+        status_to_conf = {
+            'translated': 'Translated',
+            'approved': 'ApprovedTranslation',
+            'confirmed': 'ApprovedTranslation',
+            'draft': 'Draft',
+            'not_translated': 'Draft',
+        }
+        
+        # Find sdl:seg-defs within this trans-unit (try with namespace first)
+        seg_defs = tu.find('.//sdl:seg-defs', {'sdl': NAMESPACES['sdl']})
+        if seg_defs is None:
+            seg_defs = tu.find('.//{%s}seg-defs' % NAMESPACES['sdl'])
+        if seg_defs is None:
+            # Try without namespace
+            for child in tu:
+                if child.tag.endswith('seg-defs'):
+                    seg_defs = child
+                    break
+        
+        if seg_defs is None:
+            return
+        
+        # Update each seg element
+        for seg_elem in seg_defs:
+            if not seg_elem.tag.endswith('seg'):
+                continue
+                
+            seg_id = seg_elem.get('id', '')
+            
+            # Build segment_id to look up in our map
+            # For segmented content: tu_id_seg_id
+            # For single segment: tu_id
+            segment = segment_map.get(f"{tu_id}_{seg_id}")
+            if not segment:
+                segment = segment_map.get(tu_id)
+            
+            if segment:
+                # Get the new conf value based on segment status
+                new_conf = status_to_conf.get(segment.status, 'Translated')
+                
+                # If segment has target text and is translated/approved, set to Translated
+                if segment.target_text and segment.status in ('translated', 'approved', 'confirmed'):
+                    new_conf = 'Translated'
+                
+                # Update the conf attribute
+                current_conf = seg_elem.get('conf', '')
+                if current_conf != new_conf:
+                    seg_elem.set('conf', new_conf)
+
     def _set_element_text(self, elem: ET.Element, text: str):
         """Set element text, handling tags appropriately."""
         # For now, just set the text

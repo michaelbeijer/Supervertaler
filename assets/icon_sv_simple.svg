@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <!-- Simplified version for small sizes - bolder, clearer -->
+  <defs>
+    <linearGradient id="circleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1976D2;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2196F3;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Transparent background -->
+  <circle cx="128" cy="128" r="112" fill="url(#circleGrad)"/>
+
+  <!-- Simplified, bolder Sv for small sizes -->
+  <!-- Using paths instead of text for pixel-perfect rendering -->
+  <g transform="translate(128, 128)">
+    <!-- Capital S - simplified and bold -->
+    <path d="M -35,-50 L -35,-30 L -20,-30 C -10,-30 -5,-25 -5,-15 C -5,-5 -10,0 -20,0 L -35,0 L -35,20 L -15,20 C 10,20 25,5 25,-15 C 25,-35 10,-50 -15,-50 Z"
+          fill="white" stroke="white" stroke-width="3" stroke-linejoin="round"/>
+
+    <!-- lowercase v - simplified and bold -->
+    <path d="M 15,-20 L 30,30 L 45,30 L 55,-20 L 40,-20 L 37.5,10 L 22.5,-20 Z"
+          fill="white" stroke="white" stroke-width="2" stroke-linejoin="round"/>
+  </g>
+</svg>

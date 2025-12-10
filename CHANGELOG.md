@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.31 (December 10, 2025)
+**Current Version:** v1.9.32 (December 10, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -13,6 +13,8 @@ All notable changes to Supervertaler are documented in this file.
 ## 🌟 Recent Highlights - What's New in Supervertaler
 
 **Latest Major Features:**
+
+- 📦 **Trados SDLRPX Status Fix (v1.9.32)** - Fixed critical bug where exported SDLRPX return packages kept segments in "Draft" status instead of updating to "Translated". Trados Studio now correctly recognizes translated segments. Client deliverables no longer show as MT draft content
 
 - 🔤 **Spellcheck Language Fix (v1.9.31)** - Spellcheck now correctly uses the project's target language instead of defaulting to English. Added language dropdown in Spellcheck Info dialog to manually change spellcheck language. Language changes take effect immediately with highlighting refresh
 - 🐛 **Critical LLM Fix (v1.9.30)** - Fixed OpenAI/LLM translation failing with "No such file or directory" error. Removed hardcoded debug file path that prevented translation when running from non-development directories
@@ -72,6 +74,47 @@ All notable changes to Supervertaler are documented in this file.
 - 🔄 **CAT Tool Integration** - memoQ, Trados, CafeTran bilingual table support
 
 **See full version history below** ↓
+
+---
+
+## [1.9.32] - December 10, 2025
+
+### 📦 Trados SDLRPX Status Fix
+
+**Critical Bug Fix for Trados Return Packages:**
+- 🔧 **Status Update Fix**: SDLRPX export now correctly updates segment confirmation status from "Draft" to "Translated"
+- ✅ **Proper Trados Recognition**: Trados Studio now recognizes segments as translated, not machine translation drafts
+- 📤 **Client Deliverables**: Return packages display correctly in Trados when client opens them
+- 🏷️ **conf Attribute**: Fixed missing update of `conf` attribute in SDLXLIFF `<sdl:seg>` elements
+
+**Technical Details:**
+- Added `_update_segment_status()` method to `sdlppx_handler.py`
+- Updates `conf` attribute in `sdl:seg-defs` section during export
+- Maps internal status ('translated', 'approved') to SDL status ('Translated', 'ApprovedTranslation')
+- Proper namespace handling for SDL elements in ElementTree
+
+---
+
+## [1.9.31] - December 10, 2025
+
+### 🔤 Spellcheck Language Fix
+
+**Spellcheck Now Uses Project Target Language:**
+- 🎯 **Automatic Language Detection**: Spellcheck initializes with project's target language instead of defaulting to English
+- 🌐 **Language Dropdown**: Added language selector in Spellcheck Info dialog
+- 🔄 **Immediate Effect**: Language changes take effect immediately with highlighting refresh
+- 📝 **Fixed Initialization**: `_toggle_spellcheck()` now uses `self.current_project.target_lang`
+
+---
+
+## [1.9.30] - December 10, 2025
+
+### 🐛 Critical LLM Fix
+
+**Fixed OpenAI/LLM Translation Error:**
+- 🔧 **File Path Error**: Fixed "No such file or directory: 'openai_debug.txt'" error that broke all LLM translations
+- 📁 **Debug Path**: Removed hardcoded debug file path that only worked in development directory
+- ✅ **Production Ready**: Translations now work when running from any directory
 
 ---
 

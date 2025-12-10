@@ -1,13 +1,31 @@
 # Supervertaler Project Context
 
 **Last Updated:** December 10, 2025
-**Current Version:** v1.9.31
+**Current Version:** v1.9.32
 **Repository:** https://github.com/michaelbeijer/Supervertaler
 **Maintainer:** Michael Beijer
 
 ---
 
 ## 📅 Recent Development Activity
+
+### December 10, 2025 - Version 1.9.32: Trados SDLRPX Status Fix
+
+**📦 Fixed Critical SDLRPX Export Bug**
+- Fixed segments staying in "Draft" status instead of being updated to "Translated" in exported SDLRPX packages
+- Trados Studio now correctly recognizes translated segments when client opens return package
+- Added `_update_segment_status()` method to `modules/sdlppx_handler.py`
+- Updates `conf` attribute in `sdl:seg-defs` section of SDLXLIFF files
+- Proper namespace handling for SDL elements with ElementTree
+
+**Root Cause:**
+- The `_update_xliff_tree()` function was updating target text but not updating the `conf` attribute
+- SDL/Trados uses `conf="Draft"` vs `conf="Translated"` in `<sdl:seg>` elements within `<sdl:seg-defs>`
+- Status was stored in segment objects but never written back to XML
+
+**Files Changed:**
+- `modules/sdlppx_handler.py`: Added `_update_segment_status()` method (~50 lines)
+- Now called from `_update_xliff_tree()` for each trans-unit
 
 ### December 10, 2025 - Version 1.9.31: Spellcheck Language Fix
 
