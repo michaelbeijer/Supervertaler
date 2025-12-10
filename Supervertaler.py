@@ -24883,9 +24883,9 @@ class SupervertalerQt(QMainWindow):
         hunspell_layout = QVBoxLayout(hunspell_group)
         
         hunspell_layout.addWidget(QLabel("To add more language dictionaries:"))
-        hunspell_layout.addWidget(QLabel("1. Download Hunspell dictionaries (.dic and .aff files)"))
-        hunspell_layout.addWidget(QLabel("2. Place them in the dictionaries folder"))
-        hunspell_layout.addWidget(QLabel("3. Rename as: en_US.dic/aff, nl_NL.dic/aff, etc."))
+        hunspell_layout.addWidget(QLabel("1. Download the .zip file for your language"))
+        hunspell_layout.addWidget(QLabel("2. Extract the .dic and .aff files"))
+        hunspell_layout.addWidget(QLabel("3. Place them in the dictionaries folder below"))
         
         # Clickable path to dictionaries folder
         dict_path_label = QLabel(f'📁 <a href="file:///{dict_path.replace(chr(92), "/")}">Open dictionaries folder</a>')
@@ -24894,16 +24894,25 @@ class SupervertalerQt(QMainWindow):
         dict_path_label.setToolTip("Click to open dictionaries folder")
         hunspell_layout.addWidget(dict_path_label)
         
-        # Download link
-        download_label = QLabel('🌐 <a href="https://github.com/wooorm/dictionaries/tree/main/dictionaries">Download Hunspell dictionaries online</a>')
-        download_label.setOpenExternalLinks(True)
-        download_label.setToolTip("Opens GitHub repository with 92+ language dictionaries")
-        hunspell_layout.addWidget(download_label)
+        hunspell_layout.addWidget(QLabel(""))  # Spacer
+        hunspell_layout.addWidget(QLabel("<b>Download Hunspell dictionaries:</b>"))
+        
+        # memoQ server - best for end users (primary recommendation)
+        memoq_label = QLabel('🌐 <a href="https://hunspell.memoq.com/">hunspell.memoq.com</a> — 70+ languages, easy zip downloads (recommended)')
+        memoq_label.setOpenExternalLinks(True)
+        memoq_label.setToolTip("memoQ's Hunspell dictionary server - updated November 2025")
+        hunspell_layout.addWidget(memoq_label)
+        
+        # GitHub wooorm/dictionaries - for developers
+        github_label = QLabel('🌐 <a href="https://github.com/wooorm/dictionaries/tree/main/dictionaries">GitHub: wooorm/dictionaries</a> — 92+ languages, UTF-8 normalized')
+        github_label.setOpenExternalLinks(True)
+        github_label.setToolTip("Well-maintained GitHub repository with normalized dictionaries")
+        hunspell_layout.addWidget(github_label)
         
         # LibreOffice dictionaries (alternative)
-        libreoffice_label = QLabel('🌐 <a href="https://extensions.libreoffice.org/?Tags%5B%5D=50">LibreOffice Dictionary Extensions</a>')
+        libreoffice_label = QLabel('🌐 <a href="https://extensions.libreoffice.org/?Tags%5B%5D=50">LibreOffice Dictionary Extensions</a> — extract .oxt files')
         libreoffice_label.setOpenExternalLinks(True)
-        libreoffice_label.setToolTip("LibreOffice extension dictionaries (extract .oxt files to get .dic/.aff)")
+        libreoffice_label.setToolTip("LibreOffice extension dictionaries (rename .oxt to .zip, extract .dic/.aff)")
         hunspell_layout.addWidget(libreoffice_label)
         
         layout.addWidget(hunspell_group)
