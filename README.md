@@ -1,8 +1,8 @@
-# Supervertaler
+# 🚀 Supervertaler v1.9.34
 
 🎯 **The Ultimate Companion Tool for Translators and Writers** — Context-aware AI with intuitive 2-Layer Prompt Architecture, AI Assistant, project termbase system with automatic extraction, and specialized modules.
 
-**Current Version:** v1.9.33 (December 10, 2025)
+**Current Version:** v1.9.34 (December 10, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -32,6 +32,11 @@
 ```bash
 python Supervertaler.py
 ```
+
+### NEW in v1.9.34 - UI & Spellcheck Fixes
+*   **Import TMX Standardization**: Updated the Import TMX dialogue to use the standard green UI theme (custom `CheckmarkRadioButton`)
+*   **Spellcheck Update Fix**: Fixed bug where adding/ignoring words didn't update all grid instances immediately
+*   **Spellcheck Language**: Now correctly defaults to project target languages
 
 **NEW in v1.9.33 - Spellcheck Update Fix:**
 - 🐛 **Spellcheck Fix** - Fixed issue where adding/ignoring words only removed underline in the current cell. Now triggers instant global refresh of all highlighters.
@@ -264,7 +269,7 @@ For comprehensive project information, see [PROJECT_CONTEXT.md](PROJECT_CONTEXT.
 
 ---
 
-## � Quick Start
+##  Quick Start
 
 **Download Latest**:
 - **Qt Edition**: `Supervertaler_Qt.py` (Modern, recommended)
@@ -358,12 +363,12 @@ python Supervertaler.py
 
 ### First Steps
 
-1. **Configure API Keys**: Set up OpenAI, Claude, or Gemini credentials
-2. **Explore System Prompts** (Ctrl+P) - Browse domain-specific specialist prompts
-3. **Create Custom Instructions** - Define your translation preferences
-4. **Open a Document** - Import DOCX, create segments
-5. **Start Translating** - Use System Prompts or custom instructions
-6. **Export Results** - Session reports, TMX, auto-export to CAT tools
+1.  **Configure API Keys**: Set up OpenAI, Claude, or Gemini credentials
+2.  **Explore System Prompts** (Ctrl+P) - Browse domain-specific specialist prompts
+3.  **Create Custom Instructions** - Define your translation preferences
+4.  **Open a Document** - Import DOCX, create segments
+5.  **Start Translating** - Use System Prompts or custom instructions
+6.  **Export Results** - Session reports, TMX, auto-export to CAT tools
 
 ---
 
