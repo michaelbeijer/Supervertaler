@@ -24837,7 +24837,6 @@ class SupervertalerQt(QMainWindow):
         available = ', '.join(self.spellcheck_manager.get_available_languages()) or "None"
         custom_count = len(self.spellcheck_manager.get_custom_words())
         dict_path = str(self.spellcheck_manager.dictionaries_path)
-        custom_words_path = str(self.spellcheck_manager.custom_words_file)
         
         # Create a custom dialog with clickable links
         dialog = QDialog(self)
@@ -24869,12 +24868,14 @@ class SupervertalerQt(QMainWindow):
         custom_layout = QVBoxLayout(custom_group)
         custom_layout.addWidget(QLabel(f"{custom_count} words"))
         
-        # Clickable path to custom words file
-        custom_path_label = QLabel(f'<a href="file:///{custom_words_path.replace(chr(92), "/")}">{custom_words_path}</a>')
-        custom_path_label.setOpenExternalLinks(False)
-        custom_path_label.linkActivated.connect(lambda: self._open_folder_in_explorer(custom_words_path))
-        custom_path_label.setToolTip("Click to open folder location")
-        custom_layout.addWidget(custom_path_label)
+        # Show file location with clickable link to open containing folder
+        custom_folder = str(self.spellcheck_manager.dictionaries_path)
+        custom_layout.addWidget(QLabel(f"File: custom_words.txt"))
+        custom_folder_label = QLabel(f'📁 <a href="file:///{custom_folder.replace(chr(92), "/")}">Open folder: {custom_folder}</a>')
+        custom_folder_label.setOpenExternalLinks(False)
+        custom_folder_label.linkActivated.connect(lambda: self._open_folder_in_explorer(custom_folder))
+        custom_folder_label.setToolTip("Click to open the dictionaries folder")
+        custom_layout.addWidget(custom_folder_label)
         
         layout.addWidget(custom_group)
         
