@@ -297,9 +297,9 @@ google_api_key=AI...
 
 ## 🔄 Recent Development History
 
-### December 10, 2025 - Version 1.9.35: memoQ Red Tag Color Fix
+### December 10, 2025 - Version 1.9.35: memoQ Red Tag Color Fix + Universal Tag Coloring
 
-**🔴 memoQ Inline Tag Color Preservation**
+**🔴 memoQ Inline Tag Color Preservation (Export)**
 
 Fixed critical issue where red/magenta inline tags (e.g., `{1}`, `[2}`) in memoQ bilingual exports were appearing as black text in the target column.
 
@@ -313,17 +313,27 @@ Fixed critical issue where red/magenta inline tags (e.g., `{1}`, `[2}`) in memoQ
   1. Check `run.font.color.rgb` (direct color)
   2. Check XML `w:color` element in `rPr` (inline XML color)
   3. **NEW**: Check `w:rStyle` element, lookup character style, extract style's color
-- Added debug logging for troubleshooting: `🔍 Debug: Found colored tags in first segment: [...]`
 
-**Technical Details:**
-- Modified `export_memoq_bilingual()` in `Supervertaler.py`
-- Uses `docx.oxml.ns.qn()` for XML namespace-aware queries
-- Looks up `doc.styles[style_id].font.color.rgb` for style-based colors
-- Applies color via `RGBColor` to target runs in `_apply_formatting_to_cell()`
+---
+
+**🎨 Universal Tag Coloring in Grid (Display)**
+
+Extended `TagHighlighter` to color ALL CAT tool tags with pink (`#FFB6C1`) in the translation grid:
+
+| Format | Tag Examples | Status |
+|--------|-------------|--------|
+| HTML/XML | `<b>`, `<i>`, `<u>`, `<li-o>` | ✅ Already worked |
+| memoQ | `{1}`, `[2}`, `{3]`, `[4]` | ✅ NEW |
+| Trados | `<1>`, `</1>` | ✅ NEW |
+| Phrase | `{1}`, `{2}` | ✅ NEW |
+
+**CafeTran Pipe Fix:**
+- Pipe symbols (`|`) now only highlighted red in **CafeTran projects**
+- Previously, pipes were red in ALL project types (bug)
+- Added `TagHighlighter._is_cafetran_project` class flag
 
 **Files Modified:**
-- `Supervertaler.py` - Color extraction logic
-- Version bumped to 1.9.35
+- `Supervertaler.py` - `TagHighlighter.highlightBlock()`, CafeTran import function
 
 ### December 10, 2025 - Version 1.9.34: UI Fixes
 
