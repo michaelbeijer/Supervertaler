@@ -4214,9 +4214,9 @@ class AdvancedFiltersDialog(QDialog):
         locked_group = QGroupBox("Locked Status")
         locked_layout = QVBoxLayout()
         
-        self.locked_both = QRadioButton("Both locked and unlocked rows")
-        self.locked_only = QRadioButton("Only locked rows")
-        self.locked_unlocked_only = QRadioButton("Only unlocked rows")
+        self.locked_both = CheckmarkRadioButton("Both locked and unlocked rows")
+        self.locked_only = CheckmarkRadioButton("Only locked rows")
+        self.locked_unlocked_only = CheckmarkRadioButton("Only unlocked rows")
         self.locked_both.setChecked(True)
         
         locked_layout.addWidget(self.locked_both)
@@ -8077,13 +8077,13 @@ class SupervertalerQt(QMainWindow):
         # Radio button group
         button_group = QButtonGroup(dialog)
         
-        option1 = QRadioButton(f"Import into existing TM (strip variants: {compat_info['tmx_source']},{compat_info['tmx_target']} → {compat_info['target_source']},{compat_info['target_target']})")
+        option1 = CheckmarkRadioButton(f"Import into existing TM (strip variants: {compat_info['tmx_source']},{compat_info['tmx_target']} → {compat_info['target_source']},{compat_info['target_target']})")
         option1.setChecked(True)
         option1.setToolTip("Import translations by matching base languages, ignoring regional variants")
         button_group.addButton(option1, 1)
         layout.addWidget(option1)
         
-        option2 = QRadioButton(f"Create new TM with variant languages ({compat_info['tmx_source']}, {compat_info['tmx_target']})")
+        option2 = CheckmarkRadioButton(f"Create new TM with variant languages ({compat_info['tmx_source']}, {compat_info['tmx_target']})")
         option2.setToolTip("Create a separate TM preserving the exact language variants from the TMX")
         button_group.addButton(option2, 2)
         layout.addWidget(option2)
@@ -10181,9 +10181,9 @@ class SupervertalerQt(QMainWindow):
         
         # Text source options
         source_type_layout = QHBoxLayout()
-        use_project_radio = QRadioButton("Use project segments")
+        use_project_radio = CheckmarkRadioButton("Use project segments")
         use_project_radio.setChecked(True)
-        use_manual_radio = QRadioButton("Paste text manually")
+        use_manual_radio = CheckmarkRadioButton("Paste text manually")
         
         source_type_layout.addWidget(use_project_radio)
         source_type_layout.addWidget(use_manual_radio)
@@ -10534,9 +10534,9 @@ class SupervertalerQt(QMainWindow):
         dup_group = QGroupBox("Duplicate Handling")
         dup_layout = QVBoxLayout()
         
-        skip_radio = QRadioButton("Skip duplicates (keep existing terms)")
+        skip_radio = CheckmarkRadioButton("Skip duplicates (keep existing terms)")
         skip_radio.setChecked(True)
-        update_radio = QRadioButton("Update duplicates (overwrite existing terms)")
+        update_radio = CheckmarkRadioButton("Update duplicates (overwrite existing terms)")
         
         dup_layout.addWidget(skip_radio)
         dup_layout.addWidget(update_radio)
@@ -17548,9 +17548,9 @@ class SupervertalerQt(QMainWindow):
             options_layout = QVBoxLayout(options_group)
             
             # Radio buttons for handling untranslated
-            use_source_radio = QRadioButton("Use source text for untranslated segments")
+            use_source_radio = CheckmarkRadioButton("Use source text for untranslated segments")
             use_source_radio.setChecked(True)
-            use_empty_radio = QRadioButton("Leave untranslated segments empty")
+            use_empty_radio = CheckmarkRadioButton("Leave untranslated segments empty")
             
             options_layout.addWidget(use_source_radio)
             options_layout.addWidget(use_empty_radio)
