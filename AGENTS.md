@@ -199,7 +199,9 @@ class Segment:
 
 ### UI Pattern
 - PyQt6 with custom styled widgets
-- Consistent checkbox styling (`CheckmarkCheckBox`, `PinkCheckmarkCheckBox`, `BlueCheckmarkCheckBox`)
+- Consistent styling:
+  - Checkboxes: `CheckmarkCheckBox` (Standard), `PinkCheckmarkCheckBox` (Project), `BlueCheckmarkCheckBox` (Global)
+  - Radio Buttons: `CheckmarkRadioButton` (Standard Green)
 - Tag-based text formatting (`<b>`, `<i>`, `<u>`, `<li-o>`, `<li-b>`)
 - Grid-based segment editor with source (read-only) and target (editable) columns
 
