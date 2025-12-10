@@ -18085,11 +18085,11 @@ class SupervertalerQt(QMainWindow):
                                                 'color': color_hex
                                             })
             
-            # Debug logging for first segment to help troubleshoot
-            if i == 0 and formatting_info:
-                color_tags = [f['text'] for f in formatting_info if f.get('color')]
-                if color_tags:
-                    self.log(f"🔍 Debug: Found colored tags in first segment: {color_tags}")
+                        # Debug logging for first segment to help troubleshoot
+                        if i == 0 and formatting_info:
+                            color_tags = [f['text'] for f in formatting_info if f.get('color')]
+                            if color_tags:
+                                self.log(f"🔍 Debug: Found colored tags in first segment: {color_tags}")
 
                         if any(f.get('bold') or f.get('italic') or f.get('underline') or f.get('color') for f in formatting_info):
                             segments_with_formatting += 1
