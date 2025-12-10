@@ -18056,12 +18056,24 @@ class SupervertalerQt(QMainWindow):
                                                 color_hex = str(run.font.color.rgb)
                                             # Method 2: Check XML directly for w:color val (more robust)
                                             elif run.element.rPr is not None:
-                                                # We need to access w:color in the rPr element
-                                                # This handles cases where python-docx doesn't parse the color correctly
                                                 from docx.oxml.ns import qn
                                                 color_elem = run.element.rPr.find(qn('w:color'))
                                                 if color_elem is not None:
                                                     color_hex = color_elem.get(qn('w:val'))
+                                                # Method 3: Check if run uses a character style (e.g., mqInternal)
+                                                # memoQ stores tag colors in character styles, not inline
+                                                if not color_hex:
+                                                    style_elem = run.element.rPr.find(qn('w:rStyle'))
+                                                    if style_elem is not None:
+                                                        style_id = style_elem.get(qn('w:val'))
+                                                        if style_id:
+                                                            # Lookup the style and get its color
+                                                            try:
+                                                                style = doc.styles[style_id]
+                                                                if style.font.color and style.font.color.rgb:
+                                                                    color_hex = str(style.font.color.rgb)
+                                                            except KeyError:
+                                                                pass  # Style not found
                                         except Exception as e:
                                             if i == 0: 
                                                 print(f"Color extract error: {e}")
