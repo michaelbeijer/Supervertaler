@@ -84,9 +84,10 @@ All notable changes to Supervertaler are documented in this file.
 
 ### 🎨 UI Fixes
 
-**Import TMX Dialogue:**
-- 🎨 **Standardization**: Updated "Import TMX" dialogue to use standard green-themed `CheckmarkRadioButton` widgets instead of default OS radio buttons.
-- ✅ **Design Consistency**: Matches the green checkbox style used throughout the application (AutoFingers, Settings).
+**Checkmark Radio Buttons:**
+- 🎨 **Global Update**: Replaced all standard `QRadioButton` instances across the application with the custom green `CheckmarkRadioButton`.
+- ✅ **Updated Areas**: Find & Replace, Advanced Filters, Row Locking, Termbase Import, AutoFingers, and TM Import dialogs.
+- 💅 **Visual Consistency**: Ensures a uniform look and feel across all green-themed UI elements.
 
 ---
 

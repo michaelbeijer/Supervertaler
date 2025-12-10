@@ -34,7 +34,7 @@ python Supervertaler.py
 ```
 
 ### NEW in v1.9.34 - UI & Spellcheck Fixes
-*   **Import TMX Standardization**: Updated the Import TMX dialogue to use the standard green UI theme (custom `CheckmarkRadioButton`)
+*   **UI Standardization**: Replaced all standard radio buttons with custom green `CheckmarkRadioButton` for consistent UI across 6+ dialogs including Find/Replace, Filters, and AutoFingers
 *   **Spellcheck Update Fix**: Fixed bug where adding/ignoring words didn't update all grid instances immediately
 *   **Spellcheck Language**: Now correctly defaults to project target languages
 
