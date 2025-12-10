@@ -709,6 +709,9 @@ class Project:
         # Add non-translatables settings if they exist
         if hasattr(self, 'nt_settings') and self.nt_settings:
             result['nt_settings'] = self.nt_settings
+        # Add spellcheck settings if they exist
+        if hasattr(self, 'spellcheck_settings') and self.spellcheck_settings:
+            result['spellcheck_settings'] = self.spellcheck_settings
         # Add original DOCX path if it exists
         if hasattr(self, 'original_docx_path') and self.original_docx_path:
             result['original_docx_path'] = self.original_docx_path
@@ -761,6 +764,9 @@ class Project:
         # Store non-translatables settings if they exist
         if 'nt_settings' in data:
             project.nt_settings = data['nt_settings']
+        # Store spellcheck settings if they exist
+        if 'spellcheck_settings' in data:
+            project.spellcheck_settings = data['spellcheck_settings']
         # Store original DOCX path if it exists
         if 'original_docx_path' in data:
             project.original_docx_path = data['original_docx_path']
@@ -4425,7 +4431,9 @@ class SupervertalerQt(QMainWindow):
         
         # Spellcheck Manager for target language spell checking
         self.spellcheck_manager = get_spellcheck_manager(str(self.user_data_path))
-        self.spellcheck_enabled = False  # Disabled by default
+        # Note: spellcheck_enabled will be loaded from preferences later in _load_spellcheck_settings()
+        # For now set to False, it gets updated when UI is created
+        self.spellcheck_enabled = False
         # Set up the shared spellcheck manager for TagHighlighter instances
         TagHighlighter.set_spellcheck_manager(self.spellcheck_manager)
         TagHighlighter.set_spellcheck_enabled(self.spellcheck_enabled)
@@ -14010,6 +14018,11 @@ class SupervertalerQt(QMainWindow):
         show_invisibles_btn.setMenu(show_invisibles_menu)
 
         # Spellcheck toggle button with dropdown menu
+        # Load saved spellcheck state from preferences
+        saved_enabled = self._load_spellcheck_settings()
+        self.spellcheck_enabled = saved_enabled
+        TagHighlighter.set_spellcheck_enabled(self.spellcheck_enabled)
+        
         self.spellcheck_btn = QPushButton("📝 Spellcheck")
         self.spellcheck_btn.setMaximumWidth(120)
         self.spellcheck_btn.setCheckable(True)
@@ -15817,6 +15830,30 @@ class SupervertalerQt(QMainWindow):
                 else:
                     self.log(f"📋 No NT settings found in project file")
             
+            # Restore spellcheck settings from project
+            if hasattr(self.current_project, 'spellcheck_settings') and self.current_project.spellcheck_settings:
+                spellcheck_settings = self.current_project.spellcheck_settings
+                self.spellcheck_enabled = spellcheck_settings.get('enabled', False)
+                TagHighlighter.set_spellcheck_enabled(self.spellcheck_enabled)
+                
+                # Update UI elements
+                if hasattr(self, 'spellcheck_btn'):
+                    self.spellcheck_btn.setChecked(self.spellcheck_enabled)
+                if hasattr(self, 'spellcheck_toggle_action'):
+                    self.spellcheck_toggle_action.setChecked(self.spellcheck_enabled)
+                self._update_spellcheck_button_style()
+                
+                # Initialize spellcheck for target language if enabled
+                if self.spellcheck_enabled:
+                    # Use saved language or current target language
+                    lang = spellcheck_settings.get('language', self.target_language)
+                    if self.spellcheck_manager.set_language(lang):
+                        self.log(f"✓ Restored spellcheck: enabled for {lang}")
+                    else:
+                        self.log(f"⚠ Spellcheck enabled but dictionary not available for {lang}")
+                else:
+                    self.log(f"📋 Spellcheck disabled for this project")
+            
             self.log(f"✓ Loaded project: {self.current_project.name} ({len(self.current_project.segments)} segments)")
             
             # Start background batch processing of termbase matches for all segments
@@ -16507,6 +16544,13 @@ class SupervertalerQt(QMainWindow):
                         if priority is not None:
                             termbase_priorities[str(tb_id)] = priority
                     self.current_project.termbase_settings['termbase_priorities'] = termbase_priorities
+            
+            # Save spellcheck settings to project
+            if not hasattr(self.current_project, 'spellcheck_settings'):
+                self.current_project.spellcheck_settings = {}
+            self.current_project.spellcheck_settings['enabled'] = self.spellcheck_enabled
+            if hasattr(self, 'target_language'):
+                self.current_project.spellcheck_settings['language'] = self.target_language
             
             # Save original DOCX path for structure-preserving export
             original_path = getattr(self, 'original_docx', None) or getattr(self, 'current_document_path', None)
@@ -24746,6 +24790,20 @@ class SupervertalerQt(QMainWindow):
         except Exception as e:
             self.log(f"⚠ Could not save spellcheck settings: {e}")
 
+    def _load_spellcheck_settings(self):
+        """Load spellcheck settings from preferences"""
+        prefs_file = self.user_data_path / "ui_preferences.json"
+        
+        if prefs_file.exists():
+            try:
+                with open(prefs_file, 'r') as f:
+                    prefs = json.load(f)
+                settings = prefs.get('spellcheck_settings', {})
+                return settings.get('enabled', False)
+            except:
+                pass
+        return False
+
     def _refresh_all_highlighters(self):
         """Refresh all syntax highlighters in the grid to update spellcheck"""
         if not hasattr(self, 'table') or not self.table:
@@ -24852,10 +24910,33 @@ class SupervertalerQt(QMainWindow):
         status_label = QLabel(f"{'✓ Enabled' if self.spellcheck_enabled else '✗ Disabled'}")
         status_label.setStyleSheet(f"color: {'green' if self.spellcheck_enabled else 'red'}; font-weight: bold;")
         status_layout.addRow("Spellcheck:", status_label)
-        status_layout.addRow("Backend:", QLabel(backend))
         status_layout.addRow("Spellcheck Language:", QLabel(language))
         
+        # Backend explanation with icon
+        is_hunspell = "Hunspell" in backend
+        backend_icon = "📚" if is_hunspell else "🐍"
+        backend_label = QLabel(f"{backend_icon} {backend}")
+        status_layout.addRow("Backend:", backend_label)
+        
         layout.addWidget(status_group)
+        
+        # How It Works section
+        how_group = QGroupBox("How Spellcheck Works")
+        how_layout = QVBoxLayout(how_group)
+        
+        explanation = QLabel(
+            "<b>Supervertaler has two spellcheck backends:</b><br><br>"
+            "🐍 <b>Built-in (pyspellchecker)</b> — Works out of the box for:<br>"
+            "&nbsp;&nbsp;&nbsp;&nbsp;English, Dutch, German, French, Spanish, Portuguese, Italian, Russian<br>"
+            "&nbsp;&nbsp;&nbsp;&nbsp;<i>No installation needed!</i><br><br>"
+            "📚 <b>Hunspell (optional)</b> — For more languages or better accuracy:<br>"
+            "&nbsp;&nbsp;&nbsp;&nbsp;Download .dic/.aff dictionary files (see below)<br>"
+            "&nbsp;&nbsp;&nbsp;&nbsp;Place in dictionaries folder → automatically used<br><br>"
+            f"<b>Currently using:</b> {'Hunspell dictionary files' if is_hunspell else 'Built-in dictionary (no external files needed)'}"
+        )
+        explanation.setWordWrap(True)
+        how_layout.addWidget(explanation)
+        layout.addWidget(how_group)
         
         # Languages section
         lang_group = QGroupBox("Available Languages")
@@ -24880,10 +24961,10 @@ class SupervertalerQt(QMainWindow):
         layout.addWidget(custom_group)
         
         # Hunspell Dictionaries section
-        hunspell_group = QGroupBox("Add More Languages (Hunspell)")
+        hunspell_group = QGroupBox("Optional: Add Hunspell Dictionaries")
         hunspell_layout = QVBoxLayout(hunspell_group)
         
-        hunspell_layout.addWidget(QLabel("To add more language dictionaries:"))
+        hunspell_layout.addWidget(QLabel("For additional languages or improved accuracy:"))
         hunspell_layout.addWidget(QLabel("1. Download the .zip file for your language"))
         hunspell_layout.addWidget(QLabel("2. Extract the .dic and .aff files"))
         hunspell_layout.addWidget(QLabel("3. Place them in the dictionaries folder below"))
