@@ -23788,10 +23788,10 @@ class SupervertalerQt(QMainWindow):
         match_layout = QVBoxLayout()
         
         self.match_group = QButtonGroup(dialog)
-        match_anything = QRadioButton("Anything")
+        match_anything = CheckmarkRadioButton("Anything")
         match_anything.setChecked(True)
-        match_whole_words = QRadioButton("Only whole words")
-        match_entire = QRadioButton("Entire segment")
+        match_whole_words = CheckmarkRadioButton("Only whole words")
+        match_entire = CheckmarkRadioButton("Entire segment")
         
         self.match_group.addButton(match_anything, 0)
         self.match_group.addButton(match_whole_words, 1)
