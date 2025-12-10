@@ -7,6 +7,86 @@
 
 ---
 
+## 🎯 Project Overview
+
+**Supervertaler** is a professional desktop translation application built with Python and PyQt6. It serves as a companion tool for translators, integrating AI-powered translation with traditional CAT (Computer-Assisted Translation) tool workflows.
+
+### Quick Facts
+
+| Property | Value |
+|----------|-------|
+| **Framework** | PyQt6 (Qt for Python) |
+| **Language** | Python 3.10+ |
+| **Platform** | Windows (primary), Linux compatible |
+| **Main File** | `Supervertaler.py` (~32,000+ lines) |
+| **Modules** | 60+ specialized modules in `modules/` directory |
+| **License** | Proprietary |
+
+### Key Capabilities
+
+- **Multi-LLM AI Translation**: OpenAI GPT-4, Anthropic Claude, Google Gemini, Local Ollama
+- **CAT Tool Integration**: Trados SDLPPX/SDLRPX, memoQ XLIFF, Phrase/Memsource DOCX, CafeTran DOCX
+- **Translation Memory**: Fuzzy matching TM with TMX import/export + Supermemory (ChromaDB vector search)
+- **Terminology Management**: SQLite-based termbases with priority highlighting and automatic extraction
+- **Document Handling**: DOCX, bilingual DOCX, PDF (via OCR), simple TXT
+- **Quality Assurance**: Spellcheck, tag validation, consistency checking
+
+### Project Structure
+
+```
+Supervertaler/
+├── Supervertaler.py          # Main application
+├── modules/                   # 60+ specialized modules
+│   ├── llm_clients.py        # AI provider integrations
+│   ├── sdlppx_handler.py     # Trados Studio packages
+│   ├── translation_memory.py # TM system
+│   ├── termbase_manager.py   # Terminology
+│   ├── spellcheck_manager.py # Spellcheck backend
+│   └── ...
+├── user_data/                 # User content (gitignored)
+├── assets/                    # Icons, images
+├── docs/                      # Documentation site
+└── tests/                     # Test files
+```
+
+### File Extensions
+
+| Extension | Purpose |
+|-----------|---------|
+| `.svproj` | Supervertaler project files (JSON) |
+| `.svprompt` | Prompt files (JSON) |
+| `.svntl` | Non-translatables lists (JSON) |
+
+### Development Guidelines
+
+1. **Supervertaler.py is large** (~32K lines) - use line ranges when reading
+2. **Search before editing** - Use grep to find method locations
+3. **Follow existing patterns** - Consistent styling, PyQt6 conventions
+4. **Update documentation** - CHANGELOG.md, PROJECT_CONTEXT.md, README.md
+
+### Key Classes
+
+```python
+@dataclass
+class Project:
+    segments: List[Segment]
+    source_lang: str
+    target_lang: str
+    original_docx_path: Optional[str] = None
+    sdlppx_source_path: Optional[str] = None
+    # ... 20+ fields
+
+@dataclass  
+class Segment:
+    source: str
+    target: str = ""
+    status: str = "Not Started"
+    notes: str = ""
+    segment_type: str = "text"
+```
+
+---
+
 ## 📅 Recent Development Activity
 
 ### December 10, 2025 - Version 1.9.32: Trados SDLRPX Status Fix
