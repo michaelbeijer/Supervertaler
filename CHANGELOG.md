@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.29 (December 10, 2025)
+**Current Version:** v1.9.30 (December 10, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -14,6 +14,7 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- 🐛 **Critical LLM Fix (v1.9.30)** - Fixed OpenAI/LLM translation failing with "No such file or directory" error. Removed hardcoded debug file path that prevented translation when running from non-development directories
 - 📝 **Spellcheck Integration (v1.9.29)** - Built-in spellcheck for target language. Works out of the box with pyspellchecker (8 languages bundled). Optional Hunspell support for more languages. Red wavy underlines for misspelled words. Right-click for suggestions, Add to Dictionary, Ignore. Custom dictionary with persistent word list. Spellcheck state saved per-project in .svproj files. Button state persists across restarts
 - 📄 **Phrase (Memsource) Bilingual DOCX Support (v1.9.28)** - Full round-trip support for Phrase TMS bilingual DOCX files. Import preserves inline tags like `{1}`, `{1>text<1}`. Export writes translations back to Column 5 for seamless return to Phrase workflow. File → Import → Phrase (Memsource) Bilingual (DOCX) and File → Export → Phrase (Memsource) Bilingual
 - 👁️ **Show Invisibles Feature (v1.9.28)** - Display invisible characters in the translation grid: spaces (·), tabs (→), non-breaking spaces (°), and line breaks (¶). Dropdown menu with granular control for each character type. Toggle All option. Smart handling preserves copy/paste (Ctrl+C copies original characters), double-click word selection, and Ctrl+Arrow word navigation. Configurable symbol color in Settings → View Settings

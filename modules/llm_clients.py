@@ -708,40 +708,9 @@ class LLMClient:
             print(f"🔵 Standard model params: max_tokens={tokens_to_use}, temperature={self.temperature}")
 
         try:
-            # File-based logging to bypass import cache
-            import datetime
-            debug_log = "C:/Dev/Supervertaler/openai_debug.txt"
-            with open(debug_log, "a", encoding="utf-8") as f:
-                f.write(f"\n{'='*60}\n")
-                f.write(f"[{datetime.datetime.now()}] OpenAI API Call\n")
-                f.write(f"Model: {self.model}\n")
-                f.write(f"Prompt length: {len(prompt)} chars\n")
-                f.write(f"Is reasoning model: {is_reasoning_model}\n")
-                f.write(f"API params: {list(api_params.keys())}\n")
-                if is_reasoning_model:
-                    f.write(f"  - max_completion_tokens: {api_params.get('max_completion_tokens')}\n")
-                    f.write(f"  - reasoning_effort: {api_params.get('reasoning_effort')}\n")
-                else:
-                    f.write(f"  - max_tokens: {api_params.get('max_tokens')}\n")
-                    f.write(f"  - temperature: {api_params.get('temperature')}\n")
-
             print(f"🔵 Calling OpenAI API...")
             response = client.chat.completions.create(**api_params)
             print(f"🔵 OpenAI API call completed")
-
-            # Log success and detailed response info
-            with open(debug_log, "a", encoding="utf-8") as f:
-                f.write(f"✓ API call successful\n")
-                f.write(f"Response has {len(response.choices)} choices\n")
-                if response.choices:
-                    choice = response.choices[0]
-                    f.write(f"Choice[0] finish_reason: {choice.finish_reason}\n")
-                    f.write(f"Choice[0] message.role: {choice.message.role}\n")
-                    f.write(f"Choice[0] message.content type: {type(choice.message.content)}\n")
-                    f.write(f"Choice[0] message.content value: {repr(choice.message.content)[:200]}\n")
-                    # Check for refusal field (GPT-5 specific)
-                    if hasattr(choice.message, 'refusal'):
-                        f.write(f"Choice[0] message.refusal: {choice.message.refusal}\n")
 
             # Check if response has content
             if not response.choices or not response.choices[0].message.content:

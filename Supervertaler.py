@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.29"
+__version__ = "1.9.30"
 __phase__ = "0.9"
 __release_date__ = "2025-12-10"
 __edition__ = "Qt"
@@ -48,6 +48,17 @@ from pathlib import Path
 from typing import List, Optional, Dict, Any, Tuple, Callable
 from dataclasses import dataclass, asdict
 from datetime import datetime
+
+
+def get_resource_path(relative_path: str) -> Path:
+    """Get absolute path to resource, works for dev and for PyInstaller bundled app."""
+    if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+        # Running as compiled executable (PyInstaller)
+        base_path = Path(sys._MEIPASS)
+    else:
+        # Running in development
+        base_path = Path(__file__).parent
+    return base_path / relative_path
 import threading
 import time  # For delays in Superlookup
 import re
@@ -4660,7 +4671,7 @@ class SupervertalerQt(QMainWindow):
 
         # Set application icon
         from PyQt6.QtGui import QIcon
-        icon_path = Path("assets/icon.ico")
+        icon_path = get_resource_path("assets/icon.ico")
         if icon_path.exists():
             self.setWindowIcon(QIcon(str(icon_path)))
 
