@@ -3,7 +3,7 @@ Supervertaler
 =============
 The ultimate companion tool for translators and writers.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.9.33 (Spellcheck Update Fix)
+Version: 1.9.36 (Universal Tag Coloring)
 Release Date: December 10, 2025
 Framework: PyQt6
 

@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.35 (December 10, 2025)
+**Current Version:** v1.9.36 (December 10, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -14,6 +14,7 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- 🎨 **Universal Tag Coloring (v1.9.36)** - All CAT tool tags now highlighted in pink: memoQ `{1}`, `[2}`, Trados `<1>`, `</1>`, Phrase `{1}`, and HTML `<b>`, `<i>`. CafeTran pipe symbols only red in CafeTran projects (bug fix).
 - 🎨 **memoQ Red Tags Support (v1.9.35)** - Fixed memoQ bilingual export not preserving red tag color. Tags in the target column now correctly inherit the red/magenta color from the source column, ensuring perfect formatting for memoQ re-import.
 - 🎨 **UI Fixes (v1.9.34)** - Replaced all standard radio buttons with green-themed CheckmarkRadioButton.
 - 🐛 **Spellcheck Update Fix (v1.9.33)** - Fixed issue where adding/ignoring words only removed underline in the current cell. Now triggers instant global refresh of all highlighters across the entire grid. No more false positive red underlines after you've whitelisted a word
@@ -81,13 +82,28 @@ All notable changes to Supervertaler are documented in this file.
 
 ---
 
+## [1.9.36] - December 10, 2025
+
+### 🎨 Universal Tag Coloring
+
+**All CAT tool tags now highlighted in pink in the translation grid:**
+- 🏷️ **memoQ Tags**: `{1}`, `[2}`, `{3]`, `[4]` - all variations now colored pink
+- 🏷️ **Trados Tags**: `<1>`, `</1>` - numeric tags now colored pink
+- 🏷️ **Phrase Tags**: `{1}`, `{2}` - same as memoQ, now colored pink
+- 🏷️ **HTML Tags**: `<b>`, `<i>`, `<u>`, `<li-o>` - already worked, still works
+
+**CafeTran Pipe Symbol Fix:**
+- 🐛 **Bug Fix**: Pipe symbols (`|`) were incorrectly highlighted red in ALL project types
+- ✅ **Fixed**: Pipes now only red in CafeTran projects (as intended)
+- 🔧 **Implementation**: Added `TagHighlighter._is_cafetran_project` class flag
+
+---
+
 ## [1.9.35] - December 10, 2025
 
 ### 🎨 formatting
 - **memoQ Red Tags**: Fixed issue where red formatting tags (e.g. `{1}`) in memoQ bilingual files were being exported as black text.
 - **Smart Color Transfer**: Export now dynamically reads the source column color and applies it to the corresponding text in the target column.
-
----
 
 ## [1.9.34] - December 10, 2025
 
