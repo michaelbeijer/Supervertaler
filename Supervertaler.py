@@ -18055,14 +18055,25 @@ class SupervertalerQt(QMainWindow):
                                                 color_hex = str(run.font.color.rgb)
                                         except:
                                             pass
-                                            
-                                        formatting_info.append({
-                                            'text': run.text,
-                                            'bold': run.bold == True,
-                                            'italic': run.italic == True,
-                                            'underline': run.underline == True,
-                                            'color': color_hex
-                                        })
+                                        
+                                        # Split run text by tags to allow granular formatting transfer
+                                        # This ensures that if a tag like {1} is merged with text in one run,
+                                        # we still extract {1} as a separate formatting unit.
+                                        import re
+                                        # Matches {1}, [1], <tag>, or </tag>
+                                        parts = re.split(r'(\{\d+\}|\[\d+\]|<\/?[a-zA-Z0-9_]+[^>]*>)', run.text)
+                                        
+                                        for part in parts:
+                                            if not part:
+                                                continue
+                                                
+                                            formatting_info.append({
+                                                'text': part,
+                                                'bold': run.bold == True,
+                                                'italic': run.italic == True,
+                                                'underline': run.underline == True,
+                                                'color': color_hex
+                                            })
 
                         if any(f.get('bold') or f.get('italic') or f.get('underline') or f.get('color') for f in formatting_info):
                             segments_with_formatting += 1
