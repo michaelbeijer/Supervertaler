@@ -299,7 +299,9 @@ google_api_key=AI...
 
 ### December 10, 2025 - Version 1.9.34: UI Fixes
 
-**🎨 Import TMX Dialogue Styled**
+**🎨 Global UI Standardization**
+- Replaced standard OS radio buttons with custom green `CheckmarkRadioButton`.
+- Unified design across Filters, Import, AutoFingers, and Find/Replace dialogs.
 - Replaced default radio buttons in Import TMX dialogue with standard `CheckmarkRadioButton` widgets
 - Ensures consistency with application's green UI theme
 
