@@ -297,8 +297,33 @@ google_api_key=AI...
 
 ## 🔄 Recent Development History
 
-### December 10, 2025 - Version 1.9.35: memoQ Formatting
-- **Red Tags Preserved**: Exporting to memoQ bilingual DOCX now preserves red text color for tags (e.g. `{1}`) by dynamically reading the source column.
+### December 10, 2025 - Version 1.9.35: memoQ Red Tag Color Fix
+
+**🔴 memoQ Inline Tag Color Preservation**
+
+Fixed critical issue where red/magenta inline tags (e.g., `{1}`, `[2}`) in memoQ bilingual exports were appearing as black text in the target column.
+
+**Root Cause Discovery:**
+- memoQ stores tag colors in **character styles** (e.g., `mqInternal`), not directly on the run
+- The `mqInternal` style defines color `800000` (dark red) at the style level
+- `python-docx` API (`run.font.color.rgb`) returns `None` for style-based colors
+
+**Solution Implemented:**
+- Added 3-tier color extraction method in `export_memoq_bilingual()`:
+  1. Check `run.font.color.rgb` (direct color)
+  2. Check XML `w:color` element in `rPr` (inline XML color)
+  3. **NEW**: Check `w:rStyle` element, lookup character style, extract style's color
+- Added debug logging for troubleshooting: `🔍 Debug: Found colored tags in first segment: [...]`
+
+**Technical Details:**
+- Modified `export_memoq_bilingual()` in `Supervertaler.py`
+- Uses `docx.oxml.ns.qn()` for XML namespace-aware queries
+- Looks up `doc.styles[style_id].font.color.rgb` for style-based colors
+- Applies color via `RGBColor` to target runs in `_apply_formatting_to_cell()`
+
+**Files Modified:**
+- `Supervertaler.py` - Color extraction logic
+- Version bumped to 1.9.35
 
 ### December 10, 2025 - Version 1.9.34: UI Fixes
 
@@ -476,4 +501,4 @@ google_api_key=AI...
 ---
 
 *This file replaces the previous CLAUDE.md and PROJECT_CONTEXT.md files.*
-*Last updated: December 10, 2025 - v1.9.34*
+*Last updated: December 10, 2025 - v1.9.35*
