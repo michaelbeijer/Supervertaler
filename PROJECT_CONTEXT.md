@@ -1,13 +1,21 @@
 # Supervertaler Project Context
 
 **Last Updated:** December 10, 2025
-**Current Version:** v1.9.30
+**Current Version:** v1.9.31
 **Repository:** https://github.com/michaelbeijer/Supervertaler
 **Maintainer:** Michael Beijer
 
 ---
 
 ## 📅 Recent Development Activity
+
+### December 10, 2025 - Version 1.9.31: Spellcheck Language Fix
+
+**🔤 Fixed Spellcheck Language Selection**
+- Spellcheck now correctly uses the project's target language instead of defaulting to English
+- Added language dropdown in Spellcheck Info dialog to manually change spellcheck language
+- Language changes take effect immediately with highlighting refresh
+- When loading a project, spellcheck initializes with `current_project.target_lang` instead of app preferences
 
 ### December 10, 2025 - Version 1.9.30: Critical LLM Fix
 

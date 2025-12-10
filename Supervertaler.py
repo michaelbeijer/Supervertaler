@@ -3,7 +3,7 @@ Supervertaler
 =============
 The ultimate companion tool for translators and writers.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.9.30 (Critical LLM Fix)
+Version: 1.9.31 (Spellcheck Language Fix)
 Release Date: December 10, 2025
 Framework: PyQt6
 
@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.30"
+__version__ = "1.9.31"
 __phase__ = "0.9"
 __release_date__ = "2025-12-10"
 __edition__ = "Qt"
@@ -15856,14 +15856,21 @@ class SupervertalerQt(QMainWindow):
                 
                 # Initialize spellcheck for target language if enabled
                 if self.spellcheck_enabled:
-                    # Use saved language or current target language
-                    lang = spellcheck_settings.get('language', self.target_language)
+                    # Use saved language, or fall back to project's target language
+                    project_target = self.current_project.target_lang if self.current_project else self.target_language
+                    lang = spellcheck_settings.get('language', project_target)
                     if self.spellcheck_manager.set_language(lang):
                         self.log(f"✓ Restored spellcheck: enabled for {lang}")
                     else:
                         self.log(f"⚠ Spellcheck enabled but dictionary not available for {lang}")
                 else:
                     self.log(f"📋 Spellcheck disabled for this project")
+            else:
+                # No spellcheck settings in project - if spellcheck is enabled, use project's target language
+                if self.spellcheck_enabled and self.current_project:
+                    project_target = self.current_project.target_lang
+                    if project_target and self.spellcheck_manager.set_language(project_target):
+                        self.log(f"✓ Spellcheck set to project target language: {project_target}")
             
             self.log(f"✓ Loaded project: {self.current_project.name} ({len(self.current_project.segments)} segments)")
             
@@ -24733,16 +24740,19 @@ class SupervertalerQt(QMainWindow):
         if hasattr(self, 'spellcheck_toggle_action'):
             self.spellcheck_toggle_action.setChecked(self.spellcheck_enabled)
         
+        # Use project's target language if available, otherwise fall back to app preference
+        spellcheck_lang = self.current_project.target_lang if self.current_project else self.target_language
+        
         # Initialize spellcheck for target language if enabling
         if self.spellcheck_enabled:
-            if self.spellcheck_manager.set_language(self.target_language):
-                self.log(f"✓ Spellcheck enabled for {self.target_language}")
+            if self.spellcheck_manager.set_language(spellcheck_lang):
+                self.log(f"✓ Spellcheck enabled for {spellcheck_lang}")
             else:
-                self.log(f"⚠ Spellcheck dictionary not available for {self.target_language}")
+                self.log(f"⚠ Spellcheck dictionary not available for {spellcheck_lang}")
                 # Show warning
                 QMessageBox.warning(
                     self, "Dictionary Not Found",
-                    f"Spellcheck dictionary for '{self.target_language}' is not available.\n\n"
+                    f"Spellcheck dictionary for '{spellcheck_lang}' is not available.\n\n"
                     f"Available dictionaries: {', '.join(self.spellcheck_manager.get_available_languages())}\n\n"
                     f"Using pyspellchecker will be used as fallback for English."
                 )
@@ -24768,11 +24778,14 @@ class SupervertalerQt(QMainWindow):
         # Same logic as _toggle_spellcheck
         self._update_spellcheck_button_style()
         
+        # Use project's target language if available, otherwise fall back to app preference
+        spellcheck_lang = self.current_project.target_lang if self.current_project else self.target_language
+        
         if self.spellcheck_enabled:
-            if self.spellcheck_manager.set_language(self.target_language):
-                self.log(f"✓ Spellcheck enabled for {self.target_language}")
+            if self.spellcheck_manager.set_language(spellcheck_lang):
+                self.log(f"✓ Spellcheck enabled for {spellcheck_lang}")
             else:
-                self.log(f"⚠ Spellcheck dictionary not available for {self.target_language}")
+                self.log(f"⚠ Spellcheck dictionary not available for {spellcheck_lang}")
         else:
             self.log("✗ Spellcheck disabled")
         
@@ -24903,7 +24916,8 @@ class SupervertalerQt(QMainWindow):
         """Show information about spellcheck configuration with clickable links"""
         backend = self.spellcheck_manager.get_backend_info()
         language = self.spellcheck_manager.get_current_language() or "Not set"
-        available = ', '.join(self.spellcheck_manager.get_available_languages()) or "None"
+        available_languages = self.spellcheck_manager.get_available_languages()
+        available = ', '.join(available_languages) or "None"
         custom_count = len(self.spellcheck_manager.get_custom_words())
         dict_path = str(self.spellcheck_manager.dictionaries_path)
         
@@ -24921,7 +24935,30 @@ class SupervertalerQt(QMainWindow):
         status_label = QLabel(f"{'✓ Enabled' if self.spellcheck_enabled else '✗ Disabled'}")
         status_label.setStyleSheet(f"color: {'green' if self.spellcheck_enabled else 'red'}; font-weight: bold;")
         status_layout.addRow("Spellcheck:", status_label)
-        status_layout.addRow("Spellcheck Language:", QLabel(language))
+        
+        # Language dropdown for selecting spellcheck language
+        lang_combo = QComboBox()
+        lang_combo.addItems(available_languages)
+        # Set current language
+        if language in available_languages:
+            lang_combo.setCurrentText(language)
+        
+        def on_language_changed(new_lang):
+            if self.spellcheck_manager.set_language(new_lang):
+                self.log(f"✓ Spellcheck language changed to: {new_lang}")
+                # Update backend display
+                new_backend = self.spellcheck_manager.get_backend_info()
+                is_hunspell_new = "Hunspell" in new_backend
+                backend_icon_new = "📚" if is_hunspell_new else "🐍"
+                backend_label.setText(f"{backend_icon_new} {new_backend}")
+                # Refresh spellcheck highlighting if enabled
+                if self.spellcheck_enabled:
+                    self._refresh_all_highlighters()
+            else:
+                self.log(f"⚠ Could not set spellcheck language to: {new_lang}")
+        
+        lang_combo.currentTextChanged.connect(on_language_changed)
+        status_layout.addRow("Spellcheck Language:", lang_combo)
         
         # Backend explanation with icon
         is_hunspell = "Hunspell" in backend
