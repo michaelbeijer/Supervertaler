@@ -18180,10 +18180,16 @@ class SupervertalerQt(QMainWindow):
             return
         
         # PRIORITY 2: Use formatting_info for smart transfer (legacy approach)
-        use_smart = getattr(self, 'memoq_smart_formatting', False)
+        # Default to True so it works across restarts/without re-importing
+        use_smart = getattr(self, 'memoq_smart_formatting', True)
         
-        if not formatting_info or not use_smart:
-            # No formatting or smart formatting disabled - just add plain text
+        if not formatting_info:
+            # No formatting info - just add plain text
+            paragraph.add_run(text)
+            return
+        
+        if not use_smart:
+            # Explicitly disabled by user (only matters if they just imported)
             paragraph.add_run(text)
             return
         
