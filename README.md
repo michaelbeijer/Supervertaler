@@ -32,7 +32,14 @@
 python Supervertaler.py
 ```
 
-**NEW in v1.9.28 - Phrase DOCX Support & Show Invisibles:**
+**NEW in v1.9.29 - Spellcheck Integration:**
+- 📝 **Built-in Spellcheck** - Red wavy underlines for misspelled words in target text
+- 🐍 **Works Out of the Box** - 8 languages bundled (EN, NL, DE, FR, ES, PT, IT, RU)
+- 📚 **Optional Hunspell** - Add more languages with .dic/.aff dictionary files
+- 💬 **Right-Click Menu** - Spelling suggestions, Add to Dictionary, Ignore
+- 💾 **Project Settings** - Spellcheck state saved per-project in .svproj files
+
+**v1.9.28 - Phrase DOCX Support & Show Invisibles:**
 - 📄 **Phrase (Memsource) Bilingual DOCX** - Full round-trip support for Phrase TMS files
 - 👁️ **Show Invisibles** - Display spaces (·), tabs (→), NBSPs (°), line breaks (¶) in the grid
 - 🎨 **Smart Handling** - Copy/paste, word selection, and navigation work correctly with invisibles shown
@@ -43,25 +50,19 @@ python Supervertaler.py
 - 🌐 **Encoding Support** - UTF-8, Latin-1, Windows-1252 with automatic detection
 - 📝 **Line-by-Line** - Perfect for translating simple text content
 
-**v1.9.26 - Automatic Model Version Checker & UI Polish:**
+**v1.9.26 - Automatic Model Version Checker:**
 - 🔄 **Auto Model Detection** - Automatically checks for new LLM models from OpenAI, Anthropic, and Google
 - 📅 **Daily Checks** - Runs once per 24 hours on startup (configurable)
-- 🔔 **Smart Notifications** - Popup dialog only when new models detected
-- ✅ **Easy Selection** - Click to select which models to add with pre-selection
 - 🎨 **UI Standardization** - All 68 checkboxes now use consistent green (16x16px) design
-- 📏 **Refined Size** - Reduced from 18x18px to 16x16px for cleaner appearance
 
 **v1.9.25 - Linux Compatibility:**
 - 🐧 **Full Linux Support** - Works perfectly on Ubuntu and other Linux distributions
 - 📦 **Complete Dependencies** - One-command installation with requirements.txt
-- 🔧 **Platform Detection** - Graceful handling of Windows-specific features on Linux
-- 🛠️ **Fresh Install Ready** - Tested on fresh Ubuntu installation with virtual environment
 
 **v1.9.20 - Trados Studio Package Support:**
 - 📦 **SDLPPX Import** - Import Trados Studio project packages directly
 - 📤 **SDLRPX Export** - Create return packages for delivery back to Trados users
 - 💾 **Project Persistence** - Save/restore SDLPPX projects across sessions
-- 🔄 **Full Round-Trip** - Import → Translate → Save → Close → Reopen → Continue → Export
 
 **v1.9.18 - Supermemory Concordance Integration:**
 - 🔍 **Semantic Concordance** - Concordance Search (Ctrl+K) now includes Supermemory tab
