@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.36 (December 10, 2025)
+**Current Version:** v1.9.37 (December 11, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -14,6 +14,7 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- 🔤 **User-Configurable Grid Fonts (v1.9.37)** - Choose your preferred font family for the translation grid from 10 popular options. Live preview shows font changes in real-time with sample source/target text and tags. Font family now persists between sessions.
 - 🎨 **Universal Tag Coloring (v1.9.36)** - All CAT tool tags now highlighted in pink: memoQ `{1}`, `[2}`, Trados `<1>`, `</1>`, Phrase `{1}`, and HTML `<b>`, `<i>`. CafeTran pipe symbols only red in CafeTran projects (bug fix).
 - 🎨 **memoQ Red Tags Support (v1.9.35)** - Fixed memoQ bilingual export not preserving red tag color. Tags in the target column now correctly inherit the red/magenta color from the source column, ensuring perfect formatting for memoQ re-import.
 - 🎨 **UI Fixes (v1.9.34)** - Replaced all standard radio buttons with green-themed CheckmarkRadioButton.
@@ -79,6 +80,19 @@ All notable changes to Supervertaler are documented in this file.
 - 🔄 **CAT Tool Integration** - memoQ, Trados, CafeTran bilingual table support
 
 **See full version history below** ↓
+
+---
+
+## [1.9.37] - December 11, 2025
+
+### 🔤 User-Configurable Grid Fonts
+
+**New font customization options in Settings → View Settings:**
+- 🔤 **Font Family Dropdown**: Choose from 10 popular fonts: Calibri, Segoe UI, Arial, Consolas, Verdana, Times New Roman, Georgia, Courier New, Tahoma, Trebuchet MS
+- 👁️ **Live Preview**: Real-time preview showing sample source/target text with tags, updates instantly as you change font settings
+- 💾 **Font Persistence**: Font family now saved to preferences and restored on startup (previously only font size was saved)
+- 🎯 **Improved Spinbox**: Fixed font size spinner up/down arrows with better click targets
+- 📝 **Contact Note**: Info text now includes "If your favourite font is missing, contact the developer!"
 
 ---
 

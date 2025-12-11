@@ -1,8 +1,8 @@
-# 🚀 Supervertaler v1.9.36
+# 🚀 Supervertaler v1.9.37
 
 🎯 **The Ultimate Companion Tool for Translators and Writers** — Context-aware AI with intuitive 2-Layer Prompt Architecture, AI Assistant, project termbase system with automatic extraction, and specialized modules.
 
-**Current Version:** v1.9.36 (December 10, 2025)
+**Current Version:** v1.9.37 (December 11, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -33,7 +33,12 @@
 python Supervertaler.py
 ```
 
-### NEW in v1.9.36 - Universal Tag Coloring
+### NEW in v1.9.37 - User-Configurable Grid Fonts
+*   **Font Family Selection**: Choose from 10 popular fonts (Calibri, Segoe UI, Arial, Consolas, etc.) in Settings → View Settings
+*   **Live Preview**: See font changes in real-time before saving with a mock source/target preview showing tags
+*   **Font Persistence**: Your chosen font family is now saved between sessions (previously only font size was saved)
+
+### v1.9.36 - Universal Tag Coloring
 *   **Universal Tag Coloring**: All CAT tool tags now highlighted in pink: memoQ `{1}`, `[2}`, Trados `<1>`, `</1>`, Phrase `{1}`, and HTML `<b>`, `<i>`.
 *   **CafeTran Pipe Fix**: Pipe symbols (`|`) now only highlighted red in CafeTran projects (was incorrectly red in all projects).
 

@@ -34,9 +34,9 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.35"
+__version__ = "1.9.37"
 __phase__ = "0.9"
-__release_date__ = "2025-12-10"
+__release_date__ = "2025-12-11"
 __edition__ = "Qt"
 
 import sys
@@ -12535,18 +12535,37 @@ class SupervertalerQt(QMainWindow):
         
         font_settings = self.load_general_settings()
         
-        # Grid Text Font Size section
-        grid_group = QGroupBox("📊 Grid Text Font Size")
+        # Grid Text Font Settings section
+        grid_group = QGroupBox("📊 Grid Text Font Settings")
         grid_layout = QVBoxLayout()
         
         grid_size_info = QLabel(
-            "Set the default font size for the grid (source and target columns).\n"
-            "You can also adjust this using View menu → Grid Text Zoom."
+            "Set the default font family and size for the grid (source and target columns).\n"
+            "You can also adjust size using View menu → Grid Text Zoom.\n"
+            "If your favourite font is missing, contact the developer!"
         )
         grid_size_info.setStyleSheet("font-size: 8pt; color: #666; padding: 8px; background-color: #f3f4f6; border-radius: 2px;")
         grid_size_info.setWordWrap(True)
         grid_layout.addWidget(grid_size_info)
         
+        # Font family dropdown
+        grid_font_family_layout = QHBoxLayout()
+        grid_font_family_layout.addWidget(QLabel("Font Family:"))
+        grid_font_family_combo = QComboBox()
+        font_families = ["Calibri", "Segoe UI", "Arial", "Consolas", "Verdana", 
+                        "Times New Roman", "Georgia", "Courier New", "Tahoma", "Trebuchet MS"]
+        grid_font_family_combo.addItems(font_families)
+        current_font_family = font_settings.get('grid_font_family', self.default_font_family)
+        if current_font_family in font_families:
+            grid_font_family_combo.setCurrentText(current_font_family)
+        else:
+            grid_font_family_combo.setCurrentText("Calibri")
+        grid_font_family_combo.setToolTip("Select the font family for grid text")
+        grid_font_family_layout.addWidget(grid_font_family_combo)
+        grid_font_family_layout.addStretch()
+        grid_layout.addLayout(grid_font_family_layout)
+        
+        # Font size spinbox
         grid_spin_layout = QHBoxLayout()
         grid_spin_layout.addWidget(QLabel("Font Size:"))
         grid_font_spin = QSpinBox()
@@ -12555,9 +12574,76 @@ class SupervertalerQt(QMainWindow):
         grid_font_spin.setValue(font_settings.get('grid_font_size', 11))
         grid_font_spin.setSuffix(" pt")
         grid_font_spin.setToolTip("Grid font size (7-72 pt)")
+        grid_font_spin.setMinimumHeight(28)
+        grid_font_spin.setMinimumWidth(80)
+        # Fix spinbox arrow buttons - ensure both up and down work correctly
+        grid_font_spin.setStyleSheet("""
+            QSpinBox {
+                padding-right: 20px;
+            }
+            QSpinBox::up-button {
+                width: 20px;
+                height: 14px;
+            }
+            QSpinBox::down-button {
+                width: 20px;
+                height: 14px;
+            }
+        """)
         grid_spin_layout.addWidget(grid_font_spin)
         grid_spin_layout.addStretch()
         grid_layout.addLayout(grid_spin_layout)
+        
+        # Live preview section
+        preview_label = QLabel("Preview:")
+        preview_label.setStyleSheet("font-weight: bold; margin-top: 8px;")
+        grid_layout.addWidget(preview_label)
+        
+        # Preview container with border to simulate grid
+        preview_container = QFrame()
+        preview_container.setFrameStyle(QFrame.Shape.Box | QFrame.Shadow.Sunken)
+        preview_container.setStyleSheet("background-color: white; border: 1px solid #ccc;")
+        preview_container_layout = QVBoxLayout(preview_container)
+        preview_container_layout.setContentsMargins(0, 0, 0, 0)
+        preview_container_layout.setSpacing(0)
+        
+        # Source row (read-only style - light gray background)
+        source_preview = QLabel()
+        source_preview.setTextFormat(Qt.TextFormat.RichText)
+        source_preview.setWordWrap(True)
+        source_preview.setStyleSheet("background-color: #f5f5f5; padding: 6px; border-bottom: 1px solid #ddd;")
+        source_preview.setToolTip("Source text preview")
+        preview_container_layout.addWidget(source_preview)
+        
+        # Target row (editable style - white background)
+        target_preview = QLabel()
+        target_preview.setTextFormat(Qt.TextFormat.RichText)
+        target_preview.setWordWrap(True)
+        target_preview.setStyleSheet("background-color: white; padding: 6px;")
+        target_preview.setToolTip("Target text preview")
+        preview_container_layout.addWidget(target_preview)
+        
+        grid_layout.addWidget(preview_container)
+        
+        # Function to update preview
+        def update_font_preview():
+            font_family = grid_font_family_combo.currentText()
+            font_size = grid_font_spin.value()
+            tag_color = font_settings.get('tag_highlight_color', '#FFB6C1')
+            
+            # Sample text with a tag
+            source_html = f'<span style="font-family: {font_family}; font-size: {font_size}pt;">The <span style="background-color: {tag_color};">&lt;b&gt;</span>quick<span style="background-color: {tag_color};">&lt;/b&gt;</span> brown fox jumps.</span>'
+            target_html = f'<span style="font-family: {font_family}; font-size: {font_size}pt;">De <span style="background-color: {tag_color};">&lt;b&gt;</span>snelle<span style="background-color: {tag_color};">&lt;/b&gt;</span> bruine vos springt.</span>'
+            
+            source_preview.setText(source_html)
+            target_preview.setText(target_html)
+        
+        # Connect signals to update preview
+        grid_font_family_combo.currentTextChanged.connect(update_font_preview)
+        grid_font_spin.valueChanged.connect(update_font_preview)
+        
+        # Initial preview update
+        update_font_preview()
         
         grid_group.setLayout(grid_layout)
         layout.addWidget(grid_group)
@@ -12767,7 +12853,7 @@ class SupervertalerQt(QMainWindow):
         save_btn.setStyleSheet("font-weight: bold; padding: 8px;")
         save_btn.clicked.connect(lambda: self._save_view_settings_from_ui(
             grid_font_spin, match_font_spin, compare_font_spin, show_tags_check, tag_color_btn,
-            alt_colors_check, even_color_btn, odd_color_btn, invisible_char_color_btn
+            alt_colors_check, even_color_btn, odd_color_btn, invisible_char_color_btn, grid_font_family_combo
         ))
         layout.addWidget(save_btn)
         
@@ -13773,7 +13859,8 @@ class SupervertalerQt(QMainWindow):
         QMessageBox.information(self, "Settings Saved", "General settings have been saved successfully.")
     
     def _save_view_settings_from_ui(self, grid_spin, match_spin, compare_spin, show_tags_check=None, tag_color_btn=None,
-                                     alt_colors_check=None, even_color_btn=None, odd_color_btn=None, invisible_char_color_btn=None):
+                                     alt_colors_check=None, even_color_btn=None, odd_color_btn=None, invisible_char_color_btn=None,
+                                     grid_font_family_combo=None):
         """Save view settings from UI"""
         general_settings = {
             'restore_last_project': self.load_general_settings().get('restore_last_project', False),
@@ -13783,6 +13870,10 @@ class SupervertalerQt(QMainWindow):
             'results_compare_font_size': compare_spin.value(),
             'enable_tm_termbase_matching': self.enable_tm_matching  # Save TM/termbase matching state
         }
+        
+        # Add font family if provided
+        if grid_font_family_combo is not None:
+            general_settings['grid_font_family'] = grid_font_family_combo.currentText()
 
         # Add tag color if provided
         if tag_color_btn:
@@ -13817,12 +13908,17 @@ class SupervertalerQt(QMainWindow):
         
         self.save_general_settings(general_settings)
         
-        # Apply font sizes immediately
+        # Apply font family and size immediately
+        font_changed = False
+        if grid_font_family_combo is not None and self.default_font_family != grid_font_family_combo.currentText():
+            self.default_font_family = grid_font_family_combo.currentText()
+            font_changed = True
         if self.default_font_size != grid_spin.value():
             self.default_font_size = grid_spin.value()
-            if hasattr(self, 'table') and self.table is not None:
-                self.apply_font_to_grid()
-                self.auto_resize_rows()
+            font_changed = True
+        if font_changed and hasattr(self, 'table') and self.table is not None:
+            self.apply_font_to_grid()
+            self.auto_resize_rows()
         
         # Apply results pane font sizes to all panels
         if hasattr(self, 'results_panels'):
@@ -21163,6 +21259,7 @@ class SupervertalerQt(QMainWindow):
         try:
             from modules.translation_results_panel import CompactMatchItem, TranslationResultsPanel
             general_settings = self.load_general_settings()
+            general_settings['grid_font_family'] = self.default_font_family
             general_settings['grid_font_size'] = self.default_font_size
             if hasattr(CompactMatchItem, 'font_size_pt'):
                 general_settings['results_match_font_size'] = CompactMatchItem.font_size_pt
@@ -21442,12 +21539,19 @@ class SupervertalerQt(QMainWindow):
         try:
             general_settings = self.load_general_settings()
             
+            # Load grid font family
+            font_family = general_settings.get('grid_font_family', 'Calibri')
+            if font_family:
+                self.default_font_family = font_family
+            
             # Load grid font size
             grid_size = general_settings.get('grid_font_size', 11)
             if 7 <= grid_size <= 72:
                 self.default_font_size = grid_size
-                if hasattr(self, 'table') and self.table is not None:
-                    self.apply_font_to_grid()
+            
+            # Apply font to grid if it exists
+            if hasattr(self, 'table') and self.table is not None:
+                self.apply_font_to_grid()
             
             # Load results pane font sizes
             match_size = general_settings.get('results_match_font_size', 9)

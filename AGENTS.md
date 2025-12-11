@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** December 10, 2025 | **Version:** v1.9.35
+> **Last Updated:** December 11, 2025 | **Version:** v1.9.37
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.35 (December 2025) |
+| **Version** | v1.9.37 (December 2025) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -297,6 +297,21 @@ google_api_key=AI...
 
 ## 🔄 Recent Development History
 
+### December 11, 2025 - Version 1.9.37: User-Configurable Grid Fonts
+
+**🔤 Font Customization in Settings → View Settings**
+
+- Added font family dropdown with 10 popular fonts (Calibri, Segoe UI, Arial, Consolas, Verdana, Times New Roman, Georgia, Courier New, Tahoma, Trebuchet MS)
+- Added live preview panel showing sample source/target text with tags - updates in real-time as you adjust settings
+- Font family now persists between sessions (previously only font size was saved)
+- Fixed font size spinbox up/down arrows with improved styling and click targets
+- Added friendly note: "If your favourite font is missing, contact the developer!"
+
+**Files Modified:**
+- `Supervertaler.py` - `_create_view_settings_tab()`, `_save_view_settings_from_ui()`, `load_font_sizes_from_preferences()`, `save_current_font_sizes()`
+
+---
+
 ### December 10, 2025 - Version 1.9.35: memoQ Red Tag Color Fix + Universal Tag Coloring
 
 **🔴 memoQ Inline Tag Color Preservation (Export)**
@@ -511,4 +526,4 @@ Extended `TagHighlighter` to color ALL CAT tool tags with pink (`#FFB6C1`) in th
 ---
 
 *This file replaces the previous CLAUDE.md and PROJECT_CONTEXT.md files.*
-*Last updated: December 10, 2025 - v1.9.35*
+*Last updated: December 11, 2025 - v1.9.37*
