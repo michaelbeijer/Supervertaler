@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.37"
+__version__ = "1.9.38"
 __phase__ = "0.9"
 __release_date__ = "2025-12-11"
 __edition__ = "Qt"
@@ -698,52 +698,58 @@ class Project:
             self.id = int(hashlib.md5(id_source.encode()).hexdigest()[:8], 16)
     
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary for JSON serialization"""
+        """Convert to dictionary for JSON serialization.
+        
+        Structure is organized for human readability when opened in a text editor:
+        1. Project identification (name, languages, dates, id)
+        2. Settings (prompts, TM, termbases, spellcheck, etc.)
+        3. Source file paths
+        4. UI state (concordance geometry)
+        5. Segments (at the end - the actual translation content)
+        """
+        # Start with core project metadata
         result = {
             'name': self.name,
             'source_lang': self.source_lang,
             'target_lang': self.target_lang,
-            'segments': [seg.to_dict() for seg in self.segments],
             'created': self.created,
             'modified': self.modified,
             'id': self.id  # Save project ID
         }
-        # Add prompt settings if they exist
+        
+        # Add settings (prompts, TM, termbases, etc.)
         if hasattr(self, 'prompt_settings'):
             result['prompt_settings'] = self.prompt_settings
-        # Add TM settings if they exist
         if hasattr(self, 'tm_settings') and self.tm_settings:
             result['tm_settings'] = self.tm_settings
-        # Add termbase settings if they exist
         if hasattr(self, 'termbase_settings') and self.termbase_settings:
             result['termbase_settings'] = self.termbase_settings
-        # Add non-translatables settings if they exist
         if hasattr(self, 'nt_settings') and self.nt_settings:
             result['nt_settings'] = self.nt_settings
-        # Add spellcheck settings if they exist
         if hasattr(self, 'spellcheck_settings') and self.spellcheck_settings:
             result['spellcheck_settings'] = self.spellcheck_settings
-        # Add original DOCX path if it exists
+        
+        # Add source file paths
         if hasattr(self, 'original_docx_path') and self.original_docx_path:
             result['original_docx_path'] = self.original_docx_path
-        # Add Trados source path if it exists
         if hasattr(self, 'trados_source_path') and self.trados_source_path:
             result['trados_source_path'] = self.trados_source_path
-        # Add memoQ source path if it exists
         if hasattr(self, 'memoq_source_path') and self.memoq_source_path:
             result['memoq_source_path'] = self.memoq_source_path
-        # Add CafeTran source path if it exists
         if hasattr(self, 'cafetran_source_path') and self.cafetran_source_path:
             result['cafetran_source_path'] = self.cafetran_source_path
-        # Add SDLPPX source path if it exists
         if hasattr(self, 'sdlppx_source_path') and self.sdlppx_source_path:
             result['sdlppx_source_path'] = self.sdlppx_source_path
-        # Add original TXT path if it exists
         if hasattr(self, 'original_txt_path') and self.original_txt_path:
             result['original_txt_path'] = self.original_txt_path
-        # Add concordance window geometry if it exists
+        
+        # Add UI state
         if hasattr(self, 'concordance_geometry') and self.concordance_geometry:
             result['concordance_geometry'] = self.concordance_geometry
+        
+        # Add segments LAST (so they appear at the end of the file)
+        result['segments'] = [seg.to_dict() for seg in self.segments]
+        
         return result
     
     @classmethod
@@ -27906,7 +27912,10 @@ class SupervertalerQt(QMainWindow):
                 f"  • Completely blank target cells\n\n"
                 f"The system will translate ALL {total_segments} segments.\n"
                 f"Existing translations will cause MAJOR synchronization problems!\n\n"
-                f"YOU MUST: Cancel → Clean target column in memoQ → Re-export\n\n"
+                f"💡 TIP: You can clear all targets without re-importing:\n"
+                f"   1. Right-click in the grid → Select All\n"
+                f"   2. Right-click again → Clear Target (Selected)\n\n"
+                f"Or: Cancel → Clean target column in memoQ → Re-export\n\n"
                 f"Proceed anyway? (STRONGLY NOT recommended - will cause errors!)"
             )
             reply = QMessageBox.warning(

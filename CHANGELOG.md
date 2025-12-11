@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.37 (December 11, 2025)
+**Current Version:** v1.9.38 (December 11, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -14,6 +14,7 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- 📁 **Improved Project File Format (v1.9.38)** - `.svproj` files now have all metadata at the top (name, languages, dates, settings, paths) with segments at the end for easier inspection in text editors. Added helpful tip in batch translate warning about using Select All + Clear Target instead of re-importing.
 - 🔤 **User-Configurable Grid Fonts (v1.9.37)** - Choose your preferred font family for the translation grid from 10 popular options. Live preview shows font changes in real-time with sample source/target text and tags. Font family now persists between sessions.
 - 🎨 **Universal Tag Coloring (v1.9.36)** - All CAT tool tags now highlighted in pink: memoQ `{1}`, `[2}`, Trados `<1>`, `</1>`, Phrase `{1}`, and HTML `<b>`, `<i>`. CafeTran pipe symbols only red in CafeTran projects (bug fix).
 - 🎨 **memoQ Red Tags Support (v1.9.35)** - Fixed memoQ bilingual export not preserving red tag color. Tags in the target column now correctly inherit the red/magenta color from the source column, ensuring perfect formatting for memoQ re-import.
@@ -80,6 +81,22 @@ All notable changes to Supervertaler are documented in this file.
 - 🔄 **CAT Tool Integration** - memoQ, Trados, CafeTran bilingual table support
 
 **See full version history below** ↓
+
+---
+
+## [1.9.38] - December 11, 2025
+
+### 📁 Project File & UX Improvements
+
+**Reorganized .svproj file structure for human readability:**
+- 📄 **Metadata First**: Project name, languages, dates, ID now at the top of the file
+- ⚙️ **Settings Next**: Prompt, TM, termbase, spellcheck settings follow metadata
+- 📂 **Paths Then**: Source file paths (DOCX, memoQ, Trados, etc.) before segments
+- 📝 **Segments Last**: Translation content at the end for easy scrolling in text editors
+
+**Improved batch translate warning for memoQ files:**
+- 💡 Added tip: "You can clear all targets without re-importing" with instructions to use Select All + Clear Target from right-click menu
+- Saves users from having to go back to memoQ to clean the file
 
 ---
 

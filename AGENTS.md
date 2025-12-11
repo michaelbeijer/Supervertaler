@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** December 11, 2025 | **Version:** v1.9.37
+> **Last Updated:** December 11, 2025 | **Version:** v1.9.38
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.37 (December 2025) |
+| **Version** | v1.9.38 (December 2025) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -297,6 +297,25 @@ google_api_key=AI...
 
 ## 🔄 Recent Development History
 
+### December 11, 2025 - Version 1.9.38: Project File & UX Improvements
+
+**📁 Reorganized .svproj File Structure**
+
+- Metadata now at top of file (name, languages, dates, ID)
+- Settings next (prompts, TM, termbases, spellcheck)
+- Source paths follow (DOCX, memoQ, Trados, CafeTran, SDLPPX)
+- Segments moved to END of file for easier human inspection
+
+**💡 Improved Batch Translate Warning**
+
+- Added tip about using Select All + Clear Target from right-click menu
+- Users no longer need to re-import memoQ files just to clear targets
+
+**Files Modified:**
+- `Supervertaler.py` - `Project.to_dict()`, batch translate warning message
+
+---
+
 ### December 11, 2025 - Version 1.9.37: User-Configurable Grid Fonts
 
 **🔤 Font Customization in Settings → View Settings**
@@ -526,4 +545,4 @@ Extended `TagHighlighter` to color ALL CAT tool tags with pink (`#FFB6C1`) in th
 ---
 
 *This file replaces the previous CLAUDE.md and PROJECT_CONTEXT.md files.*
-*Last updated: December 11, 2025 - v1.9.37*
+*Last updated: December 11, 2025 - v1.9.38*
