@@ -85,6 +85,31 @@ All notable changes to Supervertaler are documented in this file.
 
 ---
 
+## [1.9.39] - December 11, 2025
+
+### 🔍 Superlookup Multilingual Search
+
+**Multilingual language filtering for TM and termbase searches:**
+- 🌍 **From/To Language Dropdowns**: New filter dropdowns in Superlookup search bar to filter by source/target language pair
+- 🔄 **Swap Button**: Quick ↔ button to swap From and To language selections
+- 📚 **Auto-Population**: Languages auto-populate from your TMs and termbases when tab is first viewed
+- 🔤 **Smart Sorting**: Languages alphabetically sorted with family grouping (all Dutch variants together, all English variants together, etc.)
+- 🏷️ **Clear Display**: Format shows "English (en)", "Dutch (nl-BE)" for clarity and uniqueness
+
+**Search direction controls:**
+- ↔️ **Both**: Bidirectional search (searches source and target columns)
+- → **Source only**: Search only in source text
+- ← **Target only**: Search only in target text
+
+**UI improvements:**
+- 🟡 **Yellow Highlighting**: Search terms now highlighted in yellow in TM and termbase results
+- 📏 **Compact Display**: Results use word wrap with 60px max row height, tooltips show full text on hover
+- 🔢 **Hidden Row Numbers**: Cleaner display without row number column
+- 🧹 **Removed Manual Capture**: Button was redundant (just paste text manually)
+- 🧹 **Removed Operating Modes**: Dropdown was pointless (only Universal mode was used)
+
+---
+
 ## [1.9.38] - December 11, 2025
 
 ### 📁 Project File & UX Improvements
