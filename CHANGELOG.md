@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.38 (December 11, 2025)
+**Current Version:** v1.9.39 (December 11, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -14,6 +14,7 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- 🔍 **Superlookup Multilingual Search (v1.9.39)** - Complete overhaul of Superlookup with multilingual language filtering. New From/To language dropdowns filter TM and termbase searches by source/target language pair. Search direction radio buttons (Both/Source only/Target only) for precise concordance searches. Yellow highlighting of search terms in results. Compact results display with tooltips for full text. Languages auto-populate from your TMs and termbases, grouped alphabetically by language family. UI cleanup: removed Manual Capture button and Operating Modes selector.
 - 📁 **Improved Project File Format (v1.9.38)** - `.svproj` files now have all metadata at the top (name, languages, dates, settings, paths) with segments at the end for easier inspection in text editors. Added helpful tip in batch translate warning about using Select All + Clear Target instead of re-importing.
 - 🔤 **User-Configurable Grid Fonts (v1.9.37)** - Choose your preferred font family for the translation grid from 10 popular options. Live preview shows font changes in real-time with sample source/target text and tags. Font family now persists between sessions.
 - 🎨 **Universal Tag Coloring (v1.9.36)** - All CAT tool tags now highlighted in pink: memoQ `{1}`, `[2}`, Trados `<1>`, `</1>`, Phrase `{1}`, and HTML `<b>`, `<i>`. CafeTran pipe symbols only red in CafeTran projects (bug fix).

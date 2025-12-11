@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** December 11, 2025 | **Version:** v1.9.38
+> **Last Updated:** December 11, 2025 | **Version:** v1.9.39
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.38 (December 2025) |
+| **Version** | v1.9.39 (December 2025) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -296,6 +296,39 @@ google_api_key=AI...
 ---
 
 ## 🔄 Recent Development History
+
+### December 11, 2025 - Version 1.9.39: Superlookup Multilingual Search
+
+**🔍 Multilingual Language Filtering**
+
+- Added From/To language dropdown filters in Superlookup search bar
+- Filter TM and termbase searches by source/target language pair
+- Languages auto-populate from TMs and termbases on first tab view
+- Alphabetically sorted with language family grouping (all Dutch variants together, etc.)
+- Display format: "English (en)", "Dutch (nl-BE)" for clarity
+
+**↔️ Search Direction Controls**
+
+- Radio buttons: Both (bidirectional), Source only, Target only
+- Concordance search respects direction setting
+- Termbase search also respects direction for bidirectional term lookup
+
+**🎨 UI Improvements**
+
+- Yellow highlighting of search terms in TM/termbase results
+- Compact results display with word wrap and 60px max row height
+- Tooltips show full text on hover
+- Hidden row numbers for cleaner display
+- Removed Manual Capture button (redundant with paste)
+- Removed Operating Modes dropdown (only Universal mode used)
+
+**Files Modified:**
+- `Supervertaler.py` - UniversalLookupTab UI, language dropdowns, direction radio buttons, display methods
+- `modules/superlookup.py` - search_tm() accepts direction and language parameters
+- `modules/translation_memory.py` - concordance_search() accepts language filters
+- `modules/database_manager.py` - concordance_search() filters by source_lang/target_lang
+
+---
 
 ### December 11, 2025 - Version 1.9.38: Project File & UX Improvements
 

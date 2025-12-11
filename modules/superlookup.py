@@ -109,17 +109,26 @@ class SuperlookupEngine:
         """Set the TM database for lookups"""
         self.tm_database = tm_db
     
+    def set_enabled_tm_ids(self, tm_ids: List[str]):
+        """Set which TM IDs to search (for independent Superlookup selection)"""
+        self.enabled_tm_ids = tm_ids if tm_ids else None
+    
     def set_glossary_database(self, glossary_db):
         """Set the glossary database for term lookups"""
         self.glossary_database = glossary_db
     
-    def search_tm(self, text: str, max_results: int = 10) -> List[LookupResult]:
+    def search_tm(self, text: str, max_results: int = 10, direction: str = 'both',
+                  source_lang: str = None, target_lang: str = None) -> List[LookupResult]:
         """
         Search translation memory for matches.
+        Uses concordance search to find entries containing the search text.
         
         Args:
             text: Source text to search for
             max_results: Maximum number of results to return
+            direction: 'source' = search source only, 'target' = search target only, 'both' = bidirectional
+            source_lang: Filter by source language (None = any)
+            target_lang: Filter by target language (None = any)
             
         Returns:
             List of TM match results
@@ -127,34 +136,45 @@ class SuperlookupEngine:
         results = []
         
         if not self.tm_database:
+            print(f"[DEBUG] SuperlookupEngine.search_tm: tm_database is None!")
             return results
         
         try:
-            # Use TMDatabase's search_all method which handles both exact and fuzzy matching
-            if hasattr(self.tm_database, 'search_all'):
-                matches = self.tm_database.search_all(
-                    source=text,
-                    tm_ids=None,  # Search all TMs
-                    enabled_only=True,
-                    max_matches=max_results
+            # Use concordance search - finds entries CONTAINING the search text
+            # This is better for Superlookup than fuzzy matching
+            tm_ids_to_use = self.enabled_tm_ids if hasattr(self, 'enabled_tm_ids') and self.enabled_tm_ids else None
+            print(f"[DEBUG] SuperlookupEngine.search_tm: Using concordance_search with tm_ids={tm_ids_to_use}, direction={direction}, source_lang={source_lang}, target_lang={target_lang}")
+            
+            if hasattr(self.tm_database, 'concordance_search'):
+                matches = self.tm_database.concordance_search(
+                    query=text,
+                    tm_ids=tm_ids_to_use,
+                    direction=direction,
+                    source_lang=source_lang,
+                    target_lang=target_lang
                 )
+                print(f"[DEBUG] SuperlookupEngine.search_tm: Concordance search returned {len(matches)} matches")
                 
-                # Convert to LookupResult format
-                for match in matches:
+                # Convert to LookupResult format (limit results)
+                for match in matches[:max_results]:
                     results.append(LookupResult(
-                        source=match.get('source', text),
+                        source=match.get('source', ''),
                         target=match.get('target', ''),
-                        match_percent=match.get('match_pct', 0),
+                        match_percent=100,  # Concordance = contains the text
                         source_type='tm',
                         metadata={
-                            'match_type': 'exact' if match.get('match_pct', 0) == 100 else 'fuzzy',
+                            'match_type': 'concordance',
                             'tm_name': match.get('tm_name', 'Unknown'),
-                            'similarity': match.get('similarity', 0.0)
+                            'tm_id': match.get('tm_id', '')
                         }
                     ))
+            else:
+                print(f"[DEBUG] SuperlookupEngine.search_tm: tm_database has no concordance_search method!")
             
         except Exception as e:
             print(f"Error searching TM: {e}")
+            import traceback
+            traceback.print_exc()
         
         return results
     

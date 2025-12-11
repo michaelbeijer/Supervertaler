@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.38"
+__version__ = "1.9.39"
 __phase__ = "0.9"
 __release_date__ = "2025-12-11"
 __edition__ = "Qt"
@@ -1392,8 +1392,8 @@ class ReadOnlyGridTextEditor(QTextEdit):
                 self._handle_add_to_termbase()
                 return True  # Event handled
             
-            # Ctrl+Q: Quick add selected terms to last-used termbase (no dialog)
-            if key_event.key() == Qt.Key.Key_Q and key_event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+            # Alt+Left: Quick add selected terms to last-used termbase (no dialog)
+            if key_event.key() == Qt.Key.Key_Left and key_event.modifiers() == Qt.KeyboardModifier.AltModifier:
                 self._handle_quick_add_to_termbase()
                 return True  # Event handled
             
@@ -1746,7 +1746,7 @@ class ReadOnlyGridTextEditor(QTextEdit):
         menu.addAction(add_to_tb_action)
         
         # Quick add to termbase action (no dialog) - uses last-selected termbase from Ctrl+E
-        quick_add_action = QAction("⚡ Quick Add to Termbase (Ctrl+Q)", self)
+        quick_add_action = QAction("⚡ Quick Add to Termbase (Alt+Left)", self)
         quick_add_action.triggered.connect(self._handle_quick_add_to_termbase)
         menu.addAction(quick_add_action)
         
@@ -2201,7 +2201,7 @@ class EditableGridTextEditor(QTextEdit):
         menu.addAction(add_to_tb_action)
         
         # Quick add to termbase action (no dialog) - uses last-selected termbase from Ctrl+E
-        quick_add_action = QAction("⚡ Quick Add to Termbase (Ctrl+Q)", self)
+        quick_add_action = QAction("⚡ Quick Add to Termbase (Alt+Left)", self)
         quick_add_action.triggered.connect(self._handle_quick_add_to_termbase)
         menu.addAction(quick_add_action)
         
@@ -2449,8 +2449,8 @@ class EditableGridTextEditor(QTextEdit):
             event.accept()
             return
         
-        # Ctrl+Q: Quick add selected terms to last-used termbase (no dialog)
-        if event.key() == Qt.Key.Key_Q and event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+        # Alt+Left: Quick add selected terms to last-used termbase (no dialog)
+        if event.key() == Qt.Key.Key_Left and event.modifiers() == Qt.KeyboardModifier.AltModifier:
             self._handle_quick_add_to_termbase()
             event.accept()
             return
@@ -4470,6 +4470,19 @@ class SupervertalerQt(QMainWindow):
             log_callback=self.log
         )
         self.db_manager.connect()
+        
+        # TM Database - Initialize early so Superlookup works without a project loaded
+        from modules.translation_memory import TMDatabase
+        self.tm_database = TMDatabase(
+            source_lang=None,  # Will be set when project is loaded
+            target_lang=None,  # Will be set when project is loaded
+            db_path=str(self.user_data_path / "Translation_Resources" / "supervertaler.db"),
+            log_callback=self.log
+        )
+        
+        # TM Metadata Manager - needed for TM list in Superlookup
+        from modules.tm_metadata_manager import TMMetadataManager
+        self.tm_metadata_mgr = TMMetadataManager(self.db_manager, self.log)
         
         # Spellcheck Manager for target language spell checking
         self.spellcheck_manager = get_spellcheck_manager(str(self.user_data_path))
@@ -7422,10 +7435,6 @@ class SupervertalerQt(QMainWindow):
                 source_text = self.home_lookup_widget.source_text.toPlainText()
                 detached_lookup.source_text.setPlainText(source_text)
                 
-                # Copy mode
-                mode = self.home_lookup_widget.mode_combo.currentText()
-                detached_lookup.mode_combo.setCurrentText(mode)
-                
                 # Copy TM database reference
                 if hasattr(self.home_lookup_widget, 'tm_database'):
                     detached_lookup.tm_database = self.home_lookup_widget.tm_database
@@ -7463,10 +7472,6 @@ class SupervertalerQt(QMainWindow):
             # Copy source text
             source_text = self.lookup_detached_widget.source_text.toPlainText()
             self.home_lookup_widget.source_text.setPlainText(source_text)
-            
-            # Copy mode
-            mode = self.lookup_detached_widget.mode_combo.currentText()
-            self.home_lookup_widget.mode_combo.setCurrentText(mode)
         
         # Close detached window
         self.lookup_detached_window.close()
@@ -7718,16 +7723,17 @@ class SupervertalerQt(QMainWindow):
         # Populate TM list
         def refresh_tm_list():
             # Get current project dynamically (not captured in closure!)
+            # Use GLOBAL_PROJECT_ID (0) when no project is loaded for Superlookup support
             current_proj = self.current_project if hasattr(self, 'current_project') else None
-            refresh_project_id = current_proj.id if (current_proj and hasattr(current_proj, 'id')) else None
+            refresh_project_id = current_proj.id if (current_proj and hasattr(current_proj, 'id')) else 0  # 0 = global
             
             tms = tm_metadata_mgr.get_all_tms()
             tm_table.setRowCount(len(tms))
             
             for row, tm in enumerate(tms):
-                # Check if active (Read mode) for current project  
-                # Default: not activated (Read unchecked)
-                is_readable = tm_metadata_mgr.is_tm_active(tm['id'], refresh_project_id) if refresh_project_id else False
+                # Check if active (Read mode) for current project or global (0)
+                # Note: is_tm_active now supports project_id=0 for global activations
+                is_readable = tm_metadata_mgr.is_tm_active(tm['id'], refresh_project_id)
                 # Default: read-only (Write unchecked) - read_only=True means not writable
                 # If read_only is not set in database, treat as read-only by default
                 is_writable = not tm.get('read_only', True)  # Default to True (read-only) if not set
@@ -7757,18 +7763,9 @@ class SupervertalerQt(QMainWindow):
                 
                 def on_read_toggle(checked, tm_id=tm['id'], row_idx=row):
                     # Get current project ID dynamically
+                    # Use 0 (global) when no project is loaded - allows Superlookup to work
                     curr_proj = self.current_project if hasattr(self, 'current_project') else None
-                    curr_proj_id = curr_proj.id if (curr_proj and hasattr(curr_proj, 'id')) else None
-                    
-                    if curr_proj_id is None:
-                        self.log(f"⚠️ Cannot toggle TM - no project loaded. Please load a project first.")
-                        # Revert checkbox state
-                        sender_checkbox = tm_table.cellWidget(row_idx, 3)
-                        if sender_checkbox:
-                            sender_checkbox.blockSignals(True)
-                            sender_checkbox.setChecked(not checked)
-                            sender_checkbox.blockSignals(False)
-                        return
+                    curr_proj_id = curr_proj.id if (curr_proj and hasattr(curr_proj, 'id')) else 0  # 0 = global
                     
                     # Activate/deactivate for reading
                     if checked:
@@ -9839,8 +9836,9 @@ class SupervertalerQt(QMainWindow):
         # Populate termbase list
         def refresh_termbase_list():
             # CRITICAL FIX: Get project_id dynamically, not from closure
+            # Use 0 (global) when no project is loaded for Superlookup support
             current_proj = self.current_project if hasattr(self, 'current_project') else None
-            refresh_project_id = current_proj.id if (current_proj and hasattr(current_proj, 'id')) else None
+            refresh_project_id = current_proj.id if (current_proj and hasattr(current_proj, 'id')) else 0  # 0 = global
             
             self.log(f"📋 Refreshing termbase list (project_id: {refresh_project_id})")
             termbases = termbase_mgr.get_all_termbases()
@@ -9849,16 +9847,16 @@ class SupervertalerQt(QMainWindow):
             
             # Count active readable termbases (for priority range)
             num_active = sum(1 for tb in termbases 
-                           if (termbase_mgr.is_termbase_active(tb['id'], refresh_project_id) if refresh_project_id else False))
+                           if termbase_mgr.is_termbase_active(tb['id'], refresh_project_id))
             
             for row, tb in enumerate(termbases):
-                # Check if readable (activated) for current project
-                is_readable = termbase_mgr.is_termbase_active(tb['id'], refresh_project_id) if refresh_project_id else False
+                # Check if readable (activated) for current project or global (0)
+                is_readable = termbase_mgr.is_termbase_active(tb['id'], refresh_project_id)
                 # Check if writable (not read-only)
                 is_writable = not tb.get('read_only', True)  # Default to True (read-only) if not set
                 
                 # Get manual priority from termbase_activation table
-                priority = termbase_mgr.get_termbase_priority(tb['id'], refresh_project_id) if (is_readable and refresh_project_id) else None
+                priority = termbase_mgr.get_termbase_priority(tb['id'], refresh_project_id) if is_readable else None
                 is_project_tb = (priority == 1)  # Priority #1 = project termbase
                 
                 # Type (Project/Background) - auto-determined by priority
@@ -9899,17 +9897,9 @@ class SupervertalerQt(QMainWindow):
                 read_checkbox.setToolTip("Read: Termbase is used for terminology matching")
                 
                 def on_read_toggle(checked, tb_id=tb['id'], row_idx=row):
+                    # Use 0 (global) when no project is loaded - allows Superlookup to work
                     curr_proj = self.current_project if hasattr(self, 'current_project') else None
-                    curr_proj_id = curr_proj.id if (curr_proj and hasattr(curr_proj, 'id')) else None
-                    
-                    if not curr_proj_id:
-                        self.log(f"⚠️ Cannot toggle termbase - no project loaded")
-                        sender = termbase_table.cellWidget(row_idx, 4)
-                        if sender:
-                            sender.blockSignals(True)
-                            sender.setChecked(not checked)
-                            sender.blockSignals(False)
-                        return
+                    curr_proj_id = curr_proj.id if (curr_proj and hasattr(curr_proj, 'id')) else 0  # 0 = global
                     
                     if checked:
                         termbase_mgr.activate_termbase(tb_id, curr_proj_id)
@@ -23216,33 +23206,21 @@ class SupervertalerQt(QMainWindow):
             return
         
         try:
-            from modules.translation_memory import TMDatabase
-            
-            # Get database path
-            db_path = self.user_data_path / "Translation_Resources" / "supervertaler.db"
-            
-            # Initialize TM database
-            self.tm_database = TMDatabase(
-                source_lang=self.current_project.source_lang,
-                target_lang=self.current_project.target_lang,
-                db_path=str(db_path),
-                log_callback=self.log
-            )
-            
-            # Initialize TM metadata manager if not already done
-            # This is needed for TM activation/deactivation tracking
-            if not hasattr(self, 'tm_metadata_mgr') or not self.tm_metadata_mgr:
-                from modules.tm_metadata_manager import TMMetadataManager
-                self.tm_metadata_mgr = TMMetadataManager(self.db_manager, self.log)
-                self.log("TM metadata manager initialized")
+            # Update TM database languages for the current project
+            # (tm_database is already initialized at startup)
+            if self.tm_database:
+                self.tm_database.set_tm_languages(
+                    self.current_project.source_lang,
+                    self.current_project.target_lang
+                )
             
             # Update Superlookup tab with TM database
             if hasattr(self, 'lookup_tab') and self.lookup_tab:
                 self.lookup_tab.set_tm_database(self.tm_database)
             
-            self.log(f"TM database initialized ({self.current_project.source_lang} → {self.current_project.target_lang})")
+            self.log(f"TM database configured ({self.current_project.source_lang} → {self.current_project.target_lang})")
         except Exception as e:
-            self.log(f"Warning: Could not initialize TM database: {e}")
+            self.log(f"Warning: Could not configure TM database: {e}")
             self.tm_database = None
     
     def search_and_display_tm_matches(self, source_text: str):
@@ -30007,11 +29985,40 @@ class UniversalLookupTab(QWidget):
         self.search_mt_enabled = False  # MT not implemented yet
         self.search_web_enabled = False  # Web resources not implemented yet
         
+        # Track if languages have been populated
+        self._languages_populated = False
+        
         # UI setup
         self.init_ui()
         
         # Register global hotkey
         self.register_global_hotkey()
+    
+    def showEvent(self, event):
+        """Called when the widget becomes visible - populate languages on first show"""
+        super().showEvent(event)
+        if not self._languages_populated:
+            # Use a short delay to ensure main window databases are ready
+            from PyQt6.QtCore import QTimer
+            QTimer.singleShot(100, self._delayed_language_population)
+    
+    def _delayed_language_population(self):
+        """Populate language dropdowns after a short delay"""
+        if self._languages_populated:
+            return
+        
+        # Get database connections from main window
+        if self.main_window:
+            if hasattr(self.main_window, 'db_manager') and self.main_window.db_manager:
+                self.db_manager = self.main_window.db_manager
+            if hasattr(self.main_window, 'termbase_mgr') and self.main_window.termbase_mgr:
+                self.termbase_mgr = self.main_window.termbase_mgr
+        
+        # Populate if we have database access
+        if self.db_manager or self.termbase_mgr:
+            self.populate_language_dropdowns()
+            self._languages_populated = True
+            print("[Superlookup] Languages populated on first show")
     
     def init_ui(self):
         """Initialize the UI"""
@@ -30044,43 +30051,75 @@ class UniversalLookupTab(QWidget):
         description.setStyleSheet("color: #666; padding: 5px; background-color: #E3F2FD; border-radius: 3px;")
         layout.addWidget(description, 0)  # 0 = no stretch, stays compact
         
-        # Mode selector (using label instead of group box)
-        mode_label_header = QLabel("⚙️ Operating Mode")
-        mode_label_header.setStyleSheet("font-weight: bold; font-size: 10pt; margin-top: 10px;")
-        layout.addWidget(mode_label_header, 0)  # 0 = no stretch
-        
-        mode_layout = QHBoxLayout()
-        
-        mode_label = QLabel("Mode:")
-        mode_layout.addWidget(mode_label)
-        
-        self.mode_combo = QComboBox()
-        self.mode_combo.addItems(["Universal (Any Text Box)", "memoQ", "Trados", "CafeTran"])
-        self.mode_combo.currentTextChanged.connect(self.on_mode_changed)
-        mode_layout.addWidget(self.mode_combo, stretch=1)
-        
-        layout.addLayout(mode_layout)
-        
         # Source text area (using label instead of group box)
         source_label_header = QLabel("📝 Source Text")
         source_label_header.setStyleSheet("font-weight: bold; font-size: 10pt; margin-top: 10px;")
         layout.addWidget(source_label_header)
         
         self.source_text = QTextEdit()
-        self.source_text.setPlaceholderText("Click 'Capture Text' or paste text here to search...")
+        self.source_text.setPlaceholderText("Paste text here or use Ctrl+Alt+L to capture from any application...")
         self.source_text.setMaximumHeight(100)
         layout.addWidget(self.source_text)
         
+        # Search options row (direction + language filters)
+        options_layout = QHBoxLayout()
+        
+        # Search direction selector
+        direction_label = QLabel("Direction:")
+        direction_label.setStyleSheet("font-weight: bold;")
+        options_layout.addWidget(direction_label)
+        
+        self.direction_both = CheckmarkRadioButton("↔ Both")
+        self.direction_both.setChecked(True)  # Default
+        self.direction_both.setToolTip("Search in both source and target text (bidirectional)")
+        options_layout.addWidget(self.direction_both)
+        
+        self.direction_source = CheckmarkRadioButton("→ Source")
+        self.direction_source.setToolTip("Search only in source language text")
+        options_layout.addWidget(self.direction_source)
+        
+        self.direction_target = CheckmarkRadioButton("← Target")
+        self.direction_target.setToolTip("Search only in target language text")
+        options_layout.addWidget(self.direction_target)
+        
+        # Spacer
+        options_layout.addSpacing(20)
+        
+        # Language filter dropdowns
+        from_label = QLabel("From:")
+        from_label.setStyleSheet("font-weight: bold;")
+        options_layout.addWidget(from_label)
+        
+        self.lang_from_combo = QComboBox()
+        self.lang_from_combo.setMinimumWidth(100)
+        self.lang_from_combo.setToolTip("Filter by source language (leave as 'Any' for all)")
+        options_layout.addWidget(self.lang_from_combo)
+        
+        # Swap button
+        swap_btn = QPushButton("↔")
+        swap_btn.setFixedWidth(30)
+        swap_btn.setToolTip("Swap source and target languages")
+        swap_btn.clicked.connect(self.swap_language_filters)
+        options_layout.addWidget(swap_btn)
+        
+        to_label = QLabel("To:")
+        to_label.setStyleSheet("font-weight: bold;")
+        options_layout.addWidget(to_label)
+        
+        self.lang_to_combo = QComboBox()
+        self.lang_to_combo.setMinimumWidth(100)
+        self.lang_to_combo.setToolTip("Filter by target language (leave as 'Any' for all)")
+        options_layout.addWidget(self.lang_to_combo)
+        
+        options_layout.addStretch()
+        layout.addLayout(options_layout)
+        
+        # Initialize language dropdowns with "Any" option
+        self.lang_from_combo.addItem("Any", None)
+        self.lang_to_combo.addItem("Any", None)
+        
         # Buttons
         button_layout = QHBoxLayout()
-        
-        if os.name == 'nt':
-            # Windows - show capture button (though hotkey is preferred)
-            capture_btn = QPushButton("📥 Manual Capture")
-            capture_btn.setToolTip("Manually trigger text capture (Ctrl+Alt+L is recommended)")
-            capture_btn.setStyleSheet("background-color: #4CAF50; color: white; padding: 8px;")
-            capture_btn.clicked.connect(self.capture_text)
-            button_layout.addWidget(capture_btn)
         
         search_btn = QPushButton("🔍 Search")
         search_btn.setStyleSheet("font-weight: bold; background-color: #2196F3; color: white; padding: 8px;")
@@ -30143,8 +30182,13 @@ class UniversalLookupTab(QWidget):
         self.tm_results_table.setColumnCount(4)
         self.tm_results_table.setHorizontalHeaderLabels(["Match %", "Source", "Target", "Type"])
         self.tm_results_table.horizontalHeader().setStretchLastSection(False)
+        self.tm_results_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
         self.tm_results_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         self.tm_results_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        self.tm_results_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
+        self.tm_results_table.setColumnWidth(0, 60)  # Match % column
+        self.tm_results_table.setColumnWidth(3, 80)  # Type column
+        self.tm_results_table.verticalHeader().setVisible(False)  # Hide row numbers
         self.tm_results_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.tm_results_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.tm_results_table.doubleClicked.connect(self.on_tm_result_double_click)
@@ -30179,6 +30223,7 @@ class UniversalLookupTab(QWidget):
         self.termbase_results_table.setHorizontalHeaderLabels(["Term (Source)", "Translation (Target)"])
         self.termbase_results_table.horizontalHeader().setStretchLastSection(True)
         self.termbase_results_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        self.termbase_results_table.verticalHeader().setVisible(False)  # Hide row numbers
         self.termbase_results_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.termbase_results_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.termbase_results_table.doubleClicked.connect(lambda: self.copy_selected_termbase_target())
@@ -30229,8 +30274,15 @@ class UniversalLookupTab(QWidget):
         self.supermemory_results_table.setColumnCount(5)
         self.supermemory_results_table.setHorizontalHeaderLabels(["Similarity", "Source", "Target", "Domain", "TM"])
         self.supermemory_results_table.horizontalHeader().setStretchLastSection(False)
+        self.supermemory_results_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
         self.supermemory_results_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         self.supermemory_results_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        self.supermemory_results_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
+        self.supermemory_results_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)
+        self.supermemory_results_table.setColumnWidth(0, 65)  # Similarity column
+        self.supermemory_results_table.setColumnWidth(3, 80)  # Domain column
+        self.supermemory_results_table.setColumnWidth(4, 100)  # TM column
+        self.supermemory_results_table.verticalHeader().setVisible(False)  # Hide row numbers
         self.supermemory_results_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.supermemory_results_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.supermemory_results_table.doubleClicked.connect(self.on_supermemory_result_double_click)
@@ -30636,6 +30688,7 @@ class UniversalLookupTab(QWidget):
             print("[Superlookup] Settings tab viewed - refreshing resource lists")
             self.refresh_tm_list()
             self.refresh_termbase_list()
+            self.populate_language_dropdowns()
     
     def on_tm_search_toggled(self, state):
         """Handle TM search checkbox toggle"""
@@ -30663,15 +30716,16 @@ class UniversalLookupTab(QWidget):
             try:
                 print(f"[Superlookup]   db_manager found, querying TMs...")
                 cursor = self.main_window.db_manager.cursor
-                cursor.execute("SELECT id, name FROM translation_memories ORDER BY name")
+                cursor.execute("SELECT id, name, tm_id FROM translation_memories ORDER BY name")
                 tms = cursor.fetchall()
                 
                 print(f"[Superlookup]   Query returned {len(tms)} TMs")
                 
-                for tm_id, tm_name in tms:
-                    checkbox = CheckmarkCheckBox(f"{tm_name} (ID: {tm_id})")
+                for db_id, tm_name, tm_id_str in tms:
+                    checkbox = CheckmarkCheckBox(f"{tm_name} (ID: {db_id})")
                     checkbox.setChecked(True)  # Check all by default
-                    checkbox.setProperty("tm_id", tm_id)
+                    checkbox.setProperty("tm_id", tm_id_str)  # Store tm_id string for search
+                    checkbox.setProperty("db_id", db_id)  # Store db_id for reference
                     self.tm_checkboxes.append(checkbox)
                     # Insert before the stretch at the end
                     self.tm_scroll_layout.insertWidget(len(self.tm_checkboxes) - 1, checkbox)
@@ -30764,6 +30818,152 @@ class UniversalLookupTab(QWidget):
                     selected_ids.append(tm_id)
         return selected_ids
     
+    def get_search_direction(self):
+        """Get the current search direction setting.
+        
+        Returns:
+            'both' - bidirectional search (source and target)
+            'source' - search source text only
+            'target' - search target text only
+        """
+        if hasattr(self, 'direction_source') and self.direction_source.isChecked():
+            return 'source'
+        elif hasattr(self, 'direction_target') and self.direction_target.isChecked():
+            return 'target'
+        else:
+            return 'both'
+    
+    def get_language_filters(self):
+        """Get the current language filter settings.
+        
+        Returns:
+            tuple: (from_lang, to_lang) - None means 'Any'
+        """
+        from_lang = None
+        to_lang = None
+        
+        if hasattr(self, 'lang_from_combo'):
+            from_lang = self.lang_from_combo.currentData()
+        if hasattr(self, 'lang_to_combo'):
+            to_lang = self.lang_to_combo.currentData()
+        
+        return (from_lang, to_lang)
+    
+    def swap_language_filters(self):
+        """Swap the From and To language selections"""
+        if hasattr(self, 'lang_from_combo') and hasattr(self, 'lang_to_combo'):
+            from_idx = self.lang_from_combo.currentIndex()
+            to_idx = self.lang_to_combo.currentIndex()
+            self.lang_from_combo.setCurrentIndex(to_idx)
+            self.lang_to_combo.setCurrentIndex(from_idx)
+    
+    def populate_language_dropdowns(self):
+        """Populate language dropdowns with languages found in TMs and termbases"""
+        languages = set()
+        
+        # Ensure we have db_manager from main window
+        db_manager = self.db_manager
+        if not db_manager and self.main_window and hasattr(self.main_window, 'db_manager'):
+            db_manager = self.main_window.db_manager
+        
+        # Ensure we have termbase_mgr from main window
+        termbase_mgr = self.termbase_mgr
+        if not termbase_mgr and self.main_window and hasattr(self.main_window, 'termbase_mgr'):
+            termbase_mgr = self.main_window.termbase_mgr
+        
+        # Get languages from TMs via database
+        if db_manager:
+            try:
+                db_manager.cursor.execute("""
+                    SELECT DISTINCT source_lang FROM translation_units WHERE source_lang IS NOT NULL AND source_lang != ''
+                    UNION
+                    SELECT DISTINCT target_lang FROM translation_units WHERE target_lang IS NOT NULL AND target_lang != ''
+                """)
+                for row in db_manager.cursor.fetchall():
+                    if row[0]:
+                        languages.add(row[0])
+            except Exception as e:
+                print(f"[DEBUG] Error getting languages from TMs: {e}")
+        else:
+            print(f"[DEBUG] No db_manager available for language population")
+        
+        # Get languages from termbases
+        if termbase_mgr:
+            try:
+                all_termbases = termbase_mgr.get_all_termbases()
+                for tb in all_termbases:
+                    if tb.get('source_lang'):
+                        languages.add(tb['source_lang'])
+                    if tb.get('target_lang'):
+                        languages.add(tb['target_lang'])
+            except Exception as e:
+                print(f"[DEBUG] Error getting languages from termbases: {e}")
+        
+        # Sort languages by display name (groups language variants together alphabetically)
+        # Create list of (display_name, lang_code) tuples for sorting
+        lang_with_display = [(self._get_language_display_name(lang), lang) for lang in languages]
+        # Sort by display name (alphabetically groups Dutch variants, English variants, etc.)
+        lang_with_display.sort(key=lambda x: x[0].lower())
+        
+        # Clear existing items except "Any"
+        while self.lang_from_combo.count() > 1:
+            self.lang_from_combo.removeItem(1)
+        while self.lang_to_combo.count() > 1:
+            self.lang_to_combo.removeItem(1)
+        
+        # Add languages with display name (already sorted)
+        for display_name, lang_code in lang_with_display:
+            self.lang_from_combo.addItem(display_name, lang_code)
+            self.lang_to_combo.addItem(display_name, lang_code)
+        
+        print(f"[DEBUG] Populated language dropdowns with {len(lang_with_display)} languages")
+    
+    def _get_language_display_name(self, lang_code):
+        """Convert language code to display name - always show code for clarity"""
+        # Base language names (without region)
+        base_names = {
+            'en': 'English',
+            'nl': 'Dutch',
+            'de': 'German',
+            'fr': 'French',
+            'es': 'Spanish',
+            'it': 'Italian',
+            'pt': 'Portuguese',
+            'zh': 'Chinese',
+            'ja': 'Japanese',
+            'ko': 'Korean',
+            'ru': 'Russian',
+            'pl': 'Polish',
+            'cs': 'Czech',
+            'da': 'Danish',
+            'sv': 'Swedish',
+            'no': 'Norwegian',
+            'fi': 'Finnish',
+            'ar': 'Arabic',
+            'he': 'Hebrew',
+            'tr': 'Turkish',
+            'el': 'Greek',
+            'hu': 'Hungarian',
+            'ro': 'Romanian',
+            'bg': 'Bulgarian',
+            'uk': 'Ukrainian',
+            'vi': 'Vietnamese',
+            'th': 'Thai',
+            'id': 'Indonesian',
+            'ms': 'Malay',
+        }
+        
+        # Get base language code (before hyphen)
+        base_code = lang_code.split('-')[0].lower() if '-' in lang_code else lang_code.lower()
+        base_name = base_names.get(base_code, None)
+        
+        if base_name:
+            # Always show code in parentheses for clarity
+            return f"{base_name} ({lang_code})"
+        else:
+            # Unknown language - just show the code
+            return lang_code
+    
     def get_selected_termbase_ids(self):
         """Get list of checked termbase IDs"""
         selected_ids = []
@@ -30794,21 +30994,6 @@ class UniversalLookupTab(QWidget):
         for checkbox in self.tb_checkboxes:
             checkbox.setChecked(False)
     
-    def on_mode_changed(self, mode_text):
-        """Handle mode change"""
-        mode_map = {
-            "Universal (Any Text Box)": "universal",
-            "memoQ": "memoq",
-            "Trados": "trados",
-            "CafeTran": "cafetran"
-        }
-        
-        mode = mode_map.get(mode_text, "universal")
-        
-        if self.engine:
-            self.engine.mode = mode
-            self.status_label.setText(f"Mode changed to: {mode_text}")
-    
     def __del__(self):
         """Destructor - cleanup AHK process when widget is destroyed"""
         try:
@@ -30816,42 +31001,23 @@ class UniversalLookupTab(QWidget):
         except:
             pass
     
-    def capture_text(self, delay=True):
+    def capture_text(self):
         """
-        Capture text from the active application
-        
-        Args:
-            delay: If True, wait 1.5 seconds before capturing (for manual button clicks)
-                   If False, capture immediately (for global hotkey)
+        Capture text from the active application (triggered by global hotkey).
         """
         if not self.SuperlookupEngine:
             return
         
         # Initialize engine if needed
         if not self.engine:
-            mode_text = self.mode_combo.currentText()
-            mode_map = {
-                "Universal (Any Text Box)": "universal",
-                "memoQ": "memoq",
-                "Trados": "trados",
-                "CafeTran": "cafetran"
-            }
-            mode = mode_map.get(mode_text, "universal")
-            self.engine = self.SuperlookupEngine(mode=mode)
+            self.engine = self.SuperlookupEngine(mode='universal')
             
             # Set TM database if available
             if self.tm_database:
                 self.engine.set_tm_database(self.tm_database)
         
-        if delay:
-            # Manual button click - give time to switch windows
-            self.status_label.setText("⏳ Capturing text... Switch to target application now!")
-            QApplication.processEvents()
-            time.sleep(1.5)
-        else:
-            # Global hotkey - capture immediately
-            self.status_label.setText("⏳ Capturing text...")
-            QApplication.processEvents()
+        self.status_label.setText("⏳ Capturing text...")
+        QApplication.processEvents()
         
         # Capture text
         text = self.engine.capture_text()
@@ -30865,47 +31031,63 @@ class UniversalLookupTab(QWidget):
             self.status_label.setText("✗ No text captured. Try again.")
     
     def perform_lookup(self):
-        """Perform lookup on the source text"""
+        """Perform lookup on the source text.
+        
+        Uses Superlookup's OWN checkbox selections (independent from Resources tab).
+        """
         text = self.source_text.toPlainText().strip()
         
         if not text:
             self.status_label.setText("⚠️ No text to search. Enter or capture text first.")
             return
         
+        # Always ensure we have the latest databases from main window
+        if self.main_window:
+            if hasattr(self.main_window, 'tm_database') and self.main_window.tm_database:
+                self.tm_database = self.main_window.tm_database
+            if hasattr(self.main_window, 'termbase_mgr') and self.main_window.termbase_mgr:
+                self.termbase_mgr = self.main_window.termbase_mgr
+            if hasattr(self.main_window, 'db_manager') and self.main_window.db_manager:
+                self.db_manager = self.main_window.db_manager
+        
+        # Populate language dropdowns if not yet populated (fallback)
+        if not self._languages_populated and self.db_manager:
+            self.populate_language_dropdowns()
+            self._languages_populated = True
+        
         if not self.engine:
             # Initialize engine
-            mode_text = self.mode_combo.currentText()
-            mode_map = {
-                "Universal (Any Text Box)": "universal",
-                "memoQ": "memoq",
-                "Trados": "trados",
-                "CafeTran": "cafetran"
-            }
-            mode = mode_map.get(mode_text, "universal")
-            self.engine = SuperlookupEngine(mode=mode)
-            
-            # Get databases from main window if available
-            if self.main_window:
-                if hasattr(self.main_window, 'tm_database') and self.main_window.tm_database:
-                    self.tm_database = self.main_window.tm_database
-                    self.engine.set_tm_database(self.tm_database)
-                
-                if hasattr(self.main_window, 'termbase_mgr') and self.main_window.termbase_mgr:
-                    self.termbase_mgr = self.main_window.termbase_mgr
-                
-                if hasattr(self.main_window, 'db_manager') and self.main_window.db_manager:
-                    self.db_manager = self.main_window.db_manager
+            self.engine = SuperlookupEngine(mode='universal')
+        
+        # Always update the engine with current tm_database
+        if self.tm_database and self.engine:
+            self.engine.set_tm_database(self.tm_database)
         
         self.status_label.setText("🔍 Searching...")
         QApplication.processEvents()
         
-        # Perform TM lookup
+        # Set enabled TM IDs from Superlookup's own checkboxes (independent selection)
+        selected_tm_ids = self.get_selected_tm_ids()
+        search_direction = self.get_search_direction()
+        from_lang, to_lang = self.get_language_filters()
+        print(f"[DEBUG] Superlookup: Selected TM IDs: {selected_tm_ids}, direction: {search_direction}")
+        print(f"[DEBUG] Superlookup: Language filters: from={from_lang}, to={to_lang}")
+        print(f"[DEBUG] Superlookup: tm_database = {self.tm_database}")
+        if self.engine:
+            self.engine.set_enabled_tm_ids(selected_tm_ids if selected_tm_ids else None)
+        
+        # Perform TM lookup with direction and language filters
         tm_results = []
         if self.tm_database:
-            tm_results = self.engine.search_tm(text)
+            print(f"[DEBUG] Superlookup: Searching TM for '{text[:50]}...'")
+            tm_results = self.engine.search_tm(text, direction=search_direction, 
+                                                source_lang=from_lang, target_lang=to_lang)
+            print(f"[DEBUG] Superlookup: Got {len(tm_results)} TM results")
+        else:
+            print(f"[DEBUG] Superlookup: tm_database is None, skipping TM search!")
         
         # Perform termbase lookup (search Supervertaler termbases directly)
-        termbase_results = self.search_termbases(text)
+        termbase_results = self.search_termbases(text, source_lang=from_lang, target_lang=to_lang)
         
         # Perform Supermemory semantic search
         self.search_supermemory(text)
@@ -30922,8 +31104,11 @@ class UniversalLookupTab(QWidget):
         self.status_label.setText(f"✓ Found {total_results} results")
     
     def display_tm_results(self, results):
-        """Display TM results in the table"""
+        """Display TM results in the table with search term highlighting"""
         self.tm_results_table.setRowCount(0)
+        
+        # Get search term for highlighting
+        search_text = self.source_text.toPlainText().strip().lower()
         
         for result in results:
             row = self.tm_results_table.rowCount()
@@ -30937,30 +31122,91 @@ class UniversalLookupTab(QWidget):
                 match_item.setBackground(QColor("#FFF9C4"))  # Yellow for high
             self.tm_results_table.setItem(row, 0, match_item)
             
-            # Source
-            self.tm_results_table.setItem(row, 1, QTableWidgetItem(result.source))
+            # Source - with highlighted search term
+            source_html = self._highlight_search_term(result.source, search_text)
+            source_label = QLabel(source_html)
+            source_label.setTextFormat(Qt.TextFormat.RichText)
+            source_label.setWordWrap(True)
+            source_label.setStyleSheet("padding: 2px 4px; background: transparent;")
+            source_label.setToolTip(result.source)  # Full text on hover
+            self.tm_results_table.setCellWidget(row, 1, source_label)
             
-            # Target
-            self.tm_results_table.setItem(row, 2, QTableWidgetItem(result.target))
+            # Target - with highlighted search term
+            target_html = self._highlight_search_term(result.target, search_text)
+            target_label = QLabel(target_html)
+            target_label.setTextFormat(Qt.TextFormat.RichText)
+            target_label.setWordWrap(True)
+            target_label.setStyleSheet("padding: 2px 4px; background: transparent;")
+            target_label.setToolTip(result.target)  # Full text on hover
+            self.tm_results_table.setCellWidget(row, 2, target_label)
             
             # Type
             match_type = result.metadata.get('match_type', 'unknown')
             self.tm_results_table.setItem(row, 3, QTableWidgetItem(match_type))
         
+        # Resize rows to fit content but with reasonable limits
         self.tm_results_table.resizeRowsToContents()
+        # Cap row heights at 60px to prevent excessive expansion
+        for row in range(self.tm_results_table.rowCount()):
+            if self.tm_results_table.rowHeight(row) > 60:
+                self.tm_results_table.setRowHeight(row, 60)
+    
+    def _highlight_search_term(self, text, search_term):
+        """Highlight search term in text with yellow background.
+        
+        Case-insensitive highlighting that preserves original case.
+        """
+        import re
+        if not search_term or not text:
+            return text
+        
+        # Escape HTML special characters first
+        html_text = text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+        
+        # Case-insensitive replacement with yellow highlight
+        # Use regex to preserve original case
+        pattern = re.compile(re.escape(search_term), re.IGNORECASE)
+        highlighted = pattern.sub(
+            lambda m: f'<span style="background-color: #FFFF00; padding: 1px 2px;">{m.group(0)}</span>',
+            html_text
+        )
+        
+        return highlighted
     
     def display_termbase_results(self, results):
-        """Display termbase results"""
+        """Display termbase results with search term highlighting"""
         self.termbase_results_table.setRowCount(0)
+        
+        # Get search term for highlighting
+        search_text = self.source_text.toPlainText().strip().lower()
         
         for result in results:
             row = self.termbase_results_table.rowCount()
             self.termbase_results_table.insertRow(row)
             
-            self.termbase_results_table.setItem(row, 0, QTableWidgetItem(result.source))
-            self.termbase_results_table.setItem(row, 1, QTableWidgetItem(result.target))
+            # Source term - with highlighted search term
+            source_html = self._highlight_search_term(result.source, search_text)
+            source_label = QLabel(source_html)
+            source_label.setTextFormat(Qt.TextFormat.RichText)
+            source_label.setWordWrap(True)
+            source_label.setStyleSheet("padding: 2px 4px; background: transparent;")
+            source_label.setToolTip(result.source)  # Full text on hover
+            self.termbase_results_table.setCellWidget(row, 0, source_label)
+            
+            # Target term - with highlighted search term
+            target_html = self._highlight_search_term(result.target, search_text)
+            target_label = QLabel(target_html)
+            target_label.setTextFormat(Qt.TextFormat.RichText)
+            target_label.setWordWrap(True)
+            target_label.setStyleSheet("padding: 2px 4px; background: transparent;")
+            target_label.setToolTip(result.target)  # Full text on hover
+            self.termbase_results_table.setCellWidget(row, 1, target_label)
         
+        # Resize rows to fit content with height cap
         self.termbase_results_table.resizeRowsToContents()
+        for row in range(self.termbase_results_table.rowCount()):
+            if self.termbase_results_table.rowHeight(row) > 50:
+                self.termbase_results_table.setRowHeight(row, 50)
     
     def display_mt_results(self, results):
         """Display MT results"""
@@ -31014,44 +31260,95 @@ class UniversalLookupTab(QWidget):
         self.termbase_results_table.setRowCount(0)
         self.status_label.setText("Cleared. Ready for new lookup.")
     
-    def search_termbases(self, text):
-        """Search Supervertaler termbases for matching terms"""
+    def search_termbases(self, text, source_lang: str = None, target_lang: str = None):
+        """Search Supervertaler termbases for matching terms.
+        
+        Uses Superlookup's OWN checkbox selections (independent from Resources > Termbases).
+        Respects the search direction setting (source only, target only, or both).
+        
+        Args:
+            text: Text to search for
+            source_lang: Filter by source language (None = any)
+            target_lang: Filter by target language (None = any)
+        """
         results = []
         
         if not self.termbase_mgr or not self.db_manager or not self.main_window:
             return results
         
         try:
-            # Get active project ID
-            project_id = None
-            if hasattr(self.main_window, 'current_project') and self.main_window.current_project:
-                project_id = self.main_window.current_project.id if hasattr(self.main_window.current_project, 'id') else None
+            # Get search direction
+            direction = self.get_search_direction()
             
-            # Get all active termbases for current project
+            # Get termbases selected in Superlookup's Settings tab (independent selection)
+            selected_tb_ids = self.get_selected_termbase_ids()
+            
+            # If no termbases selected, search all available termbases
             all_termbases = self.termbase_mgr.get_all_termbases()
-            active_termbases = [tb for tb in all_termbases 
-                              if self.termbase_mgr.is_termbase_active(tb['id'], project_id)] if project_id else []
+            if selected_tb_ids:
+                # Filter to only selected termbases
+                termbases_to_search = [tb for tb in all_termbases if tb['id'] in selected_tb_ids]
+            else:
+                # No selection = search all (as indicated by the tip in UI)
+                termbases_to_search = all_termbases
             
-            # Search text for terms (split into words and phrases)
-            words = text.lower().split()
-            search_terms = words + [text.lower()]  # Include full text as well
+            text_lower = text.lower()
             
-            # Search each active termbase
-            for termbase in active_termbases:
+            # Search each selected termbase
+            for termbase in termbases_to_search:
                 termbase_id = termbase['id']
+                
+                # Check termbase language filters
+                tb_source_lang = termbase.get('source_lang', '')
+                tb_target_lang = termbase.get('target_lang', '')
+                
+                # Skip termbases that don't match language filters
+                if source_lang and tb_source_lang and tb_source_lang != source_lang:
+                    continue
+                if target_lang and tb_target_lang and tb_target_lang != target_lang:
+                    continue
+                
                 terms = self.termbase_mgr.get_terms(termbase_id)
                 
                 for term in terms:
                     source_term = term.get('source_term', '').lower()
-                    target_term = term.get('target_term', '')
+                    target_term = term.get('target_term', '').lower()
+                    target_term_original = term.get('target_term', '')
+                    source_term_original = term.get('source_term', '')
                     
-                    # Check if source term appears in text
-                    if source_term in text.lower() or any(source_term in word for word in search_terms):
+                    # Also check term-level language if available
+                    term_source_lang = term.get('source_lang', '')
+                    term_target_lang = term.get('target_lang', '')
+                    
+                    if source_lang and term_source_lang and term_source_lang != source_lang:
+                        continue
+                    if target_lang and term_target_lang and term_target_lang != target_lang:
+                        continue
+                    
+                    match_found = False
+                    
+                    # Check based on search direction
+                    if direction == 'source':
+                        # Search source only
+                        if source_term and (source_term in text_lower or text_lower in source_term):
+                            match_found = True
+                    elif direction == 'target':
+                        # Search target only
+                        if target_term and (target_term in text_lower or text_lower in target_term):
+                            match_found = True
+                    else:
+                        # Both directions (bidirectional)
+                        if source_term and (source_term in text_lower or text_lower in source_term):
+                            match_found = True
+                        if target_term and (target_term in text_lower or text_lower in target_term):
+                            match_found = True
+                    
+                    if match_found:
                         # Create LookupResult
                         from modules.superlookup import LookupResult
                         results.append(LookupResult(
-                            source=term.get('source_term', ''),
-                            target=target_term,
+                            source=source_term_original,
+                            target=target_term_original,
                             match_percent=100,
                             source_type='termbase',
                             metadata={'termbase': termbase['name'], 'termbase_id': termbase_id}

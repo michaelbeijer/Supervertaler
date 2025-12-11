@@ -349,7 +349,7 @@ class ShortcutManager:
         "editor_quick_add_to_termbase": {
             "category": "Editor",
             "description": "Quick add term pair to last-used termbase",
-            "default": "Ctrl+Q",
+            "default": "Alt+Left",
             "action": "quick_add_to_termbase",
             "context": "grid_editor"
         },

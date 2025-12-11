@@ -205,9 +205,20 @@ class TMDatabase:
         Returns:
             List of match dictionaries sorted by similarity
         """
+        print(f"[DEBUG] TMDatabase.search_all: source='{source[:50]}...', tm_ids={tm_ids}")
+        
         # Determine which TMs to search
+        # If tm_ids is None or empty, search ALL TMs (don't filter by tm_id)
         if tm_ids is None and enabled_only:
             tm_ids = [tm_id for tm_id, meta in self.tm_metadata.items() if meta.get('enabled', True)]
+            print(f"[DEBUG] TMDatabase.search_all: No tm_ids provided, using from metadata: {tm_ids}")
+        
+        # If tm_ids is still empty, set to None to search ALL TMs
+        if tm_ids is not None and len(tm_ids) == 0:
+            tm_ids = None
+            print(f"[DEBUG] TMDatabase.search_all: Empty tm_ids, setting to None to search ALL")
+        
+        print(f"[DEBUG] TMDatabase.search_all: Final tm_ids to search: {tm_ids}")
         
         # First try exact match
         exact_match = self.db.get_exact_match(
@@ -216,6 +227,7 @@ class TMDatabase:
             source_lang=self.source_lang,
             target_lang=self.target_lang
         )
+        print(f"[DEBUG] TMDatabase.search_all: Exact match result: {exact_match}")
         
         if exact_match:
             # Format as match dictionary
@@ -229,6 +241,7 @@ class TMDatabase:
             }]
         
         # Try fuzzy matches
+        print(f"[DEBUG] TMDatabase.search_all: Calling fuzzy search with source_lang={self.source_lang}, target_lang={self.target_lang}")
         fuzzy_matches = self.db.search_fuzzy_matches(
             source=source,
             tm_ids=tm_ids,
@@ -237,6 +250,7 @@ class TMDatabase:
             source_lang=self.source_lang,
             target_lang=self.target_lang
         )
+        print(f"[DEBUG] TMDatabase.search_all: Fuzzy search returned {len(fuzzy_matches)} matches")
         
         # Format matches for UI
         formatted_matches = []
@@ -252,17 +266,22 @@ class TMDatabase:
         
         return formatted_matches
     
-    def concordance_search(self, query: str, tm_ids: List[str] = None) -> List[Dict]:
+    def concordance_search(self, query: str, tm_ids: List[str] = None, direction: str = 'both',
+                            source_lang: str = None, target_lang: str = None) -> List[Dict]:
         """
         Search for text in both source and target
         
         Args:
             query: Search query
             tm_ids: TM IDs to search (None = all)
+            direction: 'source' = search source only, 'target' = search target only, 'both' = bidirectional
+            source_lang: Filter by source language (None = any)
+            target_lang: Filter by target language (None = any)
         
         Returns: List of matching entries
         """
-        results = self.db.concordance_search(query=query, tm_ids=tm_ids)
+        results = self.db.concordance_search(query=query, tm_ids=tm_ids, direction=direction,
+                                              source_lang=source_lang, target_lang=target_lang)
         
         # Format for UI
         formatted = []

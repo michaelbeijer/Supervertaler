@@ -836,12 +836,16 @@ class DatabaseManager:
         clean_text = re.sub(r'[^\w\s]', ' ', source)  # Replace special chars with spaces
         search_terms = [term for term in clean_text.strip().split() if len(term) > 1]
         
+        print(f"[DEBUG] search_fuzzy_matches: source='{source[:50]}', search_terms={search_terms}")
+        
         if not search_terms:
             # If no valid terms, return empty results
+            print(f"[DEBUG] search_fuzzy_matches: No valid search terms, returning empty")
             return []
         
         # Quote each term to prevent FTS5 syntax errors
         fts_query = ' OR '.join(f'"{term}"' for term in search_terms)
+        print(f"[DEBUG] search_fuzzy_matches: FTS query = {fts_query}")
         
         # Get base language codes for comparison
         src_base = get_base_lang_code(source_lang) if source_lang else None
@@ -887,10 +891,18 @@ class DatabaseManager:
         # Get more candidates than needed for proper scoring
         query += f" ORDER BY relevance DESC LIMIT {max_results * 5}"
         
-        self.cursor.execute(query, params)
+        print(f"[DEBUG] search_fuzzy_matches: Executing query...")
+        try:
+            self.cursor.execute(query, params)
+            all_rows = self.cursor.fetchall()
+            print(f"[DEBUG] search_fuzzy_matches: FTS query returned {len(all_rows)} candidates")
+        except Exception as e:
+            print(f"[DEBUG] search_fuzzy_matches: SQL ERROR: {e}")
+            return []
+        
         results = []
         
-        for row in self.cursor.fetchall():
+        for row in all_rows:
             match_dict = dict(row)
             # Calculate actual similarity using SequenceMatcher
             similarity = self.calculate_similarity(source, match_dict['source_text'])
@@ -900,6 +912,8 @@ class DatabaseManager:
                 match_dict['similarity'] = similarity
                 match_dict['match_pct'] = int(similarity * 100)
                 results.append(match_dict)
+        
+        print(f"[DEBUG] search_fuzzy_matches: After threshold filter: {len(results)} matches")
         
         # If bidirectional, also search reverse direction
         if bidirectional and src_base and tgt_base:
@@ -1068,22 +1082,53 @@ class DatabaseManager:
         
         self.connection.commit()
     
-    def concordance_search(self, query: str, tm_ids: List[str] = None) -> List[Dict]:
+    def concordance_search(self, query: str, tm_ids: List[str] = None, direction: str = 'both',
+                            source_lang: str = None, target_lang: str = None) -> List[Dict]:
         """
-        Search for text in both source and target (concordance search)
+        Search for text in source and/or target (concordance search)
+        
+        Args:
+            query: Text to search for
+            tm_ids: List of TM IDs to search (None = all)
+            direction: 'source' = search source only, 'target' = search target only, 'both' = bidirectional
+            source_lang: Filter by source language (None = any)
+            target_lang: Filter by target language (None = any)
         """
         search_query = f"%{query}%"
         
-        sql = """
-            SELECT * FROM translation_units 
-            WHERE (source_text LIKE ? OR target_text LIKE ?)
-        """
-        params = [search_query, search_query]
+        # Build WHERE clause based on direction
+        if direction == 'source':
+            sql = """
+                SELECT * FROM translation_units 
+                WHERE source_text LIKE ?
+            """
+            params = [search_query]
+        elif direction == 'target':
+            sql = """
+                SELECT * FROM translation_units 
+                WHERE target_text LIKE ?
+            """
+            params = [search_query]
+        else:
+            # Both directions (default)
+            sql = """
+                SELECT * FROM translation_units 
+                WHERE (source_text LIKE ? OR target_text LIKE ?)
+            """
+            params = [search_query, search_query]
         
         if tm_ids:
             placeholders = ','.join('?' * len(tm_ids))
             sql += f" AND tm_id IN ({placeholders})"
             params.extend(tm_ids)
+        
+        # Add language filters
+        if source_lang:
+            sql += " AND source_lang = ?"
+            params.append(source_lang)
+        if target_lang:
+            sql += " AND target_lang = ?"
+            params.append(target_lang)
         
         sql += " ORDER BY modified_date DESC LIMIT 100"
         
