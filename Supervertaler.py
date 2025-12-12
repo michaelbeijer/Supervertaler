@@ -1,10 +1,10 @@
 """   
 Supervertaler
 =============
-The ultimate companion tool for translators and writers.
+The Ultimate Translation Workbench.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.9.36 (Universal Tag Coloring)
-Release Date: December 10, 2025
+Version: 1.9.40 (Superlookup Unified Concordance)
+Release Date: December 12, 2025
 Framework: PyQt6
 
 This is the modern edition of Supervertaler using PyQt6 framework.
@@ -4518,7 +4518,7 @@ class SupervertalerQt(QMainWindow):
         self.ensure_example_api_keys()
         
         self.log(f"Welcome to Supervertaler v{__version__}")
-        self.log("Supervertaler: The ultimate companion tool for translators and writers.")
+        self.log("Supervertaler: The Ultimate Translation Workbench.")
         
         # Load general settings (including auto-propagation)
         self.load_general_settings()

@@ -638,7 +638,7 @@ class ShortcutManager:
 <body>
     <h1>🌐 Supervertaler - Keyboard Shortcuts</h1>
     <div class="footer" style="text-align: center; margin-bottom: 30px;">
-        <p>The Ultimate Companion Tool for Translators and Writers</p>
+        <p>The Ultimate Translation Workbench</p>
     </div>
 """
         

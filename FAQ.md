@@ -25,7 +25,7 @@ Welcome to the Supervertaler FAQ! Find answers to common questions about install
 
 ### What is Supervertaler?
 
-Supervertaler is **the ultimate AI-powered companion tool for professional translators**. It works alongside your CAT tool (memoQ, Trados, CafeTran) to provide:
+Supervertaler is **The Ultimate Translation Workbench**. It works alongside your CAT tool (memoQ, Trados, CafeTran) to provide:
 
 - **AI-enhanced translation** with GPT-4, Claude, and Gemini
 - **Project termbases** with automatic term extraction

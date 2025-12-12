@@ -1,6 +1,6 @@
 # 🚀 Supervertaler v1.9.40
 
-🎯 **The Ultimate Companion Tool for Translators and Writers** — Context-aware AI with intuitive 2-Layer Prompt Architecture, AI Assistant, project termbase system with automatic extraction, and specialized modules.
+🎯 **The Ultimate Translation Workbench** — Context-aware AI with intuitive 2-Layer Prompt Architecture, AI Assistant, project termbase system with automatic extraction, and specialized modules.
 
 **Current Version:** v1.9.40 (December 12, 2025)
 **Framework:** PyQt6
