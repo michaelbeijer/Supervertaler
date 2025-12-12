@@ -102,32 +102,35 @@ Access comprehensive, auto-generated documentation directly from within Superver
 
 ### Trados Studio
 
-Supervertaler supports two Trados workflows:
+When working with agencies that use Trados Studio, Supervertaler supports two exchange formats:
 
-#### Option 1: SDLPPX/SDLRPX Package Exchange (Recommended)
+#### SDLPPX/SDLRPX Package Exchange
 
-This is the native Trados exchange format and works seamlessly:
+This is the native Trados package format used by agencies:
 
-**Receiving from client:**
-1. Client sends you an `.sdlppx` package
+**Workflow:**
+1. Agency sends you an `.sdlppx` package
 2. In Supervertaler: **File → Open** and select the `.sdlppx` file
 3. Translate in Supervertaler
 4. **File → Export → Trados Package (SDLRPX)** to create return package
+5. Send the `.sdlrpx` back to the agency
 
-**Key benefits:**
+**Characteristics:**
 - Full status synchronization (Draft → Translated)
 - All segment metadata preserved
-- Client can reimport directly into Trados Studio
+- Agency can reimport directly into Trados Studio
 
-#### Option 2: Bilingual Review DOCX (Workaround)
+#### Bilingual Review DOCX
 
-> ⚠️ **CRITICAL**: The Bilingual Review DOCX format is designed for **review only**, 
-> not for translation. It does NOT support empty target segments!
+Some agencies may send bilingual DOCX files instead of packages.
+
+> ⚠️ **IMPORTANT**: The Bilingual Review DOCX format is designed for **review only**, 
+> not for translation from scratch. It does NOT export empty target segments!
 > 
 > See: [RWS Community Discussion](https://community.rws.com/product-groups/trados-portfolio/trados-studio/f/studio/34874/export-for-bilingual-review-exports-only-source-text)
 
-If you must use bilingual DOCX (e.g., when you don't have the source .sdlppx), 
-you need to follow this **specific workflow**:
+If you receive a bilingual DOCX with empty targets, or need to create one yourself,
+follow this **specific workflow**:
 
 **Complete Workflow:**
 
