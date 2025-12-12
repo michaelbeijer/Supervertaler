@@ -24958,15 +24958,26 @@ class SupervertalerQt(QMainWindow):
         # Initialize spellcheck for target language if enabling
         if self.spellcheck_enabled:
             if self.spellcheck_manager.set_language(spellcheck_lang):
-                self.log(f"✓ Spellcheck enabled for {spellcheck_lang}")
+                self.log(f"✓ Spellcheck enabled for {spellcheck_lang} (backend: {self.spellcheck_manager.get_backend_info()})")
             else:
                 self.log(f"⚠ Spellcheck dictionary not available for {spellcheck_lang}")
-                # Show warning
+                # Disable spellcheck since we couldn't initialize
+                self.spellcheck_enabled = False
+                TagHighlighter.set_spellcheck_enabled(False)
+                self._update_spellcheck_button_style()
+                if hasattr(self, 'spellcheck_btn'):
+                    self.spellcheck_btn.setChecked(False)
+                if hasattr(self, 'spellcheck_toggle_action'):
+                    self.spellcheck_toggle_action.setChecked(False)
+                # Show warning with diagnostics
+                diag = self.spellcheck_manager.get_diagnostics()
                 QMessageBox.warning(
-                    self, "Dictionary Not Found",
-                    f"Spellcheck dictionary for '{spellcheck_lang}' is not available.\n\n"
-                    f"Available dictionaries: {', '.join(self.spellcheck_manager.get_available_languages())}\n\n"
-                    f"Using pyspellchecker will be used as fallback for English."
+                    self, "Spellcheck Unavailable",
+                    f"Could not initialize spellcheck for '{spellcheck_lang}'.\n\n"
+                    f"Backends:\n"
+                    f"• Hunspell: {'Available' if diag['hunspell_available'] else 'Not installed'}\n"
+                    f"• pyspellchecker: {'Available' if diag['pyspellchecker_available'] else 'Not installed'}\n\n"
+                    f"Try opening Spellcheck Info (right-click menu) for more details."
                 )
         else:
             self.log("✗ Spellcheck disabled")
@@ -24995,9 +25006,27 @@ class SupervertalerQt(QMainWindow):
         
         if self.spellcheck_enabled:
             if self.spellcheck_manager.set_language(spellcheck_lang):
-                self.log(f"✓ Spellcheck enabled for {spellcheck_lang}")
+                self.log(f"✓ Spellcheck enabled for {spellcheck_lang} (backend: {self.spellcheck_manager.get_backend_info()})")
             else:
-                self.log(f"⚠ Spellcheck dictionary not available for {spellcheck_lang}")
+                self.log(f"⚠ Spellcheck could not be initialized for {spellcheck_lang}")
+                # Disable spellcheck since we couldn't initialize
+                self.spellcheck_enabled = False
+                TagHighlighter.set_spellcheck_enabled(False)
+                self._update_spellcheck_button_style()
+                if hasattr(self, 'spellcheck_btn'):
+                    self.spellcheck_btn.setChecked(False)
+                if hasattr(self, 'spellcheck_toggle_action'):
+                    self.spellcheck_toggle_action.setChecked(False)
+                # Show warning
+                diag = self.spellcheck_manager.get_diagnostics()
+                QMessageBox.warning(
+                    self, "Spellcheck Unavailable",
+                    f"Could not initialize spellcheck for '{spellcheck_lang}'.\n\n"
+                    f"Backends:\n"
+                    f"• Hunspell: {'Available' if diag['hunspell_available'] else 'Not installed'}\n"
+                    f"• pyspellchecker: {'Available' if diag['pyspellchecker_available'] else 'Not installed'}\n\n"
+                    f"Try opening Spellcheck Info for more details."
+                )
         else:
             self.log("✗ Spellcheck disabled")
         
@@ -25258,6 +25287,51 @@ class SupervertalerQt(QMainWindow):
         hunspell_layout.addWidget(libreoffice_label)
         
         layout.addWidget(hunspell_group)
+        
+        # Diagnostics section (collapsible) for troubleshooting
+        diag_group = QGroupBox("🔧 Troubleshooting")
+        diag_layout = QVBoxLayout(diag_group)
+        
+        # Get diagnostics
+        diag = self.spellcheck_manager.get_diagnostics()
+        
+        diag_text = f"""
+<b>Backend Status:</b>
+• Hunspell available: {'✓ Yes' if diag['hunspell_available'] else '✗ No (cyhunspell not installed)'}
+• Hunspell initialized: {'✓ Yes' if diag['hunspell_initialized'] else '✗ No'}
+• pyspellchecker available: {'✓ Yes' if diag['pyspellchecker_available'] else '✗ No'}
+• pyspellchecker initialized: {'✓ Yes' if diag['pyspellchecker_initialized'] else '✗ No'}
+"""
+        if diag.get('pyspellchecker_import_error'):
+            diag_text += f"• Import error: {diag['pyspellchecker_import_error']}\n"
+        
+        if diag.get('pyspellchecker_word_count'):
+            diag_text += f"• Dictionary words loaded: {diag['pyspellchecker_word_count']:,}\n"
+        
+        diag_text += f"""
+<b>Current State:</b>
+• Language: {diag['current_language'] or 'Not set'}
+• Enabled: {'✓ Yes' if diag['enabled'] else '✗ No'}
+• Custom words: {diag['custom_words_count']}
+• Session ignored: {diag['ignored_words_count']}
+• Cache size: {diag['cache_size']}
+"""
+        
+        diag_label = QLabel(diag_text.strip())
+        diag_label.setWordWrap(True)
+        diag_label.setTextFormat(Qt.TextFormat.RichText)
+        diag_layout.addWidget(diag_label)
+        
+        # If not initialized, show help text
+        if not diag['hunspell_initialized'] and not diag['pyspellchecker_initialized']:
+            help_label = QLabel(
+                "<br><b style='color: orange;'>⚠️ Spellcheck not initialized</b><br>"
+                "Try changing the language above, or ensure a language is set."
+            )
+            help_label.setWordWrap(True)
+            diag_layout.addWidget(help_label)
+        
+        layout.addWidget(diag_group)
         
         # OK button
         button_layout = QHBoxLayout()

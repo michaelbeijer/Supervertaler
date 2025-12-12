@@ -25,12 +25,14 @@ except ImportError:
     Hunspell = None
 
 # Fallback to pyspellchecker
+SPELLCHECKER_IMPORT_ERROR = None
 try:
     from spellchecker import SpellChecker
     HAS_SPELLCHECKER = True
-except ImportError:
+except ImportError as e:
     HAS_SPELLCHECKER = False
     SpellChecker = None
+    SPELLCHECKER_IMPORT_ERROR = str(e)
 
 
 class SpellcheckManager:
@@ -185,15 +187,27 @@ class SpellcheckManager:
             # Check if language is supported
             # pyspellchecker supports: en, es, de, fr, pt, nl, it, ru, ar, eu, lv
             supported = ['en', 'es', 'de', 'fr', 'pt', 'nl', 'it', 'ru', 'ar', 'eu', 'lv']
-            if short_code in supported:
-                self._spellchecker = SpellChecker(language=short_code)
-                return True
             
-            # Default to English
-            self._spellchecker = SpellChecker(language='en')
+            target_lang = short_code if short_code in supported else 'en'
+            
+            # Create the spellchecker instance
+            self._spellchecker = SpellChecker(language=target_lang)
+            
+            # Verify it's actually working by checking a common word
+            # This catches cases where the dictionary file is missing or corrupt
+            if hasattr(self._spellchecker, 'word_frequency'):
+                # Check that the word frequency data was loaded
+                if len(self._spellchecker.word_frequency) == 0:
+                    print(f"SpellChecker: Word frequency data is empty for {target_lang}")
+                    self._spellchecker = None
+                    return False
+            
             return True
         except Exception as e:
-            print(f"SpellChecker initialization failed: {e}")
+            print(f"SpellChecker initialization failed for {lang_code}: {e}")
+            import traceback
+            traceback.print_exc()
+            self._spellchecker = None
             return False
     
     def check_word(self, word: str) -> bool:
@@ -420,18 +434,44 @@ class SpellcheckManager:
         """Check if spellchecking is available"""
         return HAS_HUNSPELL or HAS_SPELLCHECKER
     
+    def is_ready(self) -> bool:
+        """Check if spellchecking is initialized and ready to use"""
+        return self._hunspell is not None or self._spellchecker is not None
+    
     def get_backend_info(self) -> str:
         """Get information about the spellcheck backend"""
         if self._hunspell:
-            return "Hunspell"
+            return f"Hunspell ({self._current_language})"
         elif self._spellchecker:
-            return "pyspellchecker"
+            return f"pyspellchecker ({self._current_language})"
         elif HAS_HUNSPELL:
-            return "Hunspell (not initialized)"
+            return "Hunspell (not initialized - call set_language first)"
         elif HAS_SPELLCHECKER:
-            return "pyspellchecker (not initialized)"
+            return "pyspellchecker (not initialized - call set_language first)"
         else:
             return "No spellcheck backend available"
+    
+    def get_diagnostics(self) -> dict:
+        """Get diagnostic information about the spellcheck system"""
+        info = {
+            'hunspell_available': HAS_HUNSPELL,
+            'pyspellchecker_available': HAS_SPELLCHECKER,
+            'pyspellchecker_import_error': SPELLCHECKER_IMPORT_ERROR,
+            'hunspell_initialized': self._hunspell is not None,
+            'pyspellchecker_initialized': self._spellchecker is not None,
+            'current_language': self._current_language,
+            'enabled': self.enabled,
+            'custom_words_count': len(self._custom_words),
+            'ignored_words_count': len(self._ignored_words),
+            'cache_size': len(self._word_cache),
+            'dictionaries_path': str(self.dictionaries_path),
+        }
+        
+        # Check if pyspellchecker word frequency data is available
+        if self._spellchecker and hasattr(self._spellchecker, 'word_frequency'):
+            info['pyspellchecker_word_count'] = len(self._spellchecker.word_frequency)
+        
+        return info
 
 
 # Singleton instance
