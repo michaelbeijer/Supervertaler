@@ -1,0 +1,439 @@
+<?xml version='1.0' encoding='utf-8'?>
+<tmx version="1.4">
+  <header creationdate="20251212T162818Z" srclang="en" adminlang="en" segtype="sentence" creationtool="Supervertaler" creationtoolversion="3.6.0-beta" datatype="plaintext" />
+  <body>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Supervertaler – Comprehensive DOCX Test Document</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>Supervertaler – Uitgebreid DOCX-testdocument</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>1.</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>1.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Introduction and scope</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>Inleiding en reikwijdte</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>This document is designed to test the full range of formatting features commonly encountered in complex Microsoft Word documents.</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>Dit document is ontworpen om het volledige scala aan opmaakfuncties te testen die vaak voorkomen in complexe Microsoft Word-documenten.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>It intentionally combines structure, layout, and inline formatting.</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>Het combineert opzettelijk structuur, lay-out en inline opmaak.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>&lt;2&gt;This sentence contains &lt;/2&gt;&lt;5&gt;bold text&lt;/5&gt;, &lt;8&gt;italic text&lt;/8&gt;, &lt;11&gt;bold italic text&lt;/11&gt;, and normal text again.</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>&lt;2&gt;Deze zin bevat &lt;/2&gt;&lt;5&gt;vetgedrukte tekst&lt;/5&gt;, &lt;8&gt;cursieve tekst&lt;/8&gt;, &lt;11&gt;vetgedrukte cursieve tekst&lt;/11&gt; en weer normale tekst.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>2.</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>2.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Multi-level heading structure</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>Kopstructuur met meerdere niveaus</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>2.1 Second-level heading</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>2.1 Kop van het tweede niveau</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>2.1.1 Third-level heading</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>2.1.1 Kop van het derde niveau</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>2.1.1.1 Fourth-level heading</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>2.1.1.1 Kop van het vierde niveau</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>This paragraph sits under a deep heading level and should remain associated with it during processing.</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>Deze alinea bevindt zich onder een diep kopniveau en moet er tijdens de verwerking aan gekoppeld blijven.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>3.</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>3.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Lists and indentation</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>Lijsten en inspringing</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Unordered list:</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>Ongeordende lijst:</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>First bullet item</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>Eerste opsommingsitem</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Second bullet item with longer explanatory text</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>Tweede opsommingsitem met langere verklarende tekst</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Third bullet item</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>Derde opsommingsitem</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Ordered list:</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>Geordende lijst:</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>First numbered item</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>Eerste genummerde item</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Second numbered item</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>Tweede genummerde item</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Third numbered item</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>Derde genummerde item</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>4.</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>4.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Tables with edge cases</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>Tabellen met randgevallen</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Merged header cell (ID + Description)</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>Samengevoegde kopcel (ID + Beschrijving)</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Language</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>Taal</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Notes</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>Opmerkingen</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>A-001</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>A-001</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Mixed-language cell:</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>Cel met gemengde taal:</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Dit is Nederlands, this is English, et ceci est français.</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>Dit is Nederlands, this is English, et ceci est français.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>NL / EN / FR</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>NL / EN / FR</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Cell with
+manual line break</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>Cel met</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>A-002</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>A-002</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>EN</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>EN</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Intentionally empty description cell</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>Opzettelijk lege beschrijvingscel</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>5.</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>5.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Footnote-style references</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>Verwijzingen in voetnootstijl</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>This sentence contains a reference marker [1] that mimics a footnote without using Word’s native footnote feature.</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>Deze zin bevat een verwijzingsmarkering [1] die een voetnoot nabootst zonder gebruik te maken van de ingebouwde voetnootfunctie van Word.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>[1] This is footnote-like explanatory text that should remain logically associated with the reference.</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>[1] Dit is voetnootachtige verklarende tekst die logisch gekoppeld moet blijven aan de verwijzing.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>6.</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>6.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Alignment tests</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>Uitlijningstests</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Left-aligned paragraph (default).</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>Links uitgelijnde alinea (standaard).</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Center-aligned paragraph.</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>Gecentreerde alinea.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Right-aligned paragraph.</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>Rechts uitgelijnde alinea.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>7.</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>7.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Special characters and spacing</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>Speciale tekens en spatiëring</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>This paragraph contains a non‑breaking space, an en dash – like this, and symbols such as ©, ®, ™, ≤, ≥, and ±.</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>Deze alinea bevat een harde spatie, een en-streepje – zoals dit, en symbolen zoals ©, ®, ™, ≤, ≥ en ±.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>8.</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>8.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Callout text</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>Callout-tekst</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>WARNING:</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>WAARSCHUWING:</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>This paragraph simulates a callout or warning box.</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>Deze alinea simuleert een callout of waarschuwingsvak.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>9.</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>9.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>Final call to action</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>Afsluitende oproep tot actie</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en">
+        <seg>End of test document – ready for Supervertaler processing.</seg>
+      </tuv>
+      <tuv xml:lang="nl">
+        <seg>Einde testdocument – gereed voor verwerking door Supervertaler.</seg>
+      </tuv>
+    </tu>
+  </body>
+</tmx>
