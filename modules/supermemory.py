@@ -33,8 +33,9 @@ import threading
 
 # Optional imports - will be checked at runtime
 CHROMADB_AVAILABLE = False
-SENTENCE_TRANSFORMERS_AVAILABLE = False
+SENTENCE_TRANSFORMERS_AVAILABLE = None  # None = not yet checked, False = failed, True = available
 SENTENCE_TRANSFORMERS_ERROR = None  # Store error message if import fails
+SentenceTransformer = None  # Will be set on first use
 
 try:
     import chromadb
@@ -43,13 +44,27 @@ try:
 except ImportError:
     pass
 
-try:
-    from sentence_transformers import SentenceTransformer
-    SENTENCE_TRANSFORMERS_AVAILABLE = True
-except (ImportError, OSError, Exception) as e:
-    # Catch DLL loading errors on Windows (common with PyTorch)
-    SENTENCE_TRANSFORMERS_AVAILABLE = False
-    SENTENCE_TRANSFORMERS_ERROR = str(e)
+# NOTE: sentence_transformers is imported lazily in _lazy_load_sentence_transformers()
+# to avoid DLL crashes at module load time on Windows
+
+
+def _lazy_load_sentence_transformers():
+    """Lazily load sentence_transformers to avoid DLL crashes at startup."""
+    global SENTENCE_TRANSFORMERS_AVAILABLE, SENTENCE_TRANSFORMERS_ERROR, SentenceTransformer
+    
+    if SENTENCE_TRANSFORMERS_AVAILABLE is not None:
+        return SENTENCE_TRANSFORMERS_AVAILABLE
+    
+    try:
+        from sentence_transformers import SentenceTransformer as ST
+        SentenceTransformer = ST
+        SENTENCE_TRANSFORMERS_AVAILABLE = True
+        return True
+    except (ImportError, OSError, Exception) as e:
+        # Catch DLL loading errors on Windows (common with PyTorch)
+        SENTENCE_TRANSFORMERS_AVAILABLE = False
+        SENTENCE_TRANSFORMERS_ERROR = str(e)
+        return False
 
 
 # =============================================================================
@@ -251,18 +266,22 @@ class SupermemoryEngine:
         
     def check_dependencies(self) -> Dict[str, bool]:
         """Check if required dependencies are available"""
+        # Lazy load sentence_transformers to avoid DLL crashes at startup
+        st_available = _lazy_load_sentence_transformers()
         return {
             "chromadb": CHROMADB_AVAILABLE,
-            "sentence_transformers": SENTENCE_TRANSFORMERS_AVAILABLE,
-            "ready": CHROMADB_AVAILABLE and SENTENCE_TRANSFORMERS_AVAILABLE
+            "sentence_transformers": st_available,
+            "ready": CHROMADB_AVAILABLE and st_available
         }
     
     def get_missing_dependencies(self) -> List[str]:
         """Get list of missing dependencies with install commands"""
+        # Lazy load sentence_transformers to avoid DLL crashes at startup
+        st_available = _lazy_load_sentence_transformers()
         missing = []
         if not CHROMADB_AVAILABLE:
             missing.append("chromadb")
-        if not SENTENCE_TRANSFORMERS_AVAILABLE:
+        if not st_available:
             missing.append("sentence-transformers")
         return missing
     
@@ -303,7 +322,9 @@ class SupermemoryEngine:
                 metadata={"description": "Supervertaler Translation Memory Vectors"}
             )
             
-            self.log(f"[Supermemory] Initialized with {self.collection.count()} entries")
+            # Note: Avoid calling collection.count() immediately after creation
+            # ChromaDB 1.3.x Rust backend can have race conditions
+            self.log(f"[Supermemory] Collection initialized successfully")
             return True
 
         except Exception as e:
@@ -1004,11 +1025,14 @@ class SupermemoryEngine:
             pair = f"{tm.source_lang}-{tm.target_lang}"
             lang_pairs[pair] = lang_pairs.get(pair, 0) + tm.entry_count
         
+        # Note: We use total_entries from metadata instead of collection.count()
+        # because ChromaDB 1.3.x Rust backend can crash on count() calls
+        
         return {
             "total_tms": len(tms),
             "total_entries": total_entries,
             "language_pairs": lang_pairs,
-            "collection_count": self.collection.count() if self.collection else 0,
+            "collection_count": total_entries,  # Use metadata count, not collection.count()
             "model": self.embedding_model_name or "Not loaded"
         }
     

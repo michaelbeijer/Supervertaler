@@ -1,8 +1,8 @@
-# 🚀 Supervertaler v1.9.39
+# 🚀 Supervertaler v1.9.40
 
 🎯 **The Ultimate Companion Tool for Translators and Writers** — Context-aware AI with intuitive 2-Layer Prompt Architecture, AI Assistant, project termbase system with automatic extraction, and specialized modules.
 
-**Current Version:** v1.9.39 (December 11, 2025)
+**Current Version:** v1.9.40 (December 12, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -33,21 +33,21 @@
 python Supervertaler.py
 ```
 
-### NEW in v1.9.37 - User-Configurable Grid Fonts
+### NEW in v1.9.40 - Superlookup Unified Concordance System
+*   **Ctrl+K Now Opens Superlookup**: All concordance searches consolidated into Superlookup - one hub for TM, Termbase, Supermemory, MT, and Web Resources
+*   **Dual-View Toggle**: Switch between Horizontal (table) and Vertical (list) layouts for TM results
+*   **Tab Reorganization**: "Project Resources" tab now before "Prompt Manager", removed redundant Concordance and Import/Export tabs
+*   **FTS5 Full-Text Search**: Concordance now uses SQLite FTS5 for 100-1000x faster search on large databases
+
+### v1.9.39 - Superlookup Multilingual Search
+*   **Language Filtering**: From/To dropdowns filter TM and termbase searches by language pair
+*   **Search Direction**: Both/Source only/Target only radio buttons for precise concordance
+*   **Yellow Highlighting**: Search terms highlighted in results with compact display and tooltips
+
+### v1.9.37 - User-Configurable Grid Fonts
 *   **Font Family Selection**: Choose from 10 popular fonts (Calibri, Segoe UI, Arial, Consolas, etc.) in Settings → View Settings
 *   **Live Preview**: See font changes in real-time before saving with a mock source/target preview showing tags
 *   **Font Persistence**: Your chosen font family is now saved between sessions (previously only font size was saved)
-
-### v1.9.36 - Universal Tag Coloring
-*   **Universal Tag Coloring**: All CAT tool tags now highlighted in pink: memoQ `{1}`, `[2}`, Trados `<1>`, `</1>`, Phrase `{1}`, and HTML `<b>`, `<i>`.
-*   **CafeTran Pipe Fix**: Pipe symbols (`|`) now only highlighted red in CafeTran projects (was incorrectly red in all projects).
-
-### v1.9.35 - memoQ Red Tags
-*   **memoQ Red Tags**: Fixed issue where red formatting tags (e.g. `{1}`) in memoQ bilingual exports appeared as plain text. The target column now correctly inherits the red color from the source column.
-
-### v1.9.34 - UI & Spellcheck Fixes
-*   **UI Standardization**: Replaced all standard radio buttons with custom green `CheckmarkRadioButton` for consistent UI across 6+ dialogs including Find/Replace, Filters, and AutoFingers
-*   **Spellcheck Update Fix**: Fixed bug where adding/ignoring words didn't update all grid instances immediately
 *   **Spellcheck Language**: Now correctly defaults to project target languages
 
 **NEW in v1.9.33 - Spellcheck Update Fix:**

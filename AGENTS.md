@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** December 11, 2025 | **Version:** v1.9.39
+> **Last Updated:** December 12, 2025 | **Version:** v1.9.40
 
 ---
 
@@ -12,13 +12,13 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.39 (December 2025) |
+| **Version** | v1.9.40 (December 2025) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
 | **Repository** | https://github.com/michaelbeijer/Supervertaler |
 | **Website** | https://supervertaler.com |
-| **Main File** | `Supervertaler.py` (~32,000+ lines) |
+| **Main File** | `Supervertaler.py` (~33,000+ lines) |
 | **Modules** | 60+ specialized modules in `modules/` directory |
 
 ### Key Capabilities
@@ -29,6 +29,7 @@
 - **Terminology Management**: SQLite-based termbases with priority highlighting and automatic extraction
 - **Document Handling**: DOCX, bilingual DOCX, PDF (via OCR), simple TXT
 - **Quality Assurance**: Spellcheck, tag validation, consistency checking
+- **Superlookup**: Unified concordance hub with TM, Termbase, Supermemory, MT, and Web Resources
 
 ---
 
@@ -296,6 +297,51 @@ google_api_key=AI...
 ---
 
 ## 🔄 Recent Development History
+
+### December 12, 2025 - Version 1.9.40: Superlookup Unified Concordance System
+
+**🔍 Ctrl+K Now Opens Superlookup**
+
+- Major consolidation: Concordance search now uses Superlookup instead of separate dialog
+- All lookup resources in one place: TM, Termbase, Supermemory, MT, Web Resources
+- Selected text in source/target automatically populates search field
+- `show_concordance_search()` now calls `_go_to_superlookup()` and triggers search
+
+**📊 Dual-View Toggle for TM Matches**
+
+- Horizontal (Table): Source | Target columns side-by-side - compact, scannable
+- Vertical (List): Dutch: ... / English: ... stacked - traditional concordance layout
+- Radio button toggle in TM Matches tab
+- Both views stay in sync with search results
+- `toggle_tm_view_mode()` and `display_tm_results()` updated for dual display
+
+**🗂️ Tab Reorganization**
+
+- "Resources" renamed to "Project Resources"
+- Tab order changed: Project Editor → Project Resources → Prompt Manager → Tools → Settings
+- Removed "Concordance" and "Import/Export" tabs from Translation Memories (redundant)
+- Source text box in Superlookup shrunk from 100px to 50px
+- "Termbase Terms" renamed to "Termbase Matches"
+
+**⚡ FTS5 Full-Text Search Optimization**
+
+- `concordance_search()` in database_manager.py now uses FTS5 MATCH queries
+- 100-1000x faster than previous LIKE queries on large databases
+- Auto-sync: FTS5 index rebuilt on connect if out of sync
+- New methods: `rebuild_fts_index()`, `check_fts_index()`
+
+**🐛 ChromaDB Stability Fix**
+
+- Removed all `collection.count()` calls that caused native Rust crashes
+- Stats now use SQLite metadata count instead of ChromaDB collection queries
+- ChromaDB 0.6.3 with tokenizers 0.22.0 (stable combination)
+
+**Files Modified:**
+- `Supervertaler.py` - show_concordance_search(), create_tm_results_tab(), display_tm_results(), tab ordering
+- `modules/database_manager.py` - concordance_search() FTS5, rebuild_fts_index(), check_fts_index()
+- `modules/supermemory.py` - Removed collection.count() calls, uses metadata for stats
+
+---
 
 ### December 11, 2025 - Version 1.9.39: Superlookup Multilingual Search
 

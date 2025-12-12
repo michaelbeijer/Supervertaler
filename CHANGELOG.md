@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.39 (December 11, 2025)
+**Current Version:** v1.9.40 (December 12, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -14,6 +14,7 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- 🔍 **Superlookup Unified Concordance System (v1.9.40)** - Major consolidation: Ctrl+K now opens Superlookup instead of a separate concordance dialog. All lookup resources in one place: TM concordance, Termbase matches, Supermemory semantic search, Machine Translation, and Web Resources. New dual-view toggle: Horizontal (table) or Vertical (list) layout. Tab reorganization: "Project Resources" now comes before "Prompt Manager". Removed redundant tabs from Translation Memories (Concordance and Import/Export - functionality already available in Superlookup and TM List). FTS5 full-text search now properly used for blazingly fast concordance on millions of segments.
 - 🔍 **Superlookup Multilingual Search (v1.9.39)** - Complete overhaul of Superlookup with multilingual language filtering. New From/To language dropdowns filter TM and termbase searches by source/target language pair. Search direction radio buttons (Both/Source only/Target only) for precise concordance searches. Yellow highlighting of search terms in results. Compact results display with tooltips for full text. Languages auto-populate from your TMs and termbases, grouped alphabetically by language family. UI cleanup: removed Manual Capture button and Operating Modes selector.
 - 📁 **Improved Project File Format (v1.9.38)** - `.svproj` files now have all metadata at the top (name, languages, dates, settings, paths) with segments at the end for easier inspection in text editors. Added helpful tip in batch translate warning about using Select All + Clear Target instead of re-importing.
 - 🔤 **User-Configurable Grid Fonts (v1.9.37)** - Choose your preferred font family for the translation grid from 10 popular options. Live preview shows font changes in real-time with sample source/target text and tags. Font family now persists between sessions.
@@ -82,6 +83,40 @@ All notable changes to Supervertaler are documented in this file.
 - 🔄 **CAT Tool Integration** - memoQ, Trados, CafeTran bilingual table support
 
 **See full version history below** ↓
+
+---
+
+## [1.9.40] - December 12, 2025
+
+### 🔍 Superlookup Unified Concordance System
+
+**Major consolidation - Ctrl+K now opens Superlookup instead of separate dialog:**
+- 🔗 **Unified Lookup Hub**: All concordance searches now go through Superlookup - one place for TM, Termbase, Supermemory, MT, and Web Resources
+- ⌨️ **Ctrl+K Integration**: Pressing Ctrl+K in Project Editor navigates to Tools → Superlookup and auto-searches selected text
+- 📝 **Selected Text Auto-Fill**: Any text selected in source/target automatically populates the search field
+
+**Dual-view toggle for TM Matches tab:**
+- 📊 **Horizontal (Table)**: Source | Target columns side-by-side - compact and scannable
+- 📜 **Vertical (List)**: Dutch: ... / English: ... stacked format - traditional concordance layout with more detail
+- 🔄 **Radio Button Toggle**: Switch between views instantly, results update in both views
+
+**UI/Tab reorganization:**
+- 📚 **"Resources" → "Project Resources"**: Clearer naming for the resources tab
+- 🔀 **Tab Reorder**: Project Resources now comes BEFORE Prompt Manager (more logical flow)
+- 🧹 **Removed Redundant Tabs**: Translation Memories no longer has Concordance or Import/Export tabs (functionality in Superlookup and TM List)
+- 📦 **Compact Source Text**: Superlookup source text box shrunk from 100px to 50px
+- 📚 **"Termbase Terms" → "Termbase Matches"**: Consistent naming
+
+**FTS5 Full-Text Search optimization:**
+- ⚡ **Concordance now uses FTS5**: `concordance_search()` now uses SQLite FTS5 MATCH instead of slow LIKE queries
+- 🚀 **100-1000x faster** on large databases with millions of segments
+- 🔄 **Auto-sync**: FTS5 index automatically rebuilt if out of sync with main table
+- 🔧 **Manual rebuild**: New `rebuild_fts_index()` method available for maintenance
+
+**ChromaDB stability fix:**
+- 🐛 **Fixed Rust backend crashes**: Removed all `collection.count()` calls that caused native crashes in ChromaDB 1.3.x
+- 📊 **Uses metadata count**: Stats now derived from SQLite metadata instead of ChromaDB collection queries
+- ✅ **ChromaDB 0.6.3**: Stable version with Python backend, compatible with tokenizers 0.22.0
 
 ---
 

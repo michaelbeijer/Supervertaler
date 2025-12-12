@@ -301,9 +301,9 @@ class TMMetadataManager:
             return False
     
     def is_tm_active(self, tm_db_id: int, project_id: Optional[int]) -> bool:
-        """Check if a TM is active for a project"""
+        """Check if a TM is active for a project (or global when project_id=0)"""
         if project_id is None:
-            return False  # If no project, default to inactive
+            return False  # If None (not 0), default to inactive
         
         try:
             cursor = self.db_manager.cursor

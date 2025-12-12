@@ -74,6 +74,15 @@ class DatabaseManager:
                 import traceback
                 traceback.print_exc()
             
+            # Auto-sync FTS5 index if out of sync
+            try:
+                fts_status = self.check_fts_index()
+                if not fts_status.get('in_sync', True):
+                    self.log(f"[TM] FTS5 index out of sync ({fts_status.get('fts_count', 0)} vs {fts_status.get('main_count', 0)}), rebuilding...")
+                    self.rebuild_fts_index()
+            except Exception as e:
+                self.log(f"[WARNING] FTS5 index check failed: {e}")
+            
             self.log(f"[OK] Database connected: {os.path.basename(self.db_path)}")
             return True
             
@@ -1086,6 +1095,8 @@ class DatabaseManager:
                             source_lang: str = None, target_lang: str = None) -> List[Dict]:
         """
         Search for text in source and/or target (concordance search)
+        Uses FTS5 full-text search for fast matching on millions of segments.
+        Falls back to LIKE queries if FTS5 fails.
         
         Args:
             query: Text to search for
@@ -1094,47 +1105,147 @@ class DatabaseManager:
             source_lang: Filter by source language (None = any)
             target_lang: Filter by target language (None = any)
         """
-        search_query = f"%{query}%"
+        # Escape FTS5 special characters and wrap words for prefix matching
+        # FTS5 special chars: " * ( ) : ^
+        fts_query = query.replace('"', '""')
+        # Wrap in quotes for phrase search
+        fts_query = f'"{fts_query}"'
         
-        # Build WHERE clause based on direction
-        if direction == 'source':
-            sql = """
-                SELECT * FROM translation_units 
-                WHERE source_text LIKE ?
-            """
-            params = [search_query]
-        elif direction == 'target':
-            sql = """
-                SELECT * FROM translation_units 
-                WHERE target_text LIKE ?
-            """
-            params = [search_query]
-        else:
-            # Both directions (default)
-            sql = """
-                SELECT * FROM translation_units 
-                WHERE (source_text LIKE ? OR target_text LIKE ?)
-            """
-            params = [search_query, search_query]
-        
-        if tm_ids:
-            placeholders = ','.join('?' * len(tm_ids))
-            sql += f" AND tm_id IN ({placeholders})"
-            params.extend(tm_ids)
-        
-        # Add language filters
-        if source_lang:
-            sql += " AND source_lang = ?"
-            params.append(source_lang)
-        if target_lang:
-            sql += " AND target_lang = ?"
-            params.append(target_lang)
-        
-        sql += " ORDER BY modified_date DESC LIMIT 100"
-        
-        self.cursor.execute(sql, params)
-        return [dict(row) for row in self.cursor.fetchall()]
+        try:
+            # Use FTS5 for fast full-text search
+            if direction == 'source':
+                fts_sql = """
+                    SELECT tu.* FROM translation_units tu
+                    JOIN translation_units_fts fts ON tu.id = fts.rowid
+                    WHERE fts.source_text MATCH ?
+                """
+                params = [fts_query]
+            elif direction == 'target':
+                fts_sql = """
+                    SELECT tu.* FROM translation_units tu
+                    JOIN translation_units_fts fts ON tu.id = fts.rowid
+                    WHERE fts.target_text MATCH ?
+                """
+                params = [fts_query]
+            else:
+                # Both directions - search in combined FTS index
+                fts_sql = """
+                    SELECT tu.* FROM translation_units tu
+                    JOIN translation_units_fts fts ON tu.id = fts.rowid
+                    WHERE translation_units_fts MATCH ?
+                """
+                params = [fts_query]
+            
+            if tm_ids:
+                placeholders = ','.join('?' * len(tm_ids))
+                fts_sql += f" AND tu.tm_id IN ({placeholders})"
+                params.extend(tm_ids)
+            
+            # Add language filters
+            if source_lang:
+                fts_sql += " AND tu.source_lang = ?"
+                params.append(source_lang)
+            if target_lang:
+                fts_sql += " AND tu.target_lang = ?"
+                params.append(target_lang)
+            
+            fts_sql += " ORDER BY tu.modified_date DESC LIMIT 100"
+            
+            self.cursor.execute(fts_sql, params)
+            return [dict(row) for row in self.cursor.fetchall()]
+            
+        except Exception as e:
+            # Fallback to LIKE query if FTS5 fails (e.g., index not built)
+            print(f"[TM] FTS5 search failed, falling back to LIKE: {e}")
+            search_query = f"%{query}%"
+            
+            if direction == 'source':
+                sql = """
+                    SELECT * FROM translation_units 
+                    WHERE source_text LIKE ?
+                """
+                params = [search_query]
+            elif direction == 'target':
+                sql = """
+                    SELECT * FROM translation_units 
+                    WHERE target_text LIKE ?
+                """
+                params = [search_query]
+            else:
+                sql = """
+                    SELECT * FROM translation_units 
+                    WHERE (source_text LIKE ? OR target_text LIKE ?)
+                """
+                params = [search_query, search_query]
+            
+            if tm_ids:
+                placeholders = ','.join('?' * len(tm_ids))
+                sql += f" AND tm_id IN ({placeholders})"
+                params.extend(tm_ids)
+            
+            if source_lang:
+                sql += " AND source_lang = ?"
+                params.append(source_lang)
+            if target_lang:
+                sql += " AND target_lang = ?"
+                params.append(target_lang)
+            
+            sql += " ORDER BY modified_date DESC LIMIT 100"
+            
+            self.cursor.execute(sql, params)
+            return [dict(row) for row in self.cursor.fetchall()]
     
+    def rebuild_fts_index(self) -> int:
+        """
+        Rebuild the FTS5 full-text search index from scratch.
+        Use this after importing TMs or if FTS search isn't returning results.
+        
+        Returns:
+            Number of entries indexed
+        """
+        try:
+            # Clear existing FTS data
+            self.cursor.execute("DELETE FROM translation_units_fts")
+            
+            # Repopulate from translation_units table
+            self.cursor.execute("""
+                INSERT INTO translation_units_fts(rowid, source_text, target_text)
+                SELECT id, source_text, target_text FROM translation_units
+            """)
+            
+            self.conn.commit()
+            
+            # Get count
+            self.cursor.execute("SELECT COUNT(*) FROM translation_units_fts")
+            count = self.cursor.fetchone()[0]
+            print(f"[TM] FTS5 index rebuilt with {count:,} entries")
+            return count
+        except Exception as e:
+            print(f"[TM] Error rebuilding FTS index: {e}")
+            return 0
+    
+    def check_fts_index(self) -> Dict:
+        """
+        Check if FTS5 index is in sync with main table.
+        
+        Returns:
+            Dict with 'main_count', 'fts_count', 'in_sync' keys
+        """
+        try:
+            self.cursor.execute("SELECT COUNT(*) FROM translation_units")
+            main_count = self.cursor.fetchone()[0]
+            
+            self.cursor.execute("SELECT COUNT(*) FROM translation_units_fts")
+            fts_count = self.cursor.fetchone()[0]
+            
+            return {
+                'main_count': main_count,
+                'fts_count': fts_count,
+                'in_sync': main_count == fts_count
+            }
+        except Exception as e:
+            return {'main_count': 0, 'fts_count': 0, 'in_sync': False, 'error': str(e)}
+
     # ============================================
     # termbase METHODS (Placeholder for Phase 3)
     # ============================================

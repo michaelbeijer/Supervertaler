@@ -34,9 +34,9 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.39"
+__version__ = "1.9.40"
 __phase__ = "0.9"
-__release_date__ = "2025-12-11"
+__release_date__ = "2025-12-12"
 __edition__ = "Qt"
 
 import sys
@@ -5796,15 +5796,15 @@ class SupervertalerQt(QMainWindow):
         # Add tabs to main interface
         self.main_tabs.addTab(self.document_views_widget, "📝 Project Editor")
         
-        # 1. UNIFIED PROMPT LIBRARY
+        # 1. PROJECT RESOURCES (Translation Memories, Termbases, etc.)
+        resources_tab = self.create_resources_tab()
+        self.main_tabs.addTab(resources_tab, "📚 Project Resources")
+        
+        # 2. PROMPT MANAGER
         prompt_widget = QWidget()
         self.prompt_manager_qt = UnifiedPromptManagerQt(self, standalone=False)
         self.prompt_manager_qt.create_tab(prompt_widget)
         self.main_tabs.addTab(prompt_widget, "🤖 Prompt Manager")
-        
-        # 2. RESOURCES (Translation Memories, Termbases, etc.)
-        resources_tab = self.create_resources_tab()
-        self.main_tabs.addTab(resources_tab, "📚 Resources")
         
         # 3. TOOLS
         tools_tab = self.create_specialised_tools_tab()
@@ -7129,9 +7129,17 @@ class SupervertalerQt(QMainWindow):
         return load_api_keys()
     
     def show_concordance_search(self, initial_query: str = None):
-        """Show concordance search dialog (Ctrl+K) - lightweight focused dialog"""
-        from modules.tm_manager_qt import ConcordanceSearchDialog
+        """
+        Show concordance search (Ctrl+K) - now uses Superlookup instead of separate dialog.
         
+        Superlookup provides concordance search plus:
+        - Termbase search
+        - Supermemory semantic search  
+        - Machine Translation
+        - Web Resources
+        
+        The view can be toggled between Horizontal (table) and Vertical (list) modes.
+        """
         try:
             # Get selected text if available and no initial query
             if not initial_query:
@@ -7164,13 +7172,25 @@ class SupervertalerQt(QMainWindow):
             
             # Log for debugging
             if initial_query:
-                self.log(f"[Concordance] Opening with query: '{initial_query[:50]}...'")
+                self.log(f"[Concordance] Opening Superlookup with query: '{initial_query[:50]}...'")
             else:
-                self.log(f"[Concordance] No selection detected, opening empty")
+                self.log(f"[Concordance] Opening Superlookup (no selection)")
             
-            # Open lightweight Concordance Search dialog
-            dialog = ConcordanceSearchDialog(self, self.db_manager, self.log, initial_query)
-            dialog.exec()
+            # Navigate to Superlookup tab
+            self._go_to_superlookup()
+            
+            # Trigger search if we have a query
+            if hasattr(self, 'lookup_tab') and self.lookup_tab:
+                if initial_query:
+                    # Use vertical view for traditional concordance layout
+                    self.lookup_tab.search_with_query(initial_query, switch_to_vertical=True)
+                else:
+                    # Just focus the source text input
+                    self.lookup_tab.source_text.setFocus()
+                    # Switch to vertical view for consistency
+                    if hasattr(self.lookup_tab, 'tm_view_vertical_radio'):
+                        self.lookup_tab.tm_view_vertical_radio.setChecked(True)
+                        
         except Exception as e:
             self.log(f"Error opening concordance search: {e}")
             import traceback
@@ -7509,6 +7529,10 @@ class SupervertalerQt(QMainWindow):
         termbase_tab = self.create_termbases_tab()
         resources_tabs.addTab(termbase_tab, "🏷️ Termbases")
         
+        # Supermemory - Vector-Indexed Translation Memory (semantic search)
+        supermemory_tab = self.create_supermemory_tab()
+        resources_tabs.addTab(supermemory_tab, "🧠 Supermemory")
+        
         nt_tab = self.create_non_translatables_tab()
         resources_tabs.addTab(nt_tab, "🚫 Non-Translatables")
         
@@ -7518,10 +7542,6 @@ class SupervertalerQt(QMainWindow):
         
         ref_tab = self.create_reference_images_tab()
         resources_tabs.addTab(ref_tab, "🎯 Image Context")
-        
-        # Supermemory - Vector-Indexed Translation Memory (semantic search)
-        supermemory_tab = self.create_supermemory_tab()
-        resources_tabs.addTab(supermemory_tab, "🧠 Supermemory")
         
         layout.addWidget(resources_tabs)
         
@@ -7620,16 +7640,13 @@ class SupervertalerQt(QMainWindow):
         temp_manager = TMManagerDialog(self, self.db_manager, self.log)
         tm_tabs.addTab(temp_manager.browser_tab, "📖 Browse All")
         
-        # Tab 3: Concordance - search across ALL active TMs
-        tm_tabs.addTab(temp_manager.search_tab, "🔍 Concordance")
+        # Note: Concordance tab removed - functionality moved to Superlookup (Ctrl+K)
+        # Note: Import/Export tab removed - functionality available in TM List tab
         
-        # Tab 4: Import/Export - TMX import and export
-        tm_tabs.addTab(temp_manager.import_export_tab, "📥 Import/Export")
-        
-        # Tab 5: Statistics - aggregate stats for all TMs
+        # Tab 3: Statistics - aggregate stats for all TMs
         tm_tabs.addTab(temp_manager.stats_tab, "📊 Statistics")
         
-        # Tab 6: Maintenance - cleanup and maintenance tools
+        # Tab 4: Maintenance - cleanup and maintenance tools
         tm_tabs.addTab(temp_manager.maintenance_tab, "🧹 Maintenance")
         
         # Store reference to prevent garbage collection
@@ -11792,7 +11809,7 @@ class SupervertalerQt(QMainWindow):
             "When enabled, Supermemory searches your indexed TMX files for similar segments\n"
             "and injects them into the Ollama prompt as reference translations.\n\n"
             "Benefits: Better terminology, learns from your TMs, domain-specific accuracy.\n\n"
-            "Requirements: TMX files indexed in Tools → Supermemory"
+            "Requirements: TMX files indexed in Resources → Supermemory"
         )
         ollama_layout.addWidget(supermemory_cb)
         
@@ -26751,13 +26768,13 @@ class SupervertalerQt(QMainWindow):
     def _go_to_settings_tab(self):
         """Navigate to Settings tab (from menu)"""
         if hasattr(self, 'main_tabs'):
-            # Main tabs: Project Editor=0, Prompt Manager=1, Translation Resources=2, Tools=3, Settings=4
+            # Main tabs: Project Editor=0, Project Resources=1, Prompt Manager=2, Tools=3, Settings=4
             self.main_tabs.setCurrentIndex(4)
     
     def _go_to_superlookup(self):
         """Navigate to Superlookup in Tools tab"""
         if hasattr(self, 'main_tabs'):
-            # Main tabs: Project Editor=0, Prompt Manager=1, Translation Resources=2, Tools=3, Settings=4
+            # Main tabs: Project Editor=0, Project Resources=1, Prompt Manager=2, Tools=3, Settings=4
             self.main_tabs.setCurrentIndex(3)  # Switch to Tools tab
             # Then switch to Superlookup sub-tab
             if hasattr(self, 'modules_tabs'):
@@ -30057,8 +30074,9 @@ class UniversalLookupTab(QWidget):
         layout.addWidget(source_label_header)
         
         self.source_text = QTextEdit()
-        self.source_text.setPlaceholderText("Paste text here or use Ctrl+Alt+L to capture from any application...")
-        self.source_text.setMaximumHeight(100)
+        self.source_text.setPlaceholderText("Paste text here or use Ctrl+Alt+L to capture...")
+        self.source_text.setMaximumHeight(50)
+        self.source_text.setMinimumHeight(35)
         layout.addWidget(self.source_text)
         
         # Search options row (direction + language filters)
@@ -30144,7 +30162,7 @@ class UniversalLookupTab(QWidget):
         
         # Termbase Results tab
         termbase_tab = self.create_termbase_results_tab()
-        self.results_tabs.addTab(termbase_tab, "📚 Termbase Terms")
+        self.results_tabs.addTab(termbase_tab, "📚 Termbase Matches")
         
         # Supermemory Results tab (semantic search)
         supermemory_tab = self.create_supermemory_results_tab()
@@ -30173,11 +30191,35 @@ class UniversalLookupTab(QWidget):
         layout.addWidget(self.status_label, 0)  # 0 = no stretch, stays compact
     
     def create_tm_results_tab(self):
-        """Create the TM results tab"""
+        """Create the TM results tab with horizontal/vertical view toggle"""
         tab = QWidget()
         layout = QVBoxLayout(tab)
         
-        # Results table
+        # View mode toggle at the top
+        view_toggle_layout = QHBoxLayout()
+        view_toggle_layout.addWidget(QLabel("View:"))
+        
+        self.tm_view_horizontal_radio = CheckmarkRadioButton("Horizontal (Table)")
+        self.tm_view_horizontal_radio.setChecked(True)  # Default to horizontal
+        self.tm_view_horizontal_radio.setToolTip("Source and Target side-by-side in columns")
+        self.tm_view_horizontal_radio.toggled.connect(self.toggle_tm_view_mode)
+        view_toggle_layout.addWidget(self.tm_view_horizontal_radio)
+        
+        self.tm_view_vertical_radio = CheckmarkRadioButton("Vertical (List)")
+        self.tm_view_vertical_radio.setToolTip("Source above Target, like traditional concordance")
+        view_toggle_layout.addWidget(self.tm_view_vertical_radio)
+        
+        view_toggle_layout.addStretch()
+        layout.addLayout(view_toggle_layout)
+        
+        # Stacked widget to hold both views
+        self.tm_view_stack = QStackedWidget()
+        
+        # === Horizontal View (Table) ===
+        horizontal_widget = QWidget()
+        horizontal_layout = QVBoxLayout(horizontal_widget)
+        horizontal_layout.setContentsMargins(0, 0, 0, 0)
+        
         self.tm_results_table = QTableWidget()
         self.tm_results_table.setColumnCount(4)
         self.tm_results_table.setHorizontalHeaderLabels(["Match %", "Source", "Target", "Type"])
@@ -30192,8 +30234,24 @@ class UniversalLookupTab(QWidget):
         self.tm_results_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.tm_results_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.tm_results_table.doubleClicked.connect(self.on_tm_result_double_click)
+        horizontal_layout.addWidget(self.tm_results_table)
         
-        layout.addWidget(self.tm_results_table)
+        self.tm_view_stack.addWidget(horizontal_widget)
+        
+        # === Vertical View (List - like Concordance dialog) ===
+        vertical_widget = QWidget()
+        vertical_layout = QVBoxLayout(vertical_widget)
+        vertical_layout.setContentsMargins(0, 0, 0, 0)
+        
+        self.tm_results_vertical = QTextEdit()
+        self.tm_results_vertical.setReadOnly(True)
+        self.tm_results_vertical.setFont(QFont("Segoe UI", 10))
+        self.tm_results_vertical.setStyleSheet("background-color: #fafafa; border: 1px solid #ddd; border-radius: 4px;")
+        vertical_layout.addWidget(self.tm_results_vertical)
+        
+        self.tm_view_stack.addWidget(vertical_widget)
+        
+        layout.addWidget(self.tm_view_stack)
         
         # Action buttons
         button_layout = QHBoxLayout()
@@ -30319,7 +30377,7 @@ class UniversalLookupTab(QWidget):
                         self.supermemory_status.setStyleSheet("color: green; padding: 5px;")
                         return
                     else:
-                        self.supermemory_status.setText("⚠️ Supermemory not initialized. Go to Tools → Supermemory to set up.")
+                        self.supermemory_status.setText("⚠️ Supermemory not initialized. Go to Resources → Supermemory to set up.")
                         self.supermemory_status.setStyleSheet("color: orange; padding: 5px;")
                         return
             
@@ -30336,13 +30394,13 @@ class UniversalLookupTab(QWidget):
                         )
                         self.supermemory_status.setStyleSheet("color: green; padding: 5px;")
                     else:
-                        self.supermemory_status.setText("⚠️ No TMs indexed. Go to Tools → Supermemory to add TMX files.")
+                        self.supermemory_status.setText("⚠️ No TMs indexed. Go to Resources → Supermemory to add TMX files.")
                         self.supermemory_status.setStyleSheet("color: orange; padding: 5px;")
                 else:
-                    self.supermemory_status.setText("⚠️ Supermemory not initialized. Go to Tools → Supermemory to set up.")
+                    self.supermemory_status.setText("⚠️ Supermemory not initialized. Go to Resources → Supermemory to set up.")
                     self.supermemory_status.setStyleSheet("color: orange; padding: 5px;")
             except ImportError:
-                self.supermemory_status.setText("⚠️ Supermemory not available. Enable in Tools → Supermemory.")
+                self.supermemory_status.setText("⚠️ Supermemory not available. Enable in Resources → Supermemory.")
                 self.supermemory_status.setStyleSheet("color: orange; padding: 5px;")
         except Exception as e:
             self.supermemory_status.setText(f"❌ Error: {e}")
@@ -31103,12 +31161,56 @@ class UniversalLookupTab(QWidget):
         total_results = len(tm_results) + len(termbase_results) + len(mt_results)
         self.status_label.setText(f"✓ Found {total_results} results")
     
+    def search_with_query(self, query: str, switch_to_vertical: bool = True):
+        """
+        Public method to trigger a search from outside (e.g., from Ctrl+K).
+        
+        Args:
+            query: Text to search for
+            switch_to_vertical: If True, switches to vertical (list) view mode
+        """
+        # Set the query text
+        self.source_text.setPlainText(query)
+        
+        # Optionally switch to vertical view (traditional concordance layout)
+        if switch_to_vertical and hasattr(self, 'tm_view_vertical_radio'):
+            self.tm_view_vertical_radio.setChecked(True)
+        
+        # Switch to TM Matches tab
+        if hasattr(self, 'results_tabs'):
+            self.results_tabs.setCurrentIndex(0)  # TM Matches is first tab
+        
+        # Perform the lookup
+        self.perform_lookup()
+    
+    def toggle_tm_view_mode(self, checked):
+        """Toggle between horizontal (table) and vertical (list) view modes"""
+        if self.tm_view_horizontal_radio.isChecked():
+            self.tm_view_stack.setCurrentIndex(0)  # Horizontal/Table view
+        else:
+            self.tm_view_stack.setCurrentIndex(1)  # Vertical/List view
+        
+        # Re-display results if we have any stored
+        if hasattr(self, '_current_tm_results') and self._current_tm_results:
+            self.display_tm_results(self._current_tm_results)
+    
     def display_tm_results(self, results):
-        """Display TM results in the table with search term highlighting"""
-        self.tm_results_table.setRowCount(0)
+        """Display TM results in both horizontal (table) and vertical (list) views"""
+        # Store results for view toggling
+        self._current_tm_results = results
         
         # Get search term for highlighting
         search_text = self.source_text.toPlainText().strip().lower()
+        
+        # Get language names from main window
+        source_lang_name = "Dutch"
+        target_lang_name = "English"
+        if self.main_window:
+            source_lang_name = getattr(self.main_window, 'source_language', 'Source')
+            target_lang_name = getattr(self.main_window, 'target_language', 'Target')
+        
+        # === Update Horizontal View (Table) ===
+        self.tm_results_table.setRowCount(0)
         
         for result in results:
             row = self.tm_results_table.rowCount()
@@ -31146,10 +31248,42 @@ class UniversalLookupTab(QWidget):
         
         # Resize rows to fit content but with reasonable limits
         self.tm_results_table.resizeRowsToContents()
-        # Cap row heights at 60px to prevent excessive expansion
         for row in range(self.tm_results_table.rowCount()):
             if self.tm_results_table.rowHeight(row) > 60:
                 self.tm_results_table.setRowHeight(row, 60)
+        
+        # === Update Vertical View (List) ===
+        html = f"<h3 style='color: #333; margin-bottom: 15px;'>Found {len(results)} TM matches for '<span style='color: #2196F3;'>{search_text}</span>'</h3>"
+        
+        for idx, result in enumerate(results, 1):
+            source = result.source
+            target = result.target
+            tm_name = result.metadata.get('tm_name', 'Unknown')
+            match_type = result.metadata.get('match_type', 'concordance')
+            
+            # Highlight search term
+            highlighted_source = self._highlight_search_term(source, search_text)
+            highlighted_target = self._highlight_search_term(target, search_text)
+            
+            # Alternating background colors
+            bg_color = '#f5f5f5' if idx % 2 == 0 else '#ffffff'
+            
+            html += f"""
+            <div style='background-color: {bg_color}; padding: 10px 8px; margin: 0;'>
+                <div style='color: #555; font-size: 11px; margin-bottom: 6px;'>
+                    #{idx} - TM: <b>{tm_name}</b> - Type: {match_type}
+                </div>
+                <div style='margin-bottom: 4px;'>
+                    <b style='color: #1976D2;'>{source_lang_name}:</b> {highlighted_source}
+                </div>
+                <div>
+                    <b style='color: #388E3C;'>{target_lang_name}:</b> {highlighted_target}
+                </div>
+            </div>
+            <hr style='border: none; border-top: 1px solid #ddd; margin: 0;'>
+            """
+        
+        self.tm_results_vertical.setHtml(html)
     
     def _highlight_search_term(self, text, search_term):
         """Highlight search term in text with yellow background.
