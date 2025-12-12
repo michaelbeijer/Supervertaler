@@ -33,6 +33,8 @@ PyMuPDF>=1.23.0
 
 # Semantic Search (Supermemory)
 sentence-transformers>=2.2.0
+chromadb==0.6.3
+tokenizers==0.22.0
 
 # YAML Support
 pyyaml>=6.0.0
