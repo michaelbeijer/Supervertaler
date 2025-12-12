@@ -298,6 +298,33 @@ google_api_key=AI...
 
 ## 🔄 Recent Development History
 
+### December 12, 2025 - Trados Bilingual DOCX Workflow Documentation
+
+**📚 Comprehensive Trados Workflow Documentation**
+
+Added critical workflow documentation for Trados Bilingual Review DOCX format:
+
+- **Import dialog warning**: `import_trados_bilingual()` now shows detailed ⚠️ CRITICAL WORKFLOW warning explaining the required preparation steps
+- **CAT_WORKFLOW.md**: Updated Trados Studio section with both SDLPPX (recommended) and Bilingual DOCX (workaround) workflows
+- **QUICK_START.md**: Added warning note directing users to full documentation
+
+**The Critical Workflow:**
+The Trados Bilingual Review format is designed for **review only**, not translation - it doesn't export empty target segments! ([RWS Community reference](https://community.rws.com/product-groups/trados-portfolio/trados-studio/f/studio/34874/export-for-bilingual-review-exports-only-source-text))
+
+Required workaround:
+1. In Trados: Copy source to target (fills empty segments)
+2. Export as Bilingual Review DOCX
+3. In Word: Delete all target text (cells exist but are empty)
+4. Import into Supervertaler, translate, export
+5. Reimport into Trados Studio
+
+**Files Modified:**
+- `Supervertaler.py` - `import_trados_bilingual()` warning dialog (line ~18562)
+- `docs/guides/CAT_WORKFLOW.md` - Comprehensive Trados section with both workflows
+- `docs/guides/QUICK_START.md` - Warning note with link to full documentation
+
+---
+
 ### December 12, 2025 - Version 1.9.40: Superlookup Unified Concordance System
 
 **🔍 Ctrl+K Now Opens Superlookup**

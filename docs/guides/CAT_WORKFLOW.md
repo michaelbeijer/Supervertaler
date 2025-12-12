@@ -102,12 +102,66 @@ Access comprehensive, auto-generated documentation directly from within Superver
 
 ### Trados Studio
 
-**Bilingual Review Export:**
-1. Open your project in Trados Studio
-2. Go to **File → Save Target As**
-3. Choose **Export for External Review**
-4. Select **Bilingual Review** (Word) format
-5. Save as **.docx**
+Supervertaler supports two Trados workflows:
+
+#### Option 1: SDLPPX/SDLRPX Package Exchange (Recommended)
+
+This is the native Trados exchange format and works seamlessly:
+
+**Receiving from client:**
+1. Client sends you an `.sdlppx` package
+2. In Supervertaler: **File → Open** and select the `.sdlppx` file
+3. Translate in Supervertaler
+4. **File → Export → Trados Package (SDLRPX)** to create return package
+
+**Key benefits:**
+- Full status synchronization (Draft → Translated)
+- All segment metadata preserved
+- Client can reimport directly into Trados Studio
+
+#### Option 2: Bilingual Review DOCX (Workaround)
+
+> ⚠️ **CRITICAL**: The Bilingual Review DOCX format is designed for **review only**, 
+> not for translation. It does NOT support empty target segments!
+> 
+> See: [RWS Community Discussion](https://community.rws.com/product-groups/trados-portfolio/trados-studio/f/studio/34874/export-for-bilingual-review-exports-only-source-text)
+
+If you must use bilingual DOCX (e.g., when you don't have the source .sdlppx), 
+you need to follow this **specific workflow**:
+
+**Complete Workflow:**
+
+1. **In Trados Studio (before export):**
+   - Select all segments (Ctrl+A)
+   - **Edit → Copy Source to Target** (fills empty targets with source text)
+   - Save the project
+
+2. **Export from Trados:**
+   - **File → Save Target As → Export for External Review**
+   - Select **Bilingual Review (Word)**
+   - Save as `.docx`
+
+3. **In Microsoft Word:**
+   - Open the exported DOCX
+   - The table now has source text in BOTH columns
+   - Select all text in the TARGET column (right column)
+   - Delete it (now target cells are empty but EXIST)
+   - Save the DOCX
+
+4. **In Supervertaler:**
+   - **File → Open** and select the prepared DOCX
+   - Translate your segments
+   - **File → Export Trados Bilingual DOCX**
+
+5. **Back in Trados Studio:**
+   - **File → Open → Import Bilingual Document**
+   - Select your translated DOCX
+   - Translations will be imported with correct status
+
+**Why this workaround?**
+The Bilingual Review format only exports segments that have target text.
+By copying source to target first, we ensure all segments are exported.
+Then we delete the targets in Word so you have empty cells to translate.
 
 ### CafeTran Espresso
 

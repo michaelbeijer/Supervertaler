@@ -71,13 +71,17 @@ Supervertaler works with bilingual DOCX files exported from CAT tools.
 2. Choose "Two-column RTF/DOC" format
 3. Save as DOCX
 
-**From Trados:**
-1. In Trados: **File → Save Target As → Export for Review**
-2. Choose "Bilingual Review" format
+**From Trados (Package - Recommended):**
+1. Open the `.sdlppx` package directly in Supervertaler
+2. Translate and export as `.sdlrpx` return package
+
+**From Trados (Bilingual DOCX - Workaround):**
+> ⚠️ The Bilingual Review format is for review only, not translation.
+> See the [CAT Workflow Guide](CAT_WORKFLOW.md#trados-studio) for the required preparation steps.
 
 **In Supervertaler:**
 1. Click **File → Open** (or Ctrl+O)
-2. Select your bilingual DOCX
+2. Select your bilingual DOCX or SDLPPX package
 3. Segments appear in the grid with Source (left) and Target (right)
 
 ### Step 2: Configure Your Resources

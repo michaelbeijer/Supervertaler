@@ -18571,23 +18571,38 @@ class SupervertalerQt(QMainWindow):
         if not file_path:
             return
         
-        # Show confirmation dialog
-        reply = QMessageBox.question(
-            self,
-            "Confirm Trados Bilingual Import",
-            f"You are about to import a Trados Studio bilingual review DOCX file.\n\n"
-            f"File: {Path(file_path).name}\n\n"
-            f"This workflow is specifically for Trados bilingual review files with:\n"
-            f"• Table format with columns: Segment ID | Status | Source | Target\n"
-            f"• Inline tags like <11>text</11>\n"
-            f"• \"Tag\" character style for formatting\n\n"
-            f"The project can be exported back to Trados format after translation.\n\n"
-            f"Continue with import?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.Yes
+        # Show important workflow dialog with critical preparation steps
+        workflow_dialog = QMessageBox(self)
+        workflow_dialog.setWindowTitle("⚠️ Important: Trados Bilingual Review Workflow")
+        workflow_dialog.setIcon(QMessageBox.Icon.Warning)
+        workflow_dialog.setText(
+            "<b>The Trados bilingual review format requires specific preparation!</b><br><br>"
+            "This format is designed for <b>review only</b>, not translation from scratch. "
+            "For the round-trip to work correctly, you must prepare the file in Trados first."
         )
+        workflow_dialog.setInformativeText(
+            "<b>Required Preparation Steps in Trados Studio:</b><br><br>"
+            "1. Import your document into Trados Studio<br>"
+            "2. Select all segments (Ctrl+A)<br>"
+            "3. Copy source to target for all segments<br>"
+            "4. Save project<br>"
+            "5. Export → Bilingual Review (DOCX)<br>"
+            "6. Open in Word, select all target text, delete it, save<br><br>"
+            "<b>Then in Supervertaler:</b><br>"
+            "7. Import the prepared bilingual review DOCX<br>"
+            "8. Translate with AI<br>"
+            "9. Export → Trados Studio → Bilingual Review<br>"
+            "10. Update from bilingual review in Trados<br><br>"
+            "<i>See Help → CAT Tool Workflow Guide for details.</i>"
+        )
+        workflow_dialog.setStandardButtons(
+            QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel
+        )
+        workflow_dialog.setDefaultButton(QMessageBox.StandardButton.Ok)
+        workflow_dialog.button(QMessageBox.StandardButton.Ok).setText("I understand, continue")
+        workflow_dialog.button(QMessageBox.StandardButton.Cancel).setText("Cancel import")
         
-        if reply != QMessageBox.StandardButton.Yes:
+        if workflow_dialog.exec() != QMessageBox.StandardButton.Ok:
             self.log("✗ User cancelled Trados import")
             return
         
