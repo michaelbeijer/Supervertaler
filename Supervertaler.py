@@ -27356,16 +27356,38 @@ class SupervertalerQt(QMainWindow):
 
             if reply == QMessageBox.StandardButton.Save:
                 self.save_project()
+                self._cleanup_web_views()
                 self._close_detached_log_windows()
                 event.accept()
             elif reply == QMessageBox.StandardButton.Discard:
+                self._cleanup_web_views()
                 self._close_detached_log_windows()
                 event.accept()
             else:
                 event.ignore()
         else:
+            self._cleanup_web_views()
             self._close_detached_log_windows()
             event.accept()
+    
+    def _cleanup_web_views(self):
+        """Clean up WebEngine views to prevent 'Release of profile requested' warning"""
+        try:
+            # Close any SuperBrowser tabs
+            if hasattr(self, 'superbrowser_tabs'):
+                for tab in self.superbrowser_tabs.values():
+                    try:
+                        if hasattr(tab, 'web_view'):
+                            tab.web_view.setPage(None)
+                            tab.web_view.deleteLater()
+                    except:
+                        pass
+            
+            # Process events to ensure deleteLater() completes
+            from PyQt6.QtWidgets import QApplication
+            QApplication.processEvents()
+        except:
+            pass
     
     def _close_detached_log_windows(self):
         """Close all detached log windows when main window closes"""
