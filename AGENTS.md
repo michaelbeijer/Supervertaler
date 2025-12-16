@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** December 12, 2025 | **Version:** v1.9.40
+> **Last Updated:** December 16, 2025 | **Version:** v1.9.41
 
 ---
 
@@ -265,6 +265,40 @@ Use semantic prefixes:
 
 6. **Qt event queue** - Be aware that `setPlainText()` queues events even when signals are blocked
 
+7. **Hidden widget styling** - Qt may not apply stylesheets to hidden widgets. If theme colors aren't appearing, apply styles when the widget becomes visible, not just at creation time
+
+8. **Race conditions & timing** - When debugging UI issues, consider whether the problem might be timing-related:
+   - Widgets created before theme manager is initialized
+   - Styles applied while widgets are hidden
+   - Signals firing before handlers are connected
+   - Use `QTimer.singleShot()` for deferred initialization when needed
+
+---
+
+## 💡 Problem-Solving Tips for AI Agents
+
+When stuck on a difficult bug, consider these approaches:
+
+1. **Think about timing**: Is this a race condition? Are things happening in the wrong order?
+   - Widget creation vs. theme application timing
+   - Signal connections vs. signal emissions
+   - Hidden vs. visible widget state changes
+
+2. **Think outside the box**: The obvious solution may not work
+   - If stylesheets aren't applying, try QPalette as an alternative
+   - If a method isn't being called, check if the widget is even visible
+   - If changes aren't reflected, check if there's caching involved
+
+3. **Add debug output**: When behavior is mysterious, add logging to trace execution flow
+   - Print method entry/exit with timestamps
+   - Log parameter values and state
+   - Write to a debug file if console output is too fast
+
+4. **Question assumptions**: What do you THINK is happening vs. what is ACTUALLY happening?
+   - The code might be running but not having the expected effect
+   - A different code path might be executing
+   - Something else might be overriding your changes
+
 ---
 
 ## 🧪 Testing
@@ -297,6 +331,29 @@ google_api_key=AI...
 ---
 
 ## 🔄 Recent Development History
+
+### December 16, 2025 - Version 1.9.41: Dark Mode Complete Implementation
+
+**🌙 Full Dark Theme Support**
+
+Completed comprehensive dark mode implementation after extensive debugging session:
+
+- **Compare Boxes Fixed**: Translation Results panel compare boxes (Current Source, TM Source, TM Target) now properly dark in dark mode
+- **Termview Visibility**: All words in Termview pane now visible - non-matched words use light text color
+- **Root Cause Discovery**: Qt doesn't reliably apply stylesheets to hidden widgets
+- **Solution**: Added `_apply_compare_box_theme()` method called when compare frame becomes visible
+
+**Technical Changes:**
+- `modules/translation_results_panel.py` - Added `_apply_compare_box_theme()`, uses both stylesheet AND QPalette for reliability
+- `modules/termview_widget.py` - Made `TermBlock` and `NTBlock` theme-aware with `theme_manager` parameter
+
+**Key Lesson Learned:**
+When Qt stylesheets aren't visually applying despite the code running correctly, consider:
+1. Widget visibility state at time of styling
+2. Using QPalette as an alternative/supplement to stylesheets
+3. Re-applying styles when widget becomes visible
+
+---
 
 ### December 12, 2025 - Trados Bilingual DOCX Workflow Documentation
 
@@ -651,4 +708,4 @@ Extended `TagHighlighter` to color ALL CAT tool tags with pink (`#FFB6C1`) in th
 ---
 
 *This file replaces the previous CLAUDE.md and PROJECT_CONTEXT.md files.*
-*Last updated: December 11, 2025 - v1.9.38*
+*Last updated: December 16, 2025 - v1.9.41*

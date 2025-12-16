@@ -1,8 +1,8 @@
-# 🚀 Supervertaler v1.9.40
+# 🚀 Supervertaler v1.9.41
 
 🎯 **The Ultimate Translation Workbench** — Context-aware AI with intuitive 2-Layer Prompt Architecture, AI Assistant, project termbase system with automatic extraction, and specialized modules.
 
-**Current Version:** v1.9.40 (December 12, 2025)
+**Current Version:** v1.9.41 (December 16, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -33,7 +33,13 @@
 python Supervertaler.py
 ```
 
-### NEW in v1.9.40 - Superlookup Unified Concordance System
+### NEW in v1.9.41 - Dark Mode 🌙
+*   **Complete Dark Theme**: Full dark mode support with consistent styling across the entire application
+*   **Compare Boxes**: Translation Results panel properly displays dark backgrounds in dark mode
+*   **Termview Visibility**: All words visible in dark mode, not just terms with matches
+*   **Access**: View → Theme Editor → Select "Dark" theme
+
+### v1.9.40 - Superlookup Unified Concordance System
 *   **Ctrl+K Now Opens Superlookup**: All concordance searches consolidated into Superlookup - one hub for TM, Termbase, Supermemory, MT, and Web Resources
 *   **Dual-View Toggle**: Switch between Horizontal (table) and Vertical (list) layouts for TM results
 *   **Tab Reorganization**: "Project Resources" tab now before "Prompt Manager", removed redundant Concordance and Import/Export tabs

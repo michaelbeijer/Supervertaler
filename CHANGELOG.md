@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.40 (December 12, 2025)
+**Current Version:** v1.9.41 (December 16, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -14,6 +14,7 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- 🌙 **Dark Mode (v1.9.41)** - Complete dark theme implementation with proper styling across the entire application. Dark compare boxes in Translation Results panel, dark Termview with visible text for non-matched words, and consistent theming throughout all UI components. Switch themes via View → Theme Editor.
 - 🔍 **Superlookup Unified Concordance System (v1.9.40)** - Major consolidation: Ctrl+K now opens Superlookup instead of a separate concordance dialog. All lookup resources in one place: TM concordance, Termbase matches, Supermemory semantic search, Machine Translation, and Web Resources. New dual-view toggle: Horizontal (table) or Vertical (list) layout. Tab reorganization: "Project Resources" now comes before "Prompt Manager". Removed redundant tabs from Translation Memories (Concordance and Import/Export - functionality already available in Superlookup and TM List). FTS5 full-text search now properly used for blazingly fast concordance on millions of segments.
 - 🔍 **Superlookup Multilingual Search (v1.9.39)** - Complete overhaul of Superlookup with multilingual language filtering. New From/To language dropdowns filter TM and termbase searches by source/target language pair. Search direction radio buttons (Both/Source only/Target only) for precise concordance searches. Yellow highlighting of search terms in results. Compact results display with tooltips for full text. Languages auto-populate from your TMs and termbases, grouped alphabetically by language family. UI cleanup: removed Manual Capture button and Operating Modes selector.
 - 📁 **Improved Project File Format (v1.9.38)** - `.svproj` files now have all metadata at the top (name, languages, dates, settings, paths) with segments at the end for easier inspection in text editors. Added helpful tip in batch translate warning about using Select All + Clear Target instead of re-importing.
@@ -83,6 +84,25 @@ All notable changes to Supervertaler are documented in this file.
 - 🔄 **CAT Tool Integration** - memoQ, Trados, CafeTran bilingual table support
 
 **See full version history below** ↓
+
+---
+
+## [1.9.41] - December 16, 2025
+
+### 🌙 Dark Mode - Complete Theme Implementation
+
+**Full dark theme support across the entire application:**
+- 🎨 **Compare Boxes**: Translation Results panel now properly displays dark backgrounds for Current Source, TM Source, and TM Target boxes in dark mode
+- 📝 **Termview Visibility**: All words in Termview pane now visible in dark mode - not just terms with matches. Non-matched words use light text color on dark background
+- 🔄 **Theme Consistency**: Fixed Qt styling issues where hidden widgets weren't receiving theme updates. Theme colors now applied when widgets become visible
+- ⚡ **Reliable Styling**: Uses both stylesheet and QPalette approaches for maximum compatibility across different Qt rendering scenarios
+
+**Technical improvements:**
+- Added `_apply_compare_box_theme()` method for reliable theme application on visibility
+- Theme-aware `TermBlock` and `NTBlock` classes in Termview widget
+- Proper color inheritance for all UI components in dark mode
+
+**Access Dark Mode:** View → Theme Editor → Select "Dark" theme
 
 ---
 

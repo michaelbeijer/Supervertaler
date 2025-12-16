@@ -18,7 +18,7 @@ from PyQt6.QtWidgets import (
     QFrame, QScrollArea, QTextEdit, QSplitter
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QMimeData
-from PyQt6.QtGui import QDrag, QCursor, QFont
+from PyQt6.QtGui import QDrag, QCursor, QFont, QColor
 from dataclasses import dataclass
 from typing import List, Optional, Dict, Any
 
@@ -44,6 +44,7 @@ class CompactMatchItem(QFrame):
     font_size_pt = 9
     show_tags = False  # When False, HTML/XML tags are hidden
     tag_highlight_color = '#FFB6C1'  # Default light pink for tag highlighting
+    theme_manager = None  # Class-level theme manager reference
     
     def __init__(self, match: TranslationMatch, match_number: int = 0, parent=None):
         super().__init__(parent)
@@ -94,9 +95,14 @@ class CompactMatchItem(QFrame):
             self.num_label_ref = num_label  # Set BEFORE calling update_styling()
             main_layout.addWidget(num_label, 0, Qt.AlignmentFlag.AlignTop)
         
+        # Get theme color for secondary text
+        secondary_text_color = "#666"
+        if CompactMatchItem.theme_manager:
+            secondary_text_color = CompactMatchItem.theme_manager.current_theme.text_disabled
+        
         # Middle: Relevance % (vertical)
         rel_label = QLabel(f"{match.relevance}%")
-        rel_label.setStyleSheet("font-size: 7px; color: #666; padding: 0px; margin: 0px;")
+        rel_label.setStyleSheet(f"font-size: 7px; color: {secondary_text_color}; padding: 0px; margin: 0px;")
         rel_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         rel_label.setFixedWidth(32)
         rel_label.setFixedHeight(18)
@@ -107,12 +113,24 @@ class CompactMatchItem(QFrame):
         content_layout.setContentsMargins(0, 0, 0, 0)
         content_layout.setSpacing(6)
         
+        # Get theme colors for text
+        if CompactMatchItem.theme_manager:
+            theme = CompactMatchItem.theme_manager.current_theme
+            source_color = theme.text
+            # Use slightly dimmer text for target, but not as dim as text_disabled
+            # For dark themes, use a color between text and text_disabled for better readability
+            is_dark = theme.name == "Dark"
+            target_color = "#B0B0B0" if is_dark else "#555"
+        else:
+            source_color = "#333"
+            target_color = "#555"
+        
         # Source column - NO truncation, allow wrapping
         self.source_label = QLabel(self._format_text(match.source))
         self.source_label.setWordWrap(True)  # Allow wrapping
         # Always use RichText when tags are shown (for highlighting), otherwise RichText for rendering
         self.source_label.setTextFormat(Qt.TextFormat.RichText)
-        self.source_label.setStyleSheet(f"font-size: {self.font_size_pt}px; color: #333; padding: 0px; margin: 0px;")
+        self.source_label.setStyleSheet(f"font-size: {self.font_size_pt}px; color: {source_color}; padding: 0px; margin: 0px;")
         self.source_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
         self.source_label.setMinimumWidth(150)  # Much wider minimum
         content_layout.addWidget(self.source_label, 1)
@@ -122,7 +140,7 @@ class CompactMatchItem(QFrame):
         self.target_label.setWordWrap(True)  # Allow wrapping
         # Always use RichText when tags are shown (for highlighting), otherwise RichText for rendering
         self.target_label.setTextFormat(Qt.TextFormat.RichText)
-        self.target_label.setStyleSheet(f"font-size: {self.font_size_pt}px; color: #555; padding: 0px; margin: 0px;")
+        self.target_label.setStyleSheet(f"font-size: {self.font_size_pt}px; color: {target_color}; padding: 0px; margin: 0px;")
         self.target_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
         self.target_label.setMinimumWidth(150)  # Much wider minimum
         content_layout.addWidget(self.target_label, 1)
@@ -142,8 +160,9 @@ class CompactMatchItem(QFrame):
 
         # Use bold font for project termbases/TMs, normal font for background resources
         font_weight = "bold" if (is_project_tb or is_project_tm) else "normal"
-        # Use darker color for better visibility (changed from #888 to #333)
-        provider_label.setStyleSheet(f"font-size: 7px; color: #333; padding: 0px; margin: 0px; font-weight: {font_weight};")
+        # Use theme color for text
+        provider_text_color = secondary_text_color  # Reuse the secondary text color from above
+        provider_label.setStyleSheet(f"font-size: 7px; color: {provider_text_color}; padding: 0px; margin: 0px; font-weight: {font_weight};")
         provider_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         provider_label.setFixedWidth(28)  # Tiny column, just wide enough for "GPT", "MMT", etc.
         provider_label.setFixedHeight(18)
@@ -447,15 +466,23 @@ class CompactMatchItem(QFrame):
                         border-radius: 2px;
                     }}
                 """)
-                # All matches have white background with subtle hover effect
-                self.setStyleSheet("""
-                    CompactMatchItem {
-                        background-color: white;
+                # Use theme colors for background if available
+                if CompactMatchItem.theme_manager:
+                    theme = CompactMatchItem.theme_manager.current_theme
+                    bg_color = theme.base
+                    hover_color = theme.alternate_bg
+                else:
+                    bg_color = "white"
+                    hover_color = "#f5f5f5"
+                
+                self.setStyleSheet(f"""
+                    CompactMatchItem {{
+                        background-color: {bg_color};
                         border: none;
-                    }
-                    CompactMatchItem:hover {
-                        background-color: #f5f5f5;
-                    }
+                    }}
+                    CompactMatchItem:hover {{
+                        background-color: {hover_color};
+                    }}
                 """)
     
     @staticmethod
@@ -629,6 +656,7 @@ class TranslationResultsPanel(QWidget):
     def __init__(self, parent=None, parent_app=None):
         super().__init__(parent)
         self.parent_app = parent_app  # Reference to main app for settings access
+        self.theme_manager = parent_app.theme_manager if parent_app and hasattr(parent_app, 'theme_manager') else None
         self.matches_by_type: Dict[str, List[TranslationMatch]] = {}
         self.current_selection: Optional[TranslationMatch] = None
         self.all_matches: List[TranslationMatch] = []
@@ -646,27 +674,45 @@ class TranslationResultsPanel(QWidget):
         layout.setContentsMargins(4, 4, 4, 4)
         layout.setSpacing(2)
         
+        # Set class-level theme_manager for CompactMatchItem
+        CompactMatchItem.theme_manager = self.theme_manager
+        
         # Header with segment info
+        # Get theme colors
+        if self.theme_manager:
+            theme = self.theme_manager.current_theme
+            bg_color = theme.base
+            border_color = theme.border
+            separator_color = theme.separator
+            title_color = theme.text_disabled
+        else:
+            bg_color = "white"
+            border_color = "#ddd"
+            separator_color = "#e0e0e0"
+            title_color = "#666"
+        
         self.segment_label = QLabel("No segment selected")
-        self.segment_label.setStyleSheet("font-weight: bold; font-size: 10px; color: #666;")
+        self.segment_label.setStyleSheet(f"font-weight: bold; font-size: 10px; color: {title_color};")
         layout.addWidget(self.segment_label)
         
         # Use splitter for resizable sections (matches vs compare boxes)
         main_splitter = QSplitter(Qt.Orientation.Vertical)
-        main_splitter.setStyleSheet("QSplitter::handle { background-color: #e0e0e0; }")
-        
+
+        main_splitter.setStyleSheet(f"QSplitter::handle {{ background-color: {separator_color}; }}")
+
         # Matches scroll area
         self.matches_scroll = QScrollArea()
         self.matches_scroll.setWidgetResizable(True)
-        self.matches_scroll.setStyleSheet("""
-            QScrollArea { 
-                border: 1px solid #ddd; 
-                background-color: white;
+        self.matches_scroll.setStyleSheet(f"""
+            QScrollArea {{
+                border: 1px solid {border_color};
+                background-color: {bg_color};
                 border-radius: 3px;
-            }
+            }}
         """)
         
         self.matches_container = QWidget()
+        self.matches_container.setStyleSheet(f"background-color: {bg_color};")
         self.main_layout = QVBoxLayout(self.matches_container)
         self.main_layout.setContentsMargins(0, 0, 0, 0)
         self.main_layout.setSpacing(2)
@@ -690,22 +736,22 @@ class TranslationResultsPanel(QWidget):
         self.termbase_frame.hide()  # Hidden by default
         
         # Notes section with its own container
-        notes_widget = QWidget()
-        notes_layout = QVBoxLayout(notes_widget)
+        self.notes_widget = QWidget()
+        notes_layout = QVBoxLayout(self.notes_widget)
         notes_layout.setContentsMargins(0, 0, 0, 0)
         notes_layout.setSpacing(2)
         
-        notes_label = QLabel("📝 Notes (segment annotations)")
-        notes_label.setStyleSheet("font-weight: bold; font-size: 9px; color: #333;")
-        notes_layout.addWidget(notes_label)
+        self.notes_label = QLabel("📝 Notes (segment annotations)")
+        self.notes_label.setStyleSheet(f"font-weight: bold; font-size: 9px; color: {title_color};")
+        notes_layout.addWidget(self.notes_label)
         
         self.notes_edit = QTextEdit()
         self.notes_edit.setMaximumHeight(80)
         self.notes_edit.setPlaceholderText("Add notes about this segment, context, or translation concerns...")
-        self.notes_edit.setStyleSheet("font-size: 9px; padding: 4px;")
+        self.notes_edit.setStyleSheet(f"font-size: 9px; padding: 4px; background-color: {bg_color}; color: {theme.text if self.theme_manager else '#333'}; border: 1px solid {border_color};")
         notes_layout.addWidget(self.notes_edit)
         
-        main_splitter.addWidget(notes_widget)
+        main_splitter.addWidget(self.notes_widget)
         
         # Set splitter proportions (50% matches, 35% compare, 15% notes)
         main_splitter.setSizes([500, 350, 150])
@@ -715,88 +761,362 @@ class TranslationResultsPanel(QWidget):
         
         layout.addWidget(main_splitter)
     
+    def apply_theme(self):
+        """Refresh all theme-dependent colors when theme changes"""
+        if not self.theme_manager:
+            return
+        
+        theme = self.theme_manager.current_theme
+        
+        bg_color = theme.base
+        border_color = theme.border
+        separator_color = theme.separator
+        frame_bg = theme.alternate_bg
+        title_color = theme.text_disabled
+        text_color = theme.text
+        
+        # Update class-level theme_manager for CompactMatchItem
+        CompactMatchItem.theme_manager = self.theme_manager
+        
+        # Update main scroll area
+        if hasattr(self, 'matches_scroll'):
+            self.matches_scroll.setStyleSheet(f"""
+                QScrollArea {{
+                    border: 1px solid {border_color};
+                    background-color: {bg_color};
+                    border-radius: 3px;
+                }}
+            """)
+        
+        # Update matches container background
+        if hasattr(self, 'matches_container'):
+            self.matches_container.setStyleSheet(f"background-color: {bg_color};")
+        
+        # Update compare frame
+        if hasattr(self, 'compare_frame') and self.compare_frame:
+            self.compare_frame.setStyleSheet(f"""
+                QFrame {{
+                    background-color: {frame_bg};
+                    border: 1px solid {border_color};
+                    border-radius: 3px;
+                    padding: 4px;
+                }}
+            """)
+        
+        # Update compare text boxes backgrounds using QPalette (more reliable than stylesheet)
+        box_colors = [theme.panel_info, theme.panel_warning, theme.panel_neutral]
+        for i, text_edit in enumerate(self.compare_text_edits):
+            if text_edit and i < len(box_colors):
+                bg_color = box_colors[i]
+                
+                # Clear existing stylesheet first, then set new one
+                text_edit.setStyleSheet("")
+                new_style = f"""
+                    QTextEdit {{
+                        font-size: {self.compare_box_font_size}px;
+                        padding: 3px;
+                        background-color: {bg_color};
+                        border: 1px solid {border_color};
+                        border-radius: 2px;
+                        color: {text_color};
+                    }}
+                """
+                text_edit.setStyleSheet(new_style)
+                
+                # Also set palette for reliability
+                palette = text_edit.palette()
+                palette.setColor(palette.ColorRole.Base, QColor(bg_color))
+                palette.setColor(palette.ColorRole.Text, QColor(text_color))
+                text_edit.setPalette(palette)
+                text_edit.setAutoFillBackground(True)
+                
+                # Force update
+                text_edit.style().unpolish(text_edit)
+                text_edit.style().polish(text_edit)
+                text_edit.update()
+        
+        # Update segment label
+        if hasattr(self, 'segment_label'):
+            self.segment_label.setStyleSheet(f"font-weight: bold; font-size: 10px; color: {title_color};")
+        
+        # Update notes section
+        if hasattr(self, 'notes_label'):
+            self.notes_label.setStyleSheet(f"font-weight: bold; font-size: 9px; color: {title_color};")
+        
+        if hasattr(self, 'notes_edit'):
+            self.notes_edit.setStyleSheet(f"font-size: 9px; padding: 4px; background-color: {bg_color}; color: {text_color}; border: 1px solid {border_color};")
+        
+        # Update TM Info panel
+        if hasattr(self, 'tm_info_frame') and self.tm_info_frame:
+            self.tm_info_frame.setStyleSheet(f"""
+                QFrame {{
+                    background-color: {frame_bg};
+                    border: 1px solid {border_color};
+                    border-radius: 3px;
+                    padding: 4px;
+                }}
+            """)
+        
+        if hasattr(self, 'tm_info_title'):
+            self.tm_info_title.setStyleSheet(f"font-weight: bold; font-size: 9px; color: {title_color}; margin-bottom: 2px;")
+        
+        if hasattr(self, 'tm_name_label'):
+            self.tm_name_label.setStyleSheet(f"font-size: 9px; color: {text_color}; font-weight: bold;")
+        
+        if hasattr(self, 'tm_languages_label'):
+            self.tm_languages_label.setStyleSheet(f"font-size: 8px; color: {title_color};")
+        
+        if hasattr(self, 'tm_stats_label'):
+            self.tm_stats_label.setStyleSheet(f"font-size: 8px; color: {title_color};")
+        
+        if hasattr(self, 'tm_description_label'):
+            self.tm_description_label.setStyleSheet(f"""
+                QLabel {{
+                    font-size: 8px;
+                    color: {title_color};
+                    background-color: {bg_color};
+                    padding: 3px;
+                    border: 1px solid {border_color};
+                    border-radius: 2px;
+                }}
+            """)
+        
+        # Update Termbase viewer panel
+        source_bg = theme.panel_info
+        target_bg = theme.panel_neutral
+        metadata_bg = theme.panel_warning
+        
+        if hasattr(self, 'termbase_frame') and self.termbase_frame:
+            self.termbase_frame.setStyleSheet(f"""
+                QFrame {{
+                    background-color: {frame_bg};
+                    border: 1px solid {border_color};
+                    border-radius: 3px;
+                    padding: 4px;
+                }}
+            """)
+        
+        if hasattr(self, 'termbase_title'):
+            self.termbase_title.setStyleSheet(f"font-weight: bold; font-size: 9px; color: {title_color};")
+        
+        if hasattr(self, 'termbase_source_label'):
+            self.termbase_source_label.setStyleSheet(f"font-weight: bold; font-size: 8px; color: {title_color};")
+        
+        if hasattr(self, 'termbase_source'):
+            self.termbase_source.setStyleSheet(f"""
+                QLabel {{
+                    background-color: {source_bg};
+                    border: 1px solid {border_color};
+                    border-radius: 2px;
+                    font-size: 10px;
+                    padding: 6px;
+                    margin: 0px;
+                    color: {text_color};
+                }}
+            """)
+        
+        if hasattr(self, 'termbase_target_label'):
+            self.termbase_target_label.setStyleSheet(f"font-weight: bold; font-size: 8px; color: {title_color};")
+        
+        if hasattr(self, 'termbase_target'):
+            self.termbase_target.setStyleSheet(f"""
+                QLabel {{
+                    background-color: {target_bg};
+                    border: 1px solid {border_color};
+                    border-radius: 2px;
+                    font-size: 10px;
+                    padding: 6px;
+                    margin: 0px;
+                    color: {text_color};
+                }}
+            """)
+        
+        if hasattr(self, 'termbase_metadata_label'):
+            self.termbase_metadata_label.setStyleSheet(f"font-weight: bold; font-size: 8px; color: {title_color};")
+        
+        if hasattr(self, 'termbase_metadata'):
+            self.termbase_metadata.setStyleSheet(f"""
+                QTextBrowser {{
+                    background-color: {metadata_bg};
+                    border: 1px solid {border_color};
+                    border-radius: 2px;
+                    font-size: {self.compare_box_font_size}px;
+                    padding: 4px;
+                    margin: 0px;
+                    color: {text_color};
+                }}
+            """)
+
+    def _apply_compare_box_theme(self):
+        """Apply theme colors to compare boxes - called when boxes become visible"""
+        if not self.theme_manager:
+            return
+        
+        theme = self.theme_manager.current_theme
+        border_color = theme.border
+        text_color = theme.text
+        box_colors = [theme.panel_info, theme.panel_warning, theme.panel_neutral]
+        
+        for i, text_edit in enumerate(self.compare_text_edits[:3]):  # Only the 3 compare boxes
+            if text_edit:
+                bg_color = box_colors[i]
+                # Clear and set stylesheet
+                text_edit.setStyleSheet("")
+                text_edit.setStyleSheet(f"""
+                    QTextEdit {{
+                        font-size: {self.compare_box_font_size}px;
+                        padding: 3px;
+                        background-color: {bg_color};
+                        border: 1px solid {border_color};
+                        border-radius: 2px;
+                        color: {text_color};
+                    }}
+                """)
+                # Also set palette for reliability
+                palette = text_edit.palette()
+                palette.setColor(palette.ColorRole.Base, QColor(bg_color))
+                palette.setColor(palette.ColorRole.Text, QColor(text_color))
+                text_edit.setPalette(palette)
+                text_edit.setAutoFillBackground(True)
+                # Force visual update
+                text_edit.style().unpolish(text_edit)
+                text_edit.style().polish(text_edit)
+                text_edit.update()
+
     def _create_compare_box(self) -> QFrame:
         """Create compare box frame with VERTICAL stacked layout - all boxes resize together"""
+        # Get theme colors - try to get from parent_app if self.theme_manager is not set yet
+        theme_manager = self.theme_manager
+        if not theme_manager and hasattr(self, 'parent_app') and self.parent_app:
+            theme_manager = getattr(self.parent_app, 'theme_manager', None)
+        
+        if theme_manager:
+            theme = theme_manager.current_theme
+            frame_bg = theme.alternate_bg
+            border_color = theme.border
+            title_color = theme.text_disabled
+            box1_bg = theme.panel_info
+            box2_bg = theme.panel_warning
+            box3_bg = theme.panel_neutral
+        else:
+            frame_bg = "#fafafa"
+            border_color = "#ddd"
+            title_color = "#666"
+            box1_bg = "#e3f2fd"
+            box2_bg = "#fff3cd"
+            box3_bg = "#d4edda"
+
         frame = QFrame()
-        frame.setStyleSheet("""
-            QFrame {
-                background-color: #fafafa;
-                border: 1px solid #ddd;
+        frame.setStyleSheet(f"""
+            QFrame {{
+                background-color: {frame_bg};
+                border: 1px solid {border_color};
                 border-radius: 3px;
                 padding: 4px;
-            }
+            }}
         """)
-        
+
         layout = QVBoxLayout(frame)
         layout.setContentsMargins(4, 4, 4, 4)
         layout.setSpacing(2)
-        
+
         # Title
         title = QLabel("📊 Compare Box")
-        title.setStyleSheet("font-weight: bold; font-size: 9px; color: #666;")
+        title.setStyleSheet(f"font-weight: bold; font-size: 9px; color: {title_color};")
         layout.addWidget(title)
-        
+
         # Box 1: Current Source
-        box1 = self._create_compare_text_box("Current Source:", "#e3f2fd")
+        box1 = self._create_compare_text_box("Current Source:", box1_bg)
         self.compare_current = box1[1]
         self.compare_current_label = box1[2]
         layout.addWidget(box1[0], 1)  # stretch factor 1
-        
+
         # Box 2: TM Source (with diff highlighting capability)
-        box2 = self._create_compare_text_box("TM Source:", "#fff3cd")
+        box2 = self._create_compare_text_box("TM Source:", box2_bg)
         self.compare_tm_source = box2[1]
         self.compare_source_label = box2[2]
         self.compare_source_container = box2[0]
         layout.addWidget(box2[0], 1)  # stretch factor 1
-        
+
         # Box 3: TM Target
-        box3 = self._create_compare_text_box("TM Target:", "#d4edda")
+        box3 = self._create_compare_text_box("TM Target:", box3_bg)
         self.compare_tm_target = box3[1]
         self.compare_target_label = box3[2]
         layout.addWidget(box3[0], 1)  # stretch factor 1
-        
+
         return frame
     
     def _create_compare_text_box(self, label: str, bg_color: str) -> tuple:
         """Create a single compare text box"""
+        # Get theme colors
+        if self.theme_manager:
+            theme = self.theme_manager.current_theme
+            label_color = theme.text_disabled
+            border_color = theme.border
+            text_color = theme.text
+        else:
+            label_color = "#666"
+            border_color = "#ccc"
+            text_color = "#333"
+
         container = QWidget()
         layout = QVBoxLayout(container)
         layout.setContentsMargins(2, 2, 2, 2)
         layout.setSpacing(2)
-        
+
         label_widget = QLabel(label)
-        label_widget.setStyleSheet("font-weight: bold; font-size: 8px; color: #666;")
+        label_widget.setStyleSheet(f"font-weight: bold; font-size: 8px; color: {label_color};")
         layout.addWidget(label_widget)
-        
+
         text_edit = QTextEdit()
         text_edit.setReadOnly(True)
         text_edit.setStyleSheet(f"""
             QTextEdit {{
                 background-color: {bg_color};
-                border: 1px solid #ccc;
+                border: 1px solid {border_color};
                 border-radius: 2px;
                 font-size: {self.compare_box_font_size}px;
                 padding: 4px;
                 margin: 0px;
+                color: {text_color};
             }}
         """)
         layout.addWidget(text_edit)
-        
+
         # Track this text edit for font size updates
         self.compare_text_edits.append(text_edit)
-        
+
         return (container, text_edit, label_widget)
     
     def _create_termbase_viewer(self) -> QFrame:
         """Create termbase data viewer frame"""
+        # Get theme colors
+        if self.theme_manager:
+            theme = self.theme_manager.current_theme
+            frame_bg = theme.alternate_bg
+            border_color = theme.border
+            title_color = theme.text_disabled
+            text_color = theme.text
+            source_bg = theme.panel_info
+            target_bg = theme.panel_neutral
+            metadata_bg = theme.panel_warning
+        else:
+            frame_bg = "#fafafa"
+            border_color = "#ddd"
+            title_color = "#666"
+            text_color = "#333"
+            source_bg = "#e3f2fd"
+            target_bg = "#d4edda"
+            metadata_bg = "#fff3cd"
+        
         frame = QFrame()
-        frame.setStyleSheet("""
-            QFrame {
-                background-color: #fafafa;
-                border: 1px solid #ddd;
+        frame.setStyleSheet(f"""
+            QFrame {{
+                background-color: {frame_bg};
+                border: 1px solid {border_color};
                 border-radius: 3px;
                 padding: 4px;
-            }
+            }}
         """)
         
         layout = QVBoxLayout(frame)
@@ -806,7 +1126,7 @@ class TranslationResultsPanel(QWidget):
         # Title with termbase name (will be updated dynamically)
         header_layout = QHBoxLayout()
         self.termbase_title = QLabel("📖 Term Info")
-        self.termbase_title.setStyleSheet("font-weight: bold; font-size: 9px; color: #666;")
+        self.termbase_title.setStyleSheet(f"font-weight: bold; font-size: 9px; color: {title_color};")
         header_layout.addWidget(self.termbase_title)
         header_layout.addStretch()
         
@@ -858,39 +1178,41 @@ class TranslationResultsPanel(QWidget):
         terms_layout.setSpacing(3)
         
         # Source term
-        source_label = QLabel("Source Term:")
-        source_label.setStyleSheet("font-weight: bold; font-size: 8px; color: #666;")
-        terms_layout.addWidget(source_label)
+        self.termbase_source_label = QLabel("Source Term:")
+        self.termbase_source_label.setStyleSheet(f"font-weight: bold; font-size: 8px; color: {title_color};")
+        terms_layout.addWidget(self.termbase_source_label)
         
         self.termbase_source = QLabel()
-        self.termbase_source.setStyleSheet("""
-            QLabel {
-                background-color: #e3f2fd;
-                border: 1px solid #ccc;
+        self.termbase_source.setStyleSheet(f"""
+            QLabel {{
+                background-color: {source_bg};
+                border: 1px solid {border_color};
                 border-radius: 2px;
                 font-size: 10px;
                 padding: 6px;
                 margin: 0px;
-            }
+                color: {text_color};
+            }}
         """)
         self.termbase_source.setWordWrap(True)
         terms_layout.addWidget(self.termbase_source)
         
         # Target term
-        target_label = QLabel("Target Term:")
-        target_label.setStyleSheet("font-weight: bold; font-size: 8px; color: #666;")
-        terms_layout.addWidget(target_label)
+        self.termbase_target_label = QLabel("Target Term:")
+        self.termbase_target_label.setStyleSheet(f"font-weight: bold; font-size: 8px; color: {title_color};")
+        terms_layout.addWidget(self.termbase_target_label)
         
         self.termbase_target = QLabel()
-        self.termbase_target.setStyleSheet("""
-            QLabel {
-                background-color: #d4edda;
-                border: 1px solid #ccc;
+        self.termbase_target.setStyleSheet(f"""
+            QLabel {{
+                background-color: {target_bg};
+                border: 1px solid {border_color};
                 border-radius: 2px;
                 font-size: 10px;
                 padding: 6px;
                 margin: 0px;
-            }
+                color: {text_color};
+            }}
         """)
         self.termbase_target.setWordWrap(True)
         terms_layout.addWidget(self.termbase_target)
@@ -898,9 +1220,9 @@ class TranslationResultsPanel(QWidget):
         layout.addWidget(terms_container)
         
         # Metadata area
-        metadata_label = QLabel("Metadata:")
-        metadata_label.setStyleSheet("font-weight: bold; font-size: 8px; color: #666;")
-        layout.addWidget(metadata_label)
+        self.termbase_metadata_label = QLabel("Metadata:")
+        self.termbase_metadata_label.setStyleSheet(f"font-weight: bold; font-size: 8px; color: {title_color};")
+        layout.addWidget(self.termbase_metadata_label)
         
         from PyQt6.QtWidgets import QTextBrowser
         self.termbase_metadata = QTextBrowser()
@@ -908,12 +1230,13 @@ class TranslationResultsPanel(QWidget):
         self.termbase_metadata.setMaximumHeight(80)
         self.termbase_metadata.setStyleSheet(f"""
             QTextBrowser {{
-                background-color: #fff3cd;
-                border: 1px solid #ccc;
+                background-color: {metadata_bg};
+                border: 1px solid {border_color};
                 border-radius: 2px;
                 font-size: {self.compare_box_font_size}px;
                 padding: 4px;
                 margin: 0px;
+                color: {text_color};
             }}
         """)
         # Enable clickable links
@@ -927,14 +1250,29 @@ class TranslationResultsPanel(QWidget):
     
     def _create_tm_info_panel(self) -> QFrame:
         """Create TM metadata info panel (memoQ-style) - shown when TM match is selected"""
+        # Get theme colors
+        if self.theme_manager:
+            theme = self.theme_manager.current_theme
+            frame_bg = theme.alternate_bg
+            border_color = theme.border
+            title_color = theme.text_disabled
+            text_color = theme.text
+            desc_bg = theme.base
+        else:
+            frame_bg = "#f5f5f5"
+            border_color = "#ddd"
+            title_color = "#666"
+            text_color = "#333"
+            desc_bg = "#fff"
+        
         frame = QFrame()
-        frame.setStyleSheet("""
-            QFrame {
-                background-color: #f5f5f5;
-                border: 1px solid #ddd;
+        frame.setStyleSheet(f"""
+            QFrame {{
+                background-color: {frame_bg};
+                border: 1px solid {border_color};
                 border-radius: 3px;
                 padding: 4px;
-            }
+            }}
         """)
         
         layout = QVBoxLayout(frame)
@@ -942,9 +1280,9 @@ class TranslationResultsPanel(QWidget):
         layout.setSpacing(3)
         
         # Title
-        title = QLabel("💾 TM Info")
-        title.setStyleSheet("font-weight: bold; font-size: 9px; color: #666; margin-bottom: 2px;")
-        layout.addWidget(title)
+        self.tm_info_title = QLabel("💾 TM Info")
+        self.tm_info_title.setStyleSheet(f"font-weight: bold; font-size: 9px; color: {title_color}; margin-bottom: 2px;")
+        layout.addWidget(self.tm_info_title)
         
         # Info grid (compact 2-column layout)
         info_container = QWidget()
@@ -954,32 +1292,32 @@ class TranslationResultsPanel(QWidget):
         
         # TM Name
         self.tm_name_label = QLabel()
-        self.tm_name_label.setStyleSheet("font-size: 9px; color: #333; font-weight: bold;")
+        self.tm_name_label.setStyleSheet(f"font-size: 9px; color: {text_color}; font-weight: bold;")
         self.tm_name_label.setWordWrap(True)
         info_layout.addWidget(self.tm_name_label)
         
         # Languages (smaller)
         self.tm_languages_label = QLabel()
-        self.tm_languages_label.setStyleSheet("font-size: 8px; color: #666;")
+        self.tm_languages_label.setStyleSheet(f"font-size: 8px; color: {title_color};")
         info_layout.addWidget(self.tm_languages_label)
         
         # Entry count and modified date in single line
         self.tm_stats_label = QLabel()
-        self.tm_stats_label.setStyleSheet("font-size: 8px; color: #666;")
+        self.tm_stats_label.setStyleSheet(f"font-size: 8px; color: {title_color};")
         self.tm_stats_label.setWordWrap(True)
         info_layout.addWidget(self.tm_stats_label)
         
         # Description (if available)
         self.tm_description_label = QLabel()
-        self.tm_description_label.setStyleSheet("""
-            QLabel {
+        self.tm_description_label.setStyleSheet(f"""
+            QLabel {{
                 font-size: 8px;
-                color: #555;
-                background-color: #fff;
+                color: {title_color};
+                background-color: {desc_bg};
                 padding: 3px;
-                border: 1px solid #ddd;
+                border: 1px solid {border_color};
                 border-radius: 2px;
-            }
+            }}
         """)
         self.tm_description_label.setWordWrap(True)
         self.tm_description_label.hide()  # Hidden if no description
@@ -1305,6 +1643,10 @@ class TranslationResultsPanel(QWidget):
                 for i, match in enumerate(matches[:2]):  # Show first 2 for debugging
                     print(f"    [{i}] {match.source} → {match.target}")
         
+        # Ensure CompactMatchItem has current theme_manager
+        if self.theme_manager:
+            CompactMatchItem.theme_manager = self.theme_manager
+        
         # Store current matches for delayed search access
         self._current_matches = matches_dict.copy()
         self.matches_by_type = matches_dict
@@ -1388,6 +1730,9 @@ class TranslationResultsPanel(QWidget):
             self.tm_info_frame.show()  # Show TM metadata below compare box
             self.termbase_frame.hide()
             
+            # Apply theme colors to compare boxes (needed because they might not apply when hidden)
+            self._apply_compare_box_theme()
+            
             # Update labels for TM
             self.compare_source_label.setText("TM Source:")
             self.compare_target_label.setText("TM Target:")
@@ -1406,6 +1751,9 @@ class TranslationResultsPanel(QWidget):
             self.compare_frame.show()
             self.tm_info_frame.hide()  # No TM metadata for MT/LLM
             self.termbase_frame.hide()
+            
+            # Apply theme colors to compare boxes (needed because they might not apply when hidden)
+            self._apply_compare_box_theme()
             
             # Update labels for MT/LLM
             provider_name = match.metadata.get('provider', match.match_type)

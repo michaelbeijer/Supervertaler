@@ -130,15 +130,17 @@ class TermBlock(QWidget):
     
     term_clicked = pyqtSignal(str, str)  # source_term, target_term
     
-    def __init__(self, source_text: str, translations: List[Dict], parent=None):
+    def __init__(self, source_text: str, translations: List[Dict], parent=None, theme_manager=None):
         """
         Args:
             source_text: Source word/phrase
             translations: List of dicts with keys: 'target', 'termbase_name', 'priority', etc.
+            theme_manager: Optional theme manager for dark mode support
         """
         super().__init__(parent)
         self.source_text = source_text
         self.translations = translations
+        self.theme_manager = theme_manager
         self.init_ui()
         
     def init_ui(self):
@@ -147,11 +149,18 @@ class TermBlock(QWidget):
         layout.setContentsMargins(1, 0, 1, 1)
         layout.setSpacing(0)
         
+        # Get theme colors
+        is_dark = self.theme_manager and self.theme_manager.current_theme.name == "Dark"
+        separator_color = "#555555" if is_dark else "#CCCCCC"
+        source_text_color = "#E0E0E0" if is_dark else "#333"
+        no_match_color = "#666666" if is_dark else "#ddd"
+        no_match_bg = "#2A2A2A" if is_dark else "#F5F5F5"
+        
         # Add thin gray separator line at top (like RYS)
         separator = QFrame()
         separator.setFrameShape(QFrame.Shape.HLine)
         separator.setFixedHeight(1)
-        separator.setStyleSheet("background-color: #CCCCCC; border: none;")
+        separator.setStyleSheet(f"background-color: {separator_color}; border: none;")
         layout.addWidget(separator)
         
         # Determine border color based on whether we have translations
@@ -167,7 +176,7 @@ class TermBlock(QWidget):
             self.bg_color = "#FFE5F0" if is_effective_project else "#D6EBFF"
             self.is_effective_project = is_effective_project
         else:
-            self.bg_color = "#F5F5F5"  # Light gray for no matches
+            self.bg_color = no_match_bg  # Theme-aware for no matches
             self.is_effective_project = False
         
         # Source text (top) - compact
@@ -176,13 +185,13 @@ class TermBlock(QWidget):
         source_font.setPointSize(8)
         source_label.setFont(source_font)
         source_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        source_label.setStyleSheet("""
-            QLabel {
-                color: #333;
+        source_label.setStyleSheet(f"""
+            QLabel {{
+                color: {source_text_color};
                 padding: 1px 3px;
                 background-color: transparent;
                 border: none;
-            }
+            }}
         """)
         layout.addWidget(source_label)
         
@@ -241,10 +250,12 @@ class TermBlock(QWidget):
                 """)
                 layout.addWidget(count_label)
         else:
-            # No translation found - very subtle
+            # No translation found - very subtle (theme-aware)
+            is_dark = self.theme_manager and self.theme_manager.current_theme.name == "Dark"
+            no_match_dot_color = "#666666" if is_dark else "#ddd"
             no_match_label = QLabel("·")
             no_match_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            no_match_label.setStyleSheet("color: #ddd; font-size: 8px;")
+            no_match_label.setStyleSheet(f"color: {no_match_dot_color}; font-size: 8px;")
             layout.addWidget(no_match_label)
     
     def on_translation_clicked(self, target_text: str):
@@ -257,15 +268,17 @@ class NTBlock(QWidget):
     
     nt_clicked = pyqtSignal(str)  # Emits NT text to insert as-is
     
-    def __init__(self, source_text: str, list_name: str = "", parent=None):
+    def __init__(self, source_text: str, list_name: str = "", parent=None, theme_manager=None):
         """
         Args:
             source_text: Non-translatable word/phrase
             list_name: Name of the NT list it comes from
+            theme_manager: Optional theme manager for dark mode support
         """
         super().__init__(parent)
         self.source_text = source_text
         self.list_name = list_name
+        self.theme_manager = theme_manager
         self.init_ui()
         
     def init_ui(self):
@@ -273,6 +286,10 @@ class NTBlock(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(1, 1, 1, 1)
         layout.setSpacing(0)
+        
+        # Get theme colors
+        is_dark = self.theme_manager and self.theme_manager.current_theme.name == "Dark"
+        source_text_color = "#E0E0E0" if is_dark else "#5D4E37"
         
         # Pastel yellow border for non-translatables
         border_color = "#E6C200"  # Darker yellow for border
@@ -290,12 +307,12 @@ class NTBlock(QWidget):
         source_font.setPointSize(8)
         source_label.setFont(source_font)
         source_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        source_label.setStyleSheet("""
-            QLabel {
-                color: #5D4E37;
+        source_label.setStyleSheet(f"""
+            QLabel {{
+                color: {source_text_color};
                 padding: 1px 3px;
                 background-color: transparent;
-            }
+            }}
         """)
         layout.addWidget(source_label)
         
@@ -335,15 +352,16 @@ class TermviewWidget(QWidget):
     
     term_insert_requested = pyqtSignal(str)  # Emits target text to insert
     
-    def __init__(self, parent=None, db_manager=None, log_callback=None):
+    def __init__(self, parent=None, db_manager=None, log_callback=None, theme_manager=None):
         super().__init__(parent)
         self.db_manager = db_manager
         self.log = log_callback if log_callback else print
+        self.theme_manager = theme_manager
         self.current_source = ""
         self.current_source_lang = None
         self.current_target_lang = None
         self.current_project_id = None  # Store project ID for termbase priority lookup
-        
+
         self.init_ui()
     
     def init_ui(self):
@@ -351,46 +369,109 @@ class TermviewWidget(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(5, 5, 5, 5)
         layout.setSpacing(5)
-        
+
+        # Get theme colors
+        if self.theme_manager:
+            theme = self.theme_manager.current_theme
+            bg_color = theme.base
+            border_color = theme.border
+            header_bg = theme.panel_info
+            header_text = theme.button_info
+            info_text = theme.text_disabled
+        else:
+            # Fallback colors if no theme manager
+            bg_color = "white"
+            border_color = "#ddd"
+            header_bg = "#E3F2FD"
+            header_text = "#1565C0"
+            info_text = "#999"
+
         # Header
         header = QLabel("🔍 Termview - Inline Terminology")
-        header.setStyleSheet("""
-            QLabel {
+        header.setStyleSheet(f"""
+            QLabel {{
                 font-weight: bold;
                 font-size: 12px;
-                color: #1565C0;
+                color: {header_text};
                 padding: 5px;
-                background-color: #E3F2FD;
+                background-color: {header_bg};
                 border-radius: 4px;
-            }
+            }}
         """)
         layout.addWidget(header)
-        
+
         # Scroll area for term blocks
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)  # No horizontal scroll
         scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-        scroll.setStyleSheet("""
-            QScrollArea {
-                border: 1px solid #ddd;
+        scroll.setStyleSheet(f"""
+            QScrollArea {{
+                border: 1px solid {border_color};
                 border-radius: 4px;
-                background-color: white;
-            }
+                background-color: {bg_color};
+            }}
         """)
-        
+
         # Container for term blocks (flow layout with wrapping)
         self.terms_container = QWidget()
         self.terms_layout = FlowLayout(self.terms_container, margin=5, spacing=4)
-        
+
         scroll.setWidget(self.terms_container)
         layout.addWidget(scroll)
-        
-        # Info label
+
+        # Info label - use slightly brighter text for dark mode
         self.info_label = QLabel("No segment selected")
         self.info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.info_label.setStyleSheet("color: #999; font-size: 10px; padding: 5px;")
+        is_dark = self.theme_manager and self.theme_manager.current_theme.name == "Dark"
+        info_label_color = "#909090" if is_dark else info_text
+        self.info_label.setStyleSheet(f"color: {info_label_color}; font-size: 10px; padding: 5px;")
         layout.addWidget(self.info_label)
+        
+        # Store references for theme refresh
+        self.header = header
+        self.scroll = scroll
+    
+    def apply_theme(self):
+        """Refresh all theme-dependent colors when theme changes"""
+        if not self.theme_manager:
+            return
+        
+        theme = self.theme_manager.current_theme
+        bg_color = theme.base
+        border_color = theme.border
+        header_bg = theme.panel_info
+        header_text = theme.button_info
+        info_text = theme.text_disabled
+        
+        # Update header
+        if hasattr(self, 'header'):
+            self.header.setStyleSheet(f"""
+                QLabel {{
+                    font-weight: bold;
+                    font-size: 12px;
+                    color: {header_text};
+                    padding: 5px;
+                    background-color: {header_bg};
+                    border-radius: 4px;
+                }}
+            """)
+        
+        # Update scroll area
+        if hasattr(self, 'scroll'):
+            self.scroll.setStyleSheet(f"""
+                QScrollArea {{
+                    border: 1px solid {border_color};
+                    border-radius: 4px;
+                    background-color: {bg_color};
+                }}
+            """)
+        
+        # Update info label - use slightly brighter text for better visibility in dark mode
+        if hasattr(self, 'info_label'):
+            is_dark = theme.name == "Dark"
+            info_label_color = "#909090" if is_dark else info_text
+            self.info_label.setStyleSheet(f"color: {info_label_color}; font-size: 10px; padding: 5px;")
     
     def update_with_matches(self, source_text: str, termbase_matches: List[Dict], nt_matches: List[Dict] = None):
         """
@@ -494,7 +575,7 @@ class TermviewWidget(QWidget):
             # Check if this is a non-translatable
             if lookup_key in nt_dict:
                 # Create NT block
-                nt_block = NTBlock(token, nt_dict[lookup_key], self)
+                nt_block = NTBlock(token, nt_dict[lookup_key], self, theme_manager=self.theme_manager)
                 nt_block.nt_clicked.connect(self.on_term_insert_requested)
                 self.terms_layout.addWidget(nt_block)
                 blocks_with_nt += 1
@@ -503,7 +584,7 @@ class TermviewWidget(QWidget):
                 translations = matches_dict.get(lookup_key, [])
                 
                 # Create term block (even if no translation - shows source word)
-                term_block = TermBlock(token, translations, self)
+                term_block = TermBlock(token, translations, self, theme_manager=self.theme_manager)
                 term_block.term_clicked.connect(self.on_term_insert_requested)
                 self.terms_layout.addWidget(term_block)
                 
@@ -599,7 +680,7 @@ class TermviewWidget(QWidget):
                     self.log(f"    {j+1}. '{target}'")
             
             # Create term block
-            term_block = TermBlock(token, translations, self)
+            term_block = TermBlock(token, translations, self, theme_manager=self.theme_manager)
             term_block.term_clicked.connect(self.on_term_insert_requested)
             
             # Add to flow layout

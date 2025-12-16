@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.40"
+__version__ = "1.9.41"
 __phase__ = "0.9"
 __release_date__ = "2025-12-12"
 __edition__ = "Qt"
@@ -1018,18 +1018,14 @@ class ReadOnlyGridTextEditor(QTextEdit):
         self.setPalette(palette)
 
         # Style to look like a normal cell with subtle selection
-        # IMPORTANT: Use light gray background instead of transparent to avoid text visibility issues
+        # Background and text colors now managed by theme system
         self.setStyleSheet("""
             QTextEdit {
                 border: none;
-                background-color: #f5f5f5;
                 padding: 0px 4px 0px 0px;
-                color: black;
             }
             QTextEdit:focus {
                 border: 1px solid #2196F3;
-                background-color: white;
-                color: black;
             }
             QTextEdit::selection {
                 background-color: #D0E7FF;
@@ -1795,12 +1791,9 @@ class ReadOnlyGridTextEditor(QTextEdit):
                 border: none;
                 background-color: {color};
                 padding: 0px;
-                color: black;
             }}
             QTextEdit:focus {{
                 border: 1px solid #2196F3;
-                background-color: white;
-                color: black;
             }}
             QTextEdit::selection {{
                 background-color: #D0E7FF;
@@ -1982,18 +1975,14 @@ class EditableGridTextEditor(QTextEdit):
         self.highlighter = TagHighlighter(self.document(), self.tag_highlight_color, invisible_char_color, enable_spellcheck=True)
 
         # Style to look like a normal cell with subtle selection
-        # IMPORTANT: Use white background instead of transparent to avoid text visibility issues
+        # Background and text colors now managed by theme system
         self.setStyleSheet("""
             QTextEdit {
                 border: none;
-                background-color: white;
                 padding: 0px 4px 0px 0px;
-                color: black;
             }
             QTextEdit:focus {
                 border: 1px solid #2196F3;
-                background-color: white;
-                color: black;
             }
             QTextEdit::selection {
                 background-color: #D0E7FF;
@@ -2763,12 +2752,9 @@ class EditableGridTextEditor(QTextEdit):
                 border: none;
                 background-color: {color};
                 padding: 0px;
-                color: black;
             }}
             QTextEdit:focus {{
                 border: 1px solid #2196F3;
-                background-color: white;
-                color: black;
             }}
             QTextEdit::selection {{
                 background-color: #D0E7FF;
@@ -3292,22 +3278,6 @@ class ThemeEditorDialog(QDialog):
         custom_group.setLayout(custom_layout)
         layout.addWidget(custom_group)
         
-        # Preview area
-        preview_group = QGroupBox("Preview")
-        preview_layout = QVBoxLayout()
-        
-        preview_text = QLabel("This is how text will look in the selected theme.")
-        preview_layout.addWidget(preview_text)
-        
-        preview_table = QTableWidget(3, 2)
-        preview_table.setHorizontalHeaderLabels(["Source", "Target"])
-        preview_table.setItem(0, 0, QTableWidgetItem("Sample text"))
-        preview_table.setItem(0, 1, QTableWidgetItem("Voorbeeldtekst"))
-        preview_layout.addWidget(preview_table)
-        
-        preview_group.setLayout(preview_layout)
-        layout.addWidget(preview_group)
-        
         # Dialog buttons
         button_box = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | 
@@ -3374,7 +3344,12 @@ class ThemeEditorDialog(QDialog):
         theme_name = self.theme_combo.currentText()
         if self.theme_manager.set_theme(theme_name):
             self.theme_manager.apply_theme(QApplication.instance())
-            QMessageBox.information(self, "Theme Applied", 
+
+            # Call the main app's refresh method to update all UI elements
+            if hasattr(self.parent(), 'refresh_theme_colors'):
+                self.parent().refresh_theme_colors()
+
+            QMessageBox.information(self, "Theme Applied",
                                    f"Theme '{theme_name}' has been applied.")
     
     def save_custom_theme(self):
@@ -3478,8 +3453,6 @@ class DetachedLogWindow(QWidget):
         self.log_display.setReadOnly(True)
         self.log_display.setStyleSheet("""
             QPlainTextEdit {
-                background-color: #ffffff;
-                color: #000000;
                 font-family: 'Consolas', 'Courier New', monospace;
                 font-size: 10px;
                 border: 1px solid #ccc;
@@ -3601,12 +3574,12 @@ class TermMetadataDialog(QDialog):
         term_layout = QFormLayout()
         
         source_label = QLabel(self.source_term)
-        source_label.setStyleSheet("padding: 5px; background-color: #f0f0f0; border-radius: 3px;")
+        source_label.setStyleSheet("padding: 5px; border-radius: 3px;")
         source_label.setWordWrap(True)
         term_layout.addRow("Source:", source_label)
         
         target_label = QLabel(self.target_term)
-        target_label.setStyleSheet("padding: 5px; background-color: #f0f0f0; border-radius: 3px;")
+        target_label.setStyleSheet("padding: 5px; border-radius: 3px;")
         target_label.setWordWrap(True)
         term_layout.addRow("Target:", target_label)
         
@@ -4514,6 +4487,37 @@ class SupervertalerQt(QMainWindow):
         self.theme_manager = ThemeManager(self.user_data_path)
         self.theme_manager.apply_theme(QApplication.instance())
         
+        # Update widgets that were created before theme_manager existed
+        if hasattr(self, 'termview_widget') and self.termview_widget:
+            self.termview_widget.theme_manager = self.theme_manager
+            if hasattr(self.termview_widget, 'apply_theme'):
+                self.termview_widget.apply_theme()
+        
+        if hasattr(self, 'translation_results_panel') and self.translation_results_panel:
+            self.translation_results_panel.theme_manager = self.theme_manager
+            # Also update class-level theme_manager for CompactMatchItem
+            from modules.translation_results_panel import CompactMatchItem
+            CompactMatchItem.theme_manager = self.theme_manager
+            print(f"🎨 DEBUG: Calling apply_theme on translation_results_panel", flush=True)
+            # Write to file for debugging
+            with open("theme_debug.txt", "w") as f:
+                f.write(f"apply_theme called, theme={self.theme_manager.current_theme.name}\n")
+                f.write(f"compare_text_edits count: {len(self.translation_results_panel.compare_text_edits)}\n")
+                f.flush()
+            if hasattr(self.translation_results_panel, 'apply_theme'):
+                self.translation_results_panel.apply_theme()
+                print(f"🎨 DEBUG: apply_theme() called successfully", flush=True)
+        else:
+            print(f"🎨 DEBUG: translation_results_panel NOT FOUND!", flush=True)
+            with open("theme_debug.txt", "w") as f:
+                f.write("translation_results_panel NOT FOUND!\n")
+                f.flush()
+        
+        # Schedule theme refresh after UI is fully initialized
+        # This ensures all widgets are properly themed at startup
+        from PyQt6.QtCore import QTimer
+        QTimer.singleShot(100, self.refresh_theme_colors)
+        
         # Create example API keys file on first launch (after UI is ready)
         self.ensure_example_api_keys()
         
@@ -5392,12 +5396,18 @@ class SupervertalerQt(QMainWindow):
         results_zoom_menu.addAction(results_note)
         
         view_menu.addSeparator()
-        
+
         auto_resize_action = QAction("📐 &Auto-Resize Rows", self)
         auto_resize_action.triggered.connect(self.auto_resize_rows)
         auto_resize_action.setToolTip("Automatically resize all rows to fit content")
         view_menu.addAction(auto_resize_action)
-        
+
+        view_menu.addSeparator()
+
+        theme_action = QAction("🎨 &Theme Editor...", self)
+        theme_action.triggered.connect(self.show_theme_editor)
+        view_menu.addAction(theme_action)
+
         # Tools Menu
         tools_menu = menubar.addMenu("&Tools")
         
@@ -5414,11 +5424,7 @@ class SupervertalerQt(QMainWindow):
         tools_menu.addAction(image_extractor_action)
         
         tools_menu.addSeparator()
-        
-        theme_action = QAction("🎨 &Theme Editor...", self)
-        theme_action.triggered.connect(self.show_theme_editor)
-        tools_menu.addAction(theme_action)
-        
+
         settings_action = QAction("&Settings...", self)
         settings_action.triggered.connect(lambda: self._go_to_settings_tab())
         tools_menu.addAction(settings_action)
@@ -6447,7 +6453,7 @@ class SupervertalerQt(QMainWindow):
             "The AI will 'see' the images and better translate technical descriptions and part references."
         )
         context_desc.setWordWrap(True)
-        context_desc.setStyleSheet("color: #666; font-size: 10px; padding: 5px; background-color: #f0f8ff; border-radius: 3px;")
+        context_desc.setStyleSheet("font-size: 10px; padding: 5px; border-radius: 3px;")
         context_layout.addWidget(context_desc)
         
         # Context controls row
@@ -6598,7 +6604,6 @@ class SupervertalerQt(QMainWindow):
         self.image_extractor_files_list.setStyleSheet("""
             QListWidget {
                 border: 1px solid #ccc;
-                background-color: white;
                 font-size: 9px;
             }
             QListWidget::item {
@@ -6608,9 +6613,6 @@ class SupervertalerQt(QMainWindow):
             QListWidget::item:selected {
                 background-color: #e3f2fd;
                 color: black;
-            }
-            QListWidget::item:hover {
-                background-color: #f5f5f5;
             }
         """)
         left_layout.addWidget(self.image_extractor_files_list)
@@ -6629,12 +6631,12 @@ class SupervertalerQt(QMainWindow):
         # Large image display area with scroll
         preview_scroll = QScrollArea()
         preview_scroll.setWidgetResizable(True)
-        preview_scroll.setStyleSheet("QScrollArea { border: 1px solid #ccc; background-color: #f9f9f9; }")
+        preview_scroll.setStyleSheet("QScrollArea { border: 1px solid #ccc; }")
         preview_scroll.setMinimumWidth(300)
         
         self.image_extractor_preview = QLabel()
         self.image_extractor_preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.image_extractor_preview.setStyleSheet("padding: 10px; background-color: white;")
+        self.image_extractor_preview.setStyleSheet("padding: 10px;")
         self.image_extractor_preview.setText("No image selected\n\nClick on a file in the list to preview\nor\nExtract images to see them here")
         self.image_extractor_preview.setWordWrap(True)
         
@@ -7239,8 +7241,6 @@ class SupervertalerQt(QMainWindow):
         self.session_log.setReadOnly(True)
         self.session_log.setStyleSheet("""
             QPlainTextEdit {
-                background-color: #ffffff;
-                color: #000000;
                 font-family: 'Consolas', 'Courier New', monospace;
                 font-size: 9px;
                 border: 1px solid #ccc;
@@ -7291,7 +7291,7 @@ class SupervertalerQt(QMainWindow):
         
         # View switcher toolbar
         view_toolbar = QWidget()
-        view_toolbar.setStyleSheet("background-color: #f8f9fa; padding: 5px;")
+        view_toolbar.setStyleSheet("padding: 5px;")
         view_toolbar_layout = QHBoxLayout(view_toolbar)
         view_toolbar_layout.setContentsMargins(10, 5, 10, 5)
         view_toolbar_layout.setSpacing(5)
@@ -9246,7 +9246,7 @@ class SupervertalerQt(QMainWindow):
             "• Preserves paragraph breaks\n"
             "• Treats each table cell as separate segment"
         )
-        current_info.setStyleSheet("background-color: #f3f4f6; padding: 10px; border-radius: 4px; font-family: monospace;")
+        current_info.setStyleSheet("padding: 10px; border-radius: 4px; font-family: monospace;")
         rules_layout.addWidget(current_info)
         
         # Future implementation section
@@ -11485,7 +11485,7 @@ class SupervertalerQt(QMainWindow):
             "Set your default source and target languages for translation projects."
         )
         info_label.setWordWrap(True)
-        info_label.setStyleSheet("font-size: 9pt; color: #666; padding: 8px; background-color: #f3f4f6; border-radius: 3px;")
+        info_label.setStyleSheet("font-size: 9pt; padding: 8px; border-radius: 3px;")
         lang_layout.addWidget(info_label)
         
         # Language selection layout
@@ -12378,7 +12378,7 @@ class SupervertalerQt(QMainWindow):
             "This feature is disabled by default for safety."
         )
         warning_label.setWordWrap(True)
-        warning_label.setStyleSheet("color: #d97706; padding: 10px; background-color: #fef3c7; border-radius: 3px;")
+        warning_label.setStyleSheet("color: #d97706; padding: 10px; border-radius: 3px;")
         find_replace_layout.addWidget(warning_label)
         
         find_replace_group.setLayout(find_replace_layout)
@@ -12557,7 +12557,7 @@ class SupervertalerQt(QMainWindow):
             "You can also adjust size using View menu → Grid Text Zoom.\n"
             "If your favourite font is missing, contact the developer!"
         )
-        grid_size_info.setStyleSheet("font-size: 8pt; color: #666; padding: 8px; background-color: #f3f4f6; border-radius: 2px;")
+        grid_size_info.setStyleSheet("font-size: 8pt; padding: 8px; border-radius: 2px;")
         grid_size_info.setWordWrap(True)
         grid_layout.addWidget(grid_size_info)
         
@@ -12615,7 +12615,7 @@ class SupervertalerQt(QMainWindow):
         # Preview container with border to simulate grid
         preview_container = QFrame()
         preview_container.setFrameStyle(QFrame.Shape.Box | QFrame.Shadow.Sunken)
-        preview_container.setStyleSheet("background-color: white; border: 1px solid #ccc;")
+        preview_container.setStyleSheet("border: 1px solid #ccc;")
         preview_container_layout = QVBoxLayout(preview_container)
         preview_container_layout.setContentsMargins(0, 0, 0, 0)
         preview_container_layout.setSpacing(0)
@@ -12624,7 +12624,7 @@ class SupervertalerQt(QMainWindow):
         source_preview = QLabel()
         source_preview.setTextFormat(Qt.TextFormat.RichText)
         source_preview.setWordWrap(True)
-        source_preview.setStyleSheet("background-color: #f5f5f5; padding: 6px; border-bottom: 1px solid #ddd;")
+        source_preview.setStyleSheet("padding: 6px; border-bottom: 1px solid #ddd;")
         source_preview.setToolTip("Source text preview")
         preview_container_layout.addWidget(source_preview)
         
@@ -12632,7 +12632,7 @@ class SupervertalerQt(QMainWindow):
         target_preview = QLabel()
         target_preview.setTextFormat(Qt.TextFormat.RichText)
         target_preview.setWordWrap(True)
-        target_preview.setStyleSheet("background-color: white; padding: 6px;")
+        target_preview.setStyleSheet("padding: 6px;")
         target_preview.setToolTip("Target text preview")
         preview_container_layout.addWidget(target_preview)
         
@@ -12669,7 +12669,7 @@ class SupervertalerQt(QMainWindow):
             "Set the default font sizes for the translation results pane.\n"
             "You can also adjust these using View menu → Translation Results Pane."
         )
-        results_size_info.setStyleSheet("font-size: 8pt; color: #666; padding: 8px; background-color: #f3f4f6; border-radius: 2px;")
+        results_size_info.setStyleSheet("font-size: 8pt; padding: 8px; border-radius: 2px;")
         results_size_info.setWordWrap(True)
         results_layout.addWidget(results_size_info)
         
@@ -12770,7 +12770,7 @@ class SupervertalerQt(QMainWindow):
             "Configure alternating row colors for the translation grid.\n"
             "This creates a visual distinction between rows (like memoQ)."
         )
-        row_colors_info.setStyleSheet("font-size: 8pt; color: #666; padding: 8px; background-color: #f3f4f6; border-radius: 2px;")
+        row_colors_info.setStyleSheet("font-size: 8pt; padding: 8px; border-radius: 2px;")
         row_colors_info.setWordWrap(True)
         row_colors_layout.addWidget(row_colors_info)
         
@@ -12908,7 +12908,7 @@ class SupervertalerQt(QMainWindow):
             "• large: Slowest, best accuracy (~10 GB RAM, 2.9 GB download)\n\n"
             "Models download automatically on first use to: %USERPROFILE%\\.cache\\whisper"
         )
-        model_info.setStyleSheet("font-size: 8pt; color: #666; padding: 8px; background-color: #f3f4f6; border-radius: 2px;")
+        model_info.setStyleSheet("font-size: 8pt; padding: 8px; border-radius: 2px;")
         model_info.setWordWrap(True)
         model_layout.addWidget(model_info)
 
@@ -12934,7 +12934,7 @@ class SupervertalerQt(QMainWindow):
             "Maximum recording duration per dictation session.\n"
             "Recording automatically stops after this time limit."
         )
-        duration_info.setStyleSheet("font-size: 8pt; color: #666; padding: 8px; background-color: #f3f4f6; border-radius: 2px;")
+        duration_info.setStyleSheet("font-size: 8pt; padding: 8px; border-radius: 2px;")
         duration_info.setWordWrap(True)
         recording_layout.addWidget(duration_info)
 
@@ -12961,7 +12961,7 @@ class SupervertalerQt(QMainWindow):
             "By default, voice dictation uses your project's target language.\n"
             "You can override this to always use a specific language."
         )
-        language_info.setStyleSheet("font-size: 8pt; color: #666; padding: 8px; background-color: #f3f4f6; border-radius: 2px;")
+        language_info.setStyleSheet("font-size: 8pt; padding: 8px; border-radius: 2px;")
         language_info.setWordWrap(True)
         language_layout.addWidget(language_info)
 
@@ -13026,7 +13026,7 @@ class SupervertalerQt(QMainWindow):
         )
         info_label.setTextFormat(Qt.TextFormat.RichText)
         info_label.setWordWrap(True)
-        info_label.setStyleSheet("font-size: 9pt; color: #333; padding: 12px; background-color: #f3f4f6; border-radius: 3px;")
+        info_label.setStyleSheet("font-size: 9pt; padding: 12px; border-radius: 3px;")
         header_layout.addWidget(info_label)
 
         header_group.setLayout(header_layout)
@@ -13066,7 +13066,7 @@ class SupervertalerQt(QMainWindow):
         editor_info = QLabel(
             "Edit the system prompt below. Use {{SOURCE_LANGUAGE}}, {{TARGET_LANGUAGE}}, and {{SOURCE_TEXT}} as placeholders."
         )
-        editor_info.setStyleSheet("font-size: 8pt; color: #666; padding: 8px; background-color: #fff3cd; border-radius: 2px;")
+        editor_info.setStyleSheet("font-size: 8pt; padding: 8px; border-radius: 2px;")
         editor_info.setWordWrap(True)
         editor_layout.addWidget(editor_info)
 
@@ -13226,7 +13226,7 @@ class SupervertalerQt(QMainWindow):
             "Only enable when troubleshooting specific issues."
         )
         info_label.setWordWrap(True)
-        info_label.setStyleSheet("font-size: 9pt; color: #666; padding: 10px; background-color: #f3f4f6; border-radius: 4px;")
+        info_label.setStyleSheet("font-size: 9pt; padding: 10px; border-radius: 4px;")
         debug_layout.addWidget(info_label)
         
         debug_layout.addSpacing(10)
@@ -13281,7 +13281,7 @@ class SupervertalerQt(QMainWindow):
             "Lower delays = faster lookups but potential UI freezes during typing."
         )
         perf_info.setWordWrap(True)
-        perf_info.setStyleSheet("font-size: 9pt; color: #666; padding: 10px; background-color: #f3f4f6; border-radius: 4px;")
+        perf_info.setStyleSheet("font-size: 9pt; padding: 10px; border-radius: 4px;")
         perf_layout.addWidget(perf_info)
         
         perf_layout.addSpacing(10)
@@ -13387,7 +13387,7 @@ class SupervertalerQt(QMainWindow):
             "<p>💡 <b>Tip:</b> Add domain-specific terminology to improve detection accuracy for your projects.</p>"
         )
         intro_label.setWordWrap(True)
-        intro_label.setStyleSheet("font-size: 10pt; color: #333; padding: 10px; background-color: #f0f7ff; border-radius: 4px;")
+        intro_label.setStyleSheet("font-size: 10pt; padding: 10px; border-radius: 4px;")
         layout.addWidget(intro_label)
 
         # Load current keywords from prompt_manager_qt.py default lists
@@ -14391,7 +14391,7 @@ class SupervertalerQt(QMainWindow):
         
         # Pagination controls (like Tkinter version)
         pagination_panel = QWidget()
-        pagination_panel.setStyleSheet("background-color: #f8f8f8; padding: 5px;")
+        pagination_panel.setStyleSheet("padding: 5px;")
         pagination_layout = QHBoxLayout(pagination_panel)
         pagination_layout.setContentsMargins(10, 5, 10, 5)
         pagination_layout.setSpacing(10)
@@ -14618,7 +14618,7 @@ class SupervertalerQt(QMainWindow):
         comments_layout.addWidget(self.tab_notes_edit)
         
         # Termview tab
-        self.termview_widget = TermviewWidget(self, db_manager=self.db_manager, log_callback=self.log)
+        self.termview_widget = TermviewWidget(self, db_manager=self.db_manager, log_callback=self.log, theme_manager=self.theme_manager)
         self.termview_widget.term_insert_requested.connect(self.insert_termview_text)
         
         # Session Log tab
@@ -14636,6 +14636,9 @@ class SupervertalerQt(QMainWindow):
         bottom_tabs.addTab(comments_widget, "💬 Comments")
         bottom_tabs.addTab(self.termview_widget, "🔍 Termview")
         bottom_tabs.addTab(session_log_widget, "📋 Session Log")
+        
+        # Default to Termview tab (index 1)
+        bottom_tabs.setCurrentIndex(1)
         
         left_vertical_splitter.addWidget(bottom_tabs)
         
@@ -14973,7 +14976,7 @@ class SupervertalerQt(QMainWindow):
         # Top: Document flow area
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
-        scroll_area.setStyleSheet("background-color: white;")
+        scroll_area.setStyleSheet("")
         
         # Always create a new container for this widget instance
         # Don't reuse existing one as it might be in a different parent hierarchy
@@ -15018,7 +15021,7 @@ class SupervertalerQt(QMainWindow):
         # Top: Document flow area
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
-        scroll_area.setStyleSheet("background-color: white;")
+        scroll_area.setStyleSheet("")
         
         document_container = QWidget()
         document_container.setObjectName("editor_document_container")
@@ -15086,26 +15089,15 @@ class SupervertalerQt(QMainWindow):
         
         # Alternating row colors (simplified view)
         self.table.setAlternatingRowColors(True)
-        
-        # Simplified grid styling - more subtle, review-focused (companion tool philosophy)
+
+        # Simplified grid styling - subtle borders and padding only
+        # Note: Colors are controlled by theme_manager.py for proper dark mode support
         self.table.setStyleSheet("""
-            QTableWidget {
-                border: 1px solid #ddd;
-                background-color: white;
-                gridline-color: #e0e0e0;
-            }
             QTableWidget::item {
                 padding: 4px;
                 border: none;
-                border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-                border-right: 1px solid rgba(0, 0, 0, 0.08);
-            }
-            QTableWidget::item:selected {
-                background-color: #e3f2fd;  /* Light blue instead of bright blue */
-                color: black;
-            }
-            QTableWidget::item:focus {
-                border: 1px solid #2196F3;
+                border-bottom: 1px solid rgba(128, 128, 128, 0.15);
+                border-right: 1px solid rgba(128, 128, 128, 0.15);
             }
             QTableWidget::item:last-child {
                 border-right: none;
@@ -15352,7 +15344,7 @@ class SupervertalerQt(QMainWindow):
         tab_source_editor = QTextEdit()
         tab_source_editor.setReadOnly(True)
         tab_source_editor.setMaximumHeight(100)
-        tab_source_editor.setStyleSheet("background-color: #f5f5f5;")
+        tab_source_editor.setStyleSheet("")
         editor_layout.addWidget(tab_source_editor)
         
         # Target text (editable)
@@ -17021,7 +17013,7 @@ class SupervertalerQt(QMainWindow):
             name = project_info.get('name', Path(path).stem)
             
             btn = QPushButton(f"📄 {name}")
-            btn.setStyleSheet("text-align: left; padding: 8px; background: white; border: 1px solid #ddd; border-radius: 3px;")
+            btn.setStyleSheet("text-align: left; padding: 8px; border-radius: 3px;")
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
             btn.clicked.connect(lambda checked, p=path: self.load_project(p))
             self.recent_projects_layout.addWidget(btn)
@@ -20016,13 +20008,15 @@ class SupervertalerQt(QMainWindow):
                 self.table.removeCellWidget(row, 4)  # Match
                 self.table.removeCellWidget(row, 5)  # Status
                 
-                # ID - Segment number (starts with black foreground, will be highlighted orange when selected)
+                # ID - Segment number (black in light themes, theme text color in dark themes)
                 id_item = QTableWidgetItem(str(segment.id))
                 id_item.setFlags(id_item.flags() & ~Qt.ItemFlag.ItemIsEditable)  # Read-only
                 id_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                # Explicitly set black foreground for all segment numbers (will be changed to orange when selected)
-                id_item.setForeground(QColor("black"))
-                id_item.setBackground(QColor())  # Default (white) background
+                # Black for light themes, theme text color for dark themes
+                theme = self.theme_manager.current_theme
+                segment_num_color = "black" if theme.name in ["Light (Default)", "Soft Gray", "Warm Cream", "Sepia", "High Contrast"] else theme.text
+                id_item.setForeground(QColor(segment_num_color))
+                id_item.setBackground(QColor())  # Default background from theme
                 self.table.setItem(row, 0, id_item)
                 
                 # Type - show segment type based on style and content
@@ -20108,11 +20102,9 @@ class SupervertalerQt(QMainWindow):
                 
                 # Color-code by type for better visibility
                 if type_display in ("H1", "H2", "H3", "H4", "Title"):
-                    type_item.setForeground(QColor("#003366"))  # Dark blue for headings
-                    type_item.setBackground(QColor("#e6f3ff"))  # Light blue background
+                    type_item.setForeground(QColor("#1976D2"))  # Blue for headings (works in both themes)
                 elif type_display.startswith("#") or type_display in ("•", "li"):
-                    type_item.setForeground(QColor("#006600"))  # Dark green for list items
-                    type_item.setBackground(QColor("#f0f8f0"))  # Light green background
+                    type_item.setForeground(QColor("#388E3C"))  # Green for list items (works in both themes)
                 
                 self.table.setItem(row, 1, type_item)
                 
@@ -20304,7 +20296,7 @@ class SupervertalerQt(QMainWindow):
         # Create scroll area for the preview
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
-        scroll_area.setStyleSheet("background-color: white; border: none;")
+        scroll_area.setStyleSheet("border: none;")
 
         # Create the preview text widget
         preview_text = QTextEdit()
@@ -21180,22 +21172,32 @@ class SupervertalerQt(QMainWindow):
     def _apply_row_color(self, row: int, source_widget, target_widget):
         """Apply alternating row color to source and target widgets for a specific row"""
         # Load settings (with caching to avoid repeated file reads)
-        if not hasattr(self, '_row_color_settings_cached'):
+        # Cache is keyed by theme name to refresh when theme changes
+        theme = self.theme_manager.current_theme
+        cache_key = f'_row_color_cache_{theme.name}'
+
+        if not hasattr(self, cache_key):
             settings = self.load_general_settings()
-            self._row_color_settings_cached = {
+            # Always use current theme colors for row alternation, not saved settings
+            # This ensures rows are dark in dark themes and light in light themes
+            cached_data = {
                 'enabled': settings.get('enable_alternating_row_colors', True),
-                'even_color': settings.get('even_row_color', '#FFFFFF'),
-                'odd_color': settings.get('odd_row_color', '#F0F0F0')
+                'even_color': theme.base,  # Always use theme color
+                'odd_color': theme.alternate_bg  # Always use theme color
             }
+            setattr(self, cache_key, cached_data)
+            # Also update the old cache name for backwards compatibility
+            self._row_color_settings_cached = cached_data
+            print(f"🎨 ROW COLOR DEBUG: Created cache for '{theme.name}': even={cached_data['even_color']}, odd={cached_data['odd_color']}")
+        else:
+            self._row_color_settings_cached = getattr(self, cache_key)
+            print(f"🎨 ROW COLOR DEBUG: Using cache for '{theme.name}': even={self._row_color_settings_cached['even_color']}, odd={self._row_color_settings_cached['odd_color']}")
         
         settings = self._row_color_settings_cached
         
         if not settings['enabled']:
-            # Use default colors when disabled
-            if hasattr(source_widget, 'set_background_color'):
-                source_widget.set_background_color('#f5f5f5')  # Original source color
-            if hasattr(target_widget, 'set_background_color'):
-                target_widget.set_background_color('#FFFFFF')  # Original target color
+            # Use theme default colors when disabled - remove hardcoded backgrounds
+            # The theme system will handle the background colors
             return
         
         # Determine color based on row index (even/odd)
@@ -21801,8 +21803,11 @@ class SupervertalerQt(QMainWindow):
                 prev_id_item = self.table.item(previous_row, 0)
                 if prev_id_item:
                     prev_id_item.setBackground(QBrush())  # Reset background to default (use QBrush for proper clearing)
-                    prev_id_item.setForeground(QBrush(QColor("black")))  # Reset text color to black
-            
+                    # Black for light themes, theme text color for dark themes
+                    theme = self.theme_manager.current_theme
+                    segment_num_color = "black" if theme.name in ["Light (Default)", "Soft Gray", "Warm Cream", "Sepia", "High Contrast"] else theme.text
+                    prev_id_item.setForeground(QBrush(QColor(segment_num_color)))
+
             # Highlight current segment number in orange (like memoQ)
             if current_row >= 0 and current_row < self.table.rowCount():
                 current_id_item = self.table.item(current_row, 0)
@@ -22368,7 +22373,7 @@ class SupervertalerQt(QMainWindow):
             )
             image_notice.setTextFormat(Qt.TextFormat.RichText)
             image_notice.setWordWrap(True)
-            image_notice.setStyleSheet("padding: 10px; background-color: #fff3cd; border-radius: 4px; margin-bottom: 10px; border-left: 4px solid #ff9800;")
+            image_notice.setStyleSheet("padding: 10px; border-radius: 4px; margin-bottom: 10px; border-left: 4px solid #ff9800;")
             layout.addWidget(image_notice)
         
         # Text editor for preview
@@ -29501,7 +29506,107 @@ class SupervertalerQt(QMainWindow):
         if dialog.exec():
             # Theme may have been changed, reapply
             self.theme_manager.apply_theme(QApplication.instance())
-    
+            # Refresh all theme-dependent UI elements
+            self.refresh_theme_colors()
+
+    def refresh_theme_colors(self):
+        """Refresh all theme-dependent UI elements when theme changes"""
+        theme = self.theme_manager.current_theme
+        print(f"🎨 refresh_theme_colors() called, theme={theme.name}", flush=True)
+        with open("theme_debug.txt", "a") as f:
+            f.write(f"refresh_theme_colors() called, theme={theme.name}\n")
+        
+        # Clear row color cache to force refresh with new theme colors
+        # Remove all theme-specific caches
+        for attr in list(vars(self).keys()):
+            if attr.startswith('_row_color_cache_'):
+                delattr(self, attr)
+        
+        # Reapply alternating row colors with new theme
+        if hasattr(self, 'apply_alternating_row_colors'):
+            self.apply_alternating_row_colors()
+        
+        # Refresh segment numbers color
+        if hasattr(self, 'table') and self.table:
+            # Determine segment number color based on theme
+            is_dark_theme = theme.name == "Dark"
+            segment_num_color = theme.text if is_dark_theme else "black"
+            
+            for row in range(self.table.rowCount()):
+                id_item = self.table.item(row, 0)
+                if id_item:
+                    # Don't change currently highlighted row (orange background)
+                    if id_item.background().color().name() != "#ffa500":
+                        id_item.setForeground(QColor(segment_num_color))
+        
+        # Refresh TranslationResultsPanel
+        if hasattr(self, 'translation_results_panel') and self.translation_results_panel:
+            if hasattr(self.translation_results_panel, 'apply_theme'):
+                print(f"🎨 refresh_theme_colors: calling apply_theme on translation_results_panel", flush=True)
+                with open("theme_debug.txt", "a") as f:
+                    f.write(f"refresh_theme_colors: calling apply_theme on translation_results_panel\n")
+                    f.write(f"  compare_text_edits count: {len(self.translation_results_panel.compare_text_edits)}\n")
+                self.translation_results_panel.apply_theme()
+        
+        # Refresh TermviewWidget
+        if hasattr(self, 'termview_widget') and self.termview_widget:
+            if hasattr(self.termview_widget, 'apply_theme'):
+                self.termview_widget.apply_theme()
+
+    def get_themed_button_style(self, button_type: str, extra_styles: str = "") -> str:
+        """
+        Get a theme-aware button style.
+
+        Args:
+            button_type: Type of button - 'success', 'info', 'warning', 'danger', 'neutral', 'purple'
+            extra_styles: Additional CSS styles to append (e.g., "padding: 10px;")
+
+        Returns:
+            CSS stylesheet string for the button
+        """
+        theme = self.theme_manager.current_theme
+
+        # Map button type to theme color
+        color_map = {
+            'success': theme.button_success,
+            'info': theme.button_info,
+            'warning': theme.button_warning,
+            'danger': theme.button_danger,
+            'neutral': theme.button_neutral,
+            'purple': theme.button_purple,
+        }
+
+        bg_color = color_map.get(button_type, theme.button)
+        return f"background-color: {bg_color}; color: white; font-weight: bold; {extra_styles}"
+
+    def get_themed_panel_style(self, panel_type: str, extra_styles: str = "") -> str:
+        """
+        Get a theme-aware panel/info box style.
+
+        Args:
+            panel_type: Type of panel - 'info', 'warning', 'neutral', 'preview', 'accent'
+            extra_styles: Additional CSS styles to append
+
+        Returns:
+            CSS stylesheet string for the panel
+        """
+        theme = self.theme_manager.current_theme
+
+        # Map panel type to theme color
+        color_map = {
+            'info': theme.panel_info,
+            'warning': theme.panel_warning,
+            'neutral': theme.panel_neutral,
+            'preview': theme.panel_preview,
+            'accent': theme.panel_accent,
+        }
+
+        bg_color = color_map.get(panel_type, theme.window_bg)
+        # Use appropriate text color based on panel type
+        text_color = theme.text if panel_type != 'warning' else theme.text
+
+        return f"background-color: {bg_color}; color: {text_color}; {extra_styles}"
+
     def _schedule_mt_and_llm_matches(self, segment, termbase_matches=None):
         """Schedule MT and LLM matches with debouncing - only call APIs when user stops clicking"""
         try:
@@ -30298,7 +30403,7 @@ class UniversalLookupTab(QWidget):
         
         # Status bar
         self.status_label = QLabel("Ready. Select a mode and capture text to begin.")
-        self.status_label.setStyleSheet("padding: 5px; background-color: #f5f5f5; border-radius: 3px;")
+        self.status_label.setStyleSheet("padding: 5px; border-radius: 3px;")
         layout.addWidget(self.status_label, 0)  # 0 = no stretch, stays compact
     
     def create_tm_results_tab(self):
@@ -30357,7 +30462,7 @@ class UniversalLookupTab(QWidget):
         self.tm_results_vertical = QTextEdit()
         self.tm_results_vertical.setReadOnly(True)
         self.tm_results_vertical.setFont(QFont("Segoe UI", 10))
-        self.tm_results_vertical.setStyleSheet("background-color: #fafafa; border: 1px solid #ddd; border-radius: 4px;")
+        self.tm_results_vertical.setStyleSheet("border: 1px solid #ddd; border-radius: 4px;")
         vertical_layout.addWidget(self.tm_results_vertical)
         
         self.tm_view_stack.addWidget(vertical_widget)
@@ -30795,7 +30900,7 @@ class UniversalLookupTab(QWidget):
             "This will allow Superlookup to query DeepL, Google Translate, and other MT services."
         )
         info.setWordWrap(True)
-        info.setStyleSheet("color: #666; padding: 5px; background-color: #FFF3E0; border-radius: 3px;")
+        info.setStyleSheet("padding: 5px; border-radius: 3px;")
         layout.addWidget(info, 0)
         
         # Enable checkbox (disabled for now)
@@ -31364,55 +31469,70 @@ class UniversalLookupTab(QWidget):
                 self.tm_results_table.setRowHeight(row, 60)
         
         # === Update Vertical View (List) ===
-        html = f"<h3 style='color: #333; margin-bottom: 15px;'>Found {len(results)} TM matches for '<span style='color: #2196F3;'>{search_text}</span>'</h3>"
-        
+        # Use theme colors for HTML content
+        theme = self.theme_manager.current_theme
+        text_color = theme.text
+        # Use darker backgrounds for TM results to improve readability
+        bg_even = theme.window_bg  # Darker than base
+        bg_odd = theme.alternate_bg
+        border_color = theme.border
+        source_label_color = theme.tm_source_label
+        target_label_color = theme.tm_target_label
+
+        html = f"<h3 style='color: {text_color}; margin-bottom: 15px;'>Found {len(results)} TM matches for '<span style='color: {source_label_color};'>{search_text}</span>'</h3>"
+
         for idx, result in enumerate(results, 1):
             source = result.source
             target = result.target
             tm_name = result.metadata.get('tm_name', 'Unknown')
             match_type = result.metadata.get('match_type', 'concordance')
-            
+
             # Highlight search term
             highlighted_source = self._highlight_search_term(source, search_text)
             highlighted_target = self._highlight_search_term(target, search_text)
-            
-            # Alternating background colors
-            bg_color = '#f5f5f5' if idx % 2 == 0 else '#ffffff'
-            
+
+            # Alternating background colors from theme (using darker colors)
+            bg_color = bg_even if idx % 2 == 0 else bg_odd
+
             html += f"""
-            <div style='background-color: {bg_color}; padding: 10px 8px; margin: 0;'>
-                <div style='color: #555; font-size: 11px; margin-bottom: 6px;'>
+            <div style='background-color: {bg_color}; padding: 10px 8px; margin: 0; color: {text_color};'>
+                <div style='color: {text_color}; font-size: 11px; margin-bottom: 6px;'>
                     #{idx} - TM: <b>{tm_name}</b> - Type: {match_type}
                 </div>
-                <div style='margin-bottom: 4px;'>
-                    <b style='color: #1976D2;'>{source_lang_name}:</b> {highlighted_source}
+                <div style='margin-bottom: 4px; color: {text_color};'>
+                    <b style='color: {source_label_color};'>{source_lang_name}:</b> {highlighted_source}
                 </div>
-                <div>
-                    <b style='color: #388E3C;'>{target_lang_name}:</b> {highlighted_target}
+                <div style='color: {text_color};'>
+                    <b style='color: {target_label_color};'>{target_lang_name}:</b> {highlighted_target}
                 </div>
             </div>
-            <hr style='border: none; border-top: 1px solid #ddd; margin: 0;'>
+            <hr style='border: none; border-top: 1px solid {border_color}; margin: 0;'>
             """
         
         self.tm_results_vertical.setHtml(html)
     
     def _highlight_search_term(self, text, search_term):
-        """Highlight search term in text with yellow background.
-        
+        """Highlight search term in text with theme-aware background.
+
         Case-insensitive highlighting that preserves original case.
         """
         import re
         if not search_term or not text:
             return text
-        
+
         # Escape HTML special characters first
         html_text = text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-        
-        # Case-insensitive replacement with yellow highlight
+
+        # Use theme colors for highlight
+        theme = self.theme_manager.current_theme
+        highlight_bg = theme.tm_highlight_bg
+        highlight_text = theme.tm_highlight_text
+
+        # Case-insensitive replacement with theme-aware highlight
         # Use regex to preserve original case
         pattern = re.compile(re.escape(search_term), re.IGNORECASE)
         highlighted = pattern.sub(
-            lambda m: f'<span style="background-color: #FFFF00; padding: 1px 2px;">{m.group(0)}</span>',
+            lambda m: f'<span style="background-color: {highlight_bg}; color: {highlight_text}; padding: 1px 2px;">{m.group(0)}</span>',
             html_text
         )
         
@@ -32592,7 +32712,7 @@ class AutoFingersWidget(QWidget):
         # File path row
         path_row = QHBoxLayout()
         self.tmx_path_label = QLabel(self.tmx_file)
-        self.tmx_path_label.setStyleSheet("padding: 4px; background-color: #F5F5F5; font-size: 8pt;")
+        self.tmx_path_label.setStyleSheet("padding: 4px; font-size: 8pt;")
         path_row.addWidget(self.tmx_path_label, 1)
         
         browse_btn = QPushButton("Browse")
@@ -32807,7 +32927,7 @@ class AutoFingersWidget(QWidget):
         
         # Stats
         self.tmx_stats_label = QLabel("No TMX loaded")
-        self.tmx_stats_label.setStyleSheet("padding: 10px; background-color: #F5F5F5; font-weight: bold;")
+        self.tmx_stats_label.setStyleSheet("padding: 10px; font-weight: bold;")
         layout.addWidget(self.tmx_stats_label)
         
         # Actions

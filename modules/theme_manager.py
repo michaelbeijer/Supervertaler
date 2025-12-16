@@ -65,7 +65,28 @@ class Theme:
     tm_high: str = "#FFF9C4"  # 95-99% (light yellow)
     tm_medium: str = "#FFE0B2"  # 85-94% (light orange)
     tm_low: str = "#F5F5F5"  # <85% (default)
-    
+
+    # Action button colors (for buttons that need specific semantic colors)
+    button_success: str = "#4CAF50"  # Green for success actions (save, apply, etc.)
+    button_info: str = "#2196F3"  # Blue for info actions
+    button_warning: str = "#FF9800"  # Orange for warning actions
+    button_danger: str = "#F44336"  # Red for danger actions (delete, etc.)
+    button_neutral: str = "#607D8B"  # Blue-gray for neutral actions
+    button_purple: str = "#9C27B0"  # Purple for special actions
+
+    # Panel/info box backgrounds
+    panel_info: str = "#F0F7FF"  # Light blue info panels
+    panel_warning: str = "#FFF3CD"  # Light yellow warning panels
+    panel_neutral: str = "#F3F4F6"  # Gray neutral panels
+    panel_preview: str = "#F9F9F9"  # Preview areas
+    panel_accent: str = "#FFF3E0"  # Accent panels
+
+    # TM results display colors
+    tm_source_label: str = "#1976D2"  # Blue for source language label
+    tm_target_label: str = "#388E3C"  # Green for target language label
+    tm_highlight_bg: str = "#FFFF00"  # Yellow background for search term highlight
+    tm_highlight_text: str = "#000000"  # Black text for highlighted terms
+
     def to_dict(self) -> Dict:
         """Convert theme to dictionary"""
         return asdict(self)
@@ -88,7 +109,8 @@ class ThemeManager:
             text="#212121",
             base="#FFFFFF",
             button="#E0E0E0",
-            highlight="#2196F3",
+            highlight="#e3f2fd",
+            highlight_text="#000000",
         ),
         
         "Soft Gray": Theme(
@@ -130,6 +152,29 @@ class ThemeManager:
             grid_line="#404040",
             tab_bg="#2B2B2B",
             tab_selected="#1E1E1E",
+            # TM match colors (darker versions for dark mode)
+            tm_exact="#2E5C35",  # Dark green
+            tm_high="#5C5424",  # Dark yellow
+            tm_medium="#5C4224",  # Dark orange
+            tm_low="#2B2B2B",  # Match window background
+            # Action button colors (keep vibrant for visibility in dark mode)
+            button_success="#388E3C",  # Darker green
+            button_info="#1976D2",  # Darker blue
+            button_warning="#F57C00",  # Darker orange
+            button_danger="#D32F2F",  # Darker red
+            button_neutral="#455A64",  # Darker blue-gray
+            button_purple="#7B1FA2",  # Darker purple
+            # Panel/info box backgrounds (dark versions)
+            panel_info="#1A2F3A",  # Dark blue
+            panel_warning="#3A3020",  # Dark yellow
+            panel_neutral="#323232",  # Dark gray
+            panel_preview="#252525",  # Dark preview
+            panel_accent="#3A2F1A",  # Dark accent
+            # TM results display colors (brighter for visibility in dark mode)
+            tm_source_label="#64B5F6",  # Brighter blue for source language label
+            tm_target_label="#81C784",  # Brighter green for target language label
+            tm_highlight_bg="#FFD54F",  # Softer yellow for dark mode
+            tm_highlight_text="#000000",  # Black text for highlighted terms
         ),
         
         "Sepia": Theme(
