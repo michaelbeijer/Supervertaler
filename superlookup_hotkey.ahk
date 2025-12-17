@@ -24,6 +24,11 @@
 ; Author: Michael Beijer
 ; ============================================================================
 
+; Set tray icon to Supervertaler icon
+#SingleInstance Force
+TraySetIcon(A_ScriptDir "\assets\icon.ico", , true)
+A_IconTip := "Supervertaler - Superlookup Hotkey (Ctrl+Alt+L)"
+
 ^!l::
 {
     ; Simply copy selected text with Ctrl+C

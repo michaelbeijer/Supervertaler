@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.43"
+__version__ = "1.9.44"
 __phase__ = "0.9"
 __release_date__ = "2025-12-17"
 __edition__ = "Qt"
@@ -5896,21 +5896,15 @@ class SupervertalerQt(QMainWindow):
         # Add tabs to main interface
         self.main_tabs.addTab(self.document_views_widget, "📝 Project Editor")
         
-        # 1. PROJECT RESOURCES (Translation Memories, Termbases, etc.)
+        # 1. PROJECT RESOURCES (Translation Memories, Termbases, Prompts, etc.)
         resources_tab = self.create_resources_tab()
         self.main_tabs.addTab(resources_tab, "📚 Project Resources")
         
-        # 2. PROMPT MANAGER
-        prompt_widget = QWidget()
-        self.prompt_manager_qt = UnifiedPromptManagerQt(self, standalone=False)
-        self.prompt_manager_qt.create_tab(prompt_widget)
-        self.main_tabs.addTab(prompt_widget, "🤖 Prompt Manager")
-        
-        # 3. TOOLS
+        # 2. TOOLS
         tools_tab = self.create_specialised_tools_tab()
         self.main_tabs.addTab(tools_tab, "🛠️ Tools")
 
-        # 4. SETTINGS
+        # 3. SETTINGS
         settings_tab = self.create_settings_tab()
         self.main_tabs.addTab(settings_tab, "⚙️ Settings")
         
@@ -7639,6 +7633,13 @@ class SupervertalerQt(QMainWindow):
         
         ref_tab = self.create_reference_images_tab()
         resources_tabs.addTab(ref_tab, "🎯 Image Context")
+        
+        # Prompt Manager (Prompt Library + AI Assistant)
+        from modules.unified_prompt_manager_qt import UnifiedPromptManagerQt
+        prompt_widget = QWidget()
+        self.prompt_manager_qt = UnifiedPromptManagerQt(self, standalone=False)
+        self.prompt_manager_qt.create_tab(prompt_widget)
+        resources_tabs.addTab(prompt_widget, "🤖 Prompts")
         
         layout.addWidget(resources_tabs)
         
@@ -10618,8 +10619,8 @@ class SupervertalerQt(QMainWindow):
             QMessageBox.warning(self, "Error", "Please select a termbase to import into")
             return
         
-        # Get termbase info from Name column (column 2)
-        name_item = termbase_table.item(selected_row, 2)
+        # Get termbase info from Name column (column 1 - has ID stored in UserRole)
+        name_item = termbase_table.item(selected_row, 1)
         if not name_item:
             QMessageBox.warning(self, "Error", "Could not read termbase information")
             return
@@ -31876,7 +31877,8 @@ class SuperlookupTab(QWidget):
         button_layout = QHBoxLayout()
         
         search_btn = QPushButton("🔍 Search")
-        search_btn.setStyleSheet("font-weight: bold; background-color: #2196F3; color: white; padding: 8px;")
+        search_btn.setStyleSheet("font-weight: bold; background-color: #2196F3; color: white; padding: 8px; outline: none;")
+        search_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         search_btn.clicked.connect(self.perform_lookup)
         button_layout.addWidget(search_btn)
         
