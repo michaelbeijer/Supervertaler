@@ -61,6 +61,22 @@ class SpellcheckManager:
         'Korean': 'ko_KR',
     }
     
+    # Short code mappings (for project files that store "nl" instead of "Dutch")
+    SHORT_CODE_MAP = {
+        'en': 'en_US',
+        'nl': 'nl_NL',
+        'de': 'de_DE',
+        'fr': 'fr_FR',
+        'es': 'es_ES',
+        'it': 'it_IT',
+        'pt': 'pt_PT',
+        'pl': 'pl_PL',
+        'ru': 'ru_RU',
+        'zh': 'zh_CN',
+        'ja': 'ja_JP',
+        'ko': 'ko_KR',
+    }
+    
     # Reverse mapping
     CODE_TO_LANGUAGE = {v: k for k, v in LANGUAGE_MAP.items()}
     
@@ -125,13 +141,23 @@ class SpellcheckManager:
         Set the spellcheck language.
         
         Args:
-            language: Language name (e.g., "English", "Dutch") or code (e.g., "en_US")
+            language: Language name (e.g., "English", "Dutch"), short code (e.g., "nl", "en"),
+                      or full code (e.g., "en_US", "nl_NL")
             
         Returns:
             True if language was set successfully
         """
         # Convert language name to code if needed
-        lang_code = self.LANGUAGE_MAP.get(language, language)
+        # First try full name map (English -> en_US)
+        lang_code = self.LANGUAGE_MAP.get(language)
+        
+        # Then try short code map (nl -> nl_NL)
+        if not lang_code:
+            lang_code = self.SHORT_CODE_MAP.get(language.lower() if language else '')
+        
+        # Fall back to using the input directly (might be en_US already)
+        if not lang_code:
+            lang_code = language
         
         if lang_code == self._current_language:
             return True  # Already set

@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** December 17, 2025 | **Version:** v1.9.44
+> **Last Updated:** December 17, 2025 | **Version:** v1.9.45
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.44 (December 2025) |
+| **Version** | v1.9.45 (December 2025) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -331,6 +331,46 @@ google_api_key=AI...
 ---
 
 ## 🔄 Recent Development History
+
+### December 17, 2025 - Version 1.9.45: Termbase Highlight Styles & Spellcheck Auto-Language
+
+**🏷️ Configurable Termbase Highlight Styles**
+
+Three visual styles for termbase term highlighting in the translation grid:
+
+- **Background (Default)**: Pastel green shades based on priority (existing behavior)
+- **Dotted Underline**: DotLine underline with priority-based colors
+  - Priority 1: Red
+  - Priority 2-3: Gray shades  
+  - Priority 4+: User-configurable color (default dark green)
+  - Reset button to restore default color
+- **Semibold**: DemiBold font weight with tinted green foreground colors
+
+**Settings UI:**
+- New "🏷️ Termbase Highlight Style" section in Settings → View Settings
+- Radio button selection for style type
+- Color picker for dotted underline (Priority 4+)
+- Reset button to restore default color
+
+**🔤 Spellcheck Auto-Language Initialization**
+
+Fixed spellcheck not using project's target language:
+
+- **All Import Handlers**: DOCX, TXT, memoQ, CafeTran, Trados bilingual, SDLPPX, Phrase now initialize spellcheck for target language
+- **Project Load**: Always sets spellcheck to project target language (ignores old saved language)
+- **Short Code Support**: Added `SHORT_CODE_MAP` in spellcheck_manager.py to handle "nl" → "nl_NL", "de" → "de_DE", etc.
+
+**Bug Fixes:**
+- Fixed NT list crash (`lst.active` → `lst.is_active`)
+- Fixed NonTranslatable attributes (`pattern` → `text`, `description` → `notes`)
+- Fixed Ctrl+K going to Settings instead of Superlookup (tab index 3 → 2)
+- Renamed Grid/Document tabs to "Grid View"/"Document View"
+
+**Files Modified:**
+- `Supervertaler.py` - `highlight_termbase_matches()`, `_create_view_settings_tab()`, `_save_view_settings_from_ui()`, all import handlers, `load_project()`
+- `modules/spellcheck_manager.py` - Added `SHORT_CODE_MAP`, updated `set_language()` to handle short codes
+
+---
 
 ### December 16, 2025 - Version 1.9.41: Dark Mode Complete Implementation
 

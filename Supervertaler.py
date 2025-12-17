@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.44"
+__version__ = "1.9.45"
 __phase__ = "0.9"
 __release_date__ = "2025-12-17"
 __edition__ = "Qt"
@@ -1221,13 +1221,18 @@ class ReadOnlyGridTextEditor(QTextEdit):
 
     def highlight_termbase_matches(self, matches_dict: Dict):
         """
-        Highlight termbase matches in the text using background colors based on priority.
-        Does NOT change the widget - just adds background formatting to existing text.
+        Highlight termbase matches in the text using the configured style.
+        Does NOT change the widget - just adds formatting to existing text.
+        
+        Supported styles (configured in Settings > View Settings):
+        - 'background': Pastel green background colors based on priority (default)
+        - 'dotted': Subtle dotted underline (IDE/code editor style)
+        - 'semibold': Slightly bolder text with tinted color (typographic)
         
         Args:
             matches_dict: Dictionary of {term: {'translation': str, 'priority': int}} or {term: str}
         """
-        from PyQt6.QtGui import QTextCursor, QTextCharFormat, QColor
+        from PyQt6.QtGui import QTextCursor, QTextCharFormat, QColor, QFont
         
         # Get the document and create a cursor
         doc = self.document()
@@ -1243,6 +1248,22 @@ class ReadOnlyGridTextEditor(QTextEdit):
         # If no matches, we're done (highlighting has been cleared)
         if not matches_dict:
             return
+        
+        # Get highlight style from main window settings
+        highlight_style = 'background'  # default
+        dotted_color = '#808080'  # default medium gray (more visible)
+        parent = self.parent()
+        while parent:
+            if hasattr(parent, 'termbase_highlight_style'):
+                highlight_style = getattr(parent, 'termbase_highlight_style', 'background')
+                dotted_color = getattr(parent, 'termbase_dotted_color', '#808080')
+                break
+            elif hasattr(parent, 'load_general_settings'):
+                settings = parent.load_general_settings()
+                highlight_style = settings.get('termbase_highlight_style', 'background')
+                dotted_color = settings.get('termbase_dotted_color', '#808080')
+                break
+            parent = parent.parent() if hasattr(parent, 'parent') else None
         
         # Sort matches by source term length (longest first) to avoid partial matches
         # Since dict keys are now term_ids, we need to extract source terms first
@@ -1261,48 +1282,13 @@ class ReadOnlyGridTextEditor(QTextEdit):
         
         for term, term_id, match_info in term_entries:
             # Get ranking, forbidden status, and termbase type
-            ranking = match_info.get('ranking', None)  # NEW: use ranking instead of priority
+            ranking = match_info.get('ranking', None)
             forbidden = match_info.get('forbidden', False)
             is_project_termbase = match_info.get('is_project_termbase', False)
+            translation = match_info.get('target', match_info.get('translation', ''))
             
             # IMPORTANT: Treat ranking #1 as project termbase (even if flag not set)
-            # This matches the logic in the termbase list UI
             is_effective_project = is_project_termbase or (ranking == 1)
-            
-            # Debug logging for color selection
-            # (This will be printed once per term)
-            if hasattr(self, 'parent') and hasattr(self.parent(), 'log'):
-                parent = self.parent()
-                while parent and not hasattr(parent, 'log'):
-                    parent = parent.parent()
-                if parent and hasattr(parent, 'log'):
-                    parent.log(f"  🎨 Highlighting '{term}': is_project={is_project_termbase}, ranking={ranking}, effective_project={is_effective_project}, forbidden={forbidden}")
-            
-            # Color selection based on term status and ranking
-            # All termbase matches use SOFT, PASTEL green shades (subtle background highlighting)
-            # Lower ranking number = higher priority = slightly less pastel (but still soft)
-            if forbidden:
-                color = QColor(0, 0, 0)  # Black for forbidden terms
-            else:
-                # Use ranking to determine soft green shade
-                # All shades are pastel/soft to stay in the background
-                if ranking is not None:
-                    # Map ranking to soft pastel green shades:
-                    # Ranking #1: Soft medium green (still readable but subtle)
-                    # Ranking #2: Soft light green
-                    # Ranking #3: Very soft light green
-                    # Ranking #4+: Extremely soft pastel green
-                    if ranking == 1:
-                        color = QColor(165, 214, 167)  # Soft medium green (Green 200)
-                    elif ranking == 2:
-                        color = QColor(200, 230, 201)  # Soft light green (Green 100)
-                    elif ranking == 3:
-                        color = QColor(220, 237, 200)  # Very soft light green (Light Green 100)
-                    else:
-                        color = QColor(232, 245, 233)  # Extremely soft pastel green (Green 50)
-                else:
-                    # No ranking (inactive termbase) - use soft light green
-                    color = QColor(200, 230, 201)  # Green 100 (fallback)
             
             # Find all occurrences of this term (case-insensitive)
             term_lower = term.lower()
@@ -1326,15 +1312,68 @@ class ReadOnlyGridTextEditor(QTextEdit):
                     cursor.setPosition(idx)
                     cursor.setPosition(end_idx, QTextCursor.MoveMode.KeepAnchor)
                     
-                    # Create format with background color
+                    # Create format based on style
                     fmt = QTextCharFormat()
-                    fmt.setBackground(color)
-                    # Use black text for soft pastel backgrounds (better contrast and readability)
-                    # Only use white text for dark forbidden terms
-                    if forbidden:
-                        fmt.setForeground(QColor("white"))
+                    
+                    if highlight_style == 'dotted':
+                        # DOTTED UNDERLINE STYLE (IDE/code editor approach)
+                        # Simple dotted line like the Gemini example - clean and unobtrusive
+                        fmt.setUnderlineStyle(QTextCharFormat.UnderlineStyle.DotLine)
+                        if forbidden:
+                            fmt.setUnderlineColor(QColor(0, 0, 0))  # Black for forbidden
+                        else:
+                            # Higher priority = red (more attention), lower = gray (subtle)
+                            if ranking == 1:
+                                fmt.setUnderlineColor(QColor('#CC0000'))  # Red for priority 1 (project termbase)
+                            elif ranking == 2:
+                                fmt.setUnderlineColor(QColor('#505050'))  # Dark gray for priority 2
+                            elif ranking == 3:
+                                fmt.setUnderlineColor(QColor('#707070'))  # Medium gray
+                            else:
+                                fmt.setUnderlineColor(QColor(dotted_color))  # User-configured color
+                        # Add tooltip with translation
+                        if translation:
+                            fmt.setToolTip(f"Termbase: {translation}")
+                    
+                    elif highlight_style == 'semibold':
+                        # SEMIBOLD TEXT STYLE (typographic approach)
+                        fmt.setFontWeight(QFont.Weight.DemiBold)
+                        if forbidden:
+                            fmt.setForeground(QColor(180, 0, 0))  # Dark red for forbidden
+                        else:
+                            # Tinted dark color based on ranking
+                            if ranking == 1:
+                                fmt.setForeground(QColor('#1B5E20'))  # Dark green for priority 1
+                            elif ranking == 2:
+                                fmt.setForeground(QColor('#2E7D32'))  # Medium dark green
+                            elif ranking == 3:
+                                fmt.setForeground(QColor('#388E3C'))  # Medium green
+                            else:
+                                fmt.setForeground(QColor('#43A047'))  # Lighter green
+                        # Add tooltip with translation
+                        if translation:
+                            fmt.setToolTip(f"Termbase: {translation}")
+                    
                     else:
-                        fmt.setForeground(QColor("black"))
+                        # BACKGROUND COLOR STYLE (default - current behavior)
+                        if forbidden:
+                            color = QColor(0, 0, 0)  # Black for forbidden terms
+                            fmt.setForeground(QColor("white"))
+                        else:
+                            # Use ranking to determine soft green shade
+                            if ranking is not None:
+                                if ranking == 1:
+                                    color = QColor(165, 214, 167)  # Soft medium green (Green 200)
+                                elif ranking == 2:
+                                    color = QColor(200, 230, 201)  # Soft light green (Green 100)
+                                elif ranking == 3:
+                                    color = QColor(220, 237, 200)  # Very soft light green
+                                else:
+                                    color = QColor(232, 245, 233)  # Extremely soft pastel green
+                            else:
+                                color = QColor(200, 230, 201)  # Green 100 (fallback)
+                            fmt.setForeground(QColor("black"))
+                        fmt.setBackground(color)
                     
                     # Apply format
                     cursor.setCharFormat(fmt)
@@ -4389,6 +4428,10 @@ class SupervertalerQt(QMainWindow):
         self.enable_alternating_row_colors = True  # Enable alternating row colors by default
         self.even_row_color = '#FFFFFF'  # White for even rows
         self.odd_row_color = '#F0F0F0'  # Light gray for odd rows
+        
+        # Termbase highlight style settings
+        self.termbase_highlight_style = 'background'  # 'background', 'dotted', or 'semibold'
+        self.termbase_dotted_color = '#808080'  # Medium gray for dotted underline (more visible)
 
         # Debug mode settings (for troubleshooting performance issues)
         self.debug_mode_enabled = False  # Enables verbose debug logging
@@ -5885,8 +5928,8 @@ class SupervertalerQt(QMainWindow):
         grid_widget = self.create_grid_view_widget_for_home()
         doc_widget = self.create_document_view_widget_for_home()
         
-        self.document_views_widget.addTab(grid_widget, "📊 Grid")
-        self.document_views_widget.addTab(doc_widget, "📄 Document")
+        self.document_views_widget.addTab(grid_widget, "📊 Grid View")
+        self.document_views_widget.addTab(doc_widget, "📄 Document View")
         
         # Register document container
         doc_container = self._locate_document_container(doc_widget, "editor_document_container")
@@ -9742,7 +9785,7 @@ class SupervertalerQt(QMainWindow):
             import hashlib
             project_id = int(hashlib.md5(self.project_file_path.encode()).hexdigest()[:8], 16)
         
-        active_lists = [lst for lst in nt_lists if lst.active]
+        active_lists = [lst for lst in nt_lists if lst.is_active]
         
         if not active_lists:
             # No active lists - show selection dialog
@@ -9796,17 +9839,17 @@ class SupervertalerQt(QMainWindow):
         
         for lst in active_lists:
             # Check if already exists
-            if any(entry.pattern.lower() == text.lower() for entry in lst.entries):
+            if any(entry.text.lower() == text.lower() for entry in lst.entries):
                 duplicate_count += 1
                 self.log(f"⚠️ '{text}' already exists in NT list '{lst.name}'")
                 continue
             
             # Create new entry
             new_entry = NonTranslatable(
-                pattern=text,
-                pattern_type='exact',
-                description=f"Added from grid selection",
-                case_sensitive=True
+                text=text,
+                case_sensitive=True,
+                category="",
+                notes=f"Added from grid selection"
             )
             lst.entries.append(new_entry)
             
@@ -12744,7 +12787,8 @@ class SupervertalerQt(QMainWindow):
     
     def _create_view_settings_tab(self):
         """Create View/Display Settings tab content"""
-        from PyQt6.QtWidgets import QGroupBox, QPushButton
+        from PyQt6.QtWidgets import QGroupBox, QPushButton, QButtonGroup, QColorDialog
+        from PyQt6.QtGui import QColor
         
         tab = QWidget()
         layout = QVBoxLayout(tab)
@@ -13044,6 +13088,92 @@ class SupervertalerQt(QMainWindow):
         
         row_colors_group.setLayout(row_colors_layout)
         layout.addWidget(row_colors_group)
+        
+        # Termbase Highlight Style section
+        tb_highlight_group = QGroupBox("🏷️ Termbase Highlight Style")
+        tb_highlight_layout = QVBoxLayout()
+        
+        tb_highlight_info = QLabel(
+            "Choose how termbase matches are highlighted in the source text.\n"
+            "Different styles offer varying levels of visual prominence."
+        )
+        tb_highlight_info.setStyleSheet("font-size: 8pt; padding: 8px; border-radius: 2px;")
+        tb_highlight_info.setWordWrap(True)
+        tb_highlight_layout.addWidget(tb_highlight_info)
+        
+        # Style selection radio buttons
+        tb_style_layout = QVBoxLayout()
+        
+        # Get current setting
+        current_tb_style = font_settings.get('termbase_highlight_style', 'background')
+        
+        # Background highlight (current default)
+        tb_style_background = CheckmarkRadioButton("Background Color - Pastel green background (current default)")
+        tb_style_background.setToolTip("Traditional highlight with pastel green background colors based on priority")
+        tb_style_background.setChecked(current_tb_style == 'background')
+        tb_style_layout.addWidget(tb_style_background)
+        
+        # Dotted underline (code editor style)
+        tb_style_dotted = CheckmarkRadioButton("Dotted Underline - Subtle dotted line below text (IDE style)")
+        tb_style_dotted.setToolTip("Unobtrusive dotted underline like code editors use for suggestions")
+        tb_style_dotted.setChecked(current_tb_style == 'dotted')
+        tb_style_layout.addWidget(tb_style_dotted)
+        
+        # Semibold text (typographic)
+        tb_style_semibold = CheckmarkRadioButton("Semibold Text - Slightly bolder text with tinted color")
+        tb_style_semibold.setToolTip("Typographic approach: text appears slightly heavier/darker without adding visual elements")
+        tb_style_semibold.setChecked(current_tb_style == 'semibold')
+        tb_style_layout.addWidget(tb_style_semibold)
+        
+        # Button group for mutual exclusion
+        tb_style_group = QButtonGroup(self)
+        tb_style_group.addButton(tb_style_background, 0)
+        tb_style_group.addButton(tb_style_dotted, 1)
+        tb_style_group.addButton(tb_style_semibold, 2)
+        
+        tb_highlight_layout.addLayout(tb_style_layout)
+        
+        # Dotted underline color picker (only shown when dotted style selected)
+        dotted_color_layout = QHBoxLayout()
+        dotted_color_label = QLabel("Underline Color:")
+        dotted_color_layout.addWidget(dotted_color_label)
+        
+        dotted_underline_color = font_settings.get('termbase_dotted_color', '#808080')
+        dotted_color_btn = QPushButton()
+        dotted_color_btn.setFixedSize(80, 25)
+        dotted_color_btn.setStyleSheet(f"background-color: {dotted_underline_color}; border: 1px solid #999;")
+        dotted_color_btn.setToolTip("Color for dotted underline (soft blue-grey recommended)")
+        
+        def choose_dotted_color():
+            color = QColorDialog.getColor(QColor(dotted_underline_color), self, "Choose Dotted Underline Color")
+            if color.isValid():
+                hex_color = color.name()
+                dotted_color_btn.setStyleSheet(f"background-color: {hex_color}; border: 1px solid #999;")
+                dotted_color_btn.setProperty('selected_color', hex_color)
+        
+        dotted_color_btn.clicked.connect(choose_dotted_color)
+        dotted_color_btn.setProperty('selected_color', dotted_underline_color)
+        dotted_color_layout.addWidget(dotted_color_btn)
+        
+        # Reset to default color button
+        reset_dotted_btn = QPushButton("Reset")
+        reset_dotted_btn.setFixedWidth(50)
+        reset_dotted_btn.setToolTip("Reset to default color (#808080)")
+        def reset_dotted_color():
+            dotted_color_btn.setStyleSheet("background-color: #808080; border: 1px solid #999;")
+            dotted_color_btn.setProperty('selected_color', '#808080')
+        reset_dotted_btn.clicked.connect(reset_dotted_color)
+        dotted_color_layout.addWidget(reset_dotted_btn)
+        
+        dotted_color_layout.addStretch()
+        tb_highlight_layout.addLayout(dotted_color_layout)
+        
+        # Store references for save function
+        self._tb_style_group = tb_style_group
+        self._tb_dotted_color_btn = dotted_color_btn
+        
+        tb_highlight_group.setLayout(tb_highlight_layout)
+        layout.addWidget(tb_highlight_group)
         
         # Quick Reference section
         reference_group = QGroupBox("⌨️ Font Size Quick Reference")
@@ -14125,6 +14255,20 @@ class SupervertalerQt(QMainWindow):
             if odd_color:
                 general_settings['odd_row_color'] = odd_color
                 self.odd_row_color = odd_color
+        
+        # Save termbase highlight style settings
+        if hasattr(self, '_tb_style_group') and self._tb_style_group is not None:
+            checked_id = self._tb_style_group.checkedId()
+            style_map = {0: 'background', 1: 'dotted', 2: 'semibold'}
+            tb_style = style_map.get(checked_id, 'background')
+            general_settings['termbase_highlight_style'] = tb_style
+            self.termbase_highlight_style = tb_style
+        
+        if hasattr(self, '_tb_dotted_color_btn') and self._tb_dotted_color_btn is not None:
+            dotted_color = self._tb_dotted_color_btn.property('selected_color')
+            if dotted_color:
+                general_settings['termbase_dotted_color'] = dotted_color
+                self.termbase_dotted_color = dotted_color
         
         self.save_general_settings(general_settings)
         
@@ -16210,23 +16354,23 @@ class SupervertalerQt(QMainWindow):
                     self.spellcheck_toggle_action.setChecked(self.spellcheck_enabled)
                 self._update_spellcheck_button_style()
                 
-                # Initialize spellcheck for target language if enabled
-                if self.spellcheck_enabled:
-                    # Use saved language, or fall back to project's target language
-                    project_target = self.current_project.target_lang if self.current_project else self.target_language
-                    lang = spellcheck_settings.get('language', project_target)
-                    if self.spellcheck_manager.set_language(lang):
-                        self.log(f"✓ Restored spellcheck: enabled for {lang}")
+                # Always use the project's target language for spellcheck
+                # (ignore any saved language - target language is the correct one)
+                project_target = self.current_project.target_lang if self.current_project else self.target_language
+                if project_target and self.spellcheck_manager.set_language(project_target):
+                    if self.spellcheck_enabled:
+                        self.log(f"✓ Spellcheck enabled for target language: {project_target}")
                     else:
-                        self.log(f"⚠ Spellcheck enabled but dictionary not available for {lang}")
+                        self.log(f"✓ Spellcheck initialized for target language: {project_target} (disabled)")
                 else:
-                    self.log(f"📋 Spellcheck disabled for this project")
+                    self.log(f"⚠ Spellcheck dictionary not available for {project_target}")
             else:
-                # No spellcheck settings in project - if spellcheck is enabled, use project's target language
-                if self.spellcheck_enabled and self.current_project:
+                # No spellcheck settings in project - always initialize for target language
+                # (even if spellcheck is disabled, set the language so it's ready when enabled)
+                if self.current_project:
                     project_target = self.current_project.target_lang
                     if project_target and self.spellcheck_manager.set_language(project_target):
-                        self.log(f"✓ Spellcheck set to project target language: {project_target}")
+                        self.log(f"✓ Spellcheck initialized for target language: {project_target}")
             
             self.log(f"✓ Loaded project: {self.current_project.name} ({len(self.current_project.segments)} segments)")
             
@@ -17544,6 +17688,9 @@ class SupervertalerQt(QMainWindow):
             self.log(f"✓ Loaded {len(segments)} segments from {len(paragraphs)} paragraphs")
             self.log(f"📍 Project language pair: {project.source_lang.upper()} → {project.target_lang.upper()}")
             self.update_window_title()  # Update window title to show project is loaded
+            
+            # Initialize spellcheck for target language
+            self._initialize_spellcheck_for_target_language(target_lang)
 
             # Auto-generate markdown if enabled
             if hasattr(self, 'auto_generate_markdown') and self.auto_generate_markdown:
@@ -17747,6 +17894,9 @@ class SupervertalerQt(QMainWindow):
             
             # Initialize TM for this project
             self.initialize_tm_database()
+            
+            # Initialize spellcheck for target language
+            self._initialize_spellcheck_for_target_language(target_lang)
             
             # Update status
             empty_count = sum(1 for seg in segments if not seg.source.strip())
@@ -19233,6 +19383,9 @@ class SupervertalerQt(QMainWindow):
             self.load_segments_to_grid()
             self.initialize_tm_database()
             
+            # Initialize spellcheck for target language
+            self._initialize_spellcheck_for_target_language(target_lang)
+            
             # If smart formatting was used, auto-enable Tags view so user sees the tags
             if self.memoq_smart_formatting:
                 self._enable_tag_view_after_import()
@@ -19729,6 +19882,10 @@ class SupervertalerQt(QMainWindow):
             self.load_segments_to_grid()
             self.initialize_tm_database()
             
+            # Initialize spellcheck for target language
+            target_lang = self.current_project.target_lang if self.current_project else 'nl'
+            self._initialize_spellcheck_for_target_language(target_lang)
+            
             # Log success
             self.log(f"✓ Imported {len(segments)} segments from CafeTran bilingual DOCX: {Path(file_path).name}")
             
@@ -19930,6 +20087,9 @@ class SupervertalerQt(QMainWindow):
             self.update_window_title()
             self.load_segments_to_grid()
             self.initialize_tm_database()
+            
+            # Initialize spellcheck for target language
+            self._initialize_spellcheck_for_target_language(target_lang)
             
             # Count segments with tags
             tagged_count = sum(1 for s in trados_segments if s.source_tags)
@@ -20282,6 +20442,9 @@ class SupervertalerQt(QMainWindow):
             self.load_segments_to_grid()
             self.initialize_tm_database()
             
+            # Initialize spellcheck for target language
+            self._initialize_spellcheck_for_target_language(target_lang)
+            
             # Count pretranslated segments
             pretrans_count = sum(1 for s in segments if s.target)
             
@@ -20595,6 +20758,9 @@ class SupervertalerQt(QMainWindow):
             self.update_window_title()
             self.load_segments_to_grid()
             self.initialize_tm_database()
+            
+            # Initialize spellcheck for target language
+            self._initialize_spellcheck_for_target_language(target_lang)
 
             # Count segments with tags
             tagged_count = sum(1 for s in phrase_segments if s.source_tags)
@@ -22548,6 +22714,10 @@ class SupervertalerQt(QMainWindow):
         self.enable_alternating_row_colors = settings.get('enable_alternating_row_colors', True)
         self.even_row_color = settings.get('even_row_color', '#FFFFFF')
         self.odd_row_color = settings.get('odd_row_color', '#F0F0F0')
+        
+        # Load termbase highlight style settings
+        self.termbase_highlight_style = settings.get('termbase_highlight_style', 'background')
+        self.termbase_dotted_color = settings.get('termbase_dotted_color', '#808080')
 
         # Load LLM provider settings for AI Assistant
         llm_settings = self.load_llm_settings()
@@ -24460,6 +24630,20 @@ class SupervertalerQt(QMainWindow):
         except Exception as e:
             self.log(f"Warning: Could not configure TM database: {e}")
             self.tm_database = None
+    
+    def _initialize_spellcheck_for_target_language(self, target_lang: str):
+        """Initialize spellcheck for the given target language after import/load"""
+        if not target_lang:
+            return
+        
+        try:
+            if hasattr(self, 'spellcheck_manager') and self.spellcheck_manager:
+                if self.spellcheck_manager.set_language(target_lang):
+                    self.log(f"✓ Spellcheck initialized for target language: {target_lang}")
+                else:
+                    self.log(f"⚠ Spellcheck dictionary not available for {target_lang}")
+        except Exception as e:
+            self.log(f"⚠ Could not initialize spellcheck: {e}")
     
     def search_and_display_tm_matches(self, source_text: str):
         """Search TM and Termbases and display matches with visual diff for fuzzy matches"""
@@ -28138,8 +28322,8 @@ class SupervertalerQt(QMainWindow):
     def _go_to_superlookup(self):
         """Navigate to Superlookup in Tools tab"""
         if hasattr(self, 'main_tabs'):
-            # Main tabs: Project Editor=0, Project Resources=1, Prompt Manager=2, Tools=3, Settings=4
-            self.main_tabs.setCurrentIndex(3)  # Switch to Tools tab
+            # Main tabs: Project Editor=0, Project Resources=1, Tools=2, Settings=3
+            self.main_tabs.setCurrentIndex(2)  # Switch to Tools tab
             # Then switch to Superlookup sub-tab
             if hasattr(self, 'modules_tabs'):
                 # Find Superlookup index in modules tabs
