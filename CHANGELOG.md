@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.42 (December 17, 2025)
+**Current Version:** v1.9.43 (December 17, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -14,6 +14,7 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- 🔑 **Superlookup Hotkey Improvements (v1.9.43)** - Fixed Ctrl+Alt+L global hotkey not bringing Superlookup to foreground. Added AutoHotkey setup helper (Help → Setup AutoHotkey for Superlookup). New AutoHotkey path configuration in Settings → General Settings. Better error handling when AutoHotkey is not installed.
 - 📁 **Multi-File Project Support (v1.9.42)** - Import entire folders of files as a single multi-file project! File → Import → Folder (Multiple Files) supports DOCX and TXT files. Per-file progress tracking in View → File Progress dialog (or click status bar). New file filter dropdown to show segments from specific files. Status bar shows completion progress across all files. Source files automatically backed up to `_source_files/` folder. Relocate Source Folder feature to fix broken paths. Export to folder with TXT, DOCX, or Bilingual Table formats (export in progress - basic functionality available).
 - 🔍 **Superlookup Fixes (v1.9.42)** - Renamed `UniversalLookupTab` to `SuperlookupTab` for consistency. Fixed `theme_manager` attribute error when using Ctrl+Alt+L hotkey. Theme-aware search term highlighting now works properly.
 - 📋 **Spellcheck Info Dialog Redesign (v1.9.42)** - Two-column horizontal layout fits on screen without scrolling. Clear explanation of auto-switching between built-in pyspellchecker and Hunspell backends. Compact diagnostics section.

@@ -62,6 +62,7 @@ cyhunspell>=2.0.0
 # Automation Features (AutoFingers/Universal Lookup)
 # Note: AutoFingers is Windows/memoQ-specific
 # pyautogui>=0.9.53
+ahk>=1.0.0  # Python wrapper for AutoHotkey (Windows only, for Superlookup global hotkey)
 
 # ===== Platform-Specific Notes =====
 # - Linux: tkinter is not needed (removed from imports)

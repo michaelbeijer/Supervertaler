@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.42"
+__version__ = "1.9.43"
 __phase__ = "0.9"
 __release_date__ = "2025-12-17"
 __edition__ = "Qt"
@@ -5552,6 +5552,14 @@ class SupervertalerQt(QMainWindow):
         help_menu.addAction(github_action)
 
         help_menu.addSeparator()
+        
+        # AutoHotkey setup (Windows only)
+        if os.name == 'nt':
+            ahk_setup_action = QAction("⌨️ Setup AutoHotkey (Global Hotkey)", self)
+            ahk_setup_action.setToolTip("Configure AutoHotkey for Superlookup global hotkey (Ctrl+Alt+L)")
+            ahk_setup_action.triggered.connect(self._show_ahk_setup_from_menu)
+            help_menu.addAction(ahk_setup_action)
+            help_menu.addSeparator()
 
         about_action = QAction("ℹ️ About", self)
         about_action.triggered.connect(self.show_about)
@@ -7528,6 +7536,9 @@ class SupervertalerQt(QMainWindow):
             # Create new Superlookup instance for detached window
             # Or move the existing one - better to create new to avoid widget parenting issues
             detached_lookup = SuperlookupTab(self.lookup_detached_window)
+            
+            # Explicitly copy theme_manager reference
+            detached_lookup.theme_manager = self.theme_manager
             
             # Copy TM database reference if available
             if hasattr(self, 'tm_database') and self.tm_database:
@@ -12247,6 +12258,36 @@ class SupervertalerQt(QMainWindow):
         
         return tab
     
+    def _find_autohotkey_for_settings(self):
+        """Find AutoHotkey executable for settings display (doesn't modify state)"""
+        # Standard installation paths
+        username = os.environ.get('USERNAME', '')
+        ahk_paths = [
+            r"C:\Program Files\AutoHotkey\v2\AutoHotkey.exe",
+            r"C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe",
+            r"C:\Program Files\AutoHotkey\AutoHotkey.exe",
+            r"C:\Program Files (x86)\AutoHotkey\AutoHotkey.exe",
+            fr"C:\Users\{username}\AppData\Local\Programs\AutoHotkey\AutoHotkey.exe",
+        ]
+        
+        for path in ahk_paths:
+            if os.path.exists(path):
+                return path, 'detected'
+        
+        return None, None
+    
+    def _browse_autohotkey_for_settings(self, line_edit):
+        """Browse for AutoHotkey executable and update line edit"""
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Locate AutoHotkey Executable",
+            "C:\\Program Files",
+            "Executable Files (*.exe);;All Files (*.*)"
+        )
+        
+        if file_path:
+            line_edit.setText(file_path)
+    
     def _create_general_settings_tab(self):
         """Create General Settings tab content"""
         from PyQt6.QtWidgets import QCheckBox, QGroupBox, QPushButton
@@ -12445,6 +12486,82 @@ class SupervertalerQt(QMainWindow):
         editor_group.setLayout(editor_layout)
         layout.addWidget(editor_group)
 
+        # AutoHotkey Settings group (Windows only - for Superlookup global hotkey)
+        if os.name == 'nt':
+            ahk_group = QGroupBox("⌨️ AutoHotkey Settings (Superlookup Global Hotkey)")
+            ahk_layout = QVBoxLayout()
+            
+            ahk_info = QLabel(
+                "AutoHotkey enables the global hotkey (Ctrl+Alt+L) for Superlookup,\n"
+                "allowing you to look up selected text from any application."
+            )
+            ahk_info.setWordWrap(True)
+            ahk_info.setStyleSheet("color: #666; font-size: 9pt; padding: 5px;")
+            ahk_layout.addWidget(ahk_info)
+            
+            # Current status
+            ahk_status_layout = QHBoxLayout()
+            ahk_status_label = QLabel("Status:")
+            ahk_status_layout.addWidget(ahk_status_label)
+            
+            # Check if hotkey is registered
+            hotkey_active = False
+            if hasattr(self, 'lookup_tab') and hasattr(self.lookup_tab, 'hotkey_registered'):
+                hotkey_active = self.lookup_tab.hotkey_registered
+            
+            status_text = "✅ Active" if hotkey_active else "❌ Not active"
+            ahk_status_value = QLabel(status_text)
+            ahk_status_value.setStyleSheet("font-weight: bold; color: green;" if hotkey_active else "font-weight: bold; color: #c00;")
+            ahk_status_layout.addWidget(ahk_status_value)
+            ahk_status_layout.addStretch()
+            ahk_layout.addLayout(ahk_status_layout)
+            
+            # Path input
+            ahk_path_layout = QHBoxLayout()
+            ahk_path_label = QLabel("AutoHotkey Path:")
+            ahk_path_layout.addWidget(ahk_path_label)
+            
+            ahk_path_edit = QLineEdit()
+            ahk_path_edit.setPlaceholderText("Leave empty to auto-detect, or specify custom path...")
+            saved_ahk_path = general_settings.get('autohotkey_path', '')
+            ahk_path_edit.setText(saved_ahk_path)
+            ahk_path_edit.setToolTip(
+                "If AutoHotkey is installed in a non-standard location,\n"
+                "specify the full path to AutoHotkey.exe here.\n"
+                "Leave empty to use auto-detection."
+            )
+            ahk_path_layout.addWidget(ahk_path_edit, stretch=1)
+            
+            # Browse button
+            ahk_browse_btn = QPushButton("📁 Browse...")
+            ahk_browse_btn.setMaximumWidth(100)
+            ahk_browse_btn.clicked.connect(lambda: self._browse_autohotkey_for_settings(ahk_path_edit))
+            ahk_path_layout.addWidget(ahk_browse_btn)
+            
+            ahk_layout.addLayout(ahk_path_layout)
+            
+            # Detected path info
+            detected_path, source = self._find_autohotkey_for_settings()
+            if detected_path:
+                detected_label = QLabel(f"💡 Detected: {detected_path}")
+                detected_label.setStyleSheet("color: #666; font-size: 9pt;")
+                ahk_layout.addWidget(detected_label)
+            else:
+                not_found_label = QLabel("⚠️ AutoHotkey not found. Download from autohotkey.com")
+                not_found_label.setStyleSheet("color: #d97706; font-size: 9pt;")
+                ahk_layout.addWidget(not_found_label)
+            
+            # Note about restart
+            restart_note = QLabel("💡 Changes require restart to take effect.")
+            restart_note.setStyleSheet("color: #666; font-size: 9pt; font-style: italic;")
+            ahk_layout.addWidget(restart_note)
+            
+            ahk_group.setLayout(ahk_layout)
+            layout.addWidget(ahk_group)
+            
+            # Store reference for saving
+            self.ahk_path_edit = ahk_path_edit
+
         # Find & Replace settings group
         find_replace_group = QGroupBox("Find && Replace Settings")
         find_replace_layout = QVBoxLayout()
@@ -12615,7 +12732,8 @@ class SupervertalerQt(QMainWindow):
             llm_spin, mt_spin, tm_limit_spin, tb_spin,
             auto_open_log_cb, auto_insert_100_cb, tm_save_mode_combo, tb_highlight_cb,
             enable_backup_cb, backup_interval_spin,
-            tb_order_combo, tb_hide_shorter_cb, smart_selection_cb
+            tb_order_combo, tb_hide_shorter_cb, smart_selection_cb,
+            ahk_path_edit=getattr(self, 'ahk_path_edit', None)
         ))
         layout.addWidget(save_btn)
         
@@ -13875,7 +13993,8 @@ class SupervertalerQt(QMainWindow):
                                        llm_spin=None, mt_spin=None, tm_limit_spin=None, tb_spin=None,
                                        auto_open_log_cb=None, auto_insert_100_cb=None, tm_save_mode_combo=None, tb_highlight_cb=None,
                                        enable_backup_cb=None, backup_interval_spin=None,
-                                       tb_order_combo=None, tb_hide_shorter_cb=None, smart_selection_cb=None):
+                                       tb_order_combo=None, tb_hide_shorter_cb=None, smart_selection_cb=None,
+                                       ahk_path_edit=None):
         """Save general settings from UI (non-AI settings only)"""
         self.allow_replace_in_source = allow_replace_cb.isChecked()
         self.update_warning_banner()
@@ -13921,7 +14040,8 @@ class SupervertalerQt(QMainWindow):
             'supermemory_auto_init': existing_settings.get('supermemory_auto_init', False),  # Preserve AI setting
             'grid_font_size': self.default_font_size,
             'results_match_font_size': 9,
-            'results_compare_font_size': 9
+            'results_compare_font_size': 9,
+            'autohotkey_path': ahk_path_edit.text().strip() if ahk_path_edit is not None else existing_settings.get('autohotkey_path', '')
         }
         
         # Add match limits if provided (MT, TM, Termbase - LLM is handled in AI Settings)
@@ -15839,8 +15959,17 @@ class SupervertalerQt(QMainWindow):
     def closeEvent(self, event):
         """Handle application close - cleanup AHK process"""
         try:
-            # Terminate AutoHotkey process if running
-            if hasattr(self.lookup_tab, 'ahk_process') and self.lookup_tab.ahk_process:
+            # Clean up ahk library if used
+            if hasattr(self, 'lookup_tab') and hasattr(self.lookup_tab, '_using_ahk_library') and self.lookup_tab._using_ahk_library:
+                if hasattr(self.lookup_tab, '_ahk') and self.lookup_tab._ahk:
+                    try:
+                        self.lookup_tab._ahk.stop_hotkeys()
+                        print("[Superlookup] ahk library hotkeys stopped")
+                    except Exception as e:
+                        print(f"[Superlookup] Error stopping ahk library: {e}")
+            
+            # Terminate external AutoHotkey process if running (fallback method)
+            if hasattr(self, 'lookup_tab') and hasattr(self.lookup_tab, 'ahk_process') and self.lookup_tab.ahk_process:
                 try:
                     self.lookup_tab.ahk_process.terminate()
                     self.lookup_tab.ahk_process.wait(timeout=2)
@@ -28409,6 +28538,17 @@ class SupervertalerQt(QMainWindow):
                 "Superdocs",
                 "Go to Tools → Superdocs to view interactive documentation."
             )
+    
+    def _show_ahk_setup_from_menu(self):
+        """Show AutoHotkey setup dialog from Help menu"""
+        if hasattr(self, 'lookup_tab') and self.lookup_tab:
+            self.lookup_tab._show_autohotkey_setup_dialog()
+        else:
+            QMessageBox.warning(
+                self,
+                "Superlookup Not Available",
+                "Superlookup tab is not available. Please restart the application."
+            )
 
     def show_about(self):
         """Show about dialog with clickable website link"""
@@ -31557,8 +31697,14 @@ class SuperlookupTab(QWidget):
         
         print("[Superlookup] SuperlookupTab.__init__ called")
         
-        # Get theme manager from main window
+        # Get theme manager from main window (try parent first, then parent's parent for dialogs)
         self.theme_manager = getattr(parent, 'theme_manager', None)
+        if self.theme_manager is None and parent is not None:
+            # Try parent's parent (for when parent is a dialog window)
+            parent_parent = getattr(parent, 'parent', lambda: None)()
+            if parent_parent:
+                self.theme_manager = getattr(parent_parent, 'theme_manager', None)
+        print(f"[Superlookup] theme_manager: {self.theme_manager is not None}")
         
         # Import lookup engine
         try:
@@ -32843,15 +32989,24 @@ class SuperlookupTab(QWidget):
                 self.tm_results_table.setRowHeight(row, 60)
         
         # === Update Vertical View (List) ===
-        # Use theme colors for HTML content
-        theme = self.theme_manager.current_theme
-        text_color = theme.text
-        # Use darker backgrounds for TM results to improve readability
-        bg_even = theme.window_bg  # Darker than base
-        bg_odd = theme.alternate_bg
-        border_color = theme.border
-        source_label_color = theme.tm_source_label
-        target_label_color = theme.tm_target_label
+        # Use theme colors for HTML content (with fallback for missing theme_manager)
+        if self.theme_manager:
+            theme = self.theme_manager.current_theme
+            text_color = theme.text
+            # Use darker backgrounds for TM results to improve readability
+            bg_even = theme.window_bg  # Darker than base
+            bg_odd = theme.alternate_bg
+            border_color = theme.border
+            source_label_color = theme.tm_source_label
+            target_label_color = theme.tm_target_label
+        else:
+            # Fallback colors for light theme
+            text_color = "#000000"
+            bg_even = "#FFFFFF"
+            bg_odd = "#EBEBEB"
+            border_color = "#CCCCCC"
+            source_label_color = "#0066CC"
+            target_label_color = "#006600"
 
         html = f"<h3 style='color: {text_color}; margin-bottom: 15px;'>Found {len(results)} TM matches for '<span style='color: {source_label_color};'>{search_text}</span>'</h3>"
 
@@ -32897,10 +33052,15 @@ class SuperlookupTab(QWidget):
         # Escape HTML special characters first
         html_text = text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
 
-        # Use theme colors for highlight
-        theme = self.theme_manager.current_theme
-        highlight_bg = theme.tm_highlight_bg
-        highlight_text = theme.tm_highlight_text
+        # Use theme colors for highlight (with fallback for missing theme_manager)
+        if self.theme_manager:
+            theme = self.theme_manager.current_theme
+            highlight_bg = theme.tm_highlight_bg
+            highlight_text = theme.tm_highlight_text
+        else:
+            # Fallback colors - yellow highlight
+            highlight_bg = "#FFFF00"
+            highlight_text = "#000000"
 
         # Case-insensitive replacement with theme-aware highlight
         # Use regex to preserve original case
@@ -33242,10 +33402,246 @@ class SuperlookupTab(QWidget):
         if self.engine:
             self.engine.set_tm_database(tm_db)
     
+    def _find_autohotkey_executable(self):
+        """Find AutoHotkey executable, checking saved path first
+        
+        Returns tuple: (exe_path, source) where source is 'saved', 'detected', or None
+        """
+        # First, check if user has a saved custom path
+        if self.main_window and hasattr(self.main_window, 'general_settings'):
+            saved_path = self.main_window.general_settings.get('autohotkey_path', '')
+            if saved_path and os.path.exists(saved_path):
+                print(f"[Superlookup] Using saved AutoHotkey path: {saved_path}")
+                return saved_path, 'saved'
+        
+        # Standard installation paths
+        username = os.environ.get('USERNAME', '')
+        ahk_paths = [
+            r"C:\Program Files\AutoHotkey\v2\AutoHotkey.exe",
+            r"C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe",
+            r"C:\Program Files\AutoHotkey\AutoHotkey.exe",
+            r"C:\Program Files (x86)\AutoHotkey\AutoHotkey.exe",
+            fr"C:\Users\{username}\AppData\Local\Programs\AutoHotkey\AutoHotkey.exe",
+            # v1 paths
+            r"C:\Program Files\AutoHotkey\v1.1\AutoHotkeyU64.exe",
+            r"C:\Program Files\AutoHotkey\v1.1\AutoHotkeyU32.exe",
+        ]
+        
+        for path in ahk_paths:
+            if os.path.exists(path):
+                print(f"[Superlookup] Detected AutoHotkey at: {path}")
+                return path, 'detected'
+        
+        return None, None
+    
+    def _show_autohotkey_setup_dialog(self):
+        """Show dialog to help user install or locate AutoHotkey"""
+        dialog = QDialog(self)
+        dialog.setWindowTitle("AutoHotkey Setup - Superlookup")
+        dialog.setMinimumWidth(500)
+        
+        layout = QVBoxLayout(dialog)
+        
+        # Header
+        header = QLabel("⌨️ AutoHotkey Required for Global Hotkey")
+        header.setStyleSheet("font-size: 14px; font-weight: bold; margin-bottom: 10px;")
+        layout.addWidget(header)
+        
+        # Explanation
+        explanation = QLabel(
+            "Superlookup uses AutoHotkey to provide a global hotkey (Ctrl+Alt+L) "
+            "that works from any application.\n\n"
+            "Without AutoHotkey, Superlookup will still work, but only when "
+            "Supervertaler is the active window."
+        )
+        explanation.setWordWrap(True)
+        explanation.setStyleSheet("margin-bottom: 15px;")
+        layout.addWidget(explanation)
+        
+        # Options group
+        options_group = QGroupBox("Choose an option:")
+        options_layout = QVBoxLayout(options_group)
+        
+        # Option 1: Download AutoHotkey
+        download_btn = QPushButton("📥 Download AutoHotkey (Recommended)")
+        download_btn.setStyleSheet("padding: 8px; font-size: 11px;")
+        download_btn.setToolTip("Opens the AutoHotkey download page in your browser")
+        download_btn.clicked.connect(lambda: self._open_ahk_download())
+        options_layout.addWidget(download_btn)
+        
+        # Option 2: Browse for existing installation
+        browse_layout = QHBoxLayout()
+        browse_btn = QPushButton("📁 Browse for AutoHotkey.exe")
+        browse_btn.setStyleSheet("padding: 8px; font-size: 11px;")
+        browse_btn.setToolTip("Locate AutoHotkey.exe if you have it installed in a custom location")
+        browse_btn.clicked.connect(lambda: self._browse_for_autohotkey(dialog))
+        browse_layout.addWidget(browse_btn)
+        options_layout.addLayout(browse_layout)
+        
+        # Option 3: Skip
+        skip_btn = QPushButton("⏭️ Skip (Use Superlookup without global hotkey)")
+        skip_btn.setStyleSheet("padding: 8px; font-size: 11px; color: #666;")
+        skip_btn.clicked.connect(dialog.reject)
+        options_layout.addWidget(skip_btn)
+        
+        layout.addWidget(options_group)
+        
+        # Status label (for showing selected path)
+        self._ahk_setup_status = QLabel("")
+        self._ahk_setup_status.setStyleSheet("color: green; margin-top: 10px;")
+        self._ahk_setup_status.setWordWrap(True)
+        layout.addWidget(self._ahk_setup_status)
+        
+        # Note about restart
+        note = QLabel(
+            "💡 Note: After installing AutoHotkey, restart Supervertaler to enable the global hotkey."
+        )
+        note.setStyleSheet("color: #666; font-size: 10px; margin-top: 15px;")
+        note.setWordWrap(True)
+        layout.addWidget(note)
+        
+        # Close button
+        close_btn = QPushButton("Close")
+        close_btn.clicked.connect(dialog.accept)
+        layout.addWidget(close_btn)
+        
+        dialog.exec()
+    
+    def _open_ahk_download(self):
+        """Open AutoHotkey download page"""
+        import webbrowser
+        webbrowser.open("https://www.autohotkey.com/download/")
+        QMessageBox.information(
+            self,
+            "Download AutoHotkey",
+            "The AutoHotkey download page has been opened in your browser.\n\n"
+            "Download and install AutoHotkey v2.x, then restart Supervertaler."
+        )
+    
+    def _browse_for_autohotkey(self, parent_dialog):
+        """Let user browse for AutoHotkey executable"""
+        file_path, _ = QFileDialog.getOpenFileName(
+            parent_dialog,
+            "Locate AutoHotkey Executable",
+            "C:\\Program Files",
+            "Executable Files (*.exe);;All Files (*.*)"
+        )
+        
+        if file_path:
+            # Verify it looks like AutoHotkey
+            if 'autohotkey' not in file_path.lower():
+                result = QMessageBox.question(
+                    parent_dialog,
+                    "Confirm Selection",
+                    f"The selected file doesn't appear to be AutoHotkey:\n{file_path}\n\n"
+                    "Are you sure you want to use this file?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+                )
+                if result != QMessageBox.StandardButton.Yes:
+                    return
+            
+            # Save the path
+            if self.main_window and hasattr(self.main_window, 'general_settings'):
+                self.main_window.general_settings['autohotkey_path'] = file_path
+                self.main_window.save_general_settings()
+                print(f"[Superlookup] Saved AutoHotkey path: {file_path}")
+            
+            self._ahk_setup_status.setText(f"✓ Saved: {file_path}\n\nRestart Supervertaler to use this path.")
+            
+            QMessageBox.information(
+                parent_dialog,
+                "Path Saved",
+                f"AutoHotkey path saved:\n{file_path}\n\n"
+                "Please restart Supervertaler to enable the global hotkey."
+            )
+    
     def register_global_hotkey(self):
-        """Register global hotkey for Superlookup"""
+        """Register global hotkey for Superlookup
+        
+        Uses external AHK script + signal file method (most reliable).
+        The ahk library method is available but disabled by default due to
+        callback threading issues.
+        """
         global _ahk_process
         print("[Superlookup] register_global_hotkey called")
+        
+        # Use external script method (most reliable, proven to work)
+        self._register_hotkey_external_script()
+    
+    def _try_ahk_library_method(self):
+        """Try to register hotkey using ahk Python library
+        
+        Returns True if successful, False otherwise
+        """
+        try:
+            from ahk import AHK
+            print("[Superlookup] ahk library available, attempting to use it...")
+            
+            # Find AutoHotkey executable using shared function
+            ahk_exe, source = self._find_autohotkey_executable()
+            
+            # Create AHK instance (with executable path if found)
+            if ahk_exe:
+                print(f"[Superlookup] Using AutoHotkey at: {ahk_exe} (source: {source})")
+                self._ahk = AHK(executable_path=ahk_exe)
+            else:
+                # Let it try to find AHK on PATH (may fail)
+                self._ahk = AHK()
+            print(f"[Superlookup] AHK instance created: {self._ahk}")
+            
+            # Define hotkey callback
+            def on_hotkey():
+                """Called when Ctrl+Alt+L is pressed"""
+                print("[Superlookup] Hotkey triggered via ahk library!")
+                try:
+                    # Copy selection to clipboard
+                    self._ahk.send('^c')  # Ctrl+C
+                    time.sleep(0.2)  # Give clipboard time to update
+                    
+                    # Get clipboard text
+                    text = pyperclip.paste()
+                    
+                    # Activate Supervertaler window
+                    try:
+                        self._ahk.win_activate('Supervertaler')
+                    except Exception as e:
+                        print(f"[Superlookup] win_activate error (non-critical): {e}")
+                    
+                    # Trigger lookup in main thread
+                    if text:
+                        # Use QTimer to call from main thread
+                        QTimer.singleShot(0, lambda: self.on_ahk_capture(text))
+                        
+                except Exception as e:
+                    print(f"[Superlookup] Error in hotkey callback: {e}")
+            
+            # Register the hotkey
+            self._ahk.add_hotkey('^!l', callback=on_hotkey)  # Ctrl+Alt+L
+            self._ahk.start_hotkeys()
+            
+            print("[Superlookup] ✓ Hotkey registered via ahk library: Ctrl+Alt+L")
+            self.hotkey_registered = True
+            self._using_ahk_library = True
+            return True
+            
+        except ImportError:
+            print("[Superlookup] ahk library not installed (pip install ahk)")
+            return False
+        except Exception as e:
+            print(f"[Superlookup] ahk library method failed: {e}")
+            # Clean up on failure
+            if hasattr(self, '_ahk'):
+                try:
+                    self._ahk.stop_hotkeys()
+                except:
+                    pass
+                self._ahk = None
+            return False
+    
+    def _register_hotkey_external_script(self):
+        """Register hotkey using external AHK script (fallback method)"""
+        global _ahk_process
+        self._using_ahk_library = False
         try:
             # Kill any existing instances of the AHK script first
             if os.name == 'nt':
@@ -33273,29 +33669,18 @@ class SuperlookupTab(QWidget):
                 except:
                     pass
             
-            # Find AutoHotkey executable
-            username = os.environ.get('USERNAME', '')
-            ahk_paths = [
-                r"C:\Program Files\AutoHotkey\v2\AutoHotkey.exe",
-                r"C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe",
-                r"C:\Program Files\AutoHotkey\AutoHotkey.exe",
-                r"C:\Program Files (x86)\AutoHotkey\AutoHotkey.exe",
-                fr"C:\Users\{username}\AppData\Local\Programs\AutoHotkey\AutoHotkey.exe"
-            ]
-            
-            ahk_exe = None
-            for path in ahk_paths:
-                if os.path.exists(path):
-                    ahk_exe = path
-                    break
+            # Find AutoHotkey executable using shared function
+            ahk_exe, source = self._find_autohotkey_executable()
             
             if not ahk_exe:
-                print("[Superlookup] AutoHotkey not found. Please install from https://www.autohotkey.com/")
-                print("[Superlookup] Searched paths:", ahk_paths)
+                print("[Superlookup] AutoHotkey not found.")
+                print("[Superlookup] Global hotkey (Ctrl+Alt+L) will not be available.")
                 self.hotkey_registered = False
+                # Show setup dialog (deferred to avoid blocking startup)
+                QTimer.singleShot(2000, self._show_autohotkey_setup_dialog)
                 return
             
-            print(f"[Superlookup] Found AutoHotkey at: {ahk_exe}")
+            print(f"[Superlookup] Found AutoHotkey at: {ahk_exe} (source: {source})")
             
             ahk_script = Path(__file__).parent / "superlookup_hotkey.ahk"
             print(f"[Superlookup] Looking for script at: {ahk_script}")

@@ -36,5 +36,14 @@
         FileDelete signalFile
     FileAppend "trigger", signalFile
     
+    ; Bring Supervertaler window to foreground
+    ; Try multiple window title patterns
+    if WinExist("Supervertaler")
+        WinActivate
+    else if WinExist("ahk_exe python.exe") && WinExist("Supervertaler")
+        WinActivate "Supervertaler"
+    else if WinExist("ahk_exe pythonw.exe") && WinExist("Supervertaler")
+        WinActivate "Supervertaler"
+    
     return
 }
