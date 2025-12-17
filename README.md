@@ -1,8 +1,8 @@
-# 🚀 Supervertaler v1.9.41
+# 🚀 Supervertaler v1.9.42
 
 🎯 **The Ultimate Translation Workbench** — Context-aware AI with intuitive 2-Layer Prompt Architecture, AI Assistant, project termbase system with automatic extraction, and specialized modules.
 
-**Current Version:** v1.9.41 (December 16, 2025)
+**Current Version:** v1.9.42 (December 17, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 

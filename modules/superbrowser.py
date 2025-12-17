@@ -13,6 +13,7 @@ Version: 1.0.0
 """
 
 import os
+import shutil
 from PyQt6.QtCore import QUrl, Qt
 from PyQt6.QtWidgets import (
     QWidget, QHBoxLayout, QVBoxLayout, QLabel, 
@@ -22,6 +23,23 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWebEngineCore import QWebEngineProfile
 from PyQt6.QtGui import QPalette, QColor
+
+
+def _clear_corrupted_cache(storage_path: str):
+    """
+    Clear potentially corrupted Chromium cache folders.
+    These can cause 'wrong file structure on disk' errors on startup.
+    """
+    problematic_dirs = [
+        os.path.join(storage_path, "Shared Dictionary"),
+        os.path.join(storage_path, "cache", "Shared Dictionary"),
+    ]
+    for dir_path in problematic_dirs:
+        if os.path.exists(dir_path):
+            try:
+                shutil.rmtree(dir_path)
+            except Exception:
+                pass  # Silently ignore - may be in use
 
 
 class ChatColumn(QWidget):
@@ -91,6 +109,10 @@ class ChatColumn(QWidget):
         
         storage_path = os.path.join(os.path.dirname(__file__), "..", base_folder, "superbrowser_profiles", profile_name)
         os.makedirs(storage_path, exist_ok=True)
+        
+        # Clear potentially corrupted cache to prevent Chromium errors
+        _clear_corrupted_cache(storage_path)
+        
         self.profile.setPersistentStoragePath(storage_path)
         self.profile.setCachePath(os.path.join(storage_path, "cache"))
         

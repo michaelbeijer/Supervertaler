@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.41 (December 16, 2025)
+**Current Version:** v1.9.42 (December 17, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -14,6 +14,9 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- 📁 **Multi-File Project Support (v1.9.42)** - Import entire folders of files as a single multi-file project! File → Import → Folder (Multiple Files) supports DOCX and TXT files. Per-file progress tracking in View → File Progress dialog (or click status bar). New file filter dropdown to show segments from specific files. Status bar shows completion progress across all files. Source files automatically backed up to `_source_files/` folder. Relocate Source Folder feature to fix broken paths. Export to folder with TXT, DOCX, or Bilingual Table formats (export in progress - basic functionality available).
+- 🔍 **Superlookup Fixes (v1.9.42)** - Renamed `UniversalLookupTab` to `SuperlookupTab` for consistency. Fixed `theme_manager` attribute error when using Ctrl+Alt+L hotkey. Theme-aware search term highlighting now works properly.
+- 📋 **Spellcheck Info Dialog Redesign (v1.9.42)** - Two-column horizontal layout fits on screen without scrolling. Clear explanation of auto-switching between built-in pyspellchecker and Hunspell backends. Compact diagnostics section.
 - 🌙 **Dark Mode (v1.9.41)** - Complete dark theme implementation with proper styling across the entire application. Dark compare boxes in Translation Results panel, dark Termview with visible text for non-matched words, and consistent theming throughout all UI components. Switch themes via View → Theme Editor.
 - 🔍 **Superlookup Unified Concordance System (v1.9.40)** - Major consolidation: Ctrl+K now opens Superlookup instead of a separate concordance dialog. All lookup resources in one place: TM concordance, Termbase matches, Supermemory semantic search, Machine Translation, and Web Resources. New dual-view toggle: Horizontal (table) or Vertical (list) layout. Tab reorganization: "Project Resources" now comes before "Prompt Manager". Removed redundant tabs from Translation Memories (Concordance and Import/Export - functionality already available in Superlookup and TM List). FTS5 full-text search now properly used for blazingly fast concordance on millions of segments.
 - 🔍 **Superlookup Multilingual Search (v1.9.39)** - Complete overhaul of Superlookup with multilingual language filtering. New From/To language dropdowns filter TM and termbase searches by source/target language pair. Search direction radio buttons (Both/Source only/Target only) for precise concordance searches. Yellow highlighting of search terms in results. Compact results display with tooltips for full text. Languages auto-populate from your TMs and termbases, grouped alphabetically by language family. UI cleanup: removed Manual Capture button and Operating Modes selector.

@@ -193,20 +193,23 @@ class SpellcheckManager:
             # Create the spellchecker instance
             self._spellchecker = SpellChecker(language=target_lang)
             
-            # Verify it's actually working by checking a common word
-            # This catches cases where the dictionary file is missing or corrupt
-            if hasattr(self._spellchecker, 'word_frequency'):
-                # Check that the word frequency data was loaded
-                if len(self._spellchecker.word_frequency) == 0:
-                    print(f"SpellChecker: Word frequency data is empty for {target_lang}")
+            # Verify it's actually working by testing a common word
+            # Use a simple spell check instead of checking word_frequency length
+            # (word_frequency is a WordFrequency object that doesn't support len())
+            try:
+                test_result = self._spellchecker.known(['the', 'test'])
+                if not test_result:
+                    print(f"SpellChecker: Dictionary appears empty for {target_lang}")
                     self._spellchecker = None
                     return False
+            except Exception:
+                # If known() fails, the spellchecker is likely broken
+                self._spellchecker = None
+                return False
             
             return True
         except Exception as e:
             print(f"SpellChecker initialization failed for {lang_code}: {e}")
-            import traceback
-            traceback.print_exc()
             self._spellchecker = None
             return False
     
@@ -469,7 +472,16 @@ class SpellcheckManager:
         
         # Check if pyspellchecker word frequency data is available
         if self._spellchecker and hasattr(self._spellchecker, 'word_frequency'):
-            info['pyspellchecker_word_count'] = len(self._spellchecker.word_frequency)
+            # WordFrequency doesn't support len(), use alternative method
+            try:
+                # Try to get count via the keys() method if available
+                wf = self._spellchecker.word_frequency
+                if hasattr(wf, 'keys'):
+                    info['pyspellchecker_word_count'] = len(list(wf.keys())[:1000])  # Sample size
+                else:
+                    info['pyspellchecker_word_count'] = "available"
+            except:
+                info['pyspellchecker_word_count'] = "available"
         
         return info
 

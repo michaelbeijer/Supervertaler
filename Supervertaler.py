@@ -34,9 +34,9 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.41"
+__version__ = "1.9.42"
 __phase__ = "0.9"
-__release_date__ = "2025-12-12"
+__release_date__ = "2025-12-17"
 __edition__ = "Qt"
 
 import sys
@@ -112,7 +112,7 @@ try:
         QPushButton, QSpinBox, QSplitter, QTextEdit, QStatusBar,
         QStyledItemDelegate, QInputDialog, QDialog, QLineEdit, QRadioButton,
         QButtonGroup, QDialogButtonBox, QTabWidget, QGroupBox, QGridLayout, QCheckBox,
-        QProgressBar, QFormLayout, QTabBar, QPlainTextEdit, QAbstractItemDelegate,
+        QProgressBar, QProgressDialog, QFormLayout, QTabBar, QPlainTextEdit, QAbstractItemDelegate,
         QFrame, QListWidget, QListWidgetItem, QStackedWidget, QTreeWidget, QTreeWidgetItem,
         QScrollArea, QSizePolicy, QSlider, QToolButton
     )
@@ -632,6 +632,8 @@ class Segment:
     modified_at: str = ""  # Last modification timestamp
     list_number: Optional[int] = None  # For numbered lists: 1, 2, 3, etc. None for bullets or non-lists
     list_type: str = ""  # "numbered", "bullet", or "" for non-list items
+    file_id: Optional[int] = None  # ID of the file this segment belongs to (for multi-file projects)
+    file_name: str = ""  # Name of the file this segment belongs to (for multi-file projects)
     
     def __post_init__(self):
         """Initialize timestamps if not provided"""
@@ -674,10 +676,15 @@ class Project:
     sdlppx_source_path: str = None  # Path to original Trados SDLPPX package for SDLRPX export
     original_txt_path: str = None  # Path to original simple text file for round-trip export
     concordance_geometry: Dict[str, int] = None  # Window geometry for Concordance Search {x, y, width, height}
+    # Multi-file project support
+    files: List[Dict[str, Any]] = None  # List of files in project: [{id, name, path, type, segment_count, ...}]
+    is_multifile: bool = False  # True if this is a multi-file project
     
     def __post_init__(self):
         if self.segments is None:
             self.segments = []
+        if self.files is None:
+            self.files = []
         if not self.created:
             self.created = datetime.now().isoformat()
         if not self.modified:
@@ -747,6 +754,12 @@ class Project:
         if hasattr(self, 'concordance_geometry') and self.concordance_geometry:
             result['concordance_geometry'] = self.concordance_geometry
         
+        # Add multi-file project data
+        if hasattr(self, 'is_multifile') and self.is_multifile:
+            result['is_multifile'] = self.is_multifile
+        if hasattr(self, 'files') and self.files:
+            result['files'] = self.files
+        
         # Add segments LAST (so they appear at the end of the file)
         result['segments'] = [seg.to_dict() for seg in self.segments]
         
@@ -805,6 +818,11 @@ class Project:
         # Store concordance window geometry if it exists
         if 'concordance_geometry' in data:
             project.concordance_geometry = data['concordance_geometry']
+        # Store multi-file project data if it exists
+        if 'is_multifile' in data:
+            project.is_multifile = data['is_multifile']
+        if 'files' in data:
+            project.files = data['files']
         return project
 
 
@@ -4846,6 +4864,15 @@ class SupervertalerQt(QMainWindow):
         self.progress_remaining_label.setStyleSheet("color: #555; font-size: 11px;")
         self.progress_remaining_label.setToolTip("Segments still requiring work")
         progress_layout.addWidget(self.progress_remaining_label)
+        
+        # Files indicator (for multi-file projects)
+        self.progress_files_label = QLabel("")
+        self.progress_files_label.setStyleSheet("color: #2196F3; font-size: 11px;")
+        self.progress_files_label.setToolTip("Files in multi-file project (click for details)")
+        self.progress_files_label.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.progress_files_label.mousePressEvent = lambda e: self.show_file_progress_dialog()
+        self.progress_files_label.hide()  # Hidden by default, shown for multi-file projects
+        progress_layout.addWidget(self.progress_files_label)
 
         # Add as permanent widget (stays on right side)
         self.status_bar.addPermanentWidget(progress_frame)
@@ -4953,6 +4980,8 @@ class SupervertalerQt(QMainWindow):
                 self.progress_words_label.setText("Words: --")
                 self.progress_confirmed_label.setText("Confirmed: --")
                 self.progress_remaining_label.setText("Remaining: --")
+                if hasattr(self, 'progress_files_label'):
+                    self.progress_files_label.hide()
                 return
 
             segments = self.current_project.segments
@@ -5003,6 +5032,32 @@ class SupervertalerQt(QMainWindow):
 
             self.progress_remaining_label.setText(f"Remaining: {remaining_count}")
             self.progress_remaining_label.setStyleSheet(f"color: {remaining_color}; font-size: 11px;")
+            
+            # Multi-file project indicator
+            if hasattr(self, 'progress_files_label'):
+                is_multifile = getattr(self.current_project, 'is_multifile', False)
+                files = getattr(self.current_project, 'files', [])
+                
+                if is_multifile and files:
+                    # Count completed files
+                    completed_files = 0
+                    for file_info in files:
+                        file_id = file_info['id']
+                        file_segs = [s for s in segments if getattr(s, 'file_id', None) == file_id]
+                        if file_segs:
+                            conf_count = sum(1 for s in file_segs if s.status in confirmed_statuses)
+                            if conf_count == len(file_segs):
+                                completed_files += 1
+                    
+                    self.progress_files_label.setText(f"📁 Files: {completed_files}/{len(files)}")
+                    self.progress_files_label.setToolTip(
+                        f"Multi-file project: {len(files)} files\n"
+                        f"Completed: {completed_files} files\n\n"
+                        "Click for detailed file progress"
+                    )
+                    self.progress_files_label.show()
+                else:
+                    self.progress_files_label.hide()
 
         except Exception as e:
             self.log(f"⚠️ Error updating progress stats: {e}")
@@ -5069,6 +5124,13 @@ class SupervertalerQt(QMainWindow):
         import_txt_action.triggered.connect(self.import_simple_txt)
         import_menu.addAction(import_txt_action)
         
+        import_menu.addSeparator()
+        
+        # Multi-file folder import
+        import_folder_action = QAction("📁 &Folder (Multiple Files)...", self)
+        import_folder_action.triggered.connect(self.import_folder_multifile)
+        import_menu.addAction(import_folder_action)
+        
         import_menu.addSeparator()  # Separate monolingual from bilingual tools
         
         import_memoq_action = QAction("memoQ &Bilingual Table (DOCX)...", self)
@@ -5134,6 +5196,22 @@ class SupervertalerQt(QMainWindow):
         export_txt_action = QAction("Simple &Text File - Translated (TXT)...", self)
         export_txt_action.triggered.connect(self.export_simple_txt)
         export_menu.addAction(export_txt_action)
+        
+        export_menu.addSeparator()
+        
+        # Multi-file folder export
+        export_folder_action = QAction("📁 &Folder (Multiple Files)...", self)
+        export_folder_action.triggered.connect(self.export_folder_multifile)
+        export_folder_action.setToolTip("Export multi-file project to folder with separate files")
+        export_menu.addAction(export_folder_action)
+        
+        export_menu.addSeparator()
+        
+        # Relocate source folder for multi-file projects
+        relocate_source_action = QAction("🔗 &Relocate Source Folder...", self)
+        relocate_source_action.triggered.connect(self.relocate_source_folder)
+        relocate_source_action.setToolTip("Repoint to moved/renamed source folder for multi-file project")
+        export_menu.addAction(relocate_source_action)
         
         export_menu.addSeparator()
         
@@ -5401,6 +5479,14 @@ class SupervertalerQt(QMainWindow):
         auto_resize_action.triggered.connect(self.auto_resize_rows)
         auto_resize_action.setToolTip("Automatically resize all rows to fit content")
         view_menu.addAction(auto_resize_action)
+
+        view_menu.addSeparator()
+        
+        # Multi-file project progress
+        file_progress_action = QAction("📁 &File Progress...", self)
+        file_progress_action.triggered.connect(self.show_file_progress_dialog)
+        file_progress_action.setToolTip("View translation progress per file (multi-file projects)")
+        view_menu.addAction(file_progress_action)
 
         view_menu.addSeparator()
 
@@ -7441,7 +7527,7 @@ class SupervertalerQt(QMainWindow):
             
             # Create new Superlookup instance for detached window
             # Or move the existing one - better to create new to avoid widget parenting issues
-            detached_lookup = UniversalLookupTab(self.lookup_detached_window)
+            detached_lookup = SuperlookupTab(self.lookup_detached_window)
             
             # Copy TM database reference if available
             if hasattr(self, 'tm_database') and self.tm_database:
@@ -7582,9 +7668,9 @@ class SupervertalerQt(QMainWindow):
         tracked_tab = self.create_tracked_changes_tab()
         modules_tabs.addTab(tracked_tab, "🔄 Tracked Changes")
         
-        print("[DEBUG] About to create UniversalLookupTab...")
-        lookup_tab = UniversalLookupTab(self)
-        print("[DEBUG] UniversalLookupTab created successfully")
+        print("[DEBUG] About to create SuperlookupTab...")
+        lookup_tab = SuperlookupTab(self)
+        print("[DEBUG] SuperlookupTab created successfully")
         self.lookup_tab = lookup_tab  # Store reference for later use
         modules_tabs.addTab(lookup_tab, "🔍 Superlookup")
         print("[DEBUG] Superlookup tab added to modules_tabs")
@@ -14299,6 +14385,15 @@ class SupervertalerQt(QMainWindow):
         advanced_filter_btn.clicked.connect(self.show_advanced_filters_dialog)
         advanced_filter_btn.setMaximumWidth(160)
         advanced_filter_btn.setStyleSheet("background-color: #2196F3; color: white; font-weight: bold;")
+        
+        # File filter dropdown (for multi-file projects)
+        self.file_filter_combo = QComboBox()
+        self.file_filter_combo.setMinimumWidth(150)
+        self.file_filter_combo.setMaximumWidth(250)
+        self.file_filter_combo.addItem("📁 All Files", None)
+        self.file_filter_combo.currentIndexChanged.connect(self._on_file_filter_changed)
+        self.file_filter_combo.setToolTip("Filter segments by file (multi-file projects only)")
+        self.file_filter_combo.hide()  # Hidden by default, shown for multi-file projects
 
         # Show Invisibles button with dropdown menu
         show_invisibles_btn_home = QPushButton("¶ Show Invisibles")
@@ -14384,6 +14479,7 @@ class SupervertalerQt(QMainWindow):
         filter_layout.addWidget(clear_filters_btn)
         filter_layout.addWidget(quick_filter_btn)
         filter_layout.addWidget(advanced_filter_btn)
+        filter_layout.addWidget(self.file_filter_combo)  # File filter for multi-file projects
         filter_layout.addWidget(show_invisibles_btn_home)
         filter_layout.addWidget(self.spellcheck_btn)
         
@@ -15864,6 +15960,10 @@ class SupervertalerQt(QMainWindow):
             self.initialize_tm_database()  # Initialize TM for this project
             self.update_window_title()
             self.add_to_recent_projects(file_path)
+            
+            # Update file filter dropdown for multi-file projects
+            if hasattr(self, '_update_file_filter_combo'):
+                self._update_file_filter_combo()
             
             # Restore activated TMs for this project
             if hasattr(self, 'tm_metadata_mgr') and self.tm_metadata_mgr and self.current_project:
@@ -17767,6 +17867,977 @@ class SupervertalerQt(QMainWindow):
                 f"Failed to export text file:\n\n{str(e)}"
             )
     
+    # ========================================================================
+    # MULTI-FILE FOLDER IMPORT
+    # ========================================================================
+    
+    def import_folder_multifile(self):
+        """
+        Import multiple files from a folder as a single multi-file project.
+        
+        Supports:
+        - DOCX files (monolingual)
+        - TXT files (simple text, one segment per line)
+        - memoQ bilingual DOCX (if detected)
+        
+        All project resources (TM, termbases, prompts) apply to all files.
+        """
+        from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
+                                      QGroupBox, QComboBox, QPushButton, QScrollArea,
+                                      QFileDialog)
+        
+        # Select folder
+        folder_path = QFileDialog.getExistingDirectory(
+            self,
+            "Select Folder with Files to Import",
+            "",
+            QFileDialog.Option.ShowDirsOnly
+        )
+        
+        if not folder_path:
+            return
+        
+        # Scan folder for supported files
+        supported_extensions = ['.docx', '.txt']
+        found_files = []
+        
+        for filename in sorted(os.listdir(folder_path)):
+            ext = os.path.splitext(filename)[1].lower()
+            if ext in supported_extensions:
+                full_path = os.path.join(folder_path, filename)
+                found_files.append({
+                    'name': filename,
+                    'path': full_path,
+                    'type': 'docx' if ext == '.docx' else 'txt',
+                    'size': os.path.getsize(full_path)
+                })
+        
+        if not found_files:
+            QMessageBox.warning(
+                self,
+                "No Files Found",
+                f"No supported files found in folder:\n{folder_path}\n\n"
+                f"Supported formats: DOCX, TXT"
+            )
+            return
+        
+        # Show import dialog
+        dialog = QDialog(self)
+        dialog.setWindowTitle("📁 Import Folder - Multi-File Project")
+        dialog.setMinimumWidth(600)
+        dialog.setMinimumHeight(500)
+        
+        layout = QVBoxLayout(dialog)
+        
+        # Info
+        info_label = QLabel(
+            f"<b>📁 Multi-File Project Import</b><br><br>"
+            f"Found <b>{len(found_files)}</b> files in: <i>{os.path.basename(folder_path)}</i><br><br>"
+            f"All files will be combined into a single project.<br>"
+            f"Project resources (TM, termbases, prompts) will apply to all files.<br>"
+            f"You can track progress per file in the File Progress panel."
+        )
+        info_label.setWordWrap(True)
+        info_label.setTextFormat(Qt.TextFormat.RichText)
+        layout.addWidget(info_label)
+        
+        layout.addSpacing(10)
+        
+        # File list with checkboxes
+        files_group = QGroupBox(f"Files to Import ({len(found_files)} files)")
+        files_layout = QVBoxLayout(files_group)
+        
+        # Create a scroll area for the checkboxes
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setMinimumHeight(200)
+        scroll_area.setMaximumHeight(300)
+        scroll_widget = QWidget()
+        scroll_layout = QVBoxLayout(scroll_widget)
+        scroll_layout.setContentsMargins(5, 5, 5, 5)
+        scroll_layout.setSpacing(2)
+        
+        file_checkboxes = []
+        for f in found_files:
+            size_kb = f['size'] / 1024
+            checkbox = CheckmarkCheckBox(f"{f['name']} ({f['type'].upper()}, {size_kb:.1f} KB)")
+            checkbox.setChecked(True)  # Select all by default
+            checkbox.setProperty("file_data", f)  # Store file data on checkbox
+            file_checkboxes.append(checkbox)
+            scroll_layout.addWidget(checkbox)
+        
+        scroll_layout.addStretch()
+        scroll_area.setWidget(scroll_widget)
+        files_layout.addWidget(scroll_area)
+        
+        # Selection buttons
+        btn_layout = QHBoxLayout()
+        select_all_btn = QPushButton("Select All")
+        select_all_btn.clicked.connect(lambda: [cb.setChecked(True) for cb in file_checkboxes])
+        deselect_all_btn = QPushButton("Deselect All")
+        deselect_all_btn.clicked.connect(lambda: [cb.setChecked(False) for cb in file_checkboxes])
+        btn_layout.addWidget(select_all_btn)
+        btn_layout.addWidget(deselect_all_btn)
+        btn_layout.addStretch()
+        files_layout.addLayout(btn_layout)
+        
+        layout.addWidget(files_group)
+        
+        # Language pair selection
+        lang_group = QGroupBox("Language Pair (applies to all files)")
+        lang_layout = QHBoxLayout(lang_group)
+        
+        languages = [
+            ("English", "en"),
+            ("Dutch", "nl"),
+            ("German", "de"),
+            ("French", "fr"),
+            ("Spanish", "es"),
+            ("Italian", "it"),
+            ("Portuguese", "pt"),
+            ("Polish", "pl"),
+            ("Russian", "ru"),
+            ("Chinese", "zh"),
+            ("Japanese", "ja"),
+            ("Korean", "ko"),
+        ]
+        
+        source_label = QLabel("Source:")
+        source_combo = QComboBox()
+        for name, code in languages:
+            source_combo.addItem(name, code)
+        source_combo.setCurrentIndex(0)  # English default
+        
+        arrow_label = QLabel(" → ")
+        arrow_label.setStyleSheet("font-weight: bold; font-size: 14px;")
+        
+        target_label = QLabel("Target:")
+        target_combo = QComboBox()
+        for name, code in languages:
+            target_combo.addItem(name, code)
+        target_combo.setCurrentIndex(1)  # Dutch default
+        
+        lang_layout.addWidget(source_label)
+        lang_layout.addWidget(source_combo)
+        lang_layout.addWidget(arrow_label)
+        lang_layout.addWidget(target_label)
+        lang_layout.addWidget(target_combo)
+        lang_layout.addStretch()
+        
+        layout.addWidget(lang_group)
+        
+        # Import format options
+        format_group = QGroupBox("Import Options")
+        format_layout = QVBoxLayout(format_group)
+        
+        # memoQ format detection
+        memoq_checkbox = CheckmarkCheckBox("Detect memoQ bilingual format (DOCX files with tables)")
+        memoq_checkbox.setChecked(False)
+        memoq_checkbox.setToolTip("If checked, DOCX files with bilingual tables will be imported as memoQ bilingual format")
+        format_layout.addWidget(memoq_checkbox)
+        
+        layout.addWidget(format_group)
+        
+        layout.addSpacing(10)
+        
+        # Buttons
+        button_layout = QHBoxLayout()
+        ok_btn = QPushButton("📥 Import Selected Files")
+        ok_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 8px 16px;")
+        ok_btn.clicked.connect(dialog.accept)
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(dialog.reject)
+        
+        button_layout.addStretch()
+        button_layout.addWidget(cancel_btn)
+        button_layout.addWidget(ok_btn)
+        layout.addLayout(button_layout)
+        
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        
+        # Get selected files from checkboxes
+        selected_files = []
+        for checkbox in file_checkboxes:
+            if checkbox.isChecked():
+                selected_files.append(checkbox.property("file_data"))
+        
+        if not selected_files:
+            QMessageBox.warning(self, "No Files Selected", "Please select at least one file to import.")
+            return
+        
+        # Get language settings
+        source_lang = source_combo.currentData()
+        target_lang = target_combo.currentData()
+        detect_memoq = memoq_checkbox.isChecked()
+        
+        # Import files
+        self._import_multifile_project(folder_path, selected_files, source_lang, target_lang, detect_memoq)
+    
+    def _import_multifile_project(self, folder_path: str, files: list, source_lang: str, target_lang: str, detect_memoq: bool):
+        """
+        Import multiple files into a single project.
+        
+        Args:
+            folder_path: Path to the folder containing files
+            files: List of file dictionaries with 'name', 'path', 'type'
+            source_lang: Source language code
+            target_lang: Target language code
+            detect_memoq: Whether to detect memoQ bilingual format
+        """
+        from datetime import datetime
+        import shutil
+        
+        self.log(f"📁 Importing multi-file project from: {os.path.basename(folder_path)}")
+        self.log(f"   Files to import: {len(files)}")
+        
+        # Create _source_files folder to store copies of original files
+        # This ensures we always have the originals for format-preserving export
+        source_backup_folder = os.path.join(folder_path, "_source_files")
+        try:
+            os.makedirs(source_backup_folder, exist_ok=True)
+            self.log(f"   📦 Backing up source files to: _source_files/")
+        except Exception as e:
+            self.log(f"   ⚠️ Could not create backup folder: {str(e)}")
+            source_backup_folder = None
+        
+        # Initialize handlers
+        if not hasattr(self, 'docx_handler'):
+            from modules.docx_handler import DOCXHandler
+            self.docx_handler = DOCXHandler()
+        
+        if not hasattr(self, 'segmenter'):
+            from modules.simple_segmenter import SimpleSegmenter
+            self.segmenter = SimpleSegmenter()
+        
+        all_segments = []
+        file_metadata = []  # Track file info for the project
+        current_segment_id = 1
+        
+        # Progress dialog
+        progress_dialog = QProgressDialog("Importing files...", "Cancel", 0, len(files), self)
+        progress_dialog.setWindowTitle("Importing Multi-File Project")
+        progress_dialog.setWindowModality(Qt.WindowModality.WindowModal)
+        progress_dialog.setMinimumDuration(0)
+        
+        for idx, file_info in enumerate(files):
+            if progress_dialog.wasCanceled():
+                self.log("❌ Import cancelled by user")
+                return
+            
+            progress_dialog.setValue(idx)
+            progress_dialog.setLabelText(f"Importing: {file_info['name']} ({idx+1}/{len(files)})")
+            QApplication.processEvents()
+            
+            file_id = idx + 1
+            file_name = file_info['name']
+            file_path = file_info['path']
+            file_type = file_info['type']
+            
+            self.log(f"   📄 [{idx+1}/{len(files)}] {file_name}")
+            
+            try:
+                file_segments = []
+                
+                # Copy original file to backup folder for safe keeping
+                backup_path = None
+                if source_backup_folder:
+                    try:
+                        backup_path = os.path.join(source_backup_folder, file_name)
+                        shutil.copy2(file_path, backup_path)
+                        self.log(f"      📦 Backed up: {file_name}")
+                    except Exception as e:
+                        self.log(f"      ⚠️ Backup failed: {str(e)}")
+                        backup_path = None
+                
+                if file_type == 'txt':
+                    # Simple text file: each line is a segment
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        lines = f.readlines()
+                    
+                    for line in lines:
+                        text = line.rstrip('\n\r')
+                        if text.strip():  # Skip empty lines for segments, but could preserve them
+                            segment = Segment(
+                                id=current_segment_id,
+                                source=text,
+                                target="",
+                                status=DEFAULT_STATUS.key,
+                                file_id=file_id,
+                                file_name=file_name
+                            )
+                            file_segments.append(segment)
+                            current_segment_id += 1
+                
+                elif file_type == 'docx':
+                    # Import DOCX file
+                    paragraphs = self.docx_handler.import_docx(file_path)
+                    segmented = self.segmenter.segment_paragraphs(paragraphs)
+                    
+                    for para_id, text in segmented:
+                        if text.strip():
+                            segment = Segment(
+                                id=current_segment_id,
+                                source=text,
+                                target="",
+                                status=DEFAULT_STATUS.key,
+                                paragraph_id=para_id if para_id else 0,
+                                file_id=file_id,
+                                file_name=file_name
+                            )
+                            file_segments.append(segment)
+                            current_segment_id += 1
+                
+                # Track file metadata - use backup path if available, otherwise original
+                stored_path = backup_path if backup_path and os.path.exists(backup_path) else file_path
+                file_meta = {
+                    'id': file_id,
+                    'name': file_name,
+                    'path': stored_path,
+                    'type': file_type,
+                    'segment_count': len(file_segments),
+                    'start_segment_id': file_segments[0].id if file_segments else None,
+                    'end_segment_id': file_segments[-1].id if file_segments else None
+                }
+                file_metadata.append(file_meta)
+                
+                all_segments.extend(file_segments)
+                self.log(f"      ✓ {len(file_segments)} segments")
+                
+            except Exception as e:
+                self.log(f"      ❌ Error: {str(e)}")
+                QMessageBox.warning(
+                    self,
+                    "Import Error",
+                    f"Failed to import file:\n{file_name}\n\nError: {str(e)}\n\nContinuing with remaining files..."
+                )
+        
+        progress_dialog.setValue(len(files))
+        progress_dialog.close()
+        
+        if not all_segments:
+            QMessageBox.warning(self, "No Segments", "No segments were imported from the selected files.")
+            return
+        
+        # Create multi-file project
+        project = Project(
+            name=f"Multi-File Project - {os.path.basename(folder_path)}",
+            source_lang=source_lang,
+            target_lang=target_lang,
+            segments=all_segments,
+            is_multifile=True,
+            files=file_metadata
+        )
+        
+        # Set as current project
+        self.current_project = project
+        self.current_document_path = folder_path
+        
+        # Load into grid
+        self.load_segments_to_grid()
+        
+        # Initialize TM
+        self.initialize_tm_database()
+        
+        # Update UI
+        self.update_window_title()
+        
+        # Update file filter dropdown for multi-file projects
+        if hasattr(self, '_update_file_filter_combo'):
+            self._update_file_filter_combo()
+        
+        # Log summary
+        self.log(f"✓ Multi-file project created:")
+        self.log(f"   Total segments: {len(all_segments)}")
+        self.log(f"   Files: {len(file_metadata)}")
+        self.log(f"   Language pair: {source_lang.upper()} → {target_lang.upper()}")
+        
+        # Show success message with summary
+        file_summary = "\n".join([f"  • {f['name']}: {f['segment_count']} segments" for f in file_metadata[:10]])
+        if len(file_metadata) > 10:
+            file_summary += f"\n  ... and {len(file_metadata) - 10} more files"
+        
+        QMessageBox.information(
+            self,
+            "Multi-File Import Complete",
+            f"Successfully imported {len(all_segments)} segments from {len(file_metadata)} files.\n\n"
+            f"Language pair: {source_lang.upper()} → {target_lang.upper()}\n\n"
+            f"Files:\n{file_summary}\n\n"
+            f"Use View → File Progress to track translation progress per file."
+        )
+
+    def relocate_source_folder(self):
+        """
+        Relocate the source folder for a multi-file project.
+        
+        This allows users to repoint to moved/renamed source folders so that
+        DOCX exports can preserve original formatting.
+        """
+        from PyQt6.QtWidgets import QFileDialog, QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTableWidget, QTableWidgetItem, QHeaderView
+        
+        if not self.current_project:
+            QMessageBox.warning(self, "No Project", "Please open a project first.")
+            return
+        
+        # Check if this is a multi-file project
+        is_multifile = getattr(self.current_project, 'is_multifile', False)
+        files = getattr(self.current_project, 'files', [])
+        
+        if not is_multifile or not files:
+            QMessageBox.information(
+                self,
+                "Single-File Project",
+                "This feature is for multi-file projects only.\n\n"
+                "Multi-file projects are created via:\n"
+                "File → Import → Folder (Multiple Files)..."
+            )
+            return
+        
+        # Check current status of source files
+        missing_count = 0
+        found_count = 0
+        for f in files:
+            path = f.get('path', '')
+            if path:
+                path = os.path.normpath(path)
+                if os.path.exists(path):
+                    found_count += 1
+                else:
+                    missing_count += 1
+            else:
+                missing_count += 1
+        
+        # Ask user to select new folder
+        info_text = (
+            f"Current source file status:\n"
+            f"  ✓ Found: {found_count} files\n"
+            f"  ✗ Missing: {missing_count} files\n\n"
+            f"Select the folder containing the original source files.\n"
+            f"Files will be matched by filename."
+        )
+        
+        result = QMessageBox.question(
+            self,
+            "🔗 Relocate Source Folder",
+            info_text + "\n\nProceed to select folder?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        
+        if result != QMessageBox.StandardButton.Yes:
+            return
+        
+        # Select new folder
+        new_folder = QFileDialog.getExistingDirectory(
+            self,
+            "Select Folder Containing Original Source Files",
+            os.path.dirname(self.current_document_path) if self.current_document_path else ""
+        )
+        
+        if not new_folder:
+            return
+        
+        # Scan new folder for matching files
+        self.log(f"🔗 Relocating source folder to: {new_folder}")
+        
+        # Build a map of available files in the new folder (including subfolders)
+        available_files = {}
+        for root, dirs, filenames in os.walk(new_folder):
+            for filename in filenames:
+                full_path = os.path.join(root, filename)
+                # Store by filename (case-insensitive matching)
+                available_files[filename.lower()] = full_path
+        
+        self.log(f"   Found {len(available_files)} files in selected folder")
+        
+        # Try to match each project file
+        updated_count = 0
+        not_found = []
+        
+        for file_info in files:
+            file_name = file_info.get('name', '')
+            if not file_name:
+                continue
+            
+            # Try to find matching file
+            matched_path = available_files.get(file_name.lower())
+            
+            if matched_path:
+                old_path = file_info.get('path', '')
+                file_info['path'] = matched_path
+                updated_count += 1
+                self.log(f"   ✓ {file_name} → {matched_path}")
+            else:
+                not_found.append(file_name)
+                self.log(f"   ✗ {file_name} - not found in selected folder")
+        
+        # Update project
+        self.current_project.files = files
+        
+        # Show results
+        if not_found:
+            not_found_str = "\n".join([f"  • {f}" for f in not_found[:10]])
+            if len(not_found) > 10:
+                not_found_str += f"\n  ... and {len(not_found) - 10} more"
+            
+            QMessageBox.warning(
+                self,
+                "Partial Match",
+                f"Updated {updated_count} file paths.\n\n"
+                f"Files not found ({len(not_found)}):\n{not_found_str}\n\n"
+                f"These files will use fallback export (no formatting preserved).\n\n"
+                f"Save the project to keep these changes."
+            )
+        else:
+            QMessageBox.information(
+                self,
+                "✓ Source Folder Relocated",
+                f"Successfully updated all {updated_count} file paths.\n\n"
+                f"DOCX exports will now preserve original formatting.\n\n"
+                f"Save the project to keep these changes."
+            )
+        
+        self.log(f"✓ Relocated {updated_count}/{len(files)} source file paths")
+
+    def export_folder_multifile(self):
+        """
+        Export a multi-file project to a folder with separate files.
+        
+        Each file in the project is exported as a separate file in the target folder.
+        Supports DOCX (target only) and TXT formats.
+        """
+        from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
+                                      QGroupBox, QComboBox, QPushButton, QTableWidget,
+                                      QTableWidgetItem, QHeaderView, QProgressDialog,
+                                      QFileDialog, QButtonGroup)
+        
+        if not self.current_project:
+            QMessageBox.warning(self, "No Project", "Please open a project first.")
+            return
+        
+        # Check if this is a multi-file project
+        is_multifile = getattr(self.current_project, 'is_multifile', False)
+        files = getattr(self.current_project, 'files', [])
+        
+        if not is_multifile or not files:
+            QMessageBox.information(
+                self,
+                "Single-File Project",
+                "This is a single-file project.\n\n"
+                "Use the regular export options (Target Only DOCX, Simple Text, etc.) instead.\n\n"
+                "Folder export is for multi-file projects imported via:\n"
+                "File → Import → Folder (Multiple Files)..."
+            )
+            return
+        
+        # Show export dialog
+        dialog = QDialog(self)
+        dialog.setWindowTitle("📁 Export Multi-File Project")
+        dialog.setMinimumWidth(650)
+        dialog.setMinimumHeight(450)
+        
+        layout = QVBoxLayout(dialog)
+        
+        # Info
+        segments = self.current_project.segments
+        total_segs = len(segments)
+        translated_segs = sum(1 for s in segments if s.target and s.target.strip())
+        
+        info_label = QLabel(
+            f"<b>📁 Export Multi-File Project</b><br><br>"
+            f"Project: {self.current_project.name}<br>"
+            f"Files: {len(files)} | Segments: {translated_segs}/{total_segs} translated"
+        )
+        info_label.setTextFormat(Qt.TextFormat.RichText)
+        layout.addWidget(info_label)
+        
+        layout.addSpacing(10)
+        
+        # Export format selection
+        format_group = QGroupBox("Export Format")
+        format_layout = QVBoxLayout(format_group)
+        
+        format_btn_group = QButtonGroup(dialog)
+        
+        txt_radio = CheckmarkRadioButton("📄 Plain Text (.txt) - One line per segment")
+        txt_radio.setChecked(True)
+        format_btn_group.addButton(txt_radio, 1)
+        format_layout.addWidget(txt_radio)
+        
+        docx_radio = CheckmarkRadioButton("📝 Word Document (.docx) - Target text only")
+        format_btn_group.addButton(docx_radio, 2)
+        format_layout.addWidget(docx_radio)
+        
+        bilingual_radio = CheckmarkRadioButton("📊 Bilingual Table (.docx) - Source | Target columns")
+        format_btn_group.addButton(bilingual_radio, 3)
+        format_layout.addWidget(bilingual_radio)
+        
+        layout.addWidget(format_group)
+        
+        layout.addSpacing(10)
+        
+        # File preview table
+        preview_group = QGroupBox(f"Files to Export ({len(files)} files)")
+        preview_layout = QVBoxLayout(preview_group)
+        
+        preview_table = QTableWidget()
+        preview_table.setColumnCount(4)
+        preview_table.setHorizontalHeaderLabels(["Original File", "Segments", "Translated", "Output Name"])
+        preview_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        preview_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
+        preview_table.setRowCount(len(files))
+        preview_table.setAlternatingRowColors(True)
+        preview_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        
+        for row, file_info in enumerate(files):
+            file_id = file_info['id']
+            file_name = file_info['name']
+            
+            # Count segments for this file
+            file_segs = [s for s in segments if getattr(s, 'file_id', None) == file_id]
+            total = len(file_segs)
+            translated = sum(1 for s in file_segs if s.target and s.target.strip())
+            
+            # Generate output name
+            base_name = os.path.splitext(file_name)[0]
+            output_name = f"{base_name}_translated.txt"
+            
+            preview_table.setItem(row, 0, QTableWidgetItem(file_name))
+            preview_table.setItem(row, 1, QTableWidgetItem(str(total)))
+            preview_table.setItem(row, 2, QTableWidgetItem(f"{translated}/{total}"))
+            preview_table.setItem(row, 3, QTableWidgetItem(output_name))
+        
+        preview_layout.addWidget(preview_table)
+        layout.addWidget(preview_group)
+        
+        # Update output names when format changes
+        def update_output_names():
+            ext = ".txt" if txt_radio.isChecked() else ".docx"
+            for row, file_info in enumerate(files):
+                base_name = os.path.splitext(file_info['name'])[0]
+                output_name = f"{base_name}_translated{ext}"
+                preview_table.setItem(row, 3, QTableWidgetItem(output_name))
+        
+        txt_radio.toggled.connect(update_output_names)
+        docx_radio.toggled.connect(update_output_names)
+        bilingual_radio.toggled.connect(update_output_names)
+        
+        layout.addSpacing(10)
+        
+        # Buttons
+        button_layout = QHBoxLayout()
+        ok_btn = QPushButton("📤 Export to Folder...")
+        ok_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 8px 16px;")
+        ok_btn.clicked.connect(dialog.accept)
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(dialog.reject)
+        
+        button_layout.addStretch()
+        button_layout.addWidget(cancel_btn)
+        button_layout.addWidget(ok_btn)
+        layout.addLayout(button_layout)
+        
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        
+        # Get export format
+        if txt_radio.isChecked():
+            export_format = "txt"
+        elif docx_radio.isChecked():
+            export_format = "docx"
+        else:
+            export_format = "bilingual"
+        
+        # Select output folder
+        output_folder = QFileDialog.getExistingDirectory(
+            self,
+            "Select Output Folder for Exported Files",
+            "",
+            QFileDialog.Option.ShowDirsOnly
+        )
+        
+        if not output_folder:
+            return
+        
+        # Export each file
+        self._export_multifile_to_folder(output_folder, export_format)
+    
+    def _export_multifile_to_folder(self, output_folder: str, export_format: str):
+        """
+        Export each file in a multi-file project to the output folder.
+        
+        Args:
+            output_folder: Path to output folder
+            export_format: 'txt', 'docx', or 'bilingual'
+        """
+        files = getattr(self.current_project, 'files', [])
+        segments = self.current_project.segments
+        
+        self.log(f"📤 Exporting multi-file project to: {output_folder}")
+        self.log(f"   Format: {export_format.upper()}")
+        
+        # Progress dialog
+        progress_dialog = QProgressDialog("Exporting files...", "Cancel", 0, len(files), self)
+        progress_dialog.setWindowTitle("Exporting Multi-File Project")
+        progress_dialog.setWindowModality(Qt.WindowModality.WindowModal)
+        progress_dialog.setMinimumDuration(0)
+        
+        exported_count = 0
+        total_segments_exported = 0
+        files_missing_originals = []  # Track files where we couldn't preserve formatting
+        
+        for idx, file_info in enumerate(files):
+            if progress_dialog.wasCanceled():
+                self.log("❌ Export cancelled by user")
+                break
+            
+            progress_dialog.setValue(idx)
+            progress_dialog.setLabelText(f"Exporting: {file_info['name']} ({idx+1}/{len(files)})")
+            QApplication.processEvents()
+            
+            file_id = file_info['id']
+            file_name = file_info['name']
+            base_name = os.path.splitext(file_name)[0]
+            
+            # Get original file path for format preservation
+            # Normalize path separators (fix mixed forward/back slashes from Google Drive paths)
+            original_path = file_info.get('path', None)
+            if original_path:
+                original_path = os.path.normpath(original_path)
+            
+            # Check if file exists (for format preservation during DOCX export)
+            path_exists = False
+            if original_path:
+                path_exists = os.path.exists(original_path)
+                # Fallback: try to actually open the file (more reliable for virtual filesystems like Google Drive)
+                if not path_exists:
+                    try:
+                        with open(original_path, 'rb') as f:
+                            f.read(1)
+                        path_exists = True
+                    except:
+                        pass
+            
+            # Get segments for this file
+            file_segments = [s for s in segments if getattr(s, 'file_id', None) == file_id]
+            
+            if not file_segments:
+                self.log(f"   ⚠️ {file_name}: No segments found, skipping")
+                continue
+            
+            try:
+                if export_format == "txt":
+                    # Export as plain text
+                    output_path = os.path.join(output_folder, f"{base_name}_translated.txt")
+                    self._export_file_as_txt(file_segments, output_path)
+                    
+                elif export_format == "docx":
+                    # Export as DOCX (preserving original formatting if possible)
+                    output_path = os.path.join(output_folder, f"{base_name}_translated.docx")
+                    # Track if we'll preserve formatting
+                    format_note = ""
+                    if not path_exists:
+                        format_note = " (no original - plain text)"
+                        files_missing_originals.append(file_name)
+                    self._export_file_as_docx(file_segments, output_path, original_path if path_exists else None)
+                    
+                elif export_format == "bilingual":
+                    # Export as bilingual table
+                    output_path = os.path.join(output_folder, f"{base_name}_bilingual.docx")
+                    format_note = ""
+                    self._export_file_as_bilingual(file_segments, output_path)
+                
+                exported_count += 1
+                total_segments_exported += len(file_segments)
+                self.log(f"   ✓ {file_name} → {os.path.basename(output_path)} ({len(file_segments)} segments){format_note}")
+                
+            except Exception as e:
+                self.log(f"   ❌ {file_name}: Export failed - {str(e)}")
+        
+        progress_dialog.setValue(len(files))
+        progress_dialog.close()
+        
+        # Show summary
+        self.log(f"✓ Export complete: {exported_count}/{len(files)} files, {total_segments_exported} segments")
+        
+        # Build message with warning if files were missing originals
+        message = (
+            f"Successfully exported {exported_count} files to:\n{output_folder}\n\n"
+            f"Total segments: {total_segments_exported}\n"
+            f"Format: {export_format.upper()}"
+        )
+        
+        if files_missing_originals and export_format == "docx":
+            message += (
+                f"\n\n⚠️ {len(files_missing_originals)} file(s) exported without original formatting "
+                f"(source files not found).\n\n"
+                f"To preserve formatting, use:\n"
+                f"File → Export → Relocate Source Folder..."
+            )
+            self.log(f"   ⚠️ {len(files_missing_originals)} files without original formatting")
+        
+        QMessageBox.information(
+            self,
+            "Export Complete",
+            message
+        )
+    
+    def _export_file_as_txt(self, segments: list, output_path: str):
+        """Export segments to a plain text file (one segment per line)."""
+        import re
+        
+        def strip_tags(text: str) -> str:
+            """Remove formatting tags from text."""
+            if not text:
+                return ""
+            text = re.sub(r'</?b>', '', text)
+            text = re.sub(r'</?i>', '', text)
+            text = re.sub(r'</?u>', '', text)
+            text = re.sub(r'</?li-[ob]>', '', text)
+            return text
+        
+        with open(output_path, 'w', encoding='utf-8') as f:
+            for segment in segments:
+                # Use target if available, otherwise use source
+                text = segment.target if segment.target and segment.target.strip() else segment.source
+                f.write(strip_tags(text) + '\n')
+    
+    def _export_file_as_docx(self, segments: list, output_path: str, original_path: str = None):
+        """
+        Export segments to a DOCX file, preserving original formatting if original file exists.
+        
+        Uses the DOCXHandler to properly match paragraphs and preserve formatting.
+        
+        Args:
+            segments: List of Segment objects for this file
+            output_path: Path to save the exported file
+            original_path: Path to the original DOCX file (for format preservation)
+        """
+        from docx import Document
+        from docx.shared import Pt
+        import re
+        
+        def strip_tags(text: str) -> str:
+            """Remove formatting tags from text."""
+            if not text:
+                return ""
+            text = re.sub(r'</?b>', '', text)
+            text = re.sub(r'</?i>', '', text)
+            text = re.sub(r'</?u>', '', text)
+            text = re.sub(r'</?li-[ob]>', '', text)
+            return text
+        
+        def file_accessible(path: str) -> bool:
+            """Check if file exists and is accessible (works better with Google Drive)."""
+            if not path:
+                return False
+            # Try os.path.exists first
+            if os.path.exists(path):
+                return True
+            # Fallback: try to actually open the file (more reliable for virtual filesystems)
+            try:
+                with open(path, 'rb') as f:
+                    f.read(1)
+                return True
+            except:
+                return False
+        
+        # If we have the original file, use DOCXHandler for proper format preservation
+        if original_path and file_accessible(original_path):
+            self.log(f"      📄 Using original file as template: {os.path.basename(original_path)}")
+            
+            try:
+                # Create a fresh DOCXHandler for this file
+                from modules.docx_handler import DOCXHandler
+                handler = DOCXHandler()
+                
+                # Import the original to set up paragraph mapping
+                handler.import_docx(original_path)
+                
+                # Convert segments to the format expected by export_docx
+                export_segments = []
+                for seg in segments:
+                    text = seg.target if seg.target and seg.target.strip() else seg.source
+                    export_segments.append({
+                        'paragraph_id': getattr(seg, 'paragraph_id', 0),
+                        'source': seg.source,
+                        'target': text
+                    })
+                
+                # Use the handler's export which preserves all formatting
+                handler.export_docx(export_segments, output_path, preserve_formatting=True)
+                return
+                
+            except Exception as e:
+                self.log(f"      ⚠️ DOCXHandler export failed ({str(e)}), falling back to simple export")
+        
+        # Fallback: create new document (loses formatting)
+        self.log(f"      ⚠️ Original file not found, creating new document (formatting not preserved)")
+        
+        doc = Document()
+        
+        for segment in segments:
+            text = segment.target if segment.target and segment.target.strip() else segment.source
+            text = strip_tags(text)
+            para = doc.add_paragraph(text)
+            for run in para.runs:
+                run.font.size = Pt(11)
+        
+        doc.save(output_path)
+    
+    def _export_file_as_bilingual(self, segments: list, output_path: str):
+        """Export segments to a bilingual DOCX table (Source | Target columns)."""
+        from docx import Document
+        from docx.shared import Inches, Pt
+        import re
+        
+        def strip_tags(text: str) -> str:
+            """Remove formatting tags from text for clean display."""
+            if not text:
+                return ""
+            # Remove inline formatting tags
+            text = re.sub(r'</?b>', '', text)
+            text = re.sub(r'</?i>', '', text)
+            text = re.sub(r'</?u>', '', text)
+            text = re.sub(r'</?li-[ob]>', '', text)
+            return text
+        
+        doc = Document()
+        
+        # Add header
+        header = doc.add_paragraph()
+        header.add_run(f"Bilingual Export - {len(segments)} segments").bold = True
+        
+        # Create table
+        table = doc.add_table(rows=1, cols=3)
+        table.style = 'Table Grid'
+        
+        # Header row
+        hdr_cells = table.rows[0].cells
+        hdr_cells[0].text = "#"
+        hdr_cells[1].text = "Source"
+        hdr_cells[2].text = "Target"
+        
+        # Make header bold
+        for cell in hdr_cells:
+            for para in cell.paragraphs:
+                for run in para.runs:
+                    run.bold = True
+        
+        # Add segments
+        for segment in segments:
+            row_cells = table.add_row().cells
+            row_cells[0].text = str(segment.id)
+            row_cells[1].text = strip_tags(segment.source)
+            row_cells[2].text = strip_tags(segment.target) if segment.target else ""
+        
+        # Set column widths
+        for row in table.rows:
+            row.cells[0].width = Inches(0.5)
+            row.cells[1].width = Inches(3.0)
+            row.cells[2].width = Inches(3.0)
+        
+        doc.save(output_path)
+
     def _interpret_memoq_status(self, status_text: str, has_target: bool) -> Tuple[str, Optional[int]]:
         """Map memoQ status text to internal status and extract match percentage."""
         status_def, match_percent = match_memoq_status(status_text)
@@ -24808,7 +25879,82 @@ class SupervertalerQt(QMainWindow):
             for row in range(self.table.rowCount()):
                 self.table.setRowHidden(row, False)
         
+        # Reset file filter to "All Files"
+        if hasattr(self, 'file_filter_combo') and self.file_filter_combo:
+            self.file_filter_combo.blockSignals(True)
+            self.file_filter_combo.setCurrentIndex(0)
+            self.file_filter_combo.blockSignals(False)
+        
         self.log("Filters cleared")
+    
+    def _on_file_filter_changed(self, index):
+        """Handle file filter dropdown change for multi-file projects."""
+        if not self.current_project or not hasattr(self, 'file_filter_combo'):
+            return
+        
+        file_id = self.file_filter_combo.currentData()
+        
+        if file_id is None:
+            # "All Files" selected - show all rows
+            if hasattr(self, 'table') and self.table:
+                for row in range(self.table.rowCount()):
+                    self.table.setRowHidden(row, False)
+            self.log("File filter: showing all files")
+            return
+        
+        # Filter to show only segments from the selected file
+        if not hasattr(self, 'table') or not self.table:
+            return
+        
+        visible_count = 0
+        for row, segment in enumerate(self.current_project.segments):
+            if row >= self.table.rowCount():
+                break
+            
+            segment_file_id = getattr(segment, 'file_id', None)
+            show_row = segment_file_id == file_id
+            
+            self.table.setRowHidden(row, not show_row)
+            if show_row:
+                visible_count += 1
+        
+        # Get file name for logging
+        file_name = "Unknown"
+        files = getattr(self.current_project, 'files', [])
+        for f in files:
+            if f['id'] == file_id:
+                file_name = f['name']
+                break
+        
+        self.log(f"File filter: showing {visible_count} segments from '{file_name}'")
+    
+    def _update_file_filter_combo(self):
+        """Update the file filter dropdown with files from the current project."""
+        if not hasattr(self, 'file_filter_combo') or not self.file_filter_combo:
+            return
+        
+        # Clear existing items
+        self.file_filter_combo.blockSignals(True)
+        self.file_filter_combo.clear()
+        self.file_filter_combo.addItem("📁 All Files", None)
+        
+        # Check if this is a multi-file project
+        is_multifile = getattr(self.current_project, 'is_multifile', False) if self.current_project else False
+        files = getattr(self.current_project, 'files', []) if self.current_project else []
+        
+        if is_multifile and files:
+            # Add each file to the dropdown
+            for file_info in files:
+                file_id = file_info['id']
+                file_name = file_info['name']
+                seg_count = file_info.get('segment_count', 0)
+                self.file_filter_combo.addItem(f"📄 {file_name} ({seg_count} seg)", file_id)
+            
+            self.file_filter_combo.show()
+        else:
+            self.file_filter_combo.hide()
+        
+        self.file_filter_combo.blockSignals(False)
 
     def toggle_invisible_display(self, char_type):
         """Toggle display of specific invisible character type"""
@@ -25181,185 +26327,179 @@ class SupervertalerQt(QMainWindow):
         available = ', '.join(available_languages) or "None"
         custom_count = len(self.spellcheck_manager.get_custom_words())
         dict_path = str(self.spellcheck_manager.dictionaries_path)
+        diag = self.spellcheck_manager.get_diagnostics()
+        is_hunspell = "Hunspell" in backend
         
-        # Create a custom dialog with clickable links
+        # Create dialog with two-column horizontal layout
         dialog = QDialog(self)
         dialog.setWindowTitle("Spellcheck Info")
-        dialog.setMinimumWidth(500)
+        dialog.setMinimumWidth(700)
+        dialog.setMaximumHeight(520)
         
-        layout = QVBoxLayout(dialog)
+        main_layout = QVBoxLayout(dialog)
+        main_layout.setSpacing(10)
         
-        # Status section
-        status_group = QGroupBox("Status")
-        status_layout = QFormLayout(status_group)
+        # ═══════════════ Top Row: Status + Language + Backend ═══════════════
+        top_row = QHBoxLayout()
         
-        status_label = QLabel(f"{'✓ Enabled' if self.spellcheck_enabled else '✗ Disabled'}")
-        status_label.setStyleSheet(f"color: {'green' if self.spellcheck_enabled else 'red'}; font-weight: bold;")
-        status_layout.addRow("Spellcheck:", status_label)
+        status_text = "✓ Enabled" if self.spellcheck_enabled else "✗ Disabled"
+        status_color = "green" if self.spellcheck_enabled else "red"
+        status_label = QLabel(f"<b style='color: {status_color};'>{status_text}</b>")
+        top_row.addWidget(status_label)
+        top_row.addSpacing(20)
         
-        # Language dropdown for selecting spellcheck language
+        top_row.addWidget(QLabel("Language:"))
         lang_combo = QComboBox()
+        lang_combo.setMinimumWidth(100)
         lang_combo.addItems(available_languages)
-        # Set current language
         if language in available_languages:
             lang_combo.setCurrentText(language)
+        top_row.addWidget(lang_combo)
+        top_row.addSpacing(20)
+        
+        backend_icon = "📚" if is_hunspell else "🐍"
+        backend_label = QLabel(f"{backend_icon} {backend}")
+        top_row.addWidget(backend_label)
+        top_row.addStretch()
+        main_layout.addLayout(top_row)
         
         def on_language_changed(new_lang):
             if self.spellcheck_manager.set_language(new_lang):
                 self.log(f"✓ Spellcheck language changed to: {new_lang}")
-                # Update backend display
                 new_backend = self.spellcheck_manager.get_backend_info()
                 is_hunspell_new = "Hunspell" in new_backend
                 backend_icon_new = "📚" if is_hunspell_new else "🐍"
                 backend_label.setText(f"{backend_icon_new} {new_backend}")
-                # Refresh spellcheck highlighting if enabled
                 if self.spellcheck_enabled:
                     self._refresh_all_highlighters()
             else:
                 self.log(f"⚠ Could not set spellcheck language to: {new_lang}")
-        
         lang_combo.currentTextChanged.connect(on_language_changed)
-        status_layout.addRow("Spellcheck Language:", lang_combo)
         
-        # Backend explanation with icon
-        is_hunspell = "Hunspell" in backend
-        backend_icon = "📚" if is_hunspell else "🐍"
-        backend_label = QLabel(f"{backend_icon} {backend}")
-        status_layout.addRow("Backend:", backend_label)
+        # ═══════════════ Two-Column Layout ═══════════════
+        columns = QHBoxLayout()
+        columns.setSpacing(15)
         
-        layout.addWidget(status_group)
+        # ─────────── LEFT COLUMN ───────────
+        left_col = QVBoxLayout()
+        left_col.setSpacing(8)
         
-        # How It Works section
+        # How It Works
         how_group = QGroupBox("How Spellcheck Works")
         how_layout = QVBoxLayout(how_group)
-        
-        explanation = QLabel(
-            "<b>Supervertaler has two spellcheck backends:</b><br><br>"
-            "🐍 <b>Built-in (pyspellchecker)</b> — Works out of the box for:<br>"
-            "&nbsp;&nbsp;&nbsp;&nbsp;English, Dutch, German, French, Spanish, Portuguese, Italian, Russian<br>"
-            "&nbsp;&nbsp;&nbsp;&nbsp;<i>No installation needed!</i><br><br>"
-            "📚 <b>Hunspell (optional)</b> — For more languages or better accuracy:<br>"
-            "&nbsp;&nbsp;&nbsp;&nbsp;Download .dic/.aff dictionary files (see below)<br>"
-            "&nbsp;&nbsp;&nbsp;&nbsp;Place in dictionaries folder → automatically used<br><br>"
-            f"<b>Currently using:</b> {'Hunspell dictionary files' if is_hunspell else 'Built-in dictionary (no external files needed)'}"
+        how_layout.setSpacing(4)
+        how_label = QLabel(
+            "🐍 <b>Built-in (pyspellchecker)</b><br>"
+            "&nbsp;&nbsp;&nbsp;EN, NL, DE, FR, ES, PT, IT, RU<br>"
+            "&nbsp;&nbsp;&nbsp;<i>Works out of the box!</i><br><br>"
+            "📚 <b>Hunspell (optional)</b><br>"
+            "&nbsp;&nbsp;&nbsp;Any language with .dic/.aff files<br>"
+            "&nbsp;&nbsp;&nbsp;Better accuracy for some languages<br><br>"
+            "<b>⚡ Auto-switching:</b> Add Hunspell .dic/.aff<br>"
+            "files → automatically used. Remove them →<br>"
+            "falls back to built-in.<br><br>"
+            f"<b>Currently:</b> {'Hunspell dictionaries' if is_hunspell else 'Built-in dictionary'}"
         )
-        explanation.setWordWrap(True)
-        how_layout.addWidget(explanation)
-        layout.addWidget(how_group)
+        how_label.setWordWrap(True)
+        how_layout.addWidget(how_label)
+        left_col.addWidget(how_group)
         
-        # Languages section
+        # Available Languages
         lang_group = QGroupBox("Available Languages")
         lang_layout = QVBoxLayout(lang_group)
-        lang_layout.addWidget(QLabel(available))
-        layout.addWidget(lang_group)
+        lang_list = QLabel(available)
+        lang_list.setWordWrap(True)
+        lang_layout.addWidget(lang_list)
+        left_col.addWidget(lang_group)
         
-        # Custom Dictionary section
+        # Custom Dictionary
         custom_group = QGroupBox("Custom Dictionary")
         custom_layout = QVBoxLayout(custom_group)
-        custom_layout.addWidget(QLabel(f"{custom_count} words"))
-        
-        # Show file location with clickable link to open containing folder
+        custom_layout.setSpacing(4)
+        custom_layout.addWidget(QLabel(f"<b>{custom_count}</b> words in custom_words.txt"))
         custom_folder = str(self.spellcheck_manager.dictionaries_path)
-        custom_layout.addWidget(QLabel(f"File: custom_words.txt"))
-        custom_folder_label = QLabel(f'📁 <a href="file:///{custom_folder.replace(chr(92), "/")}">Open folder: {custom_folder}</a>')
-        custom_folder_label.setOpenExternalLinks(False)
-        custom_folder_label.linkActivated.connect(lambda: self._open_folder_in_explorer(custom_folder))
-        custom_folder_label.setToolTip("Click to open the dictionaries folder")
-        custom_layout.addWidget(custom_folder_label)
+        custom_btn = QPushButton("📁 Open Folder")
+        custom_btn.clicked.connect(lambda: self._open_folder_in_explorer(custom_folder))
+        custom_layout.addWidget(custom_btn)
+        left_col.addWidget(custom_group)
         
-        layout.addWidget(custom_group)
+        left_col.addStretch()
+        columns.addLayout(left_col)
         
-        # Hunspell Dictionaries section
-        hunspell_group = QGroupBox("Optional: Add Hunspell Dictionaries")
+        # ─────────── RIGHT COLUMN ───────────
+        right_col = QVBoxLayout()
+        right_col.setSpacing(8)
+        
+        # Add Hunspell Dictionaries
+        hunspell_group = QGroupBox("Add Hunspell Dictionaries")
         hunspell_layout = QVBoxLayout(hunspell_group)
+        hunspell_layout.setSpacing(4)
         
-        hunspell_layout.addWidget(QLabel("For additional languages or improved accuracy:"))
-        hunspell_layout.addWidget(QLabel("1. Download the .zip file for your language"))
+        hunspell_layout.addWidget(QLabel("<b>Steps:</b>"))
+        hunspell_layout.addWidget(QLabel("1. Download .zip for your language"))
         hunspell_layout.addWidget(QLabel("2. Extract the .dic and .aff files"))
-        hunspell_layout.addWidget(QLabel("3. Place them in the dictionaries folder below"))
+        hunspell_layout.addWidget(QLabel("3. Place in dictionaries folder"))
         
-        # Clickable path to dictionaries folder
-        dict_path_label = QLabel(f'📁 <a href="file:///{dict_path.replace(chr(92), "/")}">Open dictionaries folder</a>')
-        dict_path_label.setOpenExternalLinks(False)
-        dict_path_label.linkActivated.connect(lambda: self._open_folder_in_explorer(dict_path))
-        dict_path_label.setToolTip("Click to open dictionaries folder")
-        hunspell_layout.addWidget(dict_path_label)
+        hunspell_layout.addWidget(QLabel(""))
+        hunspell_layout.addWidget(QLabel("<b>Download sources:</b>"))
         
-        hunspell_layout.addWidget(QLabel(""))  # Spacer
-        hunspell_layout.addWidget(QLabel("<b>Download Hunspell dictionaries:</b>"))
-        
-        # memoQ server - best for end users (primary recommendation)
-        memoq_label = QLabel('🌐 <a href="https://hunspell.memoq.com/">hunspell.memoq.com</a> — 70+ languages, easy zip downloads (recommended)')
+        memoq_label = QLabel('🌐 <a href="https://hunspell.memoq.com/">hunspell.memoq.com</a> — 70+ languages')
         memoq_label.setOpenExternalLinks(True)
-        memoq_label.setToolTip("memoQ's Hunspell dictionary server - updated November 2025")
         hunspell_layout.addWidget(memoq_label)
         
-        # GitHub wooorm/dictionaries - for developers
-        github_label = QLabel('🌐 <a href="https://github.com/wooorm/dictionaries/tree/main/dictionaries">GitHub: wooorm/dictionaries</a> — 92+ languages, UTF-8 normalized')
+        github_label = QLabel('🌐 <a href="https://github.com/wooorm/dictionaries/tree/main/dictionaries">GitHub: wooorm/dictionaries</a> — 92+ languages')
         github_label.setOpenExternalLinks(True)
-        github_label.setToolTip("Well-maintained GitHub repository with normalized dictionaries")
         hunspell_layout.addWidget(github_label)
         
-        # LibreOffice dictionaries (alternative)
-        libreoffice_label = QLabel('🌐 <a href="https://extensions.libreoffice.org/?Tags%5B%5D=50">LibreOffice Dictionary Extensions</a> — extract .oxt files')
+        libreoffice_label = QLabel('🌐 <a href="https://extensions.libreoffice.org/?Tags%5B%5D=50">LibreOffice Extensions</a> — .oxt → .zip')
         libreoffice_label.setOpenExternalLinks(True)
-        libreoffice_label.setToolTip("LibreOffice extension dictionaries (rename .oxt to .zip, extract .dic/.aff)")
         hunspell_layout.addWidget(libreoffice_label)
         
-        layout.addWidget(hunspell_group)
+        dict_btn = QPushButton("📁 Open Dictionaries Folder")
+        dict_btn.clicked.connect(lambda: self._open_folder_in_explorer(dict_path))
+        hunspell_layout.addWidget(dict_btn)
         
-        # Diagnostics section (collapsible) for troubleshooting
-        diag_group = QGroupBox("🔧 Troubleshooting")
+        right_col.addWidget(hunspell_group)
+        
+        # Diagnostics
+        diag_group = QGroupBox("🔧 Diagnostics")
         diag_layout = QVBoxLayout(diag_group)
+        diag_layout.setSpacing(2)
         
-        # Get diagnostics
-        diag = self.spellcheck_manager.get_diagnostics()
-        
-        diag_text = f"""
-<b>Backend Status:</b>
-• Hunspell available: {'✓ Yes' if diag['hunspell_available'] else '✗ No (cyhunspell not installed)'}
-• Hunspell initialized: {'✓ Yes' if diag['hunspell_initialized'] else '✗ No'}
-• pyspellchecker available: {'✓ Yes' if diag['pyspellchecker_available'] else '✗ No'}
-• pyspellchecker initialized: {'✓ Yes' if diag['pyspellchecker_initialized'] else '✗ No'}
-"""
-        if diag.get('pyspellchecker_import_error'):
-            diag_text += f"• Import error: {diag['pyspellchecker_import_error']}\n"
-        
+        diag_text = (
+            f"<table cellspacing='2'>"
+            f"<tr><td>Hunspell:</td><td>{'✓' if diag['hunspell_available'] else '✗'} avail, {'✓' if diag['hunspell_initialized'] else '✗'} init</td></tr>"
+            f"<tr><td>pyspellchecker:</td><td>{'✓' if diag['pyspellchecker_available'] else '✗'} avail, {'✓' if diag['pyspellchecker_initialized'] else '✗'} init</td></tr>"
+            f"<tr><td>Custom words:</td><td>{diag['custom_words_count']}</td></tr>"
+            f"<tr><td>Session ignored:</td><td>{diag['ignored_words_count']}</td></tr>"
+            f"<tr><td>Cache size:</td><td>{diag['cache_size']}</td></tr>"
+        )
         if diag.get('pyspellchecker_word_count'):
-            diag_text += f"• Dictionary words loaded: {diag['pyspellchecker_word_count']:,}\n"
+            diag_text += f"<tr><td>Dict words:</td><td>{diag['pyspellchecker_word_count']:,}</td></tr>"
+        diag_text += "</table>"
         
-        diag_text += f"""
-<b>Current State:</b>
-• Language: {diag['current_language'] or 'Not set'}
-• Enabled: {'✓ Yes' if diag['enabled'] else '✗ No'}
-• Custom words: {diag['custom_words_count']}
-• Session ignored: {diag['ignored_words_count']}
-• Cache size: {diag['cache_size']}
-"""
-        
-        diag_label = QLabel(diag_text.strip())
-        diag_label.setWordWrap(True)
+        diag_label = QLabel(diag_text)
         diag_label.setTextFormat(Qt.TextFormat.RichText)
         diag_layout.addWidget(diag_label)
         
-        # If not initialized, show help text
         if not diag['hunspell_initialized'] and not diag['pyspellchecker_initialized']:
-            help_label = QLabel(
-                "<br><b style='color: orange;'>⚠️ Spellcheck not initialized</b><br>"
-                "Try changing the language above, or ensure a language is set."
-            )
-            help_label.setWordWrap(True)
-            diag_layout.addWidget(help_label)
+            warn_label = QLabel("<span style='color: orange;'>⚠️ Not initialized - try changing language</span>")
+            diag_layout.addWidget(warn_label)
         
-        layout.addWidget(diag_group)
+        right_col.addWidget(diag_group)
+        right_col.addStretch()
+        columns.addLayout(right_col)
         
-        # OK button
+        main_layout.addLayout(columns, stretch=1)
+        
+        # ═══════════════ OK Button ═══════════════
         button_layout = QHBoxLayout()
+        button_layout.addStretch()
         ok_btn = QPushButton("OK")
         ok_btn.clicked.connect(dialog.accept)
-        button_layout.addStretch()
+        ok_btn.setDefault(True)
         button_layout.addWidget(ok_btn)
-        layout.addLayout(button_layout)
+        main_layout.addLayout(button_layout)
         
         dialog.exec()
 
@@ -29553,6 +30693,237 @@ class SupervertalerQt(QMainWindow):
             if hasattr(self.termview_widget, 'apply_theme'):
                 self.termview_widget.apply_theme()
 
+    def show_file_progress_dialog(self):
+        """Show File Progress dialog for multi-file projects.
+        
+        Displays translation progress for each file in a multi-file project,
+        including segment counts, word counts, and completion percentages.
+        """
+        from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
+                                      QTableWidget, QTableWidgetItem, QHeaderView,
+                                      QPushButton, QProgressBar, QGroupBox)
+        
+        if not self.current_project:
+            QMessageBox.information(self, "No Project", "Please open a project first.")
+            return
+        
+        # Check if this is a multi-file project
+        is_multifile = getattr(self.current_project, 'is_multifile', False)
+        files = getattr(self.current_project, 'files', [])
+        
+        dialog = QDialog(self)
+        dialog.setWindowTitle("📁 File Progress")
+        dialog.setMinimumWidth(800)
+        dialog.setMinimumHeight(500)
+        
+        layout = QVBoxLayout(dialog)
+        
+        if not is_multifile or not files:
+            # Single-file project - show basic info
+            info_label = QLabel(
+                "<b>Single-File Project</b><br><br>"
+                "This is a single-file project. Multi-file progress tracking is available "
+                "when you import a folder using:<br>"
+                "<i>File → Import → Folder (Multiple Files)...</i>"
+            )
+            info_label.setWordWrap(True)
+            info_label.setTextFormat(Qt.TextFormat.RichText)
+            layout.addWidget(info_label)
+            
+            layout.addSpacing(20)
+            
+            # Show overall progress for single file
+            self._add_overall_progress_section(layout)
+            
+        else:
+            # Multi-file project - show per-file progress
+            info_label = QLabel(
+                f"<b>Multi-File Project: {len(files)} files</b><br>"
+                f"Project: {self.current_project.name}"
+            )
+            info_label.setTextFormat(Qt.TextFormat.RichText)
+            layout.addWidget(info_label)
+            
+            layout.addSpacing(10)
+            
+            # Overall progress section
+            self._add_overall_progress_section(layout)
+            
+            layout.addSpacing(10)
+            
+            # Per-file progress table
+            files_group = QGroupBox("Per-File Progress")
+            files_layout = QVBoxLayout(files_group)
+            
+            table = QTableWidget()
+            table.setColumnCount(7)
+            table.setHorizontalHeaderLabels([
+                "File", "Segments", "Words", "Translated", "Confirmed", "Progress", "Status"
+            ])
+            table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+            table.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeMode.Fixed)
+            table.setColumnWidth(5, 120)
+            table.setRowCount(len(files))
+            table.setAlternatingRowColors(True)
+            table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+            table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+            
+            # Calculate stats for each file
+            segments = self.current_project.segments
+            confirmed_statuses = {'confirmed', 'tr_confirmed', 'proofread', 'approved'}
+            
+            for row, file_info in enumerate(files):
+                file_id = file_info['id']
+                file_name = file_info['name']
+                
+                # Get segments for this file
+                file_segments = [s for s in segments if getattr(s, 'file_id', None) == file_id]
+                total_segs = len(file_segments)
+                
+                # Calculate stats
+                total_words = sum(len(s.source.split()) for s in file_segments if s.source)
+                translated_segs = sum(1 for s in file_segments if s.target and s.target.strip())
+                translated_words = sum(len(s.source.split()) for s in file_segments if s.target and s.target.strip())
+                confirmed_segs = sum(1 for s in file_segments if s.status in confirmed_statuses)
+                
+                trans_percent = (translated_segs / total_segs * 100) if total_segs > 0 else 0
+                conf_percent = (confirmed_segs / total_segs * 100) if total_segs > 0 else 0
+                
+                # Determine status
+                if conf_percent == 100:
+                    status = "✅ Complete"
+                    status_color = "#4CAF50"
+                elif trans_percent == 100:
+                    status = "📝 Translated"
+                    status_color = "#2196F3"
+                elif trans_percent > 0:
+                    status = "🔄 In Progress"
+                    status_color = "#FF9800"
+                else:
+                    status = "⬜ Not Started"
+                    status_color = "#9E9E9E"
+                
+                # Add items to table
+                table.setItem(row, 0, QTableWidgetItem(file_name))
+                table.setItem(row, 1, QTableWidgetItem(str(total_segs)))
+                table.setItem(row, 2, QTableWidgetItem(str(total_words)))
+                table.setItem(row, 3, QTableWidgetItem(f"{translated_segs}/{total_segs} ({trans_percent:.0f}%)"))
+                table.setItem(row, 4, QTableWidgetItem(f"{confirmed_segs}/{total_segs} ({conf_percent:.0f}%)"))
+                
+                # Progress bar
+                progress_bar = QProgressBar()
+                progress_bar.setMinimum(0)
+                progress_bar.setMaximum(100)
+                progress_bar.setValue(int(conf_percent))
+                progress_bar.setTextVisible(True)
+                progress_bar.setFormat(f"{conf_percent:.0f}%")
+                table.setCellWidget(row, 5, progress_bar)
+                
+                status_item = QTableWidgetItem(status)
+                status_item.setForeground(QColor(status_color))
+                table.setItem(row, 6, status_item)
+                
+                # Color coding for translated column
+                trans_item = table.item(row, 3)
+                if trans_percent == 100:
+                    trans_item.setForeground(QColor("#4CAF50"))
+                elif trans_percent > 0:
+                    trans_item.setForeground(QColor("#FF9800"))
+            
+            files_layout.addWidget(table)
+            
+            # Double-click to filter/navigate
+            def on_file_double_click(row, col):
+                file_info = files[row]
+                file_id = file_info['id']
+                file_name = file_info['name']
+                
+                # Filter to show only this file's segments
+                if hasattr(self, 'source_filter_input'):
+                    # Use file name as filter
+                    reply = QMessageBox.question(
+                        dialog,
+                        "Navigate to File",
+                        f"Go to the first segment of:\n{file_name}?",
+                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+                    )
+                    if reply == QMessageBox.StandardButton.Yes:
+                        # Find first segment of this file
+                        for seg in segments:
+                            if getattr(seg, 'file_id', None) == file_id:
+                                # Navigate to this segment
+                                self.go_to_segment(seg.id)
+                                dialog.accept()
+                                return
+            
+            table.cellDoubleClicked.connect(on_file_double_click)
+            
+            layout.addWidget(files_group)
+        
+        # Close button
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+        close_btn = QPushButton("Close")
+        close_btn.clicked.connect(dialog.accept)
+        button_layout.addWidget(close_btn)
+        layout.addLayout(button_layout)
+        
+        dialog.exec()
+    
+    def _add_overall_progress_section(self, layout):
+        """Add overall progress section to a layout (for File Progress dialog)."""
+        from PyQt6.QtWidgets import QGroupBox, QGridLayout, QLabel, QProgressBar
+        
+        progress_group = QGroupBox("Overall Progress")
+        grid = QGridLayout(progress_group)
+        
+        if not self.current_project or not self.current_project.segments:
+            grid.addWidget(QLabel("No segments in project"), 0, 0)
+            layout.addWidget(progress_group)
+            return
+        
+        segments = self.current_project.segments
+        total_segs = len(segments)
+        
+        # Calculate stats
+        total_words = sum(len(s.source.split()) for s in segments if s.source)
+        translated_segs = sum(1 for s in segments if s.target and s.target.strip())
+        translated_words = sum(len(s.source.split()) for s in segments if s.target and s.target.strip())
+        
+        confirmed_statuses = {'confirmed', 'tr_confirmed', 'proofread', 'approved'}
+        confirmed_segs = sum(1 for s in segments if s.status in confirmed_statuses)
+        
+        trans_percent = (translated_segs / total_segs * 100) if total_segs > 0 else 0
+        conf_percent = (confirmed_segs / total_segs * 100) if total_segs > 0 else 0
+        word_percent = (translated_words / total_words * 100) if total_words > 0 else 0
+        
+        # Row 1: Segments
+        grid.addWidget(QLabel("<b>Segments:</b>"), 0, 0)
+        grid.addWidget(QLabel(f"{translated_segs} / {total_segs} translated ({trans_percent:.1f}%)"), 0, 1)
+        
+        seg_progress = QProgressBar()
+        seg_progress.setValue(int(trans_percent))
+        grid.addWidget(seg_progress, 0, 2)
+        
+        # Row 2: Words
+        grid.addWidget(QLabel("<b>Words:</b>"), 1, 0)
+        grid.addWidget(QLabel(f"{translated_words} / {total_words} ({word_percent:.1f}%)"), 1, 1)
+        
+        word_progress = QProgressBar()
+        word_progress.setValue(int(word_percent))
+        grid.addWidget(word_progress, 1, 2)
+        
+        # Row 3: Confirmed
+        grid.addWidget(QLabel("<b>Confirmed:</b>"), 2, 0)
+        grid.addWidget(QLabel(f"{confirmed_segs} / {total_segs} ({conf_percent:.1f}%)"), 2, 1)
+        
+        conf_progress = QProgressBar()
+        conf_progress.setValue(int(conf_percent))
+        conf_progress.setStyleSheet("QProgressBar::chunk { background-color: #4CAF50; }")
+        grid.addWidget(conf_progress, 2, 2)
+        
+        layout.addWidget(progress_group)
+
     def get_themed_button_style(self, button_type: str, extra_styles: str = "") -> str:
         """
         Get a theme-aware button style.
@@ -30174,7 +31545,7 @@ class SupervertalerQt(QMainWindow):
 # SUPERLOOKUP TAB
 # ============================================================================
 
-class UniversalLookupTab(QWidget):
+class SuperlookupTab(QWidget):
     """
     Superlookup - System-wide translation lookup
     Works anywhere on your computer: in CAT tools, browsers, Word, any text box
@@ -30184,7 +31555,10 @@ class UniversalLookupTab(QWidget):
         super().__init__(parent)
         self.main_window = parent  # Store reference to main window for database access
         
-        print("[Superlookup] UniversalLookupTab.__init__ called")
+        print("[Superlookup] SuperlookupTab.__init__ called")
+        
+        # Get theme manager from main window
+        self.theme_manager = getattr(parent, 'theme_manager', None)
         
         # Import lookup engine
         try:
@@ -33299,6 +34673,10 @@ class AutoFingersWidget(QWidget):
 
 def main():
     """Application entry point"""
+    # Suppress Chromium/QtWebEngine verbose error output (cache errors, GPU warnings)
+    # These are harmless but alarming to users
+    os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--disable-logging --log-level=3"
+    
     # Set OpenGL context sharing before creating QApplication (required for QtWebEngine)
     QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
     

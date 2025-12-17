@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** December 16, 2025 | **Version:** v1.9.41
+> **Last Updated:** December 17, 2025 | **Version:** v1.9.42
 
 ---
 
@@ -12,13 +12,13 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.40 (December 2025) |
+| **Version** | v1.9.42 (December 2025) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
 | **Repository** | https://github.com/michaelbeijer/Supervertaler |
 | **Website** | https://supervertaler.com |
-| **Main File** | `Supervertaler.py` (~33,000+ lines) |
+| **Main File** | `Supervertaler.py` (~34,000+ lines) |
 | **Modules** | 60+ specialized modules in `modules/` directory |
 
 ### Key Capabilities
@@ -27,7 +27,7 @@
 - **CAT Tool Integration**: Trados SDLPPX/SDLRPX, memoQ XLIFF, Phrase/Memsource DOCX, CafeTran DOCX
 - **Translation Memory**: Fuzzy matching TM with TMX import/export + Supermemory (ChromaDB vector search)
 - **Terminology Management**: SQLite-based termbases with priority highlighting and automatic extraction
-- **Document Handling**: DOCX, bilingual DOCX, PDF (via OCR), simple TXT
+- **Document Handling**: DOCX, bilingual DOCX, PDF (via OCR), simple TXT, **Multi-file folder import**
 - **Quality Assurance**: Spellcheck, tag validation, consistency checking
 - **Superlookup**: Unified concordance hub with TM, Termbase, Supermemory, MT, and Web Resources
 
@@ -352,6 +352,84 @@ When Qt stylesheets aren't visually applying despite the code running correctly,
 1. Widget visibility state at time of styling
 2. Using QPalette as an alternative/supplement to stylesheets
 3. Re-applying styles when widget becomes visible
+
+---
+
+### December 17, 2025 - Version 1.9.42: Multi-File Project Support
+
+**📁 Import Folder (Multiple Files)**
+
+Major new feature allowing users to import entire folders of files as a single multi-file project:
+
+- **New Menu Item**: File → Import → Folder (Multiple Files)...
+- **Supported Formats**: DOCX and TXT files in selected folder
+- **File Selection Dialog**: Preview files with size, select/deselect individual files
+- **Language Pair Selection**: Set source/target language for all files
+- **Progress Dialog**: Shows import progress with per-file segment counts
+
+**🗂️ Per-File Progress Tracking**
+
+- **File Progress Dialog**: View → File Progress... (or click on status bar)
+- **Per-File Statistics**: Segments, words, translated, confirmed, progress bar for each file
+- **Status Indicators**: ✅ Complete, 📝 Translated, 🔄 In Progress, ⬜ Not Started
+- **Navigation**: Double-click file to jump to its first segment
+
+**📊 Status Bar Enhancement**
+
+- **Files Indicator**: Shows "📁 Files: X/Y" for multi-file projects (completed/total)
+- **Clickable**: Click the files indicator to open File Progress dialog
+- **Tooltip**: Hover for file count and completion summary
+
+**🔍 File Filter Dropdown**
+
+- **New Dropdown**: Appears in filter panel for multi-file projects
+- **Filter by File**: Select a specific file to show only its segments
+- **All Files**: Default option to show all segments from all files
+
+**Data Model Changes:**
+- `Segment` dataclass: Added `file_id` (int) and `file_name` (str) fields
+- `Project` dataclass: Added `files` (list of file metadata) and `is_multifile` (bool) fields
+- Backward compatible: Single-file projects work unchanged
+
+**📤 Export Folder (Multiple Files)**
+
+- **New Menu Item**: File → Export → Folder (Multiple Files)...
+- **Format Options**: TXT (plain text), DOCX (formatted), Bilingual (Source/Target table)
+- **File Preview**: Shows all files with format, segment count, and status
+- **Progress Dialog**: Shows export progress with per-file updates
+
+**New Methods in Supervertaler.py:**
+- `import_folder_multifile()` - Folder import dialog
+- `_import_multifile_project()` - Import multiple files into single project
+- `export_folder_multifile()` - Folder export dialog
+- `_export_multifile_to_folder()` - Export multiple files to folder
+- `_export_file_as_txt()` - Export single file as plain text
+- `_export_file_as_docx()` - Export single file as formatted DOCX
+- `_export_file_as_bilingual()` - Export single file as bilingual DOCX table
+- `show_file_progress_dialog()` - Per-file progress dialog
+- `_add_overall_progress_section()` - Overall progress stats
+- `_on_file_filter_changed()` - File filter dropdown handler
+- `_update_file_filter_combo()` - Populate file filter dropdown
+
+**🔧 Source File Backup & Recovery (added later)**
+
+- **Automatic Backup**: Source files now copied to `_source_files/` folder inside project directory during import
+- **Relocate Source Folder**: File → Relocate Source Folder... menu item to fix broken paths when source files are moved
+- **Export Warning**: Shows helpful message when source files are missing, suggests using Relocate feature
+
+**🔍 Superlookup Fixes**
+
+- **Class Renamed**: `UniversalLookupTab` → `SuperlookupTab` for consistency
+- **Theme Support**: Added `theme_manager` attribute for theme-aware search term highlighting
+- **Fixed Error**: Resolved `'UniversalLookupTab' object has no attribute 'theme_manager'` error
+
+**📋 Spellcheck Info Dialog Redesign**
+
+- **Compact Layout**: Completely redesigned to fit on screen without scrolling off the bottom
+- **Horizontal Top Row**: Status, language dropdown, and backend indicator on one line
+- **Collapsible Troubleshooting**: Diagnostics section collapsed by default (click to expand)
+- **Inline Links**: Download links for Hunspell dictionaries in horizontal row with separators
+- **Max Height**: Dialog limited to 500px to prevent overflow
 
 ---
 
