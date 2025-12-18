@@ -1296,6 +1296,7 @@ class DatabaseManager:
                 LOWER(t.source_term) LIKE LOWER(?) OR 
                 LOWER(t.source_term) LIKE LOWER(?)
             )
+            AND (ta.is_active = 1 OR tb.is_project_termbase = 1)
         """
         # Exact match, word at start, word at end, word in middle
         # Use LOWER() for case-insensitive matching (handles "Edelmetalen" = "edelmetalen")

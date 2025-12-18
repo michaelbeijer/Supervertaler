@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.45"
+__version__ = "1.9.46"
 __phase__ = "0.9"
 __release_date__ = "2025-12-17"
 __edition__ = "Qt"
@@ -5421,38 +5421,17 @@ class SupervertalerQt(QMainWindow):
         # Navigation submenu
         nav_menu = view_menu.addMenu("📑 &Navigate To")
         
-        go_editor_action = QAction("📝 &Project Editor", self)
+        go_editor_action = QAction("🏠 &Workspace", self)
         go_editor_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(0) if hasattr(self, 'main_tabs') else None)
         nav_menu.addAction(go_editor_action)
         
-        go_prompt_action = QAction("🤖 &Prompt Manager", self)
-        go_prompt_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(1) if hasattr(self, 'main_tabs') else None)
-        nav_menu.addAction(go_prompt_action)
-        
-        go_resources_action = QAction("📚 &Resources", self)
-        go_resources_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(2) if hasattr(self, 'main_tabs') else None)
-        nav_menu.addAction(go_resources_action)
-        
         go_tools_action = QAction("🛠️ &Tools", self)
-        go_tools_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(3) if hasattr(self, 'main_tabs') else None)
+        go_tools_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(1) if hasattr(self, 'main_tabs') else None)
         nav_menu.addAction(go_tools_action)
         
         go_settings_action = QAction("⚙️ &Settings", self)
-        go_settings_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(4) if hasattr(self, 'main_tabs') else None)
+        go_settings_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(2) if hasattr(self, 'main_tabs') else None)
         nav_menu.addAction(go_settings_action)
-        
-        view_menu.addSeparator()
-        
-        # View mode switcher
-        grid_view_action = QAction("📊 &Grid View", self)
-        grid_view_action.triggered.connect(lambda: self.switch_view_mode(LayoutMode.GRID))
-        view_menu.addAction(grid_view_action)
-        
-        # List view removed - now only Grid and Document views available
-        
-        document_view_action = QAction("📄 &Document View", self)
-        document_view_action.triggered.connect(lambda: self.switch_view_mode(LayoutMode.DOCUMENT))
-        view_menu.addAction(document_view_action)
         
         view_menu.addSeparator()
         
@@ -5911,11 +5890,18 @@ class SupervertalerQt(QMainWindow):
             }
         """)
         
-        # Create nested tab widget for Document Views (Grid, List, Document)
-        self.document_views_widget = QTabWidget()
-        self.document_views_widget.tabBar().setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.document_views_widget.tabBar().setDrawBase(False)
-        self.document_views_widget.setStyleSheet("""
+        # ===== WORKSPACE TAB =====
+        # Contains: Editor (grid) + Resources (TM, Termbases, etc.)
+        project_home_widget = QWidget()
+        project_home_layout = QVBoxLayout(project_home_widget)
+        project_home_layout.setContentsMargins(0, 0, 0, 0)
+        project_home_layout.setSpacing(0)
+        
+        # Create nested tab widget for Workspace subtabs
+        self.project_home_tabs = QTabWidget()
+        self.project_home_tabs.tabBar().setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.project_home_tabs.tabBar().setDrawBase(False)
+        self.project_home_tabs.setStyleSheet("""
             QTabBar::tab { padding: 6px 12px; outline: 0; }
             QTabBar::tab:focus { outline: none; }
             QTabBar::tab:selected { 
@@ -5924,24 +5910,21 @@ class SupervertalerQt(QMainWindow):
             }
         """)
         
-        # Create view widgets
+        # Create Editor (grid view)
         grid_widget = self.create_grid_view_widget_for_home()
-        doc_widget = self.create_document_view_widget_for_home()
+        self.project_home_tabs.addTab(grid_widget, "📝 Editor")
         
-        self.document_views_widget.addTab(grid_widget, "📊 Grid View")
-        self.document_views_widget.addTab(doc_widget, "📄 Document View")
+        # Create Resources tab (TM, Termbases, Prompts, etc.)
+        resources_tab = self.create_resources_tab()
+        self.project_home_tabs.addTab(resources_tab, "📚 Resources")
         
-        # Register document container
-        doc_container = self._locate_document_container(doc_widget, "editor_document_container")
-        if doc_container is not None:
-            self.document_containers['editor'] = doc_container
+        project_home_layout.addWidget(self.project_home_tabs)
+        
+        # Keep backward compatibility reference
+        self.document_views_widget = self.project_home_tabs
         
         # Add tabs to main interface
-        self.main_tabs.addTab(self.document_views_widget, "📝 Project Editor")
-        
-        # 1. PROJECT RESOURCES (Translation Memories, Termbases, Prompts, etc.)
-        resources_tab = self.create_resources_tab()
-        self.main_tabs.addTab(resources_tab, "📚 Project Resources")
+        self.main_tabs.addTab(project_home_widget, "🏠 Workspace")
         
         # 2. TOOLS
         tools_tab = self.create_specialised_tools_tab()
@@ -5954,29 +5937,20 @@ class SupervertalerQt(QMainWindow):
         main_layout.addWidget(self.main_tabs)
         
         # Connect tab changes to handle view refreshes
-        self.document_views_widget.currentChanged.connect(self._on_document_views_tab_changed)
+        self.project_home_tabs.currentChanged.connect(self._on_project_home_tab_changed)
         self.main_tabs.currentChanged.connect(self._on_main_tab_changed)
     
-    def _on_document_views_tab_changed(self, index: int):
-        """Handle tab changes within the Document Views (Grid/List/Document)"""
+    def _on_project_home_tab_changed(self, index: int):
+        """Handle tab changes within Workspace (Editor/Resources)"""
         try:
-            if index == 0:  # Grid View
+            if index == 0:  # Editor (Grid)
                 # Grid refreshes automatically when segments change
                 pass
-            elif index == 1:  # Document View
-                if self.current_project:
-                    self._set_active_document_host('editor')
-                    # Force re-discovery of container before refresh
-                    doc_widget = self.document_views_widget.widget(2)
-                    if doc_widget:
-                        doc_container = self._locate_document_container(doc_widget, "editor_document_container")
-                        if doc_container is not None:
-                            self.document_containers['editor'] = doc_container
-                    container = self._get_document_container('editor')
-                    if container is not None:
-                        self.refresh_document_view('editor')
+            elif index == 1:  # Resources
+                # Resources tab - no special handling needed
+                pass
         except Exception as e:
-            self.log(f"⚠️ Error switching document views: {e}")
+            self.log(f"⚠️ Error switching workspace tabs: {e}")
             import traceback
             traceback.print_exc()
 
@@ -28322,8 +28296,8 @@ class SupervertalerQt(QMainWindow):
     def _go_to_superlookup(self):
         """Navigate to Superlookup in Tools tab"""
         if hasattr(self, 'main_tabs'):
-            # Main tabs: Project Editor=0, Project Resources=1, Tools=2, Settings=3
-            self.main_tabs.setCurrentIndex(2)  # Switch to Tools tab
+            # Main tabs: Workspace=0, Tools=1, Settings=2
+            self.main_tabs.setCurrentIndex(1)  # Switch to Tools tab
             # Then switch to Superlookup sub-tab
             if hasattr(self, 'modules_tabs'):
                 # Find Superlookup index in modules tabs

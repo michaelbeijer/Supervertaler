@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.45 (December 17, 2025)
+**Current Version:** v1.9.46 (December 18, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -14,7 +14,8 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
-- 🏷️ **Termbase Highlight Styles (v1.9.45)** - Three configurable styles for termbase matches in the translation grid: **Background** (default pastel green shades), **Dotted Underline** (priority-based colors: red for P1, grays for P2-3, customizable for P4+), and **Semibold** (bold weight with tinted foreground). Configure via Settings → View Settings. Auto-spellcheck for target language: spellcheck now automatically initializes to project target language on import/load. Fixed short language codes (nl, de, fr) not mapping to dictionaries.
+- � **Workspace UI Redesign (v1.9.46)** - Cleaner tab hierarchy with renamed tabs: **Workspace** (main tab) containing **Editor** (the grid) and **Resources** (TM, Termbases, Prompts, etc.). Removed Document View (unused). Simplified navigation menu. Fixed critical bug where termbase matches showed terms from non-activated termbases.
+- �🏷️ **Termbase Highlight Styles (v1.9.45)** - Three configurable styles for termbase matches in the translation grid: **Background** (default pastel green shades), **Dotted Underline** (priority-based colors: red for P1, grays for P2-3, customizable for P4+), and **Semibold** (bold weight with tinted foreground). Configure via Settings → View Settings. Auto-spellcheck for target language: spellcheck now automatically initializes to project target language on import/load. Fixed short language codes (nl, de, fr) not mapping to dictionaries.
 - 📚 **UI Reorganization (v1.9.44)** - Prompt Manager moved under Project Resources tab (prompts are project resources). Superlookup hotkey script now shows Supervertaler icon in system tray. Fixed termbase import "Could not find termbase ID" error. Removed dotted focus outline from Superlookup Search button.
 - 🔑 **Superlookup Hotkey Improvements (v1.9.43)** - Fixed Ctrl+Alt+L global hotkey not bringing Superlookup to foreground. Added AutoHotkey setup helper (Help → Setup AutoHotkey for Superlookup). New AutoHotkey path configuration in Settings → General Settings. Better error handling when AutoHotkey is not installed.
 - 📁 **Multi-File Project Support (v1.9.42)** - Import entire folders of files as a single multi-file project! File → Import → Folder (Multiple Files) supports DOCX and TXT files. Per-file progress tracking in View → File Progress dialog (or click status bar). New file filter dropdown to show segments from specific files. Status bar shows completion progress across all files. Source files automatically backed up to `_source_files/` folder. Relocate Source Folder feature to fix broken paths. Export to folder with TXT, DOCX, or Bilingual Table formats (export in progress - basic functionality available).

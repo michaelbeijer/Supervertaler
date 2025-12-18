@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** December 17, 2025 | **Version:** v1.9.45
+> **Last Updated:** December 18, 2025 | **Version:** v1.9.46
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.45 (December 2025) |
+| **Version** | v1.9.46 (December 2025) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -331,6 +331,34 @@ google_api_key=AI...
 ---
 
 ## 🔄 Recent Development History
+
+### December 18, 2025 - Version 1.9.46: Workspace UI Redesign
+
+**🏠 New Tab Hierarchy**
+
+Cleaner, more intuitive tab structure:
+
+- **Main tabs**: 🏠 Workspace → 🛠️ Tools → ⚙️ Settings
+- **Workspace subtabs**: 📝 Editor (the grid) + 📚 Resources (TM, Termbases, Prompts, etc.)
+- Removed Document View (unused feature)
+- Simplified View menu (removed Grid/Document view switcher)
+
+**Naming Philosophy:**
+- "Workspace" - generic term that works for translation, localization, and copywriting
+- "Editor" - describes what you do (edit content), not the UI (grid)
+- "Resources" - all project resources in one place
+
+**🐛 Critical Bug Fix: Termbase Activation**
+
+Fixed termbase matches showing terms from non-activated termbases:
+- Added `AND (ta.is_active = 1 OR tb.is_project_termbase = 1)` filter to `search_termbases()` query
+- Now only returns terms from termbases with Read checkbox enabled
+
+**Files Modified:**
+- `Supervertaler.py` - `create_main_layout()`, navigation menu, view menu
+- `modules/database_manager.py` - `search_termbases()` activation filter
+
+---
 
 ### December 17, 2025 - Version 1.9.45: Termbase Highlight Styles & Spellcheck Auto-Language
 
