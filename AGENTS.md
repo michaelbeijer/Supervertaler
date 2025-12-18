@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** December 18, 2025 | **Version:** v1.9.47
+> **Last Updated:** December 18, 2025 | **Version:** v1.9.50
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.47 (December 2025) |
+| **Version** | v1.9.50 (December 2025) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -127,6 +127,7 @@ class Segment:
 - `unified_prompt_library.py` - Unified prompt system
 - `unified_prompt_manager_qt.py` - Prompt manager UI
 - `voice_dictation.py` - Whisper-based voice input
+- `voice_commands.py` - Talon-style voice command system (NEW)
 - `ai_actions.py` - AI action system for prompt library
 - `ai_attachment_manager.py` - File attachment persistence
 - `ai_file_viewer_dialog.py` - File viewing dialog
@@ -332,6 +333,118 @@ google_api_key=AI...
 
 ## 🔄 Recent Development History
 
+### December 18, 2025 - Version 1.9.50: Voice Commands Complete
+
+**🎤 Voice Commands System - Final Polish**
+
+Complete hands-free translation system with all features working:
+
+- **OpenAI Whisper API Integration**: Added dual recognition engine support
+  - OpenAI Whisper API (recommended): Fast, accurate, works great for short voice commands
+  - Local Whisper model (fallback): Works offline but less accurate for short clips
+  - Recognition engine dropdown in Supervoice settings
+
+- **Grid Toolbar Button**: New 🎧 Voice ON/OFF toggle button in the grid toolbar
+  - Shows current state: 🎧 Voice ON (green), 🔴 REC (red), ⏳ Processing (orange)
+  - Click to toggle always-on listening without going to settings
+
+- **Status Bar Indicator**: Always-on indicator in status bar (bottom-right)
+  - 🎤 VOICE ON / 🔴 REC / ⏳ ... 
+  - Clickable to toggle on/off
+
+- **Bug Fixes**:
+  - Fixed `copy_source_to_grid_target()` not working - was using wrong column (1 instead of 3) and wrong method (`table.item()` instead of `table.cellWidget()`)
+  - Fixed `clear_grid_target()` same issue
+  - Fixed `get_api_key()` AttributeError - changed to `load_api_keys()` which returns dict
+
+**Files Modified:**
+- `Supervertaler.py` - Grid toolbar button, status bar indicator, API key loading fix, copy/clear target fixes
+- `modules/voice_commands.py` - OpenAI Whisper API transcription path
+
+---
+
+### December 18, 2025 - Version 1.9.49: Always-On Voice Listening
+
+**🎧 Always-On Listening Mode**
+
+New VAD-based (Voice Activity Detection) continuous listening mode that eliminates the need to press F9 twice:
+
+- **How it works:**
+  1. Continuously monitors microphone audio levels
+  2. When speech detected (RMS above threshold) → starts recording
+  3. When silence detected (0.8s of quiet) → stops and transcribes
+  4. Processes result as command or dictation
+  5. Repeats automatically
+
+- **Settings UI:** Settings → 🎤 Supervoice → "🎧 Always-On Listening Mode" section:
+  - Start/Stop toggle button with status indicator
+  - Visual feedback: 🟢 Listening → 🔴 Recording → ⏳ Processing
+  - Microphone sensitivity: Low/Medium/High (for different environments)
+
+- **F9 Behavior Update:**
+  - If always-on is active: F9 stops it
+  - If always-on is inactive: F9 works as push-to-talk (original behavior)
+
+- **Technical Details:**
+  - VAD uses amplitude-based speech detection (RMS threshold)
+  - Minimum speech duration: 0.3s (ignores short sounds)
+  - Maximum recording: 15s (prevents runaway recordings)
+  - Silence timeout: 0.8s (adjustable via sensitivity)
+  - Model loaded once, cached for fast subsequent transcriptions
+
+**Classes Added/Modified:**
+- `ContinuousVoiceListener` - Complete rewrite with VAD
+- `_VADListenerThread` - New background thread with proper VAD loop
+- Settings persistence for sensitivity level
+
+**Files Modified:**
+- `modules/voice_commands.py` - ContinuousVoiceListener, _VADListenerThread
+- `Supervertaler.py` - Import, initialization, toggle function, UI, signal handlers
+
+---
+
+### December 18, 2025 - Version 1.9.48: Voice Commands System (Talon-style)
+
+**🎤 Voice Command System**
+
+New Talon-style voice command system that lets users control Supervertaler and other applications by voice:
+
+- **3-Tier Architecture:**
+  - **Tier 1: Internal Commands** - Control Supervertaler (confirm segment, navigate, translate, etc.)
+  - **Tier 2: System Commands** - AutoHotkey integration for controlling other apps (memoQ, Trados, Word)
+  - **Tier 3: Dictation Fallback** - If no command matches, insert as text
+
+- **Built-in Commands:**
+  - Navigation: "next segment", "previous", "first segment", "last segment"
+  - Editing: "confirm", "copy source", "clear target", "undo", "redo"
+  - Translation: "translate", "translate all"
+  - Lookup: "lookup", "concordance"
+  - memoQ: "glossary" (Alt+Down), "tag next" (multi-key sequence)
+  - Trados: "confirm trados" (Ctrl+Enter)
+
+- **Settings UI:** Settings → 🎤 Supervoice tab now includes:
+  - Enable/disable voice commands toggle
+  - Voice commands table with all phrases, aliases, actions
+  - Add/Edit/Remove custom commands
+  - Reset to defaults button
+  - AutoHotkey status indicator
+
+- **Custom Command Support:**
+  - Phrase + aliases (fuzzy matching)
+  - Action types: internal, keystroke, AHK inline code, AHK script file
+  - Categories for organization
+  - User commands stored in `user_data/voice_commands.json`
+
+**New Files:**
+- `modules/voice_commands.py` - VoiceCommandManager, VoiceCommand dataclass, fuzzy matching
+- `voice_commands.ahk` - AutoHotkey v2 bridge script for system-level automation
+- `user_data/voice_commands.json` - User command library (auto-created)
+
+**Files Modified:**
+- `Supervertaler.py` - Added VoiceCommandManager, VoiceCommandEditDialog, enhanced Supervoice settings
+
+---
+
 ### December 18, 2025 - Version 1.9.46: Workspace UI Redesign
 
 **🏠 New Tab Hierarchy**
@@ -339,7 +452,7 @@ google_api_key=AI...
 Cleaner, more intuitive tab structure:
 
 - **Main tabs**: 🏠 Workspace → 🛠️ Tools → ⚙️ Settings
-- **Workspace subtabs**: 📝 Editor (the grid) + �️ Resources (TM, Termbases, Prompts, etc.)
+- **Workspace subtabs**: 📝 Editor (the grid) + 🗂️ Resources (TM, Termbases, Prompts, etc.)
 - Removed Document View (unused feature)
 - Simplified View menu (removed Grid/Document view switcher)
 

@@ -1,8 +1,8 @@
-# 🚀 Supervertaler v1.9.47
+# 🚀 Supervertaler v1.9.50
 
 🎯 **The Ultimate Translation Workbench** — Context-aware AI with intuitive 2-Layer Prompt Architecture, AI Assistant, project termbase system with automatic extraction, and specialized modules.
 
-**Current Version:** v1.9.47 (December 18, 2025)
+**Current Version:** v1.9.50 (December 18, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -33,7 +33,17 @@
 python Supervertaler.py
 ```
 
-### NEW in v1.9.41 - Dark Mode 🌙
+### NEW in v1.9.50 - Voice Commands System 🎤
+*   **Hands-Free Translation**: Say "next segment", "confirm", "source to target", "translate" and more
+*   **Always-On Listening**: VAD-based continuous listening - no need to press F9 twice
+*   **Dual Recognition**: OpenAI Whisper API (recommended) or local Whisper model
+*   **Grid Toggle Button**: 🎧 Voice ON/OFF button in toolbar for easy access
+*   **Status Indicators**: Status bar shows 🟢 Listening → 🔴 Recording → ⏳ Processing
+*   **AutoHotkey Integration**: Control external apps (memoQ, Trados, Word) by voice
+*   **Custom Commands**: Add your own voice commands with fuzzy matching
+*   **Configure**: Tools → Supervoice tab
+
+### v1.9.41 - Dark Mode 🌙
 *   **Complete Dark Theme**: Full dark mode support with consistent styling across the entire application
 *   **Compare Boxes**: Translation Results panel properly displays dark backgrounds in dark mode
 *   **Termview Visibility**: All words visible in dark mode, not just terms with matches
@@ -49,15 +59,6 @@ python Supervertaler.py
 *   **Language Filtering**: From/To dropdowns filter TM and termbase searches by language pair
 *   **Search Direction**: Both/Source only/Target only radio buttons for precise concordance
 *   **Yellow Highlighting**: Search terms highlighted in results with compact display and tooltips
-
-### v1.9.37 - User-Configurable Grid Fonts
-*   **Font Family Selection**: Choose from 10 popular fonts (Calibri, Segoe UI, Arial, Consolas, etc.) in Settings → View Settings
-*   **Live Preview**: See font changes in real-time before saving with a mock source/target preview showing tags
-*   **Font Persistence**: Your chosen font family is now saved between sessions (previously only font size was saved)
-*   **Spellcheck Language**: Now correctly defaults to project target languages
-
-**NEW in v1.9.33 - Spellcheck Update Fix:**
-- 🐛 **Spellcheck Fix** - Fixed issue where adding/ignoring words only removed underline in the current cell. Now triggers instant global refresh of all highlighters.
 
 **v1.9.32 - Trados SDLRPX Status Fix:**
 - 📦 **Trados SDLRPX Status Fix** - Fixed critical bug where exported SDLRPX return packages kept segments in "Draft" status instead of updating to "Translated".

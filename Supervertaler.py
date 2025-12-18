@@ -34,9 +34,9 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.47"
+__version__ = "1.9.50"
 __phase__ = "0.9"
-__release_date__ = "2025-12-17"
+__release_date__ = "2025-12-18"
 __edition__ = "Qt"
 
 import sys
@@ -76,6 +76,7 @@ if sys.platform == 'win32':
 import pyperclip  # For clipboard operations in Superlookup
 from modules.superlookup import SuperlookupEngine  # Superlookup engine
 from modules.voice_dictation_lite import QuickDictationThread  # Voice dictation
+from modules.voice_commands import VoiceCommandManager, VoiceCommand, ContinuousVoiceListener  # Voice commands (Talon-style)
 from modules.statuses import (
     STATUSES,
     DEFAULT_STATUS,
@@ -4186,6 +4187,164 @@ class TermMetadataDialog(QDialog):
         self.accept()
 
 
+class VoiceCommandEditDialog(QDialog):
+    """Dialog for adding/editing voice commands"""
+    
+    CATEGORIES = ["navigation", "editing", "translation", "lookup", "file", "view", "dictation", "memoq", "trados", "custom"]
+    ACTION_TYPES = [
+        ("internal", "Internal Action (Supervertaler)"),
+        ("keystroke", "Keystroke (e.g., ctrl+s)"),
+        ("ahk_inline", "AutoHotkey Code"),
+        ("ahk_script", "AutoHotkey Script File"),
+    ]
+    
+    def __init__(self, parent=None, command: VoiceCommand = None):
+        super().__init__(parent)
+        self.command = command
+        self.setup_ui()
+        
+        if command:
+            self.populate_from_command(command)
+    
+    def setup_ui(self):
+        self.setWindowTitle("Edit Voice Command" if self.command else "Add Voice Command")
+        self.setMinimumWidth(500)
+        
+        layout = QVBoxLayout(self)
+        
+        # Phrase
+        phrase_layout = QHBoxLayout()
+        phrase_layout.addWidget(QLabel("Phrase:"))
+        self.phrase_edit = QLineEdit()
+        self.phrase_edit.setPlaceholderText("e.g., confirm segment")
+        phrase_layout.addWidget(self.phrase_edit)
+        layout.addLayout(phrase_layout)
+        
+        # Aliases
+        aliases_layout = QHBoxLayout()
+        aliases_layout.addWidget(QLabel("Aliases:"))
+        self.aliases_edit = QLineEdit()
+        self.aliases_edit.setPlaceholderText("e.g., confirm, done, okay (comma-separated)")
+        aliases_layout.addWidget(self.aliases_edit)
+        layout.addLayout(aliases_layout)
+        
+        # Action Type
+        type_layout = QHBoxLayout()
+        type_layout.addWidget(QLabel("Type:"))
+        self.type_combo = QComboBox()
+        for value, label in self.ACTION_TYPES:
+            self.type_combo.addItem(label, value)
+        self.type_combo.currentIndexChanged.connect(self._on_type_changed)
+        type_layout.addWidget(self.type_combo)
+        layout.addLayout(type_layout)
+        
+        # Action
+        action_layout = QVBoxLayout()
+        action_label = QLabel("Action:")
+        action_layout.addWidget(action_label)
+        self.action_edit = QTextEdit()
+        self.action_edit.setMaximumHeight(100)
+        self.action_edit.setPlaceholderText("For internal: action_name\nFor keystroke: ctrl+s\nFor AHK: Send, ^s")
+        action_layout.addWidget(self.action_edit)
+        layout.addLayout(action_layout)
+        
+        # Internal actions dropdown (for internal type)
+        self.internal_actions_layout = QHBoxLayout()
+        self.internal_actions_layout.addWidget(QLabel("Preset:"))
+        self.internal_combo = QComboBox()
+        self.internal_combo.addItems([
+            "navigate_next", "navigate_previous", "navigate_first", "navigate_last",
+            "confirm_segment", "copy_source_to_target", "clear_target",
+            "translate_segment", "batch_translate",
+            "open_superlookup", "concordance_search",
+            "show_log", "show_editor",
+            "start_dictation", "stop_listening"
+        ])
+        self.internal_combo.currentTextChanged.connect(lambda t: self.action_edit.setPlainText(t))
+        self.internal_actions_layout.addWidget(self.internal_combo)
+        self.internal_actions_layout.addStretch()
+        layout.addLayout(self.internal_actions_layout)
+        
+        # Description
+        desc_layout = QHBoxLayout()
+        desc_layout.addWidget(QLabel("Description:"))
+        self.desc_edit = QLineEdit()
+        self.desc_edit.setPlaceholderText("e.g., Confirm current segment")
+        desc_layout.addWidget(self.desc_edit)
+        layout.addLayout(desc_layout)
+        
+        # Category
+        cat_layout = QHBoxLayout()
+        cat_layout.addWidget(QLabel("Category:"))
+        self.cat_combo = QComboBox()
+        self.cat_combo.addItems(self.CATEGORIES)
+        self.cat_combo.setEditable(True)
+        cat_layout.addWidget(self.cat_combo)
+        layout.addLayout(cat_layout)
+        
+        # Buttons
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+        
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(self.reject)
+        btn_layout.addWidget(cancel_btn)
+        
+        save_btn = QPushButton("Save")
+        save_btn.clicked.connect(self.accept)
+        save_btn.setDefault(True)
+        btn_layout.addWidget(save_btn)
+        
+        layout.addLayout(btn_layout)
+        
+        # Initial type setup
+        self._on_type_changed()
+    
+    def _on_type_changed(self):
+        """Show/hide internal actions dropdown based on type"""
+        is_internal = self.type_combo.currentData() == "internal"
+        for i in range(self.internal_actions_layout.count()):
+            widget = self.internal_actions_layout.itemAt(i).widget()
+            if widget:
+                widget.setVisible(is_internal)
+    
+    def populate_from_command(self, cmd: VoiceCommand):
+        """Populate dialog from existing command"""
+        self.phrase_edit.setText(cmd.phrase)
+        self.aliases_edit.setText(", ".join(cmd.aliases))
+        
+        # Find and set action type
+        for i in range(self.type_combo.count()):
+            if self.type_combo.itemData(i) == cmd.action_type:
+                self.type_combo.setCurrentIndex(i)
+                break
+        
+        self.action_edit.setPlainText(cmd.action)
+        self.desc_edit.setText(cmd.description)
+        
+        # Set category
+        idx = self.cat_combo.findText(cmd.category)
+        if idx >= 0:
+            self.cat_combo.setCurrentIndex(idx)
+        else:
+            self.cat_combo.setCurrentText(cmd.category)
+    
+    def get_command(self) -> VoiceCommand:
+        """Get the command from dialog inputs"""
+        aliases_text = self.aliases_edit.text().strip()
+        aliases = [a.strip() for a in aliases_text.split(",") if a.strip()] if aliases_text else []
+        
+        return VoiceCommand(
+            phrase=self.phrase_edit.text().strip(),
+            aliases=aliases,
+            action_type=self.type_combo.currentData(),
+            action=self.action_edit.toPlainText().strip(),
+            description=self.desc_edit.text().strip(),
+            category=self.cat_combo.currentText().strip(),
+            enabled=True
+        )
+
+
 class AdvancedFiltersDialog(QDialog):
     """Dialog for advanced filtering options"""
     
@@ -4508,6 +4667,12 @@ class SupervertalerQt(QMainWindow):
         # Set up the shared spellcheck manager for TagHighlighter instances
         TagHighlighter.set_spellcheck_manager(self.spellcheck_manager)
         TagHighlighter.set_spellcheck_enabled(self.spellcheck_enabled)
+        
+        # Voice Command Manager for Talon-style voice commands
+        self.voice_command_manager = VoiceCommandManager(self.user_data_path, main_window=self)
+        
+        # Continuous Voice Listener (always-on mode) - initialized on demand
+        self.voice_listener = None  # Will be ContinuousVoiceListener when enabled
         
         # Figure Context Manager for multimodal AI translation
         from modules.figure_context_manager import FigureContextManager
@@ -4898,6 +5063,15 @@ class SupervertalerQt(QMainWindow):
         self.progress_files_label.mousePressEvent = lambda e: self.show_file_progress_dialog()
         self.progress_files_label.hide()  # Hidden by default, shown for multi-file projects
         progress_layout.addWidget(self.progress_files_label)
+        
+        # Always-on voice indicator
+        self.alwayson_indicator_label = QLabel("")
+        self.alwayson_indicator_label.setStyleSheet("font-size: 11px; font-weight: bold;")
+        self.alwayson_indicator_label.setToolTip("Always-on voice listening status\nClick to toggle")
+        self.alwayson_indicator_label.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.alwayson_indicator_label.mousePressEvent = lambda e: self._toggle_alwayson_from_statusbar()
+        self.alwayson_indicator_label.hide()  # Hidden until enabled
+        progress_layout.addWidget(self.alwayson_indicator_label)
 
         # Add as permanent widget (stays on right side)
         self.status_bar.addPermanentWidget(progress_frame)
@@ -7625,6 +7799,10 @@ class SupervertalerQt(QMainWindow):
         # Superdocs - Automated Documentation Viewer
         superdocs_tab = self.create_superdocs_tab()
         modules_tabs.addTab(superdocs_tab, "📚 Superdocs")
+
+        # Supervoice - Voice Commands & Dictation
+        supervoice_tab = self._create_voice_dictation_settings_tab()
+        modules_tabs.addTab(supervoice_tab, "🎤 Supervoice")
 
         layout.addWidget(modules_tabs)
 
@@ -11462,24 +11640,20 @@ class SupervertalerQt(QMainWindow):
         system_prompts_tab = self._create_system_prompts_tab()
         settings_tabs.addTab(scroll_area_wrapper(system_prompts_tab), "📝 System Prompts")
 
-        # ===== TAB 7: Supervoice Settings =====
-        dictation_tab = self._create_voice_dictation_settings_tab()
-        settings_tabs.addTab(scroll_area_wrapper(dictation_tab), "🎤 Supervoice")
-
-        # ===== TAB 8: Debug Settings =====
+        # ===== TAB 7: Debug Settings =====
         debug_tab = self._create_debug_settings_tab()
         settings_tabs.addTab(scroll_area_wrapper(debug_tab), "🐛 Debug")
 
-        # ===== TAB 9: Domain Detection Keywords =====
+        # ===== TAB 8: Domain Detection Keywords =====
         domain_keywords_tab = self._create_domain_keywords_tab()
         settings_tabs.addTab(scroll_area_wrapper(domain_keywords_tab), "🎯 Domain Detection")
 
-        # ===== TAB 10: Keyboard Shortcuts =====
+        # ===== TAB 9: Keyboard Shortcuts =====
         from modules.keyboard_shortcuts_widget import KeyboardShortcutsWidget
         shortcuts_tab = KeyboardShortcutsWidget(self)
         settings_tabs.addTab(shortcuts_tab, "⌨️ Keyboard Shortcuts")
 
-        # ===== TAB 11: Log (moved from main tabs) =====
+        # ===== TAB 10: Log (moved from main tabs) =====
         log_tab = self.create_log_tab()
         settings_tabs.addTab(log_tab, "📋 Log")
         
@@ -13094,8 +13268,10 @@ class SupervertalerQt(QMainWindow):
         return tab
 
     def _create_voice_dictation_settings_tab(self):
-        """Create Supervoice Settings tab content"""
-        from PyQt6.QtWidgets import QGroupBox, QPushButton, QComboBox, QSpinBox
+        """Create Supervoice Settings tab content with Voice Commands"""
+        from PyQt6.QtWidgets import (QGroupBox, QPushButton, QComboBox, QSpinBox, 
+                                     QTableWidget, QTableWidgetItem, QHeaderView,
+                                     QAbstractItemView, QCheckBox)
 
         tab = QWidget()
         layout = QVBoxLayout(tab)
@@ -13107,27 +13283,171 @@ class SupervertalerQt(QMainWindow):
 
         # Header info
         header_info = QLabel(
-            "Configure Supervoice settings for hands-free translation input.\n"
-            "Supervoice allows you to speak translations instead of typing them."
+            "🎤 <b>Supervoice</b> - Hands-free translation with voice commands.<br>"
+            "Press <b>F9</b> to start recording. Speak commands or dictate text."
         )
+        header_info.setTextFormat(Qt.TextFormat.RichText)
         header_info.setStyleSheet("font-size: 9pt; color: #444; padding: 10px; background-color: #E3F2FD; border-radius: 4px;")
         header_info.setWordWrap(True)
         layout.addWidget(header_info)
 
-        # Whisper Model Settings group
+        # ===== Voice Commands Section =====
+        commands_group = QGroupBox("🗣️ Voice Commands (Talon-style)")
+        commands_layout = QVBoxLayout()
+
+        # Enable voice commands checkbox
+        voice_cmd_enabled = QCheckBox("Enable voice commands (spoken phrases trigger actions)")
+        voice_cmd_enabled.setChecked(dictation_settings.get('voice_commands_enabled', True))
+        voice_cmd_enabled.setToolTip("When enabled, spoken phrases like 'confirm' or 'next segment' will execute commands instead of being inserted as text")
+        commands_layout.addWidget(voice_cmd_enabled)
+        self.voice_commands_enabled_checkbox = voice_cmd_enabled
+
+        commands_info = QLabel(
+            "Voice commands let you control Supervertaler by voice. Say a phrase to execute an action.\n"
+            "If no command matches, the spoken text is inserted as dictation."
+        )
+        commands_info.setStyleSheet("font-size: 8pt; padding: 8px; color: #666;")
+        commands_info.setWordWrap(True)
+        commands_layout.addWidget(commands_info)
+
+        # Commands table
+        self.voice_commands_table = QTableWidget()
+        self.voice_commands_table.setColumnCount(4)
+        self.voice_commands_table.setHorizontalHeaderLabels(["Phrase", "Aliases", "Action", "Category"])
+        self.voice_commands_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        self.voice_commands_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.voice_commands_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        self.voice_commands_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
+        self.voice_commands_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.voice_commands_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.voice_commands_table.setMinimumHeight(200)
+        self.voice_commands_table.setMaximumHeight(300)
+        
+        # Populate table with current commands
+        self._populate_voice_commands_table()
+        commands_layout.addWidget(self.voice_commands_table)
+
+        # Command buttons
+        cmd_btn_layout = QHBoxLayout()
+        
+        add_cmd_btn = QPushButton("➕ Add Command")
+        add_cmd_btn.clicked.connect(self._add_voice_command)
+        cmd_btn_layout.addWidget(add_cmd_btn)
+        
+        edit_cmd_btn = QPushButton("✏️ Edit Command")
+        edit_cmd_btn.clicked.connect(self._edit_voice_command)
+        cmd_btn_layout.addWidget(edit_cmd_btn)
+        
+        remove_cmd_btn = QPushButton("🗑️ Remove Command")
+        remove_cmd_btn.clicked.connect(self._remove_voice_command)
+        cmd_btn_layout.addWidget(remove_cmd_btn)
+        
+        cmd_btn_layout.addStretch()
+        
+        reset_cmd_btn = QPushButton("🔄 Reset to Defaults")
+        reset_cmd_btn.clicked.connect(self._reset_voice_commands)
+        cmd_btn_layout.addWidget(reset_cmd_btn)
+        
+        commands_layout.addLayout(cmd_btn_layout)
+
+        commands_group.setLayout(commands_layout)
+        layout.addWidget(commands_group)
+
+        # ===== Always-On Mode Section =====
+        alwayson_group = QGroupBox("🎧 Always-On Listening Mode")
+        alwayson_layout = QVBoxLayout()
+
+        alwayson_info = QLabel(
+            "Always-on mode continuously listens for speech. When you speak, it automatically\n"
+            "records, transcribes, and processes as a command or dictation. No need to press F9!"
+        )
+        alwayson_info.setStyleSheet("font-size: 8pt; padding: 8px; color: #666;")
+        alwayson_info.setWordWrap(True)
+        alwayson_layout.addWidget(alwayson_info)
+
+        # Status row
+        status_row = QHBoxLayout()
+        
+        # Status indicator
+        self.alwayson_status_label = QLabel("⚪ Not active")
+        self.alwayson_status_label.setStyleSheet("font-size: 9pt; padding: 5px;")
+        status_row.addWidget(self.alwayson_status_label)
+        
+        status_row.addStretch()
+        
+        # Start/Stop button
+        self.alwayson_toggle_btn = QPushButton("▶️ Start Always-On Listening")
+        self.alwayson_toggle_btn.setStyleSheet("padding: 8px 15px;")
+        self.alwayson_toggle_btn.clicked.connect(self._toggle_alwayson_listening)
+        status_row.addWidget(self.alwayson_toggle_btn)
+        
+        alwayson_layout.addLayout(status_row)
+
+        # Recognition Engine row
+        engine_row = QHBoxLayout()
+        engine_row.addWidget(QLabel("Recognition Engine:"))
+        
+        self.recognition_engine_combo = QComboBox()
+        self.recognition_engine_combo.addItems([
+            "Local Whisper (offline, slower)",
+            "OpenAI Whisper API (online, fast & accurate)"
+        ])
+        saved_engine = dictation_settings.get('recognition_engine', 'local')
+        if saved_engine == 'api':
+            self.recognition_engine_combo.setCurrentIndex(1)
+        else:
+            self.recognition_engine_combo.setCurrentIndex(0)
+        self.recognition_engine_combo.setToolTip(
+            "Local: Uses Whisper model on your computer (works offline, but slower and less accurate)\n"
+            "API: Uses OpenAI's cloud API (faster, much more accurate, requires API key)"
+        )
+        engine_row.addWidget(self.recognition_engine_combo)
+        
+        engine_row.addStretch()
+        alwayson_layout.addLayout(engine_row)
+
+        # Sensitivity row
+        sensitivity_row = QHBoxLayout()
+        sensitivity_row.addWidget(QLabel("Mic Sensitivity:"))
+        
+        self.sensitivity_combo = QComboBox()
+        self.sensitivity_combo.addItems(["Low (noisy environment)", "Medium (normal)", "High (quiet environment)"])
+        self.sensitivity_combo.setCurrentIndex(1)  # Default to medium
+        saved_sensitivity = dictation_settings.get('alwayson_sensitivity', 'medium')
+        if saved_sensitivity == 'low':
+            self.sensitivity_combo.setCurrentIndex(0)
+        elif saved_sensitivity == 'high':
+            self.sensitivity_combo.setCurrentIndex(2)
+        self.sensitivity_combo.setToolTip("Adjust how sensitive the microphone is to speech detection")
+        sensitivity_row.addWidget(self.sensitivity_combo)
+        
+        sensitivity_row.addStretch()
+        
+        alwayson_layout.addLayout(sensitivity_row)
+
+        # Note about F9 and API
+        f9_note = QLabel(
+            "💡 <b>Tip:</b> OpenAI API is <b>highly recommended</b> for always-on mode - it's much faster and more accurate "
+            "for short voice commands. Requires an OpenAI API key in Settings → AI Settings."
+        )
+        f9_note.setTextFormat(Qt.TextFormat.RichText)
+        f9_note.setStyleSheet("font-size: 8pt; padding: 8px; color: #666; background-color: #E8F5E9; border-radius: 4px;")
+        f9_note.setWordWrap(True)
+        alwayson_layout.addWidget(f9_note)
+
+        alwayson_group.setLayout(alwayson_layout)
+        layout.addWidget(alwayson_group)
+
+        # ===== Whisper Model Settings =====
         model_group = QGroupBox("🤖 Speech Recognition Model")
         model_layout = QVBoxLayout()
 
         model_info = QLabel(
-            "Select the Whisper model size. Larger models are more accurate but slower.\n"
-            "• tiny: Fastest, least accurate (~1 GB RAM, 75 MB download)\n"
-            "• base: Fast, good accuracy (~1 GB RAM, 142 MB download) - Recommended\n"
-            "• small: Slower, better accuracy (~2 GB RAM, 466 MB download)\n"
-            "• medium: Slow, very accurate (~5 GB RAM, 1.5 GB download)\n"
-            "• large: Slowest, best accuracy (~10 GB RAM, 2.9 GB download)\n\n"
-            "Models download automatically on first use to: %USERPROFILE%\\.cache\\whisper"
+            "Whisper model size (larger = more accurate but slower):\n"
+            "• tiny: ~75 MB  •  base: ~142 MB (recommended)  •  small: ~466 MB\n"
+            "• medium: ~1.5 GB  •  large: ~2.9 GB"
         )
-        model_info.setStyleSheet("font-size: 8pt; padding: 8px; border-radius: 2px;")
+        model_info.setStyleSheet("font-size: 8pt; padding: 8px;")
         model_info.setWordWrap(True)
         model_layout.addWidget(model_info)
 
@@ -13136,56 +13456,19 @@ class SupervertalerQt(QMainWindow):
         model_combo = QComboBox()
         model_combo.addItems(["tiny", "base", "small", "medium", "large"])
         model_combo.setCurrentText(dictation_settings.get('model', 'base'))
-        model_combo.setToolTip("Select Whisper model size (base recommended)")
         model_select_layout.addWidget(model_combo)
-        model_select_layout.addStretch()
-        model_layout.addLayout(model_select_layout)
-
-        model_group.setLayout(model_layout)
-        layout.addWidget(model_group)
-
-        # Recording Settings group
-        recording_group = QGroupBox("🎤 Recording Settings")
-        recording_layout = QVBoxLayout()
-
-        # Max recording duration
-        duration_info = QLabel(
-            "Maximum recording duration per dictation session.\n"
-            "Recording automatically stops after this time limit."
-        )
-        duration_info.setStyleSheet("font-size: 8pt; padding: 8px; border-radius: 2px;")
-        duration_info.setWordWrap(True)
-        recording_layout.addWidget(duration_info)
-
-        duration_layout = QHBoxLayout()
-        duration_layout.addWidget(QLabel("Max Duration:"))
+        
+        model_select_layout.addSpacing(20)
+        model_select_layout.addWidget(QLabel("Max Duration:"))
         duration_spin = QSpinBox()
         duration_spin.setMinimum(3)
         duration_spin.setMaximum(60)
         duration_spin.setValue(dictation_settings.get('max_duration', 10))
-        duration_spin.setSuffix(" seconds")
-        duration_spin.setToolTip("Maximum recording time (3-60 seconds)")
-        duration_layout.addWidget(duration_spin)
-        duration_layout.addStretch()
-        recording_layout.addLayout(duration_layout)
-
-        recording_group.setLayout(recording_layout)
-        layout.addWidget(recording_group)
-
-        # Language Settings group
-        language_group = QGroupBox("🌐 Language Settings")
-        language_layout = QVBoxLayout()
-
-        language_info = QLabel(
-            "By default, voice dictation uses your project's target language.\n"
-            "You can override this to always use a specific language."
-        )
-        language_info.setStyleSheet("font-size: 8pt; padding: 8px; border-radius: 2px;")
-        language_info.setWordWrap(True)
-        language_layout.addWidget(language_info)
-
-        lang_select_layout = QHBoxLayout()
-        lang_select_layout.addWidget(QLabel("Dictation Language:"))
+        duration_spin.setSuffix(" sec")
+        model_select_layout.addWidget(duration_spin)
+        
+        model_select_layout.addSpacing(20)
+        model_select_layout.addWidget(QLabel("Language:"))
         lang_combo = QComboBox()
         lang_combo.addItems([
             "Auto (use project target language)",
@@ -13194,25 +13477,55 @@ class SupervertalerQt(QMainWindow):
             "Chinese", "Japanese", "Korean"
         ])
         lang_combo.setCurrentText(dictation_settings.get('language', 'Auto (use project target language)'))
-        lang_combo.setToolTip("Language for speech recognition")
-        lang_select_layout.addWidget(lang_combo)
-        lang_select_layout.addStretch()
-        language_layout.addLayout(lang_select_layout)
+        model_select_layout.addWidget(lang_combo)
+        
+        model_select_layout.addStretch()
+        model_layout.addLayout(model_select_layout)
 
-        language_group.setLayout(language_layout)
-        layout.addWidget(language_group)
+        model_group.setLayout(model_layout)
+        layout.addWidget(model_group)
+
+        # ===== AutoHotkey Integration =====
+        ahk_group = QGroupBox("⌨️ AutoHotkey Integration (System Commands)")
+        ahk_layout = QVBoxLayout()
+
+        ahk_info = QLabel(
+            "Voice commands can trigger AutoHotkey scripts for system-level automation.\n"
+            "This enables controlling other applications (memoQ, Trados, Word) by voice."
+        )
+        ahk_info.setStyleSheet("font-size: 8pt; padding: 8px; color: #666;")
+        ahk_info.setWordWrap(True)
+        ahk_layout.addWidget(ahk_info)
+
+        ahk_btn_layout = QHBoxLayout()
+        
+        ahk_status = self._check_ahk_installed()
+        ahk_status_label = QLabel(ahk_status)
+        ahk_status_label.setStyleSheet("font-size: 8pt; padding: 4px;")
+        ahk_btn_layout.addWidget(ahk_status_label)
+        
+        ahk_btn_layout.addStretch()
+        
+        open_ahk_folder_btn = QPushButton("📂 Open Scripts Folder")
+        open_ahk_folder_btn.clicked.connect(self._open_voice_scripts_folder)
+        ahk_btn_layout.addWidget(open_ahk_folder_btn)
+        
+        ahk_layout.addLayout(ahk_btn_layout)
+        ahk_group.setLayout(ahk_layout)
+        layout.addWidget(ahk_group)
 
         # Save button
         save_btn = QPushButton("💾 Save Supervoice Settings")
         save_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 10px;")
-        save_btn.clicked.connect(lambda: self.save_dictation_settings(
+        save_btn.clicked.connect(lambda: self._save_voice_settings(
             model_combo.currentText(),
             duration_spin.value(),
-            lang_combo.currentText()
+            lang_combo.currentText(),
+            voice_cmd_enabled.isChecked()
         ))
         layout.addWidget(save_btn)
 
-        # Store references for later access
+        # Store references
         self.dictation_model_combo = model_combo
         self.dictation_duration_spin = duration_spin
         self.dictation_lang_combo = lang_combo
@@ -13220,6 +13533,393 @@ class SupervertalerQt(QMainWindow):
         layout.addStretch()
 
         return tab
+
+    def _populate_voice_commands_table(self):
+        """Populate the voice commands table with current commands"""
+        if not hasattr(self, 'voice_command_manager'):
+            return
+        
+        table = self.voice_commands_table
+        table.setRowCount(0)
+        
+        for cmd in self.voice_command_manager.commands:
+            row = table.rowCount()
+            table.insertRow(row)
+            
+            table.setItem(row, 0, QTableWidgetItem(cmd.phrase))
+            table.setItem(row, 1, QTableWidgetItem(", ".join(cmd.aliases) if cmd.aliases else ""))
+            table.setItem(row, 2, QTableWidgetItem(cmd.description or cmd.action))
+            table.setItem(row, 3, QTableWidgetItem(cmd.category))
+
+    def _add_voice_command(self):
+        """Add a new voice command"""
+        dialog = VoiceCommandEditDialog(self)
+        if dialog.exec():
+            cmd = dialog.get_command()
+            self.voice_command_manager.add_command(cmd)
+            self._populate_voice_commands_table()
+
+    def _edit_voice_command(self):
+        """Edit selected voice command"""
+        table = self.voice_commands_table
+        selected = table.selectedItems()
+        if not selected:
+            QMessageBox.information(self, "Edit Command", "Please select a command to edit.")
+            return
+        
+        row = selected[0].row()
+        phrase = table.item(row, 0).text()
+        
+        # Find the command
+        cmd = next((c for c in self.voice_command_manager.commands if c.phrase == phrase), None)
+        if not cmd:
+            return
+        
+        dialog = VoiceCommandEditDialog(self, cmd)
+        if dialog.exec():
+            # Remove old, add new
+            self.voice_command_manager.remove_command(phrase)
+            new_cmd = dialog.get_command()
+            self.voice_command_manager.add_command(new_cmd)
+            self._populate_voice_commands_table()
+
+    def _remove_voice_command(self):
+        """Remove selected voice command"""
+        table = self.voice_commands_table
+        selected = table.selectedItems()
+        if not selected:
+            QMessageBox.information(self, "Remove Command", "Please select a command to remove.")
+            return
+        
+        row = selected[0].row()
+        phrase = table.item(row, 0).text()
+        
+        reply = QMessageBox.question(
+            self, "Remove Command",
+            f"Remove voice command '{phrase}'?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        
+        if reply == QMessageBox.StandardButton.Yes:
+            self.voice_command_manager.remove_command(phrase)
+            self._populate_voice_commands_table()
+
+    def _reset_voice_commands(self):
+        """Reset voice commands to defaults"""
+        reply = QMessageBox.question(
+            self, "Reset Commands",
+            "Reset all voice commands to defaults?\n\nThis will remove any custom commands you've added.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        
+        if reply == QMessageBox.StandardButton.Yes:
+            self.voice_command_manager.commands = self.voice_command_manager.DEFAULT_COMMANDS.copy()
+            self.voice_command_manager.save_commands()
+            self._populate_voice_commands_table()
+            QMessageBox.information(self, "Reset Complete", "Voice commands have been reset to defaults.")
+
+    def _check_ahk_installed(self) -> str:
+        """Check if AutoHotkey is installed"""
+        ahk_exe = self.voice_command_manager._find_ahk_executable() if hasattr(self, 'voice_command_manager') else None
+        if ahk_exe:
+            return "✅ AutoHotkey detected"
+        else:
+            return "⚠️ AutoHotkey not found - install from autohotkey.com for system commands"
+
+    def _open_voice_scripts_folder(self):
+        """Open the voice scripts folder"""
+        import subprocess
+        scripts_folder = self.user_data_path / "voice_scripts"
+        scripts_folder.mkdir(parents=True, exist_ok=True)
+        subprocess.Popen(['explorer', str(scripts_folder)])
+
+    def _toggle_alwayson_listening(self):
+        """Toggle always-on voice listening mode"""
+        if self.voice_listener and self.voice_listener.is_listening:
+            # Stop listening
+            self.voice_listener.stop()
+            self.voice_listener = None
+            self._update_alwayson_ui("stopped")
+            self.log("🔇 Always-on listening stopped")
+            self.status_bar.showMessage("🔇 Always-on listening stopped", 3000)
+        else:
+            # Start listening
+            try:
+                dictation_settings = self.load_dictation_settings()
+                model_name = dictation_settings.get('model', 'base')
+                
+                # Check recognition engine setting
+                use_api = dictation_settings.get('recognition_engine', 'local') == 'api'
+                
+                # If using API, check if we have an OpenAI key
+                api_key = None
+                if use_api:
+                    api_keys = self.load_api_keys()
+                    api_key = api_keys.get('openai') or api_keys.get('openai_api_key')
+                    if not api_key:
+                        QMessageBox.warning(
+                            self, "OpenAI API Key Required",
+                            "To use OpenAI Whisper API, please set your OpenAI API key in:\n\n"
+                            "Settings → AI Settings → OpenAI API Key\n\n"
+                            "Falling back to local Whisper model."
+                        )
+                        use_api = False
+                
+                # Get language setting
+                lang_setting = dictation_settings.get('language', 'Auto (use project target language)')
+                if lang_setting.startswith('Auto'):
+                    target_lang = self.current_project.target_lang if self.current_project else 'en'
+                    lang_map = {
+                        'nl': 'nl', 'nl_NL': 'nl', 'nl_BE': 'nl',
+                        'en': 'en', 'en_US': 'en', 'en_GB': 'en',
+                        'de': 'de', 'de_DE': 'de',
+                        'fr': 'fr', 'fr_FR': 'fr',
+                        'es': 'es', 'es_ES': 'es',
+                    }
+                    lang_code = lang_map.get(target_lang, 'auto')
+                else:
+                    lang_code = lang_setting.lower()[:2]
+                
+                # Create listener
+                self.voice_listener = ContinuousVoiceListener(
+                    command_manager=self.voice_command_manager,
+                    model_name=model_name,
+                    language=lang_code,
+                    use_api=use_api,
+                    api_key=api_key
+                )
+                
+                # Set sensitivity
+                if hasattr(self, 'sensitivity_combo'):
+                    idx = self.sensitivity_combo.currentIndex()
+                    sensitivity = ['low', 'medium', 'high'][idx]
+                    self.voice_listener.set_sensitivity(sensitivity)
+                
+                # Connect signals
+                self.voice_listener.speech_detected.connect(self._on_alwayson_speech)
+                self.voice_listener.command_detected.connect(self._on_alwayson_command)
+                self.voice_listener.text_for_dictation.connect(self._on_alwayson_dictation)
+                self.voice_listener.status_update.connect(self._on_alwayson_status)
+                self.voice_listener.error_occurred.connect(self._on_alwayson_error)
+                self.voice_listener.vad_status_changed.connect(self._on_alwayson_vad_status)
+                self.voice_listener.listening_started.connect(lambda: self._update_alwayson_ui("listening"))
+                self.voice_listener.listening_stopped.connect(lambda: self._update_alwayson_ui("stopped"))
+                
+                # Log which engine we're using
+                if use_api:
+                    self.log("🎧 Always-on listening started (OpenAI API - fast & accurate)")
+                else:
+                    self.log(f"🎧 Always-on listening started (local Whisper '{model_name}')")
+                
+                # Start
+                self.voice_listener.start()
+                self.log("🎧 Always-on listening started")
+                
+            except Exception as e:
+                import traceback
+                self.log(f"❌ Failed to start always-on listening: {e}")
+                self.log(traceback.format_exc())
+                QMessageBox.critical(self, "Always-On Error", f"Failed to start always-on listening:\n\n{e}")
+
+    def _update_alwayson_ui(self, status: str):
+        """Update the always-on UI elements"""
+        # Update settings panel UI (if visible)
+        if hasattr(self, 'alwayson_status_label'):
+            if status == "listening" or status == "waiting":
+                self.alwayson_status_label.setText("🟢 Listening for speech...")
+                self.alwayson_status_label.setStyleSheet("font-size: 9pt; padding: 5px; color: #2E7D32;")
+                self.alwayson_toggle_btn.setText("⏹️ Stop Always-On Listening")
+                self.alwayson_toggle_btn.setStyleSheet("padding: 8px 15px; background-color: #FFCDD2;")
+            elif status == "recording":
+                self.alwayson_status_label.setText("🔴 Recording...")
+                self.alwayson_status_label.setStyleSheet("font-size: 9pt; padding: 5px; color: #C62828;")
+            elif status == "processing":
+                self.alwayson_status_label.setText("⏳ Processing...")
+                self.alwayson_status_label.setStyleSheet("font-size: 9pt; padding: 5px; color: #F57C00;")
+            else:  # stopped or other
+                self.alwayson_status_label.setText("⚪ Not active")
+                self.alwayson_status_label.setStyleSheet("font-size: 9pt; padding: 5px;")
+                self.alwayson_toggle_btn.setText("▶️ Start Always-On Listening")
+                self.alwayson_toggle_btn.setStyleSheet("padding: 8px 15px;")
+        
+        # Update status bar indicator (always visible when active)
+        if hasattr(self, 'alwayson_indicator_label'):
+            if status == "listening" or status == "waiting":
+                self.alwayson_indicator_label.setText("🎤 VOICE ON")
+                self.alwayson_indicator_label.setStyleSheet("font-size: 11px; font-weight: bold; color: #2E7D32; background-color: #C8E6C9; padding: 2px 6px; border-radius: 3px;")
+                self.alwayson_indicator_label.setToolTip("Always-on voice listening ACTIVE\nClick to stop")
+                self.alwayson_indicator_label.show()
+            elif status == "recording":
+                self.alwayson_indicator_label.setText("🔴 REC")
+                self.alwayson_indicator_label.setStyleSheet("font-size: 11px; font-weight: bold; color: white; background-color: #C62828; padding: 2px 6px; border-radius: 3px;")
+                self.alwayson_indicator_label.setToolTip("Recording speech...")
+                self.alwayson_indicator_label.show()
+            elif status == "processing":
+                self.alwayson_indicator_label.setText("⏳ ...")
+                self.alwayson_indicator_label.setStyleSheet("font-size: 11px; font-weight: bold; color: #F57C00; background-color: #FFF3E0; padding: 2px 6px; border-radius: 3px;")
+                self.alwayson_indicator_label.setToolTip("Processing speech...")
+                self.alwayson_indicator_label.show()
+            else:  # stopped or other
+                self.alwayson_indicator_label.hide()
+        
+        # Update grid toolbar button (if exists)
+        if hasattr(self, 'grid_alwayson_btn'):
+            if status == "listening" or status == "waiting":
+                self.grid_alwayson_btn.setText("🎧 Voice ON")
+                self.grid_alwayson_btn.setChecked(True)
+                self.grid_alwayson_btn.setStyleSheet("""
+                    QPushButton {
+                        background-color: #2E7D32;
+                        color: white;
+                        font-weight: bold;
+                        padding: 4px 8px;
+                        border-radius: 3px;
+                    }
+                    QPushButton:checked {
+                        background-color: #2E7D32;
+                    }
+                """)
+            elif status == "recording":
+                self.grid_alwayson_btn.setText("🔴 REC")
+                self.grid_alwayson_btn.setStyleSheet("""
+                    QPushButton {
+                        background-color: #C62828;
+                        color: white;
+                        font-weight: bold;
+                        padding: 4px 8px;
+                        border-radius: 3px;
+                    }
+                    QPushButton:checked {
+                        background-color: #C62828;
+                    }
+                """)
+            elif status == "processing":
+                self.grid_alwayson_btn.setText("⏳ ...")
+                self.grid_alwayson_btn.setStyleSheet("""
+                    QPushButton {
+                        background-color: #F57C00;
+                        color: white;
+                        font-weight: bold;
+                        padding: 4px 8px;
+                        border-radius: 3px;
+                    }
+                    QPushButton:checked {
+                        background-color: #F57C00;
+                    }
+                """)
+            else:  # stopped or other
+                self.grid_alwayson_btn.setText("🎧 Voice OFF")
+                self.grid_alwayson_btn.setChecked(False)
+                self.grid_alwayson_btn.setStyleSheet("""
+                    QPushButton {
+                        background-color: #757575;
+                        color: white;
+                        font-weight: bold;
+                        padding: 4px 8px;
+                        border-radius: 3px;
+                    }
+                    QPushButton:checked {
+                        background-color: #2E7D32;
+                    }
+                """)
+
+    def _on_alwayson_speech(self, text: str):
+        """Handle raw speech from always-on listener"""
+        self.log(f"🎤 Heard: {text}")
+
+    def _on_alwayson_command(self, phrase: str, result: str):
+        """Handle command execution from always-on listener"""
+        self.log(f"🎤 Command: {phrase} → {result}")
+        self.status_bar.showMessage(f"🎤 {result}", 3000)
+
+    def _on_alwayson_dictation(self, text: str):
+        """Handle dictation text from always-on listener (no command matched)"""
+        # Insert into focused widget
+        focused_widget = QApplication.focusWidget()
+        
+        if isinstance(focused_widget, EditableGridTextEditor):
+            current_text = focused_widget.toPlainText()
+            if current_text:
+                focused_widget.setPlainText(current_text + " " + text)
+            else:
+                focused_widget.setPlainText(text)
+            cursor = focused_widget.textCursor()
+            cursor.movePosition(cursor.MoveOperation.End)
+            focused_widget.setTextCursor(cursor)
+            self.status_bar.showMessage(f"✅ Dictation: {text[:50]}...", 3000)
+        else:
+            self.log(f"💬 Dictation (no target): {text}")
+            self.status_bar.showMessage(f"💬 {text[:50]}...", 3000)
+
+    def _on_alwayson_status(self, message: str):
+        """Handle status updates from always-on listener"""
+        self.log(message)
+        if hasattr(self, 'alwayson_status_label'):
+            # Keep status label updated but don't override state-based status
+            pass
+
+    def _on_alwayson_error(self, error: str):
+        """Handle errors from always-on listener"""
+        self.log(f"❌ Always-on error: {error}")
+        QMessageBox.warning(self, "Always-On Error", f"Voice listener error:\n\n{error}")
+
+    def _on_alwayson_vad_status(self, status: str):
+        """Handle VAD status changes (waiting/recording/processing)"""
+        self._update_alwayson_ui(status)
+
+    def _toggle_alwayson_from_statusbar(self):
+        """Toggle always-on listening when clicking the status bar indicator"""
+        self._toggle_alwayson_listening()
+
+    def _toggle_alwayson_from_grid_btn(self, checked: bool, btn: QPushButton):
+        """Toggle always-on listening from the grid toolbar button"""
+        self._toggle_alwayson_listening()
+        # Button state will be updated by _update_alwayson_ui
+
+    def _save_voice_settings(self, model: str, duration: int, language: str, voice_commands_enabled: bool):
+        """Save all voice settings including voice commands enabled state, sensitivity, and recognition engine"""
+        # Save base settings
+        self.save_dictation_settings(model, duration, language)
+        
+        # Save voice commands enabled state, sensitivity, and recognition engine
+        prefs_file = self.user_data_path / "ui_preferences.json"
+        prefs = {}
+        if prefs_file.exists():
+            try:
+                with open(prefs_file, 'r') as f:
+                    prefs = json.load(f)
+            except:
+                pass
+        
+        if 'dictation_settings' not in prefs:
+            prefs['dictation_settings'] = {}
+        prefs['dictation_settings']['voice_commands_enabled'] = voice_commands_enabled
+        
+        # Save sensitivity setting
+        if hasattr(self, 'sensitivity_combo'):
+            idx = self.sensitivity_combo.currentIndex()
+            sensitivity = ['low', 'medium', 'high'][idx]
+            prefs['dictation_settings']['alwayson_sensitivity'] = sensitivity
+        
+        # Save recognition engine setting
+        if hasattr(self, 'recognition_engine_combo'):
+            idx = self.recognition_engine_combo.currentIndex()
+            engine = 'api' if idx == 1 else 'local'
+            prefs['dictation_settings']['recognition_engine'] = engine
+        
+        try:
+            with open(prefs_file, 'w') as f:
+                json.dump(prefs, f, indent=2)
+            
+            # Update active listener if running
+            if self.voice_listener and hasattr(self, 'sensitivity_combo'):
+                idx = self.sensitivity_combo.currentIndex()
+                sensitivity = ['low', 'medium', 'high'][idx]
+                self.voice_listener.set_sensitivity(sensitivity)
+                self.log(f"✓ Updated always-on sensitivity to: {sensitivity}")
+                
+        except Exception as e:
+            self.log(f"⚠ Could not save voice command settings: {e}")
 
     def _create_system_prompts_tab(self):
         """Create System Prompts (Layer 1) Settings tab content"""
@@ -14724,6 +15424,27 @@ class SupervertalerQt(QMainWindow):
         dictate_btn.clicked.connect(self.start_voice_dictation)
         dictate_btn.setToolTip("Start/stop voice dictation (F9)")
         toolbar_layout.addWidget(dictate_btn)
+        
+        # Always-On Voice toggle button
+        alwayson_btn = QPushButton("🎧 Voice OFF")
+        alwayson_btn.setCheckable(True)
+        alwayson_btn.setChecked(False)
+        alwayson_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #757575;
+                color: white;
+                font-weight: bold;
+                padding: 4px 8px;
+                border-radius: 3px;
+            }
+            QPushButton:checked {
+                background-color: #2E7D32;
+            }
+        """)
+        alwayson_btn.setToolTip("Toggle always-on voice listening\n\nWhen ON: Listens continuously for voice commands\nNo need to press F9")
+        alwayson_btn.clicked.connect(lambda checked: self._toggle_alwayson_from_grid_btn(checked, alwayson_btn))
+        toolbar_layout.addWidget(alwayson_btn)
+        self.grid_alwayson_btn = alwayson_btn  # Store reference
         
         toolbar_layout.addStretch()
         
@@ -26487,7 +27208,16 @@ class SupervertalerQt(QMainWindow):
                     pass
 
     def start_voice_dictation(self):
-        """Start or stop voice dictation (toggle behavior)"""
+        """Start or stop voice dictation (toggle behavior)
+        
+        If always-on mode is active, F9 stops it.
+        Otherwise, F9 starts push-to-talk recording.
+        """
+        # Check if always-on mode is active - if so, toggle it off
+        if self.voice_listener and self.voice_listener.is_listening:
+            self._toggle_alwayson_listening()
+            return
+        
         # Debug: Check thread state
         has_thread = hasattr(self, 'dictation_thread')
         thread_exists = has_thread and self.dictation_thread is not None
@@ -26576,8 +27306,21 @@ class SupervertalerQt(QMainWindow):
             QMessageBox.critical(self, "Dictation Error", f"Failed to start dictation:\n\n{str(e)}\n\nCheck the Log tab for full details.")
 
     def on_dictation_complete(self, text):
-        """Handle completed dictation"""
-        # Try to insert into currently focused target field (grid or editor)
+        """Handle completed dictation - check for voice commands first"""
+        # Load voice command settings
+        dictation_settings = self.load_dictation_settings()
+        voice_commands_enabled = dictation_settings.get('voice_commands_enabled', True)
+        
+        # Check for voice commands first (if enabled)
+        if voice_commands_enabled and hasattr(self, 'voice_command_manager'):
+            was_command, result = self.voice_command_manager.process_spoken_text(text)
+            if was_command:
+                # It was a command - show result and don't insert as text
+                self.log(f"🎤 Voice command: {text} → {result}")
+                self.status_bar.showMessage(f"🎤 {result}", 3000)
+                return
+        
+        # Not a command - insert as text (dictation mode)
         focused_widget = QApplication.focusWidget()
 
         # Check if focused widget is a grid target cell
@@ -26797,16 +27540,16 @@ class SupervertalerQt(QMainWindow):
             return
         
         current_row = self.table.currentRow()
-        if current_row < 0 or current_row >= len(self.current_project.segments):
+        if current_row < 0 or not self.current_project or current_row >= len(self.current_project.segments):
             return
         
         segment = self.current_project.segments[current_row]
         segment.target = segment.source
         
-        # Update grid cell
-        target_item = self.table.item(current_row, 1)
-        if target_item and hasattr(target_item, 'text_editor'):
-            target_item.text_editor.setPlainText(segment.source)
+        # Update grid cell - target is column 3 (ID=0, Status=1, Source=2, Target=3)
+        target_widget = self.table.cellWidget(current_row, 3)
+        if target_widget and isinstance(target_widget, EditableGridTextEditor):
+            target_widget.setPlainText(segment.source)
         
         self.project_modified = True
         self.log(f"📋 Copied source to target in segment {segment.id}")
@@ -26817,16 +27560,16 @@ class SupervertalerQt(QMainWindow):
             return
         
         current_row = self.table.currentRow()
-        if current_row < 0 or current_row >= len(self.current_project.segments):
+        if current_row < 0 or not self.current_project or current_row >= len(self.current_project.segments):
             return
         
         segment = self.current_project.segments[current_row]
         segment.target = ""
         
-        # Update grid cell
-        target_item = self.table.item(current_row, 1)
-        if target_item and hasattr(target_item, 'text_editor'):
-            target_item.text_editor.clear()
+        # Update grid cell - target is column 3 (ID=0, Status=1, Source=2, Target=3)
+        target_widget = self.table.cellWidget(current_row, 3)
+        if target_widget and isinstance(target_widget, EditableGridTextEditor):
+            target_widget.clear()
         
         self.project_modified = True
         self.log(f"🗑️ Cleared target in segment {segment.id}")
