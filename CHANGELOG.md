@@ -1,8 +1,8 @@
-# Supervertaler - Changelog
+﻿# Supervertaler - Changelog
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.46 (December 18, 2025)
+**Current Version:** v1.9.47 (December 18, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -14,6 +14,7 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+-  🧹 **Code Cleanup (v1.9.47)** - Removed ~811 lines of dead Document View code. The Document View feature was never used in production - the Grid View (Editor) is the primary and only workflow. Cleanup includes: removed `LayoutMode` class, removed `create_editor_widget()`, `create_document_view_widget()`, `refresh_document_view()` and all related helper methods. File reduced from 35,249 to 34,438 lines. No functional changes.
 - � **Workspace UI Redesign (v1.9.46)** - Cleaner tab hierarchy with renamed tabs: **Workspace** (main tab) containing **Editor** (the grid) and **Resources** (TM, Termbases, Prompts, etc.). Removed Document View (unused). Simplified navigation menu. Fixed critical bug where termbase matches showed terms from non-activated termbases.
 - �🏷️ **Termbase Highlight Styles (v1.9.45)** - Three configurable styles for termbase matches in the translation grid: **Background** (default pastel green shades), **Dotted Underline** (priority-based colors: red for P1, grays for P2-3, customizable for P4+), and **Semibold** (bold weight with tinted foreground). Configure via Settings → View Settings. Auto-spellcheck for target language: spellcheck now automatically initializes to project target language on import/load. Fixed short language codes (nl, de, fr) not mapping to dictionaries.
 - 📚 **UI Reorganization (v1.9.44)** - Prompt Manager moved under Project Resources tab (prompts are project resources). Superlookup hotkey script now shows Supervertaler icon in system tray. Fixed termbase import "Could not find termbase ID" error. Removed dotted focus outline from Superlookup Search button.
@@ -3221,3 +3222,4 @@ Supervertaler Qt uses semantic versioning:
 - **PHASE** - Development phase tracking (Phase 5+)
 
 **Current**: v1.0.2 (Phase 5.4)
+

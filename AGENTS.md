@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** December 18, 2025 | **Version:** v1.9.46
+> **Last Updated:** December 18, 2025 | **Version:** v1.9.47
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.46 (December 2025) |
+| **Version** | v1.9.47 (December 2025) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -357,6 +357,32 @@ Fixed termbase matches showing terms from non-activated termbases:
 **Files Modified:**
 - `Supervertaler.py` - `create_main_layout()`, navigation menu, view menu
 - `modules/database_manager.py` - `search_termbases()` activation filter
+
+---
+
+### December 18, 2025 - Version 1.9.47: Code Cleanup
+
+**🧹 Dead Document View Code Removed**
+
+Removed ~811 lines of unused Document View code. The Document View feature was never used in production - the Grid View (Editor) is the primary and only workflow.
+
+**Removed Items:**
+- `LayoutMode` class (GRID/DOCUMENT enum)
+- `create_editor_widget()` - View switcher with Grid/List/Document buttons
+- `create_home_tab()`, `create_projects_manager_tab()` - Deprecated wrappers
+- `create_editor_tab()`, `switch_view_mode()` - View switching logic
+- `switch_home_view_mode()` - Home tab view switching
+- `create_document_view_widget()`, `create_document_view_widget_for_home()` - Document view creation
+- `refresh_document_view()` - ~300 lines of document rendering code
+- `_find_document_container()`, `_register_document_container()`, `_set_active_document_host()`, `_get_document_container()`, `_locate_document_container()` - Container helpers
+- `_find_widget_by_object_name()` - Widget search helper
+- Document View Methods section (on_doc_segment_clicked, on_doc_status_change, etc.)
+- Document view state variables (doc_segment_widgets, doc_current_segment_id, document_containers, active_document_host, current_view_mode)
+
+**Result:**
+- File reduced from 35,249 to 34,438 lines
+- Cleaner codebase, easier to maintain
+- No functional changes - Grid View (Editor) is unaffected
 
 ---
 

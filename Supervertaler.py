@@ -3,8 +3,8 @@ Supervertaler
 =============
 The Ultimate Translation Workbench.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.9.40 (Superlookup Unified Concordance)
-Release Date: December 12, 2025
+Version: 1.9.47 (Code Cleanup)
+Release Date: December 18, 2025
 Framework: PyQt6
 
 This is the modern edition of Supervertaler using PyQt6 framework.
@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.46"
+__version__ = "1.9.47"
 __phase__ = "0.9"
 __release_date__ = "2025-12-17"
 __edition__ = "Qt"
@@ -173,15 +173,6 @@ atexit.register(cleanup_ahk_process)
 
 
 # ============================================================================
-# ENUMS
-# ============================================================================
-
-class LayoutMode:
-    """Layout/view modes for the Project Editor"""
-    GRID = "grid"       # Spreadsheet-like table (default)
-    DOCUMENT = "document"  # Document flow view with clickable segments
-
-
 # ============================================================================
 # DATA MODELS
 # ============================================================================
@@ -4480,15 +4471,6 @@ class SupervertalerQt(QMainWindow):
         self.is_loading_model = False
         self.loading_model_name = None
         
-        # View mode tracking
-        self.current_view_mode = LayoutMode.GRID  # Default to Grid view
-        
-        # Document view state (initialized early to prevent AttributeError during project loading)
-        self.doc_segment_widgets = {}
-        self.doc_current_segment_id = None
-        self.document_containers: Dict[str, Optional[QWidget]] = {}
-        self.active_document_host = 'editor'
-
         # Target editor signal suppression (prevents load-time churn)
         self._suppress_target_change_handlers = False
         self.warning_banners: Dict[str, QWidget] = {}
@@ -7384,73 +7366,6 @@ class SupervertalerQt(QMainWindow):
                 if window and not window.isHidden():
                     window.log_display.setPlainText("Session Log - Ready\n" + "="*50 + "\n")
 
-    def create_editor_widget(self):
-        """Create the Editor widget (left side, always visible, no tabs)"""
-        from PyQt6.QtWidgets import QPushButton, QLabel, QStackedWidget, QSizePolicy
-        
-        widget = QWidget()
-        widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        layout = QVBoxLayout(widget)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
-        
-        # View switcher toolbar
-        view_toolbar = QWidget()
-        view_toolbar.setStyleSheet("padding: 5px;")
-        view_toolbar_layout = QHBoxLayout(view_toolbar)
-        view_toolbar_layout.setContentsMargins(10, 5, 10, 5)
-        view_toolbar_layout.setSpacing(5)
-        
-        view_label = QLabel("View:")
-        view_label.setStyleSheet("font-weight: bold;")
-        view_toolbar_layout.addWidget(view_label)
-        
-        self.home_grid_view_btn = QPushButton("📊 Grid")
-        self.home_grid_view_btn.setCheckable(True)
-        self.home_grid_view_btn.setChecked(True)
-        self.home_grid_view_btn.clicked.connect(lambda: self.switch_home_view_mode("grid"))
-        view_toolbar_layout.addWidget(self.home_grid_view_btn)
-        
-        self.home_list_view_btn = QPushButton("📋 List")
-        self.home_list_view_btn.setCheckable(True)
-        self.home_list_view_btn.clicked.connect(lambda: self.switch_home_view_mode("list"))
-        view_toolbar_layout.addWidget(self.home_list_view_btn)
-        
-        self.home_document_view_btn = QPushButton("📄 Document")
-        self.home_document_view_btn.setCheckable(True)
-        self.home_document_view_btn.clicked.connect(lambda: self.switch_home_view_mode("document"))
-        view_toolbar_layout.addWidget(self.home_document_view_btn)
-        
-        view_toolbar_layout.addStretch()
-        
-        layout.addWidget(view_toolbar)
-        
-        # Create assistance panel FIRST (create_grid_view_widget_for_home needs it)
-        if not hasattr(self, 'assistance_widget') or self.assistance_widget is None:
-            self.create_assistance_panel()
-        
-        # Stacked widget for different views
-        self.home_view_stack = QStackedWidget()
-        
-        # Create grid view widget with assistance panel at bottom (vertical layout)
-        grid_view_widget = self.create_grid_view_widget_for_home()
-        self.home_view_stack.addWidget(grid_view_widget)
-        
-        # List and Document views - create adapted versions for home tab
-        list_view_widget = self.create_list_view_widget_for_home()
-        self.home_view_stack.addWidget(list_view_widget)
-        
-        doc_view_widget = self.create_document_view_widget_for_home()
-        self.home_view_stack.addWidget(doc_view_widget)
-        
-        layout.addWidget(self.home_view_stack)
-        
-        return widget
-    
-    def create_home_tab(self):
-        """DEPRECATED: Replaced by create_editor_widget() - kept for backwards compatibility"""
-        return self.create_editor_widget()
-    
     def _on_main_tab_changed(self, index: int):
         """Handle main tab changes"""
         # Refresh AI Assistant LLM client when switching to Prompt Manager tab (index 1)
@@ -7608,11 +7523,6 @@ class SupervertalerQt(QMainWindow):
             self.lookup_detached_widget = None
         
         self.log("Superlookup re-attached to Home tab")
-    
-    def create_projects_manager_tab(self):
-        """Create the Projects Manager tab - manage projects, attach TMs and termbases (legacy - content moved to Home)"""
-        # This method is kept for backwards compatibility but content is now in Home tab
-        return self.create_home_tab()
     
     def create_resources_tab(self):
         """Create the Resources tab with nested sub-tabs"""
@@ -14310,99 +14220,6 @@ class SupervertalerQt(QMainWindow):
         self.log("✓ View settings saved and applied")
         QMessageBox.information(self, "Settings Saved", "View settings have been saved and applied successfully.")
     
-    def create_editor_tab(self):
-        """Create the project editor tab with view switching (Grid/List/Document)"""
-        tab = QWidget()
-        layout = QVBoxLayout(tab)
-        layout.setContentsMargins(0, 0, 0, 0)
-        
-        # View switcher toolbar
-        view_toolbar = QWidget()
-        view_toolbar_layout = QHBoxLayout(view_toolbar)
-        view_toolbar_layout.setContentsMargins(5, 5, 5, 5)
-        view_toolbar_layout.setSpacing(5)
-        
-        view_label = QLabel("View:")
-        view_label.setStyleSheet("font-weight: bold;")
-        view_toolbar_layout.addWidget(view_label)
-        
-        self.grid_view_btn = QPushButton("📊 Grid")
-        self.grid_view_btn.setCheckable(True)
-        self.grid_view_btn.setChecked(True)
-        self.grid_view_btn.clicked.connect(lambda: self.switch_view_mode(LayoutMode.GRID))
-        view_toolbar_layout.addWidget(self.grid_view_btn)
-        
-        self.document_view_btn = QPushButton("📄 Document")
-        self.document_view_btn.setCheckable(True)
-        self.document_view_btn.clicked.connect(lambda: self.switch_view_mode(LayoutMode.DOCUMENT))
-        view_toolbar_layout.addWidget(self.document_view_btn)
-        
-        view_toolbar_layout.addStretch()
-        
-        layout.addWidget(view_toolbar)
-        
-        # Create assistance panel (shared across all views)
-        self.create_assistance_panel()
-        
-        # Stacked widget to hold different views
-        self.view_stack = QStackedWidget()
-        
-        # Create all three views
-        self.grid_view_widget = self.create_grid_view_widget()
-        self.list_view_widget = self.create_list_view_widget()
-        self.document_view_widget = self.create_document_view_widget()
-        
-        # Add views to stack
-        self.view_stack.addWidget(self.grid_view_widget)
-        self.view_stack.addWidget(self.list_view_widget)
-        self.view_stack.addWidget(self.document_view_widget)
-        
-        layout.addWidget(self.view_stack)
-        
-        return tab
-    
-    def switch_view_mode(self, mode: str):
-        """Switch between Grid/Document views"""
-        self.current_view_mode = mode
-        
-        # Update button states
-        self.grid_view_btn.setChecked(mode == LayoutMode.GRID)
-        self.document_view_btn.setChecked(mode == LayoutMode.DOCUMENT)
-        
-        # Check if we're in unified layout mode with nested Document Views
-        if self.current_layout_mode == "unified" and hasattr(self, 'document_views_widget'):
-            # In unified layout, switch within the nested Document Views tab
-            tab_index = 0
-            if mode == LayoutMode.GRID:
-                tab_index = 0
-            elif mode == LayoutMode.DOCUMENT:
-                tab_index = 1
-            
-            # First, make sure the Document Views tab is selected in the main unified tabs
-            if hasattr(self, 'unified_tabs_widget'):
-                self.unified_tabs_widget.setCurrentIndex(0)  # Document Views is the first tab
-            
-            # Then switch to the specific view within Document Views
-            self.document_views_widget.setCurrentIndex(tab_index)
-            
-            # Refresh views as needed
-            if mode == LayoutMode.DOCUMENT and self.current_project:
-                self._set_active_document_host('editor')
-                self.refresh_document_view('editor')
-        else:
-            # In split layout, use the view stack
-            if mode == LayoutMode.GRID:
-                self.view_stack.setCurrentIndex(0)
-            
-            elif mode == LayoutMode.DOCUMENT:
-                self.view_stack.setCurrentIndex(1)
-                # Refresh document view when switching to it
-                if self.current_project:
-                    self._set_active_document_host('editor')
-                    self.refresh_document_view('editor')
-        
-        self.log(f"Switched to {mode} view")
-    
     def create_grid_view_widget(self):
         """Create the Grid View widget (existing grid functionality)"""
         widget = QWidget()
@@ -15026,32 +14843,6 @@ class SupervertalerQt(QMainWindow):
 
         return widget
     
-    def switch_home_view_mode(self, mode: str):
-        """Switch between Grid/List/Document views in Home tab"""
-        if not hasattr(self, 'home_view_stack'):
-            return
-        
-        # Update button states
-        if hasattr(self, 'home_grid_view_btn'):
-            self.home_grid_view_btn.setChecked(mode == "grid")
-        if hasattr(self, 'home_list_view_btn'):
-            self.home_list_view_btn.setChecked(mode == "list")
-        if hasattr(self, 'home_document_view_btn'):
-            self.home_document_view_btn.setChecked(mode == "document")
-        
-        # Switch stack
-        if mode == "grid":
-            self.home_view_stack.setCurrentIndex(0)
-        elif mode == "document":
-            self.home_view_stack.setCurrentIndex(1)
-            # CRITICAL: Refresh document view to render styles!
-            if self.current_project:
-                print(f"DEBUG: Refreshing document view from home tab switch...")
-                self._set_active_document_host('home')
-                self.refresh_document_view('home')
-        
-        self.log(f"Switched to {mode} view in Home tab")
-    
     # Pagination methods (stubs for now - will be fully implemented later)
     def go_to_first_page(self):
         """Navigate to first page - stub implementation"""
@@ -15164,18 +14955,6 @@ class SupervertalerQt(QMainWindow):
             on_return=self.apply_filters,
         )
 
-    def _find_widget_by_object_name(self, object_name: str) -> Optional[QWidget]:
-        app = QApplication.instance()
-        if app is None:
-            return None
-        for widget in app.allWidgets():
-            try:
-                if widget.objectName() == object_name and not sip.isdeleted(widget):
-                    return widget
-            except RuntimeError:
-                continue
-        return None
-
     def _build_warning_banner(self, key: str) -> QWidget:
         banner = QWidget()
         banner.setObjectName(f"{key}_warning_banner")
@@ -15218,173 +14997,6 @@ class SupervertalerQt(QMainWindow):
             banner.setParent(None)
         return banner
 
-    def _find_document_container(self, host: str) -> Optional[QWidget]:
-        """Locate the document container widget within the current UI hierarchy."""
-        if host == 'home' and hasattr(self, 'home_view_stack'):
-            doc_view_widget = self.home_view_stack.widget(1)
-            if doc_view_widget:
-                return doc_view_widget.findChild(QWidget, "editor_document_container")
-        elif host == 'editor':
-            doc_widget = getattr(self, 'document_view_widget', None)
-            if doc_widget:
-                return doc_widget.findChild(QWidget, "editor_document_container")
-        return None
-
-    def _register_document_container(self, host: str, container: QWidget) -> None:
-        """Track the QWidget that hosts the document view for the specified host."""
-        if not container.objectName():
-            container.setObjectName(f"{host}_document_container")
-        self.document_containers[host] = container
-
-    def _set_active_document_host(self, host: str) -> None:
-        self.active_document_host = host
-
-    def _get_document_container(self, host: Optional[str] = None) -> Optional[QWidget]:
-        host = host or getattr(self, 'active_document_host', 'editor')
-        container = self.document_containers.get(host)
-
-        if container is not None:
-            try:
-                if sip.isdeleted(container):
-                    container = None
-            except Exception:
-                container = None
-
-        if container is None:
-            container = self._find_document_container(host)
-            if container is not None:
-                self.document_containers[host] = container
-
-        return container
-
-    def _locate_document_container(self, widget: Optional[QWidget], object_name: str) -> Optional[QWidget]:
-        if widget is None:
-            return None
-        try:
-            if sip.isdeleted(widget):
-                return None
-        except Exception:
-            return None
-        try:
-            return widget.findChild(QWidget, object_name)
-        except Exception:
-            return None
-
-    def _find_document_container(self, host: str) -> Optional[QWidget]:
-        """Locate the document container widget for the requested host."""
-        object_name = "home_document_container" if host == 'home' else "editor_document_container"
-        if host == 'home' and hasattr(self, 'home_view_stack'):
-            doc_view_widget = self.home_view_stack.widget(2)
-            if doc_view_widget:
-                container = self._locate_document_container(doc_view_widget, object_name)
-                if container:
-                    return container
-        elif host == 'editor':
-            doc_view_widget = getattr(self, 'document_view_widget', None)
-            container = self._locate_document_container(doc_view_widget, object_name)
-            if container:
-                return container
-
-            # Unified layout fallback: document widget lives inside nested tabs
-            if hasattr(self, 'document_views_widget') and self.document_views_widget is not None:
-                for idx in range(self.document_views_widget.count()):
-                    tab_widget = self.document_views_widget.widget(idx)
-                    container = self._locate_document_container(tab_widget, object_name)
-                    if container:
-                        return container
-
-        # Global search fallback (handles reparented widgets)
-        container = self._find_widget_by_object_name(object_name)
-        if container is not None:
-            return container
-        return None
-
-    def create_document_view_widget_for_home(self):
-        """Create Document View widget adapted for home tab (tabbed panel at bottom)"""
-        widget = QWidget()
-        main_layout = QVBoxLayout(widget)
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        
-        # Vertical splitter: Document on top, Tabbed panel at bottom
-        home_doc_splitter = QSplitter(Qt.Orientation.Vertical)
-        
-        # Top: Document flow area
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        scroll_area.setStyleSheet("")
-        
-        # Always create a new container for this widget instance
-        # Don't reuse existing one as it might be in a different parent hierarchy
-        document_container = QWidget()
-        # Use "editor_document_container" name for compatibility with unified layout
-        document_container.setObjectName("editor_document_container")
-        document_layout = QVBoxLayout(document_container)
-        document_layout.setContentsMargins(0, 0, 0, 0)
-        document_layout.setSpacing(0)
-        
-        # Store references for refresh methods to use (but still register as 'home' host)
-        self._register_document_container('home', document_container)
-        
-        scroll_area.setWidget(document_container)
-        home_doc_splitter.addWidget(scroll_area)
-        
-        # Bottom: Tabbed panel (Translation Results | Segment Editor | Notes)
-        self.home_doc_tabbed_panel = self.create_assistance_panel()
-        home_doc_splitter.addWidget(self.home_doc_tabbed_panel)
-        
-        home_doc_splitter.setSizes([600, 250])
-        
-        main_layout.addWidget(home_doc_splitter)
-        
-        # Store segment widgets for document view
-        if not hasattr(self, 'doc_segment_widgets'):
-            self.doc_segment_widgets = {}
-        if not hasattr(self, 'doc_current_segment_id'):
-            self.doc_current_segment_id = None
-        
-        return widget
-    
-    def create_document_view_widget(self):
-        """Create the Document View widget (natural document flow)"""
-        widget = QWidget()
-        main_layout = QVBoxLayout(widget)
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        
-        # Main vertical splitter: Document on top, Tabbed panel at bottom
-        self.doc_splitter = QSplitter(Qt.Orientation.Vertical)
-        
-        # Top: Document flow area
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        scroll_area.setStyleSheet("")
-        
-        document_container = QWidget()
-        document_container.setObjectName("editor_document_container")
-        document_layout = QVBoxLayout(document_container)
-        document_layout.setContentsMargins(0, 0, 0, 0)  # No margins - text widget has padding
-        document_layout.setSpacing(0)  # No spacing - content will add its own
-
-        self._register_document_container('editor', document_container)
-        
-        scroll_area.setWidget(document_container)
-        
-        self.doc_splitter.addWidget(scroll_area)
-        
-        # Bottom: Tabbed panel (Translation Results | Segment Editor | Notes)
-        # Create tabbed assistance panel for document view
-        self.doc_tabbed_panel = self.create_assistance_panel()
-        self.doc_splitter.addWidget(self.doc_tabbed_panel)
-        
-        self.doc_splitter.setSizes([600, 250])
-        
-        main_layout.addWidget(self.doc_splitter)
-        
-        # Store segment widgets and current selection
-        self.doc_segment_widgets = {}
-        self.doc_current_segment_id = None
-        
-        return widget
-    
     def create_translation_grid(self):
         """Create the translation grid (QTableWidget)"""
         self.table = QTableWidget()
@@ -21600,11 +21212,9 @@ class SupervertalerQt(QMainWindow):
                 # If tags mode is enabled, refresh to show raw tags
                 self._refresh_grid_display_mode()
 
-            # Also refresh List and Document views if they exist
+            # Also refresh List view if it exists
             if hasattr(self, 'list_tree'):
                 self.refresh_list_view()
-            if self._get_document_container():
-                self.refresh_document_view()
         finally:
             self._suppress_target_change_handlers = previous_suppression
             
@@ -22096,303 +21706,6 @@ class SupervertalerQt(QMainWindow):
         pass
 
 
-    
-    def refresh_document_view(self, host: Optional[str] = None):
-        """Refresh the Document View with current segments (Natural document flow like Tkinter)"""
-        if not self.current_project:
-            return
-
-        host = host or getattr(self, 'active_document_host', 'editor')
-        container = self._get_document_container(host)
-        if container is None:
-            return
-
-        layout = container.layout()
-        if layout is None:
-            layout = QVBoxLayout(container)
-            layout.setContentsMargins(0, 0, 0, 0)
-            layout.setSpacing(0)
-
-        # Clear existing widgets
-        while layout.count() > 0:
-            item = layout.takeAt(0)
-            if item:
-                widget = item.widget()
-                if widget:
-                    widget.deleteLater()
-
-        self.doc_segment_widgets.clear()
-
-        if not self.current_project.segments:
-            return
-        
-        # Apply filters if any
-        source_filter = self._get_line_edit_text('source_filter').lower()
-        target_filter = self._get_line_edit_text('target_filter').lower()
-        
-        # Create a single QTextEdit for the entire document (exactly like Tkinter's Text widget)
-        doc_text = QTextEdit()
-        doc_text.setReadOnly(True)
-        
-        # Simple styling - let it fill space naturally
-        doc_text.setStyleSheet("""
-            QTextEdit {
-                background-color: white;
-                border: none;
-                padding: 30px 40px;
-                font-size: 11pt;
-            }
-        """)
-        
-        # CRITICAL: Let the widget expand to fill available space (like Tkinter's pack(fill='both', expand=True))
-        doc_text.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        
-        cursor = doc_text.textCursor()
-        cursor.movePosition(QTextCursor.MoveOperation.Start)
-        
-        # Smart paragraph grouping: Use paragraph_id if available, otherwise use heuristics
-        paragraphs = {}
-        current_para = 0
-        prev_seg = None
-        
-        for seg in self.current_project.segments:
-            # Check if segment has explicit paragraph_id
-            if hasattr(seg, 'paragraph_id') and seg.paragraph_id > 0:
-                para_id = seg.paragraph_id
-            else:
-                # Use heuristics to detect paragraph breaks
-                if prev_seg:
-                    prev_text = prev_seg.source.strip()
-                    curr_text = seg.source.strip()
-                    style = getattr(seg, 'style', 'Normal')
-                    
-                    # Check for paragraph break indicators
-                    is_new_paragraph = (
-                        (prev_text and prev_text[-1] in '.!?' and curr_text and curr_text[0].isupper()) or
-                        'Heading' in style or
-                        'Title' in style
-                    )
-                    
-                    if is_new_paragraph:
-                        current_para += 1
-                    
-                para_id = current_para
-            
-            if para_id not in paragraphs:
-                paragraphs[para_id] = []
-            paragraphs[para_id].append(seg)
-            prev_seg = seg
-        
-        # Pre-calculate list numbers for ordered lists
-        list_numbers = {}
-        list_counter = 0
-        import re as re_list
-        for seg in self.current_project.segments:
-            source_text = seg.source or ''
-            # Check for ordered list tags (<li-o> or legacy <li>)
-            is_ordered = '<li-o>' in source_text or ('<li>' in source_text and '<li-b>' not in source_text)
-            
-            if is_ordered:
-                # Check if the text contains an explicit number
-                inner_text = re_list.sub(r'</?li(-[bo])?>|</?[biu]>|</?bi>', '', source_text).strip()
-                num_match = re_list.match(r'^(\d+)[.)\s]', inner_text)
-                
-                if num_match:
-                    list_numbers[seg.id] = int(num_match.group(1))
-                    list_counter = int(num_match.group(1))
-                else:
-                    list_counter += 1
-                    list_numbers[seg.id] = list_counter
-            else:
-                # Reset counter when non-list item encountered
-                if '<li-b>' not in source_text:
-                    list_counter = 0
-        
-        # Render each paragraph
-        prev_para_id = None
-        for para_id in sorted(paragraphs.keys()):
-            para_segments = paragraphs[para_id]
-            
-            # Add paragraph break (double newline) between paragraphs
-            if prev_para_id is not None:
-                cursor.insertText("\n\n")
-            prev_para_id = para_id
-            
-            # Check if this is a heading or special style
-            first_seg = para_segments[0]
-            style = getattr(first_seg, 'style', 'Normal')
-            
-            # Determine formatting based on style
-            char_format = QTextCharFormat()
-            char_format.setFontFamily(self.default_font_family)
-            
-            if 'Heading 1' in style or 'Title' in style:
-                char_format.setFontPointSize(16)
-                char_format.setFontWeight(QFont.Weight.Bold)
-                char_format.setForeground(QColor('#003366'))
-            elif 'Heading 2' in style:
-                char_format.setFontPointSize(14)
-                char_format.setFontWeight(QFont.Weight.Bold)
-                char_format.setForeground(QColor('#0066cc'))
-            elif 'Heading 3' in style:
-                char_format.setFontPointSize(12)
-                char_format.setFontWeight(QFont.Weight.Bold)
-                char_format.setForeground(QColor('#3399ff'))
-            elif 'Subtitle' in style:
-                char_format.setFontPointSize(12)
-                char_format.setFontItalic(True)
-                char_format.setForeground(QColor('#663399'))
-            else:
-                char_format.setFontPointSize(11)
-                char_format.setForeground(QColor('#000000'))
-            
-            # Insert each segment in the paragraph
-            for i, seg in enumerate(para_segments):
-                # Apply filters
-                if source_filter and source_filter not in seg.source.lower():
-                    continue
-                if target_filter and target_filter not in seg.target.lower():
-                    continue
-                
-                # Add space between sentences (except for first in paragraph)
-                if i > 0:
-                    cursor.insertText(" ")
-                
-                # Determine what text to display
-                if seg.target and seg.target.strip():
-                    display_text = seg.target
-                elif seg.source:
-                    display_text = seg.source
-                else:
-                    display_text = f"[Segment {seg.id} - Empty]"
-                
-                # Set background color based on status
-                if seg.status == 'untranslated':
-                    char_format.setBackground(QColor('#ffe6e6'))
-                elif seg.status == 'translated':
-                    char_format.setBackground(QColor('#e6ffe6'))
-                elif seg.status == 'approved':
-                    char_format.setBackground(QColor('#e6f3ff'))
-                else:
-                    char_format.setBackground(QColor('white'))
-                
-                # Store position for click handling
-                start_pos = cursor.position()
-                
-                # Parse and render inline formatting tags (<b>, <i>, <u>, <bi>, <li>)
-                import re
-                
-                # Pattern to match formatting tags: <b>, </b>, <i>, </i>, <u>, </u>, <bi>, </bi>, <li>, </li>, <li-b>, </li-b>, <li-o>, </li-o>
-                tag_pattern = re.compile(r'<(/?)([biu]|bi|li|li-[bo])>')
-                
-                # Check for list item tags at the start (new <li-b>, <li-o> and legacy <li>)
-                list_bullet_match = re.match(r'^<li-b>(.*)</li-b>$', display_text, re.DOTALL)
-                list_ordered_match = re.match(r'^<li-o>(.*)</li-o>$', display_text, re.DOTALL)
-                list_legacy_match = re.match(r'^<li>(.*)</li>$', display_text, re.DOTALL)
-                
-                if list_bullet_match:
-                    # Bullet list item - insert bullet and extract content
-                    bullet_format = QTextCharFormat(char_format)
-                    bullet_format.setFontWeight(QFont.Weight.Bold)
-                    bullet_format.setForeground(QColor('#FF6600'))  # Orange bullet
-                    cursor.insertText("• ", bullet_format)
-                    display_text = list_bullet_match.group(1)
-                elif list_ordered_match or list_legacy_match:
-                    # Ordered/numbered list item - use pre-calculated number or get from list_numbers
-                    match = list_ordered_match or list_legacy_match
-                    list_format = QTextCharFormat(char_format)
-                    list_format.setFontWeight(QFont.Weight.Bold)
-                    list_format.setForeground(QColor('#0066CC'))  # Blue number
-                    
-                    # Get list number from pre-calculated dict
-                    list_num = list_numbers.get(seg.id, 1)
-                    cursor.insertText(f"{list_num}. ", list_format)
-                    display_text = match.group(1)
-                
-                # Split text into parts (text and tags)
-                parts = []
-                last_end = 0
-                formatting_stack = []  # Stack to track nested formatting
-                
-                for match in tag_pattern.finditer(display_text):
-                    # Add text before tag
-                    if match.start() > last_end:
-                        text_part = display_text[last_end:match.start()]
-                        parts.append(('text', text_part, formatting_stack.copy()))
-                    
-                    # Process tag
-                    is_closing = match.group(1) == '/'
-                    tag_type = match.group(2)
-                    
-                    if is_closing:
-                        # Remove from stack if present
-                        if tag_type in formatting_stack:
-                            formatting_stack.remove(tag_type)
-                    else:
-                        # Add to stack
-                        if tag_type not in formatting_stack:
-                            formatting_stack.append(tag_type)
-                    
-                    last_end = match.end()
-                
-                # Add remaining text
-                if last_end < len(display_text):
-                    parts.append(('text', display_text[last_end:], formatting_stack.copy()))
-                
-                # If no tags found, render as plain text
-                if not parts:
-                    cursor.insertText(display_text, char_format)
-                else:
-                    # Render each part with appropriate formatting
-                    for part_type, text, format_tags in parts:
-                        if part_type == 'text' and text:
-                            # Create format with current formatting
-                            part_format = QTextCharFormat(char_format)
-                            
-                            # Apply formatting based on tags
-                            if 'bi' in format_tags or ('b' in format_tags and 'i' in format_tags):
-                                part_format.setFontWeight(QFont.Weight.Bold)
-                                part_format.setFontItalic(True)
-                            elif 'b' in format_tags:
-                                part_format.setFontWeight(QFont.Weight.Bold)
-                            elif 'i' in format_tags:
-                                part_format.setFontItalic(True)
-                            
-                            if 'u' in format_tags:
-                                part_format.setFontUnderline(True)
-                            
-                            cursor.insertText(text, part_format)
-                
-                end_pos = cursor.position()
-                
-                # Store segment info for click handling
-                self.doc_segment_widgets[seg.id] = {
-                    'start': start_pos,
-                    'end': end_pos,
-                    'segment': seg
-                }
-        
-        # Enable mouse tracking for click handling
-        doc_text.setMouseTracking(True)
-        doc_text.viewport().setCursor(Qt.CursorShape.PointingHandCursor)
-        
-        # Connect mouse click event
-        def handle_click(event):
-            cursor = doc_text.cursorForPosition(event.pos())
-            pos = cursor.position()
-            
-            # Find which segment was clicked
-            for seg_id, info in self.doc_segment_widgets.items():
-                if info['start'] <= pos <= info['end']:
-                    self.on_doc_segment_clicked(seg_id)
-                    break
-        
-        doc_text.mousePressEvent = handle_click
-        
-        # Add the text widget to the layout - it will expand to fill available space
-        layout.addWidget(doc_text)
-        
-        self.log(f"✓ Refreshed Document View with {len(self.doc_segment_widgets)} segments (natural flow)")
     
     def clear_grid(self):
         """Clear all rows from grid"""
@@ -23802,17 +23115,13 @@ class SupervertalerQt(QMainWindow):
     
     def clear_selected_translations_from_menu(self):
         """Clear translations for selected segments (called from Edit menu)"""
-        # Only available in Grid view now
-        if hasattr(self, 'home_view_stack') and self.home_view_stack:
-            current_index = self.home_view_stack.currentIndex()
-            if current_index == 0:  # Grid view
-                selected_segments = self.get_selected_segments_from_grid()
-                if selected_segments:
-                    self.clear_selected_translations(selected_segments, 'grid')
-                else:
-                    QMessageBox.information(self, "No Selection", "Please select one or more segments to clear translations.")
+        # Only available in Grid view
+        if self.current_project and hasattr(self, 'table') and self.table:
+            selected_segments = self.get_selected_segments_from_grid()
+            if selected_segments:
+                self.clear_selected_translations(selected_segments, 'grid')
             else:
-                QMessageBox.information(self, "Not Available", "Bulk operations are only available in Grid view.")
+                QMessageBox.information(self, "No Selection", "Please select one or more segments to clear translations.")
         else:
             QMessageBox.information(self, "Not Available", "Please load a project first.")
     
@@ -28042,125 +27351,6 @@ class SupervertalerQt(QMainWindow):
                 self.log(f"Error updating termview: {e}")
                 import traceback
                 self.log(f"Traceback: {traceback.format_exc()}")
-    
-    # ========================================================================
-    # DOCUMENT VIEW METHODS
-    # ========================================================================
-    
-    def on_doc_segment_clicked(self, segment_id: int):
-        """Handle segment click in Document View"""
-        self.doc_current_segment_id = segment_id
-        
-        # Find segment
-        segment = next((s for s in self.current_project.segments if s.id == segment_id), None)
-        if not segment:
-            return
-        
-        # Update all tabbed panels (like Grid and List views)
-        self.update_tab_segment_editor(
-            segment_id=segment.id,
-            source_text=segment.source,
-            target_text=segment.target,
-            status=segment.status,
-            notes=segment.notes if hasattr(segment, 'notes') else ""
-        )
-        
-        # Also update main assistance widget with translation matches
-        # Trigger assistance panel update (search for matches)
-        row = next((i for i, s in enumerate(self.current_project.segments) if s.id == segment_id), -1)
-        if row >= 0:
-            # Trigger the match search like we do in grid/list view
-            self.on_cell_selected(row, 3, -1, -1)
-    
-    def on_doc_status_change(self, status: str):
-        """Handle status change in Document View"""
-        if not self.doc_current_segment_id:
-            return
-        
-        segment = next((s for s in self.current_project.segments if s.id == self.doc_current_segment_id), None)
-        if segment:
-            old_status = segment.status
-            old_target = segment.target
-            segment.status = status
-            
-            # Record undo state for document view status change
-            self.record_undo_state(self.doc_current_segment_id, old_target, segment.target, old_status, status)
-            
-            self.project_modified = True
-            self.refresh_document_view()
-            # Reselect segment after refresh
-            if self.doc_current_segment_id and self.doc_current_segment_id in self.doc_segment_widgets:
-                seg_id = self.doc_current_segment_id  # Store in local variable for lambda
-                QTimer.singleShot(100, lambda: self.on_doc_segment_clicked(seg_id))
-    
-    def on_doc_target_change(self):
-        """Handle target text change in Document View"""
-        if not self.doc_current_segment_id:
-            return
-        
-        segment = next((s for s in self.current_project.segments if s.id == self.doc_current_segment_id), None)
-        if segment:
-            new_target = self.doc_target_editor.toPlainText()
-            if segment.target != new_target:
-                segment.target = new_target
-                self.project_modified = True
-                # Update document view display
-                if self.doc_current_segment_id in self.doc_segment_widgets:
-                    widget = self.doc_segment_widgets[self.doc_current_segment_id]
-                    layout = widget.layout()
-                    if layout:
-                        for i in range(layout.count()):
-                            item = layout.itemAt(i)
-                            if item and item.widget():
-                                w = item.widget()
-                                if isinstance(w, QLabel) and "Target:" in w.text():
-                                    if new_target:
-                                        w.setText(f"<b>Target:</b> {new_target}")
-                                        w.setStyleSheet("color: #0066cc;")
-                                    else:
-                                        w.setText("<i>Not translated</i>")
-                                        w.setStyleSheet("color: #999; font-style: italic;")
-                                    break
-    
-    def copy_source_to_doc_target(self):
-        """Copy source to target in Document View"""
-        source_text = self.doc_source_editor.toPlainText()
-        self.doc_target_editor.setPlainText(source_text)
-        self.on_doc_target_change()
-    
-    def clear_doc_target(self):
-        """Clear target in Document View"""
-        self.doc_target_editor.clear()
-        self.on_doc_target_change()
-    
-    def save_doc_segment_and_next(self):
-        """Save current segment and move to next in Document View"""
-        if not self.doc_current_segment_id:
-            return
-        
-        # Find current segment index
-        current_idx = next((i for i, s in enumerate(self.current_project.segments) if s.id == self.doc_current_segment_id), -1)
-        if current_idx < 0:
-            return
-        
-        # Find next segment
-        next_idx = current_idx + 1
-        if next_idx < len(self.current_project.segments):
-            next_segment = self.current_project.segments[next_idx]
-            # Scroll to and select next segment
-            if next_segment.id in self.doc_segment_widgets:
-                self.on_doc_segment_clicked(next_segment.id)
-                # Scroll to widget
-                widget = self.doc_segment_widgets[next_segment.id]
-                # Navigate up to find QScrollArea
-                parent = widget.parent()
-                while parent and not isinstance(parent, QScrollArea):
-                    parent = parent.parent()
-                if isinstance(parent, QScrollArea):
-                    parent.ensureWidgetVisible(widget)
-            self.log(f"✓ Moved to segment {next_segment.id}")
-        else:
-            self.log("✓ Last segment - no next segment")
     
     # ========================================================================
     # UTILITY
