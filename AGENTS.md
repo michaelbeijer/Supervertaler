@@ -339,7 +339,7 @@ google_api_key=AI...
 Cleaner, more intuitive tab structure:
 
 - **Main tabs**: 🏠 Workspace → 🛠️ Tools → ⚙️ Settings
-- **Workspace subtabs**: 📝 Editor (the grid) + 📚 Resources (TM, Termbases, Prompts, etc.)
+- **Workspace subtabs**: 📝 Editor (the grid) + �️ Resources (TM, Termbases, Prompts, etc.)
 - Removed Document View (unused feature)
 - Simplified View menu (removed Grid/Document view switcher)
 

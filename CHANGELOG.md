@@ -2822,7 +2822,7 @@ Each match shows:
     1. 🏠 Home (NEW - welcome screen)
     2. 💡 Prompt Manager (moved up from #5)
     3. 📝 Editor (renamed from "Project Editor")
-    4. 📚 Resources (organized nested tabs)
+    4. �️ Resources (organized nested tabs)
     5. 🧩 Modules (renamed from "Specialised Modules")
     6. ⚙️ Settings (moved from Tools menu, includes Log)
   - **Navigation Menu:** Added "Go to Home" action (🏠 Home menu item)

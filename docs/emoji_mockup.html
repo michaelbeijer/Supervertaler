@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resources Tab Emoji Options - Supervertaler</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f0f0;
+            padding: 40px;
+            margin: 0;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .mockup-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 30px;
+        }
+        .mockup {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 20px;
+            width: 320px;
+        }
+        .mockup h3 {
+            margin: 0 0 15px 0;
+            color: #555;
+            font-size: 14px;
+        }
+        .tab-bar {
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .main-tabs {
+            display: flex;
+            background: #e8e8e8;
+            border-bottom: 1px solid #ddd;
+        }
+        .main-tab {
+            padding: 8px 16px;
+            font-size: 13px;
+            color: #333;
+            border-right: 1px solid #ddd;
+            cursor: default;
+        }
+        .main-tab.active {
+            background: #f5f5f5;
+            border-bottom: 2px solid #0078d4;
+        }
+        .sub-tabs {
+            display: flex;
+            padding: 4px 8px;
+        }
+        .sub-tab {
+            padding: 6px 12px;
+            font-size: 12px;
+            color: #555;
+            border-radius: 3px;
+            margin-right: 4px;
+            cursor: default;
+        }
+        .sub-tab.active {
+            background: #e0e0e0;
+        }
+        .sub-tab.highlight {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+        }
+        .emoji {
+            font-size: 14px;
+        }
+        .label {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 12px;
+            color: #666;
+        }
+        .recommendation {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            color: #155724;
+            display: inline-block;
+            margin-top: 8px;
+        }
+        .current {
+            background: #e2e3e5;
+            border: 1px solid #d6d8db;
+            color: #383d41;
+        }
+    </style>
+</head>
+<body>
+    <h1>📚 Resources Tab - Emoji Alternatives</h1>
+    <p style="color: #666; margin-bottom: 30px;">Compare how each emoji looks in context. Click to vote for your favorite!</p>
+    
+    <div class="mockup-container">
+        <!-- Current -->
+        <div class="mockup">
+            <h3>Current: 📚 Books</h3>
+            <div class="tab-bar">
+                <div class="main-tabs">
+                    <div class="main-tab active"><span class="emoji">🏠</span> Workspace</div>
+                    <div class="main-tab"><span class="emoji">🛠️</span> Tools</div>
+                    <div class="main-tab"><span class="emoji">⚙️</span> Settings</div>
+                </div>
+                <div class="sub-tabs">
+                    <div class="sub-tab"><span class="emoji">📝</span> Editor</div>
+                    <div class="sub-tab active highlight"><span class="emoji">📚</span> Resources</div>
+                </div>
+            </div>
+            <div class="label"><span class="recommendation current">Current</span></div>
+        </div>
+
+        <!-- Option 1: Dividers -->
+        <div class="mockup">
+            <h3>Option 1: 🗂️ Card File Dividers</h3>
+            <div class="tab-bar">
+                <div class="main-tabs">
+                    <div class="main-tab active"><span class="emoji">🏠</span> Workspace</div>
+                    <div class="main-tab"><span class="emoji">🛠️</span> Tools</div>
+                    <div class="main-tab"><span class="emoji">⚙️</span> Settings</div>
+                </div>
+                <div class="sub-tabs">
+                    <div class="sub-tab"><span class="emoji">📝</span> Editor</div>
+                    <div class="sub-tab active highlight"><span class="emoji">🗂️</span> Resources</div>
+                </div>
+            </div>
+            <div class="label"><span class="recommendation">⭐ Top Pick - Professional</span></div>
+        </div>
+
+        <!-- Option 2: File Box -->
+        <div class="mockup">
+            <h3>Option 2: 🗃️ Card File Box</h3>
+            <div class="tab-bar">
+                <div class="main-tabs">
+                    <div class="main-tab active"><span class="emoji">🏠</span> Workspace</div>
+                    <div class="main-tab"><span class="emoji">🛠️</span> Tools</div>
+                    <div class="main-tab"><span class="emoji">⚙️</span> Settings</div>
+                </div>
+                <div class="sub-tabs">
+                    <div class="sub-tab"><span class="emoji">📝</span> Editor</div>
+                    <div class="sub-tab active highlight"><span class="emoji">🗃️</span> Resources</div>
+                </div>
+            </div>
+            <div class="label"><span class="recommendation">⭐ Top Pick - Storage</span></div>
+        </div>
+
+        <!-- Option 3: Package -->
+        <div class="mockup">
+            <h3>Option 3: 📦 Package</h3>
+            <div class="tab-bar">
+                <div class="main-tabs">
+                    <div class="main-tab active"><span class="emoji">🏠</span> Workspace</div>
+                    <div class="main-tab"><span class="emoji">🛠️</span> Tools</div>
+                    <div class="main-tab"><span class="emoji">⚙️</span> Settings</div>
+                </div>
+                <div class="sub-tabs">
+                    <div class="sub-tab"><span class="emoji">📝</span> Editor</div>
+                    <div class="sub-tab active highlight"><span class="emoji">📦</span> Resources</div>
+                </div>
+            </div>
+            <div class="label">Bundled resources feel</div>
+        </div>
+
+        <!-- Option 4: Filing Cabinet -->
+        <div class="mockup">
+            <h3>Option 4: 🗄️ Filing Cabinet</h3>
+            <div class="tab-bar">
+                <div class="main-tabs">
+                    <div class="main-tab active"><span class="emoji">🏠</span> Workspace</div>
+                    <div class="main-tab"><span class="emoji">🛠️</span> Tools</div>
+                    <div class="main-tab"><span class="emoji">⚙️</span> Settings</div>
+                </div>
+                <div class="sub-tabs">
+                    <div class="sub-tab"><span class="emoji">📝</span> Editor</div>
+                    <div class="sub-tab active highlight"><span class="emoji">🗄️</span> Resources</div>
+                </div>
+            </div>
+            <div class="label">Database/archive vibe</div>
+        </div>
+
+        <!-- Option 5: Open Folder -->
+        <div class="mockup">
+            <h3>Option 5: 📂 Open Folder</h3>
+            <div class="tab-bar">
+                <div class="main-tabs">
+                    <div class="main-tab active"><span class="emoji">🏠</span> Workspace</div>
+                    <div class="main-tab"><span class="emoji">🛠️</span> Tools</div>
+                    <div class="main-tab"><span class="emoji">⚙️</span> Settings</div>
+                </div>
+                <div class="sub-tabs">
+                    <div class="sub-tab"><span class="emoji">📝</span> Editor</div>
+                    <div class="sub-tab active highlight"><span class="emoji">📂</span> Resources</div>
+                </div>
+            </div>
+            <div class="label">Files and folders</div>
+        </div>
+
+        <!-- Option 6: Toolbox -->
+        <div class="mockup">
+            <h3>Option 6: 🧰 Toolbox</h3>
+            <div class="tab-bar">
+                <div class="main-tabs">
+                    <div class="main-tab active"><span class="emoji">🏠</span> Workspace</div>
+                    <div class="main-tab"><span class="emoji">🛠️</span> Tools</div>
+                    <div class="main-tab"><span class="emoji">⚙️</span> Settings</div>
+                </div>
+                <div class="sub-tabs">
+                    <div class="sub-tab"><span class="emoji">📝</span> Editor</div>
+                    <div class="sub-tab active highlight"><span class="emoji">🧰</span> Resources</div>
+                </div>
+            </div>
+            <div class="label">⚠️ Similar to Tools tab</div>
+        </div>
+
+        <!-- Option 7: Bookmark -->
+        <div class="mockup">
+            <h3>Option 7: 🔖 Bookmark</h3>
+            <div class="tab-bar">
+                <div class="main-tabs">
+                    <div class="main-tab active"><span class="emoji">🏠</span> Workspace</div>
+                    <div class="main-tab"><span class="emoji">🛠️</span> Tools</div>
+                    <div class="main-tab"><span class="emoji">⚙️</span> Settings</div>
+                </div>
+                <div class="sub-tabs">
+                    <div class="sub-tab"><span class="emoji">📝</span> Editor</div>
+                    <div class="sub-tab active highlight"><span class="emoji">🔖</span> Resources</div>
+                </div>
+            </div>
+            <div class="label">Reference materials</div>
+        </div>
+
+        <!-- Option 8: Clipboard -->
+        <div class="mockup">
+            <h3>Option 8: 📋 Clipboard</h3>
+            <div class="tab-bar">
+                <div class="main-tabs">
+                    <div class="main-tab active"><span class="emoji">🏠</span> Workspace</div>
+                    <div class="main-tab"><span class="emoji">🛠️</span> Tools</div>
+                    <div class="main-tab"><span class="emoji">⚙️</span> Settings</div>
+                </div>
+                <div class="sub-tabs">
+                    <div class="sub-tab"><span class="emoji">📝</span> Editor</div>
+                    <div class="sub-tab active highlight"><span class="emoji">📋</span> Resources</div>
+                </div>
+            </div>
+            <div class="label">Task list / checklist feel</div>
+        </div>
+
+        <!-- Option 9: Library -->
+        <div class="mockup">
+            <h3>Option 9: 🏛️ Library Building</h3>
+            <div class="tab-bar">
+                <div class="main-tabs">
+                    <div class="main-tab active"><span class="emoji">🏠</span> Workspace</div>
+                    <div class="main-tab"><span class="emoji">🛠️</span> Tools</div>
+                    <div class="main-tab"><span class="emoji">⚙️</span> Settings</div>
+                </div>
+                <div class="sub-tabs">
+                    <div class="sub-tab"><span class="emoji">📝</span> Editor</div>
+                    <div class="sub-tab active highlight"><span class="emoji">🏛️</span> Resources</div>
+                </div>
+            </div>
+            <div class="label">Knowledge repository</div>
+        </div>
+    </div>
+
+    <div style="margin-top: 40px; padding: 20px; background: #fff; border-radius: 8px; max-width: 600px;">
+        <h3 style="margin-top: 0;">💡 Recommendations</h3>
+        <ul style="color: #555; line-height: 1.8;">
+            <li><strong>🗂️ Card Dividers</strong> - Best for "organized sections" (TM, Termbase, Prompts)</li>
+            <li><strong>🗃️ File Box</strong> - Best for "stored data" emphasis</li>
+            <li><strong>📚 Books</strong> (current) - Classic "reference materials" look</li>
+        </ul>
+        <p style="color: #888; font-size: 12px;">Note: Emoji appearance varies by platform. This mockup shows how they look on Windows.</p>
+    </div>
+</body>
+</html>
