@@ -5898,7 +5898,7 @@ class SupervertalerQt(QMainWindow):
         
         # Create Resources tab (TM, Termbases, Prompts, etc.)
         resources_tab = self.create_resources_tab()
-        self.project_home_tabs.addTab(resources_tab, "�️ Resources")
+        self.project_home_tabs.addTab(resources_tab, "🗂️ Resources")
         
         project_home_layout.addWidget(self.project_home_tabs)
         
