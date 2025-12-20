@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.51 (December 20, 2025)
+**Current Version:** v1.9.52 (December 20, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -14,6 +14,7 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- 🌐 **Superlookup Web Resources (v1.9.52)** - Expanded web resources tab with 14 reference sites! New resources: Juremy, michaelbeijer.co.uk, AcronymFinder, BabelNet, Wiktionary (Source & Target). Persistent login sessions with cookies stored in `user_data/web_cache/`. Auto-select language pair from project on load. Compact single-line search layout. Settings checkboxes control sidebar button visibility.
 - 🔍 **Superlookup MT Integration (v1.9.51)** - Complete Machine Translation integration in Superlookup! Search now returns results from Google Translate, Amazon Translate, DeepL, Microsoft Translator, ModernMT, and MyMemory. MT provider status display shows active/disabled/missing API key providers with "⚙️ Configure in Settings" link. Error messages now shown in red with details (no more silent failures). Fixed language name mapping: "Dutch" → "nl", "English" → "en" for all MT providers. Added boto3 and deepl to requirements.txt. Removed debug print spam. Termbases tab now has search filter and split-view with editable terms grid.
 - 🎤 **Voice Commands System (v1.9.50)** - Complete hands-free translation with Talon-style voice commands! Say "next segment", "confirm", "source to target", "translate", and more. **Always-On Listening Mode** with VAD (Voice Activity Detection) - no need to press F9. Dual recognition engines: **OpenAI Whisper API** (recommended, fast & accurate) or local Whisper model. New grid toolbar button (🎧 Voice ON/OFF) for easy toggle. Status bar indicator shows listening/recording/processing state. AutoHotkey integration for controlling external apps (memoQ, Trados, Word) by voice. Custom voice commands with fuzzy matching. Configure in Tools → Supervoice tab.
 - 🎤 **Always-On Listening (v1.9.49)** - VAD-based continuous listening eliminates pressing F9 twice. Automatically detects speech, records, transcribes, and processes as command or dictation. Configurable mic sensitivity (Low/Medium/High). Visual feedback: 🟢 Listening → 🔴 Recording → ⏳ Processing. F9 stops always-on mode if active.

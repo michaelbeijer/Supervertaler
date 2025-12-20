@@ -34,9 +34,9 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.51"
+__version__ = "1.9.52"
 __phase__ = "0.9"
-__release_date__ = "2025-12-18"
+__release_date__ = "2025-12-20"
 __edition__ = "Qt"
 
 import sys
@@ -7455,9 +7455,13 @@ class SupervertalerQt(QMainWindow):
                                 if cursor.hasSelection():
                                     initial_query = cursor.selectedText()
             
+            # Get project language pair
+            source_lang = getattr(self, 'source_language', None)
+            target_lang = getattr(self, 'target_language', None)
+            
             # Log for debugging
             if initial_query:
-                self.log(f"[Concordance] Opening Superlookup with query: '{initial_query[:50]}...'")
+                self.log(f"[Concordance] Opening Superlookup with query: '{initial_query[:50]}...' (lang: {source_lang} → {target_lang})")
             else:
                 self.log(f"[Concordance] Opening Superlookup (no selection)")
             
@@ -7468,10 +7472,21 @@ class SupervertalerQt(QMainWindow):
             if hasattr(self, 'lookup_tab') and self.lookup_tab:
                 if initial_query:
                     # Use vertical view for traditional concordance layout
-                    self.lookup_tab.search_with_query(initial_query, switch_to_vertical=True)
+                    # Pass language pair from project
+                    self.lookup_tab.search_with_query(
+                        initial_query, 
+                        switch_to_vertical=True,
+                        source_lang=source_lang,
+                        target_lang=target_lang
+                    )
                 else:
                     # Just focus the source text input
                     self.lookup_tab.source_text.setFocus()
+                    # Set language pair even without query
+                    if source_lang and hasattr(self.lookup_tab, '_set_language_combo'):
+                        self.lookup_tab._set_language_combo(self.lookup_tab.lang_from_combo, source_lang)
+                    if target_lang and hasattr(self.lookup_tab, '_set_language_combo'):
+                        self.lookup_tab._set_language_combo(self.lookup_tab.lang_to_combo, target_lang)
                     # Switch to vertical view for consistency
                     if hasattr(self.lookup_tab, 'tm_view_vertical_radio'):
                         self.lookup_tab.tm_view_vertical_radio.setChecked(True)
@@ -17006,6 +17021,14 @@ class SupervertalerQt(QMainWindow):
                     project_target = self.current_project.target_lang
                     if project_target and self.spellcheck_manager.set_language(project_target):
                         self.log(f"✓ Spellcheck initialized for target language: {project_target}")
+            
+            # Set Superlookup language dropdowns to match project languages
+            if hasattr(self, 'lookup_tab') and self.lookup_tab and self.current_project:
+                source_lang = self.current_project.source_lang
+                target_lang = self.current_project.target_lang
+                if source_lang or target_lang:
+                    self.lookup_tab.set_project_languages(source_lang, target_lang)
+                    self.log(f"✓ Set Superlookup languages: {source_lang} → {target_lang}")
             
             self.log(f"✓ Loaded project: {self.current_project.name} ({len(self.current_project.segments)} segments)")
             
@@ -32258,65 +32281,87 @@ class SuperlookupTab(QWidget):
         description.setStyleSheet("color: #666; padding: 5px; background-color: #E3F2FD; border-radius: 3px;")
         layout.addWidget(description, 0)  # 0 = no stretch, stays compact
         
-        # Source text area (using label instead of group box)
-        source_label_header = QLabel("📝 Source Text")
-        source_label_header.setStyleSheet("font-weight: bold; font-size: 10pt; margin-top: 10px;")
-        layout.addWidget(source_label_header)
+        # Search input area - compact single-line layout with search box and controls
+        search_row = QHBoxLayout()
+        
+        # Search label and input
+        search_label = QLabel("🔍")
+        search_label.setStyleSheet("font-size: 12pt;")
+        search_row.addWidget(search_label)
         
         self.source_text = QTextEdit()
-        self.source_text.setPlaceholderText("Paste text here or use Ctrl+Alt+L to capture...")
-        self.source_text.setMaximumHeight(50)
-        self.source_text.setMinimumHeight(35)
-        layout.addWidget(self.source_text)
+        self.source_text.setPlaceholderText("Enter search term or paste text...")
+        self.source_text.setMaximumHeight(35)
+        self.source_text.setMinimumHeight(30)
+        self.source_text.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        search_row.addWidget(self.source_text, stretch=1)
         
-        # Search options row (direction + language filters)
+        # Search button
+        search_btn = QPushButton("🔍 Search")
+        search_btn.setStyleSheet("font-weight: bold; background-color: #2196F3; color: white; padding: 6px 12px; outline: none;")
+        search_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        search_btn.clicked.connect(self.perform_lookup)
+        search_row.addWidget(search_btn)
+        
+        # Clear button
+        clear_btn = QPushButton("🗑️ Clear")
+        clear_btn.setStyleSheet("padding: 6px 8px;")
+        clear_btn.clicked.connect(self.clear_all)
+        search_row.addWidget(clear_btn)
+        
+        layout.addLayout(search_row)
+        
+        # Options row (direction + language filters) - compact single line
         options_layout = QHBoxLayout()
+        options_layout.setSpacing(8)
         
         # Search direction selector
         direction_label = QLabel("Direction:")
-        direction_label.setStyleSheet("font-weight: bold;")
+        direction_label.setStyleSheet("font-weight: bold; font-size: 9pt;")
         options_layout.addWidget(direction_label)
         
-        self.direction_both = CheckmarkRadioButton("↔ Both")
+        self.direction_both = CheckmarkRadioButton("Both")
         self.direction_both.setChecked(True)  # Default
         self.direction_both.setToolTip("Search in both source and target text (bidirectional)")
         options_layout.addWidget(self.direction_both)
         
-        self.direction_source = CheckmarkRadioButton("→ Source")
+        self.direction_source = CheckmarkRadioButton("Source")
         self.direction_source.setToolTip("Search only in source language text")
         options_layout.addWidget(self.direction_source)
         
-        self.direction_target = CheckmarkRadioButton("← Target")
+        self.direction_target = CheckmarkRadioButton("Target")
         self.direction_target.setToolTip("Search only in target language text")
         options_layout.addWidget(self.direction_target)
         
         # Spacer
-        options_layout.addSpacing(20)
+        options_layout.addSpacing(15)
         
         # Language filter dropdowns
         from_label = QLabel("From:")
-        from_label.setStyleSheet("font-weight: bold;")
+        from_label.setStyleSheet("font-weight: bold; font-size: 9pt;")
         options_layout.addWidget(from_label)
         
         self.lang_from_combo = QComboBox()
-        self.lang_from_combo.setMinimumWidth(100)
+        self.lang_from_combo.setMinimumWidth(90)
         self.lang_from_combo.setToolTip("Filter by source language (leave as 'Any' for all)")
+        self.lang_from_combo.currentIndexChanged.connect(self._on_language_changed)
         options_layout.addWidget(self.lang_from_combo)
         
         # Swap button
         swap_btn = QPushButton("↔")
-        swap_btn.setFixedWidth(30)
+        swap_btn.setFixedWidth(28)
         swap_btn.setToolTip("Swap source and target languages")
         swap_btn.clicked.connect(self.swap_language_filters)
         options_layout.addWidget(swap_btn)
         
         to_label = QLabel("To:")
-        to_label.setStyleSheet("font-weight: bold;")
+        to_label.setStyleSheet("font-weight: bold; font-size: 9pt;")
         options_layout.addWidget(to_label)
         
         self.lang_to_combo = QComboBox()
-        self.lang_to_combo.setMinimumWidth(100)
+        self.lang_to_combo.setMinimumWidth(90)
         self.lang_to_combo.setToolTip("Filter by target language (leave as 'Any' for all)")
+        self.lang_to_combo.currentIndexChanged.connect(self._on_language_changed)
         options_layout.addWidget(self.lang_to_combo)
         
         options_layout.addStretch()
@@ -32325,21 +32370,6 @@ class SuperlookupTab(QWidget):
         # Initialize language dropdowns with "Any" option
         self.lang_from_combo.addItem("Any", None)
         self.lang_to_combo.addItem("Any", None)
-        
-        # Buttons
-        button_layout = QHBoxLayout()
-        
-        search_btn = QPushButton("🔍 Search")
-        search_btn.setStyleSheet("font-weight: bold; background-color: #2196F3; color: white; padding: 8px; outline: none;")
-        search_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        search_btn.clicked.connect(self.perform_lookup)
-        button_layout.addWidget(search_btn)
-        
-        clear_btn = QPushButton("🗑️ Clear")
-        clear_btn.clicked.connect(self.clear_all)
-        button_layout.addWidget(clear_btn)
-        
-        layout.addLayout(button_layout)
         
         # Results area (with tabs for TM, termbase, MT, Supermemory)
         self.results_tabs = QTabWidget()
@@ -32907,23 +32937,669 @@ class SuperlookupTab(QWidget):
             return f"[MyMemory error: {e}]"
 
     def create_web_resources_tab(self):
-        """Create the Web Resources tab"""
+        """Create the Web Resources tab with vertical sidebar for different web resources"""
         tab = QWidget()
-        layout = QVBoxLayout(tab)
+        layout = QHBoxLayout(tab)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
         
-        # Results area (will be populated with web search results)
-        self.web_results_layout = QVBoxLayout()
+        # Try to import QWebEngineView for embedded browser with persistent storage
+        self.web_engine_available = False
+        self.web_profile = None
+        try:
+            from PyQt6.QtWebEngineWidgets import QWebEngineView
+            from PyQt6.QtWebEngineCore import QWebEnginePage, QWebEngineProfile
+            self.QWebEngineView = QWebEngineView
+            self.QWebEngineProfile = QWebEngineProfile
+            self.web_engine_available = True
+            
+            # Create persistent profile for login/cookie storage
+            storage_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'user_data', 'web_cache')
+            os.makedirs(storage_path, exist_ok=True)
+            self.web_profile = QWebEngineProfile("SuperlookupProfile", self)
+            self.web_profile.setPersistentStoragePath(storage_path)
+            self.web_profile.setPersistentCookiesPolicy(QWebEngineProfile.PersistentCookiesPolicy.ForcePersistentCookies)
+            print(f"[Superlookup] QWebEngineView available - embedded browser enabled with persistent storage at {storage_path}")
+        except ImportError:
+            print("[Superlookup] QWebEngineView not available - external browser only")
+            self.QWebEngineView = None
+            self.QWebEngineProfile = None
         
-        # Placeholder
-        placeholder = QLabel("🌐 Web Resources\n\nComing soon: Search dictionaries, glossaries, and reference websites")
-        placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        placeholder.setStyleSheet("color: #999; padding: 40px;")
-        self.web_results_layout.addWidget(placeholder)
+        # Setting for browser mode (embedded vs external)
+        self.web_browser_mode = 'embedded' if self.web_engine_available else 'external'
         
-        layout.addLayout(self.web_results_layout)
-        layout.addStretch()
+        # === Web Resources Definitions ===
+        # Each resource has: name, icon, url_template with {query}, {sl} (source lang), {tl} (target lang)
+        # Language codes vary per service - we'll map them in _get_web_lang_code()
+        self.web_resources = [
+            {
+                'id': 'iate',
+                'name': 'IATE',
+                'icon': '🇪🇺',
+                'description': 'EU terminology database',
+                'url_template': 'https://iate.europa.eu/search/byUrl?term={query}&sl={sl}&tl={tl}',
+                'lang_format': 'iso2',  # en, nl, de, fr
+                'bidirectional': False,  # respects source/target direction
+            },
+            {
+                'id': 'linguee',
+                'name': 'Linguee',
+                'icon': '📗',
+                'description': 'Bilingual dictionary with context',
+                'url_template': 'https://www.linguee.com/{sl_full}-{tl_full}/search?source=auto&query={query}',
+                'lang_format': 'full_lower',  # dutch, english, german
+                'bidirectional': True,  # searches both directions
+            },
+            {
+                'id': 'proz',
+                'name': 'ProZ.com',
+                'icon': '💬',
+                'description': 'Translator terminology database',
+                'url_template': 'https://www.proz.com/search/?term={query}&from={sl}&to={tl}&results_per_page=25&es=1',
+                'lang_format': 'iso3',  # dut, eng, ger
+                'bidirectional': False,
+            },
+            {
+                'id': 'reverso',
+                'name': 'Reverso Context',
+                'icon': '🔄',
+                'description': 'Context-based translations',
+                'url_template': 'https://context.reverso.net/translation/{sl_full}-{tl_full}/{query}',
+                'lang_format': 'full_lower',  # dutch, english
+                'bidirectional': False,
+            },
+            {
+                'id': 'google',
+                'name': 'Google Search',
+                'icon': '🔍',
+                'description': 'General web search',
+                'url_template': 'https://www.google.com/search?q={query}',
+                'lang_format': None,  # No language needed
+                'bidirectional': True,
+            },
+            {
+                'id': 'google_patents',
+                'name': 'Google Patents',
+                'icon': '📜',
+                'description': 'Patent search',
+                'url_template': 'https://patents.google.com/?q="{query}"',
+                'lang_format': None,
+                'bidirectional': True,
+            },
+            {
+                'id': 'wikipedia_source',
+                'name': 'Wikipedia (Source)',
+                'icon': '📖',
+                'description': 'Wikipedia in source language',
+                'url_template': 'https://{sl}.wikipedia.org/w/index.php?search={query}',
+                'lang_format': 'iso2',  # nl, en, de
+                'bidirectional': True,
+            },
+            {
+                'id': 'wikipedia_target',
+                'name': 'Wikipedia (Target)',
+                'icon': '📖',
+                'description': 'Wikipedia in target language',
+                'url_template': 'https://{tl}.wikipedia.org/w/index.php?search={query}',
+                'lang_format': 'iso2',
+                'bidirectional': True,
+            },
+            {
+                'id': 'juremy',
+                'name': 'Juremy',
+                'icon': '⚖️',
+                'description': 'Legal terminology database',
+                'url_template': 'https://juremy.com/search?src={sl}&dst={tl}&q={query}&opts=ia&tool=iws',
+                'lang_format': 'iso639_3',  # nld, eng, deu (ISO 639-3 codes)
+                'bidirectional': False,
+            },
+            {
+                'id': 'beijerterm',
+                'name': 'michaelbeijer.co.uk',
+                'icon': '📚',
+                'description': 'Personal terminology wiki',
+                'url_template': 'https://michaelbeijer.co.uk/w/index.php?search={query}',
+                'lang_format': None,
+                'bidirectional': True,
+            },
+            {
+                'id': 'acronymfinder',
+                'name': 'AcronymFinder',
+                'icon': '🔤',
+                'description': 'Acronym and abbreviation dictionary',
+                'url_template': 'https://www.acronymfinder.com/~/search/af.aspx?string=exact&Acronym={query}',
+                'lang_format': None,
+                'bidirectional': True,
+            },
+            {
+                'id': 'babelnet',
+                'name': 'BabelNet',
+                'icon': '🌐',
+                'description': 'Multilingual encyclopedic dictionary',
+                'url_template': 'https://babelnet.org/search?word={query}&lang={sl_upper}&transLang={tl_upper}',
+                'lang_format': 'iso2_upper',  # NL, EN, DE
+                'bidirectional': False,
+            },
+            {
+                'id': 'wiktionary_source',
+                'name': 'Wiktionary (Source)',
+                'icon': '📓',
+                'description': 'Wiktionary in source language',
+                'url_template': 'https://{sl}.wiktionary.org/wiki/{query}',
+                'lang_format': 'iso2',
+                'bidirectional': True,
+            },
+            {
+                'id': 'wiktionary_target',
+                'name': 'Wiktionary (Target)',
+                'icon': '📓',
+                'description': 'Wiktionary in target language',
+                'url_template': 'https://{tl}.wiktionary.org/wiki/{query}',
+                'lang_format': 'iso2',
+                'bidirectional': True,
+            },
+        ]
+        
+        # === Left sidebar with vertical tabs ===
+        sidebar = QWidget()
+        sidebar.setFixedWidth(140)
+        sidebar.setStyleSheet("""
+            QWidget {
+                background-color: #f5f5f5;
+                border-right: 1px solid #ddd;
+            }
+        """)
+        sidebar_layout = QVBoxLayout(sidebar)
+        sidebar_layout.setContentsMargins(5, 10, 5, 10)
+        sidebar_layout.setSpacing(2)
+        
+        # Sidebar header
+        sidebar_header = QLabel("🌐 Resources")
+        sidebar_header.setStyleSheet("font-weight: bold; font-size: 10pt; padding: 5px; color: #1976D2;")
+        sidebar_layout.addWidget(sidebar_header)
+        
+        # Resource buttons list
+        self.web_resource_buttons = []
+        self.web_resource_button_group = QButtonGroup(self)
+        self.web_resource_button_group.setExclusive(True)
+        
+        for i, resource in enumerate(self.web_resources):
+            btn = QPushButton(f"{resource['icon']} {resource['name']}")
+            btn.setCheckable(True)
+            btn.setToolTip(resource['description'])
+            btn.setStyleSheet("""
+                QPushButton {
+                    text-align: left;
+                    padding: 8px 10px;
+                    border: none;
+                    border-radius: 4px;
+                    background-color: transparent;
+                    font-size: 9pt;
+                }
+                QPushButton:hover {
+                    background-color: #e3e3e3;
+                }
+                QPushButton:checked {
+                    background-color: #2196F3;
+                    color: white;
+                    font-weight: bold;
+                }
+            """)
+            btn.clicked.connect(lambda checked, idx=i: self._on_web_resource_selected(idx))
+            self.web_resource_button_group.addButton(btn, i)
+            self.web_resource_buttons.append(btn)
+            sidebar_layout.addWidget(btn)
+        
+        sidebar_layout.addStretch()
+        
+        # "Search All" button - pre-loads all resources
+        search_all_btn = QPushButton("🔎 Search All")
+        search_all_btn.setToolTip("Search all web resources at once (embedded mode)")
+        search_all_btn.setStyleSheet("""
+            QPushButton {
+                padding: 8px;
+                background-color: #FF9800;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                font-size: 9pt;
+            }
+            QPushButton:hover {
+                background-color: #F57C00;
+            }
+        """)
+        search_all_btn.clicked.connect(lambda: self._perform_web_search(search_all=True))
+        sidebar_layout.addWidget(search_all_btn)
+        
+        # Browser mode toggle
+        mode_label = QLabel("Mode:")
+        mode_label.setStyleSheet("font-size: 8pt; color: #666; padding-top: 5px;")
+        sidebar_layout.addWidget(mode_label)
+        
+        self.web_mode_embedded_radio = QRadioButton("Embedded")
+        self.web_mode_embedded_radio.setToolTip("Show results inside Supervertaler")
+        self.web_mode_embedded_radio.setStyleSheet("font-size: 8pt;")
+        self.web_mode_embedded_radio.setChecked(self.web_browser_mode == 'embedded')
+        self.web_mode_embedded_radio.setEnabled(self.web_engine_available)
+        self.web_mode_embedded_radio.toggled.connect(self._on_web_mode_changed)
+        sidebar_layout.addWidget(self.web_mode_embedded_radio)
+        
+        self.web_mode_external_radio = QRadioButton("External")
+        self.web_mode_external_radio.setToolTip("Open results in default browser")
+        self.web_mode_external_radio.setStyleSheet("font-size: 8pt;")
+        self.web_mode_external_radio.setChecked(self.web_browser_mode == 'external')
+        self.web_mode_external_radio.toggled.connect(self._on_web_mode_changed)
+        sidebar_layout.addWidget(self.web_mode_external_radio)
+        
+        # "Open in Browser" button at bottom of sidebar
+        self.web_open_external_btn = QPushButton("🌍 Open in Browser")
+        self.web_open_external_btn.setToolTip("Open current page in your default web browser")
+        self.web_open_external_btn.setStyleSheet("""
+            QPushButton {
+                padding: 8px;
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                font-size: 9pt;
+                margin-top: 5px;
+            }
+            QPushButton:hover {
+                background-color: #45a049;
+            }
+        """)
+        self.web_open_external_btn.clicked.connect(self._open_web_resource_external)
+        sidebar_layout.addWidget(self.web_open_external_btn)
+        
+        layout.addWidget(sidebar)
+        
+        # === Main content area ===
+        content_widget = QWidget()
+        content_layout = QVBoxLayout(content_widget)
+        content_layout.setContentsMargins(10, 10, 10, 10)
+        content_layout.setSpacing(5)
+        
+        # Info label showing current language direction (no separate search bar - uses main Superlookup search)
+        self.web_lang_info_label = QLabel("Languages: Any → Any  •  Click Search above or select a resource")
+        self.web_lang_info_label.setStyleSheet("color: #666; font-size: 9pt; padding: 3px 0;")
+        content_layout.addWidget(self.web_lang_info_label)
+        
+        # Web view container - stacked widget for embedded views per resource
+        self.web_view_stack = QStackedWidget()
+        
+        # Create embedded web views for each resource (if available)
+        # Uses persistent profile for login/cookie storage across sessions
+        self.web_views = {}
+        if self.web_engine_available:
+            for resource in self.web_resources:
+                web_view = self.QWebEngineView()
+                # Use persistent profile if available (for login persistence)
+                if self.web_profile:
+                    from PyQt6.QtWebEngineCore import QWebEnginePage
+                    page = QWebEnginePage(self.web_profile, web_view)
+                    web_view.setPage(page)
+                web_view.setUrl(QUrl("about:blank"))
+                self.web_views[resource['id']] = web_view
+                self.web_view_stack.addWidget(web_view)
+        
+        # Fallback view for external mode or when web engine not available
+        self.web_results_view = QTextEdit()
+        self.web_results_view.setReadOnly(True)
+        self.web_results_view.setStyleSheet("""
+            QTextEdit {
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                padding: 10px;
+                font-size: 11pt;
+            }
+        """)
+        self._show_web_welcome_message()
+        self.web_view_stack.addWidget(self.web_results_view)
+        
+        content_layout.addWidget(self.web_view_stack, stretch=1)
+        
+        layout.addWidget(content_widget, stretch=1)
+        
+        # Track current resource and last search URL
+        self.current_web_resource_index = 0
+        self.last_web_search_url = None
+        self.last_web_search_query = None
+        
+        # Select first resource by default
+        if self.web_resource_buttons:
+            self.web_resource_buttons[0].setChecked(True)
+        
+        # Show correct view based on mode
+        self._update_web_view_for_mode()
+        
+        # Update enabled state based on settings
+        self.search_web_enabled = True  # Now implemented!
         
         return tab
+    
+    def _show_web_welcome_message(self):
+        """Show welcome message in the web results view"""
+        mode_info = "embedded browser" if self.web_browser_mode == 'embedded' else "your default web browser"
+        self.web_results_view.setHtml(f"""
+            <div style="text-align: center; padding: 40px; color: #999;">
+                <h2>🌐 Web Resources</h2>
+                <p>Select a resource from the sidebar and enter a search term.</p>
+                <p>Results will open in <b>{mode_info}</b>.</p>
+                <p style="font-size: 10pt; margin-top: 20px;">
+                    <b>Tip:</b> The search respects the language direction from the From/To dropdowns above.
+                </p>
+                <p style="font-size: 9pt; color: #aaa; margin-top: 10px;">
+                    Use the mode toggle in the sidebar to switch between embedded and external browser.
+                </p>
+            </div>
+        """)
+    
+    def _on_web_mode_changed(self, checked):
+        """Handle browser mode toggle"""
+        if self.web_mode_embedded_radio.isChecked():
+            self.web_browser_mode = 'embedded'
+        else:
+            self.web_browser_mode = 'external'
+        
+        self._update_web_view_for_mode()
+        self._show_web_welcome_message()
+        print(f"[Superlookup] Web browser mode changed to: {self.web_browser_mode}")
+    
+    def _update_web_view_for_mode(self):
+        """Update the view stack based on current mode"""
+        if self.web_browser_mode == 'embedded' and self.web_engine_available:
+            # Show embedded view for current resource
+            resource = self.web_resources[self.current_web_resource_index]
+            if resource['id'] in self.web_views:
+                idx = list(self.web_views.keys()).index(resource['id'])
+                self.web_view_stack.setCurrentIndex(idx)
+        else:
+            # Show text view (for external mode or fallback)
+            self.web_view_stack.setCurrentIndex(self.web_view_stack.count() - 1)
+    
+    def _on_web_resource_selected(self, index):
+        """Handle web resource selection from sidebar"""
+        self.current_web_resource_index = index
+        resource = self.web_resources[index]
+        
+        # Update view based on mode
+        if self.web_browser_mode == 'embedded' and self.web_engine_available:
+            # Switch to this resource's embedded web view
+            if resource['id'] in self.web_views:
+                idx = list(self.web_views.keys()).index(resource['id'])
+                self.web_view_stack.setCurrentIndex(idx)
+                
+                # If we have a cached search query, perform search for this resource
+                if self.last_web_search_query:
+                    url = self._build_web_search_url(resource, self.last_web_search_query)
+                    if url:
+                        self.web_views[resource['id']].setUrl(QUrl(url))
+        else:
+            # External mode - show info
+            self.web_results_view.setHtml(f"""
+                <div style="text-align: center; padding: 40px;">
+                    <h2>{resource['icon']} {resource['name']}</h2>
+                    <p style="color: #666;">{resource['description']}</p>
+                    <p style="margin-top: 20px;">Enter a search term above and press Search.</p>
+                    <p style="font-size: 9pt; color: #aaa;">Results will open in your default browser.</p>
+                </div>
+            """)
+        
+        # Update language info
+        self._update_web_lang_info()
+    
+    def _update_web_lang_info(self):
+        """Update the language direction info label for web resources"""
+        from_lang = self.lang_from_combo.currentData() if hasattr(self, 'lang_from_combo') else None
+        to_lang = self.lang_to_combo.currentData() if hasattr(self, 'lang_to_combo') else None
+        
+        from_display = self.lang_from_combo.currentText() if from_lang else "Any"
+        to_display = self.lang_to_combo.currentText() if to_lang else "Any"
+        
+        if hasattr(self, 'web_lang_info_label'):
+            self.web_lang_info_label.setText(f"Languages: {from_display} → {to_display}")
+    
+    def _perform_web_search(self, search_all: bool = False):
+        """Perform web search with the selected resource(s)
+        
+        Args:
+            search_all: If True, search all enabled resources (for embedded mode)
+        """
+        # Use the main Superlookup source text field
+        query = self.source_text.toPlainText().strip()
+        if not query:
+            self.status_label.setText("Please enter a search term in the Source Text field above")
+            return
+        
+        # Cache the query for when user switches between resources
+        self.last_web_search_query = query
+        
+        if self.web_browser_mode == 'embedded' and self.web_engine_available:
+            # Embedded mode - load in web views
+            if search_all:
+                # Search all resources (pre-load them)
+                for resource in self.web_resources:
+                    url = self._build_web_search_url(resource, query)
+                    if url and resource['id'] in self.web_views:
+                        self.web_views[resource['id']].setUrl(QUrl(url))
+                self.status_label.setText(f"Searching all web resources for '{query}'")
+            else:
+                # Search current resource only
+                resource = self.web_resources[self.current_web_resource_index]
+                url = self._build_web_search_url(resource, query)
+                if url:
+                    self.last_web_search_url = url
+                    if resource['id'] in self.web_views:
+                        self.web_views[resource['id']].setUrl(QUrl(url))
+                        # Show this resource's view
+                        idx = list(self.web_views.keys()).index(resource['id'])
+                        self.web_view_stack.setCurrentIndex(idx)
+                    self.status_label.setText(f"Loaded {resource['name']} search")
+        else:
+            # External mode - open in browser
+            resource = self.web_resources[self.current_web_resource_index]
+            url = self._build_web_search_url(resource, query)
+            
+            if url:
+                self.last_web_search_url = url
+                
+                # Show the URL that will be opened
+                self.web_results_view.setHtml(f"""
+                    <div style="padding: 20px;">
+                        <h3>{resource['icon']} {resource['name']}</h3>
+                        <p><b>Search term:</b> {query}</p>
+                        <p><b>Opening URL:</b></p>
+                        <p style="word-wrap: break-word; color: #1976D2;">
+                            <a href="{url}">{url}</a>
+                        </p>
+                        <hr style="margin: 20px 0; border: none; border-top: 1px solid #ddd;">
+                        <p style="color: #666; font-size: 10pt;">
+                            Click "Open in Browser" to open again, or select another resource.
+                        </p>
+                    </div>
+                """)
+                
+                # Open in default browser
+                QDesktopServices.openUrl(QUrl(url))
+                self.status_label.setText(f"Opened {resource['name']} search in browser")
+    
+    def search_all_web_resources(self, query: str):
+        """Search all web resources with the given query (called from Superlookup integration)
+        
+        Note: This method now uses the source_text field directly, so the query param
+        should match what's already in source_text.
+        """
+        if query:
+            # Source text should already be set, just trigger the search
+            self._perform_web_search(search_all=True)
+    
+    def _build_web_search_url(self, resource, query):
+        """Build the search URL for a web resource with proper language codes"""
+        import urllib.parse
+        
+        # Get language settings
+        from_lang = self.lang_from_combo.currentData() if hasattr(self, 'lang_from_combo') else None
+        to_lang = self.lang_to_combo.currentData() if hasattr(self, 'lang_to_combo') else None
+        
+        # Default to English-Dutch if not specified
+        if not from_lang:
+            from_lang = 'en'
+        if not to_lang:
+            to_lang = 'nl'
+        
+        # URL-encode the query
+        encoded_query = urllib.parse.quote(query)
+        
+        # Get language codes in the format needed by this resource
+        lang_format = resource.get('lang_format')
+        sl = self._get_web_lang_code(from_lang, lang_format)
+        tl = self._get_web_lang_code(to_lang, lang_format)
+        sl_full = self._get_web_lang_code(from_lang, 'full_lower')
+        tl_full = self._get_web_lang_code(to_lang, 'full_lower')
+        sl_upper = self._get_web_lang_code(from_lang, 'iso2').upper()
+        tl_upper = self._get_web_lang_code(to_lang, 'iso2').upper()
+        
+        # Build URL from template
+        url = resource['url_template']
+        url = url.replace('{query}', encoded_query)
+        url = url.replace('{sl}', sl)
+        url = url.replace('{tl}', tl)
+        url = url.replace('{sl_full}', sl_full)
+        url = url.replace('{tl_full}', tl_full)
+        url = url.replace('{sl_upper}', sl_upper)
+        url = url.replace('{tl_upper}', tl_upper)
+        
+        return url
+    
+    def _get_web_lang_code(self, lang_code, format_type):
+        """Convert language code to the format needed by different web services"""
+        if not lang_code or not format_type:
+            return ''
+        
+        # Normalize input - handle full language names or codes
+        lang_lower = lang_code.lower()
+        
+        # Language code mappings
+        # ISO-2 codes (2-letter): en, nl, de, fr, es, etc.
+        iso2_map = {
+            'english': 'en', 'en': 'en', 'en-us': 'en', 'en-gb': 'en', 'en-au': 'en',
+            'dutch': 'nl', 'nl': 'nl', 'nl-nl': 'nl', 'nl-be': 'nl', 'nederlands': 'nl',
+            'german': 'de', 'de': 'de', 'de-de': 'de', 'de-at': 'de', 'de-ch': 'de', 'deutsch': 'de',
+            'french': 'fr', 'fr': 'fr', 'fr-fr': 'fr', 'fr-be': 'fr', 'fr-ca': 'fr', 'français': 'fr',
+            'spanish': 'es', 'es': 'es', 'es-es': 'es', 'es-mx': 'es', 'español': 'es',
+            'italian': 'it', 'it': 'it', 'it-it': 'it', 'italiano': 'it',
+            'portuguese': 'pt', 'pt': 'pt', 'pt-pt': 'pt', 'pt-br': 'pt', 'português': 'pt',
+            'polish': 'pl', 'pl': 'pl', 'polski': 'pl',
+            'russian': 'ru', 'ru': 'ru', 'русский': 'ru',
+            'chinese': 'zh', 'zh': 'zh', 'zh-cn': 'zh', 'zh-tw': 'zh', '中文': 'zh',
+            'japanese': 'ja', 'ja': 'ja', '日本語': 'ja',
+            'korean': 'ko', 'ko': 'ko', '한국어': 'ko',
+            'arabic': 'ar', 'ar': 'ar', 'العربية': 'ar',
+            'swedish': 'sv', 'sv': 'sv', 'svenska': 'sv',
+            'danish': 'da', 'da': 'da', 'dansk': 'da',
+            'norwegian': 'no', 'no': 'no', 'nb': 'no', 'nn': 'no', 'norsk': 'no',
+            'finnish': 'fi', 'fi': 'fi', 'suomi': 'fi',
+            'czech': 'cs', 'cs': 'cs', 'čeština': 'cs',
+            'hungarian': 'hu', 'hu': 'hu', 'magyar': 'hu',
+            'romanian': 'ro', 'ro': 'ro', 'română': 'ro',
+            'greek': 'el', 'el': 'el', 'ελληνικά': 'el',
+            'turkish': 'tr', 'tr': 'tr', 'türkçe': 'tr',
+            'ukrainian': 'uk', 'uk': 'uk', 'українська': 'uk',
+            'bulgarian': 'bg', 'bg': 'bg', 'български': 'bg',
+        }
+        
+        # ISO-3 codes (3-letter for ProZ): dut, eng, ger, fre, spa, etc. (ISO 639-2/B bibliographic)
+        iso3_map = {
+            'english': 'eng', 'en': 'eng', 'en-us': 'eng', 'en-gb': 'eng',
+            'dutch': 'dut', 'nl': 'dut', 'nl-nl': 'dut', 'nl-be': 'dut', 'nederlands': 'dut',
+            'german': 'ger', 'de': 'ger', 'de-de': 'ger', 'deutsch': 'ger',
+            'french': 'fre', 'fr': 'fre', 'fr-fr': 'fre', 'français': 'fre',
+            'spanish': 'spa', 'es': 'spa', 'es-es': 'spa', 'español': 'spa',
+            'italian': 'ita', 'it': 'ita', 'it-it': 'ita', 'italiano': 'ita',
+            'portuguese': 'por', 'pt': 'por', 'pt-pt': 'por', 'português': 'por',
+            'polish': 'pol', 'pl': 'pol', 'polski': 'pol',
+            'russian': 'rus', 'ru': 'rus', 'русский': 'rus',
+            'chinese': 'chi', 'zh': 'chi', 'zh-cn': 'chi', '中文': 'chi',
+            'japanese': 'jpn', 'ja': 'jpn', '日本語': 'jpn',
+            'korean': 'kor', 'ko': 'kor', '한국어': 'kor',
+            'arabic': 'ara', 'ar': 'ara', 'العربية': 'ara',
+            'swedish': 'swe', 'sv': 'swe', 'svenska': 'swe',
+            'danish': 'dan', 'da': 'dan', 'dansk': 'dan',
+            'norwegian': 'nor', 'no': 'nor', 'norsk': 'nor',
+            'finnish': 'fin', 'fi': 'fin', 'suomi': 'fin',
+            'czech': 'cze', 'cs': 'cze', 'čeština': 'cze',
+            'hungarian': 'hun', 'hu': 'hun', 'magyar': 'hun',
+            'romanian': 'rum', 'ro': 'rum', 'română': 'rum',
+            'greek': 'gre', 'el': 'gre', 'ελληνικά': 'gre',
+            'turkish': 'tur', 'tr': 'tur', 'türkçe': 'tur',
+            'ukrainian': 'ukr', 'uk': 'ukr', 'українська': 'ukr',
+            'bulgarian': 'bul', 'bg': 'bul', 'български': 'bul',
+        }
+        
+        # ISO 639-3 codes (for Juremy): nld, eng, deu, fra, spa, etc.
+        iso639_3_map = {
+            'english': 'eng', 'en': 'eng', 'en-us': 'eng', 'en-gb': 'eng',
+            'dutch': 'nld', 'nl': 'nld', 'nl-nl': 'nld', 'nl-be': 'nld', 'nederlands': 'nld',
+            'german': 'deu', 'de': 'deu', 'de-de': 'deu', 'deutsch': 'deu',
+            'french': 'fra', 'fr': 'fra', 'fr-fr': 'fra', 'français': 'fra',
+            'spanish': 'spa', 'es': 'spa', 'es-es': 'spa', 'español': 'spa',
+            'italian': 'ita', 'it': 'ita', 'it-it': 'ita', 'italiano': 'ita',
+            'portuguese': 'por', 'pt': 'por', 'pt-pt': 'por', 'português': 'por',
+            'polish': 'pol', 'pl': 'pol', 'polski': 'pol',
+            'russian': 'rus', 'ru': 'rus', 'русский': 'rus',
+        }
+        
+        # Full language names (lowercase for URL slugs)
+        full_lower_map = {
+            'english': 'english', 'en': 'english', 'en-us': 'english', 'en-gb': 'english',
+            'dutch': 'dutch', 'nl': 'dutch', 'nl-nl': 'dutch', 'nl-be': 'dutch', 'nederlands': 'dutch',
+            'german': 'german', 'de': 'german', 'de-de': 'german', 'deutsch': 'german',
+            'french': 'french', 'fr': 'french', 'fr-fr': 'french', 'français': 'french',
+            'spanish': 'spanish', 'es': 'spanish', 'es-es': 'spanish', 'español': 'spanish',
+            'italian': 'italian', 'it': 'italian', 'it-it': 'italian', 'italiano': 'italian',
+            'portuguese': 'portuguese', 'pt': 'portuguese', 'pt-pt': 'portuguese', 'português': 'portuguese',
+            'polish': 'polish', 'pl': 'polish', 'polski': 'polish',
+            'russian': 'russian', 'ru': 'russian', 'русский': 'russian',
+            'chinese': 'chinese', 'zh': 'chinese', 'zh-cn': 'chinese', '中文': 'chinese',
+            'japanese': 'japanese', 'ja': 'japanese', '日本語': 'japanese',
+            'korean': 'korean', 'ko': 'korean', '한국어': 'korean',
+            'arabic': 'arabic', 'ar': 'arabic', 'العربية': 'arabic',
+            'swedish': 'swedish', 'sv': 'swedish', 'svenska': 'swedish',
+            'danish': 'danish', 'da': 'danish', 'dansk': 'danish',
+            'norwegian': 'norwegian', 'no': 'norwegian', 'norsk': 'norwegian',
+            'finnish': 'finnish', 'fi': 'finnish', 'suomi': 'finnish',
+            'czech': 'czech', 'cs': 'czech', 'čeština': 'czech',
+            'hungarian': 'hungarian', 'hu': 'hungarian', 'magyar': 'hungarian',
+            'romanian': 'romanian', 'ro': 'romanian', 'română': 'romanian',
+            'greek': 'greek', 'el': 'greek', 'ελληνικά': 'greek',
+            'turkish': 'turkish', 'tr': 'turkish', 'türkçe': 'turkish',
+            'ukrainian': 'ukrainian', 'uk': 'ukrainian', 'українська': 'ukrainian',
+            'bulgarian': 'bulgarian', 'bg': 'bulgarian', 'български': 'bulgarian',
+        }
+        
+        # Select the appropriate mapping
+        if format_type == 'iso2':
+            return iso2_map.get(lang_lower, lang_lower[:2] if len(lang_lower) >= 2 else 'en')
+        elif format_type == 'iso3':
+            return iso3_map.get(lang_lower, 'eng')
+        elif format_type == 'iso639_3':
+            return iso639_3_map.get(lang_lower, 'eng')
+        elif format_type == 'full_lower':
+            return full_lower_map.get(lang_lower, 'english')
+        else:
+            return lang_lower
+    
+    def _open_web_resource_external(self):
+        """Open the last search URL in the default browser"""
+        if self.last_web_search_url:
+            QDesktopServices.openUrl(QUrl(self.last_web_search_url))
+        else:
+            # If no search has been performed, build URL with current input from source_text
+            query = self.source_text.toPlainText().strip()
+            if query:
+                self._perform_web_search()
+            else:
+                self.status_label.setText("Enter a search term in the Source Text field first")
     
     def create_settings_tab(self):
         """Create the Settings tab with sub-tabs for each resource type"""
@@ -33146,25 +33822,70 @@ class SuperlookupTab(QWidget):
         
         # Info section
         info = QLabel(
-            "Web Resources integration is coming soon.\n"
-            "This will allow Superlookup to search online dictionaries, glossaries, and reference websites."
+            "Configure which web resources to show in the Web Resources tab.\n"
+            "Search results will open in your default web browser."
         )
         info.setWordWrap(True)
         info.setStyleSheet("color: #666; padding: 5px; background-color: #E8F5E9; border-radius: 3px;")
         layout.addWidget(info, 0)
         
-        # Enable checkbox (disabled for now)
-        self.web_search_checkbox = CheckmarkCheckBox("✓ Enable Web Resources (Coming Soon)")
-        self.web_search_checkbox.setChecked(False)
-        self.web_search_checkbox.setEnabled(False)
-        self.web_search_checkbox.setStyleSheet("font-weight: bold; font-size: 11pt; color: #999; padding: 10px 0;")
+        # Enable checkbox
+        self.web_search_checkbox = CheckmarkCheckBox("✓ Enable Web Resources in Superlookup")
+        self.web_search_checkbox.setChecked(True)
+        self.web_search_checkbox.setStyleSheet("font-weight: bold; font-size: 11pt; color: #4CAF50; padding: 10px 0;")
         layout.addWidget(self.web_search_checkbox, 0)
         
-        # Placeholder content
-        placeholder = QLabel("🚧 Under Construction\n\nComing soon:\n• Linguee\n• Reverso Context\n• IATE\n• Custom dictionary URLs\n• Wikipedia references")
-        placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        placeholder.setStyleSheet("color: #999; padding: 40px; font-size: 11pt;")
-        layout.addWidget(placeholder, stretch=1)
+        # Available resources list
+        resources_label = QLabel("Available Web Resources:")
+        resources_label.setStyleSheet("font-weight: bold; padding-top: 10px;")
+        layout.addWidget(resources_label, 0)
+        
+        # Scroll area for resource checkboxes
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.StyledPanel)
+        
+        scroll_widget = QWidget()
+        scroll_layout = QVBoxLayout(scroll_widget)
+        scroll_layout.setContentsMargins(10, 10, 10, 10)
+        scroll_layout.setSpacing(5)
+        
+        # Add checkboxes for each resource (all enabled by default)
+        self.web_resource_checkboxes = []
+        default_resources = [
+            ('🇪🇺 IATE', 'EU terminology database - supports language direction'),
+            ('📗 Linguee', 'Bilingual dictionary with context sentences'),
+            ('💬 ProZ.com', 'Translator terminology database - supports language direction'),
+            ('🔄 Reverso Context', 'Context-based translations with examples'),
+            ('🔍 Google Search', 'General web search'),
+            ('📜 Google Patents', 'Search patents for terminology'),
+            ('📖 Wikipedia (Source)', 'Wikipedia in source language'),
+            ('📖 Wikipedia (Target)', 'Wikipedia in target language'),
+            ('⚖️ Juremy', 'Legal terminology database'),
+            ('📚 michaelbeijer.co.uk', 'Personal terminology wiki'),
+            ('🔤 AcronymFinder', 'Acronym and abbreviation dictionary'),
+            ('🌐 BabelNet', 'Multilingual encyclopedic dictionary'),
+            ('📓 Wiktionary (Source)', 'Wiktionary in source language'),
+            ('📓 Wiktionary (Target)', 'Wiktionary in target language'),
+        ]
+        
+        for i, (name, desc) in enumerate(default_resources):
+            cb = CheckmarkCheckBox(name)
+            cb.setChecked(True)
+            cb.setToolTip(desc)
+            # Connect to update sidebar visibility when checkbox changes
+            cb.stateChanged.connect(lambda state, idx=i: self._on_web_resource_checkbox_changed(idx, state))
+            scroll_layout.addWidget(cb)
+            self.web_resource_checkboxes.append(cb)
+        
+        scroll_layout.addStretch()
+        scroll.setWidget(scroll_widget)
+        layout.addWidget(scroll, stretch=1)
+        
+        # Future: Add custom URL section
+        future_label = QLabel("💡 Tip: More web resources can be added in future updates")
+        future_label.setStyleSheet("color: #666; font-size: 9pt; font-style: italic; padding: 5px 0;")
+        layout.addWidget(future_label, 0)
         
         return tab
     
@@ -33192,6 +33913,21 @@ class SuperlookupTab(QWidget):
         """Handle termbase search checkbox toggle"""
         self.search_termbase_enabled = (state == Qt.CheckState.Checked.value)
         print(f"[Superlookup] Termbase search {'enabled' if self.search_termbase_enabled else 'disabled'}")
+    
+    def _on_web_resource_checkbox_changed(self, index: int, state: int):
+        """Handle web resource checkbox change - show/hide corresponding sidebar button"""
+        is_checked = (state == Qt.CheckState.Checked.value)
+        if hasattr(self, 'web_resource_buttons') and index < len(self.web_resource_buttons):
+            self.web_resource_buttons[index].setVisible(is_checked)
+            print(f"[Superlookup] Web resource {index} {'shown' if is_checked else 'hidden'}")
+            
+            # If the hidden resource was selected, select the first visible one
+            if not is_checked and hasattr(self, 'current_web_resource_index') and self.current_web_resource_index == index:
+                for i, btn in enumerate(self.web_resource_buttons):
+                    if btn.isVisible():
+                        self._on_web_resource_selected(i)
+                        btn.setChecked(True)
+                        break
     
     def refresh_tm_list(self):
         """Refresh the list of available TMs"""
@@ -33325,6 +34061,11 @@ class SuperlookupTab(QWidget):
             return 'target'
         else:
             return 'both'
+    
+    def _on_language_changed(self):
+        """Handle language dropdown change - update Web Resources info"""
+        # Update the web resources language info label
+        self._update_web_lang_info()
     
     def get_language_filters(self):
         """Get the current language filter settings.
@@ -33604,6 +34345,12 @@ class SuperlookupTab(QWidget):
         if mt_results:
             status_parts.append(f"MT: {len(mt_results)}")
         
+        # Also trigger web resource searches (pre-load them in embedded mode)
+        if hasattr(self, 'web_engine_available') and self.web_engine_available:
+            if hasattr(self, 'web_browser_mode') and self.web_browser_mode == 'embedded':
+                self._perform_web_search(search_all=True)
+                status_parts.append("Web")
+        
         total_results = len(tm_results) + len(termbase_results) + (supermemory_count or 0) + len(mt_results)
         
         if status_parts:
@@ -33611,16 +34358,25 @@ class SuperlookupTab(QWidget):
         else:
             self.status_label.setText("No results found")
     
-    def search_with_query(self, query: str, switch_to_vertical: bool = True):
+    def search_with_query(self, query: str, switch_to_vertical: bool = True, 
+                          source_lang: str = None, target_lang: str = None):
         """
         Public method to trigger a search from outside (e.g., from Ctrl+K).
         
         Args:
             query: Text to search for
             switch_to_vertical: If True, switches to vertical (list) view mode
+            source_lang: Optional source language code to set
+            target_lang: Optional target language code to set
         """
-        # Set the query text
+        # Set the query text (this is used by all tabs including Web Resources)
         self.source_text.setPlainText(query)
+        
+        # Set language dropdowns if provided
+        if source_lang and hasattr(self, 'lang_from_combo'):
+            self._set_language_combo(self.lang_from_combo, source_lang)
+        if target_lang and hasattr(self, 'lang_to_combo'):
+            self._set_language_combo(self.lang_to_combo, target_lang)
         
         # Optionally switch to vertical view (traditional concordance layout)
         if switch_to_vertical and hasattr(self, 'tm_view_vertical_radio'):
@@ -33630,8 +34386,58 @@ class SuperlookupTab(QWidget):
         if hasattr(self, 'results_tabs'):
             self.results_tabs.setCurrentIndex(0)  # TM Matches is first tab
         
-        # Perform the lookup
+        # Perform the lookup (TM, Termbase, Supermemory, MT)
         self.perform_lookup()
+        
+        # Pre-load all web resources in embedded mode
+        if hasattr(self, 'web_browser_mode') and self.web_browser_mode == 'embedded':
+            if hasattr(self, 'search_all_web_resources'):
+                self.search_all_web_resources(query)
+    
+    def set_project_languages(self, source_lang: str = None, target_lang: str = None):
+        """
+        Set the language dropdowns to match the project's source and target languages.
+        Called when a project is loaded to auto-configure Superlookup.
+        
+        Args:
+            source_lang: Source language name or code (e.g., "Dutch", "nl")
+            target_lang: Target language name or code (e.g., "English", "en")
+        """
+        # Make sure language dropdowns are populated first
+        if not self._languages_populated:
+            self.populate_language_dropdowns()
+            self._languages_populated = True
+        
+        # Set the source language (From dropdown)
+        if source_lang and hasattr(self, 'lang_from_combo'):
+            self._set_language_combo(self.lang_from_combo, source_lang)
+        
+        # Set the target language (To dropdown)
+        if target_lang and hasattr(self, 'lang_to_combo'):
+            self._set_language_combo(self.lang_to_combo, target_lang)
+        
+        # Update web resources language info label if available
+        if hasattr(self, '_on_language_changed'):
+            self._on_language_changed()
+    
+    def _set_language_combo(self, combo, lang_code):
+        """Set a language combo box to a specific language code"""
+        if not combo or not lang_code:
+            return
+        
+        # Try to find the language in the combo
+        lang_lower = lang_code.lower()
+        for i in range(combo.count()):
+            item_data = combo.itemData(i)
+            item_text = combo.itemText(i).lower()
+            
+            # Match by data (language code) or text (display name)
+            if item_data and item_data.lower() == lang_lower:
+                combo.setCurrentIndex(i)
+                return
+            if lang_lower in item_text:
+                combo.setCurrentIndex(i)
+                return
     
     def toggle_tm_view_mode(self, checked):
         """Toggle between horizontal (table) and vertical (list) view modes"""

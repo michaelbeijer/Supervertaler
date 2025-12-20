@@ -1,8 +1,8 @@
-# 🚀 Supervertaler v1.9.51
+# 🚀 Supervertaler v1.9.52
 
 🎯 **The Ultimate Translation Workbench** — Context-aware AI with intuitive 2-Layer Prompt Architecture, AI Assistant, project termbase system with automatic extraction, and specialized modules.
 
-**Current Version:** v1.9.51 (December 20, 2025)
+**Current Version:** v1.9.52 (December 20, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -33,7 +33,14 @@
 python Supervertaler.py
 ```
 
-### NEW in v1.9.51 - Superlookup MT Integration 🔍
+### NEW in v1.9.52 - Superlookup Web Resources 🌐
+*   **14 Web Resources**: IATE, Linguee, ProZ, Reverso, Google, Google Patents, Wikipedia (Source/Target), Juremy, michaelbeijer.co.uk, AcronymFinder, BabelNet, Wiktionary (Source/Target)
+*   **Persistent Login Sessions**: Cookies stored in `user_data/web_cache/` - stay logged in to ProZ, Linguee, etc.
+*   **Auto Language Selection**: Language pair auto-fills from current project
+*   **Compact Search Layout**: Single-line search with direction controls
+*   **Customizable Sidebar**: Settings checkboxes control which resource buttons appear
+
+### v1.9.51 - Superlookup MT Integration 🔍
 *   **All MT Providers Working**: Google Translate, Amazon Translate, DeepL, Microsoft Translator, ModernMT, MyMemory
 *   **Provider Status Panel**: Shows ✅ active, ⏸️ disabled, ❌ missing API keys
 *   **Error Display**: Errors shown in red with full details (no more silent failures)

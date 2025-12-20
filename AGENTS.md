@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** December 20, 2025 | **Version:** v1.9.51
+> **Last Updated:** December 20, 2025 | **Version:** v1.9.52
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.51 (December 2025) |
+| **Version** | v1.9.52 (December 2025) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -332,6 +332,45 @@ google_api_key=AI...
 ---
 
 ## 🔄 Recent Development History
+
+### December 20, 2025 - Version 1.9.52: Superlookup Web Resources
+
+**🌐 Expanded Web Resources Tab**
+
+Complete overhaul of the Superlookup Web Resources tab with 14 reference sites and persistent sessions:
+
+- **New Web Resources (6 added)**:
+  - Juremy (ISO 639-3 language codes)
+  - michaelbeijer.co.uk (translator's personal site)
+  - AcronymFinder (uppercase language codes)
+  - BabelNet (multilingual knowledge graph)
+  - Wiktionary Source & Target (separate dictionary for each language)
+
+- **Persistent Login Sessions**:
+  - QWebEngineProfile with `ForcePersistentCookies` policy
+  - Cookies stored in `user_data/web_cache/`
+  - Stay logged in to ProZ, Linguee, IATE, etc.
+
+- **Auto Language Selection**:
+  - `set_project_languages()` method sets Superlookup dropdowns from project
+  - Called automatically on project load
+  - Language pair auto-fills when opening Superlookup
+
+- **Compact UI Layout**:
+  - Single-line search bar with direction controls
+  - "Search" label replaced with 🔍 icon
+  - Simplified direction labels: "Both", "Source", "Target"
+  - Settings checkboxes control sidebar button visibility
+
+- **Language Code Formats**:
+  - iso2, iso3, iso639_3, full_lower, iso2_upper
+  - `_get_web_lang_code()` handles all format conversions
+  - `_build_web_search_url()` with sl_upper/tl_upper placeholders
+
+**Files Modified:**
+- `Supervertaler.py` - Web resources tab, language handling, persistent profile, UI layout
+
+---
 
 ### December 20, 2025 - Version 1.9.51: Superlookup MT Integration
 
