@@ -1919,17 +1919,26 @@ class TagHighlighter(QSyntaxHighlighter):
         # Combined pattern for ALL CAT tool tag types:
         # 1. HTML/XML: <tag>, </tag>, <tag/>, <tag attr="val">
         # 2. Trados numeric: <1>, </1>
-        # 3. memoQ: {1}, [1}, {1], [1]
+        # 3. memoQ/DITA bracket tags with mismatched brackets:
+        #    - Opening: [tag attr="..."}  (starts [, ends })
+        #    - Closing: {tag]  (starts {, ends ])
+        #    - Also: [tag attr="..."]  and {tag}
+        # CRITICAL: Use [^}\]]* to stop at FIRST } or ] to avoid matching across content
         tag_patterns = [
-            r'</?[a-zA-Z][a-zA-Z0-9-]*/?(?:\s[^>]*)?>',  # HTML/XML tags (includes attributes)
+            r'</?[a-zA-Z][a-zA-Z0-9-]*/?(?:\s[^>]*)?>',  # HTML/XML tags
             r'</?\d+>',                                   # Trados numeric: <1>, </1>
-            r'\{\d+\}',                                  # memoQ: {1}
-            r'\[\d+[}\]]',                               # memoQ: [1}, [1]
-            r'\{\d+\]',                                  # memoQ: {1]
+            r'\[\d+[}\]]',                                # memoQ numeric: [1}, [1]
+            r'\{\d+[}\]]',                                # memoQ numeric: {1}, {1]
+            r'\[[a-zA-Z][^}\]]*\}',                       # memoQ opening: [tag...} (stop at first })
+            r'\[[a-zA-Z][^}\]]*\]',                       # Square bracket: [tag...] (stop at first ])
+            r'\{[a-zA-Z][^}\]]*\]',                       # memoQ closing: {tag] (stop at first ])
+            r'\{[a-zA-Z][^}\]]*\}',                       # Curly bracket: {tag} (stop at first })
         ]
         combined_pattern = re.compile('|'.join(tag_patterns))
 
-        for match in combined_pattern.finditer(text):
+        matches_found = list(combined_pattern.finditer(text))
+
+        for match in matches_found:
             start = match.start()
             length = match.end() - start
             self.setFormat(start, length, self.tag_format)
@@ -1965,15 +1974,28 @@ class TagHighlighter(QSyntaxHighlighter):
             if len(word) < 2:
                 continue
             
-            # Check if this word is inside a tag (approximate check)
-            # Look for < before and > after without the opposite
+            # Check if this word is inside ANY type of tag:
+            # - HTML/XML: < ... >
+            # - memoQ/DITA: [ ... } or [ ... ] or { ... ]
             before_text = text[:start]
-            after_text = text[start + length:]
-            last_open = before_text.rfind('<')
-            last_close = before_text.rfind('>')
-            if last_open > last_close:
-                # We're inside a tag, skip
-                continue
+            
+            # Check for HTML tags
+            last_html_open = before_text.rfind('<')
+            last_html_close = before_text.rfind('>')
+            if last_html_open > last_html_close:
+                continue  # Inside HTML tag
+            
+            # Check for bracket tags: [ ... } or [ ... ]
+            last_square_open = before_text.rfind('[')
+            last_square_close = max(before_text.rfind('}'), before_text.rfind(']'))
+            if last_square_open > last_square_close:
+                continue  # Inside [tag...} or [tag...]
+            
+            # Check for curly tags: { ... ] or { ... }
+            last_curly_open = before_text.rfind('{')
+            last_curly_close = max(before_text.rfind(']'), before_text.rfind('}'))
+            if last_curly_open > last_curly_close:
+                continue  # Inside {tag...] or {tag...}
             
             # Check spelling
             if not TagHighlighter._spellcheck_manager.check_word(word):
