@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.50"
+__version__ = "1.9.51"
 __phase__ = "0.9"
 __release_date__ = "2025-12-18"
 __edition__ = "Qt"
@@ -7762,32 +7762,13 @@ class SupervertalerQt(QMainWindow):
         modules_tabs.setStyleSheet("QTabBar::tab { outline: 0; } QTabBar::tab:focus { outline: none; } QTabBar::tab:selected { border-bottom: 1px solid #2196F3; background-color: rgba(33, 150, 243, 0.08); }")
         self.modules_tabs = modules_tabs  # Store for navigation
         
-        # Add nested tabs
-        supercleaner_tab = self.create_supercleaner_tab()
-        modules_tabs.addTab(supercleaner_tab, "🧹 Supercleaner")
-        
-        tmx_tab = self.create_tmx_editor_tab()
-        modules_tabs.addTab(tmx_tab, "✏️ TMX Editor")
+        # Add nested tabs (alphabetical order)
+        autofingers_tab = AutoFingersWidget(self)
+        modules_tabs.addTab(autofingers_tab, "✋ AutoFingers")
         
         pdf_tab = self.create_pdf_rescue_tab()
         modules_tabs.addTab(pdf_tab, "📄 PDF Rescue")
         
-        autofingers_tab = AutoFingersWidget(self)
-        modules_tabs.addTab(autofingers_tab, "✋ AutoFingers")
-        
-        encoding_tab = self.create_encoding_repair_tab()
-        modules_tabs.addTab(encoding_tab, "🔧 Text Encoding Repair")
-        
-        tracked_tab = self.create_tracked_changes_tab()
-        modules_tabs.addTab(tracked_tab, "🔄 Tracked Changes")
-        
-        print("[DEBUG] About to create SuperlookupTab...")
-        lookup_tab = SuperlookupTab(self)
-        print("[DEBUG] SuperlookupTab created successfully")
-        self.lookup_tab = lookup_tab  # Store reference for later use
-        modules_tabs.addTab(lookup_tab, "🔍 Superlookup")
-        print("[DEBUG] Superlookup tab added to modules_tabs")
-
         # Superbench
         leaderboard_tab = self.create_llm_leaderboard_tab()
         modules_tabs.addTab(leaderboard_tab, "📊 Superbench")
@@ -7796,13 +7777,32 @@ class SupervertalerQt(QMainWindow):
         superbrowser_tab = self.create_superbrowser_tab()
         modules_tabs.addTab(superbrowser_tab, "🌐 Superbrowser")
 
+        supercleaner_tab = self.create_supercleaner_tab()
+        modules_tabs.addTab(supercleaner_tab, "🧹 Supercleaner")
+
         # Superdocs - Automated Documentation Viewer
         superdocs_tab = self.create_superdocs_tab()
         modules_tabs.addTab(superdocs_tab, "📚 Superdocs")
 
+        print("[DEBUG] About to create SuperlookupTab...")
+        lookup_tab = SuperlookupTab(self)
+        print("[DEBUG] SuperlookupTab created successfully")
+        self.lookup_tab = lookup_tab  # Store reference for later use
+        modules_tabs.addTab(lookup_tab, "🔍 Superlookup")
+        print("[DEBUG] Superlookup tab added to modules_tabs")
+
         # Supervoice - Voice Commands & Dictation
         supervoice_tab = self._create_voice_dictation_settings_tab()
         modules_tabs.addTab(supervoice_tab, "🎤 Supervoice")
+
+        encoding_tab = self.create_encoding_repair_tab()
+        modules_tabs.addTab(encoding_tab, "🔧 Text Encoding Repair")
+        
+        tmx_tab = self.create_tmx_editor_tab()
+        modules_tabs.addTab(tmx_tab, "✏️ TMX Editor")
+        
+        tracked_tab = self.create_tracked_changes_tab()
+        modules_tabs.addTab(tracked_tab, "🔄 Tracked Changes")
 
         layout.addWidget(modules_tabs)
 
@@ -9986,6 +9986,14 @@ class SupervertalerQt(QMainWindow):
         termbase_mgr = TermbaseManager(self.db_manager, self.log)
         self.termbase_mgr = termbase_mgr  # Store for later use in get_termbase_code
         
+        # ========== MAIN SPLITTER ==========
+        main_splitter = QSplitter(Qt.Orientation.Horizontal)
+        
+        # ========== LEFT PANEL: Termbase List ==========
+        left_panel = QWidget()
+        left_layout = QVBoxLayout(left_panel)
+        left_layout.setContentsMargins(0, 0, 5, 0)
+        
         # Search bar
         search_layout = QHBoxLayout()
         search_box = QLineEdit()
@@ -9993,7 +10001,7 @@ class SupervertalerQt(QMainWindow):
         search_box.setMaximumWidth(300)
         search_layout.addWidget(search_box)
         search_layout.addStretch()
-        layout.addLayout(search_layout)
+        left_layout.addLayout(search_layout)
         
         # Help message
         help_msg = QLabel(
@@ -10004,7 +10012,7 @@ class SupervertalerQt(QMainWindow):
         )
         help_msg.setWordWrap(True)
         help_msg.setStyleSheet("background-color: #e3f2fd; padding: 8px; border-radius: 4px; color: #1976d2;")
-        layout.addWidget(help_msg)
+        left_layout.addWidget(help_msg)
         
         # Bulk action controls
         tb_bulk_layout = QHBoxLayout()
@@ -10017,25 +10025,41 @@ class SupervertalerQt(QMainWindow):
         tb_bulk_layout.addWidget(tb_write_header_checkbox)
         
         tb_bulk_layout.addStretch()
-        layout.addLayout(tb_bulk_layout)
+        left_layout.addLayout(tb_bulk_layout)
         
         # Termbase list with table
         termbase_table = QTableWidget()
         termbase_table.setColumnCount(7)
         termbase_table.setHorizontalHeaderLabels(["Type", "Name", "Languages", "Terms", "Read", "Write", "Priority"])
         termbase_table.horizontalHeader().setStretchLastSection(False)
-        termbase_table.setColumnWidth(0, 100)  # Type (Project/Background)
-        termbase_table.setColumnWidth(1, 200)  # Name
-        termbase_table.setColumnWidth(2, 150)  # Languages
-        termbase_table.setColumnWidth(3, 80)   # Terms
-        termbase_table.setColumnWidth(4, 60)   # Read checkbox
-        termbase_table.setColumnWidth(5, 60)   # Write checkbox
-        termbase_table.setColumnWidth(6, 80)   # Priority
+        termbase_table.setColumnWidth(0, 80)   # Type (Project/Background)
+        termbase_table.setColumnWidth(1, 180)  # Name
+        termbase_table.setColumnWidth(2, 100)  # Languages
+        termbase_table.setColumnWidth(3, 50)   # Terms
+        termbase_table.setColumnWidth(4, 50)   # Read checkbox
+        termbase_table.setColumnWidth(5, 50)   # Write checkbox
+        termbase_table.setColumnWidth(6, 60)   # Priority
+        termbase_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        termbase_table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
         
         # Get current project
         current_project = self.current_project if hasattr(self, 'current_project') else None
         # current_project is a Project object, not a dict
         project_id = current_project.id if (current_project and hasattr(current_project, 'id')) else None
+        
+        # Filter function for search box
+        def filter_termbase_table(search_text):
+            """Filter termbase table rows by name"""
+            search_text = search_text.lower().strip()
+            for row in range(termbase_table.rowCount()):
+                name_item = termbase_table.item(row, 1)
+                if name_item:
+                    name = name_item.text().lower()
+                    # Show row if search text is in the name, or if search is empty
+                    termbase_table.setRowHidden(row, search_text and search_text not in name)
+        
+        # Connect search box to filter function
+        search_box.textChanged.connect(filter_termbase_table)
         
         # Connect header checkboxes to toggle all
         def toggle_all_tb_read(checked):
@@ -10052,6 +10076,283 @@ class SupervertalerQt(QMainWindow):
         
         tb_read_header_checkbox.toggled.connect(toggle_all_tb_read)
         tb_write_header_checkbox.toggled.connect(toggle_all_tb_write)
+        
+        # ========== RIGHT PANEL: Terms Editor ==========
+        right_panel = QWidget()
+        right_layout = QVBoxLayout(right_panel)
+        right_layout.setContentsMargins(5, 0, 0, 0)
+        
+        # Terms header with termbase name
+        terms_header_layout = QHBoxLayout()
+        terms_header = QLabel("📝 Terms")
+        terms_header.setStyleSheet("font-size: 13px; font-weight: bold;")
+        terms_header_layout.addWidget(terms_header)
+        
+        selected_tb_label = QLabel("Select a termbase to view/edit terms")
+        selected_tb_label.setStyleSheet("color: #666; font-style: italic;")
+        terms_header_layout.addWidget(selected_tb_label)
+        terms_header_layout.addStretch()
+        right_layout.addLayout(terms_header_layout)
+        
+        # Search/filter for terms
+        terms_search_layout = QHBoxLayout()
+        terms_search_box = QLineEdit()
+        terms_search_box.setPlaceholderText("Filter terms...")
+        terms_search_box.setMaximumWidth(250)
+        terms_search_layout.addWidget(terms_search_box)
+        terms_search_layout.addStretch()
+        right_layout.addLayout(terms_search_layout)
+        
+        # Terms table - columns: Source, Target, Priority, Domain, Notes, Project, Client, Forbidden, Delete
+        terms_table = QTableWidget()
+        terms_table.setColumnCount(9)
+        terms_table.setHorizontalHeaderLabels(["Source Term", "Target Term", "Priority", "Domain", "Notes", "Project", "Client", "Forbidden", ""])
+        terms_table.horizontalHeader().setStretchLastSection(False)
+        terms_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)  # Source
+        terms_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)  # Target
+        terms_table.setColumnWidth(2, 60)   # Priority
+        terms_table.setColumnWidth(3, 100)  # Domain
+        terms_table.setColumnWidth(4, 120)  # Notes
+        terms_table.setColumnWidth(5, 100)  # Project
+        terms_table.setColumnWidth(6, 100)  # Client
+        terms_table.setColumnWidth(7, 70)   # Forbidden
+        terms_table.setColumnWidth(8, 30)   # Delete button
+        terms_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        right_layout.addWidget(terms_table, stretch=1)
+        
+        # Store current termbase ID for the terms panel
+        current_terms_tb_id = [None]  # Use list to allow modification in nested function
+        
+        def filter_terms_table(search_text):
+            """Filter terms table rows by source or target term"""
+            search_text = search_text.lower().strip()
+            for row in range(terms_table.rowCount()):
+                source_item = terms_table.item(row, 0)
+                target_item = terms_table.item(row, 1)
+                source = source_item.text().lower() if source_item else ""
+                target = target_item.text().lower() if target_item else ""
+                # Show row if search text is in source or target, or if search is empty
+                should_hide = bool(search_text) and search_text not in source and search_text not in target
+                terms_table.setRowHidden(row, should_hide)
+        
+        terms_search_box.textChanged.connect(filter_terms_table)
+        
+        def load_terms_for_termbase(tb_id, tb_name):
+            """Load terms from selected termbase into the terms table"""
+            current_terms_tb_id[0] = tb_id
+            selected_tb_label.setText(f"<b>{tb_name}</b>")
+            selected_tb_label.setStyleSheet("color: #1976d2; font-weight: bold;")
+            
+            # Clear and populate terms table
+            terms_table.setRowCount(0)
+            terms_table.blockSignals(True)  # Block signals during population
+            
+            try:
+                # Get terms from termbase with all relevant columns
+                self.db_manager.cursor.execute(
+                    """SELECT id, source_term, target_term, priority, domain, notes, project, client, forbidden 
+                       FROM termbase_terms WHERE termbase_id = CAST(? AS TEXT) ORDER BY source_term""",
+                    (tb_id,)
+                )
+                terms = self.db_manager.cursor.fetchall()
+                
+                terms_table.setRowCount(len(terms))
+                for row, term in enumerate(terms):
+                    term_id, source, target, priority, domain, notes, project, client, forbidden = term
+                    
+                    # Source term (editable)
+                    source_item = QTableWidgetItem(source or "")
+                    source_item.setData(Qt.ItemDataRole.UserRole, term_id)
+                    terms_table.setItem(row, 0, source_item)
+                    
+                    # Target term (editable)
+                    target_item = QTableWidgetItem(target or "")
+                    terms_table.setItem(row, 1, target_item)
+                    
+                    # Priority (editable)
+                    priority_item = QTableWidgetItem(str(priority) if priority is not None else "50")
+                    terms_table.setItem(row, 2, priority_item)
+                    
+                    # Domain (editable)
+                    domain_item = QTableWidgetItem(domain or "")
+                    terms_table.setItem(row, 3, domain_item)
+                    
+                    # Notes (editable)
+                    notes_item = QTableWidgetItem(notes or "")
+                    terms_table.setItem(row, 4, notes_item)
+                    
+                    # Project (editable)
+                    project_item = QTableWidgetItem(project or "")
+                    terms_table.setItem(row, 5, project_item)
+                    
+                    # Client (editable)
+                    client_item = QTableWidgetItem(client or "")
+                    terms_table.setItem(row, 6, client_item)
+                    
+                    # Forbidden (checkbox)
+                    forbidden_checkbox = CheckmarkCheckBox()
+                    forbidden_checkbox.setChecked(bool(forbidden))
+                    forbidden_checkbox.setToolTip("Mark term as forbidden (do not use)")
+                    forbidden_checkbox.toggled.connect(lambda checked, tid=term_id: save_forbidden_state(tid, checked))
+                    terms_table.setCellWidget(row, 7, forbidden_checkbox)
+                    
+                    # Delete button
+                    delete_btn = QPushButton("🗑")
+                    delete_btn.setFixedSize(24, 24)
+                    delete_btn.setToolTip("Delete this term")
+                    delete_btn.setStyleSheet("QPushButton { border: none; } QPushButton:hover { background-color: #ffcccc; }")
+                    delete_btn.clicked.connect(lambda checked, tid=term_id: delete_term(tid))
+                    terms_table.setCellWidget(row, 8, delete_btn)
+                
+                self.log(f"📝 Loaded {len(terms)} terms from termbase '{tb_name}'")
+                
+            except Exception as e:
+                self.log(f"⚠️ Error loading terms: {e}")
+            finally:
+                terms_table.blockSignals(False)  # Re-enable signals
+        
+        def save_forbidden_state(term_id, forbidden):
+            """Save the forbidden state of a term"""
+            try:
+                self.db_manager.cursor.execute(
+                    "UPDATE termbase_terms SET forbidden = ? WHERE id = ?",
+                    (1 if forbidden else 0, term_id)
+                )
+                self.db_manager.connection.commit()
+                # Clear termbase cache
+                with self.termbase_cache_lock:
+                    self.termbase_cache.clear()
+            except Exception as e:
+                self.log(f"⚠️ Error saving forbidden state: {e}")
+        
+        def delete_term(term_id):
+            """Delete a term from the termbase"""
+            reply = QMessageBox.question(
+                self, "Delete Term",
+                "Are you sure you want to delete this term?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
+            if reply == QMessageBox.StandardButton.Yes:
+                try:
+                    self.db_manager.cursor.execute("DELETE FROM termbase_terms WHERE id = ?", (term_id,))
+                    self.db_manager.connection.commit()
+                    self.log(f"🗑️ Deleted term {term_id}")
+                    # Reload terms
+                    if current_terms_tb_id[0]:
+                        # Get current termbase name from table
+                        for row in range(termbase_table.rowCount()):
+                            name_item = termbase_table.item(row, 1)
+                            if name_item and name_item.data(Qt.ItemDataRole.UserRole) == current_terms_tb_id[0]:
+                                load_terms_for_termbase(current_terms_tb_id[0], name_item.text())
+                                break
+                    # Also refresh termbase list to update term count
+                    refresh_termbase_list()
+                    # Clear termbase cache
+                    with self.termbase_cache_lock:
+                        self.termbase_cache.clear()
+                except Exception as e:
+                    QMessageBox.warning(self, "Error", f"Failed to delete term: {e}")
+        
+        def save_term_edit(row, column):
+            """Save edited term to database"""
+            if current_terms_tb_id[0] is None:
+                return
+            
+            # Skip columns that have widgets (Forbidden=7, Delete=8)
+            if column in (7, 8):
+                return
+            
+            source_item = terms_table.item(row, 0)
+            if not source_item:
+                return
+            
+            term_id = source_item.data(Qt.ItemDataRole.UserRole)
+            if not term_id:
+                return
+            
+            source = terms_table.item(row, 0).text() if terms_table.item(row, 0) else ""
+            target = terms_table.item(row, 1).text() if terms_table.item(row, 1) else ""
+            priority_text = terms_table.item(row, 2).text() if terms_table.item(row, 2) else "50"
+            domain = terms_table.item(row, 3).text() if terms_table.item(row, 3) else ""
+            notes = terms_table.item(row, 4).text() if terms_table.item(row, 4) else ""
+            project = terms_table.item(row, 5).text() if terms_table.item(row, 5) else ""
+            client = terms_table.item(row, 6).text() if terms_table.item(row, 6) else ""
+            
+            # Parse priority as integer
+            try:
+                priority = int(priority_text) if priority_text else 50
+            except ValueError:
+                priority = 50
+            
+            try:
+                self.db_manager.cursor.execute(
+                    """UPDATE termbase_terms 
+                       SET source_term = ?, target_term = ?, priority = ?, domain = ?, notes = ?, project = ?, client = ? 
+                       WHERE id = ?""",
+                    (source, target, priority, domain, notes, project, client, term_id)
+                )
+                self.db_manager.connection.commit()
+                # Clear termbase cache
+                with self.termbase_cache_lock:
+                    self.termbase_cache.clear()
+            except Exception as e:
+                self.log(f"⚠️ Error saving term: {e}")
+        
+        terms_table.cellChanged.connect(save_term_edit)
+        
+        # Add new term button
+        terms_btn_layout = QHBoxLayout()
+        add_term_btn = QPushButton("+ Add Term")
+        add_term_btn.setEnabled(False)
+        
+        def add_new_term():
+            """Add a new empty term to the current termbase"""
+            if current_terms_tb_id[0] is None:
+                return
+            
+            try:
+                # Don't specify id - let SQLite auto-generate it (INTEGER PRIMARY KEY AUTOINCREMENT)
+                self.db_manager.cursor.execute(
+                    """INSERT INTO termbase_terms (termbase_id, source_term, target_term, priority, domain, notes, project, client, forbidden) 
+                       VALUES (CAST(? AS TEXT), '', '', 50, '', '', '', '', 0)""",
+                    (current_terms_tb_id[0],)
+                )
+                self.db_manager.connection.commit()
+                
+                # Reload terms and refresh termbase list
+                for row in range(termbase_table.rowCount()):
+                    name_item = termbase_table.item(row, 1)
+                    if name_item and name_item.data(Qt.ItemDataRole.UserRole) == current_terms_tb_id[0]:
+                        load_terms_for_termbase(current_terms_tb_id[0], name_item.text())
+                        break
+                refresh_termbase_list()
+                
+                # Select the new row for editing
+                terms_table.setCurrentCell(terms_table.rowCount() - 1, 0)
+                terms_table.editItem(terms_table.item(terms_table.rowCount() - 1, 0))
+                
+            except Exception as e:
+                QMessageBox.warning(self, "Error", f"Failed to add term: {e}")
+        
+        add_term_btn.clicked.connect(add_new_term)
+        terms_btn_layout.addWidget(add_term_btn)
+        terms_btn_layout.addStretch()
+        right_layout.addLayout(terms_btn_layout)
+        
+        # Connect termbase table selection to load terms
+        def on_termbase_selected():
+            """Handle termbase selection change"""
+            selected_rows = termbase_table.selectionModel().selectedRows()
+            if selected_rows:
+                row = selected_rows[0].row()
+                name_item = termbase_table.item(row, 1)
+                if name_item:
+                    tb_id = name_item.data(Qt.ItemDataRole.UserRole)
+                    tb_name = name_item.text()
+                    load_terms_for_termbase(tb_id, tb_name)
+                    add_term_btn.setEnabled(True)
+        
+        termbase_table.itemSelectionChanged.connect(on_termbase_selected)
         
         # Populate termbase list
         def refresh_termbase_list():
@@ -10264,9 +10565,9 @@ class SupervertalerQt(QMainWindow):
         self.termbase_tab_refresh_callback = refresh_termbase_list
         
         refresh_termbase_list()
-        layout.addWidget(termbase_table, stretch=1)
+        left_layout.addWidget(termbase_table, stretch=1)
         
-        # Button bar
+        # Button bar for left panel
         button_layout = QHBoxLayout()
         
         create_btn = QPushButton("+ Create New")
@@ -10291,12 +10592,17 @@ class SupervertalerQt(QMainWindow):
         delete_btn.clicked.connect(lambda: self._delete_termbase(termbase_mgr, termbase_table, refresh_termbase_list))
         button_layout.addWidget(delete_btn)
         
-        edit_btn = QPushButton("✏️ Edit Terms")
-        edit_btn.clicked.connect(lambda: self._show_edit_terms_dialog(termbase_mgr, termbase_table, refresh_termbase_list))
-        button_layout.addWidget(edit_btn)
-        
         button_layout.addStretch()
-        layout.addLayout(button_layout)
+        left_layout.addLayout(button_layout)
+        
+        # Add panels to splitter
+        main_splitter.addWidget(left_panel)
+        main_splitter.addWidget(right_panel)
+        main_splitter.setSizes([500, 500])  # Equal initial split
+        main_splitter.setStretchFactor(0, 1)
+        main_splitter.setStretchFactor(1, 1)
+        
+        layout.addWidget(main_splitter, stretch=1)
         
         return tab
     
@@ -22563,10 +22869,8 @@ class SupervertalerQt(QMainWindow):
             setattr(self, cache_key, cached_data)
             # Also update the old cache name for backwards compatibility
             self._row_color_settings_cached = cached_data
-            print(f"🎨 ROW COLOR DEBUG: Created cache for '{theme.name}': even={cached_data['even_color']}, odd={cached_data['odd_color']}")
         else:
             self._row_color_settings_cached = getattr(self, cache_key)
-            print(f"🎨 ROW COLOR DEBUG: Using cache for '{theme.name}': even={self._row_color_settings_cached['even_color']}, odd={self._row_color_settings_cached['odd_color']}")
         
         settings = self._row_color_settings_cached
         
@@ -30506,9 +30810,24 @@ class SupervertalerQt(QMainWindow):
             if not api_key:
                 return "[Google Cloud Translation requires API key]"
             
-            # Convert language codes (handle locale codes like "en-US" -> "en")
-            src_code = source_lang.split('-')[0].split('_')[0].lower()
-            tgt_code = target_lang.split('-')[0].split('_')[0].lower()
+            # Map full language names to ISO codes
+            lang_name_to_code = {
+                'english': 'en', 'dutch': 'nl', 'german': 'de', 'french': 'fr',
+                'spanish': 'es', 'italian': 'it', 'portuguese': 'pt', 'russian': 'ru',
+                'chinese': 'zh', 'japanese': 'ja', 'korean': 'ko', 'arabic': 'ar',
+                'polish': 'pl', 'swedish': 'sv', 'norwegian': 'no', 'danish': 'da',
+                'finnish': 'fi', 'greek': 'el', 'turkish': 'tr', 'czech': 'cs',
+                'hungarian': 'hu', 'romanian': 'ro', 'bulgarian': 'bg', 'ukrainian': 'uk',
+                'hebrew': 'he', 'thai': 'th', 'vietnamese': 'vi', 'indonesian': 'id',
+                'malay': 'ms', 'hindi': 'hi', 'bengali': 'bn', 'tamil': 'ta',
+            }
+            
+            # Convert language - try name mapping first, then code extraction
+            src_lower = source_lang.lower().strip()
+            tgt_lower = target_lang.lower().strip()
+            
+            src_code = lang_name_to_code.get(src_lower, src_lower.split('-')[0].split('_')[0])
+            tgt_code = lang_name_to_code.get(tgt_lower, tgt_lower.split('-')[0].split('_')[0])
             
             # Call REST API directly
             url = "https://translation.googleapis.com/language/translate/v2"
@@ -30616,9 +30935,26 @@ class SupervertalerQt(QMainWindow):
             if not api_key or not secret_key:
                 return "[Amazon Translate requires API key and secret key]"
             
-            # Convert language codes (AWS uses standard codes)
-            src_code = source_lang.split('-')[0].split('_')[0]
-            tgt_code = target_lang.split('-')[0].split('_')[0]
+            # Get region from settings if not provided
+            if not region or region == 'us-east-1':
+                region = api_keys.get("amazon_translate_region", "us-east-1")
+            
+            # Map full language names to ISO codes
+            lang_name_to_code = {
+                'english': 'en', 'dutch': 'nl', 'german': 'de', 'french': 'fr',
+                'spanish': 'es', 'italian': 'it', 'portuguese': 'pt', 'russian': 'ru',
+                'chinese': 'zh', 'japanese': 'ja', 'korean': 'ko', 'arabic': 'ar',
+                'polish': 'pl', 'swedish': 'sv', 'norwegian': 'no', 'danish': 'da',
+                'finnish': 'fi', 'greek': 'el', 'turkish': 'tr', 'czech': 'cs',
+                'hungarian': 'hu', 'romanian': 'ro', 'bulgarian': 'bg', 'ukrainian': 'uk',
+            }
+            
+            # Convert language - try name mapping first, then code extraction
+            src_lower = source_lang.lower().strip()
+            tgt_lower = target_lang.lower().strip()
+            
+            src_code = lang_name_to_code.get(src_lower, src_lower.split('-')[0].split('_')[0])
+            tgt_code = lang_name_to_code.get(tgt_lower, tgt_lower.split('-')[0].split('_')[0])
             
             translate_client = boto3.client(
                 'translate',
@@ -31830,6 +32166,10 @@ class SuperlookupTab(QWidget):
         self.search_mt_enabled = False  # MT not implemented yet
         self.search_web_enabled = False  # Web resources not implemented yet
         
+        # Initialize checkbox lists (even if Settings tab is removed)
+        self.tm_checkboxes = []
+        self.tb_checkboxes = []
+        
         # Track if languages have been populated
         self._languages_populated = False
         
@@ -32009,7 +32349,7 @@ class SuperlookupTab(QWidget):
         settings_tab = self.create_settings_tab()
         self.results_tabs.addTab(settings_tab, "⚙️ Settings")
         
-        # Connect tab change to refresh resources when Settings tab is viewed
+        # Connect tab change for Supermemory initialization and Settings refresh
         self.results_tabs.currentChanged.connect(self.on_results_tab_changed)
         
         layout.addWidget(self.results_tabs, stretch=1)
@@ -32236,11 +32576,11 @@ class SuperlookupTab(QWidget):
             self.supermemory_status.setStyleSheet("color: red; padding: 5px;")
     
     def search_supermemory(self, query: str):
-        """Search Supermemory for semantic matches"""
+        """Search Supermemory for semantic matches. Returns count of results."""
         if not self.supermemory_engine or not self.supermemory_engine.is_initialized():
             self.init_supermemory()
             if not self.supermemory_engine or not self.supermemory_engine.is_initialized():
-                return
+                return 0
         
         try:
             # Use active domains for filtering
@@ -32260,9 +32600,12 @@ class SuperlookupTab(QWidget):
                 self.supermemory_status.setText("No semantic matches found")
             else:
                 self.supermemory_status.setText(f"Found {len(results)} semantic matches")
+            
+            return len(results)
                 
         except Exception as e:
             self.supermemory_status.setText(f"Search error: {e}")
+            return 0
     
     def on_supermemory_result_double_click(self):
         """Handle double-click on Supermemory result"""
@@ -32280,24 +32623,267 @@ class SuperlookupTab(QWidget):
                 self.status_label.setText(f"✓ Copied: {target.text()[:50]}...")
     
     def create_mt_results_tab(self):
-        """Create the MT results tab"""
+        """Create the MT results tab with provider status and results"""
         tab = QWidget()
         layout = QVBoxLayout(tab)
+        layout.setContentsMargins(5, 5, 5, 5)
         
-        # Results list
-        self.mt_results_layout = QVBoxLayout()
+        # === Provider Status Summary ===
+        status_frame = QFrame()
+        status_frame.setFrameStyle(QFrame.Shape.StyledPanel)
+        status_frame.setStyleSheet("QFrame { background-color: #f5f5f5; border-radius: 4px; padding: 5px; }")
+        status_layout = QVBoxLayout(status_frame)
+        status_layout.setContentsMargins(10, 10, 10, 10)
         
-        # Placeholder
-        placeholder = QLabel("🤖 Machine Translation\n\nComing soon: DeepL, OpenAI, Google Translate integration")
-        placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        placeholder.setStyleSheet("color: #999; padding: 40px;")
-        self.mt_results_layout.addWidget(placeholder)
+        # Header row with title and settings link
+        header_row = QHBoxLayout()
         
-        layout.addLayout(self.mt_results_layout)
-        layout.addStretch()
+        status_title = QLabel("🤖 MT Providers")
+        status_title.setStyleSheet("font-weight: bold; font-size: 11pt;")
+        header_row.addWidget(status_title)
+        
+        header_row.addStretch()
+        
+        # Link to Settings
+        settings_link = QPushButton("⚙️ Configure in Settings")
+        settings_link.setStyleSheet("""
+            QPushButton {
+                background: transparent;
+                color: #1976D2;
+                border: none;
+                font-size: 10pt;
+                text-decoration: underline;
+            }
+            QPushButton:hover {
+                color: #1565C0;
+            }
+        """)
+        settings_link.setCursor(Qt.CursorShape.PointingHandCursor)
+        settings_link.clicked.connect(self._open_mt_settings)
+        header_row.addWidget(settings_link)
+        
+        status_layout.addLayout(header_row)
+        
+        # Provider status label (shows which are active)
+        self.mt_provider_status_label = QLabel()
+        self.mt_provider_status_label.setWordWrap(True)
+        self.mt_provider_status_label.setStyleSheet("color: #666; font-size: 9pt; padding: 5px 0;")
+        status_layout.addWidget(self.mt_provider_status_label)
+        
+        # Update the status display
+        self._update_mt_provider_status()
+        
+        layout.addWidget(status_frame)
+        
+        # === MT Results Section ===
+        results_group = QGroupBox("📝 Translation Results")
+        results_layout = QVBoxLayout(results_group)
+        
+        # Results table
+        self.mt_results_table = QTableWidget()
+        self.mt_results_table.setColumnCount(3)
+        self.mt_results_table.setHorizontalHeaderLabels(["Provider", "Translation", ""])
+        self.mt_results_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.mt_results_table.setColumnWidth(0, 120)
+        self.mt_results_table.setColumnWidth(2, 60)
+        self.mt_results_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.mt_results_table.verticalHeader().setVisible(False)
+        self.mt_results_table.doubleClicked.connect(self.on_mt_result_double_click)
+        
+        results_layout.addWidget(self.mt_results_table)
+        
+        # Status
+        self.mt_status_label = QLabel("Enter text and click Search to get MT translations")
+        self.mt_status_label.setStyleSheet("color: #666; font-style: italic; padding: 5px;")
+        results_layout.addWidget(self.mt_status_label)
+        
+        layout.addWidget(results_group, stretch=1)
         
         return tab
     
+    def _open_mt_settings(self):
+        """Navigate to Settings → MT Settings tab"""
+        if self.main_window:
+            # Go to main Settings tab (index 2)
+            if hasattr(self.main_window, 'main_tabs'):
+                self.main_window.main_tabs.setCurrentIndex(2)
+            # Go to MT Settings sub-tab (index 3: General=0, AI=1, Language=2, MT=3)
+            if hasattr(self.main_window, 'settings_tabs'):
+                self.main_window.settings_tabs.setCurrentIndex(3)
+    
+    def _update_mt_provider_status(self):
+        """Update the MT provider status display"""
+        # Get API keys and enabled states from main window
+        api_keys = {}
+        enabled_providers = {}
+        
+        if self.main_window:
+            if hasattr(self.main_window, 'load_api_keys'):
+                api_keys = self.main_window.load_api_keys()
+            if hasattr(self.main_window, 'load_provider_enabled_states'):
+                enabled_providers = self.main_window.load_provider_enabled_states()
+        
+        # Define all MT providers
+        providers = [
+            ("DeepL", "mt_deepl", "deepl"),
+            ("Google Translate", "mt_google_translate", "google_translate"),
+            ("Microsoft Translator", "mt_microsoft", "microsoft_translate"),
+            ("Amazon Translate", "mt_amazon", "amazon_translate"),
+            ("ModernMT", "mt_modernmt", "modernmt"),
+            ("MyMemory", "mt_mymemory", None),
+        ]
+        
+        ready_providers = []
+        disabled_providers = []
+        missing_key_providers = []
+        
+        for name, enabled_key, api_key_name in providers:
+            is_enabled = enabled_providers.get(enabled_key, True)
+            has_key = api_key_name is None or bool(api_keys.get(api_key_name))
+            
+            if has_key and is_enabled:
+                ready_providers.append(name)
+            elif has_key and not is_enabled:
+                disabled_providers.append(name)
+            else:
+                missing_key_providers.append(name)
+        
+        # Build status text
+        status_parts = []
+        if ready_providers:
+            status_parts.append(f"✅ Active: {', '.join(ready_providers)}")
+        if disabled_providers:
+            status_parts.append(f"⏸️ Disabled: {', '.join(disabled_providers)}")
+        if missing_key_providers:
+            status_parts.append(f"❌ No API key: {', '.join(missing_key_providers)}")
+        
+        if not status_parts:
+            status_text = "No MT providers configured"
+        else:
+            status_text = "\n".join(status_parts)
+        
+        self.mt_provider_status_label.setText(status_text)
+    
+    def _perform_mt_lookup(self, text: str, source_lang: str = None, target_lang: str = None):
+        """Call enabled MT providers and return results"""
+        results = []
+        
+        if not self.main_window:
+            return results
+        
+        # Get languages from main window if not provided
+        if not source_lang:
+            source_lang = getattr(self.main_window, 'source_language', 'en')
+        if not target_lang:
+            target_lang = getattr(self.main_window, 'target_language', 'nl')
+        
+        # Get API keys and enabled providers from Settings
+        api_keys = {}
+        enabled_providers = {}
+        if hasattr(self.main_window, 'load_api_keys'):
+            api_keys = self.main_window.load_api_keys()
+        if hasattr(self.main_window, 'load_provider_enabled_states'):
+            enabled_providers = self.main_window.load_provider_enabled_states()
+        
+        # Define MT providers with their settings keys and API key names
+        providers = [
+            ("DeepL", "mt_deepl", "deepl"),
+            ("Google Translate", "mt_google_translate", "google_translate"),
+            ("Microsoft Translator", "mt_microsoft", "microsoft_translate"),
+            ("Amazon Translate", "mt_amazon", "amazon_translate"),
+            ("ModernMT", "mt_modernmt", "modernmt"),
+            ("MyMemory", "mt_mymemory", None),
+        ]
+        
+        for provider_name, enabled_key, api_key_name in providers:
+            # Check if provider is enabled in Settings
+            is_enabled = enabled_providers.get(enabled_key, True)
+            has_key = api_key_name is None or bool(api_keys.get(api_key_name))
+            
+            if not is_enabled or not has_key:
+                continue
+            
+            try:
+                translation = None
+                
+                if provider_name == "DeepL" and hasattr(self.main_window, 'call_deepl'):
+                    translation = self.main_window.call_deepl(text, source_lang, target_lang, api_keys.get('deepl'))
+                
+                elif provider_name == "Google Translate" and hasattr(self.main_window, 'call_google_translate'):
+                    translation = self.main_window.call_google_translate(text, source_lang, target_lang, api_keys.get('google_translate'))
+                
+                elif provider_name == "Microsoft Translator" and hasattr(self.main_window, 'call_microsoft_translate'):
+                    translation = self.main_window.call_microsoft_translate(text, source_lang, target_lang, api_keys.get('microsoft_translate'))
+                
+                elif provider_name == "Amazon Translate" and hasattr(self.main_window, 'call_amazon_translate'):
+                    region = api_keys.get('amazon_translate_region', 'us-east-1')
+                    translation = self.main_window.call_amazon_translate(text, source_lang, target_lang, api_keys.get('amazon_translate'), region)
+                
+                elif provider_name == "ModernMT" and hasattr(self.main_window, 'call_modernmt'):
+                    translation = self.main_window.call_modernmt(text, source_lang, target_lang, api_keys.get('modernmt'))
+                
+                elif provider_name == "MyMemory":
+                    # MyMemory is free, call directly
+                    translation = self._call_mymemory(text, source_lang, target_lang)
+                
+                if translation:
+                    is_error = translation.startswith('[')
+                    results.append({
+                        'provider': provider_name,
+                        'translation': translation,
+                        'is_error': is_error
+                    })
+                    
+            except Exception as e:
+                print(f"[Superlookup] MT error ({provider_name}): {e}")
+                results.append({
+                    'provider': provider_name,
+                    'translation': f"[Error: {str(e)}]",
+                    'is_error': True
+                })
+        
+        return results
+    
+    def _call_mymemory(self, text: str, source_lang: str, target_lang: str) -> str:
+        """Call MyMemory free translation API"""
+        try:
+            import requests
+            
+            # Map full language names to ISO codes
+            lang_name_to_code = {
+                'english': 'en', 'dutch': 'nl', 'german': 'de', 'french': 'fr',
+                'spanish': 'es', 'italian': 'it', 'portuguese': 'pt', 'russian': 'ru',
+                'chinese': 'zh', 'japanese': 'ja', 'korean': 'ko', 'arabic': 'ar',
+                'polish': 'pl', 'swedish': 'sv', 'norwegian': 'no', 'danish': 'da',
+                'finnish': 'fi', 'greek': 'el', 'turkish': 'tr', 'czech': 'cs',
+                'hungarian': 'hu', 'romanian': 'ro', 'bulgarian': 'bg', 'ukrainian': 'uk',
+            }
+            
+            # Convert language - try name mapping first, then code extraction
+            src_lower = source_lang.lower().strip()
+            tgt_lower = target_lang.lower().strip()
+            
+            src = lang_name_to_code.get(src_lower, src_lower.split('-')[0].split('_')[0])
+            tgt = lang_name_to_code.get(tgt_lower, tgt_lower.split('-')[0].split('_')[0])
+            
+            url = "https://api.mymemory.translated.net/get"
+            params = {
+                'q': text,
+                'langpair': f"{src}|{tgt}"
+            }
+            
+            response = requests.get(url, params=params, timeout=10)
+            response.raise_for_status()
+            
+            data = response.json()
+            if data.get('responseStatus') == 200:
+                return data['responseData']['translatedText']
+            else:
+                return f"[MyMemory error: {data.get('responseStatus')}]"
+                
+        except Exception as e:
+            return f"[MyMemory error: {e}]"
+
     def create_web_resources_tab(self):
         """Create the Web Resources tab"""
         tab = QWidget()
@@ -32350,9 +32936,7 @@ class SuperlookupTab(QWidget):
         tb_settings_tab = self.create_termbase_settings_subtab()
         self.settings_subtabs.addTab(tb_settings_tab, "📚 Termbases")
         
-        # MT Settings sub-tab
-        mt_settings_tab = self.create_mt_settings_subtab()
-        self.settings_subtabs.addTab(mt_settings_tab, "🤖 Machine Translation")
+        # Note: MT Settings removed - now in main Settings → MT Settings
         
         # Web Settings sub-tab
         web_settings_tab = self.create_web_settings_subtab()
@@ -32563,7 +33147,7 @@ class SuperlookupTab(QWidget):
         return tab
     
     def on_results_tab_changed(self, index):
-        """Handle results tab change - refresh resource lists when Settings tab is viewed"""
+        """Handle results tab change - initialize Supermemory and refresh Settings when viewed"""
         # Supermemory tab is at index 2 (TM=0, Termbase=1, Supermemory=2, MT=3, Web=4, Settings=5)
         if index == 2:
             # Initialize Supermemory when tab is first viewed
@@ -32977,18 +33561,33 @@ class SuperlookupTab(QWidget):
         termbase_results = self.search_termbases(text, source_lang=from_lang, target_lang=to_lang)
         
         # Perform Supermemory semantic search
-        self.search_supermemory(text)
+        supermemory_count = self.search_supermemory(text)
         
-        # Perform MT lookup
-        mt_results = []  # TODO: Add MT integration
+        # Perform MT lookup with selected providers
+        mt_results = self._perform_mt_lookup(text, from_lang, to_lang)
         
         # Display results
         self.display_tm_results(tm_results)
         self.display_termbase_results(termbase_results)
         self.display_mt_results(mt_results)
         
-        total_results = len(tm_results) + len(termbase_results) + len(mt_results)
-        self.status_label.setText(f"✓ Found {total_results} results")
+        # Build detailed status message showing breakdown
+        status_parts = []
+        if tm_results:
+            status_parts.append(f"TM: {len(tm_results)}")
+        if termbase_results:
+            status_parts.append(f"TB: {len(termbase_results)}")
+        if supermemory_count:
+            status_parts.append(f"SM: {supermemory_count}")
+        if mt_results:
+            status_parts.append(f"MT: {len(mt_results)}")
+        
+        total_results = len(tm_results) + len(termbase_results) + (supermemory_count or 0) + len(mt_results)
+        
+        if status_parts:
+            self.status_label.setText(f"✓ Found {total_results} results ({', '.join(status_parts)})")
+        else:
+            self.status_label.setText("No results found")
     
     def search_with_query(self, query: str, switch_to_vertical: bool = True):
         """
@@ -33201,23 +33800,71 @@ class SuperlookupTab(QWidget):
                 self.termbase_results_table.setRowHeight(row, 50)
     
     def display_mt_results(self, results):
-        """Display MT results"""
-        # Clear existing
-        while self.mt_results_layout.count():
-            item = self.mt_results_layout.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
+        """Display MT results in the table"""
+        self.mt_results_table.setRowCount(0)
         
         if results:
+            success_count = 0
+            error_count = 0
+            
             for result in results:
-                label = QLabel(f"{result.metadata.get('provider', 'MT')}: {result.target}")
-                label.setWordWrap(True)
-                self.mt_results_layout.addWidget(label)
+                row = self.mt_results_table.rowCount()
+                self.mt_results_table.insertRow(row)
+                
+                # Check if this is an error result
+                is_error = result.get('is_error', False) if isinstance(result, dict) else False
+                
+                # Provider name
+                provider = result.get('provider', 'MT') if isinstance(result, dict) else getattr(result, 'provider', 'MT')
+                provider_item = QTableWidgetItem(provider)
+                if is_error:
+                    provider_item.setForeground(QColor("#F44336"))  # Red for errors
+                    error_count += 1
+                else:
+                    provider_item.setForeground(QColor("#1976d2"))  # Blue for success
+                    success_count += 1
+                self.mt_results_table.setItem(row, 0, provider_item)
+                
+                # Translation text (or error message)
+                translation = result.get('translation', '') if isinstance(result, dict) else getattr(result, 'target', '')
+                trans_item = QTableWidgetItem(translation)
+                trans_item.setToolTip(translation)
+                if is_error:
+                    trans_item.setForeground(QColor("#F44336"))  # Red text for errors
+                    trans_item.setFont(QFont(trans_item.font().family(), -1, -1, True))  # Italic
+                self.mt_results_table.setItem(row, 1, trans_item)
+                
+                # Copy button (only for successful translations)
+                if not is_error:
+                    copy_btn = QPushButton("📋")
+                    copy_btn.setFixedSize(30, 24)
+                    copy_btn.setToolTip("Copy translation")
+                    copy_btn.clicked.connect(lambda checked, t=translation: self._copy_mt_result(t))
+                    self.mt_results_table.setCellWidget(row, 2, copy_btn)
+            
+            # Update status with breakdown
+            if error_count > 0:
+                self.mt_status_label.setText(f"✓ Got {success_count} translation(s), ⚠ {error_count} error(s)")
+                self.mt_status_label.setStyleSheet("color: #FF9800; font-weight: bold;")
+            else:
+                self.mt_status_label.setText(f"✓ Got {success_count} translation(s)")
+                self.mt_status_label.setStyleSheet("color: #4CAF50; font-weight: bold;")
         else:
-            placeholder = QLabel("🤖 No MT results yet\n\n(MT integration coming soon)")
-            placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            placeholder.setStyleSheet("color: #999; padding: 20px;")
-            self.mt_results_layout.addWidget(placeholder)
+            self.mt_status_label.setText("No MT results. Check provider settings.")
+            self.mt_status_label.setStyleSheet("color: #666; font-style: italic;")
+    
+    def _copy_mt_result(self, text):
+        """Copy MT result to clipboard"""
+        import pyperclip
+        pyperclip.copy(text)
+        self.status_label.setText(f"✓ Copied: {text[:50]}...")
+    
+    def on_mt_result_double_click(self, index):
+        """Handle double-click on MT result to copy"""
+        row = index.row()
+        trans_item = self.mt_results_table.item(row, 1)
+        if trans_item:
+            self._copy_mt_result(trans_item.text())
     
     def on_tm_result_double_click(self, index):
         """Handle double-click on TM result"""
@@ -33877,11 +34524,12 @@ class SuperlookupTab(QWidget):
             print(f"[Superlookup] Main window type: {type(main_window).__name__}")
             print(f"[Superlookup] Has main_tabs: {hasattr(main_window, 'main_tabs')}")
             
-            # Switch to Tools tab (main_tabs index 3)
+            # Switch to Tools tab (main_tabs index 1)
+            # Tab structure: Workspace=0, Tools=1, Settings=2
             if hasattr(main_window, 'main_tabs'):
                 print(f"[Superlookup] Current main_tab index: {main_window.main_tabs.currentIndex()}")
-                main_window.main_tabs.setCurrentIndex(3)  # Tools tab is at index 3
-                print(f"[Superlookup] Switched to Tools tab (index 3)")
+                main_window.main_tabs.setCurrentIndex(1)  # Tools tab is at index 1
+                print(f"[Superlookup] Switched to Tools tab (index 1)")
                 QApplication.processEvents()  # Force GUI update
             else:
                 print(f"[Superlookup] WARNING: Main window has no main_tabs attribute!")

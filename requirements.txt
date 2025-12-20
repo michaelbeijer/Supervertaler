@@ -51,6 +51,10 @@ markdown>=3.4.0
 pyspellchecker>=0.7.0
 cyhunspell>=2.0.0
 
+# Machine Translation APIs
+boto3>=1.28.0  # Amazon Translate
+deepl>=1.15.0  # DeepL API
+
 # ===== Optional Dependencies =====
 # Uncomment the sections below to enable optional features
 

@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** December 18, 2025 | **Version:** v1.9.50
+> **Last Updated:** December 20, 2025 | **Version:** v1.9.51
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.50 (December 2025) |
+| **Version** | v1.9.51 (December 2025) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -332,6 +332,44 @@ google_api_key=AI...
 ---
 
 ## 🔄 Recent Development History
+
+### December 20, 2025 - Version 1.9.51: Superlookup MT Integration
+
+**🔍 Complete Machine Translation in Superlookup**
+
+Full MT integration with multiple providers and improved error handling:
+
+- **MT Provider Status Display**: New compact status panel in Machine Translation tab
+  - Shows active providers (✅), disabled providers (⏸️), and missing API keys (❌)
+  - "⚙️ Configure in Settings" link navigates directly to Settings → MT Settings
+
+- **All MT Providers Now Working**:
+  - Google Translate, Amazon Translate, DeepL, Microsoft Translator, ModernMT, MyMemory
+  - Error messages now displayed in red with full details (no more silent failures)
+  - Successful translations shown in blue with copy button
+
+- **Language Name Mapping Fix**: Critical fix for all MT providers
+  - App stores languages as full names ("Dutch", "English")
+  - MT APIs require ISO codes ("nl", "en")
+  - Added `lang_name_to_code` mapping dictionary to Google Translate, Amazon Translate, MyMemory
+  - Supports 24+ languages including European, Asian, and Middle Eastern
+
+- **Dependencies**: Added `boto3` and `deepl` to requirements.txt
+
+- **Termbases Tab Improvements**:
+  - Search filter now functional (filters termbase list as you type)
+  - New split-view with editable terms grid on right side
+  - All term columns visible: Source, Target, Priority, Domain, Notes, Project, Client, Forbidden
+
+- **Cleanup**:
+  - Removed debug print spam (ROW COLOR DEBUG messages)
+  - Removed redundant MT sub-tab from Superlookup Settings (MT config now in main Settings → MT Settings)
+
+**Files Modified:**
+- `Supervertaler.py` - MT provider calls, language mapping, Superlookup MT tab, Termbases split view
+- `requirements.txt` - Added boto3, deepl
+
+---
 
 ### December 18, 2025 - Version 1.9.50: Voice Commands Complete
 

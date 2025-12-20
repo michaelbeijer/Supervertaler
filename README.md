@@ -1,8 +1,8 @@
-# 🚀 Supervertaler v1.9.50
+# 🚀 Supervertaler v1.9.51
 
 🎯 **The Ultimate Translation Workbench** — Context-aware AI with intuitive 2-Layer Prompt Architecture, AI Assistant, project termbase system with automatic extraction, and specialized modules.
 
-**Current Version:** v1.9.50 (December 18, 2025)
+**Current Version:** v1.9.51 (December 20, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -33,7 +33,15 @@
 python Supervertaler.py
 ```
 
-### NEW in v1.9.50 - Voice Commands System 🎤
+### NEW in v1.9.51 - Superlookup MT Integration 🔍
+*   **All MT Providers Working**: Google Translate, Amazon Translate, DeepL, Microsoft Translator, ModernMT, MyMemory
+*   **Provider Status Panel**: Shows ✅ active, ⏸️ disabled, ❌ missing API keys
+*   **Error Display**: Errors shown in red with full details (no more silent failures)
+*   **Language Mapping Fix**: "Dutch" → "nl", "English" → "en" for all MT APIs
+*   **Settings Link**: "⚙️ Configure in Settings" navigates to Settings → MT Settings
+*   **Termbases Tab**: Search filter + split-view with editable terms grid
+
+### v1.9.50 - Voice Commands System 🎤
 *   **Hands-Free Translation**: Say "next segment", "confirm", "source to target", "translate" and more
 *   **Always-On Listening**: VAD-based continuous listening - no need to press F9 twice
 *   **Dual Recognition**: OpenAI Whisper API (recommended) or local Whisper model
