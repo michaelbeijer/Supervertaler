@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** December 20, 2025 | **Version:** v1.9.52
+> **Last Updated:** December 22, 2025 | **Version:** v1.9.54
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.52 (December 2025) |
+| **Version** | v1.9.54 (December 2025) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -332,6 +332,70 @@ google_api_key=AI...
 ---
 
 ## 🔄 Recent Development History
+
+### December 22, 2025 - Version 1.9.54: Superlookup UX Improvements & Terminology Rename
+
+**🔍 Superlookup Enhancements**
+
+Several usability fixes for the Superlookup unified lookup window:
+
+- **Enter Key Behavior**: Pressing Enter in search box now triggers search (Shift+Enter for newline)
+- **Edit in Glossary Navigation**: Right-click "Edit in Glossary" now correctly selects the glossary in the Resources tab
+- **Fuzzy Search Filter**: Minimum term length filter prevents single-letter terms from matching long search queries (e.g., "A" no longer matches "Machine Fingerprint")
+- **TM Source Column**: Added new "TM" column to TM results showing which Translation Memory the match came from
+
+**📝 User-Facing Terminology Rename: Termbase → Glossary**
+
+Comprehensive rename of user-facing terminology throughout the application:
+
+- **Tab Names**: "Termbase Matches" → "Glossaries", "TM Matches" → "TMs"
+- **Dialog Titles**: "Create New Termbase" → "Create New Glossary", "Import Termbase" → "Import Glossary"
+- **Settings Labels**: "TM/Termbase lookup delay" → "TM/Glossary lookup delay", "Termbase Highlight Style" → "Glossary Highlight Style"
+- **Button Text**: "Add to Termbase" → "Add to Glossary", "TM/Termbase ON" → "TM/Glossary ON"
+- **Tooltips**: All termbase-related tooltips updated to use "glossary"
+- **Context Menus**: "Add to Termbase" → "Add to Glossary", "Edit in Termbase" → "Edit in Glossary"
+- **Warning Messages**: All QMessageBox dialogs updated to use "glossary" terminology
+- **Checkboxes**: "Enable TM & Termbase Matching" → "Enable TM & Glossary Matching"
+
+**Technical Notes:**
+- Internal code (variable names, method names, database columns) remains unchanged for backward compatibility
+- Only user-visible strings were modified
+- Project files (.svproj) still use `termbase_settings` key for compatibility
+
+**Files Modified:**
+- `Supervertaler.py` - Comprehensive UI string updates throughout
+
+---
+
+### December 21, 2025 - Version 1.9.53: Superlookup Termbase Enhancements
+
+**📋 Improved Termbase Matches Tab**
+
+Enhanced the Superlookup Termbase Matches tab with additional metadata columns:
+
+- **Renamed Column Headers**: "Term (Source)" → "Source", "Translation (Target)" → "Target"
+- **New Columns Added**: Termbase (source name), Domain, Notes
+- **Full Metadata in Results**: Each termbase match now includes domain, notes, priority, project, client, forbidden status
+- **Tooltips**: Hover over cells to see full content (especially useful for long notes)
+
+**📥 Termbase Import Progress Dialog**
+
+New real-time progress dialog when importing termbases from TSV files:
+
+- **Visual Progress Bar**: Shows percentage and entry count (e.g., "245/500 (49%)")
+- **Live Statistics**: Running counters for imported (✅), skipped (⏭️), and errors (❌)
+- **Scrolling Log Window**: Dark-themed console showing each entry as it's processed
+  - ✅ Imported: source → target
+  - ⏭️ Skipped duplicate: source
+  - 🔄 Updated: source → target (when update mode selected)
+  - ❌ Line X: error message
+- **Auto-Refresh**: Termbase table automatically updates term counts after import
+
+**Files Modified:**
+- `Supervertaler.py` - `create_termbase_results_tab()`, `display_termbase_results()`, `search_termbases()`, `_import_termbase()`, `_refresh_termbase_table()`
+- `modules/termbase_import_export.py` - `import_tsv()` now accepts `progress_callback` parameter
+
+---
 
 ### December 20, 2025 - Version 1.9.52: Superlookup Web Resources
 

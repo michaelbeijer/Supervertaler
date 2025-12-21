@@ -55,6 +55,20 @@ class TermbaseImporter:
         'term_uuid': ['term uuid', 'uuid', 'term id', 'id', 'term_uuid', 'termid']
     }
     
+    # Common language names that can be used as column headers
+    LANGUAGE_NAMES = [
+        'dutch', 'english', 'german', 'french', 'spanish', 'italian', 'portuguese',
+        'russian', 'chinese', 'japanese', 'korean', 'arabic', 'hebrew', 'turkish',
+        'polish', 'czech', 'slovak', 'hungarian', 'romanian', 'bulgarian', 'greek',
+        'swedish', 'norwegian', 'danish', 'finnish', 'estonian', 'latvian', 'lithuanian',
+        'ukrainian', 'croatian', 'serbian', 'slovenian', 'bosnian', 'macedonian',
+        'catalan', 'basque', 'galician', 'welsh', 'irish', 'scottish',
+        'indonesian', 'malay', 'thai', 'vietnamese', 'hindi', 'bengali', 'tamil',
+        'afrikaans', 'swahili', 'persian', 'farsi', 'urdu', 'punjabi',
+        'nederlands', 'deutsch', 'français', 'español', 'italiano', 'português',
+        'русский', '中文', '日本語', '한국어', 'العربية', 'עברית', 'türkçe'
+    ]
+    
     def __init__(self, db_manager, termbase_manager):
         """
         Initialize importer
@@ -68,7 +82,8 @@ class TermbaseImporter:
     
     def import_tsv(self, filepath: str, termbase_id: int, 
                    skip_duplicates: bool = True,
-                   update_duplicates: bool = False) -> ImportResult:
+                   update_duplicates: bool = False,
+                   progress_callback=None) -> ImportResult:
         """
         Import terms from TSV file
         
@@ -77,6 +92,7 @@ class TermbaseImporter:
             termbase_id: Target termbase ID
             skip_duplicates: Skip terms that already exist (based on source term)
             update_duplicates: Update existing terms instead of skipping
+            progress_callback: Optional callback(current, total, message) for progress updates
             
         Returns:
             ImportResult with statistics and errors
@@ -86,7 +102,19 @@ class TermbaseImporter:
         skipped_count = 0
         error_count = 0
         
+        def report_progress(current, total, message):
+            """Report progress if callback is provided"""
+            if progress_callback:
+                progress_callback(current, total, message)
+        
         try:
+            # Count total lines first for progress reporting
+            total_lines = 0
+            with open(filepath, 'r', encoding='utf-8-sig', newline='') as f:
+                total_lines = sum(1 for _ in f) - 1  # Subtract header row
+            
+            report_progress(0, total_lines, f"Starting import of {total_lines} entries...")
+            
             # Read file with UTF-8 encoding (handle BOM if present)
             with open(filepath, 'r', encoding='utf-8-sig', newline='') as f:
                 # Use csv.DictReader with tab delimiter
@@ -105,6 +133,8 @@ class TermbaseImporter:
                 
                 column_map = self._map_columns(reader.fieldnames)
                 
+                report_progress(0, total_lines, f"Found columns: {', '.join(column_map.keys())}")
+                
                 if not column_map.get('source') or not column_map.get('target'):
                     return ImportResult(
                         success=False,
@@ -119,12 +149,15 @@ class TermbaseImporter:
                 existing_terms_by_source = {}
                 existing_terms_by_uuid = {}
                 if skip_duplicates or update_duplicates:
+                    report_progress(0, total_lines, "Loading existing terms for duplicate detection...")
                     terms = self.termbase_manager.get_terms(termbase_id)
                     existing_terms_by_source = {term['source_term'].lower(): term for term in terms}
                     existing_terms_by_uuid = {term.get('term_uuid'): term for term in terms if term.get('term_uuid')}
+                    report_progress(0, total_lines, f"Found {len(existing_terms_by_source)} existing terms")
                 
                 # Process each row
                 for line_num, row in enumerate(reader, start=2):  # Start at 2 (line 1 is header)
+                    current_row = line_num - 1  # Adjust for progress (1-indexed from data rows)
                     try:
                         # Extract data using column mapping
                         source_field = self._get_field(row, column_map.get('source', ''))
@@ -135,6 +168,7 @@ class TermbaseImporter:
                         if not source_field or not target_field:
                             errors.append((line_num, "Missing source or target term"))
                             error_count += 1
+                            report_progress(current_row, total_lines, f"❌ Line {line_num}: Missing source or target")
                             continue
                         
                         # Parse source: first item = main term, rest = synonyms
@@ -162,8 +196,10 @@ class TermbaseImporter:
                                 # Update existing term
                                 self._update_term_from_row(existing_term['id'], row, column_map)
                                 imported_count += 1
+                                report_progress(current_row, total_lines, f"🔄 Updated: {source_term} → {target_term}")
                             else:
                                 skipped_count += 1
+                                report_progress(current_row, total_lines, f"⏭️ Skipped duplicate: {source_term}")
                             continue
                         
                         # Parse optional fields
@@ -194,6 +230,7 @@ class TermbaseImporter:
                         
                         if term_id:
                             imported_count += 1
+                            report_progress(current_row, total_lines, f"✅ Imported: {source_term} → {target_term}")
                             
                             # Add source synonyms (already parsed from source_field above)
                             for order, syn_part in enumerate(source_synonym_parts):
@@ -233,9 +270,11 @@ class TermbaseImporter:
                         else:
                             errors.append((line_num, "Failed to add term to database"))
                             error_count += 1
+                            report_progress(current_row, total_lines, f"❌ Line {line_num}: Failed to add term")
                             
                     except Exception as e:
                         errors.append((line_num, f"Error processing row: {str(e)}"))
+                        report_progress(current_row, total_lines, f"❌ Line {line_num}: {str(e)}")
                         error_count += 1
                         continue
             
@@ -285,6 +324,30 @@ class TermbaseImporter:
                 if header_lower in variations:
                     column_map[standard_name] = header
                     break
+        
+        # If source/target not found, check if first two columns are language names
+        # This allows headers like "Dutch\tEnglish" or "French\tEnglish"
+        if not column_map.get('source') or not column_map.get('target'):
+            if len(headers) >= 2:
+                first_header = headers[0].lower().strip()
+                second_header = headers[1].lower().strip()
+                
+                # Check if both are language names
+                first_is_lang = first_header in self.LANGUAGE_NAMES
+                second_is_lang = second_header in self.LANGUAGE_NAMES
+                
+                if first_is_lang and second_is_lang:
+                    # Use first column as source, second as target
+                    if not column_map.get('source'):
+                        column_map['source'] = headers[0]
+                    if not column_map.get('target'):
+                        column_map['target'] = headers[1]
+                elif first_is_lang and not column_map.get('source'):
+                    # Only first is a language - use as source
+                    column_map['source'] = headers[0]
+                elif second_is_lang and not column_map.get('target'):
+                    # Only second is a language - use as target
+                    column_map['target'] = headers[1]
         
         return column_map
     

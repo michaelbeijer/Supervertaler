@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.52 (December 20, 2025)
+**Current Version:** v1.9.54 (December 22, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -14,6 +14,10 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- 📝 **User-Facing Terminology Rename (v1.9.54)** - Comprehensive rename throughout the UI: "Termbase" → "Glossary", "TM Matches" → "TMs", "Termbase Matches" → "Glossaries". All dialog titles, settings labels, button text, tooltips, context menus, and messages updated. Internal code and database structure unchanged for backward compatibility.
+- 🔍 **Superlookup UX Improvements (v1.9.54)** - Enter key in search box now triggers search (Shift+Enter for newline). "Edit in Glossary" navigation fixed to correctly select the glossary in Resources tab. Fuzzy search filter prevents single-letter terms matching long queries. New "TM" column shows source TM name in results.
+- 📋 **Superlookup Termbase Enhancements (v1.9.53)** - Improved Glossaries tab with additional metadata columns: Glossary name, Domain, Notes. Full metadata in results including priority, project, client, forbidden status. Tooltips show full content on hover.
+- 📥 **Glossary Import Progress Dialog (v1.9.53)** - Real-time progress dialog when importing glossaries from TSV files. Visual progress bar, live statistics (✅ imported, ⏭️ skipped, ❌ errors), scrolling log window with color-coded entries.
 - 🌐 **Superlookup Web Resources (v1.9.52)** - Expanded web resources tab with 14 reference sites! New resources: Juremy, michaelbeijer.co.uk, AcronymFinder, BabelNet, Wiktionary (Source & Target). Persistent login sessions with cookies stored in `user_data/web_cache/`. Auto-select language pair from project on load. Compact single-line search layout. Settings checkboxes control sidebar button visibility.
 - 🔍 **Superlookup MT Integration (v1.9.51)** - Complete Machine Translation integration in Superlookup! Search now returns results from Google Translate, Amazon Translate, DeepL, Microsoft Translator, ModernMT, and MyMemory. MT provider status display shows active/disabled/missing API key providers with "⚙️ Configure in Settings" link. Error messages now shown in red with details (no more silent failures). Fixed language name mapping: "Dutch" → "nl", "English" → "en" for all MT providers. Added boto3 and deepl to requirements.txt. Removed debug print spam. Termbases tab now has search filter and split-view with editable terms grid.
 - 🎤 **Voice Commands System (v1.9.50)** - Complete hands-free translation with Talon-style voice commands! Say "next segment", "confirm", "source to target", "translate", and more. **Always-On Listening Mode** with VAD (Voice Activity Detection) - no need to press F9. Dual recognition engines: **OpenAI Whisper API** (recommended, fast & accurate) or local Whisper model. New grid toolbar button (🎧 Voice ON/OFF) for easy toggle. Status bar indicator shows listening/recording/processing state. AutoHotkey integration for controlling external apps (memoQ, Trados, Word) by voice. Custom voice commands with fuzzy matching. Configure in Tools → Supervoice tab.

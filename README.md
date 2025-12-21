@@ -1,8 +1,8 @@
-# 🚀 Supervertaler v1.9.52
+# 🚀 Supervertaler v1.9.54
 
-🎯 **The Ultimate Translation Workbench** — Context-aware AI with intuitive 2-Layer Prompt Architecture, AI Assistant, project termbase system with automatic extraction, and specialized modules.
+🎯 **The Ultimate Translation Workbench** — Context-aware AI with intuitive 2-Layer Prompt Architecture, AI Assistant, project glossary system with automatic extraction, and specialized modules.
 
-**Current Version:** v1.9.52 (December 20, 2025)
+**Current Version:** v1.9.54 (December 22, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -33,7 +33,19 @@
 python Supervertaler.py
 ```
 
-### NEW in v1.9.52 - Superlookup Web Resources 🌐
+### NEW in v1.9.54 - User-Facing Terminology Rename 📝
+*   **Termbase → Glossary**: All user-facing UI now uses "Glossary" instead of "Termbase"
+*   **TM Matches → TMs**: Tab renamed for consistency
+*   **Superlookup UX**: Enter triggers search, Edit in Glossary navigation fixed, fuzzy search filter improved
+*   **TM Source Column**: New column shows which TM each match came from
+*   **Internal code unchanged**: Database and project files maintain backward compatibility
+
+### v1.9.53 - Superlookup Glossary Enhancements 📋
+*   **Metadata Columns**: Glossary name, Domain, Notes columns in results
+*   **Import Progress Dialog**: Real-time progress with statistics and scrolling log
+*   **Tooltips**: Hover to see full content for long entries
+
+### v1.9.52 - Superlookup Web Resources 🌐
 *   **14 Web Resources**: IATE, Linguee, ProZ, Reverso, Google, Google Patents, Wikipedia (Source/Target), Juremy, michaelbeijer.co.uk, AcronymFinder, BabelNet, Wiktionary (Source/Target)
 *   **Persistent Login Sessions**: Cookies stored in `user_data/web_cache/` - stay logged in to ProZ, Linguee, etc.
 *   **Auto Language Selection**: Language pair auto-fills from current project

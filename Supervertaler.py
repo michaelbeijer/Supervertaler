@@ -34,9 +34,9 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.52"
+__version__ = "1.9.54"
 __phase__ = "0.9"
-__release_date__ = "2025-12-20"
+__release_date__ = "2025-12-21"
 __edition__ = "Qt"
 
 import sys
@@ -1325,7 +1325,7 @@ class ReadOnlyGridTextEditor(QTextEdit):
                                 fmt.setUnderlineColor(QColor(dotted_color))  # User-configured color
                         # Add tooltip with translation
                         if translation:
-                            fmt.setToolTip(f"Termbase: {translation}")
+                            fmt.setToolTip(f"Glossary: {translation}")
                     
                     elif highlight_style == 'semibold':
                         # SEMIBOLD TEXT STYLE (typographic approach)
@@ -1344,7 +1344,7 @@ class ReadOnlyGridTextEditor(QTextEdit):
                                 fmt.setForeground(QColor('#43A047'))  # Lighter green
                         # Add tooltip with translation
                         if translation:
-                            fmt.setToolTip(f"Termbase: {translation}")
+                            fmt.setToolTip(f"Glossary: {translation}")
                     
                     else:
                         # BACKGROUND COLOR STYLE (default - current behavior)
@@ -1517,12 +1517,12 @@ class ReadOnlyGridTextEditor(QTextEdit):
             QMessageBox.warning(
                 self,
                 "Selection Required",
-                "Please select text in both Source and Target cells before adding to termbase.\\n\\n"
+                "Please select text in both Source and Target cells before adding to glossary.\\n\\n"
                 "Workflow:\\n"
                 "1. Select term in source cell\\n"
                 "2. Press Tab to cycle to target cell\\n"
                 "3. Select corresponding translation\\n"
-                "4. Press Ctrl+E (or right-click) to add to termbase"
+                "4. Press Ctrl+E (or right-click) to add to glossary"
             )
             return
         
@@ -1772,7 +1772,7 @@ class ReadOnlyGridTextEditor(QTextEdit):
                 print(f"Error triggering manual cell selection: {e}")
 
     def contextMenuEvent(self, event):
-        """Show context menu with Add to Termbase and Add to Non-Translatables options"""
+        """Show context menu with Add to Glossary and Add to Non-Translatables options"""
         from PyQt6.QtWidgets import QMenu
         from PyQt6.QtGui import QAction
         
@@ -1785,13 +1785,13 @@ class ReadOnlyGridTextEditor(QTextEdit):
             menu.addAction(copy_action)
             menu.addSeparator()
         
-        # Add to termbase action (with dialog)
-        add_to_tb_action = QAction("📖 Add to Termbase (Ctrl+E)", self)
+        # Add to glossary action (with dialog)
+        add_to_tb_action = QAction("📖 Add to Glossary (Ctrl+E)", self)
         add_to_tb_action.triggered.connect(self._handle_add_to_termbase)
         menu.addAction(add_to_tb_action)
         
-        # Quick add to termbase action (no dialog) - uses last-selected termbase from Ctrl+E
-        quick_add_action = QAction("⚡ Quick Add to Termbase (Alt+Left)", self)
+        # Quick add to glossary action (no dialog) - uses last-selected glossary from Ctrl+E
+        quick_add_action = QAction("⚡ Quick Add to Glossary (Alt+Left)", self)
         quick_add_action.triggered.connect(self._handle_quick_add_to_termbase)
         menu.addAction(quick_add_action)
         
@@ -2145,12 +2145,12 @@ class EditableGridTextEditor(QTextEdit):
             QMessageBox.warning(
                 self,
                 "Selection Required",
-                "Please select text in both Source and Target cells before adding to termbase.\\n\\n"
+                "Please select text in both Source and Target cells before adding to glossary.\\n\\n"
                 "Workflow:\\n"
                 "1. Select term in source/target cell\\n"
                 "2. Press Tab to cycle to other cell\\n"
                 "3. Select corresponding term\\n"
-                "4. Press Ctrl+E (or right-click) to add to termbase"
+                "4. Press Ctrl+E (or right-click) to add to glossary"
             )
             return
         
@@ -2163,7 +2163,7 @@ class EditableGridTextEditor(QTextEdit):
             main_window.add_term_pair_to_termbase(source_text, target_text)
     
     def _handle_quick_add_to_termbase(self):
-        """Handle Ctrl+R: Quick add selected source and target terms to termbase (no dialog)"""
+        """Handle Ctrl+R: Quick add selected source and target terms to glossary (no dialog)"""
         if not self.table or self.row < 0:
             return
         
@@ -2182,8 +2182,8 @@ class EditableGridTextEditor(QTextEdit):
             QMessageBox.warning(
                 self,
                 "Selection Required",
-                "Please select text in both Source and Target cells before quick-adding to termbase.\n\n"
-                "Tip: Use Ctrl+E to add with a dialog where you can choose termbase and add metadata."
+                "Please select text in both Source and Target cells before quick-adding to glossary.\n\n"
+                "Tip: Use Ctrl+E to add with a dialog where you can choose glossary and add metadata."
             )
             return
         
@@ -2196,7 +2196,7 @@ class EditableGridTextEditor(QTextEdit):
             main_window.quick_add_term_pair_to_termbase(source_text, target_text)
     
     def contextMenuEvent(self, event):
-        """Show context menu with Add to Termbase, Non-Translatables, and Spellcheck options"""
+        """Show context menu with Add to Glossary, Non-Translatables, and Spellcheck options"""
         from PyQt6.QtWidgets import QMenu
         from PyQt6.QtGui import QAction
         
@@ -2256,12 +2256,12 @@ class EditableGridTextEditor(QTextEdit):
         menu.addSeparator()
         
         # Add to termbase action (with dialog)
-        add_to_tb_action = QAction("📖 Add to Termbase (Ctrl+E)", self)
+        add_to_tb_action = QAction("📖 Add to Glossary (Ctrl+E)", self)
         add_to_tb_action.triggered.connect(self._handle_add_to_termbase)
         menu.addAction(add_to_tb_action)
         
         # Quick add to termbase action (no dialog) - uses last-selected termbase from Ctrl+E
-        quick_add_action = QAction("⚡ Quick Add to Termbase (Alt+Left)", self)
+        quick_add_action = QAction("⚡ Quick Add to Glossary (Alt+Left)", self)
         quick_add_action.triggered.connect(self._handle_quick_add_to_termbase)
         menu.addAction(quick_add_action)
         
@@ -3610,7 +3610,7 @@ class TermMetadataDialog(QDialog):
             pass
         
     def setup_ui(self):
-        self.setWindowTitle("Add Term to Termbase")
+        self.setWindowTitle("Add Term to Glossary")
         self.setMinimumWidth(550)
 
         # Auto-resize to fit screen (max 85% of screen height)
@@ -3636,7 +3636,7 @@ class TermMetadataDialog(QDialog):
         layout.setContentsMargins(6, 6, 6, 6)
         
         # Header
-        header = QLabel("Add term pair to termbase")
+        header = QLabel("Add term pair to glossary")
         header.setStyleSheet("font-size: 12px; font-weight: bold; margin-bottom: 5px; padding: 4px;")
         layout.addWidget(header)
         
@@ -3658,11 +3658,11 @@ class TermMetadataDialog(QDialog):
         layout.addWidget(term_group)
         
         # Termbase selection
-        tb_group = QGroupBox("Save to Termbase(s)")
+        tb_group = QGroupBox("Save to Glossary(s)")
         tb_layout = QVBoxLayout()
         
         if not self.active_termbases:
-            no_tb_label = QLabel("⚠️ No active termbases found. Please activate at least one termbase first.")
+            no_tb_label = QLabel("⚠️ No active glossaries found. Please activate at least one glossary first.")
             no_tb_label.setStyleSheet("color: #d32f2f; padding: 10px;")
             no_tb_label.setWordWrap(True)
             tb_layout.addWidget(no_tb_label)
@@ -3941,7 +3941,7 @@ class TermMetadataDialog(QDialog):
         cancel_btn.clicked.connect(self.reject)
         button_layout.addWidget(cancel_btn)
         
-        save_btn = QPushButton("Add to Termbase")
+        save_btn = QPushButton("Add to Glossary")
         save_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 5px 15px;")
         save_btn.clicked.connect(self._accept_and_save)
         save_btn.setDefault(True)
@@ -7753,10 +7753,10 @@ class SupervertalerQt(QMainWindow):
         
         # Add nested tabs
         tm_tab = self.create_translation_memories_tab()
-        resources_tabs.addTab(tm_tab, "💾 Translation Memories")
+        resources_tabs.addTab(tm_tab, "💾 TMs")
         
         termbase_tab = self.create_termbases_tab()
-        resources_tabs.addTab(termbase_tab, "🏷️ Termbases")
+        resources_tabs.addTab(termbase_tab, "🏷️ Glossaries")
         
         # Supermemory - Vector-Indexed Translation Memory (semantic search)
         supermemory_tab = self.create_supermemory_tab()
@@ -7903,19 +7903,19 @@ class SupervertalerQt(QMainWindow):
         layout.setContentsMargins(10, 10, 10, 10)
         
         # Header
-        header = QLabel("💾 Translation Memories")
+        header = QLabel("💾 TMs")
         header.setStyleSheet("font-size: 14px; font-weight: bold; margin-bottom: 10px;")
         layout.addWidget(header)
         
         # Description
-        desc = QLabel("Manage translation memories. Activate/deactivate TMs for current project. Import client TMX files as named TMs.")
+        desc = QLabel("Manage TMs. Activate/deactivate TMs for current project. Import client TMX files as named TMs.")
         desc.setStyleSheet("color: #666; font-size: 11px; margin-bottom: 10px;")
         layout.addWidget(desc)
         
         # Search bar
         search_layout = QHBoxLayout()
         search_box = QLineEdit()
-        search_box.setPlaceholderText("Search translation memories...")
+        search_box.setPlaceholderText("Search TMs...")
         search_box.setMaximumWidth(300)
         search_layout.addWidget(search_box)
         search_layout.addStretch()
@@ -9589,12 +9589,12 @@ class SupervertalerQt(QMainWindow):
         """Add a term pair to active termbase(s) with metadata dialog"""
         # Check if we have a current project
         if not hasattr(self, 'current_project') or not self.current_project:
-            QMessageBox.warning(self, "No Active Project", "Please open or create a project before adding terms to termbase.")
+            QMessageBox.warning(self, "No Active Project", "Please open or create a project before adding terms to glossary.")
             return
         
         # Get active termbases for current project
         if not hasattr(self, 'termbase_mgr') or not self.termbase_mgr:
-            QMessageBox.critical(self, "Error", "Termbase manager not initialized")
+            QMessageBox.critical(self, "Error", "Glossary manager not initialized")
             return
         
         # Generate a simple project ID from the project file path (use hash of path)
@@ -9610,7 +9610,7 @@ class SupervertalerQt(QMainWindow):
         active_termbases = self.termbase_mgr.get_all_termbases()
         
         if not active_termbases:
-            QMessageBox.warning(self, "No Termbase", "Please create or activate at least one termbase in Resources → Termbases tab.")
+            QMessageBox.warning(self, "No Glossary", "Please create or activate at least one glossary in Resources → Glossaries tab.")
             return
         
         # Show metadata dialog with termbase selection
@@ -9624,7 +9624,7 @@ class SupervertalerQt(QMainWindow):
         target_synonyms = dialog.get_target_synonyms()
         
         if not selected_termbase_ids:
-            QMessageBox.warning(self, "No Termbase Selected", "Please select at least one termbase to save the term to.")
+            QMessageBox.warning(self, "No Glossary Selected", "Please select at least one glossary to save the term to.")
             return
         
         # Store the selected termbase IDs for quick add (Ctrl+Q)
@@ -9705,7 +9705,7 @@ class SupervertalerQt(QMainWindow):
         
         # Show result
         if success_count > 0:
-            QMessageBox.information(self, "Term Added", f"Successfully added term pair to {success_count} termbase(s):\\n\\nSource: {source_text}\\nTarget: {target_text}\\n\\nDomain: {metadata['domain'] or '(none)'}")
+            QMessageBox.information(self, "Term Added", f"Successfully added term pair to {success_count} glossary(s):\\n\\nSource: {source_text}\\nTarget: {target_text}\\n\\nDomain: {metadata['domain'] or '(none)'}")
             
             # Refresh translation results to show new termbase match immediately
             current_row = self.table.currentRow()
@@ -9731,12 +9731,12 @@ class SupervertalerQt(QMainWindow):
             # IMPORTANT: Refresh the termbase list UI if it's currently open to update term counts
             # Find the termbase tab and call its refresh function
             if hasattr(self, 'termbase_tab_refresh_callback') and self.termbase_tab_refresh_callback:
-                self.log("🔄 Refreshing termbase list to update term counts")
+                self.log("🔄 Refreshing glossary list to update term counts")
                 self.termbase_tab_refresh_callback()
             else:
-                self.log("⚠️ No termbase refresh callback found (tab not initialized yet)")
+                self.log("⚠️ No glossary refresh callback found (tab not initialized yet)")
         else:
-            QMessageBox.warning(self, "Error Adding Term", "Failed to add term to any termbase. Check the log for details.")
+            QMessageBox.warning(self, "Error Adding Term", "Failed to add term to any glossary. Check the log for details.")
     
     def quick_add_term_pair_to_termbase(self, source_text: str, target_text: str):
         """Quick add a term pair to the last-used termbase without showing any dialogs (Ctrl+Q)
@@ -9746,36 +9746,36 @@ class SupervertalerQt(QMainWindow):
         """
         # Check if we have a current project
         if not hasattr(self, 'current_project') or not self.current_project:
-            QMessageBox.warning(self, "No Active Project", "Please open or create a project before adding terms to termbase.")
+            QMessageBox.warning(self, "No Active Project", "Please open or create a project before adding terms to glossary.")
             return
         
         # Get termbase manager
         if not hasattr(self, 'termbase_mgr') or not self.termbase_mgr:
-            QMessageBox.critical(self, "Error", "Termbase manager not initialized")
+            QMessageBox.critical(self, "Error", "Glossary manager not initialized")
             return
         
         # Check if we have a last-selected termbase from Ctrl+E
         if not hasattr(self, '_last_selected_termbase_ids') or not self._last_selected_termbase_ids:
-            QMessageBox.information(self, "No Termbase Selected", 
-                "Please use Ctrl+E first to select which termbase to save terms to.\n\n"
-                "After that, Ctrl+Q will quick-save to the same termbase(s).")
+            QMessageBox.information(self, "No Glossary Selected", 
+                "Please use Ctrl+E first to select which glossary to save terms to.\n\n"
+                "After that, Ctrl+Q will quick-save to the same glossary(s).")
             return
         
         # Get all termbases to find the ones matching the saved IDs
         all_termbases = self.termbase_mgr.get_all_termbases()
         
         if not all_termbases:
-            QMessageBox.warning(self, "No Termbase", 
-                "Please create at least one termbase in Resources → Termbases tab.")
+            QMessageBox.warning(self, "No Glossary", 
+                "Please create at least one glossary in Resources → Glossaries tab.")
             return
         
         # Find the termbases that match the saved IDs
         target_termbases = [tb for tb in all_termbases if tb['id'] in self._last_selected_termbase_ids]
         
         if not target_termbases:
-            QMessageBox.warning(self, "Termbase Not Found", 
-                "The previously selected termbase(s) could not be found.\n\n"
-                "Please use Ctrl+E to select a termbase again.")
+            QMessageBox.warning(self, "Glossary Not Found", 
+                "The previously selected glossary(s) could not be found.\n\n"
+                "Please use Ctrl+E to select a glossary again.")
             self._last_selected_termbase_ids = None
             return
         
@@ -9843,7 +9843,7 @@ class SupervertalerQt(QMainWindow):
             if hasattr(self, 'termbase_tab_refresh_callback') and self.termbase_tab_refresh_callback:
                 self.termbase_tab_refresh_callback()
         else:
-            QMessageBox.warning(self, "Error", "Failed to add term. It may already exist in the termbase.")
+            QMessageBox.warning(self, "Error", "Failed to add term. It may already exist in the glossary.")
 
     def add_text_to_non_translatables(self, text: str):
         """Add selected text to active non-translatable list(s)"""
@@ -10001,18 +10001,18 @@ class SupervertalerQt(QMainWindow):
         layout.setContentsMargins(10, 10, 10, 10)
         
         # Header
-        header = QLabel("📚 Termbases")
+        header = QLabel("📚 Glossaries")
         header.setStyleSheet("font-size: 14px; font-weight: bold; margin-bottom: 10px;")
         layout.addWidget(header)
         
         # Description
-        desc = QLabel("Manage termbases for terminology searching. Activate/deactivate for current project.")
+        desc = QLabel("Manage glossaries for terminology searching. Activate/deactivate for current project.")
         desc.setStyleSheet("color: #666; font-size: 11px; margin-bottom: 10px;")
         layout.addWidget(desc)
         
         # Check if database is available
         if not (hasattr(self, 'db_manager') and self.db_manager):
-            placeholder = QLabel("Termbases Manager\n\nDatabase not initialized.")
+            placeholder = QLabel("Glossary Manager\n\nDatabase not initialized.")
             placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
             placeholder.setStyleSheet("color: #888; font-size: 12px;")
             layout.addWidget(placeholder, stretch=1)
@@ -10034,7 +10034,7 @@ class SupervertalerQt(QMainWindow):
         # Search bar
         search_layout = QHBoxLayout()
         search_box = QLineEdit()
-        search_box.setPlaceholderText("Search termbases...")
+        search_box.setPlaceholderText("Search glossaries...")
         search_box.setMaximumWidth(300)
         search_layout.addWidget(search_box)
         search_layout.addStretch()
@@ -10042,10 +10042,10 @@ class SupervertalerQt(QMainWindow):
         
         # Help message
         help_msg = QLabel(
-            "💡 <b>Termbases</b><br>"
-            "• <b>Read</b> (green ✓): Termbase is used for terminology matching<br>"
-            "• <b>Write</b> (blue ✓): Termbase is updated with new terms<br>"
-            "• <b>Priority</b>: Manually set 1-N (lower = higher priority). Multiple termbases can share same priority. Priority #1 = Project Termbase."
+            "💡 <b>Glossaries</b><br>"
+            "• <b>Read</b> (green ✓): Glossary is used for terminology matching<br>"
+            "• <b>Write</b> (blue ✓): Glossary is updated with new terms<br>"
+            "• <b>Priority</b>: Manually set 1-N (lower = higher priority). Multiple glossaries can share same priority. Priority #1 = Project Glossary."
         )
         help_msg.setWordWrap(True)
         help_msg.setStyleSheet("background-color: #e3f2fd; padding: 8px; border-radius: 4px; color: #1976d2;")
@@ -10066,6 +10066,7 @@ class SupervertalerQt(QMainWindow):
         
         # Termbase list with table
         termbase_table = QTableWidget()
+        self.termbase_table = termbase_table  # Store for external access (Superlookup navigation)
         termbase_table.setColumnCount(7)
         termbase_table.setHorizontalHeaderLabels(["Type", "Name", "Languages", "Terms", "Read", "Write", "Priority"])
         termbase_table.horizontalHeader().setStretchLastSection(False)
@@ -10125,7 +10126,7 @@ class SupervertalerQt(QMainWindow):
         terms_header.setStyleSheet("font-size: 13px; font-weight: bold;")
         terms_header_layout.addWidget(terms_header)
         
-        selected_tb_label = QLabel("Select a termbase to view/edit terms")
+        selected_tb_label = QLabel("Select a glossary to view/edit terms")
         selected_tb_label.setStyleSheet("color: #666; font-style: italic;")
         terms_header_layout.addWidget(selected_tb_label)
         terms_header_layout.addStretch()
@@ -10137,8 +10138,64 @@ class SupervertalerQt(QMainWindow):
         terms_search_box.setPlaceholderText("Filter terms...")
         terms_search_box.setMaximumWidth(250)
         terms_search_layout.addWidget(terms_search_box)
+        self.terms_search_box = terms_search_box  # Store for external access
         terms_search_layout.addStretch()
         right_layout.addLayout(terms_search_layout)
+        
+        # ========== PAGINATION CONTROLS ==========
+        # State variables for pagination (using lists to allow modification in nested functions)
+        terms_page_size = [100]  # Terms per page
+        terms_current_page = [0]  # Current page (0-indexed)
+        terms_total_count = [0]  # Total terms in current termbase
+        terms_filter_text = ['']  # Current filter text
+        
+        pagination_layout = QHBoxLayout()
+        pagination_layout.setContentsMargins(0, 5, 0, 5)
+        
+        # Page size selector
+        page_size_label = QLabel("Show:")
+        page_size_combo = QComboBox()
+        page_size_combo.addItems(["50", "100", "250", "500", "All"])
+        page_size_combo.setCurrentText("100")
+        page_size_combo.setFixedWidth(70)
+        pagination_layout.addWidget(page_size_label)
+        pagination_layout.addWidget(page_size_combo)
+        
+        pagination_layout.addSpacing(20)
+        
+        # Navigation buttons
+        first_page_btn = QPushButton("⏮")
+        first_page_btn.setFixedWidth(30)
+        first_page_btn.setToolTip("First page")
+        prev_page_btn = QPushButton("◀")
+        prev_page_btn.setFixedWidth(30)
+        prev_page_btn.setToolTip("Previous page")
+        
+        page_info_label = QLabel("Page 1 of 1")
+        page_info_label.setStyleSheet("padding: 0 10px;")
+        
+        next_page_btn = QPushButton("▶")
+        next_page_btn.setFixedWidth(30)
+        next_page_btn.setToolTip("Next page")
+        last_page_btn = QPushButton("⏭")
+        last_page_btn.setFixedWidth(30)
+        last_page_btn.setToolTip("Last page")
+        
+        pagination_layout.addWidget(first_page_btn)
+        pagination_layout.addWidget(prev_page_btn)
+        pagination_layout.addWidget(page_info_label)
+        pagination_layout.addWidget(next_page_btn)
+        pagination_layout.addWidget(last_page_btn)
+        
+        pagination_layout.addSpacing(20)
+        
+        # Total count label
+        total_terms_label = QLabel("(0 terms total)")
+        total_terms_label.setStyleSheet("color: #666;")
+        pagination_layout.addWidget(total_terms_label)
+        
+        pagination_layout.addStretch()
+        right_layout.addLayout(pagination_layout)
         
         # Terms table - columns: Source, Target, Priority, Domain, Notes, Project, Client, Forbidden, Delete
         terms_table = QTableWidget()
@@ -10163,37 +10220,104 @@ class SupervertalerQt(QMainWindow):
         def filter_terms_table(search_text):
             """Filter terms table rows by source or target term"""
             search_text = search_text.lower().strip()
-            for row in range(terms_table.rowCount()):
-                source_item = terms_table.item(row, 0)
-                target_item = terms_table.item(row, 1)
-                source = source_item.text().lower() if source_item else ""
-                target = target_item.text().lower() if target_item else ""
-                # Show row if search text is in source or target, or if search is empty
-                should_hide = bool(search_text) and search_text not in source and search_text not in target
-                terms_table.setRowHidden(row, should_hide)
+            terms_filter_text[0] = search_text
+            # When filter changes, reset to page 0 and reload
+            terms_current_page[0] = 0
+            if current_terms_tb_id[0]:
+                load_terms_page()
         
         terms_search_box.textChanged.connect(filter_terms_table)
         
-        def load_terms_for_termbase(tb_id, tb_name):
-            """Load terms from selected termbase into the terms table"""
-            current_terms_tb_id[0] = tb_id
-            selected_tb_label.setText(f"<b>{tb_name}</b>")
-            selected_tb_label.setStyleSheet("color: #1976d2; font-weight: bold;")
+        def update_pagination_ui():
+            """Update pagination controls based on current state"""
+            page_size = terms_page_size[0]
+            total = terms_total_count[0]
+            current = terms_current_page[0]
             
-            # Clear and populate terms table
+            if page_size == 0:  # "All" selected
+                total_pages = 1
+            else:
+                total_pages = max(1, (total + page_size - 1) // page_size)
+            
+            page_info_label.setText(f"Page {current + 1} of {total_pages}")
+            total_terms_label.setText(f"({total:,} terms total)")
+            
+            # Enable/disable navigation buttons
+            first_page_btn.setEnabled(current > 0)
+            prev_page_btn.setEnabled(current > 0)
+            next_page_btn.setEnabled(current < total_pages - 1)
+            last_page_btn.setEnabled(current < total_pages - 1)
+        
+        def load_terms_page():
+            """Load current page of terms from the database"""
+            if current_terms_tb_id[0] is None:
+                return
+            
             terms_table.setRowCount(0)
-            terms_table.blockSignals(True)  # Block signals during population
+            terms_table.blockSignals(True)
             
             try:
-                # Get terms from termbase with all relevant columns
-                self.db_manager.cursor.execute(
-                    """SELECT id, source_term, target_term, priority, domain, notes, project, client, forbidden 
-                       FROM termbase_terms WHERE termbase_id = CAST(? AS TEXT) ORDER BY source_term""",
-                    (tb_id,)
-                )
-                terms = self.db_manager.cursor.fetchall()
+                tb_id = current_terms_tb_id[0]
+                filter_text = terms_filter_text[0]
+                page_size = terms_page_size[0]
+                offset = terms_current_page[0] * page_size if page_size > 0 else 0
                 
+                # Build query with optional filter
+                if filter_text:
+                    # Count filtered results
+                    self.db_manager.cursor.execute(
+                        """SELECT COUNT(*) FROM termbase_terms 
+                           WHERE termbase_id = CAST(? AS TEXT) 
+                           AND (LOWER(source_term) LIKE ? OR LOWER(target_term) LIKE ?)""",
+                        (tb_id, f'%{filter_text}%', f'%{filter_text}%')
+                    )
+                    terms_total_count[0] = self.db_manager.cursor.fetchone()[0]
+                    
+                    # Get filtered page
+                    if page_size > 0:
+                        self.db_manager.cursor.execute(
+                            """SELECT id, source_term, target_term, priority, domain, notes, project, client, forbidden 
+                               FROM termbase_terms 
+                               WHERE termbase_id = CAST(? AS TEXT) 
+                               AND (LOWER(source_term) LIKE ? OR LOWER(target_term) LIKE ?)
+                               ORDER BY source_term LIMIT ? OFFSET ?""",
+                            (tb_id, f'%{filter_text}%', f'%{filter_text}%', page_size, offset)
+                        )
+                    else:  # All
+                        self.db_manager.cursor.execute(
+                            """SELECT id, source_term, target_term, priority, domain, notes, project, client, forbidden 
+                               FROM termbase_terms 
+                               WHERE termbase_id = CAST(? AS TEXT) 
+                               AND (LOWER(source_term) LIKE ? OR LOWER(target_term) LIKE ?)
+                               ORDER BY source_term""",
+                            (tb_id, f'%{filter_text}%', f'%{filter_text}%')
+                        )
+                else:
+                    # Count all results
+                    self.db_manager.cursor.execute(
+                        "SELECT COUNT(*) FROM termbase_terms WHERE termbase_id = CAST(? AS TEXT)",
+                        (tb_id,)
+                    )
+                    terms_total_count[0] = self.db_manager.cursor.fetchone()[0]
+                    
+                    # Get page
+                    if page_size > 0:
+                        self.db_manager.cursor.execute(
+                            """SELECT id, source_term, target_term, priority, domain, notes, project, client, forbidden 
+                               FROM termbase_terms WHERE termbase_id = CAST(? AS TEXT) 
+                               ORDER BY source_term LIMIT ? OFFSET ?""",
+                            (tb_id, page_size, offset)
+                        )
+                    else:  # All
+                        self.db_manager.cursor.execute(
+                            """SELECT id, source_term, target_term, priority, domain, notes, project, client, forbidden 
+                               FROM termbase_terms WHERE termbase_id = CAST(? AS TEXT) ORDER BY source_term""",
+                            (tb_id,)
+                        )
+                
+                terms = self.db_manager.cursor.fetchall()
                 terms_table.setRowCount(len(terms))
+                
                 for row, term in enumerate(terms):
                     term_id, source, target, priority, domain, notes, project, client, forbidden = term
                     
@@ -10241,13 +10365,64 @@ class SupervertalerQt(QMainWindow):
                     delete_btn.clicked.connect(lambda checked, tid=term_id: delete_term(tid))
                     terms_table.setCellWidget(row, 8, delete_btn)
                 
-                self.log(f"📝 Loaded {len(terms)} terms from termbase '{tb_name}'")
+                update_pagination_ui()
                 
             except Exception as e:
                 self.log(f"⚠️ Error loading terms: {e}")
             finally:
-                terms_table.blockSignals(False)  # Re-enable signals
+                terms_table.blockSignals(False)
         
+        def load_terms_for_termbase(tb_id, tb_name):
+            """Load terms from selected termbase into the terms table (resets to page 1)"""
+            current_terms_tb_id[0] = tb_id
+            terms_current_page[0] = 0  # Reset to first page
+            terms_filter_text[0] = ''  # Clear filter
+            terms_search_box.clear()  # Clear search box
+            selected_tb_label.setText(f"<b>{tb_name}</b>")
+            selected_tb_label.setStyleSheet("color: #1976d2; font-weight: bold;")
+            
+            load_terms_page()
+            self.log(f"📝 Loaded {terms_total_count[0]:,} terms from termbase '{tb_name}'")
+        
+        # Pagination button handlers
+        def go_first_page():
+            terms_current_page[0] = 0
+            load_terms_page()
+        
+        def go_prev_page():
+            if terms_current_page[0] > 0:
+                terms_current_page[0] -= 1
+                load_terms_page()
+        
+        def go_next_page():
+            page_size = terms_page_size[0]
+            if page_size > 0:
+                total_pages = (terms_total_count[0] + page_size - 1) // page_size
+                if terms_current_page[0] < total_pages - 1:
+                    terms_current_page[0] += 1
+                    load_terms_page()
+        
+        def go_last_page():
+            page_size = terms_page_size[0]
+            if page_size > 0:
+                total_pages = max(1, (terms_total_count[0] + page_size - 1) // page_size)
+                terms_current_page[0] = total_pages - 1
+                load_terms_page()
+        
+        def on_page_size_changed(text):
+            if text == "All":
+                terms_page_size[0] = 0
+            else:
+                terms_page_size[0] = int(text)
+            terms_current_page[0] = 0  # Reset to first page
+            load_terms_page()
+        
+        first_page_btn.clicked.connect(go_first_page)
+        prev_page_btn.clicked.connect(go_prev_page)
+        next_page_btn.clicked.connect(go_next_page)
+        last_page_btn.clicked.connect(go_last_page)
+        page_size_combo.currentTextChanged.connect(on_page_size_changed)
+
         def save_forbidden_state(term_id, forbidden):
             """Save the forbidden state of a term"""
             try:
@@ -10389,6 +10564,7 @@ class SupervertalerQt(QMainWindow):
                     load_terms_for_termbase(tb_id, tb_name)
                     add_term_btn.setEnabled(True)
         
+        self._on_termbase_selected = on_termbase_selected  # Store for external access
         termbase_table.itemSelectionChanged.connect(on_termbase_selected)
         
         # Populate termbase list
@@ -10452,7 +10628,7 @@ class SupervertalerQt(QMainWindow):
                 # Read checkbox (green)
                 read_checkbox = CheckmarkCheckBox()
                 read_checkbox.setChecked(is_readable)
-                read_checkbox.setToolTip("Read: Termbase is used for terminology matching")
+                read_checkbox.setToolTip("Read: Glossary is used for terminology matching")
                 
                 def on_read_toggle(checked, tb_id=tb['id'], row_idx=row):
                     # Use 0 (global) when no project is loaded - allows Superlookup to work
@@ -10475,7 +10651,7 @@ class SupervertalerQt(QMainWindow):
                 # Write checkbox (blue)
                 write_checkbox = BlueCheckmarkCheckBox()
                 write_checkbox.setChecked(is_writable)
-                write_checkbox.setToolTip("Write: Termbase is updated with new terms")
+                write_checkbox.setToolTip("Write: Glossary is updated with new terms")
                 
                 def on_write_toggle(checked, tb_id=tb['id'], row_idx=row):
                     # Invert logic: checked = writable, so set read_only to NOT checked
@@ -10511,9 +10687,9 @@ class SupervertalerQt(QMainWindow):
                     # Pink styling for priority #1
                     if priority == 1:
                         priority_combo.setStyleSheet("QComboBox { color: #FF69B4; font-weight: bold; }")
-                        priority_combo.setToolTip("Priority #1 - Project Termbase (highest priority)\nSelect different priority from dropdown")
+                        priority_combo.setToolTip("Priority #1 - Project Glossary (highest priority)\nSelect different priority from dropdown")
                     else:
-                        priority_combo.setToolTip(f"Priority #{priority} (1=highest, {num_active}=lowest)\nMultiple termbases can share same priority.")
+                        priority_combo.setToolTip(f"Priority #{priority} (1=highest, {num_active}=lowest)\nMultiple glossaries can share same priority.")
                     
                     def on_priority_change(index, tb_id=tb['id'], row_idx=row):
                         # Get selected priority from combo box
@@ -10538,10 +10714,10 @@ class SupervertalerQt(QMainWindow):
                             if sender:
                                 if new_priority == 1:
                                     sender.setStyleSheet("QComboBox { color: #FF69B4; font-weight: bold; }")
-                                    sender.setToolTip("Priority #1 - Project Termbase (highest priority)\nSelect different priority from dropdown")
+                                    sender.setToolTip("Priority #1 - Project Glossary (highest priority)\nSelect different priority from dropdown")
                                 else:
                                     sender.setStyleSheet("")
-                                    sender.setToolTip(f"Priority #{new_priority} (1=highest, {num_active}=lowest)\nMultiple termbases can share same priority.")
+                                    sender.setToolTip(f"Priority #{new_priority} (1=highest, {num_active}=lowest)\nMultiple glossaries can share same priority.")
                             
                             # Update Type column and styling for all rows
                             for r in range(termbase_table.rowCount()):
@@ -10561,7 +10737,7 @@ class SupervertalerQt(QMainWindow):
                                             name_item.setForeground(QColor("#FF69B4"))
                                         # Update combobox styling for #1
                                         priority_widget.setStyleSheet("QComboBox { color: #FF69B4; font-weight: bold; }")
-                                        priority_widget.setToolTip("Priority #1 - Project Termbase (highest priority)\nSelect different priority from dropdown")
+                                        priority_widget.setToolTip("Priority #1 - Project Glossary (highest priority)\nSelect different priority from dropdown")
                                     else:
                                         type_widget.setText("Background")
                                         type_widget.setStyleSheet("color: #666;")
@@ -10569,7 +10745,7 @@ class SupervertalerQt(QMainWindow):
                                             name_item.setForeground(QColor("#000"))
                                         # Update combobox styling for non-#1
                                         priority_widget.setStyleSheet("")
-                                        priority_widget.setToolTip(f"Priority #{current_priority} (1=highest, {num_active}=lowest)\nMultiple termbases can share same priority.")
+                                        priority_widget.setToolTip(f"Priority #{current_priority} (1=highest, {num_active}=lowest)\nMultiple glossaries can share same priority.")
                                     
                                     # Unblock signals after update
                                     priority_widget.blockSignals(False)
@@ -10584,7 +10760,7 @@ class SupervertalerQt(QMainWindow):
                     # Non-readable termbase: show dash
                     priority_item = QTableWidgetItem("—")
                     priority_item.setForeground(QColor("#999"))
-                    priority_item.setToolTip("No priority - termbase not readable")
+                    priority_item.setToolTip("No priority - glossary not readable")
                     priority_item.setFlags(priority_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
                     termbase_table.setItem(row, 6, priority_item)
             
@@ -10612,7 +10788,7 @@ class SupervertalerQt(QMainWindow):
         button_layout.addWidget(create_btn)
         
         extract_btn = QPushButton("🔍 Extract Terms")
-        extract_btn.setToolTip("Extract terminology from project segments to create project termbase")
+        extract_btn.setToolTip("Extract terminology from project segments to create project glossary")
         extract_btn.setEnabled(project_id is not None)  # Only enabled when project is loaded
         extract_btn.clicked.connect(lambda: self._show_term_extraction_dialog(termbase_mgr, refresh_termbase_list, project_id))
         button_layout.addWidget(extract_btn)
@@ -10644,18 +10820,18 @@ class SupervertalerQt(QMainWindow):
         return tab
     
     def _show_create_termbase_dialog(self, termbase_mgr, refresh_callback, project_id):
-        """Show dialog to create new termbase"""
+        """Show dialog to create new glossary"""
         from modules.termbase_manager import TermbaseManager
         
         dialog = QDialog(self)
-        dialog.setWindowTitle("Create New Termbase")
+        dialog.setWindowTitle("Create New Glossary")
         dialog.setMinimumWidth(400)
         
         layout = QFormLayout()
         
         # Name
         name_field = QLineEdit()
-        layout.addRow("Termbase Name:", name_field)
+        layout.addRow("Glossary Name:", name_field)
         
         # Source language
         source_lang_field = QLineEdit()
@@ -10696,7 +10872,7 @@ class SupervertalerQt(QMainWindow):
         def create_termbase():
             name = name_field.text().strip()
             if not name:
-                QMessageBox.warning(dialog, "Error", "Please enter a termbase name")
+                QMessageBox.warning(dialog, "Error", "Please enter a glossary name")
                 return
             
             source_lang = source_lang_field.text().strip() or None
@@ -10716,11 +10892,11 @@ class SupervertalerQt(QMainWindow):
             )
             
             if tb_id:
-                QMessageBox.information(dialog, "Success", f"Termbase '{name}' created successfully!")
+                QMessageBox.information(dialog, "Success", f"Glossary '{name}' created successfully!")
                 refresh_callback()
                 dialog.accept()
             else:
-                QMessageBox.critical(dialog, "Error", "Failed to create termbase")
+                QMessageBox.critical(dialog, "Error", "Failed to create glossary")
         
         create_btn.clicked.connect(create_termbase)
         cancel_btn.clicked.connect(dialog.reject)
@@ -10745,7 +10921,7 @@ class SupervertalerQt(QMainWindow):
         layout = QVBoxLayout()
         
         # Info label
-        info_label = QLabel("Extract terminology from project source segments to create a project termbase.")
+        info_label = QLabel("Extract terminology from project source segments to create a project glossary.")
         info_label.setWordWrap(True)
         layout.addWidget(info_label)
         
@@ -10924,8 +11100,8 @@ class SupervertalerQt(QMainWindow):
         # Buttons
         button_layout = QHBoxLayout()
         
-        create_btn = QPushButton("Create Project Termbase")
-        create_btn.setToolTip("Create a new project termbase with selected terms")
+        create_btn = QPushButton("Create Project Glossary")
+        create_btn.setToolTip("Create a new project glossary with selected terms")
         
         cancel_btn = QPushButton("Cancel")
         
@@ -10970,7 +11146,7 @@ class SupervertalerQt(QMainWindow):
             )
             
             if not tb_id:
-                QMessageBox.critical(dialog, "Error", "Failed to create termbase. There may already be a project termbase for this project.")
+                QMessageBox.critical(dialog, "Error", "Failed to create glossary. There may already be a project glossary for this project.")
                 return
             
             # Add terms (source only, target = empty string)
@@ -11013,27 +11189,27 @@ class SupervertalerQt(QMainWindow):
         """Delete selected termbase"""
         selected_row = termbase_table.currentRow()
         if selected_row < 0:
-            QMessageBox.warning(self, "Error", "Please select a termbase to delete")
+            QMessageBox.warning(self, "Error", "Please select a glossary to delete")
             return
         
         # Get termbase info from Name column (column 1 - has ID stored in UserRole)
         name_item = termbase_table.item(selected_row, 1)
         if not name_item:
-            QMessageBox.warning(self, "Error", "Could not read termbase information")
+            QMessageBox.warning(self, "Error", "Could not read glossary information")
             return
         
         tb_name = name_item.text()
         termbase_id = name_item.data(Qt.ItemDataRole.UserRole)
         
         if not termbase_id:
-            QMessageBox.warning(self, "Error", "Could not find termbase ID")
+            QMessageBox.warning(self, "Error", "Could not find glossary ID")
             return
         
         # Confirm deletion
         reply = QMessageBox.question(
             self,
             "Confirm Deletion",
-            f"Are you sure you want to delete termbase '{tb_name}'?\n\nThis will permanently delete all terms in this termbase.",
+            f"Are you sure you want to delete glossary '{tb_name}'?\n\nThis will permanently delete all terms in this glossary.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No
         )
@@ -11049,42 +11225,66 @@ class SupervertalerQt(QMainWindow):
                     cursor.execute("DELETE FROM termbases WHERE id = ?", (termbase_id,))
                     self.db_manager.connection.commit()
                     
-                    self.log(f"✓ Deleted termbase: {tb_name}")
-                    QMessageBox.information(self, "Success", f"Termbase '{tb_name}' has been deleted")
+                    self.log(f"✓ Deleted glossary: {tb_name}")
+                    QMessageBox.information(self, "Success", f"Glossary '{tb_name}' has been deleted")
                     
                     # Clear cache and refresh
                     with self.termbase_cache_lock:
                         self.termbase_cache.clear()
                     refresh_callback()
                 except Exception as e:
-                    QMessageBox.critical(self, "Error", f"Failed to delete termbase: {str(e)}")
+                    QMessageBox.critical(self, "Error", f"Failed to delete glossary: {str(e)}")
                     self.log(f"✗ Error deleting termbase: {e}")
+    
+    def _refresh_termbase_table(self, termbase_table, termbase_mgr):
+        """Refresh termbase table to show updated term counts"""
+        # Get current project ID
+        current_proj = self.current_project if hasattr(self, 'current_project') else None
+        project_id = current_proj.id if (current_proj and hasattr(current_proj, 'id')) else 0
+        
+        # Update term counts for each row
+        for row in range(termbase_table.rowCount()):
+            name_item = termbase_table.item(row, 1)
+            if name_item:
+                tb_id = name_item.data(Qt.ItemDataRole.UserRole)
+                if tb_id:
+                    try:
+                        self.db_manager.cursor.execute(
+                            "SELECT COUNT(*) FROM termbase_terms WHERE termbase_id = CAST(? AS TEXT)", 
+                            (tb_id,)
+                        )
+                        term_count = self.db_manager.cursor.fetchone()[0]
+                        count_item = termbase_table.item(row, 3)
+                        if count_item:
+                            count_item.setText(str(term_count))
+                    except Exception as e:
+                        self.log(f"⚠ Error updating term count: {e}")
     
     def _import_termbase(self, termbase_mgr, termbase_table):
         """Import terms into selected termbase from TSV file"""
         selected_row = termbase_table.currentRow()
         if selected_row < 0:
-            QMessageBox.warning(self, "Error", "Please select a termbase to import into")
+            QMessageBox.warning(self, "Error", "Please select a glossary to import into")
             return
         
         # Get termbase info from Name column (column 1 - has ID stored in UserRole)
         name_item = termbase_table.item(selected_row, 1)
         if not name_item:
-            QMessageBox.warning(self, "Error", "Could not read termbase information")
+            QMessageBox.warning(self, "Error", "Could not read glossary information")
             return
         
         tb_name = name_item.text()
         termbase_id = name_item.data(Qt.ItemDataRole.UserRole)
         
         if not termbase_id:
-            QMessageBox.warning(self, "Error", "Could not find termbase ID")
+            QMessageBox.warning(self, "Error", "Could not find glossary ID")
             return
         
         # File dialog
         from PyQt6.QtWidgets import QFileDialog
         filepath, _ = QFileDialog.getOpenFileName(
             self,
-            "Import Termbase",
+            "Import Glossary",
             "",
             "TSV Files (*.tsv *.txt);;All Files (*.*)"
         )
@@ -11100,7 +11300,7 @@ class SupervertalerQt(QMainWindow):
         layout = QVBoxLayout(options_dialog)
         
         # Info
-        info_label = QLabel(f"Importing into termbase: <b>{tb_name}</b>")
+        info_label = QLabel(f"Importing into glossary: <b>{tb_name}</b>")
         info_label.setWordWrap(True)
         layout.addWidget(info_label)
         
@@ -11135,7 +11335,100 @@ class SupervertalerQt(QMainWindow):
         if options_dialog.exec() != QDialog.DialogCode.Accepted:
             return
         
-        # Perform import
+        # Create progress dialog with scrolling log
+        progress_dialog = QDialog(self)
+        progress_dialog.setWindowTitle("Importing Glossary")
+        progress_dialog.setMinimumSize(600, 400)
+        progress_dialog.setModal(True)
+        
+        progress_layout = QVBoxLayout(progress_dialog)
+        
+        # Header info
+        header_label = QLabel(f"<b>📥 Importing into: {tb_name}</b>")
+        header_label.setStyleSheet("font-size: 12pt; padding: 5px;")
+        progress_layout.addWidget(header_label)
+        
+        # File info
+        import os
+        file_info = QLabel(f"File: {os.path.basename(filepath)}")
+        file_info.setStyleSheet("color: #666; padding: 2px 5px;")
+        progress_layout.addWidget(file_info)
+        
+        # Progress bar
+        progress_bar = QProgressBar()
+        progress_bar.setMinimum(0)
+        progress_bar.setMaximum(100)
+        progress_bar.setValue(0)
+        progress_bar.setTextVisible(True)
+        progress_layout.addWidget(progress_bar)
+        
+        # Stats labels row
+        stats_layout = QHBoxLayout()
+        imported_label = QLabel("✅ Imported: 0")
+        imported_label.setStyleSheet("color: #4CAF50; font-weight: bold;")
+        skipped_label = QLabel("⏭️ Skipped: 0")
+        skipped_label.setStyleSheet("color: #FF9800;")
+        errors_label = QLabel("❌ Errors: 0")
+        errors_label.setStyleSheet("color: #F44336;")
+        stats_layout.addWidget(imported_label)
+        stats_layout.addWidget(skipped_label)
+        stats_layout.addWidget(errors_label)
+        stats_layout.addStretch()
+        progress_layout.addLayout(stats_layout)
+        
+        # Scrolling log area
+        log_label = QLabel("Import Log:")
+        log_label.setStyleSheet("font-weight: bold; padding-top: 10px;")
+        progress_layout.addWidget(log_label)
+        
+        log_text = QTextEdit()
+        log_text.setReadOnly(True)
+        log_text.setFont(QFont("Consolas", 9))
+        log_text.setStyleSheet("background-color: #1e1e1e; color: #d4d4d4; border: 1px solid #555;")
+        progress_layout.addWidget(log_text)
+        
+        # Close button (initially disabled)
+        close_btn = QPushButton("Close")
+        close_btn.setEnabled(False)
+        close_btn.clicked.connect(progress_dialog.accept)
+        progress_layout.addWidget(close_btn)
+        
+        # Show dialog
+        progress_dialog.show()
+        QApplication.processEvents()
+        
+        # Progress callback function
+        import_stats = {'imported': 0, 'skipped': 0, 'errors': 0}
+        
+        def progress_callback(current, total, message):
+            """Update progress dialog with import progress"""
+            if total > 0:
+                percent = int((current / total) * 100)
+                progress_bar.setValue(percent)
+                progress_bar.setFormat(f"{current}/{total} ({percent}%)")
+            
+            # Update stats from message
+            if message.startswith("✅"):
+                import_stats['imported'] += 1
+                imported_label.setText(f"✅ Imported: {import_stats['imported']}")
+            elif message.startswith("⏭️"):
+                import_stats['skipped'] += 1
+                skipped_label.setText(f"⏭️ Skipped: {import_stats['skipped']}")
+            elif message.startswith("❌"):
+                import_stats['errors'] += 1
+                errors_label.setText(f"❌ Errors: {import_stats['errors']}")
+            
+            # Add to log
+            log_text.append(message)
+            
+            # Auto-scroll to bottom
+            scrollbar = log_text.verticalScrollBar()
+            scrollbar.setValue(scrollbar.maximum())
+            
+            # Process events to keep UI responsive
+            QApplication.processEvents()
+        
+        # Perform import with progress callback
         from modules.termbase_import_export import TermbaseImporter
         importer = TermbaseImporter(self.db_manager, termbase_mgr)
         
@@ -11145,60 +11438,68 @@ class SupervertalerQt(QMainWindow):
             filepath=filepath,
             termbase_id=termbase_id,
             skip_duplicates=skip_radio.isChecked(),
-            update_duplicates=update_radio.isChecked()
+            update_duplicates=update_radio.isChecked(),
+            progress_callback=progress_callback
         )
         
-        # Show results
+        # Update final stats
+        progress_bar.setValue(100)
+        imported_label.setText(f"✅ Imported: {result.imported_count}")
+        skipped_label.setText(f"⏭️ Skipped: {result.skipped_count}")
+        errors_label.setText(f"❌ Errors: {result.error_count}")
+        
+        # Add summary to log
+        log_text.append("")
+        log_text.append("=" * 50)
         if result.success:
-            # Build detailed message
-            message = f"<b>Import Complete</b><br><br>"
-            message += f"✅ Imported: {result.imported_count} terms<br>"
+            log_text.append(f"✓ Import complete: {result.imported_count} terms imported")
             if result.skipped_count > 0:
-                message += f"⏭️ Skipped: {result.skipped_count} duplicates<br>"
+                log_text.append(f"  Skipped {result.skipped_count} duplicates")
             if result.error_count > 0:
-                message += f"❌ Errors: {result.error_count}<br>"
-            
-            if result.errors:
-                message += "<br><b>Errors:</b><br>"
-                for line_num, error_msg in result.errors[:10]:  # Show first 10 errors
-                    message += f"Line {line_num}: {error_msg}<br>"
-                if len(result.errors) > 10:
-                    message += f"... and {len(result.errors) - 10} more errors<br>"
-            
-            msg_box = QMessageBox(self)
-            msg_box.setWindowTitle("Import Results")
-            msg_box.setIcon(QMessageBox.Icon.Information)
-            msg_box.setText(message)
-            msg_box.setTextFormat(Qt.TextFormat.RichText)
-            msg_box.exec()
-            
+                log_text.append(f"  {result.error_count} errors occurred")
+            header_label.setText(f"<b>✓ Import Complete: {tb_name}</b>")
+            header_label.setStyleSheet("font-size: 12pt; padding: 5px; color: #4CAF50;")
+        else:
+            log_text.append(f"✗ Import failed: {result.message}")
+            header_label.setText(f"<b>✗ Import Failed: {tb_name}</b>")
+            header_label.setStyleSheet("font-size: 12pt; padding: 5px; color: #F44336;")
+        
+        # Enable close button
+        close_btn.setEnabled(True)
+        close_btn.setFocus()
+        
+        # Wait for user to close dialog
+        progress_dialog.exec()
+        
+        # Log and clear cache
+        if result.success:
             self.log(f"✓ {result.message}")
-            
-            # Clear cache
             with self.termbase_cache_lock:
                 self.termbase_cache.clear()
+            
+            # Refresh the termbase table to show updated term counts
+            self._refresh_termbase_table(termbase_table, termbase_mgr)
         else:
-            QMessageBox.critical(self, "Import Failed", result.message)
             self.log(f"✗ Import failed: {result.message}")
     
     def _export_termbase(self, termbase_mgr, termbase_table):
         """Export selected termbase to TSV file"""
         selected_row = termbase_table.currentRow()
         if selected_row < 0:
-            QMessageBox.warning(self, "Error", "Please select a termbase to export")
+            QMessageBox.warning(self, "Error", "Please select a glossary to export")
             return
         
         # Get termbase info from Name column (column 1 - has ID stored in UserRole)
         name_item = termbase_table.item(selected_row, 1)
         if not name_item:
-            QMessageBox.warning(self, "Error", "Could not read termbase information")
+            QMessageBox.warning(self, "Error", "Could not read glossary information")
             return
         
         tb_name = name_item.text()
         termbase_id = name_item.data(Qt.ItemDataRole.UserRole)
         
         if not termbase_id:
-            QMessageBox.warning(self, "Error", "Could not find termbase ID")
+            QMessageBox.warning(self, "Error", "Could not find glossary ID")
             return
         
         # File dialog
@@ -11206,7 +11507,7 @@ class SupervertalerQt(QMainWindow):
         default_filename = f"{tb_name.replace(' ', '_')}.tsv"
         filepath, _ = QFileDialog.getSaveFileName(
             self,
-            "Export Termbase",
+            "Export Glossary",
             default_filename,
             "TSV Files (*.tsv);;Text Files (*.txt);;All Files (*.*)"
         )
@@ -11222,7 +11523,7 @@ class SupervertalerQt(QMainWindow):
         layout = QVBoxLayout(options_dialog)
         
         # Info
-        info_label = QLabel(f"Exporting termbase: <b>{tb_name}</b>")
+        info_label = QLabel(f"Exporting glossary: <b>{tb_name}</b>")
         info_label.setWordWrap(True)
         layout.addWidget(info_label)
         
@@ -11283,20 +11584,20 @@ class SupervertalerQt(QMainWindow):
         """Show dialog to edit terms in selected termbase"""
         selected_row = termbase_table.currentRow()
         if selected_row < 0:
-            QMessageBox.warning(self, "Error", "Please select a termbase first")
+            QMessageBox.warning(self, "Error", "Please select a glossary first")
             return
         
         # Get termbase ID and name from table (column 1 is Name with ID stored in UserRole)
         name_item = termbase_table.item(selected_row, 1)
         if not name_item:
-            QMessageBox.warning(self, "Error", "Could not find selected termbase")
+            QMessageBox.warning(self, "Error", "Could not find selected glossary")
             return
         
         termbase_id = name_item.data(Qt.ItemDataRole.UserRole)
         tb_name = name_item.text()
         
         if not termbase_id:
-            QMessageBox.warning(self, "Error", "Could not find selected termbase")
+            QMessageBox.warning(self, "Error", "Could not find selected glossary")
             return
         
         # Create dialog
@@ -12482,7 +12783,7 @@ class SupervertalerQt(QMainWindow):
         # TM/Termbase lookup delay
         lookup_delay = general_prefs.get('lookup_delay', 1500)
         delay_layout = QHBoxLayout()
-        delay_label = QLabel("TM/Termbase lookup delay:")
+        delay_label = QLabel("TM/Glossary lookup delay:")
         delay_layout.addWidget(delay_label)
         delay_spin = QSpinBox()
         delay_spin.setMinimum(0)
@@ -12810,8 +13111,8 @@ class SupervertalerQt(QMainWindow):
         self.enable_backup_cb = enable_backup_cb
         self.backup_interval_spin = backup_interval_spin
 
-        # Translation memory and termbase settings section
-        tm_termbase_group = QGroupBox("Translation memory and termbase settings")
+        # TM and glossary settings section
+        tm_termbase_group = QGroupBox("TM and glossary settings")
         tm_termbase_layout = QVBoxLayout()
         
         # Auto-propagate exact TM matches
@@ -12852,29 +13153,29 @@ class SupervertalerQt(QMainWindow):
         tm_save_layout_h.addStretch()
         tm_termbase_layout.addLayout(tm_save_layout_h)
         
-        # TM/Termbase matching toggle
-        tm_matching_cb = CheckmarkCheckBox("Enable TM && Termbase Matching")
+        # TM/Glossary matching toggle
+        tm_matching_cb = CheckmarkCheckBox("Enable TM && Glossary Matching")
         tm_matching_cb.setChecked(self.enable_tm_matching)  # Load current state
         tm_matching_cb.setToolTip(
-            "When enabled, translation memory and termbase searches are performed automatically\n"
+            "When enabled, TM and glossary searches are performed automatically\n"
             "when you select a segment (after a 1.5 second delay). Disable to improve performance\n"
             "when navigating quickly through segments."
         )
         tm_matching_cb.toggled.connect(self.toggle_tm_termbase_matching)
         tm_termbase_layout.addWidget(tm_matching_cb)
         
-        # Termbase grid highlighting toggle
-        tb_highlight_cb = CheckmarkCheckBox("Highlight termbase matches in source cells")
+        # Glossary grid highlighting toggle
+        tb_highlight_cb = CheckmarkCheckBox("Highlight glossary matches in source cells")
         tb_highlight_cb.setChecked(general_settings.get('enable_termbase_grid_highlighting', True))
         tb_highlight_cb.setToolTip(
-            "When enabled, termbase matches are highlighted with colored backgrounds in the source column.\n"
+            "When enabled, glossary matches are highlighted with colored backgrounds in the source column.\n"
             "Higher priority terms are shown with darker blue, lower priority with lighter blue.\n"
             "This provides visual feedback similar to memoQ's termbase highlighting."
         )
         tm_termbase_layout.addWidget(tb_highlight_cb)
 
-        # Termbase display order
-        tb_order_label = QLabel("Termbase match display order:")
+        # Glossary display order
+        tb_order_label = QLabel("Glossary match display order:")
         tb_order_combo = QComboBox()
         tb_order_combo.addItem("Order of appearance in source text", "appearance")
         tb_order_combo.addItem("Alphabetical (A-Z)", "alphabetical")
@@ -12883,7 +13184,7 @@ class SupervertalerQt(QMainWindow):
         order_index = {'appearance': 0, 'alphabetical': 1, 'length': 2}.get(current_order, 0)
         tb_order_combo.setCurrentIndex(order_index)
         tb_order_combo.setToolTip(
-            "Choose how termbase matches are sorted in the translation results panel:\n\n"
+            "Choose how glossary matches are sorted in the translation results panel:\n\n"
             "• Order of appearance: Matches appear in the order they occur in the source text (default)\n"
             "• Alphabetical: Matches are sorted alphabetically by source term (A-Z)\n"
             "• By length: Longer matches appear first (useful for prioritizing multi-word terms)"
@@ -12895,7 +13196,7 @@ class SupervertalerQt(QMainWindow):
         tm_termbase_layout.addLayout(tb_order_layout)
 
         # Hide shorter matches checkbox
-        tb_hide_shorter_cb = CheckmarkCheckBox("Hide shorter termbase matches included in longer ones")
+        tb_hide_shorter_cb = CheckmarkCheckBox("Hide shorter glossary matches included in longer ones")
         tb_hide_shorter_cb.setChecked(general_settings.get('termbase_hide_shorter_matches', False))
         tb_hide_shorter_cb.setToolTip(
             "When enabled, shorter terms that are fully contained within longer matched terms are hidden.\n\n"
@@ -13154,9 +13455,9 @@ class SupervertalerQt(QMainWindow):
         tm_limit_layout.addStretch()
         limits_grid.addLayout(tm_limit_layout)
         
-        # Termbase limit
+        # Glossary limit
         tb_layout = QHBoxLayout()
-        tb_layout.addWidget(QLabel("📚 Termbase matches:"))
+        tb_layout.addWidget(QLabel("📚 Glossary matches:"))
         tb_spin = QSpinBox()
         tb_spin.setRange(1, 50)
         tb_spin.setValue(current_limits.get("Termbases", 10))
@@ -13490,12 +13791,12 @@ class SupervertalerQt(QMainWindow):
         row_colors_group.setLayout(row_colors_layout)
         layout.addWidget(row_colors_group)
         
-        # Termbase Highlight Style section
-        tb_highlight_group = QGroupBox("🏷️ Termbase Highlight Style")
+        # Glossary Highlight Style section
+        tb_highlight_group = QGroupBox("🏷️ Glossary Highlight Style")
         tb_highlight_layout = QVBoxLayout()
         
         tb_highlight_info = QLabel(
-            "Choose how termbase matches are highlighted in the source text.\n"
+            "Choose how glossary matches are highlighted in the source text.\n"
             "Different styles offer varying levels of visual prominence."
         )
         tb_highlight_info.setStyleSheet("font-size: 8pt; padding: 8px; border-radius: 2px;")
@@ -15703,7 +16004,7 @@ class SupervertalerQt(QMainWindow):
                 background-color: #757575;
             }
         """)
-        tm_toggle_btn.setToolTip("Toggle TM and Termbase lookups")
+        tm_toggle_btn.setToolTip("Toggle TM and Glossary lookups")
         tm_toggle_btn.clicked.connect(lambda checked: self.toggle_tm_from_editor(checked, tm_toggle_btn))
         toolbar_layout.addWidget(tm_toggle_btn)
         
@@ -16307,8 +16608,8 @@ class SupervertalerQt(QMainWindow):
         tab_seg_info.setStyleSheet("font-weight: bold; font-size: 11pt;")
         info_layout.addWidget(tab_seg_info, stretch=1)
 
-        # TM/Termbase toggle button
-        tm_toggle_btn = QPushButton("🔍 TM/Termbase ON")
+        # TM/Glossary toggle button
+        tm_toggle_btn = QPushButton("🔍 TM/Glossary ON")
         tm_toggle_btn.setCheckable(True)
         tm_toggle_btn.setChecked(True)  # Start enabled
         tm_toggle_btn.setStyleSheet("""
@@ -16329,7 +16630,7 @@ class SupervertalerQt(QMainWindow):
                 opacity: 0.9;
             }
         """)
-        tm_toggle_btn.setToolTip("Toggle TM and Termbase lookups when clicking segments (speeds up editing)")
+        tm_toggle_btn.setToolTip("Toggle TM and Glossary lookups when clicking segments (speeds up editing)")
         tm_toggle_btn.clicked.connect(lambda checked: self.toggle_tm_from_editor(checked, tm_toggle_btn))
         info_layout.addWidget(tm_toggle_btn)
 
@@ -24893,11 +25194,11 @@ class SupervertalerQt(QMainWindow):
                     btn = tabs.editor_widget.tm_toggle_btn
                     btn.blockSignals(True)
                     btn.setChecked(enabled)
-                    btn.setText("🔍 TM/Termbase ON" if enabled else "🚫 TM/Termbase OFF")
+                    btn.setText("🔍 TM/Glossary ON" if enabled else "🚫 TM/Glossary OFF")
                     btn.blockSignals(False)
 
         if enabled:
-            self.log("✓ TM and Termbase matching enabled")
+            self.log("✓ TM and Glossary matching enabled")
             # If a segment is currently selected, trigger lookup
             if hasattr(self, 'table') and self.table and hasattr(self, 'current_project') and self.current_project:
                 current_row = self.table.currentRow()
@@ -24905,7 +25206,7 @@ class SupervertalerQt(QMainWindow):
                     segment = self.current_project.segments[current_row]
                     self._schedule_delayed_lookup(segment, current_row)
         else:
-            self.log("⚠ TM and Termbase matching disabled")
+            self.log("⚠ TM and Glossary matching disabled")
             # Cancel any pending lookup
             if self.lookup_timer:
                 self.lookup_timer.stop()
@@ -28311,11 +28612,11 @@ class SupervertalerQt(QMainWindow):
 
         # Update button text and style
         if checked:
-            button.setText("🔍 TM/Termbase ON")
-            self.log("✓ TM/Termbase lookups ENABLED from segment editor")
+            button.setText("🔍 TM/Glossary ON")
+            self.log("✓ TM/Glossary lookups ENABLED from segment editor")
         else:
-            button.setText("🚫 TM/Termbase OFF")
-            self.log("⚠️ TM/Termbase lookups DISABLED from segment editor (faster editing)")
+            button.setText("🚫 TM/Glossary OFF")
+            self.log("⚠️ TM/Glossary lookups DISABLED from segment editor (faster editing)")
 
     def _toggle_tag_view_via_shortcut(self):
         """Toggle tag view using keyboard shortcut (Ctrl+Alt+T)"""
@@ -32294,6 +32595,15 @@ class SuperlookupTab(QWidget):
         self.source_text.setMaximumHeight(35)
         self.source_text.setMinimumHeight(30)
         self.source_text.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        # Override keyPressEvent to trigger search on Enter
+        original_key_press = self.source_text.keyPressEvent
+        def search_key_handler(event):
+            if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter) and not (event.modifiers() & Qt.KeyboardModifier.ShiftModifier):
+                # Enter without Shift triggers search
+                self.perform_lookup()
+            else:
+                original_key_press(event)
+        self.source_text.keyPressEvent = search_key_handler
         search_row.addWidget(self.source_text, stretch=1)
         
         # Search button
@@ -32379,11 +32689,11 @@ class SuperlookupTab(QWidget):
         
         # TM Results tab
         tm_tab = self.create_tm_results_tab()
-        self.results_tabs.addTab(tm_tab, "📖 TM Matches")
+        self.results_tabs.addTab(tm_tab, "📖 TMs")
         
         # Termbase Results tab
         termbase_tab = self.create_termbase_results_tab()
-        self.results_tabs.addTab(termbase_tab, "📚 Termbase Matches")
+        self.results_tabs.addTab(termbase_tab, "📚 Glossaries")
         
         # Supermemory Results tab (semantic search)
         supermemory_tab = self.create_supermemory_results_tab()
@@ -32442,15 +32752,17 @@ class SuperlookupTab(QWidget):
         horizontal_layout.setContentsMargins(0, 0, 0, 0)
         
         self.tm_results_table = QTableWidget()
-        self.tm_results_table.setColumnCount(4)
-        self.tm_results_table.setHorizontalHeaderLabels(["Match %", "Source", "Target", "Type"])
+        self.tm_results_table.setColumnCount(5)
+        self.tm_results_table.setHorizontalHeaderLabels(["Match %", "Source", "Target", "TM", "Type"])
         self.tm_results_table.horizontalHeader().setStretchLastSection(False)
         self.tm_results_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
         self.tm_results_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         self.tm_results_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
         self.tm_results_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
+        self.tm_results_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)
         self.tm_results_table.setColumnWidth(0, 60)  # Match % column
-        self.tm_results_table.setColumnWidth(3, 80)  # Type column
+        self.tm_results_table.setColumnWidth(3, 150)  # TM name column
+        self.tm_results_table.setColumnWidth(4, 80)  # Type column
         self.tm_results_table.verticalHeader().setVisible(False)  # Hide row numbers
         self.tm_results_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.tm_results_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
@@ -32496,23 +32808,35 @@ class SuperlookupTab(QWidget):
         tab = QWidget()
         layout = QVBoxLayout(tab)
         
-        # Results table
+        # Results table with expanded columns
         self.termbase_results_table = QTableWidget()
-        self.termbase_results_table.setColumnCount(2)
-        self.termbase_results_table.setHorizontalHeaderLabels(["Term (Source)", "Translation (Target)"])
-        self.termbase_results_table.horizontalHeader().setStretchLastSection(True)
-        self.termbase_results_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        self.termbase_results_table.setColumnCount(5)
+        self.termbase_results_table.setHorizontalHeaderLabels(["Source", "Target", "Termbase", "Domain", "Notes"])
+        # Make all columns resizable (Interactive) with stretch for Source/Target
+        header = self.termbase_results_table.horizontalHeader()
+        header.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)  # All columns resizable
+        header.setStretchLastSection(False)  # Don't auto-stretch last column
+        # Set initial column widths
+        self.termbase_results_table.setColumnWidth(0, 200)  # Source
+        self.termbase_results_table.setColumnWidth(1, 200)  # Target
+        self.termbase_results_table.setColumnWidth(2, 100)  # Termbase column
+        self.termbase_results_table.setColumnWidth(3, 80)   # Domain column
+        self.termbase_results_table.setColumnWidth(4, 100)  # Notes column
         self.termbase_results_table.verticalHeader().setVisible(False)  # Hide row numbers
         self.termbase_results_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.termbase_results_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.termbase_results_table.doubleClicked.connect(lambda: self.copy_selected_termbase_target())
+        
+        # Right-click context menu for termbase results
+        self.termbase_results_table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.termbase_results_table.customContextMenuRequested.connect(self._show_termbase_result_context_menu)
         
         layout.addWidget(self.termbase_results_table)
         
         # Action buttons
         button_layout = QHBoxLayout()
         
-        add_term_btn = QPushButton("➕ Add to Termbase")
+        add_term_btn = QPushButton("➕ Add to Glossary")
         add_term_btn.setToolTip("Add source text and selected translation as new term")
         add_term_btn.setStyleSheet("background-color: #4CAF50; color: white; padding: 5px;")
         add_term_btn.clicked.connect(self.add_to_termbase)
@@ -32946,9 +33270,24 @@ class SuperlookupTab(QWidget):
         # Try to import QWebEngineView for embedded browser with persistent storage
         self.web_engine_available = False
         self.web_profile = None
+        self.SilentWebPage = None  # Custom page class that suppresses JS console spam
         try:
             from PyQt6.QtWebEngineWidgets import QWebEngineView
             from PyQt6.QtWebEngineCore import QWebEnginePage, QWebEngineProfile
+            
+            # Create a custom page class that silences JavaScript console messages
+            class SilentWebEnginePage(QWebEnginePage):
+                """Custom QWebEnginePage that suppresses JavaScript console output.
+                
+                External websites (IATE, Juremy, Google Patents, etc.) emit tons of
+                noisy console messages about CSP violations, mixed content, etc.
+                These are not relevant to Supervertaler and clutter the terminal.
+                """
+                def javaScriptConsoleMessage(self, level, message, lineNumber, sourceID):
+                    # Silently ignore all JS console messages from web pages
+                    pass
+            
+            self.SilentWebPage = SilentWebEnginePage
             self.QWebEngineView = QWebEngineView
             self.QWebEngineProfile = QWebEngineProfile
             self.web_engine_available = True
@@ -33227,20 +33566,10 @@ class SuperlookupTab(QWidget):
         # Web view container - stacked widget for embedded views per resource
         self.web_view_stack = QStackedWidget()
         
-        # Create embedded web views for each resource (if available)
-        # Uses persistent profile for login/cookie storage across sessions
-        self.web_views = {}
-        if self.web_engine_available:
-            for resource in self.web_resources:
-                web_view = self.QWebEngineView()
-                # Use persistent profile if available (for login persistence)
-                if self.web_profile:
-                    from PyQt6.QtWebEngineCore import QWebEnginePage
-                    page = QWebEnginePage(self.web_profile, web_view)
-                    web_view.setPage(page)
-                web_view.setUrl(QUrl("about:blank"))
-                self.web_views[resource['id']] = web_view
-                self.web_view_stack.addWidget(web_view)
+        # LAZY LOADING: Don't create all web views upfront - create them on demand
+        # This dramatically improves startup performance and memory usage
+        # Each QWebEngineView spawns a Chromium process, so 14 views = 14 processes
+        self.web_views = {}  # Will be populated lazily when resources are selected
         
         # Fallback view for external mode or when web engine not available
         self.web_results_view = QTextEdit()
@@ -33294,6 +33623,40 @@ class SuperlookupTab(QWidget):
             </div>
         """)
     
+    def _create_web_view_for_resource(self, resource):
+        """Lazily create a web view for a specific resource (on-demand creation)
+        
+        This improves performance by not creating all 14+ QWebEngineView instances at startup.
+        Each QWebEngineView spawns its own Chromium process, so lazy loading saves significant
+        memory and startup time.
+        """
+        if not self.web_engine_available:
+            return
+            
+        if resource['id'] in self.web_views:
+            return  # Already created
+            
+        web_view = self.QWebEngineView()
+        
+        # Use persistent profile with silent page (suppresses JS console spam)
+        if self.web_profile and self.SilentWebPage:
+            page = self.SilentWebPage(self.web_profile, web_view)
+            web_view.setPage(page)
+        
+        web_view.setUrl(QUrl("about:blank"))
+        
+        # Add to stack - we'll use indexOf() to find it later instead of tracking indices
+        self.web_view_stack.addWidget(web_view)
+        self.web_views[resource['id']] = web_view
+        
+        print(f"[Superlookup] Created web view for {resource['name']} (lazy load)")
+    
+    def _get_web_view_index(self, resource_id):
+        """Get the stack index for a web view by resource ID"""
+        if resource_id in self.web_views:
+            return self.web_view_stack.indexOf(self.web_views[resource_id])
+        return -1
+    
     def _on_web_mode_changed(self, checked):
         """Handle browser mode toggle"""
         if self.web_mode_embedded_radio.isChecked():
@@ -33308,14 +33671,16 @@ class SuperlookupTab(QWidget):
     def _update_web_view_for_mode(self):
         """Update the view stack based on current mode"""
         if self.web_browser_mode == 'embedded' and self.web_engine_available:
-            # Show embedded view for current resource
+            # Show embedded view for current resource (create lazily if needed)
             resource = self.web_resources[self.current_web_resource_index]
-            if resource['id'] in self.web_views:
-                idx = list(self.web_views.keys()).index(resource['id'])
+            if resource['id'] not in self.web_views:
+                self._create_web_view_for_resource(resource)
+            idx = self._get_web_view_index(resource['id'])
+            if idx >= 0:
                 self.web_view_stack.setCurrentIndex(idx)
         else:
             # Show text view (for external mode or fallback)
-            self.web_view_stack.setCurrentIndex(self.web_view_stack.count() - 1)
+            self.web_view_stack.setCurrentIndex(self.web_view_stack.indexOf(self.web_results_view))
     
     def _on_web_resource_selected(self, index):
         """Handle web resource selection from sidebar"""
@@ -33324,9 +33689,13 @@ class SuperlookupTab(QWidget):
         
         # Update view based on mode
         if self.web_browser_mode == 'embedded' and self.web_engine_available:
+            # LAZY LOADING: Create web view for this resource if it doesn't exist yet
+            if resource['id'] not in self.web_views:
+                self._create_web_view_for_resource(resource)
+            
             # Switch to this resource's embedded web view
-            if resource['id'] in self.web_views:
-                idx = list(self.web_views.keys()).index(resource['id'])
+            idx = self._get_web_view_index(resource['id'])
+            if idx >= 0:
                 self.web_view_stack.setCurrentIndex(idx)
                 
                 # If we have a cached search query, perform search for this resource
@@ -33377,11 +33746,14 @@ class SuperlookupTab(QWidget):
         if self.web_browser_mode == 'embedded' and self.web_engine_available:
             # Embedded mode - load in web views
             if search_all:
-                # Search all resources (pre-load them)
+                # Search all resources - create views lazily as needed
                 for resource in self.web_resources:
                     url = self._build_web_search_url(resource, query)
-                    if url and resource['id'] in self.web_views:
-                        self.web_views[resource['id']].setUrl(QUrl(url))
+                    if url:
+                        if resource['id'] not in self.web_views:
+                            self._create_web_view_for_resource(resource)
+                        if resource['id'] in self.web_views:
+                            self.web_views[resource['id']].setUrl(QUrl(url))
                 self.status_label.setText(f"Searching all web resources for '{query}'")
             else:
                 # Search current resource only
@@ -33389,11 +33761,15 @@ class SuperlookupTab(QWidget):
                 url = self._build_web_search_url(resource, query)
                 if url:
                     self.last_web_search_url = url
+                    # Create view lazily if needed
+                    if resource['id'] not in self.web_views:
+                        self._create_web_view_for_resource(resource)
                     if resource['id'] in self.web_views:
                         self.web_views[resource['id']].setUrl(QUrl(url))
                         # Show this resource's view
-                        idx = list(self.web_views.keys()).index(resource['id'])
-                        self.web_view_stack.setCurrentIndex(idx)
+                        idx = self._get_web_view_index(resource['id'])
+                        if idx >= 0:
+                            self.web_view_stack.setCurrentIndex(idx)
                     self.status_label.setText(f"Loaded {resource['name']} search")
         else:
             # External mode - open in browser
@@ -33729,15 +34105,15 @@ class SuperlookupTab(QWidget):
         info.setStyleSheet("color: #666; padding: 5px; background-color: #E3F2FD; border-radius: 3px;")
         layout.addWidget(info, 0)
         
-        # Enable/disable termbase search
-        self.tb_search_checkbox = CheckmarkCheckBox("✓ Enable Termbase search in Superlookup")
+        # Enable/disable glossary search
+        self.tb_search_checkbox = CheckmarkCheckBox("✓ Enable Glossary search in Superlookup")
         self.tb_search_checkbox.setChecked(self.search_termbase_enabled)
         self.tb_search_checkbox.setStyleSheet("font-weight: bold; font-size: 11pt; color: #2196F3; padding: 10px 0;")
         self.tb_search_checkbox.stateChanged.connect(self.on_termbase_search_toggled)
         layout.addWidget(self.tb_search_checkbox, 0)
         
-        # Termbase selection label
-        list_label = QLabel("Select Termbases:")
+        # Glossary selection label
+        list_label = QLabel("Select Glossaries:")
         list_label.setStyleSheet("font-weight: bold; padding-top: 10px;")
         layout.addWidget(list_label, 0)
         
@@ -33759,7 +34135,7 @@ class SuperlookupTab(QWidget):
         self.tb_checkboxes = []
         
         # Info label
-        tb_info = QLabel("💡 Tip: If no termbases are selected, all available termbases will be searched")
+        tb_info = QLabel("💡 Tip: If no glossaries are selected, all available glossaries will be searched")
         tb_info.setStyleSheet("color: #666; font-size: 9pt; font-style: italic; padding: 5px 0;")
         layout.addWidget(tb_info, 0)
         
@@ -34033,7 +34409,7 @@ class SuperlookupTab(QWidget):
         else:
             print(f"[Superlookup]   Neither termbase_mgr nor db_manager available")
             # Add placeholder label
-            placeholder = QLabel("No database connection - Termbases unavailable")
+            placeholder = QLabel("No database connection - Glossaries unavailable")
             placeholder.setStyleSheet("color: #999; font-style: italic;")
             self.tb_scroll_layout.insertWidget(0, placeholder)
     
@@ -34269,7 +34645,12 @@ class SuperlookupTab(QWidget):
         
         Uses Superlookup's OWN checkbox selections (independent from Resources tab).
         """
+        # Write to file for reliable debugging
+        with open('superlookup_debug.txt', 'a') as f:
+            f.write(f"\n=== perform_lookup() CALLED at {__import__('datetime').datetime.now()} ===\n")
+        print(f"[DEBUG] perform_lookup() CALLED!", flush=True)
         text = self.source_text.toPlainText().strip()
+        print(f"[DEBUG] perform_lookup() text='{text[:50] if text else '(empty)'}...'", flush=True)
         
         if not text:
             self.status_label.setText("⚠️ No text to search. Enter or capture text first.")
@@ -34304,24 +34685,38 @@ class SuperlookupTab(QWidget):
         selected_tm_ids = self.get_selected_tm_ids()
         search_direction = self.get_search_direction()
         from_lang, to_lang = self.get_language_filters()
-        print(f"[DEBUG] Superlookup: Selected TM IDs: {selected_tm_ids}, direction: {search_direction}")
-        print(f"[DEBUG] Superlookup: Language filters: from={from_lang}, to={to_lang}")
-        print(f"[DEBUG] Superlookup: tm_database = {self.tm_database}")
+        
+        # Write language info to debug file
+        with open('superlookup_debug.txt', 'a') as f:
+            f.write(f"Language filters: from_lang='{from_lang}', to_lang='{to_lang}'\\n")
+            f.write(f"Search direction: {search_direction}\\n")
+        
+        print(f"[DEBUG] Superlookup: Selected TM IDs: {selected_tm_ids}, direction: {search_direction}", flush=True)
+        print(f"[DEBUG] Superlookup: Language filters: from={from_lang}, to={to_lang}", flush=True)
+        print(f"[DEBUG] Superlookup: tm_database = {self.tm_database}", flush=True)
         if self.engine:
             self.engine.set_enabled_tm_ids(selected_tm_ids if selected_tm_ids else None)
         
         # Perform TM lookup with direction and language filters
         tm_results = []
         if self.tm_database:
-            print(f"[DEBUG] Superlookup: Searching TM for '{text[:50]}...'")
+            print(f"[DEBUG] Superlookup: Searching TM for '{text[:50]}...'", flush=True)
             tm_results = self.engine.search_tm(text, direction=search_direction, 
                                                 source_lang=from_lang, target_lang=to_lang)
-            print(f"[DEBUG] Superlookup: Got {len(tm_results)} TM results")
+            print(f"[DEBUG] Superlookup: Got {len(tm_results)} TM results", flush=True)
         else:
-            print(f"[DEBUG] Superlookup: tm_database is None, skipping TM search!")
+            print(f"[DEBUG] Superlookup: tm_database is None, skipping TM search!", flush=True)
         
         # Perform termbase lookup (search Supervertaler termbases directly)
-        termbase_results = self.search_termbases(text, source_lang=from_lang, target_lang=to_lang)
+        print(f"[DEBUG] About to call search_termbases with from_lang='{from_lang}', to_lang='{to_lang}'", flush=True)
+        try:
+            termbase_results = self.search_termbases(text, source_lang=from_lang, target_lang=to_lang)
+            print(f"[DEBUG] search_termbases returned {len(termbase_results)} results", flush=True)
+        except Exception as e:
+            print(f"[DEBUG] ERROR in search_termbases: {e}", flush=True)
+            import traceback
+            traceback.print_exc()
+            termbase_results = []
         
         # Perform Supermemory semantic search
         supermemory_count = self.search_supermemory(text)
@@ -34334,14 +34729,14 @@ class SuperlookupTab(QWidget):
         self.display_termbase_results(termbase_results)
         self.display_mt_results(mt_results)
         
-        # Build detailed status message showing breakdown
+        # Build detailed status message showing breakdown (full names for clarity)
         status_parts = []
         if tm_results:
             status_parts.append(f"TM: {len(tm_results)}")
         if termbase_results:
-            status_parts.append(f"TB: {len(termbase_results)}")
+            status_parts.append(f"Termbase: {len(termbase_results)}")
         if supermemory_count:
-            status_parts.append(f"SM: {supermemory_count}")
+            status_parts.append(f"Supermemory: {supermemory_count}")
         if mt_results:
             status_parts.append(f"MT: {len(mt_results)}")
         
@@ -34349,7 +34744,7 @@ class SuperlookupTab(QWidget):
         if hasattr(self, 'web_engine_available') and self.web_engine_available:
             if hasattr(self, 'web_browser_mode') and self.web_browser_mode == 'embedded':
                 self._perform_web_search(search_all=True)
-                status_parts.append("Web")
+                status_parts.append("Web Resources")
         
         total_results = len(tm_results) + len(termbase_results) + (supermemory_count or 0) + len(mt_results)
         
@@ -34498,9 +34893,15 @@ class SuperlookupTab(QWidget):
             target_label.setToolTip(result.target)  # Full text on hover
             self.tm_results_table.setCellWidget(row, 2, target_label)
             
+            # TM name
+            tm_name = result.metadata.get('tm_name', 'Unknown')
+            tm_item = QTableWidgetItem(tm_name)
+            tm_item.setToolTip(tm_name)  # Full name on hover
+            self.tm_results_table.setItem(row, 3, tm_item)
+            
             # Type
             match_type = result.metadata.get('match_type', 'unknown')
-            self.tm_results_table.setItem(row, 3, QTableWidgetItem(match_type))
+            self.tm_results_table.setItem(row, 4, QTableWidgetItem(match_type))
         
         # Resize rows to fit content but with reasonable limits
         self.tm_results_table.resizeRowsToContents()
@@ -34593,7 +34994,7 @@ class SuperlookupTab(QWidget):
         return highlighted
     
     def display_termbase_results(self, results):
-        """Display termbase results with search term highlighting"""
+        """Display termbase results with search term highlighting and metadata"""
         self.termbase_results_table.setRowCount(0)
         
         # Get search term for highlighting
@@ -34602,6 +35003,12 @@ class SuperlookupTab(QWidget):
         for result in results:
             row = self.termbase_results_table.rowCount()
             self.termbase_results_table.insertRow(row)
+            
+            # Get metadata
+            metadata = result.metadata or {}
+            termbase_name = metadata.get('termbase', '')
+            domain = metadata.get('domain', '')
+            notes = metadata.get('notes', '')
             
             # Source term - with highlighted search term
             source_html = self._highlight_search_term(result.source, search_text)
@@ -34620,6 +35027,27 @@ class SuperlookupTab(QWidget):
             target_label.setStyleSheet("padding: 2px 4px; background: transparent;")
             target_label.setToolTip(result.target)  # Full text on hover
             self.termbase_results_table.setCellWidget(row, 1, target_label)
+            
+            # Termbase name
+            tb_item = QTableWidgetItem(termbase_name)
+            tb_item.setToolTip(termbase_name)
+            self.termbase_results_table.setItem(row, 2, tb_item)
+            
+            # Domain
+            domain_item = QTableWidgetItem(domain)
+            domain_item.setToolTip(domain)
+            self.termbase_results_table.setItem(row, 3, domain_item)
+            
+            # Notes (truncated display)
+            notes_display = notes[:30] + '...' if len(notes) > 30 else notes
+            notes_item = QTableWidgetItem(notes_display)
+            notes_item.setToolTip(notes)  # Full notes on hover
+            self.termbase_results_table.setItem(row, 4, notes_item)
+            
+            # Store metadata in first column item for right-click navigation
+            source_label.setProperty('termbase_id', metadata.get('termbase_id'))
+            source_label.setProperty('source_term', result.source)
+            source_label.setProperty('termbase_name', termbase_name)
         
         # Resize rows to fit content with height cap
         self.termbase_results_table.resizeRowsToContents()
@@ -34627,6 +35055,114 @@ class SuperlookupTab(QWidget):
             if self.termbase_results_table.rowHeight(row) > 50:
                 self.termbase_results_table.setRowHeight(row, 50)
     
+    def _show_termbase_result_context_menu(self, position):
+        """Show context menu for termbase results with option to navigate to term"""
+        # Get the row at click position
+        row = self.termbase_results_table.rowAt(position.y())
+        if row < 0:
+            return
+        
+        # Get the source label widget which has the metadata
+        source_widget = self.termbase_results_table.cellWidget(row, 0)
+        if not source_widget:
+            return
+        
+        termbase_id = source_widget.property('termbase_id')
+        source_term = source_widget.property('source_term')
+        termbase_name = source_widget.property('termbase_name')
+        
+        # Create context menu
+        menu = QMenu(self.termbase_results_table)
+        
+        # Copy actions
+        copy_target_action = menu.addAction("📋 Copy Translation")
+        copy_source_action = menu.addAction("📋 Copy Source Term")
+        
+        menu.addSeparator()
+        
+        # Navigate to glossary action
+        if termbase_id and termbase_name:
+            edit_action = menu.addAction(f"✏️ Edit in Glossary: {termbase_name}")
+            edit_action.setData({'termbase_id': termbase_id, 'source_term': source_term, 'termbase_name': termbase_name})
+        else:
+            edit_action = None
+        
+        # Show menu and handle selection
+        action = menu.exec(self.termbase_results_table.mapToGlobal(position))
+        
+        if action == copy_target_action:
+            self.copy_selected_termbase_target()
+        elif action == copy_source_action:
+            if source_term:
+                QApplication.clipboard().setText(source_term)
+                self.status_label.setText(f"Copied source term: {source_term}")
+        elif action == edit_action and edit_action:
+            data = action.data()
+            self._navigate_to_termbase_entry(data['termbase_id'], data['source_term'])
+    
+    def _navigate_to_termbase_entry(self, termbase_id, source_term):
+        """Navigate to a specific termbase entry in Resources > Termbases tab"""
+        try:
+            # Navigate to Workspace > Resources > Termbases
+            if hasattr(self, 'main_window') and self.main_window:
+                main = self.main_window
+                
+                # Switch to Workspace tab (index 0)
+                if hasattr(main, 'main_tabs'):
+                    main.main_tabs.setCurrentIndex(0)
+                
+                # Switch to Resources subtab (index 1 under Workspace)
+                if hasattr(main, 'workspace_tabs'):
+                    main.workspace_tabs.setCurrentIndex(1)
+                
+                # Switch to Termbases sub-tab within Resources
+                if hasattr(main, 'resources_tabs'):
+                    # Find the Termbases tab index
+                    for i in range(main.resources_tabs.count()):
+                        if 'Termbase' in main.resources_tabs.tabText(i):
+                            main.resources_tabs.setCurrentIndex(i)
+                            break
+                
+                # Find and select the termbase in the list
+                if hasattr(main, 'termbase_table'):
+                    for row in range(main.termbase_table.rowCount()):
+                        name_item = main.termbase_table.item(row, 1)  # Name column stores ID in UserRole
+                        if name_item and name_item.data(Qt.ItemDataRole.UserRole) == termbase_id:
+                            main.termbase_table.selectRow(row)
+                            # Trigger loading of terms for this termbase
+                            if hasattr(main, '_on_termbase_selected'):
+                                main._on_termbase_selected()
+                            break
+                
+                # Use the filter box to find the specific term (works with pagination)
+                if hasattr(main, 'terms_search_box') and source_term:
+                    from PyQt6.QtCore import QTimer
+                    def set_filter_and_select():
+                        # Set the filter to the source term - this will trigger server-side search
+                        main.terms_search_box.setText(source_term)
+                        # After filter is applied, select the first matching row
+                        QTimer.singleShot(300, lambda: self._select_first_term_in_table(main))
+                    QTimer.singleShot(200, set_filter_and_select)
+                
+                self.status_label.setText(f"Navigated to glossary entry: {source_term}")
+            
+        except Exception as e:
+            print(f"[Superlookup] Error navigating to glossary: {e}")
+            self.status_label.setText(f"Error navigating to glossary: {e}")
+    
+    def _select_first_term_in_table(self, main):
+        """Select the first term in the filtered termbase terms table"""
+        try:
+            if hasattr(main, 'termbase_terms_table'):
+                table = main.termbase_terms_table
+                if table.rowCount() > 0:
+                    table.selectRow(0)
+                    item = table.item(0, 0)
+                    if item:
+                        table.scrollToItem(item)
+        except Exception as e:
+            print(f"[Superlookup] Error selecting term: {e}")
+
     def display_mt_results(self, results):
         """Display MT results in the table"""
         self.mt_results_table.setRowCount(0)
@@ -34727,6 +35263,45 @@ class SuperlookupTab(QWidget):
         self.termbase_results_table.setRowCount(0)
         self.status_label.setText("Cleared. Ready for new lookup.")
     
+    def _normalize_language_code(self, lang: str) -> str:
+        """Normalize language code/name to a standard format for comparison.
+        
+        Converts both full names (English, Dutch) and ISO codes (en, nl)
+        to lowercase ISO 2-letter codes for consistent matching.
+        """
+        if not lang:
+            return ''
+        
+        lang_lower = lang.lower().strip()
+        
+        # Map full names to ISO codes
+        name_to_code = {
+            'english': 'en', 'dutch': 'nl', 'german': 'de', 'french': 'fr',
+            'spanish': 'es', 'italian': 'it', 'portuguese': 'pt', 'russian': 'ru',
+            'chinese': 'zh', 'japanese': 'ja', 'korean': 'ko', 'arabic': 'ar',
+            'polish': 'pl', 'czech': 'cs', 'hungarian': 'hu', 'romanian': 'ro',
+            'bulgarian': 'bg', 'greek': 'el', 'turkish': 'tr', 'swedish': 'sv',
+            'danish': 'da', 'norwegian': 'no', 'finnish': 'fi', 'ukrainian': 'uk',
+            'hebrew': 'he', 'thai': 'th', 'vietnamese': 'vi', 'indonesian': 'id',
+            'malay': 'ms', 'hindi': 'hi', 'bengali': 'bn', 'tamil': 'ta',
+            'catalan': 'ca', 'basque': 'eu', 'galician': 'gl', 'croatian': 'hr',
+            'serbian': 'sr', 'slovenian': 'sl', 'slovak': 'sk', 'estonian': 'et',
+            'latvian': 'lv', 'lithuanian': 'lt',
+        }
+        
+        # If it's a full name, convert to code
+        if lang_lower in name_to_code:
+            return name_to_code[lang_lower]
+        
+        # If it's already an ISO code (2-3 chars), normalize it
+        # Handle variants like en-US, nl-BE by taking the base code
+        if '-' in lang_lower or '_' in lang_lower:
+            base_code = lang_lower.replace('_', '-').split('-')[0]
+            return base_code
+        
+        # Return as-is (already a code like 'en', 'nl')
+        return lang_lower
+    
     def search_termbases(self, text, source_lang: str = None, target_lang: str = None):
         """Search Supervertaler termbases for matching terms.
         
@@ -34740,7 +35315,15 @@ class SuperlookupTab(QWidget):
         """
         results = []
         
+        # Normalize language filters for consistent matching
+        source_lang_norm = self._normalize_language_code(source_lang) if source_lang else None
+        target_lang_norm = self._normalize_language_code(target_lang) if target_lang else None
+        
+        print(f"[DEBUG search_termbases] Called with text='{text[:30]}...', source_lang='{source_lang}' (norm: '{source_lang_norm}'), target_lang='{target_lang}' (norm: '{target_lang_norm}')", flush=True)
+        print(f"[DEBUG search_termbases] termbase_mgr: {self.termbase_mgr is not None}, db_manager: {self.db_manager is not None}, main_window: {self.main_window is not None}", flush=True)
+        
         if not self.termbase_mgr or not self.db_manager or not self.main_window:
+            print(f"[DEBUG search_termbases] Early return - missing managers!", flush=True)
             return results
         
         try:
@@ -34752,6 +35335,7 @@ class SuperlookupTab(QWidget):
             
             # If no termbases selected, search all available termbases
             all_termbases = self.termbase_mgr.get_all_termbases()
+            
             if selected_tb_ids:
                 # Filter to only selected termbases
                 termbases_to_search = [tb for tb in all_termbases if tb['id'] in selected_tb_ids]
@@ -34765,16 +35349,26 @@ class SuperlookupTab(QWidget):
             for termbase in termbases_to_search:
                 termbase_id = termbase['id']
                 
-                # Check termbase language filters
+                # Check termbase language filters - normalize for comparison
                 tb_source_lang = termbase.get('source_lang', '')
                 tb_target_lang = termbase.get('target_lang', '')
+                tb_source_norm = self._normalize_language_code(tb_source_lang)
+                tb_target_norm = self._normalize_language_code(tb_target_lang)
+                
+                print(f"[DEBUG search_termbases] Checking TB '{termbase['name']}': source='{tb_source_lang}' (norm: '{tb_source_norm}'), target='{tb_target_lang}' (norm: '{tb_target_norm}')")
                 
                 # Skip termbases that don't match language filters
-                if source_lang and tb_source_lang and tb_source_lang != source_lang:
-                    continue
-                if target_lang and tb_target_lang and tb_target_lang != target_lang:
-                    continue
+                # Compare normalized codes (e.g., 'en' == 'en' even if one was 'English')
+                if source_lang_norm and tb_source_norm:
+                    if tb_source_norm != source_lang_norm:
+                        print(f"[DEBUG search_termbases] Skipping '{termbase['name']}' - source lang mismatch: '{tb_source_norm}' != '{source_lang_norm}'")
+                        continue
+                if target_lang_norm and tb_target_norm:
+                    if tb_target_norm != target_lang_norm:
+                        print(f"[DEBUG search_termbases] Skipping '{termbase['name']}' - target lang mismatch: '{tb_target_norm}' != '{target_lang_norm}'")
+                        continue
                 
+                print(f"[DEBUG search_termbases] Searching in '{termbase['name']}'")
                 terms = self.termbase_mgr.get_terms(termbase_id)
                 
                 for term in terms:
@@ -34783,42 +35377,61 @@ class SuperlookupTab(QWidget):
                     target_term_original = term.get('target_term', '')
                     source_term_original = term.get('source_term', '')
                     
-                    # Also check term-level language if available
+                    # Also check term-level language if available (normalize for comparison)
                     term_source_lang = term.get('source_lang', '')
                     term_target_lang = term.get('target_lang', '')
+                    term_source_norm = self._normalize_language_code(term_source_lang) if term_source_lang else ''
+                    term_target_norm = self._normalize_language_code(term_target_lang) if term_target_lang else ''
                     
-                    if source_lang and term_source_lang and term_source_lang != source_lang:
+                    if source_lang_norm and term_source_norm and term_source_norm != source_lang_norm:
                         continue
-                    if target_lang and term_target_lang and term_target_lang != target_lang:
+                    if target_lang_norm and term_target_norm and term_target_norm != target_lang_norm:
                         continue
                     
                     match_found = False
                     
+                    # Minimum length for substring matching to avoid spurious single-char matches
+                    # If search text is longer than 3 chars, require term to be at least 3 chars for substring match
+                    min_term_len = 3 if len(text_lower) > 3 else 1
+                    
                     # Check based on search direction
                     if direction == 'source':
                         # Search source only
-                        if source_term and (source_term in text_lower or text_lower in source_term):
-                            match_found = True
+                        if source_term and len(source_term) >= min_term_len:
+                            if source_term in text_lower or text_lower in source_term:
+                                match_found = True
                     elif direction == 'target':
                         # Search target only
-                        if target_term and (target_term in text_lower or text_lower in target_term):
-                            match_found = True
+                        if target_term and len(target_term) >= min_term_len:
+                            if target_term in text_lower or text_lower in target_term:
+                                match_found = True
                     else:
                         # Both directions (bidirectional)
-                        if source_term and (source_term in text_lower or text_lower in source_term):
-                            match_found = True
-                        if target_term and (target_term in text_lower or text_lower in target_term):
-                            match_found = True
+                        if source_term and len(source_term) >= min_term_len:
+                            if source_term in text_lower or text_lower in source_term:
+                                match_found = True
+                        if target_term and len(target_term) >= min_term_len:
+                            if target_term in text_lower or text_lower in target_term:
+                                match_found = True
                     
                     if match_found:
-                        # Create LookupResult
+                        # Create LookupResult with full metadata
                         from modules.superlookup import LookupResult
                         results.append(LookupResult(
                             source=source_term_original,
                             target=target_term_original,
                             match_percent=100,
                             source_type='termbase',
-                            metadata={'termbase': termbase['name'], 'termbase_id': termbase_id}
+                            metadata={
+                                'termbase': termbase['name'],
+                                'termbase_id': termbase_id,
+                                'domain': term.get('domain', ''),
+                                'notes': term.get('notes', ''),
+                                'priority': term.get('priority', 50),
+                                'project': term.get('project', ''),
+                                'client': term.get('client', ''),
+                                'forbidden': term.get('forbidden', False)
+                            }
                         ))
             
             # Remove duplicates
@@ -34865,16 +35478,16 @@ class SuperlookupTab(QWidget):
                 target_text = target_item.text()
         
         if not self.termbase_mgr or not self.db_manager or not self.main_window:
-            QMessageBox.warning(self, "Database Not Available", "Termbase database is not initialized.")
+            QMessageBox.warning(self, "Database Not Available", "Glossary database is not initialized.")
             return
         
         # Show dialog to add term
         self.show_add_term_dialog(source_text, target_text)
     
     def show_add_term_dialog(self, source_text, target_text=""):
-        """Show dialog to add new term to termbase"""
+        """Show dialog to add new term to glossary"""
         dialog = QDialog(self)
-        dialog.setWindowTitle("Add Term to Termbase")
+        dialog.setWindowTitle("Add Term to Glossary")
         dialog.setMinimumWidth(500)
         
         layout = QVBoxLayout(dialog)
@@ -34889,8 +35502,8 @@ class SuperlookupTab(QWidget):
         target_edit = QLineEdit(target_text)
         layout.addWidget(target_edit)
         
-        # Termbase selection
-        layout.addWidget(QLabel("Select Termbase:"))
+        # Glossary selection
+        layout.addWidget(QLabel("Select Glossary:"))
         termbase_combo = QComboBox()
         
         # Get writable termbases
@@ -34903,14 +35516,14 @@ class SuperlookupTab(QWidget):
             writable_termbases = [tb for tb in all_termbases if not tb.get('read_only', True)]
             
             if not writable_termbases:
-                QMessageBox.warning(self, "No Writable Termbases", 
-                    "No writable termbases found. Please enable Write for at least one termbase in Resources → Termbases.")
+                QMessageBox.warning(self, "No Writable Glossaries", 
+                    "No writable glossaries found. Please enable Write for at least one glossary in Resources → Glossaries.")
                 return
             
             for tb in writable_termbases:
                 termbase_combo.addItem(tb['name'], tb['id'])
         except Exception as e:
-            QMessageBox.warning(self, "Error", f"Could not load termbases: {e}")
+            QMessageBox.warning(self, "Error", f"Could not load glossaries: {e}")
             return
         
         layout.addWidget(termbase_combo)
