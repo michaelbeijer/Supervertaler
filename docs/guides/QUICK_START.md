@@ -1,6 +1,6 @@
 # Supervertaler Quick Start Guide
 
-**Version:** v1.9.6 | **Last Updated:** November 27, 2025
+**Version:** v1.9.54 | **Last Updated:** December 21, 2025
 
 Get translating in 5 minutes. This guide covers the essentials to start using Supervertaler with your CAT tool workflow.
 
@@ -18,7 +18,23 @@ Get translating in 5 minutes. This guide covers the essentials to start using Su
 
 ## Installation
 
-### Option A: Run from Source (Recommended)
+### Option A: Install from PyPI (Recommended) ⭐
+
+The easiest way to install Supervertaler:
+
+```bash
+pip install supervertaler
+supervertaler
+```
+
+To update to the latest version:
+```bash
+pip install --upgrade supervertaler
+```
+
+**PyPI Package:** https://pypi.org/project/Supervertaler/
+
+### Option B: Run from Source
 
 ```powershell
 # 1. Clone the repository
@@ -32,7 +48,7 @@ pip install -r requirements.txt
 python Supervertaler.py
 ```
 
-### Option B: Windows Executable
+### Option C: Windows Executable
 
 Download from [GitHub Releases](https://github.com/michaelbeijer/Supervertaler/releases) and run `Supervertaler.exe`.
 

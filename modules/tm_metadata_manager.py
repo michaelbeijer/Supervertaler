@@ -30,10 +30,43 @@ class TMMetadataManager:
     # TM MANAGEMENT
     # ========================================================================
     
+    def tm_id_exists(self, tm_id: str) -> bool:
+        """Check if a tm_id already exists in the database"""
+        try:
+            cursor = self.db_manager.cursor
+            cursor.execute("SELECT 1 FROM translation_memories WHERE tm_id = ?", (tm_id,))
+            return cursor.fetchone() is not None
+        except Exception:
+            return False
+    
+    def get_unique_tm_id(self, base_tm_id: str) -> str:
+        """
+        Get a unique tm_id by appending a number suffix if needed.
+        
+        Args:
+            base_tm_id: The desired tm_id base (e.g., 'my_tm')
+            
+        Returns:
+            A unique tm_id (e.g., 'my_tm' or 'my_tm_2' if 'my_tm' exists)
+        """
+        if not self.tm_id_exists(base_tm_id):
+            return base_tm_id
+        
+        # Find a unique suffix
+        suffix = 2
+        while True:
+            candidate = f"{base_tm_id}_{suffix}"
+            if not self.tm_id_exists(candidate):
+                return candidate
+            suffix += 1
+            if suffix > 1000:  # Safety limit
+                import uuid
+                return f"{base_tm_id}_{uuid.uuid4().hex[:8]}"
+    
     def create_tm(self, name: str, tm_id: str, source_lang: Optional[str] = None, 
                   target_lang: Optional[str] = None, description: str = "",
                   is_project_tm: bool = False, read_only: bool = False,
-                  project_id: Optional[int] = None) -> Optional[int]:
+                  project_id: Optional[int] = None, auto_unique_id: bool = True) -> Optional[int]:
         """
         Create a new TM metadata entry
         
@@ -46,6 +79,7 @@ class TMMetadataManager:
             is_project_tm: Whether this is the special project TM (only one per project)
             read_only: Whether this TM should not be updated
             project_id: Which project this TM belongs to (NULL = global)
+            auto_unique_id: If True, automatically make tm_id unique by appending suffix
             
         Returns:
             TM database ID or None if failed
@@ -64,6 +98,12 @@ class TMMetadataManager:
                 if existing:
                     self.log(f"✗ Project {project_id} already has a project TM: {existing[1]}")
                     return None
+            
+            # Make tm_id unique if it already exists
+            if auto_unique_id and self.tm_id_exists(tm_id):
+                original_tm_id = tm_id
+                tm_id = self.get_unique_tm_id(tm_id)
+                self.log(f"ℹ️ TM ID '{original_tm_id}' already exists, using '{tm_id}' instead")
             
             cursor.execute("""
                 INSERT INTO translation_memories 

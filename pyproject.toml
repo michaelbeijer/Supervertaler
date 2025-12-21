@@ -4,10 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "Supervertaler"
-version = "1.6.6"
-description = "Professional AI-powered CAT tool with complete termbase system, voice dictation, and modern PyQt6 interface"
+version = "1.9.55"
+description = "Professional AI-powered translation workbench with multi-LLM support, glossary system, TM, spellcheck, voice commands, and PyQt6 interface"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [
     {name = "Michael Beijer", email = "info@michaelbeijer.co.uk"},
@@ -18,22 +18,36 @@ maintainers = [
 keywords = [
     "translation",
     "CAT",
+    "CAT-tool",
     "AI",
     "LLM",
     "GPT",
     "Claude",
     "Gemini",
+    "Ollama",
+    "glossary",
     "termbase",
     "translation-memory",
+    "TM",
     "PyQt6",
     "localization",
+    "memoQ",
+    "Trados",
+    "SDLPPX",
+    "XLIFF",
+    "voice-commands",
+    "spellcheck",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
     "Intended Audience :: End Users/Desktop",
     "Topic :: Office/Business",
     "Topic :: Text Processing :: Linguistic",
@@ -41,25 +55,87 @@ classifiers = [
 ]
 
 dependencies = [
+    # Core UI Framework
     "PyQt6>=6.5.0",
+    "PyQt6-WebEngine>=6.5.0",
+    
+    # Document Processing
     "python-docx>=0.8.11",
     "openpyxl>=3.1.0",
     "Pillow>=10.0.0",
+    "lxml>=4.9.0",
+    
+    # AI/LLM Providers
     "openai>=1.0.0",
     "anthropic>=0.7.0",
     "google-generativeai>=0.3.0",
+    "requests>=2.28.0",
+    
+    # Document Conversion & Analysis
     "markitdown>=0.0.1",
-    "sacrebleu>=2.3.1",  # For Superbench quality scoring (chrF++)
+    
+    # Translation Quality Metrics (Superbench)
+    "sacrebleu>=2.3.1",
+    
+    # Clipboard Operations
+    "pyperclip>=1.8.2",
+    
+    # PDF Processing (PDF Rescue)
+    "PyMuPDF>=1.23.0",
+    
+    # Audio Processing (Voice Dictation)
+    "numpy>=1.24.0",
+    "sounddevice>=0.4.6",
+    
+    # Semantic Search (Supermemory)
+    "sentence-transformers>=2.2.0",
+    "chromadb>=0.4.0",
+    
+    # YAML Support
+    "pyyaml>=6.0.0",
+    
+    # Markdown Rendering
+    "markdown>=3.4.0",
+    
+    # Spellchecking
+    "pyspellchecker>=0.7.0",
+    
+    # Machine Translation APIs
+    "boto3>=1.28.0",
+    "deepl>=1.15.0",
+]
+
+[project.optional-dependencies]
+voice = [
+    "openai-whisper>=20230314",
+]
+windows = [
+    "keyboard>=0.13.5",
+    "ahk>=1.0.0",
+    "cyhunspell>=2.0.0",
+]
+all = [
+    "openai-whisper>=20230314",
+    "keyboard>=0.13.5",
+    "ahk>=1.0.0",
+    "cyhunspell>=2.0.0",
 ]
 
 [project.urls]
-Homepage = "https://michaelbeijer.github.io/Supervertaler"
+Homepage = "https://supervertaler.com"
 Repository = "https://github.com/michaelbeijer/Supervertaler.git"
 "Bug Tracker" = "https://github.com/michaelbeijer/Supervertaler/issues"
 Changelog = "https://github.com/michaelbeijer/Supervertaler/blob/main/CHANGELOG.md"
+Documentation = "https://github.com/michaelbeijer/Supervertaler/blob/main/AGENTS.md"
 "Author Website" = "https://michaelbeijer.co.uk"
-Documentation = "https://github.com/michaelbeijer/Supervertaler/blob/main/docs/PROJECT_CONTEXT.md"
 
-# Note: Run via: python Supervertaler.py
-# [project.scripts]
-# supervertaler = "Supervertaler:main"
+[project.scripts]
+supervertaler = "Supervertaler:main"
+
+[tool.setuptools]
+py-modules = ["Supervertaler"]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["modules*"]

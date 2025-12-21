@@ -378,7 +378,13 @@ class ShortcutManager:
         # Filter Operations
         "filter_selected_text": {
             "category": "Filter",
-            "description": "Filter on selected text (source or target)",
+            "description": "Filter on selected text / Clear filter (toggle)",
+            "default": "Ctrl+Shift+F",
+            "action": "filter_on_selected_text"
+        },
+        "clear_filter": {
+            "category": "Filter",
+            "description": "Clear filter (same as above - toggle behavior)",
             "default": "Ctrl+Shift+F",
             "action": "filter_on_selected_text"
         },

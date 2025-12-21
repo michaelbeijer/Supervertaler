@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** December 22, 2025 | **Version:** v1.9.54
+> **Last Updated:** December 21, 2025 | **Version:** v1.9.55
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.54 (December 2025) |
+| **Version** | v1.9.55 (December 2025) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -364,6 +364,38 @@ Comprehensive rename of user-facing terminology throughout the application:
 
 **Files Modified:**
 - `Supervertaler.py` - Comprehensive UI string updates throughout
+
+---
+
+### December 21, 2025 - Version 1.9.55: Lightning-Fast Filtering
+
+**⚡ Optimized Filter Performance**
+
+Major performance optimization for filter operations (Ctrl+Shift+F):
+
+- **Before**: ~12 seconds to apply or clear a filter
+- **After**: Instant (typically <200ms)
+
+**Root Cause**: Filter operations were calling `load_segments_to_grid()` which recreates all QTextEdit widgets for every segment. With 500+ segments, this took ~12 seconds.
+
+**Solution Implemented**:
+- `apply_filters()` now uses `setUpdatesEnabled(False)` to batch UI changes, only shows/hides rows and applies yellow highlights without recreating widgets
+- `clear_filters()` now clears only yellow filter highlights (preserves termbase/tag formatting) and unhides rows in place
+- New `_clear_filter_highlights_in_widget()` method surgically removes only yellow (#FFFF00) highlights while preserving green termbase highlights and pink tag colors
+
+**🔄 Ctrl+Shift+F Toggle Behavior**
+
+The filter shortcut now works as a true toggle:
+- **First press** (with text selected): Filters on selected text
+- **Second press** (with filter active): Clears the filter immediately
+
+**📋 Keyboard Shortcuts Update**
+
+Added "Clear filter" entry in keyboard shortcuts (same Ctrl+Shift+F shortcut) for discoverability. Updated shortcut description to reflect toggle behavior.
+
+**Files Modified:**
+- `Supervertaler.py` - `apply_filters()`, `clear_filters()`, `_highlight_text_in_widget()`, `_clear_filter_highlights_in_widget()` (new), `filter_on_selected_text()`
+- `modules/shortcut_manager.py` - Added `clear_filter` shortcut entry, updated descriptions
 
 ---
 

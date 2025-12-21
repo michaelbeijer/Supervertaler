@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.54"
+__version__ = "1.9.55"
 __phase__ = "0.9"
 __release_date__ = "2025-12-21"
 __edition__ = "Qt"
@@ -5032,7 +5032,7 @@ class SupervertalerQt(QMainWindow):
         self.shortcut_concordance = QShortcut(QKeySequence("Ctrl+K"), self)
         self.shortcut_concordance.activated.connect(self.show_concordance_search)
         
-        # Ctrl+Shift+F - Filter on selected text
+        # Ctrl+Shift+F - Filter on selected text / Clear filter (toggle)
         self.shortcut_filter_selected = QShortcut(QKeySequence("Ctrl+Shift+F"), self)
         self.shortcut_filter_selected.activated.connect(self.filter_on_selected_text)
         
@@ -26664,19 +26664,13 @@ class SupervertalerQt(QMainWindow):
         Since source/target cells use setCellWidget() with QTextEdit editors,
         the delegate's paint() method is bypassed. We must highlight the text
         directly within the widget using QTextCursor and QTextCharFormat.
+        
+        NOTE: This method only ADDS yellow highlights - it does not clear existing
+        formatting. Use _clear_filter_highlights_in_widget() to remove highlights.
         """
         widget = self.table.cellWidget(row, col)
         if not widget or not hasattr(widget, 'document'):
             return
-        
-        # Clear any existing search highlights first
-        cursor = widget.textCursor()
-        cursor.select(QTextCursor.SelectionType.Document)
-        
-        # Create format with no background (clear previous highlights)
-        clear_format = QTextCharFormat()
-        cursor.setCharFormat(clear_format)
-        cursor.clearSelection()
         
         # Create yellow highlight format
         highlight_format = QTextCharFormat()
@@ -26704,8 +26698,53 @@ class SupervertalerQt(QMainWindow):
             
             pos += len(search_term)
     
+    def _clear_filter_highlights_in_widget(self, row: int, col: int):
+        """Remove yellow filter highlights from a QTextEdit widget while preserving other formatting.
+        
+        This is more efficient than reloading the entire grid just to clear highlights.
+        """
+        widget = self.table.cellWidget(row, col)
+        if not widget or not hasattr(widget, 'document'):
+            return
+        
+        # Iterate through the document and clear only yellow backgrounds
+        document = widget.document()
+        cursor = QTextCursor(document)
+        cursor.movePosition(QTextCursor.MoveOperation.Start)
+        
+        # Select the entire document
+        cursor.movePosition(QTextCursor.MoveOperation.End, QTextCursor.MoveMode.KeepAnchor)
+        
+        # Get current block and iterate character by character
+        # For efficiency, we'll just clear all backgrounds that are yellow
+        # This preserves termbase highlights (which are green shades) and tag colors
+        block = document.begin()
+        while block.isValid():
+            it = block.begin()
+            while not it.atEnd():
+                fragment = it.fragment()
+                if fragment.isValid():
+                    fmt = fragment.charFormat()
+                    bg = fmt.background().color()
+                    # Check if it's a yellow highlight (filter highlight)
+                    if bg.name().upper() == "#FFFF00":
+                        # Clear this specific range
+                        cursor.setPosition(fragment.position())
+                        cursor.setPosition(fragment.position() + fragment.length(), QTextCursor.MoveMode.KeepAnchor)
+                        clear_fmt = QTextCharFormat()
+                        clear_fmt.setBackground(QColor(Qt.GlobalColor.transparent))
+                        cursor.mergeCharFormat(clear_fmt)
+                it += 1
+            block = block.next()
+    
     def apply_filters(self):
-        """Apply source and target filters to show/hide rows and highlight matches"""
+        """Apply source and target filters to show/hide rows and highlight matches.
+        
+        OPTIMIZED: No longer reloads the entire grid. Instead:
+        1. Clears only filter highlights (preserves termbase/tag formatting)
+        2. Shows/hides rows in place
+        3. Applies new highlights to matching text
+        """
         if not self.current_project:
             return
         
@@ -26727,46 +26766,68 @@ class SupervertalerQt(QMainWindow):
         
         # Set flag to disable auto-center scrolling during filtering
         self.filtering_active = True
-
-        # Clear previous highlights by reloading
-        self.load_segments_to_grid()
         
-        # Safety check: ensure table has correct number of rows after reload
-        if self.table.rowCount() != len(self.current_project.segments):
-            self.log("⚠ Warning: Table row count mismatch after reload")
-            return
+        # Batch UI updates for performance
+        self.table.setUpdatesEnabled(False)
         
-        visible_count = 0
-        
-        for row, segment in enumerate(self.current_project.segments):
-            # Safety check: ensure row is valid
-            if row >= self.table.rowCount():
-                break
-                
-            source_match = not source_filter_text or source_filter_text.lower() in segment.source.lower()
-            target_match = not target_filter_text or target_filter_text.lower() in segment.target.lower()
+        try:
+            visible_count = 0
+            row_count = self.table.rowCount()
+            segments = self.current_project.segments
             
-            show_row = source_match and target_match
+            # Pre-compute lowercase filter texts
+            source_filter_lower = source_filter_text.lower() if source_filter_text else None
+            target_filter_lower = target_filter_text.lower() if target_filter_text else None
             
-            # Hide/show row
-            self.table.setRowHidden(row, not show_row)
-            
-            if show_row:
-                visible_count += 1
+            for row in range(row_count):
+                if row >= len(segments):
+                    break
+                    
+                segment = segments[row]
+                source_lower = segment.source.lower()
+                target_lower = segment.target.lower()
                 
-                # Highlight matching terms in the QTextEdit widgets
-                if source_filter_text and source_filter_text.lower() in segment.source.lower():
-                    self._highlight_text_in_widget(row, 2, source_filter_text)
+                source_match = not source_filter_lower or source_filter_lower in source_lower
+                target_match = not target_filter_lower or target_filter_lower in target_lower
                 
-                if target_filter_text and target_filter_text.lower() in segment.target.lower():
-                    self._highlight_text_in_widget(row, 3, target_filter_text)
+                show_row = source_match and target_match
+                
+                # Hide/show row
+                self.table.setRowHidden(row, not show_row)
+                
+                if show_row:
+                    visible_count += 1
+                    
+                    # Clear previous filter highlights first (only yellow, preserves other formatting)
+                    self._clear_filter_highlights_in_widget(row, 2)
+                    self._clear_filter_highlights_in_widget(row, 3)
+                    
+                    # Highlight matching terms in the QTextEdit widgets
+                    if source_filter_lower and source_filter_lower in source_lower:
+                        self._highlight_text_in_widget(row, 2, source_filter_text)
+                    
+                    if target_filter_lower and target_filter_lower in target_lower:
+                        self._highlight_text_in_widget(row, 3, target_filter_text)
+                else:
+                    # Clear highlights from hidden rows too (for when they become visible again)
+                    self._clear_filter_highlights_in_widget(row, 2)
+                    self._clear_filter_highlights_in_widget(row, 3)
+        finally:
+            # Re-enable UI updates
+            self.table.setUpdatesEnabled(True)
 
         # Update status
         if source_filter_text or target_filter_text:
             self.log(f"Filter applied: showing {visible_count} of {len(self.current_project.segments)} segments")
 
     def clear_filters(self):
-        """Clear all filter boxes, highlighting, and show all rows"""
+        """Clear all filter boxes, highlighting, and show all rows.
+        
+        OPTIMIZED: No longer reloads the entire grid. Instead:
+        1. Clears only yellow filter highlights (preserves termbase/tag formatting)
+        2. Shows all rows in place
+        3. Much faster than reloading all widgets
+        """
         source_widget = getattr(self, 'source_filter', None)
         target_widget = getattr(self, 'target_filter', None)
         has_source = self._widget_is_alive(source_widget)
@@ -26786,9 +26847,10 @@ class SupervertalerQt(QMainWindow):
 
         # Remember which segment was selected before clearing
         selected_segment_id = None
+        current_column = 3  # Default to target column
         if self.current_project and hasattr(self, 'table') and self.table is not None:
             current_row = self.table.currentRow()
-            self.log(f"🔍 Clear filters: current_row from table = {current_row}")
+            current_column = self.table.currentColumn()
             
             if current_row >= 0:
                 # Get segment ID directly from the ID cell (column 0)
@@ -26796,11 +26858,8 @@ class SupervertalerQt(QMainWindow):
                 if id_item:
                     try:
                         selected_segment_id = int(id_item.text())
-                        self.log(f"🔍 Captured segment ID {selected_segment_id} from row {current_row} (cell text: {id_item.text()})")
-                    except (ValueError, AttributeError) as e:
-                        self.log(f"⚠️ Could not parse segment ID from cell: {e}")
-                else:
-                    self.log(f"⚠️ No ID item found at row {current_row}")
+                    except (ValueError, AttributeError):
+                        pass
 
         if has_source:
             source_widget.blockSignals(True)
@@ -26816,13 +26875,28 @@ class SupervertalerQt(QMainWindow):
         else:
             self.target_filter = None
         
-        # Reload grid to remove all highlighting
+        # OPTIMIZED: Clear highlights and show rows WITHOUT reloading grid
         if self.current_project:
             # Safety check: ensure table exists
             if not hasattr(self, 'table') or self.table is None:
                 return
+            
+            # Batch UI updates for performance
+            self.table.setUpdatesEnabled(False)
+            
+            try:
+                row_count = self.table.rowCount()
                 
-            self.load_segments_to_grid()
+                for row in range(row_count):
+                    # Clear yellow filter highlights (preserves other formatting)
+                    self._clear_filter_highlights_in_widget(row, 2)  # Source
+                    self._clear_filter_highlights_in_widget(row, 3)  # Target
+                    
+                    # Show all rows
+                    self.table.setRowHidden(row, False)
+            finally:
+                # Re-enable UI updates
+                self.table.setUpdatesEnabled(True)
             
             # Clear filtering flag to re-enable auto-center
             self.filtering_active = False
@@ -26831,21 +26905,13 @@ class SupervertalerQt(QMainWindow):
             if selected_segment_id is not None:
                 for row, segment in enumerate(self.current_project.segments):
                     if segment.id == selected_segment_id:
-                        self.table.setCurrentCell(row, self.table.currentColumn())
-                        # Force immediate scroll using QTimer to ensure layout is complete
-                        from PyQt6.QtCore import QTimer
-                        QTimer.singleShot(0, lambda r=row: self.table.scrollToItem(
-                            self.table.item(r, 0), 
+                        self.table.setCurrentCell(row, current_column)
+                        # Scroll to the row
+                        self.table.scrollToItem(
+                            self.table.item(row, 0), 
                             QTableWidget.ScrollHint.PositionAtCenter
-                        ))
-                        self.log(f"✓ Restored selection to segment {selected_segment_id} at row {row}")
+                        )
                         break
-                else:
-                    self.log(f"⚠️ Could not find segment {selected_segment_id} in segments list")
-            
-            # Explicitly show all rows (unhide them)
-            for row in range(self.table.rowCount()):
-                self.table.setRowHidden(row, False)
         
         # Reset file filter to "All Files"
         if hasattr(self, 'file_filter_combo') and self.file_filter_combo:
@@ -28137,22 +28203,33 @@ class SupervertalerQt(QMainWindow):
     # ========================================================================
     
     def filter_on_selected_text(self):
-        """Filter based on currently selected text in source or target column"""
+        """Filter based on currently selected text in source or target column.
+        
+        Toggle behavior: If filters are already active, pressing Ctrl+Shift+F 
+        will clear the filters. Otherwise, filter on selected text.
+        """
         from PyQt6.QtWidgets import QApplication
         
-        # Get the currently focused widget
-        focused_widget = QApplication.focusWidget()
+        # Check if filters are currently active FIRST (for toggle behavior)
+        source_filter_text = self._get_line_edit_text('source_filter').strip() if hasattr(self, 'source_filter') else ""
+        target_filter_text = self._get_line_edit_text('target_filter').strip() if hasattr(self, 'target_filter') else ""
+        filters_active = bool(source_filter_text or target_filter_text)
         
-        if not focused_widget:
-            self.log("⚠️ No widget has focus. Click in a source or target cell first.")
+        # Toggle: if filters are active, clear them and return
+        if filters_active:
+            self.clear_filters()
+            self.log("🔍 Filters cleared (Ctrl+Shift+F toggle)")
             return
+        
+        # No filters active - try to filter on selected text
+        focused_widget = QApplication.focusWidget()
         
         selected_text = ""
         is_source = False
         is_target = False
         
         # Check if it's a text editor widget (source or target)
-        if isinstance(focused_widget, (EditableGridTextEditor, ReadOnlyGridTextEditor)):
+        if focused_widget and isinstance(focused_widget, (EditableGridTextEditor, ReadOnlyGridTextEditor)):
             cursor = focused_widget.textCursor()
             selected_text = cursor.selectedText().strip()
             

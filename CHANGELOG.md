@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.54 (December 22, 2025)
+**Current Version:** v1.9.55 (December 21, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -14,6 +14,7 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- ⚡ **Lightning-Fast Filtering (v1.9.55)** - Filter operations (Ctrl+Shift+F) now run instantly instead of taking ~12 seconds! Optimized to avoid grid reload - only shows/hides rows and applies yellow highlights. **Ctrl+Shift+F toggle**: press once to filter on selected text, press again to clear the filter. Clear filter also listed separately in keyboard shortcuts for discoverability.
 - 📝 **User-Facing Terminology Rename (v1.9.54)** - Comprehensive rename throughout the UI: "Termbase" → "Glossary", "TM Matches" → "TMs", "Termbase Matches" → "Glossaries". All dialog titles, settings labels, button text, tooltips, context menus, and messages updated. Internal code and database structure unchanged for backward compatibility.
 - 🔍 **Superlookup UX Improvements (v1.9.54)** - Enter key in search box now triggers search (Shift+Enter for newline). "Edit in Glossary" navigation fixed to correctly select the glossary in Resources tab. Fuzzy search filter prevents single-letter terms matching long queries. New "TM" column shows source TM name in results.
 - 📋 **Superlookup Termbase Enhancements (v1.9.53)** - Improved Glossaries tab with additional metadata columns: Glossary name, Domain, Notes. Full metadata in results including priority, project, client, forbidden status. Tooltips show full content on hover.
