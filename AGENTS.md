@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** December 22, 2025 | **Version:** v1.9.57
+> **Last Updated:** December 22, 2025 | **Version:** v1.9.59
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.57 (December 2025) |
+| **Version** | v1.9.59 (December 2025) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -276,7 +276,34 @@ Use semantic prefixes:
 
 ---
 
-## 💡 Problem-Solving Tips for AI Agents
+## � Future Investigation: TMX Tag Export Format
+
+**Issue discovered December 22, 2025**: Our TMX Editor stores formatting tags (like `<b>`, `<i>`) as escaped text (`&lt;b&gt;`) in the `<seg>` element. This is valid XML but may not be the optimal approach.
+
+**Three approaches exist:**
+
+| Approach | Example in TMX file | Pros | Cons |
+|----------|---------------------|------|------|
+| **Escaped text** | `<seg>&lt;b&gt;text&lt;/b&gt;</seg>` | Simple, valid XML | Tags treated as plain text, lost semantic meaning |
+| **TMX inline elements** | `<seg><bpt i="1" type="bold">&lt;b&gt;</bpt>text<ept i="1">&lt;/b&gt;</ept></seg>` | TMX 1.4 compliant, preserves tag semantics | More complex to implement |
+| **Raw XML** (invalid) | `<seg><b>text</b></seg>` | Human readable | Invalid XML unless DTD defines `<b>` |
+
+**What other tools do:**
+- **memoQ**: Uses TMX inline elements (`<bpt>`, `<ept>`) for proper tag preservation
+- **Trados Studio**: Similar, uses inline elements with type attributes
+- **OmegaT**: Generally uses escaped text for simplicity
+- **Many web tools**: Just escape everything
+
+**Recommendation for future**: Consider implementing proper TMX inline elements (`<bpt>`, `<ept>`, `<ph>`) when exporting. This would:
+1. Maintain compatibility with professional CAT tools
+2. Preserve tag type information (bold, italic, etc.)
+3. Allow round-tripping without tag loss
+
+**Files to modify**: `modules/tmx_editor.py` - `TmxParser.save_file()` method
+
+---
+
+## �💡 Problem-Solving Tips for AI Agents
 
 When stuck on a difficult bug, consider these approaches:
 
@@ -332,6 +359,56 @@ google_api_key=AI...
 ---
 
 ## 🔄 Recent Development History
+
+### December 22, 2025 - Version 1.9.59: TMX Tag Cleaner & UX Improvements
+
+**🧹 TMX Tag Cleaner - Complete Implementation**
+
+Tag cleaning functionality in both TMX Editor and main application:
+
+- **TMX Editor Access**: 
+  - Toolbar button: "🧹 Clean Tags"
+  - Edit menu: Edit → Bulk Operations → 🧹 Clean Tags...
+  - Tools menu: Tools → 🧹 Clean Tags...
+
+- **Main App Access**:
+  - Edit menu: Edit → Bulk Operations → 🧹 Clean Tags...
+  - Cleans tags from currently loaded project segments
+
+- **Tag Selection Dialog**:
+  - User can select/deselect individual tag patterns to clean
+  - Tags grouped by category: Formatting, TMX/XLIFF, memoQ, Trados, Generic
+  - Quick select buttons: "Select All", "Select None", "Select Formatting Only"
+  
+- **Supported Tag Types**:
+  - **Formatting**: `<b>`, `<i>`, `<u>`, `<bi>`, `<sub>`, `<sup>`
+  - **TMX/XLIFF**: `<bpt>`, `<ept>`, `<ph>`, `<it>`, `<hi>`, `<ut>`
+  - **memoQ**: `{1}`, `[2}`, `{3]` index tags
+  - **Trados**: `<1>`, `</1>` numbered tags, `{1}`, `{/1}` curly tags
+  - **Generic**: All XML-style tags
+
+- **Replacement Options**:
+  - Remove tags completely (no replacement)
+  - Replace tags with a space
+
+- **Scope Options**:
+  - Clean both source and target segments
+  - Clean source segments only
+  - Clean target segments only
+
+- **Implementation**:
+  - Works in both RAM mode and database mode
+  - Progress dialog with cancel option
+  - Shows statistics on completion (TUs modified, tags removed)
+  - Automatically refreshes grid after cleaning
+
+**New Class:**
+- `TmxTagCleanerDialog` - Configuration dialog with checkboxes for each tag pattern
+
+**Files Modified:**
+- `modules/tmx_editor_qt.py` - Added `TmxTagCleanerDialog`, `show_clean_tags_dialog()`, `clean_tags()`, toolbar button, menu items
+
+---
 
 ### December 22, 2025 - Version 1.9.57: Flattened Tab Structure
 
@@ -1214,4 +1291,4 @@ Extended `TagHighlighter` to color ALL CAT tool tags with pink (`#FFB6C1`) in th
 ---
 
 *This file replaces the previous CLAUDE.md and PROJECT_CONTEXT.md files.*
-*Last updated: December 16, 2025 - v1.9.41*
+*Last updated: December 22, 2025 - v1.9.58*

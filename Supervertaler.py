@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.57"
+__version__ = "1.9.59"
 __phase__ = "0.9"
 __release_date__ = "2025-12-21"
 __edition__ = "Qt"
@@ -5583,6 +5583,13 @@ class SupervertalerQt(QMainWindow):
         send_to_tm_action.setToolTip("Send confirmed segments to a writable Translation Memory")
         send_to_tm_action.triggered.connect(self.send_segments_to_tm_dialog)
         bulk_menu.addAction(send_to_tm_action)
+        
+        bulk_menu.addSeparator()
+        
+        clean_tags_action = QAction("🧹 Clean &Tags...", self)
+        clean_tags_action.setToolTip("Remove formatting tags from selected segments")
+        clean_tags_action.triggered.connect(self.show_clean_tags_dialog)
+        bulk_menu.addAction(clean_tags_action)
         
         edit_menu.addSeparator()
         
@@ -24539,6 +24546,114 @@ class SupervertalerQt(QMainWindow):
         else:
             QMessageBox.information(self, "Not Available", "Please load a project first.")
     
+    def show_clean_tags_dialog(self):
+        """Show dialog to clean formatting tags from project segments"""
+        if not self.current_project or not self.current_project.segments:
+            QMessageBox.warning(self, "No Project", "Please load a project with segments first.")
+            return
+        
+        # Import dialog class from TMX editor module
+        try:
+            from modules.tmx_editor_qt import TmxTagCleanerDialog
+        except ImportError:
+            QMessageBox.warning(self, "Module Error", "Could not load tag cleaner dialog.")
+            return
+        
+        segment_count = len(self.current_project.segments)
+        dialog = TmxTagCleanerDialog(self, tu_count=segment_count)
+        dialog.setWindowTitle("🧹 Clean Tags from Project")
+        
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self.clean_project_tags(dialog)
+    
+    def clean_project_tags(self, dialog):
+        """Clean tags from project segments based on dialog settings"""
+        import re
+        
+        # Get selected tag patterns
+        patterns = []
+        for name, cb in dialog.tag_checkboxes.items():
+            if cb.isChecked():
+                patterns.append(cb.tag_pattern)
+        
+        if not patterns:
+            QMessageBox.information(self, "No Tags Selected", "Please select at least one tag type to clean.")
+            return
+        
+        # Get replacement string
+        replacement = " " if dialog.replace_space.isChecked() else ""
+        
+        # Get scope
+        clean_source = dialog.scope_both.isChecked() or dialog.scope_source.isChecked()
+        clean_target = dialog.scope_both.isChecked() or dialog.scope_target.isChecked()
+        
+        # Create patterns for both literal and XML-escaped versions
+        # Files may store tags as literal <b> or escaped &lt;b&gt;
+        expanded_patterns = []
+        for p in patterns:
+            expanded_patterns.append(p)  # Original pattern for literal tags
+            # Create escaped version: < becomes &lt; and > becomes &gt;
+            escaped_p = p.replace('<', '&lt;').replace('>', '&gt;')
+            if escaped_p != p:
+                expanded_patterns.append(escaped_p)
+        
+        # Compile combined pattern
+        combined_pattern = "|".join(f"({p})" for p in expanded_patterns)
+        regex = re.compile(combined_pattern)
+        
+        # Process segments
+        modified_count = 0
+        tags_removed = 0
+        
+        progress = QProgressDialog("Cleaning tags...", "Cancel", 0, len(self.current_project.segments), self)
+        progress.setWindowModality(Qt.WindowModality.WindowModal)
+        progress.setMinimumDuration(0)
+        
+        for i, segment in enumerate(self.current_project.segments):
+            if progress.wasCanceled():
+                break
+            
+            progress.setValue(i)
+            QApplication.processEvents()
+            
+            segment_modified = False
+            
+            if clean_source and segment.source:
+                new_source, count = regex.subn(replacement, segment.source)
+                if count > 0:
+                    segment.source = new_source.strip() if replacement == "" else new_source
+                    tags_removed += count
+                    segment_modified = True
+            
+            if clean_target and segment.target:
+                new_target, count = regex.subn(replacement, segment.target)
+                if count > 0:
+                    segment.target = new_target.strip() if replacement == "" else new_target
+                    tags_removed += count
+                    segment_modified = True
+            
+            if segment_modified:
+                modified_count += 1
+        
+        progress.setValue(len(self.current_project.segments))
+        
+        # Refresh grid
+        if modified_count > 0:
+            self.project_modified = True
+            self.load_segments_to_grid()
+            self.update_window_title()
+        
+        # Show results
+        scope_text = "both source and target" if (clean_source and clean_target) else ("source" if clean_source else "target")
+        QMessageBox.information(
+            self, "Tag Cleaning Complete",
+            f"✅ Cleaned {modified_count:,} segment(s)\n"
+            f"🏷️ Removed {tags_removed:,} tag(s)\n"
+            f"📋 Scope: {scope_text}"
+        )
+        
+        self.log(f"🧹 Tag cleaning: {modified_count} segments modified, {tags_removed} tags removed")
+    
     def send_segments_to_tm_dialog(self):
         """
         Show dialog to send segments to TM (similar to memoQ's Confirm and Update).
@@ -35797,9 +35912,21 @@ class SuperlookupTab(QWidget):
         note.setWordWrap(True)
         layout.addWidget(note)
         
+        # Don't show again checkbox
+        dont_show_cb = CheckmarkCheckBox("Do not show this dialog again")
+        dont_show_cb.setStyleSheet("margin-top: 10px;")
+        layout.addWidget(dont_show_cb)
+        
         # Close button
         close_btn = QPushButton("Close")
-        close_btn.clicked.connect(dialog.accept)
+        def on_close():
+            # Save preference if checkbox is checked
+            if dont_show_cb.isChecked():
+                if self.main_window and hasattr(self.main_window, 'general_settings'):
+                    self.main_window.general_settings['hide_autohotkey_dialog'] = True
+                    self.main_window.save_general_settings()
+            dialog.accept()
+        close_btn.clicked.connect(on_close)
         layout.addWidget(close_btn)
         
         dialog.exec()
@@ -35973,8 +36100,12 @@ class SuperlookupTab(QWidget):
                 print("[Superlookup] AutoHotkey not found.")
                 print("[Superlookup] Global hotkey (Ctrl+Alt+L) will not be available.")
                 self.hotkey_registered = False
-                # Show setup dialog (deferred to avoid blocking startup)
-                QTimer.singleShot(2000, self._show_autohotkey_setup_dialog)
+                # Show setup dialog (deferred to avoid blocking startup) - unless user opted out
+                if self.main_window and hasattr(self.main_window, 'general_settings'):
+                    if not self.main_window.general_settings.get('hide_autohotkey_dialog', False):
+                        QTimer.singleShot(2000, self._show_autohotkey_setup_dialog)
+                else:
+                    QTimer.singleShot(2000, self._show_autohotkey_setup_dialog)
                 return
             
             print(f"[Superlookup] Found AutoHotkey at: {ahk_exe} (source: {source})")

@@ -29,6 +29,7 @@ from PyQt6.QtCore import Qt, pyqtSignal, QRect, QPointF
 from PyQt6.QtGui import QColor, QKeySequence, QShortcut, QContextMenuEvent, QPainter, QFontMetrics, QPen, QPolygonF
 import os
 import json
+import re
 from datetime import datetime
 from typing import List, Dict, Optional
 
@@ -120,6 +121,69 @@ class CheckmarkCheckBox(QCheckBox):
                 painter.end()
 
 
+class CheckmarkRadioButton(QRadioButton):
+    """Custom radio button with green background when checked"""
+    
+    def __init__(self, text="", parent=None):
+        super().__init__(text, parent)
+        self.setStyleSheet("""
+            QRadioButton {
+                font-size: 9pt;
+                spacing: 6px;
+            }
+            QRadioButton::indicator {
+                width: 16px;
+                height: 16px;
+                border: 2px solid #999;
+                border-radius: 9px;
+                background-color: white;
+            }
+            QRadioButton::indicator:checked {
+                background-color: #4CAF50;
+                border-color: #4CAF50;
+            }
+            QRadioButton::indicator:hover {
+                border-color: #666;
+            }
+            QRadioButton::indicator:checked:hover {
+                background-color: #45a049;
+                border-color: #45a049;
+            }
+        """)
+    
+    def paintEvent(self, event):
+        """Override paint event to draw white dot when checked"""
+        super().paintEvent(event)
+        
+        if self.isChecked():
+            from PyQt6.QtWidgets import QStyleOptionButton
+            from PyQt6.QtGui import QBrush
+            
+            opt = QStyleOptionButton()
+            self.initStyleOption(opt)
+            indicator_rect = self.style().subElementRect(
+                self.style().SubElement.SE_RadioButtonIndicator,
+                opt,
+                self
+            )
+            
+            if indicator_rect.isValid():
+                painter = QPainter(self)
+                painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+                painter.setBrush(QBrush(QColor("white")))
+                painter.setPen(Qt.PenStyle.NoPen)
+                
+                # Draw white dot in center
+                center = indicator_rect.center()
+                center_pt = QPointF(center.x(), center.y())
+                
+                # Dot size: 25% of width radius (50% diameter)
+                radius = indicator_rect.width() * 0.25
+                
+                painter.drawEllipse(center_pt, radius, radius)
+                painter.end()
+
+
 class HighlightDelegate(QStyledItemDelegate):
     """Custom delegate to highlight filter text in table cells"""
     
@@ -205,6 +269,217 @@ class HighlightDelegate(QStyledItemDelegate):
             painter.drawText(x, y, remaining_text)
         
         painter.restore()
+
+
+class TmxTagCleanerDialog(QDialog):
+    """Dialog for configuring and running tag cleaning on TMX files"""
+    
+    # Default tag patterns with descriptions
+    DEFAULT_TAG_PATTERNS = [
+        # Basic formatting tags
+        {"name": "<b></b>", "pattern": r"</?b>", "description": "Bold tags", "enabled": True, "category": "Formatting"},
+        {"name": "<i></i>", "pattern": r"</?i>", "description": "Italic tags", "enabled": True, "category": "Formatting"},
+        {"name": "<u></u>", "pattern": r"</?u>", "description": "Underline tags", "enabled": True, "category": "Formatting"},
+        {"name": "<bi></bi>", "pattern": r"</?bi>", "description": "Bold-italic tags", "enabled": True, "category": "Formatting"},
+        {"name": "<sub></sub>", "pattern": r"</?sub>", "description": "Subscript tags", "enabled": False, "category": "Formatting"},
+        {"name": "<sup></sup>", "pattern": r"</?sup>", "description": "Superscript tags", "enabled": False, "category": "Formatting"},
+        
+        # TMX/XLIFF inline tags
+        {"name": "<bpt>...</bpt>", "pattern": r"<bpt[^>]*>.*?</bpt>", "description": "Begin paired tag", "enabled": False, "category": "TMX/XLIFF"},
+        {"name": "<ept>...</ept>", "pattern": r"<ept[^>]*>.*?</ept>", "description": "End paired tag", "enabled": False, "category": "TMX/XLIFF"},
+        {"name": "<ph>...</ph>", "pattern": r"<ph[^>]*>.*?</ph>", "description": "Placeholder tag", "enabled": False, "category": "TMX/XLIFF"},
+        {"name": "<it>...</it>", "pattern": r"<it[^>]*>.*?</it>", "description": "Isolated tag", "enabled": False, "category": "TMX/XLIFF"},
+        {"name": "<hi>...</hi>", "pattern": r"<hi[^>]*>.*?</hi>", "description": "Highlight tag", "enabled": False, "category": "TMX/XLIFF"},
+        {"name": "<ut>...</ut>", "pattern": r"<ut[^>]*>.*?</ut>", "description": "Unknown tag", "enabled": False, "category": "TMX/XLIFF"},
+        
+        # memoQ tags
+        {"name": "{1} [2} etc.", "pattern": r"(?:\[\d+\}|\{\d+\]|\{\d+\})", "description": "memoQ index tags", "enabled": False, "category": "memoQ"},
+        
+        # Trados tags
+        {"name": "<1></1> etc.", "pattern": r"</?(\d+)>", "description": "Trados numbered tags", "enabled": False, "category": "Trados"},
+        {"name": "{1}{/1} etc.", "pattern": r"\{/?(\d+)\}", "description": "Trados curly tags", "enabled": False, "category": "Trados"},
+        
+        # Generic XML tags
+        {"name": "All XML tags", "pattern": r"<[^>]+>", "description": "Any XML-style tag", "enabled": False, "category": "Generic"},
+    ]
+    
+    def __init__(self, parent=None, tu_count: int = 0):
+        super().__init__(parent)
+        self.setWindowTitle("🧹 Clean Tags from TMX")
+        self.setMinimumWidth(600)
+        self.setMinimumHeight(500)
+        self.tu_count = tu_count
+        self.tag_checkboxes: Dict[str, QCheckBox] = {}
+        
+        self.setup_ui()
+    
+    def setup_ui(self):
+        """Create the dialog UI"""
+        layout = QVBoxLayout(self)
+        layout.setSpacing(10)
+        
+        # Info label
+        info_label = QLabel(f"Select which tags to remove from {self.tu_count:,} translation units:")
+        info_label.setStyleSheet("font-weight: bold; font-size: 11pt;")
+        layout.addWidget(info_label)
+        
+        # Tag categories in a scrollable area
+        from PyQt6.QtWidgets import QScrollArea
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameStyle(QFrame.Shape.NoFrame)
+        
+        scroll_content = QWidget()
+        scroll_layout = QVBoxLayout(scroll_content)
+        scroll_layout.setSpacing(15)
+        
+        # Group tags by category
+        categories: Dict[str, list] = {}
+        for tag in self.DEFAULT_TAG_PATTERNS:
+            cat = tag["category"]
+            if cat not in categories:
+                categories[cat] = []
+            categories[cat].append(tag)
+        
+        # Create a group box for each category
+        for category, tags in categories.items():
+            group = QGroupBox(category)
+            group.setStyleSheet("QGroupBox { font-weight: bold; }")
+            group_layout = QVBoxLayout(group)
+            
+            for tag in tags:
+                cb = CheckmarkCheckBox(f"{tag['name']} - {tag['description']}")
+                cb.setChecked(tag["enabled"])
+                cb.tag_pattern = tag["pattern"]
+                cb.tag_name = tag["name"]
+                self.tag_checkboxes[tag["name"]] = cb
+                group_layout.addWidget(cb)
+            
+            scroll_layout.addWidget(group)
+        
+        scroll_layout.addStretch()
+        scroll.setWidget(scroll_content)
+        layout.addWidget(scroll)
+        
+        # Quick select buttons
+        quick_layout = QHBoxLayout()
+        btn_select_all = QPushButton("Select All")
+        btn_select_all.clicked.connect(self.select_all)
+        quick_layout.addWidget(btn_select_all)
+        
+        btn_select_none = QPushButton("Select None")
+        btn_select_none.clicked.connect(self.select_none)
+        quick_layout.addWidget(btn_select_none)
+        
+        btn_select_formatting = QPushButton("Select Formatting Only")
+        btn_select_formatting.clicked.connect(self.select_formatting_only)
+        quick_layout.addWidget(btn_select_formatting)
+        
+        quick_layout.addStretch()
+        layout.addLayout(quick_layout)
+        
+        # Separator
+        separator = QFrame()
+        separator.setFrameStyle(QFrame.Shape.HLine | QFrame.Shadow.Sunken)
+        layout.addWidget(separator)
+        
+        # Replacement option
+        replace_group = QGroupBox("Tag Replacement")
+        replace_layout = QVBoxLayout(replace_group)
+        
+        self.replace_nothing = CheckmarkRadioButton("Remove tags completely (no replacement)")
+        self.replace_space = CheckmarkRadioButton("Replace tags with a space")
+        self.replace_nothing.setChecked(True)
+        
+        replace_layout.addWidget(self.replace_nothing)
+        replace_layout.addWidget(self.replace_space)
+        layout.addWidget(replace_group)
+        
+        # Scope options
+        scope_group = QGroupBox("Scope")
+        scope_layout = QVBoxLayout(scope_group)
+        
+        self.scope_both = CheckmarkRadioButton("Clean both source and target segments")
+        self.scope_source = CheckmarkRadioButton("Clean source segments only")
+        self.scope_target = CheckmarkRadioButton("Clean target segments only")
+        self.scope_both.setChecked(True)
+        
+        scope_layout.addWidget(self.scope_both)
+        scope_layout.addWidget(self.scope_source)
+        scope_layout.addWidget(self.scope_target)
+        layout.addWidget(scope_group)
+        
+        # Dialog buttons
+        button_box = QDialogButtonBox()
+        self.btn_clean = QPushButton("🧹 Clean Tags")
+        self.btn_clean.setDefault(True)
+        self.btn_preview = QPushButton("👁️ Preview")
+        btn_cancel = QPushButton("Cancel")
+        
+        button_box.addButton(self.btn_clean, QDialogButtonBox.ButtonRole.AcceptRole)
+        button_box.addButton(self.btn_preview, QDialogButtonBox.ButtonRole.ActionRole)
+        button_box.addButton(btn_cancel, QDialogButtonBox.ButtonRole.RejectRole)
+        
+        self.btn_clean.clicked.connect(self.accept)
+        self.btn_preview.clicked.connect(self.preview_cleaning)
+        btn_cancel.clicked.connect(self.reject)
+        
+        layout.addWidget(button_box)
+    
+    def select_all(self):
+        """Select all tag patterns"""
+        for cb in self.tag_checkboxes.values():
+            cb.setChecked(True)
+    
+    def select_none(self):
+        """Deselect all tag patterns"""
+        for cb in self.tag_checkboxes.values():
+            cb.setChecked(False)
+    
+    def select_formatting_only(self):
+        """Select only formatting tags"""
+        for name, cb in self.tag_checkboxes.items():
+            # Enable formatting tags (b, i, u, bi, sub, sup)
+            is_formatting = name in ["<b></b>", "<i></i>", "<u></u>", "<bi></bi>", "<sub></sub>", "<sup></sup>"]
+            cb.setChecked(is_formatting)
+    
+    def get_selected_patterns(self) -> List[str]:
+        """Get list of selected regex patterns"""
+        patterns = []
+        for cb in self.tag_checkboxes.values():
+            if cb.isChecked():
+                patterns.append(cb.tag_pattern)
+        return patterns
+    
+    def get_replacement(self) -> str:
+        """Get replacement string (empty or space)"""
+        return " " if self.replace_space.isChecked() else ""
+    
+    def get_scope(self) -> str:
+        """Get scope: 'both', 'source', or 'target'"""
+        if self.scope_source.isChecked():
+            return "source"
+        elif self.scope_target.isChecked():
+            return "target"
+        return "both"
+    
+    def preview_cleaning(self):
+        """Show preview of what will be cleaned"""
+        patterns = self.get_selected_patterns()
+        if not patterns:
+            QMessageBox.information(self, "Preview", "No tag patterns selected.")
+            return
+        
+        preview_text = "Selected patterns:\n\n"
+        for cb in self.tag_checkboxes.values():
+            if cb.isChecked():
+                preview_text += f"  • {cb.tag_name}\n"
+        
+        preview_text += f"\nReplacement: {'[space]' if self.replace_space.isChecked() else '[nothing]'}"
+        preview_text += f"\nScope: {self.get_scope()}"
+        preview_text += f"\n\nThis will process {self.tu_count:,} translation units."
+        
+        QMessageBox.information(self, "Preview", preview_text)
 
 
 class TmxEditorUIQt(QWidget):
@@ -341,6 +616,10 @@ class TmxEditorUIQt(QWidget):
         btn_validate = QPushButton("✓ Validate")
         btn_validate.clicked.connect(self.validate_tmx)
         toolbar_layout.addWidget(btn_validate)
+        
+        btn_clean_tags = QPushButton("🧹 Clean Tags")
+        btn_clean_tags.clicked.connect(self.show_clean_tags_dialog)
+        toolbar_layout.addWidget(btn_clean_tags)
         
         toolbar_layout.addStretch()
         parent_layout.addWidget(toolbar)
@@ -2086,6 +2365,213 @@ class TmxEditorUIQt(QWidget):
         else:
             QMessageBox.information(self, "Validation", "✓ No issues found. TMX file is valid!")
     
+    def show_clean_tags_dialog(self):
+        """Show the tag cleaning configuration dialog"""
+        import re
+        
+        # Get TU count
+        tu_count = 0
+        if self.load_mode == "database":
+            if self.db_manager and self.tmx_file_id:
+                file_info = self.db_manager.tmx_get_file_info(self.tmx_file_id)
+                tu_count = file_info.get('tu_count', 0) if file_info else 0
+        else:
+            if not self.tmx_file:
+                QMessageBox.warning(self, "Warning", "Please create or open a TMX file first")
+                return
+            tu_count = len(self.tmx_file.translation_units)
+        
+        if tu_count == 0:
+            QMessageBox.warning(self, "Warning", "No translation units to clean")
+            return
+        
+        # Show dialog
+        dialog = TmxTagCleanerDialog(self, tu_count)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            patterns = dialog.get_selected_patterns()
+            if not patterns:
+                QMessageBox.information(self, "Clean Tags", "No tag patterns selected.")
+                return
+            
+            replacement = dialog.get_replacement()
+            scope = dialog.get_scope()
+            
+            # Confirm action
+            reply = QMessageBox.question(
+                self, "Confirm Tag Cleaning",
+                f"This will clean tags from {tu_count:,} translation units.\n\n"
+                f"Scope: {scope}\n"
+                f"Patterns: {len(patterns)} selected\n"
+                f"Replacement: {'[space]' if replacement else '[nothing]'}\n\n"
+                "This action cannot be undone. Continue?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
+            
+            if reply == QMessageBox.StandardButton.Yes:
+                self.clean_tags(patterns, replacement, scope)
+    
+    def clean_tags(self, patterns: List[str], replacement: str, scope: str):
+        """
+        Clean tags from TMX segments
+        
+        Args:
+            patterns: List of regex patterns to match tags
+            replacement: String to replace tags with (empty or space)
+            scope: 'both', 'source', or 'target'
+        """
+        import re
+        import html
+        
+        # Create patterns for both literal and XML-escaped versions
+        # TMX files may store tags as literal <b> or escaped &lt;b&gt;
+        expanded_patterns = []
+        for p in patterns:
+            expanded_patterns.append(p)  # Original pattern for literal tags
+            # Create escaped version: < becomes &lt; and > becomes &gt;
+            escaped_p = p.replace('<', '&lt;').replace('>', '&gt;')
+            if escaped_p != p:
+                expanded_patterns.append(escaped_p)
+        
+        # Combine all patterns into one regex for efficiency
+        combined_pattern = "|".join(f"({p})" for p in expanded_patterns)
+        regex = re.compile(combined_pattern)
+        
+        # Progress dialog
+        progress = QProgressDialog("Cleaning tags...", "Cancel", 0, 100, self)
+        progress.setWindowModality(Qt.WindowModality.WindowModal)
+        progress.setMinimumDuration(500)
+        
+        cleaned_count = 0
+        total_tags_removed = 0
+        
+        def clean_text(text: str) -> tuple:
+            """Clean text and return (cleaned_text, tags_removed_count)"""
+            if not text:
+                return text, 0
+            tag_count = len(regex.findall(text))  # Count before replacement
+            cleaned = regex.sub(replacement, text)
+            # Clean up double spaces if replacement is space
+            if replacement == " ":
+                cleaned = re.sub(r' {2,}', ' ', cleaned).strip()
+            return cleaned, tag_count
+        
+        if self.load_mode == "database":
+            # Database mode
+            if not self.db_manager or not self.tmx_file_id:
+                return
+            
+            # Get all TUs from database
+            file_info = self.db_manager.tmx_get_file_info(self.tmx_file_id)
+            if not file_info:
+                return
+            
+            total_tus = file_info.get('tu_count', 0)
+            all_languages = file_info.get('languages', [])
+            header_srclang = file_info.get('srclang', all_languages[0] if all_languages else None)
+            
+            # Determine which languages to clean based on scope
+            langs_to_clean = []
+            if scope == 'both':
+                langs_to_clean = all_languages
+            elif scope == 'source':
+                langs_to_clean = [header_srclang] if header_srclang else []
+            elif scope == 'target':
+                langs_to_clean = [l for l in all_languages if l != header_srclang]
+            
+            # Get TUs in batches - get all segments for each TU
+            batch_size = 100
+            for offset in range(0, total_tus, batch_size):
+                if progress.wasCanceled():
+                    break
+                
+                # Get batch of TUs with all languages
+                tus = self.db_manager.tmx_get_translation_units(
+                    self.tmx_file_id, 
+                    source_lang=self.src_lang,
+                    target_lang=self.tgt_lang,
+                    limit=batch_size,
+                    offset=offset
+                )
+                
+                for tu in tus:
+                    modified = False
+                    
+                    # Clean all applicable languages
+                    for lang in langs_to_clean:
+                        seg = tu.get_segment(lang)
+                        if seg and seg.text:
+                            cleaned, count = clean_text(seg.text)
+                            if count > 0:
+                                # Update in database
+                                self.db_manager.tmx_update_segment(
+                                    self.tmx_file_id, tu.tu_id, lang, cleaned
+                                )
+                                total_tags_removed += count
+                                modified = True
+                    
+                    if modified:
+                        cleaned_count += 1
+                
+                progress.setValue(int((offset + batch_size) / total_tus * 100))
+                QApplication.processEvents()
+        
+        else:
+            # RAM mode
+            if not self.tmx_file:
+                return
+            
+            total_tus = len(self.tmx_file.translation_units)
+            
+            for i, tu in enumerate(self.tmx_file.translation_units):
+                if progress.wasCanceled():
+                    break
+                
+                modified = False
+                
+                # Clean ALL segments in the TU, not just displayed languages
+                # "both" = all languages, "source" = srclang from header, "target" = all non-source
+                header_srclang = self.tmx_file.header.srclang if self.tmx_file.header else None
+                
+                for lang, segment in tu.segments.items():
+                    should_clean = False
+                    
+                    if scope == 'both':
+                        should_clean = True
+                    elif scope == 'source' and lang == header_srclang:
+                        should_clean = True
+                    elif scope == 'target' and lang != header_srclang:
+                        should_clean = True
+                    
+                    if should_clean and segment.text:
+                        cleaned, count = clean_text(segment.text)
+                        if count > 0:
+                            segment.text = cleaned
+                            total_tags_removed += count
+                            modified = True
+                
+                if modified:
+                    cleaned_count += 1
+                    self.tmx_file.is_modified = True
+                
+                if i % 100 == 0:
+                    progress.setValue(int(i / total_tus * 100))
+                    QApplication.processEvents()
+        
+        progress.setValue(100)
+        progress.close()
+        
+        # Refresh the grid
+        self.apply_filters()
+        
+        # Show results
+        QMessageBox.information(
+            self, "Tag Cleaning Complete",
+            f"✅ Cleaning complete!\n\n"
+            f"Translation units modified: {cleaned_count:,}\n"
+            f"Total tags removed: {total_tags_removed:,}\n\n"
+            f"{'Remember to save your changes!' if self.load_mode == 'ram' else 'Changes saved to database.'}"
+        )
+    
     # ===== UI Helpers =====
     
     def refresh_ui(self):
@@ -2107,7 +2593,10 @@ class TmxEditorUIQt(QWidget):
         if not languages:
             return
         
-        # Update language combos
+        # Update language combos - block signals to prevent on_language_changed firing during setup
+        self.src_lang_combo.blockSignals(True)
+        self.tgt_lang_combo.blockSignals(True)
+        
         self.src_lang_combo.clear()
         self.src_lang_combo.addItems(languages)
         
@@ -2120,14 +2609,28 @@ class TmxEditorUIQt(QWidget):
             self.src_lang_combo.setCurrentIndex(0)
             self.src_lang = languages[0]
         
-        if self.tgt_lang in languages:
+        # Ensure target is different from source if possible
+        if self.tgt_lang in languages and self.tgt_lang != self.src_lang:
             self.tgt_lang_combo.setCurrentText(self.tgt_lang)
         elif len(languages) > 1:
-            self.tgt_lang_combo.setCurrentIndex(1)
-            self.tgt_lang = languages[1]
+            # Pick first language that's different from source
+            for lang in languages:
+                if lang != self.src_lang:
+                    self.tgt_lang_combo.setCurrentText(lang)
+                    self.tgt_lang = lang
+                    break
         elif languages:
             self.tgt_lang_combo.setCurrentIndex(0)
             self.tgt_lang = languages[0]
+        
+        self.src_lang_combo.blockSignals(False)
+        self.tgt_lang_combo.blockSignals(False)
+        
+        # Update filter labels
+        if hasattr(self, 'src_search_label'):
+            self.src_search_label.setText(f"Source: {self.src_lang}")
+        if hasattr(self, 'tgt_search_label'):
+            self.tgt_search_label.setText(f"Target: {self.tgt_lang}")
         
         # Apply filters (will refresh grid)
         self.apply_filters()
@@ -2223,6 +2726,13 @@ if __name__ == "__main__":
             delete_tu_action = edit_menu.addAction("Delete Selected TU")
             delete_tu_action.triggered.connect(self.tmx_editor.delete_selected_tu)
             
+            edit_menu.addSeparator()
+            
+            # Bulk Operations submenu
+            bulk_menu = edit_menu.addMenu("Bulk Operations")
+            clean_tags_action = bulk_menu.addAction("🧹 Clean Tags...")
+            clean_tags_action.triggered.connect(self.tmx_editor.show_clean_tags_dialog)
+            
             # View menu
             view_menu = menubar.addMenu("View")
             stats_action = view_menu.addAction("Statistics")
@@ -2236,6 +2746,9 @@ if __name__ == "__main__":
             tools_menu = menubar.addMenu("Tools")
             validate_action = tools_menu.addAction("Validate TMX")
             validate_action.triggered.connect(self.tmx_editor.validate_tmx)
+            
+            clean_tags_tool_action = tools_menu.addAction("🧹 Clean Tags...")
+            clean_tags_tool_action.triggered.connect(self.tmx_editor.show_clean_tags_dialog)
         
         def closeEvent(self, event):
             """Handle window close - check for unsaved changes"""

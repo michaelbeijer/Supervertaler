@@ -1,4 +1,4 @@
-# 🚀 Supervertaler v1.9.54
+# 🚀 Supervertaler v1.9.59
 
 [![PyPI version](https://badge.fury.io/py/supervertaler.svg)](https://pypi.org/project/Supervertaler/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
@@ -6,7 +6,7 @@
 
 🎯 **The Ultimate Translation Workbench** — Context-aware AI with intuitive 2-Layer Prompt Architecture, AI Assistant, project glossary system with automatic extraction, and specialized modules.
 
-**Current Version:** v1.9.54 (December 22, 2025)
+**Current Version:** v1.9.59 (December 22, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -51,7 +51,16 @@ python Supervertaler.py
 
 **PyPI Package:** https://pypi.org/project/Supervertaler/
 
-### NEW in v1.9.54 - User-Facing Terminology Rename 📝
+### NEW in v1.9.59 - TMX Tag Cleaner 🧹
+*   **Tag Cleaning Function**: New tag cleaner in both TMX Editor and main application
+*   **Access**: Edit → Bulk Operations → Clean Tags, or 🧹 Clean Tags toolbar button in TMX Editor
+*   **Flexible Selection**: Choose which tags to clean (formatting, TMX/XLIFF, memoQ, Trados, generic XML)
+*   **Scope Options**: Clean source, target, or both - cleans ALL languages in TMX, not just visible pair
+*   **Handles Escaped Tags**: Works with both literal `<b>` and XML-escaped `&lt;b&gt;` tags
+*   **TMX Editor Fix**: Language dropdowns now correctly default to different languages (source→target)
+*   **AutoHotkey Dialog**: "Do not show again" checkbox added
+
+### v1.9.54 - User-Facing Terminology Rename 📝
 *   **Termbase → Glossary**: All user-facing UI now uses "Glossary" instead of "Termbase"
 *   **TM Matches → TMs**: Tab renamed for consistency
 *   **Superlookup UX**: Enter triggers search, Edit in Glossary navigation fixed, fuzzy search filter improved
