@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** December 22, 2025 | **Version:** v1.9.59
+> **Last Updated:** December 22, 2025 | **Version:** v1.9.60
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.59 (December 2025) |
+| **Version** | v1.9.60 (December 2025) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -359,6 +359,49 @@ google_api_key=AI...
 ---
 
 ## 🔄 Recent Development History
+
+### December 22, 2025 - Version 1.9.60: Tag-Aware TM Matching & AutoFingers Cleanup
+
+**🔍 Tag-Aware TM Matching**
+
+Translation Memory fuzzy matching now works regardless of whether segments contain formatting tags:
+
+- **Dual Search Strategy**: Searches both with original text (including tags) AND with tags stripped
+  - `<b><u>Technisch mankement</u></b>` generates search terms: `['Technisch', 'mankement']`
+  - Also includes any tag-derived terms (in case TM was indexed with tags)
+  - Single FTS query with combined terms - negligible performance impact
+
+- **Tag-Stripped Similarity Calculation**: `calculate_similarity()` now strips HTML/XML tags before comparing
+  - `<b>Hello</b>` vs `Hello` now gives 100% match instead of ~70%
+  - More accurate fuzzy match percentages
+
+- **Benefits**:
+  - TMs imported with tags now match segments without tags (and vice versa)
+  - Similarity scores based on actual text content, not tag presence
+  - Debug output shows combined search terms
+
+**Files Modified:**
+- `modules/database_manager.py` - `search_fuzzy_matches()` dual search, `calculate_similarity()` tag stripping
+
+**🧹 TMX Tag Cleaner - Additional Tags**
+
+- Added `<li-b></li-b>` (bullet list item) and `<li-o></li-o>` (ordered list item) tags to Formatting category
+- Both enabled by default
+
+**Files Modified:**
+- `modules/tmx_editor_qt.py` - Added list item tags to `DEFAULT_TAG_PATTERNS`
+
+**🤖 AutoFingers Cleanup**
+
+- Removed TMX Manager tab (unused features)
+- Added "📥 Import from TM" button to Control Panel's TMX File group
+- Simplified TMX status display: now shows "✓ X TUs loaded" instead of verbose multi-line stats
+- Removed unused `create_tmx_tab()` method
+
+**Files Modified:**
+- `Supervertaler.py` - AutoFingers UI cleanup, removed tab, added button
+
+---
 
 ### December 22, 2025 - Version 1.9.59: TMX Tag Cleaner & UX Improvements
 

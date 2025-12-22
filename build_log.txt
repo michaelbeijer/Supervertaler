@@ -1,0 +1,50 @@
+﻿pyinstaller : 676 INFO: PyInstaller: 6.16.0, contrib hooks: 2025.9
+At line:1 char:1
++ pyinstaller Supervertaler.spec --noconfirm 2>&1 | Out-File -FilePath  ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (676 INFO: PyIns...b hooks: 2025. 
+   9:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+677 INFO: Python: 3.12.6
+747 INFO: Platform: Windows-11-10.0.26200-SP0
+747 INFO: Python environment: C:\Python312
+755 INFO: Module search paths (PYTHONPATH):
+['C:\\Users\\mbeijer\\AppData\\Roaming\\Python\\Python312\\Scripts\\pyinstalle
+r.exe',
+ 'C:\\Python312\\python312.zip',
+ 'C:\\Python312\\DLLs',
+ 'C:\\Python312\\Lib',
+ 'C:\\Python312',
+ 'C:\\Users\\mbeijer\\AppData\\Roaming\\Python\\Python312\\site-packages',
+ 'C:\\Users\\mbeijer\\AppData\\Roaming\\Python\\Python312\\site-packages\\win3
+2',
+ 'C:\\Users\\mbeijer\\AppData\\Roaming\\Python\\Python312\\site-packages\\win3
+2\\lib',
+ 'C:\\Users\\mbeijer\\AppData\\Roaming\\Python\\Python312\\site-packages\\Pyth
+onwin',
+ 'C:\\Python312\\Lib\\site-packages',
+ 'C:\\Users\\mbeijer\\AppData\\Roaming\\Python\\Python312\\site-packages\\setu
+ptools\\_vendor',
+ 'C:\\Dev\\Supervertaler']
+2119 INFO: Appending 'datas' from .spec
+2214 INFO: checking Analysis
+2696 INFO: Building because excludes changed
+2696 INFO: Looking for Python shared library...
+2696 INFO: Using Python shared library: C:\Python312\python312.dll
+2696 INFO: Running Analysis Analysis-00.toc
+2696 INFO: Target bytecode optimization level: 0
+2696 INFO: Initializing module dependency graph...
+2697 INFO: Initializing module graph hook caches...
+2731 INFO: Analyzing modules for base_library.zip ...
+6613 INFO: Processing standard module hook 'hook-encodings.py' from 'C:\\Users
+\\mbeijer\\AppData\\Roaming\\Python\\Python312\\site-packages\\PyInstaller\\ho
+oks'
+10216 INFO: Processing standard module hook 'hook-pickle.py' from 'C:\\Users\\
+mbeijer\\AppData\\Roaming\\Python\\Python312\\site-packages\\PyInstaller\\hook
+s'
+12414 INFO: Processing standard module hook 'hook-heapq.py' from 'C:\\Users\\m
+beijer\\AppData\\Roaming\\Python\\Python312\\site-packages\\PyInstaller\\hooks
+'
+13062 INFO: Caching module dependency graph...
+13158 INFO: Analyzing C:\Dev\Supervertaler\Supervertaler.py

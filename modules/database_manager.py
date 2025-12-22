@@ -818,11 +818,16 @@ class DatabaseManager:
     
     def calculate_similarity(self, text1: str, text2: str) -> float:
         """
-        Calculate similarity ratio between two texts using SequenceMatcher
+        Calculate similarity ratio between two texts using SequenceMatcher.
+        Tags are stripped before comparison for better matching accuracy.
         
         Returns: Similarity score from 0.0 to 1.0
         """
-        return SequenceMatcher(None, text1.lower(), text2.lower()).ratio()
+        import re
+        # Strip HTML/XML tags for comparison
+        clean1 = re.sub(r'<[^>]+>', '', text1).lower()
+        clean2 = re.sub(r'<[^>]+>', '', text2).lower()
+        return SequenceMatcher(None, clean1, clean2).ratio()
     
     def search_fuzzy_matches(self, source: str, tm_ids: List[str] = None,
                             threshold: float = 0.75, max_results: int = 5,
@@ -841,19 +846,29 @@ class DatabaseManager:
         import re
         from modules.tmx_generator import get_base_lang_code
         
-        # Remove special FTS5 characters and split into words
-        clean_text = re.sub(r'[^\w\s]', ' ', source)  # Replace special chars with spaces
-        search_terms = [term for term in clean_text.strip().split() if len(term) > 1]
+        # Strip HTML/XML tags from source for clean text search
+        text_without_tags = re.sub(r'<[^>]+>', '', source)
         
-        print(f"[DEBUG] search_fuzzy_matches: source='{source[:50]}', search_terms={search_terms}")
+        # Remove special FTS5 characters and split into words (from tag-stripped text)
+        clean_text = re.sub(r'[^\w\s]', ' ', text_without_tags)  # Replace special chars with spaces
+        search_terms_clean = [term for term in clean_text.strip().split() if len(term) > 1]
         
-        if not search_terms:
+        # Also get search terms from original source (in case TM was indexed with tags)
+        clean_text_with_tags = re.sub(r'[^\w\s]', ' ', source)
+        search_terms_with_tags = [term for term in clean_text_with_tags.strip().split() if len(term) > 1]
+        
+        # Combine both sets of search terms (deduplicated)
+        all_search_terms = list(dict.fromkeys(search_terms_clean + search_terms_with_tags))
+        
+        print(f"[DEBUG] search_fuzzy_matches: source='{source[:50]}', search_terms={all_search_terms}")
+        
+        if not all_search_terms:
             # If no valid terms, return empty results
             print(f"[DEBUG] search_fuzzy_matches: No valid search terms, returning empty")
             return []
         
         # Quote each term to prevent FTS5 syntax errors
-        fts_query = ' OR '.join(f'"{term}"' for term in search_terms)
+        fts_query = ' OR '.join(f'"{term}"' for term in all_search_terms)
         print(f"[DEBUG] search_fuzzy_matches: FTS query = {fts_query}")
         
         # Get base language codes for comparison

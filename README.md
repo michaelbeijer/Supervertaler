@@ -1,4 +1,4 @@
-# 🚀 Supervertaler v1.9.59
+# 🚀 Supervertaler v1.9.60
 
 [![PyPI version](https://badge.fury.io/py/supervertaler.svg)](https://pypi.org/project/Supervertaler/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
@@ -6,7 +6,7 @@
 
 🎯 **The Ultimate Translation Workbench** — Context-aware AI with intuitive 2-Layer Prompt Architecture, AI Assistant, project glossary system with automatic extraction, and specialized modules.
 
-**Current Version:** v1.9.59 (December 22, 2025)
+**Current Version:** v1.9.60 (December 22, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -51,7 +51,14 @@ python Supervertaler.py
 
 **PyPI Package:** https://pypi.org/project/Supervertaler/
 
-### NEW in v1.9.59 - TMX Tag Cleaner 🧹
+### NEW in v1.9.60 - Tag-Aware TM Matching 🔍
+*   **Smart Tag Handling**: TM fuzzy matching now works regardless of tags in segments
+*   **Dual Search**: Searches both with and without tags - `<b>Hello</b>` matches `Hello` in your TM
+*   **Accurate Percentages**: Similarity calculation strips tags before comparing (100% match, not ~70%)
+*   **TMX Tag Cleaner Update**: Added `<li-b>` and `<li-o>` list item tags to Formatting category
+*   **AutoFingers Cleanup**: Removed TMX Manager tab, added Import button to Control Panel
+
+### v1.9.59 - TMX Tag Cleaner 🧹
 *   **Tag Cleaning Function**: New tag cleaner in both TMX Editor and main application
 *   **Access**: Edit → Bulk Operations → Clean Tags, or 🧹 Clean Tags toolbar button in TMX Editor
 *   **Flexible Selection**: Choose which tags to clean (formatting, TMX/XLIFF, memoQ, Trados, generic XML)

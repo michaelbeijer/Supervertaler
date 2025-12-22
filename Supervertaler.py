@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.59"
+__version__ = "1.9.60"
 __phase__ = "0.9"
 __release_date__ = "2025-12-21"
 __edition__ = "Qt"
@@ -36723,13 +36723,9 @@ class AutoFingersWidget(QWidget):
         # Tabs
         tabs = QTabWidget()
         
-        # TAB 1: Control Panel (with integrated settings)
+        # Control Panel (single tab, no tab widget needed)
         control_tab = self.create_control_tab()
         tabs.addTab(control_tab, "🎮 Control Panel")
-        
-        # TAB 2: TMX Manager
-        tmx_tab = self.create_tmx_tab()
-        tabs.addTab(tmx_tab, "📚 TMX Manager")
         
         layout.addWidget(tabs, 1)  # 1 = stretch to fill space
         
@@ -36912,6 +36908,12 @@ class AutoFingersWidget(QWidget):
         reload_btn.setMaximumWidth(70)
         reload_btn.clicked.connect(self.reload_tmx)
         path_row.addWidget(reload_btn)
+        
+        import_btn = QPushButton("📥 Import from TM")
+        import_btn.setMaximumWidth(110)
+        import_btn.setToolTip("Import translation units from a Supervertaler Translation Memory")
+        import_btn.clicked.connect(self.import_from_tm)
+        path_row.addWidget(import_btn)
         
         tmx_layout.addLayout(path_row)
         
@@ -37100,44 +37102,6 @@ class AutoFingersWidget(QWidget):
         
         return tab
     
-    def create_tmx_tab(self):
-        """Create the TMX manager tab"""
-        tab = QWidget()
-        layout = QVBoxLayout(tab)
-        
-        # Info
-        info = QLabel(
-            "Manage your AutoFingers translation memory file.\n"
-            "The TMX file stores source-target translation pairs."
-        )
-        info.setWordWrap(True)
-        layout.addWidget(info)
-        
-        # Stats
-        self.tmx_stats_label = QLabel("No TMX loaded")
-        self.tmx_stats_label.setStyleSheet("padding: 10px; font-weight: bold;")
-        layout.addWidget(self.tmx_stats_label)
-        
-        # Actions
-        btn_layout = QVBoxLayout()
-        
-        create_btn = QPushButton("➕ Create New Empty TMX")
-        create_btn.clicked.connect(self.create_empty_tmx)
-        btn_layout.addWidget(create_btn)
-        
-        open_btn = QPushButton("📂 Open TMX in Editor")
-        open_btn.clicked.connect(self.open_tmx_in_editor)
-        btn_layout.addWidget(open_btn)
-        
-        import_btn = QPushButton("📥 Import from Supervertaler TM")
-        import_btn.clicked.connect(self.import_from_tm)
-        btn_layout.addWidget(import_btn)
-        
-        layout.addLayout(btn_layout)
-        layout.addStretch()
-        
-        return tab
-    
     def log(self, message: str):
         """Add message to activity log (thread-safe)"""
         # Skip logging if not on main thread to prevent QTextDocument crashes
@@ -37210,18 +37174,12 @@ class AutoFingersWidget(QWidget):
             
             if success:
                 self.log(f"✓ {message}")
-                self.tmx_status_label.setText(f"✓ {message}")
-                self.tmx_status_label.setStyleSheet("padding: 10px; font-weight: bold; color: green;")
-                self.tmx_stats_label.setText(
-                    f"📊 TMX Statistics:\n"
-                    f"  • Translation Units: {self.engine.tm_count}\n"
-                    f"  • Source Language: {self.engine.source_lang}\n"
-                    f"  • Target Language: {self.engine.target_lang}"
-                )
+                self.tmx_status_label.setText(f"✓ {self.engine.tm_count} TUs loaded")
+                self.tmx_status_label.setStyleSheet("padding: 4px; font-weight: bold; font-size: 9pt; color: green;")
             else:
                 self.log(f"✗ {message}")
                 self.tmx_status_label.setText(f"✗ {message}")
-                self.tmx_status_label.setStyleSheet("padding: 10px; font-weight: bold; color: red;")
+                self.tmx_status_label.setStyleSheet("padding: 4px; font-weight: bold; font-size: 9pt; color: red;")
                 
         except Exception as e:
             self.log(f"✗ Error: {str(e)}")

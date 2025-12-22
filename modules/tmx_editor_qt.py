@@ -283,6 +283,8 @@ class TmxTagCleanerDialog(QDialog):
         {"name": "<bi></bi>", "pattern": r"</?bi>", "description": "Bold-italic tags", "enabled": True, "category": "Formatting"},
         {"name": "<sub></sub>", "pattern": r"</?sub>", "description": "Subscript tags", "enabled": False, "category": "Formatting"},
         {"name": "<sup></sup>", "pattern": r"</?sup>", "description": "Superscript tags", "enabled": False, "category": "Formatting"},
+        {"name": "<li-b></li-b>", "pattern": r"</?li-b>", "description": "Bullet list item tags", "enabled": True, "category": "Formatting"},
+        {"name": "<li-o></li-o>", "pattern": r"</?li-o>", "description": "Ordered list item tags", "enabled": True, "category": "Formatting"},
         
         # TMX/XLIFF inline tags
         {"name": "<bpt>...</bpt>", "pattern": r"<bpt[^>]*>.*?</bpt>", "description": "Begin paired tag", "enabled": False, "category": "TMX/XLIFF"},

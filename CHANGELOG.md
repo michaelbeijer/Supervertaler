@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.59 (December 22, 2025)
+**Current Version:** v1.9.60 (December 22, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -14,6 +14,7 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- 🔍 **Tag-Aware TM Matching (v1.9.60)** - Translation Memory fuzzy matching now works regardless of whether segments contain formatting tags! Searches both with and without tags, so `<b>Hello</b>` matches `Hello` in your TM. Similarity calculation also strips tags before comparing, giving accurate match percentages. Added `<li-b>` and `<li-o>` list item tags to TMX Tag Cleaner. Removed unused TMX Manager tab from AutoFingers - Import from TM button now in Control Panel.
 - 🧹 **TMX Tag Cleaner (v1.9.59)** - New tag cleaning function in TMX Editor and main application! Access via Edit → Bulk Operations → Clean Tags, or the 🧹 Clean Tags toolbar button in TMX Editor. Select which tags to clean (formatting, TMX/XLIFF inline, memoQ, Trados, generic XML), choose replacement (remove or replace with space), and scope (source, target, or both). Cleans ALL languages in TMX regardless of display, not just visible pair. Handles both literal `<b>` and XML-escaped `&lt;b&gt;` tags. TMX Editor language dropdowns now correctly default to different languages (source→target, not source→source). AutoHotkey setup dialog now has "Do not show again" checkbox.
 - 🏠 **Flattened Tab Structure (v1.9.57)** - Simplified main navigation from nested tabs to flat structure. The old "Workspace → Editor / Resources" hierarchy is now: **Project editor** | **Project resources** | **Tools** | **Settings**. All four tabs are now at the top level for easier navigation. Capitalization follows lowercase style for subtabs (e.g., "Project editor" not "Project Editor").
 - ✏️ **Glossary Renaming (v1.9.56)** - Right-click on any glossary in Project resources → Glossaries tab to rename it. Previously, editing the name in the UI appeared to work but didn't actually save to the database. Now uses proper rename dialog with database persistence. Name column is no longer misleadingly editable inline.
