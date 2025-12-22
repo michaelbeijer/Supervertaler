@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.55"
+__version__ = "1.9.56"
 __phase__ = "0.9"
 __release_date__ = "2025-12-21"
 __edition__ = "Qt"
@@ -10079,6 +10079,13 @@ class SupervertalerQt(QMainWindow):
         termbase_table.setColumnWidth(6, 60)   # Priority
         termbase_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         termbase_table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
+        termbase_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)  # Disable inline editing
+        
+        # Enable context menu for termbase table
+        termbase_table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        termbase_table.customContextMenuRequested.connect(
+            lambda pos: self._show_termbase_context_menu(pos, termbase_table, termbase_mgr, refresh_termbase_list)
+        )
         
         # Get current project
         current_project = self.current_project if hasattr(self, 'current_project') else None
@@ -11184,6 +11191,65 @@ class SupervertalerQt(QMainWindow):
         
         dialog.setLayout(layout)
         dialog.exec()
+    
+    def _show_termbase_context_menu(self, pos, termbase_table, termbase_mgr, refresh_callback):
+        """Show context menu for termbase table with Rename and Delete options"""
+        # Get the row under the cursor
+        item = termbase_table.itemAt(pos)
+        if not item:
+            return
+        
+        row = item.row()
+        name_item = termbase_table.item(row, 1)
+        if not name_item:
+            return
+        
+        tb_name = name_item.text()
+        tb_id = name_item.data(Qt.ItemDataRole.UserRole)
+        
+        menu = QMenu(self)
+        
+        # Rename action
+        rename_action = QAction("✏️ Rename Glossary", self)
+        rename_action.triggered.connect(
+            lambda: self._rename_termbase_dialog(tb_id, tb_name, termbase_mgr, refresh_callback)
+        )
+        menu.addAction(rename_action)
+        
+        menu.addSeparator()
+        
+        # Delete action
+        delete_action = QAction("🗑️ Delete Glossary", self)
+        delete_action.triggered.connect(
+            lambda: self._delete_termbase(termbase_mgr, termbase_table, refresh_callback)
+        )
+        menu.addAction(delete_action)
+        
+        menu.exec(termbase_table.viewport().mapToGlobal(pos))
+    
+    def _rename_termbase_dialog(self, termbase_id, current_name, termbase_mgr, refresh_callback):
+        """Show dialog to rename a termbase"""
+        from PyQt6.QtWidgets import QInputDialog
+        
+        new_name, ok = QInputDialog.getText(
+            self,
+            "Rename Glossary",
+            f"Enter new name for '{current_name}':",
+            text=current_name
+        )
+        
+        if ok and new_name and new_name.strip():
+            new_name = new_name.strip()
+            if new_name != current_name:
+                if termbase_mgr.rename_termbase(termbase_id, new_name):
+                    self.log(f"✓ Renamed glossary '{current_name}' to '{new_name}'")
+                    QMessageBox.information(self, "Success", f"Glossary renamed to '{new_name}'")
+                    # Clear cache and refresh
+                    with self.termbase_cache_lock:
+                        self.termbase_cache.clear()
+                    refresh_callback()
+                else:
+                    QMessageBox.critical(self, "Error", "Failed to rename glossary")
     
     def _delete_termbase(self, termbase_mgr, termbase_table, refresh_callback):
         """Delete selected termbase"""

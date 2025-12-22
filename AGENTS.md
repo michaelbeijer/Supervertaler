@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** December 21, 2025 | **Version:** v1.9.55
+> **Last Updated:** December 22, 2025 | **Version:** v1.9.56
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.55 (December 2025) |
+| **Version** | v1.9.56 (December 2025) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -332,6 +332,27 @@ google_api_key=AI...
 ---
 
 ## 🔄 Recent Development History
+
+### December 22, 2025 - Version 1.9.56: Glossary Renaming Feature
+
+**✏️ Glossary Renaming via Right-Click**
+
+Fixed the glossary (termbase) renaming functionality:
+
+- **Problem**: Editing the glossary name directly in the table appeared to work but changes were never saved to the database
+- **Root Cause**: `QTableWidgetItem` in the Name column was editable by default, but no handler saved the edited value
+- **Solution Implemented**:
+  - Added right-click context menu to glossary table with "✏️ Rename Glossary" and "🗑️ Delete Glossary" options
+  - New `rename_termbase()` method in `TermbaseManager` class updates the name in the database
+  - New `_show_termbase_context_menu()` method shows context menu at right-click position
+  - New `_rename_termbase_dialog()` method shows QInputDialog for entering new name
+  - Disabled inline editing with `setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)`
+
+**Files Modified:**
+- `modules/termbase_manager.py` - Added `rename_termbase()` method
+- `Supervertaler.py` - Added context menu, rename dialog, disabled inline editing
+
+---
 
 ### December 22, 2025 - Version 1.9.54: Superlookup UX Improvements & Terminology Rename
 

@@ -191,6 +191,39 @@ class TermbaseManager:
             self.log(f"✗ Error deleting termbase: {e}")
             return False
     
+    def rename_termbase(self, termbase_id: int, new_name: str) -> bool:
+        """
+        Rename a termbase
+        
+        Args:
+            termbase_id: Termbase ID
+            new_name: New name for the termbase
+            
+        Returns:
+            True if successful
+        """
+        try:
+            if not new_name or not new_name.strip():
+                self.log(f"✗ Cannot rename termbase: empty name provided")
+                return False
+            
+            new_name = new_name.strip()
+            cursor = self.db_manager.cursor
+            now = datetime.now().isoformat()
+            
+            cursor.execute("""
+                UPDATE termbases 
+                SET name = ?, modified_date = ?
+                WHERE id = ?
+            """, (new_name, now, termbase_id))
+            
+            self.db_manager.connection.commit()
+            self.log(f"✓ Renamed termbase ID {termbase_id} to '{new_name}'")
+            return True
+        except Exception as e:
+            self.log(f"✗ Error renaming termbase: {e}")
+            return False
+    
     def get_active_termbases_for_project(self, project_id: int) -> List[Dict]:
         """
         Get all active termbases for a specific project
