@@ -6099,20 +6099,6 @@ class SupervertalerQt(QMainWindow):
         
         # Connect tab changes to handle view refreshes
         self.main_tabs.currentChanged.connect(self._on_main_tab_changed)
-    
-    def _on_main_tab_changed(self, index: int):
-        """Handle main tab changes (Project editor/Project resources/Tools/Settings)"""
-        try:
-            if index == 0:  # Project editor
-                # Grid refreshes automatically when segments change
-                pass
-            elif index == 1:  # Project resources
-                # Project resources tab - no special handling needed
-                pass
-        except Exception as e:
-            self.log(f"⚠️ Error switching main tabs: {e}")
-            import traceback
-            traceback.print_exc()
 
     
     def _create_placeholder_tab(self, title: str, description: str) -> QWidget:
@@ -7560,16 +7546,25 @@ class SupervertalerQt(QMainWindow):
                     window.log_display.setPlainText("Session Log - Ready\n" + "="*50 + "\n")
 
     def _on_main_tab_changed(self, index: int):
-        """Handle main tab changes"""
-        # Refresh AI Assistant LLM client when switching to Prompt Manager tab (index 1)
-        if index == 1 and hasattr(self, 'prompt_manager_qt'):
-            # Reload LLM settings in case they changed
-            llm_settings = self.load_llm_settings()
-            self.current_provider = llm_settings.get('provider', 'openai')
-            provider_key = f"{self.current_provider}_model"
-            self.current_model = llm_settings.get(provider_key)
-            # Reinitialize AI Assistant's LLM client
-            self.prompt_manager_qt._init_llm_client()
+        """Handle main tab changes (Project editor/Project resources/Tools/Settings)"""
+        try:
+            if index == 0:  # Project editor
+                # Grid refreshes automatically when segments change
+                pass
+            elif index == 1:  # Project resources
+                # Refresh AI Assistant LLM client when switching to Project resources tab
+                # Prompts tab is inside Project resources, so refresh LLM settings when going there
+                if hasattr(self, 'prompt_manager_qt'):
+                    llm_settings = self.load_llm_settings()
+                    self.current_provider = llm_settings.get('provider', 'openai')
+                    provider_key = f"{self.current_provider}_model"
+                    self.current_model = llm_settings.get(provider_key)
+                    # Reinitialize AI Assistant's LLM client
+                    self.prompt_manager_qt._init_llm_client()
+        except Exception as e:
+            self.log(f"⚠️ Error switching main tabs: {e}")
+            import traceback
+            traceback.print_exc()
     
     def detach_superlookup(self):
         """Detach Superlookup into a separate window for second screen use"""
