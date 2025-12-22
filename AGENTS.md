@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** December 22, 2025 | **Version:** v1.9.56
+> **Last Updated:** December 22, 2025 | **Version:** v1.9.57
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.56 (December 2025) |
+| **Version** | v1.9.57 (December 2025) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -332,6 +332,33 @@ google_api_key=AI...
 ---
 
 ## 🔄 Recent Development History
+
+### December 22, 2025 - Version 1.9.57: Flattened Tab Structure
+
+**🏠 Simplified Main Navigation**
+
+Reorganized the main tab structure from nested to flat hierarchy:
+
+- **Before**: Workspace (containing Editor + Resources subtabs) → Tools → Settings
+- **After**: Project editor → Project resources → Tools → Settings
+
+**Changes Made:**
+- Removed nested `project_home_tabs` QTabWidget
+- Grid widget now added directly to `main_tabs` as "📝 Project editor"
+- Resources tab added directly to `main_tabs` as "🗂️ Project resources"
+- Updated all tab index references throughout codebase (Tools is now index 2, Settings is now index 3)
+- Updated View → Navigate To menu items
+- Updated keyboard shortcut action mappings
+- Updated all navigation methods: `_go_to_superlookup()`, `_open_superdocs_tab()`, `show_autofingers()`, `show_image_extractor_from_tools()`, `_open_mt_settings()`, `_navigate_to_termbase_entry()`
+
+**Capitalization Style:**
+- Tab names use lowercase for subtabs: "Project editor", "Project resources" (NOT "Project Editor", "Project Resources")
+- Tools and Settings remain capitalized as they are top-level concepts
+
+**Files Modified:**
+- `Supervertaler.py` - `create_main_layout()`, navigation menu, shortcut actions, all navigation methods
+
+---
 
 ### December 22, 2025 - Version 1.9.56: Glossary Renaming Feature
 

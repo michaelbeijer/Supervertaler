@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.56 (December 22, 2025)
+**Current Version:** v1.9.57 (December 22, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -14,10 +14,9 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
-- ✏️ **Glossary Renaming (v1.9.56)** - Right-click on any glossary in Resources → Glossaries tab to rename it. Previously, editing the name in the UI appeared to work but didn't actually save to the database. Now uses proper rename dialog with database persistence. Name column is no longer misleadingly editable inline.
+- 🏠 **Flattened Tab Structure (v1.9.57)** - Simplified main navigation from nested tabs to flat structure. The old "Workspace → Editor / Resources" hierarchy is now: **Project editor** | **Project resources** | **Tools** | **Settings**. All four tabs are now at the top level for easier navigation. Capitalization follows lowercase style for subtabs (e.g., "Project editor" not "Project Editor").
+- ✏️ **Glossary Renaming (v1.9.56)** - Right-click on any glossary in Project resources → Glossaries tab to rename it. Previously, editing the name in the UI appeared to work but didn't actually save to the database. Now uses proper rename dialog with database persistence. Name column is no longer misleadingly editable inline.
 - ⚡ **Lightning-Fast Filtering (v1.9.55)** - Filter operations (Ctrl+Shift+F) now run instantly instead of taking ~12 seconds! Optimized to avoid grid reload - only shows/hides rows and applies yellow highlights. **Ctrl+Shift+F toggle**: press once to filter on selected text, press again to clear the filter. Clear filter also listed separately in keyboard shortcuts for discoverability.
-- 📝 **User-Facing Terminology Rename (v1.9.54)** - Comprehensive rename throughout the UI: "Termbase" → "Glossary", "TM Matches" → "TMs", "Termbase Matches" → "Glossaries". All dialog titles, settings labels, button text, tooltips, context menus, and messages updated. Internal code and database structure unchanged for backward compatibility.
-- 🔍 **Superlookup UX Improvements (v1.9.54)** - Enter key in search box now triggers search (Shift+Enter for newline). "Edit in Glossary" navigation fixed to correctly select the glossary in Resources tab. Fuzzy search filter prevents single-letter terms matching long queries. New "TM" column shows source TM name in results.
 - 📋 **Superlookup Termbase Enhancements (v1.9.53)** - Improved Glossaries tab with additional metadata columns: Glossary name, Domain, Notes. Full metadata in results including priority, project, client, forbidden status. Tooltips show full content on hover.
 - 📥 **Glossary Import Progress Dialog (v1.9.53)** - Real-time progress dialog when importing glossaries from TSV files. Visual progress bar, live statistics (✅ imported, ⏭️ skipped, ❌ errors), scrolling log window with color-coded entries.
 - 🌐 **Superlookup Web Resources (v1.9.52)** - Expanded web resources tab with 14 reference sites! New resources: Juremy, michaelbeijer.co.uk, AcronymFinder, BabelNet, Wiktionary (Source & Target). Persistent login sessions with cookies stored in `user_data/web_cache/`. Auto-select language pair from project on load. Compact single-line search layout. Settings checkboxes control sidebar button visibility.

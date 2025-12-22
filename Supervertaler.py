@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.56"
+__version__ = "1.9.57"
 __phase__ = "0.9"
 __release_date__ = "2025-12-21"
 __edition__ = "Qt"
@@ -5589,7 +5589,7 @@ class SupervertalerQt(QMainWindow):
         # Superlookup
         superlookup_action = QAction("🔍 &Superlookup...", self)
         superlookup_action.setShortcut("Ctrl+Alt+L")
-        # Tab indices: Project Editor=0, Prompt Manager=1, Translation Resources=2, Tools=3, Settings=4
+        # Tab indices: Project editor=0, Project resources=1, Tools=2, Settings=3
         superlookup_action.triggered.connect(lambda: self._go_to_superlookup() if hasattr(self, 'main_tabs') else None)  # Navigate to Superlookup
         edit_menu.addAction(superlookup_action)
         
@@ -5599,16 +5599,20 @@ class SupervertalerQt(QMainWindow):
         # Navigation submenu
         nav_menu = view_menu.addMenu("📑 &Navigate To")
         
-        go_editor_action = QAction("🏠 &Workspace", self)
+        go_editor_action = QAction("📝 Project &editor", self)
         go_editor_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(0) if hasattr(self, 'main_tabs') else None)
         nav_menu.addAction(go_editor_action)
         
+        go_resources_action = QAction("🗂️ Project &resources", self)
+        go_resources_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(1) if hasattr(self, 'main_tabs') else None)
+        nav_menu.addAction(go_resources_action)
+        
         go_tools_action = QAction("🛠️ &Tools", self)
-        go_tools_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(1) if hasattr(self, 'main_tabs') else None)
+        go_tools_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(2) if hasattr(self, 'main_tabs') else None)
         nav_menu.addAction(go_tools_action)
         
         go_settings_action = QAction("⚙️ &Settings", self)
-        go_settings_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(2) if hasattr(self, 'main_tabs') else None)
+        go_settings_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(3) if hasattr(self, 'main_tabs') else None)
         nav_menu.addAction(go_settings_action)
         
         view_menu.addSeparator()
@@ -6009,8 +6013,10 @@ class SupervertalerQt(QMainWindow):
             "close_project": self.close_project,
             
             # Navigation actions
-            "go_to_home": lambda: self.main_tabs.setCurrentIndex(1) if hasattr(self, 'main_tabs') else None,  # Prompt Manager tab
-            "go_to_settings": lambda: self.main_tabs.setCurrentIndex(4) if hasattr(self, 'main_tabs') else None,  # Settings tab
+            "go_to_editor": lambda: self.main_tabs.setCurrentIndex(0) if hasattr(self, 'main_tabs') else None,  # Project editor tab
+            "go_to_resources": lambda: self.main_tabs.setCurrentIndex(1) if hasattr(self, 'main_tabs') else None,  # Project resources tab
+            "go_to_tools": lambda: self.main_tabs.setCurrentIndex(2) if hasattr(self, 'main_tabs') else None,  # Tools tab
+            "go_to_settings": lambda: self.main_tabs.setCurrentIndex(3) if hasattr(self, 'main_tabs') else None,  # Settings tab
             
             # Translation actions
             "translate": self.translate_current_segment,
@@ -6068,67 +6074,43 @@ class SupervertalerQt(QMainWindow):
             }
         """)
         
-        # ===== WORKSPACE TAB =====
-        # Contains: Editor (grid) + Resources (TM, Termbases, etc.)
-        project_home_widget = QWidget()
-        project_home_layout = QVBoxLayout(project_home_widget)
-        project_home_layout.setContentsMargins(0, 0, 0, 0)
-        project_home_layout.setSpacing(0)
-        
-        # Create nested tab widget for Workspace subtabs
-        self.project_home_tabs = QTabWidget()
-        self.project_home_tabs.tabBar().setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.project_home_tabs.tabBar().setDrawBase(False)
-        self.project_home_tabs.setStyleSheet("""
-            QTabBar::tab { padding: 6px 12px; outline: 0; }
-            QTabBar::tab:focus { outline: none; }
-            QTabBar::tab:selected { 
-                border-bottom: 1px solid #2196F3; 
-                background-color: rgba(33, 150, 243, 0.08);
-            }
-        """)
-        
-        # Create Editor (grid view)
+        # ===== 1. PROJECT EDITOR TAB =====
+        # Contains the translation grid
         grid_widget = self.create_grid_view_widget_for_home()
-        self.project_home_tabs.addTab(grid_widget, "📝 Editor")
+        self.main_tabs.addTab(grid_widget, "📝 Project editor")
         
-        # Create Resources tab (TM, Termbases, Prompts, etc.)
+        # ===== 2. PROJECT RESOURCES TAB =====
+        # Contains TM, Termbases, Supermemory, Non-Translatables, Prompts
         resources_tab = self.create_resources_tab()
-        self.project_home_tabs.addTab(resources_tab, "🗂️ Resources")
-        
-        project_home_layout.addWidget(self.project_home_tabs)
+        self.main_tabs.addTab(resources_tab, "🗂️ Project resources")
         
         # Keep backward compatibility reference
-        self.document_views_widget = self.project_home_tabs
+        self.document_views_widget = self.main_tabs
         
-        # Add tabs to main interface
-        self.main_tabs.addTab(project_home_widget, "🏠 Workspace")
-        
-        # 2. TOOLS
+        # 3. TOOLS
         tools_tab = self.create_specialised_tools_tab()
         self.main_tabs.addTab(tools_tab, "🛠️ Tools")
 
-        # 3. SETTINGS
+        # 4. SETTINGS
         settings_tab = self.create_settings_tab()
         self.main_tabs.addTab(settings_tab, "⚙️ Settings")
         
         main_layout.addWidget(self.main_tabs)
         
         # Connect tab changes to handle view refreshes
-        self.project_home_tabs.currentChanged.connect(self._on_project_home_tab_changed)
         self.main_tabs.currentChanged.connect(self._on_main_tab_changed)
     
-    def _on_project_home_tab_changed(self, index: int):
-        """Handle tab changes within Workspace (Editor/Resources)"""
+    def _on_main_tab_changed(self, index: int):
+        """Handle main tab changes (Project editor/Project resources/Tools/Settings)"""
         try:
-            if index == 0:  # Editor (Grid)
+            if index == 0:  # Project editor
                 # Grid refreshes automatically when segments change
                 pass
-            elif index == 1:  # Resources
-                # Resources tab - no special handling needed
+            elif index == 1:  # Project resources
+                # Project resources tab - no special handling needed
                 pass
         except Exception as e:
-            self.log(f"⚠️ Error switching workspace tabs: {e}")
+            self.log(f"⚠️ Error switching main tabs: {e}")
             import traceback
             traceback.print_exc()
 
@@ -7736,7 +7718,7 @@ class SupervertalerQt(QMainWindow):
         self.log("Superlookup re-attached to Home tab")
     
     def create_resources_tab(self):
-        """Create the Resources tab with nested sub-tabs"""
+        """Create the Project resources tab with nested sub-tabs"""
         from PyQt6.QtWidgets import QTabWidget
         
         tab = QWidget()
@@ -29016,14 +28998,14 @@ class SupervertalerQt(QMainWindow):
     def _go_to_settings_tab(self):
         """Navigate to Settings tab (from menu)"""
         if hasattr(self, 'main_tabs'):
-            # Main tabs: Project Editor=0, Project Resources=1, Prompt Manager=2, Tools=3, Settings=4
-            self.main_tabs.setCurrentIndex(4)
+            # Main tabs: Project editor=0, Project resources=1, Tools=2, Settings=3
+            self.main_tabs.setCurrentIndex(3)
     
     def _go_to_superlookup(self):
         """Navigate to Superlookup in Tools tab"""
         if hasattr(self, 'main_tabs'):
-            # Main tabs: Workspace=0, Tools=1, Settings=2
-            self.main_tabs.setCurrentIndex(1)  # Switch to Tools tab
+            # Main tabs: Project editor=0, Project resources=1, Tools=2, Settings=3
+            self.main_tabs.setCurrentIndex(2)  # Switch to Tools tab
             # Then switch to Superlookup sub-tab
             if hasattr(self, 'modules_tabs'):
                 # Find Superlookup index in modules tabs
@@ -29412,8 +29394,8 @@ class SupervertalerQt(QMainWindow):
     def _open_superdocs_tab(self):
         """Navigate to Superdocs tab in Tools"""
         if hasattr(self, 'main_tabs') and hasattr(self, 'modules_tabs'):
-            # Switch to Tools tab (index 3)
-            self.main_tabs.setCurrentIndex(3)
+            # Switch to Tools tab (index 2)
+            self.main_tabs.setCurrentIndex(2)
             # Switch to Superdocs sub-tab (last tab in modules_tabs)
             superdocs_index = self.modules_tabs.count() - 1  # Last tab
             self.modules_tabs.setCurrentIndex(superdocs_index)
@@ -31675,9 +31657,9 @@ class SupervertalerQt(QMainWindow):
     def show_autofingers(self):
         """Show AutoFingers by switching to the AutoFingers tab"""
         # Find the AutoFingers tab index and activate it
-        # AutoFingers is in Tools tab (main_tabs index 3)
+        # AutoFingers is in Tools tab (main_tabs index 2)
         if hasattr(self, 'main_tabs'):
-            self.main_tabs.setCurrentIndex(3)  # Switch to Tools tab
+            self.main_tabs.setCurrentIndex(2)  # Switch to Tools tab
             # Then switch to AutoFingers sub-tab
             if hasattr(self, 'modules_tabs'):
                 for i in range(self.modules_tabs.count()):
@@ -31686,10 +31668,10 @@ class SupervertalerQt(QMainWindow):
                         break
     
     def show_image_extractor_from_tools(self):
-        """Show Image Extractor by switching to the Image Context tab in Resources"""
-        # Switch to Resources tab (main_tabs index 2)
+        """Show Image Extractor by switching to the Image Context tab in Project resources"""
+        # Switch to Project resources tab (main_tabs index 1)
         if hasattr(self, 'main_tabs'):
-            self.main_tabs.setCurrentIndex(2)  # Switch to Resources tab
+            self.main_tabs.setCurrentIndex(1)  # Switch to Project resources tab
             # Then switch to Image Context sub-tab
             if hasattr(self, 'resources_tabs'):
                 for i in range(self.resources_tabs.count()):
@@ -33223,9 +33205,9 @@ class SuperlookupTab(QWidget):
     def _open_mt_settings(self):
         """Navigate to Settings → MT Settings tab"""
         if self.main_window:
-            # Go to main Settings tab (index 2)
+            # Go to main Settings tab (index 3)
             if hasattr(self.main_window, 'main_tabs'):
-                self.main_window.main_tabs.setCurrentIndex(2)
+                self.main_window.main_tabs.setCurrentIndex(3)
             # Go to MT Settings sub-tab (index 3: General=0, AI=1, Language=2, MT=3)
             if hasattr(self.main_window, 'settings_tabs'):
                 self.main_window.settings_tabs.setCurrentIndex(3)
@@ -35244,25 +35226,21 @@ class SuperlookupTab(QWidget):
             self._navigate_to_termbase_entry(data['termbase_id'], data['source_term'])
     
     def _navigate_to_termbase_entry(self, termbase_id, source_term):
-        """Navigate to a specific termbase entry in Resources > Termbases tab"""
+        """Navigate to a specific termbase entry in Project resources > Glossaries tab"""
         try:
-            # Navigate to Workspace > Resources > Termbases
+            # Navigate to Project resources > Glossaries
             if hasattr(self, 'main_window') and self.main_window:
                 main = self.main_window
                 
-                # Switch to Workspace tab (index 0)
+                # Switch to Project resources tab (index 1)
                 if hasattr(main, 'main_tabs'):
-                    main.main_tabs.setCurrentIndex(0)
+                    main.main_tabs.setCurrentIndex(1)
                 
-                # Switch to Resources subtab (index 1 under Workspace)
-                if hasattr(main, 'workspace_tabs'):
-                    main.workspace_tabs.setCurrentIndex(1)
-                
-                # Switch to Termbases sub-tab within Resources
+                # Switch to Glossaries sub-tab within Project resources
                 if hasattr(main, 'resources_tabs'):
-                    # Find the Termbases tab index
+                    # Find the Glossaries tab index
                     for i in range(main.resources_tabs.count()):
-                        if 'Termbase' in main.resources_tabs.tabText(i):
+                        if 'Glossar' in main.resources_tabs.tabText(i):
                             main.resources_tabs.setCurrentIndex(i)
                             break
                 
@@ -36108,12 +36086,12 @@ class SuperlookupTab(QWidget):
             print(f"[Superlookup] Main window type: {type(main_window).__name__}")
             print(f"[Superlookup] Has main_tabs: {hasattr(main_window, 'main_tabs')}")
             
-            # Switch to Tools tab (main_tabs index 1)
-            # Tab structure: Workspace=0, Tools=1, Settings=2
+            # Switch to Tools tab (main_tabs index 2)
+            # Tab structure: Project editor=0, Project resources=1, Tools=2, Settings=3
             if hasattr(main_window, 'main_tabs'):
                 print(f"[Superlookup] Current main_tab index: {main_window.main_tabs.currentIndex()}")
-                main_window.main_tabs.setCurrentIndex(1)  # Tools tab is at index 1
-                print(f"[Superlookup] Switched to Tools tab (index 1)")
+                main_window.main_tabs.setCurrentIndex(2)  # Tools tab is at index 2
+                print(f"[Superlookup] Switched to Tools tab (index 2)")
                 QApplication.processEvents()  # Force GUI update
             else:
                 print(f"[Superlookup] WARNING: Main window has no main_tabs attribute!")
