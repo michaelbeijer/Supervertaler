@@ -469,6 +469,12 @@ class DOCXHandler:
             new_text: The new text content
             original_style: Optional original style name to preserve
         """
+        import re
+        
+        # First, strip list item tags - these represent list structure (already preserved in paragraph style)
+        # and should NOT appear in the output text
+        new_text = re.sub(r'</?li-[ob]>', '', new_text)
+        
         # Check if text contains formatting tags
         if self.tag_manager and ('<b>' in new_text or '<i>' in new_text or '<u>' in new_text or '<bi>' in new_text):
             self._replace_paragraph_with_formatting(paragraph, new_text, original_style)
@@ -532,6 +538,11 @@ class DOCXHandler:
             tagged_text: Text with inline formatting tags
             original_style: Optional original style name to preserve
         """
+        import re
+        
+        # First, strip list item tags - these represent list structure (already preserved in paragraph style)
+        tagged_text = re.sub(r'</?li-[ob]>', '', tagged_text)
+        
         if not self.tag_manager:
             # Fallback: strip tags and use simple replacement
             clean_text = tagged_text.replace('<b>', '').replace('</b>', '')
@@ -541,14 +552,22 @@ class DOCXHandler:
             self._replace_paragraph_text(paragraph, clean_text, original_style)
             return
         
-        # Store original font properties
+        # Store original font properties AND colors from all runs
         original_font_name = None
         original_font_size = None
+        original_run_colors = {}  # Map text -> color for color preservation
         
-        if paragraph.runs and paragraph.runs[0].font:
+        if paragraph.runs:
             first_run = paragraph.runs[0]
-            original_font_name = first_run.font.name
-            original_font_size = first_run.font.size
+            if first_run.font:
+                original_font_name = first_run.font.name
+                original_font_size = first_run.font.size
+            
+            # Capture colors from all original runs (for text matching)
+            for run in paragraph.runs:
+                if run.text and run.font and run.font.color and run.font.color.rgb:
+                    # Store the color for this text (stripped of whitespace for matching)
+                    original_run_colors[run.text.strip()] = run.font.color.rgb
         
         # Clear all runs
         for run in paragraph.runs:
@@ -574,6 +593,11 @@ class DOCXHandler:
                 run.font.name = original_font_name
             if original_font_size:
                 run.font.size = original_font_size
+            
+            # Try to restore original color if this text matches an original run
+            text_stripped = spec['text'].strip()
+            if text_stripped in original_run_colors:
+                run.font.color.rgb = original_run_colors[text_stripped]
         
         # Preserve paragraph style if provided
         if original_style:
@@ -589,6 +613,19 @@ class DOCXHandler:
         Export as bilingual document (source | target in table)
         Useful for review purposes
         """
+        import re
+        
+        def strip_tags(text: str) -> str:
+            """Remove formatting tags from text for clean display."""
+            if not text:
+                return ""
+            text = re.sub(r'</?b>', '', text)
+            text = re.sub(r'</?i>', '', text)
+            text = re.sub(r'</?u>', '', text)
+            text = re.sub(r'</?bi>', '', text)
+            text = re.sub(r'</?li-[ob]>', '', text)
+            return text
+        
         print(f"[DOCX Handler] Exporting bilingual document: {output_path}")
         
         doc = Document()
@@ -604,12 +641,12 @@ class DOCXHandler:
         header_cells[1].text = 'Source'
         header_cells[2].text = 'Target'
         
-        # Add segments
+        # Add segments - strip tags for clean display
         for seg in segments:
             row_cells = table.add_row().cells
             row_cells[0].text = str(seg.get('id', ''))
-            row_cells[1].text = seg.get('source', '')
-            row_cells[2].text = seg.get('target', '')
+            row_cells[1].text = strip_tags(seg.get('source', ''))
+            row_cells[2].text = strip_tags(seg.get('target', ''))
         
         doc.save(output_path)
         print(f"[DOCX Handler] Bilingual export complete")

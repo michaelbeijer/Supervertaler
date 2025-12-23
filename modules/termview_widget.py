@@ -484,17 +484,13 @@ class TermviewWidget(QWidget):
             termbase_matches: List of termbase match dicts from Translation Results
             nt_matches: Optional list of NT match dicts with 'text', 'start', 'end', 'list_name' keys
         """
-        print(f"🔍 TERMVIEW.update_with_matches called: source_len={len(source_text) if source_text else 0}, matches={len(termbase_matches) if termbase_matches else 0}, nt={len(nt_matches) if nt_matches else 0}")
-        
         self.current_source = source_text
         
         # Clear existing blocks
         self.clear_terms()
-        print(f"🔍 TERMVIEW: Cleared existing terms")
         
         if not source_text or not source_text.strip():
             self.info_label.setText("No segment selected")
-            print(f"🔍 TERMVIEW: No source text")
             return
         
         has_termbase = termbase_matches and len(termbase_matches) > 0
@@ -502,10 +498,7 @@ class TermviewWidget(QWidget):
         
         if not has_termbase and not has_nt:
             self.info_label.setText("No terminology or NT matches for this segment")
-            print(f"🔍 TERMVIEW: No matches")
             return
-        
-        print(f"🔍 TERMVIEW: Processing {len(termbase_matches) if termbase_matches else 0} termbase + {len(nt_matches) if nt_matches else 0} NT matches...")
         
         # Convert termbase matches to dict for easy lookup: {source_term.lower(): [translations]}
         matches_dict = {}
@@ -547,8 +540,6 @@ class TermviewWidget(QWidget):
                 if nt_text:
                     nt_dict[nt_text.lower()] = match.get('list_name', 'Non-Translatables')
         
-        print(f"🔍 TERMVIEW: Organized into {len(matches_dict)} termbase terms + {len(nt_dict)} NTs")
-        
         # Combine all known multi-word terms for tokenization
         all_terms_dict = dict(matches_dict)
         for nt_key in nt_dict:
@@ -557,7 +548,6 @@ class TermviewWidget(QWidget):
         
         # Tokenize source text, respecting multi-word terms
         tokens = self.tokenize_with_multiword_terms(source_text, all_terms_dict)
-        print(f"🔍 TERMVIEW: Created {len(tokens)} tokens from source text")
         
         if not tokens:
             self.info_label.setText("No words to analyze")
@@ -601,99 +591,6 @@ class TermviewWidget(QWidget):
             self.info_label.setText(f"✓ Found {', '.join(info_parts)} in {len(tokens)} words")
         else:
             self.info_label.setText(f"No matches in {len(tokens)} words")
-        
-        print(f"🔍 TERMVIEW: Completed - {blocks_with_translations} terms, {blocks_with_nt} NTs in {len(tokens)} tokens")
-    
-    def update_for_segment(self, source_text: str, source_lang: str, target_lang: str, project_id: int = None):
-        """
-        DEPRECATED: Use update_with_matches() instead
-        
-        Update the termview display for a new segment
-        
-        Args:
-            source_text: Source segment text
-            source_lang: Source language code
-            target_lang: Target language code
-            project_id: Project ID for termbase priority lookup
-        """
-        self.current_source = source_text
-        self.current_source_lang = source_lang
-        self.current_target_lang = target_lang
-        self.current_project_id = project_id
-        
-        # Clear existing blocks
-        self.clear_terms()
-        
-        if not source_text or not source_text.strip():
-            self.info_label.setText("No segment selected")
-            return
-        
-        # Get all termbase matches first to detect multi-word terms
-        all_matches = self.get_all_termbase_matches(source_text)
-        
-        # DEBUG: Log what matches were found
-        if all_matches:
-            self.log(f"🔍 Termview: Found {len(all_matches)} unique terms in termbase")
-            for term_key in sorted(all_matches.keys(), key=len, reverse=True)[:5]:
-                self.log(f"  - '{term_key}' ({len(all_matches[term_key])} translation(s))")
-        
-        # Create tokens, respecting multi-word terms
-        tokens = self.tokenize_with_multiword_terms(source_text, all_matches)
-        
-        # DEBUG: Log the tokens created
-        if tokens:
-            self.log(f"🔍 Termview: Created {len(tokens)} tokens")
-            if len(tokens) <= 15:
-                self.log(f"  Tokens: {tokens}")
-        
-        if not tokens:
-            self.info_label.setText("No words to analyze")
-            return
-        
-        # DEBUG: Log ALL tokens with their lookups
-        if len(tokens) > 0:
-            self.log(f"🔍 ALL {len(tokens)} tokens and lookups:")
-            for i, tok in enumerate(tokens):
-                tok_clean = tok.rstrip('.,;:!?')
-                lookup_key = tok_clean.lower()
-                found = lookup_key in all_matches
-                self.log(f"  {i+1}. '{tok}' → {'FOUND' if found else 'not found'}")
-        
-        # Search termbases for each token (use pre-fetched matches)
-        term_blocks_created = 0
-        for i, token in enumerate(tokens):
-            # Strip trailing punctuation for lookup (matches what we did in get_all_termbase_matches)
-            token_clean = token.rstrip('.,;:!?')
-            
-            # Check if we already have matches for this token
-            translations = all_matches.get(token_clean.lower(), [])
-            
-            # If no exact match, try searching (for single words)
-            if not translations and ' ' not in token_clean:
-                translations = self.search_term(token_clean)
-            
-            # DEBUG: Log translations for first token (the multi-word term)
-            if i == 0 and ' ' in token:
-                self.log(f"🔍 Token #1 '{token}' has {len(translations)} translation(s):")
-                for j, trans in enumerate(translations):
-                    target = trans.get('target_term', trans.get('target', ''))
-                    self.log(f"    {j+1}. '{target}'")
-            
-            # Create term block
-            term_block = TermBlock(token, translations, self, theme_manager=self.theme_manager)
-            term_block.term_clicked.connect(self.on_term_insert_requested)
-            
-            # Add to flow layout
-            self.terms_layout.addWidget(term_block)
-            
-            if translations:
-                term_blocks_created += 1
-        
-        # Update info
-        if term_blocks_created > 0:
-            self.info_label.setText(f"✓ Found terminology for {term_blocks_created} of {len(tokens)} terms/words")
-        else:
-            self.info_label.setText(f"No terminology matches found for this segment")
     
     def get_all_termbase_matches(self, text: str) -> Dict[str, List[Dict]]:
         """
@@ -878,27 +775,6 @@ class TermviewWidget(QWidget):
         tokens = [token for pos, length, token in tokens_with_positions]
         
         return tokens
-    
-    def tokenize_source(self, text: str) -> List[str]:
-        """
-        Tokenize source text into words/phrases
-        
-        DEPRECATED: Use tokenize_with_multiword_terms instead for proper multi-word handling
-        
-        Args:
-            text: Source text
-            
-        Returns:
-            List of tokens (words/phrases)
-        """
-        # Remove punctuation and split
-        # Keep hyphens as they're common in compound terms
-        words = re.findall(r'\b[\w-]+\b', text, re.UNICODE)
-        
-        # Filter out very short words (articles, etc.) unless they're all caps
-        filtered = [w for w in words if len(w) >= 3 or w.isupper()]
-        
-        return filtered
     
     def search_term(self, term: str) -> List[Dict]:
         """

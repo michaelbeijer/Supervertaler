@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.60"
+__version__ = "1.9.62"
 __phase__ = "0.9"
 __release_date__ = "2025-12-21"
 __edition__ = "Qt"
@@ -660,6 +660,7 @@ class Project:
     tm_settings: Dict[str, Any] = None  # Store activated TM settings
     termbase_settings: Dict[str, Any] = None  # Store activated termbase settings
     nt_settings: Dict[str, Any] = None  # Store activated non-translatables settings
+    spellcheck_settings: Dict[str, Any] = None  # Store spellcheck settings {enabled, language}
     id: int = None  # Unique project ID for TM activation tracking
     original_docx_path: str = None  # Path to original DOCX for structure-preserving export
     trados_source_path: str = None  # Path to original Trados bilingual DOCX for round-trip export
@@ -689,6 +690,8 @@ class Project:
             self.termbase_settings = {}
         if self.nt_settings is None:
             self.nt_settings = {}
+        if self.spellcheck_settings is None:
+            self.spellcheck_settings = {}
         # Generate ID if not set (for backward compatibility with old projects)
         if self.id is None:
             import hashlib
@@ -719,37 +722,37 @@ class Project:
         # Add settings (prompts, TM, termbases, etc.)
         if hasattr(self, 'prompt_settings'):
             result['prompt_settings'] = self.prompt_settings
-        if hasattr(self, 'tm_settings') and self.tm_settings:
+        if self.tm_settings:
             result['tm_settings'] = self.tm_settings
-        if hasattr(self, 'termbase_settings') and self.termbase_settings:
+        if self.termbase_settings:
             result['termbase_settings'] = self.termbase_settings
-        if hasattr(self, 'nt_settings') and self.nt_settings:
+        if self.nt_settings:
             result['nt_settings'] = self.nt_settings
-        if hasattr(self, 'spellcheck_settings') and self.spellcheck_settings:
+        if self.spellcheck_settings:
             result['spellcheck_settings'] = self.spellcheck_settings
         
         # Add source file paths
-        if hasattr(self, 'original_docx_path') and self.original_docx_path:
+        if self.original_docx_path:
             result['original_docx_path'] = self.original_docx_path
-        if hasattr(self, 'trados_source_path') and self.trados_source_path:
+        if self.trados_source_path:
             result['trados_source_path'] = self.trados_source_path
-        if hasattr(self, 'memoq_source_path') and self.memoq_source_path:
+        if self.memoq_source_path:
             result['memoq_source_path'] = self.memoq_source_path
-        if hasattr(self, 'cafetran_source_path') and self.cafetran_source_path:
+        if self.cafetran_source_path:
             result['cafetran_source_path'] = self.cafetran_source_path
-        if hasattr(self, 'sdlppx_source_path') and self.sdlppx_source_path:
+        if self.sdlppx_source_path:
             result['sdlppx_source_path'] = self.sdlppx_source_path
-        if hasattr(self, 'original_txt_path') and self.original_txt_path:
+        if self.original_txt_path:
             result['original_txt_path'] = self.original_txt_path
         
         # Add UI state
-        if hasattr(self, 'concordance_geometry') and self.concordance_geometry:
+        if self.concordance_geometry:
             result['concordance_geometry'] = self.concordance_geometry
         
         # Add multi-file project data
-        if hasattr(self, 'is_multifile') and self.is_multifile:
+        if self.is_multifile:
             result['is_multifile'] = self.is_multifile
-        if hasattr(self, 'files') and self.files:
+        if self.files:
             result['files'] = self.files
         
         # Add segments LAST (so they appear at the end of the file)
@@ -1919,20 +1922,16 @@ class TagHighlighter(QSyntaxHighlighter):
         # Combined pattern for ALL CAT tool tag types:
         # 1. HTML/XML: <tag>, </tag>, <tag/>, <tag attr="val">
         # 2. Trados numeric: <1>, </1>
-        # 3. memoQ/DITA bracket tags with mismatched brackets:
-        #    - Opening: [tag attr="..."}  (starts [, ends })
-        #    - Closing: {tag]  (starts {, ends ])
-        #    - Also: [tag attr="..."]  and {tag}
-        # CRITICAL: Use [^}\]]* to stop at FIRST } or ] to avoid matching across content
+        # 3. memoQ numeric bracket tags (ONLY numeric, not text in brackets like [Company]):
+        #    - Opening: [1}, [2} etc.
+        #    - Closing: {1], {2] etc.
+        #    - Standalone: [1], [2] etc.
+        # NOTE: We do NOT highlight arbitrary [text] or {text} - only CAT tool tags with numbers
         tag_patterns = [
             r'</?[a-zA-Z][a-zA-Z0-9-]*/?(?:\s[^>]*)?>',  # HTML/XML tags
             r'</?\d+>',                                   # Trados numeric: <1>, </1>
             r'\[\d+[}\]]',                                # memoQ numeric: [1}, [1]
             r'\{\d+[}\]]',                                # memoQ numeric: {1}, {1]
-            r'\[[a-zA-Z][^}\]]*\}',                       # memoQ opening: [tag...} (stop at first })
-            r'\[[a-zA-Z][^}\]]*\]',                       # Square bracket: [tag...] (stop at first ])
-            r'\{[a-zA-Z][^}\]]*\]',                       # memoQ closing: {tag] (stop at first ])
-            r'\{[a-zA-Z][^}\]]*\}',                       # Curly bracket: {tag} (stop at first })
         ]
         combined_pattern = re.compile('|'.join(tag_patterns))
 
@@ -5579,6 +5578,11 @@ class SupervertalerQt(QMainWindow):
         clear_translations_action.triggered.connect(self.clear_selected_translations_from_menu)
         bulk_menu.addAction(clear_translations_action)
         
+        copy_source_to_target_action = QAction("📋 Copy &Source to Target", self)
+        copy_source_to_target_action.setToolTip("Copy source text to target for selected/filtered segments")
+        copy_source_to_target_action.triggered.connect(self.copy_source_to_target_bulk)
+        bulk_menu.addAction(copy_source_to_target_action)
+        
         send_to_tm_action = QAction("💾 &Send Segments to TM...", self)
         send_to_tm_action.setToolTip("Send confirmed segments to a writable Translation Memory")
         send_to_tm_action.triggered.connect(self.send_segments_to_tm_dialog)
@@ -5991,67 +5995,6 @@ class SupervertalerQt(QMainWindow):
         """Handle main tab change"""
         # Ribbon removed - menu bar remains constant across all tabs
         # No context switching needed
-        pass
-    
-    def toggle_sidebar(self, visible: bool):
-        """Toggle Quick Access Sidebar visibility - DEPRECATED (Quick Access removed)"""
-        # The Quick Access sidebar has been removed in favor of Project Home collapsible panel
-        pass
-    
-    def update_sidebar_recent_files(self):
-        """Update sidebar recent files list - DEPRECATED (Quick Access removed)"""
-        # The Quick Access sidebar has been removed in favor of Project Home collapsible panel
-        pass
-    
-    def handle_ribbon_action(self, action_name: str):
-        """
-        Handle ribbon button clicks - DEPRECATED
-        Ribbon has been removed in favor of traditional menu bar.
-        All actions are now accessible through menus.
-        This method is kept for backwards compatibility.
-        """
-        # All ribbon actions have been moved to menu bar
-        # This method is kept in case any code still references it
-        action_map = {
-            # File actions
-            "new": self.new_project,
-            "open": self.open_project,
-            "save": self.save_project,
-            "close_project": self.close_project,
-            
-            # Navigation actions
-            "go_to_editor": lambda: self.main_tabs.setCurrentIndex(0) if hasattr(self, 'main_tabs') else None,  # Project editor tab
-            "go_to_resources": lambda: self.main_tabs.setCurrentIndex(1) if hasattr(self, 'main_tabs') else None,  # Project resources tab
-            "go_to_tools": lambda: self.main_tabs.setCurrentIndex(2) if hasattr(self, 'main_tabs') else None,  # Tools tab
-            "go_to_settings": lambda: self.main_tabs.setCurrentIndex(3) if hasattr(self, 'main_tabs') else None,  # Settings tab
-            
-            # Translation actions
-            "translate": self.translate_current_segment,
-            "batch_translate": self.translate_batch,
-            "tm_manager": self.show_tm_manager,
-            "superlookup": lambda: self._go_to_superlookup() if hasattr(self, 'main_tabs') else None,
-            
-            # View actions
-            "zoom_in": self.zoom_in,
-            "zoom_out": self.zoom_out,
-            "auto_resize": self.auto_resize_rows,
-            "themes": self.show_theme_editor,
-            
-            # Tools actions
-            "autofingers": self.show_autofingers,
-            "options": self._go_to_settings_tab,
-        }
-        
-        # Execute action if found (for backwards compatibility)
-        action = action_map.get(action_name)
-        if action:
-            action()
-    
-    
-    def create_toolbar(self):
-        """Create main toolbar - REMOVED: Replaced by ribbon interface"""
-        # Toolbar removed - replaced by modern ribbon interface
-        # All functionality accessible via ribbon tabs and menus
         pass
     
     def create_main_layout(self):
@@ -12965,11 +12908,6 @@ class SupervertalerQt(QMainWindow):
         
         return tab
     
-    def _create_llm_settings_tab(self):
-        """Create LLM Settings tab content - DEPRECATED, redirects to AI Settings"""
-        # This function is kept for compatibility but now just returns AI settings tab
-        return self._create_ai_settings_tab()
-    
     def _create_mt_settings_tab(self):
         """Create MT Settings tab content"""
         from PyQt6.QtWidgets import QCheckBox, QGroupBox, QPushButton
@@ -17343,7 +17281,7 @@ class SupervertalerQt(QMainWindow):
                     self.log(f"📋 No NT settings found in project file")
             
             # Restore spellcheck settings from project
-            if hasattr(self.current_project, 'spellcheck_settings') and self.current_project.spellcheck_settings:
+            if self.current_project.spellcheck_settings:
                 spellcheck_settings = self.current_project.spellcheck_settings
                 self.spellcheck_enabled = spellcheck_settings.get('enabled', False)
                 TagHighlighter.set_spellcheck_enabled(self.spellcheck_enabled)
@@ -18072,9 +18010,7 @@ class SupervertalerQt(QMainWindow):
                             termbase_priorities[str(tb_id)] = priority
                     self.current_project.termbase_settings['termbase_priorities'] = termbase_priorities
             
-            # Save spellcheck settings to project
-            if not hasattr(self.current_project, 'spellcheck_settings'):
-                self.current_project.spellcheck_settings = {}
+            # Save spellcheck settings to project (spellcheck_settings is now properly initialized in dataclass)
             self.current_project.spellcheck_settings['enabled'] = self.spellcheck_enabled
             if hasattr(self, 'target_language'):
                 self.current_project.spellcheck_settings['language'] = self.target_language
@@ -18083,12 +18019,6 @@ class SupervertalerQt(QMainWindow):
             original_path = getattr(self, 'original_docx', None) or getattr(self, 'current_document_path', None)
             if original_path and os.path.exists(original_path):
                 self.current_project.original_docx_path = original_path
-            
-            # FINAL DEBUG: Log segment data at the exact moment before serialization
-            self.log(f"💾💾💾 FINAL DEBUG before to_dict():")
-            for i, seg in enumerate(self.current_project.segments[:7]):
-                target_preview = seg.target[:50] if seg.target else 'EMPTY'
-                self.log(f"💾💾💾 Seg {seg.id} (obj {id(seg)}): target='{target_preview}...', status={seg.status}, type(target)={type(seg.target).__name__}, len={len(seg.target)}")
             
             with open(file_path, 'w', encoding='utf-8') as f:
                 json.dump(self.current_project.to_dict(), f, indent=2, ensure_ascii=False)
@@ -22987,10 +22917,6 @@ class SupervertalerQt(QMainWindow):
 
             cursor.insertText(part, text_format)
 
-    def _render_paragraph(self, cursor, para_segments, widget):
-        """Render a paragraph with its segments (legacy method for compatibility)"""
-        pass  # No longer used - kept for compatibility
-
     def highlight_preview_segment(self, segment_id: Optional[int] = None):
         """Update the preview to highlight the specified segment (or current if None)"""
         if segment_id is None:
@@ -23785,33 +23711,6 @@ class SupervertalerQt(QMainWindow):
         except Exception as e:
             self.log(f"Error in debounced target handler: {e}")
     
-    def _handle_target_text_debounced(self, row, segment, new_text):
-        """
-        DEPRECATED: Use _handle_target_text_debounced_by_id instead.
-        Handle expensive target text change operations after user stops typing.
-        Called 500ms after last keystroke to avoid UI lag.
-        """
-        try:
-            # Note: Status is now set to "not_started" immediately on edit (in on_target_text_changed)
-            # User must manually confirm/approve to change status to translated/confirmed
-            
-            # Update window title
-            self.update_window_title()
-            
-            # Auto-resize the row
-            if hasattr(self, 'table') and self.table:
-                self.table.resizeRowToContents(row)
-            
-            # Save to TM ONLY if segment is confirmed (user explicitly approved)
-            # Do NOT save for 'translated' status - that's just machine/batch translated
-            if segment.status == 'confirmed' and new_text.strip():
-                try:
-                    self.save_segment_to_activated_tms(segment.source, new_text)
-                except Exception as e:
-                    self.log(f"Warning: Could not save to TM: {e}")
-        except Exception as e:
-            self.log(f"Error in debounced target handler: {e}")
-    
     def update_status_icon(self, row: int, status: str):
         """Update status icon for a specific row"""
         if not self.current_project or row >= len(self.current_project.segments):
@@ -24546,6 +24445,81 @@ class SupervertalerQt(QMainWindow):
         else:
             QMessageBox.information(self, "Not Available", "Please load a project first.")
     
+    def copy_source_to_target_bulk(self):
+        """Copy source text to target for selected or filtered segments (Edit > Bulk Operations)"""
+        if not self.current_project or not hasattr(self, 'table') or not self.table:
+            QMessageBox.information(self, "Not Available", "Please load a project first.")
+            return
+        
+        # First check if there's a selection
+        selected_segments = self.get_selected_segments_from_grid()
+        
+        # If no selection, check for visible (filtered) rows
+        if not selected_segments:
+            # Get all visible rows (not hidden by filter)
+            visible_rows = []
+            for row in range(self.table.rowCount()):
+                if not self.table.isRowHidden(row):
+                    visible_rows.append(row)
+            
+            # If there's a filter active (some rows hidden), use visible rows
+            total_rows = self.table.rowCount()
+            if len(visible_rows) < total_rows and len(visible_rows) > 0:
+                # Filter is active - ask user if they want to copy for filtered segments
+                reply = QMessageBox.question(
+                    self, 
+                    "Copy Source to Target",
+                    f"No segments selected.\n\nDo you want to copy source to target for all {len(visible_rows)} filtered (visible) segments?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+                )
+                if reply != QMessageBox.StandardButton.Yes:
+                    return
+                
+                # Get segments for visible rows
+                for row in visible_rows:
+                    if row < len(self.current_project.segments):
+                        selected_segments.append(self.current_project.segments[row])
+            else:
+                QMessageBox.information(self, "No Selection", "Please select one or more segments, or apply a filter first.")
+                return
+        
+        # Confirm operation
+        count = len(selected_segments)
+        if count > 1:
+            reply = QMessageBox.question(
+                self,
+                "Confirm Copy",
+                f"Copy source to target for {count} segment(s)?\n\nThis will overwrite existing translations.",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
+            if reply != QMessageBox.StandardButton.Yes:
+                return
+        
+        # Perform the copy
+        copied_count = 0
+        for segment in selected_segments:
+            row = self._find_row_for_segment(segment.id)
+            if row >= 0:
+                # Get source text from source widget
+                source_widget = self.table.cellWidget(row, 2)
+                if source_widget:
+                    source_text = source_widget.toPlainText()
+                    
+                    # Update segment object
+                    segment.target = source_text
+                    
+                    # Update target widget
+                    target_widget = self.table.cellWidget(row, 3)
+                    if target_widget:
+                        target_widget.blockSignals(True)
+                        target_widget.setPlainText(source_text)
+                        target_widget.blockSignals(False)
+                    
+                    copied_count += 1
+        
+        self.log(f"✓ Copied source to target for {copied_count} segment(s)")
+        QMessageBox.information(self, "Copy Complete", f"Copied source to target for {copied_count} segment(s).")
+
     def show_clean_tags_dialog(self):
         """Show dialog to clean formatting tags from project segments"""
         if not self.current_project or not self.current_project.segments:
@@ -27741,25 +27715,42 @@ class SupervertalerQt(QMainWindow):
             target_widget.clear()
             target_widget.blockSignals(False)
         
-        # Reload grid to clear any previous highlighting
-        self.load_segments_to_grid()
-        
-        # Hide rows with non-empty target
-        visible_count = 0
-        for row, segment in enumerate(self.current_project.segments):
-            if row >= self.table.rowCount():
-                break
+        # OPTIMIZED: Batch UI updates and don't reload grid
+        self.table.setUpdatesEnabled(False)
+        try:
+            # Clear any yellow text filter highlights (but preserve termbase/tag formatting)
+            self._clear_all_filter_highlights()
             
-            has_empty_target = not segment.target or not segment.target.strip()
-            self.table.setRowHidden(row, not has_empty_target)
-            
-            if has_empty_target:
-                visible_count += 1
+            # Hide rows with non-empty target
+            visible_count = 0
+            for row, segment in enumerate(self.current_project.segments):
+                if row >= self.table.rowCount():
+                    break
+                
+                has_empty_target = not segment.target or not segment.target.strip()
+                self.table.setRowHidden(row, not has_empty_target)
+                
+                if has_empty_target:
+                    visible_count += 1
+        finally:
+            self.table.setUpdatesEnabled(True)
         
         self.log(f"🔍 Empty segments filter: showing {visible_count} of {len(self.current_project.segments)} segments")
     
+    def _clear_all_filter_highlights(self):
+        """Clear yellow filter highlights from all cells without reloading grid"""
+        if not hasattr(self, 'table') or self.table is None:
+            return
+        
+        for row in range(self.table.rowCount()):
+            # Clear source column (2)
+            self._clear_filter_highlights_in_widget(row, 2)
+            
+            # Clear target column (3)
+            self._clear_filter_highlights_in_widget(row, 3)
+
     def apply_quick_filter(self, filter_type: str):
-        """Apply quick filter based on type"""
+        """Apply quick filter based on type - OPTIMIZED for speed"""
         if not self.current_project:
             return
         
@@ -27778,36 +27769,41 @@ class SupervertalerQt(QMainWindow):
             target_widget.clear()
             target_widget.blockSignals(False)
         
-        # Reload grid to clear any previous highlighting
-        self.load_segments_to_grid()
-        
-        # Apply filter based on type
-        visible_count = 0
-        for row, segment in enumerate(self.current_project.segments):
-            if row >= self.table.rowCount():
-                break
+        # OPTIMIZED: Batch UI updates and don't reload grid
+        self.table.setUpdatesEnabled(False)
+        try:
+            # Clear any yellow text filter highlights (but preserve termbase/tag formatting)
+            self._clear_all_filter_highlights()
             
-            show_row = False
-            
-            if filter_type == "empty":
-                show_row = not segment.target or not segment.target.strip()
-            elif filter_type == "not_translated":
-                show_row = segment.status in ["not_started", "draft"]
-            elif filter_type == "confirmed":
-                show_row = segment.status == "confirmed"
-            elif filter_type == "locked":
-                # TODO: Implement locked status
-                show_row = getattr(segment, 'locked', False)
-            elif filter_type == "not_locked":
-                # TODO: Implement locked status
-                show_row = not getattr(segment, 'locked', False)
-            elif filter_type == "commented":
-                show_row = bool(segment.notes and segment.notes.strip())
-            
-            self.table.setRowHidden(row, not show_row)
-            
-            if show_row:
-                visible_count += 1
+            # Apply filter based on type
+            visible_count = 0
+            for row, segment in enumerate(self.current_project.segments):
+                if row >= self.table.rowCount():
+                    break
+                
+                show_row = False
+                
+                if filter_type == "empty":
+                    show_row = not segment.target or not segment.target.strip()
+                elif filter_type == "not_translated":
+                    show_row = segment.status in ["not_started", "draft"]
+                elif filter_type == "confirmed":
+                    show_row = segment.status == "confirmed"
+                elif filter_type == "locked":
+                    # TODO: Implement locked status
+                    show_row = getattr(segment, 'locked', False)
+                elif filter_type == "not_locked":
+                    # TODO: Implement locked status
+                    show_row = not getattr(segment, 'locked', False)
+                elif filter_type == "commented":
+                    show_row = bool(segment.notes and segment.notes.strip())
+                
+                self.table.setRowHidden(row, not show_row)
+                
+                if show_row:
+                    visible_count += 1
+        finally:
+            self.table.setUpdatesEnabled(True)
         
         filter_names = {
             "empty": "Empty segments",
@@ -27831,7 +27827,7 @@ class SupervertalerQt(QMainWindow):
             self.apply_advanced_filters(filters)
     
     def apply_advanced_filters(self, filters: dict):
-        """Apply advanced filters to grid"""
+        """Apply advanced filters to grid - OPTIMIZED for speed"""
         if not self.current_project or not hasattr(self, 'table') or self.table is None:
             return
         
@@ -27847,51 +27843,56 @@ class SupervertalerQt(QMainWindow):
             target_widget.clear()
             target_widget.blockSignals(False)
         
-        # Reload grid
-        self.load_segments_to_grid()
-        
-        visible_count = 0
-        for row, segment in enumerate(self.current_project.segments):
-            if row >= self.table.rowCount():
-                break
+        # OPTIMIZED: Batch UI updates and don't reload grid
+        self.table.setUpdatesEnabled(False)
+        try:
+            # Clear any yellow text filter highlights (but preserve termbase/tag formatting)
+            self._clear_all_filter_highlights()
             
-            show_row = True
-            
-            # Match rate filter
-            if filters.get('match_rate_enabled'):
-                match_percent = getattr(segment, 'match_percent', 0) or 0
-                min_rate = filters.get('match_rate_min', 0)
-                max_rate = filters.get('match_rate_max', 100)
-                if not (min_rate <= match_percent <= max_rate):
-                    show_row = False
-            
-            # Row status filters
-            status_filters = filters.get('row_status', [])
-            if status_filters:
-                if segment.status not in status_filters:
-                    show_row = False
-            
-            # Locked/unlocked filter
-            if filters.get('locked_filter'):
-                locked_value = getattr(segment, 'locked', False)
-                if filters['locked_filter'] == 'locked' and not locked_value:
-                    show_row = False
-                elif filters['locked_filter'] == 'unlocked' and locked_value:
-                    show_row = False
-            
-            # Other properties
-            if filters.get('has_comments'):
-                if not (segment.notes and segment.notes.strip()):
-                    show_row = False
-            
-            if filters.get('repetitions_only'):
-                # TODO: Implement repetition detection
-                pass
-            
-            self.table.setRowHidden(row, not show_row)
-            
-            if show_row:
-                visible_count += 1
+            visible_count = 0
+            for row, segment in enumerate(self.current_project.segments):
+                if row >= self.table.rowCount():
+                    break
+                
+                show_row = True
+                
+                # Match rate filter
+                if filters.get('match_rate_enabled'):
+                    match_percent = getattr(segment, 'match_percent', 0) or 0
+                    min_rate = filters.get('match_rate_min', 0)
+                    max_rate = filters.get('match_rate_max', 100)
+                    if not (min_rate <= match_percent <= max_rate):
+                        show_row = False
+                
+                # Row status filters
+                status_filters = filters.get('row_status', [])
+                if status_filters:
+                    if segment.status not in status_filters:
+                        show_row = False
+                
+                # Locked/unlocked filter
+                if filters.get('locked_filter'):
+                    locked_value = getattr(segment, 'locked', False)
+                    if filters['locked_filter'] == 'locked' and not locked_value:
+                        show_row = False
+                    elif filters['locked_filter'] == 'unlocked' and locked_value:
+                        show_row = False
+                
+                # Other properties
+                if filters.get('has_comments'):
+                    if not (segment.notes and segment.notes.strip()):
+                        show_row = False
+                
+                if filters.get('repetitions_only'):
+                    # TODO: Implement repetition detection
+                    pass
+                
+                self.table.setRowHidden(row, not show_row)
+                
+                if show_row:
+                    visible_count += 1
+        finally:
+            self.table.setUpdatesEnabled(True)
         
         self.log(f"🔍 Advanced filters: showing {visible_count} of {len(self.current_project.segments)} segments")
     
@@ -28940,13 +28941,10 @@ class SupervertalerQt(QMainWindow):
         # Update Termview widget - pass termbase matches from Translation Results
         if hasattr(self, 'termview_widget') and self.current_project:
             try:
-                self.log(f"🔍 TERMVIEW UPDATE: segment_id={segment_id}, has_termbase_cache={hasattr(self, 'termbase_cache')}")
-                
                 # Get termbase matches from the segment's cached data if available
                 termbase_matches = []
                 if hasattr(self, 'termbase_cache') and segment_id in self.termbase_cache:
                     cached_matches = self.termbase_cache[segment_id]
-                    self.log(f"🔍 TERMVIEW: Found cached_matches type={type(cached_matches)}, len={len(cached_matches) if isinstance(cached_matches, (dict, list)) else 'N/A'}")
                     
                     # Convert dict format to list format expected by Termview
                     if isinstance(cached_matches, dict):
@@ -28961,20 +28959,14 @@ class SupervertalerQt(QMainWindow):
                             }
                             for source_key, match_data in cached_matches.items()
                         ]
-                        self.log(f"🔍 TERMVIEW: Converted to {len(termbase_matches)} matches")
                     else:
                         # Already in list format (shouldn't happen, but handle it)
                         termbase_matches = cached_matches
-                        self.log(f"🔍 TERMVIEW: Using list format directly: {len(termbase_matches)} matches")
-                else:
-                    self.log(f"🔍 TERMVIEW: No cached matches for segment {segment_id}")
                 
                 # Also get NT matches
                 nt_matches = self.find_nt_matches_in_source(source_text)
                 
-                self.log(f"🔍 TERMVIEW: Calling update_with_matches with {len(termbase_matches)} termbase + {len(nt_matches)} NT matches")
                 self.termview_widget.update_with_matches(source_text, termbase_matches, nt_matches)
-                self.log(f"🔍 TERMVIEW: update_with_matches completed successfully")
             except Exception as e:
                 self.log(f"Error updating termview: {e}")
                 import traceback
@@ -36720,14 +36712,9 @@ class AutoFingersWidget(QWidget):
         info.setStyleSheet("color: #666; padding: 5px; background-color: #E3F2FD; border-radius: 3px;")
         layout.addWidget(info, 0)  # 0 = no stretch, stays compact
         
-        # Tabs
-        tabs = QTabWidget()
-        
-        # Control Panel (single tab, no tab widget needed)
-        control_tab = self.create_control_tab()
-        tabs.addTab(control_tab, "🎮 Control Panel")
-        
-        layout.addWidget(tabs, 1)  # 1 = stretch to fill space
+        # Control Panel (single widget, no tab needed)
+        control_panel = self.create_control_tab()
+        layout.addWidget(control_panel, 1)  # 1 = stretch to fill space
         
         # Close button
         button_layout = QHBoxLayout()

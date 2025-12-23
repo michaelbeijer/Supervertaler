@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** December 22, 2025 | **Version:** v1.9.60
+> **Last Updated:** December 23, 2025 | **Version:** v1.9.62
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.60 (December 2025) |
+| **Version** | v1.9.62 (December 2025) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -359,6 +359,77 @@ google_api_key=AI...
 ---
 
 ## 🔄 Recent Development History
+
+### December 22, 2025 - Version 1.9.61: DOCX Export Tag Fix & TagHighlighter Accuracy
+
+**📄 DOCX Export List Tag Stripping**
+
+Fixed `<li-o>` and `<li-b>` tags appearing in exported Word documents:
+
+- Added `re.sub(r'</?li-[ob]>', '', text)` to both `_replace_paragraph_text()` and `_replace_paragraph_with_formatting()` in docx_handler.py
+- These list item tags are now stripped during DOCX export, not passed through to the document
+
+**Files Modified:**
+- `modules/docx_handler.py` - `_replace_paragraph_text()`, `_replace_paragraph_with_formatting()`
+
+**🎨 TagHighlighter - Fixed False Positives for Bracket Text**
+
+Fixed `[Bedrijf]`, `[Company]` and other square-bracketed placeholder text being incorrectly highlighted in pink (tag color):
+
+- **Root Cause**: The TagHighlighter patterns were too broad:
+  - `r'\[[a-zA-Z][^}\]]*\]'` matched ANY `[text]` starting with a letter
+  - `r'\{[a-zA-Z][^}\]]*\}'` matched ANY `{text}` starting with a letter
+  
+- **Fix**: Removed these overly broad patterns. Now only highlights:
+  - HTML/XML tags: `<tag>`, `</tag>`, `<tag/>`
+  - Trados numeric: `<1>`, `</1>`
+  - memoQ numeric: `[1}`, `{1]`, `[1]`, `{1}` (numbers only, not arbitrary text)
+
+- **Result**: `[Bedrijf]`, `[Company]`, `{placeholder}` etc. are no longer colored pink - only actual CAT tool tags get highlighted
+
+**Files Modified:**
+- `Supervertaler.py` - `TagHighlighter.highlightBlock()` - removed overly broad bracket patterns
+
+---
+
+### December 23, 2025 - Version 1.9.62: Dead Code Cleanup & Code Quality
+
+**🧹 Dead Code Removal (~230+ lines)**
+
+Removed deprecated and unused methods from the codebase:
+
+- `toggle_sidebar()` - Quick Access sidebar removed long ago
+- `update_sidebar_recent_files()` - Quick Access sidebar removed
+- `handle_ribbon_action()` - Ribbon UI removed, replaced by menu bar
+- `create_toolbar()` - Toolbar removed, replaced by ribbon (then menu)
+- `_create_llm_settings_tab()` - Deprecated redirect, never called
+- `_render_paragraph()` - Explicitly marked "no longer used"
+- `_handle_target_text_debounced()` - Superseded by `_by_id` version
+- `update_for_segment()` (termview) - Deprecated, use `update_with_matches()`
+- `tokenize_source()` (termview) - Deprecated, use `tokenize_with_multiword_terms()`
+
+**📋 Project Dataclass Cleanup**
+
+- Added missing `spellcheck_settings: Dict[str, Any]` field to Project dataclass
+- Added initialization in `__post_init__`
+- Removed unnecessary `hasattr()` checks throughout codebase (fields now properly declared)
+
+**🔇 Debug Logging Cleanup**
+
+- Removed verbose TERMVIEW debug print statements from `termview_widget.py`
+- Removed "💾💾💾 FINAL DEBUG" logging from project save
+- Removed excessive "🔍 TERMVIEW:" log messages from main app
+
+**🤖 AutoFingers UI Simplification**
+
+- Removed unnecessary QTabWidget wrapper (was single tab "🎮 Control Panel")
+- Control panel now displays directly without tab overhead
+
+**Files Modified:**
+- `Supervertaler.py` - Removed deprecated methods, added dataclass field, cleaned debug logs
+- `modules/termview_widget.py` - Removed deprecated methods and debug prints
+
+---
 
 ### December 22, 2025 - Version 1.9.60: Tag-Aware TM Matching & AutoFingers Cleanup
 
