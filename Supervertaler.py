@@ -35992,9 +35992,17 @@ class SuperlookupTab(QWidget):
         Uses external AHK script + signal file method (most reliable).
         The ahk library method is available but disabled by default due to
         callback threading issues.
+        
+        Note: AutoHotkey is Windows-only, so skip on Linux/Mac.
         """
         global _ahk_process
         print("[Superlookup] register_global_hotkey called")
+        
+        # AutoHotkey is Windows-only - skip on other platforms
+        if sys.platform != 'win32':
+            print("[Superlookup] Skipping AutoHotkey registration (not Windows)")
+            self.hotkey_registered = False
+            return
         
         # Use external script method (most reliable, proven to work)
         self._register_hotkey_external_script()
