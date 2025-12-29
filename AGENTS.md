@@ -383,9 +383,10 @@ Fixed memory access violations (segfaults) that could occur on Linux when clicki
    - Wrapped spellcheck loop in try/except to catch any errors
    - If errors occur, spellcheck is disabled for the session
 
-3. **Linux-Specific Environment Variables** (`Supervertaler.py`):
-   - Set `TOKENIZERS_PARALLELISM=false` on Linux to avoid threading crashes
-   - Set `MALLOC_CHECK_=0` for safer memory handling
+3. **Skip AutoHotkey on Linux/Mac** (`Supervertaler.py`):
+   - AutoHotkey registration now skipped entirely on non-Windows platforms
+   - No more "AutoHotkey not found" warnings on Linux/Mac
+   - Settings and menu items already hidden via `os.name == 'nt'` checks
 
 **User Guidance for Linux:**
 - If crashes persist, disable spellcheck in Settings → View Settings
