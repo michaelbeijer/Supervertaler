@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.63"
+__version__ = "1.9.64"
 __phase__ = "0.9"
 __release_date__ = "2025-12-21"
 __edition__ = "Qt"
@@ -7719,7 +7719,7 @@ class SupervertalerQt(QMainWindow):
         prompt_widget = QWidget()
         self.prompt_manager_qt = UnifiedPromptManagerQt(self, standalone=False)
         self.prompt_manager_qt.create_tab(prompt_widget)
-        resources_tabs.addTab(prompt_widget, "🤖 Prompts")
+        resources_tabs.addTab(prompt_widget, "🤖 Prompt manager")
         
         layout.addWidget(resources_tabs)
         
@@ -16211,57 +16211,167 @@ class SupervertalerQt(QMainWindow):
 
         return widget
     
-    # Pagination methods (stubs for now - will be fully implemented later)
-    def go_to_first_page(self):
-        """Navigate to first page - stub implementation"""
+    # Pagination methods
+    def _get_total_pages(self) -> int:
+        """Calculate total number of pages based on segment count and page size"""
+        if not self.current_project or not self.current_project.segments:
+            return 1
+        total_segments = len(self.current_project.segments)
+        if not hasattr(self, 'grid_page_size') or self.grid_page_size >= 999999:
+            return 1  # "All" selected
+        return max(1, (total_segments + self.grid_page_size - 1) // self.grid_page_size)
+    
+    def _update_pagination_ui(self):
+        """Update pagination labels and button states"""
+        if not self.current_project or not self.current_project.segments:
+            if hasattr(self, 'pagination_label') and self._widget_is_alive(self.pagination_label):
+                self.pagination_label.setText("Segments 0-0 of 0")
+            if hasattr(self, 'total_pages_label') and self._widget_is_alive(self.total_pages_label):
+                self.total_pages_label.setText("of 1")
+            if hasattr(self, 'page_number_input') and self._widget_is_alive(self.page_number_input):
+                self.page_number_input.setText("1")
+            return
+        
+        total_segments = len(self.current_project.segments)
+        total_pages = self._get_total_pages()
+        
         if not hasattr(self, 'grid_current_page'):
             self.grid_current_page = 0
+        if not hasattr(self, 'grid_page_size'):
+            self.grid_page_size = 50
+        
+        # Clamp current page to valid range
+        self.grid_current_page = max(0, min(self.grid_current_page, total_pages - 1))
+        
+        # Calculate segment range for current page
+        if self.grid_page_size >= 999999:
+            # "All" mode - show all segments
+            start_seg = 1
+            end_seg = total_segments
         else:
+            start_seg = self.grid_current_page * self.grid_page_size + 1
+            end_seg = min((self.grid_current_page + 1) * self.grid_page_size, total_segments)
+        
+        # Update labels
+        if hasattr(self, 'pagination_label') and self._widget_is_alive(self.pagination_label):
+            self.pagination_label.setText(f"Segments {start_seg}-{end_seg} of {total_segments}")
+        
+        if hasattr(self, 'total_pages_label') and self._widget_is_alive(self.total_pages_label):
+            self.total_pages_label.setText(f"of {total_pages}")
+        
+        if hasattr(self, 'page_number_input') and self._widget_is_alive(self.page_number_input):
+            self.page_number_input.setText(str(self.grid_current_page + 1))
+        
+        # Enable/disable navigation buttons
+        is_first_page = self.grid_current_page == 0
+        is_last_page = self.grid_current_page >= total_pages - 1
+        
+        if hasattr(self, 'first_page_btn') and self._widget_is_alive(self.first_page_btn):
+            self.first_page_btn.setEnabled(not is_first_page)
+        if hasattr(self, 'prev_page_btn') and self._widget_is_alive(self.prev_page_btn):
+            self.prev_page_btn.setEnabled(not is_first_page)
+        if hasattr(self, 'next_page_btn') and self._widget_is_alive(self.next_page_btn):
+            self.next_page_btn.setEnabled(not is_last_page)
+        if hasattr(self, 'last_page_btn') and self._widget_is_alive(self.last_page_btn):
+            self.last_page_btn.setEnabled(not is_last_page)
+    
+    def _apply_pagination_to_grid(self):
+        """Show/hide rows based on current page - efficient method without reloading"""
+        if not self.current_project or not self.current_project.segments:
+            return
+        
+        total_segments = len(self.current_project.segments)
+        
+        if not hasattr(self, 'grid_current_page'):
             self.grid_current_page = 0
-        # TODO: Implement full pagination logic
-        pass
+        if not hasattr(self, 'grid_page_size'):
+            self.grid_page_size = 50
+        
+        # Calculate which rows should be visible
+        if self.grid_page_size >= 999999:
+            # "All" mode - show everything
+            start_row = 0
+            end_row = total_segments
+        else:
+            start_row = self.grid_current_page * self.grid_page_size
+            end_row = min(start_row + self.grid_page_size, total_segments)
+        
+        # Batch show/hide for performance
+        self.table.setUpdatesEnabled(False)
+        try:
+            for row in range(total_segments):
+                if start_row <= row < end_row:
+                    self.table.showRow(row)
+                else:
+                    self.table.hideRow(row)
+        finally:
+            self.table.setUpdatesEnabled(True)
+        
+        # Update pagination UI
+        self._update_pagination_ui()
+    
+    def go_to_first_page(self):
+        """Navigate to first page"""
+        if not hasattr(self, 'grid_current_page'):
+            self.grid_current_page = 0
+        if self.grid_current_page != 0:
+            self.grid_current_page = 0
+            self._apply_pagination_to_grid()
     
     def go_to_prev_page(self):
-        """Navigate to previous page - stub implementation"""
+        """Navigate to previous page"""
         if not hasattr(self, 'grid_current_page'):
             self.grid_current_page = 0
         if self.grid_current_page > 0:
             self.grid_current_page -= 1
-        # TODO: Implement full pagination logic
-        pass
+            self._apply_pagination_to_grid()
     
     def go_to_next_page(self):
-        """Navigate to next page - stub implementation"""
+        """Navigate to next page"""
         if not hasattr(self, 'grid_current_page'):
             self.grid_current_page = 0
-        self.grid_current_page += 1
-        # TODO: Implement full pagination logic
-        pass
+        total_pages = self._get_total_pages()
+        if self.grid_current_page < total_pages - 1:
+            self.grid_current_page += 1
+            self._apply_pagination_to_grid()
     
     def go_to_last_page(self):
-        """Navigate to last page - stub implementation"""
+        """Navigate to last page"""
         if not hasattr(self, 'grid_current_page'):
             self.grid_current_page = 0
-        # TODO: Calculate total pages and set to last
-        pass
+        total_pages = self._get_total_pages()
+        if self.grid_current_page != total_pages - 1:
+            self.grid_current_page = total_pages - 1
+            self._apply_pagination_to_grid()
     
     def go_to_page(self):
-        """Navigate to specific page - stub implementation"""
-        if not hasattr(self, 'page_number_input'):
+        """Navigate to specific page from input field"""
+        if not hasattr(self, 'page_number_input') or not self._widget_is_alive(self.page_number_input):
             return
         try:
             page_num = int(self.page_number_input.text())
+            total_pages = self._get_total_pages()
             if not hasattr(self, 'grid_current_page'):
                 self.grid_current_page = 0
-            self.grid_current_page = max(0, page_num - 1)  # Convert to 0-indexed
+            new_page = max(0, min(page_num - 1, total_pages - 1))  # Convert to 0-indexed and clamp
+            if new_page != self.grid_current_page:
+                self.grid_current_page = new_page
+                self._apply_pagination_to_grid()
+            else:
+                # Even if same page, update the input to show clamped value
+                self.page_number_input.setText(str(self.grid_current_page + 1))
         except ValueError:
-            pass
-        # TODO: Implement full pagination logic
+            # Invalid input, reset to current page
+            if hasattr(self, 'grid_current_page'):
+                self.page_number_input.setText(str(self.grid_current_page + 1))
     
     def on_page_size_changed(self, text: str):
-        """Handle page size change - stub implementation"""
+        """Handle page size change"""
         if not hasattr(self, 'grid_page_size'):
             self.grid_page_size = 50
+        
+        old_page_size = self.grid_page_size
+        
         if text == "All":
             self.grid_page_size = 999999
         else:
@@ -16269,12 +16379,15 @@ class SupervertalerQt(QMainWindow):
                 self.grid_page_size = int(text)
             except ValueError:
                 self.grid_page_size = 50
-        # Reset to first page
+        
+        # Reset to first page when page size changes
         if not hasattr(self, 'grid_current_page'):
             self.grid_current_page = 0
         else:
             self.grid_current_page = 0
-        # TODO: Implement full pagination logic with reload
+        
+        # Apply the new pagination
+        self._apply_pagination_to_grid()
     
     def _widget_is_alive(self, widget: Optional[QWidget]) -> bool:
         """Return True if the underlying Qt object still exists."""
@@ -17118,10 +17231,25 @@ class SupervertalerQt(QMainWindow):
                     
                     # Restore primary prompt
                     primary_path = prompt_settings.get('active_primary_prompt_path')
-                    if primary_path and primary_path in library.prompts:
-                        # Use the UI method to update both internal state and UI
-                        self.prompt_manager_qt._set_primary_prompt(primary_path)
-                        self.log(f"✓ Restored primary prompt: {primary_path}")
+                    if primary_path:
+                        # Check if it's an external prompt (path starts with [EXTERNAL])
+                        if primary_path.startswith('[EXTERNAL] '):
+                            # Extract the actual file path
+                            external_file_path = primary_path[len('[EXTERNAL] '):]
+                            if os.path.exists(external_file_path):
+                                success, _ = library.set_external_primary_prompt(external_file_path)
+                                if success:
+                                    # Update the UI label
+                                    display_name = Path(external_file_path).stem
+                                    self.prompt_manager_qt.primary_prompt_label.setText(f"📁 {display_name}")
+                                    self.prompt_manager_qt.primary_prompt_label.setStyleSheet("color: #000; font-weight: bold;")
+                                    self.log(f"✓ Restored external primary prompt: {display_name}")
+                            else:
+                                self.log(f"⚠ External prompt file not found: {external_file_path}")
+                        elif primary_path in library.prompts:
+                            # Regular library prompt
+                            self.prompt_manager_qt._set_primary_prompt(primary_path)
+                            self.log(f"✓ Restored primary prompt: {primary_path}")
                     
                     # Restore attached prompts
                     attached_paths = prompt_settings.get('attached_prompt_paths', [])
@@ -22574,6 +22702,9 @@ class SupervertalerQt(QMainWindow):
             self._enforce_status_row_heights()
             
             self.log(f"✓ Loaded {len(self.current_project.segments)} segments to grid")
+            
+            # Apply pagination - show only segments for current page
+            self._apply_pagination_to_grid()
 
             # Apply current tag view mode (WYSIWYG or Tags)
             if hasattr(self, 'show_tags') and self.show_tags:
@@ -30306,8 +30437,18 @@ class SupervertalerQt(QMainWindow):
             else:
                 self.log("⚠️ User proceeded with batch translation despite existing target text")
 
-        # Show provider selection dialog
-        provider_dialog = QDialog(self)
+        # Check if this is a retry pass (skip dialog if so)
+        is_retry_pass = hasattr(self, '_batch_retry_pass') and self._batch_retry_pass > 0
+        
+        if is_retry_pass:
+            # Use stored settings from previous pass
+            translation_provider_type = getattr(self, '_batch_provider_type', 'LLM')
+            translation_provider_name = getattr(self, '_batch_provider_name', 'openai')
+            model = getattr(self, '_batch_model', 'gpt-4o')
+            api_keys = self.load_api_keys()
+        else:
+            # Show provider selection dialog (only on first pass)
+            provider_dialog = QDialog(self)
         provider_dialog.setWindowTitle("Select Translation Provider")
         provider_dialog.setModal(True)
         provider_dialog.setMinimumWidth(500)
@@ -30410,6 +30551,26 @@ class SupervertalerQt(QMainWindow):
         llm_info.setStyleSheet("color: #666; font-size: 9pt; padding: 5px 0;")
         dialog_layout.addWidget(llm_info)
 
+        dialog_layout.addSpacing(10)
+        
+        # Options group
+        options_group = QGroupBox("Options")
+        options_layout = QVBoxLayout()
+        
+        # Retry until complete option
+        retry_checkbox = CheckmarkCheckBox("🔄 Retry until all segments are translated (recommended)")
+        retry_checkbox.setToolTip(
+            "If some segments fail or are empty after the first pass,\n"
+            "automatically retry translating just those segments.\n"
+            "This continues until all segments have translations\n"
+            "or a maximum of 5 retries is reached."
+        )
+        retry_checkbox.setChecked(True)  # Default to enabled
+        options_layout.addWidget(retry_checkbox)
+        
+        options_group.setLayout(options_layout)
+        dialog_layout.addWidget(options_group)
+
         dialog_layout.addSpacing(20)
 
         # Buttons
@@ -30434,6 +30595,10 @@ class SupervertalerQt(QMainWindow):
         # Determine which provider was selected
         use_tm = tm_checkbox.isChecked()
         use_mt = mt_checkbox.isChecked()
+        retry_until_complete = retry_checkbox.isChecked()
+        
+        # Store retry setting for recursive calls
+        self._batch_retry_enabled = retry_until_complete
 
         if use_tm:
             # Use Translation Memory
@@ -30482,6 +30647,11 @@ class SupervertalerQt(QMainWindow):
 
             translation_provider_name = llm_provider
             model = llm_model
+            
+            # Store settings for potential retry passes
+            self._batch_provider_type = translation_provider_type
+            self._batch_provider_name = translation_provider_name
+            self._batch_model = model
 
         # Create progress dialog
         progress = QDialog(self)
@@ -31112,11 +31282,80 @@ class SupervertalerQt(QMainWindow):
                 self.update_window_title()
 
             progress_bar.setValue(total_segments)
-            current_label.setText(
-                f"<b>✓ Batch translation complete!</b><br>"
-                f"Successfully translated: {translated_count}<br>"
-                f"Failed: {failed_count}"
-            )
+            
+            # Check if retry is needed (for LLM mode with retry option enabled)
+            retry_pass = getattr(self, '_batch_retry_pass', 0)
+            max_retries = 5
+            retry_enabled = getattr(self, '_batch_retry_enabled', False)
+            
+            # Count segments that are still empty after this pass
+            empty_segments_after = []
+            if retry_enabled and translation_provider_type == 'LLM' and retry_pass < max_retries:
+                for row_index, seg in segments_to_translate:
+                    if not seg.target or not seg.target.strip():
+                        empty_segments_after.append((row_index, seg))
+            
+            if empty_segments_after and retry_pass < max_retries:
+                # There are still empty segments - offer to retry
+                self._batch_retry_pass = retry_pass + 1
+                retry_count = len(empty_segments_after)
+                
+                current_label.setText(
+                    f"<b>Pass {retry_pass + 1} complete</b><br>"
+                    f"Translated: {translated_count}<br>"
+                    f"Still empty: {retry_count}<br><br>"
+                    f"<b>🔄 Starting retry pass {retry_pass + 2} for {retry_count} segments...</b>"
+                )
+                QApplication.processEvents()
+                
+                self.log(f"🔄 Retry pass {retry_pass + 2}: {retry_count} segments still empty, retrying...")
+                
+                # Close current progress dialog
+                progress.accept()
+                
+                # Recursively call translate_batch with only empty segments
+                self.translate_batch(
+                    segments_with_rows=empty_segments_after,
+                    scope_description=f"empty segment(s) (retry {retry_pass + 2})"
+                )
+                return  # Don't show completion message yet
+            
+            # Clear retry counter and stored settings
+            if hasattr(self, '_batch_retry_pass'):
+                delattr(self, '_batch_retry_pass')
+            if hasattr(self, '_batch_retry_enabled'):
+                delattr(self, '_batch_retry_enabled')
+            if hasattr(self, '_batch_provider_type'):
+                delattr(self, '_batch_provider_type')
+            if hasattr(self, '_batch_provider_name'):
+                delattr(self, '_batch_provider_name')
+            if hasattr(self, '_batch_model'):
+                delattr(self, '_batch_model')
+            
+            # Show final completion message
+            if retry_enabled and translation_provider_type == 'LLM':
+                # Check final state
+                final_empty = sum(1 for _, seg in segments_to_translate if not seg.target or not seg.target.strip())
+                if final_empty > 0:
+                    current_label.setText(
+                        f"<b>✓ Batch translation complete!</b><br>"
+                        f"Successfully translated: {translated_count}<br>"
+                        f"Failed: {failed_count}<br>"
+                        f"Still empty: {final_empty}<br><br>"
+                        f"<i>Max retries ({max_retries}) reached.</i>"
+                    )
+                else:
+                    current_label.setText(
+                        f"<b>✓ Batch translation complete!</b><br>"
+                        f"Successfully translated: {translated_count}<br>"
+                        f"All segments now have translations! 🎉"
+                    )
+            else:
+                current_label.setText(
+                    f"<b>✓ Batch translation complete!</b><br>"
+                    f"Successfully translated: {translated_count}<br>"
+                    f"Failed: {failed_count}"
+                )
 
             close_btn.setEnabled(True)
 

@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.63 (December 29, 2025)
+**Current Version:** v1.9.64 (December 29, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -14,6 +14,10 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- 📄 **Working Grid Pagination (v1.9.64)** - Grid pagination now actually works! Previously pagination controls existed but didn't filter the displayed segments. Now when you select "50 per page", only 50 segments are shown at a time. Use First/Prev/Next/Last buttons or type a page number to navigate. Efficient show/hide approach without grid reload for fast page changes.
+- 🔄 **Batch Translate Retry Until Complete (v1.9.64)** - New "🔄 Retry until all segments are translated" option in batch translate dialog (enabled by default). If some segments fail or return empty after the first pass, automatically retries just those segments. Continues until all segments have translations or max 5 retries reached. No more running batch translate 2-3 times manually!
+- 🤖 **Prompt Manager Tab Rename (v1.9.64)** - "Prompts" tab renamed to "Prompt manager" in Project resources for clarity.
+- 📁 **External Prompt Restoration (v1.9.64)** - Fixed external prompts (from outside the library folder) not being restored when loading a project. External prompts are now correctly saved with `[EXTERNAL]` prefix and restored on project load.
 - 🐧 **Linux Stability Fix (v1.9.63)** - Fixed memory access violations (segfaults) that could occur on Linux when clicking in the grid after importing a Trados package. Native code libraries (Hunspell, ChromaDB) can crash on Linux with improper dictionaries. Added safer Hunspell initialization with test spell check, crash detection flag to auto-disable spellcheck if it fails, and protected spellcheck highlighting with try/except. AutoHotkey registration now skipped entirely on Linux/Mac (no more "AutoHotkey not found" warnings). Linux users: if crashes persist, disable spellcheck in Settings or install proper Hunspell dictionaries (`sudo apt install hunspell-pl` for Polish).
 - 🧹 **Dead Code Cleanup (v1.9.62)** - Removed ~230+ lines of deprecated and unused code. Cleaned up: `toggle_sidebar`, `handle_ribbon_action`, `create_toolbar`, `_render_paragraph`, deprecated termview methods, and verbose debug logging. Added missing `spellcheck_settings` field to Project dataclass with proper initialization. Removed unnecessary `hasattr()` checks. AutoFingers UI simplified by removing single-tab QTabWidget wrapper.
 - 🔍 **Tag-Aware TM Matching (v1.9.60)** - Translation Memory fuzzy matching now works regardless of whether segments contain formatting tags! Searches both with and without tags, so `<b>Hello</b>` matches `Hello` in your TM. Similarity calculation also strips tags before comparing, giving accurate match percentages. Added `<li-b>` and `<li-o>` list item tags to TMX Tag Cleaner. Removed unused TMX Manager tab from AutoFingers - Import from TM button now in Control Panel.

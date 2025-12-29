@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** December 29, 2025 | **Version:** v1.9.63
+> **Last Updated:** December 29, 2025 | **Version:** v1.9.64
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.62 (December 2025) |
+| **Version** | v1.9.64 (December 2025) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -359,6 +359,57 @@ google_api_key=AI...
 ---
 
 ## 🔄 Recent Development History
+
+### December 29, 2025 - Version 1.9.64: Grid Pagination & Batch Translate Retry
+
+**📄 Working Grid Pagination**
+
+The pagination controls now actually filter the displayed segments:
+
+- **Previously**: Pagination UI existed but all segments were always shown
+- **Now**: When you select "50 per page", only 50 segments are displayed at a time
+- **Navigation**: First/Prev/Next/Last buttons or type a page number
+- **Efficient**: Uses show/hide rows approach without reloading the grid
+
+**New Pagination Methods:**
+- `_get_total_pages()` - Calculate total pages based on segments and page size
+- `_update_pagination_ui()` - Update labels and enable/disable buttons
+- `_apply_pagination_to_grid()` - Show/hide rows for current page
+- Updated `go_to_first_page()`, `go_to_prev_page()`, `go_to_next_page()`, `go_to_last_page()`, `go_to_page()`, `on_page_size_changed()`
+
+**🔄 Batch Translate Retry Until Complete**
+
+New option to automatically retry translating empty segments:
+
+- **Checkbox**: "🔄 Retry until all segments are translated (recommended)" in batch translate dialog
+- **Default**: Enabled by default
+- **Behavior**: After first pass completes, checks for segments that are still empty. If any found, automatically starts another pass with just those segments.
+- **Max Retries**: 5 passes maximum to prevent infinite loops
+- **LLM Only**: Only works with LLM provider (not TM or MT modes)
+
+**Instance Variables for Retry:**
+- `_batch_retry_enabled` - Whether retry is enabled
+- `_batch_retry_pass` - Current retry pass number (0 = first pass)
+- `_batch_provider_type`, `_batch_provider_name`, `_batch_model` - Stored settings for retry passes
+
+**🤖 Prompt Manager Tab Rename**
+
+- "Prompts" tab renamed to "Prompt manager" in Project resources
+
+**📁 External Prompt Restoration Fix**
+
+Fixed external prompts not being restored when loading a project:
+
+- External prompts are saved with `[EXTERNAL] /path/to/file.svprompt` prefix
+- On load, detects `[EXTERNAL]` prefix and calls `library.set_external_primary_prompt()`
+- Updates UI label with 📁 icon and prompt name
+- Shows warning if external file no longer exists
+
+**Files Modified:**
+- `Supervertaler.py` - Pagination methods, batch translate retry, prompt restoration, tab rename
+- `modules/unified_prompt_library.py` - (no changes, existing method used)
+
+---
 
 ### December 29, 2025 - Version 1.9.63: Linux Memory Access Violation Fix
 
@@ -1444,4 +1495,4 @@ Extended `TagHighlighter` to color ALL CAT tool tags with pink (`#FFB6C1`) in th
 ---
 
 *This file replaces the previous CLAUDE.md and PROJECT_CONTEXT.md files.*
-*Last updated: December 22, 2025 - v1.9.58*
+*Last updated: December 29, 2025 - v1.9.64*
