@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** December 29, 2025 | **Version:** v1.9.64
+> **Last Updated:** December 29, 2025 | **Version:** v1.9.65
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.64 (December 2025) |
+| **Version** | v1.9.65 (December 2025) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -359,6 +359,46 @@ google_api_key=AI...
 ---
 
 ## 🔄 Recent Development History
+
+### December 29, 2025 - Version 1.9.65: Documentation Consolidation & Arrow Key Navigation
+
+**📚 Documentation Consolidation**
+
+Merged two separate guides into a single comprehensive manual:
+
+- **Previous**: `QUICK_START.md` + `CAT_WORKFLOW.md` (separate files)
+- **Now**: `MANUAL.md` - Supervertaler Manual (single unified document)
+- **Contents**: Installation, API setup, CAT tool workflows (memoQ, Trados, CafeTran, Phrase), keyboard shortcuts, formatting, troubleshooting
+- **Location**: `docs/guides/MANUAL.md`
+
+**⬆️⬇️ memoQ-Style Arrow Key Navigation**
+
+Implemented intuitive segment navigation using Up/Down arrow keys:
+
+- **Up Arrow at top line**: Moves to previous segment, positions cursor at last line
+- **Down Arrow at bottom line**: Moves to next segment, positions cursor at first line
+- **Cursor column preserved**: When moving between segments, cursor stays at same column position (or end of line if shorter)
+- **Works in both Source and Target cells**: Navigation works whether you're in the read-only source cell or editable target cell
+- **Normal behavior within cell**: Arrow keys work normally when cursor is NOT at first/last line
+
+**New Methods in `EditableGridTextEditor`:**
+- `_position_cursor_at_end_of_segment()` - Position cursor at last line of cell
+- `_position_cursor_at_start_of_segment()` - Position cursor at first line of cell
+
+**Also Added to `ReadOnlyGridTextEditor`:**
+- Same Up/Down arrow key navigation
+- Tab key now cycles to target cell (column 3)
+
+**🔢 Grammar Fix**
+
+Fixed "Batch Translate 1 Segments" → "Batch Translate 1 Segment" (proper singular/plural)
+
+**Files Modified:**
+- `Supervertaler.py` - Arrow key navigation in both editor classes, grammar fix
+- `docs/guides/MANUAL.md` - New consolidated manual
+- Deleted: `docs/guides/QUICK_START.md`, `docs/guides/CAT_WORKFLOW.md`
+
+---
 
 ### December 29, 2025 - Version 1.9.64: Grid Pagination & Batch Translate Retry
 
@@ -1495,4 +1535,4 @@ Extended `TagHighlighter` to color ALL CAT tool tags with pink (`#FFB6C1`) in th
 ---
 
 *This file replaces the previous CLAUDE.md and PROJECT_CONTEXT.md files.*
-*Last updated: December 29, 2025 - v1.9.64*
+*Last updated: December 29, 2025 - v1.9.65*
