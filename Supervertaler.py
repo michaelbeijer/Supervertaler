@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.62"
+__version__ = "1.9.63"
 __phase__ = "0.9"
 __release_date__ = "2025-12-21"
 __edition__ = "Qt"
@@ -1959,46 +1959,61 @@ class TagHighlighter(QSyntaxHighlighter):
 
     def _highlight_misspelled_words(self, text):
         """Highlight misspelled words with red wavy underline"""
+        # Safety check - if spellcheck manager is not available or disabled, skip
+        if not TagHighlighter._spellcheck_manager:
+            return
+        
+        # Check if spellcheck manager detected a crash - if so, skip entirely
+        if hasattr(TagHighlighter._spellcheck_manager, '_crash_detected') and TagHighlighter._spellcheck_manager._crash_detected:
+            return
+        
         import re
         # Find all words (letters only, including accented characters)
         # Skip words inside tags or that look like technical content
         word_pattern = re.compile(r'\b([a-zA-ZÀ-ÿ\']+)\b', re.UNICODE)
         
-        for match in word_pattern.finditer(text):
-            word = match.group(1)
-            start = match.start(1)
-            length = len(word)
-            
-            # Skip very short words and words with apostrophes at start/end
-            if len(word) < 2:
-                continue
-            
-            # Check if this word is inside ANY type of tag:
-            # - HTML/XML: < ... >
-            # - memoQ/DITA: [ ... } or [ ... ] or { ... ]
-            before_text = text[:start]
-            
-            # Check for HTML tags
-            last_html_open = before_text.rfind('<')
-            last_html_close = before_text.rfind('>')
-            if last_html_open > last_html_close:
-                continue  # Inside HTML tag
-            
-            # Check for bracket tags: [ ... } or [ ... ]
-            last_square_open = before_text.rfind('[')
-            last_square_close = max(before_text.rfind('}'), before_text.rfind(']'))
-            if last_square_open > last_square_close:
-                continue  # Inside [tag...} or [tag...]
-            
-            # Check for curly tags: { ... ] or { ... }
-            last_curly_open = before_text.rfind('{')
-            last_curly_close = max(before_text.rfind(']'), before_text.rfind('}'))
-            if last_curly_open > last_curly_close:
-                continue  # Inside {tag...] or {tag...}
-            
-            # Check spelling
-            if not TagHighlighter._spellcheck_manager.check_word(word):
-                self.setFormat(start, length, self.spellcheck_format)
+        try:
+            for match in word_pattern.finditer(text):
+                word = match.group(1)
+                start = match.start(1)
+                length = len(word)
+                
+                # Skip very short words and words with apostrophes at start/end
+                if len(word) < 2:
+                    continue
+                
+                # Check if this word is inside ANY type of tag:
+                # - HTML/XML: < ... >
+                # - memoQ/DITA: [ ... } or [ ... ] or { ... ]
+                before_text = text[:start]
+                
+                # Check for HTML tags
+                last_html_open = before_text.rfind('<')
+                last_html_close = before_text.rfind('>')
+                if last_html_open > last_html_close:
+                    continue  # Inside HTML tag
+                
+                # Check for bracket tags: [ ... } or [ ... ]
+                last_square_open = before_text.rfind('[')
+                last_square_close = max(before_text.rfind('}'), before_text.rfind(']'))
+                if last_square_open > last_square_close:
+                    continue  # Inside [tag...} or [tag...]
+                
+                # Check for curly tags: { ... ] or { ... }
+                last_curly_open = before_text.rfind('{')
+                last_curly_close = max(before_text.rfind(']'), before_text.rfind('}'))
+                if last_curly_open > last_curly_close:
+                    continue  # Inside {tag...] or {tag...}
+                
+                # Check spelling
+                if not TagHighlighter._spellcheck_manager.check_word(word):
+                    self.setFormat(start, length, self.spellcheck_format)
+        except Exception as e:
+            # If anything goes wrong during spellcheck highlighting, disable it
+            print(f"Spellcheck highlighting error: {e}")
+            if TagHighlighter._spellcheck_manager:
+                TagHighlighter._spellcheck_manager._crash_detected = True
+                TagHighlighter._spellcheck_manager.enabled = False
 
 
 class EditableGridTextEditor(QTextEdit):
@@ -37435,6 +37450,14 @@ def main():
     # Suppress Chromium/QtWebEngine verbose error output (cache errors, GPU warnings)
     # These are harmless but alarming to users
     os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--disable-logging --log-level=3"
+    
+    # Linux-specific: Avoid memory access violations from native libraries
+    # ChromaDB and Hunspell can crash on some Linux configurations
+    if sys.platform == 'linux':
+        # Disable threading optimizations that can cause crashes in native code
+        os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
+        # Use safer malloc implementation if available
+        os.environ.setdefault("MALLOC_CHECK_", "0")
     
     # Set OpenGL context sharing before creating QApplication (required for QtWebEngine)
     QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)

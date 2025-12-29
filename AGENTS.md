@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** December 23, 2025 | **Version:** v1.9.62
+> **Last Updated:** December 29, 2025 | **Version:** v1.9.63
 
 ---
 
@@ -359,6 +359,44 @@ google_api_key=AI...
 ---
 
 ## 🔄 Recent Development History
+
+### December 29, 2025 - Version 1.9.63: Linux Memory Access Violation Fix
+
+**🐧 Linux Stability Improvements**
+
+Fixed memory access violations (segfaults) that could occur on Linux when clicking in the grid after importing a Trados package:
+
+**Root Cause**: Native code libraries (Hunspell spellcheck, ChromaDB, Sentence-Transformers) can crash with segfaults on Linux, especially when:
+- Hunspell dictionaries are not properly installed for the target language
+- ChromaDB's Rust backend has thread safety issues
+- Tokenizers library uses parallel processing
+
+**Fixes Applied:**
+
+1. **Safer Hunspell Initialization** (`modules/spellcheck_manager.py`):
+   - Added test spell check call during initialization to catch crashes early
+   - Added `_crash_detected` flag to disable spellcheck permanently if it crashes
+   - If spellcheck crashes mid-session, it's automatically disabled
+
+2. **Protected Spellcheck Highlighting** (`Supervertaler.py`):
+   - Added safety checks in `TagHighlighter._highlight_misspelled_words()`
+   - Wrapped spellcheck loop in try/except to catch any errors
+   - If errors occur, spellcheck is disabled for the session
+
+3. **Linux-Specific Environment Variables** (`Supervertaler.py`):
+   - Set `TOKENIZERS_PARALLELISM=false` on Linux to avoid threading crashes
+   - Set `MALLOC_CHECK_=0` for safer memory handling
+
+**User Guidance for Linux:**
+- If crashes persist, disable spellcheck in Settings → View Settings
+- Ensure Hunspell dictionaries are installed: `sudo apt install hunspell-pl` (for Polish)
+- Disable Supermemory auto-init if using ChromaDB causes issues
+
+**Files Modified:**
+- `modules/spellcheck_manager.py` - `_try_hunspell()`, `check_word()`, added `_crash_detected` flag
+- `Supervertaler.py` - `_highlight_misspelled_words()`, `main()` Linux env vars
+
+---
 
 ### December 22, 2025 - Version 1.9.61: DOCX Export Tag Fix & TagHighlighter Accuracy
 

@@ -112,6 +112,9 @@ class SpellcheckManager:
         # Enabled state
         self.enabled = True
         
+        # Safety flag - if spellcheck crashes, disable permanently for session
+        self._crash_detected = False
+        
     def _load_custom_words(self):
         """Load custom words from file"""
         self._custom_words.clear()
@@ -188,16 +191,26 @@ class SpellcheckManager:
             dic_file = self.dictionaries_path / f"{lang_code}.dic"
             aff_file = self.dictionaries_path / f"{lang_code}.aff"
             
+            hunspell_obj = None
             if dic_file.exists() and aff_file.exists():
-                self._hunspell = Hunspell(lang_code, hunspell_data_dir=str(self.dictionaries_path))
-                return True
+                hunspell_obj = Hunspell(lang_code, hunspell_data_dir=str(self.dictionaries_path))
+            else:
+                # Try system dictionaries
+                try:
+                    hunspell_obj = Hunspell(lang_code)
+                except Exception:
+                    return False
             
-            # Try system dictionaries
-            try:
-                self._hunspell = Hunspell(lang_code)
-                return True
-            except Exception:
-                pass
+            if hunspell_obj:
+                # CRITICAL: Test the spell checker with a simple word to catch potential crashes early
+                # Some Hunspell configurations on Linux can crash on first use
+                try:
+                    hunspell_obj.spell("test")
+                    self._hunspell = hunspell_obj
+                    return True
+                except Exception as e:
+                    print(f"Hunspell test spell failed for {lang_code}: {e}")
+                    return False
             
             return False
         except Exception as e:
@@ -249,6 +262,10 @@ class SpellcheckManager:
         Returns:
             True if the word is correct, False if misspelled
         """
+        # If a crash was detected earlier, always return True (don't attempt spellcheck)
+        if self._crash_detected:
+            return True
+        
         if not self.enabled:
             return True
         
@@ -283,13 +300,18 @@ class SpellcheckManager:
         if self._hunspell:
             try:
                 is_correct = self._hunspell.spell(word)
-            except Exception:
+            except Exception as e:
+                # If Hunspell crashes, disable for the session
+                print(f"Hunspell spell check error: {e}")
+                self._crash_detected = True
+                self.enabled = False
                 is_correct = True  # Fail open
         elif self._spellchecker:
             try:
                 # pyspellchecker returns None for known words
                 is_correct = word_lower in self._spellchecker
-            except Exception:
+            except Exception as e:
+                print(f"pyspellchecker error: {e}")
                 is_correct = True
         else:
             is_correct = True  # No spell checker available
