@@ -1169,9 +1169,10 @@ class ReadOnlyGridTextEditor(QTextEdit):
                     if main_window and hasattr(main_window, 'go_to_previous_segment'):
                         # Get cursor column position for smart positioning
                         col_in_line = cursor.positionInBlock()
-                        main_window.go_to_previous_segment()
+                        # Navigate and let go_to_previous_segment position cursor in target cell
+                        main_window.go_to_previous_segment(target_column=col_in_line, to_last_line=True)
                         
-                        # Position cursor at same column in last line of previous segment (source cell)
+                        # Now move focus from target to source cell, preserving column position
                         if table:
                             current_row = table.currentRow()
                             source_widget = table.cellWidget(current_row, 2)  # Column 2 is Source
@@ -1181,7 +1182,7 @@ class ReadOnlyGridTextEditor(QTextEdit):
                                 src_last_block = src_doc.lastBlock()
                                 new_cursor.setPosition(src_last_block.position())
                                 line_length = src_last_block.length() - 1
-                                target_pos = min(col_in_line, line_length)
+                                target_pos = min(col_in_line, max(0, line_length))
                                 new_cursor.movePosition(QTextCursor.MoveOperation.Right, QTextCursor.MoveMode.MoveAnchor, target_pos)
                                 source_widget.setTextCursor(new_cursor)
                                 source_widget.setFocus()
@@ -1195,9 +1196,10 @@ class ReadOnlyGridTextEditor(QTextEdit):
                     if main_window and hasattr(main_window, 'go_to_next_segment'):
                         # Get cursor column position for smart positioning
                         col_in_line = cursor.positionInBlock()
-                        main_window.go_to_next_segment()
+                        # Navigate and let go_to_next_segment position cursor in target cell
+                        main_window.go_to_next_segment(target_column=col_in_line, to_first_line=True)
                         
-                        # Position cursor at same column in first line of next segment (source cell)
+                        # Now move focus from target to source cell, preserving column position
                         if table:
                             current_row = table.currentRow()
                             source_widget = table.cellWidget(current_row, 2)  # Column 2 is Source
@@ -1207,7 +1209,7 @@ class ReadOnlyGridTextEditor(QTextEdit):
                                 src_first_block = src_doc.firstBlock()
                                 new_cursor.setPosition(src_first_block.position())
                                 line_length = src_first_block.length() - 1
-                                target_pos = min(col_in_line, line_length)
+                                target_pos = min(col_in_line, max(0, line_length))
                                 new_cursor.movePosition(QTextCursor.MoveOperation.Right, QTextCursor.MoveMode.MoveAnchor, target_pos)
                                 source_widget.setTextCursor(new_cursor)
                                 source_widget.setFocus()
@@ -2695,10 +2697,7 @@ class EditableGridTextEditor(QTextEdit):
                     if main_window and hasattr(main_window, 'go_to_previous_segment'):
                         # Get cursor column position for smart positioning in previous segment
                         col_in_line = cursor.positionInBlock()
-                        main_window.go_to_previous_segment()
-                        
-                        # Try to position cursor at same column in last line of previous segment
-                        self._position_cursor_at_end_of_segment(col_in_line)
+                        main_window.go_to_previous_segment(target_column=col_in_line, to_last_line=True)
                         event.accept()
                         return
             
@@ -2710,70 +2709,12 @@ class EditableGridTextEditor(QTextEdit):
                     if main_window and hasattr(main_window, 'go_to_next_segment'):
                         # Get cursor column position for smart positioning in next segment
                         col_in_line = cursor.positionInBlock()
-                        main_window.go_to_next_segment()
-                        
-                        # Try to position cursor at same column in first line of next segment
-                        self._position_cursor_at_start_of_segment(col_in_line)
+                        main_window.go_to_next_segment(target_column=col_in_line, to_first_line=True)
                         event.accept()
                         return
         
         # All other keys: Handle normally
         super().keyPressEvent(event)
-    
-    def _position_cursor_at_end_of_segment(self, target_column: int):
-        """Position cursor at the last line of the current cell, at the target column if possible"""
-        # This is called after navigating to a new segment
-        # We need to find the newly focused widget and position its cursor
-        if not self.table or self.row < 0:
-            return
-        
-        # Get the new target cell widget (the segment we just navigated to)
-        current_row = self.table.currentRow()
-        target_widget = self.table.cellWidget(current_row, 3)  # Column 3 is Target
-        
-        if target_widget and hasattr(target_widget, 'textCursor'):
-            from PyQt6.QtGui import QTextCursor
-            cursor = target_widget.textCursor()
-            doc = target_widget.document()
-            last_block = doc.lastBlock()
-            
-            # Move to last block
-            cursor.setPosition(last_block.position())
-            
-            # Move to target column (or end of line if shorter)
-            line_length = last_block.length() - 1  # -1 for line terminator
-            target_pos = min(target_column, line_length)
-            cursor.movePosition(QTextCursor.MoveOperation.Right, QTextCursor.MoveMode.MoveAnchor, target_pos)
-            
-            target_widget.setTextCursor(cursor)
-            target_widget.setFocus()
-    
-    def _position_cursor_at_start_of_segment(self, target_column: int):
-        """Position cursor at the first line of the current cell, at the target column if possible"""
-        # This is called after navigating to a new segment
-        if not self.table or self.row < 0:
-            return
-        
-        # Get the new target cell widget
-        current_row = self.table.currentRow()
-        target_widget = self.table.cellWidget(current_row, 3)  # Column 3 is Target
-        
-        if target_widget and hasattr(target_widget, 'textCursor'):
-            from PyQt6.QtGui import QTextCursor
-            cursor = target_widget.textCursor()
-            doc = target_widget.document()
-            first_block = doc.firstBlock()
-            
-            # Move to first block (should already be there, but ensure)
-            cursor.setPosition(first_block.position())
-            
-            # Move to target column (or end of line if shorter)
-            line_length = first_block.length() - 1  # -1 for line terminator
-            target_pos = min(target_column, line_length)
-            cursor.movePosition(QTextCursor.MoveOperation.Right, QTextCursor.MoveMode.MoveAnchor, target_pos)
-            
-            target_widget.setTextCursor(cursor)
-            target_widget.setFocus()
     
     def _handle_add_to_nt(self):
         """Handle Ctrl+Alt+N: Add selected text to active non-translatable list(s)"""
@@ -28861,8 +28802,13 @@ class SupervertalerQt(QMainWindow):
                 except Exception as e:
                     self.log(f"Error inserting selected match: {e}")
     
-    def go_to_previous_segment(self):
-        """Navigate to previous segment (Alt+Up)"""
+    def go_to_previous_segment(self, target_column: int = None, to_last_line: bool = False):
+        """Navigate to previous segment (Alt+Up)
+        
+        Args:
+            target_column: If provided, position cursor at this column (for arrow key nav)
+            to_last_line: If True with target_column, go to last line at that column
+        """
         if hasattr(self, 'table') and self.table:
             current_row = self.table.currentRow()
             if current_row > 0:
@@ -28873,11 +28819,28 @@ class SupervertalerQt(QMainWindow):
                 target_widget = self.table.cellWidget(new_row, 3)
                 if target_widget:
                     target_widget.setFocus()
-                    # Move cursor to end of text
-                    target_widget.moveCursor(QTextCursor.MoveOperation.End)
+                    if target_column is not None and to_last_line:
+                        # Position at target column on last line (for Up arrow navigation)
+                        from PyQt6.QtGui import QTextCursor
+                        cursor = target_widget.textCursor()
+                        doc = target_widget.document()
+                        last_block = doc.lastBlock()
+                        cursor.setPosition(last_block.position())
+                        line_length = last_block.length() - 1
+                        target_pos = min(target_column, max(0, line_length))
+                        cursor.movePosition(QTextCursor.MoveOperation.Right, QTextCursor.MoveMode.MoveAnchor, target_pos)
+                        target_widget.setTextCursor(cursor)
+                    else:
+                        # Default: move cursor to end of text
+                        target_widget.moveCursor(QTextCursor.MoveOperation.End)
     
-    def go_to_next_segment(self):
-        """Navigate to next segment (Alt+Down)"""
+    def go_to_next_segment(self, target_column: int = None, to_first_line: bool = False):
+        """Navigate to next segment (Alt+Down)
+        
+        Args:
+            target_column: If provided, position cursor at this column (for arrow key nav)
+            to_first_line: If True with target_column, go to first line at that column
+        """
         if hasattr(self, 'table') and self.table:
             current_row = self.table.currentRow()
             if current_row < self.table.rowCount() - 1:
@@ -28888,8 +28851,20 @@ class SupervertalerQt(QMainWindow):
                 target_widget = self.table.cellWidget(new_row, 3)
                 if target_widget:
                     target_widget.setFocus()
-                    # Move cursor to end of text
-                    target_widget.moveCursor(QTextCursor.MoveOperation.End)
+                    if target_column is not None and to_first_line:
+                        # Position at target column on first line (for Down arrow navigation)
+                        from PyQt6.QtGui import QTextCursor
+                        cursor = target_widget.textCursor()
+                        doc = target_widget.document()
+                        first_block = doc.firstBlock()
+                        cursor.setPosition(first_block.position())
+                        line_length = first_block.length() - 1
+                        target_pos = min(target_column, max(0, line_length))
+                        cursor.movePosition(QTextCursor.MoveOperation.Right, QTextCursor.MoveMode.MoveAnchor, target_pos)
+                        target_widget.setTextCursor(cursor)
+                    else:
+                        # Default: move cursor to end of text
+                        target_widget.moveCursor(QTextCursor.MoveOperation.End)
     
     def go_to_first_segment(self):
         """Navigate to first segment (Ctrl+Home)"""
