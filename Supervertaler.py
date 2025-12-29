@@ -5923,13 +5923,9 @@ class SupervertalerQt(QMainWindow):
         help_menu = menubar.addMenu("&Help")
 
         # Documentation links (GitHub URLs for universal access)
-        quickstart_action = QAction("📖 Quick Start Guide", self)
-        quickstart_action.triggered.connect(lambda: self._open_url("https://github.com/michaelbeijer/Supervertaler/blob/main/docs/guides/QUICK_START.md"))
-        help_menu.addAction(quickstart_action)
-
-        workflow_action = QAction("🔄 CAT Tool Workflow Guide", self)
-        workflow_action.triggered.connect(lambda: self._open_url("https://github.com/michaelbeijer/Supervertaler/blob/main/docs/guides/CAT_WORKFLOW.md"))
-        help_menu.addAction(workflow_action)
+        manual_action = QAction("📖 Supervertaler Manual", self)
+        manual_action.triggered.connect(lambda: self._open_url("https://github.com/michaelbeijer/Supervertaler/blob/main/docs/guides/MANUAL.md"))
+        help_menu.addAction(manual_action)
 
         faq_action = QAction("❓ FAQ", self)
         faq_action.triggered.connect(lambda: self._open_url("https://github.com/michaelbeijer/Supervertaler/blob/main/FAQ.md"))

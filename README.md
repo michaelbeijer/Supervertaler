@@ -1,4 +1,4 @@
-# 🚀 Supervertaler v1.9.64
+# 🚀 Supervertaler v1.9.65
 
 [![PyPI version](https://badge.fury.io/py/supervertaler.svg)](https://pypi.org/project/Supervertaler/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
@@ -6,7 +6,7 @@
 
 🎯 **The Ultimate Translation Workbench** — Context-aware AI with intuitive 2-Layer Prompt Architecture, AI Assistant, project glossary system with automatic extraction, and specialized modules.
 
-**Current Version:** v1.9.64 (December 29, 2025)
+**Current Version:** v1.9.65 (December 29, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -16,8 +16,7 @@
 
 | Guide | Description |
 |-------|-------------|
-| **[Quick Start](docs/guides/QUICK_START.md)** | Get translating in 5 minutes |
-| **[CAT Workflow](docs/guides/CAT_WORKFLOW.md)** | memoQ, Trados, CafeTran integration |
+| **[Supervertaler Manual](docs/guides/MANUAL.md)** | Complete guide: installation, CAT workflows, shortcuts |
 | **[Keyboard Shortcuts](docs/guides/KEYBOARD_SHORTCUTS.md)** | Complete shortcut reference |
 | **[FAQ](FAQ.md)** | Common questions answered |
 | **[Changelog](CHANGELOG.md)** | Version history and recent features |
