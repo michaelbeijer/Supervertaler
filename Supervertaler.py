@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.70"
+__version__ = "1.9.71"
 __phase__ = "0.9"
 __release_date__ = "2025-12-30"
 __edition__ = "Qt"
@@ -5662,8 +5662,7 @@ class SupervertalerQt(QMainWindow):
         
         edit_menu.addSeparator()
         
-        goto_action = QAction("&Go to Segment...", self)
-        goto_action.setShortcut("Ctrl+G")
+        goto_action = QAction("&Go to Segment...\tCtrl+G", self)
         goto_action.triggered.connect(self.show_goto_dialog)
         edit_menu.addAction(goto_action)
         
@@ -27046,18 +27045,26 @@ class SupervertalerQt(QMainWindow):
         input_field.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(input_field)
         
-        # Press Enter to accept
+        # Store reference for the handler
+        self._goto_dialog = dialog
+        self._goto_input = input_field
+        self._goto_max = max_segment
+        
+        # Press Enter to jump directly
         def on_return_pressed():
-            text = input_field.text().strip()
+            text = self._goto_input.text().strip()
             if text:
                 try:
                     segment_num = int(text)
-                    if 1 <= segment_num <= max_segment:
-                        dialog.accept()
+                    if 1 <= segment_num <= self._goto_max:
+                        self._goto_dialog.accept()
                 except ValueError:
                     pass
         
         input_field.returnPressed.connect(on_return_pressed)
+        
+        # Focus the input field
+        input_field.setFocus()
         
         # Show dialog and handle result
         if dialog.exec() == QDialog.DialogCode.Accepted:
@@ -27066,8 +27073,28 @@ class SupervertalerQt(QMainWindow):
                 try:
                     segment_num = int(text)
                     row = segment_num - 1
+                    
+                    # If pagination is active, switch to the correct page first
+                    if hasattr(self, 'page_size_combo') and self.page_size_combo.currentText() != "All":
+                        page_size = int(self.page_size_combo.currentText())
+                        target_page = (row // page_size) + 1
+                        # Set the page input and trigger navigation
+                        if hasattr(self, 'page_number_input'):
+                            self.page_number_input.setText(str(target_page))
+                            self.go_to_page()
+                    
+                    # Select the cell
                     self.table.setCurrentCell(row, 3)  # Jump to Target column
-                    self.table.scrollToItem(self.table.item(row, 3))
+                    self.table.scrollToItem(self.table.item(row, 0), QTableWidget.ScrollHint.PositionAtCenter)
+                    
+                    # Focus the target cell widget and place cursor inside
+                    target_widget = self.table.cellWidget(row, 3)
+                    if target_widget and isinstance(target_widget, QTextEdit):
+                        target_widget.setFocus()
+                        cursor = target_widget.textCursor()
+                        cursor.movePosition(cursor.MoveOperation.End)
+                        target_widget.setTextCursor(cursor)
+                    
                     self.log(f"Jumped to segment {segment_num}")
                 except ValueError:
                     pass

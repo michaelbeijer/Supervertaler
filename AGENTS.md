@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** December 30, 2025 | **Version:** v1.9.70
+> **Last Updated:** December 30, 2025 | **Version:** v1.9.71
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.70 (December 2025) |
+| **Version** | v1.9.71 (December 2025) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -446,7 +446,7 @@ Added Page Up and Page Down keyboard shortcuts for navigating through pagination
 
 ---
 
-### December 30, 2025 - Version 1.9.70: Go to Segment Dialog (Ctrl+G)
+### December 30, 2025 - Version 1.9.71: Go to Segment Dialog (Ctrl+G)
 
 **⌨️ Improved Go to Segment Dialog**
 
@@ -457,11 +457,14 @@ Enhanced the Go to Segment feature with a streamlined dialog:
 - **Type and Enter**: Just type the segment number and press Enter - no need to click buttons
 - **Input validation**: Only accepts valid segment numbers within range
 - **Shows current position**: Placeholder shows current segment number
+- **Pagination-aware**: Automatically switches to the correct page when jumping to segments on other pages
+- **Cursor placement**: Target cell is focused and cursor placed at end, ready to edit
+- **Shortcut conflict fix**: Removed duplicate Ctrl+G assignment (was on both QShortcut and menu action)
 
 **Already in Settings**: The shortcut was already listed in Settings → Keyboard Shortcuts under "Edit" category
 
 **Files Modified:**
-- `Supervertaler.py` - Added `shortcut_goto` QShortcut, redesigned `show_goto_dialog()` with minimal dialog
+- `Supervertaler.py` - Added `shortcut_goto` QShortcut, redesigned `show_goto_dialog()` with pagination support, cursor focus, removed duplicate shortcut
 
 ---
 
@@ -1672,4 +1675,4 @@ Extended `TagHighlighter` to color ALL CAT tool tags with pink (`#FFB6C1`) in th
 ---
 
 *This file replaces the previous CLAUDE.md and PROJECT_CONTEXT.md files.*
-*Last updated: December 30, 2025 - v1.9.70*
+*Last updated: December 30, 2025 - v1.9.71*
