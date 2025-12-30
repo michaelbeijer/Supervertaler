@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** December 30, 2025 | **Version:** v1.9.68
+> **Last Updated:** December 30, 2025 | **Version:** v1.9.69
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.68 (December 2025) |
+| **Version** | v1.9.69 (December 2025) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -427,6 +427,22 @@ Changed the default tag highlight color from light pink (`#FFB6C1`) to memoQ's a
 **Files Modified:**
 - `Supervertaler.py` - Default tag colors, preset colors, reset button, bilingual table export
 - `modules/translation_results_panel.py` - Default tag color
+
+---
+
+### December 30, 2025 - Version 1.9.69: Page Up/Down Pagination Navigation
+
+**📄 Page Up/Down Shortcuts for Pagination**
+
+Added Page Up and Page Down keyboard shortcuts for navigating through pagination pages:
+
+- **Page Up**: Go to previous page in pagination
+- **Page Down**: Go to next page in pagination
+- **Added to Settings**: Shortcuts now appear in Settings → Keyboard Shortcuts under "Grid Navigation" category
+
+**Files Modified:**
+- `Supervertaler.py` - Added `shortcut_page_up` and `shortcut_page_down` QShortcuts
+- `modules/shortcut_manager.py` - Added `page_prev` and `page_next` shortcut definitions
 
 ---
 
@@ -1637,4 +1653,4 @@ Extended `TagHighlighter` to color ALL CAT tool tags with pink (`#FFB6C1`) in th
 ---
 
 *This file replaces the previous CLAUDE.md and PROJECT_CONTEXT.md files.*
-*Last updated: December 30, 2025 - v1.9.66*
+*Last updated: December 30, 2025 - v1.9.69*

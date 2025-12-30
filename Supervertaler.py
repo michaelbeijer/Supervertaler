@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.68"
+__version__ = "1.9.69"
 __phase__ = "0.9"
 __release_date__ = "2025-12-30"
 __edition__ = "Qt"
@@ -5195,6 +5195,13 @@ class SupervertalerQt(QMainWindow):
         # Ctrl+Alt+T - Toggle Tag View
         self.shortcut_toggle_tags = QShortcut(QKeySequence("Ctrl+Alt+T"), self)
         self.shortcut_toggle_tags.activated.connect(self._toggle_tag_view_via_shortcut)
+        
+        # Page Up/Down - Navigate pagination pages
+        self.shortcut_page_up = QShortcut(QKeySequence("PgUp"), self)
+        self.shortcut_page_up.activated.connect(self.go_to_prev_page)
+        
+        self.shortcut_page_down = QShortcut(QKeySequence("PgDown"), self)
+        self.shortcut_page_down.activated.connect(self.go_to_next_page)
 
     def _setup_progress_indicators(self):
         """Setup permanent progress indicator widgets in the status bar"""

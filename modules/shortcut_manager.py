@@ -309,6 +309,18 @@ class ShortcutManager:
             "default": "Ctrl+End",
             "action": "go_to_last_segment"
         },
+        "page_prev": {
+            "category": "Grid Navigation",
+            "description": "Previous Page (pagination)",
+            "default": "PgUp",
+            "action": "go_to_prev_page"
+        },
+        "page_next": {
+            "category": "Grid Navigation",
+            "description": "Next Page (pagination)",
+            "default": "PgDown",
+            "action": "go_to_next_page"
+        },
         
         # Editor Operations
         "editor_save_and_next": {

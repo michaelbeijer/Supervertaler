@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.68 (December 30, 2025)
+**Current Version:** v1.9.69 (December 30, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -14,6 +14,7 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- 📄 **Page Up/Down Pagination Navigation (v1.9.69)** - Page Up and Page Down keys now navigate through pagination pages! Press Page Up to go to the previous page, Page Down to go to the next page. Shortcuts appear in Settings → Keyboard Shortcuts under "Grid Navigation" category.
 - 🎨 **memoQ Tag Color as Default (v1.9.68)** - Changed default tag highlight color to memoQ's actual dark red (`#7f0001`), color-picked directly from memoQ. Updated everywhere: grid cells, Translation Results panel, Settings defaults. Added 8 preset colors to the color picker (memoQ red, memoQ orange, Trados blue/purple, etc.). Each CAT tool export preserves its native tag colors (memoQ, Trados, Phrase, CafeTran). Supervertaler's own Bilingual Table export now uses memoQ red. Reset button updated to restore memoQ red.
 - ⚡ **Performance Boost & Cache Fix (v1.9.66)** - Significantly faster segment navigation! Fixed termbase cache not working - empty results were being re-searched on every visit instead of being cached. Reduced verbose logging overhead that was slowing down navigation. Cache now properly stores and respects empty results using membership check (`segment_id in cache`). Removed per-word termbase search logging, per-match logging, prefetch progress logging, and MT/TM debug logging. Navigation should feel much snappier now.
 - 📄 **Working Grid Pagination (v1.9.64)** - Grid pagination now actually works! Previously pagination controls existed but didn't filter the displayed segments. Now when you select "50 per page", only 50 segments are shown at a time. Use First/Prev/Next/Last buttons or type a page number to navigate. Efficient show/hide approach without grid reload for fast page changes.
