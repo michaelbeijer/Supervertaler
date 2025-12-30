@@ -24509,7 +24509,14 @@ class SupervertalerQt(QMainWindow):
             current_row = self.table.currentRow()
             current_col = self.table.currentColumn()
             
-            self.log(f"🔄 on_selection_changed called: row {current_row}, col {current_col}")
+            # ⚡ FAST PATH: Skip if this is arrow key navigation (already handled by on_cell_selected)
+            if getattr(self, '_arrow_key_navigation', False):
+                return  # Let on_cell_selected handle it
+            
+            # 🚫 GUARD: Skip if we're on the same row (prevents double-processing)
+            if hasattr(self, '_last_selection_row') and self._last_selection_row == current_row:
+                return
+            self._last_selection_row = current_row
             
             # If we have a valid row selection, trigger the same logic as on_cell_selected
             if current_row >= 0:
