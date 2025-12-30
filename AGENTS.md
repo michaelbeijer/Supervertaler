@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** December 30, 2025 | **Version:** v1.9.69
+> **Last Updated:** December 30, 2025 | **Version:** v1.9.70
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.69 (December 2025) |
+| **Version** | v1.9.70 (December 2025) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -443,6 +443,25 @@ Added Page Up and Page Down keyboard shortcuts for navigating through pagination
 **Files Modified:**
 - `Supervertaler.py` - Added `shortcut_page_up` and `shortcut_page_down` QShortcuts
 - `modules/shortcut_manager.py` - Added `page_prev` and `page_next` shortcut definitions
+
+---
+
+### December 30, 2025 - Version 1.9.70: Go to Segment Dialog (Ctrl+G)
+
+**⌨️ Improved Go to Segment Dialog**
+
+Enhanced the Go to Segment feature with a streamlined dialog:
+
+- **Global shortcut**: Ctrl+G now works from anywhere in the application (added as QShortcut)
+- **Minimal dialog**: Small, focused dialog with just a text field
+- **Type and Enter**: Just type the segment number and press Enter - no need to click buttons
+- **Input validation**: Only accepts valid segment numbers within range
+- **Shows current position**: Placeholder shows current segment number
+
+**Already in Settings**: The shortcut was already listed in Settings → Keyboard Shortcuts under "Edit" category
+
+**Files Modified:**
+- `Supervertaler.py` - Added `shortcut_goto` QShortcut, redesigned `show_goto_dialog()` with minimal dialog
 
 ---
 
@@ -1653,4 +1672,4 @@ Extended `TagHighlighter` to color ALL CAT tool tags with pink (`#FFB6C1`) in th
 ---
 
 *This file replaces the previous CLAUDE.md and PROJECT_CONTEXT.md files.*
-*Last updated: December 30, 2025 - v1.9.69*
+*Last updated: December 30, 2025 - v1.9.70*

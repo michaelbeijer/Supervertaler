@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.69"
+__version__ = "1.9.70"
 __phase__ = "0.9"
 __release_date__ = "2025-12-30"
 __edition__ = "Qt"
@@ -5202,6 +5202,10 @@ class SupervertalerQt(QMainWindow):
         
         self.shortcut_page_down = QShortcut(QKeySequence("PgDown"), self)
         self.shortcut_page_down.activated.connect(self.go_to_next_page)
+        
+        # Ctrl+G - Go to segment
+        self.shortcut_goto = QShortcut(QKeySequence("Ctrl+G"), self)
+        self.shortcut_goto.activated.connect(self.show_goto_dialog)
 
     def _setup_progress_indicators(self):
         """Setup permanent progress indicator widgets in the status bar"""
@@ -27012,26 +27016,61 @@ class SupervertalerQt(QMainWindow):
         self.log("Search highlights cleared")
     
     def show_goto_dialog(self):
-        """Show dialog to jump to a specific segment"""
+        """Show minimal dialog to jump to a specific segment - just type and press Enter"""
         if not self.current_project or not self.current_project.segments:
             QMessageBox.information(self, "No Project", "Please open a project first.")
             return
         
         max_segment = len(self.current_project.segments)
-        segment_num, ok = QInputDialog.getInt(
-            self,
-            "Go to Segment",
-            f"Enter segment number (1-{max_segment}):",
-            value=self.table.currentRow() + 1,
-            min=1,
-            max=max_segment
-        )
         
-        if ok:
-            row = segment_num - 1
-            self.table.setCurrentCell(row, 3)  # Jump to Target column
-            self.table.scrollToItem(self.table.item(row, 3))
-            self.log(f"Jumped to segment {segment_num}")
+        # Create a minimal dialog
+        from PyQt6.QtWidgets import QDialog, QLineEdit, QHBoxLayout
+        from PyQt6.QtCore import Qt
+        from PyQt6.QtGui import QIntValidator
+        
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Go to Segment")
+        dialog.setFixedWidth(250)
+        dialog.setWindowFlags(dialog.windowFlags() & ~Qt.WindowType.WindowContextHelpButtonHint)
+        
+        layout = QHBoxLayout(dialog)
+        layout.setContentsMargins(12, 12, 12, 12)
+        
+        label = QLabel(f"Segment (1-{max_segment}):")
+        layout.addWidget(label)
+        
+        input_field = QLineEdit()
+        input_field.setValidator(QIntValidator(1, max_segment))
+        input_field.setPlaceholderText(str(self.table.currentRow() + 1))
+        input_field.setFixedWidth(80)
+        input_field.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(input_field)
+        
+        # Press Enter to accept
+        def on_return_pressed():
+            text = input_field.text().strip()
+            if text:
+                try:
+                    segment_num = int(text)
+                    if 1 <= segment_num <= max_segment:
+                        dialog.accept()
+                except ValueError:
+                    pass
+        
+        input_field.returnPressed.connect(on_return_pressed)
+        
+        # Show dialog and handle result
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            text = input_field.text().strip()
+            if text:
+                try:
+                    segment_num = int(text)
+                    row = segment_num - 1
+                    self.table.setCurrentCell(row, 3)  # Jump to Target column
+                    self.table.scrollToItem(self.table.item(row, 3))
+                    self.log(f"Jumped to segment {segment_num}")
+                except ValueError:
+                    pass
     
     def show_search_dialog(self):
         """Show enhanced search dialog with source/target options"""
