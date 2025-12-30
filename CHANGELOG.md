@@ -2,7 +2,7 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.64 (December 29, 2025)
+**Current Version:** v1.9.66 (December 30, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -14,6 +14,7 @@ All notable changes to Supervertaler are documented in this file.
 
 **Latest Major Features:**
 
+- ⚡ **Performance Boost & Cache Fix (v1.9.66)** - Significantly faster segment navigation! Fixed termbase cache not working - empty results were being re-searched on every visit instead of being cached. Reduced verbose logging overhead that was slowing down navigation. Cache now properly stores and respects empty results using membership check (`segment_id in cache`). Removed per-word termbase search logging, per-match logging, prefetch progress logging, and MT/TM debug logging. Navigation should feel much snappier now.
 - 📄 **Working Grid Pagination (v1.9.64)** - Grid pagination now actually works! Previously pagination controls existed but didn't filter the displayed segments. Now when you select "50 per page", only 50 segments are shown at a time. Use First/Prev/Next/Last buttons or type a page number to navigate. Efficient show/hide approach without grid reload for fast page changes.
 - 🔄 **Batch Translate Retry Until Complete (v1.9.64)** - New "🔄 Retry until all segments are translated" option in batch translate dialog (enabled by default). If some segments fail or return empty after the first pass, automatically retries just those segments. Continues until all segments have translations or max 5 retries reached. No more running batch translate 2-3 times manually!
 - 🤖 **Prompt Manager Tab Rename (v1.9.64)** - "Prompts" tab renamed to "Prompt manager" in Project resources for clarity.

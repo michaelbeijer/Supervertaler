@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** December 29, 2025 | **Version:** v1.9.65
+> **Last Updated:** December 30, 2025 | **Version:** v1.9.66
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.65 (December 2025) |
+| **Version** | v1.9.66 (December 2025) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -448,6 +448,38 @@ Fixed external prompts not being restored when loading a project:
 **Files Modified:**
 - `Supervertaler.py` - Pagination methods, batch translate retry, prompt restoration, tab rename
 - `modules/unified_prompt_library.py` - (no changes, existing method used)
+
+---
+
+### December 30, 2025 - Version 1.9.66: Performance Boost & Cache Fix
+
+**⚡ Termbase Cache Fix**
+
+Fixed critical bug where termbase cache wasn't working - same segments were being re-searched repeatedly:
+
+- **Root Cause**: Cache check was looking at whether `stored_matches` was empty, not whether the segment was in the cache. Empty results (`{}`) were never cached, causing repeated slow searches for segments with no termbase matches.
+
+- **Fix**: Changed to proper membership check using `segment_id in self.termbase_cache`:
+  - Uses `cache_checked` boolean flag to track if cache was consulted
+  - Stores results in cache EVEN IF EMPTY so segments without matches are remembered
+  - Removed duplicate cache-checking code blocks
+
+**🔇 Reduced Logging Overhead**
+
+Removed verbose logging that was contributing to navigation slowness:
+
+- Removed per-word termbase search logging (was logging each of 50+ words per segment)
+- Removed per-match termbase result logging
+- Removed prefetch worker progress logging (every 10 segments)
+- Removed MT/LLM scheduling/execution debug logging
+- Removed TM search debug logging (project ID, activated TMs, match counts)
+- Removed termbase highlighting debug logging
+- Kept only error logs and essential status messages
+
+**Result**: Navigation between segments should feel significantly faster, especially for segments with no termbase matches (which were being re-searched every time).
+
+**Files Modified:**
+- `Supervertaler.py` - Cache logic fix (~lines 24260-24290), removed verbose logging throughout
 
 ---
 
@@ -1535,4 +1567,4 @@ Extended `TagHighlighter` to color ALL CAT tool tags with pink (`#FFB6C1`) in th
 ---
 
 *This file replaces the previous CLAUDE.md and PROJECT_CONTEXT.md files.*
-*Last updated: December 29, 2025 - v1.9.65*
+*Last updated: December 30, 2025 - v1.9.66*
