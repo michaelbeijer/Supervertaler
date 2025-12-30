@@ -2678,37 +2678,52 @@ class EditableGridTextEditor(QTextEdit):
                     return
         
         # Arrow Up/Down: memoQ-style segment navigation at cell boundaries
-        # When cursor is at top line and Up is pressed, go to previous segment
-        # When cursor is at bottom line and Down is pressed, go to next segment
+        # When cursor is at top VISUAL line and Up is pressed, go to previous segment
+        # When cursor is at bottom VISUAL line and Down is pressed, go to next segment
         if event.key() in (Qt.Key.Key_Up, Qt.Key.Key_Down) and event.modifiers() == Qt.KeyboardModifier.NoModifier:
             cursor = self.textCursor()
-            
-            # Get current cursor position info
             current_block = cursor.block()
             doc = self.document()
             first_block = doc.firstBlock()
             last_block = doc.lastBlock()
             
+            # Get the visual line number within the current block
+            layout = current_block.layout()
+            if layout:
+                pos_in_block = cursor.positionInBlock()
+                current_visual_line = layout.lineForTextPosition(pos_in_block)
+                current_line_num = current_visual_line.lineNumber() if current_visual_line.isValid() else 0
+                total_lines_in_block = layout.lineCount()
+            else:
+                current_line_num = 0
+                total_lines_in_block = 1
+            
             if event.key() == Qt.Key.Key_Up:
-                # Check if we're on the first line
-                if current_block == first_block:
-                    # Navigate to previous segment
+                # Only navigate to previous segment if we're on the FIRST visual line of the FIRST block
+                is_first_visual_line = (current_block == first_block and current_line_num == 0)
+                if is_first_visual_line:
                     main_window = self._get_main_window()
                     if main_window and hasattr(main_window, 'go_to_previous_segment'):
-                        # Get cursor column position for smart positioning in previous segment
-                        col_in_line = cursor.positionInBlock()
+                        # Get cursor column within current visual line
+                        if layout and current_visual_line.isValid():
+                            col_in_line = pos_in_block - int(current_visual_line.textStart())
+                        else:
+                            col_in_line = cursor.positionInBlock()
                         main_window.go_to_previous_segment(target_column=col_in_line, to_last_line=True)
                         event.accept()
                         return
             
             elif event.key() == Qt.Key.Key_Down:
-                # Check if we're on the last line
-                if current_block == last_block:
-                    # Navigate to next segment
+                # Only navigate to next segment if we're on the LAST visual line of the LAST block
+                is_last_visual_line = (current_block == last_block and current_line_num >= total_lines_in_block - 1)
+                if is_last_visual_line:
                     main_window = self._get_main_window()
                     if main_window and hasattr(main_window, 'go_to_next_segment'):
-                        # Get cursor column position for smart positioning in next segment
-                        col_in_line = cursor.positionInBlock()
+                        # Get cursor column within current visual line
+                        if layout and current_visual_line.isValid():
+                            col_in_line = pos_in_block - int(current_visual_line.textStart())
+                        else:
+                            col_in_line = cursor.positionInBlock()
                         main_window.go_to_next_segment(target_column=col_in_line, to_first_line=True)
                         event.accept()
                         return
@@ -28820,16 +28835,33 @@ class SupervertalerQt(QMainWindow):
                 if target_widget:
                     target_widget.setFocus()
                     if target_column is not None and to_last_line:
-                        # Position at target column on last line (for Up arrow navigation)
+                        # Position at target column on VISUAL last line (for Up arrow navigation)
+                        # Note: A text block can wrap into multiple visual lines
                         from PyQt6.QtGui import QTextCursor
                         cursor = target_widget.textCursor()
                         doc = target_widget.document()
                         last_block = doc.lastBlock()
-                        cursor.setPosition(last_block.position())
-                        line_length = last_block.length() - 1
-                        target_pos = min(target_column, max(0, line_length))
-                        cursor.movePosition(QTextCursor.MoveOperation.Right, QTextCursor.MoveMode.MoveAnchor, target_pos)
+                        layout = last_block.layout()
+                        
+                        if layout and layout.lineCount() > 0:
+                            # Get the last VISUAL line within this block
+                            last_visual_line = layout.lineAt(layout.lineCount() - 1)
+                            # Calculate position: block start + visual line start + column offset
+                            line_start_in_block = int(last_visual_line.textStart())
+                            line_length = int(last_visual_line.textLength())
+                            target_pos_in_line = min(target_column, max(0, line_length - 1))
+                            absolute_pos = last_block.position() + line_start_in_block + target_pos_in_line
+                            cursor.setPosition(absolute_pos)
+                            self.log(f"🔼 Visual line positioning: line_start={line_start_in_block}, line_len={line_length}, target_col={target_column}, abs_pos={absolute_pos}")
+                        else:
+                            # Fallback: position at target column from block start
+                            cursor.setPosition(last_block.position())
+                            line_length = last_block.length() - 1
+                            target_pos = min(target_column, max(0, line_length))
+                            cursor.movePosition(QTextCursor.MoveOperation.Right, QTextCursor.MoveMode.MoveAnchor, target_pos)
+                        
                         target_widget.setTextCursor(cursor)
+                        self.log(f"🔼 Final cursor position: {target_widget.textCursor().position()}, posInBlock={target_widget.textCursor().positionInBlock()}")
                     else:
                         # Default: move cursor to end of text
                         target_widget.moveCursor(QTextCursor.MoveOperation.End)
@@ -28852,15 +28884,28 @@ class SupervertalerQt(QMainWindow):
                 if target_widget:
                     target_widget.setFocus()
                     if target_column is not None and to_first_line:
-                        # Position at target column on first line (for Down arrow navigation)
+                        # Position at target column on VISUAL first line (for Down arrow navigation)
                         from PyQt6.QtGui import QTextCursor
                         cursor = target_widget.textCursor()
                         doc = target_widget.document()
                         first_block = doc.firstBlock()
-                        cursor.setPosition(first_block.position())
-                        line_length = first_block.length() - 1
-                        target_pos = min(target_column, max(0, line_length))
-                        cursor.movePosition(QTextCursor.MoveOperation.Right, QTextCursor.MoveMode.MoveAnchor, target_pos)
+                        layout = first_block.layout()
+                        
+                        if layout and layout.lineCount() > 0:
+                            # Get the first VISUAL line within this block
+                            first_visual_line = layout.lineAt(0)
+                            line_length = int(first_visual_line.textLength())
+                            target_pos_in_line = min(target_column, max(0, line_length - 1))
+                            # First visual line starts at block position
+                            absolute_pos = first_block.position() + target_pos_in_line
+                            cursor.setPosition(absolute_pos)
+                        else:
+                            # Fallback: position at target column from block start
+                            cursor.setPosition(first_block.position())
+                            line_length = first_block.length() - 1
+                            target_pos = min(target_column, max(0, line_length))
+                            cursor.movePosition(QTextCursor.MoveOperation.Right, QTextCursor.MoveMode.MoveAnchor, target_pos)
+                        
                         target_widget.setTextCursor(cursor)
                     else:
                         # Default: move cursor to end of text
