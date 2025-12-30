@@ -2709,6 +2709,8 @@ class EditableGridTextEditor(QTextEdit):
                             col_in_line = pos_in_block - int(current_visual_line.textStart())
                         else:
                             col_in_line = cursor.positionInBlock()
+                        # Signal rapid navigation for performance optimization
+                        main_window._arrow_key_navigation = True
                         main_window.go_to_previous_segment(target_column=col_in_line, to_last_line=True)
                         event.accept()
                         return
@@ -2724,6 +2726,8 @@ class EditableGridTextEditor(QTextEdit):
                             col_in_line = pos_in_block - int(current_visual_line.textStart())
                         else:
                             col_in_line = cursor.positionInBlock()
+                        # Signal rapid navigation for performance optimization
+                        main_window._arrow_key_navigation = True
                         main_window.go_to_next_segment(target_column=col_in_line, to_first_line=True)
                         event.accept()
                         return
@@ -24026,6 +24030,58 @@ class SupervertalerQt(QMainWindow):
             return
         self._last_selected_row = current_row
         
+        # ⚡ FAST PATH: For arrow key navigation, defer heavy lookups
+        # This makes segment navigation feel instant
+        is_arrow_nav = getattr(self, '_arrow_key_navigation', False)
+        if is_arrow_nav:
+            self._arrow_key_navigation = False  # Reset flag
+            # Schedule deferred lookup with short delay (150ms) for rapid navigation
+            if hasattr(self, '_deferred_lookup_timer') and self._deferred_lookup_timer:
+                self._deferred_lookup_timer.stop()
+            from PyQt6.QtCore import QTimer
+            self._deferred_lookup_timer = QTimer()
+            self._deferred_lookup_timer.setSingleShot(True)
+            self._deferred_lookup_timer.timeout.connect(
+                lambda r=current_row, c=current_col, pr=previous_row, pc=previous_col: 
+                self._on_cell_selected_full(r, c, pr, pc)
+            )
+            self._deferred_lookup_timer.start(150)  # 150ms debounce
+            
+            # Do minimal UI update immediately (orange highlight, scroll)
+            self._on_cell_selected_minimal(current_row, previous_row)
+            return
+        
+        # Full processing for non-arrow-key navigation (click, etc.)
+        self._on_cell_selected_full(current_row, current_col, previous_row, previous_col)
+    
+    def _on_cell_selected_minimal(self, current_row, previous_row):
+        """Minimal UI update for fast arrow key navigation - just highlight and scroll"""
+        try:
+            # Clear previous highlighting
+            if previous_row >= 0 and previous_row < self.table.rowCount():
+                prev_id_item = self.table.item(previous_row, 0)
+                if prev_id_item:
+                    prev_id_item.setBackground(QBrush())
+                    theme = self.theme_manager.current_theme
+                    segment_num_color = "black" if theme.name in ["Light (Default)", "Soft Gray", "Warm Cream", "Sepia", "High Contrast"] else theme.text
+                    prev_id_item.setForeground(QBrush(QColor(segment_num_color)))
+
+            # Highlight current segment number in orange
+            if current_row >= 0 and current_row < self.table.rowCount():
+                current_id_item = self.table.item(current_row, 0)
+                if current_id_item:
+                    current_id_item.setBackground(QColor("#FFA500"))
+                    current_id_item.setForeground(QColor("white"))
+                
+                # Auto-center if enabled
+                if getattr(self, 'auto_center_active_segment', False) and not getattr(self, 'filtering_active', False):
+                    self.table.scrollToItem(current_id_item, QTableWidget.ScrollHint.PositionAtCenter)
+        except Exception as e:
+            if self.debug_mode_enabled:
+                self.log(f"Error in minimal cell selection: {e}")
+    
+    def _on_cell_selected_full(self, current_row, current_col, previous_row, previous_col):
+        """Full cell selection handler with lookups and highlighting"""
         # Clear text selections in previous row's source and target cells
         if previous_row >= 0 and previous_row < self.table.rowCount():
             # Clear source cell selection (column 2)
@@ -24048,25 +24104,21 @@ class SupervertalerQt(QMainWindow):
             self.log(f"🔗 Table itemClicked signal connected: {self.table.itemClicked}")
             self.log(f"🔗 Table itemSelectionChanged signal connected: {self.table.itemSelectionChanged}")
         try:
-            # Clear previous highlighting - ensure both background AND foreground are reset
+            # Update segment number highlighting (orange = active)
             if previous_row >= 0 and previous_row < self.table.rowCount():
                 prev_id_item = self.table.item(previous_row, 0)
                 if prev_id_item:
-                    prev_id_item.setBackground(QBrush())  # Reset background to default (use QBrush for proper clearing)
-                    # Black for light themes, theme text color for dark themes
+                    prev_id_item.setBackground(QBrush())
                     theme = self.theme_manager.current_theme
                     segment_num_color = "black" if theme.name in ["Light (Default)", "Soft Gray", "Warm Cream", "Sepia", "High Contrast"] else theme.text
                     prev_id_item.setForeground(QBrush(QColor(segment_num_color)))
 
-            # Highlight current segment number in orange (like memoQ)
             if current_row >= 0 and current_row < self.table.rowCount():
                 current_id_item = self.table.item(current_row, 0)
                 if current_id_item:
-                    current_id_item.setBackground(QColor("#FFA500"))  # Orange background
-                    current_id_item.setForeground(QColor("white"))    # White text for contrast
+                    current_id_item.setBackground(QColor("#FFA500"))
+                    current_id_item.setForeground(QColor("white"))
                 
-                # Auto-center active segment if enabled (like memoQ/Trados)
-                # BUT: Disable during filtering to prevent jarring jumps
                 if getattr(self, 'auto_center_active_segment', False) and not getattr(self, 'filtering_active', False):
                     self.table.scrollToItem(current_id_item, QTableWidget.ScrollHint.PositionAtCenter)
             
@@ -28829,14 +28881,12 @@ class SupervertalerQt(QMainWindow):
             if current_row > 0:
                 new_row = current_row - 1
                 self.table.setCurrentCell(new_row, 3)  # Column 3 = Target (widget column)
-                self.log(f"⬆️ Moved to segment {new_row + 1}")
                 # Get the target cell widget and set focus to it
                 target_widget = self.table.cellWidget(new_row, 3)
                 if target_widget:
                     target_widget.setFocus()
                     if target_column is not None and to_last_line:
                         # Position at target column on VISUAL last line (for Up arrow navigation)
-                        # Note: A text block can wrap into multiple visual lines
                         from PyQt6.QtGui import QTextCursor
                         cursor = target_widget.textCursor()
                         doc = target_widget.document()
@@ -28846,13 +28896,11 @@ class SupervertalerQt(QMainWindow):
                         if layout and layout.lineCount() > 0:
                             # Get the last VISUAL line within this block
                             last_visual_line = layout.lineAt(layout.lineCount() - 1)
-                            # Calculate position: block start + visual line start + column offset
                             line_start_in_block = int(last_visual_line.textStart())
                             line_length = int(last_visual_line.textLength())
                             target_pos_in_line = min(target_column, max(0, line_length - 1))
                             absolute_pos = last_block.position() + line_start_in_block + target_pos_in_line
                             cursor.setPosition(absolute_pos)
-                            self.log(f"🔼 Visual line positioning: line_start={line_start_in_block}, line_len={line_length}, target_col={target_column}, abs_pos={absolute_pos}")
                         else:
                             # Fallback: position at target column from block start
                             cursor.setPosition(last_block.position())
@@ -28861,7 +28909,6 @@ class SupervertalerQt(QMainWindow):
                             cursor.movePosition(QTextCursor.MoveOperation.Right, QTextCursor.MoveMode.MoveAnchor, target_pos)
                         
                         target_widget.setTextCursor(cursor)
-                        self.log(f"🔼 Final cursor position: {target_widget.textCursor().position()}, posInBlock={target_widget.textCursor().positionInBlock()}")
                     else:
                         # Default: move cursor to end of text
                         target_widget.moveCursor(QTextCursor.MoveOperation.End)
@@ -28878,7 +28925,6 @@ class SupervertalerQt(QMainWindow):
             if current_row < self.table.rowCount() - 1:
                 new_row = current_row + 1
                 self.table.setCurrentCell(new_row, 3)  # Column 3 = Target (widget column)
-                self.log(f"⬇️ Moved to segment {new_row + 1}")
                 # Get the target cell widget and set focus to it
                 target_widget = self.table.cellWidget(new_row, 3)
                 if target_widget:
@@ -28896,7 +28942,6 @@ class SupervertalerQt(QMainWindow):
                             first_visual_line = layout.lineAt(0)
                             line_length = int(first_visual_line.textLength())
                             target_pos_in_line = min(target_column, max(0, line_length - 1))
-                            # First visual line starts at block position
                             absolute_pos = first_block.position() + target_pos_in_line
                             cursor.setPosition(absolute_pos)
                         else:
