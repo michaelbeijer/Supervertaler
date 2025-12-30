@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** December 30, 2025 | **Version:** v1.9.66
+> **Last Updated:** December 30, 2025 | **Version:** v1.9.68
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.66 (December 2025) |
+| **Version** | v1.9.68 (December 2025) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -360,7 +360,77 @@ google_api_key=AI...
 
 ## 🔄 Recent Development History
 
-### December 29, 2025 - Version 1.9.65: Documentation Consolidation & Arrow Key Navigation
+### December 30, 2025 - Version 1.9.67: memoQ Tag Highlighting & Batch Retry Fix
+
+**🏷️ memoQ Content Tag Highlighting**
+
+Fixed and improved tag highlighting for memoQ bilingual DOCX files:
+
+- **Mixed bracket tags now highlighted**: `[uicontrol id="..."}`, `{uicontrol]`, `[image cid="..." href="..."]`
+- **Closing tags**: `{tagname}` like `{MQ}`, `{tspan}` now properly pink
+- **No false positives**: `[Company]`, `[Bedrijf]` placeholders stay black (only tags with attributes or mixed brackets highlighted)
+- **Regex patterns fixed**: Patterns now exclude unwanted characters to prevent greedy matching across multiple tags
+
+**Final Tag Patterns:**
+```python
+r'\[[^}\]]+\}'        # memoQ mixed: [anything}
+r'\{[^\[\]]+\]'       # memoQ mixed: {anything]
+r'\[[a-zA-Z][^}\]]*\s[^}\]]*\]'  # memoQ content: [tag attr...]
+r'\{[a-zA-Z][a-zA-Z0-9_-]*\}'    # memoQ closing: {tagname}
+```
+
+**🔄 Batch Translate Retry Fix**
+
+Fixed `UnboundLocalError: cannot access local variable 'provider_dialog'` when retry pass starts:
+
+- **Root Cause**: Retry passes skipped the dialog but code still tried to use dialog variables
+- **Fix**: Properly wrapped entire dialog section in `if not is_retry_pass:` block (~200 lines)
+- **Retry passes**: Now correctly use stored settings and skip directly to progress dialog
+
+**📄 Pagination After Clear Filters**
+
+Fixed pagination resetting when clearing filters:
+
+- **Previously**: Clear Filters showed ALL segments, ignoring per-page setting
+- **Now**: After clearing filters, `_apply_pagination_to_grid()` is called to maintain pagination
+
+**🎨 Tag Color Setting Visibility**
+
+Improved discoverability of tag color setting:
+
+- **Group renamed**: "Translation Results Pane Font Size" → "Translation Results Pane & Tag Colors"
+- **Tooltip updated**: Now explains the color applies to "CAT tool tags in the grid and results pane"
+
+**Files Modified:**
+- `Supervertaler.py` - TagHighlighter patterns, batch translate retry logic, clear_filters pagination, view settings labels
+
+---
+
+### December 30, 2025 - Version 1.9.68: memoQ Tag Color as Default
+
+**🎨 Default Tag Color Changed to memoQ Dark Red**
+
+Changed the default tag highlight color from light pink (`#FFB6C1`) to memoQ's actual dark red (`#7f0001`):
+
+- **Color picked from memoQ**: The exact color memoQ uses for inline tags (`#7f0001` / RGB 127,0,1)
+- **Updated everywhere**: Grid cells, Translation Results panel, Settings defaults
+- **Preset colors**: Added 8 preset colors to the color picker (memoQ red, memoQ orange, Trados blue/purple, etc.)
+- **Reset button**: Now resets to memoQ red with updated tooltip
+
+**Tag Color Behavior:**
+- **memoQ exports**: Preserve original memoQ colors from source file ✅
+- **Trados exports**: Preserve original Trados colors from source file ✅
+- **Phrase exports**: Preserve original Phrase colors from source file ✅
+- **CafeTran exports**: Preserve original CafeTran colors from source file ✅
+- **Supervertaler Bilingual Table**: Uses memoQ red (`RGBColor(127, 0, 1)`) ✅
+
+**Files Modified:**
+- `Supervertaler.py` - Default tag colors, preset colors, reset button, bilingual table export
+- `modules/translation_results_panel.py` - Default tag color
+
+---
+
+### December 30, 2025 - Version 1.9.67: memoQ Tag Highlighting & Batch Retry Fix
 
 **📚 Documentation Consolidation**
 

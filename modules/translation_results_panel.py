@@ -43,7 +43,7 @@ class CompactMatchItem(QFrame):
     # Class variables (can be changed globally)
     font_size_pt = 9
     show_tags = False  # When False, HTML/XML tags are hidden
-    tag_highlight_color = '#FFB6C1'  # Default light pink for tag highlighting
+    tag_highlight_color = '#7f0001'  # Default memoQ dark red for tag highlighting
     theme_manager = None  # Class-level theme manager reference
     
     def __init__(self, match: TranslationMatch, match_number: int = 0, parent=None):

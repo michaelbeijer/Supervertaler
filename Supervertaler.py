@@ -34,9 +34,9 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.66"
+__version__ = "1.9.68"
 __phase__ = "0.9"
-__release_date__ = "2025-12-21"
+__release_date__ = "2025-12-30"
 __edition__ = "Qt"
 
 import sys
@@ -1000,7 +1000,7 @@ class ReadOnlyGridTextEditor(QTextEdit):
     """Read-only QTextEdit for source cells - allows easy text selection"""
     
     # Class variable for tag highlight color (shared across all instances)
-    tag_highlight_color = '#FFB6C1'  # Default light pink
+    tag_highlight_color = '#7f0001'  # Default memoQ dark red
     
     table_widget = None  # Will be set by delegate
     current_row = None  # Track which row this editor is in
@@ -1941,7 +1941,7 @@ class TagHighlighter(QSyntaxHighlighter):
     _spellcheck_enabled = False
     _is_cafetran_project = False  # Only highlight pipe symbols for CafeTran projects
 
-    def __init__(self, document, tag_color='#FFB6C1', invisible_char_color='#999999', enable_spellcheck=False):
+    def __init__(self, document, tag_color='#7f0001', invisible_char_color='#999999', enable_spellcheck=False):
         super().__init__(document)
         self.tag_color = tag_color
         self.invisible_char_color = invisible_char_color
@@ -2001,16 +2001,24 @@ class TagHighlighter(QSyntaxHighlighter):
         # Combined pattern for ALL CAT tool tag types:
         # 1. HTML/XML: <tag>, </tag>, <tag/>, <tag attr="val">
         # 2. Trados numeric: <1>, </1>
-        # 3. memoQ numeric bracket tags (ONLY numeric, not text in brackets like [Company]):
+        # 3. memoQ numeric bracket tags:
         #    - Opening: [1}, [2} etc.
         #    - Closing: {1], {2] etc.
         #    - Standalone: [1], [2] etc.
-        # NOTE: We do NOT highlight arbitrary [text] or {text} - only CAT tool tags with numbers
+        # 4. memoQ content tags with text/attributes (from bilingual DOCX):
+        #    - [uicontrol id="GUID-..."], [image cid="..." href="..."], etc.
+        #    - {uicontrol}, {image}, etc. (closing tags)
+        #    NOTE: Opening [tag] MUST have attributes (space+content) to avoid matching
+        #          placeholders like [Company] or [Bedrijf]. Closing {tag} doesn't need attrs.
         tag_patterns = [
             r'</?[a-zA-Z][a-zA-Z0-9-]*/?(?:\s[^>]*)?>',  # HTML/XML tags
             r'</?\d+>',                                   # Trados numeric: <1>, </1>
             r'\[\d+[}\]]',                                # memoQ numeric: [1}, [1]
             r'\{\d+[}\]]',                                # memoQ numeric: {1}, {1]
+            r'\[[^}\]]+\}',                               # memoQ mixed: [anything} (exclude } and ])
+            r'\{[^\[\]]+\]',                              # memoQ mixed: {anything] (exclude [ and ])
+            r'\[[a-zA-Z][^}\]]*\s[^}\]]*\]',              # memoQ content: [tag attr...] (exclude } and ])
+            r'\{[a-zA-Z][a-zA-Z0-9_-]*\}',                # memoQ closing: {uicontrol}, {MQ}
         ]
         combined_pattern = re.compile('|'.join(tag_patterns))
 
@@ -2099,7 +2107,7 @@ class EditableGridTextEditor(QTextEdit):
     """Editable QTextEdit for target cells - allows text selection and editing"""
     
     # Class variable for tag highlight color (shared across all instances)
-    tag_highlight_color = '#FFB6C1'  # Default light pink
+    tag_highlight_color = '#7f0001'  # Default memoQ dark red
     
     def __init__(self, text: str = "", parent=None, row: int = -1, table=None):
         super().__init__(parent)
@@ -9071,8 +9079,22 @@ class SupervertalerQt(QMainWindow):
                 
                 if not apply_fmt:
                     # Show raw text with tags in pink text (like in Supervertaler)
-                    # Parse to find tags and color them
-                    tag_pattern = re.compile(r'(</?(?:b|i|u|bi|li|li-[bo])>)')
+                    # Parse to find tags and color them - includes Supervertaler tags AND CAT tool tags
+                    # Supervertaler tags: <b>, <i>, <u>, <bi>, <li>, <li-o>, <li-b>
+                    # memoQ tags: {1}, [2}, {3], [uicontrol id="..."], {tagname}
+                    # Trados tags: <1>, </1>
+                    tag_pattern = re.compile(
+                        r'('
+                        r'</?(?:b|i|u|bi|li|li-[bo])>'  # Supervertaler tags
+                        r'|</?[0-9]+>'  # Trados numeric tags: <1>, </1>
+                        r'|\[[^}\]]+\}'  # memoQ mixed: [anything}
+                        r'|\{[^\[\]]+\]'  # memoQ mixed: {anything]
+                        r'|\[[a-zA-Z][^}\]]*\s[^}\]]*\]'  # memoQ content: [tag attr...]
+                        r'|\{[a-zA-Z][a-zA-Z0-9_-]*\}'  # memoQ closing: {tagname}
+                        r'|\[[0-9]+\]'  # memoQ numeric: [1]
+                        r'|\{[0-9]+\}'  # memoQ/Phrase numeric: {1}
+                        r')'
+                    )
                     parts = tag_pattern.split(text)
                     
                     for part in parts:
@@ -9081,9 +9103,9 @@ class SupervertalerQt(QMainWindow):
                         run = para.add_run(part)
                         run.font.size = Pt(9)
                         
-                        # Check if this is a tag - make text pink
-                        if re.match(r'^</?(?:b|i|u|bi|li|li-[bo])>$', part):
-                            run.font.color.rgb = RGBColor(255, 105, 180)  # Hot pink (#FF69B4)
+                        # Check if this is a tag - make text memoQ dark red
+                        if tag_pattern.match(part):
+                            run.font.color.rgb = RGBColor(127, 0, 1)  # memoQ dark red (#7f0001)
                 else:
                     # Parse tags and apply formatting
                     # First handle list tags - convert to visible markers
@@ -13726,7 +13748,7 @@ class SupervertalerQt(QMainWindow):
         def update_font_preview():
             font_family = grid_font_family_combo.currentText()
             font_size = grid_font_spin.value()
-            tag_color = font_settings.get('tag_highlight_color', '#FFB6C1')
+            tag_color = font_settings.get('tag_highlight_color', '#7f0001')
             
             # Sample text with a tag
             source_html = f'<span style="font-family: {font_family}; font-size: {font_size}pt;">The <span style="background-color: {tag_color};">&lt;b&gt;</span>quick<span style="background-color: {tag_color};">&lt;/b&gt;</span> brown fox jumps.</span>'
@@ -13745,8 +13767,8 @@ class SupervertalerQt(QMainWindow):
         grid_group.setLayout(grid_layout)
         layout.addWidget(grid_group)
         
-        # Translation Results Pane Font Size section
-        results_group = QGroupBox("📋 Translation Results Pane Font Size")
+        # Translation Results Pane & Tag Coloring section
+        results_group = QGroupBox("📋 Translation Results Pane && Tag Colors")
         results_layout = QVBoxLayout()
         
         results_size_info = QLabel(
@@ -13799,14 +13821,28 @@ class SupervertalerQt(QMainWindow):
         from PyQt6.QtWidgets import QColorDialog
         from PyQt6.QtGui import QColor
         
-        # Get current tag color or default to light pink
-        current_color = font_settings.get('tag_highlight_color', '#FFB6C1')
+        # Get current tag color or default to memoQ dark red
+        current_color = font_settings.get('tag_highlight_color', '#7f0001')
         tag_color_btn = QPushButton()
         tag_color_btn.setFixedSize(80, 25)
         tag_color_btn.setStyleSheet(f"background-color: {current_color}; border: 1px solid #999;")
-        tag_color_btn.setToolTip("Click to choose tag highlight color")
+        tag_color_btn.setToolTip("Color for CAT tool tags (e.g. <b>, [uicontrol], {MQ}) in the grid and results pane")
         
         def choose_tag_color():
+            # Set up preset colors in the color dialog
+            preset_colors = [
+                '#7f0001',  # memoQ dark red (default)
+                '#996666',  # Dusty rose
+                '#9AAFC7',  # Slate blue
+                '#B8A9C9',  # Dusty lavender
+                '#A05050',  # Muted red
+                '#FFB6C1',  # Light pink (old default)
+                '#FF69B4',  # Hot pink
+                '#D4A5A5',  # Muted rose
+            ]
+            for i, preset in enumerate(preset_colors):
+                QColorDialog.setCustomColor(i, QColor(preset))
+            
             color = QColorDialog.getColor(QColor(current_color), self, "Choose Tag Highlight Color")
             if color.isValid():
                 hex_color = color.name()
@@ -13816,6 +13852,18 @@ class SupervertalerQt(QMainWindow):
         tag_color_btn.clicked.connect(choose_tag_color)
         tag_color_btn.setProperty('selected_color', current_color)
         tag_color_layout.addWidget(tag_color_btn)
+        
+        # Reset tag color button
+        reset_tag_color_btn = QPushButton("Reset")
+        reset_tag_color_btn.setFixedSize(50, 25)
+        reset_tag_color_btn.setToolTip("Reset to default memoQ red (#7f0001)")
+        def reset_tag_color():
+            default_color = '#7f0001'
+            tag_color_btn.setStyleSheet(f"background-color: {default_color}; border: 1px solid #999;")
+            tag_color_btn.setProperty('selected_color', default_color)
+        reset_tag_color_btn.clicked.connect(reset_tag_color)
+        tag_color_layout.addWidget(reset_tag_color_btn)
+        
         tag_color_layout.addStretch()
         results_layout.addLayout(tag_color_layout)
 
@@ -13840,6 +13888,18 @@ class SupervertalerQt(QMainWindow):
         invisible_char_color_btn.clicked.connect(choose_invisible_char_color)
         invisible_char_color_btn.setProperty('selected_color', current_invisible_color)
         invisible_char_color_layout.addWidget(invisible_char_color_btn)
+        
+        # Reset invisible char color button
+        reset_invisible_color_btn = QPushButton("Reset")
+        reset_invisible_color_btn.setFixedSize(50, 25)
+        reset_invisible_color_btn.setToolTip("Reset to default gray (#999999)")
+        def reset_invisible_color():
+            default_color = '#999999'
+            invisible_char_color_btn.setStyleSheet(f"background-color: {default_color}; border: 1px solid #999;")
+            invisible_char_color_btn.setProperty('selected_color', default_color)
+        reset_invisible_color_btn.clicked.connect(reset_invisible_color)
+        invisible_char_color_layout.addWidget(reset_invisible_color_btn)
+        
         invisible_char_color_layout.addStretch()
         results_layout.addLayout(invisible_char_color_layout)
 
@@ -23877,7 +23937,7 @@ class SupervertalerQt(QMainWindow):
                         panel.set_show_tags(show_tags)
                 
                 # Load and apply tag color
-                tag_color = general_settings.get('tag_highlight_color', '#FFB6C1')
+                tag_color = general_settings.get('tag_highlight_color', '#7f0001')
                 EditableGridTextEditor.tag_highlight_color = tag_color
                 ReadOnlyGridTextEditor.tag_highlight_color = tag_color
                 CompactMatchItem.tag_highlight_color = tag_color
@@ -27301,6 +27361,10 @@ class SupervertalerQt(QMainWindow):
             # Clear filtering flag to re-enable auto-center
             self.filtering_active = False
             
+            # Re-apply pagination after clearing filters
+            if hasattr(self, '_apply_pagination_to_grid'):
+                self._apply_pagination_to_grid()
+            
             # Restore selection to the previously selected segment
             if selected_segment_id is not None:
                 for row, segment in enumerate(self.current_project.segments):
@@ -30620,217 +30684,220 @@ class SupervertalerQt(QMainWindow):
         is_retry_pass = hasattr(self, '_batch_retry_pass') and self._batch_retry_pass > 0
         
         if is_retry_pass:
-            # Use stored settings from previous pass
+            # Use stored settings from previous pass - skip dialog entirely
             translation_provider_type = getattr(self, '_batch_provider_type', 'LLM')
             translation_provider_name = getattr(self, '_batch_provider_name', 'openai')
             model = getattr(self, '_batch_model', 'gpt-4o')
             api_keys = self.load_api_keys()
+            settings = self.load_llm_settings()
+            llm_provider = settings.get('provider', 'openai')
+            llm_model = model
         else:
             # Show provider selection dialog (only on first pass)
             provider_dialog = QDialog(self)
-        provider_dialog.setWindowTitle("Select Translation Provider")
-        provider_dialog.setModal(True)
-        provider_dialog.setMinimumWidth(500)
+            provider_dialog.setWindowTitle("Select Translation Provider")
+            provider_dialog.setModal(True)
+            provider_dialog.setMinimumWidth(500)
 
-        dialog_layout = QVBoxLayout(provider_dialog)
+            dialog_layout = QVBoxLayout(provider_dialog)
 
-        # Header
-        header = QLabel(f"<h3>🚀 Batch Translate {total_segments} Segment{'s' if total_segments != 1 else ''}</h3>")
-        dialog_layout.addWidget(header)
+            # Header
+            header = QLabel(f"<h3>🚀 Batch Translate {total_segments} Segment{'s' if total_segments != 1 else ''}</h3>")
+            dialog_layout.addWidget(header)
 
-        info_label = QLabel(
-            "Choose which translation provider to use for batch translation.\n"
-            "This may take several minutes and consume API credits."
-        )
-        info_label.setWordWrap(True)
-        info_label.setStyleSheet("color: #666; padding: 10px 0;")
-        dialog_layout.addWidget(info_label)
+            info_label = QLabel(
+                "Choose which translation provider to use for batch translation.\n"
+                "This may take several minutes and consume API credits."
+            )
+            info_label.setWordWrap(True)
+            info_label.setStyleSheet("color: #666; padding: 10px 0;")
+            dialog_layout.addWidget(info_label)
 
-        dialog_layout.addSpacing(10)
+            dialog_layout.addSpacing(10)
 
-        # Provider selection checkboxes (mutually exclusive)
-        provider_group = QGroupBox("Translation Provider")
-        provider_layout = QVBoxLayout()
+            # Provider selection checkboxes (mutually exclusive)
+            provider_group = QGroupBox("Translation Provider")
+            provider_layout = QVBoxLayout()
 
-        # Translation Memory option
-        tm_checkbox = CheckmarkCheckBox("📖 TM (Translation Memory) - Pre-translate from activated TMs")
-        tm_checkbox.setChecked(False)
-        provider_layout.addWidget(tm_checkbox)
+            # Translation Memory option
+            tm_checkbox = CheckmarkCheckBox("📖 TM (Translation Memory) - Pre-translate from activated TMs")
+            tm_checkbox.setChecked(False)
+            provider_layout.addWidget(tm_checkbox)
 
-        llm_checkbox = CheckmarkCheckBox("🤖 LLM (AI) - Use configured LLM provider (GPT, Claude, Gemini)")
-        llm_checkbox.setChecked(True)  # Default to LLM
-        provider_layout.addWidget(llm_checkbox)
+            llm_checkbox = CheckmarkCheckBox("🤖 LLM (AI) - Use configured LLM provider (GPT, Claude, Gemini)")
+            llm_checkbox.setChecked(True)  # Default to LLM
+            provider_layout.addWidget(llm_checkbox)
 
-        # Load API keys to check what's available
-        api_keys = self.load_api_keys()
-        enabled_providers = self.load_provider_enabled_states()
+            # Load API keys to check what's available
+            api_keys = self.load_api_keys()
+            enabled_providers = self.load_provider_enabled_states()
 
-        # Show available MT providers
-        mt_providers_available = []
-        if enabled_providers.get('mt_google_translate', True) and api_keys.get('google_translate'):
-            mt_providers_available.append('Google Translate')
-        if enabled_providers.get('mt_deepl', True) and api_keys.get('deepl'):
-            mt_providers_available.append('DeepL')
-        if enabled_providers.get('mt_microsoft', True) and (api_keys.get('microsoft_translate') or api_keys.get('azure_translate')):
-            mt_providers_available.append('Microsoft Translator')
-        if enabled_providers.get('mt_amazon', True) and (api_keys.get('amazon_translate') or api_keys.get('aws_translate')):
-            mt_providers_available.append('Amazon Translate')
-        if enabled_providers.get('mt_modernmt', True) and api_keys.get('modernmt'):
-            mt_providers_available.append('ModernMT')
-        if enabled_providers.get('mt_mymemory', True):
-            mt_providers_available.append('MyMemory')
+            # Show available MT providers
+            mt_providers_available = []
+            if enabled_providers.get('mt_google_translate', True) and api_keys.get('google_translate'):
+                mt_providers_available.append('Google Translate')
+            if enabled_providers.get('mt_deepl', True) and api_keys.get('deepl'):
+                mt_providers_available.append('DeepL')
+            if enabled_providers.get('mt_microsoft', True) and (api_keys.get('microsoft_translate') or api_keys.get('azure_translate')):
+                mt_providers_available.append('Microsoft Translator')
+            if enabled_providers.get('mt_amazon', True) and (api_keys.get('amazon_translate') or api_keys.get('aws_translate')):
+                mt_providers_available.append('Amazon Translate')
+            if enabled_providers.get('mt_modernmt', True) and api_keys.get('modernmt'):
+                mt_providers_available.append('ModernMT')
+            if enabled_providers.get('mt_mymemory', True):
+                mt_providers_available.append('MyMemory')
 
-        mt_label_text = "🌐 MT (Machine Translation)"
-        if mt_providers_available:
-            mt_label_text += f" - {', '.join(mt_providers_available)}"
-        else:
-            mt_label_text += " - No MT providers configured"
+            mt_label_text = "🌐 MT (Machine Translation)"
+            if mt_providers_available:
+                mt_label_text += f" - {', '.join(mt_providers_available)}"
+            else:
+                mt_label_text += " - No MT providers configured"
 
-        mt_checkbox = CheckmarkCheckBox(mt_label_text)
-        mt_checkbox.setEnabled(len(mt_providers_available) > 0)
-        provider_layout.addWidget(mt_checkbox)
+            mt_checkbox = CheckmarkCheckBox(mt_label_text)
+            mt_checkbox.setEnabled(len(mt_providers_available) > 0)
+            provider_layout.addWidget(mt_checkbox)
 
-        # Make checkboxes mutually exclusive
-        def on_tm_toggled(checked):
-            if checked:
-                llm_checkbox.setChecked(False)
-                mt_checkbox.setChecked(False)
+            # Make checkboxes mutually exclusive
+            def on_tm_toggled(checked):
+                if checked:
+                    llm_checkbox.setChecked(False)
+                    mt_checkbox.setChecked(False)
         
-        def on_llm_toggled(checked):
-            if checked:
-                tm_checkbox.setChecked(False)
-                mt_checkbox.setChecked(False)
+            def on_llm_toggled(checked):
+                if checked:
+                    tm_checkbox.setChecked(False)
+                    mt_checkbox.setChecked(False)
 
-        def on_mt_toggled(checked):
-            if checked:
-                tm_checkbox.setChecked(False)
-                llm_checkbox.setChecked(False)
+            def on_mt_toggled(checked):
+                if checked:
+                    tm_checkbox.setChecked(False)
+                    llm_checkbox.setChecked(False)
 
-        tm_checkbox.toggled.connect(on_tm_toggled)
-        llm_checkbox.toggled.connect(on_llm_toggled)
-        mt_checkbox.toggled.connect(on_mt_toggled)
+            tm_checkbox.toggled.connect(on_tm_toggled)
+            llm_checkbox.toggled.connect(on_llm_toggled)
+            mt_checkbox.toggled.connect(on_mt_toggled)
 
-        if not mt_providers_available:
-            mt_warning = QLabel("⚠️ Configure MT API keys in Settings → MT Settings to enable")
-            mt_warning.setStyleSheet("color: #ff6b6b; font-size: 9pt; padding-left: 25px;")
-            provider_layout.addWidget(mt_warning)
+            if not mt_providers_available:
+                mt_warning = QLabel("⚠️ Configure MT API keys in Settings → MT Settings to enable")
+                mt_warning.setStyleSheet("color: #ff6b6b; font-size: 9pt; padding-left: 25px;")
+                provider_layout.addWidget(mt_warning)
 
-        provider_group.setLayout(provider_layout)
-        dialog_layout.addWidget(provider_group)
+            provider_group.setLayout(provider_layout)
+            dialog_layout.addWidget(provider_group)
 
-        dialog_layout.addSpacing(10)
+            dialog_layout.addSpacing(10)
 
-        # Show current LLM settings
-        settings = self.load_llm_settings()
-        llm_provider = settings.get('provider', 'openai')
-        model_key = f'{llm_provider}_model'
-        llm_model = settings.get(model_key, 'gpt-4o')
+            # Show current LLM settings
+            settings = self.load_llm_settings()
+            llm_provider = settings.get('provider', 'openai')
+            model_key = f'{llm_provider}_model'
+            llm_model = settings.get(model_key, 'gpt-4o')
 
-        llm_info = QLabel(f"📊 Current LLM: {llm_provider.title()} ({llm_model})")
-        llm_info.setStyleSheet("color: #666; font-size: 9pt; padding: 5px 0;")
-        dialog_layout.addWidget(llm_info)
+            llm_info = QLabel(f"📊 Current LLM: {llm_provider.title()} ({llm_model})")
+            llm_info.setStyleSheet("color: #666; font-size: 9pt; padding: 5px 0;")
+            dialog_layout.addWidget(llm_info)
 
-        dialog_layout.addSpacing(10)
+            dialog_layout.addSpacing(10)
         
-        # Options group
-        options_group = QGroupBox("Options")
-        options_layout = QVBoxLayout()
+            # Options group
+            options_group = QGroupBox("Options")
+            options_layout = QVBoxLayout()
         
-        # Retry until complete option
-        retry_checkbox = CheckmarkCheckBox("🔄 Retry until all segments are translated (recommended)")
-        retry_checkbox.setToolTip(
-            "If some segments fail or are empty after the first pass,\n"
-            "automatically retry translating just those segments.\n"
-            "This continues until all segments have translations\n"
-            "or a maximum of 5 retries is reached."
-        )
-        retry_checkbox.setChecked(True)  # Default to enabled
-        options_layout.addWidget(retry_checkbox)
+            # Retry until complete option
+            retry_checkbox = CheckmarkCheckBox("🔄 Retry until all segments are translated (recommended)")
+            retry_checkbox.setToolTip(
+                "If some segments fail or are empty after the first pass,\n"
+                "automatically retry translating just those segments.\n"
+                "This continues until all segments have translations\n"
+                "or a maximum of 5 retries is reached."
+            )
+            retry_checkbox.setChecked(True)  # Default to enabled
+            options_layout.addWidget(retry_checkbox)
         
-        options_group.setLayout(options_layout)
-        dialog_layout.addWidget(options_group)
+            options_group.setLayout(options_layout)
+            dialog_layout.addWidget(options_group)
 
-        dialog_layout.addSpacing(20)
+            dialog_layout.addSpacing(20)
 
-        # Buttons
-        button_layout = QHBoxLayout()
-        button_layout.addStretch()
+            # Buttons
+            button_layout = QHBoxLayout()
+            button_layout.addStretch()
 
-        cancel_btn = QPushButton("Cancel")
-        cancel_btn.clicked.connect(provider_dialog.reject)
-        button_layout.addWidget(cancel_btn)
+            cancel_btn = QPushButton("Cancel")
+            cancel_btn.clicked.connect(provider_dialog.reject)
+            button_layout.addWidget(cancel_btn)
 
-        ok_btn = QPushButton("Start Translation")
-        ok_btn.setDefault(True)
-        ok_btn.clicked.connect(provider_dialog.accept)
-        button_layout.addWidget(ok_btn)
+            ok_btn = QPushButton("Start Translation")
+            ok_btn.setDefault(True)
+            ok_btn.clicked.connect(provider_dialog.accept)
+            button_layout.addWidget(ok_btn)
 
-        dialog_layout.addLayout(button_layout)
+            dialog_layout.addLayout(button_layout)
 
-        # Show dialog
-        if provider_dialog.exec() != QDialog.DialogCode.Accepted:
-            return
-
-        # Determine which provider was selected
-        use_tm = tm_checkbox.isChecked()
-        use_mt = mt_checkbox.isChecked()
-        retry_until_complete = retry_checkbox.isChecked()
-        
-        # Store retry setting for recursive calls
-        self._batch_retry_enabled = retry_until_complete
-
-        if use_tm:
-            # Use Translation Memory
-            translation_provider_type = 'TM'
-            translation_provider_name = 'Translation Memory'
-            
-            # Check if TM database is available
-            if not self.tm_database:
-                QMessageBox.critical(
-                    self, "No TM Database",
-                    "Translation Memory database is not initialized. Please load a project first."
-                )
-                return
-            
-            self.log("📖 Using Translation Memory for batch pre-translation")
-            
-        elif use_mt:
-            # Use MT provider
-            translation_provider_type = 'MT'
-            translation_provider_name = mt_providers_available[0] if mt_providers_available else None
-            if not translation_provider_name:
-                QMessageBox.critical(
-                    self, "No MT Provider",
-                    "No Machine Translation provider available. Please configure MT API keys in Settings."
-                )
-                return
-        else:
-            # Use LLM provider
-            translation_provider_type = 'LLM'
-            
-            # Ollama doesn't need API keys - it's local
-            if llm_provider == 'ollama':
-                api_keys = {'ollama': 'not-needed'}  # Placeholder - Ollama doesn't use API keys
-            elif not api_keys:
-                QMessageBox.critical(
-                    self, "API Keys Missing",
-                    "Please configure your API keys in Settings first."
-                )
-                return
-            elif llm_provider not in api_keys:
-                QMessageBox.critical(
-                    self, f"{llm_provider.title()} API Key Missing",
-                    f"Please configure your {llm_provider.title()} API key in Settings."
-                )
+            # Show dialog
+            if provider_dialog.exec() != QDialog.DialogCode.Accepted:
                 return
 
-            translation_provider_name = llm_provider
-            model = llm_model
+            # Determine which provider was selected
+            use_tm = tm_checkbox.isChecked()
+            use_mt = mt_checkbox.isChecked()
+            retry_until_complete = retry_checkbox.isChecked()
+        
+            # Store retry setting for recursive calls
+            self._batch_retry_enabled = retry_until_complete
+
+            if use_tm:
+                # Use Translation Memory
+                translation_provider_type = 'TM'
+                translation_provider_name = 'Translation Memory'
             
-            # Store settings for potential retry passes
-            self._batch_provider_type = translation_provider_type
-            self._batch_provider_name = translation_provider_name
-            self._batch_model = model
+                # Check if TM database is available
+                if not self.tm_database:
+                    QMessageBox.critical(
+                        self, "No TM Database",
+                        "Translation Memory database is not initialized. Please load a project first."
+                    )
+                    return
+            
+                self.log("📖 Using Translation Memory for batch pre-translation")
+            
+            elif use_mt:
+                # Use MT provider
+                translation_provider_type = 'MT'
+                translation_provider_name = mt_providers_available[0] if mt_providers_available else None
+                if not translation_provider_name:
+                    QMessageBox.critical(
+                        self, "No MT Provider",
+                        "No Machine Translation provider available. Please configure MT API keys in Settings."
+                    )
+                    return
+            else:
+                # Use LLM provider
+                translation_provider_type = 'LLM'
+            
+                # Ollama doesn't need API keys - it's local
+                if llm_provider == 'ollama':
+                    api_keys = {'ollama': 'not-needed'}  # Placeholder - Ollama doesn't use API keys
+                elif not api_keys:
+                    QMessageBox.critical(
+                        self, "API Keys Missing",
+                        "Please configure your API keys in Settings first."
+                    )
+                    return
+                elif llm_provider not in api_keys:
+                    QMessageBox.critical(
+                        self, f"{llm_provider.title()} API Key Missing",
+                        f"Please configure your {llm_provider.title()} API key in Settings."
+                    )
+                    return
+
+                translation_provider_name = llm_provider
+                model = llm_model
+            
+                # Store settings for potential retry passes
+                self._batch_provider_type = translation_provider_type
+                self._batch_provider_name = translation_provider_name
+                self._batch_model = model
 
         # Create progress dialog
         progress = QDialog(self)
