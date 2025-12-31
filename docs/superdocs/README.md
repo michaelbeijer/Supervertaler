@@ -2,6 +2,10 @@
 
 <figure><img src=".gitbook/assets/supervertaler-logo.png" alt="Supervertaler Logo" width="200"><figcaption></figcaption></figure>
 
+> Important: The original **Supervertaler Manual** has been archived here for reference: [Supervertaler Manual (archived)](https://github.com/michaelbeijer/Supervertaler/blob/main/docs/guides/MANUAL.md)
+>
+> If you're new, start with the Quick Start guide below — the manual is retained for historical reference and advanced workflows.
+
 **Supervertaler** is a professional desktop translation application that integrates AI-powered translation with traditional CAT (Computer-Assisted Translation) tool workflows.
 
 ## What is Supervertaler?
