@@ -5901,15 +5901,14 @@ class SupervertalerQt(QMainWindow):
         help_menu = menubar.addMenu("&Help")
 
         # Documentation links (GitHub URLs for universal access)
-        manual_action = QAction("📖 Supervertaler Manual", self)
-        manual_action.triggered.connect(lambda: self._open_url("https://github.com/michaelbeijer/Supervertaler/blob/main/docs/guides/MANUAL.md"))
-        help_menu.addAction(manual_action)
+        # Removed internal manual link — documentation migrated to GitBook
 
         faq_action = QAction("❓ FAQ", self)
         faq_action.triggered.connect(lambda: self._open_url("https://github.com/michaelbeijer/Supervertaler/blob/main/FAQ.md"))
         help_menu.addAction(faq_action)
 
-        superdocs_action = QAction("📚 Superdocs (GitBook)", self)
+        superdocs_action = QAction("Supervertaler Help", self)
+        superdocs_action.setToolTip("Superdocs (GitBook)")
         superdocs_action.triggered.connect(lambda: self._open_url("https://supervertaler.gitbook.io/superdocs/"))
         help_menu.addAction(superdocs_action)
 
