@@ -5909,7 +5909,7 @@ class SupervertalerQt(QMainWindow):
         faq_action.triggered.connect(lambda: self._open_url("https://github.com/michaelbeijer/Supervertaler/blob/main/FAQ.md"))
         help_menu.addAction(faq_action)
 
-        superdocs_action = QAction("📚 Superdocs (Online)", self)
+        superdocs_action = QAction("📚 Superdocs (GitBook)", self)
         superdocs_action.triggered.connect(lambda: self._open_url("https://supervertaler.gitbook.io/superdocs/"))
         help_menu.addAction(superdocs_action)
 
