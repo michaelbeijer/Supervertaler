@@ -207,4 +207,4 @@ Currently, keyboard shortcuts are not user-configurable. This is planned for a f
 
 ---
 
-*See also: [Supervertaler Manual](MANUAL.md) | [FAQ](../../FAQ.md)*
+*See also: [Superdocs](https://supervertaler.gitbook.io/superdocs/) | [FAQ](../../FAQ.md)*

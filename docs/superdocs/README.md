@@ -10,6 +10,9 @@
 
 ## What is Supervertaler?
 
+Welcome to **Superdocs** — the official online manual and help center for Supervertaler. Start with the Quick Start guide if you're installing for the first time, or use the navigation on the left to jump to Guides, Reference, or Troubleshooting.
+
+
 Supervertaler serves as a **companion tool for translators**, helping you:
 
 - 🤖 **Translate with AI** using GPT-4, Claude, Gemini, or local Ollama models

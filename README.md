@@ -16,7 +16,7 @@
 
 | Guide | Description |
 |-------|-------------|
-| **[Supervertaler Manual](docs/guides/MANUAL.md)** | Complete guide: installation, CAT workflows, shortcuts |
+| **[Superdocs](https://supervertaler.gitbook.io/superdocs/)** | Official online manual: quick start, guides, and troubleshooting |
 | **[Keyboard Shortcuts](docs/guides/KEYBOARD_SHORTCUTS.md)** | Complete shortcut reference |
 | **[FAQ](FAQ.md)** | Common questions answered |
 | **[Changelog](CHANGELOG.md)** | Version history and recent features |
