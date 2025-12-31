@@ -1,4 +1,4 @@
-root: ./docs/help-center/
+root: ./docs/superdocs/
 
 structure:
   readme: README.md
