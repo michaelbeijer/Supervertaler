@@ -5909,8 +5909,8 @@ class SupervertalerQt(QMainWindow):
         faq_action.triggered.connect(lambda: self._open_url("https://github.com/michaelbeijer/Supervertaler/blob/main/FAQ.md"))
         help_menu.addAction(faq_action)
 
-        superdocs_action = QAction("📚 Superdocs (Interactive)", self)
-        superdocs_action.triggered.connect(self._open_superdocs_tab)
+        superdocs_action = QAction("📚 Superdocs (Online)", self)
+        superdocs_action.triggered.connect(lambda: self._open_url("https://supervertaler.gitbook.io/superdocs/"))
         help_menu.addAction(superdocs_action)
 
         help_menu.addSeparator()
@@ -7907,9 +7907,7 @@ class SupervertalerQt(QMainWindow):
         supercleaner_tab = self.create_supercleaner_tab()
         modules_tabs.addTab(supercleaner_tab, "🧹 Supercleaner")
 
-        # Superdocs - Automated Documentation Viewer
-        superdocs_tab = self.create_superdocs_tab()
-        modules_tabs.addTab(superdocs_tab, "📚 Superdocs")
+        # Superdocs removed (online GitBook will be used instead)
 
         print("[DEBUG] About to create SuperlookupTab...")
         lookup_tab = SuperlookupTab(self)
@@ -29958,18 +29956,15 @@ class SupervertalerQt(QMainWindow):
             QMessageBox.warning(self, "Error", f"Could not open URL: {e}")
 
     def _open_superdocs_tab(self):
-        """Navigate to Superdocs tab in Tools"""
-        if hasattr(self, 'main_tabs') and hasattr(self, 'modules_tabs'):
-            # Switch to Tools tab (index 2)
-            self.main_tabs.setCurrentIndex(2)
-            # Switch to Superdocs sub-tab (last tab in modules_tabs)
-            superdocs_index = self.modules_tabs.count() - 1  # Last tab
-            self.modules_tabs.setCurrentIndex(superdocs_index)
-        else:
+        """Open the online Superdocs GitBook in the user's browser."""
+        try:
+            # Prefer opening the published online docs
+            self._open_url("https://supervertaler.gitbook.io/superdocs/")
+        except Exception:
             QMessageBox.information(
                 self,
                 "Superdocs",
-                "Go to Tools → Superdocs to view interactive documentation."
+                "Superdocs are available online at https://supervertaler.gitbook.io/superdocs/"
             )
     
     def _show_ahk_setup_from_menu(self):
