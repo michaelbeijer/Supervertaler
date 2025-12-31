@@ -7450,23 +7450,14 @@ class SupervertalerQt(QMainWindow):
 
     def create_superdocs_tab(self) -> QWidget:
         """Create the Superdocs tab - Automated Documentation Viewer"""
-        try:
-            from modules.superdocs_viewer_qt import SuperdocsViewerQt
-
-            # Create and return the Superdocs viewer widget
-            superdocs_widget = SuperdocsViewerQt(parent=self, app=self)
-
-            return superdocs_widget
-        except Exception as e:
-            self.log(f"[Superdocs] Error creating tab: {e}")
-            # Return placeholder if module fails to load
-            placeholder = QWidget()
-            layout = QVBoxLayout(placeholder)
-            label = QLabel(f"📚 Superdocs\n\nFailed to load: {e}\n\nInstall dependencies with:\npip install markdown")
-            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            label.setStyleSheet("color: #888; font-size: 12px;")
-            layout.addWidget(label)
-            return placeholder
+        # The Superdocs viewer was removed in favor of online documentation.
+        placeholder = QWidget()
+        layout = QVBoxLayout(placeholder)
+        label = QLabel("📚 Superdocs are now available online.\n\nVisit https://supervertaler.gitbook.io/superdocs/ to view the documentation.")
+        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        label.setStyleSheet("color: #888; font-size: 12px;")
+        layout.addWidget(label)
+        return placeholder
 
     def create_supermemory_tab(self) -> QWidget:
         """Create the Supermemory tab - Vector-Indexed Translation Memory"""

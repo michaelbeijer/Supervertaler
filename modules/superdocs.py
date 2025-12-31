@@ -1,123 +1,20 @@
 """
-Superdocs - Automated Documentation Generator for Supervertaler
-================================================================
+Deprecated Superdocs module.
 
-Automatically generates and maintains living documentation by:
-- Scanning Python source files
-- Extracting classes, functions, and docstrings
-- Creating markdown documentation
-- Mapping module dependencies
-- Generating architecture overview
+The in-app Superdocs generator and viewer have been removed from the application
+and the official documentation is hosted on GitBook:
 
-Usage:
-    from modules.superdocs import Superdocs
+    https://supervertaler.gitbook.io/superdocs/
 
-    docs = Superdocs()
-    docs.generate_all()  # Generate complete documentation
-
-Output:
-    docs/superdocs/
-        index.md              # Overview and table of contents
-        architecture.md       # System architecture
-        modules/              # Per-module documentation
-        dependencies.md       # Module dependency graph
+This module remains as a stub to avoid accidental imports. Importing or
+instantiating will raise ImportError.
 """
 
-import ast
-import os
-from pathlib import Path
-from datetime import datetime
-from typing import Dict, List, Set, Tuple
-import re
-
-
-class Superdocs:
-    """Automated documentation generator for Supervertaler codebase"""
-
-    def __init__(self, repo_root: str = None):
-        """
-        Initialize Superdocs
-
-        Args:
-            repo_root: Path to repository root (defaults to parent of this file)
-        """
-        if repo_root is None:
-            # Default to repository root (parent of modules folder)
-            self.repo_root = Path(__file__).parent.parent
-        else:
-            self.repo_root = Path(repo_root)
-
-        self.output_dir = self.repo_root / "docs" / "superdocs"
-        self.modules_dir = self.repo_root / "modules"
-        self.main_file = self.repo_root / "Supervertaler.py"
-
-        # Module info storage
-        self.module_info: Dict[str, dict] = {}
-        self.dependencies: Dict[str, Set[str]] = {}
-
-    def generate_all(self):
-        """Generate complete documentation suite"""
-        print("=" * 60)
-        print("Superdocs - Automated Documentation Generator")
-        print("=" * 60)
-
-        # Create output directory
-        self.output_dir.mkdir(parents=True, exist_ok=True)
-        (self.output_dir / "modules").mkdir(exist_ok=True)
-
-        # Scan all Python files
-        print("\n[*] Scanning codebase...")
-        self._scan_main_file()
-        self._scan_modules()
-
-        # Generate documentation
-        print("\n[*] Generating documentation...")
-        self._generate_index()
-        self._generate_architecture()
-        self._generate_module_docs()
-        self._generate_dependencies()
-
-        print(f"\n[OK] Documentation generated in: {self.output_dir}")
-        print("=" * 60)
-
-    def _scan_main_file(self):
-        """Scan Supervertaler.py for structure"""
-        print(f"  [FILE] Scanning {self.main_file.name}...")
-
-        try:
-            with open(self.main_file, 'r', encoding='utf-8') as f:
-                content = f.read()
-                tree = ast.parse(content)
-
-            info = {
-                'path': self.main_file,
-                'classes': [],
-                'functions': [],
-                'imports': [],
-                'docstring': ast.get_docstring(tree) or "No module docstring",
-                'line_count': len(content.splitlines())
-            }
-
-            # Extract classes
-            for node in ast.walk(tree):
-                if isinstance(node, ast.ClassDef):
-                    class_info = {
-                        'name': node.name,
-                        'docstring': ast.get_docstring(node) or "No docstring",
-                        'methods': [],
-                        'line': node.lineno
-                    }
-
-                    # Extract methods
-                    for item in node.body:
-                        if isinstance(item, ast.FunctionDef):
-                            class_info['methods'].append({
-                                'name': item.name,
-                                'docstring': ast.get_docstring(item) or "No docstring",
-                                'line': item.lineno
-                            })
-
-                    info['classes'].append(class_info)
+def __getattr__(name):
+    raise ImportError(
+        "The 'modules.superdocs' module has been removed. Use the online Superdocs at"
+        " https://supervertaler.gitbook.io/superdocs/"
+    )
 
                 elif isinstance(node, ast.FunctionDef) and node.col_offset == 0:
                     # Top-level functions only
