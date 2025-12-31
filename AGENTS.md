@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** December 30, 2025 | **Version:** v1.9.71
+> **Last Updated:** December 31, 2025 | **Version:** v1.9.73
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.71 (December 2025) |
+| **Version** | v1.9.73 (December 2025) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -359,6 +359,26 @@ google_api_key=AI...
 ---
 
 ## 🔄 Recent Development History
+
+### December 31, 2025 - Version 1.9.73: External Prompt Editor Display
+
+**📝 External Prompts Now Display in Editor**
+
+When loading an external prompt file (not in the library), it now displays in the Prompt Editor panel:
+
+- **Editor display**: External prompts show in the editor with name, description, and content fields
+- **Read/write support**: External prompts can be edited and saved back to the original file
+- **Format detection**: `.svprompt` files parsed as JSON to extract name, description, and content
+- **Plain text support**: `.txt` and `.md` files displayed as raw content
+- **Visual indicator**: Editor label shows "📁 External: {name}" to distinguish from library prompts
+- **Save functionality**: Changes can be saved back to external files (JSON for .svprompt, plain text for others)
+- **Project load fix**: Prompts stored in project files now display in editor when project is loaded (both external and library prompts)
+
+**Files Modified:**
+- `modules/unified_prompt_manager_qt.py` - Added `_display_external_prompt_in_editor()`, `_save_external_prompt()`, updated `_load_external_primary_prompt()`, `_save_current_prompt()`, and `_set_primary_prompt()`
+- `Supervertaler.py` - Added call to `_display_external_prompt_in_editor()` in project load code
+
+---
 
 ### December 30, 2025 - Version 1.9.67: memoQ Tag Highlighting & Batch Retry Fix
 

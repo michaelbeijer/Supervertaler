@@ -1598,8 +1598,15 @@ class UnifiedPromptManagerQt:
 
         # Check if this is a new prompt or editing existing
         if hasattr(self, 'editor_current_path') and self.editor_current_path:
-            # Editing existing prompt
             path = self.editor_current_path
+            
+            # Handle external prompts (save back to external file)
+            if path.startswith("[EXTERNAL] "):
+                external_file_path = path[11:]  # Remove "[EXTERNAL] " prefix
+                self._save_external_prompt(external_file_path, name, description, content)
+                return
+            
+            # Editing existing library prompt
             if path not in self.library.prompts:
                 QMessageBox.warning(self.main_widget, "Error", "Prompt no longer exists")
                 return
@@ -1645,6 +1652,36 @@ class UnifiedPromptManagerQt:
             else:
                 QMessageBox.warning(self.main_widget, "Error", "Failed to create prompt")
     
+    def _save_external_prompt(self, file_path: str, name: str, description: str, content: str):
+        """Save changes to an external prompt file"""
+        from pathlib import Path
+        import json
+        
+        path = Path(file_path)
+        
+        try:
+            if file_path.lower().endswith('.svprompt'):
+                # Save as JSON format
+                data = {
+                    'name': name,
+                    'description': description,
+                    'content': content,
+                    'version': '1.0'
+                }
+                path.write_text(json.dumps(data, indent=2), encoding='utf-8')
+            else:
+                # Save as plain text
+                path.write_text(content, encoding='utf-8')
+            
+            # Update the library's active primary prompt content
+            self.library.active_primary_prompt = content
+            
+            QMessageBox.information(self.main_widget, "Saved", f"External prompt '{name}' saved successfully!")
+            self.log_message(f"✓ Saved external prompt: {name}")
+            
+        except Exception as e:
+            QMessageBox.warning(self.main_widget, "Error", f"Failed to save external prompt: {e}")
+    
     def _set_primary_prompt(self, relative_path: str):
         """Set prompt as primary"""
         if self.library.set_primary_prompt(relative_path):
@@ -1652,6 +1689,8 @@ class UnifiedPromptManagerQt:
             self.primary_prompt_label.setText(prompt_data.get('name', 'Unnamed'))
             self.primary_prompt_label.setStyleSheet("color: #000; font-weight: bold;")
             self.log_message(f"✓ Set primary: {prompt_data.get('name')}")
+            # Also display in the editor
+            self._load_prompt_in_editor(relative_path)
     
     def _attach_prompt(self, relative_path: str):
         """Attach prompt to active configuration"""
@@ -1708,9 +1747,46 @@ class UnifiedPromptManagerQt:
             self.primary_prompt_label.setStyleSheet("color: #0066cc; font-weight: bold;")
             self.primary_prompt_label.setToolTip(f"External file: {file_path}")
             self.log_message(f"✓ Loaded external prompt: {result}")
+            
+            # Display the external prompt in the editor
+            self._display_external_prompt_in_editor(file_path, result)
         else:
             # result is the error message
             QMessageBox.warning(self.main_widget, "Error", f"Could not load file: {result}")
+    
+    def _display_external_prompt_in_editor(self, file_path: str, display_name: str):
+        """Display an external prompt file in the editor (read-only view)"""
+        from pathlib import Path
+        import json
+        
+        path = Path(file_path)
+        
+        try:
+            content = path.read_text(encoding='utf-8')
+            description = ""
+            
+            # Try to parse as JSON (.svprompt format)
+            if file_path.lower().endswith('.svprompt'):
+                try:
+                    data = json.loads(content)
+                    # Extract content and description from svprompt
+                    content = data.get('content', content)
+                    description = data.get('description', '')
+                except json.JSONDecodeError:
+                    pass  # Keep raw content
+            
+            # Update editor fields
+            self.editor_name_label.setText(f"📁 External: {display_name}")
+            self.editor_name_input.setText(display_name)
+            self.editor_desc_input.setText(description)
+            self.editor_content.setPlainText(content)
+            
+            # Store the external path for potential save operations
+            self.editor_current_path = f"[EXTERNAL] {file_path}"
+            self.btn_save_prompt.setEnabled(True)
+            
+        except Exception as e:
+            self.log_message(f"⚠ Could not display prompt in editor: {e}")
 
     def _clear_all_attachments(self):
         """Clear all attached prompts"""

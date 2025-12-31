@@ -34,9 +34,9 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.71"
+__version__ = "1.9.73"
 __phase__ = "0.9"
-__release_date__ = "2025-12-30"
+__release_date__ = "2025-12-31"
 __edition__ = "Qt"
 
 import sys
@@ -17443,6 +17443,8 @@ class SupervertalerQt(QMainWindow):
                                     display_name = Path(external_file_path).stem
                                     self.prompt_manager_qt.primary_prompt_label.setText(f"📁 {display_name}")
                                     self.prompt_manager_qt.primary_prompt_label.setStyleSheet("color: #000; font-weight: bold;")
+                                    # Display the external prompt in the editor
+                                    self.prompt_manager_qt._display_external_prompt_in_editor(external_file_path, display_name)
                                     self.log(f"✓ Restored external primary prompt: {display_name}")
                             else:
                                 self.log(f"⚠ External prompt file not found: {external_file_path}")
