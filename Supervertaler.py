@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.73"
+__version__ = "1.9.74"
 __phase__ = "0.9"
 __release_date__ = "2025-12-31"
 __edition__ = "Qt"
@@ -35622,6 +35622,11 @@ class SuperlookupTab(QWidget):
                 match_item.setBackground(QColor("#FFF9C4"))  # Yellow for high
             self.tm_results_table.setItem(row, 0, match_item)
             
+            # Source - store plain text in the item (for copy/selection) and show rich label
+            source_item = QTableWidgetItem(result.source)
+            source_item.setToolTip(result.source)
+            self.tm_results_table.setItem(row, 1, source_item)
+
             # Source - with highlighted search term
             source_html = self._highlight_search_term(result.source, search_text)
             source_label = QLabel(source_html)
@@ -35631,6 +35636,11 @@ class SuperlookupTab(QWidget):
             source_label.setToolTip(result.source)  # Full text on hover
             self.tm_results_table.setCellWidget(row, 1, source_label)
             
+            # Target - store plain text in the item (for copy/selection) and show rich label
+            target_item = QTableWidgetItem(result.target)
+            target_item.setToolTip(result.target)
+            self.tm_results_table.setItem(row, 2, target_item)
+
             # Target - with highlighted search term
             target_html = self._highlight_search_term(result.target, search_text)
             target_label = QLabel(target_html)
@@ -35757,6 +35767,11 @@ class SuperlookupTab(QWidget):
             domain = metadata.get('domain', '')
             notes = metadata.get('notes', '')
             
+            # Source term - store plain text in the item (for copy/selection) and show rich label
+            source_item = QTableWidgetItem(result.source)
+            source_item.setToolTip(result.source)
+            self.termbase_results_table.setItem(row, 0, source_item)
+
             # Source term - with highlighted search term
             source_html = self._highlight_search_term(result.source, search_text)
             source_label = QLabel(source_html)
@@ -35766,6 +35781,11 @@ class SuperlookupTab(QWidget):
             source_label.setToolTip(result.source)  # Full text on hover
             self.termbase_results_table.setCellWidget(row, 0, source_label)
             
+            # Target term - store plain text in the item (for copy/selection) and show rich label
+            target_item = QTableWidgetItem(result.target)
+            target_item.setToolTip(result.target)
+            self.termbase_results_table.setItem(row, 1, target_item)
+
             # Target term - with highlighted search term
             target_html = self._highlight_search_term(result.target, search_text)
             target_label = QLabel(target_html)

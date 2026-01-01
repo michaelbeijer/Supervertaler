@@ -14,6 +14,8 @@ All notable changes to Supervertaler are documented in this file.
 
 - 🧹 **Removed in-app Superdocs viewer & generator** — The documentation generator and Qt viewer have been deprecated and removed from the application; official documentation is now hosted on GitBook: https://supervertaler.gitbook.io/superdocs/. The app now directs users to the online Superdocs. Packaging metadata and site links updated accordingly.
 - 📚 **Superdocs tooling docs refreshed** — Expanded the Tools section documentation (TMX Editor, AutoFingers, Supervoice voice commands, Image Extractor) to match the current UI and workflows.
+- 🔍 **Superdocs Superlookup docs refreshed** — Expanded the Superlookup docs (TM search, glossary search, MT, web resources) to match current UI behavior and shortcuts.
+- 🧩 **Superlookup copy/insert fix** — TM/Glossary results now store plain text in table items (while still rendering highlighted rich text), so copy/insert actions work reliably.
 
 ---
 

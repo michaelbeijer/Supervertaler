@@ -384,6 +384,20 @@ google_api_key=AI...
 - `docs/superdocs/tools/voice-commands.md`
 - `docs/superdocs/tools/image-extractor.md`
 
+### January 1, 2026 - Docs: Superlookup pages expanded
+
+- Expanded the Superdocs Superlookup pages (TM Search, Glossary Search, Machine Translation, Web Resources) to match current UI and behavior.
+- Updated the Superlookup overview page to align entry points (Ctrl+K / Ctrl+Alt+L), language/direction filters, and the actual Web Resources list.
+- Fixed Superlookup copy/insert behavior for TM and Glossary results (table items were missing under rich cell widgets).
+
+**Files Modified:**
+- `docs/superdocs/superlookup/overview.md`
+- `docs/superdocs/superlookup/tm-search.md`
+- `docs/superdocs/superlookup/glossary-search.md`
+- `docs/superdocs/superlookup/mt.md`
+- `docs/superdocs/superlookup/web-resources.md`
+- `Supervertaler.py`
+
 ### December 31, 2025 - Version 1.9.73: External Prompt Editor Display
 
 **📝 External Prompts Now Display in Editor**

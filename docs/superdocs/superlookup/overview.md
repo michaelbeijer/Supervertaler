@@ -4,9 +4,12 @@ Superlookup is your unified concordance and research hub, bringing together all 
 
 ## Opening Superlookup
 
-- Press `Ctrl+K`
-- Or go to **View → Superlookup**
-- Or click the Superlookup button in the toolbar
+- Press `Ctrl+K` (opens Superlookup with the current selection, if any)
+- Or use **Edit → Superlookup…** (`Ctrl+Alt+L`)
+
+{% hint style="info" %}
+On Windows, `Ctrl+Alt+L` can also work as a **global hotkey** (from any application) when AutoHotkey is installed.
+{% endhint %}
 
 Selected text is automatically used as the search query.
 
@@ -25,7 +28,7 @@ Search your Translation Memories for similar text:
 Search your termbases/glossaries:
 - Shows Source, Target, Domain, Notes columns
 - Right-click to "Edit in Glossary"
-- Fuzzy matching finds similar terms
+- Direction and language filters (Both / Source / Target + From/To)
 
 ### Supermemory
 
@@ -49,13 +52,18 @@ Configure providers in **Settings → MT Settings**.
 ### Web Resources
 
 Quick access to online reference sites:
-- Linguee
-- DeepL dictionary
 - IATE (EU terminology)
+- Linguee
 - ProZ.com
-- Wikipedia (source & target language)
+- Reverso Context
+- Wikipedia (Source & Target)
+- Wiktionary (Source & Target)
 - Google Search
-- And more...
+- Google Patents
+- Juremy
+- AcronymFinder
+- BabelNet
+- michaelbeijer.co.uk
 
 ## Search Controls
 
@@ -76,13 +84,6 @@ Use the **From** and **To** dropdowns to filter by language pair:
 Type your query and press Enter (or click 🔍).
 
 ## Tips
-
-### Keyboard Workflow
-
-1. Select text in the grid
-2. Press `Ctrl+K` to open Superlookup with selection
-3. Results appear instantly
-4. Press `Esc` to close and return to grid
 
 ### Copy Results
 
