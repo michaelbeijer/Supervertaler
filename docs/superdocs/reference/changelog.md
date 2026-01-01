@@ -1,6 +1,8 @@
 # Changelog
 
-Supervertaler keeps a full, detailed changelog in the GitHub repository (this is a very common convention for open source projects):
+Supervertaler keeps the full changelog in the GitHub repository (this is a very common convention for open source projects).
+
+## ✅ Open the full changelog
 
 - https://github.com/michaelbeijer/Supervertaler/blob/main/CHANGELOG.md
 
