@@ -100,6 +100,40 @@ the same positions in the translation.
 
 ---
 
+## Reimporting Issues
+
+### Segments don't match on reimport
+
+**Cause:** Segment structure changed.
+
+**Solution:**
+
+- Don’t merge or split segments in Supervertaler.
+- Export the matching format for your CAT tool/workflow.
+- If you’re working from a bilingual table, don’t modify the table structure in Word.
+
+### Formatting lost on reimport
+
+**Cause:** Tags/placeholders weren’t preserved.
+
+**Solution:**
+
+- Verify tags in Tag view before exporting.
+- Ensure tags are balanced and not renumbered.
+- Run CAT tool QA after import to catch tag issues early.
+
+### TM matches not appearing
+
+**Cause:** TM not loaded, disabled, or language mismatch.
+
+**Solution:**
+
+- Open **Project resources → Translation Memories**.
+- Ensure the TM is added and **Read** is enabled.
+- Verify source/target language pair matches your project.
+
+---
+
 ## Export Problems
 
 ### Exported DOCX has no translations
