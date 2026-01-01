@@ -1,7 +1,5 @@
 # Supervertaler Help
 
-<figure><img src="https://supervertaler.com/screenshots/Supervertaler_grid.jpg" alt="Supervertaler grid screenshot" width="320"><figcaption></figcaption></figure>
-
 > Important: The original **Supervertaler Manual** has been archived here for reference: [Supervertaler Manual (archived)](https://github.com/michaelbeijer/Supervertaler/blob/archive/manual-before-deletion/docs/guides/MANUAL.md)
 >
 > If you're new, start with the Quick Start guide below — the manual is retained for historical reference and advanced workflows.
