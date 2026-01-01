@@ -360,6 +360,19 @@ google_api_key=AI...
 
 ## 🔄 Recent Development History
 
+### January 1, 2026 - Docs: Superdocs FAQ integration & Sv website icon
+
+- Integrated the full legacy repository FAQ into Superdocs (GitBook source) so the FAQ lives inside the online help center.
+- Updated the in-app Help → FAQ link to open the Superdocs FAQ page.
+- Updated the website navbar to use the Sv icon in the top-left brand slot.
+
+**Files Modified:**
+- `docs/superdocs/reference/faq.md`
+- `Supervertaler.py`
+- `docs/index.html`
+- `docs/sv-icon.svg`
+- `docs/superdocs/.gitbook/assets/sv-icon.svg`
+
 ### December 31, 2025 - Version 1.9.73: External Prompt Editor Display
 
 **📝 External Prompts Now Display in Editor**

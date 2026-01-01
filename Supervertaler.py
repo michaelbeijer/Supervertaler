@@ -5911,7 +5911,7 @@ class SupervertalerQt(QMainWindow):
 
         # FAQ follows the help entry
         faq_action = QAction("❓ FAQ", self)
-        faq_action.triggered.connect(lambda: self._open_url("https://github.com/michaelbeijer/Supervertaler/blob/main/FAQ.md"))
+        faq_action.triggered.connect(lambda: self._open_url("https://supervertaler.gitbook.io/superdocs/reference/faq"))
         help_menu.addAction(faq_action)
 
         help_menu.addSeparator()
