@@ -12,6 +12,7 @@ Supervertaler supports CafeTran bilingual table DOCX workflows.
 
 1. In Supervertaler: **File → Open** and select the exported DOCX
 2. Translate and review in the grid
+3. Confirm segments when ready (`Ctrl+Enter`)
 
 ## Export back to CafeTran
 
@@ -22,3 +23,8 @@ Supervertaler supports CafeTran bilingual table DOCX workflows.
 
 1. In CafeTran: **Project → Import** and select the bilingual table
 2. Choose merge options as needed
+
+## Notes
+
+- Preserve pipe-style markers and any CAT tags.
+- Don’t change the bilingual table structure in Word.

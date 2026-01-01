@@ -9,7 +9,7 @@ Supervertaler is designed to work alongside professional CAT (Computer-Assisted 
 | **memoQ** | Bilingual DOCX, XLIFF | Bilingual DOCX |
 | **Trados Studio** | SDLPPX packages | SDLRPX return packages |
 | **Phrase (Memsource)** | Bilingual DOCX | Bilingual DOCX |
-| **CafeTran Espresso** | External View DOCX | External View DOCX |
+| **CafeTran Espresso** | Bilingual table DOCX | Bilingual table DOCX |
 
 ## Why Use Supervertaler with CAT Tools?
 
