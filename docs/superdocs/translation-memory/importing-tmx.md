@@ -8,6 +8,10 @@ TMX is the common exchange format for translation memories.
 2. Choose **Import TMX**
 3. Select your `.tmx` file
 
+{% hint style="info" %}
+Import your TM(s) before batch translation to maximize reuse.
+{% endhint %}
+
 ## Tips
 
 - Import TMs before batch translation to maximize reuse.

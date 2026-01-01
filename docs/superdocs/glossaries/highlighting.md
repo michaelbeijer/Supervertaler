@@ -11,3 +11,4 @@ When a glossary is active, Supervertaler highlights matching terms in the grid.
 ## Tips
 
 - If the highlight is too strong or too subtle, adjust it in [View Settings](../settings/view.md).
+- Tag highlighting and glossary highlighting are separate: tags are for placeholders/formatting, glossaries are for terminology.
