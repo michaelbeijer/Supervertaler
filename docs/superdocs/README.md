@@ -1,4 +1,4 @@
-# Superdocs — Supervertaler Help
+# Supervertaler Help
 
 <figure><img src=".gitbook/assets/supervertaler-logo.png" alt="Supervertaler Logo" width="200"><figcaption></figcaption></figure>
 
@@ -6,9 +6,9 @@
 >
 > If you're new, start with the Quick Start guide below — the manual is retained for historical reference and advanced workflows.
 
-Superdocs is the official online manual and help center for **Supervertaler**.
+This is the official online manual and help center for **Supervertaler**.
 
-## What is Superdocs?
+## What is Supervertaler Help?
 
 If you're new: start here → [Quick Start Guide](get-started/quick-start.md)
 
