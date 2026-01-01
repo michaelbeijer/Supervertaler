@@ -523,7 +523,7 @@ Fixed "Batch Translate 1 Segments" → "Batch Translate 1 Segment" (proper singu
 
 **Files Modified:**
 - `Supervertaler.py` - Arrow key navigation in both editor classes, grammar fix
-- `docs/guides/MANUAL.md` - New consolidated manual
+- `docs/guides/MANUAL.md` - New consolidated manual (now archived; primary docs live in Superdocs)
 - Deleted: `docs/guides/QUICK_START.md`, `docs/guides/CAT_WORKFLOW.md`
 
 ---
