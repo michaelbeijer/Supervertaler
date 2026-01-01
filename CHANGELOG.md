@@ -13,6 +13,7 @@ All notable changes to Supervertaler are documented in this file.
 ## 🔁 Maintenance Update (v1.9.74) - December 31, 2025
 
 - 🧹 **Removed in-app Superdocs viewer & generator** — The documentation generator and Qt viewer have been deprecated and removed from the application; official documentation is now hosted on GitBook: https://supervertaler.gitbook.io/superdocs/. The app now directs users to the online Superdocs. Packaging metadata and site links updated accordingly.
+- 📚 **Superdocs tooling docs refreshed** — Expanded the Tools section documentation (TMX Editor, AutoFingers, Supervoice voice commands, Image Extractor) to match the current UI and workflows.
 
 ---
 

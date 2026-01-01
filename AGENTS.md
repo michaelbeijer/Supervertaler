@@ -373,6 +373,17 @@ google_api_key=AI...
 - `docs/sv-icon.svg`
 - `docs/superdocs/.gitbook/assets/sv-icon.svg`
 
+### January 1, 2026 - Docs: Tools pages expanded
+
+- Rewrote the Superdocs Tools pages for accuracy against the current PyQt6 UI.
+- Expanded documentation for TMX Editor, AutoFingers, Supervoice (voice commands), and Image Extractor.
+
+**Files Modified:**
+- `docs/superdocs/tools/tmx-editor.md`
+- `docs/superdocs/tools/autofingers.md`
+- `docs/superdocs/tools/voice-commands.md`
+- `docs/superdocs/tools/image-extractor.md`
+
 ### December 31, 2025 - Version 1.9.73: External Prompt Editor Display
 
 **📝 External Prompts Now Display in Editor**
