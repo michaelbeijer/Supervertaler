@@ -6,8 +6,9 @@ Master these shortcuts to work faster in Supervertaler.
 
 | Shortcut | Action |
 |----------|--------|
-| `↓` or `Enter` | Next segment (when at end of cell) |
-| `↑` | Previous segment (when at start of cell) |
+| `↑/↓` | Previous/next segment when cursor is at the first/last line of the cell |
+| `Alt+Up` | Previous segment (always) |
+| `Alt+Down` | Next segment (always) |
 | `Ctrl+G` | Go to segment number |
 | `Page Up` | Previous page (pagination) |
 | `Page Down` | Next page (pagination) |
@@ -18,22 +19,27 @@ Master these shortcuts to work faster in Supervertaler.
 
 | Shortcut | Action |
 |----------|--------|
-| `Ctrl+Enter` | Confirm segment |
+| `Ctrl+Enter` | Confirm current (or selected) segment(s) |
+| `Ctrl+Shift+Enter` | Confirm selected segments |
 | `Ctrl+Z` | Undo |
 | `Ctrl+Y` | Redo |
 | `Ctrl+C` | Copy |
 | `Ctrl+V` | Paste |
 | `Ctrl+X` | Cut |
 | `Ctrl+A` | Select all (in cell) |
+| `Shift+Enter` | Insert line break inside a cell |
+| `Ctrl+,` | Insert next tag / wrap selection with a tag pair (when available) |
 
 ## Translation
 
 | Shortcut | Action |
 |----------|--------|
 | `Ctrl+T` | Translate current segment with AI |
-| `Ctrl+Shift+T` | Batch translate selected segments |
-| `Ctrl+I` | Copy source to target |
-| `Ctrl+D` | Clear target |
+| `Ctrl+Shift+T` | Translate multiple segments |
+| `Ctrl+1…9` | Insert match #1…#9 |
+| `Ctrl+Space` | Insert currently selected match |
+| `Ctrl+Up` | Previous match (results panel) |
+| `Ctrl+Down` | Next match (results panel) |
 
 ## Find & Replace
 
@@ -55,7 +61,7 @@ Master these shortcuts to work faster in Supervertaler.
 | Shortcut | Action |
 |----------|--------|
 | `Ctrl+K` | Open Superlookup |
-| `F7` | Concordance search with selection |
+| `Ctrl+Alt+L` | System-wide TM lookup (if configured) |
 
 ## View
 

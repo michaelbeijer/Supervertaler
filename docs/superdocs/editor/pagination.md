@@ -11,6 +11,11 @@ Pagination lets you work through large projects in pages (for example 50 segment
 
 Use the pagination controls to move between pages.
 
+### Shortcuts
+
+- **Page Up** → previous page
+- **Page Down** → next page
+
 {% hint style="info" %}
 Go to Segment is pagination-aware: jumping to a segment on another page will switch pages automatically.
 {% endhint %}
