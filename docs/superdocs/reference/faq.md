@@ -10,14 +10,73 @@ Welcome to the Supervertaler FAQ! Find answers to common questions about install
 
 ## 📑 Table of Contents
 
-1. [About Supervertaler](#about-supervertaler)
-2. [Getting Started](#getting-started)
-3. [Features & Capabilities](#features--capabilities)
-4. [Workflow & Integration](#workflow--integration)
-5. [Technical Questions](#technical-questions)
-6. [Troubleshooting](#troubleshooting)
-7. [Project Management](#project-management)
-8. [Development & Community](#development--community)
+- [About Supervertaler](#about-supervertaler)
+   - [What is Supervertaler?](#what-is-supervertaler)
+   - [Who created Supervertaler?](#who-created-supervertaler)
+   - [Who is Supervertaler for?](#who-is-supervertaler-for)
+   - [How does Supervertaler compare to other translation tools?](#how-does-supervertaler-compare-to-other-translation-tools)
+
+- [Getting Started](#getting-started)
+   - [What do I need to run Supervertaler?](#what-do-i-need-to-run-supervertaler)
+   - [How much does it cost?](#how-much-does-it-cost)
+   - [How do I install Supervertaler?](#how-do-i-install-supervertaler)
+   - [How do I get API keys?](#how-do-i-get-api-keys)
+
+- [Features & Capabilities](#features-capabilities)
+   - [What are the key features of v1.9.27?](#what-are-the-key-features-of-v1927)
+   - [What are the three view modes?](#what-are-the-three-view-modes)
+   - [What is the Unified Prompt Library?](#what-is-the-unified-prompt-library)
+   - [What is figure/image context support?](#what-is-figureimage-context-support)
+   - [How does the translation memory work?](#how-does-the-translation-memory-work)
+   - [How do keyboard shortcuts work?](#how-do-keyboard-shortcuts-work)
+   - [What is CAT tag handling?](#what-is-cat-tag-handling)
+
+- [Technical Questions](#technical-questions)
+   - [What AI models are supported?](#what-ai-models-are-supported)
+   - [How does AI translation work in Supervertaler?](#how-does-ai-translation-work-in-supervertaler)
+   - [What file formats are supported?](#what-file-formats-are-supported)
+   - [What programming language is it built with?](#what-programming-language-is-it-built-with)
+   - [Can I use Supervertaler offline?](#can-i-use-supervertaler-offline)
+   - [How do I set up Local LLM (Ollama)?](#how-do-i-set-up-local-llm-ollama)
+   - [What are the system requirements?](#what-are-the-system-requirements)
+
+- [Workflow & Integration](#workflow-integration)
+   - [How do I integrate Supervertaler with my CAT tool?](#how-do-i-integrate-supervertaler-with-my-cat-tool)
+   - [What's the typical translation workflow?](#whats-the-typical-translation-workflow)
+   - [How do I handle large documents?](#how-do-i-handle-large-documents)
+   - [Can I customize the AI prompts?](#can-i-customize-the-ai-prompts)
+   - [How do I use Universal Lookup?](#how-do-i-use-universal-lookup)
+
+- [Troubleshooting](#troubleshooting)
+   - [Why is translation slow?](#why-is-translation-slow)
+   - [API errors - what do they mean?](#api-errors-what-do-they-mean)
+   - [Filter highlighting not working](#filter-highlighting-not-working)
+   - [Termbase matches not showing](#termbase-matches-not-showing)
+   - [Voice dictation (Supervoice) not working](#voice-dictation-supervoice-not-working)
+   - [Universal Lookup not working](#universal-lookup-not-working)
+   - [How do I report a bug?](#how-do-i-report-a-bug)
+
+- [Project Management](#project-management)
+   - [What is a project file (.svproj)?](#what-is-a-project-file-svproj)
+   - [How do I save and reopen a project?](#how-do-i-save-and-reopen-a-project)
+   - [Does Supervertaler support multi-file projects?](#does-supervertaler-support-multi-file-projects)
+
+- [Development & Community](#development-community)
+   - [Why was Supervertaler created?](#why-was-supervertaler-created)
+   - [What's the development history?](#whats-the-development-history)
+   - [Why is it open source?](#why-is-it-open-source)
+   - [Why the name "Supervertaler"?](#why-the-name-supervertaler)
+
+- [Privacy & Commercial Use](#privacy-commercial-use)
+   - [Is my translation data private?](#is-my-translation-data-private)
+   - [Can I use Supervertaler commercially?](#can-i-use-supervertaler-commercially)
+   - [How can I support the project?](#how-can-i-support-the-project)
+
+- [More Resources](#more-resources)
+   - [Where can I learn more?](#where-can-i-learn-more)
+   - [What's next for Supervertaler?](#whats-next-for-supervertaler)
+
+- [Need More Help?](#need-more-help)
 
 ---
 
@@ -984,6 +1043,25 @@ See: [Prompt Library](../ai-translation/prompt-library.md) for full details
 **Submit to:** [github.com/michaelbeijer/Supervertaler/issues](https://github.com/michaelbeijer/Supervertaler/issues)
 
 **Response time:** Typically 1-3 days depending on complexity
+
+---
+
+## Project Management
+
+### What is a project file (.svproj)?
+
+A `.svproj` file is a Supervertaler project file. It stores your segments (source/target), statuses, language pair, and per-project settings so you can close and continue later.
+
+### How do I save and reopen a project?
+
+- **Save:** Ctrl+S
+- **Open:** Ctrl+O
+
+You can also use the File menu to save/open projects.
+
+### Does Supervertaler support multi-file projects?
+
+Yes. You can import an entire folder of supported files as a single project via **File → Import → Folder (Multiple Files)**.
 
 ---
 

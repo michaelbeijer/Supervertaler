@@ -81,7 +81,7 @@ const observer = new IntersectionObserver((entries) => {
 
 // Observe all cards
 document.addEventListener('DOMContentLoaded', () => {
-    const cards = document.querySelectorAll('.feature-card, .download-card, .doc-card, .why-card');
+    const cards = document.querySelectorAll('.feature-card, .download-card, .why-card');
     
     cards.forEach((card, index) => {
         card.style.opacity = '0';

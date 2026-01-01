@@ -942,53 +942,6 @@ body {
 }
 
 /* =============================================
-   Documentation Section
-   ============================================= */
-
-.documentation {
-    padding: var(--spacing-xl) 0;
-    background: var(--bg-secondary);
-}
-
-.docs-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: var(--spacing-md);
-}
-
-.doc-card {
-    background: white;
-    padding: var(--spacing-md);
-    border-radius: var(--radius-lg);
-    text-decoration: none;
-    color: var(--text-primary);
-    transition: all 0.3s;
-    border: 2px solid transparent;
-}
-
-.doc-card:hover {
-    border-color: var(--primary);
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-lg);
-}
-
-.doc-icon {
-    font-size: 2rem;
-    margin-bottom: var(--spacing-sm);
-}
-
-.doc-card h3 {
-    font-size: 1.25rem;
-    font-weight: 700;
-    margin-bottom: var(--spacing-xs);
-}
-
-.doc-card p {
-    color: var(--text-secondary);
-    font-size: 0.9rem;
-}
-
-/* =============================================
    Why Section
    ============================================= */
 
@@ -1352,7 +1305,6 @@ body {
     
     .features-grid,
     .download-grid,
-    .docs-grid,
     .screenshots-grid {
         grid-template-columns: 1fr;
     }
