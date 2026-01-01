@@ -6,7 +6,7 @@ This page shows you where to find **what changed between versions** of Supervert
 
 The complete changelog is maintained on GitHub:
 
-- https://github.com/michaelbeijer/Supervertaler/blob/main/CHANGELOG.md
+- [Open CHANGELOG.md on GitHub](https://github.com/michaelbeijer/Supervertaler/blob/main/CHANGELOG.md)
 
 ## What you’ll find there
 
