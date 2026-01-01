@@ -1,19 +1,19 @@
 # Changelog
 
-Supervertaler keeps the full changelog in the GitHub repository (this is a very common convention for open source projects).
+This page shows you where to find **what changed between versions** of Supervertaler.
 
-## ✅ Open the full changelog
+## ✅ View the full changelog
+
+The complete changelog is maintained on GitHub:
 
 - https://github.com/michaelbeijer/Supervertaler/blob/main/CHANGELOG.md
 
-This Superdocs page exists as a convenient entry point from the online help center.
+## What you’ll find there
 
-## Recommended approach
+- New features and improvements (what was added)
+- Bug fixes (what was corrected)
+- Version numbers and release dates
 
-- Keep `CHANGELOG.md` in the repo as the **single source of truth**.
-- Link to it from Superdocs (here) and from the website.
+## Tip
 
-That gives you:
-- A canonical changelog that’s versioned with code changes
-- A stable URL for GitHub releases, issues, and automation
-- A friendly “Documentation” navigation entry for end users
+If you’re troubleshooting, start by checking whether your issue was already fixed in a newer version.
