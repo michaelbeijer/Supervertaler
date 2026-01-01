@@ -2,9 +2,15 @@
 
 This guide will get you translating in under 5 minutes.
 
+If you're not sure where to begin: import a file, translate a few segments, then export back to your CAT tool.
+
 ## Step 1: Start Supervertaler
 
 Launch the application by running `Supervertaler.exe` (Windows) or `python Supervertaler.py` (from source).
+
+{% hint style="info" %}
+If you want to use AI translation, set up your API keys first: [Setting Up API Keys](api-keys.md).
+{% endhint %}
 
 ## Step 2: Import a Document
 
@@ -19,6 +25,10 @@ Launch the application by running `Supervertaler.exe` (Windows) or `python Super
 
 3. Select source and target languages when prompted
 4. Your document appears in the translation grid
+
+{% hint style="info" %}
+If you're working with memoQ/Trados/Phrase/CafeTran, always choose the matching import option so tags and statuses round-trip correctly.
+{% endhint %}
 
 ## Step 3: Navigate the Grid
 
@@ -39,23 +49,25 @@ The translation grid has 4 columns:
 | Previous segment | `↑` (at start of cell) |
 | Go to segment | `Ctrl+G` |
 
+Most navigation is designed to feel memoQ-like: arrow keys move within a cell, and at the top/bottom line they can jump between segments.
+
 ## Step 4: Translate a Segment
 
 ### Manual Translation
 
 1. Click in the **Target** cell
 2. Type your translation
-3. Press `Ctrl+Enter` to confirm
+3. Confirm the segment (confirmed statuses matter when exporting back to CAT tools)
 
 ### AI Translation
 
 1. Select a segment
-2. Press `Ctrl+T` to translate with AI
+2. Use the Translate action (single segment) or Batch Translate (multiple segments)
 3. Review and edit if needed
-4. Press `Ctrl+Enter` to confirm
+4. Confirm the segment when you're happy
 
-{% hint style="info" %}
-**Tip:** Set up your [API keys](api-keys.md) first to use AI translation.
+{% hint style="tip" %}
+If AI translation isn't available yet, double-check provider setup in [Setting Up API Keys](api-keys.md).
 {% endhint %}
 
 ## Step 5: Save Your Project
@@ -72,9 +84,20 @@ The translation grid has 4 columns:
    - **Bilingual Table** - Side-by-side source/target
    - **Return Package** - For CAT tool workflows
 
+{% hint style="warning" %}
+For CAT tool workflows, always export the matching return format (for example, SDLRPX for Trados return packages) to preserve tags and statuses.
+{% endhint %}
+
 ---
 
 ## What's Next?
+
+### Recommended next steps
+
+- [Setting Up API Keys](api-keys.md) — enable AI translation
+- [Installation](installation.md) — verify dependencies and optional components
+- [CAT Tool Integration](../cat-tools/overview.md) — memoQ/Trados/Phrase/CafeTran workflows
+- [Keyboard Shortcuts](../editor/keyboard-shortcuts.md) — faster editing and navigation
 
 <table data-view="cards">
 <thead>

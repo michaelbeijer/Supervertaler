@@ -2,7 +2,7 @@
 
 <figure><img src=".gitbook/assets/supervertaler-logo.png" alt="Supervertaler Logo" width="200"><figcaption></figcaption></figure>
 
-> Important: The original **Supervertaler Manual** has been archived here for reference: [Supervertaler Manual (archived)](https://github.com/michaelbeijer/Supervertaler/blob/main/docs/guides/MANUAL.md)
+> Important: The original **Supervertaler Manual** has been archived here for reference: [Supervertaler Manual (archived)](https://github.com/michaelbeijer/Supervertaler/blob/archive/manual-before-deletion/docs/guides/MANUAL.md)
 >
 > If you're new, start with the Quick Start guide below — the manual is retained for historical reference and advanced workflows.
 
@@ -10,8 +10,11 @@
 
 ## What is Supervertaler?
 
-Welcome to **Superdocs** — the official online manual and help center for Supervertaler. Start with the Quick Start guide if you're installing for the first time, or use the navigation on the left to jump to Guides, Reference, or Troubleshooting.
+Welcome to **Superdocs** — the official online manual and help center for Supervertaler.
 
+If you're new: start here → [Quick Start Guide](get-started/quick-start.md)
+
+If you're returning: use the left navigation for Guides, Reference, and Troubleshooting.
 
 Supervertaler serves as a **companion tool for translators**, helping you:
 
