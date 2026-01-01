@@ -26,40 +26,6 @@ Supervertaler serves as a **companion tool for translators**, helping you:
 - 📖 **Manage Terminology** with glossaries and automatic term highlighting
 - ✅ **Ensure Quality** with spellcheck, tag validation, and consistency checking
 
-## Quick Links
-
-<table data-view="cards">
-<thead>
-<tr>
-<th></th>
-<th></th>
-<th data-hidden data-card-target data-type="content-ref"></th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>🚀 Get Started</strong></td>
-<td>Install Supervertaler and set up your first project</td>
-<td><a href="get-started/quick-start.md">quick-start.md</a></td>
-</tr>
-<tr>
-<td><strong>🤖 AI Translation</strong></td>
-<td>Learn how to use AI for translation</td>
-<td><a href="ai-translation/overview.md">overview.md</a></td>
-</tr>
-<tr>
-<td><strong>🔗 CAT Tool Integration</strong></td>
-<td>Work with memoQ, Trados, Phrase, or CafeTran</td>
-<td><a href="cat-tools/overview.md">overview.md</a></td>
-</tr>
-<tr>
-<td><strong>⌨️ Keyboard Shortcuts</strong></td>
-<td>Master the shortcuts for faster translation</td>
-<td><a href="editor/keyboard-shortcuts.md">keyboard-shortcuts.md</a></td>
-</tr>
-</tbody>
-</table>
-
 ## Key Features
 
 ### Multi-LLM AI Translation
