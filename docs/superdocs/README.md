@@ -1,6 +1,6 @@
 # Supervertaler Help
 
-<figure><img src=".gitbook/assets/supervertaler-logo.png" alt="Supervertaler Logo" width="200"><figcaption></figcaption></figure>
+<figure><img src="https://supervertaler.com/screenshots/Supervertaler_grid.jpg" alt="Supervertaler grid screenshot" width="320"><figcaption></figcaption></figure>
 
 > Important: The original **Supervertaler Manual** has been archived here for reference: [Supervertaler Manual (archived)](https://github.com/michaelbeijer/Supervertaler/blob/archive/manual-before-deletion/docs/guides/MANUAL.md)
 >
