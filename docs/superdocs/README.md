@@ -1,4 +1,4 @@
-# Welcome to Supervertaler
+# Superdocs — Supervertaler Help
 
 <figure><img src=".gitbook/assets/supervertaler-logo.png" alt="Supervertaler Logo" width="200"><figcaption></figcaption></figure>
 
@@ -6,15 +6,17 @@
 >
 > If you're new, start with the Quick Start guide below — the manual is retained for historical reference and advanced workflows.
 
-**Supervertaler** is a professional desktop translation application that integrates AI-powered translation with traditional CAT (Computer-Assisted Translation) tool workflows.
+Superdocs is the official online manual and help center for **Supervertaler**.
 
-## What is Supervertaler?
-
-Welcome to **Superdocs** — the official online manual and help center for Supervertaler.
+## What is Superdocs?
 
 If you're new: start here → [Quick Start Guide](get-started/quick-start.md)
 
 If you're returning: use the left navigation for Guides, Reference, and Troubleshooting.
+
+## What is Supervertaler?
+
+**Supervertaler** is a professional desktop translation application that integrates AI-powered translation with traditional CAT (Computer-Assisted Translation) tool workflows.
 
 Supervertaler serves as a **companion tool for translators**, helping you:
 

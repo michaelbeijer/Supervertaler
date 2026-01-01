@@ -2,7 +2,7 @@
 
 ## 🚀 Get Started
 
-* [Welcome to Supervertaler](README.md)
+* [Superdocs — Supervertaler Help](README.md)
 * [Installation](get-started/installation.md)
 * [Quick Start Guide](get-started/quick-start.md)
 * [Setting Up API Keys](get-started/api-keys.md)
