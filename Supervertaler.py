@@ -5909,11 +5909,6 @@ class SupervertalerQt(QMainWindow):
         superdocs_action.triggered.connect(lambda: self._open_url("https://supervertaler.gitbook.io/superdocs/"))
         help_menu.addAction(superdocs_action)
 
-        # FAQ follows the help entry
-        faq_action = QAction("❓ FAQ", self)
-        faq_action.triggered.connect(lambda: self._open_url("https://supervertaler.gitbook.io/superdocs/reference/faq"))
-        help_menu.addAction(faq_action)
-
         help_menu.addSeparator()
 
         shortcuts_action = QAction("⌨️ Keyboard Shortcuts", self)
