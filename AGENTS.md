@@ -495,9 +495,9 @@ Enhanced the Go to Segment feature with a streamlined dialog:
 Merged two separate guides into a single comprehensive manual:
 
 - **Previous**: `QUICK_START.md` + `CAT_WORKFLOW.md` (separate files)
-- **Now**: `MANUAL.md` - Supervertaler Manual (single unified document)
+- **Now**: `MANUAL.md` - Supervertaler Manual (consolidated into online Superdocs)
 - **Contents**: Installation, API setup, CAT tool workflows (memoQ, Trados, CafeTran, Phrase), keyboard shortcuts, formatting, troubleshooting
-- **Location**: `docs/guides/MANUAL.md`
+- **Location**: `docs/guides/MANUAL.md` (archived); primary docs now hosted at https://supervertaler.gitbook.io/superdocs/
 
 **⬆️⬇️ memoQ-Style Arrow Key Navigation**
 
