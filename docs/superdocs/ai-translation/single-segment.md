@@ -5,10 +5,12 @@ Use single-segment translation when you want maximum control: translate one segm
 ## Typical workflow
 
 1. Select a segment
-2. Run **Translate current segment**
+2. Run **Translate Segment** (shortcut: `Ctrl+T`)
 3. Review the result
 4. Edit if needed
 5. Confirm the segment
+
+You can also trigger this from the menu: **Edit → Translate Segment**.
 
 ## Tips
 

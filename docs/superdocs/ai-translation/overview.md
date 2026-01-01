@@ -32,9 +32,13 @@ Translate one segment at a time:
 
 Translate multiple segments at once:
 - Select segments (Shift+click for range)
-- Press `Ctrl+Shift+T` or use **Translation → Batch Translate**
+- Press `Ctrl+Shift+T` or use **Edit → Batch Translate**
 - Configure options in the dialog
 - All selected segments are translated
+
+{% hint style="info" %}
+Supervertaler has multiple batch scopes (selected / not-started / etc.). Start with **Edit → Batch Translate → Translate all not-started & pre-translated**.
+{% endhint %}
 
 ### TM + AI Hybrid
 
@@ -101,19 +105,16 @@ When batch translating, you can choose the provider in the dialog.
 
 ## Cost Management
 
-### API Costs
+### API costs
 
-OpenAI, Anthropic, and Google charge per token:
-- GPT-4o: ~$5/1M input, ~$15/1M output tokens
-- Claude 3.5: ~$3/1M input, ~$15/1M output tokens
-- Gemini: ~$0.50/1M input, ~$1.50/1M output tokens
+Cloud providers typically charge by usage (tokens). Pricing and free tiers change over time, so treat each provider dashboard as the source of truth.
 
 ### Reducing Costs
 
-1. **Use Ollama** - Free, runs locally
-2. **Batch efficiently** - Translate similar segments together
-3. **Pre-translate with TM** - Use existing translations first
-4. **Choose efficient models** - GPT-4o-mini is cheaper than GPT-4o
+1. **Use Ollama** (local) when appropriate
+2. **Translate only what you need** (for example not-started segments)
+3. **Pre-translate with TM** when you have good matches
+4. **Use smaller/faster models** for drafts, larger models for final passes
 
 ---
 

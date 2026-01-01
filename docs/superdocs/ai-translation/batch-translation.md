@@ -10,7 +10,7 @@ Translate multiple segments at once with AI.
    
 2. **Start batch**:
    - Press `Ctrl+Shift+T`
-   - Or go to **Translation → Batch Translate**
+   - Or go to **Edit → Batch Translate**
 
 ## Batch Dialog Options
 

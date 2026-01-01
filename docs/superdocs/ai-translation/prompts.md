@@ -13,6 +13,13 @@ Prompts control how the AI translates (tone, domain, rules, formatting).
 If your text contains formatting or CAT tool tags, instruct the model to preserve them exactly.
 {% endhint %}
 
+## Quick checklist
+
+- Specify the language direction (source → target)
+- Specify style and audience (formal/informal, US/UK spelling, etc.)
+- Tell the model what to do with **tags/placeholders** (keep, don’t reorder, don’t delete)
+- Tell the model what to do with terminology (use glossary terms when provided)
+
 ## Next
 
 - [Prompt Library](prompt-library.md)
