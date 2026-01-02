@@ -35,4 +35,4 @@ Cleaning tags can improve matching, but it can also remove important formatting.
 ## Related
 
 - [Importing TMX files](../translation-memory/importing-tmx.md)
-- [Translation memory](../translation-memory/README.md)
+- [Translation memory](../translation-memory/basics.md)

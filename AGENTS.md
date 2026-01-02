@@ -360,6 +360,14 @@ google_api_key=AI...
 
 ## 🔄 Recent Development History
 
+### January 2, 2026 - Docs: Superdocs link sanity sweep
+
+- Fixed a broken internal Superdocs link in the TMX Editor page (Related → Translation memory).
+- Re-ran SUMMARY.md and internal markdown link checks to confirm clean navigation.
+
+**Files Modified:**
+- `docs/superdocs/tools/tmx-editor.md`
+
 ### January 1, 2026 - Docs: Superdocs FAQ integration & Sv website icon
 
 - Integrated the full legacy repository FAQ into Superdocs (GitBook source) so the FAQ lives inside the online help center.
