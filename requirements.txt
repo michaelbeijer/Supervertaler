@@ -1,9 +1,15 @@
 # Supervertaler Dependencies
 # Install all required packages: pip install -r requirements.txt
+#
+# For minimal install (core only): pip install supervertaler
+# For full install: pip install supervertaler[all]
+# For specific features: pip install supervertaler[supermemory,voice]
+
+# ===== CORE DEPENDENCIES (Required) =====
+# These are installed with: pip install supervertaler
 
 # Core UI Framework
 PyQt6>=6.5.0
-PyQt6-WebEngine>=6.5.0
 
 # Document Processing
 python-docx>=0.8.11
@@ -11,7 +17,7 @@ openpyxl>=3.1.0
 Pillow>=10.0.0
 lxml>=4.9.0
 
-# AI/LLM Providers
+# AI/LLM Providers (lightweight API clients)
 openai>=1.0.0
 anthropic>=0.7.0
 google-generativeai>=0.3.0
@@ -26,50 +32,57 @@ sacrebleu>=2.3.1
 # Clipboard Operations (Universal Lookup)
 pyperclip>=1.8.2
 
-# Keyboard Control (AutoFingers)
-keyboard>=0.13.5
-
-# PDF Processing (PDF Rescue)
-PyMuPDF>=1.23.0
-
-# Audio Processing (Voice Dictation)
-numpy>=1.24.0
-sounddevice>=0.4.6
-
-# Semantic Search (Supermemory)
-sentence-transformers>=2.2.0
-chromadb==0.6.3
-tokenizers==0.22.0
-
 # YAML Support
 pyyaml>=6.0.0
 
 # Markdown Rendering (Superdocs)
 markdown>=3.4.0
 
-# Spellchecking
+# Basic Spellchecking (lightweight, works offline)
 pyspellchecker>=0.7.0
-cyhunspell>=2.0.0
 
-# Machine Translation APIs
-boto3>=1.28.0  # Amazon Translate
-deepl>=1.15.0  # DeepL API
 
-# ===== Optional Dependencies =====
-# Uncomment the sections below to enable optional features
+# ===== OPTIONAL DEPENDENCIES =====
+# Install specific features with: pip install supervertaler[feature_name]
+# Or install everything with: pip install supervertaler[all]
 
-# Voice Dictation (Supervoice)
-# Requires: ffmpeg installed on your system
-# openai-whisper>=20230314
-# sounddevice>=0.4.6
+# [supermemory] - Semantic Search (~600 MB)
+# Vector-indexed semantic search across translation memories
+sentence-transformers>=2.2.0
+chromadb==0.6.3
+tokenizers==0.22.0
 
-# Automation Features (AutoFingers/Universal Lookup)
-# Note: AutoFingers is Windows/memoQ-specific
-# pyautogui>=0.9.53
-ahk>=1.0.0  # Python wrapper for AutoHotkey (Windows only, for Superlookup global hotkey)
+# [web] - Built-in Web Browser (~100 MB)
+# Web browser for Superlookup research resources
+PyQt6-WebEngine>=6.5.0
 
-# ===== Platform-Specific Notes =====
-# - Linux: tkinter is not needed (removed from imports)
-# - Windows: All features available including AutoFingers
-# - macOS: All features available except AutoFingers
+# [pdf] - PDF Processing (~30 MB)
+# PDF text extraction and OCR (PDF Rescue)
+PyMuPDF>=1.23.0
+
+# [voice] - Voice Dictation (~150 MB, requires ffmpeg)
+# Voice commands and dictation using Whisper
+numpy>=1.24.0
+sounddevice>=0.4.6
+# openai-whisper>=20230314  # Uncomment for local Whisper model
+
+# [mt] - Additional MT Providers (~30 MB)
+# DeepL API and Amazon Translate
+boto3>=1.28.0
+deepl>=1.15.0
+
+# [hunspell] - Advanced Spellcheck (~20 MB)
+# Hunspell backend for 100+ languages
+spylls>=0.1.7  # Pure Python Hunspell (replaces cyhunspell which doesn't work on Windows/Py3.12)
+
+# [windows] - Windows Automation (~10 MB)
+# AutoFingers and keyboard control (Windows only)
+keyboard>=0.13.5
+ahk>=1.0.0
+
+
+# ===== PLATFORM-SPECIFIC NOTES =====
+# - Linux: Install Hunspell dictionaries: sudo apt install hunspell-<lang>
+# - macOS: All features available except AutoFingers (Windows-only)
+# - Windows: All features available
 # - Supervoice: Requires ffmpeg system package on all platforms

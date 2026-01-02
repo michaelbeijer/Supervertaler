@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** December 31, 2025 | **Version:** v1.9.74
+> **Last Updated:** January 3, 2025 | **Version:** v1.9.76
 
 ---
 
@@ -12,13 +12,13 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.74 (December 2025) |
+| **Version** | v1.9.76 (January 2025) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
 | **Repository** | https://github.com/michaelbeijer/Supervertaler |
 | **Website** | https://supervertaler.com |
-| **Main File** | `Supervertaler.py` (~34,000+ lines) |
+| **Main File** | `Supervertaler.py` (~38,000+ lines) |
 | **Modules** | 60+ specialized modules in `modules/` directory |
 
 ### Key Capabilities
@@ -30,6 +30,50 @@
 - **Document Handling**: DOCX, bilingual DOCX, PDF (via OCR), simple TXT, **Multi-file folder import**
 - **Quality Assurance**: Spellcheck, tag validation, consistency checking
 - **Superlookup**: Unified concordance hub with TM, Termbase, Supermemory, MT, and Web Resources
+- **Modular Architecture**: Optional features can be enabled/disabled to reduce disk space
+
+---
+
+## 📦 Modular Installation (NEW in v1.9.75)
+
+Supervertaler now supports modular installation - install only the features you need!
+
+### Installation Options
+
+| Command | Size | Description |
+|---------|------|-------------|
+| `pip install supervertaler` | ~300 MB | Core features only |
+| `pip install supervertaler[supermemory]` | +600 MB | Add semantic search |
+| `pip install supervertaler[voice]` | +150 MB | Add voice commands |
+| `pip install supervertaler[web]` | +100 MB | Add web browser |
+| `pip install supervertaler[all]` | ~1.2 GB | Everything |
+
+### Feature Modules
+
+| Module | pip Extra | Size | Description |
+|--------|-----------|------|-------------|
+| **Supermemory** | `supermemory` | ~600 MB | Vector-indexed semantic TM search |
+| **Supervoice** | `voice` | ~150 MB | Voice dictation & commands |
+| **Web Browser** | `web` | ~100 MB | Built-in browser for Superlookup |
+| **PDF Rescue** | `pdf` | ~30 MB | PDF text extraction/OCR |
+| **MT Providers** | `mt` | ~30 MB | DeepL, Amazon Translate |
+| **Hunspell** | `hunspell` | ~20 MB | Advanced spellcheck |
+| **AutoFingers** | `windows` | ~10 MB | Windows automation |
+
+### Settings → Features Tab
+
+Users can enable/disable optional features in **Settings → 📦 Features**. This shows:
+- Which features are installed (✅) vs not installed (❌)
+- Size estimates for each feature
+- Installation commands for missing features
+
+### Feature Manager Module
+
+The `modules/feature_manager.py` provides:
+- `FeatureManager` class for checking feature availability
+- `FEATURE_MODULES` dict defining all optional features
+- `lazy_import_*()` functions for conditional imports
+- `check_feature(id)` quick availability check
 
 ---
 
@@ -37,8 +81,9 @@
 
 ```
 Supervertaler/
-├── Supervertaler.py          # Main application (~32,000+ lines)
+├── Supervertaler.py          # Main application (~38,000+ lines)
 ├── modules/                   # 60+ specialized modules
+│   ├── feature_manager.py    # Modular feature management (NEW)
 │   ├── llm_clients.py        # OpenAI, Anthropic, Google Gemini, Ollama
 │   ├── translation_memory.py # TM matching and storage
 │   ├── termbase_manager.py   # Terminology management
@@ -359,6 +404,112 @@ google_api_key=AI...
 ---
 
 ## 🔄 Recent Development History
+
+### January 3, 2025 - Version 1.9.76: Onboarding, Spellcheck & Project Info
+
+**🎉 First-Run Welcome for New Users**
+
+New users now get a welcoming introduction to the modular architecture:
+
+- **Welcome Dialog**: Shows on first launch explaining modular pip extras
+- **Auto-Navigate**: Opens Settings → Features tab automatically
+- **Don't Show Again**: Checkbox to skip on future launches (uses CheckmarkCheckBox)
+- **Bug Fix**: First-run flag now saves to correct file (ui_preferences.json)
+
+**💰 Free vs Paid LLM Info Box**
+
+Added clear pricing information to Settings → AI Settings:
+
+- **Google Gemini**: FREE tier (15 req/min, 1M tokens/day)
+- **Ollama**: 100% FREE (runs locally)
+- **OpenAI/Claude**: Paid API only
+- **Important Note**: Clarifies that ChatGPT Plus and Claude Pro web subscriptions do NOT include API access
+
+**🔤 Spylls Spellcheck (Windows Fix)**
+
+Fixed Hunspell spellcheck on Windows by switching to `spylls`:
+
+- **Problem**: `cyhunspell` fails to compile on Python 3.12+ / Windows
+- **Solution**: Replaced with `spylls` - pure Python Hunspell implementation
+- **Benefit**: Supports regional variants (en-US vs en-GB distinguish "colour/color")
+- **Backend Priority**: hunspell → spylls → pyspellchecker (graceful degradation)
+
+**🌍 Language Variant Support**
+
+Spellcheck now supports regional language variants:
+
+- **Dropdown shows variants**: "English (US)", "English (GB)", "Portuguese (BR)", etc.
+- **Subdirectory search**: Finds dictionaries in `dictionaries/en/en_GB.dic` subfolders
+- **Added en_ZA**: South African English variant mapping
+- **Regional spelling works**: "colour" correct in en_GB, incorrect in en_US
+
+**📋 Improved Spellcheck Info Dialog**
+
+Enhanced Spellcheck Info dialog with better documentation:
+
+- **Three backend display**: Shows Hunspell, Spylls, pyspellchecker status separately
+- **Active backend highlighting**: Current backend highlighted in green
+- **Bundled dict info**: Explains Spylls includes EN, RU, SV dictionaries
+- **Project links section**: Links to pyspellchecker, spylls, Hunspell GitHub pages
+- **Add More Dictionaries**: Renamed section with clearer instructions
+
+**📋 Project Info Dialog (NEW)**
+
+New dialog to view comprehensive project information:
+
+- **Menu**: File → 📋 Project Info...
+- **Overview section**: Name, file path, languages, created/modified dates, project ID
+- **Statistics section**: Segment counts, word counts, character counts, progress %
+- **Source Files section**: Shows original DOCX, memoQ, CafeTran, Trados paths
+- **Resources section**: Active prompt, TMs, glossaries, spellcheck settings
+
+**Files Modified:**
+- `Supervertaler.py` - Added `_show_first_run_welcome()`, `show_project_info_dialog()`, free/paid info box, spellcheck dialog improvements
+- `modules/feature_manager.py` - Changed hunspell check_import from `cyhunspell` to `spylls`
+- `modules/spellcheck_manager.py` - Added spylls backend, language variants, subdirectory search, CODE_TO_DISPLAY mapping
+- `pyproject.toml` - Replaced `cyhunspell>=2.0.0` with `spylls>=0.1.7`
+- `requirements.txt` - Updated hunspell dependency to spylls
+
+---
+
+### January 2, 2025 - Version 1.9.75: Modular Architecture
+
+**📦 Modular Installation System**
+
+Major new feature allowing users to install only the features they need, significantly reducing disk space requirements:
+
+- **Feature Manager Module**: New `modules/feature_manager.py` provides centralized feature detection and management
+- **pip Extras**: Install specific features with `pip install supervertaler[supermemory,voice,web]`
+- **Settings → Features Tab**: New UI showing installed/missing features with size estimates and install commands
+- **Lazy Loading Helpers**: Functions like `lazy_import_supermemory()` for conditional imports
+
+**Installation Options:**
+- `pip install supervertaler` - Core only (~300 MB)
+- `pip install supervertaler[supermemory]` - Add semantic search (+600 MB)
+- `pip install supervertaler[voice]` - Add voice commands (+150 MB)
+- `pip install supervertaler[all]` - Everything (~1.2 GB)
+
+**Feature Modules:**
+| Module | pip Extra | Size |
+|--------|-----------|------|
+| Supermemory | `supermemory` | ~600 MB |
+| Supervoice | `voice` | ~150 MB |
+| Web Browser | `web` | ~100 MB |
+| PDF Rescue | `pdf` | ~30 MB |
+| MT Providers | `mt` | ~30 MB |
+| Hunspell | `hunspell` | ~20 MB |
+| AutoFingers | `windows` | ~10 MB |
+
+**Files Created:**
+- `modules/feature_manager.py` - FeatureManager class, FEATURE_MODULES dict, lazy import helpers
+
+**Files Modified:**
+- `Supervertaler.py` - Added `_create_features_settings_tab()`, version bump to 1.9.75
+- `pyproject.toml` - Reorganized dependencies into core vs optional extras
+- `requirements.txt` - Updated with modular structure documentation
+- `AGENTS.md` - Added modular installation documentation
+
+---
 
 ### January 2, 2026 - Docs: Superdocs link sanity sweep
 

@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "Supervertaler"
-version = "1.9.57"
-description = "Professional AI-powered translation workbench with multi-LLM support, glossary system, TM, spellcheck, voice commands, and PyQt6 interface"
+version = "1.9.75"
+description = "Professional AI-powered translation workbench with multi-LLM support, glossary system, TM, spellcheck, voice commands, and PyQt6 interface. Modular architecture - install only the features you need!"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
@@ -57,7 +57,7 @@ classifiers = [
 dependencies = [
     # Core UI Framework
     "PyQt6>=6.5.0",
-    "PyQt6-WebEngine>=6.5.0",
+    # Note: PyQt6-WebEngine moved to [web] extra
     
     # Document Processing
     "python-docx>=0.8.11",
@@ -65,7 +65,7 @@ dependencies = [
     "Pillow>=10.0.0",
     "lxml>=4.9.0",
     
-    # AI/LLM Providers
+    # AI/LLM Providers (core - lightweight clients)
     "openai>=1.0.0",
     "anthropic>=0.7.0",
     "google-generativeai>=0.3.0",
@@ -80,16 +80,13 @@ dependencies = [
     # Clipboard Operations
     "pyperclip>=1.8.2",
     
-    # PDF Processing (PDF Rescue)
-    "PyMuPDF>=1.23.0",
-    
-    # Audio Processing (Voice Dictation)
-    "numpy>=1.24.0",
-    "sounddevice>=0.4.6",
-    
-    # Semantic Search (Supermemory)
-    "sentence-transformers>=2.2.0",
-    "chromadb>=0.4.0",
+    # Note: Heavy dependencies moved to optional extras:
+    # - sentence-transformers, chromadb → [supermemory]
+    # - PyMuPDF → [pdf]
+    # - sounddevice, numpy, whisper → [voice]
+    # - boto3, deepl → [mt]
+    # - spylls → [hunspell]  (pure Python Hunspell, works on Windows)
+    # - PyQt6-WebEngine → [web]
     
     # YAML Support
     "pyyaml>=6.0.0",
@@ -97,28 +94,71 @@ dependencies = [
     # Markdown Rendering
     "markdown>=3.4.0",
     
-    # Spellchecking
+    # Basic Spellchecking (lightweight, works offline)
     "pyspellchecker>=0.7.0",
-    
-    # Machine Translation APIs
+]
+
+[project.optional-dependencies]
+# Modular feature extras - install only what you need!
+# Example: pip install supervertaler[supermemory,voice]
+
+# Semantic search across translation memories (~600 MB)
+supermemory = [
+    "sentence-transformers>=2.2.0",
+    "chromadb>=0.4.0",
+]
+
+# Voice dictation and commands (~150 MB, requires ffmpeg)
+voice = [
+    "openai-whisper>=20230314",
+    "sounddevice>=0.4.6",
+    "numpy>=1.24.0",
+]
+
+# Built-in web browser for research (~100 MB)
+web = [
+    "PyQt6-WebEngine>=6.5.0",
+]
+
+# PDF text extraction and OCR (~30 MB)
+pdf = [
+    "PyMuPDF>=1.23.0",
+]
+
+# Additional MT providers: DeepL, Amazon (~30 MB)
+mt = [
     "boto3>=1.28.0",
     "deepl>=1.15.0",
 ]
 
-[project.optional-dependencies]
-voice = [
-    "openai-whisper>=20230314",
+# Advanced Hunspell spellcheck with regional variants (~20 MB)
+hunspell = [
+    "spylls>=0.1.7",  # Pure Python - works on all platforms including Windows
 ]
+
+# Windows automation features (~10 MB)
 windows = [
     "keyboard>=0.13.5",
     "ahk>=1.0.0",
-    "cyhunspell>=2.0.0",
 ]
+
+# Minimal install - just core translation features (~300 MB)
+core = []
+
+# Full install - everything (~1.2 GB)
 all = [
+    "sentence-transformers>=2.2.0",
+    "chromadb>=0.4.0",
     "openai-whisper>=20230314",
+    "sounddevice>=0.4.6",
+    "numpy>=1.24.0",
+    "PyQt6-WebEngine>=6.5.0",
+    "PyMuPDF>=1.23.0",
+    "boto3>=1.28.0",
+    "deepl>=1.15.0",
+    "spylls>=0.1.7",
     "keyboard>=0.13.5",
     "ahk>=1.0.0",
-    "cyhunspell>=2.0.0",
 ]
 
 [project.urls]

@@ -34,9 +34,9 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.74"
+__version__ = "1.9.76"
 __phase__ = "0.9"
-__release_date__ = "2025-12-31"
+__release_date__ = "2025-01-03"
 __edition__ = "Qt"
 
 import sys
@@ -4944,6 +4944,81 @@ class SupervertalerQt(QMainWindow):
         if general_settings.get('auto_check_models', True):
             from PyQt6.QtCore import QTimer
             QTimer.singleShot(2000, lambda: self._check_for_new_models(force=False))  # 2 second delay
+        
+        # First-run check - show Features tab to new users
+        if not general_settings.get('first_run_completed', False):
+            from PyQt6.QtCore import QTimer
+            QTimer.singleShot(500, self._show_first_run_welcome)
+    
+    def _show_first_run_welcome(self):
+        """Show welcome message and Features tab on first run."""
+        try:
+            # Create a custom dialog with checkbox
+            from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QCheckBox, QDialogButtonBox
+            
+            dialog = QDialog(self)
+            dialog.setWindowTitle("Welcome to Supervertaler!")
+            dialog.setMinimumWidth(450)
+            
+            layout = QVBoxLayout(dialog)
+            layout.setSpacing(15)
+            
+            # Icon and title
+            title_label = QLabel("<h2>Welcome to Supervertaler! 🎉</h2>")
+            layout.addWidget(title_label)
+            
+            # Message
+            msg_label = QLabel(
+                "Supervertaler uses a <b>modular architecture</b> - you can install "
+                "only the features you need to save disk space.<br><br>"
+                "We'll now show you the <b>Features</b> tab where you can see which "
+                "optional components are installed and how to add more.<br><br>"
+                "💡 <b>Tip:</b> You can always access this from Settings → Features."
+            )
+            msg_label.setWordWrap(True)
+            layout.addWidget(msg_label)
+            
+            # Checkbox - use our standard green checkmark style
+            dont_show_checkbox = CheckmarkCheckBox("Don't show this again")
+            dont_show_checkbox.setChecked(True)  # Default to not showing again
+            layout.addWidget(dont_show_checkbox)
+            
+            # OK button
+            button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok)
+            button_box.accepted.connect(dialog.accept)
+            layout.addWidget(button_box)
+            
+            dialog.exec()
+            
+            # Navigate to Settings → Features tab
+            self.main_tabs.setCurrentIndex(3)  # Settings tab
+            if hasattr(self, 'settings_tabs'):
+                # Find the Features tab index
+                for i in range(self.settings_tabs.count()):
+                    if "Features" in self.settings_tabs.tabText(i):
+                        self.settings_tabs.setCurrentIndex(i)
+                        break
+            
+            # Save the preference to ui_preferences.json (where load_general_settings reads from)
+            if dont_show_checkbox.isChecked():
+                prefs_file = self.user_data_path / "ui_preferences.json"
+                prefs = {}
+                if prefs_file.exists():
+                    try:
+                        with open(prefs_file, 'r') as f:
+                            prefs = json.load(f)
+                    except:
+                        pass
+                if 'general_settings' not in prefs:
+                    prefs['general_settings'] = {}
+                prefs['general_settings']['first_run_completed'] = True
+                with open(prefs_file, 'w', encoding='utf-8') as f:
+                    json.dump(prefs, f, indent=2)
+                self.log("✅ First-run welcome completed (won't show again)")
+            else:
+                self.log("✅ First-run welcome shown (will show again next time)")
+        except Exception as e:
+            self.log(f"⚠️ First-run welcome error: {e}")
     
     def _auto_init_supermemory(self):
         """Auto-initialize Supermemory in the background at startup."""
@@ -5625,6 +5700,13 @@ class SupervertalerQt(QMainWindow):
         export_tm_action = QAction("TMX from &TM(s) for Current Project...", self)
         export_tm_action.triggered.connect(self.export_tmx_from_tm_database)
         export_menu.addAction(export_tm_action)
+        
+        file_menu.addSeparator()
+        
+        # Project Info
+        project_info_action = QAction("📋 Project &Info...", self)
+        project_info_action.triggered.connect(self.show_project_info_dialog)
+        file_menu.addAction(project_info_action)
         
         file_menu.addSeparator()
         
@@ -12443,16 +12525,20 @@ class SupervertalerQt(QMainWindow):
         debug_tab = self._create_debug_settings_tab()
         settings_tabs.addTab(scroll_area_wrapper(debug_tab), "🐛 Debug")
 
-        # ===== TAB 8: Domain Detection Keywords =====
+        # ===== TAB 8: Features (Optional Modules) =====
+        features_tab = self._create_features_settings_tab()
+        settings_tabs.addTab(scroll_area_wrapper(features_tab), "📦 Features")
+
+        # ===== TAB 9: Domain Detection Keywords =====
         domain_keywords_tab = self._create_domain_keywords_tab()
         settings_tabs.addTab(scroll_area_wrapper(domain_keywords_tab), "🎯 Domain Detection")
 
-        # ===== TAB 9: Keyboard Shortcuts =====
+        # ===== TAB 10: Keyboard Shortcuts =====
         from modules.keyboard_shortcuts_widget import KeyboardShortcutsWidget
         shortcuts_tab = KeyboardShortcutsWidget(self)
         settings_tabs.addTab(shortcuts_tab, "⌨️ Keyboard Shortcuts")
 
-        # ===== TAB 10: Log (moved from main tabs) =====
+        # ===== TAB 11: Log (moved from main tabs) =====
         log_tab = self.create_log_tab()
         settings_tabs.addTab(log_tab, "📋 Log")
         
@@ -12563,6 +12649,41 @@ class SupervertalerQt(QMainWindow):
         enabled_providers = self.load_provider_enabled_states()
         general_settings = self.load_general_settings()
         general_prefs = self.load_general_settings()
+        
+        # ========== INFO BOX: Free vs Paid Providers ==========
+        info_frame = QFrame()
+        info_frame.setStyleSheet("""
+            QFrame {
+                background-color: #E8F4FD;
+                border: 1px solid #B8D4E8;
+                border-radius: 6px;
+                padding: 10px;
+            }
+            QLabel {
+                background: transparent;
+                border: none;
+            }
+        """)
+        info_layout = QVBoxLayout(info_frame)
+        info_layout.setContentsMargins(12, 8, 12, 8)
+        info_layout.setSpacing(4)
+        
+        info_title = QLabel("💡 <b>Free vs Paid API Access</b>")
+        info_layout.addWidget(info_title)
+        
+        info_text = QLabel(
+            "• <b>Google Gemini</b> — <span style='color: green;'>FREE tier available</span> (15 req/min, 1M tokens/day)<br>"
+            "• <b>Ollama</b> — <span style='color: green;'>100% FREE</span> (runs locally on your computer)<br>"
+            "• <b>OpenAI</b> — Paid API only (no free tier)<br>"
+            "• <b>Anthropic Claude</b> — Paid API only (no free tier)<br><br>"
+            "⚠️ <b>Note:</b> This app uses <i>API keys</i>, not web chat interfaces. "
+            "ChatGPT Plus and Claude Pro web subscriptions do NOT include API access."
+        )
+        info_text.setWordWrap(True)
+        info_text.setStyleSheet("font-size: 11px;")
+        info_layout.addWidget(info_text)
+        
+        layout.addWidget(info_frame)
         
         # ========== SECTION 1: LLM Provider Selection ==========
         provider_group = QGroupBox("🤖 LLM Provider Selection")
@@ -15066,6 +15187,239 @@ class SupervertalerQt(QMainWindow):
         layout.addWidget(save_btn)
         
         layout.addStretch()
+        
+        return tab
+
+    def _create_features_settings_tab(self):
+        """Create Features Settings tab - view optional modules and installation status."""
+        from PyQt6.QtWidgets import QGroupBox, QPushButton, QProgressBar, QTextEdit, QFrame, QSplitter
+        from modules.feature_manager import get_feature_manager, FEATURE_MODULES
+        
+        tab = QWidget()
+        main_layout = QVBoxLayout(tab)
+        main_layout.setContentsMargins(15, 15, 15, 15)
+        main_layout.setSpacing(10)
+        
+        fm = get_feature_manager(str(self.user_data_path))
+        
+        # Header info with legend
+        header_info = QLabel(
+            "📦 <b>Optional Feature Modules</b><br>"
+            "<span style='color:#666;'>Supervertaler has a modular design. Core features work out of the box. "
+            "Optional features require additional packages - see install commands on the right.</span><br><br>"
+            "<b>✅ Installed</b> — Feature is ready to use&nbsp;&nbsp;&nbsp;&nbsp;"
+            "<b>❌ Not installed</b> — Run the install command to add this feature"
+        )
+        header_info.setTextFormat(Qt.TextFormat.RichText)
+        header_info.setStyleSheet("font-size: 9pt; color: #444; padding: 10px; background-color: #E3F2FD; border-radius: 4px;")
+        header_info.setWordWrap(True)
+        main_layout.addWidget(header_info)
+        
+        # Size summary
+        total_available = sum(f.size_mb for f in FEATURE_MODULES.values() if f.is_available())
+        total_possible = sum(f.size_mb for f in FEATURE_MODULES.values())
+        installed_count = sum(1 for f in FEATURE_MODULES.values() if f.is_available())
+        total_count = len(FEATURE_MODULES)
+        
+        size_label = QLabel(
+            f"💾 <b>Status:</b> {installed_count}/{total_count} optional features installed (~{total_available} MB of ~{total_possible} MB possible)"
+        )
+        size_label.setTextFormat(Qt.TextFormat.RichText)
+        size_label.setStyleSheet("font-size: 9pt; padding: 3px;")
+        main_layout.addWidget(size_label)
+        
+        # === TWO-COLUMN LAYOUT ===
+        columns_layout = QHBoxLayout()
+        columns_layout.setSpacing(15)
+        
+        # LEFT COLUMN: Feature groups (scrollable)
+        left_widget = QWidget()
+        left_layout = QVBoxLayout(left_widget)
+        left_layout.setContentsMargins(0, 0, 0, 0)
+        left_layout.setSpacing(10)
+        
+        # Group features by category
+        categories = fm.get_features_by_category()
+        
+        for category, features in categories.items():
+            group = QGroupBox(f"📁 {category}")
+            group_layout = QVBoxLayout()
+            group_layout.setSpacing(6)
+            
+            for feature in features:
+                # Main feature row
+                feature_layout = QHBoxLayout()
+                feature_layout.setSpacing(8)
+                
+                # Status icon and name
+                if feature.is_available():
+                    status_text = f"✅ {feature.icon} <b>{feature.name}</b>"
+                    status_style = "font-size: 9pt; color: #2E7D32;"
+                else:
+                    status_text = f"❌ {feature.icon} <b>{feature.name}</b>"
+                    status_style = "font-size: 9pt; color: #C62828;"
+                
+                name_label = QLabel(status_text)
+                name_label.setTextFormat(Qt.TextFormat.RichText)
+                name_label.setStyleSheet(status_style)
+                feature_layout.addWidget(name_label, stretch=1)
+                
+                # Size label
+                size_lbl = QLabel(f"~{feature.size_mb} MB")
+                size_lbl.setStyleSheet("color: #666; font-size: 8pt;")
+                size_lbl.setFixedWidth(55)
+                feature_layout.addWidget(size_lbl)
+                
+                group_layout.addLayout(feature_layout)
+                
+                # Description + packages (always show packages)
+                pkg_str = ", ".join(feature.packages)
+                if feature.is_available():
+                    # Installed: show packages in blue/teal
+                    desc_text = (
+                        f"{feature.description}<br>"
+                        f"<span style='color:#0277BD; font-family:Consolas,monospace;'>📦 {pkg_str}</span>"
+                    )
+                else:
+                    # Not installed: show packages in red
+                    desc_text = (
+                        f"{feature.description}<br>"
+                        f"<span style='color:#C62828; font-family:Consolas,monospace;'>📦 Requires: {pkg_str}</span>"
+                    )
+                desc_style = "font-size: 8pt; color: #555; padding-left: 24px; padding-bottom: 6px;"
+                
+                desc_label = QLabel(desc_text)
+                desc_label.setTextFormat(Qt.TextFormat.RichText)
+                desc_label.setWordWrap(True)
+                desc_label.setStyleSheet(desc_style)
+                group_layout.addWidget(desc_label)
+            
+            group.setLayout(group_layout)
+            left_layout.addWidget(group)
+        
+        left_layout.addStretch()
+        
+        # Make left side scrollable
+        left_scroll = QScrollArea()
+        left_scroll.setWidget(left_widget)
+        left_scroll.setWidgetResizable(True)
+        left_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        left_scroll.setMinimumWidth(400)
+        
+        # RIGHT COLUMN: Installation commands
+        right_widget = QWidget()
+        right_layout = QVBoxLayout(right_widget)
+        right_layout.setContentsMargins(0, 0, 0, 0)
+        right_layout.setSpacing(10)
+        
+        # Install header
+        install_header = QLabel(
+            "<b>🔧 Installation Commands</b><br>"
+            "<span style='font-size:8pt; color:#666;'>Run in Terminal to add features</span>"
+        )
+        install_header.setTextFormat(Qt.TextFormat.RichText)
+        install_header.setStyleSheet("padding: 5px;")
+        right_layout.addWidget(install_header)
+        
+        # Terminal style for both text boxes
+        terminal_style = """
+            QTextEdit {
+                font-family: Consolas, 'Courier New', monospace;
+                font-size: 9pt;
+                background-color: #1E1E1E;
+                color: #D4D4D4;
+                padding: 8px;
+                border: 1px solid #333;
+                border-radius: 4px;
+            }
+            QScrollBar:vertical {
+                background-color: #2D2D2D;
+                width: 12px;
+            }
+            QScrollBar::handle:vertical {
+                background-color: #5A5A5A;
+                border-radius: 5px;
+                min-height: 20px;
+                margin: 2px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background-color: #787878;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+        """
+        
+        # Tabs for PyPI vs Repo
+        commands_tabs = QTabWidget()
+        commands_tabs.setStyleSheet("QTabWidget::pane { border: none; }")
+        
+        # Tab 1: PyPI install
+        pypi_text = QTextEdit()
+        pypi_text.setReadOnly(True)
+        pypi_text.setStyleSheet(terminal_style)
+        pypi_text.setPlainText(
+            "# If you installed via: pip install supervertaler\n\n"
+            "# ADD FEATURES:\n"
+            "pip install supervertaler[supermemory]  # ~600 MB\n"
+            "pip install supervertaler[voice]       # ~150 MB\n"
+            "pip install supervertaler[web]         # ~100 MB\n"
+            "pip install supervertaler[pdf]         # ~30 MB\n"
+            "pip install supervertaler[mt]          # ~30 MB\n\n"
+            "# MULTIPLE:\n"
+            "pip install supervertaler[supermemory,voice]\n\n"
+            "# EVERYTHING:\n"
+            "pip install supervertaler[all]         # ~1.2 GB\n\n"
+            "# ═══════════════════════════════════════════════════\n"
+            "# EXTRAS (copy-paste these names):\n"
+            "# supermemory, voice, web, pdf, mt, hunspell, windows\n"
+            "# ═══════════════════════════════════════════════════"
+        )
+        commands_tabs.addTab(pypi_text, "📦 PyPI")
+        
+        # Tab 2: Repo clone
+        repo_text = QTextEdit()
+        repo_text.setReadOnly(True)
+        repo_text.setStyleSheet(terminal_style)
+        repo_text.setPlainText(
+            "# If you cloned from GitHub:\n\n"
+            "# OPTION A - Direct install:\n"
+            "pip install sentence-transformers chromadb\n"
+            "pip install openai-whisper sounddevice\n"
+            "pip install PyQt6-WebEngine\n"
+            "pip install PyMuPDF\n"
+            "pip install deepl boto3\n\n"
+            "# OPTION B - Editable install:\n"
+            "cd C:\\path\\to\\Supervertaler\n"
+            "pip install -e .[supermemory]\n"
+            "pip install -e .[all]  # Everything\n\n"
+            "# ═══════════════════════════════════════════════════\n"
+            "# ALL PACKAGES (copy-paste):\n"
+            "# sentence-transformers chromadb openai-whisper\n"
+            "# sounddevice PyQt6-WebEngine PyMuPDF deepl boto3\n"
+            "# spylls keyboard ahk\n"
+            "#\n"
+            "# spylls = Pure Python Hunspell (works on Windows!)\n"
+            "# Supports regional variants like en-US, en-GB, etc.\n"
+            "# ═══════════════════════════════════════════════════"
+        )
+        commands_tabs.addTab(repo_text, "📂 Repo")
+        
+        right_layout.addWidget(commands_tabs, stretch=1)
+        
+        # Tip at bottom of right column
+        tip_label = QLabel(
+            "<i>💡 Tip: Install only what you need to save disk space!</i>"
+        )
+        tip_label.setTextFormat(Qt.TextFormat.RichText)
+        tip_label.setStyleSheet("font-size: 8pt; color: #666; padding: 5px;")
+        right_layout.addWidget(tip_label)
+        
+        # Add columns to layout
+        columns_layout.addWidget(left_scroll, stretch=2)
+        columns_layout.addWidget(right_widget, stretch=1)
+        
+        main_layout.addLayout(columns_layout, stretch=1)
         
         return tab
     
@@ -27086,6 +27440,190 @@ class SupervertalerQt(QMainWindow):
                 except ValueError:
                     pass
     
+    def show_project_info_dialog(self):
+        """Show comprehensive project information dialog"""
+        if not self.current_project:
+            QMessageBox.information(self, "No Project", "Please open or create a project first.")
+            return
+        
+        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QGroupBox, QScrollArea, QFrame
+        from PyQt6.QtCore import Qt
+        from datetime import datetime
+        
+        proj = self.current_project
+        
+        # Calculate statistics
+        total_segments = len(proj.segments) if proj.segments else 0
+        translated = sum(1 for s in proj.segments if s.target and s.target.strip()) if proj.segments else 0
+        confirmed = sum(1 for s in proj.segments if s.status == "Confirmed") if proj.segments else 0
+        draft = sum(1 for s in proj.segments if s.status == "Translated") if proj.segments else 0
+        not_started = sum(1 for s in proj.segments if s.status in ("Not Started", "")) if proj.segments else 0
+        
+        # Word counts
+        source_words = sum(len(s.source.split()) for s in proj.segments if s.source) if proj.segments else 0
+        target_words = sum(len(s.target.split()) for s in proj.segments if s.target) if proj.segments else 0
+        
+        # Character counts
+        source_chars = sum(len(s.source) for s in proj.segments if s.source) if proj.segments else 0
+        target_chars = sum(len(s.target) for s in proj.segments if s.target) if proj.segments else 0
+        
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Project Information")
+        dialog.setMinimumWidth(550)
+        dialog.setMinimumHeight(500)
+        
+        main_layout = QVBoxLayout(dialog)
+        main_layout.setSpacing(15)
+        main_layout.setContentsMargins(20, 20, 20, 20)
+        
+        # Scrollable content
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        
+        content = QWidget()
+        layout = QVBoxLayout(content)
+        layout.setSpacing(12)
+        
+        # ═══════════════ Project Overview ═══════════════
+        overview_group = QGroupBox("📋 Project Overview")
+        overview_layout = QVBoxLayout(overview_group)
+        
+        # Project name and file
+        overview_layout.addWidget(QLabel(f"<b>Name:</b> {proj.name}"))
+        if hasattr(self, 'current_project_path') and self.current_project_path:
+            overview_layout.addWidget(QLabel(f"<b>File:</b> <span style='color: #666;'>{self.current_project_path}</span>"))
+        
+        # Languages
+        overview_layout.addWidget(QLabel(f"<b>Languages:</b> {proj.source_lang} → {proj.target_lang}"))
+        
+        # Dates
+        try:
+            created_dt = datetime.fromisoformat(proj.created) if proj.created else None
+            created_str = created_dt.strftime("%Y-%m-%d %H:%M") if created_dt else "Unknown"
+        except:
+            created_str = proj.created or "Unknown"
+        
+        try:
+            modified_dt = datetime.fromisoformat(proj.modified) if proj.modified else None
+            modified_str = modified_dt.strftime("%Y-%m-%d %H:%M") if modified_dt else "Unknown"
+        except:
+            modified_str = proj.modified or "Unknown"
+        
+        overview_layout.addWidget(QLabel(f"<b>Created:</b> {created_str}"))
+        overview_layout.addWidget(QLabel(f"<b>Modified:</b> {modified_str}"))
+        
+        if proj.id:
+            overview_layout.addWidget(QLabel(f"<b>Project ID:</b> <span style='color: #999;'>{proj.id}</span>"))
+        
+        layout.addWidget(overview_group)
+        
+        # ═══════════════ Statistics ═══════════════
+        stats_group = QGroupBox("📊 Statistics")
+        stats_layout = QVBoxLayout(stats_group)
+        
+        # Segment counts
+        progress_pct = (translated / total_segments * 100) if total_segments > 0 else 0
+        stats_layout.addWidget(QLabel(f"<b>Total Segments:</b> {total_segments:,}"))
+        stats_layout.addWidget(QLabel(f"<b>Translated:</b> {translated:,} ({progress_pct:.1f}%)"))
+        stats_layout.addWidget(QLabel(f"<b>Confirmed:</b> {confirmed:,}"))
+        stats_layout.addWidget(QLabel(f"<b>Draft:</b> {draft:,}"))
+        stats_layout.addWidget(QLabel(f"<b>Not Started:</b> {not_started:,}"))
+        
+        stats_layout.addWidget(QLabel(""))  # Spacer
+        
+        # Word counts
+        stats_layout.addWidget(QLabel(f"<b>Source Words:</b> {source_words:,}"))
+        stats_layout.addWidget(QLabel(f"<b>Target Words:</b> {target_words:,}"))
+        
+        # Character counts
+        stats_layout.addWidget(QLabel(f"<b>Source Characters:</b> {source_chars:,}"))
+        stats_layout.addWidget(QLabel(f"<b>Target Characters:</b> {target_chars:,}"))
+        
+        layout.addWidget(stats_group)
+        
+        # ═══════════════ Source Files ═══════════════
+        has_sources = any([
+            proj.original_docx_path, proj.memoq_source_path, proj.cafetran_source_path,
+            proj.trados_source_path, proj.sdlppx_source_path, proj.original_txt_path,
+            proj.is_multifile
+        ])
+        
+        if has_sources:
+            source_group = QGroupBox("📁 Source Files")
+            source_layout = QVBoxLayout(source_group)
+            
+            if proj.is_multifile and proj.files:
+                source_layout.addWidget(QLabel(f"<b>Multi-file Project:</b> {len(proj.files)} files"))
+                for f in proj.files[:5]:  # Show first 5
+                    source_layout.addWidget(QLabel(f"  • {f.get('name', 'Unknown')}"))
+                if len(proj.files) > 5:
+                    source_layout.addWidget(QLabel(f"  <i>... and {len(proj.files) - 5} more</i>"))
+            else:
+                if proj.original_docx_path:
+                    source_layout.addWidget(QLabel(f"<b>DOCX:</b> {proj.original_docx_path}"))
+                if proj.memoq_source_path:
+                    source_layout.addWidget(QLabel(f"<b>memoQ:</b> {proj.memoq_source_path}"))
+                if proj.cafetran_source_path:
+                    source_layout.addWidget(QLabel(f"<b>CafeTran:</b> {proj.cafetran_source_path}"))
+                if proj.trados_source_path:
+                    source_layout.addWidget(QLabel(f"<b>Trados DOCX:</b> {proj.trados_source_path}"))
+                if proj.sdlppx_source_path:
+                    source_layout.addWidget(QLabel(f"<b>Trados Package:</b> {proj.sdlppx_source_path}"))
+                if proj.original_txt_path:
+                    source_layout.addWidget(QLabel(f"<b>Text File:</b> {proj.original_txt_path}"))
+            
+            layout.addWidget(source_group)
+        
+        # ═══════════════ Resources ═══════════════
+        resources_group = QGroupBox("🔧 Resources")
+        resources_layout = QVBoxLayout(resources_group)
+        
+        # Prompt settings
+        if proj.prompt_settings:
+            prompt_name = proj.prompt_settings.get('primary_prompt_name', 'None')
+            if prompt_name:
+                resources_layout.addWidget(QLabel(f"<b>Active Prompt:</b> {prompt_name}"))
+        
+        # TM settings
+        if proj.tm_settings:
+            active_tms = proj.tm_settings.get('activated_tms', [])
+            if active_tms:
+                resources_layout.addWidget(QLabel(f"<b>Active TMs:</b> {len(active_tms)}"))
+        
+        # Termbase settings
+        if proj.termbase_settings:
+            active_tbs = proj.termbase_settings.get('activated_termbases', [])
+            if active_tbs:
+                resources_layout.addWidget(QLabel(f"<b>Active Glossaries:</b> {len(active_tbs)}"))
+        
+        # Spellcheck settings
+        if proj.spellcheck_settings:
+            sp_enabled = proj.spellcheck_settings.get('enabled', False)
+            sp_lang = proj.spellcheck_settings.get('language', 'Not set')
+            resources_layout.addWidget(QLabel(f"<b>Spellcheck:</b> {'Enabled' if sp_enabled else 'Disabled'} ({sp_lang})"))
+        
+        if resources_layout.count() == 0:
+            resources_layout.addWidget(QLabel("<i>No resources configured</i>"))
+        
+        layout.addWidget(resources_group)
+        
+        layout.addStretch()
+        
+        scroll.setWidget(content)
+        main_layout.addWidget(scroll)
+        
+        # ═══════════════ OK Button ═══════════════
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+        ok_btn = QPushButton("OK")
+        ok_btn.setDefault(True)
+        ok_btn.clicked.connect(dialog.accept)
+        button_layout.addWidget(ok_btn)
+        main_layout.addLayout(button_layout)
+        
+        dialog.exec()
+    
     def show_search_dialog(self):
         """Show enhanced search dialog with source/target options"""
         if not self.current_project or not self.current_project.segments:
@@ -27942,21 +28480,36 @@ class SupervertalerQt(QMainWindow):
         left_col = QVBoxLayout()
         left_col.setSpacing(8)
         
+        # How It Works - determine which backend is active
+        backend_lower = backend.lower()
+        is_spylls = 'spylls' in backend_lower
+        is_pyspellchecker = 'pyspellchecker' in backend_lower or 'built-in' in backend_lower
+        
         # How It Works
         how_group = QGroupBox("How Spellcheck Works")
         how_layout = QVBoxLayout(how_group)
         how_layout.setSpacing(4)
+        
+        # Build the explanation with active backend highlighted
+        spylls_style = "background-color: #90EE90; padding: 2px;" if is_spylls else ""
+        pyspell_style = "background-color: #90EE90; padding: 2px;" if is_pyspellchecker else ""
+        hunspell_style = "background-color: #90EE90; padding: 2px;" if is_hunspell and not is_spylls else ""
+        
         how_label = QLabel(
+            f"<div style='{pyspell_style}'>"
             "🐍 <b>Built-in (pyspellchecker)</b><br>"
             "&nbsp;&nbsp;&nbsp;EN, NL, DE, FR, ES, PT, IT, RU<br>"
-            "&nbsp;&nbsp;&nbsp;<i>Works out of the box!</i><br><br>"
-            "📚 <b>Hunspell (optional)</b><br>"
+            "&nbsp;&nbsp;&nbsp;<i>Works out of the box!</i></div><br>"
+            f"<div style='{spylls_style}'>"
+            "📗 <b>Spylls (pure Python Hunspell)</b><br>"
+            "&nbsp;&nbsp;&nbsp;Bundled: EN, RU, SV<br>"
+            "&nbsp;&nbsp;&nbsp;+ Any .dic/.aff files you add</div><br>"
+            f"<div style='{hunspell_style}'>"
+            "📚 <b>Hunspell (native C library)</b><br>"
             "&nbsp;&nbsp;&nbsp;Any language with .dic/.aff files<br>"
-            "&nbsp;&nbsp;&nbsp;Better accuracy for some languages<br><br>"
-            "<b>⚡ Auto-switching:</b> Add Hunspell .dic/.aff<br>"
-            "files → automatically used. Remove them →<br>"
-            "falls back to built-in.<br><br>"
-            f"<b>Currently:</b> {'Hunspell dictionaries' if is_hunspell else 'Built-in dictionary'}"
+            "&nbsp;&nbsp;&nbsp;<i>Requires cyhunspell (Linux/Mac)</i></div><br>"
+            "<b>⚡ Auto-switching:</b> Best available backend<br>"
+            "is used automatically based on dictionaries."
         )
         how_label.setWordWrap(True)
         how_layout.addWidget(how_label)
@@ -27988,15 +28541,15 @@ class SupervertalerQt(QMainWindow):
         right_col = QVBoxLayout()
         right_col.setSpacing(8)
         
-        # Add Hunspell Dictionaries
-        hunspell_group = QGroupBox("Add Hunspell Dictionaries")
+        # Add More Dictionaries
+        hunspell_group = QGroupBox("Add More Dictionaries")
         hunspell_layout = QVBoxLayout(hunspell_group)
         hunspell_layout.setSpacing(4)
         
-        hunspell_layout.addWidget(QLabel("<b>Steps:</b>"))
-        hunspell_layout.addWidget(QLabel("1. Download .zip for your language"))
-        hunspell_layout.addWidget(QLabel("2. Extract the .dic and .aff files"))
-        hunspell_layout.addWidget(QLabel("3. Place in dictionaries folder"))
+        hunspell_layout.addWidget(QLabel("<b>To add more languages:</b>"))
+        hunspell_layout.addWidget(QLabel("1. Download .dic + .aff files for your language"))
+        hunspell_layout.addWidget(QLabel("2. Place them in the dictionaries folder"))
+        hunspell_layout.addWidget(QLabel("3. Restart Supervertaler"))
         
         hunspell_layout.addWidget(QLabel(""))
         hunspell_layout.addWidget(QLabel("<b>Download sources:</b>"))
@@ -28017,6 +28570,14 @@ class SupervertalerQt(QMainWindow):
         dict_btn.clicked.connect(lambda: self._open_folder_in_explorer(dict_path))
         hunspell_layout.addWidget(dict_btn)
         
+        # Note about Spylls bundled dictionaries location
+        spylls_note = QLabel(
+            "<small><i>💡 Spylls bundled dicts are in its pip package.<br>"
+            "Add your own .dic/.aff files to the folder above.</i></small>"
+        )
+        spylls_note.setWordWrap(True)
+        hunspell_layout.addWidget(spylls_note)
+        
         right_col.addWidget(hunspell_group)
         
         # Diagnostics
@@ -28026,11 +28587,12 @@ class SupervertalerQt(QMainWindow):
         
         diag_text = (
             f"<table cellspacing='2'>"
-            f"<tr><td>Hunspell:</td><td>{'✓' if diag['hunspell_available'] else '✗'} avail, {'✓' if diag['hunspell_initialized'] else '✗'} init</td></tr>"
-            f"<tr><td>pyspellchecker:</td><td>{'✓' if diag['pyspellchecker_available'] else '✗'} avail, {'✓' if diag['pyspellchecker_initialized'] else '✗'} init</td></tr>"
-            f"<tr><td>Custom words:</td><td>{diag['custom_words_count']}</td></tr>"
-            f"<tr><td>Session ignored:</td><td>{diag['ignored_words_count']}</td></tr>"
-            f"<tr><td>Cache size:</td><td>{diag['cache_size']}</td></tr>"
+            f"<tr><td>Hunspell:</td><td>{'✓' if diag.get('hunspell_available') else '✗'} avail, {'✓' if diag.get('hunspell_initialized') else '✗'} init</td></tr>"
+            f"<tr><td>Spylls:</td><td>{'✓' if diag.get('spylls_available') else '✗'} avail, {'✓' if diag.get('spylls_initialized') else '✗'} init</td></tr>"
+            f"<tr><td>pyspellchecker:</td><td>{'✓' if diag.get('pyspellchecker_available') else '✗'} avail, {'✓' if diag.get('pyspellchecker_initialized') else '✗'} init</td></tr>"
+            f"<tr><td>Custom words:</td><td>{diag.get('custom_words_count', 0)}</td></tr>"
+            f"<tr><td>Session ignored:</td><td>{diag.get('ignored_words_count', 0)}</td></tr>"
+            f"<tr><td>Cache size:</td><td>{diag.get('cache_size', 0)}</td></tr>"
         )
         if diag.get('pyspellchecker_word_count'):
             diag_text += f"<tr><td>Dict words:</td><td>{diag['pyspellchecker_word_count']:,}</td></tr>"
@@ -28040,11 +28602,33 @@ class SupervertalerQt(QMainWindow):
         diag_label.setTextFormat(Qt.TextFormat.RichText)
         diag_layout.addWidget(diag_label)
         
-        if not diag['hunspell_initialized'] and not diag['pyspellchecker_initialized']:
+        # Show warning only if NO backend is initialized
+        any_initialized = diag.get('hunspell_initialized') or diag.get('spylls_initialized') or diag.get('pyspellchecker_initialized')
+        if not any_initialized:
             warn_label = QLabel("<span style='color: orange;'>⚠️ Not initialized - try changing language</span>")
             diag_layout.addWidget(warn_label)
         
         right_col.addWidget(diag_group)
+        
+        # Project Links (for technical users)
+        links_group = QGroupBox("📖 Project Links")
+        links_layout = QVBoxLayout(links_group)
+        links_layout.setSpacing(2)
+        
+        pyspell_link = QLabel('<a href="https://github.com/barrust/pyspellchecker">pyspellchecker</a> — Built-in word frequency spellcheck')
+        pyspell_link.setOpenExternalLinks(True)
+        links_layout.addWidget(pyspell_link)
+        
+        spylls_link = QLabel('<a href="https://github.com/zverok/spylls">spylls</a> — Pure Python Hunspell implementation')
+        spylls_link.setOpenExternalLinks(True)
+        links_layout.addWidget(spylls_link)
+        
+        hunspell_link = QLabel('<a href="http://hunspell.github.io/">Hunspell</a> — Original C/C++ spellcheck library')
+        hunspell_link.setOpenExternalLinks(True)
+        links_layout.addWidget(hunspell_link)
+        
+        right_col.addWidget(links_group)
+        
         right_col.addStretch()
         columns.addLayout(right_col)
         

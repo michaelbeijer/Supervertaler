@@ -5,7 +5,8 @@ Provides spellchecking functionality using Hunspell dictionaries.
 Supports custom word lists and project-specific dictionaries.
 
 Features:
-- Hunspell dictionary support (via cyhunspell)
+- Hunspell dictionary support (via cyhunspell or spylls)
+- Spylls: Pure Python Hunspell (works on Windows/Python 3.12+)
 - Fallback to pyspellchecker for basic checking
 - Custom word lists (global and per-project)
 - Integration with PyQt6 text editors
@@ -16,7 +17,7 @@ import re
 from pathlib import Path
 from typing import List, Set, Dict, Optional, Tuple
 
-# Try to import hunspell (cyhunspell)
+# Try to import hunspell (cyhunspell) - may fail on Windows/Python 3.12+
 try:
     from hunspell import Hunspell
     HAS_HUNSPELL = True
@@ -24,7 +25,15 @@ except ImportError:
     HAS_HUNSPELL = False
     Hunspell = None
 
-# Fallback to pyspellchecker
+# Try spylls (pure Python Hunspell reimplementation) - works on all platforms
+try:
+    from spylls.hunspell import Dictionary as SpyllsDictionary
+    HAS_SPYLLS = True
+except ImportError:
+    HAS_SPYLLS = False
+    SpyllsDictionary = None
+
+# Fallback to pyspellchecker (no regional variants like en_US vs en_GB)
 SPELLCHECKER_IMPORT_ERROR = None
 try:
     from spellchecker import SpellChecker
@@ -45,7 +54,53 @@ class SpellcheckManager:
     - Per-project dictionaries
     """
     
-    # Common language codes and their Hunspell dictionary names
+    # Map language codes to display names with variants
+    CODE_TO_DISPLAY = {
+        'en_US': 'English (US)',
+        'en_GB': 'English (GB)',
+        'en_AU': 'English (AU)',
+        'en_CA': 'English (CA)',
+        'en_ZA': 'English (ZA)',
+        'nl_NL': 'Dutch (NL)',
+        'nl_BE': 'Dutch (BE)',
+        'de_DE': 'German (DE)',
+        'de_AT': 'German (AT)',
+        'de_CH': 'German (CH)',
+        'fr_FR': 'French (FR)',
+        'fr_CA': 'French (CA)',
+        'fr_BE': 'French (BE)',
+        'fr_CH': 'French (CH)',
+        'es_ES': 'Spanish (ES)',
+        'es_MX': 'Spanish (MX)',
+        'es_AR': 'Spanish (AR)',
+        'pt_PT': 'Portuguese (PT)',
+        'pt_BR': 'Portuguese (BR)',
+        'it_IT': 'Italian',
+        'pl_PL': 'Polish',
+        'ru_RU': 'Russian',
+        'sv_SE': 'Swedish',
+        'da_DK': 'Danish',
+        'nb_NO': 'Norwegian (Bokmål)',
+        'nn_NO': 'Norwegian (Nynorsk)',
+        'fi_FI': 'Finnish',
+        'cs_CZ': 'Czech',
+        'sk_SK': 'Slovak',
+        'hu_HU': 'Hungarian',
+        'ro_RO': 'Romanian',
+        'bg_BG': 'Bulgarian',
+        'uk_UA': 'Ukrainian',
+        'el_GR': 'Greek',
+        'tr_TR': 'Turkish',
+        'zh_CN': 'Chinese (Simplified)',
+        'zh_TW': 'Chinese (Traditional)',
+        'ja_JP': 'Japanese',
+        'ko_KR': 'Korean',
+    }
+    
+    # Reverse mapping: display name to code
+    DISPLAY_TO_CODE = {v: k for k, v in CODE_TO_DISPLAY.items()}
+    
+    # Legacy mapping for project files that use simple names like "English"
     LANGUAGE_MAP = {
         'English': 'en_US',
         'Dutch': 'nl_NL',
@@ -77,7 +132,7 @@ class SpellcheckManager:
         'ko': 'ko_KR',
     }
     
-    # Reverse mapping
+    # Reverse mapping (legacy)
     CODE_TO_LANGUAGE = {v: k for k, v in LANGUAGE_MAP.items()}
     
     def __init__(self, user_data_path: str = None):
@@ -96,8 +151,10 @@ class SpellcheckManager:
         
         # Current spell checker instance
         self._hunspell: Optional[Hunspell] = None
+        self._spylls = None  # SpyllsDictionary instance
         self._spellchecker: Optional[SpellChecker] = None
         self._current_language: Optional[str] = None
+        self._backend: str = "none"  # Track which backend is active
         
         # Custom words (global)
         self._custom_words: Set[str] = set()
@@ -144,15 +201,22 @@ class SpellcheckManager:
         Set the spellcheck language.
         
         Args:
-            language: Language name (e.g., "English", "Dutch"), short code (e.g., "nl", "en"),
+            language: Language display name (e.g., "English (US)", "English (GB)"),
+                      simple name (e.g., "English", "Dutch"), short code (e.g., "nl", "en"),
                       or full code (e.g., "en_US", "nl_NL")
             
         Returns:
             True if language was set successfully
         """
         # Convert language name to code if needed
-        # First try full name map (English -> en_US)
-        lang_code = self.LANGUAGE_MAP.get(language)
+        lang_code = None
+        
+        # First try display name with variant (English (US) -> en_US)
+        lang_code = self.DISPLAY_TO_CODE.get(language)
+        
+        # Then try legacy full name map (English -> en_US)
+        if not lang_code:
+            lang_code = self.LANGUAGE_MAP.get(language)
         
         # Then try short code map (nl -> nl_NL)
         if not lang_code:
@@ -168,21 +232,72 @@ class SpellcheckManager:
         # Clear cache when changing language
         self._word_cache.clear()
         
-        # Try Hunspell first
+        # Try Hunspell first (cyhunspell - may not work on Windows/Py3.12)
         if HAS_HUNSPELL:
             if self._try_hunspell(lang_code):
                 self._current_language = lang_code
+                self._spylls = None
                 self._spellchecker = None
+                self._backend = "hunspell"
                 return True
         
-        # Fallback to pyspellchecker
+        # Try spylls (pure Python Hunspell - works everywhere, supports regional variants)
+        if HAS_SPYLLS:
+            if self._try_spylls(lang_code):
+                self._current_language = lang_code
+                self._hunspell = None
+                self._spellchecker = None
+                self._backend = "spylls"
+                return True
+        
+        # Fallback to pyspellchecker (no regional variants)
         if HAS_SPELLCHECKER:
             if self._try_spellchecker(lang_code):
                 self._current_language = lang_code
                 self._hunspell = None
+                self._spylls = None
+                self._backend = "pyspellchecker"
                 return True
         
         return False
+    
+    def _try_spylls(self, lang_code: str) -> bool:
+        """Try to initialize spylls (pure Python Hunspell) with the given language"""
+        try:
+            # Check for dictionary files in user_data/dictionaries (and subdirectories)
+            dic_file = None
+            aff_file = None
+            
+            # First check root folder
+            root_dic = self.dictionaries_path / f"{lang_code}.dic"
+            root_aff = self.dictionaries_path / f"{lang_code}.aff"
+            if root_dic.exists() and root_aff.exists():
+                dic_file = root_dic
+                aff_file = root_aff
+            else:
+                # Search in subdirectories (e.g., dictionaries/en/en_GB.dic)
+                for found_dic in self.dictionaries_path.glob(f"**/{lang_code}.dic"):
+                    found_aff = found_dic.with_suffix('.aff')
+                    if found_aff.exists():
+                        dic_file = found_dic
+                        aff_file = found_aff
+                        break
+            
+            if dic_file and aff_file:
+                # Load from local dictionaries folder
+                self._spylls = SpyllsDictionary.from_files(str(dic_file.with_suffix('')))
+                return True
+            else:
+                # Try loading from spylls' built-in dictionaries (if any)
+                # spylls.hunspell.Dictionary.from_files expects a base path without extension
+                try:
+                    self._spylls = SpyllsDictionary.from_files(lang_code)
+                    return True
+                except Exception:
+                    return False
+        except Exception as e:
+            print(f"Spylls initialization failed for {lang_code}: {e}")
+            return False
     
     def _try_hunspell(self, lang_code: str) -> bool:
         """Try to initialize Hunspell with the given language"""
@@ -306,6 +421,12 @@ class SpellcheckManager:
                 self._crash_detected = True
                 self.enabled = False
                 is_correct = True  # Fail open
+        elif self._spylls:
+            try:
+                is_correct = self._spylls.lookup(word)
+            except Exception as e:
+                print(f"Spylls spell check error: {e}")
+                is_correct = True
         elif self._spellchecker:
             try:
                 # pyspellchecker returns None for known words
@@ -361,6 +482,12 @@ class SpellcheckManager:
         if self._hunspell:
             try:
                 suggestions = self._hunspell.suggest(word)
+                return suggestions[:max_suggestions]
+            except Exception:
+                return []
+        elif self._spylls:
+            try:
+                suggestions = list(self._spylls.suggest(word))
                 return suggestions[:max_suggestions]
             except Exception:
                 return []
@@ -450,30 +577,72 @@ class SpellcheckManager:
         return misspelled
     
     def get_available_languages(self) -> List[str]:
-        """Get list of available dictionary languages"""
+        """Get list of available dictionary languages with variants (e.g., 'English (US)', 'English (GB)')"""
         available = []
         
-        # Check user dictionaries
+        # Check user dictionaries - look in dictionaries folder AND subdirectories
         if self.dictionaries_path.exists():
+            # Check root folder
             for dic_file in self.dictionaries_path.glob("*.dic"):
-                lang_code = dic_file.stem
-                lang_name = self.CODE_TO_LANGUAGE.get(lang_code, lang_code)
-                if lang_name not in available:
-                    available.append(lang_name)
+                lang_code = dic_file.stem  # e.g., "en_US", "en_GB"
+                # Skip hyphenation dictionaries
+                if lang_code.startswith('hyph_'):
+                    continue
+                display_name = self.CODE_TO_DISPLAY.get(lang_code, lang_code)
+                if display_name not in available:
+                    available.append(display_name)
+            
+            # Also check subdirectories (e.g., dictionaries/en/en_US.dic)
+            for dic_file in self.dictionaries_path.glob("**/*.dic"):
+                lang_code = dic_file.stem  # e.g., "en_US", "en_GB"
+                # Skip hyphenation dictionaries
+                if lang_code.startswith('hyph_'):
+                    continue
+                display_name = self.CODE_TO_DISPLAY.get(lang_code, lang_code)
+                if display_name not in available:
+                    available.append(display_name)
         
-        # Add pyspellchecker languages if available
+        # Check spylls bundled dictionaries
+        if HAS_SPYLLS:
+            try:
+                import spylls.hunspell
+                import glob
+                spylls_path = os.path.dirname(spylls.hunspell.__file__)
+                bundled_dics = glob.glob(os.path.join(spylls_path, 'data', '**', '*.dic'), recursive=True)
+                for dic_path in bundled_dics:
+                    lang_code = os.path.basename(dic_path).replace('.dic', '')
+                    display_name = self.CODE_TO_DISPLAY.get(lang_code, lang_code)
+                    if display_name not in available:
+                        available.append(display_name)
+            except Exception:
+                pass
+        
+        # Add pyspellchecker languages if available (these don't have regional variants)
         if HAS_SPELLCHECKER:
-            for code, name in [('en', 'English'), ('es', 'Spanish'), 
-                               ('de', 'German'), ('fr', 'French'), ('pt', 'Portuguese'),
-                               ('nl', 'Dutch'), ('it', 'Italian'), ('ru', 'Russian')]:
+            pyspell_langs = [
+                ('en_US', 'English (US)'),  # pyspellchecker uses US English
+                ('es_ES', 'Spanish (ES)'),
+                ('de_DE', 'German (DE)'),
+                ('fr_FR', 'French (FR)'),
+                ('pt_PT', 'Portuguese (PT)'),
+                ('nl_NL', 'Dutch (NL)'),
+                ('it_IT', 'Italian'),
+                ('ru_RU', 'Russian'),
+            ]
+            for code, name in pyspell_langs:
                 if name not in available:
                     available.append(name)
         
         return sorted(available)
     
     def get_current_language(self) -> Optional[str]:
-        """Get the current spellcheck language"""
+        """Get the current spellcheck language as display name (e.g., 'English (US)')"""
         if self._current_language:
+            # First try the new variant-aware mapping
+            display = self.CODE_TO_DISPLAY.get(self._current_language)
+            if display:
+                return display
+            # Fall back to legacy mapping
             return self.CODE_TO_LANGUAGE.get(self._current_language, self._current_language)
         return None
     
@@ -487,16 +656,20 @@ class SpellcheckManager:
     
     def is_ready(self) -> bool:
         """Check if spellchecking is initialized and ready to use"""
-        return self._hunspell is not None or self._spellchecker is not None
+        return self._hunspell is not None or self._spylls is not None or self._spellchecker is not None
     
     def get_backend_info(self) -> str:
         """Get information about the spellcheck backend"""
         if self._hunspell:
             return f"Hunspell ({self._current_language})"
+        elif self._spylls:
+            return f"Spylls/Hunspell ({self._current_language})"
         elif self._spellchecker:
             return f"pyspellchecker ({self._current_language})"
         elif HAS_HUNSPELL:
             return "Hunspell (not initialized - call set_language first)"
+        elif HAS_SPYLLS:
+            return "Spylls (not initialized - call set_language first)"
         elif HAS_SPELLCHECKER:
             return "pyspellchecker (not initialized - call set_language first)"
         else:
@@ -506,11 +679,14 @@ class SpellcheckManager:
         """Get diagnostic information about the spellcheck system"""
         info = {
             'hunspell_available': HAS_HUNSPELL,
+            'spylls_available': HAS_SPYLLS,
             'pyspellchecker_available': HAS_SPELLCHECKER,
             'pyspellchecker_import_error': SPELLCHECKER_IMPORT_ERROR,
             'hunspell_initialized': self._hunspell is not None,
+            'spylls_initialized': self._spylls is not None,
             'pyspellchecker_initialized': self._spellchecker is not None,
             'current_language': self._current_language,
+            'backend': self._backend,
             'enabled': self.enabled,
             'custom_words_count': len(self._custom_words),
             'ignored_words_count': len(self._ignored_words),

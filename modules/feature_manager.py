@@ -1,0 +1,339 @@
+"""
+Supervertaler Feature Manager
+=============================
+
+Manages optional features that can be enabled/disabled to reduce disk space
+and dependencies. Features can be toggled in Settings → Features.
+
+Each feature module has:
+- Required pip packages (installed separately via extras)
+- Size estimate for user information
+- Availability check (are dependencies installed?)
+- Enable/disable toggle (user preference)
+
+Installation examples:
+    pip install supervertaler                    # Core only (~300 MB)
+    pip install supervertaler[supermemory]       # + Semantic search (~900 MB)
+    pip install supervertaler[voice]             # + Voice commands (~400 MB)
+    pip install supervertaler[all]               # Everything (~1.2 GB)
+"""
+
+import json
+import os
+import importlib.util
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional, Callable
+from pathlib import Path
+
+
+@dataclass
+class FeatureModule:
+    """Definition of an optional feature module."""
+    id: str
+    name: str
+    description: str
+    pip_extra: str  # Name used in pip install supervertaler[extra]
+    packages: List[str]  # Required pip packages
+    size_mb: int  # Approximate installed size in MB
+    check_import: str  # Module to import to check availability
+    icon: str = "📦"
+    category: str = "Optional"
+    enabled_by_default: bool = True
+    
+    def is_available(self) -> bool:
+        """Check if required packages are installed."""
+        try:
+            importlib.import_module(self.check_import)
+            return True
+        except ImportError:
+            return False
+
+
+# Define all optional feature modules
+FEATURE_MODULES: Dict[str, FeatureModule] = {
+    "supermemory": FeatureModule(
+        id="supermemory",
+        name="Supermemory (Semantic Search)",
+        description="Vector-indexed semantic search across translation memories using AI embeddings. Find similar translations by meaning, not just exact text matches.",
+        pip_extra="supermemory",
+        packages=["sentence-transformers", "chromadb"],
+        size_mb=600,
+        check_import="sentence_transformers",
+        icon="🧠",
+        category="AI Features",
+    ),
+    "voice": FeatureModule(
+        id="voice",
+        name="Supervoice (Voice Commands)",
+        description="Voice dictation and hands-free commands using OpenAI Whisper. Say 'next segment', 'confirm', 'translate' to control Supervertaler.",
+        pip_extra="voice",
+        packages=["openai-whisper", "sounddevice", "numpy"],
+        size_mb=150,
+        check_import="whisper",
+        icon="🎤",
+        category="AI Features",
+        enabled_by_default=False,  # Requires ffmpeg system dependency
+    ),
+    "webengine": FeatureModule(
+        id="webengine",
+        name="Web Browser (Superlookup)",
+        description="Built-in web browser for research resources in Superlookup. Access IATE, ProZ, Linguee, Wikipedia directly from the app.",
+        pip_extra="web",
+        packages=["PyQt6-WebEngine"],
+        size_mb=100,
+        check_import="PyQt6.QtWebEngineWidgets",
+        icon="🌐",
+        category="UI Features",
+    ),
+    "pdf": FeatureModule(
+        id="pdf",
+        name="PDF Rescue (OCR)",
+        description="Extract text from scanned PDFs using AI OCR. Converts locked PDFs into editable DOCX files.",
+        pip_extra="pdf",
+        packages=["PyMuPDF"],
+        size_mb=30,
+        check_import="fitz",
+        icon="📄",
+        category="Document Processing",
+    ),
+    "mt_providers": FeatureModule(
+        id="mt_providers",
+        name="MT Providers (DeepL, Amazon)",
+        description="Additional machine translation providers: DeepL API and Amazon Translate. Requires API keys.",
+        pip_extra="mt",
+        packages=["boto3", "deepl"],
+        size_mb=30,
+        check_import="deepl",
+        icon="🔄",
+        category="Translation",
+    ),
+    "hunspell": FeatureModule(
+        id="hunspell",
+        name="Hunspell Spellcheck",
+        description="Advanced spellcheck using Hunspell dictionaries. Supports regional variants (en-US, en-GB, etc). Uses spylls (pure Python) on Windows.",
+        pip_extra="hunspell",
+        packages=["spylls"],  # Pure Python Hunspell - works on all platforms
+        size_mb=20,
+        check_import="spylls",
+        icon="📝",
+        category="Quality Assurance",
+        enabled_by_default=True,  # spylls works everywhere
+    ),
+    "automation": FeatureModule(
+        id="automation",
+        name="AutoFingers (Windows)",
+        description="Automated keyboard/mouse control for memoQ integration. Windows only - uses AutoHotkey.",
+        pip_extra="windows",
+        packages=["keyboard", "ahk"],
+        size_mb=10,
+        check_import="keyboard",
+        icon="🤖",
+        category="Automation",
+        enabled_by_default=False,  # Windows-only
+    ),
+}
+
+
+class FeatureManager:
+    """
+    Manages feature availability and user preferences.
+    
+    Usage:
+        fm = FeatureManager(user_data_path)
+        
+        # Check if a feature can be used
+        if fm.is_feature_usable("supermemory"):
+            from modules.supermemory import SupermemoryEngine
+            
+        # Get all features for Settings UI
+        for feature in fm.get_all_features():
+            print(f"{feature.name}: {'✅' if fm.is_feature_usable(feature.id) else '❌'}")
+    """
+    
+    def __init__(self, user_data_path: str = "user_data"):
+        self.user_data_path = Path(user_data_path)
+        self.settings_file = self.user_data_path / "feature_settings.json"
+        self._preferences: Dict[str, bool] = {}
+        self._load_preferences()
+    
+    def _load_preferences(self):
+        """Load user feature preferences from disk."""
+        if self.settings_file.exists():
+            try:
+                with open(self.settings_file, "r", encoding="utf-8") as f:
+                    self._preferences = json.load(f)
+            except (json.JSONDecodeError, IOError):
+                self._preferences = {}
+        
+        # Apply defaults for any missing features
+        for feature_id, feature in FEATURE_MODULES.items():
+            if feature_id not in self._preferences:
+                self._preferences[feature_id] = feature.enabled_by_default
+    
+    def _save_preferences(self):
+        """Save user feature preferences to disk."""
+        self.user_data_path.mkdir(parents=True, exist_ok=True)
+        with open(self.settings_file, "w", encoding="utf-8") as f:
+            json.dump(self._preferences, f, indent=2)
+    
+    def get_feature(self, feature_id: str) -> Optional[FeatureModule]:
+        """Get a feature module definition by ID."""
+        return FEATURE_MODULES.get(feature_id)
+    
+    def get_all_features(self) -> List[FeatureModule]:
+        """Get all feature module definitions."""
+        return list(FEATURE_MODULES.values())
+    
+    def get_features_by_category(self) -> Dict[str, List[FeatureModule]]:
+        """Get features grouped by category."""
+        categories: Dict[str, List[FeatureModule]] = {}
+        for feature in FEATURE_MODULES.values():
+            if feature.category not in categories:
+                categories[feature.category] = []
+            categories[feature.category].append(feature)
+        return categories
+    
+    def is_feature_available(self, feature_id: str) -> bool:
+        """Check if a feature's dependencies are installed."""
+        feature = FEATURE_MODULES.get(feature_id)
+        if not feature:
+            return False
+        return feature.is_available()
+    
+    def is_feature_enabled(self, feature_id: str) -> bool:
+        """Check if a feature is enabled by user preference."""
+        return self._preferences.get(feature_id, True)
+    
+    def is_feature_usable(self, feature_id: str) -> bool:
+        """Check if a feature can be used (available AND enabled)."""
+        return self.is_feature_available(feature_id) and self.is_feature_enabled(feature_id)
+    
+    def set_feature_enabled(self, feature_id: str, enabled: bool):
+        """Enable or disable a feature."""
+        self._preferences[feature_id] = enabled
+        self._save_preferences()
+    
+    def get_total_size_mb(self, only_enabled: bool = False) -> int:
+        """Get total size of installed/enabled features."""
+        total = 0
+        for feature_id, feature in FEATURE_MODULES.items():
+            if only_enabled and not self.is_feature_enabled(feature_id):
+                continue
+            if feature.is_available():
+                total += feature.size_mb
+        return total
+    
+    def get_install_command(self, feature_id: str) -> str:
+        """Get the pip install command for a feature."""
+        feature = FEATURE_MODULES.get(feature_id)
+        if not feature:
+            return ""
+        return f"pip install supervertaler[{feature.pip_extra}]"
+    
+    def get_missing_features(self) -> List[FeatureModule]:
+        """Get features that are enabled but not installed."""
+        missing = []
+        for feature_id, feature in FEATURE_MODULES.items():
+            if self.is_feature_enabled(feature_id) and not feature.is_available():
+                missing.append(feature)
+        return missing
+
+
+# Lazy import helpers - use these instead of direct imports
+def lazy_import_supermemory():
+    """Lazily import Supermemory module."""
+    try:
+        from modules.supermemory import SupermemoryEngine
+        return SupermemoryEngine
+    except ImportError:
+        return None
+
+
+def lazy_import_whisper():
+    """Lazily import Whisper for voice commands."""
+    try:
+        import whisper
+        return whisper
+    except ImportError:
+        return None
+
+
+def lazy_import_chromadb():
+    """Lazily import ChromaDB for vector storage."""
+    try:
+        import chromadb
+        return chromadb
+    except ImportError:
+        return None
+
+
+def lazy_import_sentence_transformers():
+    """Lazily import sentence-transformers for embeddings."""
+    try:
+        from sentence_transformers import SentenceTransformer
+        return SentenceTransformer
+    except ImportError:
+        return None
+
+
+def lazy_import_deepl():
+    """Lazily import DeepL API client."""
+    try:
+        import deepl
+        return deepl
+    except ImportError:
+        return None
+
+
+def lazy_import_boto3():
+    """Lazily import boto3 for Amazon Translate."""
+    try:
+        import boto3
+        return boto3
+    except ImportError:
+        return None
+
+
+def lazy_import_hunspell():
+    """Lazily import Hunspell spellchecker."""
+    try:
+        import hunspell
+        return hunspell
+    except ImportError:
+        return None
+
+
+def lazy_import_webengine():
+    """Lazily import PyQt6 WebEngine."""
+    try:
+        from PyQt6.QtWebEngineWidgets import QWebEngineView
+        return QWebEngineView
+    except ImportError:
+        return None
+
+
+def lazy_import_fitz():
+    """Lazily import PyMuPDF (fitz) for PDF processing."""
+    try:
+        import fitz
+        return fitz
+    except ImportError:
+        return None
+
+
+# Global feature manager instance (initialized on first use)
+_feature_manager: Optional[FeatureManager] = None
+
+
+def get_feature_manager(user_data_path: str = "user_data") -> FeatureManager:
+    """Get or create the global feature manager instance."""
+    global _feature_manager
+    if _feature_manager is None:
+        _feature_manager = FeatureManager(user_data_path)
+    return _feature_manager
+
+
+def check_feature(feature_id: str) -> bool:
+    """Quick check if a feature is usable. Use at import time."""
+    fm = get_feature_manager()
+    return fm.is_feature_usable(feature_id)

@@ -2,11 +2,61 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.74 (December 31, 2025)
+**Current Version:** v1.9.76 (January 3, 2025)
 **Framework:** PyQt6
 **Status:** Active Development
 
 **Note:** For historical information about legacy versions (Tkinter Edition, Classic Edition), see [legacy_versions/LEGACY_VERSIONS.md](legacy_versions/LEGACY_VERSIONS.md).
+
+---
+
+## 🎉 Onboarding, Spellcheck & Project Info (v1.9.76) - January 3, 2025
+
+**First-Run Welcome for New Users:**
+- 🎉 **Welcome Dialog** — Shows on first launch explaining modular pip extras
+- 📦 **Auto-Navigate** — Opens Settings → Features tab automatically to show installed/missing features
+- ✅ **Don't Show Again** — Checkbox uses standard green CheckmarkCheckBox style
+- 🐛 **Bug Fix** — First-run flag now saves to correct file (ui_preferences.json)
+
+**Free vs Paid LLM Pricing Info:**
+- 💰 **Info Box in AI Settings** — Clear pricing information at top of Settings → AI Settings
+- 🆓 **Google Gemini** — FREE tier (15 req/min, 1M tokens/day)
+- 🖥️ **Ollama** — 100% FREE (runs locally on your computer)
+- 💳 **OpenAI/Claude** — Paid API only (no free tier)
+- ⚠️ **Important Note** — Clarifies that ChatGPT Plus and Claude Pro web subscriptions do NOT include API access
+
+**Spellcheck System Overhaul:**
+- 🔤 **Spylls Backend** — Replaced `cyhunspell` with `spylls` (pure Python Hunspell), fixing Windows/Python 3.12 compatibility
+- 🌍 **Language Variants** — Dropdown now shows "English (US)", "English (GB)", "Portuguese (BR)" etc.
+- 📁 **Subdirectory Search** — Finds dictionaries in subfolders like `dictionaries/en/en_GB.dic`
+- ✅ **Regional Spelling Works** — "colour" correct in en_GB, incorrect in en_US (and vice versa)
+- 📋 **Improved Spellcheck Info Dialog** — Three backends displayed separately, active one highlighted green, bundled dictionary info, project links section
+
+**Project Info Dialog (NEW):**
+- 📋 **File → Project Info...** — New menu item to view comprehensive project information
+- 📊 **Statistics** — Segment counts, word counts, character counts, progress percentage
+- 📁 **Source Files** — Shows original DOCX, memoQ, CafeTran, Trados paths
+- 🔧 **Resources** — Active prompt, TMs, glossaries, spellcheck settings
+
+---
+
+## 📦 Modular Architecture (v1.9.75) - January 2, 2025
+
+**Major new feature: Install only the features you need!**
+
+- 📦 **Modular Installation System** — Users can now choose which features to install, reducing disk space from ~1.2 GB (full) to ~300 MB (core only). Heavy dependencies like sentence-transformers, chromadb, and PyQt6-WebEngine are now optional.
+- ⚙️ **Settings → Features Tab** — New settings page showing which optional features are installed (✅) vs not installed (❌), with size estimates and pip install commands for each.
+- 🔧 **Feature Manager Module** — New `modules/feature_manager.py` provides `FeatureManager` class, `FEATURE_MODULES` definitions, and lazy import helpers for conditional loading.
+- 📋 **pip Extras Support** — Install specific features with `pip install supervertaler[supermemory,voice,web]` or everything with `pip install supervertaler[all]`.
+
+**Installation Options:**
+| Command | Size |
+|---------|------|
+| `pip install supervertaler` | ~300 MB (core) |
+| `pip install supervertaler[supermemory]` | +600 MB |
+| `pip install supervertaler[voice]` | +150 MB |
+| `pip install supervertaler[web]` | +100 MB |
+| `pip install supervertaler[all]` | ~1.2 GB |
 
 ---
 
