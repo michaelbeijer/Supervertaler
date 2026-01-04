@@ -1,0 +1,3 @@
+[submodule "superlookup"]
+	path = superlookup
+	url = https://github.com/michaelbeijer/superlookup.git
