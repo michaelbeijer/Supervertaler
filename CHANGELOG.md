@@ -2,11 +2,21 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.76 (January 3, 2025)
+**Current Version:** v1.9.77 (January 4, 2026)
 **Framework:** PyQt6
 **Status:** Active Development
 
 **Note:** For historical information about legacy versions (Tkinter Edition, Classic Edition), see [legacy_versions/LEGACY_VERSIONS.md](legacy_versions/LEGACY_VERSIONS.md).
+
+---
+
+## 💻 GitHub Code Search in Superlookup (v1.9.77) - January 4, 2026
+
+**New Web Resource:**
+- 💻 **GitHub Code Search** — Added to Superlookup's Web Resources tab
+- 🔗 **Search URL** — `https://github.com/search?q={query}&type=code`
+- 🎯 **Use Case** — Search for terms/code across all public GitHub repositories
+- ✨ **Great for** — Finding how technical terms are used in real code, locating terminology in open-source projects
 
 ---
 
