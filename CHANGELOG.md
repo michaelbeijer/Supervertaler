@@ -2,11 +2,21 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.78 (January 4, 2026)
+**Current Version:** v1.9.79 (January 4, 2026)
 **Framework:** PyQt6
 **Status:** Active Development
 
 **Note:** For historical information about legacy versions (Tkinter Edition, Classic Edition), see [legacy_versions/LEGACY_VERSIONS.md](legacy_versions/LEGACY_VERSIONS.md).
+
+---
+
+## 📚 Beijerterm Integration in Superlookup (v1.9.79) - January 4, 2026
+
+**New Web Resource:**
+- 📚 **Beijerterm** — Added to Superlookup's Web Resources tab (replaces old michaelbeijer.co.uk wiki)
+- 🔗 **Search URL** — `https://michaelbeijer.github.io/beijerterm/?q={query}`
+- 📊 **500k+ Terms** — Dutch-English terminology database with 583,000+ term entries
+- ⚡ **URL Search** — Beijerterm now supports `?q=searchterm` for programmatic search integration
 
 ---
 
