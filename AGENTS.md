@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** January 4, 2026 | **Version:** v1.9.80
+> **Last Updated:** January 4, 2026 | **Version:** v1.9.81
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.80 (January 2026) |
+| **Version** | v1.9.81 (January 2026) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -455,6 +455,34 @@ google_api_key=AI...
 ---
 
 ## 🔄 Recent Development History
+
+### January 4, 2026 - Version 1.9.81: Superlookup UX Improvements
+
+**🔍 Search History Dropdown**
+
+Superlookup search box now remembers last 20 searches:
+
+- **HistoryComboBox**: Replaced QTextEdit with editable combo box showing search history
+- **Persistent**: Saved to `user_data/superlookup_history.json`
+- **Most Recent First**: New searches added to top of dropdown
+
+**↔️ Resizable Sidebar**
+
+Web Resources sidebar now resizable:
+
+- **QSplitter**: Allows resizing between 120-250px
+- **No Text Cutoff**: Resource buttons properly visible at all widths
+
+**🎨 UI Polish**
+
+- **Focus Rectangles Removed**: Global stylesheet removes ugly focus outlines from all buttons
+- **Styled Radio Buttons**: 5 plain QRadioButton instances replaced with CheckmarkRadioButton
+- **External Mode Fix**: External browser mode now correctly triggers web search
+
+**Files Modified:**
+- `Supervertaler.py` - HistoryComboBox, QSplitter, global stylesheet, radio buttons, external mode
+
+---
 
 ### January 4, 2026 - Version 1.9.80: GitHub Code Search (Beijerterm)
 

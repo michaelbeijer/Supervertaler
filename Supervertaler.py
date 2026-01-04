@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.80"
+__version__ = "1.9.81"
 __phase__ = "0.9"
 __release_date__ = "2025-01-03"
 __edition__ = "Qt"
@@ -27871,10 +27871,10 @@ class SupervertalerQt(QMainWindow):
         radio_layout = QHBoxLayout()
         search_scope_group = QButtonGroup(dialog)
         
-        both_radio = QRadioButton("Both Source and Target")
+        both_radio = CheckmarkRadioButton("Both Source and Target")
         both_radio.setChecked(True)
-        source_radio = QRadioButton("Source only")
-        target_radio = QRadioButton("Target only")
+        source_radio = CheckmarkRadioButton("Source only")
+        target_radio = CheckmarkRadioButton("Target only")
         
         search_scope_group.addButton(both_radio, 0)
         search_scope_group.addButton(source_radio, 1)
@@ -34069,6 +34069,9 @@ class SuperlookupTab(QWidget):
         # Track if languages have been populated
         self._languages_populated = False
         
+        # Initialize search history
+        self._init_search_history()
+        
         # UI setup
         self.init_ui()
         
@@ -34140,20 +34143,18 @@ class SuperlookupTab(QWidget):
         search_label.setStyleSheet("font-size: 12pt;")
         search_row.addWidget(search_label)
         
-        self.source_text = QTextEdit()
-        self.source_text.setPlaceholderText("Enter search term or paste text...")
-        self.source_text.setMaximumHeight(35)
+        # Use HistoryComboBox for search with history dropdown
+        self.source_text = HistoryComboBox()
+        self.source_text.setEditable(True)
+        self.source_text.lineEdit().setPlaceholderText("Enter search term or paste text...")
         self.source_text.setMinimumHeight(30)
-        self.source_text.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        # Override keyPressEvent to trigger search on Enter
-        original_key_press = self.source_text.keyPressEvent
-        def search_key_handler(event):
-            if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter) and not (event.modifiers() & Qt.KeyboardModifier.ShiftModifier):
-                # Enter without Shift triggers search
-                self.perform_lookup()
-            else:
-                original_key_press(event)
-        self.source_text.keyPressEvent = search_key_handler
+        self.source_text.setMaximumHeight(35)
+        self.source_text.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        # Load history into dropdown
+        if hasattr(self, 'search_history') and self.search_history:
+            self.source_text.set_history(self.search_history)
+        # Handle Enter key to trigger search
+        self.source_text.lineEdit().returnPressed.connect(self.perform_lookup)
         search_row.addWidget(self.source_text, stretch=1)
         
         # Search button
@@ -35007,9 +35008,13 @@ class SuperlookupTab(QWidget):
             },
         ]
         
+        # === Use QSplitter for resizable sidebar ===
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        
         # === Left sidebar with vertical tabs ===
         sidebar = QWidget()
-        sidebar.setFixedWidth(140)
+        sidebar.setMinimumWidth(120)
+        sidebar.setMaximumWidth(250)
         sidebar.setStyleSheet("""
             QWidget {
                 background-color: #f5f5f5;
@@ -35042,6 +35047,7 @@ class SuperlookupTab(QWidget):
                     border-radius: 4px;
                     background-color: transparent;
                     font-size: 9pt;
+                    outline: none;
                 }
                 QPushButton:hover {
                     background-color: #e3e3e3;
@@ -35050,6 +35056,10 @@ class SuperlookupTab(QWidget):
                     background-color: #2196F3;
                     color: white;
                     font-weight: bold;
+                }
+                QPushButton:focus {
+                    outline: none;
+                    border: none;
                 }
             """)
             btn.clicked.connect(lambda checked, idx=i: self._on_web_resource_selected(idx))
@@ -35070,9 +35080,14 @@ class SuperlookupTab(QWidget):
                 border: none;
                 border-radius: 4px;
                 font-size: 9pt;
+                outline: none;
             }
             QPushButton:hover {
                 background-color: #F57C00;
+            }
+            QPushButton:focus {
+                outline: none;
+                border: none;
             }
         """)
         search_all_btn.clicked.connect(lambda: self._perform_web_search(search_all=True))
@@ -35083,17 +35098,15 @@ class SuperlookupTab(QWidget):
         mode_label.setStyleSheet("font-size: 8pt; color: #666; padding-top: 5px;")
         sidebar_layout.addWidget(mode_label)
         
-        self.web_mode_embedded_radio = QRadioButton("Embedded")
+        self.web_mode_embedded_radio = CheckmarkRadioButton("Embedded")
         self.web_mode_embedded_radio.setToolTip("Show results inside Supervertaler")
-        self.web_mode_embedded_radio.setStyleSheet("font-size: 8pt;")
         self.web_mode_embedded_radio.setChecked(self.web_browser_mode == 'embedded')
         self.web_mode_embedded_radio.setEnabled(self.web_engine_available)
         self.web_mode_embedded_radio.toggled.connect(self._on_web_mode_changed)
         sidebar_layout.addWidget(self.web_mode_embedded_radio)
         
-        self.web_mode_external_radio = QRadioButton("External")
+        self.web_mode_external_radio = CheckmarkRadioButton("External")
         self.web_mode_external_radio.setToolTip("Open results in default browser")
-        self.web_mode_external_radio.setStyleSheet("font-size: 8pt;")
         self.web_mode_external_radio.setChecked(self.web_browser_mode == 'external')
         self.web_mode_external_radio.toggled.connect(self._on_web_mode_changed)
         sidebar_layout.addWidget(self.web_mode_external_radio)
@@ -35104,21 +35117,27 @@ class SuperlookupTab(QWidget):
         self.web_open_external_btn.setStyleSheet("""
             QPushButton {
                 padding: 8px;
+                min-height: 20px;
                 background-color: #4CAF50;
                 color: white;
                 border: none;
                 border-radius: 4px;
                 font-size: 9pt;
                 margin-top: 5px;
+                outline: none;
             }
             QPushButton:hover {
                 background-color: #45a049;
+            }
+            QPushButton:focus {
+                outline: none;
+                border: none;
             }
         """)
         self.web_open_external_btn.clicked.connect(self._open_web_resource_external)
         sidebar_layout.addWidget(self.web_open_external_btn)
         
-        layout.addWidget(sidebar)
+        splitter.addWidget(sidebar)
         
         # === Main content area ===
         content_widget = QWidget()
@@ -35155,7 +35174,12 @@ class SuperlookupTab(QWidget):
         
         content_layout.addWidget(self.web_view_stack, stretch=1)
         
-        layout.addWidget(content_widget, stretch=1)
+        splitter.addWidget(content_widget)
+        splitter.setStretchFactor(0, 0)  # Sidebar doesn't stretch
+        splitter.setStretchFactor(1, 1)  # Content area stretches
+        splitter.setSizes([150, 600])    # Initial sizes
+        
+        layout.addWidget(splitter, stretch=1)
         
         # Track current resource and last search URL
         self.current_web_resource_index = 0
@@ -35303,7 +35327,7 @@ class SuperlookupTab(QWidget):
             search_all: If True, search all enabled resources (for embedded mode)
         """
         # Use the main Superlookup source text field
-        query = self.source_text.toPlainText().strip()
+        query = self.source_text.currentText().strip()
         if not query:
             self.status_label.setText("Please enter a search term in the Source Text field above")
             return
@@ -35539,7 +35563,7 @@ class SuperlookupTab(QWidget):
             QDesktopServices.openUrl(QUrl(self.last_web_search_url))
         else:
             # If no search has been performed, build URL with current input from source_text
-            query = self.source_text.toPlainText().strip()
+            query = self.source_text.currentText().strip()
             if query:
                 self._perform_web_search()
             else:
@@ -36201,7 +36225,7 @@ class SuperlookupTab(QWidget):
         text = self.engine.capture_text()
         
         if text:
-            self.source_text.setPlainText(text)
+            self.source_text.setCurrentText(text)
             self.status_label.setText(f"✓ Captured {len(text)} characters. Searching...")
             # Auto-search after capture
             self.perform_lookup()
@@ -36217,12 +36241,15 @@ class SuperlookupTab(QWidget):
         with open('superlookup_debug.txt', 'a') as f:
             f.write(f"\n=== perform_lookup() CALLED at {__import__('datetime').datetime.now()} ===\n")
         print(f"[DEBUG] perform_lookup() CALLED!", flush=True)
-        text = self.source_text.toPlainText().strip()
+        text = self.source_text.currentText().strip()
         print(f"[DEBUG] perform_lookup() text='{text[:50] if text else '(empty)'}...'", flush=True)
         
         if not text:
             self.status_label.setText("⚠️ No text to search. Enter or capture text first.")
             return
+        
+        # Add to search history
+        self._add_to_search_history(text)
         
         # Always ensure we have the latest databases from main window
         if self.main_window:
@@ -36308,11 +36335,16 @@ class SuperlookupTab(QWidget):
         if mt_results:
             status_parts.append(f"MT: {len(mt_results)}")
         
-        # Also trigger web resource searches (pre-load them in embedded mode)
-        if hasattr(self, 'web_engine_available') and self.web_engine_available:
-            if hasattr(self, 'web_browser_mode') and self.web_browser_mode == 'embedded':
+        # Also trigger web resource searches
+        if hasattr(self, 'web_browser_mode'):
+            if self.web_browser_mode == 'embedded' and hasattr(self, 'web_engine_available') and self.web_engine_available:
+                # Embedded mode - search all resources in background
                 self._perform_web_search(search_all=True)
                 status_parts.append("Web Resources")
+            elif self.web_browser_mode == 'external':
+                # External mode - open current selected resource in browser
+                self._perform_web_search(search_all=False)
+                status_parts.append("Web (external)")
         
         total_results = len(tm_results) + len(termbase_results) + (supermemory_count or 0) + len(mt_results)
         
@@ -36333,7 +36365,7 @@ class SuperlookupTab(QWidget):
             target_lang: Optional target language code to set
         """
         # Set the query text (this is used by all tabs including Web Resources)
-        self.source_text.setPlainText(query)
+        self.source_text.setCurrentText(query)
         
         # Set language dropdowns if provided
         if source_lang and hasattr(self, 'lang_from_combo'):
@@ -36419,7 +36451,7 @@ class SuperlookupTab(QWidget):
         self._current_tm_results = results
         
         # Get search term for highlighting
-        search_text = self.source_text.toPlainText().strip().lower()
+        search_text = self.source_text.currentText().strip().lower()
         
         # Get language names from main window
         source_lang_name = "Dutch"
@@ -36576,7 +36608,7 @@ class SuperlookupTab(QWidget):
         self.termbase_results_table.setRowCount(0)
         
         # Get search term for highlighting
-        search_text = self.source_text.toPlainText().strip().lower()
+        search_text = self.source_text.currentText().strip().lower()
         
         for result in results:
             row = self.termbase_results_table.rowCount()
@@ -36840,6 +36872,59 @@ class SuperlookupTab(QWidget):
                 # Could auto-paste here if we wanted to be aggressive
                 # pyautogui.hotkey('ctrl', 'v')
     
+    def _init_search_history(self):
+        """Initialize search history from file."""
+        self.search_history = []
+        self._search_history_file = None
+        
+        # Get user_data path from main window
+        if self.main_window and hasattr(self.main_window, 'user_data_path'):
+            from pathlib import Path
+            user_data = Path(self.main_window.user_data_path)
+            self._search_history_file = user_data / "superlookup_history.json"
+            
+            # Load existing history
+            if self._search_history_file.exists():
+                try:
+                    import json
+                    with open(self._search_history_file, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                        self.search_history = data.get('searches', [])[:20]
+                except Exception:
+                    pass
+    
+    def _add_to_search_history(self, text: str):
+        """Add a search term to history."""
+        if not text or not text.strip():
+            return
+        
+        text = text.strip()
+        # Remove if exists, add to front
+        if text in self.search_history:
+            self.search_history.remove(text)
+        self.search_history.insert(0, text)
+        self.search_history = self.search_history[:20]  # Keep max 20
+        
+        # Update dropdown
+        if hasattr(self, 'source_text') and hasattr(self.source_text, 'set_history'):
+            self.source_text.set_history(self.search_history)
+        
+        # Save to file
+        self._save_search_history()
+    
+    def _save_search_history(self):
+        """Save search history to file."""
+        if not self._search_history_file:
+            return
+        
+        try:
+            import json
+            self._search_history_file.parent.mkdir(parents=True, exist_ok=True)
+            with open(self._search_history_file, 'w', encoding='utf-8') as f:
+                json.dump({'searches': self.search_history[:20]}, f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
+    
     def clear_all(self):
         """Clear all text and results"""
         self.source_text.clear()
@@ -37047,7 +37132,7 @@ class SuperlookupTab(QWidget):
     def add_to_termbase(self):
         """Add source text and selected translation as new term to termbase"""
         # Get source text
-        source_text = self.source_text.toPlainText().strip()
+        source_text = self.source_text.currentText().strip()
         if not source_text:
             QMessageBox.warning(self, "No Source Text", "Please enter or capture source text first.")
             return
@@ -37605,7 +37690,7 @@ class SuperlookupTab(QWidget):
             print(f"[Superlookup] _fill_and_search called")
             # Fill in text and trigger lookup
             if hasattr(self, 'source_text'):
-                self.source_text.setPlainText(text)
+                self.source_text.setCurrentText(text)
                 print(f"[Superlookup] Text filled in source_text field")
                 # Trigger lookup by calling perform_lookup directly
                 self.perform_lookup()
@@ -38819,6 +38904,18 @@ def main():
     app = QApplication(sys.argv)
     app.setApplicationName("Supervertaler")
     app.setOrganizationName("Supervertaler")
+    
+    # Global stylesheet to remove ugly focus rectangles from buttons
+    app.setStyleSheet("""
+        QPushButton:focus {
+            outline: none;
+            border: none;
+        }
+        QToolButton:focus {
+            outline: none;
+            border: none;
+        }
+    """)
 
     # Set Windows AppUserModelID for taskbar icon grouping (Windows 7+)
     if sys.platform == 'win32':

@@ -2,11 +2,29 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.80 (January 4, 2026)
+**Current Version:** v1.9.81 (January 4, 2026)
 **Framework:** PyQt6
 **Status:** Active Development
 
 **Note:** For historical information about legacy versions (Tkinter Edition, Classic Edition), see [legacy_versions/LEGACY_VERSIONS.md](legacy_versions/LEGACY_VERSIONS.md).
+
+---
+
+## 🔍 Superlookup UX Improvements (v1.9.81) - January 4, 2026
+
+**Search History Dropdown:**
+- 📜 **History Dropdown** — Superlookup search box now shows last 20 searches in dropdown
+- 💾 **Persistent History** — Saved to `user_data/superlookup_history.json`
+- ⌨️ **Editable Combo** — Type to search, click dropdown for history
+
+**Resizable Sidebar:**
+- ↔️ **QSplitter** — Web Resources sidebar now resizable (120-250px range)
+- 📏 **No Text Cutoff** — Resource buttons properly visible at all widths
+
+**UI Polish:**
+- 🎯 **Focus Rectangles Removed** — Global stylesheet removes ugly focus outlines from all buttons
+- 🟢 **Styled Radio Buttons** — Replaced 5 plain QRadioButton instances with CheckmarkRadioButton
+- 🐛 **External Mode Fix** — External browser mode now correctly triggers web search
 
 ---
 
