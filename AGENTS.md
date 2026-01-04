@@ -103,7 +103,7 @@ Supervertaler/
 │   └── supermemory/          # ChromaDB vector database
 ├── assets/                    # Icons, images
 ├── docs/                      # Documentation site
-├── superlookup/               # 🔗 GIT SUBMODULE - Superlookup website
+├── beijerterm/                # 🔗 GIT SUBMODULE - Beijerterm glossary website
 ├── tests/                     # Test files
 └── legacy_versions/           # Historical Tkinter version
 ```
@@ -112,7 +112,7 @@ Supervertaler/
 
 ## 🔗 Beijerterm Website Submodule (IMPORTANT FOR AI AGENTS)
 
-The `superlookup/` folder is a **Git submodule** - a separate repository embedded inside Supervertaler.
+The `beijerterm/` folder is a **Git submodule** - a separate repository embedded inside Supervertaler.
 
 ### What is a Submodule?
 
@@ -125,15 +125,15 @@ The `superlookup/` folder is a **Git submodule** - a separate repository embedde
 | Project | Location | Purpose |
 |---------|----------|---------|
 | **Supervertaler** | Root folder | PyQt6 translation app |
-| **Beijerterm** | `superlookup/` subfolder | Static glossary website (beijerterm.com) |
+| **Beijerterm** | `beijerterm/` subfolder | Static glossary website (beijerterm.com) |
 
-**Note**: The folder is named `superlookup/` for historical reasons, but the website is now branded "Beijerterm" and will be hosted at beijerterm.com. The "Superlookup" name remains for the in-app lookup panel inside Supervertaler.
+**Note**: The "Superlookup" name refers to the in-app lookup panel inside Supervertaler - don't confuse it with the Beijerterm website!
 
 ### Working with the Submodule
 
 **To make changes to Beijerterm website:**
 ```bash
-cd superlookup/
+cd beijerterm/
 # Edit files...
 git add .
 git commit -m "your message"
@@ -143,20 +143,20 @@ git push origin main          # Pushes to michaelbeijer/beijerterm
 **Then update the parent reference:**
 ```bash
 cd ..                          # Back to Supervertaler root
-git add superlookup            # Stage the new submodule commit pointer
-git commit -m "chore: Update superlookup submodule"
+git add beijerterm             # Stage the new submodule commit pointer
+git commit -m "chore: Update beijerterm submodule"
 git push origin main           # Pushes to michaelbeijer/Supervertaler
 ```
 
 ### ⚠️ Common Pitfalls
 
-1. **Commits in submodule aren't automatically tracked** - After committing inside `superlookup/`, you must also commit in the parent repo to update the pointer.
+1. **Commits in submodule aren't automatically tracked** - After committing inside `beijerterm/`, you must also commit in the parent repo to update the pointer.
 
-2. **Changelogs are separate** - Beijerterm website changes go in `superlookup/CHANGELOG.md`, Supervertaler changes go in `CHANGELOG.md` at root.
+2. **Changelogs are separate** - Beijerterm website changes go in `beijerterm/CHANGELOG.md`, Supervertaler changes go in `CHANGELOG.md` at root.
 
 3. **Features in the wrong repo** - The "Superlookup" panel inside Supervertaler.py is part of **Supervertaler**, not the Beijerterm website. Don't confuse them!
 
-4. **Building the website** - Run `python scripts/build_site.py` from inside `superlookup/`, not from root.
+4. **Building the website** - Run `python scripts/build_site.py` from inside `beijerterm/`, not from root.
 
 ---
 
