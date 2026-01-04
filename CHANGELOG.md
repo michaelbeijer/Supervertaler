@@ -2,11 +2,34 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.77 (January 4, 2026)
+**Current Version:** v1.9.78 (January 4, 2026)
 **Framework:** PyQt6
 **Status:** Active Development
 
 **Note:** For historical information about legacy versions (Tkinter Edition, Classic Edition), see [legacy_versions/LEGACY_VERSIONS.md](legacy_versions/LEGACY_VERSIONS.md).
+
+---
+
+## 🔍 Find & Replace History & Batch Sets (v1.9.78) - January 4, 2026
+
+**F&R History Dropdowns:**
+- 📜 **History Dropdowns** — Find and Replace fields now have dropdown arrows showing last 20 searches
+- 💾 **Persistent History** — Search/replace terms saved to `user_data/find_replace_history.json`
+- 🔽 **Quick Access** — Click dropdown arrow or type to filter previous search terms
+
+**F&R Sets (Batch Operations):**
+- 📁 **F&R Sets Panel** — Collapsible panel for creating and managing batch replace operations
+- ▶️ **Batch Operations** — Run multiple find/replace operations with a single click
+- ➕ **Add to Set** — Save current find/replace values to a named set
+- 📥📤 **Import/Export** — Save F&R sets as `.svfr` files for sharing or backup
+- 🖱️ **Double-click** — Double-click any operation in a set to load it into the dialog
+
+**New Module (`modules/find_replace_qt.py`):**
+- `FindReplaceHistory` — Manages and persists recent search/replace terms
+- `FindReplaceOperation` — Dataclass for single F&R operation (find, replace, options)
+- `FindReplaceSet` — Collection of operations that can be saved/loaded
+- `FindReplaceSetsManager` — QWidget UI for managing F&R sets with tables
+- `HistoryComboBox` — Editable combo box with history dropdown
 
 ---
 

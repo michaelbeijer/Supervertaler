@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.77"
+__version__ = "1.9.78"
 __phase__ = "0.9"
 __release_date__ = "2025-01-03"
 __edition__ = "Qt"
@@ -87,6 +87,13 @@ from modules.statuses import (
 )
 from modules import file_dialog_helper as fdh  # File dialog helper with last directory memory
 from modules.spellcheck_manager import SpellcheckManager, get_spellcheck_manager  # Spellcheck with Hunspell
+from modules.find_replace_qt import (
+    FindReplaceHistory,
+    FindReplaceOperation,
+    FindReplaceSet,
+    FindReplaceSetsManager,
+    HistoryComboBox,
+)  # F&R History and Sets
 
 
 STATUS_ORDER = [
@@ -4845,6 +4852,9 @@ class SupervertalerQt(QMainWindow):
         # Set up the shared spellcheck manager for TagHighlighter instances
         TagHighlighter.set_spellcheck_manager(self.spellcheck_manager)
         TagHighlighter.set_spellcheck_enabled(self.spellcheck_enabled)
+        
+        # Find & Replace History Manager
+        self.fr_history = FindReplaceHistory(str(self.user_data_path))
         
         # Voice Command Manager for Talon-style voice commands
         self.voice_command_manager = VoiceCommandManager(self.user_data_path, main_window=self)
@@ -26770,14 +26780,17 @@ class SupervertalerQt(QMainWindow):
     
     def show_find_replace_dialog(self):
         """Show unified Find & Replace dialog (Ctrl+F and Ctrl+H both open same dialog)
-        Filters grid to show only matching segments, like filter boxes.
-        Pre-fills selected text from source (Find) or target (Replace).
+        Features:
+        - History dropdowns for recent search/replace terms (last 20)
+        - F&R Sets panel for batch operations
+        - Pre-fills selected text from source (Find) or target (Replace)
+        - Filters grid to show only matching segments
         """
         if not self.current_project or not self.current_project.segments:
             QMessageBox.information(self, "No Project", "Please open a project first.")
             return
         
-        from PyQt6.QtWidgets import QCheckBox, QGroupBox
+        from PyQt6.QtWidgets import QCheckBox, QGroupBox, QToolButton, QFrame, QSplitter
         
         # Get selected text from source or target cells to pre-fill the dialog
         prefill_find = ""
@@ -26807,8 +26820,8 @@ class SupervertalerQt(QMainWindow):
         
         dialog = QDialog(self)
         dialog.setWindowTitle("Find and Replace")
-        dialog.setMinimumWidth(700)
-        dialog.setMinimumHeight(450)
+        dialog.setMinimumWidth(800)
+        dialog.setMinimumHeight(550)
         
         # Re-enable lookups when dialog closes
         def on_dialog_closed():
@@ -26817,30 +26830,39 @@ class SupervertalerQt(QMainWindow):
         
         dialog.finished.connect(on_dialog_closed)
         
-        # Main horizontal layout - left side (options) and right side (buttons)
-        main_layout = QHBoxLayout(dialog)
+        # Main vertical layout 
+        main_v_layout = QVBoxLayout(dialog)
         
-        # Left side - all options
+        # Top section: Find/Replace + Options + Buttons (horizontal)
+        top_layout = QHBoxLayout()
+        
+        # Left side - Find/Replace inputs with history + options
         left_layout = QVBoxLayout()
         
-        # Left side - all options
-        left_layout = QVBoxLayout()
-        
-        # Find what
+        # Find what (with history dropdown)
         find_layout = QHBoxLayout()
-        find_layout.addWidget(QLabel("Find what:"))
-        self.find_input = QLineEdit()
+        find_label = QLabel("Find what:")
+        find_label.setMinimumWidth(80)
+        find_layout.addWidget(find_label)
+        self.find_input = HistoryComboBox()
+        self.find_input.set_history(self.fr_history.find_history)
         self.find_input.setText(prefill_find)  # Pre-fill with source selection
         find_layout.addWidget(self.find_input, stretch=1)
         left_layout.addLayout(find_layout)
         
-        # Replace with
+        # Replace with (with history dropdown)
         replace_layout = QHBoxLayout()
-        replace_layout.addWidget(QLabel("Replace with:"))
-        self.replace_input = QLineEdit()
+        replace_label = QLabel("Replace with:")
+        replace_label.setMinimumWidth(80)
+        replace_layout.addWidget(replace_label)
+        self.replace_input = HistoryComboBox()
+        self.replace_input.set_history(self.fr_history.replace_history)
         self.replace_input.setText(prefill_replace)  # Pre-fill with target selection
         replace_layout.addWidget(self.replace_input, stretch=1)
         left_layout.addLayout(replace_layout)
+        
+        # Options row (Search in + Match)
+        options_layout = QHBoxLayout()
         
         # Search in options
         search_in_group = QGroupBox("Search in")
@@ -26853,7 +26875,7 @@ class SupervertalerQt(QMainWindow):
         search_in_layout.addWidget(self.search_source_cb)
         search_in_layout.addWidget(self.search_target_cb)
         search_in_group.setLayout(search_in_layout)
-        left_layout.addWidget(search_in_group)
+        options_layout.addWidget(search_in_group)
         
         # Match options
         match_group = QGroupBox("Match")
@@ -26877,21 +26899,23 @@ class SupervertalerQt(QMainWindow):
         match_layout.addWidget(self.case_sensitive_cb)
         
         match_group.setLayout(match_layout)
-        left_layout.addWidget(match_group)
+        options_layout.addWidget(match_group)
         
-        left_layout.addStretch()
+        left_layout.addLayout(options_layout)
+        
+        top_layout.addLayout(left_layout, stretch=2)
         
         # Right side - buttons
         right_layout = QVBoxLayout()
         
         find_next_btn = QPushButton("Find next")
         find_next_btn.setMinimumWidth(150)
-        find_next_btn.clicked.connect(lambda: self.find_next_match())
+        find_next_btn.clicked.connect(lambda: self._fr_find_next())
         right_layout.addWidget(find_next_btn)
         
         find_all_btn = QPushButton("Find all")
         find_all_btn.setMinimumWidth(150)
-        find_all_btn.clicked.connect(lambda: self.find_all_matches())
+        find_all_btn.clicked.connect(lambda: self._fr_find_all())
         right_layout.addWidget(find_all_btn)
         
         # Replace buttons
@@ -26904,7 +26928,7 @@ class SupervertalerQt(QMainWindow):
         
         replace_all_btn = QPushButton("Replace all")
         replace_all_btn.setMinimumWidth(150)
-        replace_all_btn.clicked.connect(lambda: self.replace_all_matches())
+        replace_all_btn.clicked.connect(lambda: self._fr_replace_all())
         right_layout.addWidget(replace_all_btn)
         
         right_layout.addSpacing(10)
@@ -26926,9 +26950,57 @@ class SupervertalerQt(QMainWindow):
         close_btn.clicked.connect(dialog.close)
         right_layout.addWidget(close_btn)
         
-        # Add left and right to main layout
-        main_layout.addLayout(left_layout, stretch=2)
-        main_layout.addLayout(right_layout, stretch=1)
+        top_layout.addLayout(right_layout, stretch=1)
+        
+        main_v_layout.addLayout(top_layout)
+        
+        # F&R Sets collapsible panel
+        fr_sets_frame = QFrame()
+        fr_sets_frame.setFrameStyle(QFrame.Shape.StyledPanel)
+        fr_sets_layout = QVBoxLayout(fr_sets_frame)
+        fr_sets_layout.setContentsMargins(5, 5, 5, 5)
+        
+        # Toggle button for collapsible panel
+        toggle_layout = QHBoxLayout()
+        self.fr_sets_toggle = QToolButton()
+        self.fr_sets_toggle.setArrowType(Qt.ArrowType.RightArrow)
+        self.fr_sets_toggle.setCheckable(True)
+        self.fr_sets_toggle.setText("  F&R Sets (Batch Operations)")
+        self.fr_sets_toggle.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        self.fr_sets_toggle.setStyleSheet("QToolButton { font-weight: bold; border: none; }")
+        toggle_layout.addWidget(self.fr_sets_toggle)
+        
+        # Add to Set button (always visible)
+        add_to_set_btn = QPushButton("+ Add to Set")
+        add_to_set_btn.setToolTip("Add current Find/Replace to the selected set")
+        add_to_set_btn.clicked.connect(lambda: self._fr_add_to_set())
+        toggle_layout.addWidget(add_to_set_btn)
+        
+        toggle_layout.addStretch()
+        fr_sets_layout.addLayout(toggle_layout)
+        
+        # F&R Sets Manager widget (collapsible content)
+        self.fr_sets_manager = FindReplaceSetsManager(str(self.user_data_path), parent=dialog)
+        self.fr_sets_manager.setVisible(False)  # Collapsed by default
+        self.fr_sets_manager.operation_selected.connect(self._fr_load_operation)
+        self.fr_sets_manager.set_selected.connect(self._fr_run_set_batch)
+        fr_sets_layout.addWidget(self.fr_sets_manager)
+        
+        # Toggle visibility
+        def toggle_sets_panel(checked):
+            self.fr_sets_manager.setVisible(checked)
+            self.fr_sets_toggle.setArrowType(
+                Qt.ArrowType.DownArrow if checked else Qt.ArrowType.RightArrow
+            )
+            # Resize dialog to fit content
+            if checked:
+                dialog.setMinimumHeight(700)
+            else:
+                dialog.setMinimumHeight(550)
+        
+        self.fr_sets_toggle.toggled.connect(toggle_sets_panel)
+        
+        main_v_layout.addWidget(fr_sets_frame)
         
         # Store dialog reference and show
         self.find_replace_dialog = dialog
@@ -26936,6 +27008,163 @@ class SupervertalerQt(QMainWindow):
         self.find_matches = []
         
         dialog.show()
+    
+    def _fr_find_next(self):
+        """Wrapper for find_next_match that saves to history."""
+        find_text = self.find_input.text()
+        if find_text:
+            self.fr_history.add_find(find_text)
+            self.find_input.set_history(self.fr_history.find_history)
+        self.find_next_match()
+    
+    def _fr_find_all(self):
+        """Wrapper for find_all_matches that saves to history."""
+        find_text = self.find_input.text()
+        if find_text:
+            self.fr_history.add_find(find_text)
+            self.find_input.set_history(self.fr_history.find_history)
+        self.find_all_matches()
+    
+    def _fr_replace_all(self):
+        """Wrapper for replace_all_matches that saves to history."""
+        find_text = self.find_input.text()
+        replace_text = self.replace_input.text()
+        if find_text:
+            self.fr_history.add_operation(find_text, replace_text)
+            self.find_input.set_history(self.fr_history.find_history)
+            self.replace_input.set_history(self.fr_history.replace_history)
+        self.replace_all_matches()
+    
+    def _fr_add_to_set(self):
+        """Add current Find/Replace values to the selected F&R Set."""
+        find_text = self.find_input.text()
+        replace_text = self.replace_input.text()
+        
+        if not find_text:
+            QMessageBox.information(self.find_replace_dialog, "Add to Set", "Please enter a Find term first.")
+            return
+        
+        # Build operation from current dialog settings
+        search_in = "both" if (self.search_source_cb.isChecked() and self.search_target_cb.isChecked()) else (
+            "source" if self.search_source_cb.isChecked() else "target"
+        )
+        
+        op = FindReplaceOperation(
+            find_text=find_text,
+            replace_text=replace_text,
+            search_in=search_in,
+            match_mode=self.match_group.checkedId(),
+            case_sensitive=self.case_sensitive_cb.isChecked(),
+            enabled=True
+        )
+        
+        self.fr_sets_manager.add_current_operation_to_set(op)
+        self.log(f"✅ Added F&R operation to set: '{find_text}' → '{replace_text}'")
+    
+    def _fr_load_operation(self, op: FindReplaceOperation):
+        """Load an operation from a set into the dialog fields."""
+        self.find_input.setText(op.find_text)
+        self.replace_input.setText(op.replace_text)
+        
+        # Set search options
+        if op.search_in == "both":
+            self.search_source_cb.setChecked(True)
+            self.search_target_cb.setChecked(True)
+        elif op.search_in == "source":
+            self.search_source_cb.setChecked(True)
+            self.search_target_cb.setChecked(False)
+        else:  # target
+            self.search_source_cb.setChecked(False)
+            self.search_target_cb.setChecked(True)
+        
+        # Set match mode
+        btn = self.match_group.button(op.match_mode)
+        if btn:
+            btn.setChecked(True)
+        
+        self.case_sensitive_cb.setChecked(op.case_sensitive)
+    
+    def _fr_run_set_batch(self, fr_set: FindReplaceSet):
+        """Run all enabled operations in a F&R Set as a batch."""
+        enabled_ops = [op for op in fr_set.operations if op.enabled and op.find_text]
+        
+        if not enabled_ops:
+            QMessageBox.information(self.find_replace_dialog, "Run All", "No enabled operations with find text.")
+            return
+        
+        # Confirm
+        reply = QMessageBox.question(
+            self.find_replace_dialog,
+            "Run Batch Replace",
+            f"Run {len(enabled_ops)} replace operation(s) from '{fr_set.name}'?\n\n"
+            "This will replace all occurrences in target segments.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        
+        # Run each operation
+        total_replaced = 0
+        for op in enabled_ops:
+            count = self._execute_single_fr_operation(op)
+            total_replaced += count
+            self.log(f"  '{op.find_text}' → '{op.replace_text}': {count} replacement(s)")
+        
+        # Refresh grid
+        self.load_segments_to_grid()
+        self.project_modified = True
+        self.update_window_title()
+        
+        QMessageBox.information(
+            self.find_replace_dialog,
+            "Batch Complete",
+            f"Completed {len(enabled_ops)} operation(s).\nTotal replacements: {total_replaced}"
+        )
+    
+    def _execute_single_fr_operation(self, op: FindReplaceOperation) -> int:
+        """Execute a single F&R operation on all segments. Returns replacement count."""
+        import re
+        count = 0
+        
+        for segment in self.current_project.segments:
+            texts_to_check = []
+            if op.search_in in ("source", "both") and self.allow_replace_in_source:
+                texts_to_check.append(("source", segment.source))
+            if op.search_in in ("target", "both"):
+                texts_to_check.append(("target", segment.target))
+            
+            for field_name, old_text in texts_to_check:
+                if op.match_mode == 2:  # Entire segment
+                    if op.case_sensitive:
+                        if old_text == op.find_text:
+                            new_text = op.replace_text
+                        else:
+                            new_text = old_text
+                    else:
+                        if old_text.lower() == op.find_text.lower():
+                            new_text = op.replace_text
+                        else:
+                            new_text = old_text
+                elif op.match_mode == 1:  # Whole words
+                    pattern = r'\b' + re.escape(op.find_text) + r'\b'
+                    flags = 0 if op.case_sensitive else re.IGNORECASE
+                    new_text = re.sub(pattern, op.replace_text, old_text, flags=flags)
+                else:  # Anything
+                    if op.case_sensitive:
+                        new_text = old_text.replace(op.find_text, op.replace_text)
+                    else:
+                        pattern = re.escape(op.find_text)
+                        new_text = re.sub(pattern, op.replace_text, old_text, flags=re.IGNORECASE)
+                
+                if new_text != old_text:
+                    count += 1
+                    if field_name == "source":
+                        segment.source = new_text
+                    else:
+                        segment.target = new_text
+        
+        return count
     
     def find_next_match(self):
         """Find next occurrence of search term, filtering grid to show only matching rows"""

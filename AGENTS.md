@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** January 4, 2026 | **Version:** v1.9.77
+> **Last Updated:** January 4, 2026 | **Version:** v1.9.78
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.77 (January 2026) |
+| **Version** | v1.9.78 (January 2026) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -455,6 +455,40 @@ google_api_key=AI...
 ---
 
 ## 🔄 Recent Development History
+
+### January 4, 2026 - Version 1.9.78: Find & Replace History & Batch Sets
+
+**🔍 Find & Replace History**
+
+Enhanced Find & Replace dialog (Ctrl+F / Ctrl+H) with history dropdowns and batch operations:
+
+- **History Dropdowns**: Find and Replace fields now have dropdown arrows showing last 20 searches
+- **Persistent History**: Search/replace terms saved to `user_data/find_replace_history.json`
+- **F&R Sets Panel**: Collapsible panel for creating and managing batch replace operations
+- **Batch Operations**: Run multiple find/replace operations with a single click
+- **Import/Export**: Save F&R sets as `.svfr` files for sharing or backup
+
+**New Module: `modules/find_replace_qt.py`**
+- `FindReplaceHistory` - Manages and persists recent search/replace terms
+- `FindReplaceOperation` - Dataclass for single F&R operation
+- `FindReplaceSet` - Collection of operations that can be saved/loaded
+- `FindReplaceSetsManager` - QWidget UI for managing F&R sets
+- `HistoryComboBox` - Editable combo box with history dropdown
+
+**UI Changes:**
+- Find/Replace inputs changed from QLineEdit to HistoryComboBox
+- Added "F&R Sets (Batch Operations)" collapsible panel below main dialog
+- Added "+ Add to Set" button to save current operation to selected set
+- Added "▶ Run All" button to execute all enabled operations in a set
+- Double-click operation in table loads it into the dialog fields
+
+**Files Created:**
+- `modules/find_replace_qt.py` - New F&R support module (~400 lines)
+
+**Files Modified:**
+- `Supervertaler.py` - Added import, `fr_history` instance, rewrote `show_find_replace_dialog()`, added helper methods
+
+---
 
 ### January 4, 2026 - Version 1.9.77: GitHub Code Search in Superlookup
 
