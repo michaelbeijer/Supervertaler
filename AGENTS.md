@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** January 4, 2026 | **Version:** v1.9.79
+> **Last Updated:** January 4, 2026 | **Version:** v1.9.80
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.79 (January 2026) |
+| **Version** | v1.9.80 (January 2026) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -455,6 +455,22 @@ google_api_key=AI...
 ---
 
 ## 🔄 Recent Development History
+
+### January 4, 2026 - Version 1.9.80: GitHub Code Search (Beijerterm)
+
+**💻 GitHub Code Search for Beijerterm**
+
+Added dedicated GitHub Code search for Beijerterm repository:
+
+- **New Resource**: "💻 GitHub Code (Beijerterm)" button in Superlookup's Web Resources
+- **Search URL**: `https://github.com/search?q={query}+repo:michaelbeijer/beijerterm&type=code`
+- **Search Source Files**: Query YAML glossary files and Markdown documentation
+- **Renamed**: "GitHub Code" → "GitHub Code (all)" for clarity
+
+**Files Modified:**
+- `Supervertaler.py` - Added `github_beijerterm` resource, renamed `github_code` to "GitHub Code (all)"
+
+---
 
 ### January 4, 2026 - Version 1.9.79: Beijerterm Integration in Superlookup
 

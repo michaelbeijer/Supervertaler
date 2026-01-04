@@ -2,11 +2,21 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.79 (January 4, 2026)
+**Current Version:** v1.9.80 (January 4, 2026)
 **Framework:** PyQt6
 **Status:** Active Development
 
 **Note:** For historical information about legacy versions (Tkinter Edition, Classic Edition), see [legacy_versions/LEGACY_VERSIONS.md](legacy_versions/LEGACY_VERSIONS.md).
+
+---
+
+## 💻 GitHub Code Search (Beijerterm) in Superlookup (v1.9.80) - January 4, 2026
+
+**New Web Resource:**
+- 💻 **GitHub Code (Beijerterm)** — Search Beijerterm terminology repo directly from Superlookup
+- 🔗 **Search URL** — `https://github.com/search?q={query}+repo:michaelbeijer/beijerterm&type=code`
+- 📚 **Source Files** — Search YAML glossary files, Markdown documentation
+- ✨ **Renamed** — "GitHub Code" → "GitHub Code (all)" for clarity
 
 ---
 

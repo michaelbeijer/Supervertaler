@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.79"
+__version__ = "1.9.80"
 __phase__ = "0.9"
 __release_date__ = "2025-01-03"
 __edition__ = "Qt"
@@ -34989,10 +34989,19 @@ class SuperlookupTab(QWidget):
             },
             {
                 'id': 'github_code',
-                'name': 'GitHub Code',
+                'name': 'GitHub Code (all)',
                 'icon': '💻',
                 'description': 'Search code across all GitHub repositories',
                 'url_template': 'https://github.com/search?q={query}&type=code',
+                'lang_format': None,
+                'bidirectional': True,
+            },
+            {
+                'id': 'github_beijerterm',
+                'name': 'GitHub Code (Beijerterm)',
+                'icon': '💻',
+                'description': 'Search Beijerterm terminology repo on GitHub',
+                'url_template': 'https://github.com/search?q={query}+repo%3Amichaelbeijer%2Fbeijerterm&type=code',
                 'lang_format': None,
                 'bidirectional': True,
             },
