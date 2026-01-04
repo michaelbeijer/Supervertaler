@@ -238,7 +238,7 @@ class FindReplaceSetsManager(QWidget):
         
         self.ops_table = QTableWidget()
         self.ops_table.setColumnCount(5)
-        self.ops_table.setHorizontalHeaderLabels(["✓", "Find", "Replace", "In", "Match"])
+        self.ops_table.setHorizontalHeaderLabels(["✓", "Find", "Replace", "Search in", "Match"])
         self.ops_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         self.ops_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         self.ops_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
@@ -344,16 +344,14 @@ class FindReplaceSetsManager(QWidget):
             replace_item = QTableWidgetItem(op.replace_text)
             self.ops_table.setItem(i, 2, replace_item)
             
-            # Search in (S=source, T=target, B=both)
-            search_in_map = {"source": "S", "target": "T", "both": "B"}
-            search_item = QTableWidgetItem(search_in_map.get(op.search_in, "T"))
-            search_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            # Search in - full text
+            search_in_map = {"source": "Source", "target": "Target", "both": "Both"}
+            search_item = QTableWidgetItem(search_in_map.get(op.search_in, "Target"))
             self.ops_table.setItem(i, 3, search_item)
             
-            # Match mode (Any, Word, Seg)
-            match_map = {0: "Any", 1: "Word", 2: "Seg"}
-            match_item = QTableWidgetItem(match_map.get(op.match_mode, "Any"))
-            match_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            # Match mode - full text
+            match_map = {0: "Anything", 1: "Whole words", 2: "Entire segment"}
+            match_item = QTableWidgetItem(match_map.get(op.match_mode, "Anything"))
             self.ops_table.setItem(i, 4, match_item)
         
         self.ops_table.blockSignals(False)
