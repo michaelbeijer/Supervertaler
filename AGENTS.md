@@ -103,9 +103,58 @@ Supervertaler/
 │   └── supermemory/          # ChromaDB vector database
 ├── assets/                    # Icons, images
 ├── docs/                      # Documentation site
+├── superlookup/               # 🔗 GIT SUBMODULE - Superlookup website
 ├── tests/                     # Test files
 └── legacy_versions/           # Historical Tkinter version
 ```
+
+---
+
+## 🔗 Superlookup Submodule (IMPORTANT FOR AI AGENTS)
+
+The `superlookup/` folder is a **Git submodule** - a separate repository embedded inside Supervertaler.
+
+### What is a Submodule?
+
+- It's a **pointer** to a specific commit in another repository
+- Regular `git clone` does NOT download submodule contents (saves ~15 MB)
+- The submodule has its own `.git` and tracks `michaelbeijer/superlookup` separately
+
+### Two Separate Projects
+
+| Project | Location | Purpose |
+|---------|----------|---------|
+| **Supervertaler** | Root folder | PyQt6 translation app |
+| **Superlookup** | `superlookup/` subfolder | Static glossary website (GitHub Pages) |
+
+### Working with the Submodule
+
+**To make changes to Superlookup:**
+```bash
+cd superlookup/
+# Edit files...
+git add .
+git commit -m "your message"
+git push origin main          # Pushes to michaelbeijer/superlookup
+```
+
+**Then update the parent reference:**
+```bash
+cd ..                          # Back to Supervertaler root
+git add superlookup            # Stage the new submodule commit pointer
+git commit -m "chore: Update superlookup submodule"
+git push origin main           # Pushes to michaelbeijer/Supervertaler
+```
+
+### ⚠️ Common Pitfalls
+
+1. **Commits in submodule aren't automatically tracked** - After committing inside `superlookup/`, you must also commit in the parent repo to update the pointer.
+
+2. **Changelogs are separate** - Superlookup changes go in `superlookup/CHANGELOG.md`, Supervertaler changes go in `CHANGELOG.md` at root.
+
+3. **Features in the wrong repo** - The "Superlookup" panel inside Supervertaler.py is part of **Supervertaler**, not the Superlookup website. Don't confuse them!
+
+4. **Building the website** - Run `python scripts/build_site.py` from inside `superlookup/`, not from root.
 
 ---
 
