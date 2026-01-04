@@ -26820,8 +26820,7 @@ class SupervertalerQt(QMainWindow):
         
         dialog = QDialog(self)
         dialog.setWindowTitle("Find and Replace")
-        dialog.setMinimumWidth(800)
-        dialog.setMinimumHeight(550)
+        dialog.setMinimumWidth(700)
         
         # Re-enable lookups when dialog closes
         def on_dialog_closed():
@@ -26832,146 +26831,136 @@ class SupervertalerQt(QMainWindow):
         
         # Main vertical layout 
         main_v_layout = QVBoxLayout(dialog)
+        main_v_layout.setSpacing(8)
         
-        # Top section: Find/Replace + Options + Buttons (horizontal)
-        top_layout = QHBoxLayout()
-        
-        # Left side - Find/Replace inputs with history + options
-        left_layout = QVBoxLayout()
-        
-        # Find what (with history dropdown)
+        # Row 1: Find what (with history dropdown)
         find_layout = QHBoxLayout()
         find_label = QLabel("Find what:")
-        find_label.setMinimumWidth(80)
+        find_label.setFixedWidth(75)
         find_layout.addWidget(find_label)
         self.find_input = HistoryComboBox()
         self.find_input.set_history(self.fr_history.find_history)
-        self.find_input.setText(prefill_find)  # Pre-fill with source selection
+        self.find_input.setText(prefill_find)
         find_layout.addWidget(self.find_input, stretch=1)
-        left_layout.addLayout(find_layout)
+        main_v_layout.addLayout(find_layout)
         
-        # Replace with (with history dropdown)
+        # Row 2: Replace with (with history dropdown)
         replace_layout = QHBoxLayout()
         replace_label = QLabel("Replace with:")
-        replace_label.setMinimumWidth(80)
+        replace_label.setFixedWidth(75)
         replace_layout.addWidget(replace_label)
         self.replace_input = HistoryComboBox()
         self.replace_input.set_history(self.fr_history.replace_history)
-        self.replace_input.setText(prefill_replace)  # Pre-fill with target selection
+        self.replace_input.setText(prefill_replace)
         replace_layout.addWidget(self.replace_input, stretch=1)
-        left_layout.addLayout(replace_layout)
+        main_v_layout.addLayout(replace_layout)
         
-        # Options row (Search in + Match)
+        # Row 3: Options - all inline in one horizontal row
         options_layout = QHBoxLayout()
+        options_layout.setSpacing(15)
         
-        # Search in options
-        search_in_group = QGroupBox("Search in")
-        search_in_layout = QVBoxLayout()
-        
-        self.search_source_cb = CheckmarkCheckBox("Source text")
-        self.search_target_cb = CheckmarkCheckBox("Target text")
+        # Search in label + checkboxes
+        options_layout.addWidget(QLabel("Search in:"))
+        self.search_source_cb = CheckmarkCheckBox("Source")
+        self.search_target_cb = CheckmarkCheckBox("Target")
         self.search_target_cb.setChecked(True)  # Default to target
+        options_layout.addWidget(self.search_source_cb)
+        options_layout.addWidget(self.search_target_cb)
         
-        search_in_layout.addWidget(self.search_source_cb)
-        search_in_layout.addWidget(self.search_target_cb)
-        search_in_group.setLayout(search_in_layout)
-        options_layout.addWidget(search_in_group)
+        # Separator
+        sep1 = QFrame()
+        sep1.setFrameShape(QFrame.Shape.VLine)
+        sep1.setFrameShadow(QFrame.Shadow.Sunken)
+        options_layout.addWidget(sep1)
         
-        # Match options
-        match_group = QGroupBox("Match")
-        match_layout = QVBoxLayout()
-        
+        # Match label + radio buttons
+        options_layout.addWidget(QLabel("Match:"))
         self.match_group = QButtonGroup(dialog)
         match_anything = CheckmarkRadioButton("Anything")
         match_anything.setChecked(True)
-        match_whole_words = CheckmarkRadioButton("Only whole words")
+        match_whole_words = CheckmarkRadioButton("Whole words")
         match_entire = CheckmarkRadioButton("Entire segment")
         
         self.match_group.addButton(match_anything, 0)
         self.match_group.addButton(match_whole_words, 1)
         self.match_group.addButton(match_entire, 2)
         
-        match_layout.addWidget(match_anything)
-        match_layout.addWidget(match_whole_words)
-        match_layout.addWidget(match_entire)
+        options_layout.addWidget(match_anything)
+        options_layout.addWidget(match_whole_words)
+        options_layout.addWidget(match_entire)
         
+        # Separator
+        sep2 = QFrame()
+        sep2.setFrameShape(QFrame.Shape.VLine)
+        sep2.setFrameShadow(QFrame.Shadow.Sunken)
+        options_layout.addWidget(sep2)
+        
+        # Case sensitive checkbox
         self.case_sensitive_cb = CheckmarkCheckBox("Case sensitive")
-        match_layout.addWidget(self.case_sensitive_cb)
+        options_layout.addWidget(self.case_sensitive_cb)
         
-        match_group.setLayout(match_layout)
-        options_layout.addWidget(match_group)
+        options_layout.addStretch()
+        main_v_layout.addLayout(options_layout)
         
-        left_layout.addLayout(options_layout)
-        
-        top_layout.addLayout(left_layout, stretch=2)
-        
-        # Right side - buttons
-        right_layout = QVBoxLayout()
+        # Row 4: Action buttons - horizontal row
+        buttons_layout = QHBoxLayout()
+        buttons_layout.setSpacing(8)
         
         find_next_btn = QPushButton("Find next")
-        find_next_btn.setMinimumWidth(150)
         find_next_btn.clicked.connect(lambda: self._fr_find_next())
-        right_layout.addWidget(find_next_btn)
+        buttons_layout.addWidget(find_next_btn)
         
         find_all_btn = QPushButton("Find all")
-        find_all_btn.setMinimumWidth(150)
         find_all_btn.clicked.connect(lambda: self._fr_find_all())
-        right_layout.addWidget(find_all_btn)
-        
-        # Replace buttons
-        right_layout.addSpacing(10)
+        buttons_layout.addWidget(find_all_btn)
         
         replace_this_btn = QPushButton("Replace this")
-        replace_this_btn.setMinimumWidth(150)
         replace_this_btn.clicked.connect(lambda: self.replace_current_match())
-        right_layout.addWidget(replace_this_btn)
+        buttons_layout.addWidget(replace_this_btn)
         
         replace_all_btn = QPushButton("Replace all")
-        replace_all_btn.setMinimumWidth(150)
         replace_all_btn.clicked.connect(lambda: self._fr_replace_all())
-        right_layout.addWidget(replace_all_btn)
-        
-        right_layout.addSpacing(10)
+        buttons_layout.addWidget(replace_all_btn)
         
         highlight_all_btn = QPushButton("Highlight all")
-        highlight_all_btn.setMinimumWidth(150)
         highlight_all_btn.clicked.connect(lambda: self.highlight_all_matches())
-        right_layout.addWidget(highlight_all_btn)
+        buttons_layout.addWidget(highlight_all_btn)
         
-        clear_highlight_btn = QPushButton("Clear highlighting")
-        clear_highlight_btn.setMinimumWidth(150)
+        clear_highlight_btn = QPushButton("Clear highlights")
         clear_highlight_btn.clicked.connect(lambda: self.clear_search_highlights())
-        right_layout.addWidget(clear_highlight_btn)
+        buttons_layout.addWidget(clear_highlight_btn)
         
-        right_layout.addStretch()
+        buttons_layout.addStretch()
         
         close_btn = QPushButton("Close")
-        close_btn.setMinimumWidth(150)
         close_btn.clicked.connect(dialog.close)
-        right_layout.addWidget(close_btn)
+        buttons_layout.addWidget(close_btn)
         
-        top_layout.addLayout(right_layout, stretch=1)
+        main_v_layout.addLayout(buttons_layout)
         
-        main_v_layout.addLayout(top_layout)
+        # Horizontal separator line
+        separator = QFrame()
+        separator.setFrameShape(QFrame.Shape.HLine)
+        separator.setFrameShadow(QFrame.Shadow.Sunken)
+        main_v_layout.addWidget(separator)
         
         # F&R Sets collapsible panel
         fr_sets_frame = QFrame()
-        fr_sets_frame.setFrameStyle(QFrame.Shape.StyledPanel)
         fr_sets_layout = QVBoxLayout(fr_sets_frame)
-        fr_sets_layout.setContentsMargins(5, 5, 5, 5)
+        fr_sets_layout.setContentsMargins(0, 5, 0, 0)
         
         # Toggle button for collapsible panel
         toggle_layout = QHBoxLayout()
         self.fr_sets_toggle = QToolButton()
         self.fr_sets_toggle.setArrowType(Qt.ArrowType.RightArrow)
         self.fr_sets_toggle.setCheckable(True)
-        self.fr_sets_toggle.setText("  F&R Sets (Batch Operations)")
+        self.fr_sets_toggle.setText("  F&R Sets (save and run multiple find/replace operations)")
         self.fr_sets_toggle.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
         self.fr_sets_toggle.setStyleSheet("QToolButton { font-weight: bold; border: none; }")
         toggle_layout.addWidget(self.fr_sets_toggle)
         
-        # Add to Set button (always visible)
-        add_to_set_btn = QPushButton("+ Add to Set")
+        # Add Current to Set button (always visible)
+        add_to_set_btn = QPushButton("+ Add Current to Set")
         add_to_set_btn.setToolTip("Add current Find/Replace to the selected set")
         add_to_set_btn.clicked.connect(lambda: self._fr_add_to_set())
         toggle_layout.addWidget(add_to_set_btn)
@@ -26994,9 +26983,10 @@ class SupervertalerQt(QMainWindow):
             )
             # Resize dialog to fit content
             if checked:
-                dialog.setMinimumHeight(700)
+                dialog.setMinimumHeight(500)
             else:
-                dialog.setMinimumHeight(550)
+                dialog.setMinimumHeight(0)
+                dialog.adjustSize()
         
         self.fr_sets_toggle.toggled.connect(toggle_sets_panel)
         
