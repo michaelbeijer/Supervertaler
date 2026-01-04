@@ -34944,10 +34944,10 @@ class SuperlookupTab(QWidget):
             },
             {
                 'id': 'beijerterm',
-                'name': 'michaelbeijer.co.uk',
+                'name': 'Beijerterm',
                 'icon': '📚',
-                'description': 'Personal terminology wiki',
-                'url_template': 'https://michaelbeijer.co.uk/w/index.php?search={query}',
+                'description': 'Dutch-English terminology database (500k+ terms)',
+                'url_template': 'https://michaelbeijer.github.io/beijerterm/?q={query}',
                 'lang_format': None,
                 'bidirectional': True,
             },
