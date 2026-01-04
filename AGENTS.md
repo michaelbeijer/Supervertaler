@@ -110,7 +110,7 @@ Supervertaler/
 
 ---
 
-## 🔗 Superlookup Submodule (IMPORTANT FOR AI AGENTS)
+## 🔗 BeijerTerm Website Submodule (IMPORTANT FOR AI AGENTS)
 
 The `superlookup/` folder is a **Git submodule** - a separate repository embedded inside Supervertaler.
 
@@ -125,11 +125,13 @@ The `superlookup/` folder is a **Git submodule** - a separate repository embedde
 | Project | Location | Purpose |
 |---------|----------|---------|
 | **Supervertaler** | Root folder | PyQt6 translation app |
-| **Superlookup** | `superlookup/` subfolder | Static glossary website (GitHub Pages) |
+| **BeijerTerm** | `superlookup/` subfolder | Static glossary website (beijerterm.com) |
+
+**Note**: The folder is named `superlookup/` for historical reasons, but the website is now branded "BeijerTerm" and will be hosted at beijerterm.com. The "Superlookup" name remains for the in-app lookup panel inside Supervertaler.
 
 ### Working with the Submodule
 
-**To make changes to Superlookup:**
+**To make changes to BeijerTerm website:**
 ```bash
 cd superlookup/
 # Edit files...
@@ -150,9 +152,9 @@ git push origin main           # Pushes to michaelbeijer/Supervertaler
 
 1. **Commits in submodule aren't automatically tracked** - After committing inside `superlookup/`, you must also commit in the parent repo to update the pointer.
 
-2. **Changelogs are separate** - Superlookup changes go in `superlookup/CHANGELOG.md`, Supervertaler changes go in `CHANGELOG.md` at root.
+2. **Changelogs are separate** - BeijerTerm website changes go in `superlookup/CHANGELOG.md`, Supervertaler changes go in `CHANGELOG.md` at root.
 
-3. **Features in the wrong repo** - The "Superlookup" panel inside Supervertaler.py is part of **Supervertaler**, not the Superlookup website. Don't confuse them!
+3. **Features in the wrong repo** - The "Superlookup" panel inside Supervertaler.py is part of **Supervertaler**, not the BeijerTerm website. Don't confuse them!
 
 4. **Building the website** - Run `python scripts/build_site.py` from inside `superlookup/`, not from root.
 
