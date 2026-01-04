@@ -456,6 +456,22 @@ google_api_key=AI...
 
 ## 🔄 Recent Development History
 
+### January 4, 2026 - Version 1.9.79: Beijerterm Integration in Superlookup
+
+**📚 Beijerterm Web Resource**
+
+Added Beijerterm to Superlookup's Web Resources tab:
+
+- **Updated Resource**: Replaced old `michaelbeijer.co.uk` wiki with new Beijerterm static site
+- **Search URL**: `https://michaelbeijer.github.io/beijerterm/?q={query}`
+- **500k+ Terms**: Dutch-English terminology database with 583,000+ term entries
+- **URL Search**: Beijerterm now supports `?q=searchterm` for programmatic search integration
+
+**Files Modified:**
+- `Supervertaler.py` - Updated `beijerterm` resource in `self.web_resources` list
+
+---
+
 ### January 4, 2026 - Version 1.9.78: Find & Replace History & Batch Sets
 
 **🔍 Find & Replace History**
