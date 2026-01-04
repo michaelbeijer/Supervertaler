@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.76"
+__version__ = "1.9.77"
 __phase__ = "0.9"
 __release_date__ = "2025-01-03"
 __edition__ = "Qt"
@@ -34766,6 +34766,15 @@ class SuperlookupTab(QWidget):
                 'description': 'Wiktionary in target language',
                 'url_template': 'https://{tl}.wiktionary.org/wiki/{query}',
                 'lang_format': 'iso2',
+                'bidirectional': True,
+            },
+            {
+                'id': 'github_code',
+                'name': 'GitHub Code',
+                'icon': '💻',
+                'description': 'Search code across all GitHub repositories',
+                'url_template': 'https://github.com/search?q={query}&type=code',
+                'lang_format': None,
                 'bidirectional': True,
             },
         ]

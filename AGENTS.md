@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** January 3, 2025 | **Version:** v1.9.76
+> **Last Updated:** January 4, 2026 | **Version:** v1.9.77
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.76 (January 2025) |
+| **Version** | v1.9.77 (January 2026) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -404,6 +404,22 @@ google_api_key=AI...
 ---
 
 ## 🔄 Recent Development History
+
+### January 4, 2026 - Version 1.9.77: GitHub Code Search in Superlookup
+
+**💻 GitHub Code Search**
+
+Added GitHub Code Search to Superlookup's Web Resources tab:
+
+- **New Resource**: "💻 GitHub Code" button in the web resources sidebar
+- **Search URL**: `https://github.com/search?q={query}&type=code`
+- **Use Case**: Search for terms/code across all public GitHub repositories
+- **Great for**: Finding how technical terms are used in real code, locating terminology in open-source projects
+
+**Files Modified:**
+- `Supervertaler.py` - Added `github_code` resource to `self.web_resources` list
+
+---
 
 ### January 3, 2025 - Version 1.9.76: Onboarding, Spellcheck & Project Info
 
