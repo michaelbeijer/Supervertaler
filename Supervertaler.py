@@ -34,9 +34,9 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.81"
+__version__ = "1.9.82"
 __phase__ = "0.9"
-__release_date__ = "2025-01-03"
+__release_date__ = "2026-01-05"
 __edition__ = "Qt"
 
 import sys
@@ -5669,6 +5669,11 @@ class SupervertalerQt(QMainWindow):
         export_txt_action = QAction("Simple &Text File - Translated (TXT)...", self)
         export_txt_action.triggered.connect(self.export_simple_txt)
         export_menu.addAction(export_txt_action)
+        
+        export_ai_action = QAction("🤖 &AI-Readable Format (TXT)...", self)
+        export_ai_action.triggered.connect(self.export_for_ai)
+        export_ai_action.setToolTip("Export segments in [SEGMENT] format for AI translation/review")
+        export_menu.addAction(export_ai_action)
         
         export_menu.addSeparator()
         
@@ -19764,6 +19769,295 @@ class SupervertalerQt(QMainWindow):
                 f"Failed to export text file:\n\n{str(e)}"
             )
     
+    def export_for_ai(self):
+        """
+        Export segments in AI-readable [SEGMENT] format.
+        
+        Output format:
+            [SEGMENT 0001]
+            NL: Source text here
+            EN: Target text here (or empty if not translated)
+            
+            [SEGMENT 0002]
+            ...
+        
+        This format is designed for:
+        - AI translation services (ChatGPT, Claude, etc.)
+        - AI-assisted review and editing
+        - Easy parsing and re-import
+        """
+        try:
+            if not self.current_project or not self.current_project.segments:
+                QMessageBox.warning(self, "No Project", "Please open a project with segments first")
+                return
+            
+            segments = list(self.current_project.segments)
+            
+            # Get language codes
+            source_lang = self.current_project.source_lang or "Source"
+            target_lang = self.current_project.target_lang or "Target"
+            
+            # Convert to short codes (uppercase) for the format
+            source_code = self._convert_language_to_code(source_lang).upper() if source_lang else "SRC"
+            target_code = self._convert_language_to_code(target_lang).upper() if target_lang else "TGT"
+            
+            # Check translation status
+            translated_count = sum(1 for seg in segments if seg.target and seg.target.strip())
+            total_count = len(segments)
+            
+            # Show export options dialog
+            dialog = QDialog(self)
+            dialog.setWindowTitle("Export for AI")
+            dialog.setMinimumWidth(500)
+            
+            layout = QVBoxLayout(dialog)
+            
+            # Info label
+            info_label = QLabel(
+                "Export segments in a format optimized for AI systems.\n"
+                "Each segment is numbered and labeled with language codes."
+            )
+            info_label.setWordWrap(True)
+            layout.addWidget(info_label)
+            
+            layout.addSpacing(10)
+            
+            # Status info
+            if translated_count > 0:
+                status_label = QLabel(
+                    f"📊 <b>{translated_count} of {total_count}</b> segments have translations."
+                )
+            else:
+                status_label = QLabel(
+                    f"📊 <b>{total_count}</b> segments (none translated yet)."
+                )
+            status_label.setTextFormat(Qt.TextFormat.RichText)
+            layout.addWidget(status_label)
+            
+            layout.addSpacing(10)
+            
+            # Language codes group
+            lang_group = QGroupBox("Language Codes")
+            lang_layout = QGridLayout(lang_group)
+            
+            lang_layout.addWidget(QLabel("Source:"), 0, 0)
+            source_code_edit = QLineEdit(source_code)
+            source_code_edit.setMaximumWidth(80)
+            source_code_edit.setToolTip("Language code for source text (e.g., NL, EN, DE)")
+            lang_layout.addWidget(source_code_edit, 0, 1)
+            
+            lang_layout.addWidget(QLabel("Target:"), 0, 2)
+            target_code_edit = QLineEdit(target_code)
+            target_code_edit.setMaximumWidth(80)
+            target_code_edit.setToolTip("Language code for target text (e.g., EN, NL, FR)")
+            lang_layout.addWidget(target_code_edit, 0, 3)
+            
+            lang_layout.setColumnStretch(4, 1)  # Push controls left
+            layout.addWidget(lang_group)
+            
+            # Numbering options
+            numbering_group = QGroupBox("Segment Numbering")
+            numbering_layout = QGridLayout(numbering_group)
+            
+            numbering_layout.addWidget(QLabel("Start at:"), 0, 0)
+            start_spin = QSpinBox()
+            start_spin.setRange(1, 99999)
+            start_spin.setValue(1)
+            start_spin.setMaximumWidth(80)
+            numbering_layout.addWidget(start_spin, 0, 1)
+            
+            numbering_layout.addWidget(QLabel("Zero padding:"), 0, 2)
+            padding_spin = QSpinBox()
+            padding_spin.setRange(1, 8)
+            padding_spin.setValue(4)
+            padding_spin.setMaximumWidth(60)
+            padding_spin.setToolTip("Number of digits (4 = 0001, 0002...)")
+            numbering_layout.addWidget(padding_spin, 0, 3)
+            
+            numbering_layout.setColumnStretch(4, 1)
+            layout.addWidget(numbering_group)
+            
+            # Content options
+            content_group = QGroupBox("Content Options")
+            content_layout = QVBoxLayout(content_group)
+            
+            include_both_radio = CheckmarkRadioButton("Include both source and target (bilingual)")
+            include_both_radio.setChecked(True)
+            source_only_radio = CheckmarkRadioButton("Source only (for AI translation)")
+            target_only_radio = CheckmarkRadioButton("Target only (translated segments)")
+            
+            content_layout.addWidget(include_both_radio)
+            content_layout.addWidget(source_only_radio)
+            content_layout.addWidget(target_only_radio)
+            layout.addWidget(content_group)
+            
+            # Filter options
+            filter_group = QGroupBox("Segment Filter")
+            filter_layout = QVBoxLayout(filter_group)
+            
+            all_segments_radio = CheckmarkRadioButton("All segments")
+            all_segments_radio.setChecked(True)
+            untranslated_radio = CheckmarkRadioButton("Untranslated segments only (empty target)")
+            translated_radio = CheckmarkRadioButton("Translated segments only (has target)")
+            
+            filter_layout.addWidget(all_segments_radio)
+            filter_layout.addWidget(untranslated_radio)
+            filter_layout.addWidget(translated_radio)
+            layout.addWidget(filter_group)
+            
+            layout.addSpacing(10)
+            
+            # Preview
+            preview_group = QGroupBox("Preview")
+            preview_layout = QVBoxLayout(preview_group)
+            preview_text = QTextEdit()
+            preview_text.setReadOnly(True)
+            preview_text.setMaximumHeight(120)
+            preview_text.setStyleSheet("font-family: Consolas, monospace; font-size: 11px;")
+            preview_layout.addWidget(preview_text)
+            layout.addWidget(preview_group)
+            
+            def update_preview():
+                src_code = source_code_edit.text().strip() or "SRC"
+                tgt_code = target_code_edit.text().strip() or "TGT"
+                start = start_spin.value()
+                pad = padding_spin.value()
+                
+                # Get a sample segment
+                sample_source = segments[0].source if segments else "Sample source text"
+                sample_target = segments[0].target if segments and segments[0].target else ""
+                
+                # Truncate for preview
+                if len(sample_source) > 40:
+                    sample_source = sample_source[:40] + "..."
+                if len(sample_target) > 40:
+                    sample_target = sample_target[:40] + "..."
+                
+                if include_both_radio.isChecked():
+                    preview = f"[SEGMENT {start:0{pad}d}]\n{src_code}: {sample_source}\n{tgt_code}: {sample_target}\n"
+                elif source_only_radio.isChecked():
+                    preview = f"[SEGMENT {start:0{pad}d}]\n{src_code}: {sample_source}\n"
+                else:
+                    preview = f"[SEGMENT {start:0{pad}d}]\n{tgt_code}: {sample_target or '(empty)'}\n"
+                
+                preview_text.setPlainText(preview)
+            
+            # Connect signals for live preview
+            source_code_edit.textChanged.connect(update_preview)
+            target_code_edit.textChanged.connect(update_preview)
+            start_spin.valueChanged.connect(update_preview)
+            padding_spin.valueChanged.connect(update_preview)
+            include_both_radio.toggled.connect(update_preview)
+            source_only_radio.toggled.connect(update_preview)
+            target_only_radio.toggled.connect(update_preview)
+            
+            update_preview()  # Initial preview
+            
+            layout.addSpacing(10)
+            
+            # Buttons
+            button_layout = QHBoxLayout()
+            ok_btn = QPushButton("Export")
+            ok_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold;")
+            ok_btn.clicked.connect(dialog.accept)
+            cancel_btn = QPushButton("Cancel")
+            cancel_btn.clicked.connect(dialog.reject)
+            
+            button_layout.addStretch()
+            button_layout.addWidget(cancel_btn)
+            button_layout.addWidget(ok_btn)
+            layout.addLayout(button_layout)
+            
+            if dialog.exec() != QDialog.DialogCode.Accepted:
+                return
+            
+            # Get options
+            src_code = source_code_edit.text().strip() or "SRC"
+            tgt_code = target_code_edit.text().strip() or "TGT"
+            start_at = start_spin.value()
+            padding = padding_spin.value()
+            
+            # Determine content mode
+            if source_only_radio.isChecked():
+                content_mode = "source_only"
+            elif target_only_radio.isChecked():
+                content_mode = "target_only"
+            else:
+                content_mode = "bilingual"
+            
+            # Filter segments
+            if untranslated_radio.isChecked():
+                filtered_segments = [s for s in segments if not (s.target and s.target.strip())]
+            elif translated_radio.isChecked():
+                filtered_segments = [s for s in segments if s.target and s.target.strip()]
+            else:
+                filtered_segments = segments
+            
+            if not filtered_segments:
+                QMessageBox.warning(
+                    self, "No Segments",
+                    "No segments match the selected filter criteria."
+                )
+                return
+            
+            # Get save path
+            default_name = ""
+            if self.current_project.name:
+                default_name = self.current_project.name.replace(" ", "_") + "_ai_format.txt"
+            
+            file_path, _ = QFileDialog.getSaveFileName(
+                self,
+                "Export for AI",
+                default_name,
+                "Text Files (*.txt);;All Files (*.*)"
+            )
+            
+            if not file_path:
+                return
+            
+            # Ensure .txt extension
+            if not file_path.lower().endswith('.txt'):
+                file_path += '.txt'
+            
+            # Build output
+            output_lines = []
+            segment_num = start_at
+            
+            for seg in filtered_segments:
+                output_lines.append(f"[SEGMENT {segment_num:0{padding}d}]")
+                
+                if content_mode == "bilingual":
+                    output_lines.append(f"{src_code}: {seg.source}")
+                    output_lines.append(f"{tgt_code}: {seg.target or ''}")
+                elif content_mode == "source_only":
+                    output_lines.append(f"{src_code}: {seg.source}")
+                else:  # target_only
+                    output_lines.append(f"{tgt_code}: {seg.target or ''}")
+                
+                output_lines.append("")  # Blank line between segments
+                segment_num += 1
+            
+            # Write file
+            with open(file_path, 'w', encoding='utf-8', newline='\n') as f:
+                f.write('\n'.join(output_lines))
+            
+            self.log(f"✓ Exported {len(filtered_segments)} segments in AI format to: {os.path.basename(file_path)}")
+            
+            QMessageBox.information(
+                self,
+                "Export Complete",
+                f"Successfully exported {len(filtered_segments)} segments to:\n{os.path.basename(file_path)}\n\n"
+                f"Format: [SEGMENT XXXX] with {src_code}/{tgt_code} labels"
+            )
+            
+        except Exception as e:
+            self.log(f"✗ Export for AI failed: {str(e)}")
+            QMessageBox.critical(
+                self,
+                "Export Error",
+                f"Failed to export AI format:\n\n{str(e)}"
+            )
+
     # ========================================================================
     # MULTI-FILE FOLDER IMPORT
     # ========================================================================

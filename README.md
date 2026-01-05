@@ -1,4 +1,4 @@
-# 🚀 Supervertaler v1.9.81
+# 🚀 Supervertaler v1.9.82
 
 [![PyPI version](https://badge.fury.io/py/supervertaler.svg)](https://pypi.org/project/Supervertaler/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
@@ -6,7 +6,7 @@
 
 🎯 **The Ultimate Translation Workbench** — Context-aware AI with intuitive 2-Layer Prompt Architecture, AI Assistant, project glossary system with automatic extraction, and specialized modules.
 
-**Current Version:** v1.9.81 (January 4, 2026)
+**Current Version:** v1.9.82 (January 5, 2026)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -50,7 +50,20 @@ python Supervertaler.py
 
 **PyPI Package:** https://pypi.org/project/Supervertaler/
 
-### NEW in v1.9.60 - Tag-Aware TM Matching 🔍
+### NEW in v1.9.82 - Export for AI 🤖
+*   **AI-Readable Format**: New export option in File → Export → 🤖 AI-Readable Format (TXT)
+*   **[SEGMENT XXXX] Format**: Outputs clean numbered segments with language labels (NL/EN/DE etc.)
+*   **Auto Language Codes**: Detects project languages and converts to short codes
+*   **Content Modes**: Bilingual (source+target), Source only, Target only
+*   **Segment Filters**: Export all, untranslated only, or translated only
+*   **Live Preview**: See format preview before exporting
+
+### v1.9.81 - Superlookup UX Improvements 🔍
+*   **Search History**: Last 20 searches saved in dropdown
+*   **Resizable Sidebar**: Web Resources sidebar now resizable (120-250px)
+*   **Focus Rectangles Removed**: Cleaner button styling throughout
+
+### v1.9.60 - Tag-Aware TM Matching 🔍
 *   **Smart Tag Handling**: TM fuzzy matching now works regardless of tags in segments
 *   **Dual Search**: Searches both with and without tags - `<b>Hello</b>` matches `Hello` in your TM
 *   **Accurate Percentages**: Similarity calculation strips tags before comparing (100% match, not ~70%)

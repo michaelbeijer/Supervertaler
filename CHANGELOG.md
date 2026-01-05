@@ -2,11 +2,31 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.81 (January 4, 2026)
+**Current Version:** v1.9.82 (January 5, 2026)
 **Framework:** PyQt6
 **Status:** Active Development
 
 **Note:** For historical information about legacy versions (Tkinter Edition, Classic Edition), see [legacy_versions/LEGACY_VERSIONS.md](legacy_versions/LEGACY_VERSIONS.md).
+
+---
+
+## 🤖 Export for AI (v1.9.82) - January 5, 2026
+
+**New Export Format:**
+- 🤖 **AI-Readable Format** — New export option in File → Export menu
+- 📝 **[SEGMENT XXXX] Format** — Outputs clean numbered segments with language labels
+- 🌐 **Language Codes** — Auto-detects project languages (NL, EN, DE, etc.)
+- ⚙️ **Configurable** — Customizable language codes, start number, zero padding
+
+**Export Options:**
+- 🔄 **Content Modes** — Bilingual (source+target), Source only, Target only
+- 📊 **Segment Filters** — All segments, Untranslated only, Translated only
+- 👁️ **Live Preview** — See format preview before exporting
+
+**Use Cases:**
+- 🧠 **AI Translation** — Export source-only for ChatGPT/Claude translation
+- 🔍 **AI Review** — Export bilingual for AI quality review
+- 📎 **Easy Parsing** — Simple format for automated processing
 
 ---
 

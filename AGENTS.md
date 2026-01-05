@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** January 4, 2026 | **Version:** v1.9.81
+> **Last Updated:** January 5, 2026 | **Version:** v1.9.82
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.81 (January 2026) |
+| **Version** | v1.9.82 (January 2026) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -455,6 +455,33 @@ google_api_key=AI...
 ---
 
 ## 🔄 Recent Development History
+
+### January 5, 2026 - Version 1.9.82: Export for AI
+
+**🤖 AI-Readable Export Format**
+
+New export option for segments in a format optimized for AI systems:
+
+- **Menu Location**: File → Export → 🤖 AI-Readable Format (TXT)...
+- **Output Format**: `[SEGMENT 0001]` with language-labeled source/target
+- **Auto Language Codes**: Detects project languages and converts to short codes (NL, EN, DE, etc.)
+
+**Configurable Options:**
+- **Language Codes**: Editable source/target codes (auto-filled from project)
+- **Numbering**: Start number and zero padding (1-8 digits)
+- **Content Modes**: Bilingual (source+target), Source only, Target only
+- **Segment Filters**: All, Untranslated only, Translated only
+- **Live Preview**: Shows format preview before export
+
+**Use Cases:**
+- Export source-only for AI translation (ChatGPT, Claude, Gemini)
+- Export bilingual for AI quality review
+- Simple format for automated processing and re-import
+
+**Files Modified:**
+- `Supervertaler.py` - Added `export_for_ai()` method, menu item in Export submenu
+
+---
 
 ### January 4, 2026 - Version 1.9.81: Superlookup UX Improvements
 
