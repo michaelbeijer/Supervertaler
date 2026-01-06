@@ -7,7 +7,7 @@ A curated list of translation tools and AI-powered assistants that offer similar
 ## 🤖 AI-Powered Translation Tools
 
 ### CotranslatorAI
-- **Website:** [cotranslator.ai](https://cotranslator.ai/)
+- **Website:** [cotranslator.ai](https://cotranslatorai.com/)
 - **Type:** Web-based AI translation assistant
 - **Description:** AI-powered translation tool that helps professional translators work more efficiently with machine translation post-editing and terminology management.
 - **Key Features:**
