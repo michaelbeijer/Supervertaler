@@ -35451,7 +35451,33 @@ class SuperlookupTab(QWidget):
                 'lang_format': None,
                 'bidirectional': True,
             },
+            {
+                'id': 'opus_corpus',
+                'name': 'OPUS Corpus',
+                'icon': '📚',
+                'description': 'Search 58B parallel sentences from OPUS parallel corpora',
+                'url_template': 'https://opus.nlpl.eu/bin/opuscqp.pl?corpus={opus_corpus};lang={sl}',
+                'lang_format': 'iso2',
+                'bidirectional': False,
+                'has_corpus_selector': True,  # Special flag for OPUS
+            },
         ]
+        
+        # OPUS corpus options for the selector
+        self.opus_corpora = [
+            ('DGT', 'DGT - EU Translation Memory (1.1B pairs)'),
+            ('Europarl', 'Europarl - EU Parliament (186M pairs)'),
+            ('OpenSubtitles', 'OpenSubtitles - Movies/TV (20B pairs)'),
+            ('EMEA', 'EMEA - Medicines Agency (243M pairs)'),
+            ('EUbookshop', 'EUbookshop - EU Publications (279M pairs)'),
+            ('JRC-Acquis', 'JRC-Acquis - EU Legislation (147M pairs)'),
+            ('ECB', 'ECB - Central Bank (15M pairs)'),
+            ('TED2020', 'TED2020 - TED Talks (143M pairs)'),
+            ('WikiMatrix', 'WikiMatrix - Wikipedia (127M pairs)'),
+            ('GlobalVoices', 'GlobalVoices - News (7.3M pairs)'),
+            ('Tatoeba', 'Tatoeba - Example Sentences (8.7M pairs)'),
+        ]
+        self.current_opus_corpus = 'DGT'  # Default corpus
         
         # === Use QSplitter for resizable sidebar ===
         splitter = QSplitter(Qt.Orientation.Horizontal)
@@ -35595,6 +35621,42 @@ class SuperlookupTab(QWidget):
         self.web_lang_info_label.setStyleSheet("color: #666; font-size: 9pt; padding: 3px 0;")
         content_layout.addWidget(self.web_lang_info_label)
         
+        # OPUS corpus selector (hidden by default, shown when OPUS is selected)
+        self.opus_selector_widget = QWidget()
+        opus_selector_layout = QHBoxLayout(self.opus_selector_widget)
+        opus_selector_layout.setContentsMargins(0, 5, 0, 5)
+        opus_selector_layout.setSpacing(8)
+        
+        opus_label = QLabel("📚 Corpus:")
+        opus_label.setStyleSheet("font-weight: bold; color: #1976D2;")
+        opus_selector_layout.addWidget(opus_label)
+        
+        self.opus_corpus_combo = QComboBox()
+        self.opus_corpus_combo.setMinimumWidth(280)
+        self.opus_corpus_combo.setStyleSheet("""
+            QComboBox {
+                padding: 5px 10px;
+                border: 1px solid #1976D2;
+                border-radius: 4px;
+                background: white;
+            }
+            QComboBox:hover {
+                border-color: #1565C0;
+            }
+            QComboBox::drop-down {
+                border: none;
+                padding-right: 8px;
+            }
+        """)
+        for corpus_id, corpus_name in self.opus_corpora:
+            self.opus_corpus_combo.addItem(corpus_name, corpus_id)
+        self.opus_corpus_combo.currentIndexChanged.connect(self._on_opus_corpus_changed)
+        opus_selector_layout.addWidget(self.opus_corpus_combo)
+        
+        opus_selector_layout.addStretch()
+        self.opus_selector_widget.hide()  # Hidden by default
+        content_layout.addWidget(self.opus_selector_widget)
+        
         # Web view container - stacked widget for embedded views per resource
         self.web_view_stack = QStackedWidget()
         
@@ -35723,6 +35785,13 @@ class SuperlookupTab(QWidget):
         """Handle web resource selection from sidebar"""
         self.current_web_resource_index = index
         resource = self.web_resources[index]
+        
+        # Show/hide OPUS corpus selector based on selected resource
+        if hasattr(self, 'opus_selector_widget'):
+            if resource.get('has_corpus_selector'):
+                self.opus_selector_widget.show()
+            else:
+                self.opus_selector_widget.hide()
         
         # Update view based on mode
         if self.web_browser_mode == 'embedded' and self.web_engine_available:
@@ -35882,7 +35951,22 @@ class SuperlookupTab(QWidget):
         url = url.replace('{sl_upper}', sl_upper)
         url = url.replace('{tl_upper}', tl_upper)
         
+        # Handle OPUS corpus placeholder
+        if '{opus_corpus}' in url and hasattr(self, 'current_opus_corpus'):
+            url = url.replace('{opus_corpus}', self.current_opus_corpus)
+        
         return url
+    
+    def _on_opus_corpus_changed(self, index):
+        """Handle OPUS corpus selection change"""
+        if hasattr(self, 'opus_corpus_combo'):
+            self.current_opus_corpus = self.opus_corpus_combo.currentData()
+            # If we have a search query, refresh the OPUS view
+            if self.last_web_search_query and hasattr(self, 'web_views'):
+                resource = self.web_resources[self.current_web_resource_index]
+                if resource.get('has_corpus_selector') and resource['id'] in self.web_views:
+                    url = self._build_web_search_url(resource, self.last_web_search_query)
+                    self.web_views[resource['id']].setUrl(QUrl(url))
     
     def _get_web_lang_code(self, lang_code, format_type):
         """Convert language code to the format needed by different web services"""
