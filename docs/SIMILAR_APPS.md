@@ -16,7 +16,7 @@ A curated list of translation tools and AI-powered assistants that offer similar
   - CAT tool integration
 
 ### TWAS Suite / TWAS Assistant
-- **Website:** [twas.info](https://www.twas.info/) 
+- **Website:** [twas.info](https://twas-all-apps.netlify.app/) 
 - **Type:** Desktop application
 - **Description:** Translation Workflow Automation Suite - a comprehensive set of tools for translators working with various CAT tools and file formats.
 - **Key Features:**
