@@ -15,7 +15,7 @@ Text display: Supports long segments with text wrapping
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, 
-    QFrame, QScrollArea, QTextEdit, QSplitter
+    QFrame, QScrollArea, QTextEdit, QSplitter, QTabWidget
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QMimeData
 from PyQt6.QtGui import QDrag, QCursor, QFont, QColor
@@ -685,20 +685,22 @@ class TranslationResultsPanel(QWidget):
             border_color = theme.border
             separator_color = theme.separator
             title_color = theme.text_disabled
+            frame_bg = theme.alternate_bg
         else:
             bg_color = "white"
             border_color = "#ddd"
             separator_color = "#e0e0e0"
             title_color = "#666"
+            frame_bg = "#f5f5f5"
         
         self.segment_label = QLabel("No segment selected")
         self.segment_label.setStyleSheet(f"font-weight: bold; font-size: 10px; color: {title_color};")
         layout.addWidget(self.segment_label)
         
         # Use splitter for resizable sections (matches vs compare boxes)
-        main_splitter = QSplitter(Qt.Orientation.Vertical)
+        self.main_splitter = QSplitter(Qt.Orientation.Vertical)
 
-        main_splitter.setStyleSheet(f"QSplitter::handle {{ background-color: {separator_color}; }}")
+        self.main_splitter.setStyleSheet(f"QSplitter::handle {{ background-color: {separator_color}; }}")
 
         # Matches scroll area
         self.matches_scroll = QScrollArea()
@@ -718,48 +720,70 @@ class TranslationResultsPanel(QWidget):
         self.main_layout.setSpacing(2)
         
         self.matches_scroll.setWidget(self.matches_container)
-        main_splitter.addWidget(self.matches_scroll)
+        self.main_splitter.addWidget(self.matches_scroll)
         
         # Compare box (shown when TM match selected) - VERTICAL STACKED LAYOUT
         self.compare_frame = self._create_compare_box()
-        main_splitter.addWidget(self.compare_frame)
+        self.main_splitter.addWidget(self.compare_frame)
         self.compare_frame.hide()  # Hidden by default
-        
-        # TM metadata info panel (shown below compare box when TM match selected)
-        self.tm_info_frame = self._create_tm_info_panel()
-        main_splitter.addWidget(self.tm_info_frame)
-        self.tm_info_frame.hide()  # Hidden by default
         
         # Termbase data viewer (shown when termbase match selected)
         self.termbase_frame = self._create_termbase_viewer()
-        main_splitter.addWidget(self.termbase_frame)
+        self.main_splitter.addWidget(self.termbase_frame)
         self.termbase_frame.hide()  # Hidden by default
         
-        # Notes section with its own container
+        # Tabbed widget for TM Info and Notes (always visible, compact)
+        self.info_tabs = QTabWidget()
+        self.info_tabs.setStyleSheet(f"""
+            QTabWidget::pane {{
+                border: 1px solid {border_color};
+                background-color: {bg_color};
+                border-radius: 3px;
+            }}
+            QTabBar::tab {{
+                background-color: {frame_bg};
+                border: 1px solid {border_color};
+                border-bottom: none;
+                padding: 3px 8px;
+                font-size: 9px;
+                min-width: 60px;
+            }}
+            QTabBar::tab:selected {{
+                background-color: {bg_color};
+                font-weight: bold;
+            }}
+        """)
+        self.info_tabs.setMaximumHeight(100)
+        
+        # TM Info tab
+        self.tm_info_frame = self._create_tm_info_panel()
+        self.info_tabs.addTab(self.tm_info_frame, "💾 TM Info")
+        
+        # Notes tab
         self.notes_widget = QWidget()
         notes_layout = QVBoxLayout(self.notes_widget)
-        notes_layout.setContentsMargins(0, 0, 0, 0)
+        notes_layout.setContentsMargins(4, 4, 4, 4)
         notes_layout.setSpacing(2)
         
-        self.notes_label = QLabel("📝 Notes (segment annotations)")
-        self.notes_label.setStyleSheet(f"font-weight: bold; font-size: 9px; color: {title_color};")
-        notes_layout.addWidget(self.notes_label)
-        
         self.notes_edit = QTextEdit()
-        self.notes_edit.setMaximumHeight(80)
         self.notes_edit.setPlaceholderText("Add notes about this segment, context, or translation concerns...")
-        self.notes_edit.setStyleSheet(f"font-size: 9px; padding: 4px; background-color: {bg_color}; color: {theme.text if self.theme_manager else '#333'}; border: 1px solid {border_color};")
+        self.notes_edit.setStyleSheet(f"font-size: 9px; padding: 4px; background-color: {bg_color}; color: {theme.text if self.theme_manager else '#333'}; border: none;")
         notes_layout.addWidget(self.notes_edit)
         
-        main_splitter.addWidget(self.notes_widget)
+        self.info_tabs.addTab(self.notes_widget, "📝 Notes")
         
-        # Set splitter proportions (50% matches, 35% compare, 15% notes)
-        main_splitter.setSizes([500, 350, 150])
-        main_splitter.setCollapsible(0, False)
-        main_splitter.setCollapsible(1, True)
-        main_splitter.setCollapsible(2, False)
+        self.main_splitter.addWidget(self.info_tabs)
         
-        layout.addWidget(main_splitter)
+        # Set splitter proportions for all 4 widgets:
+        # [matches_scroll, compare_frame, termbase_frame, info_tabs]
+        # Compare/Termbase are hidden by default, give them reasonable starting sizes
+        self.main_splitter.setSizes([300, 200, 150, 100])
+        self.main_splitter.setCollapsible(0, False)  # matches_scroll
+        self.main_splitter.setCollapsible(1, False)  # compare_frame - don't allow collapsing
+        self.main_splitter.setCollapsible(2, True)   # termbase_frame  
+        self.main_splitter.setCollapsible(3, False)  # info_tabs
+        
+        layout.addWidget(self.main_splitter)
     
     def apply_theme(self):
         """Refresh all theme-dependent colors when theme changes"""
@@ -840,20 +864,38 @@ class TranslationResultsPanel(QWidget):
             self.segment_label.setStyleSheet(f"font-weight: bold; font-size: 10px; color: {title_color};")
         
         # Update notes section
-        if hasattr(self, 'notes_label'):
-            self.notes_label.setStyleSheet(f"font-weight: bold; font-size: 9px; color: {title_color};")
-        
         if hasattr(self, 'notes_edit'):
-            self.notes_edit.setStyleSheet(f"font-size: 9px; padding: 4px; background-color: {bg_color}; color: {text_color}; border: 1px solid {border_color};")
+            self.notes_edit.setStyleSheet(f"font-size: 9px; padding: 4px; background-color: {bg_color}; color: {text_color}; border: none;")
         
-        # Update TM Info panel
+        # Update info_tabs (TM Info + Notes tabs)
+        if hasattr(self, 'info_tabs'):
+            self.info_tabs.setStyleSheet(f"""
+                QTabWidget::pane {{
+                    border: 1px solid {border_color};
+                    background-color: {bg_color};
+                    border-radius: 3px;
+                }}
+                QTabBar::tab {{
+                    background-color: {frame_bg};
+                    border: 1px solid {border_color};
+                    border-bottom: none;
+                    padding: 3px 8px;
+                    font-size: 9px;
+                    min-width: 60px;
+                }}
+                QTabBar::tab:selected {{
+                    background-color: {bg_color};
+                    font-weight: bold;
+                }}
+            """)
+        
+        # Update TM Info panel (now inside tab)
         if hasattr(self, 'tm_info_frame') and self.tm_info_frame:
             self.tm_info_frame.setStyleSheet(f"""
                 QFrame {{
-                    background-color: {frame_bg};
-                    border: 1px solid {border_color};
-                    border-radius: 3px;
-                    padding: 4px;
+                    background-color: {bg_color};
+                    border: none;
+                    padding: 2px;
                 }}
             """)
         
@@ -1249,42 +1291,36 @@ class TranslationResultsPanel(QWidget):
         return frame
     
     def _create_tm_info_panel(self) -> QFrame:
-        """Create TM metadata info panel (memoQ-style) - shown when TM match is selected"""
+        """Create TM metadata info panel (memoQ-style) - shown in TM Info tab"""
         # Get theme colors
         if self.theme_manager:
             theme = self.theme_manager.current_theme
-            frame_bg = theme.alternate_bg
+            frame_bg = theme.base
             border_color = theme.border
             title_color = theme.text_disabled
             text_color = theme.text
-            desc_bg = theme.base
+            desc_bg = theme.alternate_bg
         else:
-            frame_bg = "#f5f5f5"
+            frame_bg = "#fff"
             border_color = "#ddd"
             title_color = "#666"
             text_color = "#333"
-            desc_bg = "#fff"
+            desc_bg = "#f5f5f5"
         
         frame = QFrame()
         frame.setStyleSheet(f"""
             QFrame {{
                 background-color: {frame_bg};
-                border: 1px solid {border_color};
-                border-radius: 3px;
-                padding: 4px;
+                border: none;
+                padding: 2px;
             }}
         """)
         
         layout = QVBoxLayout(frame)
-        layout.setContentsMargins(6, 4, 6, 4)
-        layout.setSpacing(3)
+        layout.setContentsMargins(4, 4, 4, 4)
+        layout.setSpacing(2)
         
-        # Title
-        self.tm_info_title = QLabel("💾 TM Info")
-        self.tm_info_title.setStyleSheet(f"font-weight: bold; font-size: 9px; color: {title_color}; margin-bottom: 2px;")
-        layout.addWidget(self.tm_info_title)
-        
-        # Info grid (compact 2-column layout)
+        # Info grid (compact layout - no title needed, it's in the tab)
         info_container = QWidget()
         info_layout = QVBoxLayout(info_container)
         info_layout.setContentsMargins(0, 0, 0, 0)
@@ -1727,8 +1763,22 @@ class TranslationResultsPanel(QWidget):
             # Show TM compare box
             print("📊 DEBUG: Showing TM compare box")
             self.compare_frame.show()
-            self.tm_info_frame.show()  # Show TM metadata below compare box
             self.termbase_frame.hide()
+            
+            # Switch to TM Info tab
+            if hasattr(self, 'info_tabs'):
+                self.info_tabs.setCurrentIndex(0)  # TM Info tab
+            
+            # Ensure compare box has reasonable size in splitter
+            if hasattr(self, 'main_splitter'):
+                sizes = self.main_splitter.sizes()
+                # If compare_frame (index 1) has 0 or very small size, redistribute
+                if len(sizes) >= 4 and sizes[1] < 100:
+                    # Give compare box 200px, take from matches
+                    total = sum(sizes)
+                    sizes[1] = 200  # compare_frame
+                    sizes[0] = max(100, total - 200 - sizes[2] - sizes[3])  # matches_scroll
+                    self.main_splitter.setSizes(sizes)
             
             # Apply theme colors to compare boxes (needed because they might not apply when hidden)
             self._apply_compare_box_theme()
@@ -1749,8 +1799,17 @@ class TranslationResultsPanel(QWidget):
             # Show MT/LLM compare box (simplified - just current source and translation)
             print(f"🤖 DEBUG: Showing {match.match_type} compare box")
             self.compare_frame.show()
-            self.tm_info_frame.hide()  # No TM metadata for MT/LLM
             self.termbase_frame.hide()
+            
+            # Ensure compare box has reasonable size in splitter
+            if hasattr(self, 'main_splitter'):
+                sizes = self.main_splitter.sizes()
+                # If compare_frame (index 1) has 0 or very small size, redistribute
+                if len(sizes) >= 4 and sizes[1] < 100:
+                    total = sum(sizes)
+                    sizes[1] = 200  # compare_frame
+                    sizes[0] = max(100, total - 200 - sizes[2] - sizes[3])  # matches_scroll
+                    self.main_splitter.setSizes(sizes)
             
             # Apply theme colors to compare boxes (needed because they might not apply when hidden)
             self._apply_compare_box_theme()
@@ -1767,14 +1826,12 @@ class TranslationResultsPanel(QWidget):
             # Show termbase data viewer
             print("📖 DEBUG: Showing termbase viewer!")
             self.compare_frame.hide()
-            self.tm_info_frame.hide()
             self.termbase_frame.show()
             self._display_termbase_data(match)
         else:
             # Hide all viewers
             print(f"❌ DEBUG: Match type '{match.match_type}' - hiding all viewers")
             self.compare_frame.hide()
-            self.tm_info_frame.hide()
             self.termbase_frame.hide()
     
     def set_segment_info(self, segment_num: int, source_text: str):
@@ -1783,14 +1840,14 @@ class TranslationResultsPanel(QWidget):
         self.compare_current.setText(source_text)
     
     def clear(self):
-        """Clear all matches"""
+        """Clear all matches (but NOT notes - those are managed separately)"""
         self.matches_by_type = {}
         self.current_selection = None
         self.all_matches = []
         self.compare_frame.hide()
-        self.tm_info_frame.hide()
         self.termbase_frame.hide()
-        self.notes_edit.clear()
+        # NOTE: Do NOT clear notes_edit here - notes are loaded/saved separately
+        # and clear() is called multiple times during segment navigation
         
         while self.main_layout.count() > 0:
             item = self.main_layout.takeAt(0)

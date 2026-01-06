@@ -282,10 +282,10 @@ Supervertaler offers three professional editing views:
 
 **2-Layer Prompt Architecture:**
 
-**Layer 1: System Templates**
+**Layer 1: System Prompts**
 - Core translation infrastructure
 - CAT tag handling, formatting rules
-- Settings → System Templates
+- Settings → System Prompts
 
 **Layer 2: Custom Prompts**
 - 38+ built-in prompts in organized folders
@@ -386,7 +386,7 @@ See: Full keyboard shortcut list in [INSTALLATION.md](INSTALLATION.md#keyboard-s
 - Must be preserved exactly in translation
 
 **How Supervertaler handles them:**
-1. **Detection**: System templates identify common CAT tag patterns
+1. **Detection**: System prompts identify common CAT tag patterns
 2. **Instruction**: AI told to preserve ALL tags unchanged
 3. **Validation**: Tags verified after translation (future feature)
 4. **Recovery**: If AI modifies tags, manual correction needed
@@ -399,7 +399,7 @@ See: Full keyboard shortcut list in [INSTALLATION.md](INSTALLATION.md#keyboard-s
 - Trados: `<cf>`, `<c0>content</c0>`
 
 **Best practice:**
-- Use specialized system templates (memoQ, Trados, etc.)
+- Use specialized system prompts (memoQ, Trados, etc.)
 - Review tag preservation after AI translation
 - Lock segments with complex tags after confirming correctness
 
@@ -443,7 +443,7 @@ Supervertaler provides AI with multiple layers of context:
 1. **Document context:** Surrounding segments for coherence
 2. **Translation Memory:** Fuzzy matches from active TMs
 3. **Termbase matches:** Relevant terminology highlighted
-4. **System template:** CAT tag handling instructions
+4. **System prompt:** CAT tag handling instructions
 5. **Custom prompts:** Domain expertise, style guides
 6. **Figure context:** Images referenced in technical documents
 
@@ -746,10 +746,10 @@ ollama pull qwen2.5:3b
 - Example: Legal domain + Client style guide + Formality preference
 - All prompts combined and sent to AI
 
-**System Templates:**
+**System Prompts:**
 - Core CAT tag handling instructions
 - Manages formatting preservation
-- Edit in Settings → System Templates
+- Edit in Settings → System Prompts
 
 **Variables:**
 - `{source_lang}` - Automatically filled with source language

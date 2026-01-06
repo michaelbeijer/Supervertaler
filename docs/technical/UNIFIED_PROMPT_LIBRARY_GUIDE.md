@@ -12,7 +12,7 @@ Supervertaler's prompt system has been simplified from a confusing 4-layer archi
 - 🤯 Too many layers, hard to understand
 
 ### New System (Simple!)
-- ✅ **System Templates** (in Settings - you rarely touch these)
+- ✅ **System Prompts** (in Settings - you rarely touch these)
 - ✅ **Prompt Library** (your main workspace - one unified view)
 
 ---
@@ -46,11 +46,11 @@ Your unified workspace for managing all translation prompts, style guides, and i
 
 ---
 
-## 🔧 System Templates (Advanced)
+## 🔧 System Prompts (Advanced)
 
 ### What Are They?
 
-Technical templates that handle CAT tool tag preservation and basic translation setup. They're automatically selected based on what you're doing:
+Technical prompts that handle CAT tool tag preservation and basic translation setup. They're automatically selected based on what you're doing:
 
 - **Single Segment** - When translating selected text
 - **Batch DOCX** - When processing Word documents
@@ -58,7 +58,7 @@ Technical templates that handle CAT tool tag preservation and basic translation 
 
 ### Where Are They?
 
-Settings > Translation > System Templates
+Settings > Translation > System Prompts
 
 ⚠️ **Warning:** Only modify these if you understand CAT tool formats. These handle the technical stuff (memoQ tags, Trados tags, etc.).
 
@@ -84,7 +84,7 @@ Settings > Translation > System Templates
 
 5. **Translate!**
    - System automatically combines:
-     - System Template (auto-selected)
+     - System Prompt (auto-selected)
      - Your Primary Prompt
      - Your Attached Prompts
 
@@ -228,9 +228,9 @@ Refresh the library to see it.
 
 **A:** The new system does the same thing, just more intuitively. Your primary prompt replaces "Domain Prompt," attached prompts replace "Project Prompts" and "Style Guides."
 
-### Q: How do I edit System Templates?
+### Q: How do I edit System Prompts?
 
-**A:** Settings > Translation > System Templates. But be careful - these handle CAT tool tags.
+**A:** Settings > Translation > System Prompts. But be careful - these handle CAT tool tags.
 
 ### Q: Can I organize prompts differently?
 

@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** January 5, 2026 | **Version:** v1.9.82
+> **Last Updated:** January 6, 2026 | **Version:** v1.9.83
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.82 (January 2026) |
+| **Version** | v1.9.83 (January 2026) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -455,6 +455,32 @@ google_api_key=AI...
 ---
 
 ## 🔄 Recent Development History
+
+### January 6, 2026 - Version 1.9.83: Notes Tab & Status Indicator
+
+**📝 Notes Tab in Translation Results Panel**
+
+Translation Results panel now has tabbed interface for TM Info and Notes:
+
+- **TM Info Tab**: Shows TM match details when a match is selected
+- **Notes Tab**: Add/edit notes for each segment with auto-save
+- **Persistence**: Notes saved to .svproj project file
+- **Removed Comments Tab**: Redundant tab under grid removed (Notes tab replaces it)
+
+**🟠 Notes Indicator on Status Icon**
+
+Clean visual indicator for segments with notes:
+
+- **Orange Background**: Status icon (✓/✗) gets subtle orange highlight when segment has notes
+- **Compact Design**: No separate icon cluttering the status cell
+- **Tooltip**: Hover over status cell to see notes preview
+- **Narrower Column**: Status column reduced from 120px to 70px
+
+**Files Modified:**
+- `Supervertaler.py` - Notes saving/loading, status icon highlighting, removed Comments tab
+- `modules/translation_results_panel.py` - Added TM Info + Notes tabs interface
+
+---
 
 ### January 5, 2026 - Version 1.9.82: Export for AI
 

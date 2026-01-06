@@ -2,7 +2,7 @@
 Unified Prompt Library Module
 
 Simplified 2-layer architecture:
-1. System Templates (in Settings) - mode-specific, auto-selected
+1. System Prompts (in Settings) - mode-specific, auto-selected
 2. Prompt Library (main UI) - unified workspace with folders, favorites, multi-attach
 
 Replaces the old 4-layer system (System/Domain/Project/Style Guides).

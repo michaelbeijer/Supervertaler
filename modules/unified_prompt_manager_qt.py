@@ -2,7 +2,7 @@
 Unified Prompt Manager Module - Qt Edition
 Simplified 2-Layer Architecture:
 
-1. System Templates (in Settings) - mode-specific, auto-selected based on document type
+1. System Prompts (in Settings) - mode-specific, auto-selected based on document type
 2. Prompt Library (main UI) - unified workspace with folders, favorites, multi-attach
 
 This replaces the old 4-layer system (System/Domain/Project/Style Guides).
@@ -407,7 +407,7 @@ class UnifiedPromptManagerQt:
         # Load prompts
         self.library.load_all_prompts()
         
-        # System Templates (stored separately, loaded from settings/files)
+        # System Prompts (stored separately, loaded from settings/files)
         self.system_templates = {}
         self.current_mode = "single"  # single, batch_docx, batch_bilingual
         self._load_system_templates()
@@ -559,68 +559,78 @@ class UnifiedPromptManagerQt:
         layout.setContentsMargins(0, 5, 0, 0)
         layout.setSpacing(5)
         
-        # Toolbar for Prompt Library
-        toolbar = self._create_library_toolbar()
-        layout.addWidget(toolbar, 0)
+        # Main content: Horizontal splitter (left: config+buttons+tree | right: editor)
+        main_splitter = QSplitter(Qt.Orientation.Horizontal)
+        main_splitter.setHandleWidth(3)
         
-        # Main content: Horizontal splitter with tree view and editor/config
-        splitter = QSplitter(Qt.Orientation.Horizontal)
-        splitter.setHandleWidth(3)
+        # Left panel container (not a splitter - fixed layout)
+        left_panel = QWidget()
+        left_layout = QVBoxLayout(left_panel)
+        left_layout.setContentsMargins(0, 0, 0, 0)
+        left_layout.setSpacing(5)
         
-        # Left: Prompt Library Tree
-        left_panel = self._create_library_tree_panel()
-        left_panel.setMinimumWidth(250)
-        splitter.addWidget(left_panel)
+        # Active Configuration Panel (top of left)
+        config_group = self._create_active_config_panel()
+        config_group.setMinimumHeight(150)
+        left_layout.addWidget(config_group)
         
-        # Right: Active Config + Editor (with vertical splitter inside)
-        right_panel = self._create_right_panel()
-        right_panel.setMinimumWidth(300)
-        splitter.addWidget(right_panel)
+        # Library Action Buttons (below Active Config, above tree)
+        library_buttons = self._create_library_buttons()
+        left_layout.addWidget(library_buttons)
         
-        # Set splitter proportions (35% tree, 65% config+editor)
-        splitter.setSizes([350, 650])
-        splitter.setStretchFactor(0, 1)
-        splitter.setStretchFactor(1, 2)
+        # Prompt Library Tree (bottom of left)
+        tree_panel = self._create_library_tree_panel()
+        tree_panel.setMinimumHeight(200)
+        left_layout.addWidget(tree_panel, 1)  # stretch factor 1 - tree expands
         
-        layout.addWidget(splitter, 1)
+        left_panel.setMinimumWidth(300)
+        main_splitter.addWidget(left_panel)
+        
+        # Right: Editor only
+        editor_group = self._create_editor_panel()
+        editor_group.setMinimumWidth(400)
+        editor_group.setMinimumHeight(300)
+        main_splitter.addWidget(editor_group)
+        
+        # Set main splitter proportions (40% left, 60% editor)
+        main_splitter.setSizes([400, 600])
+        main_splitter.setStretchFactor(0, 1)
+        main_splitter.setStretchFactor(1, 2)
+        
+        layout.addWidget(main_splitter, 1)
         
         # Load initial tree content
         self._refresh_tree()
         
         return tab
     
-    def _create_library_toolbar(self) -> QWidget:
-        """Create toolbar for Prompt Library tab"""
-        toolbar = QWidget()
-        toolbar_layout = QHBoxLayout(toolbar)
-        toolbar_layout.setContentsMargins(0, 0, 0, 5)
-        toolbar_layout.setSpacing(5)
-        
-        # Mode indicator
-        self.mode_label = QLabel(f"• Mode: {self._get_mode_display_name()}")
-        self.mode_label.setStyleSheet("color: #666; font-size: 9pt;")
-        toolbar_layout.addWidget(self.mode_label)
-        
-        toolbar_layout.addStretch()
+    def _create_library_buttons(self) -> QWidget:
+        """Create action buttons for Prompt Library (between Active Config and tree)"""
+        container = QWidget()
+        btn_layout = QHBoxLayout(container)
+        btn_layout.setContentsMargins(0, 0, 0, 0)
+        btn_layout.setSpacing(5)
         
         btn_new = QPushButton("+ New")
         btn_new.clicked.connect(self._new_prompt)
-        toolbar_layout.addWidget(btn_new)
+        btn_layout.addWidget(btn_new)
         
         btn_folder = QPushButton("📁 New Folder")
         btn_folder.clicked.connect(self._new_folder)
-        toolbar_layout.addWidget(btn_folder)
+        btn_layout.addWidget(btn_folder)
         
-        btn_settings = QPushButton("⚙️ System Templates")
-        btn_settings.clicked.connect(self._open_system_templates_settings)
-        btn_settings.setToolTip("Configure mode-specific templates (Settings)")
-        toolbar_layout.addWidget(btn_settings)
+        btn_settings = QPushButton("⚙️ System Prompts")
+        btn_settings.clicked.connect(self._open_system_prompts_settings)
+        btn_settings.setToolTip("Configure mode-specific system prompts (Settings)")
+        btn_layout.addWidget(btn_settings)
         
         btn_refresh = QPushButton("🔄 Refresh")
         btn_refresh.clicked.connect(self._refresh_library)
-        toolbar_layout.addWidget(btn_refresh)
+        btn_layout.addWidget(btn_refresh)
         
-        return toolbar
+        btn_layout.addStretch()
+        
+        return container
     
     def _create_ai_assistant_tab(self) -> QWidget:
         """Create the AI Assistant sub-tab"""
@@ -1176,9 +1186,9 @@ class UnifiedPromptManagerQt:
         btn_folder.clicked.connect(self._new_folder)
         toolbar_layout.addWidget(btn_folder)
         
-        btn_settings = QPushButton("⚙️ System Templates")
-        btn_settings.clicked.connect(self._open_system_templates_settings)
-        btn_settings.setToolTip("Configure mode-specific templates (Settings)")
+        btn_settings = QPushButton("⚙️ System Prompts")
+        btn_settings.clicked.connect(self._open_system_prompts_settings)
+        btn_settings.setToolTip("Configure mode-specific system prompts (Settings)")
         toolbar_layout.addWidget(btn_settings)
         
         btn_refresh = QPushButton("🔄 Refresh")
@@ -1194,7 +1204,6 @@ class UnifiedPromptManagerQt:
     def _create_library_tree_panel(self) -> QWidget:
         """Create left panel with folder tree"""
         panel = QWidget()
-        panel.setMinimumHeight(450)  # Ensure tree doesn't collapse on big screens
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(0, 0, 0, 0)
         
@@ -1211,26 +1220,6 @@ class UnifiedPromptManagerQt:
         
         return panel
     
-    def _create_right_panel(self) -> QWidget:
-        """Create right panel with active configuration and editor - vertically splittable"""
-        # Use a vertical splitter so user can resize Active Config vs Editor
-        splitter = QSplitter(Qt.Orientation.Vertical)
-        
-        # Active Configuration Panel (top)
-        config_group = self._create_active_config_panel()
-        config_group.setMinimumHeight(200)  # Minimum height to prevent collapsing
-        splitter.addWidget(config_group)
-        
-        # Editor (bottom - for viewing/editing selected prompt)
-        editor_group = self._create_editor_panel()
-        editor_group.setMinimumHeight(250)  # Minimum height for editor
-        splitter.addWidget(editor_group)
-        
-        # Set initial sizes: 35% Active Config, 65% Editor
-        splitter.setSizes([350, 650])
-        
-        return splitter
-    
     def _create_active_config_panel(self) -> QGroupBox:
         """Create active prompt configuration panel"""
         group = QGroupBox("Active Configuration")
@@ -1246,7 +1235,7 @@ class UnifiedPromptManagerQt:
         mode_label.setFont(QFont("Segoe UI", 9))
         mode_layout.addWidget(mode_label)
         
-        btn_view_template = QPushButton("View System Template")
+        btn_view_template = QPushButton("View System Prompt")
         btn_view_template.clicked.connect(self._view_current_system_template)
         btn_view_template.setMaximumWidth(150)
         mode_layout.addWidget(btn_view_template)
@@ -1284,16 +1273,33 @@ class UnifiedPromptManagerQt:
         # Scrollable list of attached prompts
         self.attached_list_widget = QTreeWidget()
         self.attached_list_widget.setHeaderLabels(["Name", ""])
-        self.attached_list_widget.setMaximumHeight(120)
+        self.attached_list_widget.setMaximumHeight(100)
         self.attached_list_widget.setRootIsDecorated(False)
         self.attached_list_widget.setColumnWidth(0, 200)
         layout.addWidget(self.attached_list_widget)
+        
+        # Image Context (visual context for AI)
+        image_layout = QHBoxLayout()
+        image_label = QLabel("Image Context 🖼️:")
+        image_label.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
+        image_layout.addWidget(image_label)
+        
+        self.image_context_label = QLabel("[None loaded]")
+        self.image_context_label.setStyleSheet("color: #999;")
+        self.image_context_label.setToolTip(
+            "Images loaded via Project Resources → Image Context tab\n"
+            "are sent as binary data alongside your prompt when\n"
+            "figure references (Fig. 1, Figure 2A, etc.) are detected."
+        )
+        image_layout.addWidget(self.image_context_label, 1)
+        
+        layout.addLayout(image_layout)
         
         # Buttons
         btn_layout = QHBoxLayout()
         
         btn_preview = QPushButton("Preview Combined")
-        btn_preview.setToolTip("Preview the complete assembled prompt that will be sent to the AI\n(System Template + Project Instructions + Custom Prompts + your text)")
+        btn_preview.setToolTip("Preview the complete assembled prompt that will be sent to the AI\n(System Prompt + Project Instructions + Custom Prompts + your text)")
         btn_preview.clicked.connect(self._preview_combined_prompt)
         btn_layout.addWidget(btn_preview)
         
@@ -1882,30 +1888,30 @@ class UnifiedPromptManagerQt:
         target_lang = "Target Language"
         
         # Try to get segment from main app
-        if hasattr(self, 'app') and self.app:
+        if hasattr(self, 'parent_app') and self.parent_app:
             # Get languages if project loaded
-            if hasattr(self.app, 'current_project') and self.app.current_project:
-                source_lang = getattr(self.app.current_project, 'source_lang', 'Source Language')
-                target_lang = getattr(self.app.current_project, 'target_lang', 'Target Language')
+            if hasattr(self.parent_app, 'current_project') and self.parent_app.current_project:
+                source_lang = getattr(self.parent_app.current_project, 'source_lang', 'Source Language')
+                target_lang = getattr(self.parent_app.current_project, 'target_lang', 'Target Language')
                 
                 # Try to get selected segment
-                if hasattr(self.app, 'table') and self.app.table:
-                    current_row = self.app.table.currentRow()
+                if hasattr(self.parent_app, 'table') and self.parent_app.table:
+                    current_row = self.parent_app.table.currentRow()
                     if current_row >= 0:
                         # Map display row to actual segment index
                         actual_index = current_row
-                        if hasattr(self.app, 'grid_row_to_segment_index') and self.app.grid_row_to_segment_index:
-                            if current_row in self.app.grid_row_to_segment_index:
-                                actual_index = self.app.grid_row_to_segment_index[current_row]
+                        if hasattr(self.parent_app, 'grid_row_to_segment_index') and self.parent_app.grid_row_to_segment_index:
+                            if current_row in self.parent_app.grid_row_to_segment_index:
+                                actual_index = self.parent_app.grid_row_to_segment_index[current_row]
                         
                         # Get segment
-                        if actual_index < len(self.app.current_project.segments):
-                            current_segment = self.app.current_project.segments[actual_index]
+                        if actual_index < len(self.parent_app.current_project.segments):
+                            current_segment = self.parent_app.current_project.segments[actual_index]
                             current_segment_id = f"Segment {current_segment.id}"
                 
                 # Fallback to first segment if none selected
-                if not current_segment and len(self.app.current_project.segments) > 0:
-                    current_segment = self.app.current_project.segments[0]
+                if not current_segment and len(self.parent_app.current_project.segments) > 0:
+                    current_segment = self.parent_app.current_project.segments[0]
                     current_segment_id = f"Example: Segment {current_segment.id}"
         
         # Get source text
@@ -1947,7 +1953,7 @@ class UnifiedPromptManagerQt:
         # Info label
         info_label = QLabel(
             "<b>Complete Assembled Prompt</b><br>"
-            "This is what will be sent to the AI (System Template + Custom Prompts + your text)<br><br>" +
+            "This is what will be sent to the AI (System Prompt + Custom Prompts + your text)<br><br>" +
             composition_text.replace("\n", "<br>")
         )
         info_label.setTextFormat(Qt.TextFormat.RichText)
@@ -1975,61 +1981,62 @@ class UnifiedPromptManagerQt:
         dialog.exec()
     
     def _view_current_system_template(self):
-        """View the current system template"""
+        """View the current system prompt"""
         template = self.get_system_template(self.current_mode)
         
         dialog = QMessageBox(self.main_widget)
-        dialog.setWindowTitle(f"System Template: {self._get_mode_display_name()}")
-        dialog.setText(f"Current system template for {self._get_mode_display_name()} mode:")
+        dialog.setWindowTitle(f"System Prompt: {self._get_mode_display_name()}")
+        dialog.setText(f"Current system prompt for {self._get_mode_display_name()} mode:")
         dialog.setDetailedText(template)
         dialog.setIcon(QMessageBox.Icon.Information)
         dialog.exec()
     
-    def _open_system_templates_settings(self):
-        """Open system templates in settings"""
+    def _open_system_prompts_settings(self):
+        """Open system prompts in settings"""
         try:
             # Navigate to Settings tab if main app has the method
-            if hasattr(self.app, 'right_tabs') and hasattr(self.app, 'settings_tabs'):
+            # Use parent_app (not app)
+            if hasattr(self.parent_app, 'main_tabs') and hasattr(self.parent_app, 'settings_tabs'):
                 # Navigate to Settings tab (index 3)
-                self.app.right_tabs.setCurrentIndex(3)
+                self.parent_app.main_tabs.setCurrentIndex(3)
                 # Navigate to System Prompts sub-tab (index 5 - after General, LLM, Language, MT, View)
                 # Verify the index is valid before setting it
-                if self.app.settings_tabs.count() > 5:
-                    self.app.settings_tabs.setCurrentIndex(5)
+                if self.parent_app.settings_tabs.count() > 5:
+                    self.parent_app.settings_tabs.setCurrentIndex(5)
                 else:
                     # Log warning and fall back to first tab
-                    print(f"[WARNING] settings_tabs only has {self.app.settings_tabs.count()} tabs, cannot navigate to index 5")
-                    self.app.settings_tabs.setCurrentIndex(0)
+                    print(f"[WARNING] settings_tabs only has {self.parent_app.settings_tabs.count()} tabs, cannot navigate to index 5")
+                    self.parent_app.settings_tabs.setCurrentIndex(0)
                     QMessageBox.warning(
                         self.main_widget,
                         "Navigation Issue",
-                        f"Could not navigate to System Prompts tab (expected at index 5, but only {self.app.settings_tabs.count()} tabs exist).\n\n"
+                        f"Could not navigate to System Prompts tab (expected at index 5, but only {self.parent_app.settings_tabs.count()} tabs exist).\n\n"
                         "Please manually navigate to Settings → System Prompts."
                     )
             else:
                 # Fallback message
                 QMessageBox.information(
                     self.main_widget,
-                    "System Templates",
-                    "System Templates (Layer 1) are configured in Settings → System Prompts tab.\n\n"
+                    "System Prompts",
+                    "System Prompts (Layer 1) are configured in Settings → System Prompts tab.\n\n"
                     "They are automatically selected based on the document type you're processing."
                 )
         except Exception as e:
             import traceback
-            error_msg = f"Error opening System Templates settings: {str(e)}"
+            error_msg = f"Error opening System Prompts settings: {str(e)}"
             print(f"[ERROR] {error_msg}")
             print(traceback.format_exc())
             QMessageBox.critical(
                 self.main_widget,
                 "Error",
-                f"Failed to open System Templates settings:\n\n{str(e)}\n\n"
+                f"Failed to open System Prompts settings:\n\n{str(e)}\n\n"
                 "Please manually navigate to Settings → System Prompts tab."
             )
     
-    # === System Templates Management ===
+    # === System Prompts Management ===
     
     def _load_system_templates(self):
-        """Load system templates from files"""
+        """Load system prompts from files"""
         system_templates_dir = self.prompt_library_dir / "1_System_Prompts"
         
         if system_templates_dir.exists():
@@ -2051,26 +2058,59 @@ class UnifiedPromptManagerQt:
                 self.system_templates[mode] = self._get_default_system_template(mode)
     
     def _get_default_system_template(self, mode: str) -> str:
-        """Get default system template for a mode"""
-        # Use the same default as before
-        return """# SYSTEM TEMPLATE
+        """Get default system prompt for a mode"""
+        # Comprehensive system prompt with detailed CAT tag instructions
+        return """# SYSTEM PROMPT
 
 ⚠️ **PROFESSIONAL TRANSLATION CONTEXT:**
-You are performing professional technical/medical translation as a licensed service for a commercial translation company.
+You are performing professional technical/medical translation as a licensed service for a commercial translation company. This is legitimate professional work. All medical, technical, or specialized terminology is for professional translation purposes only.
 
-You are an expert {{SOURCE_LANGUAGE}} to {{TARGET_LANGUAGE}} translator.
+You are an expert {{SOURCE_LANGUAGE}} to {{TARGET_LANGUAGE}} translator with deep understanding of context and nuance.
 
 **YOUR TASK**: Translate the text below.
 
+**IMPORTANT INSTRUCTIONS**:
+- Provide ONLY the translated text
+- Do NOT include numbering, labels, or commentary
+- Do NOT repeat the source text
+- Maintain accuracy and natural fluency
+
+**CRITICAL: INLINE FORMATTING TAG PRESERVATION**:
+- Source text may contain simple HTML-style formatting tags: <b>bold</b>, <i>italic</i>, <u>underline</u>
+- These tags represent text formatting that MUST be preserved in the translation
+- Place the tags around the CORRESPONDING translated words, not necessarily in the same position
+- Example: "Click the <b>Save</b> button" → "Klik op de knop <b>Opslaan</b>"
+- Ensure every opening tag has a matching closing tag
+- Never omit, add, or modify tags - preserve the exact same tags from source
+
 **CRITICAL: CAT TOOL TAG PRESERVATION**:
-- Preserve ALL formatting tags (memoQ: [1}, {2]; Trados: <410></410>; CafeTran: |text|)
-- Never translate, omit, or modify tags - only reposition appropriately
+- Source may contain CAT tool formatting tags in various formats:
+  • memoQ: [1}, {2], [3}, {4] (asymmetric bracket-brace pairs)
+  • Trados Studio: <410>text</410>, <434>text</434> (XML-style opening/closing tags)
+  • CafeTran: |formatted text| (pipe symbols mark formatted text - bold, italic, underline, etc.)
+  • Other CAT tools: various bracketed or special character sequences
+- These are placeholder tags representing formatting (bold, italic, links, etc.)
+- PRESERVE ALL tags - if source has N tags, target must have exactly N tags
+- Keep tags with their content and adjust position for natural target language word order
+- Never translate, omit, or modify the tags themselves - only reposition them
+- Examples:
+  • memoQ: '[1}De uitvoer{2]' → '[1}The exports{2]'
+  • Trados: '<410>De uitvoer van machines</410>' → '<410>Exports of machinery</410>'
+  • CafeTran: 'He debuted against |Juventus FC| in 2001' → 'Hij debuteerde tegen |Juventus FC| in 2001'
+  • Multiple: '[1}De uitvoer{2] [3}stelt niets voor{4]' → '[1}Exports{2] [3}mean nothing{4]'
+
+**LANGUAGE-SPECIFIC NUMBER FORMATTING**:
+- If the target language is **Dutch**, **French**, **German**, **Italian**, **Spanish**, or another **continental European language**, use a **comma** as the decimal separator and a **space or non-breaking space** between the number and unit (e.g., 17,1 cm).
+- If the target language is **English** or **Irish**, use a **full stop (period)** as the decimal separator and **no space** before the unit (e.g., 17.1 cm).
+- Always follow the **number formatting conventions** of the target language.
+
+If the text refers to figures (e.g., 'Figure 1A'), relevant images may be provided for visual context.
 
 {{SOURCE_LANGUAGE}} text:
 {{SOURCE_TEXT}}"""
     
     def get_system_template(self, mode: str) -> str:
-        """Get system template for specified mode"""
+        """Get system prompt for specified mode"""
         return self.system_templates.get(mode, self._get_default_system_template(mode))
     
     def set_mode(self, mode: str):
@@ -2080,12 +2120,32 @@ You are an expert {{SOURCE_LANGUAGE}} to {{TARGET_LANGUAGE}} translator.
             if hasattr(self, 'mode_label'):
                 self.mode_label.setText(f"Mode: {self._get_mode_display_name()}")
     
+    def update_image_context_display(self):
+        """Update the Image Context label in Active Configuration panel"""
+        if not hasattr(self, 'image_context_label'):
+            return
+            
+        # Check if parent app has figure_context
+        if hasattr(self, 'parent_app') and self.parent_app:
+            if hasattr(self.parent_app, 'figure_context') and self.parent_app.figure_context:
+                fc = self.parent_app.figure_context
+                if fc.has_images():
+                    count = fc.get_image_count()
+                    folder_name = fc.get_folder_name() or "folder"
+                    self.image_context_label.setText(f"✅ {count} image{'s' if count != 1 else ''} from: {folder_name}")
+                    self.image_context_label.setStyleSheet("color: #4CAF50; font-weight: bold;")
+                    return
+        
+        # No images loaded
+        self.image_context_label.setText("[None loaded]")
+        self.image_context_label.setStyleSheet("color: #999;")
+    
     # === Prompt Composition (for translation) ===
     
     def build_final_prompt(self, source_text: str, source_lang: str, target_lang: str, mode: str = None) -> str:
         """
         Build final prompt for translation using 2-layer architecture:
-        1. System Template (auto-selected by mode)
+        1. System Prompt (auto-selected by mode)
         2. Combined prompts from library (primary + attached)
         
         Args:
@@ -2100,10 +2160,10 @@ You are an expert {{SOURCE_LANGUAGE}} to {{TARGET_LANGUAGE}} translator.
         if mode is None:
             mode = self.current_mode
         
-        # Layer 1: System Template
+        # Layer 1: System Prompt
         system_template = self.get_system_template(mode)
         
-        # Replace placeholders in system template
+        # Replace placeholders in system prompt
         system_template = system_template.replace("{{SOURCE_LANGUAGE}}", source_lang)
         system_template = system_template.replace("{{TARGET_LANGUAGE}}", target_lang)
         system_template = system_template.replace("{{SOURCE_TEXT}}", source_text)

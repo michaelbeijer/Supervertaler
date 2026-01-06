@@ -1,4 +1,4 @@
-# 🚀 Supervertaler v1.9.82
+# 🚀 Supervertaler v1.9.83
 
 [![PyPI version](https://badge.fury.io/py/supervertaler.svg)](https://pypi.org/project/Supervertaler/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
@@ -6,7 +6,7 @@
 
 🎯 **The Ultimate Translation Workbench** — Context-aware AI with intuitive 2-Layer Prompt Architecture, AI Assistant, project glossary system with automatic extraction, and specialized modules.
 
-**Current Version:** v1.9.82 (January 5, 2026)
+**Current Version:** v1.9.83 (January 6, 2026)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -50,7 +50,13 @@ python Supervertaler.py
 
 **PyPI Package:** https://pypi.org/project/Supervertaler/
 
-### NEW in v1.9.82 - Export for AI 🤖
+### NEW in v1.9.83 - Notes Tab & Status Indicator 📝
+*   **TM Info + Notes Tabs**: Translation Results panel now has tabbed interface
+*   **Notes Tab**: Add/edit notes for each segment with auto-save to project file
+*   **Notes Indicator**: Status icon (✓/✗) gets orange highlight when segment has notes
+*   **Cleaner Layout**: Removed redundant Comments tab, narrower status column (70px)
+
+### v1.9.82 - Export for AI 🤖
 *   **AI-Readable Format**: New export option in File → Export → 🤖 AI-Readable Format (TXT)
 *   **[SEGMENT XXXX] Format**: Outputs clean numbered segments with language labels (NL/EN/DE etc.)
 *   **Auto Language Codes**: Detects project languages and converts to short codes

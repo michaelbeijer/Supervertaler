@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.82"
+__version__ = "1.9.83"
 __phase__ = "0.9"
 __release_date__ = "2026-01-05"
 __edition__ = "Qt"
@@ -4105,7 +4105,7 @@ class TermMetadataDialog(QDialog):
         button_layout.addWidget(cancel_btn)
         
         save_btn = QPushButton("Add to Glossary")
-        save_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 5px 15px;")
+        save_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 5px 15px; border: none; outline: none;")
         save_btn.clicked.connect(self._accept_and_save)
         save_btn.setDefault(True)
         button_layout.addWidget(save_btn)
@@ -4644,7 +4644,7 @@ class AdvancedFiltersDialog(QDialog):
         button_layout.addWidget(cancel_btn)
         
         apply_btn = QPushButton("Apply Filters")
-        apply_btn.setStyleSheet("background-color: #2196F3; color: white; font-weight: bold; padding: 5px 15px;")
+        apply_btn.setStyleSheet("background-color: #2196F3; color: white; font-weight: bold; padding: 5px 15px; border: none; outline: none;")
         apply_btn.clicked.connect(self.accept)
         apply_btn.setDefault(True)
         button_layout.addWidget(apply_btn)
@@ -6924,9 +6924,15 @@ class SupervertalerQt(QMainWindow):
                 font-weight: bold;
                 padding: 8px 16px;
                 border-radius: 3px;
+                border: none;
+                outline: none;
             }
             QPushButton:hover {
                 background-color: #45a049;
+            }
+            QPushButton:focus {
+                outline: none;
+                border: none;
             }
         """)
         load_context_btn.clicked.connect(self._on_load_image_context_folder)
@@ -7450,6 +7456,11 @@ class SupervertalerQt(QMainWindow):
                     )
                     self.image_context_status_label.setStyleSheet("color: #4CAF50; font-weight: bold; font-size: 11px; padding: 5px;")
                     self.log(f"[Image Context] Loaded {count} images from {folder}")
+                    
+                    # Update Prompt Manager display
+                    if hasattr(self, 'prompt_manager_qt') and self.prompt_manager_qt:
+                        self.prompt_manager_qt.update_image_context_display()
+                    
                     QMessageBox.information(
                         self,
                         "Images Loaded",
@@ -7492,6 +7503,10 @@ class SupervertalerQt(QMainWindow):
                 self.image_context_status_label.setText("No images loaded")
                 self.image_context_status_label.setStyleSheet("color: #999; font-size: 11px; padding: 5px;")
                 self.log("[Image Context] Cleared all images")
+                
+                # Update Prompt Manager display
+                if hasattr(self, 'prompt_manager_qt') and self.prompt_manager_qt:
+                    self.prompt_manager_qt.update_image_context_display()
         else:
             QMessageBox.information(
                 self,
@@ -7951,7 +7966,7 @@ class SupervertalerQt(QMainWindow):
         prompt_widget = QWidget()
         self.prompt_manager_qt = UnifiedPromptManagerQt(self, standalone=False)
         self.prompt_manager_qt.create_tab(prompt_widget)
-        resources_tabs.addTab(prompt_widget, "🤖 Prompt manager")
+        resources_tabs.addTab(prompt_widget, "🤖 Prompt Manager")
         
         layout.addWidget(resources_tabs)
         
@@ -11578,7 +11593,7 @@ class SupervertalerQt(QMainWindow):
         button_box.addWidget(cancel_btn)
         
         import_btn = QPushButton("Import")
-        import_btn.setStyleSheet("font-weight: bold; background-color: #4CAF50; color: white; padding: 8px 20px;")
+        import_btn.setStyleSheet("font-weight: bold; background-color: #4CAF50; color: white; padding: 8px 20px; border: none; outline: none;")
         import_btn.clicked.connect(options_dialog.accept)
         button_box.addWidget(import_btn)
         
@@ -11793,7 +11808,7 @@ class SupervertalerQt(QMainWindow):
         button_box.addWidget(cancel_btn)
         
         export_btn = QPushButton("Export")
-        export_btn.setStyleSheet("font-weight: bold; background-color: #2196F3; color: white; padding: 8px 20px;")
+        export_btn.setStyleSheet("font-weight: bold; background-color: #2196F3; color: white; padding: 8px 20px; border: none; outline: none;")
         export_btn.clicked.connect(options_dialog.accept)
         button_box.addWidget(export_btn)
         
@@ -13189,7 +13204,8 @@ class SupervertalerQt(QMainWindow):
         
         # ========== SAVE BUTTON ==========
         save_btn = QPushButton("💾 Save AI Settings")
-        save_btn.setStyleSheet("font-weight: bold; padding: 8px;")
+        save_btn.setStyleSheet("font-weight: bold; padding: 8px; outline: none;")
+        save_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         save_btn.clicked.connect(lambda: self._save_ai_settings_from_ui(
             openai_radio, claude_radio, gemini_radio, ollama_radio,
             openai_combo, claude_combo, gemini_combo,
@@ -14484,7 +14500,7 @@ class SupervertalerQt(QMainWindow):
 
         # Save button
         save_btn = QPushButton("💾 Save Supervoice Settings")
-        save_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 10px;")
+        save_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 10px; border: none; outline: none;")
         save_btn.clicked.connect(lambda: self._save_voice_settings(
             model_combo.currentText(),
             duration_spin.value(),
@@ -16615,13 +16631,13 @@ class SupervertalerQt(QMainWindow):
         toolbar_layout.addWidget(clear_btn)
         
         preview_prompt_btn = QPushButton("🧪 Preview Prompts")
-        preview_prompt_btn.setToolTip("Preview the complete assembled prompt\n(System Template + Custom Prompts + current segment)")
-        preview_prompt_btn.setStyleSheet("background-color: #9C27B0; color: white; font-weight: bold; padding: 4px 8px;")
+        preview_prompt_btn.setToolTip("Preview the complete assembled prompt\n(System Prompt + Custom Prompts + current segment)")
+        preview_prompt_btn.setStyleSheet("background-color: #9C27B0; color: white; font-weight: bold; padding: 4px 8px; border: none; outline: none;")
         preview_prompt_btn.clicked.connect(self._preview_combined_prompt_from_grid)
         toolbar_layout.addWidget(preview_prompt_btn)
         
         dictate_btn = QPushButton("🎤 Dictate")
-        dictate_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 4px 8px;")
+        dictate_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 4px 8px; border: none; outline: none;")
         dictate_btn.clicked.connect(self.start_voice_dictation)
         dictate_btn.setToolTip("Start/stop voice dictation (F9)")
         toolbar_layout.addWidget(dictate_btn)
@@ -16650,12 +16666,12 @@ class SupervertalerQt(QMainWindow):
         toolbar_layout.addStretch()
         
         save_btn = QPushButton("💾 Save")
-        save_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 4px 8px;")
+        save_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 4px 8px; border: none; outline: none;")
         save_btn.clicked.connect(self.save_grid_segment)
         toolbar_layout.addWidget(save_btn)
         
         save_next_btn = QPushButton("💾 Save & Next")
-        save_next_btn.setStyleSheet("background-color: #2196F3; color: white; font-weight: bold; padding: 4px 8px;")
+        save_next_btn.setStyleSheet("background-color: #2196F3; color: white; font-weight: bold; padding: 4px 8px; border: none; outline: none;")
         save_next_btn.clicked.connect(self.save_grid_segment_and_next)
         save_next_btn.setToolTip("Save and go to next segment (Ctrl+Enter)")
         toolbar_layout.addWidget(save_next_btn)
@@ -16677,20 +16693,6 @@ class SupervertalerQt(QMainWindow):
         bottom_tabs = QTabWidget()
         bottom_tabs.setStyleSheet("QTabBar::tab { outline: 0; } QTabBar::tab:focus { outline: none; } QTabBar::tab:selected { border-bottom: 1px solid #2196F3; background-color: rgba(33, 150, 243, 0.08); }")
         
-        # Comments tab
-        comments_widget = QWidget()
-        comments_layout = QVBoxLayout(comments_widget)
-        comments_layout.setContentsMargins(5, 5, 5, 5)
-        
-        comments_label = QLabel("💬 Comments:")
-        comments_label.setStyleSheet("font-weight: bold;")
-        comments_layout.addWidget(comments_label)
-        
-        self.tab_notes_edit = QTextEdit()
-        self.tab_notes_edit.setPlaceholderText("Add notes or comments for the current segment...")
-        self.tab_notes_edit.textChanged.connect(self.on_tab_notes_change)
-        comments_layout.addWidget(self.tab_notes_edit)
-        
         # Termview tab
         self.termview_widget = TermviewWidget(self, db_manager=self.db_manager, log_callback=self.log, theme_manager=self.theme_manager)
         self.termview_widget.term_insert_requested.connect(self.insert_termview_text)
@@ -16706,13 +16708,12 @@ class SupervertalerQt(QMainWindow):
         self.session_log_text.setStyleSheet("font-family: 'Consolas', 'Courier New', monospace; font-size: 9pt;")
         session_log_layout.addWidget(self.session_log_text)
         
-        # Add tabs
-        bottom_tabs.addTab(comments_widget, "💬 Comments")
+        # Add tabs (Comments tab removed - notes are now in Translation Results panel)
         bottom_tabs.addTab(self.termview_widget, "🔍 Termview")
         bottom_tabs.addTab(session_log_widget, "📋 Session Log")
         
-        # Default to Termview tab (index 1)
-        bottom_tabs.setCurrentIndex(1)
+        # Default to Termview tab (index 0)
+        bottom_tabs.setCurrentIndex(0)
         
         left_vertical_splitter.addWidget(bottom_tabs)
         
@@ -16739,6 +16740,10 @@ class SupervertalerQt(QMainWindow):
         # Connect signals for match selection/insertion
         self.translation_results_panel.match_selected.connect(self.on_match_selected)
         self.translation_results_panel.match_inserted.connect(self.on_match_inserted)
+        
+        # Connect notes editing to save segment notes
+        if hasattr(self.translation_results_panel, 'notes_edit') and self.translation_results_panel.notes_edit:
+            self.translation_results_panel.notes_edit.textChanged.connect(self._on_results_panel_notes_changed)
         
         # Register this panel so it receives updates when segments are selected
         if not hasattr(self, 'results_panels'):
@@ -17054,7 +17059,7 @@ class SupervertalerQt(QMainWindow):
         self.table.setColumnWidth(1, 100)  # Type
         self.table.setColumnWidth(2, 400)  # Source
         self.table.setColumnWidth(3, 400)  # Target
-        self.table.setColumnWidth(4, 120)  # Status
+        self.table.setColumnWidth(4, 70)   # Status
         
         # Enable word wrap in cells (both display and edit mode)
         self.table.setWordWrap(True)
@@ -17835,6 +17840,20 @@ class SupervertalerQt(QMainWindow):
                             self.log(f"⚠️  Saved image folder not found: {image_folder}")
                     except Exception as e:
                         self.log(f"❌ Error restoring image context: {e}")
+                
+                # Restore Image Extractor file list
+                extractor_files = prompt_settings.get('image_extractor_files', [])
+                if extractor_files and hasattr(self, 'image_extractor_file_list'):
+                    self.image_extractor_file_list.clear()
+                    valid_files = []
+                    for file_path in extractor_files:
+                        if os.path.exists(file_path):
+                            self.image_extractor_file_list.addItem(file_path)
+                            valid_files.append(file_path)
+                        else:
+                            self.log(f"⚠️ Image extractor file not found: {file_path}")
+                    if valid_files:
+                        self.log(f"✅ Restored {len(valid_files)} files in Image Extractor")
             
             # Restore original DOCX path for structure-preserving export
             if hasattr(self.current_project, 'original_docx_path') and self.current_project.original_docx_path:
@@ -18659,6 +18678,15 @@ class SupervertalerQt(QMainWindow):
                     self.current_project.prompt_settings = {}
                 self.current_project.prompt_settings['image_context_folder'] = self.figure_context.figure_context_folder
             
+            # Save Image Extractor file list (DOCX files added for image extraction)
+            if hasattr(self, 'image_extractor_file_list') and self.image_extractor_file_list:
+                if not self.current_project.prompt_settings:
+                    self.current_project.prompt_settings = {}
+                extractor_files = [self.image_extractor_file_list.item(i).text() 
+                                   for i in range(self.image_extractor_file_list.count())]
+                if extractor_files:
+                    self.current_project.prompt_settings['image_extractor_files'] = extractor_files
+            
             # Save activated TM IDs and read_only status for this project
             if hasattr(self, 'tm_metadata_mgr') and self.tm_metadata_mgr and hasattr(self.current_project, 'id'):
                 project_id = self.current_project.id
@@ -19133,7 +19161,7 @@ class SupervertalerQt(QMainWindow):
         # Buttons
         button_layout = QHBoxLayout()
         ok_btn = QPushButton("Import")
-        ok_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold;")
+        ok_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; border: none; outline: none;")
         ok_btn.clicked.connect(dialog.accept)
         cancel_btn = QPushButton("Cancel")
         cancel_btn.clicked.connect(dialog.reject)
@@ -19443,7 +19471,7 @@ class SupervertalerQt(QMainWindow):
         # Buttons
         button_layout = QHBoxLayout()
         ok_btn = QPushButton("Import")
-        ok_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold;")
+        ok_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; border: none; outline: none;")
         ok_btn.clicked.connect(dialog.accept)
         cancel_btn = QPushButton("Cancel")
         cancel_btn.clicked.connect(dialog.reject)
@@ -19694,7 +19722,7 @@ class SupervertalerQt(QMainWindow):
             # Buttons
             button_layout = QHBoxLayout()
             ok_btn = QPushButton("Export")
-            ok_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold;")
+            ok_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; border: none; outline: none;")
             ok_btn.clicked.connect(dialog.accept)
             cancel_btn = QPushButton("Cancel")
             cancel_btn.clicked.connect(dialog.reject)
@@ -19923,22 +19951,16 @@ class SupervertalerQt(QMainWindow):
                 start = start_spin.value()
                 pad = padding_spin.value()
                 
-                # Get a sample segment
-                sample_source = segments[0].source if segments else "Sample source text"
-                sample_target = segments[0].target if segments and segments[0].target else ""
-                
-                # Truncate for preview
-                if len(sample_source) > 40:
-                    sample_source = sample_source[:40] + "..."
-                if len(sample_target) > 40:
-                    sample_target = sample_target[:40] + "..."
+                # Use generic example text (not from current segment)
+                sample_source = "Source text goes here..."
+                sample_target = "Target text goes here..."
                 
                 if include_both_radio.isChecked():
                     preview = f"[SEGMENT {start:0{pad}d}]\n{src_code}: {sample_source}\n{tgt_code}: {sample_target}\n"
                 elif source_only_radio.isChecked():
                     preview = f"[SEGMENT {start:0{pad}d}]\n{src_code}: {sample_source}\n"
                 else:
-                    preview = f"[SEGMENT {start:0{pad}d}]\n{tgt_code}: {sample_target or '(empty)'}\n"
+                    preview = f"[SEGMENT {start:0{pad}d}]\n{tgt_code}: {sample_target}\n"
                 
                 preview_text.setPlainText(preview)
             
@@ -19958,7 +19980,7 @@ class SupervertalerQt(QMainWindow):
             # Buttons
             button_layout = QHBoxLayout()
             ok_btn = QPushButton("Export")
-            ok_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold;")
+            ok_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; border: none; outline: none;")
             ok_btn.clicked.connect(dialog.accept)
             cancel_btn = QPushButton("Cancel")
             cancel_btn.clicked.connect(dialog.reject)
@@ -20234,7 +20256,7 @@ class SupervertalerQt(QMainWindow):
         # Buttons
         button_layout = QHBoxLayout()
         ok_btn = QPushButton("📥 Import Selected Files")
-        ok_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 8px 16px;")
+        ok_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 8px 16px; border: none; outline: none;")
         ok_btn.clicked.connect(dialog.accept)
         cancel_btn = QPushButton("Cancel")
         cancel_btn.clicked.connect(dialog.reject)
@@ -20717,7 +20739,7 @@ class SupervertalerQt(QMainWindow):
         # Buttons
         button_layout = QHBoxLayout()
         ok_btn = QPushButton("📤 Export to Folder...")
-        ok_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 8px 16px;")
+        ok_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 8px 16px; border: none; outline: none;")
         ok_btn.clicked.connect(dialog.accept)
         cancel_btn = QPushButton("Cancel")
         cancel_btn.clicked.connect(dialog.reject)
@@ -23916,8 +23938,14 @@ class SupervertalerQt(QMainWindow):
         widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         widget.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
 
-        # Make widget background transparent - let table item handle the background
+        # Check if segment has notes
+        has_notes = segment.notes and segment.notes.strip()
+        
+        # Widget background always transparent
         widget.setStyleSheet("background: transparent;")
+        if has_notes:
+            widget.setToolTip(f"Notes: {segment.notes.strip()}")
+            
         status_def = get_status(segment.status)
         status_label = QLabel(status_def.icon)
         status_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
@@ -23926,7 +23954,12 @@ class SupervertalerQt(QMainWindow):
         font_size = "10px" if segment.status == "not_started" else "14px"
         # Make confirmed checkmark green
         color = "color: #2e7d32;" if segment.status == "confirmed" else ""
-        status_label.setStyleSheet(f"font-size: {font_size}; {color} padding-right: 4px;")
+        
+        # Apply orange background highlight to status icon if segment has notes
+        if has_notes:
+            status_label.setStyleSheet(f"font-size: {font_size}; {color} padding: 2px 4px; background-color: rgba(255, 152, 0, 0.35); border-radius: 3px;")
+        else:
+            status_label.setStyleSheet(f"font-size: {font_size}; {color} padding-right: 4px;")
         layout.addWidget(status_label)
 
         # Only add match label if there's a match percentage
@@ -23949,25 +23982,6 @@ class SupervertalerQt(QMainWindow):
                 match_label.setStyleSheet("color: #0d47a1; padding-left: 4px; padding-right: 4px;")
                 match_label.setToolTip(f"Fuzzy match {segment.match_percent}%")
             layout.addWidget(match_label)
-
-        # Use 🗨️ (left speech bubble) with better contrast
-        comment_label = QLabel("🗨️")
-        comment_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        # Style comment label (text-shadow not supported in Qt, removed)
-        if segment.notes and segment.notes.strip():
-            comment_label.setStyleSheet("""
-                color: #ff9800;
-                font-size: 14px;
-                font-weight: bold;
-            """)
-            comment_label.setToolTip(segment.notes.strip())
-        else:
-            comment_label.setStyleSheet("""
-                color: #90A4AE;
-                font-size: 14px;
-            """)
-            comment_label.setToolTip("No comments")
-        layout.addWidget(comment_label)
 
         layout.addStretch(1)
 
@@ -24873,6 +24887,16 @@ class SupervertalerQt(QMainWindow):
                     except Exception as e:
                         self.log(f"Error updating toolbar: {e}")
                 
+                # Update Translation Results panel notes
+                if hasattr(self, 'translation_results_panel') and self.translation_results_panel:
+                    try:
+                        notes_text = segment.notes if segment.notes else ""
+                        self.translation_results_panel.notes_edit.blockSignals(True)
+                        self.translation_results_panel.notes_edit.setPlainText(notes_text)
+                        self.translation_results_panel.notes_edit.blockSignals(False)
+                    except Exception as e:
+                        self.log(f"Error updating notes in Translation Results panel: {e}")
+                
                 # Update legacy tabbed panels (if they exist for other views)
                 if hasattr(self, 'update_tab_segment_editor'):
                     self.update_tab_segment_editor(
@@ -25348,7 +25372,7 @@ class SupervertalerQt(QMainWindow):
         # Info label
         info_label = QLabel(
             "<b>Complete Assembled Prompt</b><br>"
-            "This is what will be sent to the AI (System Template + Custom Prompts + segment text)<br><br>" +
+            "This is what will be sent to the AI (System Prompt + Custom Prompts + segment text)<br><br>" +
             composition_text.replace("\n", "<br>")
         )
         info_label.setTextFormat(Qt.TextFormat.RichText)
@@ -27981,9 +28005,10 @@ class SupervertalerQt(QMainWindow):
         target_chars = sum(len(s.target) for s in proj.segments if s.target) if proj.segments else 0
         
         dialog = QDialog(self)
-        dialog.setWindowTitle("Project Information")
-        dialog.setMinimumWidth(550)
-        dialog.setMinimumHeight(500)
+        dialog.setWindowTitle("📋 Project Information")
+        dialog.resize(700, 750)  # Start with a good default size
+        dialog.setMinimumWidth(600)
+        dialog.setMinimumHeight(600)
         
         main_layout = QVBoxLayout(dialog)
         main_layout.setSpacing(15)
@@ -28033,25 +28058,28 @@ class SupervertalerQt(QMainWindow):
         
         # ═══════════════ Statistics ═══════════════
         stats_group = QGroupBox("📊 Statistics")
-        stats_layout = QVBoxLayout(stats_group)
+        stats_main_layout = QHBoxLayout(stats_group)
         
-        # Segment counts
+        # Left column: Segment counts
+        left_col = QVBoxLayout()
         progress_pct = (translated / total_segments * 100) if total_segments > 0 else 0
-        stats_layout.addWidget(QLabel(f"<b>Total Segments:</b> {total_segments:,}"))
-        stats_layout.addWidget(QLabel(f"<b>Translated:</b> {translated:,} ({progress_pct:.1f}%)"))
-        stats_layout.addWidget(QLabel(f"<b>Confirmed:</b> {confirmed:,}"))
-        stats_layout.addWidget(QLabel(f"<b>Draft:</b> {draft:,}"))
-        stats_layout.addWidget(QLabel(f"<b>Not Started:</b> {not_started:,}"))
+        left_col.addWidget(QLabel(f"<b>Total Segments:</b> {total_segments:,}"))
+        left_col.addWidget(QLabel(f"<b>Translated:</b> {translated:,} ({progress_pct:.1f}%)"))
+        left_col.addWidget(QLabel(f"<b>Confirmed:</b> {confirmed:,}"))
+        left_col.addWidget(QLabel(f"<b>Draft:</b> {draft:,}"))
+        left_col.addWidget(QLabel(f"<b>Not Started:</b> {not_started:,}"))
+        left_col.addStretch()
         
-        stats_layout.addWidget(QLabel(""))  # Spacer
+        # Right column: Word/Character counts
+        right_col = QVBoxLayout()
+        right_col.addWidget(QLabel(f"<b>Source Words:</b> {source_words:,}"))
+        right_col.addWidget(QLabel(f"<b>Target Words:</b> {target_words:,}"))
+        right_col.addWidget(QLabel(f"<b>Source Characters:</b> {source_chars:,}"))
+        right_col.addWidget(QLabel(f"<b>Target Characters:</b> {target_chars:,}"))
+        right_col.addStretch()
         
-        # Word counts
-        stats_layout.addWidget(QLabel(f"<b>Source Words:</b> {source_words:,}"))
-        stats_layout.addWidget(QLabel(f"<b>Target Words:</b> {target_words:,}"))
-        
-        # Character counts
-        stats_layout.addWidget(QLabel(f"<b>Source Characters:</b> {source_chars:,}"))
-        stats_layout.addWidget(QLabel(f"<b>Target Characters:</b> {target_chars:,}"))
+        stats_main_layout.addLayout(left_col)
+        stats_main_layout.addLayout(right_col)
         
         layout.addWidget(stats_group)
         
@@ -28088,38 +28116,114 @@ class SupervertalerQt(QMainWindow):
             
             layout.addWidget(source_group)
         
-        # ═══════════════ Resources ═══════════════
-        resources_group = QGroupBox("🔧 Resources")
-        resources_layout = QVBoxLayout(resources_group)
+        # ═══════════════ AI & Prompts ═══════════════
+        ai_group = QGroupBox("🤖 AI & Prompts")
+        ai_layout = QVBoxLayout(ai_group)
         
-        # Prompt settings
-        if proj.prompt_settings:
-            prompt_name = proj.prompt_settings.get('primary_prompt_name', 'None')
-            if prompt_name:
-                resources_layout.addWidget(QLabel(f"<b>Active Prompt:</b> {prompt_name}"))
+        # Primary Prompt - get from live prompt manager
+        primary_prompt_text = "None"
+        attached_count = 0
+        if hasattr(self, 'prompt_manager_qt') and self.prompt_manager_qt:
+            library = self.prompt_manager_qt.library
+            if library.active_primary_prompt_path:
+                # Extract just the filename/name from path
+                prompt_path = library.active_primary_prompt_path
+                if prompt_path.startswith("[EXTERNAL]"):
+                    import os
+                    primary_prompt_text = f"📁 {os.path.basename(prompt_path.replace('[EXTERNAL] ', ''))}"
+                else:
+                    primary_prompt_text = f"✅ {prompt_path}"
+            attached_count = len(library.attached_prompt_paths) if library.attached_prompt_paths else 0
         
-        # TM settings
-        if proj.tm_settings:
-            active_tms = proj.tm_settings.get('activated_tms', [])
-            if active_tms:
-                resources_layout.addWidget(QLabel(f"<b>Active TMs:</b> {len(active_tms)}"))
+        ai_layout.addWidget(QLabel(f"<b>Primary Prompt:</b> {primary_prompt_text}"))
+        if attached_count > 0:
+            ai_layout.addWidget(QLabel(f"<b>Attached Prompts:</b> {attached_count}"))
         
-        # Termbase settings
-        if proj.termbase_settings:
-            active_tbs = proj.termbase_settings.get('activated_termbases', [])
-            if active_tbs:
-                resources_layout.addWidget(QLabel(f"<b>Active Glossaries:</b> {len(active_tbs)}"))
+        layout.addWidget(ai_group)
         
-        # Spellcheck settings
-        if proj.spellcheck_settings:
-            sp_enabled = proj.spellcheck_settings.get('enabled', False)
-            sp_lang = proj.spellcheck_settings.get('language', 'Not set')
-            resources_layout.addWidget(QLabel(f"<b>Spellcheck:</b> {'Enabled' if sp_enabled else 'Disabled'} ({sp_lang})"))
+        # ═══════════════ Translation Memories ═══════════════
+        tm_group = QGroupBox("📚 Translation Memories")
+        tm_layout = QVBoxLayout(tm_group)
         
-        if resources_layout.count() == 0:
-            resources_layout.addWidget(QLabel("<i>No resources configured</i>"))
+        # Get active TMs using tm_metadata_mgr
+        active_tm_info = []
+        if hasattr(self, 'tm_metadata_mgr') and self.tm_metadata_mgr:
+            try:
+                all_tms = self.tm_metadata_mgr.get_all_tms()
+                for tm in all_tms:
+                    # Check if TM is active for this project (or global if proj.id is 0)
+                    if self.tm_metadata_mgr.is_tm_active(tm['id'], proj.id):
+                        active_tm_info.append((tm['name'], tm.get('entry_count', 0)))
+            except Exception as e:
+                self.log(f"Error getting TM info: {e}")
         
-        layout.addWidget(resources_group)
+        if active_tm_info:
+            for tm_name, tu_count in active_tm_info:
+                tm_layout.addWidget(QLabel(f"✅ <b>{tm_name}</b> ({tu_count:,} TUs)"))
+        else:
+            tm_layout.addWidget(QLabel("<span style='color: #999;'>No TMs activated</span>"))
+        
+        layout.addWidget(tm_group)
+        
+        # ═══════════════ Glossaries ═══════════════
+        gloss_group = QGroupBox("📖 Glossaries")
+        gloss_layout = QVBoxLayout(gloss_group)
+        
+        # Get active glossaries using termbase_mgr
+        active_tb_info = []
+        if hasattr(self, 'termbase_mgr') and self.termbase_mgr:
+            try:
+                all_termbases = self.termbase_mgr.get_all_termbases()
+                for tb in all_termbases:
+                    # Check if termbase is active for this project
+                    if self.termbase_mgr.is_termbase_active(tb['id'], proj.id):
+                        active_tb_info.append((tb['name'], tb.get('term_count', 0)))
+            except Exception as e:
+                self.log(f"Error getting glossary info: {e}")
+        
+        if active_tb_info:
+            for tb_name, term_count in active_tb_info:
+                gloss_layout.addWidget(QLabel(f"✅ <b>{tb_name}</b> ({term_count:,} terms)"))
+        else:
+            gloss_layout.addWidget(QLabel("<span style='color: #999;'>No glossaries activated</span>"))
+        
+        layout.addWidget(gloss_group)
+        
+        # ═══════════════ Image Context ═══════════════
+        image_group = QGroupBox("🖼️ Image Context")
+        image_layout = QVBoxLayout(image_group)
+        
+        # Get from live figure_context
+        if hasattr(self, 'figure_context') and self.figure_context and self.figure_context.has_images():
+            count = self.figure_context.get_image_count()
+            folder = self.figure_context.get_folder_name() or "Unknown folder"
+            image_layout.addWidget(QLabel(f"✅ <b>{count} image{'s' if count != 1 else ''}</b> loaded from: {folder}"))
+        else:
+            image_layout.addWidget(QLabel("<span style='color: #999;'>No images loaded</span>"))
+        
+        layout.addWidget(image_group)
+        
+        # ═══════════════ Other Settings ═══════════════
+        settings_group = QGroupBox("⚙️ Other Settings")
+        settings_layout = QVBoxLayout(settings_group)
+        
+        # Spellcheck
+        if hasattr(self, 'spellcheck_manager') and self.spellcheck_manager:
+            sp_enabled = self.spellcheck_manager.enabled
+            sp_lang = self.spellcheck_manager._current_language or "Not set"
+            sp_status = f"✅ Enabled ({sp_lang})" if sp_enabled else "❌ Disabled"
+            settings_layout.addWidget(QLabel(f"<b>Spellcheck:</b> {sp_status}"))
+        else:
+            settings_layout.addWidget(QLabel(f"<b>Spellcheck:</b> Not available"))
+        
+        # Supermemory
+        if hasattr(self, 'supermemory') and self.supermemory:
+            sm_count = self.supermemory.get_segment_count() if hasattr(self.supermemory, 'get_segment_count') else 0
+            settings_layout.addWidget(QLabel(f"<b>Supermemory:</b> ✅ Active ({sm_count:,} entries)"))
+        else:
+            settings_layout.addWidget(QLabel(f"<b>Supermemory:</b> <span style='color: #999;'>Not initialized</span>"))
+        
+        layout.addWidget(settings_group)
         
         layout.addStretch()
         
@@ -29550,6 +29654,35 @@ class SupervertalerQt(QMainWindow):
                     self._refresh_segment_status(seg)
                     break
     
+    def _on_results_panel_notes_changed(self):
+        """Handle notes change in Translation Results panel - saves to current segment"""
+        if not self.current_project:
+            return
+        
+        # Get current segment from grid selection
+        current_row = self.table.currentRow()
+        if current_row < 0:
+            return
+        
+        id_item = self.table.item(current_row, 0)
+        if not id_item:
+            return
+        
+        try:
+            segment_id = int(id_item.text())
+        except (ValueError, AttributeError):
+            return
+        
+        # Find segment and update notes
+        for seg in self.current_project.segments:
+            if seg.id == segment_id:
+                new_notes = self.translation_results_panel.notes_edit.toPlainText()
+                seg.notes = new_notes
+                self.project_modified = True
+                # Refresh the status cell to update the notes indicator
+                self._refresh_segment_status(seg)
+                break
+    
     def copy_source_to_tab_target(self):
         """Copy source to target in tab editor - works with all panels"""
         if hasattr(self, 'tabbed_panels'):
@@ -30936,7 +31069,7 @@ class SupervertalerQt(QMainWindow):
         
         import_btn = QPushButton("📥 Import TMX File")
         import_btn.clicked.connect(import_tmx)
-        import_btn.setStyleSheet("background-color: #3b82f6; color: white; padding: 10px; font-weight: bold;")
+        import_btn.setStyleSheet("background-color: #3b82f6; color: white; padding: 10px; font-weight: bold; border: none; outline: none;")
         import_layout.addWidget(import_btn)
         
         import_layout.addStretch()
@@ -34683,7 +34816,7 @@ class SuperlookupTab(QWidget):
         
         add_term_btn = QPushButton("➕ Add to Glossary")
         add_term_btn.setToolTip("Add source text and selected translation as new term")
-        add_term_btn.setStyleSheet("background-color: #4CAF50; color: white; padding: 5px;")
+        add_term_btn.setStyleSheet("background-color: #4CAF50; color: white; padding: 5px; border: none; outline: none;")
         add_term_btn.clicked.connect(self.add_to_termbase)
         button_layout.addWidget(add_term_btn)
         
@@ -37500,7 +37633,7 @@ class SuperlookupTab(QWidget):
         button_layout.addWidget(cancel_btn)
         
         add_btn = QPushButton("Add Term")
-        add_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 8px;")
+        add_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 8px; border: none; outline: none;")
         add_btn.clicked.connect(dialog.accept)
         button_layout.addWidget(add_btn)
         

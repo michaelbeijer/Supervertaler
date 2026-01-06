@@ -507,6 +507,12 @@ class TermviewWidget(QWidget):
                 source_term = match.get('source_term', match.get('source', ''))
                 target_term = match.get('target_term', match.get('translation', ''))
                 
+                # Ensure source_term and target_term are strings
+                if not isinstance(source_term, str):
+                    source_term = str(source_term) if source_term else ''
+                if not isinstance(target_term, str):
+                    target_term = str(target_term) if target_term else ''
+                
                 if not source_term or not target_term:
                     continue
                 

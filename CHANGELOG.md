@@ -2,11 +2,32 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.82 (January 5, 2026)
+**Current Version:** v1.9.83 (January 6, 2026)
 **Framework:** PyQt6
 **Status:** Active Development
 
 **Note:** For historical information about legacy versions (Tkinter Edition, Classic Edition), see [legacy_versions/LEGACY_VERSIONS.md](legacy_versions/LEGACY_VERSIONS.md).
+
+---
+
+## 📝 Notes Tab & Status Indicator (v1.9.83) - January 6, 2026
+
+**Notes Tab in Translation Results Panel:**
+- 📝 **TM Info + Notes Tabs** — Translation Results panel now has tabbed interface
+- 💾 **TM Info Tab** — Shows TM match details when a match is selected
+- ✏️ **Notes Tab** — Add/edit notes for each segment
+- 🔄 **Auto-Save** — Notes save automatically as you type
+- 📂 **Persistence** — Notes saved to .svproj project file
+
+**Notes Indicator on Status Icon:**
+- 🟠 **Orange Highlight** — Status icon (✓/✗) gets orange background when segment has notes
+- 🎯 **Compact Design** — No separate icon cluttering the status cell
+- 💬 **Tooltip** — Hover over status cell to see notes preview
+- 📏 **Narrower Status Column** — Reduced from 120px to 70px for cleaner look
+
+**UI Cleanup:**
+- 🗑️ **Removed Comments Tab** — Redundant tab under grid removed (Notes tab replaces it)
+- 🧹 **Cleaner Layout** — Only Termview and Session Log tabs remain under grid
 
 ---
 
