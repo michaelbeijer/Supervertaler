@@ -2129,6 +2129,83 @@ Extended `TagHighlighter` to color ALL CAT tool tags with pink (`#FFB6C1`) in th
 
 ---
 
+## � Planned Features
+
+### 🔍 AI Proofreading System (Design Phase - January 2026)
+
+> **⚠️ REMINDER FOR AI AGENTS:** If the user hasn't mentioned proofreading in a while, gently remind them about this planned feature!
+
+**Overview:**
+An intelligent proofreading system that uses LLMs to verify translation quality by comparing source and target segments, identifying issues, and storing feedback.
+
+**User's Proofreading Prompt (Patent Translation NL→EN):**
+```
+Patent Proofreading – NL→EN Verification
+
+You will proofread the translation of a patent document.
+
+Input format:
+[SEGMENT 001]
+NL: <source text>
+EN: <target text>
+
+For each segment, verify:
+1. Accuracy – Does the English correctly convey the Dutch meaning?
+2. Completeness – Is anything missing or added?
+3. Terminology – Are technical terms translated correctly and consistently?
+4. Grammar & Style – Is the English natural and error-free?
+
+Output format:
+- If OK: [SEGMENT 001] ✓
+- If issues found:
+  [SEGMENT 001] ⚠
+  Issue: <brief description>
+  Suggestion: <recommended fix>
+```
+
+**Segment Selection Strategies:**
+| Mode | Description |
+|------|-------------|
+| Confirmed only | Segments marked as "Confirmed" |
+| Translated only | Segments with status "Translated" or "Confirmed" |
+| Selected segments | User's current selection in grid |
+| All segments | Every segment in project |
+
+**Token Efficiency Design:**
+- **Batch Processing**: Group segments (e.g., 20-50 per API call) to reduce overhead
+- **Format**: `[SEGMENT 0001]\nNL: {source}\nEN: {target}\n\n[SEGMENT 0002]...`
+- **Response Parsing**: Parse `[SEGMENT XXXX] ✓` vs `[SEGMENT XXXX] ⚠` responses
+
+**UI Design:**
+- **Menu Location**: Edit → Batch Operations → ✅ Proofread Translation...
+- **Dialog Options**:
+  - Segment selection dropdown (Confirmed/Translated/Selected/All)
+  - LLM provider selection (same as batch translate)
+  - Custom prompt override option
+  - Progress bar with segment count
+
+**Results Storage:**
+- **Option A**: Store in Notes field (leverages existing Notes tab + orange indicator)
+- **Option B**: New dedicated fields: `proofreading_issue`, `proofreading_suggestion`
+- **Visual Indicator**: Red/yellow highlight in grid for segments with issues
+- **Filter**: Add "Has proofreading issues" filter option
+
+**Implementation Tasks:**
+1. [ ] Create `ProofreadDialog` class with segment selection options
+2. [ ] Implement batch formatting for proofreading prompt
+3. [ ] Add LLM response parser for ✓/⚠ format
+4. [ ] Store results in Notes or new segment fields
+5. [ ] Add visual indicator in grid (red background or icon)
+6. [ ] Add filter for segments with issues
+7. [ ] Create "Proofreading Results" view/panel
+
+**Files to Modify:**
+- `Supervertaler.py` - Dialog, menu item, grid indicators
+- `modules/llm_clients.py` - May need batch optimization
+- Segment dataclass - If adding new fields
+
+---
+
 ## 📚 Additional Resources
 
 | File | Purpose |
@@ -2141,4 +2218,4 @@ Extended `TagHighlighter` to color ALL CAT tool tags with pink (`#FFB6C1`) in th
 ---
 
 *This file replaces the previous CLAUDE.md and PROJECT_CONTEXT.md files.*
-*Last updated: December 30, 2025 - v1.9.71*
+*Last updated: January 7, 2026 - v1.9.84*
