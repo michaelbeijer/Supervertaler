@@ -34,9 +34,9 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.83"
+__version__ = "1.9.84"
 __phase__ = "0.9"
-__release_date__ = "2026-01-05"
+__release_date__ = "2026-01-07"
 __edition__ = "Qt"
 
 import sys
@@ -23864,12 +23864,14 @@ class SupervertalerQt(QMainWindow):
                 cursor.insertText("• ", bullet_format)
 
         # Parse text for inline formatting tags
-        tag_pattern = re.compile(r'(</?(?:b|i|u|bi)>)')
+        tag_pattern = re.compile(r'(</?(?:b|i|u|bi|sub|sup)>)')
         parts = tag_pattern.split(text)
 
         is_bold = False
         is_italic = False
         is_underline = False
+        is_subscript = False
+        is_superscript = False
 
         for part in parts:
             if not part:
@@ -23901,6 +23903,18 @@ class SupervertalerQt(QMainWindow):
                 is_bold = False
                 is_italic = False
                 continue
+            elif part == '<sub>':
+                is_subscript = True
+                continue
+            elif part == '</sub>':
+                is_subscript = False
+                continue
+            elif part == '<sup>':
+                is_superscript = True
+                continue
+            elif part == '</sup>':
+                is_superscript = False
+                continue
 
             # Apply formatting to text
             text_format = QTextCharFormat(base_format)
@@ -23911,6 +23925,10 @@ class SupervertalerQt(QMainWindow):
                 text_format.setFontItalic(True)
             if is_underline:
                 text_format.setUnderlineStyle(QTextCharFormat.UnderlineStyle.SingleUnderline)
+            if is_subscript:
+                text_format.setVerticalAlignment(QTextCharFormat.VerticalAlignment.AlignSubScript)
+            if is_superscript:
+                text_format.setVerticalAlignment(QTextCharFormat.VerticalAlignment.AlignSuperScript)
 
             cursor.insertText(part, text_format)
 

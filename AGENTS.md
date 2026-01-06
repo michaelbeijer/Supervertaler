@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** January 6, 2026 | **Version:** v1.9.83
+> **Last Updated:** January 7, 2026 | **Version:** v1.9.84
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.83 (January 2026) |
+| **Version** | v1.9.84 (January 2026) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -455,6 +455,41 @@ google_api_key=AI...
 ---
 
 ## 🔄 Recent Development History
+
+### January 7, 2026 - Version 1.9.84: Subscript & Superscript Support
+
+**📐 New Formatting Tags**
+
+Added support for subscript and superscript formatting throughout the entire pipeline:
+
+- **Import**: DOCX files with subscript/superscript text now preserve formatting as `<sub>` and `<sup>` tags
+- **Display**: Tags shown in grid cells (e.g., `P<sub>totaal</sub>`, `m<sup>2</sup>`)
+- **Export**: Tags converted back to real Word subscript/superscript formatting
+- **Preview**: Document Preview renders actual subscript/superscript positioning
+
+**Technical Implementation:**
+- `modules/tag_manager.py`:
+  - `FormattingRun` dataclass: Added `subscript: bool` and `superscript: bool` fields
+  - `TAG_PATTERN`: Extended to `r'<(/?)([biu]|bi|li|sub|sup)>'`
+  - `tag_colors`: Added `'sub': '#666600'` and `'sup': '#006666'`
+  - `extract_runs()`: Now captures `run.font.subscript` and `run.font.superscript`
+  - `runs_to_tagged_text()`: Generates `<sub>` and `<sup>` tags
+  - `tagged_text_to_runs()`: Parses `<sub>` and `<sup>` tags
+
+- `modules/docx_handler.py`:
+  - Formatting check includes `<sub>` and `<sup>` tag detection
+  - Fallback mode strips `<sub>` and `<sup>` tags
+  - `_replace_paragraph_with_formatting()`: Applies `run.font.subscript = True` and `run.font.superscript = True`
+
+- `Supervertaler.py`:
+  - `_render_formatted_text()`: Handles `<sub>` and `<sup>` tags using `QTextCharFormat.VerticalAlignment.AlignSubScript/AlignSuperScript`
+
+**Files Modified:**
+- `modules/tag_manager.py` - FormattingRun, TAG_PATTERN, tag_colors, extract_runs, runs_to_tagged_text, tagged_text_to_runs
+- `modules/docx_handler.py` - Format detection, tag stripping, formatting application
+- `Supervertaler.py` - Preview rendering with actual sub/superscript
+
+---
 
 ### January 6, 2026 - Version 1.9.83: Notes Tab & Status Indicator
 

@@ -476,7 +476,7 @@ class DOCXHandler:
         new_text = re.sub(r'</?li-[ob]>', '', new_text)
         
         # Check if text contains formatting tags
-        if self.tag_manager and ('<b>' in new_text or '<i>' in new_text or '<u>' in new_text or '<bi>' in new_text):
+        if self.tag_manager and ('<b>' in new_text or '<i>' in new_text or '<u>' in new_text or '<bi>' in new_text or '<sub>' in new_text or '<sup>' in new_text):
             self._replace_paragraph_with_formatting(paragraph, new_text, original_style)
             return
         
@@ -549,6 +549,8 @@ class DOCXHandler:
             clean_text = clean_text.replace('<i>', '').replace('</i>', '')
             clean_text = clean_text.replace('<u>', '').replace('</u>', '')
             clean_text = clean_text.replace('<bi>', '').replace('</bi>', '')
+            clean_text = clean_text.replace('<sub>', '').replace('</sub>', '')
+            clean_text = clean_text.replace('<sup>', '').replace('</sup>', '')
             self._replace_paragraph_text(paragraph, clean_text, original_style)
             return
         
@@ -587,6 +589,10 @@ class DOCXHandler:
                 run.font.italic = True
             if spec.get('underline'):
                 run.font.underline = True
+            if spec.get('subscript'):
+                run.font.subscript = True
+            if spec.get('superscript'):
+                run.font.superscript = True
             
             # Restore original font properties
             if original_font_name:

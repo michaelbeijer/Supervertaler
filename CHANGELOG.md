@@ -2,11 +2,29 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.83 (January 6, 2026)
+**Current Version:** v1.9.84 (January 7, 2026)
 **Framework:** PyQt6
 **Status:** Active Development
 
 **Note:** For historical information about legacy versions (Tkinter Edition, Classic Edition), see [legacy_versions/LEGACY_VERSIONS.md](legacy_versions/LEGACY_VERSIONS.md).
+
+---
+
+## 📐 Subscript & Superscript Support (v1.9.84) - January 7, 2026
+
+**New Formatting Tags:**
+- ⬇️ **Subscript** — `<sub>` tags for subscript text (e.g., P<sub>totaal</sub>)
+- ⬆️ **Superscript** — `<sup>` tags for superscript text (e.g., m<sup>2</sup>)
+
+**Full Pipeline Support:**
+- 📥 **Import** — Subscript/superscript preserved from DOCX files as `<sub>`/`<sup>` tags
+- 📤 **Export** — Tags converted back to real Word subscript/superscript formatting
+- 🎨 **Preview** — Document Preview renders actual subscript/superscript positioning
+
+**Technical Details:**
+- Updated `modules/tag_manager.py` with sub/sup support in FormattingRun dataclass
+- TAG_PATTERN regex extended to match `<sub>` and `<sup>` tags
+- DOCX handler applies `run.font.subscript` and `run.font.superscript` on export
 
 ---
 

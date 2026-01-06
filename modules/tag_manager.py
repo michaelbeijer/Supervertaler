@@ -21,12 +21,14 @@ class FormattingRun:
     bold: bool = False
     italic: bool = False
     underline: bool = False
+    subscript: bool = False
+    superscript: bool = False
     start_pos: int = 0
     end_pos: int = 0
     
     def has_formatting(self) -> bool:
         """Check if this run has any formatting"""
-        return self.bold or self.italic or self.underline
+        return self.bold or self.italic or self.underline or self.subscript or self.superscript
     
     def get_tag_name(self) -> str:
         """Get the tag name for this formatting"""
@@ -38,14 +40,18 @@ class FormattingRun:
             return "i"
         elif self.underline:
             return "u"
+        elif self.subscript:
+            return "sub"
+        elif self.superscript:
+            return "sup"
         return None
 
 
 class TagManager:
     """Manage inline formatting tags"""
     
-    # Tag patterns - now includes list item tag
-    TAG_PATTERN = re.compile(r'<(/?)([biu]|bi|li)>')
+    # Tag patterns - includes list item tags and sub/sup
+    TAG_PATTERN = re.compile(r'<(/?)([biu]|bi|li|sub|sup)>')
     
     def __init__(self):
         self.tag_colors = {
@@ -53,7 +59,9 @@ class TagManager:
             'i': '#0066CC',    # Blue for italic
             'u': '#009900',    # Green for underline
             'bi': '#CC00CC',   # Purple for bold+italic
-            'li': '#FF6600'    # Orange for list items
+            'li': '#FF6600',   # Orange for list items
+            'sub': '#666600',  # Olive for subscript
+            'sup': '#006666'   # Teal for superscript
         }
     
     def extract_runs(self, paragraph) -> List[FormattingRun]:
@@ -79,6 +87,8 @@ class TagManager:
                 bold=run.bold or False,
                 italic=run.italic or False,
                 underline=run.underline or False,
+                subscript=run.font.subscript or False if run.font else False,
+                superscript=run.font.superscript or False if run.font else False,
                 start_pos=current_pos,
                 end_pos=current_pos + len(text)
             )
@@ -105,18 +115,24 @@ class TagManager:
             return ""
         
         result = []
-        current_formatting = {'bold': False, 'italic': False, 'underline': False}
+        current_formatting = {'bold': False, 'italic': False, 'underline': False, 'subscript': False, 'superscript': False}
         
         for run in runs:
             # Determine what formatting changed
             formatting_changed = (
                 run.bold != current_formatting['bold'] or
                 run.italic != current_formatting['italic'] or
-                run.underline != current_formatting['underline']
+                run.underline != current_formatting['underline'] or
+                run.subscript != current_formatting['subscript'] or
+                run.superscript != current_formatting['superscript']
             )
             
             if formatting_changed:
-                # Close previous tags
+                # Close previous tags (in reverse order of nesting)
+                if current_formatting['subscript']:
+                    result.append('</sub>')
+                if current_formatting['superscript']:
+                    result.append('</sup>')
                 if current_formatting['bold'] and current_formatting['italic']:
                     result.append('</bi>')
                 elif current_formatting['bold']:
@@ -135,15 +151,25 @@ class TagManager:
                     result.append('<i>')
                 elif run.underline:
                     result.append('<u>')
+                if run.subscript:
+                    result.append('<sub>')
+                if run.superscript:
+                    result.append('<sup>')
                 
                 # Update current state
                 current_formatting['bold'] = run.bold
                 current_formatting['italic'] = run.italic
                 current_formatting['underline'] = run.underline
+                current_formatting['subscript'] = run.subscript
+                current_formatting['superscript'] = run.superscript
             
             result.append(run.text)
         
         # Close any remaining tags
+        if current_formatting['subscript']:
+            result.append('</sub>')
+        if current_formatting['superscript']:
+            result.append('</sup>')
         if current_formatting['bold'] and current_formatting['italic']:
             result.append('</bi>')
         elif current_formatting['bold']:
@@ -172,7 +198,7 @@ class TagManager:
             List of run specifications (dicts with text and formatting)
         """
         runs = []
-        current_formatting = {'bold': False, 'italic': False, 'underline': False}
+        current_formatting = {'bold': False, 'italic': False, 'underline': False, 'subscript': False, 'superscript': False}
         current_text = []
         
         pos = 0
@@ -186,7 +212,9 @@ class TagManager:
                         'text': ''.join(current_text),
                         'bold': current_formatting['bold'],
                         'italic': current_formatting['italic'],
-                        'underline': current_formatting['underline']
+                        'underline': current_formatting['underline'],
+                        'subscript': current_formatting['subscript'],
+                        'superscript': current_formatting['superscript']
                     })
                     current_text = []
                 
@@ -203,6 +231,10 @@ class TagManager:
                     current_formatting['italic'] = not is_closing
                 elif tag_name == 'u':
                     current_formatting['underline'] = not is_closing
+                elif tag_name == 'sub':
+                    current_formatting['subscript'] = not is_closing
+                elif tag_name == 'sup':
+                    current_formatting['superscript'] = not is_closing
                 
                 pos = match.end()
             else:
@@ -216,7 +248,9 @@ class TagManager:
                 'text': ''.join(current_text),
                 'bold': current_formatting['bold'],
                 'italic': current_formatting['italic'],
-                'underline': current_formatting['underline']
+                'underline': current_formatting['underline'],
+                'subscript': current_formatting['subscript'],
+                'superscript': current_formatting['superscript']
             })
         
         return runs
