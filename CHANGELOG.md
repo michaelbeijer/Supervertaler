@@ -10,13 +10,22 @@ All notable changes to Supervertaler are documented in this file.
 
 ---
 
-## 🔗 Beijerterm Submodule Update (v1.9.85) - January 7, 2026
+## ✅ AI Proofreading System (v1.9.85) - January 7, 2026
 
-**Beijerterm v1.3.1 Integration:**
-- 📚 **Updated Beijerterm submodule** — Now includes glossary search improvements
-- 🔍 **Glossary pages searchable** — Search now finds glossary pages themselves, not just term entries
-- ⚡ **Automated indexing** — Build script automatically runs PageFind after HTML generation
-- 🔧 **Markdown in tables** — Glossary table cells now render markdown properly
+**Intelligent Translation Quality Verification:**
+- 🔍 **Batch Proofreading** — LLM analyzes translations for errors, inconsistencies, and quality issues
+- 📝 **Issue Tracking** — Problems stored in Notes field with `⚠️ PROOFREAD:` prefix
+- 📊 **Results Table** — View all segments with issues, double-click to navigate
+- 🎯 **Advanced Filters** — New "Has proofreading issues" filter option
+- 🟠 **Visual Indicators** — Orange highlight on status icons for segments with proofreading notes
+- 🧹 **Clear Operations** — Bulk clear all proofreading notes or clear individual segments
+- ⚡ **Batch Processing** — Efficient API calls (20 segments per request)
+- 📈 **Progress Dialog** — Real-time stats during proofreading operation
+
+**Access Points:**
+- Edit → Batch Operations → ✅ Proofread Translation...
+- View → ✅ Proofreading Results...
+- Right-click → ✅ Clear Proofreading Notes
 
 ---
 

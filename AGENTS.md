@@ -456,30 +456,46 @@ google_api_key=AI...
 
 ## 🔄 Recent Development History
 
-### January 7, 2026 - Version 1.9.85: Beijerterm Submodule Update
+### January 7, 2026 - Version 1.9.85: AI Proofreading System
 
-**🔗 Beijerterm v1.3.1 Integration**
+**✅ Intelligent Translation Quality Verification**
 
-Updated Beijerterm submodule with search improvements:
+Complete proofreading system for AI-powered translation quality checking:
 
-- **Glossary Search Enhancement**: Glossary pages now indexed as searchable entities in PageFind
-  - Search for "Glossary of Dutch Pump and Piping" now returns the glossary page itself, not just term entries
-  - Added glossary metadata (title, description, tags, term count) to search index
-- **Automated PageFind Indexing**: Build script now automatically runs `npx pagefind --site _site` after HTML generation
-  - No need to manually run PageFind indexing - it's integrated into the build pipeline
-  - Graceful fallback with helpful error messages if Node.js/npx not available
-- **Markdown in Table Cells**: Fixed markdown rendering in glossary table cells (links, formatting work properly)
+- **Batch Proofreading Feature**: LLM analyzes translations for errors, inconsistencies, and quality issues
+  - Processes segments in batches of 20 for efficient API usage
+  - Issues stored in Notes field with `⚠️ PROOFREAD:` prefix for easy identification
+  - Real-time progress dialog shows statistics during operation
+  
+- **Results Management**:
+  - Proofreading Results dialog shows all segments with issues in a table
+  - Double-click any result to navigate directly to that segment
+  - Orange highlight on status icons for segments with proofreading notes
+  
+- **Filter Integration**: New "Has proofreading issues" option in Advanced Filters
+  - Quickly isolate segments that need attention
+  - Works alongside existing status/text filters
+  
+- **Clear Operations**:
+  - Bulk clear: Remove all proofreading notes from entire project
+  - Individual clear: Right-click segment to clear proofreading notes
+  
+**Access Points:**
+- Edit → Batch Operations → ✅ Proofread Translation...
+- View → ✅ Proofreading Results...
+- Right-click → ✅ Clear Proofreading Notes
 
-**Technical Changes:**
-- `beijerterm/scripts/build_site.py`:
-  - `generate_search_index()`: Added loop to create glossary-level search entries before term entries
-  - Added subprocess call to run PageFind with proper shell=True for Windows PATH resolution
-  - Search index grew from 583,620 to 583,827 entries (+207 glossaries)
+**Implementation Details:**
+- `Supervertaler.py` (lines ~25732-26131): Proofreading methods
+  - `show_proofread_dialog()`: Configuration and execution
+  - `_run_proofreading()`: Batch processing with LLM
+  - `show_proofreading_results_dialog()`: Results table UI
+  - `_clear_all_proofreading_notes()`: Bulk clear operation
+- Orange status icon highlighting when `segment.notes` contains proofreading data
+- Advanced Filters updated with proofreading checkbox
 
 **Files Modified:**
-- `beijerterm/scripts/build_site.py` - Search index generation, automated PageFind execution
-- `beijerterm/CHANGELOG.md` - Added v1.3.1 entry
-- `beijerterm/README.md` - Version bump to v1.3.1
+- `Supervertaler.py` - Proofreading system implementation
 
 ---
 
