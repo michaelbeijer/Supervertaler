@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** January 7, 2026 | **Version:** v1.9.84
+> **Last Updated:** January 7, 2026 | **Version:** v1.9.85
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.84 (January 2026) |
+| **Version** | v1.9.85 (January 2026) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -455,6 +455,33 @@ google_api_key=AI...
 ---
 
 ## 🔄 Recent Development History
+
+### January 7, 2026 - Version 1.9.85: Beijerterm Submodule Update
+
+**🔗 Beijerterm v1.3.1 Integration**
+
+Updated Beijerterm submodule with search improvements:
+
+- **Glossary Search Enhancement**: Glossary pages now indexed as searchable entities in PageFind
+  - Search for "Glossary of Dutch Pump and Piping" now returns the glossary page itself, not just term entries
+  - Added glossary metadata (title, description, tags, term count) to search index
+- **Automated PageFind Indexing**: Build script now automatically runs `npx pagefind --site _site` after HTML generation
+  - No need to manually run PageFind indexing - it's integrated into the build pipeline
+  - Graceful fallback with helpful error messages if Node.js/npx not available
+- **Markdown in Table Cells**: Fixed markdown rendering in glossary table cells (links, formatting work properly)
+
+**Technical Changes:**
+- `beijerterm/scripts/build_site.py`:
+  - `generate_search_index()`: Added loop to create glossary-level search entries before term entries
+  - Added subprocess call to run PageFind with proper shell=True for Windows PATH resolution
+  - Search index grew from 583,620 to 583,827 entries (+207 glossaries)
+
+**Files Modified:**
+- `beijerterm/scripts/build_site.py` - Search index generation, automated PageFind execution
+- `beijerterm/CHANGELOG.md` - Added v1.3.1 entry
+- `beijerterm/README.md` - Version bump to v1.3.1
+
+---
 
 ### January 7, 2026 - Version 1.9.84: Subscript & Superscript Support
 
@@ -2131,78 +2158,29 @@ Extended `TagHighlighter` to color ALL CAT tool tags with pink (`#FFB6C1`) in th
 
 ## � Planned Features
 
-### 🔍 AI Proofreading System (Design Phase - January 2026)
+### ✅ AI Proofreading System (IMPLEMENTED - January 7, 2026)
 
-> **⚠️ REMINDER FOR AI AGENTS:** If the user hasn't mentioned proofreading in a while, gently remind them about this planned feature!
+> **STATUS:** Fully implemented in v1.9.85
 
 **Overview:**
-An intelligent proofreading system that uses LLMs to verify translation quality by comparing source and target segments, identifying issues, and storing feedback.
+An intelligent proofreading system that uses LLMs to verify translation quality. Issues are stored in the Notes field with ⚠️ PROOFREAD prefix.
 
-**User's Proofreading Prompt (Patent Translation NL→EN):**
-```
-Patent Proofreading – NL→EN Verification
+**Access Points:**
+- Edit → Batch Operations → ✅ Proofread Translation...
+- View → ✅ Proofreading Results...
+- Advanced Filters → "Has proofreading issues"
+- Right-click → ✅ Clear Proofreading Notes
 
-You will proofread the translation of a patent document.
+**Features:**
+- Batch processing (20 segments per API call)
+- Progress dialog with real-time stats
+- Results table with navigation to segments
+- Bulk and individual clear operations
+- Orange indicator on status icons
+- Filter for segments with issues
 
-Input format:
-[SEGMENT 001]
-NL: <source text>
-EN: <target text>
-
-For each segment, verify:
-1. Accuracy – Does the English correctly convey the Dutch meaning?
-2. Completeness – Is anything missing or added?
-3. Terminology – Are technical terms translated correctly and consistently?
-4. Grammar & Style – Is the English natural and error-free?
-
-Output format:
-- If OK: [SEGMENT 001] ✓
-- If issues found:
-  [SEGMENT 001] ⚠
-  Issue: <brief description>
-  Suggestion: <recommended fix>
-```
-
-**Segment Selection Strategies:**
-| Mode | Description |
-|------|-------------|
-| Confirmed only | Segments marked as "Confirmed" |
-| Translated only | Segments with status "Translated" or "Confirmed" |
-| Selected segments | User's current selection in grid |
-| All segments | Every segment in project |
-
-**Token Efficiency Design:**
-- **Batch Processing**: Group segments (e.g., 20-50 per API call) to reduce overhead
-- **Format**: `[SEGMENT 0001]\nNL: {source}\nEN: {target}\n\n[SEGMENT 0002]...`
-- **Response Parsing**: Parse `[SEGMENT XXXX] ✓` vs `[SEGMENT XXXX] ⚠` responses
-
-**UI Design:**
-- **Menu Location**: Edit → Batch Operations → ✅ Proofread Translation...
-- **Dialog Options**:
-  - Segment selection dropdown (Confirmed/Translated/Selected/All)
-  - LLM provider selection (same as batch translate)
-  - Custom prompt override option
-  - Progress bar with segment count
-
-**Results Storage:**
-- **Option A**: Store in Notes field (leverages existing Notes tab + orange indicator)
-- **Option B**: New dedicated fields: `proofreading_issue`, `proofreading_suggestion`
-- **Visual Indicator**: Red/yellow highlight in grid for segments with issues
-- **Filter**: Add "Has proofreading issues" filter option
-
-**Implementation Tasks:**
-1. [ ] Create `ProofreadDialog` class with segment selection options
-2. [ ] Implement batch formatting for proofreading prompt
-3. [ ] Add LLM response parser for ✓/⚠ format
-4. [ ] Store results in Notes or new segment fields
-5. [ ] Add visual indicator in grid (red background or icon)
-6. [ ] Add filter for segments with issues
-7. [ ] Create "Proofreading Results" view/panel
-
-**Files to Modify:**
-- `Supervertaler.py` - Dialog, menu item, grid indicators
-- `modules/llm_clients.py` - May need batch optimization
-- Segment dataclass - If adding new fields
+**Files Modified:**
+- `Supervertaler.py` - All implementation
 
 ---
 
@@ -2218,4 +2196,4 @@ Output format:
 ---
 
 *This file replaces the previous CLAUDE.md and PROJECT_CONTEXT.md files.*
-*Last updated: January 7, 2026 - v1.9.84*
+*Last updated: January 7, 2026 - v1.9.85*

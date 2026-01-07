@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.84"
+__version__ = "1.9.85"
 __phase__ = "0.9"
 __release_date__ = "2026-01-07"
 __edition__ = "Qt"
@@ -4617,10 +4617,12 @@ class AdvancedFiltersDialog(QDialog):
         other_layout = QVBoxLayout()
         
         self.has_comments_check = CheckmarkCheckBox("Has comments/notes")
+        self.has_proofreading_check = CheckmarkCheckBox("Has proofreading issues")
         self.repetitions_check = CheckmarkCheckBox("Repetitions only")
         self.auto_propagated_check = CheckmarkCheckBox("Auto-propagated")
         
         other_layout.addWidget(self.has_comments_check)
+        other_layout.addWidget(self.has_proofreading_check)
         other_layout.addWidget(self.repetitions_check)
         other_layout.addWidget(self.auto_propagated_check)
         
@@ -4666,6 +4668,7 @@ class AdvancedFiltersDialog(QDialog):
         self.locked_both.setChecked(True)
         
         self.has_comments_check.setChecked(False)
+        self.has_proofreading_check.setChecked(False)
         self.repetitions_check.setChecked(False)
         self.auto_propagated_check.setChecked(False)
     
@@ -4702,6 +4705,7 @@ class AdvancedFiltersDialog(QDialog):
         
         # Other properties
         filters['has_comments'] = self.has_comments_check.isChecked()
+        filters['has_proofreading'] = self.has_proofreading_check.isChecked()
         filters['repetitions_only'] = self.repetitions_check.isChecked()
         filters['auto_propagated'] = self.auto_propagated_check.isChecked()
         
@@ -5859,6 +5863,11 @@ class SupervertalerQt(QMainWindow):
         clean_tags_action.triggered.connect(self.show_clean_tags_dialog)
         bulk_menu.addAction(clean_tags_action)
         
+        proofread_action = QAction("✅ &Proofread Translation...", self)
+        proofread_action.setToolTip("Use AI to proofread and verify translation quality")
+        proofread_action.triggered.connect(self.show_proofread_dialog)
+        bulk_menu.addAction(proofread_action)
+        
         edit_menu.addSeparator()
         
         # Superlookup
@@ -5966,6 +5975,12 @@ class SupervertalerQt(QMainWindow):
         file_progress_action.triggered.connect(self.show_file_progress_dialog)
         file_progress_action.setToolTip("View translation progress per file (multi-file projects)")
         view_menu.addAction(file_progress_action)
+        
+        # Proofreading results
+        proofread_results_action = QAction("✅ &Proofreading Results...", self)
+        proofread_results_action.triggered.connect(self.show_proofreading_results_dialog)
+        proofread_results_action.setToolTip("View and manage proofreading issues")
+        view_menu.addAction(proofread_results_action)
 
         view_menu.addSeparator()
 
@@ -17771,8 +17786,14 @@ class SupervertalerQt(QMainWindow):
     def load_project(self, file_path: str):
         """Load project from file"""
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
+            # Try UTF-8 first, fall back to latin-1 if it fails
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+            except UnicodeDecodeError:
+                self.log(f"⚠ UTF-8 decoding failed, trying latin-1 encoding...")
+                with open(file_path, 'r', encoding='latin-1') as f:
+                    data = json.load(f)
             
             # If no name in file, use filename
             if 'name' not in data:
@@ -18048,6 +18069,16 @@ class SupervertalerQt(QMainWindow):
                 prefetch_ids = [seg.id for seg in self.current_project.segments[:50]]
                 self._start_prefetch_worker(prefetch_ids)
             
+        except UnicodeDecodeError as e:
+            error_msg = (
+                f"Failed to load project - file encoding error:\n\n"
+                f"{str(e)}\n\n"
+                f"The project file may be corrupted or saved with an incompatible encoding.\n"
+                f"This can happen if the file was edited outside Supervertaler.\n\n"
+                f"Try opening the file in a text editor and re-saving it as UTF-8."
+            )
+            QMessageBox.critical(self, "Encoding Error", error_msg)
+            self.log(f"✗ Encoding error loading project: {e}")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to load project:\n{str(e)}")
             self.log(f"✗ Error loading project: {e}")
@@ -18949,8 +18980,14 @@ class SupervertalerQt(QMainWindow):
             return []
         
         try:
-            with open(self.recent_projects_file, 'r', encoding='utf-8') as f:
-                data = json.load(f)
+            # Try UTF-8 first, fall back to latin-1 if it fails
+            try:
+                with open(self.recent_projects_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+            except UnicodeDecodeError:
+                self.log(f"⚠ UTF-8 decoding failed for recent projects, trying latin-1...")
+                with open(self.recent_projects_file, 'r', encoding='latin-1') as f:
+                    data = json.load(f)
             
             # Handle both old dict format and new list format
             if isinstance(data, dict):
@@ -25451,11 +25488,42 @@ class SupervertalerQt(QMainWindow):
         
         menu.addSeparator()
         
+        # Clear proofreading notes (if any selected segment has proofreading notes)
+        has_proofreading = any(seg.notes and "⚠️ PROOFREAD:" in seg.notes for seg in selected_segments)
+        if has_proofreading:
+            clear_proofread_action = menu.addAction("✅ Clear Proofreading Notes")
+            clear_proofread_action.setToolTip("Remove proofreading issues from selected segment(s)")
+            clear_proofread_action.triggered.connect(lambda: self._clear_proofreading_from_selected(selected_segments))
+            menu.addSeparator()
+        
         # Select all action
         select_all_action = menu.addAction("📋 Select All (Ctrl+A)")
         select_all_action.triggered.connect(lambda: self.table.selectAll())
         
         menu.exec(self.table.viewport().mapToGlobal(position))
+    
+    def _clear_proofreading_from_selected(self, segments):
+        """Clear proofreading notes from selected segments"""
+        cleared_count = 0
+        for segment in segments:
+            if segment.notes and "⚠️ PROOFREAD:" in segment.notes:
+                # Remove proofreading section
+                parts = segment.notes.split("⚠️ PROOFREAD:")
+                if len(parts) > 1:
+                    remaining = parts[1].split("---", 1)
+                    if len(remaining) > 1:
+                        # Has other notes after separator
+                        segment.notes = remaining[1].strip()
+                    else:
+                        # No other notes
+                        segment.notes = ""
+                cleared_count += 1
+        
+        if cleared_count > 0:
+            self.project_modified = True
+            self.load_segments_to_grid()  # Refresh grid
+            self.update_window_title()
+            self.log(f"✓ Cleared proofreading notes from {cleared_count} segment{'s' if cleared_count != 1 else ''}")
     
 
     
@@ -25682,6 +25750,420 @@ class SupervertalerQt(QMainWindow):
         )
         
         self.log(f"🧹 Tag cleaning: {modified_count} segments modified, {tags_removed} tags removed")
+    
+    # ========================================================================
+    # PROOFREADING SYSTEM
+    # ========================================================================
+    
+    def show_proofread_dialog(self):
+        """Show dialog to configure and start proofreading"""
+        if not self.current_project:
+            QMessageBox.information(self, "No Project", "Please open or create a project first.")
+            return
+        
+        # Count segments for each option
+        confirmed_count = sum(1 for seg in self.current_project.segments if seg.status == 'confirmed')
+        translated_count = sum(1 for seg in self.current_project.segments if seg.status in ['translated', 'confirmed'])
+        selected_count = len(self.table.selectedItems()) // self.table.columnCount() if hasattr(self, 'table') else 0
+        all_count = len(self.current_project.segments)
+        
+        dialog = QDialog(self)
+        dialog.setWindowTitle("✅ Proofread Translation")
+        dialog.setModal(True)
+        dialog.setMinimumWidth(600)
+        
+        layout = QVBoxLayout(dialog)
+        
+        # Header
+        header = QLabel("<h3>✅ AI-Powered Translation Proofreading</h3>")
+        layout.addWidget(header)
+        
+        info_label = QLabel(
+            "Use AI to verify translation accuracy, completeness, terminology, and style.\n"
+            "Results will be stored in the Notes field with a ⚠️ PROOFREAD prefix."
+        )
+        info_label.setWordWrap(True)
+        info_label.setStyleSheet("color: #666; padding: 10px 0;")
+        layout.addWidget(info_label)
+        
+        layout.addSpacing(10)
+        
+        # Segment selection
+        segment_group = QGroupBox("Segments to Proofread")
+        segment_layout = QVBoxLayout()
+        
+        confirmed_radio = CheckmarkRadioButton(f"✅ Confirmed only ({confirmed_count} segments)")
+        confirmed_radio.setChecked(True)
+        segment_layout.addWidget(confirmed_radio)
+        
+        translated_radio = CheckmarkRadioButton(f"📝 Translated + Confirmed ({translated_count} segments)")
+        segment_layout.addWidget(translated_radio)
+        
+        selected_radio = CheckmarkRadioButton(f"🔹 Selected ({selected_count} segments)")
+        selected_radio.setEnabled(selected_count > 0)
+        segment_layout.addWidget(selected_radio)
+        
+        all_radio = CheckmarkRadioButton(f"🌐 All segments ({all_count} segments)")
+        segment_layout.addWidget(all_radio)
+        
+        segment_group.setLayout(segment_layout)
+        layout.addWidget(segment_group)
+        
+        layout.addSpacing(10)
+        
+        # LLM provider info
+        settings = self.load_llm_settings()
+        llm_provider = settings.get('provider', 'openai')
+        model_key = f'{llm_provider}_model'
+        llm_model = settings.get(model_key, 'gpt-4o')
+        
+        llm_info = QLabel(f"📊 Using: {llm_provider.title()} ({llm_model})")
+        llm_info.setStyleSheet("color: #666; font-size: 9pt; padding: 5px 0;")
+        layout.addWidget(llm_info)
+        
+        layout.addSpacing(10)
+        
+        # Custom prompt override
+        prompt_group = QGroupBox("Proofreading Prompt (Optional)")
+        prompt_layout = QVBoxLayout()
+        
+        prompt_text = QTextEdit()
+        prompt_text.setPlaceholderText(
+            "Leave empty to use default prompt, or customize here...\n\n"
+            "Default checks:\n"
+            "1. Accuracy – Does target correctly convey source meaning?\n"
+            "2. Completeness – Is anything missing or added?\n"
+            "3. Terminology – Are technical terms correct and consistent?\n"
+            "4. Grammar & Style – Is the text natural and error-free?"
+        )
+        prompt_text.setMaximumHeight(120)
+        prompt_layout.addWidget(prompt_text)
+        
+        prompt_group.setLayout(prompt_layout)
+        layout.addWidget(prompt_group)
+        
+        layout.addSpacing(20)
+        
+        # Buttons
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+        
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(dialog.reject)
+        button_layout.addWidget(cancel_btn)
+        
+        start_btn = QPushButton("Start Proofreading")
+        start_btn.setDefault(True)
+        start_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold;")
+        start_btn.clicked.connect(dialog.accept)
+        button_layout.addWidget(start_btn)
+        
+        layout.addLayout(button_layout)
+        
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        
+        # Determine which segments to proofread
+        segments_to_check = []
+        if confirmed_radio.isChecked():
+            segments_to_check = [(i, seg) for i, seg in enumerate(self.current_project.segments) if seg.status == 'confirmed']
+        elif translated_radio.isChecked():
+            segments_to_check = [(i, seg) for i, seg in enumerate(self.current_project.segments) if seg.status in ['translated', 'confirmed']]
+        elif selected_radio.isChecked():
+            selected_rows = set(item.row() for item in self.table.selectedItems())
+            segments_to_check = [(i, seg) for i, seg in enumerate(self.current_project.segments) if i in selected_rows]
+        else:  # all_radio
+            segments_to_check = list(enumerate(self.current_project.segments))
+        
+        if not segments_to_check:
+            QMessageBox.information(self, "No Segments", "No segments match the selected criteria.")
+            return
+        
+        custom_prompt = prompt_text.toPlainText().strip()
+        
+        # Start proofreading
+        self._run_proofreading(segments_to_check, llm_provider, llm_model, custom_prompt)
+    
+    def _run_proofreading(self, segments_to_check, provider, model, custom_prompt=""):
+        """Run proofreading on selected segments"""
+        # Create progress dialog
+        progress_dialog = QDialog(self)
+        progress_dialog.setWindowTitle("Proofreading in Progress")
+        progress_dialog.setModal(True)
+        progress_dialog.setMinimumWidth(600)
+        progress_dialog.setMinimumHeight(300)
+        
+        dialog_layout = QVBoxLayout(progress_dialog)
+        
+        current_label = QLabel("Initializing...")
+        dialog_layout.addWidget(current_label)
+        
+        progress_bar = QProgressBar()
+        progress_bar.setMaximum(len(segments_to_check))
+        progress_bar.setValue(0)
+        dialog_layout.addWidget(progress_bar)
+        
+        stats_label = QLabel("Checked: 0 | Issues Found: 0 | OK: 0")
+        dialog_layout.addWidget(stats_label)
+        
+        close_btn = QPushButton("Close")
+        close_btn.setEnabled(False)
+        close_btn.clicked.connect(progress_dialog.accept)
+        dialog_layout.addWidget(close_btn)
+        
+        progress_dialog.show()
+        QApplication.processEvents()
+        
+        # Default prompt
+        if not custom_prompt:
+            custom_prompt = f"""Proofread this translation from {self.current_project.source_lang} to {self.current_project.target_lang}.
+
+For each segment, verify:
+1. Accuracy – Does the translation correctly convey the source meaning?
+2. Completeness – Is anything missing or added?
+3. Terminology – Are technical terms translated correctly and consistently?
+4. Grammar & Style – Is the text natural and error-free?
+
+Output format:
+- If OK: [SEGMENT XXX] ✓
+- If issues found:
+  [SEGMENT XXX] ⚠
+  Issue: <brief description>
+  Suggestion: <recommended fix>"""
+        
+        # Initialize LLM client
+        api_keys = self.load_api_keys()
+        llm_client = None
+        
+        try:
+            if provider == 'openai':
+                from modules.llm_clients import OpenAIClient
+                llm_client = OpenAIClient(api_keys.get('openai_api_key', ''))
+            elif provider == 'anthropic':
+                from modules.llm_clients import AnthropicClient
+                llm_client = AnthropicClient(api_keys.get('anthropic_api_key', ''))
+            elif provider == 'google':
+                from modules.llm_clients import GoogleClient
+                llm_client = GoogleClient(api_keys.get('google_api_key', ''))
+            elif provider == 'ollama':
+                from modules.llm_clients import OllamaClient
+                llm_client = OllamaClient()
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to initialize LLM client:\n{str(e)}")
+            return
+        
+        # Process in batches of 20 segments
+        batch_size = 20
+        checked_count = 0
+        issues_count = 0
+        ok_count = 0
+        
+        for batch_start in range(0, len(segments_to_check), batch_size):
+            batch_end = min(batch_start + batch_size, len(segments_to_check))
+            batch = segments_to_check[batch_start:batch_end]
+            
+            # Format batch for API
+            batch_text = ""
+            for row_idx, segment in batch:
+                segment_num = f"{row_idx + 1:04d}"
+                batch_text += f"[SEGMENT {segment_num}]\n{self.current_project.source_lang}: {segment.source}\n{self.current_project.target_lang}: {segment.target}\n\n"
+            
+            current_label.setText(f"Proofreading segments {batch_start + 1}-{batch_end}...")
+            QApplication.processEvents()
+            
+            # Send to LLM
+            try:
+                messages = [
+                    {"role": "system", "content": custom_prompt},
+                    {"role": "user", "content": batch_text}
+                ]
+                
+                response = llm_client.generate(messages, model=model, temperature=0.3, max_tokens=4000)
+                
+                # Parse response
+                for row_idx, segment in batch:
+                    segment_num = f"{row_idx + 1:04d}"
+                    
+                    # Look for [SEGMENT XXXX] markers
+                    pattern_ok = f"\\[SEGMENT {segment_num}\\]\\s*✓"
+                    pattern_issue = f"\\[SEGMENT {segment_num}\\]\\s*⚠"
+                    
+                    if re.search(pattern_ok, response, re.IGNORECASE):
+                        # Segment is OK
+                        ok_count += 1
+                    elif re.search(pattern_issue, response, re.IGNORECASE):
+                        # Segment has issues - extract details
+                        issue_pattern = f"\\[SEGMENT {segment_num}\\]\\s*⚠\\s*\\n(.+?)(?=\\[SEGMENT|$)"
+                        issue_match = re.search(issue_pattern, response, re.DOTALL)
+                        
+                        if issue_match:
+                            issue_text = issue_match.group(1).strip()
+                            
+                            # Add to notes with prefix
+                            existing_notes = segment.notes or ""
+                            if existing_notes:
+                                segment.notes = f"⚠️ PROOFREAD:\n{issue_text}\n\n---\n{existing_notes}"
+                            else:
+                                segment.notes = f"⚠️ PROOFREAD:\n{issue_text}"
+                            
+                            issues_count += 1
+                            self.project_modified = True
+                    
+                    checked_count += 1
+                    progress_bar.setValue(checked_count)
+                    stats_label.setText(f"Checked: {checked_count} | Issues Found: {issues_count} | OK: {ok_count}")
+                    QApplication.processEvents()
+            
+            except Exception as e:
+                self.log(f"⚠️ Proofreading error for batch {batch_start}-{batch_end}: {e}")
+        
+        # Complete
+        current_label.setText(f"✓ Proofreading Complete!")
+        close_btn.setEnabled(True)
+        self.load_segments_to_grid()  # Refresh grid to show orange indicators
+        self.update_window_title()
+        
+        self.log(f"═══════════════════════════════════════════════════════════")
+        self.log(f"✓ Proofreading Complete")
+        self.log(f"   Checked: {checked_count} | Issues: {issues_count} | OK: {ok_count}")
+        self.log(f"═══════════════════════════════════════════════════════════")
+    
+    def show_proofreading_results_dialog(self):
+        """Show dialog with all proofreading results"""
+        if not self.current_project:
+            QMessageBox.information(self, "No Project", "Please open or create a project first.")
+            return
+        
+        # Find segments with proofreading notes
+        proofread_segments = []
+        for i, segment in enumerate(self.current_project.segments):
+            if segment.notes and "⚠️ PROOFREAD:" in segment.notes:
+                proofread_segments.append((i, segment))
+        
+        if not proofread_segments:
+            QMessageBox.information(
+                self,
+                "No Proofreading Results",
+                "No segments have proofreading issues.\n\n"
+                "Run Edit → Bulk Operations → ✅ Proofread Translation to analyze your translation."
+            )
+            return
+        
+        dialog = QDialog(self)
+        dialog.setWindowTitle("✅ Proofreading Results")
+        dialog.setModal(False)
+        dialog.setMinimumWidth(900)
+        dialog.setMinimumHeight(600)
+        
+        layout = QVBoxLayout(dialog)
+        
+        # Header
+        header = QLabel(f"<h3>⚠️ {len(proofread_segments)} Segment{'s' if len(proofread_segments) != 1 else ''} with Proofreading Issues</h3>")
+        layout.addWidget(header)
+        
+        info_label = QLabel("Click any row to navigate to that segment in the grid.")
+        info_label.setStyleSheet("color: #666; padding: 5px 0;")
+        layout.addWidget(info_label)
+        
+        # Results table
+        table = QTableWidget()
+        table.setColumnCount(4)
+        table.setHorizontalHeaderLabels(["Seg #", "Source", "Target", "Issue"])
+        table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        table.horizontalHeader().setStretchLastSection(True)
+        table.setColumnWidth(0, 60)
+        table.setColumnWidth(1, 200)
+        table.setColumnWidth(2, 200)
+        
+        for row_idx, segment in proofread_segments:
+            table_row = table.rowCount()
+            table.insertRow(table_row)
+            
+            # Segment number
+            table.setItem(table_row, 0, QTableWidgetItem(str(row_idx + 1)))
+            
+            # Source (truncated)
+            source_text = segment.source[:80] + "..." if len(segment.source) > 80 else segment.source
+            table.setItem(table_row, 1, QTableWidgetItem(source_text))
+            
+            # Target (truncated)
+            target_text = segment.target[:80] + "..." if len(segment.target) > 80 else segment.target
+            table.setItem(table_row, 2, QTableWidgetItem(target_text))
+            
+            # Issue (extract from notes)
+            notes = segment.notes or ""
+            issue_text = notes.split("⚠️ PROOFREAD:")[1].split("---")[0].strip() if "⚠️ PROOFREAD:" in notes else notes
+            issue_text = issue_text[:100] + "..." if len(issue_text) > 100 else issue_text
+            table.setItem(table_row, 3, QTableWidgetItem(issue_text))
+            
+            # Store segment index in row data
+            table.item(table_row, 0).setData(Qt.ItemDataRole.UserRole, row_idx)
+        
+        # Double-click to navigate
+        def on_row_double_clicked(row):
+            segment_idx = table.item(row, 0).data(Qt.ItemDataRole.UserRole)
+            self.jump_to_segment(segment_idx)
+            dialog.lower()  # Send dialog to back so grid is visible
+        
+        table.cellDoubleClicked.connect(lambda row, col: on_row_double_clicked(row))
+        
+        layout.addWidget(table)
+        
+        # Buttons
+        button_layout = QHBoxLayout()
+        
+        clear_all_btn = QPushButton("🗑️ Clear All Proofreading Notes")
+        clear_all_btn.clicked.connect(lambda: self._clear_all_proofreading_notes(dialog))
+        button_layout.addWidget(clear_all_btn)
+        
+        button_layout.addStretch()
+        
+        close_btn = QPushButton("Close")
+        close_btn.clicked.connect(dialog.accept)
+        button_layout.addWidget(close_btn)
+        
+        layout.addLayout(button_layout)
+        
+        dialog.show()
+    
+    def _clear_all_proofreading_notes(self, parent_dialog):
+        """Clear all proofreading notes from all segments"""
+        reply = QMessageBox.question(
+            self,
+            "Clear All Proofreading Notes",
+            "Are you sure you want to clear all proofreading notes from all segments?\n\n"
+            "This will remove the ⚠️ PROOFREAD prefix and associated issues,\n"
+            "but will preserve any other notes.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+        
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        
+        cleared_count = 0
+        for segment in self.current_project.segments:
+            if segment.notes and "⚠️ PROOFREAD:" in segment.notes:
+                # Remove proofreading section
+                parts = segment.notes.split("⚠️ PROOFREAD:")
+                if len(parts) > 1:
+                    remaining = parts[1].split("---", 1)
+                    if len(remaining) > 1:
+                        # Has other notes after separator
+                        segment.notes = remaining[1].strip()
+                    else:
+                        # No other notes
+                        segment.notes = ""
+                cleared_count += 1
+        
+        if cleared_count > 0:
+            self.project_modified = True
+            self.load_segments_to_grid()  # Refresh grid
+            self.update_window_title()
+            parent_dialog.accept()  # Close the results dialog
+            QMessageBox.information(self, "Cleared", f"Cleared proofreading notes from {cleared_count} segment{'s' if cleared_count != 1 else ''}.")
+            self.log(f"✓ Cleared proofreading notes from {cleared_count} segments")
     
     def send_segments_to_tm_dialog(self):
         """
@@ -29492,6 +29974,10 @@ class SupervertalerQt(QMainWindow):
                 # Other properties
                 if filters.get('has_comments'):
                     if not (segment.notes and segment.notes.strip()):
+                        show_row = False
+                
+                if filters.get('has_proofreading'):
+                    if not (segment.notes and "⚠️ PROOFREAD:" in segment.notes):
                         show_row = False
                 
                 if filters.get('repetitions_only'):

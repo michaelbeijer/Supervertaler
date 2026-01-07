@@ -2,11 +2,21 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.84 (January 7, 2026)
+**Current Version:** v1.9.85 (January 7, 2026)
 **Framework:** PyQt6
 **Status:** Active Development
 
 **Note:** For historical information about legacy versions (Tkinter Edition, Classic Edition), see [legacy_versions/LEGACY_VERSIONS.md](legacy_versions/LEGACY_VERSIONS.md).
+
+---
+
+## 🔗 Beijerterm Submodule Update (v1.9.85) - January 7, 2026
+
+**Beijerterm v1.3.1 Integration:**
+- 📚 **Updated Beijerterm submodule** — Now includes glossary search improvements
+- 🔍 **Glossary pages searchable** — Search now finds glossary pages themselves, not just term entries
+- ⚡ **Automated indexing** — Build script automatically runs PageFind after HTML generation
+- 🔧 **Markdown in tables** — Glossary table cells now render markdown properly
 
 ---
 
