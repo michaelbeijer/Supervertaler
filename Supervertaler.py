@@ -35393,7 +35393,7 @@ class SuperlookupTab(QWidget):
                 'name': 'Beijerterm',
                 'icon': '📚',
                 'description': 'Dutch-English terminology database (500k+ terms)',
-                'url_template': 'https://michaelbeijer.github.io/beijerterm/?q={query}',
+                'url_template': 'https://beijerterm.com/?q={query}',
                 'lang_format': None,
                 'bidirectional': True,
             },
