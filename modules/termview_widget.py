@@ -130,17 +130,23 @@ class TermBlock(QWidget):
     
     term_clicked = pyqtSignal(str, str)  # source_term, target_term
     
-    def __init__(self, source_text: str, translations: List[Dict], parent=None, theme_manager=None):
+    def __init__(self, source_text: str, translations: List[Dict], parent=None, theme_manager=None, font_size: int = 10, font_family: str = "Segoe UI", font_bold: bool = False):
         """
         Args:
             source_text: Source word/phrase
             translations: List of dicts with keys: 'target', 'termbase_name', 'priority', etc.
             theme_manager: Optional theme manager for dark mode support
+            font_size: Base font size in points (default 10)
+            font_family: Font family name (default "Segoe UI")
+            font_bold: Whether to use bold font (default False)
         """
         super().__init__(parent)
         self.source_text = source_text
         self.translations = translations
         self.theme_manager = theme_manager
+        self.font_size = font_size
+        self.font_family = font_family
+        self.font_bold = font_bold
         self.init_ui()
         
     def init_ui(self):
@@ -180,12 +186,13 @@ class TermBlock(QWidget):
             self.is_effective_project = False
         
         # Source text (top) - compact
-        source_label = QLabel(self.source_text)
-        source_font = QFont()
-        source_font.setPointSize(8)
-        source_label.setFont(source_font)
-        source_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        source_label.setStyleSheet(f"""
+        self.source_label = QLabel(self.source_text)
+        source_font = QFont(self.font_family)
+        source_font.setPointSize(self.font_size)
+        source_font.setBold(self.font_bold)
+        self.source_label.setFont(source_font)
+        self.source_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.source_label.setStyleSheet(f"""
             QLabel {{
                 color: {source_text_color};
                 padding: 1px 3px;
@@ -193,7 +200,7 @@ class TermBlock(QWidget):
                 border: none;
             }}
         """)
-        layout.addWidget(source_label)
+        layout.addWidget(self.source_label)
         
         # Target translation (bottom) - show first/best match - COMPACT
         if self.translations:
@@ -204,9 +211,9 @@ class TermBlock(QWidget):
             bg_color = "#FFE5F0" if self.is_effective_project else "#D6EBFF"  # Pink for project, light blue for regular
             
             target_label = QLabel(target_text)
-            target_font = QFont()
-            target_font.setPointSize(8)
-            target_font.setBold(False)  # Less bold for compactness
+            target_font = QFont(self.font_family)
+            target_font.setPointSize(max(6, self.font_size - 2))  # Slightly smaller than source
+            target_font.setBold(self.font_bold)
             target_label.setFont(target_font)
             target_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             target_label.setStyleSheet(f"""
@@ -268,17 +275,23 @@ class NTBlock(QWidget):
     
     nt_clicked = pyqtSignal(str)  # Emits NT text to insert as-is
     
-    def __init__(self, source_text: str, list_name: str = "", parent=None, theme_manager=None):
+    def __init__(self, source_text: str, list_name: str = "", parent=None, theme_manager=None, font_size: int = 10, font_family: str = "Segoe UI", font_bold: bool = False):
         """
         Args:
             source_text: Non-translatable word/phrase
             list_name: Name of the NT list it comes from
             theme_manager: Optional theme manager for dark mode support
+            font_size: Base font size in points (default 10)
+            font_family: Font family name (default "Segoe UI")
+            font_bold: Whether to use bold font (default False)
         """
         super().__init__(parent)
         self.source_text = source_text
         self.list_name = list_name
         self.theme_manager = theme_manager
+        self.font_size = font_size
+        self.font_family = font_family
+        self.font_bold = font_bold
         self.init_ui()
         
     def init_ui(self):
@@ -302,19 +315,20 @@ class NTBlock(QWidget):
         """)
         
         # Source text (top)
-        source_label = QLabel(self.source_text)
-        source_font = QFont()
-        source_font.setPointSize(8)
-        source_label.setFont(source_font)
-        source_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        source_label.setStyleSheet(f"""
+        self.source_label = QLabel(self.source_text)
+        source_font = QFont(self.font_family)
+        source_font.setPointSize(self.font_size)
+        source_font.setBold(self.font_bold)
+        self.source_label.setFont(source_font)
+        self.source_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.source_label.setStyleSheet(f"""
             QLabel {{
                 color: {source_text_color};
                 padding: 1px 3px;
                 background-color: transparent;
             }}
         """)
-        layout.addWidget(source_label)
+        layout.addWidget(self.source_label)
         
         # "Do not translate" indicator with pastel yellow background
         nt_label = QLabel("🚫 NT")
@@ -361,6 +375,11 @@ class TermviewWidget(QWidget):
         self.current_source_lang = None
         self.current_target_lang = None
         self.current_project_id = None  # Store project ID for termbase priority lookup
+        
+        # Default font settings (will be updated from main app settings)
+        self.current_font_family = "Segoe UI"
+        self.current_font_size = 10
+        self.current_font_bold = False
 
         self.init_ui()
     
@@ -473,6 +492,62 @@ class TermviewWidget(QWidget):
             info_label_color = "#909090" if is_dark else info_text
             self.info_label.setStyleSheet(f"color: {info_label_color}; font-size: 10px; padding: 5px;")
     
+    def set_font_settings(self, font_family: str = "Segoe UI", font_size: int = 10, bold: bool = False):
+        """Update font settings for Termview
+        
+        Args:
+            font_family: Font family name
+            font_size: Font size in points
+            bold: Whether to use bold font
+        """
+        self.current_font_family = font_family
+        self.current_font_size = font_size
+        self.current_font_bold = bold
+        
+        # Refresh display if we have content
+        if hasattr(self, 'current_source') and self.current_source:
+            # Get all existing term blocks
+            term_blocks = []
+            nt_blocks = []
+            
+            for i in range(self.terms_layout.count()):
+                item = self.terms_layout.itemAt(i)
+                if item and item.widget():
+                    widget = item.widget()
+                    if isinstance(widget, TermBlock):
+                        term_blocks.append(widget)
+                    elif isinstance(widget, NTBlock):
+                        nt_blocks.append(widget)
+            
+            # Update font for all term blocks
+            for block in term_blocks:
+                if hasattr(block, 'source_label'):
+                    font = QFont(self.current_font_family)
+                    font.setPointSize(self.current_font_size)
+                    font.setBold(self.current_font_bold)
+                    block.source_label.setFont(font)
+                
+                # Update translation labels
+                layout = block.layout()
+                if layout:
+                    for i in range(layout.count()):
+                        item = layout.itemAt(i)
+                        if item and item.widget():
+                            label = item.widget()
+                            if isinstance(label, QLabel) and label != block.source_label:
+                                font = QFont(self.current_font_family)
+                                font.setPointSize(max(6, self.current_font_size - 2))
+                                font.setBold(self.current_font_bold)
+                                label.setFont(font)
+            
+            # Update font for NT blocks
+            for block in nt_blocks:
+                if hasattr(block, 'source_label'):
+                    font = QFont(self.current_font_family)
+                    font.setPointSize(self.current_font_size)
+                    font.setBold(self.current_font_bold)
+                    block.source_label.setFont(font)
+    
     def update_with_matches(self, source_text: str, termbase_matches: List[Dict], nt_matches: List[Dict] = None):
         """
         Update the termview display with pre-computed termbase and NT matches
@@ -571,7 +646,9 @@ class TermviewWidget(QWidget):
             # Check if this is a non-translatable
             if lookup_key in nt_dict:
                 # Create NT block
-                nt_block = NTBlock(token, nt_dict[lookup_key], self, theme_manager=self.theme_manager)
+                nt_block = NTBlock(token, nt_dict[lookup_key], self, theme_manager=self.theme_manager, 
+                                   font_size=self.current_font_size, font_family=self.current_font_family, 
+                                   font_bold=self.current_font_bold)
                 nt_block.nt_clicked.connect(self.on_term_insert_requested)
                 self.terms_layout.addWidget(nt_block)
                 blocks_with_nt += 1
@@ -580,7 +657,9 @@ class TermviewWidget(QWidget):
                 translations = matches_dict.get(lookup_key, [])
                 
                 # Create term block (even if no translation - shows source word)
-                term_block = TermBlock(token, translations, self, theme_manager=self.theme_manager)
+                term_block = TermBlock(token, translations, self, theme_manager=self.theme_manager, 
+                                       font_size=self.current_font_size, font_family=self.current_font_family, 
+                                       font_bold=self.current_font_bold)
                 term_block.term_clicked.connect(self.on_term_insert_requested)
                 self.terms_layout.addWidget(term_block)
                 

@@ -5868,6 +5868,11 @@ class SupervertalerQt(QMainWindow):
         proofread_action.triggered.connect(self.show_proofread_dialog)
         bulk_menu.addAction(proofread_action)
         
+        clear_proofread_notes_action = QAction("🗑️ Clear All &Proofreading Notes", self)
+        clear_proofread_notes_action.setToolTip("Remove all AI proofreading notes from entire project (preserves your personal notes)")
+        clear_proofread_notes_action.triggered.connect(self._bulk_clear_proofreading_notes)
+        bulk_menu.addAction(clear_proofread_notes_action)
+        
         edit_menu.addSeparator()
         
         # Superlookup
@@ -14232,6 +14237,57 @@ class SupervertalerQt(QMainWindow):
         tb_highlight_group.setLayout(tb_highlight_layout)
         layout.addWidget(tb_highlight_group)
         
+        # Termview Font Settings section
+        termview_group = QGroupBox("🔍 Termview Font Settings")
+        termview_layout = QVBoxLayout()
+        
+        termview_info = QLabel(
+            "Configure the font appearance for the Termview inline terminology display."
+        )
+        termview_info.setStyleSheet("font-size: 8pt; padding: 8px; border-radius: 2px;")
+        termview_info.setWordWrap(True)
+        termview_layout.addWidget(termview_info)
+        
+        # Font family dropdown
+        termview_font_family_layout = QHBoxLayout()
+        termview_font_family_layout.addWidget(QLabel("Font Family:"))
+        termview_font_family_combo = QComboBox()
+        termview_font_family_combo.addItems(font_families)  # Same fonts as grid
+        current_termview_font_family = font_settings.get('termview_font_family', 'Segoe UI')
+        if current_termview_font_family in font_families:
+            termview_font_family_combo.setCurrentText(current_termview_font_family)
+        else:
+            termview_font_family_combo.setCurrentText("Segoe UI")
+        termview_font_family_combo.setToolTip("Select the font family for Termview text")
+        termview_font_family_layout.addWidget(termview_font_family_combo)
+        termview_font_family_layout.addStretch()
+        termview_layout.addLayout(termview_font_family_layout)
+        
+        # Font size spinbox
+        termview_size_layout = QHBoxLayout()
+        termview_size_layout.addWidget(QLabel("Font Size:"))
+        termview_font_spin = QSpinBox()
+        termview_font_spin.setMinimum(6)
+        termview_font_spin.setMaximum(16)
+        termview_font_spin.setValue(font_settings.get('termview_font_size', 10))
+        termview_font_spin.setSuffix(" pt")
+        termview_font_spin.setToolTip("Termview font size (6-16 pt)")
+        termview_size_layout.addWidget(termview_font_spin)
+        termview_size_layout.addStretch()
+        termview_layout.addLayout(termview_size_layout)
+        
+        # Font weight checkbox
+        termview_bold_layout = QHBoxLayout()
+        termview_bold_check = CheckmarkCheckBox("Bold font")
+        termview_bold_check.setChecked(font_settings.get('termview_font_bold', False))
+        termview_bold_check.setToolTip("Display Termview text in bold")
+        termview_bold_layout.addWidget(termview_bold_check)
+        termview_bold_layout.addStretch()
+        termview_layout.addLayout(termview_bold_layout)
+        
+        termview_group.setLayout(termview_layout)
+        layout.addWidget(termview_group)
+        
         # Quick Reference section
         reference_group = QGroupBox("⌨️ Font Size Quick Reference")
         reference_layout = QVBoxLayout()
@@ -14258,7 +14314,8 @@ class SupervertalerQt(QMainWindow):
         save_btn.setStyleSheet("font-weight: bold; padding: 8px;")
         save_btn.clicked.connect(lambda: self._save_view_settings_from_ui(
             grid_font_spin, match_font_spin, compare_font_spin, show_tags_check, tag_color_btn,
-            alt_colors_check, even_color_btn, odd_color_btn, invisible_char_color_btn, grid_font_family_combo
+            alt_colors_check, even_color_btn, odd_color_btn, invisible_char_color_btn, grid_font_family_combo,
+            termview_font_family_combo, termview_font_spin, termview_bold_check
         ))
         layout.addWidget(save_btn)
         
@@ -16026,7 +16083,7 @@ class SupervertalerQt(QMainWindow):
     
     def _save_view_settings_from_ui(self, grid_spin, match_spin, compare_spin, show_tags_check=None, tag_color_btn=None,
                                      alt_colors_check=None, even_color_btn=None, odd_color_btn=None, invisible_char_color_btn=None,
-                                     grid_font_family_combo=None):
+                                     grid_font_family_combo=None, termview_font_family_combo=None, termview_font_spin=None, termview_bold_check=None):
         """Save view settings from UI"""
         general_settings = {
             'restore_last_project': self.load_general_settings().get('restore_last_project', False),
@@ -16040,6 +16097,14 @@ class SupervertalerQt(QMainWindow):
         # Add font family if provided
         if grid_font_family_combo is not None:
             general_settings['grid_font_family'] = grid_font_family_combo.currentText()
+        
+        # Add Termview font settings if provided
+        if termview_font_family_combo is not None:
+            general_settings['termview_font_family'] = termview_font_family_combo.currentText()
+        if termview_font_spin is not None:
+            general_settings['termview_font_size'] = termview_font_spin.value()
+        if termview_bold_check is not None:
+            general_settings['termview_font_bold'] = termview_bold_check.isChecked()
 
         # Add tag color if provided
         if tag_color_btn:
@@ -16087,6 +16152,13 @@ class SupervertalerQt(QMainWindow):
                 self.termbase_dotted_color = dotted_color
         
         self.save_general_settings(general_settings)
+        
+        # Apply termview font settings immediately
+        if hasattr(self, 'termview_widget') and self.termview_widget is not None:
+            termview_family = general_settings.get('termview_font_family', 'Segoe UI')
+            termview_size = general_settings.get('termview_font_size', 10)
+            termview_bold = general_settings.get('termview_font_bold', False)
+            self.termview_widget.set_font_settings(termview_family, termview_size, termview_bold)
         
         # Apply font family and size immediately
         font_changed = False
@@ -16701,7 +16773,7 @@ class SupervertalerQt(QMainWindow):
         # Add grid container to top of left vertical splitter
         left_vertical_splitter.addWidget(grid_container)
         
-        # Bottom of left side: Tab widget with Comments and Termview
+        # Bottom of left side: Tab widget with Termview and Session Log
         from PyQt6.QtWidgets import QTabWidget
         from modules.termview_widget import TermviewWidget
         
@@ -16711,6 +16783,13 @@ class SupervertalerQt(QMainWindow):
         # Termview tab
         self.termview_widget = TermviewWidget(self, db_manager=self.db_manager, log_callback=self.log, theme_manager=self.theme_manager)
         self.termview_widget.term_insert_requested.connect(self.insert_termview_text)
+        
+        # Apply saved termview font settings
+        font_settings = self.load_general_settings()
+        termview_family = font_settings.get('termview_font_family', 'Segoe UI')
+        termview_size = font_settings.get('termview_font_size', 10)
+        termview_bold = font_settings.get('termview_font_bold', False)
+        self.termview_widget.set_font_settings(termview_family, termview_size, termview_bold)
         
         # Session Log tab
         session_log_widget = QWidget()
@@ -16723,12 +16802,15 @@ class SupervertalerQt(QMainWindow):
         self.session_log_text.setStyleSheet("font-family: 'Consolas', 'Courier New', monospace; font-size: 9pt;")
         session_log_layout.addWidget(self.session_log_text)
         
-        # Add tabs (Comments tab removed - notes are now in Translation Results panel)
+        # Add tabs
         bottom_tabs.addTab(self.termview_widget, "🔍 Termview")
         bottom_tabs.addTab(session_log_widget, "📋 Session Log")
         
         # Default to Termview tab (index 0)
         bottom_tabs.setCurrentIndex(0)
+        
+        # Store reference to bottom_tabs for later access
+        self.bottom_tabs = bottom_tabs
         
         left_vertical_splitter.addWidget(bottom_tabs)
         
@@ -25525,6 +25607,70 @@ class SupervertalerQt(QMainWindow):
             self.update_window_title()
             self.log(f"✓ Cleared proofreading notes from {cleared_count} segment{'s' if cleared_count != 1 else ''}")
     
+    def _bulk_clear_proofreading_notes(self):
+        """Clear all proofreading notes from entire project (preserves user notes)"""
+        if not self.current_project or not self.current_project.segments:
+            QMessageBox.information(self, "No Project", "Please open or create a project first.")
+            return
+        
+        # Count segments with proofreading notes
+        segments_with_proofread = [seg for seg in self.current_project.segments 
+                                   if seg.notes and "⚠️ PROOFREAD:" in seg.notes]
+        
+        if not segments_with_proofread:
+            QMessageBox.information(self, "No Proofreading Notes", 
+                                   "No proofreading notes found in the current project.")
+            return
+        
+        # Confirm with user
+        reply = QMessageBox.question(
+            self,
+            "Clear All Proofreading Notes",
+            f"<b>Clear proofreading notes from {len(segments_with_proofread)} segment(s)?</b><br><br>"
+            "This will remove all AI-generated proofreading notes (marked with ⚠️ PROOFREAD:) "
+            "while preserving your personal notes.<br><br>"
+            "This action cannot be undone.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+        
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        
+        # Clear proofreading notes
+        cleared_count = 0
+        for segment in segments_with_proofread:
+            # Remove proofreading section while preserving other notes
+            if "⚠️ PROOFREAD:" in segment.notes:
+                parts = segment.notes.split("⚠️ PROOFREAD:")
+                before_proofread = parts[0].strip()
+                
+                # Check if there are notes after the proofreading section
+                after_sep = ""
+                if len(parts) > 1:
+                    remaining = parts[1].split("---", 1)
+                    if len(remaining) > 1:
+                        after_sep = remaining[1].strip()
+                
+                # Reconstruct notes without proofreading
+                new_notes = ""
+                if before_proofread:
+                    new_notes = before_proofread
+                if after_sep:
+                    new_notes = (new_notes + "\n" + after_sep).strip() if new_notes else after_sep
+                
+                segment.notes = new_notes
+                cleared_count += 1
+        
+        if cleared_count > 0:
+            self.project_modified = True
+            self.load_segments_to_grid()  # Refresh grid to remove orange indicators
+            self.update_window_title()
+            QMessageBox.information(self, "Success", 
+                                   f"✓ Cleared proofreading notes from {cleared_count} segment{'s' if cleared_count != 1 else ''}.")
+            self.log(f"✓ Bulk cleared proofreading notes from {cleared_count} segments")
+
+    
 
     
     def clear_selected_translations(self, segments, view_type='grid'):
@@ -25764,7 +25910,13 @@ class SupervertalerQt(QMainWindow):
         # Count segments for each option
         confirmed_count = sum(1 for seg in self.current_project.segments if seg.status == 'confirmed')
         translated_count = sum(1 for seg in self.current_project.segments if seg.status in ['translated', 'confirmed'])
-        selected_count = len(self.table.selectedItems()) // self.table.columnCount() if hasattr(self, 'table') else 0
+        
+        # Count selected rows (not cells)
+        selected_count = 0
+        if hasattr(self, 'table'):
+            selected_rows = set(item.row() for item in self.table.selectedItems())
+            selected_count = len(selected_rows)
+        
         all_count = len(self.current_project.segments)
         
         dialog = QDialog(self)
@@ -25801,6 +25953,8 @@ class SupervertalerQt(QMainWindow):
         
         selected_radio = CheckmarkRadioButton(f"🔹 Selected ({selected_count} segments)")
         selected_radio.setEnabled(selected_count > 0)
+        if selected_count == 0:
+            selected_radio.setToolTip("Select one or more rows in the grid to enable this option")
         segment_layout.addWidget(selected_radio)
         
         all_radio = CheckmarkRadioButton(f"🌐 All segments ({all_count} segments)")
@@ -25914,40 +26068,64 @@ class SupervertalerQt(QMainWindow):
         progress_dialog.show()
         QApplication.processEvents()
         
-        # Default prompt
+        # Default prompt with language-specific instructions
         if not custom_prompt:
-            custom_prompt = f"""Proofread this translation from {self.current_project.source_lang} to {self.current_project.target_lang}.
+            # Add language-specific checks
+            lang_specific = ""
+            if self.current_project.target_lang.lower() in ['dutch', 'nl', 'nl-nl', 'nl-be', 'nederlands']:
+                lang_specific = """
+5. Dutch Compound Words – Verify correct spelling of compound words (e.g., "persoonsgegevens" NOT "persoongegevens", "bedrijfsnaam" NOT "bedrijfnaam"). Pay special attention to connecting letters like 's', 'e', 'en'.
+6. Dutch Spelling – Check for common Dutch spelling errors including de/het articles, dt-errors, and capitalization."""
+            elif self.current_project.target_lang.lower() in ['german', 'de', 'de-de', 'deutsch']:
+                lang_specific = """
+5. German Compound Words – Verify correct compound noun formation and capitalization of all nouns.
+6. German Cases – Check correct use of cases (Nominativ, Akkusativ, Dativ, Genitiv)."""
+            elif self.current_project.target_lang.lower() in ['french', 'fr', 'fr-fr', 'français']:
+                lang_specific = """
+5. French Accents – Verify correct use of accents (é, è, ê, à, ù, ô, etc.).
+6. French Agreement – Check gender/number agreement between nouns, adjectives, and articles."""
+            
+            custom_prompt = f"""You are a translation proofreader. Your task is to analyze translations for errors.
+
+DO NOT translate anything. DO NOT provide corrected translations unless specifically requested.
+ONLY identify errors using the exact format specified below.
+
+Task: Proofread this translation from {self.current_project.source_lang} to {self.current_project.target_lang}.
 
 For each segment, verify:
 1. Accuracy – Does the translation correctly convey the source meaning?
 2. Completeness – Is anything missing or added?
 3. Terminology – Are technical terms translated correctly and consistently?
-4. Grammar & Style – Is the text natural and error-free?
+4. Grammar & Style – Is the text natural and error-free?{lang_specific}
 
-Output format:
-- If OK: [SEGMENT XXX] ✓
-- If issues found:
-  [SEGMENT XXX] ⚠
+CRITICAL OUTPUT FORMAT (FOLLOW EXACTLY):
+- If segment is OK: [SEGMENT XXXX] ✓
+- If segment has issues: [SEGMENT XXXX] ⚠
   Issue: <brief description>
-  Suggestion: <recommended fix>"""
+  Suggestion: <recommended fix>
+
+OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         
         # Initialize LLM client
         api_keys = self.load_api_keys()
         llm_client = None
         
         try:
+            from modules.llm_clients import LLMClient
+            
+            # Get appropriate API key for provider
             if provider == 'openai':
-                from modules.llm_clients import OpenAIClient
-                llm_client = OpenAIClient(api_keys.get('openai_api_key', ''))
+                api_key = api_keys.get('openai', '')
             elif provider == 'anthropic':
-                from modules.llm_clients import AnthropicClient
-                llm_client = AnthropicClient(api_keys.get('anthropic_api_key', ''))
+                api_key = api_keys.get('claude', '')
             elif provider == 'google':
-                from modules.llm_clients import GoogleClient
-                llm_client = GoogleClient(api_keys.get('google_api_key', ''))
+                api_key = api_keys.get('google', '')
             elif provider == 'ollama':
-                from modules.llm_clients import OllamaClient
-                llm_client = OllamaClient()
+                api_key = ''  # Ollama doesn't need an API key
+            else:
+                api_key = ''
+            
+            llm_client = LLMClient(api_key=api_key, provider=provider, model=model)
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to initialize LLM client:\n{str(e)}")
             return
@@ -25973,12 +26151,25 @@ Output format:
             
             # Send to LLM
             try:
-                messages = [
-                    {"role": "system", "content": custom_prompt},
-                    {"role": "user", "content": batch_text}
-                ]
+                # Build full prompt with instructions and segments
+                full_prompt = f"{custom_prompt}\n\n{batch_text}"
                 
-                response = llm_client.generate(messages, model=model, temperature=0.3, max_tokens=4000)
+                # Log the prompt being sent (first 500 chars)
+                self.log(f"📤 Sending proofreading request for {len(batch)} segments...")
+                self.log(f"📝 Prompt preview: {full_prompt[:500]}...")
+                
+                # Use translate() method but with a proofreading context
+                # We're not actually translating, just using the LLM to analyze
+                response = llm_client.translate(
+                    text="",  # Empty text since we're including everything in custom_prompt
+                    source_lang=self.current_project.source_lang,
+                    target_lang=self.current_project.target_lang,
+                    custom_prompt=full_prompt
+                )
+                
+                # Log the response
+                self.log(f"📥 Received response ({len(response)} chars)")
+                self.log(f"📄 Response (full): {response}")
                 
                 # Parse response
                 for row_idx, segment in batch:
