@@ -372,7 +372,216 @@ Use semantic prefixes:
 
 ---
 
+## 📋 Planned Features & Refactoring
+
+### 🔧 Configuration File Consolidation (PRIORITY - Scheduled)
+
+**Identified:** January 9, 2026  
+**Status:** Documented, not yet implemented  
+**Complexity:** Medium (30-40 file edits + migration script)
+
+**Current Problem: Configuration File Sprawl**
+
+Settings are currently scattered across multiple JSON files in `user_data/`:
+- `general_settings.json` - General application preferences
+- `ui_preferences.json` - Window geometry, button states (DEPRECATED, migrated to general_settings.json)
+- `themes.json` - Theme definitions
+- `recent_projects.json` - Recent project list
+- `feature_settings.json` - Optional feature toggles
+- `find_replace_history.json` - Find & Replace history
+- `superlookup_history.json` - Superlookup search history
+- `voice_commands.json` - Voice command library
+- Plus module-specific configs...
+
+**Issues:**
+1. **Scattered settings** - Hard to find where a setting is stored
+2. **Code complexity** - Multiple file read/write operations throughout codebase
+3. **Inconsistent structure** - Each file has different patterns (nested vs flat, etc.)
+4. **Migration headaches** - Changing structure requires updating multiple files
+5. **User confusion** - Manual editing requires knowing which file to look in
+6. **Backup/restore complexity** - Must backup multiple files to preserve all settings
+
+**Proposed Solution: Single `config.json`**
+
+Consolidate all settings into one well-structured file:
+
+```json
+{
+  "config_version": "1.0.0",
+  "general": {
+    "restore_last_project": false,
+    "auto_propagate_exact_matches": true,
+    "auto_center_active_segment": true,
+    "auto_insert_100_percent_matches": true,
+    "auto_confirm_100_percent_matches": false,
+    "tm_save_mode": "latest",
+    "enable_smart_word_selection": true,
+    "enable_auto_backup": true,
+    "backup_interval_minutes": 5
+  },
+  "ui": {
+    "theme": "light",
+    "window_geometry": {
+      "x": 100,
+      "y": 100,
+      "width": 1200,
+      "height": 800
+    },
+    "fonts": {
+      "grid_family": "Segoe UI",
+      "grid_size": 11,
+      "results_match_size": 9,
+      "results_compare_size": 9,
+      "termview_family": "Segoe UI",
+      "termview_size": 10,
+      "termview_bold": false
+    },
+    "colors": {
+      "tag_color": "#7f0001",
+      "focus_border_color": "#2196F3",
+      "focus_border_thickness": 2,
+      "badge_text_color": "#333333",
+      "invisible_char_color": "#999999",
+      "even_row_color": "#FFFFFF",
+      "odd_row_color": "#F0F0F0"
+    },
+    "layout": {
+      "tabs_above_grid": false,
+      "enable_alternating_row_colors": true,
+      "show_invisibles": false
+    }
+  },
+  "features": {
+    "supermemory_enabled": true,
+    "supermemory_auto_init": false,
+    "voice_enabled": false,
+    "web_browser_enabled": true,
+    "pdf_rescue_enabled": true,
+    "autofingers_enabled": false
+  },
+  "match_limits": {
+    "LLM": 3,
+    "MT": 5,
+    "TM": 10,
+    "Termbases": 10
+  },
+  "termbase": {
+    "enable_grid_highlighting": true,
+    "highlight_style": "semibold",
+    "display_order": "appearance",
+    "hide_shorter_matches": false,
+    "dotted_color": "#808080"
+  },
+  "precision_scroll": {
+    "divisor": 3
+  },
+  "recent_projects": [
+    "/path/to/project1.svproj",
+    "/path/to/project2.svproj",
+    "/path/to/project3.svproj"
+  ],
+  "custom_themes": [
+    {
+      "name": "Dark Blue",
+      "is_dark": true,
+      "colors": {
+        "background": "#1e1e1e",
+        "foreground": "#d4d4d4",
+        ...
+      }
+    }
+  ],
+  "history": {
+    "find_replace": [
+      {"find": "example", "replace": "sample"}
+    ],
+    "superlookup_searches": [
+      "translation memory",
+      "terminology"
+    ]
+  },
+  "voice_commands": {
+    "enabled": false,
+    "recognition_engine": "openai_whisper",
+    "custom_commands": [
+      {
+        "phrase": "next segment",
+        "aliases": ["go next", "move forward"],
+        "action_type": "internal",
+        "action": "next_segment"
+      }
+    ]
+  },
+  "ollama": {
+    "keepwarm": false
+  },
+  "autohotkey": {
+    "path": "C:\\Program Files\\AutoHotkey\\v2\\AutoHotkey64.exe"
+  }
+}
+```
+
+**Benefits:**
+- ✅ **Single source of truth** - All settings in one place
+- ✅ **Clear hierarchy** - Logical grouping by functionality
+- ✅ **Easy to read/edit** - Clear structure for manual editing
+- ✅ **Atomic saves** - All settings updated together (no partial updates)
+- ✅ **Simple backup/restore** - One file to backup
+- ✅ **Version tracking** - `config_version` field for migrations
+- ✅ **Better defaults** - Easy to see all default values at once
+
+**Implementation Plan:**
+
+1. **Create `modules/config_manager_v2.py`** (new unified config manager):
+   - `ConfigManager` class with section accessors
+   - `get(section, key, default)` method
+   - `set(section, key, value)` method
+   - `save()` method (atomic write)
+   - `load()` method with validation
+
+2. **Migration script** (`scripts/migrate_config.py`):
+   - Read all existing JSON files
+   - Map to new structure
+   - Write `config.json`
+   - Backup old files to `user_data/config_backup/`
+   - Run automatically on first startup after update
+
+3. **Update all load/save calls** (~30-40 locations):
+   - Replace `_load_general_settings_from_file()` → `config_manager.get('general', key)`
+   - Replace `save_general_settings()` → `config_manager.set('general', key, value)` + `config_manager.save()`
+   - Update theme manager
+   - Update recent projects
+   - Update find/replace history
+   - Update voice command loader
+
+4. **Backward compatibility**:
+   - Keep old loaders as fallback for 1-2 versions
+   - Log migration warnings
+   - Auto-migrate on first run
+
+5. **Testing checklist**:
+   - [ ] Fresh install (no config files)
+   - [ ] Migration from old files
+   - [ ] Settings persist correctly
+   - [ ] All features still work
+   - [ ] No performance regression
+
+**Files to modify:**
+- `Supervertaler.py` - Replace all config load/save calls
+- `modules/config_manager_v2.py` - NEW unified config manager
+- `modules/theme_manager.py` - Use new config manager
+- `modules/voice_commands.py` - Use new config manager
+- `modules/find_replace_qt.py` - Use new config manager
+- `scripts/migrate_config.py` - NEW migration script
+
+**Estimated effort:** 3-4 hours (careful testing needed)
+
+**Priority:** High (improves maintainability significantly)
+
+---
+
 ## � Future Investigation: TMX Tag Export Format
+
 
 **Issue discovered December 22, 2025**: Our TMX Editor stores formatting tags (like `<b>`, `<i>`) as escaped text (`&lt;b&gt;`) in the `<seg>` element. This is valid XML but may not be the optimal approach.
 

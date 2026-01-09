@@ -1,0 +1,19 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Update version references",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoLogo",
+				"-NoProfile",
+				"-Command",
+				"$ErrorActionPreference = 'Stop'; $v = '1.9.90'; (Get-Content README.md) -replace 'v1\\.9\\.89','v1.9.90' | Set-Content README.md; (Get-Content docs/index.html) -replace 'v1\\.9\\.89','v1.9.90' | Set-Content docs/index.html; (Get-Content Supervertaler.py) -replace '__version__\\s*=\\s*\\\"[0-9\\.]+\\\"','__version__ = \\\"'+$v+'\\\"' | Set-Content Supervertaler.py"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		}
+	]
+}
