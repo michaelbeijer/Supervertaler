@@ -25,7 +25,7 @@
 - **[Project Context](PROJECT_CONTEXT.md)** — Complete project reference
 - **[Architecture](docs/ARCHITECTURE.md)** — System design
 - **[Legacy Versions](legacy_versions/LEGACY_VERSIONS.md)** — Historical information
-- **[Similar Apps](docs/SIMILAR_APPS.md)** — CotranslatorAI, TWAS Suite, and other translation tools
+- **[Similar Apps](docs/SIMILAR_APPS.md)** — CotranslatorAI, TransAIde, TWAS Suite, OpenAI Provider for Trados Studio, and other translation tools
 - **[Stargazers](https://github.com/michaelbeijer/Supervertaler/stargazers)** — A page that lists all the users who have starred this repository
   
 ---
