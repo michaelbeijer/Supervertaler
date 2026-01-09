@@ -2,11 +2,29 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.88 (January 9, 2026)
+**Current Version:** v1.9.89 (January 9, 2026)
 **Framework:** PyQt6
 **Status:** Active Development
 
 **Note:** For historical information about legacy versions (Tkinter Edition, Classic Edition), see [legacy_versions/LEGACY_VERSIONS.md](legacy_versions/LEGACY_VERSIONS.md).
+
+---
+
+## 🐛 Bug Fixes (v1.9.89) - January 9, 2026
+
+**Critical Bug Fixes:**
+- 🔧 **Translation Results Zoom Persistence** — Fixed font size settings not being restored when loading projects (typo: `set_compare_font_size` → `set_compare_box_font_size`)
+- 🎨 **Border Thickness Spinbox** — Fixed arrows not appearing in Target Cell Focus Border thickness control
+  - Removed problematic stylesheet that was hiding buttons
+  - Increased maximum thickness from 5px to 10px
+  - Made spinbox wider (90px) to accommodate larger values
+- 🌍 **Language Pair Memory** — Fixed DOCX import defaulting to EN→NL instead of remembering last used language pair
+  - Now remembers last imported language pair across sessions
+  - Falls back to current project languages if available
+  - User report: "Whatever I do... the language is detected always as EN-NL!" → FIXED
+
+**Files Modified:**
+- `Supervertaler.py` — All bug fixes implemented
 
 ---
 

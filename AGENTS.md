@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** January 9, 2026 | **Version:** v1.9.88
+> **Last Updated:** January 9, 2026 | **Version:** v1.9.89
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.88 (January 2026) |
+| **Version** | v1.9.89 (January 2026) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -507,6 +507,54 @@ Added optional setting to move Termview and Session Log tabs above or below the 
 
 **Files Modified:**
 - `Supervertaler.py` - All implementations above
+
+---
+
+### January 9, 2026 - Version 1.9.89: Critical Bug Fixes
+
+**🔧 Translation Results Zoom Persistence Fix**
+
+Fixed critical bug where Translation Results pane font size settings were not being restored when loading projects:
+
+- **Root Cause**: Method name typo in `load_project()` at line 18492: `set_compare_font_size()` instead of `set_compare_box_font_size()`
+- **Impact**: Users complained "zoom settings are constantly being forgotten during a project and across projects"
+- **Solution**: Changed method call to correct name `set_compare_box_font_size()`
+- **Result**: Font sizes now properly persist across projects and sessions
+
+**🎨 Border Thickness Spinbox Fix**
+
+Fixed Target Cell Focus Border thickness control arrows not appearing:
+
+- **Root Cause**: Complex stylesheet was hiding the spinbox arrow buttons completely
+- **Previous State**: Users saw no arrows, couldn't click to adjust border thickness
+- **Solution**: 
+  - Removed problematic stylesheet that hid buttons
+  - Added explicit `setButtonSymbols(QSpinBox.ButtonSymbols.UpDownArrows)`
+  - Increased maximum thickness from 5px to 10px
+  - Made spinbox wider (90px) for better visibility
+- **Result**: Arrows now visible and fully functional
+
+**🌍 Language Pair Memory Fix**
+
+Fixed DOCX import always defaulting to EN→NL instead of remembering user's language pair:
+
+- **User Report**: "Whatever I do before importing a NL-ES table, the language is detected always as EN-NL!!!"
+- **Root Cause**: Import dialog hardcoded to `source_combo.setCurrentIndex(0)` (English) and `target_combo.setCurrentIndex(1)` (Dutch)
+- **Solution**:
+  - Added `last_import_source_lang` and `last_import_target_lang` to general_settings.json
+  - Load last used languages from settings on dialog open
+  - Fall back to current project languages if available
+  - Save selected languages to settings when user clicks Import
+- **Result**: Language pair now persists across sessions and imports
+
+**Code Locations:**
+- `Supervertaler.py` line 18492: Fixed `set_compare_font_size` → `set_compare_box_font_size`
+- `Supervertaler.py` lines 14363-14375: Fixed border thickness spinbox
+- `Supervertaler.py` lines 19589-19625: Load last language pair from settings
+- `Supervertaler.py` lines 19670-19677: Save language pair to settings
+
+**Files Modified:**
+- `Supervertaler.py` - All bug fixes implemented
 
 ---
 

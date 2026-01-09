@@ -3,7 +3,7 @@ Supervertaler
 =============
 The Ultimate Translation Workbench.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.9.88 (Context Menu Enhancement)
+Version: 1.9.89 (Bug Fixes)
 Release Date: January 9, 2026
 Framework: PyQt6
 
@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.88"
+__version__ = "1.9.89"
 __phase__ = "0.9"
 __release_date__ = "2026-01-09"
 __edition__ = "Qt"
@@ -14363,10 +14363,13 @@ class SupervertalerQt(QMainWindow):
         thickness_layout.addWidget(QLabel("Border Thickness:"))
         border_thickness_spin = QSpinBox()
         border_thickness_spin.setMinimum(1)
-        border_thickness_spin.setMaximum(5)
+        border_thickness_spin.setMaximum(10)
         border_thickness_spin.setValue(font_settings.get('focus_border_thickness', 2))
         border_thickness_spin.setSuffix(" px")
-        border_thickness_spin.setToolTip("Thickness of the focus border (1-5 pixels)")
+        border_thickness_spin.setFixedWidth(90)
+        border_thickness_spin.setFixedHeight(25)
+        border_thickness_spin.setButtonSymbols(QSpinBox.ButtonSymbols.UpDownArrows)
+        border_thickness_spin.setToolTip("Thickness of the focus border (1-10 pixels)")
         thickness_layout.addWidget(border_thickness_spin)
         thickness_layout.addStretch()
         focus_border_layout.addLayout(thickness_layout)
@@ -18463,8 +18466,8 @@ class SupervertalerQt(QMainWindow):
                     TranslationResultsPanel.compare_box_font_size = compare_size
                     if hasattr(self, 'results_panels'):
                         for panel in self.results_panels:
-                            if hasattr(panel, 'set_compare_font_size'):
-                                panel.set_compare_font_size(compare_size)
+                            if hasattr(panel, 'set_compare_box_font_size'):
+                                panel.set_compare_box_font_size(compare_size)
             
             # Set Superlookup language dropdowns to match project languages
             if hasattr(self, 'lookup_tab') and self.lookup_tab and self.current_project:
@@ -19589,8 +19592,21 @@ class SupervertalerQt(QMainWindow):
         source_combo = QComboBox()
         for name, code in languages:
             source_combo.addItem(name, code)
-        # Default to English as source
-        source_combo.setCurrentIndex(0)
+        
+        # Load last used languages from settings, or use current project, or default to English
+        general_settings = self.load_general_settings()
+        last_source = general_settings.get('last_import_source_lang', 
+                                          self.current_project.source_lang if self.current_project else 'en')
+        last_target = general_settings.get('last_import_target_lang',
+                                          self.current_project.target_lang if self.current_project else 'nl')
+        
+        # Set source combo to last used language
+        source_index = 0  # Default to English
+        for i in range(source_combo.count()):
+            if source_combo.itemData(i) == last_source:
+                source_index = i
+                break
+        source_combo.setCurrentIndex(source_index)
         
         arrow_label = QLabel(" → ")
         arrow_label.setStyleSheet("font-weight: bold; font-size: 14px;")
@@ -19599,8 +19615,14 @@ class SupervertalerQt(QMainWindow):
         target_combo = QComboBox()
         for name, code in languages:
             target_combo.addItem(name, code)
-        # Default to Dutch as target
-        target_combo.setCurrentIndex(1)
+        
+        # Set target combo to last used language
+        target_index = 1  # Default to Dutch
+        for i in range(target_combo.count()):
+            if target_combo.itemData(i) == last_target:
+                target_index = i
+                break
+        target_combo.setCurrentIndex(target_index)
         
         lang_layout.addWidget(source_label)
         lang_layout.addWidget(source_combo)
@@ -19648,6 +19670,12 @@ class SupervertalerQt(QMainWindow):
         # Store selected languages for import
         self._import_source_lang = source_combo.currentData()
         self._import_target_lang = target_combo.currentData()
+        
+        # Save selected languages to settings for next time
+        general_settings = self.load_general_settings()
+        general_settings['last_import_source_lang'] = self._import_source_lang
+        general_settings['last_import_target_lang'] = self._import_target_lang
+        self.save_general_settings(general_settings)
 
         # Clean document if requested
         import_path = file_path
