@@ -30869,6 +30869,8 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             target_column: If provided, position cursor at this column (for arrow key nav)
             to_last_line: If True with target_column, go to last line at that column
         """
+        from PyQt6.QtGui import QTextCursor
+        
         if hasattr(self, 'table') and self.table:
             current_row = self.table.currentRow()
             if current_row > 0:
@@ -30880,7 +30882,6 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                     target_widget.setFocus()
                     if target_column is not None and to_last_line:
                         # Position at target column on VISUAL last line (for Up arrow navigation)
-                        from PyQt6.QtGui import QTextCursor
                         cursor = target_widget.textCursor()
                         doc = target_widget.document()
                         last_block = doc.lastBlock()
@@ -30913,6 +30914,8 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             target_column: If provided, position cursor at this column (for arrow key nav)
             to_first_line: If True with target_column, go to first line at that column
         """
+        from PyQt6.QtGui import QTextCursor
+        
         if hasattr(self, 'table') and self.table:
             current_row = self.table.currentRow()
             if current_row < self.table.rowCount() - 1:
@@ -30924,7 +30927,6 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                     target_widget.setFocus()
                     if target_column is not None and to_first_line:
                         # Position at target column on VISUAL first line (for Down arrow navigation)
-                        from PyQt6.QtGui import QTextCursor
                         cursor = target_widget.textCursor()
                         doc = target_widget.document()
                         first_block = doc.firstBlock()
