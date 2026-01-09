@@ -212,7 +212,7 @@ class TermBlock(QWidget):
             
             target_label = QLabel(target_text)
             target_font = QFont(self.font_family)
-            target_font.setPointSize(max(6, self.font_size - 2))  # Slightly smaller than source
+            target_font.setPointSize(self.font_size)  # Same size as source
             target_font.setBold(self.font_bold)
             target_label.setFont(target_font)
             target_label.setAlignment(Qt.AlignmentFlag.AlignCenter)

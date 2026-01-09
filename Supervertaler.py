@@ -27681,10 +27681,34 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                             'target_synonyms': result.get('target_synonyms', [])  # Include synonyms
                         }
             
+            # Filter duplicates: if same source→target exists in multiple glossaries,
+            # only keep the one with highest priority (lowest ranking number)
+            filtered_matches = {}
+            seen_pairs = {}  # (source_lower, target_lower) -> (term_id, ranking)
+            
+            for term_id, match_info in matches.items():
+                source_lower = match_info['source'].lower()
+                target_lower = match_info['translation'].lower()
+                pair_key = (source_lower, target_lower)
+                ranking = match_info.get('ranking', 99)
+                
+                if pair_key in seen_pairs:
+                    # Duplicate found - keep only the higher priority (lower number)
+                    existing_term_id, existing_ranking = seen_pairs[pair_key]
+                    if ranking < existing_ranking:
+                        # This one has higher priority, replace the existing one
+                        del filtered_matches[existing_term_id]
+                        filtered_matches[term_id] = match_info
+                        seen_pairs[pair_key] = (term_id, ranking)
+                else:
+                    # First occurrence of this pair
+                    filtered_matches[term_id] = match_info
+                    seen_pairs[pair_key] = (term_id, ranking)
+            
             # Only log if matches were found (reduce noise)
-            if matches:
-                self.log(f"🔍 Found {len(matches)} termbase matches")
-            return matches
+            if filtered_matches:
+                self.log(f"🔍 Found {len(filtered_matches)} termbase matches (duplicates filtered)")
+            return filtered_matches
             
         except Exception as e:
             self.log(f"❌ Error finding termbase matches: {e}")
