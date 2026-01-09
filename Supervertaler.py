@@ -3,7 +3,7 @@ Supervertaler
 =============
 The Ultimate Translation Workbench.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.9.89 (Bug Fixes)
+Version: 1.9.90 (Settings Architecture Overhaul)
 Release Date: January 9, 2026
 Framework: PyQt6
 
@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.89"
+__version__ = "1.9.90"
 __phase__ = "0.9"
 __release_date__ = "2026-01-09"
 __edition__ = "Qt"
@@ -669,6 +669,7 @@ class Project:
     nt_settings: Dict[str, Any] = None  # Store activated non-translatables settings
     spellcheck_settings: Dict[str, Any] = None  # Store spellcheck settings {enabled, language}
     ui_settings: Dict[str, Any] = None  # Store UI settings (results pane zoom, etc.)
+    general_settings_overrides: Dict[str, Any] = None  # Per-project overrides for general settings
     id: int = None  # Unique project ID for TM activation tracking
     original_docx_path: str = None  # Path to original DOCX for structure-preserving export
     trados_source_path: str = None  # Path to original Trados bilingual DOCX for round-trip export
@@ -702,6 +703,8 @@ class Project:
             self.spellcheck_settings = {}
         if self.ui_settings is None:
             self.ui_settings = {}
+        if self.general_settings_overrides is None:
+            self.general_settings_overrides = {}
         # Generate ID if not set (for backward compatibility with old projects)
         if self.id is None:
             import hashlib
@@ -4880,7 +4883,7 @@ class SupervertalerQt(QMainWindow):
         
         # Precision scroll settings (for fine-tuned grid navigation)
         self.precision_scroll_divisor = 3  # Divide row height by this (higher = finer increments)
-        self.auto_center_active_segment = False  # Auto-scroll to keep active segment centered
+        self.auto_center_active_segment = True  # Auto-scroll to keep active segment centered (default ON)
         
         # Translation service availability flags (would be set from config/API keys)
         self.google_translate_enabled = True  # For demo purposes
@@ -16264,6 +16267,7 @@ class SupervertalerQt(QMainWindow):
         # Update auto-center active segment setting
         if auto_center_cb is not None:
             self.auto_center_active_segment = auto_center_cb.isChecked()
+            self.log(f"💾 Saving auto-center setting: {self.auto_center_active_segment}")
         
         # Update termbase grid highlighting setting
         if tb_highlight_cb is not None:
@@ -16329,6 +16333,22 @@ class SupervertalerQt(QMainWindow):
             self.tm_save_mode = tm_save_mode_combo.currentData()
         
         self.save_general_settings(general_settings)
+
+        # If a project is active, also save settings to project file (project overrides)
+        if self.current_project:
+            self.current_project.general_settings_overrides = {
+                'auto_center_active_segment': self.auto_center_active_segment,
+                'auto_propagate_exact_matches': self.auto_propagate_exact_matches,
+                'auto_insert_100_percent_matches': self.auto_insert_100_percent_matches,
+                'auto_confirm_100_percent_matches': self.auto_confirm_100_percent_matches,
+                'enable_termbase_grid_highlighting': self.enable_termbase_grid_highlighting,
+                'precision_scroll_divisor': self.precision_scroll_divisor,
+                'termbase_display_order': self.termbase_display_order,
+                'termbase_hide_shorter_matches': self.termbase_hide_shorter_matches,
+                'enable_smart_word_selection': self.enable_smart_word_selection,
+            }
+            self.log("💾 Settings also saved to active project")
+            self.project_modified = True  # Mark project as modified
 
         # Restart auto backup timer if settings changed
         if enable_backup_cb is not None or backup_interval_spin is not None:
@@ -18477,7 +18497,46 @@ class SupervertalerQt(QMainWindow):
                     self.lookup_tab.set_project_languages(source_lang, target_lang)
                     self.log(f"✓ Set Superlookup languages: {source_lang} → {target_lang}")
             
+            # Load project-specific settings (override general settings while project is active)
+            if hasattr(self.current_project, 'general_settings_overrides') and self.current_project.general_settings_overrides:
+                project_settings = self.current_project.general_settings_overrides
+                
+                # Override general settings with project-specific ones
+                if 'auto_center_active_segment' in project_settings:
+                    self.auto_center_active_segment = project_settings['auto_center_active_segment']
+                    self.log(f"✓ Project override: auto-center = {self.auto_center_active_segment}")
+                
+                if 'auto_propagate_exact_matches' in project_settings:
+                    self.auto_propagate_exact_matches = project_settings['auto_propagate_exact_matches']
+                    self.log(f"✓ Project override: auto-propagate = {self.auto_propagate_exact_matches}")
+                
+                if 'auto_insert_100_percent_matches' in project_settings:
+                    self.auto_insert_100_percent_matches = project_settings['auto_insert_100_percent_matches']
+                    self.log(f"✓ Project override: auto-insert 100% = {self.auto_insert_100_percent_matches}")
+                
+                if 'auto_confirm_100_percent_matches' in project_settings:
+                    self.auto_confirm_100_percent_matches = project_settings['auto_confirm_100_percent_matches']
+                    self.log(f"✓ Project override: auto-confirm 100% = {self.auto_confirm_100_percent_matches}")
+                
+                if 'enable_termbase_grid_highlighting' in project_settings:
+                    self.enable_termbase_grid_highlighting = project_settings['enable_termbase_grid_highlighting']
+                    self.log(f"✓ Project override: termbase highlighting = {self.enable_termbase_grid_highlighting}")
+                
+                if 'precision_scroll_divisor' in project_settings:
+                    self.precision_scroll_divisor = project_settings['precision_scroll_divisor']
+                    self.log(f"✓ Project override: precision scroll = {self.precision_scroll_divisor}")
+                
+                if 'termbase_display_order' in project_settings:
+                    self.termbase_display_order = project_settings['termbase_display_order']
+                
+                if 'termbase_hide_shorter_matches' in project_settings:
+                    self.termbase_hide_shorter_matches = project_settings['termbase_hide_shorter_matches']
+                
+                if 'enable_smart_word_selection' in project_settings:
+                    self.enable_smart_word_selection = project_settings['enable_smart_word_selection']
+            
             self.log(f"✓ Loaded project: {self.current_project.name} ({len(self.current_project.segments)} segments)")
+
             
             # Start background batch processing of termbase matches for all segments
             # This pre-fills the cache while user works on the project
@@ -19185,6 +19244,20 @@ class SupervertalerQt(QMainWindow):
             self.current_project.spellcheck_settings['enabled'] = self.spellcheck_enabled
             if hasattr(self, 'target_language'):
                 self.current_project.spellcheck_settings['language'] = self.target_language
+            
+            # Save current general settings as project overrides (while project is active)
+            # These will override general_settings.json when this project is loaded
+            self.current_project.general_settings_overrides = {
+                'auto_center_active_segment': self.auto_center_active_segment,
+                'auto_propagate_exact_matches': self.auto_propagate_exact_matches,
+                'auto_insert_100_percent_matches': self.auto_insert_100_percent_matches,
+                'auto_confirm_100_percent_matches': self.auto_confirm_100_percent_matches,
+                'enable_termbase_grid_highlighting': self.enable_termbase_grid_highlighting,
+                'precision_scroll_divisor': self.precision_scroll_divisor,
+                'termbase_display_order': self.termbase_display_order,
+                'termbase_hide_shorter_matches': self.termbase_hide_shorter_matches,
+                'enable_smart_word_selection': self.enable_smart_word_selection,
+            }
             
             # Save original DOCX path for structure-preserving export
             original_path = getattr(self, 'original_docx', None) or getattr(self, 'current_document_path', None)
@@ -24841,8 +24914,9 @@ class SupervertalerQt(QMainWindow):
         self.enable_llm_matching = settings.get('enable_llm_matching', False)
         # Load precision scroll divisor setting
         self.precision_scroll_divisor = settings.get('precision_scroll_divisor', 3)
-        # Load auto-center active segment setting
-        self.auto_center_active_segment = settings.get('auto_center_active_segment', False)
+        # Load auto-center active segment setting (default True, like memoQ/Trados)
+        self.auto_center_active_segment = settings.get('auto_center_active_segment', True)
+        self.log(f"🔄 Loaded auto-center setting: {self.auto_center_active_segment}")
         # Load termbase display settings
         self.termbase_display_order = settings.get('termbase_display_order', 'appearance')
         self.termbase_hide_shorter_matches = settings.get('termbase_hide_shorter_matches', False)
@@ -24872,51 +24946,39 @@ class SupervertalerQt(QMainWindow):
         return settings
     
     def _load_general_settings_from_file(self) -> Dict[str, Any]:
-        """Load general settings from user preferences"""
-        prefs_file = self.user_data_path / "ui_preferences.json"
+        """Load general settings from general_settings.json (global defaults)"""
+        settings_file = self.user_data_path / "general_settings.json"
         
         defaults = {
             'restore_last_project': False,
             'auto_propagate_exact_matches': True,
+            'auto_center_active_segment': True,  # Default to True (like memoQ/Trados)
             'grid_font_size': 11,
             'results_match_font_size': 9,
             'results_compare_font_size': 9
         }
         
-        if not prefs_file.exists():
+        if not settings_file.exists():
             return defaults
         
         try:
-            with open(prefs_file, 'r') as f:
-                prefs = json.load(f)
-                general = prefs.get('general_settings', {})
+            with open(settings_file, 'r') as f:
+                settings = json.load(f)
                 # Merge with defaults to ensure all keys exist
                 result = defaults.copy()
-                result.update(general)
+                result.update(settings)
                 return result
         except:
             return defaults
     
     def save_general_settings(self, settings: Dict[str, Any]):
-        """Save general settings to user preferences"""
-        prefs_file = self.user_data_path / "ui_preferences.json"
+        """Save general settings to general_settings.json (global defaults)"""
+        settings_file = self.user_data_path / "general_settings.json"
         
-        # Load existing preferences
-        prefs = {}
-        if prefs_file.exists():
-            try:
-                with open(prefs_file, 'r') as f:
-                    prefs = json.load(f)
-            except:
-                pass
-        
-        # Update general settings
-        prefs['general_settings'] = settings
-        
-        # Save back
+        # Save settings directly (not nested)
         try:
-            with open(prefs_file, 'w') as f:
-                json.dump(prefs, f, indent=2)
+            with open(settings_file, 'w') as f:
+                json.dump(settings, f, indent=2)
         except Exception as e:
             self.log(f"⚠ Could not save general settings: {str(e)}")
 
