@@ -31257,6 +31257,14 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             self.log("⚠️ Ctrl+Enter: No row selected")
             return
         
+        # CRITICAL: Ensure the target widget has focus before reading from it
+        # This fixes the issue where Ctrl+Enter doesn't work without mouse interaction
+        target_widget_current = self.table.cellWidget(current_row, 3)
+        if target_widget_current and not target_widget_current.hasFocus():
+            target_widget_current.setFocus()
+            # Give Qt event loop time to process the focus change
+            QApplication.processEvents()
+        
         # Set current segment to confirmed
         if current_row < len(self.current_project.segments):
             # CRITICAL: Get segment by ID from grid, not by row index!
