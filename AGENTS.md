@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** January 9, 2026 | **Version:** v1.9.87
+> **Last Updated:** January 9, 2026 | **Version:** v1.9.88
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.87 (January 2026) |
+| **Version** | v1.9.88 (January 2026) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -769,6 +769,38 @@ Added Beijerterm to Superlookup's Web Resources tab:
 
 **Files Modified:**
 - `Supervertaler.py` - Updated `beijerterm` resource in `self.web_resources` list
+
+---
+
+### January 9, 2026 - Version 1.9.88: Context Menu Enhancement
+
+**🔍 Superlookup Integration in Context Menus**
+
+Implemented quick concordance search via right-click context menu:
+
+- **New Context Menu Item**: "🔍 Search in Superlookup (Ctrl+K)" appears when text is selected
+- **Both Editor Types**: Added to ReadOnlyGridTextEditor (source) and EditableGridTextEditor (target)
+- **Smart Workflow**: Select text → Right-click → Instant search in Superlookup
+- **Auto-Navigation**: Opens Superlookup tab and triggers search automatically
+- **Language-Aware**: Passes project source/target language pair to search
+- **Vertical View**: Uses traditional concordance list layout
+- **Unified Search**: Searches TM, glossaries, Supermemory, MT, and web resources
+
+**Implementation Details:**
+- `_handle_superlookup_search()` method added to both editor classes
+- Gets selected text from `textCursor().selectedText()`
+- Calls `_go_to_superlookup()` for navigation
+- Calls `lookup_tab.search_with_query()` with full parameters
+- Menu item positioned after Paste, before Add to Glossary
+
+**Code Locations:**
+- `Supervertaler.py` lines 1885-1895: ReadOnlyGridTextEditor context menu
+- `Supervertaler.py` lines 1670-1702: ReadOnlyGridTextEditor handler method
+- `Supervertaler.py` lines 2412-2422: EditableGridTextEditor context menu
+- `Supervertaler.py` lines 2360-2392: EditableGridTextEditor handler method
+
+**Files Modified:**
+- `Supervertaler.py` - Added menu items and handler methods to both editor classes
 
 ---
 

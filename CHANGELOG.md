@@ -2,11 +2,29 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.87 (January 9, 2026)
+**Current Version:** v1.9.88 (January 9, 2026)
 **Framework:** PyQt6
 **Status:** Active Development
 
 **Note:** For historical information about legacy versions (Tkinter Edition, Classic Edition), see [legacy_versions/LEGACY_VERSIONS.md](legacy_versions/LEGACY_VERSIONS.md).
+
+---
+
+## 🔍 Context Menu Enhancement (v1.9.88) - January 9, 2026
+
+**Superlookup Integration in Context Menus (NEW):**
+- 🔍 **Quick Concordance Search** — Right-click selected text in source or target cells to instantly search in Superlookup
+- 📋 **Context Menu Item** — New "🔍 Search in Superlookup (Ctrl+K)" option appears when text is selected
+- 🎯 **Smart Navigation** — Automatically opens Superlookup tab and triggers search
+- 🌍 **Language-Aware** — Passes project language pair to Superlookup for filtered results
+- 📊 **Vertical View** — Uses traditional concordance list layout for search results
+- ⚡ **Unified Search** — Searches TM, glossaries, Supermemory, MT, and web resources simultaneously
+- 🔄 **Works Everywhere** — Available in both source (read-only) and target (editable) cells
+
+**Workflow Benefits:**
+- Select any term → Right-click → Instant concordance search (no need to open Superlookup first)
+- Perfect for terminology research while translating
+- Complements existing Ctrl+K keyboard shortcut
 
 ---
 

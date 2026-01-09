@@ -3,8 +3,8 @@ Supervertaler
 =============
 The Ultimate Translation Workbench.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.9.47 (Code Cleanup)
-Release Date: December 18, 2025
+Version: 1.9.88 (Context Menu Enhancement)
+Release Date: January 9, 2026
 Framework: PyQt6
 
 This is the modern edition of Supervertaler using PyQt6 framework.
@@ -34,9 +34,9 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.87"
+__version__ = "1.9.88"
 __phase__ = "0.9"
-__release_date__ = "2026-01-07"
+__release_date__ = "2026-01-09"
 __edition__ = "Qt"
 
 import sys
