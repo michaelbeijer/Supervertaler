@@ -2,11 +2,28 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.85 (January 7, 2026)
+**Current Version:** v1.9.86 (January 9, 2026)
 **Framework:** PyQt6
 **Status:** Active Development
 
 **Note:** For historical information about legacy versions (Tkinter Edition, Classic Edition), see [legacy_versions/LEGACY_VERSIONS.md](legacy_versions/LEGACY_VERSIONS.md).
+
+---
+
+## 🔧 Glossary Quality Improvements (v1.9.86) - January 9, 2026
+
+**Enhanced Glossary Management:**
+- 🚫 **Duplicate Prevention** — Cannot save duplicate source→target pairs to a glossary
+- 🎯 **Priority-Based Filtering** — If identical match exists in multiple glossaries, only highest priority version shown
+- ⚖️ **Font Normalization** — TermView source and target text now use same font size
+- 🔍 **Smart Filtering** — Duplicate filtering applied throughout: grid highlighting, Translation Results, TermView, and Superlookup
+- ⚠️ **User Feedback** — Clear warning dialog when attempting to add duplicate terms
+
+**Technical Changes:**
+- Added case-insensitive duplicate check in `termbase_manager.py` before inserting terms
+- `add_term()` now returns `None` if duplicate detected (graceful handling)
+- Duplicate filtering in `find_termbase_matches_in_source()` prevents multiple sources from showing duplicates
+- TermView target font size matches source font size (was 2pt smaller)
 
 ---
 

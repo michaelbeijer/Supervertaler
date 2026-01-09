@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** January 7, 2026 | **Version:** v1.9.85
+> **Last Updated:** January 9, 2026 | **Version:** v1.9.86
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.85 (January 2026) |
+| **Version** | v1.9.86 (January 2026) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -455,6 +455,77 @@ google_api_key=AI...
 ---
 
 ## 🔄 Recent Development History
+
+### January 9, 2026 - Version 1.9.86: Glossary Duplicate Prevention & Priority Filtering
+
+**🚫 Duplicate Term Prevention**
+
+Implemented comprehensive duplicate prevention when adding terms to glossaries:
+
+- **Case-Insensitive Check**: Added duplicate detection in `termbase_manager.py` before inserting terms
+- **User Feedback**: Clear warning dialog when attempting to add duplicate: "This term already exists in [glossary]. Duplicate terms are not allowed."
+- **Graceful Handling**: `add_term()` returns `None` if duplicate found (no exception raised)
+- **Database Query**: Uses `LOWER()` SQL function for case-insensitive comparison
+
+**🎯 Priority-Based Duplicate Filtering**
+
+Enhanced glossary match display to show only highest priority match when duplicates exist:
+
+- **Filtering at Source**: `find_termbase_matches_in_source()` filters duplicates before caching
+- **Priority Logic**: When same source→target exists in multiple glossaries, keeps only lowest ranking number (highest priority)
+- **Comprehensive Coverage**: Filtering applies to grid highlighting, Translation Results panel, TermView, and Superlookup
+- **Performance**: Duplicate filtering adds negligible overhead (single pass through matches)
+
+**⚖️ TermView Font Normalization**
+
+Fixed font size inconsistency in TermView widget:
+
+- **Before**: Source text 10pt, target text 8pt (2pt smaller)
+- **After**: Both source and target use same font size
+- **Benefit**: Improved readability and visual consistency
+
+**Implementation Details:**
+- `modules/termbase_manager.py` (lines 620-680): Added duplicate check query before INSERT
+- `Supervertaler.py` (lines 27680-27707): Added duplicate filtering logic with seen_pairs dict
+- `Supervertaler.py` (lines 38420-38430): Show warning dialog when duplicate detected
+- `modules/termview_widget.py` (line 219): Changed target font size from `self.font_size - 2` to `self.font_size`
+
+**Files Modified:**
+- `modules/termbase_manager.py` - Duplicate check in `add_term()`
+- `Supervertaler.py` - Duplicate filtering in `find_termbase_matches_in_source()`, warning dialog in `show_add_term_dialog()`
+- `modules/termview_widget.py` - Font size normalization in `TermBlock.init_ui()`
+
+---
+
+### January 9, 2026 - Bug Fix: QTextCursor Scope Error
+
+**🐛 Fixed Navigation Crash**
+
+Resolved critical UnboundLocalError that occurred during segment navigation (Alt+Up/Alt+Down):
+
+- **Root Cause**: `QTextCursor` imported inside if block but used in else block (classic Python scope error)
+- **Solution**: Moved import to top of both `go_to_next_segment()` and `go_to_previous_segment()` methods
+- **Impact**: Prevented crashes during normal workflow navigation
+
+**Files Modified:**
+- `Supervertaler.py` - Fixed QTextCursor import scope in navigation methods
+
+---
+
+### January 9, 2026 - Beijerterm: Splitpen Image Resize
+
+**🖼️ Image Size Optimization**
+
+Reduced oversized first image on splitpen term page:
+
+- **Before**: Full-width display (~1200px)
+- **After**: 300px width using HTML `<img>` tag
+- **Conversion**: Changed from Markdown `![Image](url)` to `<img src="url" width="300">`
+
+**Files Modified:**
+- `beijerterm/content/terms/splitpen.md` - First image now uses HTML with width attribute
+
+---
 
 ### January 7, 2026 - Version 1.9.85: AI Proofreading System
 
