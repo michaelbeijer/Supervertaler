@@ -2,11 +2,43 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.86 (January 9, 2026)
+**Current Version:** v1.9.87 (January 9, 2026)
 **Framework:** PyQt6
 **Status:** Active Development
 
 **Note:** For historical information about legacy versions (Tkinter Edition, Classic Edition), see [legacy_versions/LEGACY_VERSIONS.md](legacy_versions/LEGACY_VERSIONS.md).
+
+---
+
+## ⚡ Workflow Enhancements & UI Polish (v1.9.87) - January 9, 2026
+
+**Auto-Confirm 100% TM Matches (NEW):**
+- 🎯 **Intelligent Auto-Confirmation** — When pressing Ctrl+Enter, automatically inserts, confirms, and skips segments with perfect TM matches
+- 🔄 **Recursive Processing** — Continues through multiple 100% matches until finding a segment requiring manual work
+- 🛡️ **Safety Check** — Only auto-confirms segments with empty targets (won't overwrite existing translations)
+- ⚡ **Hash-Based Lookup** — Uses instant MD5 hash matching for O(1) performance
+- 📊 **TM Integration** — Auto-confirmed segments automatically saved to active Translation Memories
+- ⚙️ **Optional Setting** — Enable/disable in General Settings → TM/Glossary section
+- 📝 **Session Logging** — Clear logs show: Found match → Auto-confirmed → Skipped to next
+
+**Tab Layout Customization (NEW):**
+- 📐 **Flexible Tab Position** — Move Termview and Session Log tabs above or below the grid
+- ⚙️ **View Settings Toggle** — New "📐 Tab Layout" section with checkbox: "Show Termview/Session Log tabs above grid"
+- 💾 **Persistent Setting** — Preference saved and restored between sessions
+- 🔄 **Easy Switching** — Close and reopen project tab to apply layout change
+
+**Grid & UI Improvements:**
+- 📏 **Wider Segment Column** — Segment # column increased from 35px to 55px (fits 4-digit segment numbers up to 9999)
+- 🎯 **Auto-Center Fix** — "Keep Active Segment Centered" setting now persists between restarts
+- 🎨 **Badge Text Color** — Changed from black to dark gray (#333333) for better appearance on bright match backgrounds
+- 🎨 **Color Customization** — New badge text color picker with 8 preset colors and custom selection
+- 🔍 **Settings Rename** — "View/Display" tab renamed to "View Settings" for clarity
+
+**Technical Improvements:**
+- Navigation logic now uses exact match lookup for 100% TM matches (not fuzzy search)
+- Pagination handling in auto-confirm recursion (switches pages when needed)
+- Status icon updates and project modification flag management
+- Settings persistence through general_settings.json
 
 ---
 

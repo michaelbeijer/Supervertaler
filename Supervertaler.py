@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.86"
+__version__ = "1.9.87"
 __phase__ = "0.9"
 __release_date__ = "2026-01-07"
 __edition__ = "Qt"
@@ -1341,7 +1341,7 @@ class ReadOnlyGridTextEditor(QTextEdit):
                 break
             elif hasattr(parent, 'load_general_settings'):
                 settings = parent.load_general_settings()
-                highlight_style = settings.get('termbase_highlight_style', 'background')
+                highlight_style = settings.get('termbase_highlight_style', 'semibold')
                 dotted_color = settings.get('termbase_dotted_color', '#808080')
                 break
             parent = parent.parent() if hasattr(parent, 'parent') else None
@@ -2115,6 +2115,10 @@ class EditableGridTextEditor(QTextEdit):
     
     # Class variable for tag highlight color (shared across all instances)
     tag_highlight_color = '#7f0001'  # Default memoQ dark red
+    
+    # Class variables for focus border customization
+    focus_border_color = '#2196F3'  # Default blue
+    focus_border_thickness = 2  # Default 2px (slightly thicker than before)
     
     def __init__(self, text: str = "", parent=None, row: int = -1, table=None):
         super().__init__(parent)
@@ -4740,7 +4744,11 @@ class SupervertalerQt(QMainWindow):
         self.allow_replace_in_source = False  # Safety: don't allow replace in source by default
         self.auto_propagate_exact_matches = True  # Auto-fill 100% TM matches for empty segments
         self.auto_insert_100_percent_matches = True  # Auto-insert 100% TM matches when segment selected
+        self.auto_confirm_100_percent_matches = False  # Auto-confirm 100% matches when navigating with Ctrl+Enter
         self.tm_save_mode = 'latest'  # 'all' = keep all translations with timestamps, 'latest' = only keep most recent (DEFAULT)
+        
+        # Tab position setting
+        self.tabs_above_grid = False  # Whether to show Termview/Session Log tabs above grid
         
         # TM and Termbase matching toggle (default: enabled)
         self.enable_tm_matching = True
@@ -4769,8 +4777,12 @@ class SupervertalerQt(QMainWindow):
         self.odd_row_color = '#F0F0F0'  # Light gray for odd rows
         
         # Termbase highlight style settings
-        self.termbase_highlight_style = 'background'  # 'background', 'dotted', or 'semibold'
+        self.termbase_highlight_style = 'semibold'  # 'background', 'dotted', or 'semibold'
         self.termbase_dotted_color = '#808080'  # Medium gray for dotted underline (more visible)
+        
+        # Focus border settings for target cells
+        self.focus_border_color = '#2196F3'  # Blue
+        self.focus_border_thickness = 2  # 2px
 
         # Debug mode settings (for troubleshooting performance issues)
         self.debug_mode_enabled = False  # Enables verbose debug logging
@@ -12563,9 +12575,9 @@ class SupervertalerQt(QMainWindow):
         mt_tab = self._create_mt_settings_tab()
         settings_tabs.addTab(scroll_area_wrapper(mt_tab), "🌐 MT Settings")
         
-        # ===== TAB 5: View/Display Settings =====
+        # ===== TAB 5: View Settings =====
         view_tab = self._create_view_settings_tab()
-        settings_tabs.addTab(scroll_area_wrapper(view_tab), "🔍 View/Display")
+        settings_tabs.addTab(scroll_area_wrapper(view_tab), "🔍 View Settings")
 
         # ===== TAB 6: System Prompts (Layer 1) =====
         system_prompts_tab = self._create_system_prompts_tab()
@@ -13456,6 +13468,16 @@ class SupervertalerQt(QMainWindow):
         )
         tm_termbase_layout.addWidget(auto_insert_100_cb)
         
+        # Auto-confirm 100% matches when navigating with Ctrl+Enter
+        auto_confirm_100_cb = CheckmarkCheckBox("Auto-confirm 100% TM matches when navigating (Ctrl+Enter)")
+        auto_confirm_100_cb.setChecked(general_settings.get('auto_confirm_100_percent_matches', False))
+        auto_confirm_100_cb.setToolTip(
+            "When enabled, Ctrl+Enter will automatically insert, confirm, and skip past\n"
+            "segments that have 100% TM matches. This speeds up workflow by automatically\n"
+            "handling perfect matches while navigating through unconfirmed segments."
+        )
+        tm_termbase_layout.addWidget(auto_confirm_100_cb)
+        
         # TM Save Mode
         tm_save_label = QLabel("TM Save Mode:")
         tm_save_mode_combo = QComboBox()
@@ -13801,7 +13823,9 @@ class SupervertalerQt(QMainWindow):
             auto_open_log_cb, auto_insert_100_cb, tm_save_mode_combo, tb_highlight_cb,
             enable_backup_cb, backup_interval_spin,
             tb_order_combo, tb_hide_shorter_cb, smart_selection_cb,
-            ahk_path_edit=getattr(self, 'ahk_path_edit', None)
+            ahk_path_edit=getattr(self, 'ahk_path_edit', None),
+            auto_center_cb=auto_center_cb,
+            auto_confirm_100_cb=auto_confirm_100_cb
         ))
         layout.addWidget(save_btn)
         
@@ -13810,7 +13834,7 @@ class SupervertalerQt(QMainWindow):
         return tab
     
     def _create_view_settings_tab(self):
-        """Create View/Display Settings tab content"""
+        """Create View Settings tab content"""
         from PyQt6.QtWidgets import QGroupBox, QPushButton, QButtonGroup, QColorDialog
         from PyQt6.QtGui import QColor
         
@@ -14034,6 +14058,56 @@ class SupervertalerQt(QMainWindow):
         tag_color_layout.addStretch()
         results_layout.addLayout(tag_color_layout)
 
+        # Badge text color picker
+        badge_text_color_layout = QHBoxLayout()
+        badge_text_color_layout.addWidget(QLabel("Badge Text Color:"))
+        
+        # Get current badge text color or default to dark gray
+        current_badge_color = font_settings.get('badge_text_color', '#333333')
+        badge_text_color_btn = QPushButton()
+        badge_text_color_btn.setFixedSize(80, 25)
+        badge_text_color_btn.setStyleSheet(f"background-color: {current_badge_color}; border: 1px solid #999;")
+        badge_text_color_btn.setToolTip("Color for match number badges in Translation Results panel")
+        
+        def choose_badge_text_color():
+            # Set up preset colors in the color dialog
+            preset_colors = [
+                '#333333',  # Dark gray (default)
+                '#212121',  # Material Design off-black
+                '#2C2C2C',  # Charcoal
+                '#37474F',  # Slate gray
+                '#000000',  # Pure black
+                '#444444',  # Medium gray
+                '#1A1A1A',  # Near black
+                '#505050',  # Lighter gray
+            ]
+            for i, preset in enumerate(preset_colors):
+                QColorDialog.setCustomColor(i, QColor(preset))
+            
+            color = QColorDialog.getColor(QColor(current_badge_color), self, "Choose Badge Text Color")
+            if color.isValid():
+                hex_color = color.name()
+                badge_text_color_btn.setStyleSheet(f"background-color: {hex_color}; border: 1px solid #999;")
+                badge_text_color_btn.setProperty('selected_color', hex_color)
+        
+        badge_text_color_btn.clicked.connect(choose_badge_text_color)
+        badge_text_color_btn.setProperty('selected_color', current_badge_color)
+        badge_text_color_layout.addWidget(badge_text_color_btn)
+        
+        # Reset badge text color button
+        reset_badge_text_color_btn = QPushButton("Reset")
+        reset_badge_text_color_btn.setFixedSize(50, 25)
+        reset_badge_text_color_btn.setToolTip("Reset to default dark gray (#333333)")
+        def reset_badge_text_color():
+            default_color = '#333333'
+            badge_text_color_btn.setStyleSheet(f"background-color: {default_color}; border: 1px solid #999;")
+            badge_text_color_btn.setProperty('selected_color', default_color)
+        reset_badge_text_color_btn.clicked.connect(reset_badge_text_color)
+        badge_text_color_layout.addWidget(reset_badge_text_color_btn)
+        
+        badge_text_color_layout.addStretch()
+        results_layout.addLayout(badge_text_color_layout)
+
         # Invisible character color picker
         invisible_char_color_layout = QHBoxLayout()
         invisible_char_color_layout.addWidget(QLabel("Invisible Char Color:"))
@@ -14151,6 +14225,86 @@ class SupervertalerQt(QMainWindow):
         row_colors_group.setLayout(row_colors_layout)
         layout.addWidget(row_colors_group)
         
+        # Focus Border Settings section
+        focus_border_group = QGroupBox("🔵 Target Cell Focus Border")
+        focus_border_layout = QVBoxLayout()
+        
+        focus_border_info = QLabel(
+            "Customize the border that appears around the target cell when it has focus."
+        )
+        focus_border_info.setStyleSheet("font-size: 8pt; padding: 8px; border-radius: 2px;")
+        focus_border_info.setWordWrap(True)
+        focus_border_layout.addWidget(focus_border_info)
+        
+        # Border color picker
+        border_color_layout = QHBoxLayout()
+        border_color_layout.addWidget(QLabel("Border Color:"))
+        
+        focus_border_color = font_settings.get('focus_border_color', '#2196F3')
+        border_color_btn = QPushButton()
+        border_color_btn.setFixedSize(80, 25)
+        border_color_btn.setStyleSheet(f"background-color: {focus_border_color}; border: 1px solid #999;")
+        border_color_btn.setToolTip("Color of the focus border around target cells")
+        
+        def choose_border_color():
+            color = QColorDialog.getColor(QColor(focus_border_color), self, "Choose Focus Border Color")
+            if color.isValid():
+                hex_color = color.name()
+                border_color_btn.setStyleSheet(f"background-color: {hex_color}; border: 1px solid #999;")
+                border_color_btn.setProperty('selected_color', hex_color)
+        
+        border_color_btn.clicked.connect(choose_border_color)
+        border_color_btn.setProperty('selected_color', focus_border_color)
+        border_color_layout.addWidget(border_color_btn)
+        
+        # Reset to default color button
+        reset_border_color_btn = QPushButton("Reset")
+        reset_border_color_btn.setFixedWidth(50)
+        reset_border_color_btn.setToolTip("Reset to default blue (#2196F3)")
+        def reset_border_color():
+            border_color_btn.setStyleSheet("background-color: #2196F3; border: 1px solid #999;")
+            border_color_btn.setProperty('selected_color', '#2196F3')
+        reset_border_color_btn.clicked.connect(reset_border_color)
+        border_color_layout.addWidget(reset_border_color_btn)
+        border_color_layout.addStretch()
+        focus_border_layout.addLayout(border_color_layout)
+        
+        # Border thickness spinbox
+        thickness_layout = QHBoxLayout()
+        thickness_layout.addWidget(QLabel("Border Thickness:"))
+        border_thickness_spin = QSpinBox()
+        border_thickness_spin.setMinimum(1)
+        border_thickness_spin.setMaximum(5)
+        border_thickness_spin.setValue(font_settings.get('focus_border_thickness', 2))
+        border_thickness_spin.setSuffix(" px")
+        border_thickness_spin.setToolTip("Thickness of the focus border (1-5 pixels)")
+        thickness_layout.addWidget(border_thickness_spin)
+        thickness_layout.addStretch()
+        focus_border_layout.addLayout(thickness_layout)
+        
+        focus_border_group.setLayout(focus_border_layout)
+        layout.addWidget(focus_border_group)
+        
+        # Tab Position Settings section
+        tab_position_group = QGroupBox("📐 Tab Layout")
+        tab_position_layout = QVBoxLayout()
+        
+        tab_position_info = QLabel(
+            "Control the position of Termview and Session Log tabs relative to the grid."
+        )
+        tab_position_info.setStyleSheet("font-size: 8pt; padding: 8px; border-radius: 2px;")
+        tab_position_info.setWordWrap(True)
+        tab_position_layout.addWidget(tab_position_info)
+        
+        # Show Termview/Session Log tabs above grid checkbox
+        tabs_above_check = CheckmarkCheckBox("Show Termview/Session Log tabs above grid")
+        tabs_above_check.setChecked(font_settings.get('tabs_above_grid', False))
+        tabs_above_check.setToolTip("When enabled, Termview and Session Log tabs appear above the grid instead of below.\nRequires closing and reopening the project tab to take effect.")
+        tab_position_layout.addWidget(tabs_above_check)
+        
+        tab_position_group.setLayout(tab_position_layout)
+        layout.addWidget(tab_position_group)
+        
         # Glossary Highlight Style section
         tb_highlight_group = QGroupBox("🏷️ Glossary Highlight Style")
         tb_highlight_layout = QVBoxLayout()
@@ -14167,7 +14321,7 @@ class SupervertalerQt(QMainWindow):
         tb_style_layout = QVBoxLayout()
         
         # Get current setting
-        current_tb_style = font_settings.get('termbase_highlight_style', 'background')
+        current_tb_style = font_settings.get('termbase_highlight_style', 'semibold')
         
         # Background highlight (current default)
         tb_style_background = CheckmarkRadioButton("Background Color - Pastel green background (current default)")
@@ -14315,7 +14469,8 @@ class SupervertalerQt(QMainWindow):
         save_btn.clicked.connect(lambda: self._save_view_settings_from_ui(
             grid_font_spin, match_font_spin, compare_font_spin, show_tags_check, tag_color_btn,
             alt_colors_check, even_color_btn, odd_color_btn, invisible_char_color_btn, grid_font_family_combo,
-            termview_font_family_combo, termview_font_spin, termview_bold_check
+            termview_font_family_combo, termview_font_spin, termview_bold_check,
+            border_color_btn, border_thickness_spin, badge_text_color_btn, tabs_above_check
         ))
         layout.addWidget(save_btn)
         
@@ -15998,7 +16153,7 @@ class SupervertalerQt(QMainWindow):
                                        auto_open_log_cb=None, auto_insert_100_cb=None, tm_save_mode_combo=None, tb_highlight_cb=None,
                                        enable_backup_cb=None, backup_interval_spin=None,
                                        tb_order_combo=None, tb_hide_shorter_cb=None, smart_selection_cb=None,
-                                       ahk_path_edit=None):
+                                       ahk_path_edit=None, auto_center_cb=None, auto_confirm_100_cb=None):
         """Save general settings from UI (non-AI settings only)"""
         self.allow_replace_in_source = allow_replace_cb.isChecked()
         self.update_warning_banner()
@@ -16009,6 +16164,14 @@ class SupervertalerQt(QMainWindow):
         # Update auto-insert setting
         if auto_insert_100_cb is not None:
             self.auto_insert_100_percent_matches = auto_insert_100_cb.isChecked()
+        
+        # Update auto-confirm 100% matches setting
+        if auto_confirm_100_cb is not None:
+            self.auto_confirm_100_percent_matches = auto_confirm_100_cb.isChecked()
+        
+        # Update auto-center active segment setting
+        if auto_center_cb is not None:
+            self.auto_center_active_segment = auto_center_cb.isChecked()
         
         # Update termbase grid highlighting setting
         if tb_highlight_cb is not None:
@@ -16028,6 +16191,7 @@ class SupervertalerQt(QMainWindow):
             'auto_open_log': auto_open_log_cb.isChecked() if auto_open_log_cb is not None else False,
             'auto_propagate_exact_matches': self.auto_propagate_checkbox.isChecked() if hasattr(self, 'auto_propagate_checkbox') else self.auto_propagate_exact_matches,
             'auto_insert_100_percent_matches': auto_insert_100_cb.isChecked() if auto_insert_100_cb is not None else (self.auto_insert_100_checkbox.isChecked() if hasattr(self, 'auto_insert_100_checkbox') else True),
+            'auto_confirm_100_percent_matches': auto_confirm_100_cb.isChecked() if auto_confirm_100_cb is not None else False,
             'tm_save_mode': tm_save_mode_combo.currentData() if tm_save_mode_combo is not None else 'latest',
             'auto_generate_markdown': existing_settings.get('auto_generate_markdown', False),  # Preserve AI setting
             'enable_termbase_grid_highlighting': tb_highlight_cb.isChecked() if tb_highlight_cb is not None else True,
@@ -16083,7 +16247,8 @@ class SupervertalerQt(QMainWindow):
     
     def _save_view_settings_from_ui(self, grid_spin, match_spin, compare_spin, show_tags_check=None, tag_color_btn=None,
                                      alt_colors_check=None, even_color_btn=None, odd_color_btn=None, invisible_char_color_btn=None,
-                                     grid_font_family_combo=None, termview_font_family_combo=None, termview_font_spin=None, termview_bold_check=None):
+                                     grid_font_family_combo=None, termview_font_family_combo=None, termview_font_spin=None, termview_bold_check=None,
+                                     border_color_btn=None, border_thickness_spin=None, badge_text_color_btn=None, tabs_above_check=None):
         """Save view settings from UI"""
         general_settings = {
             'restore_last_project': self.load_general_settings().get('restore_last_project', False),
@@ -16093,6 +16258,11 @@ class SupervertalerQt(QMainWindow):
             'results_compare_font_size': compare_spin.value(),
             'enable_tm_termbase_matching': self.enable_tm_matching  # Save TM/termbase matching state
         }
+        
+        # Add tabs above grid setting if provided
+        if tabs_above_check is not None:
+            general_settings['tabs_above_grid'] = tabs_above_check.isChecked()
+            self.tabs_above_grid = tabs_above_check.isChecked()
         
         # Add font family if provided
         if grid_font_family_combo is not None:
@@ -16113,12 +16283,32 @@ class SupervertalerQt(QMainWindow):
                 general_settings['tag_highlight_color'] = tag_color
                 EditableGridTextEditor.tag_highlight_color = tag_color
 
+        # Add badge text color if provided
+        if badge_text_color_btn:
+            badge_text_color = badge_text_color_btn.property('selected_color')
+            if badge_text_color:
+                general_settings['badge_text_color'] = badge_text_color
+                from modules.translation_results_panel import CompactMatchItem
+                CompactMatchItem.badge_text_color = badge_text_color
+
         # Add invisible character color if provided
         if invisible_char_color_btn:
             invisible_char_color = invisible_char_color_btn.property('selected_color')
             if invisible_char_color:
                 general_settings['invisible_char_color'] = invisible_char_color
                 self.invisible_char_color = invisible_char_color
+        
+        # Add focus border settings if provided
+        if border_color_btn is not None:
+            border_color = border_color_btn.property('selected_color')
+            if border_color:
+                general_settings['focus_border_color'] = border_color
+                EditableGridTextEditor.focus_border_color = border_color
+        
+        if border_thickness_spin is not None:
+            thickness = border_thickness_spin.value()
+            general_settings['focus_border_thickness'] = thickness
+            EditableGridTextEditor.focus_border_thickness = thickness
         
         # Add alternating row color settings
         if alt_colors_check is not None:
@@ -16204,6 +16394,13 @@ class SupervertalerQt(QMainWindow):
                         if hasattr(panel, 'set_tag_color'):
                             panel.set_tag_color(tag_color)
 
+        # Apply badge text color to all results panels
+        if badge_text_color_btn and hasattr(self, 'results_panels'):
+            badge_text_color = badge_text_color_btn.property('selected_color')
+            if badge_text_color:
+                from modules.translation_results_panel import CompactMatchItem
+                CompactMatchItem.badge_text_color = badge_text_color
+
         # Apply invisible char color to grid cells
         if invisible_char_color_btn and hasattr(self, 'table') and self.table is not None:
             invisible_char_color = invisible_char_color_btn.property('selected_color')
@@ -16214,6 +16411,27 @@ class SupervertalerQt(QMainWindow):
                         widget = self.table.cellWidget(row, col)
                         if widget and hasattr(widget, 'highlighter'):
                             widget.highlighter.set_invisible_char_color(invisible_char_color)
+
+        # Apply focus border settings to all grid cells
+        if (border_color_btn is not None or border_thickness_spin is not None) and hasattr(self, 'table') and self.table is not None:
+            # Refresh all EditableGridTextEditor widgets with new border settings
+            for row in range(self.table.rowCount()):
+                widget = self.table.cellWidget(row, 3)  # Target column
+                if widget and isinstance(widget, EditableGridTextEditor):
+                    # Update the stylesheet with new border settings
+                    border_color = EditableGridTextEditor.focus_border_color
+                    border_thickness = EditableGridTextEditor.focus_border_thickness
+                    widget.setStyleSheet(f"""
+                        QTextEdit {{
+                            border: {border_thickness}px solid {border_color};
+                            border-radius: 2px;
+                            padding: 4px;
+                            background-color: {widget.palette().base().color().name()};
+                        }}
+                        QTextEdit:focus {{
+                            border: {border_thickness}px solid {border_color};
+                        }}
+                    """)
 
         # Refresh grid to apply tag colors
         if hasattr(self, 'table') and self.table is not None:
@@ -16770,10 +16988,7 @@ class SupervertalerQt(QMainWindow):
         self.tab_status_combo = tab_status_combo
         self.tab_dictate_btn = dictate_btn
         
-        # Add grid container to top of left vertical splitter
-        left_vertical_splitter.addWidget(grid_container)
-        
-        # Bottom of left side: Tab widget with Termview and Session Log
+        # Create Termview and Session Log tabs widget
         from PyQt6.QtWidgets import QTabWidget
         from modules.termview_widget import TermviewWidget
         
@@ -16812,10 +17027,19 @@ class SupervertalerQt(QMainWindow):
         # Store reference to bottom_tabs for later access
         self.bottom_tabs = bottom_tabs
         
-        left_vertical_splitter.addWidget(bottom_tabs)
-        
-        # Set vertical splitter proportions: Grid larger, editor smaller
-        left_vertical_splitter.setSizes([600, 200])
+        # Add widgets to splitter based on tabs_above_grid setting
+        if self.tabs_above_grid:
+            # Tabs above grid
+            left_vertical_splitter.addWidget(bottom_tabs)
+            left_vertical_splitter.addWidget(grid_container)
+            # Set vertical splitter proportions: Tabs smaller, grid larger
+            left_vertical_splitter.setSizes([200, 600])
+        else:
+            # Tabs below grid (default)
+            left_vertical_splitter.addWidget(grid_container)
+            left_vertical_splitter.addWidget(bottom_tabs)
+            # Set vertical splitter proportions: Grid larger, tabs smaller
+            left_vertical_splitter.setSizes([600, 200])
         left_vertical_splitter.setHandleWidth(8)
         left_vertical_splitter.setChildrenCollapsible(False)
         
@@ -17152,8 +17376,8 @@ class SupervertalerQt(QMainWindow):
         header.setStretchLastSection(False)  # Don't auto-stretch last section (we use Stretch mode for Source/Target)
         
         # Set initial column widths - give Source and Target equal space
-        self.table.setColumnWidth(0, 50)   # ID
-        self.table.setColumnWidth(1, 100)  # Type
+        self.table.setColumnWidth(0, 55)   # ID - fits 4-digit segment numbers
+        self.table.setColumnWidth(1, 40)   # Type - narrower
         self.table.setColumnWidth(2, 400)  # Source
         self.table.setColumnWidth(3, 400)  # Target
         self.table.setColumnWidth(4, 70)   # Status
@@ -19015,7 +19239,7 @@ class SupervertalerQt(QMainWindow):
             
             action = QAction(display_name, self)
             action.setStatusTip(path)
-            action.triggered.connect(lambda checked, p=path: self.load_project(p))
+            action.triggered.connect(lambda checked, p=path: self._load_recent_project_with_resize(p))
             self.recent_menu.addAction(action)
         
         # Add separator and "Clear Recent" option
@@ -19024,6 +19248,13 @@ class SupervertalerQt(QMainWindow):
             clear_action = QAction("Clear Recent Projects", self)
             clear_action.triggered.connect(self.clear_recent_projects)
             self.recent_menu.addAction(clear_action)
+    
+    def _load_recent_project_with_resize(self, project_path: str):
+        """Load a project from recent menu and auto-enable row resize"""
+        self.load_project(project_path)
+        # Auto-enable row resize after loading
+        if hasattr(self, 'auto_resize_rows'):
+            QTimer.singleShot(100, self.auto_resize_rows)  # Slight delay to ensure grid is fully loaded
     
     def add_to_recent_projects(self, file_path: str):
         """Add project to recent projects list"""
@@ -24442,6 +24673,8 @@ class SupervertalerQt(QMainWindow):
             self.auto_propagate_exact_matches = settings['auto_propagate_exact_matches']
         if 'auto_insert_100_percent_matches' in settings:
             self.auto_insert_100_percent_matches = settings['auto_insert_100_percent_matches']
+        if 'auto_confirm_100_percent_matches' in settings:
+            self.auto_confirm_100_percent_matches = settings['auto_confirm_100_percent_matches']
         # Load TM/termbase matching setting
         if 'enable_tm_termbase_matching' in settings:
             self.enable_tm_matching = settings['enable_tm_termbase_matching']
@@ -24476,8 +24709,11 @@ class SupervertalerQt(QMainWindow):
         self.odd_row_color = settings.get('odd_row_color', '#F0F0F0')
         
         # Load termbase highlight style settings
-        self.termbase_highlight_style = settings.get('termbase_highlight_style', 'background')
+        self.termbase_highlight_style = settings.get('termbase_highlight_style', 'semibold')
         self.termbase_dotted_color = settings.get('termbase_dotted_color', '#808080')
+        
+        # Load tab position setting
+        self.tabs_above_grid = settings.get('tabs_above_grid', False)
 
         # Load LLM provider settings for AI Assistant
         llm_settings = self.load_llm_settings()
@@ -24750,6 +24986,16 @@ class SupervertalerQt(QMainWindow):
                 for panel in self.results_panels:
                     if hasattr(panel, 'set_tag_color'):
                         panel.set_tag_color(tag_color)
+                
+                # Load and apply badge text color
+                badge_text_color = general_settings.get('badge_text_color', '#333333')
+                CompactMatchItem.badge_text_color = badge_text_color
+                
+                # Load and apply focus border settings
+                focus_border_color = general_settings.get('focus_border_color', '#2196F3')
+                focus_border_thickness = general_settings.get('focus_border_thickness', 2)
+                EditableGridTextEditor.focus_border_color = focus_border_color
+                EditableGridTextEditor.focus_border_thickness = focus_border_thickness
                 
                 # Load and apply match limits
                 match_limits = general_settings.get('match_limits', {
@@ -27987,7 +28233,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         self.fr_sets_toggle = QToolButton()
         self.fr_sets_toggle.setArrowType(Qt.ArrowType.RightArrow)
         self.fr_sets_toggle.setCheckable(True)
-        self.fr_sets_toggle.setText("  F&R Sets (save and run multiple find/replace operations)")
+        self.fr_sets_toggle.setText("  F&R Sets: Save and Run Multiple Find and Replace Operations")
         self.fr_sets_toggle.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
         self.fr_sets_toggle.setStyleSheet("QToolButton { font-weight: bold; border: none; }")
         toggle_layout.addWidget(self.fr_sets_toggle)
@@ -31073,9 +31319,91 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             if row < len(self.current_project.segments):
                 seg = self.current_project.segments[row]
                 if seg.status not in ['confirmed', 'approved']:
+                    # Check if row is hidden due to pagination
+                    if self.table.isRowHidden(row):
+                        # Calculate which page this row is on and switch to it
+                        if hasattr(self, 'grid_page_size') and hasattr(self, 'grid_current_page'):
+                            target_page = row // self.grid_page_size
+                            if target_page != self.grid_current_page:
+                                self.grid_current_page = target_page
+                                self._update_pagination_ui()
+                                self._apply_pagination_to_grid()
+                    
                     self.table.setCurrentCell(row, 3)  # Column 3 = Target (widget column)
                     self.log(f"⏭️ Moved to next unconfirmed segment {seg.id}")
-                    # Get the target cell widget and set focus to it
+                    
+                    # Auto-confirm 100% TM matches if setting is enabled
+                    if self.auto_confirm_100_percent_matches:
+                        # Get TM matches for this segment
+                        exact_match = None
+                        if self.enable_tm_matching and hasattr(self, 'db_manager') and self.db_manager:
+                            # Get activated TM IDs from project settings
+                            activated_tm_ids = []
+                            if hasattr(self.current_project, 'tm_settings') and self.current_project.tm_settings:
+                                activated_tm_ids = self.current_project.tm_settings.get('activated_tm_ids', [])
+                            
+                            if activated_tm_ids:
+                                # Use get_exact_match for 100% matches instead of fuzzy search
+                                source_lang = self.current_project.source_lang if hasattr(self.current_project, 'source_lang') else None
+                                target_lang = self.current_project.target_lang if hasattr(self.current_project, 'target_lang') else None
+                                exact_match = self.db_manager.get_exact_match(
+                                    seg.source, 
+                                    tm_ids=activated_tm_ids,
+                                    source_lang=source_lang,
+                                    target_lang=target_lang
+                                )
+                        
+                        # Check if there's a 100% match and target is empty
+                        if exact_match and not seg.target.strip():
+                            match_target = exact_match.get('target_text', '')
+                            self.log(f"🎯 Auto-confirm: Found 100% TM match for segment {seg.id} (empty target)")
+                            
+                            # Insert the match into the target cell
+                            target_widget = self.table.cellWidget(row, 3)
+                            if target_widget and match_target:
+                                target_widget.setPlainText(match_target)
+                                seg.target = match_target
+                                seg.status = 'confirmed'
+                                self.update_status_icon(row, 'confirmed')
+                                self.project_modified = True
+                                
+                                # Save to TM
+                                try:
+                                    self.save_segment_to_activated_tms(seg.source, seg.target)
+                                    self.log(f"💾 Auto-confirmed and saved segment {seg.id} to TM")
+                                except Exception as e:
+                                    self.log(f"⚠️ Error saving auto-confirmed segment to TM: {e}")
+                                
+                                # Continue to the NEXT unconfirmed segment (skip this one)
+                                for next_row in range(row + 1, self.table.rowCount()):
+                                    if next_row < len(self.current_project.segments):
+                                        next_seg = self.current_project.segments[next_row]
+                                        if next_seg.status not in ['confirmed', 'approved']:
+                                            # Check pagination
+                                            if self.table.isRowHidden(next_row):
+                                                if hasattr(self, 'grid_page_size') and hasattr(self, 'grid_current_page'):
+                                                    target_page = next_row // self.grid_page_size
+                                                    if target_page != self.grid_current_page:
+                                                        self.grid_current_page = target_page
+                                                        self._update_pagination_ui()
+                                                        self._apply_pagination_to_grid()
+                                            
+                                            self.table.setCurrentCell(next_row, 3)
+                                            self.log(f"⏭️ Auto-skipped to next unconfirmed segment {next_seg.id}")
+                                            next_target_widget = self.table.cellWidget(next_row, 3)
+                                            if next_target_widget:
+                                                next_target_widget.setFocus()
+                                                next_target_widget.moveCursor(QTextCursor.MoveOperation.End)
+                                            
+                                            # Recursively check if this next segment also has a 100% match
+                                            self.confirm_and_next_unconfirmed()
+                                            return
+                                
+                                # No more unconfirmed segments after this one
+                                self.log("✅ No more unconfirmed segments after auto-confirm")
+                                return
+                    
+                    # Get the target cell widget and set focus to it (normal behavior without auto-confirm)
                     target_widget = self.table.cellWidget(row, 3)
                     if target_widget:
                         target_widget.setFocus()
@@ -31086,6 +31414,17 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         # No more unconfirmed segments, just go to next
         if current_row < self.table.rowCount() - 1:
             next_row = current_row + 1
+            
+            # Check if row is hidden due to pagination
+            if self.table.isRowHidden(next_row):
+                # Calculate which page this row is on and switch to it
+                if hasattr(self, 'grid_page_size') and hasattr(self, 'grid_current_page'):
+                    target_page = next_row // self.grid_page_size
+                    if target_page != self.grid_current_page:
+                        self.grid_current_page = target_page
+                        self._update_pagination_ui()
+                        self._apply_pagination_to_grid()
+            
             self.table.setCurrentCell(next_row, 3)  # Column 3 = Target (widget column)
             self.log(f"⏭️ Moved to next segment (all remaining confirmed)")
             # Get the target cell widget and set focus to it
@@ -33924,7 +34263,9 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             response.raise_for_status()
             
             result = response.json()
-            return result['data']['translations'][0]['translatedText']
+            translated_text = result['data']['translations'][0]['translatedText']
+            # Unescape HTML entities like &quot; &amp; etc.
+            return html.unescape(translated_text)
             
         except ImportError:
             return "[Google Translate requires: pip install requests]"

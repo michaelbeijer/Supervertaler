@@ -44,6 +44,7 @@ class CompactMatchItem(QFrame):
     font_size_pt = 9
     show_tags = False  # When False, HTML/XML tags are hidden
     tag_highlight_color = '#7f0001'  # Default memoQ dark red for tag highlighting
+    badge_text_color = '#333333'  # Dark gray for badge text (readable without being harsh)
     theme_manager = None  # Class-level theme manager reference
     
     def __init__(self, match: TranslationMatch, match_number: int = 0, parent=None):
@@ -384,19 +385,19 @@ class CompactMatchItem(QFrame):
         """Update visual styling based on selection state and match type"""
         # Color code by match type: LLM=purple, TM=red, Termbase=green, MT=orange, NT=gray, NonTrans=yellow
         base_color_map = {
-            "LLM": "#6a1b9a",  # Darker purple for LLM translations
-            "TM": "#c62828",  # Darker red for Translation Memory
-            "Termbase": "#2e7d32",  # Darker green for all termbase matches (Material Design Green 800)
-            "MT": "#e65100",  # Darker orange for Machine Translation
-            "NT": "#6c757d",  # Darker gray for New Translation
-            "NonTrans": "#B8960F"  # Darker yellow for Non-Translatables
+            "LLM": "#9c27b0",  # Purple for LLM translations
+            "TM": "#ff6b6b",  # Red for Translation Memory
+            "Termbase": "#4CAF50",  # Green for all termbase matches (Material Design Green 500)
+            "MT": "#ff9800",  # Orange for Machine Translation
+            "NT": "#adb5bd",  # Gray for New Translation
+            "NonTrans": "#E6C200"  # Pastel yellow for Non-Translatables
         }
 
         base_color = base_color_map.get(self.match.match_type, "#adb5bd")
         
         # Special styling for Non-Translatables
         if self.match.match_type == "NonTrans":
-            type_color = "#B8960F"  # Darker yellow background
+            type_color = "#FFFDD0"  # Pastel yellow background
         # For termbase matches, apply ranking-based green shading
         elif self.match.match_type == "Termbase":
             is_forbidden = self.match.metadata.get('forbidden', False)
@@ -408,42 +409,43 @@ class CompactMatchItem(QFrame):
             is_project_termbase = is_effective_project  # For later use in background styling
 
             if is_forbidden:
-                type_color = "#1a1a1a"  # Forbidden terms: very dark gray (better than pure black)
+                type_color = "#000000"  # Forbidden terms: black
             else:
-                # Use ranking to determine darker green shade
-                # All shades are darker for better white text contrast
+                # Use ranking to determine soft pastel green shade
+                # All shades are subtle to stay in the background
                 if termbase_ranking is not None:
-                    # Map ranking to darker green shades:
-                    # Ranking #1: Dark green
-                    # Ranking #2: Medium-dark green
-                    # Ranking #3: Medium green
-                    # Ranking #4+: Lighter green
+                    # Map ranking to soft pastel green shades:
+                    # Ranking #1: Soft medium green (Green 200)
+                    # Ranking #2: Soft light green (Green 100)
+                    # Ranking #3: Very soft light green (Light Green 100)
+                    # Ranking #4+: Extremely soft pastel green (Green 50)
                     ranking_colors = {
-                        1: "#2e7d32",  # Dark green (Green 800)
-                        2: "#388e3c",  # Medium-dark green (Green 700)
-                        3: "#43a047",  # Medium green (Green 600)
+                        1: "#A5D6A7",  # Soft medium green (Green 200)
+                        2: "#C8E6C9",  # Soft light green (Green 100)
+                        3: "#DCEDC8",  # Very soft light green (Light Green 100)
                     }
-                    type_color = ranking_colors.get(termbase_ranking, "#4caf50")  # Green 500 for 4+
+                    type_color = ranking_colors.get(termbase_ranking, "#E8F5E9")  # Green 50 for 4+
                 else:
-                    # No ranking - use medium-dark green
-                    type_color = "#388e3c"  # Green 700 (fallback)
+                    # No ranking - use soft light green
+                    type_color = "#C8E6C9"  # Green 100 (fallback)
         else:
             type_color = base_color
         
         # Update styling only for the number label, not the entire item
         if hasattr(self, 'num_label_ref') and self.num_label_ref:
             if self.is_selected:
-                # Selected: darker shade of type color with white text
+                # Selected: darker shade of type color with black text and outline
                 darker_color = self._darken_color(type_color)
                 self.num_label_ref.setStyleSheet(f"""
                     QLabel {{
                         background-color: {darker_color};
-                        color: white;
+                        color: black;
                         font-weight: bold;
-                        font-size: 9px;
-                        min-width: 20px;
+                        font-size: 10px;
+                        min-width: 22px;
                         padding: 2px;
                         border-radius: 2px;
+                        border: 1px solid rgba(255, 255, 255, 0.3);
                     }}
                 """)
                 # Add background to the entire item only when selected
@@ -454,16 +456,17 @@ class CompactMatchItem(QFrame):
                     }}
                 """)
             else:
-                # Unselected: number badge colored (same styling for all match types)
+                # Unselected: number badge colored with customizable text color and subtle outline
                 self.num_label_ref.setStyleSheet(f"""
                     QLabel {{
                         background-color: {type_color};
-                        color: white;
+                        color: {CompactMatchItem.badge_text_color};
                         font-weight: bold;
-                        font-size: 9px;
-                        min-width: 20px;
+                        font-size: 10px;
+                        min-width: 22px;
                         padding: 1px;
                         border-radius: 2px;
+                        border: 1px solid rgba(255, 255, 255, 0.4);
                     }}
                 """)
                 # Use theme colors for background if available

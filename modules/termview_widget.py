@@ -406,7 +406,7 @@ class TermviewWidget(QWidget):
             info_text = "#999"
 
         # Header
-        header = QLabel("🔍 Termview - Inline Terminology")
+        header = QLabel("")  # Empty - tab already shows the name
         header.setStyleSheet(f"""
             QLabel {{
                 font-weight: bold;
@@ -417,6 +417,7 @@ class TermviewWidget(QWidget):
                 border-radius: 4px;
             }}
         """)
+        header.hide()  # Hide the header to save space
         layout.addWidget(header)
 
         # Scroll area for term blocks

@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** January 9, 2026 | **Version:** v1.9.86
+> **Last Updated:** January 9, 2026 | **Version:** v1.9.87
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.86 (January 2026) |
+| **Version** | v1.9.87 (January 2026) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -455,6 +455,60 @@ google_api_key=AI...
 ---
 
 ## 🔄 Recent Development History
+
+### January 9, 2026 - Version 1.9.87: Auto-Confirm & Tab Layout
+
+**⚡ Auto-Confirm 100% TM Matches Feature**
+
+Implemented intelligent auto-confirmation system for perfect TM matches during Ctrl+Enter navigation:
+
+- **Core Feature**: Automatically inserts, confirms, and skips segments with 100% TM matches
+- **Recursive Logic**: Continues processing multiple consecutive 100% matches until finding segment needing manual work
+- **Safety Check**: Only auto-confirms segments with empty targets (won't overwrite existing translations)
+- **Hash-Based Lookup**: Uses `get_exact_match()` for instant O(1) MD5 hash-based matching
+- **TM Integration**: Auto-confirmed segments automatically saved to activated Translation Memories
+- **Pagination Handling**: Correctly switches pages when auto-skipping across page boundaries
+
+**Implementation Journey** (5 iterations):
+1. Initial implementation with fuzzy search
+2. Fixed AttributeError: get_activated_tms() doesn't exist → use tm_settings
+3. Fixed TypeError: limit parameter → changed to max_results
+4. Switched from fuzzy to exact match (fuzzy returned 0 for 100% matches)
+5. Added empty target check for safety
+
+**Code Locations:**
+- `Supervertaler.py` line 4747: Instance variable initialization
+- `Supervertaler.py` lines 13468-13477: UI checkbox in General Settings
+- `Supervertaler.py` lines 16243-16245: Save/load settings
+- `Supervertaler.py` lines 31250-31438: Complete navigation logic with recursion
+
+**📐 Tab Layout Customization Feature**
+
+Added optional setting to move Termview and Session Log tabs above or below the grid:
+
+- **New Setting**: "Show Termview/Session Log tabs above grid" checkbox in View Settings → Tab Layout
+- **Persistence**: Setting saved to general_settings.json and restored on app start  
+- **Layout Logic**: Conditional widget ordering in `create_main_layout()` based on `self.tabs_above_grid` flag
+- **Splitter Sizes**: Adjusted proportions for both layouts (200/600 for tabs above, 600/200 for tabs below)
+
+**Code Locations:**
+- `Supervertaler.py` line 4751: Instance variable `self.tabs_above_grid`
+- `Supervertaler.py` lines 14287-14306: UI checkbox in View Settings
+- `Supervertaler.py` lines 16243-16245, 24693-24694: Save/load
+- `Supervertaler.py` lines 17016-17027: Conditional layout creation
+
+**🎨 UI Polish & Bug Fixes**
+
+- **Segment Column Width**: Increased from 35px to 55px (fits 4-digit segment numbers)
+- **Auto-Center Persistence**: Fixed "Keep Active Segment Centered" not saving between sessions
+- **Badge Text Color**: Changed from black to dark gray (#333333) for better appearance
+- **Color Customization**: Added badge text color picker with 8 preset colors
+- **Settings Rename**: "View/Display" → "View Settings" for clarity
+
+**Files Modified:**
+- `Supervertaler.py` - All implementations above
+
+---
 
 ### January 9, 2026 - Version 1.9.86: Glossary Duplicate Prevention & Priority Filtering
 
