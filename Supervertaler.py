@@ -37818,7 +37818,34 @@ class SuperlookupTab(QWidget):
         # Get search term for highlighting
         search_text = self.source_text.currentText().strip().lower()
         
+        # Filter duplicates: if same source→target exists in multiple glossaries,
+        # only keep the one with highest priority (lowest number)
+        filtered_results = []
+        seen_pairs = {}  # (source_lower, target_lower) -> (result, priority)
+        
         for result in results:
+            source_lower = result.source.lower()
+            target_lower = result.target.lower()
+            pair_key = (source_lower, target_lower)
+            
+            # Get priority from metadata (default to 99 if not specified)
+            metadata = result.metadata or {}
+            priority = metadata.get('priority', 99)
+            
+            if pair_key in seen_pairs:
+                # Duplicate found - keep only the higher priority (lower number)
+                existing_result, existing_priority = seen_pairs[pair_key]
+                if priority < existing_priority:
+                    # This one has higher priority, replace the existing one
+                    seen_pairs[pair_key] = (result, priority)
+            else:
+                # First occurrence of this pair
+                seen_pairs[pair_key] = (result, priority)
+        
+        # Convert filtered dict back to list
+        filtered_results = [result for result, priority in seen_pairs.values()]
+        
+        for result in filtered_results:
             row = self.termbase_results_table.rowCount()
             self.termbase_results_table.insertRow(row)
             
@@ -38432,7 +38459,7 @@ class SuperlookupTab(QWidget):
             
             # Add term to termbase
             try:
-                self.termbase_mgr.add_term(
+                term_id = self.termbase_mgr.add_term(
                     termbase_id=termbase_id,
                     source_term=source,
                     target_term=target,
@@ -38442,11 +38469,17 @@ class SuperlookupTab(QWidget):
                     client=""
                 )
                 
+                if term_id is None:
+                    # Duplicate detected
+                    QMessageBox.warning(self, "Duplicate Term", 
+                        f"This term already exists in {termbase_combo.currentText()}:\n\n{source} → {target}\n\nDuplicate terms are not allowed.")
+                    return
+                
                 if hasattr(self.main_window, 'log'):
                     self.main_window.log(f"✓ Added term to {termbase_combo.currentText()}: {source} → {target}")
                 
                 QMessageBox.information(self, "Term Added", 
-                    f"Successfully added term:\n\n{source} → {target}\n\nto termbase: {termbase_combo.currentText()}")
+                    f"Successfully added term:\n\n{source} → {target}\n\nto glossary: {termbase_combo.currentText()}")
                 
                 # Refresh termbase results
                 self.perform_lookup()

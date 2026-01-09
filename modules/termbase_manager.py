@@ -640,11 +640,24 @@ class TermbaseManager:
             term_uuid: Optional UUID for tracking term across imports/exports
             
         Returns:
-            Term ID or None if failed
+            Term ID or None if failed (returns None if duplicate found)
         """
         try:
             import uuid
             cursor = self.db_manager.cursor
+            
+            # Check for duplicate (case-insensitive check)
+            cursor.execute("""
+                SELECT id FROM termbase_terms
+                WHERE termbase_id = ?
+                AND LOWER(source_term) = LOWER(?)
+                AND LOWER(target_term) = LOWER(?)
+            """, (termbase_id, source_term, target_term))
+            
+            existing = cursor.fetchone()
+            if existing:
+                self.log(f"⚠️ Duplicate term not added: {source_term} → {target_term} (already exists in termbase {termbase_id})")
+                return None
             
             # Generate UUID if not provided
             if not term_uuid:
