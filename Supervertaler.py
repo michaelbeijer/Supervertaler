@@ -5402,6 +5402,14 @@ class SupervertalerQt(QMainWindow):
         # F5 - Force refresh matches (clear all caches and re-search)
         self.shortcut_force_refresh = QShortcut(QKeySequence("F5"), self)
         self.shortcut_force_refresh.activated.connect(self.force_refresh_matches)
+        
+        # Ctrl+Shift+1 - Quick add term with Priority 1
+        self.shortcut_quick_add_p1 = QShortcut(QKeySequence("Ctrl+Shift+1"), self)
+        self.shortcut_quick_add_p1.activated.connect(lambda: self._quick_add_term_with_priority(1))
+        
+        # Ctrl+Shift+2 - Quick add term with Priority 2
+        self.shortcut_quick_add_p2 = QShortcut(QKeySequence("Ctrl+Shift+2"), self)
+        self.shortcut_quick_add_p2.activated.connect(lambda: self._quick_add_term_with_priority(2))
 
     def _setup_progress_indicators(self):
         """Setup permanent progress indicator widgets in the status bar"""
@@ -10182,6 +10190,112 @@ class SupervertalerQt(QMainWindow):
                 self.termbase_tab_refresh_callback()
         else:
             QMessageBox.warning(self, "Error", "Failed to add term. It may already exist in the glossary.")
+
+    def _quick_add_term_with_priority(self, priority: int):
+        """Quick add selected term pair to glossary with specified priority (Ctrl+Shift+1/2)
+        
+        Gets selected text from source and target cells, then adds to the last-used
+        glossary with the specified priority level.
+        
+        Args:
+            priority: Priority level (1=highest, 2=second highest, etc.)
+        """
+        # Get current row
+        current_row = self.table.currentRow() if hasattr(self, 'table') and self.table else -1
+        if current_row < 0:
+            self.statusBar().showMessage("No segment selected", 3000)
+            return
+        
+        # Get source selection
+        source_widget = self.table.cellWidget(current_row, 2)
+        source_text = ""
+        if source_widget and hasattr(source_widget, 'textCursor'):
+            source_text = source_widget.textCursor().selectedText().strip()
+        
+        # Get target selection
+        target_widget = self.table.cellWidget(current_row, 3)
+        target_text = ""
+        if target_widget and hasattr(target_widget, 'textCursor'):
+            target_text = target_widget.textCursor().selectedText().strip()
+        
+        # Validate selections
+        if not source_text or not target_text:
+            self.statusBar().showMessage("Select text in both Source and Target cells first", 3000)
+            return
+        
+        # Check prerequisites
+        if not hasattr(self, 'current_project') or not self.current_project:
+            self.statusBar().showMessage("No project open", 3000)
+            return
+        
+        if not hasattr(self, 'termbase_mgr') or not self.termbase_mgr:
+            self.statusBar().showMessage("Glossary manager not initialized", 3000)
+            return
+        
+        if not hasattr(self, '_last_selected_termbase_ids') or not self._last_selected_termbase_ids:
+            self.statusBar().showMessage("Use Ctrl+E first to select a glossary", 3000)
+            return
+        
+        # Get termbases
+        all_termbases = self.termbase_mgr.get_all_termbases()
+        target_termbases = [tb for tb in all_termbases if tb['id'] in self._last_selected_termbase_ids]
+        
+        if not target_termbases:
+            self.statusBar().showMessage("Previously selected glossary not found - use Ctrl+E", 3000)
+            self._last_selected_termbase_ids = None
+            return
+        
+        # Get language codes
+        source_lang = self.current_project.source_lang if self.current_project else 'English'
+        target_lang = self.current_project.target_lang if self.current_project else 'Dutch'
+        source_lang_code = self._convert_language_to_code(source_lang)
+        target_lang_code = self._convert_language_to_code(target_lang)
+        
+        self.log(f"⚡ Quick-adding term (P{priority}): {source_text} → {target_text}")
+        
+        success_count = 0
+        for target_termbase in target_termbases:
+            try:
+                term_id = self.termbase_mgr.add_term(
+                    termbase_id=target_termbase['id'],
+                    source_term=source_text,
+                    target_term=target_text,
+                    source_lang=source_lang_code,
+                    target_lang=target_lang_code,
+                    priority=priority,  # Set the priority!
+                    notes="",
+                    domain="",
+                    project="",
+                    client="",
+                    forbidden=False
+                )
+                
+                if term_id:
+                    success_count += 1
+                    self.log(f"✓ Added (P{priority}): {source_text} → {target_text} to '{target_termbase['name']}'")
+            except Exception as e:
+                self.log(f"✗ Error adding term: {e}")
+        
+        if success_count > 0:
+            termbase_name = target_termbases[0]['name'] if len(target_termbases) == 1 else f"{success_count} glossaries"
+            self.statusBar().showMessage(f"✓ Added (P{priority}): {source_text} → {target_text} ({termbase_name})", 3000)
+            
+            # Refresh caches and display
+            if current_row < len(self.current_project.segments):
+                segment = self.current_project.segments[current_row]
+                with self.translation_matches_cache_lock:
+                    if segment.id in self.translation_matches_cache:
+                        del self.translation_matches_cache[segment.id]
+                with self.termbase_cache_lock:
+                    if segment.id in self.termbase_cache:
+                        del self.termbase_cache[segment.id]
+                self._last_selected_row = -1
+                self.on_cell_selected(current_row, self.table.currentColumn(), -1, -1)
+            
+            if hasattr(self, 'termbase_tab_refresh_callback') and self.termbase_tab_refresh_callback:
+                self.termbase_tab_refresh_callback()
+        else:
+            self.statusBar().showMessage("Term already exists in glossary", 3000)
 
     def add_text_to_non_translatables(self, text: str):
         """Add selected text to active non-translatable list(s)"""

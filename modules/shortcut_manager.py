@@ -371,6 +371,20 @@ class ShortcutManager:
             "action": "quick_add_to_termbase",
             "context": "grid_editor"
         },
+        "editor_quick_add_priority_1": {
+            "category": "Editor",
+            "description": "Quick add term pair with Priority 1",
+            "default": "Ctrl+Shift+1",
+            "action": "quick_add_term_priority_1",
+            "context": "grid_editor"
+        },
+        "editor_quick_add_priority_2": {
+            "category": "Editor",
+            "description": "Quick add term pair with Priority 2",
+            "default": "Ctrl+Shift+2",
+            "action": "quick_add_term_priority_2",
+            "context": "grid_editor"
+        },
         "editor_add_to_non_translatables": {
             "category": "Editor",
             "description": "Add selected text to non-translatables list",
