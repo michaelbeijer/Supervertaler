@@ -569,6 +569,18 @@ class TermviewWidget(QWidget):
             self.info_label.setText("No segment selected")
             return
         
+        # Strip HTML/XML tags from source text for display in TermView
+        # This handles CAT tool tags like <b>, </b>, <i>, </i>, <u>, </u>, <bi>, <sub>, <sup>, <li-o>, <li-b>
+        # as well as memoQ tags {1}, [2}, {3], Trados tags <1>, </1>, and Déjà Vu tags {00001}
+        display_text = re.sub(r'</?(?:b|i|u|bi|sub|sup|li-[ob]|\d+)/?>', '', source_text)  # HTML/XML tags
+        display_text = re.sub(r'[\[{]\d+[}\]]', '', display_text)  # memoQ/Phrase tags: {1}, [2}, {3]
+        display_text = re.sub(r'\{\d{5}\}', '', display_text)  # Déjà Vu tags: {00001}
+        display_text = display_text.strip()
+        
+        # If stripping tags leaves nothing, fall back to original
+        if not display_text:
+            display_text = source_text
+        
         has_termbase = termbase_matches and len(termbase_matches) > 0
         has_nt = nt_matches and len(nt_matches) > 0
         
@@ -628,8 +640,8 @@ class TermviewWidget(QWidget):
             if nt_key not in all_terms_dict:
                 all_terms_dict[nt_key] = []  # Empty list = NT only
         
-        # Tokenize source text, respecting multi-word terms
-        tokens = self.tokenize_with_multiword_terms(source_text, all_terms_dict)
+        # Tokenize the tag-stripped display text, respecting multi-word terms
+        tokens = self.tokenize_with_multiword_terms(display_text, all_terms_dict)
         
         if not tokens:
             self.info_label.setText("No words to analyze")
@@ -639,9 +651,14 @@ class TermviewWidget(QWidget):
         blocks_with_translations = 0
         blocks_with_nt = 0
         
+        # Comprehensive set of quote and punctuation characters to strip
+        # Using Unicode escapes to avoid encoding issues
+        PUNCT_CHARS = '.,;:!?\"\'\u201C\u201D\u201E\u00AB\u00BB\u2018\u2019\u201A\u2039\u203A'
+        
         for token in tokens:
-            # Strip trailing punctuation for lookup
-            token_clean = token.rstrip('.,;:!?')
+            # Strip leading and trailing punctuation/quotes for lookup
+            token_clean = token.rstrip(PUNCT_CHARS)
+            token_clean = token_clean.lstrip(PUNCT_CHARS)
             lookup_key = token_clean.lower()
             
             # Check if this is a non-translatable
@@ -745,6 +762,12 @@ class TermviewWidget(QWidget):
                     source_lower = source_term.lower()
                     text_lower = text.lower()
                     
+                    # Normalize text: replace ALL quote variants with spaces
+                    # Using Unicode escapes to avoid encoding issues
+                    normalized_text = text_lower
+                    for quote_char in '\"\'\u201C\u201D\u201E\u00AB\u00BB\u2018\u2019\u201A\u2039\u203A':
+                        normalized_text = normalized_text.replace(quote_char, ' ')
+                    
                     # Use word boundaries to match complete words/phrases only
                     if ' ' in source_term:
                         # Multi-word term - must exist as exact phrase
@@ -753,7 +776,8 @@ class TermviewWidget(QWidget):
                         # Single word
                         pattern = r'\b' + re.escape(source_lower) + r'\b'
                     
-                    if not re.search(pattern, text_lower):
+                    # Try matching on normalized text first, then original
+                    if not re.search(pattern, normalized_text) and not re.search(pattern, text_lower):
                         continue  # Skip - term not actually in segment
                     
                     key = source_lower

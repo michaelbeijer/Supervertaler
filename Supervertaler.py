@@ -5408,6 +5408,10 @@ class SupervertalerQt(QMainWindow):
         # Ctrl+G - Go to segment
         self.shortcut_goto = QShortcut(QKeySequence("Ctrl+G"), self)
         self.shortcut_goto.activated.connect(self.show_goto_dialog)
+        
+        # F5 - Force refresh matches (clear all caches and re-search)
+        self.shortcut_force_refresh = QShortcut(QKeySequence("F5"), self)
+        self.shortcut_force_refresh.activated.connect(self.force_refresh_matches)
 
     def _setup_progress_indicators(self):
         """Setup permanent progress indicator widgets in the status bar"""
@@ -16892,7 +16896,7 @@ class SupervertalerQt(QMainWindow):
         filter_layout.addWidget(show_invisibles_btn_home)
         filter_layout.addWidget(self.spellcheck_btn)
         
-        grid_layout.addWidget(filter_panel)
+        # Don't add filter_panel to grid_layout yet - will be positioned based on tabs_above_grid setting
         
         # Pagination controls (like Tkinter version)
         pagination_panel = QWidget()
@@ -16973,7 +16977,18 @@ class SupervertalerQt(QMainWindow):
         self.page_size_combo.setMaximumWidth(80)
         pagination_layout.addWidget(self.page_size_combo)
         
-        grid_layout.addWidget(pagination_panel)
+        # Create a combined filter + pagination container for flexible positioning
+        filter_pagination_container = QWidget()
+        filter_pagination_layout = QVBoxLayout(filter_pagination_container)
+        filter_pagination_layout.setContentsMargins(0, 0, 0, 0)
+        filter_pagination_layout.setSpacing(2)
+        filter_pagination_layout.addWidget(filter_panel)
+        filter_pagination_layout.addWidget(pagination_panel)
+        
+        # Store reference for later positioning
+        self.filter_pagination_container = filter_pagination_container
+        
+        # Note: filter_pagination_container will be added to layout based on tabs_above_grid setting
         
         # Note: Pagination methods (go_to_first_page, go_to_prev_page, etc.) will be implemented
         # when pagination functionality is fully added. For now, buttons are created but won't work.
@@ -17158,24 +17173,35 @@ class SupervertalerQt(QMainWindow):
         # Store reference to bottom_tabs for later access
         self.bottom_tabs = bottom_tabs
         
-        # Add widgets to splitter based on tabs_above_grid setting
+        # Create a container for the left side that will hold everything
+        left_container = QWidget()
+        left_container_layout = QVBoxLayout(left_container)
+        left_container_layout.setContentsMargins(0, 0, 0, 0)
+        left_container_layout.setSpacing(0)
+        
+        # Add widgets based on tabs_above_grid setting
         if self.tabs_above_grid:
-            # Tabs above grid
+            # Layout: Filter/Pagination → Termview tabs → Grid
+            # This keeps terminology matches closest to the segment being edited
+            left_container_layout.addWidget(filter_pagination_container)
             left_vertical_splitter.addWidget(bottom_tabs)
             left_vertical_splitter.addWidget(grid_container)
             # Set vertical splitter proportions: Tabs smaller, grid larger
             left_vertical_splitter.setSizes([200, 600])
         else:
-            # Tabs below grid (default)
+            # Layout: Filter/Pagination → Grid → Termview tabs (default)
+            left_container_layout.addWidget(filter_pagination_container)
             left_vertical_splitter.addWidget(grid_container)
             left_vertical_splitter.addWidget(bottom_tabs)
             # Set vertical splitter proportions: Grid larger, tabs smaller
             left_vertical_splitter.setSizes([600, 200])
+        
+        left_container_layout.addWidget(left_vertical_splitter)
         left_vertical_splitter.setHandleWidth(8)
         left_vertical_splitter.setChildrenCollapsible(False)
         
         # Add left side to main horizontal splitter
-        main_horizontal_splitter.addWidget(left_vertical_splitter)
+        main_horizontal_splitter.addWidget(left_container)
         
         # Right side: Translation Results panel with Preview tab
         from modules.translation_results_panel import TranslationResultsPanel
@@ -25839,6 +25865,26 @@ class SupervertalerQt(QMainWindow):
                                     except Exception as e:
                                         self.log(f"Error displaying cached matches: {e}")
                             
+                            # 🔄 Update TermView with cached termbase matches (always update, even if empty)
+                            if hasattr(self, 'termview_widget') and self.current_project:
+                                try:
+                                    # Convert TranslationMatch objects to dict format for termview
+                                    termbase_matches = [
+                                        {
+                                            'source_term': match.source,
+                                            'target_term': match.target,
+                                            'termbase_name': match.metadata.get('termbase_name', '') if match.metadata else '',
+                                            'ranking': match.metadata.get('ranking', 99) if match.metadata else 99,
+                                            'is_project_termbase': match.metadata.get('is_project_termbase', False) if match.metadata else False
+                                        }
+                                        for match in cached_matches.get("Termbases", [])
+                                    ]
+                                    # Also get NT matches (fresh, not cached - they may have changed)
+                                    nt_matches = self.find_nt_matches_in_source(segment.source)
+                                    self.termview_widget.update_with_matches(segment.source, termbase_matches, nt_matches)
+                                except Exception as e:
+                                    self.log(f"Error updating termview from cache: {e}")
+                            
                             # 🎯 AUTO-INSERT 100% TM MATCH from cache (if enabled in settings)
                             self.log(f"🎯 CACHE: Auto-insert setting: {self.auto_insert_100_percent_matches}, TM count: {tm_count}")
                             self.log(f"🎯 CACHE: Segment target: '{segment.target}' (length={len(segment.target)}, stripped='{segment.target.strip()}')")
@@ -28376,12 +28422,17 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             source_text_lower = source_text.lower()
             # Only log word count, not individual words (too verbose)
             
+            # Comprehensive set of quote and punctuation characters to strip
+            # Includes: straight quotes, curly quotes (left/right), German quotes, guillemets, single quotes
+            # Using explicit characters to avoid encoding issues
+            PUNCT_CHARS = '.,!?;:\"\'\u201C\u201D\u201E\u00AB\u00BB\u2018\u2019\u201A\u2039\u203A'
+            
             for word in words:
-                # Remove ONLY trailing punctuation (preserve internal punctuation like "gew.%")
+                # Remove punctuation including quotes (preserve internal punctuation like "gew.%")
                 # First strip trailing punctuation
-                clean_word = word.rstrip('.,!?;:')
+                clean_word = word.rstrip(PUNCT_CHARS)
                 # Then strip leading punctuation
-                clean_word = clean_word.lstrip('.,!?;:')
+                clean_word = clean_word.lstrip(PUNCT_CHARS)
                 
                 if len(clean_word) < 2:  # Skip short words
                     continue
@@ -28417,13 +28468,20 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                         # FILTER: Only keep if full source term appears in source text (case-insensitive)
                         # Use lookaround word boundaries to handle terms with punctuation like "gew.%"
                         import re
+                        # Normalize source text: replace ALL quote variants with spaces
+                        # This ensures word boundaries work correctly for terms in quotes
+                        # Using Unicode escapes to avoid encoding issues
+                        normalized_source = source_text_lower
+                        for quote_char in '\"\'\u201C\u201D\u201E\u00AB\u00BB\u2018\u2019\u201A\u2039\u203A':
+                            normalized_source = normalized_source.replace(quote_char, ' ')
                         # Check if term has punctuation - use different pattern
                         if any(char in source_term for char in ['.', '%', ',', '-', '/']):
                             pattern = re.compile(r'(?<!\w)' + re.escape(source_term.lower()) + r'(?!\w)')
                         else:
                             pattern = re.compile(r"\b" + re.escape(source_term.lower()) + r"\b")
                         
-                        if not pattern.search(source_text_lower):
+                        # Try matching on normalized text first, then original
+                        if not pattern.search(normalized_source) and not pattern.search(source_text_lower):
                             # Skip terms whose full phrase isn't in the segment
                             continue
                         # CRITICAL FIX: Use term_id as dict key instead of source_term
@@ -28592,27 +28650,28 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         
         from PyQt6.QtWidgets import QCheckBox, QGroupBox, QToolButton, QFrame, QSplitter
         
-        # Get selected text from source or target cells to pre-fill the dialog
+        # Get selected text from source or target cells to pre-fill the Find field
+        # Selected text always goes to Find What, never to Replace With
         prefill_find = ""
-        prefill_replace = ""
         
         current_row = self.table.currentRow() if hasattr(self, 'table') and self.table else -1
         if current_row >= 0:
-            # Check source cell for selection
-            source_widget = self.table.cellWidget(current_row, 2)
-            if source_widget and hasattr(source_widget, 'textCursor'):
-                source_selection = source_widget.textCursor().selectedText().strip()
-                if source_selection:
-                    prefill_find = source_selection
-                    self.log(f"🔍 Pre-filling Find with source selection: '{source_selection}'")
-            
-            # Check target cell for selection
+            # Check target cell first (most common case - user is editing target)
             target_widget = self.table.cellWidget(current_row, 3)
             if target_widget and hasattr(target_widget, 'textCursor'):
                 target_selection = target_widget.textCursor().selectedText().strip()
                 if target_selection:
-                    prefill_replace = target_selection
-                    self.log(f"🔍 Pre-filling Replace with target selection: '{target_selection}'")
+                    prefill_find = target_selection
+                    self.log(f"🔍 Pre-filling Find with target selection: '{target_selection}'")
+            
+            # If no target selection, check source cell
+            if not prefill_find:
+                source_widget = self.table.cellWidget(current_row, 2)
+                if source_widget and hasattr(source_widget, 'textCursor'):
+                    source_selection = source_widget.textCursor().selectedText().strip()
+                    if source_selection:
+                        prefill_find = source_selection
+                        self.log(f"🔍 Pre-filling Find with source selection: '{source_selection}'")
         
         # Disable background lookups while find/replace is active
         self.find_replace_active = True
@@ -28651,7 +28710,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         replace_layout.addWidget(replace_label)
         self.replace_input = HistoryComboBox()
         self.replace_input.set_history(self.fr_history.replace_history)
-        self.replace_input.setText(prefill_replace)
+        # Replace field always starts empty - user fills in what they want to replace with
         replace_layout.addWidget(self.replace_input, stretch=1)
         main_v_layout.addLayout(replace_layout)
         
@@ -29374,6 +29433,173 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         self.current_match_index = -1
         self.log("Search highlights cleared")
     
+    def force_refresh_matches(self):
+        """Force refresh all glossary and TM matches for current segment (F5)
+        
+        Clears all caches and performs a fresh search on:
+        - All connected glossaries/termbases
+        - All translation memories
+        """
+        if not self.current_project:
+            self.statusBar().showMessage("No project open", 3000)
+            return
+        
+        # Get current segment
+        current_row = self.table.currentRow()
+        if current_row < 0:
+            self.statusBar().showMessage("No segment selected", 3000)
+            return
+        
+        # Get segment ID from the grid cell
+        id_item = self.table.item(current_row, 0)
+        if not id_item:
+            self.statusBar().showMessage("Could not find segment", 3000)
+            return
+        
+        try:
+            segment_id = int(id_item.text())
+        except (ValueError, AttributeError):
+            self.statusBar().showMessage("Invalid segment ID", 3000)
+            return
+        
+        # Find the segment
+        segment = next((seg for seg in self.current_project.segments if seg.id == segment_id), None)
+        if not segment:
+            self.statusBar().showMessage(f"Segment {segment_id} not found", 3000)
+            return
+        
+        self.log(f"🔄 Force refresh: Clearing all caches for segment {segment_id}...")
+        
+        # 1. Clear termbase cache for this segment (and all segments to be safe)
+        with self.termbase_cache_lock:
+            self.termbase_cache.clear()
+            self.log("   ✓ Termbase cache cleared")
+        
+        # 2. Clear translation matches cache for this segment
+        with self.translation_matches_cache_lock:
+            if segment_id in self.translation_matches_cache:
+                del self.translation_matches_cache[segment_id]
+            self.log("   ✓ Translation matches cache cleared for this segment")
+        
+        # 3. Force fresh termbase search
+        self.log("   🔍 Searching termbases...")
+        termbase_matches = self.find_termbase_matches_in_source(segment.source)
+        tb_count = len(termbase_matches) if termbase_matches else 0
+        self.log(f"   ✓ Found {tb_count} termbase matches")
+        
+        # 4. Force fresh TM search
+        self.log("   🔍 Searching translation memories...")
+        tm_matches = []
+        if hasattr(self, 'tm_manager') and self.tm_manager:
+            try:
+                # Get enabled TMs
+                tm_settings = getattr(self.current_project, 'tm_settings', {})
+                enabled_tms = tm_settings.get('tms', [])
+                activated_tm_ids = [tm['tm_id'] for tm in enabled_tms if tm.get('read', False)]
+                
+                if activated_tm_ids:
+                    source_lang = self.current_project.source_lang if self.current_project else None
+                    target_lang = self.current_project.target_lang if self.current_project else None
+                    
+                    tm_matches = self.tm_manager.search_fuzzy(
+                        segment.source,
+                        source_lang=source_lang,
+                        target_lang=target_lang,
+                        tm_ids=activated_tm_ids,
+                        max_results=self.general_settings.get('match_limit_TM', 10),
+                        min_similarity=0.3
+                    )
+            except Exception as e:
+                self.log(f"   ⚠️ TM search error: {e}")
+        
+        tm_count = len(tm_matches) if tm_matches else 0
+        self.log(f"   ✓ Found {tm_count} TM matches")
+        
+        # 5. Get NT matches (fresh)
+        nt_matches = self.find_nt_matches_in_source(segment.source)
+        nt_count = len(nt_matches) if nt_matches else 0
+        
+        # 6. Update TermView with fresh results
+        if hasattr(self, 'termview_widget') and self.termview_widget:
+            try:
+                # Convert termbase matches dict to list format for termview
+                tb_list = []
+                for term_id, match_info in termbase_matches.items():
+                    tb_list.append({
+                        'source_term': match_info.get('source', ''),
+                        'target_term': match_info.get('translation', ''),
+                        'termbase_name': match_info.get('termbase_name', ''),
+                        'ranking': match_info.get('ranking', 99),
+                        'is_project_termbase': match_info.get('is_project_termbase', False),
+                        'target_synonyms': match_info.get('target_synonyms', [])
+                    })
+                self.termview_widget.update_with_matches(segment.source, tb_list, nt_matches)
+                self.log("   ✓ TermView updated")
+            except Exception as e:
+                self.log(f"   ⚠️ TermView update error: {e}")
+        
+        # 7. Update Translation Results panel with fresh results
+        if hasattr(self, 'results_panels'):
+            from modules.translation_results_panel import TranslationMatch
+            
+            # Build matches dict for panel
+            matches = {
+                "TM": [],
+                "Termbases": [],
+                "MT": [],
+                "LLM": []
+            }
+            
+            # Add TM matches
+            for tm_match in tm_matches:
+                matches["TM"].append(TranslationMatch(
+                    source=tm_match.get('source', ''),
+                    target=tm_match.get('target', ''),
+                    relevance=tm_match.get('similarity', 0) * 100,
+                    match_type="TM",
+                    metadata={
+                        'tm_name': tm_match.get('tm_name', 'Unknown TM'),
+                    }
+                ))
+            
+            # Add termbase matches
+            for term_id, match_info in termbase_matches.items():
+                matches["Termbases"].append(TranslationMatch(
+                    source=match_info.get('source', ''),
+                    target=match_info.get('translation', ''),
+                    relevance=100,  # Termbase matches are always exact
+                    match_type="Termbase",
+                    metadata={
+                        'termbase_name': match_info.get('termbase_name', ''),
+                        'ranking': match_info.get('ranking', 99),
+                        'is_project_termbase': match_info.get('is_project_termbase', False)
+                    }
+                ))
+            
+            for panel in self.results_panels:
+                try:
+                    panel.clear()
+                    panel.set_matches(matches)
+                except Exception as e:
+                    self.log(f"   ⚠️ Panel update error: {e}")
+            self.log("   ✓ Translation Results panel updated")
+        
+        # 8. Re-apply termbase highlighting in the grid source cell
+        try:
+            source_widget = self.table.cellWidget(current_row, 2)
+            if source_widget and hasattr(source_widget, 'highlight_termbase_matches'):
+                source_widget.highlight_termbase_matches(termbase_matches)
+                self.log("   ✓ Grid highlighting updated")
+            else:
+                self.log("   ⚠️ Could not find source widget for highlighting")
+        except Exception as e:
+            self.log(f"   ⚠️ Highlighting error: {e}")
+        
+        # Show status
+        total_matches = tb_count + tm_count + nt_count
+        self.statusBar().showMessage(f"🔄 Refreshed: {tb_count} glossary, {tm_count} TM, {nt_count} NT matches", 5000)
+        self.log(f"🔄 Force refresh complete: {total_matches} total matches for segment {segment_id}")
+
     def show_goto_dialog(self):
         """Show minimal dialog to jump to a specific segment - just type and press Enter"""
         if not self.current_project or not self.current_project.segments:

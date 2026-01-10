@@ -166,6 +166,12 @@ class ShortcutManager:
             "default": "Ctrl+Shift+A",
             "action": "show_autofingers"
         },
+        "tools_force_refresh": {
+            "category": "Resources",
+            "description": "Force Refresh Matches (clear cache)",
+            "default": "F5",
+            "action": "force_refresh_matches"
+        },
 
         # Special
         "voice_dictate": {
