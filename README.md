@@ -1,4 +1,4 @@
-# 🚀 Supervertaler v1.9.90
+# 🚀 Supervertaler v1.9.91
 
 [![PyPI version](https://badge.fury.io/py/supervertaler.svg)](https://pypi.org/project/Supervertaler/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
@@ -6,7 +6,7 @@
 
 🎯 **The Ultimate Translation Workbench** — Context-aware AI with intuitive 2-Layer Prompt Architecture, AI Assistant, project glossary system with automatic extraction, and specialized modules.
 
-**Current Version:** v1.9.90 (January 9, 2026)
+**Current Version:** v1.9.91 (January 10, 2026)
 **Framework:** PyQt6
 **Status:** Active Development
 
@@ -50,7 +50,14 @@ python Supervertaler.py
 
 **PyPI Package:** https://pypi.org/project/Supervertaler/
 
-### NEW in v1.9.84 - Subscript & Superscript Support 📐
+### NEW in v1.9.91 - Déjà Vu X3 Bilingual RTF Support 🎯
+*   **Full Round-Trip Workflow**: Import, translate, and export Déjà Vu X3 bilingual RTF files
+*   **Tag Preservation**: Déjà Vu inline tags `{00108}` preserved and highlighted in pink
+*   **60+ Languages**: Comprehensive RTF language code mapping
+*   **Segment ID Tracking**: Each segment linked to original Déjà Vu segment ID
+*   **Unicode Support**: Proper RTF encoding for accented characters
+
+### v1.9.84 - Subscript & Superscript Support 📐
 *   **Subscript Tags**: `<sub>` tags for subscript text (P<sub>totaal</sub>)
 *   **Superscript Tags**: `<sup>` tags for superscript text (m<sup>2</sup>)
 *   **Full Pipeline**: Import from DOCX, display in grid, export back to Word

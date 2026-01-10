@@ -2,11 +2,53 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.89 (January 9, 2026)
+**Current Version:** v1.9.91 (January 10, 2026)
 **Framework:** PyQt6
 **Status:** Active Development
 
 **Note:** For historical information about legacy versions (Tkinter Edition, Classic Edition), see [legacy_versions/LEGACY_VERSIONS.md](legacy_versions/LEGACY_VERSIONS.md).
+
+---
+
+## 🎯 Déjà Vu X3 Bilingual RTF Support (v1.9.91) - January 10, 2026
+
+**New CAT Tool Integration:**
+- 📄 **Déjà Vu X3 RTF Import** — Import bilingual RTF files exported from Déjà Vu X3
+  - Parses 4-column table format (ID | Source | Target | Comments)
+  - Automatic language detection from RTF language codes (60+ languages supported)
+  - Segment IDs preserved for round-trip workflow
+- 📤 **Déjà Vu X3 RTF Export** — Export translations back to RTF format
+  - Translations inserted with proper RTF formatting
+  - Unicode characters properly encoded (`\uNNNN?` format)
+  - Target language codes applied automatically
+  - Balanced RTF brace structure maintained
+- 🏷️ **Déjà Vu Tag Support** — Inline tags `{00108}` highlighted in pink
+  - Pattern: `{NNNNN}` (5-digit numbers)
+  - Tags preserved through translation workflow
+- 🔄 **Full Round-Trip Workflow**:
+  1. Export bilingual RTF from Déjà Vu X3
+  2. Import into Supervertaler (File → Import → Déjà Vu Bilingual RTF)
+  3. Translate using AI, TM, or manual editing
+  4. Export back to RTF (File → Export → Déjà Vu Bilingual RTF)
+  5. Reimport into Déjà Vu X3
+
+**New Module:**
+- `modules/dejavurtf_handler.py` — Complete Déjà Vu X3 RTF parser (~800 lines)
+  - `DejaVuSegment` dataclass for segment data
+  - `DejaVuRTFHandler` class with load/save methods
+  - RTF text encoding/decoding utilities
+  - Language code mapping for 60+ languages
+
+**Technical Implementation:**
+- RTF parsing uses regex patterns for `\cell` markers and segment IDs
+- Segment IDs extracted via pattern `insrsid\d+\s+(\d{7})\}`
+- Language detection uses `Counter` to find most common `\lang` codes
+- Export inserts formatted RTF groups with proper brace balancing
+- Project persistence: `dejavu_source_path`, `dejavu_segment_id`, `dejavu_row_index`
+
+**Files Modified:**
+- `Supervertaler.py` — Menu items, import/export methods, TagHighlighter pattern
+- `modules/dejavurtf_handler.py` — NEW handler module
 
 ---
 

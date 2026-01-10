@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** January 9, 2026 | **Version:** v1.9.89
+> **Last Updated:** January 10, 2026 | **Version:** v1.9.91
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.89 (January 2026) |
+| **Version** | v1.9.91 (January 2026) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -24,7 +24,7 @@
 ### Key Capabilities
 
 - **Multi-LLM AI Translation**: OpenAI GPT-4, Anthropic Claude, Google Gemini, Local Ollama
-- **CAT Tool Integration**: Trados SDLPPX/SDLRPX, memoQ XLIFF, Phrase/Memsource DOCX, CafeTran DOCX
+- **CAT Tool Integration**: Trados SDLPPX/SDLRPX, memoQ XLIFF, Phrase/Memsource DOCX, CafeTran DOCX, Déjà Vu X3 RTF
 - **Translation Memory**: Fuzzy matching TM with TMX import/export + Supermemory (ChromaDB vector search)
 - **Terminology Management**: SQLite-based termbases with priority highlighting and automatic extraction
 - **Document Handling**: DOCX, bilingual DOCX, PDF (via OCR), simple TXT, **Multi-file folder import**
@@ -247,6 +247,7 @@ class Segment:
 - `phrase_docx_handler.py` - Phrase/Memsource bilingual DOCX
 - `cafetran_docx_handler.py` - CafeTran bilingual DOCX
 - `trados_docx_handler.py` - Trados bilingual review DOCX
+- `dejavurtf_handler.py` - Déjà Vu X3 bilingual RTF (NEW in v1.9.91)
 - `mqxliff_handler.py` - memoQ XLIFF files
 - `simple_segmenter.py` - Text segmentation
 
