@@ -3,7 +3,7 @@ Supervertaler
 =============
 The Ultimate Translation Workbench.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.9.91 (Déjà Vu X3 Support)
+Version: 1.9.92 (F5 Refresh & Quote Matching)
 Release Date: January 10, 2026
 Framework: PyQt6
 
@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.91"
+__version__ = "1.9.92"
 __phase__ = "0.9"
 __release_date__ = "2026-01-10"
 __edition__ = "Qt"

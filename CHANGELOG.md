@@ -2,11 +2,34 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.91 (January 10, 2026)
+**Current Version:** v1.9.92 (January 10, 2026)
 **Framework:** PyQt6
 **Status:** Active Development
 
 **Note:** For historical information about legacy versions (Tkinter Edition, Classic Edition), see [legacy_versions/LEGACY_VERSIONS.md](legacy_versions/LEGACY_VERSIONS.md).
+
+---
+
+## 🔄 F5 Force Refresh & Curly Quote Matching (v1.9.92) - January 10, 2026
+
+**New Feature:**
+- ⌨️ **F5 Force Refresh** — Press F5 to force refresh all glossary and TM matches for the current segment
+  - Clears all caches (termbase cache, translation matches cache)
+  - Re-searches all connected glossaries and translation memories
+  - Updates TermView, Translation Results panel, and grid highlighting with fresh results
+  - Useful when glossary changes aren't immediately reflected
+
+**Bug Fixes:**
+- 🔤 **Curly Quote Matching Fix** — Single-word glossary terms now correctly match when surrounded by curly quotes
+  - Terms like `"omvatten",` or `„word"` now match their glossary entries
+  - Comprehensive Unicode quote handling: `"`, `"`, `„`, `«`, `»`, `'`, `'`, `‚`, `‹`, `›`
+  - Text normalized by replacing all quote variants with spaces before regex matching
+
+**Improvements:**
+- 🏷️ **TermView Tag Stripping** — CAT tool tags now stripped from TermView display for cleaner appearance
+  - Handles `<b>`, `<i>`, memoQ `{1}`, `[2}`, Trados `<1>`, Déjà Vu `{00001}`
+- 📝 **Find/Replace Field Behavior** — Selected text now always goes to Find field, never to Replace field
+- 🔄 **TermView Cache Updates** — TermView now updates from cache when navigating segments (not just TM/MT results)
 
 ---
 
