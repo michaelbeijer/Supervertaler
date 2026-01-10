@@ -28405,11 +28405,21 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             source_lang_code = self._convert_language_to_code(source_lang) if source_lang else None
             target_lang_code = self._convert_language_to_code(target_lang) if target_lang else None
             
+            # Strip HTML/XML/CAT tool tags from source text before word splitting
+            # This handles <b>, </b>, <i>, memoQ {1}, [2}, Trados <1>, Déjà Vu {00001}, etc.
+            import re
+            clean_source_text = re.sub(r'</?(?:b|i|u|bi|sub|sup|li-[ob]|\d+)/?>', '', source_text)  # HTML/XML tags
+            clean_source_text = re.sub(r'[\[{]\d+[}\]]', '', clean_source_text)  # memoQ/Phrase tags
+            clean_source_text = re.sub(r'\{\d{5}\}', '', clean_source_text)  # Déjà Vu tags
+            
             # Search termbases for all terms that appear in the source text
             # Split source text into words and search for each one
-            words = source_text.split()
+            words = clean_source_text.split()
             matches = {}
+            # Use the ORIGINAL source text (with tags) for position matching later
             source_text_lower = source_text.lower()
+            # Also create a tag-stripped lowercase version for pattern matching
+            clean_source_lower = clean_source_text.lower()
             # Only log word count, not individual words (too verbose)
             
             # Comprehensive set of quote and punctuation characters to strip
@@ -28461,7 +28471,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                         # Normalize source text: replace ALL quote variants with spaces
                         # This ensures word boundaries work correctly for terms in quotes
                         # Using Unicode escapes to avoid encoding issues
-                        normalized_source = source_text_lower
+                        normalized_source = clean_source_lower
                         for quote_char in '\"\'\u201C\u201D\u201E\u00AB\u00BB\u2018\u2019\u201A\u2039\u203A':
                             normalized_source = normalized_source.replace(quote_char, ' ')
                         # Check if term has punctuation - use different pattern
@@ -28470,8 +28480,9 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                         else:
                             pattern = re.compile(r"\b" + re.escape(source_term.lower()) + r"\b")
                         
-                        # Try matching on normalized text first, then original
-                        if not pattern.search(normalized_source) and not pattern.search(source_text_lower):
+                        # Try matching on normalized (tag-stripped, quote-stripped) text first, 
+                        # then tag-stripped, then original with tags
+                        if not pattern.search(normalized_source) and not pattern.search(clean_source_lower) and not pattern.search(source_text_lower):
                             # Skip terms whose full phrase isn't in the segment
                             continue
                         # CRITICAL FIX: Use term_id as dict key instead of source_term
