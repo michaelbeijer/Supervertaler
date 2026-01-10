@@ -1806,24 +1806,19 @@ class ReadOnlyGridTextEditor(QTextEdit):
         """Allow text selection on click and trigger row selection"""
         super().mousePressEvent(event)
 
-        # Find the table and row number by checking which row this widget belongs to
-        if self.parent():
+        # Use stored table reference and row number
+        if self.table_ref and self.row >= 0:
             try:
-                table = self.parent()
-                # Find which row this widget is in
-                for row in range(table.rowCount()):
-                    if table.cellWidget(row, 2) == self:  # Source is column 2
-                        table.selectRow(row)
-                        table.setCurrentCell(row, 2)
+                self.table_ref.selectRow(self.row)
+                self.table_ref.setCurrentCell(self.row, 2)
 
-                        # CRITICAL: Manually trigger on_cell_selected since signals aren't firing
-                        # Find the main window and call the method directly
-                        main_window = table.parent()
-                        while main_window and not hasattr(main_window, 'on_cell_selected'):
-                            main_window = main_window.parent()
-                        if main_window and hasattr(main_window, 'on_cell_selected'):
-                            main_window.on_cell_selected(row, 2, -1, -1)
-                        break
+                # CRITICAL: Manually trigger on_cell_selected since signals aren't firing
+                # Find the main window and call the method directly
+                main_window = self.table_ref.parent()
+                while main_window and not hasattr(main_window, 'on_cell_selected'):
+                    main_window = main_window.parent()
+                if main_window and hasattr(main_window, 'on_cell_selected'):
+                    main_window.on_cell_selected(self.row, 2, -1, -1)
             except Exception as e:
                 print(f"Error triggering manual cell selection: {e}")
 
@@ -1890,24 +1885,19 @@ class ReadOnlyGridTextEditor(QTextEdit):
         super().focusInEvent(event)
         # Don't auto-select - let user select manually
         
-        # Find the table and row number by checking which row this widget belongs to
-        if self.parent():
+        # Use stored table reference and row number
+        if self.table_ref and self.row >= 0:
             try:
-                table = self.parent()
-                # Find which row this widget is in
-                for row in range(table.rowCount()):
-                    if table.cellWidget(row, 2) == self:  # Source is column 2
-                        table.selectRow(row)
-                        table.setCurrentCell(row, 2)
-                        
-                        # CRITICAL: Manually trigger on_cell_selected since signals aren't firing
-                        # Find the main window and call the method directly
-                        main_window = table.parent()
-                        while main_window and not hasattr(main_window, 'on_cell_selected'):
-                            main_window = main_window.parent()
-                        if main_window and hasattr(main_window, 'on_cell_selected'):
-                            main_window.on_cell_selected(row, 2, -1, -1)
-                        break
+                self.table_ref.selectRow(self.row)
+                self.table_ref.setCurrentCell(self.row, 2)
+                
+                # CRITICAL: Manually trigger on_cell_selected since signals aren't firing
+                # Find the main window and call the method directly
+                main_window = self.table_ref.parent()
+                while main_window and not hasattr(main_window, 'on_cell_selected'):
+                    main_window = main_window.parent()
+                if main_window and hasattr(main_window, 'on_cell_selected'):
+                    main_window.on_cell_selected(self.row, 2, -1, -1)
             except Exception as e:
                 print(f"Error triggering manual cell selection: {e}")
 
