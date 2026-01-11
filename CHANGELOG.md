@@ -2,11 +2,47 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.96 (January 11, 2026)
+**Current Version:** v1.9.97 (January 11, 2026)
 **Framework:** PyQt6
 **Status:** Active Development
 
 **Note:** For historical information about legacy versions (Tkinter Edition, Classic Edition), see [legacy_versions/LEGACY_VERSIONS.md](legacy_versions/LEGACY_VERSIONS.md).
+
+---
+
+## 🌐 All MT Providers in Translation Results (v1.9.97) - January 11, 2026
+
+**Feature: Multiple Machine Translation Providers Now Displayed**
+
+The Translation Results panel now shows translations from **all configured MT providers**, not just Google Translate.
+
+**Previously:**
+- Only Google Translate was called when navigating to a segment
+- DeepL, Amazon Translate, and MyMemory were only available in Batch Translate
+
+**Now:**
+- All enabled MT providers are called and displayed progressively
+- Each provider's translation appears as it completes
+- Provider codes shown: GT (Google), DL (DeepL), AT (Amazon), MM (MyMemory)
+
+**Supported MT Providers:**
+| Provider | API Key Required | Notes |
+|----------|-----------------|-------|
+| Google Translate | Yes | `google_translate` key |
+| DeepL | Yes | `deepl` key |
+| Amazon Translate | Yes | `amazon_translate` + `amazon_translate_secret` + region |
+| MyMemory | Optional | Free tier works without key; email gets higher limits |
+
+**Configuration Tip:**
+For MyMemory, you can use your email address as the key to get 10,000 words/day instead of 1,000:
+```
+mymemory = your.email@example.com
+```
+
+**Technical Changes:**
+- Expanded `_add_mt_and_llm_matches_progressive()` to call all configured MT providers
+- Each provider respects its enabled/disabled state from Settings → MT Settings
+- Results displayed immediately as each provider responds
 
 ---
 

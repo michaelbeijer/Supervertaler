@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.96"
+__version__ = "1.9.97"
 __phase__ = "0.9"
 __release_date__ = "2026-01-11"
 __edition__ = "Qt"
@@ -36319,37 +36319,117 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         """Add MT and LLM matches progressively - show each as it completes"""
         from modules.translation_results_panel import TranslationMatch
         
-        # MT matches (usually fast ~0.5s)
+        # MT matches (usually fast ~0.5s each)
         if self.enable_mt_matching:
-            try:
-                from modules.llm_clients import get_google_translation
-                
-                google_result = get_google_translation(
-                    segment.source, 
-                    source_lang_code or 'auto',
-                    target_lang_code or 'en'
-                )
-                
-                if google_result and google_result.get('translation'):
-                    match = TranslationMatch(
-                        source=segment.source,
-                        target=google_result['translation'],
-                        relevance=95,
-                        metadata=google_result.get('metadata', {}),
-                        match_type="MT",
-                        compare_source=segment.source,
-                        provider_code='GT'
+            api_keys = self.load_api_keys()
+            enabled_providers = self.load_provider_enabled_states()
+            
+            # 1. Google Translate
+            if enabled_providers.get('mt_google_translate', True) and api_keys.get('google_translate'):
+                try:
+                    from modules.llm_clients import get_google_translation
+                    
+                    google_result = get_google_translation(
+                        segment.source, 
+                        source_lang_code or 'auto',
+                        target_lang_code or 'en'
                     )
-                    # Show MT match immediately (deduplicated by panel)
-                    mt_dict = {"MT": [match]}
-                    if hasattr(self, 'results_panels') and self.results_panels:
-                        for panel in self.results_panels:
-                            try:
-                                panel.add_matches(mt_dict)
-                            except Exception as e:
-                                self.log(f"Error adding MT match: {e}")
-            except Exception as e:
-                self.log(f"⚠ Error getting Google Translate: {e}")
+                    
+                    if google_result and google_result.get('translation'):
+                        match = TranslationMatch(
+                            source=segment.source,
+                            target=google_result['translation'],
+                            relevance=95,
+                            metadata=google_result.get('metadata', {}),
+                            match_type="MT",
+                            compare_source=segment.source,
+                            provider_code='GT'
+                        )
+                        # Show MT match immediately (deduplicated by panel)
+                        mt_dict = {"MT": [match]}
+                        if hasattr(self, 'results_panels') and self.results_panels:
+                            for panel in self.results_panels:
+                                try:
+                                    panel.add_matches(mt_dict)
+                                except Exception as e:
+                                    self.log(f"Error adding Google Translate match: {e}")
+                except Exception as e:
+                    self.log(f"⚠ Error getting Google Translate: {e}")
+            
+            # 2. DeepL
+            if enabled_providers.get('mt_deepl', True) and api_keys.get('deepl'):
+                try:
+                    translation = self.call_deepl(segment.source, source_lang, target_lang, api_keys.get('deepl'))
+                    if translation and not translation.startswith('['):  # Skip error messages
+                        match = TranslationMatch(
+                            source=segment.source,
+                            target=translation,
+                            relevance=94,
+                            metadata={'provider': 'DeepL'},
+                            match_type="MT",
+                            compare_source=segment.source,
+                            provider_code='DL'
+                        )
+                        mt_dict = {"MT": [match]}
+                        if hasattr(self, 'results_panels') and self.results_panels:
+                            for panel in self.results_panels:
+                                try:
+                                    panel.add_matches(mt_dict)
+                                except Exception as e:
+                                    self.log(f"Error adding DeepL match: {e}")
+                except Exception as e:
+                    self.log(f"⚠ Error getting DeepL: {e}")
+            
+            # 3. Amazon Translate
+            if enabled_providers.get('mt_amazon', True) and api_keys.get('amazon_translate'):
+                try:
+                    region = api_keys.get('amazon_translate_region', 'us-east-1')
+                    translation = self.call_amazon_translate(segment.source, source_lang, target_lang, api_keys.get('amazon_translate'), region)
+                    if translation and not translation.startswith('['):  # Skip error messages
+                        match = TranslationMatch(
+                            source=segment.source,
+                            target=translation,
+                            relevance=93,
+                            metadata={'provider': 'Amazon Translate'},
+                            match_type="MT",
+                            compare_source=segment.source,
+                            provider_code='AT'
+                        )
+                        mt_dict = {"MT": [match]}
+                        if hasattr(self, 'results_panels') and self.results_panels:
+                            for panel in self.results_panels:
+                                try:
+                                    panel.add_matches(mt_dict)
+                                except Exception as e:
+                                    self.log(f"Error adding Amazon Translate match: {e}")
+                except Exception as e:
+                    self.log(f"⚠ Error getting Amazon Translate: {e}")
+            
+            # 4. MyMemory (free, works without API key or with email as key)
+            if enabled_providers.get('mt_mymemory', True):
+                try:
+                    mymemory_key = api_keys.get('mymemory', '')
+                    # MyMemory works without a key, key is optional (email for more requests)
+                    translation = self.call_mymemory(segment.source, source_lang, target_lang, mymemory_key if mymemory_key and mymemory_key != 'xxx' else None)
+                    if translation and not translation.startswith('['):  # Skip error messages
+                        match = TranslationMatch(
+                            source=segment.source,
+                            target=translation,
+                            relevance=85,
+                            metadata={'provider': 'MyMemory (Free)'},
+                            match_type="MT",
+                            compare_source=segment.source,
+                            provider_code='MM'
+                        )
+                        mt_dict = {"MT": [match]}
+                        if hasattr(self, 'results_panels') and self.results_panels:
+                            for panel in self.results_panels:
+                                try:
+                                    panel.add_matches(mt_dict)
+                                except Exception as e:
+                                    self.log(f"Error adding MyMemory match: {e}")
+                except Exception as e:
+                    self.log(f"⚠ Error getting MyMemory: {e}")
         
         # LLM matches (slower ~1-3s each)
         if self.enable_llm_matching:

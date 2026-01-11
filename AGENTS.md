@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** January 11, 2026 | **Version:** v1.9.96
+> **Last Updated:** January 11, 2026 | **Version:** v1.9.97
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.96 (January 2026) |
+| **Version** | v1.9.97 (January 2026) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -665,6 +665,34 @@ google_api_key=AI...
 ---
 
 ## 🔄 Recent Development History
+
+### January 11, 2026 - Version 1.9.97: All MT Providers in Translation Results
+
+**🌐 Multiple Machine Translation Providers Now Displayed**
+
+The Translation Results panel now shows translations from **all configured MT providers**, not just Google Translate.
+
+**Previously:**
+- Only Google Translate was called when navigating to a segment
+- DeepL, Amazon Translate, and MyMemory were only available in Batch Translate
+
+**Now:**
+- All enabled MT providers are called and displayed progressively
+- Each provider's translation appears as it completes
+- Provider codes: GT (Google), DL (DeepL), AT (Amazon), MM (MyMemory)
+
+**Supported Providers:**
+| Provider | Key Name | Notes |
+|----------|----------|-------|
+| Google Translate | `google_translate` | Requires API key |
+| DeepL | `deepl` | Requires API key |
+| Amazon Translate | `amazon_translate` + `amazon_translate_secret` | AWS credentials |
+| MyMemory | `mymemory` | Free; email as key for higher limits |
+
+**Files Modified:**
+- `Supervertaler.py` - Expanded `_add_mt_and_llm_matches_progressive()` to call all MT providers
+
+---
 
 ### January 11, 2026 - Version 1.9.96: Thread-Safe Logging
 
@@ -2746,4 +2774,4 @@ An intelligent proofreading system that uses LLMs to verify translation quality.
 ---
 
 *This file replaces the previous CLAUDE.md and PROJECT_CONTEXT.md files.*
-*Last updated: January 11, 2026 - v1.9.96*
+*Last updated: January 11, 2026 - v1.9.97*
