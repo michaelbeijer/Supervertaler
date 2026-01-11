@@ -36,6 +36,7 @@ Fixed 5 locations where glossary notes were being lost:
 **Also in this release:**
 - **WebEngineView cleanup**: Fixed "Release of profile requested but WebEnginePage still not deleted" terminal warnings by properly cleaning up Superlookup web views on app close
 - **FAQ update**: Added documentation about embedded browser password/cookie security in Superdocs FAQ
+- **Community docs**: Added `CONTRIBUTING.md` and `CODE_OF_CONDUCT.md` (Contributor Covenant v2.1)
 
 ---
 

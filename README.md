@@ -27,6 +27,13 @@
 - **[Legacy Versions](legacy_versions/LEGACY_VERSIONS.md)** — Historical information
 - **[Similar Apps](docs/SIMILAR_APPS.md)** — CotranslatorAI, TransAIde, TWAS Suite, OpenAI Provider for Trados Studio, and other translation tools
 - **[Stargazers](https://github.com/michaelbeijer/Supervertaler/stargazers)** — A page that lists all the users who have starred this repository
+
+### Contributing
+
+- **[Contributing guide](CONTRIBUTING.md)** — How to report bugs, request features, and submit pull requests
+- **[Code of Conduct](CODE_OF_CONDUCT.md)** — Community standards (Contributor Covenant v2.1)
+
+**License note:** Supervertaler source code is MIT-licensed. The text of the Contributor Covenant (used in `CODE_OF_CONDUCT.md`) is licensed under CC BY 4.0, which is why that file contains attribution.
   
 ---
 

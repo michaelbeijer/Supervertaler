@@ -666,6 +666,12 @@ google_api_key=AI...
 
 ## 🔄 Recent Development History
 
+### January 11, 2026 - Docs: Contributing Guide & Code of Conduct
+
+- Added `CONTRIBUTING.md` with guidance for bug reports, feature requests, PRs, dev setup, and coding standards
+- Added `CODE_OF_CONDUCT.md` using Contributor Covenant v2.1 (with required CC BY attribution)
+- Updated `README.md` to link the new docs and clarify MIT vs CC BY scope
+
 ### January 11, 2026 - Version 1.9.98: Glossary Notes in Tooltips
 
 **📝 Fixed Glossary Entry Notes Not Appearing in Tooltips**
