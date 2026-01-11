@@ -2,11 +2,38 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.92 (January 10, 2026)
+**Current Version:** v1.9.93 (January 11, 2026)
 **Framework:** PyQt6
 **Status:** Active Development
 
 **Note:** For historical information about legacy versions (Tkinter Edition, Classic Edition), see [legacy_versions/LEGACY_VERSIONS.md](legacy_versions/LEGACY_VERSIONS.md).
+
+---
+
+## ⌨️ Keyboard Shortcuts & Quick Glossary Add (v1.9.93) - January 11, 2026
+
+**New Features:**
+- ⚡ **Quick Add to Priority Glossary** — Add terms directly to glossaries by their priority ranking
+  - Alt+Up: Add selected term pair to glossary with Priority #1
+  - Alt+Down: Add selected term pair to glossary with Priority #2
+  - Works with any glossary that has Read enabled and a priority set
+  - No dialog required — instant term addition
+
+- 🔧 **Shortcut Enable/Disable** — Disable shortcuts from Settings → Keyboard Shortcuts
+  - New "Enabled" checkbox column in shortcuts table
+  - Disabled shortcuts fully release their key combinations
+  - Released keys can be reassigned to other shortcuts
+  - Settings persist between sessions
+
+**Improvements:**
+- ✓ **Button Renamed** — "Save & Next" button renamed to "Confirm & Next" to accurately reflect its function
+- ⌨️ **Ctrl+Enter Fix** — Ctrl+Enter now correctly handled in target editor cells
+- ↵ **Enter Key Behavior** — Plain Enter no longer inserts newlines; use Shift+Enter for line breaks
+
+**Bug Fixes:**
+- 🔧 Fixed Ctrl+Enter not working when focus is in target cell
+- 🔧 Fixed "Save & Next" button not confirming segments (was only moving to next)
+- 🔧 Fixed custom shortcut key bindings not loading at startup
 
 ---
 

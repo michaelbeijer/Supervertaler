@@ -7,7 +7,7 @@ from pathlib import Path
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QTableWidget, 
     QTableWidgetItem, QHeaderView, QLineEdit, QLabel, QDialog, 
-    QDialogButtonBox, QMessageBox, QFileDialog, QGroupBox
+    QDialogButtonBox, QMessageBox, QFileDialog, QGroupBox, QCheckBox
 )
 from PyQt6.QtCore import Qt, QEvent
 from PyQt6.QtGui import QKeySequence, QKeyEvent, QFont
@@ -184,7 +184,12 @@ class KeyboardShortcutsWidget(QWidget):
     
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.manager = ShortcutManager()
+        self.main_window = parent  # Store reference to main window
+        # Use main window's shortcut manager if available, otherwise create new one
+        if hasattr(parent, 'shortcut_manager'):
+            self.manager = parent.shortcut_manager
+        else:
+            self.manager = ShortcutManager()
         self.init_ui()
         self.load_shortcuts()
     
@@ -218,12 +223,13 @@ class KeyboardShortcutsWidget(QWidget):
         
         # Shortcuts table
         self.table = QTableWidget()
-        self.table.setColumnCount(4)
-        self.table.setHorizontalHeaderLabels(["Category", "Action", "Shortcut", "Status"])
+        self.table.setColumnCount(5)
+        self.table.setHorizontalHeaderLabels(["Enabled", "Category", "Action", "Shortcut", "Status"])
         self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
-        self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
-        self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
         self.table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
+        self.table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
         self.table.setAlternatingRowColors(True)
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
@@ -307,25 +313,45 @@ class KeyboardShortcutsWidget(QWidget):
             for shortcut_id, data in sorted(shortcuts, key=lambda x: x[1]["description"]):
                 self.table.insertRow(row)
                 
-                # Category
+                # Enabled checkbox (column 0)
+                checkbox = QCheckBox()
+                checkbox.setChecked(data.get("is_enabled", True))
+                checkbox.setStyleSheet("margin-left: 10px;")
+                checkbox.setToolTip("Enable or disable this shortcut")
+                # Store shortcut_id in checkbox for reference
+                checkbox.setProperty("shortcut_id", shortcut_id)
+                checkbox.stateChanged.connect(self._on_enabled_changed)
+                # Create a widget container to center the checkbox
+                checkbox_container = QWidget()
+                checkbox_layout = QHBoxLayout(checkbox_container)
+                checkbox_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                checkbox_layout.setContentsMargins(0, 0, 0, 0)
+                checkbox_layout.addWidget(checkbox)
+                self.table.setCellWidget(row, 0, checkbox_container)
+                
+                # Category (column 1)
                 cat_item = QTableWidgetItem(data["category"])
                 cat_item.setData(Qt.ItemDataRole.UserRole, shortcut_id)  # Store ID
-                self.table.setItem(row, 0, cat_item)
+                self.table.setItem(row, 1, cat_item)
                 
-                # Action
+                # Action (column 2)
                 action_item = QTableWidgetItem(data["description"])
-                self.table.setItem(row, 1, action_item)
+                self.table.setItem(row, 2, action_item)
                 
-                # Shortcut
+                # Shortcut (column 3)
                 shortcut_item = QTableWidgetItem(data["current"])
                 shortcut_font = QFont()
                 shortcut_font.setFamily("Courier New")
                 shortcut_font.setBold(True)
                 shortcut_item.setFont(shortcut_font)
-                shortcut_item.setForeground(Qt.GlobalColor.blue)
-                self.table.setItem(row, 2, shortcut_item)
+                # Gray out if disabled
+                if not data.get("is_enabled", True):
+                    shortcut_item.setForeground(Qt.GlobalColor.gray)
+                else:
+                    shortcut_item.setForeground(Qt.GlobalColor.blue)
+                self.table.setItem(row, 3, shortcut_item)
                 
-                # Status
+                # Status (column 4)
                 status = "Custom" if data["is_custom"] else "Default"
                 status_item = QTableWidgetItem(status)
                 if data["is_custom"]:
@@ -333,18 +359,49 @@ class KeyboardShortcutsWidget(QWidget):
                     status_font = QFont()
                     status_font.setBold(True)
                     status_item.setFont(status_font)
-                self.table.setItem(row, 3, status_item)
+                self.table.setItem(row, 4, status_item)
                 
                 row += 1
+    
+    def _on_enabled_changed(self, state):
+        """Handle checkbox state change for enabling/disabling shortcuts"""
+        checkbox = self.sender()
+        if checkbox:
+            shortcut_id = checkbox.property("shortcut_id")
+            if shortcut_id:
+                is_enabled = state == Qt.CheckState.Checked.value
+                if is_enabled:
+                    self.manager.enable_shortcut(shortcut_id)
+                else:
+                    self.manager.disable_shortcut(shortcut_id)
+                self.manager.save_shortcuts()
+                # Update the shortcut text color to indicate disabled state
+                self._update_shortcut_text_color(shortcut_id, is_enabled)
+                # Immediately refresh the actual shortcut enabled states in the main window
+                if self.main_window and hasattr(self.main_window, 'refresh_shortcut_enabled_states'):
+                    self.main_window.refresh_shortcut_enabled_states()
+    
+    def _update_shortcut_text_color(self, shortcut_id: str, is_enabled: bool):
+        """Update the shortcut text color based on enabled state"""
+        for row in range(self.table.rowCount()):
+            cat_item = self.table.item(row, 1)
+            if cat_item and cat_item.data(Qt.ItemDataRole.UserRole) == shortcut_id:
+                shortcut_item = self.table.item(row, 3)
+                if shortcut_item:
+                    if is_enabled:
+                        shortcut_item.setForeground(Qt.GlobalColor.blue)
+                    else:
+                        shortcut_item.setForeground(Qt.GlobalColor.gray)
+                break
     
     def filter_shortcuts(self):
         """Filter shortcuts based on search text"""
         search_text = self.search_input.text().lower()
         
         for row in range(self.table.rowCount()):
-            action = self.table.item(row, 1).text().lower()
-            shortcut = self.table.item(row, 2).text().lower()
-            category = self.table.item(row, 0).text().lower()
+            action = self.table.item(row, 2).text().lower()
+            shortcut = self.table.item(row, 3).text().lower()
+            category = self.table.item(row, 1).text().lower()
             
             if search_text in action or search_text in shortcut or search_text in category:
                 self.table.setRowHidden(row, False)
@@ -358,8 +415,8 @@ class KeyboardShortcutsWidget(QWidget):
             QMessageBox.information(self, "No Selection", "Please select a shortcut to edit.")
             return
         
-        # Get shortcut ID from first column
-        shortcut_id = self.table.item(current_row, 0).data(Qt.ItemDataRole.UserRole)
+        # Get shortcut ID from Category column (column 1)
+        shortcut_id = self.table.item(current_row, 1).data(Qt.ItemDataRole.UserRole)
         all_shortcuts = self.manager.get_all_shortcuts()
         data = all_shortcuts[shortcut_id]
         
@@ -380,7 +437,7 @@ class KeyboardShortcutsWidget(QWidget):
             QMessageBox.information(self, "No Selection", "Please select a shortcut to reset.")
             return
         
-        shortcut_id = self.table.item(current_row, 0).data(Qt.ItemDataRole.UserRole)
+        shortcut_id = self.table.item(current_row, 1).data(Qt.ItemDataRole.UserRole)
         all_shortcuts = self.manager.get_all_shortcuts()
         data = all_shortcuts[shortcut_id]
         

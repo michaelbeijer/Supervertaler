@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.92"
+__version__ = "1.9.93"
 __phase__ = "0.9"
 __release_date__ = "2026-01-10"
 __edition__ = "Qt"
@@ -94,6 +94,7 @@ from modules.find_replace_qt import (
     FindReplaceSetsManager,
     HistoryComboBox,
 )  # F&R History and Sets
+from modules.shortcut_manager import ShortcutManager  # Keyboard shortcut management
 
 
 STATUS_ORDER = [
@@ -901,9 +902,10 @@ class GridTextEditor(QTextEdit):
                     self.table_widget.keyPressEvent(event)
                     event.accept()
                     return
-            # Ctrl+Enter: Insert actual line break
+            # Ctrl+Enter: Confirm & Next (call main window method directly)
             elif event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
-                super().keyPressEvent(event)
+                if self.main_window and hasattr(self.main_window, 'confirm_selected_or_next'):
+                    self.main_window.confirm_selected_or_next()
                 event.accept()
                 return
             # Ctrl+, (comma): Insert next memoQ tag or wrap selection with tag pair
@@ -2767,6 +2769,25 @@ class EditableGridTextEditor(QTextEdit):
         # Ctrl+U: Apply underline formatting to selection
         if event.key() == Qt.Key.Key_U and event.modifiers() == Qt.KeyboardModifier.ControlModifier:
             self._apply_formatting_tag('u')
+            event.accept()
+            return
+        
+        # Ctrl+Enter: Confirm & Next (call main window method directly)
+        if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter) and event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+            main_window = self._get_main_window()
+            if main_window and hasattr(main_window, 'confirm_selected_or_next'):
+                main_window.confirm_selected_or_next()
+            event.accept()
+            return
+        
+        # Shift+Enter: Insert line break (for multi-line content)
+        if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter) and event.modifiers() == Qt.KeyboardModifier.ShiftModifier:
+            super().keyPressEvent(event)
+            event.accept()
+            return
+        
+        # Plain Enter: Don't insert newline, just accept
+        if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter) and event.modifiers() == Qt.KeyboardModifier.NoModifier:
             event.accept()
             return
         
@@ -4963,6 +4984,9 @@ class SupervertalerQt(QMainWindow):
         # Find & Replace History Manager
         self.fr_history = FindReplaceHistory(str(self.user_data_path))
         
+        # Shortcut Manager for keyboard shortcuts (including enable/disable)
+        self.shortcut_manager = ShortcutManager(Path(self.user_data_path) / "shortcuts.json")
+        
         # Voice Command Manager for Talon-style voice commands
         self.voice_command_manager = VoiceCommandManager(self.user_data_path, main_window=self)
         
@@ -5327,89 +5351,116 @@ class SupervertalerQt(QMainWindow):
     def setup_global_shortcuts(self):
         """Setup application-wide keyboard shortcuts"""
         from PyQt6.QtGui import QShortcut
+        
+        # Store all shortcuts with their IDs and default key sequences for enable/disable management
+        self.global_shortcuts = {}  # shortcut_id -> QShortcut
+        self.global_shortcut_keys = {}  # shortcut_id -> current key sequence string (from manager)
+        
+        def create_shortcut(shortcut_id: str, default_key: str, handler):
+            """Create a shortcut, using custom key from manager if set, respecting enabled state"""
+            # Get the actual key sequence (custom or default) from the manager
+            key_sequence = self.shortcut_manager.get_shortcut(shortcut_id)
+            if not key_sequence:
+                key_sequence = default_key  # Fallback if not in manager
+            
+            shortcut = QShortcut(QKeySequence(key_sequence), self)
+            shortcut.activated.connect(handler)
+            # Store the current key sequence for re-enabling later
+            self.global_shortcut_keys[shortcut_id] = key_sequence
+            # If disabled, clear the key sequence to fully release the key combination
+            if not self.shortcut_manager.is_enabled(shortcut_id):
+                shortcut.setKey(QKeySequence())  # Clear key to release combination
+            self.global_shortcuts[shortcut_id] = shortcut
+            return shortcut
 
         # F9 - Voice dictation
-        self.shortcut_dictate = QShortcut(QKeySequence("F9"), self)
-        self.shortcut_dictate.activated.connect(self.start_voice_dictation)
+        create_shortcut("voice_dictate", "F9", self.start_voice_dictation)
         
         # Ctrl+Up/Down - Cycle through translation matches
-        self.shortcut_match_up = QShortcut(QKeySequence("Ctrl+Up"), self)
-        self.shortcut_match_up.activated.connect(self.select_previous_match)
-        
-        self.shortcut_match_down = QShortcut(QKeySequence("Ctrl+Down"), self)
-        self.shortcut_match_down.activated.connect(self.select_next_match)
+        create_shortcut("match_cycle_previous", "Ctrl+Up", self.select_previous_match)
+        create_shortcut("match_cycle_next", "Ctrl+Down", self.select_next_match)
         
         # Ctrl+1 through Ctrl+9 - Insert match by number
         self.match_shortcuts = []
         for i in range(1, 10):
-            shortcut = QShortcut(QKeySequence(f"Ctrl+{i}"), self)
+            shortcut_id = f"match_insert_{i}"
+            default_key = f"Ctrl+{i}"
+            key_sequence = self.shortcut_manager.get_shortcut(shortcut_id)
+            if not key_sequence:
+                key_sequence = default_key
+            shortcut = QShortcut(QKeySequence(key_sequence), self)
             shortcut.activated.connect(lambda num=i: self.insert_match_by_number(num))
+            self.global_shortcut_keys[shortcut_id] = key_sequence
+            if not self.shortcut_manager.is_enabled(shortcut_id):
+                shortcut.setKey(QKeySequence())  # Clear key to release combination
+            self.global_shortcuts[shortcut_id] = shortcut
             self.match_shortcuts.append(shortcut)
         
         # Ctrl+Space - Insert currently selected match
-        self.shortcut_insert_selected = QShortcut(QKeySequence("Ctrl+Space"), self)
-        self.shortcut_insert_selected.activated.connect(self.insert_selected_match)
+        create_shortcut("match_insert_selected_ctrl", "Ctrl+Space", self.insert_selected_match)
         
         # Alt+Up/Down - Navigate to previous/next segment
-        self.shortcut_segment_up = QShortcut(QKeySequence("Alt+Up"), self)
-        self.shortcut_segment_up.activated.connect(self.go_to_previous_segment)
-        
-        self.shortcut_segment_down = QShortcut(QKeySequence("Alt+Down"), self)
-        self.shortcut_segment_down.activated.connect(self.go_to_next_segment)
+        create_shortcut("segment_previous", "Alt+Up", self.go_to_previous_segment)
+        create_shortcut("segment_next", "Alt+Down", self.go_to_next_segment)
         
         # Ctrl+Home/End - Navigate to first/last segment
-        self.shortcut_go_to_top = QShortcut(QKeySequence("Ctrl+Home"), self)
-        self.shortcut_go_to_top.activated.connect(self.go_to_first_segment)
-        
-        self.shortcut_go_to_bottom = QShortcut(QKeySequence("Ctrl+End"), self)
-        self.shortcut_go_to_bottom.activated.connect(self.go_to_last_segment)
+        create_shortcut("segment_go_to_top", "Ctrl+Home", self.go_to_first_segment)
+        create_shortcut("segment_go_to_bottom", "Ctrl+End", self.go_to_last_segment)
         
         # Ctrl+Enter - Confirm segment(s) and go to next unconfirmed
         # If multiple segments selected: confirm all selected
         # If single segment: confirm and go to next unconfirmed
-        self.shortcut_confirm_next = QShortcut(QKeySequence("Ctrl+Return"), self)
-        self.shortcut_confirm_next.activated.connect(self.confirm_selected_or_next)
+        create_shortcut("editor_save_and_next", "Ctrl+Return", self.confirm_selected_or_next)
         
         # Ctrl+Shift+Enter - Always confirm all selected segments
-        self.shortcut_confirm_selected = QShortcut(QKeySequence("Ctrl+Shift+Return"), self)
-        self.shortcut_confirm_selected.activated.connect(self.confirm_selected_segments)
+        create_shortcut("editor_confirm_selected", "Ctrl+Shift+Return", self.confirm_selected_segments)
         
         # Note: Ctrl+Shift+S (Copy source to target) is handled in EditableGridTextEditor.keyPressEvent
         
         # Ctrl+K - Concordance Search
-        self.shortcut_concordance = QShortcut(QKeySequence("Ctrl+K"), self)
-        self.shortcut_concordance.activated.connect(self.show_concordance_search)
+        create_shortcut("tools_concordance_search", "Ctrl+K", self.show_concordance_search)
         
         # Ctrl+Shift+F - Filter on selected text / Clear filter (toggle)
-        self.shortcut_filter_selected = QShortcut(QKeySequence("Ctrl+Shift+F"), self)
-        self.shortcut_filter_selected.activated.connect(self.filter_on_selected_text)
+        create_shortcut("filter_selected_text", "Ctrl+Shift+F", self.filter_on_selected_text)
         
         # Ctrl+Alt+T - Toggle Tag View
-        self.shortcut_toggle_tags = QShortcut(QKeySequence("Ctrl+Alt+T"), self)
-        self.shortcut_toggle_tags.activated.connect(self._toggle_tag_view_via_shortcut)
+        create_shortcut("view_toggle_tags", "Ctrl+Alt+T", self._toggle_tag_view_via_shortcut)
         
         # Page Up/Down - Navigate pagination pages
-        self.shortcut_page_up = QShortcut(QKeySequence("PgUp"), self)
-        self.shortcut_page_up.activated.connect(self.go_to_prev_page)
-        
-        self.shortcut_page_down = QShortcut(QKeySequence("PgDown"), self)
-        self.shortcut_page_down.activated.connect(self.go_to_next_page)
+        create_shortcut("page_prev", "PgUp", self.go_to_prev_page)
+        create_shortcut("page_next", "PgDown", self.go_to_next_page)
         
         # Ctrl+G - Go to segment
-        self.shortcut_goto = QShortcut(QKeySequence("Ctrl+G"), self)
-        self.shortcut_goto.activated.connect(self.show_goto_dialog)
+        create_shortcut("edit_goto", "Ctrl+G", self.show_goto_dialog)
         
         # F5 - Force refresh matches (clear all caches and re-search)
-        self.shortcut_force_refresh = QShortcut(QKeySequence("F5"), self)
-        self.shortcut_force_refresh.activated.connect(self.force_refresh_matches)
+        create_shortcut("tools_force_refresh", "F5", self.force_refresh_matches)
         
         # Ctrl+Shift+1 - Quick add term with Priority 1
-        self.shortcut_quick_add_p1 = QShortcut(QKeySequence("Ctrl+Shift+1"), self)
-        self.shortcut_quick_add_p1.activated.connect(lambda: self._quick_add_term_with_priority(1))
+        create_shortcut("editor_quick_add_priority_1", "Ctrl+Shift+1", lambda: self._quick_add_term_with_priority(1))
         
         # Ctrl+Shift+2 - Quick add term with Priority 2
-        self.shortcut_quick_add_p2 = QShortcut(QKeySequence("Ctrl+Shift+2"), self)
-        self.shortcut_quick_add_p2.activated.connect(lambda: self._quick_add_term_with_priority(2))
+        create_shortcut("editor_quick_add_priority_2", "Ctrl+Shift+2", lambda: self._quick_add_term_with_priority(2))
+    
+    def refresh_shortcut_enabled_states(self):
+        """Refresh enabled/disabled states and key bindings of all global shortcuts from shortcut manager.
+        
+        When disabled: clears the key sequence to fully release the key combination.
+        When enabled: restores the key sequence from the manager (custom or default).
+        """
+        if not hasattr(self, 'global_shortcuts'):
+            return
+        for shortcut_id, shortcut in self.global_shortcuts.items():
+            is_enabled = self.shortcut_manager.is_enabled(shortcut_id)
+            if is_enabled:
+                # Get the current key sequence from manager (may have been customized)
+                key_sequence = self.shortcut_manager.get_shortcut(shortcut_id)
+                if key_sequence:
+                    self.global_shortcut_keys[shortcut_id] = key_sequence
+                    shortcut.setKey(QKeySequence(key_sequence))
+            else:
+                # Clear the key to release the combination for other uses
+                shortcut.setKey(QKeySequence())
 
     def _setup_progress_indicators(self):
         """Setup permanent progress indicator widgets in the status bar"""
@@ -10191,14 +10242,14 @@ class SupervertalerQt(QMainWindow):
         else:
             QMessageBox.warning(self, "Error", "Failed to add term. It may already exist in the glossary.")
 
-    def _quick_add_term_with_priority(self, priority: int):
-        """Quick add selected term pair to glossary with specified priority (Ctrl+Shift+1/2)
+    def _quick_add_term_with_priority(self, glossary_rank: int):
+        """Quick add selected term pair to the glossary with the specified ranking
         
-        Gets selected text from source and target cells, then adds to the last-used
-        glossary with the specified priority level.
+        Gets selected text from source and target cells, then adds to the glossary
+        that has the specified priority ranking (1 = highest priority, 2 = second, etc.)
         
         Args:
-            priority: Priority level (1=highest, 2=second highest, etc.)
+            glossary_rank: Which glossary to add to (1 = first/highest priority, 2 = second, etc.)
         """
         # Get current row
         current_row = self.table.currentRow() if hasattr(self, 'table') and self.table else -1
@@ -10232,17 +10283,37 @@ class SupervertalerQt(QMainWindow):
             self.statusBar().showMessage("Glossary manager not initialized", 3000)
             return
         
-        if not hasattr(self, '_last_selected_termbase_ids') or not self._last_selected_termbase_ids:
-            self.statusBar().showMessage("Use Ctrl+E first to select a glossary", 3000)
+        project_id = self.current_project.id if hasattr(self.current_project, 'id') else None
+        if not project_id:
+            self.statusBar().showMessage("No project ID - save project first", 3000)
             return
         
-        # Get termbases
+        # Get glossaries with their priority from database
+        target_termbase = None
         all_termbases = self.termbase_mgr.get_all_termbases()
-        target_termbases = [tb for tb in all_termbases if tb['id'] in self._last_selected_termbase_ids]
         
-        if not target_termbases:
-            self.statusBar().showMessage("Previously selected glossary not found - use Ctrl+E", 3000)
-            self._last_selected_termbase_ids = None
+        # Build list of (termbase, priority) for active glossaries
+        ranked_termbases = []
+        for tb in all_termbases:
+            tb_id = tb['id']
+            # Query priority from database (returns None if not activated)
+            priority = self.termbase_mgr.get_termbase_priority(tb_id, project_id)
+            if priority is not None:
+                ranked_termbases.append((tb, priority))
+        
+        # Sort by priority (lower = higher priority, so #1 is first)
+        ranked_termbases.sort(key=lambda x: x[1])
+        
+        self.log(f"🔍 Looking for glossary at rank #{glossary_rank}. Found {len(ranked_termbases)} active glossaries: {[(t[0]['name'], t[1]) for t in ranked_termbases]}")
+        
+        # Find the glossary with the specified priority number
+        for tb, priority in ranked_termbases:
+            if priority == glossary_rank:
+                target_termbase = tb
+                break
+        
+        if not target_termbase:
+            self.statusBar().showMessage(f"No glossary with Priority #{glossary_rank} - check Project Resources → Glossaries", 3000)
             return
         
         # Get language codes
@@ -10251,51 +10322,46 @@ class SupervertalerQt(QMainWindow):
         source_lang_code = self._convert_language_to_code(source_lang)
         target_lang_code = self._convert_language_to_code(target_lang)
         
-        self.log(f"⚡ Quick-adding term (P{priority}): {source_text} → {target_text}")
+        self.log(f"⚡ Quick-adding term to rank #{glossary_rank} glossary '{target_termbase['name']}': {source_text} → {target_text}")
         
-        success_count = 0
-        for target_termbase in target_termbases:
-            try:
-                term_id = self.termbase_mgr.add_term(
-                    termbase_id=target_termbase['id'],
-                    source_term=source_text,
-                    target_term=target_text,
-                    source_lang=source_lang_code,
-                    target_lang=target_lang_code,
-                    priority=priority,  # Set the priority!
-                    notes="",
-                    domain="",
-                    project="",
-                    client="",
-                    forbidden=False
-                )
+        try:
+            term_id = self.termbase_mgr.add_term(
+                termbase_id=target_termbase['id'],
+                source_term=source_text,
+                target_term=target_text,
+                source_lang=source_lang_code,
+                target_lang=target_lang_code,
+                priority=99,  # Default priority for the term itself
+                notes="",
+                domain="",
+                project="",
+                client="",
+                forbidden=False
+            )
+            
+            if term_id:
+                self.log(f"✓ Added to '{target_termbase['name']}': {source_text} → {target_text}")
+                self.statusBar().showMessage(f"✓ Added to '{target_termbase['name']}': {source_text} → {target_text}", 3000)
                 
-                if term_id:
-                    success_count += 1
-                    self.log(f"✓ Added (P{priority}): {source_text} → {target_text} to '{target_termbase['name']}'")
-            except Exception as e:
-                self.log(f"✗ Error adding term: {e}")
-        
-        if success_count > 0:
-            termbase_name = target_termbases[0]['name'] if len(target_termbases) == 1 else f"{success_count} glossaries"
-            self.statusBar().showMessage(f"✓ Added (P{priority}): {source_text} → {target_text} ({termbase_name})", 3000)
-            
-            # Refresh caches and display
-            if current_row < len(self.current_project.segments):
-                segment = self.current_project.segments[current_row]
-                with self.translation_matches_cache_lock:
-                    if segment.id in self.translation_matches_cache:
-                        del self.translation_matches_cache[segment.id]
-                with self.termbase_cache_lock:
-                    if segment.id in self.termbase_cache:
-                        del self.termbase_cache[segment.id]
-                self._last_selected_row = -1
-                self.on_cell_selected(current_row, self.table.currentColumn(), -1, -1)
-            
-            if hasattr(self, 'termbase_tab_refresh_callback') and self.termbase_tab_refresh_callback:
-                self.termbase_tab_refresh_callback()
-        else:
-            self.statusBar().showMessage("Term already exists in glossary", 3000)
+                # Refresh caches and display
+                if current_row < len(self.current_project.segments):
+                    segment = self.current_project.segments[current_row]
+                    with self.translation_matches_cache_lock:
+                        if segment.id in self.translation_matches_cache:
+                            del self.translation_matches_cache[segment.id]
+                    with self.termbase_cache_lock:
+                        if segment.id in self.termbase_cache:
+                            del self.termbase_cache[segment.id]
+                    self._last_selected_row = -1
+                    self.on_cell_selected(current_row, self.table.currentColumn(), -1, -1)
+                
+                if hasattr(self, 'termbase_tab_refresh_callback') and self.termbase_tab_refresh_callback:
+                    self.termbase_tab_refresh_callback()
+            else:
+                self.statusBar().showMessage(f"Term already exists in '{target_termbase['name']}'", 3000)
+        except Exception as e:
+            self.log(f"✗ Error adding term: {e}")
+            self.statusBar().showMessage(f"Error adding term: {e}", 3000)
 
     def add_text_to_non_translatables(self, text: str):
         """Add selected text to active non-translatable list(s)"""
@@ -17225,10 +17291,10 @@ class SupervertalerQt(QMainWindow):
         save_btn.clicked.connect(self.save_grid_segment)
         toolbar_layout.addWidget(save_btn)
         
-        save_next_btn = QPushButton("💾 Save & Next")
+        save_next_btn = QPushButton("✓ Confirm && Next")
         save_next_btn.setStyleSheet("background-color: #2196F3; color: white; font-weight: bold; padding: 4px 8px; border: none; outline: none;")
-        save_next_btn.clicked.connect(self.save_grid_segment_and_next)
-        save_next_btn.setToolTip("Save and go to next segment (Ctrl+Enter)")
+        save_next_btn.clicked.connect(self.confirm_selected_or_next)
+        save_next_btn.setToolTip("Confirm current segment and go to next unconfirmed (Ctrl+Enter)")
         toolbar_layout.addWidget(save_next_btn)
         
         grid_layout.addWidget(toolbar)
@@ -17950,9 +18016,9 @@ class SupervertalerQt(QMainWindow):
         save_btn = QPushButton("💾 Save")
         save_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold;")
         save_btn.clicked.connect(self.save_tab_segment)
-        save_next_btn = QPushButton("💾 Save & Next (Ctrl+Enter)")
+        save_next_btn = QPushButton("✓ Confirm && Next (Ctrl+Enter)")
         save_next_btn.setStyleSheet("background-color: #2196F3; color: white; font-weight: bold;")
-        save_next_btn.clicked.connect(self.save_tab_segment_and_next)
+        save_next_btn.clicked.connect(self.confirm_selected_or_next)
 
         button_layout.addWidget(copy_btn)
         button_layout.addWidget(clear_btn)

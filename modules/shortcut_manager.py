@@ -106,6 +106,12 @@ class ShortcutManager:
             "default": "Ctrl+3",
             "action": "switch_to_document_view"
         },
+        "view_toggle_tags": {
+            "category": "View",
+            "description": "Toggle Tag View",
+            "default": "Ctrl+Alt+T",
+            "action": "toggle_tag_view"
+        },
         
         # Grid Text Zoom
         "grid_zoom_in": {
@@ -336,6 +342,13 @@ class ShortcutManager:
             "action": "save_and_next",
             "context": "editor"
         },
+        "editor_confirm_selected": {
+            "category": "Editor",
+            "description": "Confirm All Selected Segments",
+            "default": "Ctrl+Shift+Enter",
+            "action": "confirm_selected_segments",
+            "context": "editor"
+        },
         "editor_line_break": {
             "category": "Editor",
             "description": "Insert Line Break",
@@ -431,6 +444,7 @@ class ShortcutManager:
         """
         self.settings_file = settings_file or Path("user_data/shortcuts.json")
         self.custom_shortcuts = {}
+        self.disabled_shortcuts = set()  # Set of disabled shortcut IDs
         self.load_shortcuts()
     
     def load_shortcuts(self):
@@ -438,17 +452,36 @@ class ShortcutManager:
         if self.settings_file.exists():
             try:
                 with open(self.settings_file, 'r', encoding='utf-8') as f:
-                    self.custom_shortcuts = json.load(f)
+                    data = json.load(f)
+                    # Support both old format (dict of shortcuts) and new format (dict with shortcuts + disabled)
+                    if isinstance(data, dict):
+                        if "shortcuts" in data:
+                            # New format: {"shortcuts": {...}, "disabled": [...]}
+                            self.custom_shortcuts = data.get("shortcuts", {})
+                            self.disabled_shortcuts = set(data.get("disabled", []))
+                        else:
+                            # Old format: just the shortcuts dict
+                            self.custom_shortcuts = data
+                            self.disabled_shortcuts = set()
+                    else:
+                        self.custom_shortcuts = {}
+                        self.disabled_shortcuts = set()
             except Exception as e:
                 print(f"Error loading shortcuts: {e}")
                 self.custom_shortcuts = {}
+                self.disabled_shortcuts = set()
     
     def save_shortcuts(self):
         """Save custom shortcuts to file"""
         try:
             self.settings_file.parent.mkdir(parents=True, exist_ok=True)
+            # Save in new format that includes both shortcuts and disabled list
+            save_data = {
+                "shortcuts": self.custom_shortcuts,
+                "disabled": list(self.disabled_shortcuts)
+            }
             with open(self.settings_file, 'w', encoding='utf-8') as f:
-                json.dump(self.custom_shortcuts, f, indent=2)
+                json.dump(save_data, f, indent=2)
         except Exception as e:
             print(f"Error saving shortcuts: {e}")
     
@@ -469,6 +502,36 @@ class ShortcutManager:
             return self.DEFAULT_SHORTCUTS[shortcut_id]["default"]
         
         return ""
+    
+    def is_enabled(self, shortcut_id: str) -> bool:
+        """
+        Check if a shortcut is enabled
+        
+        Args:
+            shortcut_id: The shortcut identifier
+            
+        Returns:
+            True if enabled (not in disabled set), False if disabled
+        """
+        return shortcut_id not in self.disabled_shortcuts
+    
+    def enable_shortcut(self, shortcut_id: str):
+        """
+        Enable a previously disabled shortcut
+        
+        Args:
+            shortcut_id: The shortcut identifier
+        """
+        self.disabled_shortcuts.discard(shortcut_id)
+    
+    def disable_shortcut(self, shortcut_id: str):
+        """
+        Disable a shortcut
+        
+        Args:
+            shortcut_id: The shortcut identifier
+        """
+        self.disabled_shortcuts.add(shortcut_id)
     
     def set_shortcut(self, shortcut_id: str, key_sequence: str):
         """
@@ -504,7 +567,8 @@ class ShortcutManager:
             result[shortcut_id] = {
                 **data,
                 "current": self.get_shortcut(shortcut_id),
-                "is_custom": shortcut_id in self.custom_shortcuts
+                "is_custom": shortcut_id in self.custom_shortcuts,
+                "is_enabled": self.is_enabled(shortcut_id)
             }
         return result
     
@@ -559,7 +623,8 @@ class ShortcutManager:
         """
         export_data = {
             "version": "1.0",
-            "shortcuts": self.custom_shortcuts
+            "shortcuts": self.custom_shortcuts,
+            "disabled": list(self.disabled_shortcuts)
         }
         
         with open(file_path, 'w', encoding='utf-8') as f:
@@ -581,6 +646,7 @@ class ShortcutManager:
             
             if "shortcuts" in import_data:
                 self.custom_shortcuts = import_data["shortcuts"]
+                self.disabled_shortcuts = set(import_data.get("disabled", []))
                 return True
             return False
         except Exception as e:
