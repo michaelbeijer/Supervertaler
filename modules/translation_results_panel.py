@@ -366,7 +366,7 @@ class CompactMatchItem(QFrame):
                                     if hasattr(source_widget, 'termbase_matches'):
                                         source_widget.termbase_matches = termbase_matches
                         
-                        QMessageBox.information(parent_window, "Success", "Termbase entry deleted")
+                        QMessageBox.information(parent_window, "Success", "Glossary entry deleted")
                         # Hide this match card since it's been deleted
                         self.hide()
                     except Exception as e:
@@ -774,7 +774,7 @@ class TranslationResultsPanel(QWidget):
         self.notes_edit.setStyleSheet(f"font-size: 9px; padding: 4px; background-color: {bg_color}; color: {theme.text if self.theme_manager else '#333'}; border: none;")
         notes_layout.addWidget(self.notes_edit)
         
-        self.info_tabs.addTab(self.notes_widget, "📝 Notes")
+        self.info_tabs.addTab(self.notes_widget, "📝 Segment note")
         
         self.main_splitter.addWidget(self.info_tabs)
         

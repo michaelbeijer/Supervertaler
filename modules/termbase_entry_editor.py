@@ -1,7 +1,7 @@
 """
-Termbase Entry Editor Dialog
+Glossary Entry Editor Dialog
 
-Dialog for editing individual termbase entries with all metadata fields.
+Dialog for editing individual glossary entries with all metadata fields.
 Can be opened from translation results panel (edit button or right-click menu).
 """
 
@@ -115,7 +115,7 @@ class TermbaseEntryEditor(QDialog):
         self.term_id = term_id
         self.term_data = None
         
-        self.setWindowTitle("Edit Termbase Entry" if term_id else "New Termbase Entry")
+        self.setWindowTitle("Edit Glossary Entry" if term_id else "New Glossary Entry")
         self.setModal(True)
         self.setMinimumWidth(550)
 
@@ -149,7 +149,7 @@ class TermbaseEntryEditor(QDialog):
         layout.setContentsMargins(6, 6, 6, 6)
 
         # Header
-        header = QLabel("📖 Termbase Entry Editor")
+        header = QLabel("📖 Glossary Entry Editor")
         header.setStyleSheet("font-size: 12px; font-weight: bold; color: #333; padding: 4px;")
         layout.addWidget(header)
         
@@ -712,7 +712,7 @@ class TermbaseEntryEditor(QDialog):
         reply = QMessageBox.question(
             self,
             "Confirm Deletion",
-            f"Delete this termbase entry?\n\nSource: {self.source_edit.text()}\nTarget: {self.target_edit.text()}\n\nThis action cannot be undone.",
+            f"Delete this glossary entry?\n\nSource: {self.source_edit.text()}\nTarget: {self.target_edit.text()}\n\nThis action cannot be undone.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No
         )
@@ -722,7 +722,7 @@ class TermbaseEntryEditor(QDialog):
                 cursor = self.db_manager.cursor
                 cursor.execute("DELETE FROM termbase_terms WHERE id = ?", (self.term_id,))
                 self.db_manager.connection.commit()
-                QMessageBox.information(self, "Success", "Termbase entry deleted")
+                QMessageBox.information(self, "Success", "Glossary entry deleted")
                 self.accept()  # Close dialog with success
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to delete entry: {e}")
@@ -765,14 +765,14 @@ class TermbaseEntryEditor(QDialog):
                 cursor.execute("""
                     UPDATE termbase_terms
                     SET source_term = ?, target_term = ?, priority = ?,
-                        domain = ?, note = ?, project = ?, client = ?, forbidden = ?
+                        domain = ?, notes = ?, project = ?, client = ?, forbidden = ?
                     WHERE id = ?
                 """, (source_term, target_term, priority, domain, note, project, client, forbidden, self.term_id))
             else:
                 # Insert new term
                 cursor.execute("""
                     INSERT INTO termbase_terms
-                    (termbase_id, source_term, target_term, priority, domain, note, project, client, forbidden)
+                    (termbase_id, source_term, target_term, priority, domain, notes, project, client, forbidden)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (self.termbase_id, source_term, target_term, priority, domain, note, project, client, forbidden))
             

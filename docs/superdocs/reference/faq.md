@@ -69,6 +69,7 @@ Welcome to the Supervertaler FAQ! Find answers to common questions about install
 
 - [Privacy & Commercial Use](#privacy-commercial-use)
    - [Is my translation data private?](#is-my-translation-data-private)
+   - [Are my website passwords stored by the embedded browser?](#are-my-website-passwords-stored-by-the-embedded-browser)
    - [Can I use Supervertaler commercially?](#can-i-use-supervertaler-commercially)
    - [How can I support the project?](#how-can-i-support-the-project)
 
@@ -1220,6 +1221,36 @@ Michael Beijer, a professional translator, created Supervertaler to:
 - Use providers with strong privacy commitments
 - For highly confidential work, wait for local LLM support (future)
 - Keep local backups of all files
+
+### Are my website passwords stored by the embedded browser?
+
+The Superlookup Web Resources tab includes an **embedded browser** that lets you search IATE, ProZ, Linguee, and other terminology sites without leaving Supervertaler. Here's what you need to know about security:
+
+**What's stored:**
+- The embedded browser uses **cookies** to keep you logged in, not saved passwords
+- When you log in to a site (e.g., ProZ), the site sends a session cookie (a "remember me" token)
+- These cookies are stored in `user_data/web_cache/` in Chromium's SQLite database format
+
+**What's NOT stored:**
+- Your actual passwords are **never saved** by Supervertaler
+- Qt WebEngine (the embedded browser) does not have a built-in password manager like Chrome or Firefox
+- When a site "remembers" you, it's using session cookies, not your stored credentials
+
+**Security considerations:**
+- Cookies are stored on disk and could theoretically be accessed by malware (same as any browser)
+- The cookies are in Chromium's format (SQLite), not plain text, but they're not encrypted on Windows
+- This is identical to how Chrome, Firefox, and Edge store cookies locally
+
+**Recommendations:**
+- Don't use the embedded browser for highly sensitive accounts (banking, medical portals, etc.)
+- For terminology sites like ProZ, IATE, Linguee — the risk is minimal
+- If you're on a shared computer, delete `user_data/web_cache/` to clear all sessions
+- For maximum security, use **External browser mode** in Superlookup settings — this opens links in your regular browser where you have full control over security settings
+
+**How to clear saved sessions:**
+1. Close Supervertaler
+2. Delete the folder: `user_data/web_cache/`
+3. Restart Supervertaler — you'll need to log in again to any sites
 
 ### Can I use Supervertaler commercially?
 

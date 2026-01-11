@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** January 11, 2026 | **Version:** v1.9.97
+> **Last Updated:** January 11, 2026 | **Version:** v1.9.98
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.97 (January 2026) |
+| **Version** | v1.9.98 (January 2026) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -665,6 +665,34 @@ google_api_key=AI...
 ---
 
 ## 🔄 Recent Development History
+
+### January 11, 2026 - Version 1.9.98: Glossary Notes in Tooltips
+
+**📝 Fixed Glossary Entry Notes Not Appearing in Tooltips**
+
+Fixed bug where glossary entry notes were not appearing in tooltips despite being saved correctly to the database.
+
+**The Problem:**
+- Notes were saved correctly to `termbase_terms.notes` database column
+- When converting termbase matches from dict to list format for display, `notes` field was dropped in 5 places
+- TermView and source cell tooltips never received notes data
+
+**The Fix:**
+Fixed 5 locations where glossary notes were being lost:
+1. Cached termbase matches conversion (~lines 26753-26768)
+2. Fresh termbase matches conversion (~lines 26835-26850)
+3. Refresh current segment conversion (~lines 30420-30438)
+4. TranslationMatch metadata (~lines 30469-30485)
+
+**Also in this release:**
+- **WebEngineView cleanup**: Fixed "Release of profile requested" terminal warnings
+- **FAQ update**: Added embedded browser password/cookie security documentation
+
+**Files Modified:**
+- `Supervertaler.py` - Fixed notes field in 4 dict-to-list conversions + 1 TranslationMatch metadata
+- `docs/superdocs/reference/faq.md` - Added FAQ about embedded browser security
+
+---
 
 ### January 11, 2026 - Version 1.9.97: All MT Providers in Translation Results
 
@@ -2774,4 +2802,4 @@ An intelligent proofreading system that uses LLMs to verify translation quality.
 ---
 
 *This file replaces the previous CLAUDE.md and PROJECT_CONTEXT.md files.*
-*Last updated: January 11, 2026 - v1.9.97*
+*Last updated: January 11, 2026 - v1.9.98*

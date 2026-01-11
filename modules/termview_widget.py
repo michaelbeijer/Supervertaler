@@ -263,11 +263,23 @@ class TermBlock(QWidget):
             target_label.mousePressEvent = lambda e: self.on_translation_clicked(target_text)
             
             # Build tooltip with shortcut hint if applicable
-            shortcut_hint = f"<br><i>Press Ctrl+{self.shortcut_number} to insert</i>" if self.shortcut_number and self.shortcut_number <= 9 else ""
+            if self.shortcut_number is not None and self.shortcut_number <= 19:
+                if self.shortcut_number <= 9:
+                    shortcut_hint = f"<br><i>Press Alt+{self.shortcut_number} to insert</i>"
+                else:
+                    # Double-tap shortcuts (10-19 displayed as 00, 11, 22, etc.)
+                    double_digit = (self.shortcut_number - 10)
+                    shortcut_hint = f"<br><i>Press Alt+{double_digit},{double_digit} to insert</i>"
+            else:
+                shortcut_hint = ""
             
             # Set tooltip if multiple translations exist
             if len(self.translations) > 1:
                 tooltip_lines = [f"<b>{target_text}</b> (click to insert){shortcut_hint}<br>"]
+                # Add notes if available
+                notes = primary_translation.get('notes', '')
+                if notes:
+                    tooltip_lines.append(f"<br><i>Note: {notes}</i><br>")
                 tooltip_lines.append("<br><b>Alternatives:</b>")
                 for i, trans in enumerate(self.translations[1:], 1):
                     alt_target = trans.get('target_term', trans.get('target', ''))
@@ -275,7 +287,13 @@ class TermBlock(QWidget):
                     tooltip_lines.append(f"{i}. {alt_target} ({alt_termbase})")
                 target_label.setToolTip("<br>".join(tooltip_lines))
             else:
-                target_label.setToolTip(f"<b>{target_text}</b><br>From: {termbase_name}{shortcut_hint}<br>(click to insert)")
+                # Build tooltip for single translation
+                tooltip_text = f"<b>{target_text}</b><br>From: {termbase_name}{shortcut_hint}"
+                notes = primary_translation.get('notes', '')
+                if notes:
+                    tooltip_text += f"<br><i>Note: {notes}</i>"
+                tooltip_text += "<br>(click to insert)"
+                target_label.setToolTip(tooltip_text)
             
             target_layout.addWidget(target_label)
             
@@ -718,7 +736,8 @@ class TermviewWidget(QWidget):
                     'ranking': match.get('ranking', 99),
                     'is_project_termbase': match.get('is_project_termbase', False),
                     'term_id': match.get('term_id'),
-                    'termbase_id': match.get('termbase_id')
+                    'termbase_id': match.get('termbase_id'),
+                    'notes': match.get('notes', '')
                 })
                 
                 # Add synonyms as additional translations

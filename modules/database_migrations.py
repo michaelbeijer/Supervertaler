@@ -46,9 +46,13 @@ def migrate_termbase_fields(db_manager) -> bool:
         if 'term_uuid' not in columns:
             migrations_needed.append(("term_uuid", "ALTER TABLE termbase_terms ADD COLUMN term_uuid TEXT"))
         
-        # Add 'note' column if it doesn't exist (used by termbase entry editor)
+        # Add 'note' column if it doesn't exist (legacy, kept for compatibility)
         if 'note' not in columns:
             migrations_needed.append(("note", "ALTER TABLE termbase_terms ADD COLUMN note TEXT"))
+        
+        # Add 'notes' column if it doesn't exist (used by termbase entry editor)
+        if 'notes' not in columns:
+            migrations_needed.append(("notes", "ALTER TABLE termbase_terms ADD COLUMN notes TEXT"))
         
         # Execute migrations
         for column_name, sql in migrations_needed:

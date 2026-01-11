@@ -2,11 +2,40 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.97 (January 11, 2026)
+**Current Version:** v1.9.98 (January 11, 2026)
 **Framework:** PyQt6
 **Status:** Active Development
 
 **Note:** For historical information about legacy versions (Tkinter Edition, Classic Edition), see [legacy_versions/LEGACY_VERSIONS.md](legacy_versions/LEGACY_VERSIONS.md).
+
+---
+
+## 📝 Glossary Notes in Tooltips (v1.9.98) - January 11, 2026
+
+**Bug Fix: Glossary Entry Notes Now Display in Tooltips**
+
+Fixed an issue where glossary entry notes were not appearing in tooltips, even though they were correctly saved to the database.
+
+**The Problem:**
+- Notes were being saved correctly to the `termbase_terms.notes` database column
+- However, when converting termbase matches from dictionary format to list format for display, the `notes` field was being dropped in multiple places
+- This meant TermView tooltips and source cell tooltips never received the notes data
+
+**The Fix:**
+Fixed 5 locations where glossary notes were being lost:
+1. **Cached termbase matches conversion** (lines ~26753-26768): Added `'notes'` field
+2. **Fresh termbase matches conversion** (lines ~26835-26850): Added `'notes'` field  
+3. **Refresh current segment conversion** (lines ~30420-30438): Added `'notes'` field
+4. **TranslationMatch metadata** (lines ~30469-30485): Added `'notes'`, `'term_id'`, `'termbase_id'` to metadata dict
+
+**Result:**
+- Glossary entry notes now appear in TermView tooltips when hovering over terms
+- Notes also appear in source cell tooltips for highlighted glossary terms
+- Full data flow now preserved: Database → TranslationMatch → dict → list → TermBlock → Tooltip
+
+**Also in this release:**
+- **WebEngineView cleanup**: Fixed "Release of profile requested but WebEnginePage still not deleted" terminal warnings by properly cleaning up Superlookup web views on app close
+- **FAQ update**: Added documentation about embedded browser password/cookie security in Superdocs FAQ
 
 ---
 
