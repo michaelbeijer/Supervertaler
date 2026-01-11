@@ -1337,6 +1337,24 @@ class UnifiedPromptManagerQt:
         
         layout.addLayout(toolbar)
         
+        # External file path display (hidden by default)
+        self.external_path_frame = QFrame()
+        external_path_layout = QHBoxLayout(self.external_path_frame)
+        external_path_layout.setContentsMargins(0, 0, 0, 4)
+        external_path_layout.addWidget(QLabel("📂 Location:"))
+        self.external_path_label = QLabel()
+        self.external_path_label.setStyleSheet("color: #0066cc; text-decoration: underline;")
+        self.external_path_label.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.external_path_label.setToolTip("Click to open containing folder")
+        self.external_path_label.mousePressEvent = self._open_external_prompt_folder
+        external_path_layout.addWidget(self.external_path_label, 1)
+        self.btn_open_folder = QPushButton("📁 Open Folder")
+        self.btn_open_folder.setMaximumWidth(100)
+        self.btn_open_folder.clicked.connect(lambda: self._open_external_prompt_folder(None))
+        external_path_layout.addWidget(self.btn_open_folder)
+        self.external_path_frame.setVisible(False)
+        layout.addWidget(self.external_path_frame)
+        
         # Metadata fields
         metadata_layout = QHBoxLayout()
         
@@ -1591,6 +1609,10 @@ class UnifiedPromptManagerQt:
         # Store current path for saving
         self.editor_current_path = relative_path
         self.btn_save_prompt.setEnabled(True)
+        
+        # Hide external path display (this is a library prompt, not external)
+        self.external_path_frame.setVisible(False)
+        self._current_external_file_path = None
     
     def _save_current_prompt(self):
         """Save currently edited prompt"""
@@ -1789,10 +1811,41 @@ class UnifiedPromptManagerQt:
             
             # Store the external path for potential save operations
             self.editor_current_path = f"[EXTERNAL] {file_path}"
+            self._current_external_file_path = file_path  # Store for folder opening
             self.btn_save_prompt.setEnabled(True)
+            
+            # Show the external path with clickable link
+            self.external_path_label.setText(file_path)
+            self.external_path_frame.setVisible(True)
             
         except Exception as e:
             self.log_message(f"⚠ Could not display prompt in editor: {e}")
+    
+    def _open_external_prompt_folder(self, event):
+        """Open the folder containing the current external prompt file"""
+        import subprocess
+        import platform
+        from pathlib import Path
+        
+        if not hasattr(self, '_current_external_file_path') or not self._current_external_file_path:
+            return
+        
+        folder_path = Path(self._current_external_file_path).parent
+        
+        if not folder_path.exists():
+            QMessageBox.warning(self.main_widget, "Folder Not Found", f"The folder no longer exists:\n{folder_path}")
+            return
+        
+        try:
+            if platform.system() == 'Windows':
+                # Open folder and select the file
+                subprocess.run(['explorer', '/select,', str(self._current_external_file_path)])
+            elif platform.system() == 'Darwin':  # macOS
+                subprocess.run(['open', '-R', str(self._current_external_file_path)])
+            else:  # Linux
+                subprocess.run(['xdg-open', str(folder_path)])
+        except Exception as e:
+            QMessageBox.warning(self.main_widget, "Error", f"Could not open folder: {e}")
 
     def _clear_all_attachments(self):
         """Clear all attached prompts"""
@@ -1837,6 +1890,10 @@ class UnifiedPromptManagerQt:
         # Store target folder
         self.editor_current_path = None  # New prompt, no path yet
         self.editor_target_folder = folder_path  # Store folder for saving
+        
+        # Hide external path display (this is a new library prompt)
+        self.external_path_frame.setVisible(False)
+        self._current_external_file_path = None
 
         self.log_message(f"Creating new prompt '{name}' in folder: {folder_path}")
 

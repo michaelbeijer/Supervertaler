@@ -1991,13 +1991,6 @@ class ReadOnlyGridTextEditor(QTextEdit):
                 background-color: {color};
                 padding: 0px;
             }}
-            QTextEdit:focus {{
-                border: 1px solid #2196F3;
-            }}
-            QTextEdit::selection {{
-                background-color: #D0E7FF;
-                color: black;
-            }}
         """)
 
 
@@ -2221,18 +2214,21 @@ class EditableGridTextEditor(QTextEdit):
 
         # Style to look like a normal cell with subtle selection
         # Background and text colors now managed by theme system
-        self.setStyleSheet("""
-            QTextEdit {
+        # Border color and thickness use class variables for user customization
+        border_color = EditableGridTextEditor.focus_border_color
+        border_thickness = EditableGridTextEditor.focus_border_thickness
+        self.setStyleSheet(f"""
+            QTextEdit {{
                 border: none;
                 padding: 0px 4px 0px 0px;
-            }
-            QTextEdit:focus {
-                border: 1px solid #2196F3;
-            }
-            QTextEdit::selection {
+            }}
+            QTextEdit:focus {{
+                border: {border_thickness}px solid {border_color};
+            }}
+            QTextEdit::selection {{
                 background-color: #D0E7FF;
                 color: black;
-            }
+            }}
         """)
 
         # Set document margins to 0 for compact display
@@ -3119,14 +3115,17 @@ class EditableGridTextEditor(QTextEdit):
 
     def set_background_color(self, color: str):
         """Set the background color for this text editor (for alternating row colors)"""
+        # Use class variables for border settings to respect user customization
+        border_color = EditableGridTextEditor.focus_border_color
+        border_thickness = EditableGridTextEditor.focus_border_thickness
         self.setStyleSheet(f"""
             QTextEdit {{
                 border: none;
                 background-color: {color};
-                padding: 0px;
+                padding: 0px 4px 0px 0px;
             }}
             QTextEdit:focus {{
-                border: 1px solid #2196F3;
+                border: {border_thickness}px solid {border_color};
             }}
             QTextEdit::selection {{
                 background-color: #D0E7FF;
@@ -14609,10 +14608,24 @@ class SupervertalerQt(QMainWindow):
         border_thickness_spin.setMaximum(10)
         border_thickness_spin.setValue(font_settings.get('focus_border_thickness', 2))
         border_thickness_spin.setSuffix(" px")
-        border_thickness_spin.setFixedWidth(90)
-        border_thickness_spin.setFixedHeight(25)
+        border_thickness_spin.setMinimumWidth(90)
+        border_thickness_spin.setMinimumHeight(28)
         border_thickness_spin.setButtonSymbols(QSpinBox.ButtonSymbols.UpDownArrows)
         border_thickness_spin.setToolTip("Thickness of the focus border (1-10 pixels)")
+        # Fix spinbox arrow buttons - ensure both up and down work correctly
+        border_thickness_spin.setStyleSheet("""
+            QSpinBox {
+                padding-right: 20px;
+            }
+            QSpinBox::up-button {
+                width: 20px;
+                height: 14px;
+            }
+            QSpinBox::down-button {
+                width: 20px;
+                height: 14px;
+            }
+        """)
         thickness_layout.addWidget(border_thickness_spin)
         thickness_layout.addStretch()
         focus_border_layout.addLayout(thickness_layout)
@@ -16653,6 +16666,14 @@ class SupervertalerQt(QMainWindow):
         # Add focus border settings if provided
         if border_color_btn is not None:
             border_color = border_color_btn.property('selected_color')
+            # Fallback: if property is empty, try to parse from stylesheet
+            if not border_color:
+                style = border_color_btn.styleSheet()
+                if 'background-color:' in style:
+                    import re
+                    match = re.search(r'background-color:\s*(#[0-9A-Fa-f]{6})', style)
+                    if match:
+                        border_color = match.group(1)
             if border_color:
                 general_settings['focus_border_color'] = border_color
                 EditableGridTextEditor.focus_border_color = border_color
@@ -16767,21 +16788,25 @@ class SupervertalerQt(QMainWindow):
         # Apply focus border settings to all grid cells
         if (border_color_btn is not None or border_thickness_spin is not None) and hasattr(self, 'table') and self.table is not None:
             # Refresh all EditableGridTextEditor widgets with new border settings
+            border_color = EditableGridTextEditor.focus_border_color
+            border_thickness = EditableGridTextEditor.focus_border_thickness
+            self.log(f"Applying focus border: color={border_color}, thickness={border_thickness}px")
+            
             for row in range(self.table.rowCount()):
                 widget = self.table.cellWidget(row, 3)  # Target column
                 if widget and isinstance(widget, EditableGridTextEditor):
                     # Update the stylesheet with new border settings
-                    border_color = EditableGridTextEditor.focus_border_color
-                    border_thickness = EditableGridTextEditor.focus_border_thickness
                     widget.setStyleSheet(f"""
                         QTextEdit {{
-                            border: {border_thickness}px solid {border_color};
-                            border-radius: 2px;
-                            padding: 4px;
-                            background-color: {widget.palette().base().color().name()};
+                            border: none;
+                            padding: 0px 4px 0px 0px;
                         }}
                         QTextEdit:focus {{
                             border: {border_thickness}px solid {border_color};
+                        }}
+                        QTextEdit::selection {{
+                            background-color: #D0E7FF;
+                            color: black;
                         }}
                     """)
 
