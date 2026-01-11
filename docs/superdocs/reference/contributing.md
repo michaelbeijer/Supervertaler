@@ -9,7 +9,7 @@ Contributions are welcome — bug reports, documentation improvements, and code 
 
 ## Documentation edits
 
-Supervertaler Help (Superdocs) is synced from the repository. If you spot missing or unclear documentation, open an issue or submit a pull request.
+Supervertaler Help is synced from the repository. If you spot missing or unclear documentation, open an issue or submit a pull request.
 
 ## Tip
 

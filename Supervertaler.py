@@ -6280,7 +6280,7 @@ class SupervertalerQt(QMainWindow):
 
         # Place Supervertaler Help at the top of the Help menu
         superdocs_action = QAction("Supervertaler Help", self)
-        superdocs_action.setToolTip("Superdocs (GitBook)")
+        superdocs_action.setToolTip("Online documentation (GitBook)")
         superdocs_action.triggered.connect(lambda: self._open_url("https://supervertaler.gitbook.io/superdocs/"))
         help_menu.addAction(superdocs_action)
 
@@ -7835,11 +7835,11 @@ class SupervertalerQt(QMainWindow):
         return superbrowser_widget
 
     def create_superdocs_tab(self) -> QWidget:
-        """Create the Superdocs tab - Automated Documentation Viewer"""
-        # The Superdocs viewer was removed in favor of online documentation.
+        """Create the Help tab - Online Documentation Viewer"""
+        # The embedded docs viewer was removed in favor of online documentation.
         placeholder = QWidget()
         layout = QVBoxLayout(placeholder)
-        label = QLabel("📚 Superdocs are now available online.\n\nVisit https://supervertaler.gitbook.io/superdocs/ to view the documentation.")
+        label = QLabel("📚 Supervertaler Help is now available online.\n\nVisit https://supervertaler.gitbook.io/superdocs/ to view the documentation.")
         label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         label.setStyleSheet("color: #888; font-size: 12px;")
         layout.addWidget(label)
@@ -34099,15 +34099,15 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             QMessageBox.warning(self, "Error", f"Could not open URL: {e}")
 
     def _open_superdocs_tab(self):
-        """Open the online Superdocs GitBook in the user's browser."""
+        """Open the online Supervertaler Help in the user's browser."""
         try:
             # Prefer opening the published online docs
             self._open_url("https://supervertaler.gitbook.io/superdocs/")
         except Exception:
             QMessageBox.information(
                 self,
-                "Superdocs",
-                "Superdocs are available online at https://supervertaler.gitbook.io/superdocs/"
+                "Supervertaler Help",
+                "Supervertaler Help is available online at https://supervertaler.gitbook.io/superdocs/"
             )
     
     def _show_ahk_setup_from_menu(self):
