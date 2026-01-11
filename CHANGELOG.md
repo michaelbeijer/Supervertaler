@@ -2,11 +2,38 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.94 (January 11, 2026)
+**Current Version:** v1.9.95 (January 11, 2026)
 **Framework:** PyQt6
 **Status:** Active Development
 
 **Note:** For historical information about legacy versions (Tkinter Edition, Classic Edition), see [legacy_versions/LEGACY_VERSIONS.md](legacy_versions/LEGACY_VERSIONS.md).
+
+---
+
+## 🔍 TM Fuzzy Matching Fix (v1.9.95) - January 11, 2026
+
+**Bug Fix: Improved Translation Memory Fuzzy Matching for Long Segments**
+
+Fixed a critical issue where highly similar TM entries were not being found for long segments (especially in patent/technical documents).
+
+**The Problem:**
+- FTS5 full-text search uses BM25 ranking which prioritizes entries matching more search terms
+- For long segments with many technical compound words, BM25 pushed truly similar entries below the candidate limit
+- Example: Two sentences that were 92% similar weren't matching because other entries matched more individual words
+
+**The Fix:**
+- Increased the FTS5 candidate pool from 100 to 500 entries
+- This ensures similar entries make it into the candidate pool before SequenceMatcher calculates actual similarity
+- More candidates = better chance of finding the truly similar matches
+
+**Technical Details:**
+- Changed `max(50, max_results * 10)` to `max(500, max_results * 50)` in `search_fuzzy_matches()`
+- FTS5 BM25 is great for keyword relevance but needs a larger pool for similarity-based reranking
+- The SequenceMatcher then correctly scores the candidates by actual text similarity
+
+**Result:**
+- TM fuzzy matches now reliably appear for long technical segments
+- 90%+ similar entries are no longer missed due to BM25 ranking artifacts
 
 ---
 

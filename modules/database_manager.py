@@ -851,25 +851,33 @@ class DatabaseManager:
         
         # Remove special FTS5 characters and split into words (from tag-stripped text)
         clean_text = re.sub(r'[^\w\s]', ' ', text_without_tags)  # Replace special chars with spaces
-        search_terms_clean = [term for term in clean_text.strip().split() if len(term) > 1]
+        search_terms_clean = [term for term in clean_text.strip().split() if len(term) > 2]  # Min 3 chars
         
         # Also get search terms from original source (in case TM was indexed with tags)
         clean_text_with_tags = re.sub(r'[^\w\s]', ' ', source)
-        search_terms_with_tags = [term for term in clean_text_with_tags.strip().split() if len(term) > 1]
+        search_terms_with_tags = [term for term in clean_text_with_tags.strip().split() if len(term) > 2]
         
         # Combine both sets of search terms (deduplicated)
         all_search_terms = list(dict.fromkeys(search_terms_clean + search_terms_with_tags))
         
-        print(f"[DEBUG] search_fuzzy_matches: source='{source[:50]}', search_terms={all_search_terms}")
+        # For long segments, prioritize longer/rarer words to get better FTS5 candidates
+        # Sort by length (longer words are usually more discriminating)
+        all_search_terms.sort(key=len, reverse=True)
         
-        if not all_search_terms:
+        # Limit search terms to avoid overly complex queries (top 20 longest words)
+        # This helps find similar long segments more reliably
+        search_terms_for_query = all_search_terms[:20]
+        
+        print(f"[DEBUG] search_fuzzy_matches: source='{source[:50]}...', {len(all_search_terms)} terms")
+        
+        if not search_terms_for_query:
             # If no valid terms, return empty results
             print(f"[DEBUG] search_fuzzy_matches: No valid search terms, returning empty")
             return []
         
         # Quote each term to prevent FTS5 syntax errors
-        fts_query = ' OR '.join(f'"{term}"' for term in all_search_terms)
-        print(f"[DEBUG] search_fuzzy_matches: FTS query = {fts_query}")
+        fts_query = ' OR '.join(f'"{term}"' for term in search_terms_for_query)
+        print(f"[DEBUG] search_fuzzy_matches: FTS query terms = {search_terms_for_query[:10]}...")
         
         # Get base language codes for comparison
         src_base = get_base_lang_code(source_lang) if source_lang else None
@@ -912,14 +920,17 @@ class DatabaseManager:
                 params.append(f"{variant}-%")
             query += f" AND ({' OR '.join(tgt_conditions)})"
         
-        # Get more candidates than needed for proper scoring
-        query += f" ORDER BY relevance DESC LIMIT {max_results * 5}"
+        # Get more candidates than needed for proper scoring (increase limit for long segments)
+        # Long segments need MANY more candidates because BM25 ranking may push down
+        # the truly similar entries in favor of entries matching more search terms
+        candidate_limit = max(500, max_results * 50)
+        query += f" ORDER BY relevance DESC LIMIT {candidate_limit}"
         
-        print(f"[DEBUG] search_fuzzy_matches: Executing query...")
+        print(f"[DEBUG] search_fuzzy_matches: Executing query (limit={candidate_limit})...")
+        
         try:
             self.cursor.execute(query, params)
             all_rows = self.cursor.fetchall()
-            print(f"[DEBUG] search_fuzzy_matches: FTS query returned {len(all_rows)} candidates")
         except Exception as e:
             print(f"[DEBUG] search_fuzzy_matches: SQL ERROR: {e}")
             return []
@@ -937,7 +948,7 @@ class DatabaseManager:
                 match_dict['match_pct'] = int(similarity * 100)
                 results.append(match_dict)
         
-        print(f"[DEBUG] search_fuzzy_matches: After threshold filter: {len(results)} matches")
+        print(f"[DEBUG] search_fuzzy_matches: After threshold filter ({threshold}): {len(results)} matches")
         
         # If bidirectional, also search reverse direction
         if bidirectional and src_base and tgt_base:
@@ -1107,7 +1118,7 @@ class DatabaseManager:
         self.connection.commit()
     
     def concordance_search(self, query: str, tm_ids: List[str] = None, direction: str = 'both',
-                            source_lang: str = None, target_lang: str = None) -> List[Dict]:
+                            source_lang = None, target_lang = None) -> List[Dict]:
         """
         Search for text in source and/or target (concordance search)
         Uses FTS5 full-text search for fast matching on millions of segments.
@@ -1117,9 +1128,13 @@ class DatabaseManager:
             query: Text to search for
             tm_ids: List of TM IDs to search (None = all)
             direction: 'source' = search source only, 'target' = search target only, 'both' = bidirectional
-            source_lang: Filter by source language (None = any)
-            target_lang: Filter by target language (None = any)
+            source_lang: Filter by source language - can be a string OR a list of language variants (None = any)
+            target_lang: Filter by target language - can be a string OR a list of language variants (None = any)
         """
+        # Normalize language filters to lists for consistent handling
+        source_langs = source_lang if isinstance(source_lang, list) else ([source_lang] if source_lang else None)
+        target_langs = target_lang if isinstance(target_lang, list) else ([target_lang] if target_lang else None)
+        
         # Escape FTS5 special characters and wrap words for prefix matching
         # FTS5 special chars: " * ( ) : ^
         fts_query = query.replace('"', '""')
@@ -1156,13 +1171,15 @@ class DatabaseManager:
                 fts_sql += f" AND tu.tm_id IN ({placeholders})"
                 params.extend(tm_ids)
             
-            # Add language filters
-            if source_lang:
-                fts_sql += " AND tu.source_lang = ?"
-                params.append(source_lang)
-            if target_lang:
-                fts_sql += " AND tu.target_lang = ?"
-                params.append(target_lang)
+            # Add language filters (support for list of variants)
+            if source_langs:
+                placeholders = ','.join('?' * len(source_langs))
+                fts_sql += f" AND tu.source_lang IN ({placeholders})"
+                params.extend(source_langs)
+            if target_langs:
+                placeholders = ','.join('?' * len(target_langs))
+                fts_sql += f" AND tu.target_lang IN ({placeholders})"
+                params.extend(target_langs)
             
             fts_sql += " ORDER BY tu.modified_date DESC LIMIT 100"
             
@@ -1198,12 +1215,15 @@ class DatabaseManager:
                 sql += f" AND tm_id IN ({placeholders})"
                 params.extend(tm_ids)
             
-            if source_lang:
-                sql += " AND source_lang = ?"
-                params.append(source_lang)
-            if target_lang:
-                sql += " AND target_lang = ?"
-                params.append(target_lang)
+            # Add language filters (support for list of variants)
+            if source_langs:
+                placeholders = ','.join('?' * len(source_langs))
+                sql += f" AND source_lang IN ({placeholders})"
+                params.extend(source_langs)
+            if target_langs:
+                placeholders = ','.join('?' * len(target_langs))
+                sql += f" AND target_lang IN ({placeholders})"
+                params.extend(target_langs)
             
             sql += " ORDER BY modified_date DESC LIMIT 100"
             

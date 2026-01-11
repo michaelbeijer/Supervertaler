@@ -3,8 +3,8 @@ Supervertaler
 =============
 The Ultimate Translation Workbench.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.9.92 (F5 Refresh & Quote Matching)
-Release Date: January 10, 2026
+Version: 1.9.95 (TM Fuzzy Matching Fix)
+Release Date: January 11, 2026
 Framework: PyQt6
 
 This is the modern edition of Supervertaler using PyQt6 framework.
@@ -34,9 +34,9 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.94"
+__version__ = "1.9.95"
 __phase__ = "0.9"
-__release_date__ = "2026-01-10"
+__release_date__ = "2026-01-11"
 __edition__ = "Qt"
 
 import sys
@@ -1825,7 +1825,11 @@ class ReadOnlyGridTextEditor(QTextEdit):
                 print(f"Error triggering manual cell selection: {e}")
 
     def mouseReleaseEvent(self, event):
-        """Smart word selection - expand partial selections to full words"""
+        """Smart word selection - expand partial selections to full words
+        
+        Works across multiple lines - if you select text spanning several lines,
+        partial words at the START and END of your selection will be expanded.
+        """
         super().mouseReleaseEvent(event)
 
         # Check if smart selection is enabled
@@ -1851,24 +1855,31 @@ class ReadOnlyGridTextEditor(QTextEdit):
             def is_word_char(char):
                 return char.isalnum() or char in "_-'"
 
-            # Check if we're at word boundaries
-            at_start_boundary = start == 0 or not is_word_char(text[start - 1])
-            at_end_boundary = end == len(text) or not is_word_char(text[end])
+            # Track if we need to update the selection
+            selection_changed = False
 
-            # If selection is partial (not at both boundaries) and reasonably small
-            # (to avoid interfering with intentional multi-word selections)
-            selection_length = end - start
-            if (not at_start_boundary or not at_end_boundary) and selection_length < 50:
-                # Expand to word boundaries
-                # Move start backward to word boundary
-                while start > 0 and is_word_char(text[start - 1]):
-                    start -= 1
+            # Expand START boundary if we're in the middle of a word
+            # (i.e., the character before the selection is a word character)
+            if start > 0 and is_word_char(text[start - 1]):
+                # Also check that the first selected character is a word char
+                # (to avoid expanding when selecting from whitespace)
+                if start < len(text) and is_word_char(text[start]):
+                    while start > 0 and is_word_char(text[start - 1]):
+                        start -= 1
+                    selection_changed = True
 
-                # Move end forward to word boundary
-                while end < len(text) and is_word_char(text[end]):
-                    end += 1
+            # Expand END boundary if we're in the middle of a word
+            # (i.e., the character after the selection is a word character)
+            if end < len(text) and is_word_char(text[end]):
+                # Also check that the last selected character is a word char
+                # (to avoid expanding when selecting to whitespace)
+                if end > 0 and is_word_char(text[end - 1]):
+                    while end < len(text) and is_word_char(text[end]):
+                        end += 1
+                    selection_changed = True
 
-                # Set the new selection
+            # Set the new selection if boundaries changed
+            if selection_changed:
                 cursor.setPosition(start)
                 cursor.setPosition(end, cursor.MoveMode.KeepAnchor)
                 self.setTextCursor(cursor)
@@ -2575,7 +2586,11 @@ class EditableGridTextEditor(QTextEdit):
                 print(f"Error triggering manual cell selection: {e}")
 
     def mouseReleaseEvent(self, event):
-        """Smart word selection - expand partial selections to full words"""
+        """Smart word selection - expand partial selections to full words
+        
+        Works across multiple lines - if you select text spanning several lines,
+        partial words at the START and END of your selection will be expanded.
+        """
         super().mouseReleaseEvent(event)
 
         # Check if smart selection is enabled
@@ -2601,24 +2616,31 @@ class EditableGridTextEditor(QTextEdit):
             def is_word_char(char):
                 return char.isalnum() or char in "_-'"
 
-            # Check if we're at word boundaries
-            at_start_boundary = start == 0 or not is_word_char(text[start - 1])
-            at_end_boundary = end == len(text) or not is_word_char(text[end])
+            # Track if we need to update the selection
+            selection_changed = False
 
-            # If selection is partial (not at both boundaries) and reasonably small
-            # (to avoid interfering with intentional multi-word selections)
-            selection_length = end - start
-            if (not at_start_boundary or not at_end_boundary) and selection_length < 50:
-                # Expand to word boundaries
-                # Move start backward to word boundary
-                while start > 0 and is_word_char(text[start - 1]):
-                    start -= 1
+            # Expand START boundary if we're in the middle of a word
+            # (i.e., the character before the selection is a word character)
+            if start > 0 and is_word_char(text[start - 1]):
+                # Also check that the first selected character is a word char
+                # (to avoid expanding when selecting from whitespace)
+                if start < len(text) and is_word_char(text[start]):
+                    while start > 0 and is_word_char(text[start - 1]):
+                        start -= 1
+                    selection_changed = True
 
-                # Move end forward to word boundary
-                while end < len(text) and is_word_char(text[end]):
-                    end += 1
+            # Expand END boundary if we're in the middle of a word
+            # (i.e., the character after the selection is a word character)
+            if end < len(text) and is_word_char(text[end]):
+                # Also check that the last selected character is a word char
+                # (to avoid expanding when selecting to whitespace)
+                if end > 0 and is_word_char(text[end - 1]):
+                    while end < len(text) and is_word_char(text[end]):
+                        end += 1
+                    selection_changed = True
 
-                # Set the new selection
+            # Set the new selection if boundaries changed
+            if selection_changed:
                 cursor.setPosition(start)
                 cursor.setPosition(end, cursor.MoveMode.KeepAnchor)
                 self.setTextCursor(cursor)
@@ -6503,7 +6525,7 @@ class SupervertalerQt(QMainWindow):
         # ===== 2. PROJECT RESOURCES TAB =====
         # Contains TM, Termbases, Supermemory, Non-Translatables, Prompts
         resources_tab = self.create_resources_tab()
-        self.main_tabs.addTab(resources_tab, "🗂️ Project resources")
+        self.main_tabs.addTab(resources_tab, "🗂️ Resources")
         
         # Keep backward compatibility reference
         self.document_views_widget = self.main_tabs
@@ -7877,11 +7899,11 @@ class SupervertalerQt(QMainWindow):
                 else:
                     # Just focus the source text input
                     self.lookup_tab.source_text.setFocus()
-                    # Set language pair even without query
-                    if source_lang and hasattr(self.lookup_tab, '_set_language_combo'):
-                        self.lookup_tab._set_language_combo(self.lookup_tab.lang_from_combo, source_lang)
-                    if target_lang and hasattr(self.lookup_tab, '_set_language_combo'):
-                        self.lookup_tab._set_language_combo(self.lookup_tab.lang_to_combo, target_lang)
+                    # Reset language dropdowns to "Any" (index 0) for unrestricted search
+                    if hasattr(self.lookup_tab, 'lang_from_combo'):
+                        self.lookup_tab.lang_from_combo.setCurrentIndex(0)  # "Any"
+                    if hasattr(self.lookup_tab, 'lang_to_combo'):
+                        self.lookup_tab.lang_to_combo.setCurrentIndex(0)  # "Any"
                     # Switch to vertical view for consistency
                     if hasattr(self.lookup_tab, 'tm_view_vertical_radio'):
                         self.lookup_tab.tm_view_vertical_radio.setChecked(True)
@@ -35231,6 +35253,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         """Call Google Cloud Translation API using REST API"""
         try:
             import requests
+            import html
             
             if not api_key:
                 api_keys = self.load_api_keys()
@@ -36053,9 +36076,13 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                         if project_id:
                             tm_ids = self.tm_metadata_mgr.get_active_tm_ids(project_id)
                     
+                    self.log(f"🚀 DELAYED TM SEARCH: Using TM IDs: {tm_ids}")
+                    
                     # Search using TMDatabase (includes bidirectional + base language matching)
                     # Pass enabled_only=False to bypass the hardcoded tm_metadata filter
                     all_tm_matches = self.tm_database.search_all(segment.source, tm_ids=tm_ids, enabled_only=False, max_matches=10)
+                    
+                    self.log(f"🚀 DELAYED TM SEARCH: Found {len(all_tm_matches)} matches")
                     
                     for match in all_tm_matches:
                         match_obj = TranslationMatch(
@@ -36575,6 +36602,23 @@ class SuperlookupTab(QWidget):
         
         # Register global hotkey
         self.register_global_hotkey()
+    
+    def keyPressEvent(self, event):
+        """Handle key presses - Escape returns to Project Editor"""
+        if event.key() == Qt.Key.Key_Escape:
+            # Navigate back to Project Editor (tab index 0)
+            if self.main_window and hasattr(self.main_window, 'main_tabs'):
+                self.main_window.main_tabs.setCurrentIndex(0)  # Project editor
+                # Focus the target cell if a segment is selected
+                if hasattr(self.main_window, 'table') and self.main_window.table:
+                    current_row = self.main_window.table.currentRow()
+                    if current_row >= 0:
+                        target_widget = self.main_window.table.cellWidget(current_row, 3)
+                        if target_widget:
+                            target_widget.setFocus()
+            event.accept()
+        else:
+            super().keyPressEvent(event)
     
     def showEvent(self, event):
         """Called when the widget becomes visible - populate languages on first show"""
@@ -37509,7 +37553,7 @@ class SuperlookupTab(QWidget):
                 'name': 'OPUS Corpus',
                 'icon': '📚',
                 'description': 'Search 58B parallel sentences from OPUS parallel corpora',
-                'url_template': 'https://opus.nlpl.eu/bin/opuscqp.pl?corpus={opus_corpus};lang={sl}',
+                'url_template': 'https://opus.nlpl.eu/bin/opuscqp.pl?corpus={opus_corpus};lang={sl};cqp={query};align={tl}',
                 'lang_format': 'iso2',
                 'bidirectional': False,
                 'has_corpus_selector': True,  # Special flag for OPUS
@@ -37972,9 +38016,15 @@ class SuperlookupTab(QWidget):
         """Build the search URL for a web resource with proper language codes"""
         import urllib.parse
         
-        # Get language settings
+        # Get language settings (may be a list of variants)
         from_lang = self.lang_from_combo.currentData() if hasattr(self, 'lang_from_combo') else None
         to_lang = self.lang_to_combo.currentData() if hasattr(self, 'lang_to_combo') else None
+        
+        # If we got a list of variants, use the first one for web URLs
+        if isinstance(from_lang, list) and from_lang:
+            from_lang = from_lang[0]
+        if isinstance(to_lang, list) and to_lang:
+            to_lang = to_lang[0]
         
         # Default to English-Dutch if not specified
         if not from_lang:
@@ -38642,8 +38692,12 @@ class SuperlookupTab(QWidget):
             self.lang_to_combo.setCurrentIndex(from_idx)
     
     def populate_language_dropdowns(self):
-        """Populate language dropdowns with languages found in TMs and termbases"""
-        languages = set()
+        """Populate language dropdowns with BASE languages only (not variants).
+        
+        Groups all variants (en, en-US, en-GB, English, etc.) into a single "English" entry.
+        When searching, all variants will be matched.
+        """
+        all_languages = set()  # All language codes/names found in database
         
         # Ensure we have db_manager from main window
         db_manager = self.db_manager
@@ -38665,7 +38719,7 @@ class SuperlookupTab(QWidget):
                 """)
                 for row in db_manager.cursor.fetchall():
                     if row[0]:
-                        languages.add(row[0])
+                        all_languages.add(row[0])
             except Exception as e:
                 print(f"[DEBUG] Error getting languages from TMs: {e}")
         else:
@@ -38677,17 +38731,27 @@ class SuperlookupTab(QWidget):
                 all_termbases = termbase_mgr.get_all_termbases()
                 for tb in all_termbases:
                     if tb.get('source_lang'):
-                        languages.add(tb['source_lang'])
+                        all_languages.add(tb['source_lang'])
                     if tb.get('target_lang'):
-                        languages.add(tb['target_lang'])
+                        all_languages.add(tb['target_lang'])
             except Exception as e:
                 print(f"[DEBUG] Error getting languages from termbases: {e}")
         
-        # Sort languages by display name (groups language variants together alphabetically)
-        # Create list of (display_name, lang_code) tuples for sorting
-        lang_with_display = [(self._get_language_display_name(lang), lang) for lang in languages]
-        # Sort by display name (alphabetically groups Dutch variants, English variants, etc.)
-        lang_with_display.sort(key=lambda x: x[0].lower())
+        # Group languages by their base language name
+        # E.g., "en", "en-US", "en-GB", "English" all map to "English"
+        base_lang_variants = {}  # base_name -> set of all variant codes
+        
+        for lang in all_languages:
+            base_name = self._get_base_language_name(lang)
+            if base_name not in base_lang_variants:
+                base_lang_variants[base_name] = set()
+            base_lang_variants[base_name].add(lang)
+        
+        # Store the mapping for use in searches
+        self._language_variants_map = base_lang_variants
+        
+        # Sort base languages alphabetically
+        sorted_base_langs = sorted(base_lang_variants.keys(), key=str.lower)
         
         # Clear existing items except "Any"
         while self.lang_from_combo.count() > 1:
@@ -38695,58 +38759,85 @@ class SuperlookupTab(QWidget):
         while self.lang_to_combo.count() > 1:
             self.lang_to_combo.removeItem(1)
         
-        # Add languages with display name (already sorted)
-        for display_name, lang_code in lang_with_display:
-            self.lang_from_combo.addItem(display_name, lang_code)
-            self.lang_to_combo.addItem(display_name, lang_code)
+        # Add base languages only (store list of all variants as data)
+        for base_name in sorted_base_langs:
+            variants = list(base_lang_variants[base_name])
+            # Store variants list as the data for this item
+            self.lang_from_combo.addItem(base_name, variants)
+            self.lang_to_combo.addItem(base_name, variants)
         
-        print(f"[DEBUG] Populated language dropdowns with {len(lang_with_display)} languages")
+        print(f"[DEBUG] Populated language dropdowns with {len(sorted_base_langs)} base languages (from {len(all_languages)} variants)")
     
-    def _get_language_display_name(self, lang_code):
-        """Convert language code to display name - always show code for clarity"""
-        # Base language names (without region)
+    def _get_base_language_name(self, lang_code):
+        """Extract the base language name from any language code or name.
+        
+        Maps all variants to a single base name:
+        - "en", "en-US", "en-GB", "English", "english" → "English"
+        - "nl", "nl-NL", "nl-BE", "Dutch", "Nederlands" → "Dutch"
+        """
+        # Base language names mapping
         base_names = {
-            'en': 'English',
-            'nl': 'Dutch',
-            'de': 'German',
-            'fr': 'French',
-            'es': 'Spanish',
-            'it': 'Italian',
-            'pt': 'Portuguese',
-            'zh': 'Chinese',
-            'ja': 'Japanese',
-            'ko': 'Korean',
-            'ru': 'Russian',
-            'pl': 'Polish',
-            'cs': 'Czech',
-            'da': 'Danish',
-            'sv': 'Swedish',
-            'no': 'Norwegian',
-            'fi': 'Finnish',
-            'ar': 'Arabic',
-            'he': 'Hebrew',
-            'tr': 'Turkish',
-            'el': 'Greek',
-            'hu': 'Hungarian',
-            'ro': 'Romanian',
-            'bg': 'Bulgarian',
-            'uk': 'Ukrainian',
-            'vi': 'Vietnamese',
-            'th': 'Thai',
-            'id': 'Indonesian',
-            'ms': 'Malay',
+            'en': 'English', 'english': 'English',
+            'nl': 'Dutch', 'dutch': 'Dutch', 'nederlands': 'Dutch',
+            'de': 'German', 'german': 'German', 'deutsch': 'German',
+            'fr': 'French', 'french': 'French', 'français': 'French', 'francais': 'French',
+            'es': 'Spanish', 'spanish': 'Spanish', 'español': 'Spanish', 'espanol': 'Spanish',
+            'it': 'Italian', 'italian': 'Italian', 'italiano': 'Italian',
+            'pt': 'Portuguese', 'portuguese': 'Portuguese', 'português': 'Portuguese', 'portugues': 'Portuguese',
+            'zh': 'Chinese', 'chinese': 'Chinese',
+            'ja': 'Japanese', 'japanese': 'Japanese',
+            'ko': 'Korean', 'korean': 'Korean',
+            'ru': 'Russian', 'russian': 'Russian',
+            'pl': 'Polish', 'polish': 'Polish', 'polski': 'Polish',
+            'cs': 'Czech', 'czech': 'Czech',
+            'da': 'Danish', 'danish': 'Danish', 'dansk': 'Danish',
+            'sv': 'Swedish', 'swedish': 'Swedish', 'svenska': 'Swedish',
+            'no': 'Norwegian', 'nb': 'Norwegian', 'nn': 'Norwegian', 'norwegian': 'Norwegian', 'norsk': 'Norwegian',
+            'fi': 'Finnish', 'finnish': 'Finnish', 'suomi': 'Finnish',
+            'ar': 'Arabic', 'arabic': 'Arabic',
+            'he': 'Hebrew', 'hebrew': 'Hebrew',
+            'tr': 'Turkish', 'turkish': 'Turkish',
+            'el': 'Greek', 'greek': 'Greek',
+            'hu': 'Hungarian', 'hungarian': 'Hungarian', 'magyar': 'Hungarian',
+            'ro': 'Romanian', 'romanian': 'Romanian',
+            'bg': 'Bulgarian', 'bulgarian': 'Bulgarian',
+            'uk': 'Ukrainian', 'ukrainian': 'Ukrainian',
+            'vi': 'Vietnamese', 'vietnamese': 'Vietnamese',
+            'th': 'Thai', 'thai': 'Thai',
+            'id': 'Indonesian', 'indonesian': 'Indonesian',
+            'ms': 'Malay', 'malay': 'Malay',
+            'sk': 'Slovak', 'slovak': 'Slovak',
+            'sl': 'Slovenian', 'slovenian': 'Slovenian',
+            'hr': 'Croatian', 'croatian': 'Croatian',
+            'sr': 'Serbian', 'serbian': 'Serbian',
+            'et': 'Estonian', 'estonian': 'Estonian',
+            'lv': 'Latvian', 'latvian': 'Latvian',
+            'lt': 'Lithuanian', 'lithuanian': 'Lithuanian',
+            'ca': 'Catalan', 'catalan': 'Catalan',
+            'ga': 'Irish', 'irish': 'Irish',
+            'mt': 'Maltese', 'maltese': 'Maltese',
         }
         
-        # Get base language code (before hyphen)
-        base_code = lang_code.split('-')[0].lower() if '-' in lang_code else lang_code.lower()
-        base_name = base_names.get(base_code, None)
+        if not lang_code:
+            return 'Unknown'
         
-        if base_name:
-            # Always show code in parentheses for clarity
-            return f"{base_name} ({lang_code})"
-        else:
-            # Unknown language - just show the code
-            return lang_code
+        # Normalize: lowercase for lookup
+        lang_lower = lang_code.lower().strip()
+        
+        # Get base code (before hyphen or underscore)
+        # Handles: en-US, en_GB, nl-NL, etc.
+        base_code = lang_lower.split('-')[0].split('_')[0]
+        
+        # First try exact match
+        if lang_lower in base_names:
+            return base_names[lang_lower]
+        
+        # Then try base code
+        if base_code in base_names:
+            return base_names[base_code]
+        
+        # Unknown language - capitalize first letter
+        return lang_code.capitalize() if lang_code else 'Unknown'
     
     def get_selected_termbase_ids(self):
         """Get list of checked termbase IDs"""
@@ -38949,11 +39040,12 @@ class SuperlookupTab(QWidget):
         # Set the query text (this is used by all tabs including Web Resources)
         self.source_text.setCurrentText(query)
         
-        # Set language dropdowns if provided
-        if source_lang and hasattr(self, 'lang_from_combo'):
-            self._set_language_combo(self.lang_from_combo, source_lang)
-        if target_lang and hasattr(self, 'lang_to_combo'):
-            self._set_language_combo(self.lang_to_combo, target_lang)
+        # Reset language dropdowns to "Any" (index 0) for unrestricted search by default
+        # This ensures we always start with "From Any to Any"
+        if hasattr(self, 'lang_from_combo'):
+            self.lang_from_combo.setCurrentIndex(0)  # "Any"
+        if hasattr(self, 'lang_to_combo'):
+            self.lang_to_combo.setCurrentIndex(0)  # "Any"
         
         # Optionally switch to vertical view (traditional concordance layout)
         if switch_to_vertical and hasattr(self, 'tm_view_vertical_radio'):
@@ -39005,11 +39097,17 @@ class SuperlookupTab(QWidget):
         # Try to find the language in the combo
         lang_lower = lang_code.lower()
         for i in range(combo.count()):
-            item_data = combo.itemData(i)
+            item_data = combo.itemData(i)  # This is now a list of variants
             item_text = combo.itemText(i).lower()
             
-            # Match by data (language code) or text (display name)
-            if item_data and item_data.lower() == lang_lower:
+            # Match by data (list of language variants) or text (display name)
+            if item_data and isinstance(item_data, list):
+                # Check if the lang_code matches any variant in the list
+                if any(variant.lower() == lang_lower for variant in item_data):
+                    combo.setCurrentIndex(i)
+                    return
+            elif item_data and isinstance(item_data, str) and item_data.lower() == lang_lower:
+                # Legacy support for string data
                 combo.setCurrentIndex(i)
                 return
             if lang_lower in item_text:
@@ -39580,7 +39678,7 @@ class SuperlookupTab(QWidget):
         # Return as-is (already a code like 'en', 'nl')
         return lang_lower
     
-    def search_termbases(self, text, source_lang: str = None, target_lang: str = None):
+    def search_termbases(self, text, source_lang = None, target_lang = None):
         """Search Supervertaler termbases for matching terms.
         
         Uses Superlookup's OWN checkbox selections (independent from Resources > Termbases).
@@ -39588,16 +39686,30 @@ class SuperlookupTab(QWidget):
         
         Args:
             text: Text to search for
-            source_lang: Filter by source language (None = any)
-            target_lang: Filter by target language (None = any)
+            source_lang: Filter by source language - can be a string OR a list of variants (None = any)
+            target_lang: Filter by target language - can be a string OR a list of variants (None = any)
         """
         results = []
         
-        # Normalize language filters for consistent matching
-        source_lang_norm = self._normalize_language_code(source_lang) if source_lang else None
-        target_lang_norm = self._normalize_language_code(target_lang) if target_lang else None
+        # Normalize language filters to lists of normalized codes for consistent matching
+        # Handle both single strings and lists of variants
+        if source_lang:
+            if isinstance(source_lang, list):
+                source_langs_norm = [self._normalize_language_code(lang) for lang in source_lang if lang]
+            else:
+                source_langs_norm = [self._normalize_language_code(source_lang)]
+        else:
+            source_langs_norm = None
         
-        print(f"[DEBUG search_termbases] Called with text='{text[:30]}...', source_lang='{source_lang}' (norm: '{source_lang_norm}'), target_lang='{target_lang}' (norm: '{target_lang_norm}')", flush=True)
+        if target_lang:
+            if isinstance(target_lang, list):
+                target_langs_norm = [self._normalize_language_code(lang) for lang in target_lang if lang]
+            else:
+                target_langs_norm = [self._normalize_language_code(target_lang)]
+        else:
+            target_langs_norm = None
+        
+        print(f"[DEBUG search_termbases] Called with text='{text[:30]}...', source_lang='{source_lang}' (norm: {source_langs_norm}), target_lang='{target_lang}' (norm: {target_langs_norm})", flush=True)
         print(f"[DEBUG search_termbases] termbase_mgr: {self.termbase_mgr is not None}, db_manager: {self.db_manager is not None}, main_window: {self.main_window is not None}", flush=True)
         
         if not self.termbase_mgr or not self.db_manager or not self.main_window:
@@ -39636,14 +39748,14 @@ class SuperlookupTab(QWidget):
                 print(f"[DEBUG search_termbases] Checking TB '{termbase['name']}': source='{tb_source_lang}' (norm: '{tb_source_norm}'), target='{tb_target_lang}' (norm: '{tb_target_norm}')")
                 
                 # Skip termbases that don't match language filters
-                # Compare normalized codes (e.g., 'en' == 'en' even if one was 'English')
-                if source_lang_norm and tb_source_norm:
-                    if tb_source_norm != source_lang_norm:
-                        print(f"[DEBUG search_termbases] Skipping '{termbase['name']}' - source lang mismatch: '{tb_source_norm}' != '{source_lang_norm}'")
+                # Compare normalized codes - match if TB's language is in the list of variants
+                if source_langs_norm and tb_source_norm:
+                    if tb_source_norm not in source_langs_norm:
+                        print(f"[DEBUG search_termbases] Skipping '{termbase['name']}' - source lang mismatch: '{tb_source_norm}' not in {source_langs_norm}")
                         continue
-                if target_lang_norm and tb_target_norm:
-                    if tb_target_norm != target_lang_norm:
-                        print(f"[DEBUG search_termbases] Skipping '{termbase['name']}' - target lang mismatch: '{tb_target_norm}' != '{target_lang_norm}'")
+                if target_langs_norm and tb_target_norm:
+                    if tb_target_norm not in target_langs_norm:
+                        print(f"[DEBUG search_termbases] Skipping '{termbase['name']}' - target lang mismatch: '{tb_target_norm}' not in {target_langs_norm}")
                         continue
                 
                 print(f"[DEBUG search_termbases] Searching in '{termbase['name']}'")
@@ -39661,9 +39773,10 @@ class SuperlookupTab(QWidget):
                     term_source_norm = self._normalize_language_code(term_source_lang) if term_source_lang else ''
                     term_target_norm = self._normalize_language_code(term_target_lang) if term_target_lang else ''
                     
-                    if source_lang_norm and term_source_norm and term_source_norm != source_lang_norm:
+                    # Check if term-level languages match any of the filter variants
+                    if source_langs_norm and term_source_norm and term_source_norm not in source_langs_norm:
                         continue
-                    if target_lang_norm and term_target_norm and term_target_norm != target_lang_norm:
+                    if target_langs_norm and term_target_norm and term_target_norm not in target_langs_norm:
                         continue
                     
                     match_found = False

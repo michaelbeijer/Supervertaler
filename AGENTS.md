@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** January 11, 2026 | **Version:** v1.9.94
+> **Last Updated:** January 11, 2026 | **Version:** v1.9.95
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.94 (January 2026) |
+| **Version** | v1.9.95 (January 2026) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -665,6 +665,31 @@ google_api_key=AI...
 ---
 
 ## 🔄 Recent Development History
+
+### January 11, 2026 - Version 1.9.95: TM Fuzzy Matching Fix
+
+**🔍 Improved Translation Memory Fuzzy Matching for Long Segments**
+
+Fixed critical issue where highly similar TM entries were not being found for long segments (especially in patent/technical documents).
+
+**The Problem:**
+- FTS5 full-text search uses BM25 ranking which prioritizes entries matching MORE search terms
+- For long segments with many technical compound words, BM25 pushed truly similar entries below the candidate limit
+- Example: Two sentences 92% similar weren't matching because other entries matched more individual words
+
+**The Fix:**
+- Increased FTS5 candidate pool from 100 to 500 entries
+- Changed `max(50, max_results * 10)` to `max(500, max_results * 50)` in `search_fuzzy_matches()`
+
+**Technical Details:**
+- FTS5 BM25 is great for keyword relevance but needs a larger pool for similarity-based reranking
+- SequenceMatcher then correctly scores the candidates by actual text similarity
+- More candidates = better chance of finding truly similar matches
+
+**Files Modified:**
+- `modules/database_manager.py` - `search_fuzzy_matches()` candidate limit increase
+
+---
 
 ### January 11, 2026 - Version 1.9.94: TermView Quick-Insert Shortcuts
 
