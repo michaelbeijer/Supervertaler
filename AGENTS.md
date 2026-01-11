@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** January 11, 2026 | **Version:** v1.9.95
+> **Last Updated:** January 11, 2026 | **Version:** v1.9.96
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.95 (January 2026) |
+| **Version** | v1.9.96 (January 2026) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -665,6 +665,28 @@ google_api_key=AI...
 ---
 
 ## 🔄 Recent Development History
+
+### January 11, 2026 - Version 1.9.96: Thread-Safe Logging
+
+**🛡️ Fixed Crash When Adding Terms via Alt+Down**
+
+Fixed critical crash caused by Qt threading violation when background workers called the `log()` method.
+
+**The Problem:**
+- `log()` method was called from background threads (termbase batch processor)
+- Qt widgets (`status_bar`, `session_log_text`) were being accessed from non-main threads
+- This caused: `QObject::killTimer: Timers cannot be stopped from another thread`
+
+**The Fix:**
+- Added `_log_signal = pyqtSignal(str)` to `SupervertalerQt` class
+- Background threads now emit signal instead of directly updating UI
+- Signal automatically queues to main thread's event loop
+- New `_log_to_ui()` internal method handles actual widget updates
+
+**Files Modified:**
+- `Supervertaler.py` - Added `_log_signal`, `_log_to_ui()`, made `log()` thread-safe
+
+---
 
 ### January 11, 2026 - Version 1.9.95: TM Fuzzy Matching Fix
 
@@ -2724,4 +2746,4 @@ An intelligent proofreading system that uses LLMs to verify translation quality.
 ---
 
 *This file replaces the previous CLAUDE.md and PROJECT_CONTEXT.md files.*
-*Last updated: January 7, 2026 - v1.9.85*
+*Last updated: January 11, 2026 - v1.9.96*

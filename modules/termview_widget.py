@@ -12,9 +12,10 @@ Features:
 """
 
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QLabel, QFrame, QScrollArea,
-                              QHBoxLayout, QPushButton, QToolTip, QLayout, QLayoutItem, QSizePolicy, QStyle)
+                              QHBoxLayout, QPushButton, QToolTip, QLayout, QLayoutItem, QSizePolicy, QStyle,
+                              QMenu, QMessageBox)
 from PyQt6.QtCore import Qt, QPoint, pyqtSignal, QRect, QSize
-from PyQt6.QtGui import QFont, QCursor
+from PyQt6.QtGui import QFont, QCursor, QAction
 from typing import Dict, List, Optional, Tuple
 import re
 
@@ -129,12 +130,14 @@ class TermBlock(QWidget):
     """Individual term block showing source word and its translation(s)"""
     
     term_clicked = pyqtSignal(str, str)  # source_term, target_term
+    edit_requested = pyqtSignal(int, int)  # term_id, termbase_id
+    delete_requested = pyqtSignal(int, int, str, str)  # term_id, termbase_id, source_term, target_term
     
     def __init__(self, source_text: str, translations: List[Dict], parent=None, theme_manager=None, font_size: int = 10, font_family: str = "Segoe UI", font_bold: bool = False, shortcut_number: int = None):
         """
         Args:
             source_text: Source word/phrase
-            translations: List of dicts with keys: 'target', 'termbase_name', 'priority', etc.
+            translations: List of dicts with keys: 'target', 'termbase_name', 'priority', 'term_id', 'termbase_id', etc.
             theme_manager: Optional theme manager for dark mode support
             font_size: Base font size in points (default 10)
             font_family: Font family name (default "Segoe UI")
@@ -149,6 +152,15 @@ class TermBlock(QWidget):
         self.font_family = font_family
         self.font_bold = font_bold
         self.shortcut_number = shortcut_number
+        # Store first translation's IDs for context menu (if available)
+        self.term_id = None
+        self.termbase_id = None
+        self.target_term = None
+        if translations:
+            first_trans = translations[0]
+            self.term_id = first_trans.get('term_id')
+            self.termbase_id = first_trans.get('termbase_id')
+            self.target_term = first_trans.get('target_term', first_trans.get('target', ''))
         self.init_ui()
         
     def init_ui(self):
@@ -202,6 +214,10 @@ class TermBlock(QWidget):
                 border: none;
             }}
         """)
+        # Enable context menu on source label for edit/delete actions (only if we have translations with IDs)
+        if self.translations and self.term_id is not None:
+            self.source_label.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+            self.source_label.customContextMenuRequested.connect(self._show_context_menu)
         layout.addWidget(self.source_label)
         
         # Target translation (bottom) - show first/best match - COMPACT
@@ -320,6 +336,35 @@ class TermBlock(QWidget):
     def on_translation_clicked(self, target_text: str):
         """Handle click on translation to insert into target"""
         self.term_clicked.emit(self.source_text, target_text)
+    
+    def _show_context_menu(self, pos: QPoint):
+        """Show context menu with Edit/Delete options for glossary entry"""
+        if not self.term_id or not self.termbase_id:
+            return
+        
+        menu = QMenu(self)
+        
+        # Edit entry action
+        edit_action = QAction("✏️ Edit Glossary Entry", menu)
+        edit_action.triggered.connect(self._edit_entry)
+        menu.addAction(edit_action)
+        
+        # Delete entry action
+        delete_action = QAction("🗑️ Delete Glossary Entry", menu)
+        delete_action.triggered.connect(self._delete_entry)
+        menu.addAction(delete_action)
+        
+        menu.exec(self.source_label.mapToGlobal(pos))
+    
+    def _edit_entry(self):
+        """Emit signal to edit glossary entry"""
+        if self.term_id and self.termbase_id:
+            self.edit_requested.emit(self.term_id, self.termbase_id)
+    
+    def _delete_entry(self):
+        """Emit signal to delete glossary entry"""
+        if self.term_id and self.termbase_id:
+            self.delete_requested.emit(self.term_id, self.termbase_id, self.source_text, self.target_term or '')
 
 
 class NTBlock(QWidget):
@@ -417,6 +462,8 @@ class TermviewWidget(QWidget):
     """Main Termview widget showing inline terminology for current segment"""
     
     term_insert_requested = pyqtSignal(str)  # Emits target text to insert
+    edit_entry_requested = pyqtSignal(int, int)  # term_id, termbase_id
+    delete_entry_requested = pyqtSignal(int, int, str, str)  # term_id, termbase_id, source, target
     
     def __init__(self, parent=None, db_manager=None, log_callback=None, theme_manager=None):
         super().__init__(parent)
@@ -664,12 +711,14 @@ class TermviewWidget(QWidget):
                 if key not in matches_dict:
                     matches_dict[key] = []
                 
-                # Add main target term
+                # Add main target term (include term_id and termbase_id for edit/delete context menu)
                 matches_dict[key].append({
                     'target_term': target_term,
                     'termbase_name': match.get('termbase_name', ''),
                     'ranking': match.get('ranking', 99),
-                    'is_project_termbase': match.get('is_project_termbase', False)
+                    'is_project_termbase': match.get('is_project_termbase', False),
+                    'term_id': match.get('term_id'),
+                    'termbase_id': match.get('termbase_id')
                 })
                 
                 # Add synonyms as additional translations
@@ -754,6 +803,8 @@ class TermviewWidget(QWidget):
                                        font_size=self.current_font_size, font_family=self.current_font_family, 
                                        font_bold=self.current_font_bold, shortcut_number=shortcut_num)
                 term_block.term_clicked.connect(self.on_term_insert_requested)
+                term_block.edit_requested.connect(self._on_edit_entry_requested)
+                term_block.delete_requested.connect(self._on_delete_entry_requested)
                 self.terms_layout.addWidget(term_block)
                 
                 if translations:
@@ -791,7 +842,8 @@ class TermviewWidget(QWidget):
         try:
             # Extract all words from the text to search
             # Use the same token pattern as we use for display
-            token_pattern = re.compile(r'(?<!\w)[\w.,%-]+(?!\w)', re.UNICODE)
+            # Includes / for unit-style terms like kg/l, m/s, etc.
+            token_pattern = re.compile(r'(?<!\w)[\w.,%-/]+(?!\w)', re.UNICODE)
             tokens = [match.group() for match in token_pattern.finditer(text)]
             
             # Also check for multi-word phrases (up to 8 words)
@@ -939,9 +991,10 @@ class TermviewWidget(QWidget):
             self.log(f"    Used positions: {sorted(list(used_positions))[:20]}...")
         
         # Second pass: fill in gaps with ALL words/numbers/punctuation combos
-        # Enhanced pattern to capture words, numbers, and combinations like "gew.%", "0,1", etc.
+        # Enhanced pattern to capture words, numbers, and combinations like "gew.%", "0,1", "kg/l", etc.
         # Use (?<!\w) and (?!\w) instead of \b to handle punctuation properly
-        token_pattern = re.compile(r'(?<!\w)[\w.,%-]+(?!\w)', re.UNICODE)
+        # Includes / for unit-style terms like kg/l, m/s, etc.
+        token_pattern = re.compile(r'(?<!\w)[\w.,%-/]+(?!\w)', re.UNICODE)
         
         for match in token_pattern.finditer(text):
             word_start = match.start()
@@ -1025,6 +1078,16 @@ class TermviewWidget(QWidget):
         """Handle request to insert a translation"""
         self.log(f"💡 Termview: Inserting '{target_term}' for '{source_term}'")
         self.term_insert_requested.emit(target_term)
+    
+    def _on_edit_entry_requested(self, term_id: int, termbase_id: int):
+        """Forward edit request to parent (main application)"""
+        self.log(f"✏️ Termview: Edit requested for term_id={term_id}, termbase_id={termbase_id}")
+        self.edit_entry_requested.emit(term_id, termbase_id)
+    
+    def _on_delete_entry_requested(self, term_id: int, termbase_id: int, source_term: str, target_term: str):
+        """Forward delete request to parent (main application)"""
+        self.log(f"🗑️ Termview: Delete requested for term_id={term_id}, termbase_id={termbase_id}")
+        self.delete_entry_requested.emit(term_id, termbase_id, source_term, target_term)
     
     def insert_term_by_number(self, number: int) -> bool:
         """Insert term by shortcut number (Alt+0-9 for 0-9, Alt+N,N for 10-19)

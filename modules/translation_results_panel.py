@@ -18,9 +18,10 @@ from PyQt6.QtWidgets import (
     QFrame, QScrollArea, QTextEdit, QSplitter, QTabWidget
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QMimeData
-from PyQt6.QtGui import QDrag, QCursor, QFont, QColor
+from PyQt6.QtGui import QDrag, QCursor, QFont, QColor, QTextCharFormat, QTextCursor
 from dataclasses import dataclass
 from typing import List, Optional, Dict, Any
+import difflib
 
 
 @dataclass
@@ -249,12 +250,12 @@ class CompactMatchItem(QFrame):
         menu = QMenu()
         
         # Edit entry action
-        edit_action = QAction("✏️ Edit Termbase Entry", menu)
+        edit_action = QAction("✏️ Edit Glossary Entry", menu)
         edit_action.triggered.connect(self._edit_termbase_entry)
         menu.addAction(edit_action)
         
         # Delete entry action
-        delete_action = QAction("🗑️ Delete Termbase Entry", menu)
+        delete_action = QAction("🗑️ Delete Glossary Entry", menu)
         delete_action.triggered.connect(self._delete_termbase_entry)
         menu.addAction(delete_action)
         
@@ -306,7 +307,7 @@ class CompactMatchItem(QFrame):
             reply = QMessageBox.question(
                 parent_window,
                 "Confirm Deletion",
-                f"Delete termbase entry?\n\nSource: {source_term}\nTarget: {target_term}\n\nThis action cannot be undone.",
+                f"Delete glossary entry?\n\nSource: {source_term}\nTarget: {target_term}\n\nThis action cannot be undone.",
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                 QMessageBox.StandardButton.No
             )
@@ -1791,8 +1792,14 @@ class TranslationResultsPanel(QWidget):
             self.compare_target_label.setText("TM Target:")
             self.compare_source_container.show()  # Show TM source box
             
-            # Current source is already set via set_segment_info
-            self.compare_tm_source.setText(match.compare_source)
+            # Get current source text for diff comparison
+            current_source = self.compare_current.toPlainText()
+            tm_source = match.compare_source
+            
+            # Apply diff highlighting between current source and TM source
+            self._apply_diff_highlighting(current_source, tm_source)
+            
+            # Set TM target (no diff highlighting needed)
             self.compare_tm_target.setText(match.target)
             
             # Populate TM metadata panel
@@ -1841,6 +1848,87 @@ class TranslationResultsPanel(QWidget):
         """Update segment info display"""
         self.segment_label.setText(f"Segment {segment_num}: {source_text[:50]}...")
         self.compare_current.setText(source_text)
+    
+    def _apply_diff_highlighting(self, current_source: str, tm_source: str):
+        """
+        Apply diff highlighting between current source and TM source.
+        Shows differences memoQ-style in the TM Source box:
+        - Red strikethrough for text in TM that's not in current segment (will need to be removed)
+        - Red underline for text in current that's not in TM (translator needs to add this)
+        
+        The Current Source box shows the plain text without highlighting.
+        This helps translators quickly see what changed between the fuzzy match and the current segment.
+        """
+        # Use difflib's SequenceMatcher to find differences at word level
+        current_words = current_source.split()
+        tm_words = tm_source.split()
+        
+        # Get opcodes that describe how to transform tm_source into current_source
+        matcher = difflib.SequenceMatcher(None, tm_words, current_words)
+        opcodes = matcher.get_opcodes()
+        
+        # Define formatting styles
+        # Red strikethrough for deletions (text in TM but not in current)
+        delete_format = QTextCharFormat()
+        delete_format.setForeground(QColor("#CC0000"))  # Red text
+        delete_format.setFontStrikeOut(True)
+        
+        # Red underline for additions (text in current but not in TM)
+        insert_format = QTextCharFormat()
+        insert_format.setForeground(QColor("#CC0000"))  # Red text
+        insert_format.setFontUnderline(True)
+        
+        # Normal format (for unchanged text)
+        normal_format = QTextCharFormat()
+        if self.theme_manager:
+            normal_format.setForeground(QColor(self.theme_manager.current_theme.text))
+        else:
+            normal_format.setForeground(QColor("#333333"))
+        
+        # Current Source box: just show plain text (already set by set_segment_info, but reset to ensure no formatting)
+        self.compare_current.setText(current_source)
+        
+        # TM Source box: show with diff highlighting
+        # Red strikethrough = text in TM but not in current (needs to be removed/changed)
+        # Red underline = text in current but not in TM (needs to be added to translation)
+        self.compare_tm_source.clear()
+        tm_cursor = self.compare_tm_source.textCursor()
+        
+        first_word = True
+        for tag, i1, i2, j1, j2 in opcodes:
+            if tag == 'equal':
+                # Unchanged words - show in normal format
+                text = ' '.join(tm_words[i1:i2])
+                if not first_word:
+                    tm_cursor.insertText(' ', normal_format)
+                tm_cursor.insertText(text, normal_format)
+                first_word = False
+            elif tag == 'replace':
+                # Words were replaced
+                # Show what's in TM (being replaced) as strikethrough
+                # Show what's in current (replacing it) as underlined
+                old_text = ' '.join(tm_words[i1:i2])
+                new_text = ' '.join(current_words[j1:j2])
+                if not first_word:
+                    tm_cursor.insertText(' ', normal_format)
+                tm_cursor.insertText(old_text, delete_format)
+                tm_cursor.insertText(' ', normal_format)
+                tm_cursor.insertText(new_text, insert_format)
+                first_word = False
+            elif tag == 'delete':
+                # Words in TM but not in current - strikethrough (will be removed)
+                text = ' '.join(tm_words[i1:i2])
+                if not first_word:
+                    tm_cursor.insertText(' ', normal_format)
+                tm_cursor.insertText(text, delete_format)
+                first_word = False
+            elif tag == 'insert':
+                # Words in current but not in TM - underlined (needs to be added)
+                text = ' '.join(current_words[j1:j2])
+                if not first_word:
+                    tm_cursor.insertText(' ', normal_format)
+                tm_cursor.insertText(text, insert_format)
+                first_word = False
     
     def clear(self):
         """Clear all matches (but NOT notes - those are managed separately)"""

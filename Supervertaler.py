@@ -3,7 +3,7 @@ Supervertaler
 =============
 The Ultimate Translation Workbench.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.9.95 (TM Fuzzy Matching Fix)
+Version: 1.9.96 (Thread-Safe Logging)
 Release Date: January 11, 2026
 Framework: PyQt6
 
@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.95"
+__version__ = "1.9.96"
 __phase__ = "0.9"
 __release_date__ = "2026-01-11"
 __edition__ = "Qt"
@@ -4859,8 +4859,14 @@ class SupervertalerQt(QMainWindow):
     
     MAX_RECENT_PROJECTS = 10  # Maximum number of recent projects to track
     
+    # Signal for thread-safe logging (background threads emit, main thread handles)
+    _log_signal = pyqtSignal(str)
+    
     def __init__(self):
         super().__init__()
+        
+        # Connect thread-safe log signal (must be done first for logging to work from threads)
+        self._log_signal.connect(self._log_to_ui)
         
         # Application state
         self.current_project: Optional[Project] = None
@@ -17355,6 +17361,8 @@ class SupervertalerQt(QMainWindow):
         # Termview tab
         self.termview_widget = TermviewWidget(self, db_manager=self.db_manager, log_callback=self.log, theme_manager=self.theme_manager)
         self.termview_widget.term_insert_requested.connect(self.insert_termview_text)
+        self.termview_widget.edit_entry_requested.connect(self._on_termview_edit_entry)
+        self.termview_widget.delete_entry_requested.connect(self._on_termview_delete_entry)
         
         # Apply saved termview font settings
         font_settings = self.load_general_settings()
@@ -26086,7 +26094,9 @@ class SupervertalerQt(QMainWindow):
                                             'target_term': match.target,
                                             'termbase_name': match.metadata.get('termbase_name', '') if match.metadata else '',
                                             'ranking': match.metadata.get('ranking', 99) if match.metadata else 99,
-                                            'is_project_termbase': match.metadata.get('is_project_termbase', False) if match.metadata else False
+                                            'is_project_termbase': match.metadata.get('is_project_termbase', False) if match.metadata else False,
+                                            'term_id': match.metadata.get('term_id') if match.metadata else None,
+                                            'termbase_id': match.metadata.get('termbase_id') if match.metadata else None
                                         }
                                         for match in cached_matches.get("Termbases", [])
                                     ]
@@ -26165,7 +26175,9 @@ class SupervertalerQt(QMainWindow):
                                                 'target_term': match_data.get('translation', ''),
                                                 'termbase_name': match_data.get('termbase_name', ''),
                                                 'ranking': match_data.get('ranking', 99),
-                                                'is_project_termbase': match_data.get('is_project_termbase', False)
+                                                'is_project_termbase': match_data.get('is_project_termbase', False),
+                                                'term_id': match_data.get('term_id'),
+                                                'termbase_id': match_data.get('termbase_id')
                                             }
                                             for match_data in stored_matches.values()
                                         ]
@@ -29753,7 +29765,9 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                         'termbase_name': match_info.get('termbase_name', ''),
                         'ranking': match_info.get('ranking', 99),
                         'is_project_termbase': match_info.get('is_project_termbase', False),
-                        'target_synonyms': match_info.get('target_synonyms', [])
+                        'target_synonyms': match_info.get('target_synonyms', []),
+                        'term_id': term_id,
+                        'termbase_id': match_info.get('termbase_id')
                     })
                 self.termview_widget.update_with_matches(segment.source, tb_list, nt_matches)
                 self.log("   ✓ TermView updated")
@@ -32605,6 +32619,79 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         except Exception as e:
             self.log(f"✗ Error inserting termview text: {e}")
     
+    def _on_termview_edit_entry(self, term_id: int, termbase_id: int):
+        """Handle edit glossary entry request from Termview"""
+        try:
+            from modules.termbase_entry_editor import TermbaseEntryEditor
+            
+            dialog = TermbaseEntryEditor(
+                parent=self,
+                db_manager=self.db_manager,
+                termbase_id=termbase_id,
+                term_id=term_id
+            )
+            
+            if dialog.exec():
+                # Entry was edited, refresh termview and translation results
+                self.log(f"✓ Glossary entry {term_id} updated")
+                self._refresh_current_segment_matches()
+        except Exception as e:
+            self.log(f"✗ Error editing glossary entry: {e}")
+    
+    def _on_termview_delete_entry(self, term_id: int, termbase_id: int, source_term: str, target_term: str):
+        """Handle delete glossary entry request from Termview"""
+        from PyQt6.QtWidgets import QMessageBox
+        
+        try:
+            # Confirm deletion
+            reply = QMessageBox.question(
+                self,
+                "Confirm Deletion",
+                f"Delete glossary entry?\n\nSource: {source_term}\nTarget: {target_term}\n\nThis action cannot be undone.",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No
+            )
+            
+            if reply == QMessageBox.StandardButton.Yes:
+                if self.db_manager:
+                    try:
+                        conn = self.db_manager.get_connection()
+                        cursor = conn.cursor()
+                        cursor.execute("DELETE FROM termbase_terms WHERE id = ?", (term_id,))
+                        conn.commit()
+                        
+                        self.log(f"✓ Deleted glossary entry: {source_term} → {target_term}")
+                        
+                        # Refresh termview and translation results
+                        self._refresh_current_segment_matches()
+                    except Exception as e:
+                        self.log(f"✗ Error deleting glossary entry from database: {e}")
+        except Exception as e:
+            self.log(f"✗ Error deleting glossary entry: {e}")
+    
+    def _refresh_current_segment_matches(self):
+        """Refresh termbase matches for the current segment (after edit/delete)"""
+        try:
+            current_row = self.table.currentRow()
+            if current_row >= 0 and self.current_project and self.current_project.segments:
+                # Get the actual segment index
+                segment_idx = current_row
+                if hasattr(self, 'current_page') and hasattr(self, 'items_per_page'):
+                    segment_idx = (self.current_page - 1) * self.items_per_page + current_row
+                
+                if 0 <= segment_idx < len(self.current_project.segments):
+                    segment = self.current_project.segments[segment_idx]
+                    
+                    # Clear termbase cache for this segment
+                    segment_id = id(segment)
+                    if hasattr(self, 'termbase_cache') and segment_id in self.termbase_cache:
+                        del self.termbase_cache[segment_id]
+                    
+                    # Trigger refresh by re-selecting the cell
+                    self.on_cell_selected(current_row, 2)
+        except Exception as e:
+            self.log(f"✗ Error refreshing segment matches: {e}")
+    
     def save_tab_notes(self):
         """Save comments in tab editor"""
         if not hasattr(self, 'tab_current_segment_id') or not self.tab_current_segment_id:
@@ -32725,7 +32812,9 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                                 'termbase_name': match_data.get('termbase_name', ''),
                                 'ranking': match_data.get('ranking', 99),
                                 'is_project_termbase': match_data.get('is_project_termbase', False),
-                                'target_synonyms': match_data.get('target_synonyms', [])
+                                'target_synonyms': match_data.get('target_synonyms', []),
+                                'term_id': match_data.get('term_id'),
+                                'termbase_id': match_data.get('termbase_id')
                             }
                             for source_key, match_data in cached_matches.items()
                         ]
@@ -32758,10 +32847,31 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         self.setWindowTitle(title)
     
     def log(self, message: str):
-        """Log message to status bar and session log"""
+        """Log message to status bar and session log (thread-safe)"""
+        # Always safe to print to console
+        print(f"[LOG] {message}")
+        
+        # Check if we're in the main thread - Qt widgets can only be modified from main thread
+        import threading
+        
+        is_main_thread = threading.current_thread() == threading.main_thread()
+        
+        if not is_main_thread:
+            # If we're in a background thread, emit signal which will be handled on main thread
+            # pyqtSignal with default connection is thread-safe and queues to main event loop
+            try:
+                self._log_signal.emit(message)
+            except Exception:
+                pass  # Silently fail if signal emission fails
+            return
+        
+        # Main thread - safe to access widgets directly
+        self._log_to_ui(message)
+    
+    def _log_to_ui(self, message: str):
+        """Internal method to log to UI widgets - must be called from main thread only"""
         if hasattr(self, 'status_bar'):
             self.status_bar.showMessage(message)
-        print(f"[LOG] {message}")
         
         # Add to debug buffer if debug mode is enabled
         if hasattr(self, 'debug_mode_enabled') and self.debug_mode_enabled:
@@ -41614,9 +41724,43 @@ class AutoFingersWidget(QWidget):
 
 def main():
     """Application entry point"""
-    # Suppress Chromium/QtWebEngine verbose error output (cache errors, GPU warnings)
-    # These are harmless but alarming to users
-    os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--disable-logging --log-level=3"
+    # Suppress Chromium/QtWebEngine verbose error output (cache errors, GPU warnings, JS console)
+    # These are harmless but alarming to users - websites emit tons of CSP/permissions noise
+    os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--disable-logging --log-level=3 --enable-logging=stderr --v=-1"
+    
+    # Suppress Qt WebEngine's "js:" console output (CSP violations, permissions policy warnings)
+    # These come from embedded web pages and are not relevant to Supervertaler
+    os.environ["QT_LOGGING_RULES"] = "*.debug=false;qt.webenginecontext.debug=false;js=false"
+    
+    # Filter stderr to suppress noisy Chromium JS console messages
+    # These "js:" prefixed messages come from embedded web pages and alarm users
+    class StderrFilter:
+        """Filter that suppresses Chromium's JS console output from stderr"""
+        def __init__(self, original_stderr):
+            self.original = original_stderr
+            # Patterns to suppress (from embedded web pages)
+            self.suppress_prefixes = (
+                'js:', 'js: Error with Permissions-Policy', 'js: Refused to load',
+                'js: Document-Policy', 'js: Listener added', 'js: No ID or name',
+                'js: [Report Only]', 'js: Unrecognized feature'
+            )
+        
+        def write(self, text):
+            # Suppress lines starting with JS console prefixes
+            if text.strip() and any(text.strip().startswith(prefix) for prefix in self.suppress_prefixes):
+                return  # Silently discard
+            self.original.write(text)
+        
+        def flush(self):
+            self.original.flush()
+        
+        def fileno(self):
+            return self.original.fileno()
+        
+        def isatty(self):
+            return self.original.isatty() if hasattr(self.original, 'isatty') else False
+    
+    sys.stderr = StderrFilter(sys.stderr)
     
     # Linux-specific: Avoid memory access violations from native libraries
     # ChromaDB and Hunspell can crash on some Linux configurations

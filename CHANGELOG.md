@@ -2,11 +2,41 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.95 (January 11, 2026)
+**Current Version:** v1.9.96 (January 11, 2026)
 **Framework:** PyQt6
 **Status:** Active Development
 
 **Note:** For historical information about legacy versions (Tkinter Edition, Classic Edition), see [legacy_versions/LEGACY_VERSIONS.md](legacy_versions/LEGACY_VERSIONS.md).
+
+---
+
+## 🛡️ Thread-Safe Logging (v1.9.96) - January 11, 2026
+
+**Bug Fix: Crash When Adding Terms via Alt+Down**
+
+Fixed a critical crash that occurred when adding glossary terms using the Alt+Down quick-add shortcut.
+
+**The Problem:**
+- The `log()` method was being called from background worker threads (e.g., termbase batch processor)
+- Qt widgets like `status_bar` and `session_log_text` were being accessed from non-main threads
+- This violates Qt's threading model and caused: `QObject::killTimer: Timers cannot be stopped from another thread`
+
+**The Fix:**
+- Made `log()` method thread-safe using PyQt signals
+- Added `_log_signal = pyqtSignal(str)` to `SupervertalerQt` class
+- Background threads now emit the signal instead of directly updating UI
+- Signal automatically queues to main thread's event loop
+- Console logging (`print()`) still works from any thread
+
+**Technical Details:**
+- New `_log_to_ui()` internal method handles actual widget updates
+- Thread detection via `threading.current_thread() == threading.main_thread()`
+- Signal connected with default `AutoConnection` which queues cross-thread calls
+
+**Result:**
+- No more crashes when background workers log messages
+- Alt+Down quick-add works reliably
+- All UI updates properly marshalled to main thread
 
 ---
 

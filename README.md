@@ -1,4 +1,4 @@
-# 🚀 Supervertaler v1.9.95
+# 🚀 Supervertaler v1.9.96
 
 [![PyPI version](https://badge.fury.io/py/supervertaler.svg)](https://pypi.org/project/Supervertaler/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
@@ -6,7 +6,7 @@
 
 🎯 **The Ultimate Translation Workbench** — Context-aware AI with intuitive 2-Layer Prompt Architecture, AI Assistant, project glossary system with automatic extraction, and specialized modules.
 
-**Current Version:** v1.9.95 (January 11, 2026)
+**Current Version:** v1.9.96 (January 11, 2026)
 **Framework:** PyQt6
 **Status:** Active Development
 
