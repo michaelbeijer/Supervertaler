@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.93"
+__version__ = "1.9.94"
 __phase__ = "0.9"
 __release_date__ = "2026-01-10"
 __edition__ = "Qt"
@@ -5395,6 +5395,25 @@ class SupervertalerQt(QMainWindow):
                 shortcut.setKey(QKeySequence())  # Clear key to release combination
             self.global_shortcuts[shortcut_id] = shortcut
             self.match_shortcuts.append(shortcut)
+        
+        # Alt+0 through Alt+9 - Insert term from TermView by number
+        # Supports double-tap for terms 11-20 (00, 11, 22, ..., 99)
+        self.termview_shortcuts = []
+        self._termview_last_key = None  # Track last key for double-tap detection
+        self._termview_last_time = 0    # Track timing for double-tap
+        for i in range(0, 10):  # 0-9
+            shortcut_id = f"termview_insert_{i}"
+            default_key = f"Alt+{i}"
+            key_sequence = self.shortcut_manager.get_shortcut(shortcut_id)
+            if not key_sequence:
+                key_sequence = default_key
+            shortcut = QShortcut(QKeySequence(key_sequence), self)
+            shortcut.activated.connect(lambda num=i: self._handle_termview_shortcut(num))
+            self.global_shortcut_keys[shortcut_id] = key_sequence
+            if not self.shortcut_manager.is_enabled(shortcut_id):
+                shortcut.setKey(QKeySequence())  # Clear key to release combination
+            self.global_shortcuts[shortcut_id] = shortcut
+            self.termview_shortcuts.append(shortcut)
         
         # Ctrl+Space - Insert currently selected match
         create_shortcut("match_insert_selected_ctrl", "Ctrl+Space", self.insert_selected_match)
@@ -32048,6 +32067,55 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                             break
                 except Exception as e:
                     self.log(f"Error inserting match #{match_number}: {e}")
+    
+    def _handle_termview_shortcut(self, key_num: int):
+        """Handle TermView shortcut with double-tap detection for terms 11-20
+        
+        Single tap (Alt+N): Insert term N (0-9)
+        Double tap (Alt+N,N within 300ms): Undo first insert, then insert term N+10 (00, 11, ..., 99)
+        """
+        import time
+        current_time = time.time()
+        double_tap_threshold = 0.3  # 300ms window for double-tap
+        
+        # Check if this is a double-tap (same key within threshold)
+        if (hasattr(self, '_termview_last_key') and 
+            self._termview_last_key == key_num and 
+            hasattr(self, '_termview_last_time') and
+            (current_time - self._termview_last_time) < double_tap_threshold):
+            # Double-tap detected! 
+            # First, undo the single-tap insertion
+            current_widget = self._get_current_target_widget()
+            if current_widget and hasattr(current_widget, 'undo'):
+                current_widget.undo()
+            
+            # Now insert term 10-19 (displayed as 00, 11, ..., 99)
+            term_index = key_num + 10
+            self._termview_last_key = None  # Reset to prevent triple-tap
+            self._termview_last_time = 0
+            self.insert_termview_term_by_number(term_index)
+        else:
+            # Single tap - insert term 0-9
+            self._termview_last_key = key_num
+            self._termview_last_time = current_time
+            self.insert_termview_term_by_number(key_num)
+    
+    def _get_current_target_widget(self):
+        """Get the current target cell text widget"""
+        if hasattr(self, 'table') and self.table:
+            current_row = self.table.currentRow()
+            if current_row >= 0:
+                return self.table.cellWidget(current_row, 3)  # Column 3 = Target
+        return None
+    
+    def insert_termview_term_by_number(self, term_number: int):
+        """Insert term from TermView by number (0-19)"""
+        if hasattr(self, 'termview_widget') and self.termview_widget:
+            try:
+                if hasattr(self.termview_widget, 'insert_term_by_number'):
+                    self.termview_widget.insert_term_by_number(term_number)
+            except Exception as e:
+                self.log(f"Error inserting TermView term #{term_number}: {e}")
     
     def insert_selected_match(self):
         """Insert currently selected match (Ctrl+Space)"""

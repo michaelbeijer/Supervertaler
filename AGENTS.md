@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** January 11, 2026 | **Version:** v1.9.93
+> **Last Updated:** January 11, 2026 | **Version:** v1.9.94
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.93 (January 2026) |
+| **Version** | v1.9.94 (January 2026) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -665,6 +665,78 @@ google_api_key=AI...
 ---
 
 ## 🔄 Recent Development History
+
+### January 11, 2026 - Version 1.9.94: TermView Quick-Insert Shortcuts
+
+**🎯 Alt+0-9 TermView Term Insertion**
+
+Implemented a novel 20-term quick-insert system using Alt key shortcuts — a feature unique to Supervertaler:
+
+- **Alt+0 through Alt+9**: Insert terms 1-10 instantly (no delay)
+- **Double-tap Alt+N,N**: Insert terms 11-20 (displayed as 00, 11, 22, ..., 99)
+- **Smart double-tap detection**: First tap inserts immediately; if same key pressed within 300ms, undoes and inserts the double-digit term
+- **Visual badges**: Blue circular badges (14px for single digit, 20px for double) show shortcut numbers
+
+**Badge Mapping:**
+| Badge | Shortcut | Internal Index |
+|-------|----------|----------------|
+| 0-9 | Alt+0 to Alt+9 | 0-9 |
+| 00, 11, ..., 99 | Alt+0,0 to Alt+9,9 | 10-19 |
+
+**Visual Improvements:**
+- Background color now extends across entire term block (text + badge unified)
+- Hover effect applies to whole container
+- Rounded corners (3px border-radius) on term blocks
+- Tooltips show exact shortcut instructions
+
+**Implementation Details:**
+
+*modules/termview_widget.py:*
+- `TermBlock.__init__()`: Accepts `shortcut_number` parameter (0-19)
+- `TermBlock.init_ui()`: Creates badge with dynamic width and proper styling
+- `update_with_matches()`: Assigns shortcut numbers 0-19 to first 20 unique terms
+- `insert_term_by_number()`: Inserts term by internal index, logs with badge text
+- `shortcut_terms` dict: Maps internal index to target text
+
+*Supervertaler.py:*
+- `_termview_last_key` / `_termview_last_time`: Track double-tap state
+- `_handle_termview_shortcut()`: Double-tap detection with undo + replace logic
+- `_get_current_target_widget()`: Helper to get current target cell for undo
+- `insert_termview_term_by_number()`: Delegates to TermView widget
+
+*modules/shortcut_manager.py:*
+- Added `termview_insert_0` through `termview_insert_9` definitions
+- Category: "TermView Insertion"
+- Descriptions explain double-tap behavior
+
+**Files Modified:**
+- `modules/termview_widget.py` - Badge display, shortcut tracking, insertion logic
+- `Supervertaler.py` - Double-tap handler, shortcuts setup
+- `modules/shortcut_manager.py` - Shortcut definitions for Alt+0-9
+
+---
+
+### January 11, 2026 - Version 1.9.93: Keyboard Shortcuts & Quick Glossary Add
+
+**⚡ Quick Add to Priority Glossary**
+
+- **Alt+Shift+Up**: Add selected term pair to glossary with Priority #1
+- **Alt+Shift+Down**: Add selected term pair to glossary with Priority #2
+- Uses database `termbase_activation` table for priority lookup
+- No dialog required — instant term addition
+
+**🔧 Shortcut Enable/Disable Feature**
+
+- New "Enabled" checkbox column in Settings → Keyboard Shortcuts
+- Disabled shortcuts fully release their key combinations
+- Settings persist between sessions
+
+**Bug Fixes:**
+- Fixed Ctrl+Enter not working in target editor cells
+- Fixed "Save & Next" button not confirming segments
+- Renamed button to "✓ Confirm & Next"
+
+---
 
 ### January 9, 2026 - Version 1.9.87: Auto-Confirm & Tab Layout
 

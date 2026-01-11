@@ -2,11 +2,39 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.93 (January 11, 2026)
+**Current Version:** v1.9.94 (January 11, 2026)
 **Framework:** PyQt6
 **Status:** Active Development
 
 **Note:** For historical information about legacy versions (Tkinter Edition, Classic Edition), see [legacy_versions/LEGACY_VERSIONS.md](legacy_versions/LEGACY_VERSIONS.md).
+
+---
+
+## 🎯 TermView Quick-Insert Shortcuts (v1.9.94) - January 11, 2026
+
+**New Feature: Alt+0-9 TermView Insertion**
+
+Insert glossary terms directly from TermView using keyboard shortcuts — a novel feature not found in other CAT tools!
+
+- **Alt+0 through Alt+9** — Insert terms 1-10 (displayed as badges 0-9)
+- **Double-tap Alt+N,N** — Insert terms 11-20 (displayed as badges 00, 11, 22, ..., 99)
+- **20 terms accessible** via quick keyboard shortcuts
+- **Visual badges** show shortcut numbers on each term in TermView
+- **Smart double-tap detection** — first tap inserts immediately, double-tap within 300ms replaces with the 11-20 term
+
+**Visual Improvements:**
+- 🎨 **Unified term styling** — Background color now extends across both translation text and shortcut badge
+- 🔵 **Blue number badges** — Clear visual indicators (14px for single digit, 20px for double)
+- 💡 **Hover effects** — Entire term block highlights on hover
+- 🏷️ **Tooltips** — Show exact shortcut (e.g., "Press Alt+3 to insert" or "Press Alt+3,3 to insert")
+
+**How It Works:**
+| Badge | Shortcut | Term # |
+|-------|----------|--------|
+| 0 | Alt+0 | 1st term |
+| 1-9 | Alt+1-9 | 2nd-10th terms |
+| 00 | Alt+0,0 | 11th term |
+| 11-99 | Alt+1,1 - Alt+9,9 | 12th-20th terms |
 
 ---
 

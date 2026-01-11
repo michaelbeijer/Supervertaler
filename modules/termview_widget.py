@@ -130,7 +130,7 @@ class TermBlock(QWidget):
     
     term_clicked = pyqtSignal(str, str)  # source_term, target_term
     
-    def __init__(self, source_text: str, translations: List[Dict], parent=None, theme_manager=None, font_size: int = 10, font_family: str = "Segoe UI", font_bold: bool = False):
+    def __init__(self, source_text: str, translations: List[Dict], parent=None, theme_manager=None, font_size: int = 10, font_family: str = "Segoe UI", font_bold: bool = False, shortcut_number: int = None):
         """
         Args:
             source_text: Source word/phrase
@@ -139,6 +139,7 @@ class TermBlock(QWidget):
             font_size: Base font size in points (default 10)
             font_family: Font family name (default "Segoe UI")
             font_bold: Whether to use bold font (default False)
+            shortcut_number: Optional number (1-9) for Ctrl+N shortcut badge
         """
         super().__init__(parent)
         self.source_text = source_text
@@ -147,6 +148,7 @@ class TermBlock(QWidget):
         self.font_size = font_size
         self.font_family = font_family
         self.font_bold = font_bold
+        self.shortcut_number = shortcut_number
         self.init_ui()
         
     def init_ui(self):
@@ -209,6 +211,23 @@ class TermBlock(QWidget):
             
             # Background color based on termbase type
             bg_color = "#FFE5F0" if self.is_effective_project else "#D6EBFF"  # Pink for project, light blue for regular
+            hover_color = "#FFD0E8" if self.is_effective_project else "#BBDEFB"  # Slightly darker on hover
+            
+            # Create horizontal layout for target + shortcut badge
+            # Apply background to container so it covers both text and badge
+            target_container = QWidget()
+            target_container.setStyleSheet(f"""
+                QWidget {{
+                    background-color: {bg_color};
+                    border-radius: 3px;
+                }}
+                QWidget:hover {{
+                    background-color: {hover_color};
+                }}
+            """)
+            target_layout = QHBoxLayout(target_container)
+            target_layout.setContentsMargins(3, 1, 3, 1)
+            target_layout.setSpacing(3)
             
             target_label = QLabel(target_text)
             target_font = QFont(self.font_family)
@@ -219,21 +238,20 @@ class TermBlock(QWidget):
             target_label.setStyleSheet(f"""
                 QLabel {{
                     color: #0052A3;
-                    padding: 1px 3px;
-                    background-color: {bg_color};
+                    padding: 0px;
+                    background-color: transparent;
                     border: none;
-                }}
-                QLabel:hover {{
-                    background-color: #BBDEFB;
-                    cursor: pointer;
                 }}
             """)
             target_label.setCursor(Qt.CursorShape.PointingHandCursor)
             target_label.mousePressEvent = lambda e: self.on_translation_clicked(target_text)
             
+            # Build tooltip with shortcut hint if applicable
+            shortcut_hint = f"<br><i>Press Ctrl+{self.shortcut_number} to insert</i>" if self.shortcut_number and self.shortcut_number <= 9 else ""
+            
             # Set tooltip if multiple translations exist
             if len(self.translations) > 1:
-                tooltip_lines = [f"<b>{target_text}</b> (click to insert)<br>"]
+                tooltip_lines = [f"<b>{target_text}</b> (click to insert){shortcut_hint}<br>"]
                 tooltip_lines.append("<br><b>Alternatives:</b>")
                 for i, trans in enumerate(self.translations[1:], 1):
                     alt_target = trans.get('target_term', trans.get('target', ''))
@@ -241,9 +259,43 @@ class TermBlock(QWidget):
                     tooltip_lines.append(f"{i}. {alt_target} ({alt_termbase})")
                 target_label.setToolTip("<br>".join(tooltip_lines))
             else:
-                target_label.setToolTip(f"<b>{target_text}</b><br>From: {termbase_name}<br>(click to insert)")
+                target_label.setToolTip(f"<b>{target_text}</b><br>From: {termbase_name}{shortcut_hint}<br>(click to insert)")
             
-            layout.addWidget(target_label)
+            target_layout.addWidget(target_label)
+            
+            # Add shortcut number badge if assigned (0-9 for first 10, 00/11/22/.../99 for 11-20)
+            if self.shortcut_number is not None and self.shortcut_number < 20:
+                # Badge text: 0-9 for first 10 terms, 00/11/22/.../99 for terms 11-20
+                if self.shortcut_number < 10:
+                    badge_text = str(self.shortcut_number)
+                    shortcut_hint = f"Alt+{self.shortcut_number}"
+                    badge_width = 14
+                else:
+                    # Terms 11-20: show as 00, 11, 22, ..., 99
+                    digit = self.shortcut_number - 10
+                    badge_text = str(digit) * 2  # "00", "11", "22", etc.
+                    shortcut_hint = f"Alt+{digit},{digit}"
+                    badge_width = 20  # Wider for 2 digits
+                
+                badge_label = QLabel(badge_text)
+                badge_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                badge_label.setFixedSize(badge_width, 14)
+                badge_label.setStyleSheet(f"""
+                    QLabel {{
+                        background-color: #1976D2;
+                        color: white;
+                        font-size: 9px;
+                        font-weight: bold;
+                        border-radius: 7px;
+                        padding: 0px;
+                    }}
+                """)
+                badge_label.setToolTip(f"Press {shortcut_hint} to insert")
+                badge_label.setCursor(Qt.CursorShape.PointingHandCursor)
+                badge_label.mousePressEvent = lambda e: self.on_translation_clicked(target_text)
+                target_layout.addWidget(badge_label)
+            
+            layout.addWidget(target_container)
             
             # Show count if multiple translations - very compact
             if len(self.translations) > 1:
@@ -380,6 +432,9 @@ class TermviewWidget(QWidget):
         self.current_font_family = "Segoe UI"
         self.current_font_size = 10
         self.current_font_bold = False
+        
+        # Track terms by shortcut number for Alt+1-9 insertion
+        self.shortcut_terms = {}  # {1: "translation1", 2: "translation2", ...}
 
         self.init_ui()
     
@@ -562,8 +617,9 @@ class TermviewWidget(QWidget):
         """
         self.current_source = source_text
         
-        # Clear existing blocks
+        # Clear existing blocks and shortcut mappings
         self.clear_terms()
+        self.shortcut_terms = {}  # Reset shortcut mappings
         
         if not source_text or not source_text.strip():
             self.info_label.setText("No segment selected")
@@ -650,10 +706,14 @@ class TermviewWidget(QWidget):
         # Create blocks for each token
         blocks_with_translations = 0
         blocks_with_nt = 0
+        shortcut_counter = 0  # Track shortcut numbers for terms with translations
         
         # Comprehensive set of quote and punctuation characters to strip
         # Using Unicode escapes to avoid encoding issues
         PUNCT_CHARS = '.,;:!?\"\'\u201C\u201D\u201E\u00AB\u00BB\u2018\u2019\u201A\u2039\u203A'
+        
+        # Track which terms have already been assigned shortcuts (avoid duplicates)
+        assigned_shortcuts = set()
         
         for token in tokens:
             # Strip leading and trailing punctuation/quotes for lookup
@@ -674,10 +734,25 @@ class TermviewWidget(QWidget):
                 # Get termbase translations for this token
                 translations = matches_dict.get(lookup_key, [])
                 
+                # Assign shortcut number only to first occurrence of each term with translations
+                # Numbers 0-9 for first 10 terms, 10-19 for next 10 (displayed as 00,11,22,...,99)
+                shortcut_num = None
+                if translations and lookup_key not in assigned_shortcuts:
+                    if shortcut_counter < 20:  # Support up to 20 terms
+                        shortcut_num = shortcut_counter
+                        # Store the first translation for Alt+N insertion
+                        first_trans = translations[0]
+                        if isinstance(first_trans, dict):
+                            self.shortcut_terms[shortcut_num] = first_trans.get('target_term', '')
+                        else:
+                            self.shortcut_terms[shortcut_num] = str(first_trans)
+                    shortcut_counter += 1
+                    assigned_shortcuts.add(lookup_key)
+                
                 # Create term block (even if no translation - shows source word)
                 term_block = TermBlock(token, translations, self, theme_manager=self.theme_manager, 
                                        font_size=self.current_font_size, font_family=self.current_font_family, 
-                                       font_bold=self.current_font_bold)
+                                       font_bold=self.current_font_bold, shortcut_number=shortcut_num)
                 term_block.term_clicked.connect(self.on_term_insert_requested)
                 self.terms_layout.addWidget(term_block)
                 
@@ -950,3 +1025,24 @@ class TermviewWidget(QWidget):
         """Handle request to insert a translation"""
         self.log(f"💡 Termview: Inserting '{target_term}' for '{source_term}'")
         self.term_insert_requested.emit(target_term)
+    
+    def insert_term_by_number(self, number: int) -> bool:
+        """Insert term by shortcut number (Alt+0-9 for 0-9, Alt+N,N for 10-19)
+        
+        Args:
+            number: 0-19 internal term index
+            
+        Returns:
+            True if term was inserted, False if no term at that number
+        """
+        if number in self.shortcut_terms and self.shortcut_terms[number]:
+            target_text = self.shortcut_terms[number]
+            # Display badge for logging
+            if number < 10:
+                badge = str(number)
+            else:
+                badge = str(number - 10) * 2  # "00", "11", etc.
+            self.log(f"💡 Termview: Inserting term [{badge}]: '{target_text}'")
+            self.term_insert_requested.emit(target_text)
+            return True
+        return False

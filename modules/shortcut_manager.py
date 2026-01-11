@@ -252,6 +252,78 @@ class ShortcutManager:
             "context": "editor"
         },
         
+        # TermView Insertion (Alt+0-9, double-tap for 00-99)
+        "termview_insert_0": {
+            "category": "TermView Insertion",
+            "description": "Insert TermView Term [0] (or [00] if double-tap)",
+            "default": "Alt+0",
+            "action": "insert_termview_0",
+            "context": "editor"
+        },
+        "termview_insert_1": {
+            "category": "TermView Insertion",
+            "description": "Insert TermView Term [1] (or [11] if double-tap)",
+            "default": "Alt+1",
+            "action": "insert_termview_1",
+            "context": "editor"
+        },
+        "termview_insert_2": {
+            "category": "TermView Insertion",
+            "description": "Insert TermView Term [2] (or [22] if double-tap)",
+            "default": "Alt+2",
+            "action": "insert_termview_2",
+            "context": "editor"
+        },
+        "termview_insert_3": {
+            "category": "TermView Insertion",
+            "description": "Insert TermView Term [3] (or [33] if double-tap)",
+            "default": "Alt+3",
+            "action": "insert_termview_3",
+            "context": "editor"
+        },
+        "termview_insert_4": {
+            "category": "TermView Insertion",
+            "description": "Insert TermView Term [4] (or [44] if double-tap)",
+            "default": "Alt+4",
+            "action": "insert_termview_4",
+            "context": "editor"
+        },
+        "termview_insert_5": {
+            "category": "TermView Insertion",
+            "description": "Insert TermView Term [5] (or [55] if double-tap)",
+            "default": "Alt+5",
+            "action": "insert_termview_5",
+            "context": "editor"
+        },
+        "termview_insert_6": {
+            "category": "TermView Insertion",
+            "description": "Insert TermView Term [6] (or [66] if double-tap)",
+            "default": "Alt+6",
+            "action": "insert_termview_6",
+            "context": "editor"
+        },
+        "termview_insert_7": {
+            "category": "TermView Insertion",
+            "description": "Insert TermView Term [7] (or [77] if double-tap)",
+            "default": "Alt+7",
+            "action": "insert_termview_7",
+            "context": "editor"
+        },
+        "termview_insert_8": {
+            "category": "TermView Insertion",
+            "description": "Insert TermView Term [8] (or [88] if double-tap)",
+            "default": "Alt+8",
+            "action": "insert_termview_8",
+            "context": "editor"
+        },
+        "termview_insert_9": {
+            "category": "TermView Insertion",
+            "description": "Insert TermView Term [9] (or [99] if double-tap)",
+            "default": "Alt+9",
+            "action": "insert_termview_9",
+            "context": "editor"
+        },
+        
         # Match Navigation
         "match_next": {
             "category": "Match Navigation",
