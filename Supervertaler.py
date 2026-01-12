@@ -32977,29 +32977,61 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                         target_widget.moveCursor(QTextCursor.MoveOperation.End)
     
     def go_to_first_segment(self):
-        """Navigate to first segment (Ctrl+Home)"""
-        if hasattr(self, 'table') and self.table and self.table.rowCount() > 0:
-            self.table.setCurrentCell(0, 3)  # Column 3 = Target (widget column)
-            self.log(f"⏫ Moved to first segment")
-            # Get the target cell widget and set focus to it
-            target_widget = self.table.cellWidget(0, 3)
-            if target_widget:
-                target_widget.setFocus()
-                # Move cursor to start of text
-                target_widget.moveCursor(QTextCursor.MoveOperation.Start)
+        """Navigate to first segment (Ctrl+Home).
+
+        Pagination/filters may hide row 0, so switch to the first page and then
+        move to the first visible row.
+        """
+        if not hasattr(self, 'table') or not self.table or self.table.rowCount() <= 0:
+            return
+
+        # If pagination is enabled, ensure we're on the first page so row 0 is visible.
+        if hasattr(self, 'go_to_first_page'):
+            self.go_to_first_page()
+
+        target_row = 0
+        if self.table.isRowHidden(target_row):
+            # Filters can also hide rows; pick the first visible row.
+            target_row = next((r for r in range(self.table.rowCount()) if not self.table.isRowHidden(r)), 0)
+
+        self.table.setCurrentCell(target_row, 3)  # Column 3 = Target (widget column)
+        id_item = self.table.item(target_row, 0)
+        if id_item is not None:
+            self.table.scrollToItem(id_item)
+        self.log("⏫ Moved to first segment")
+
+        target_widget = self.table.cellWidget(target_row, 3)
+        if target_widget:
+            target_widget.setFocus()
+            target_widget.moveCursor(QTextCursor.MoveOperation.Start)
     
     def go_to_last_segment(self):
-        """Navigate to last segment (Ctrl+End)"""
-        if hasattr(self, 'table') and self.table and self.table.rowCount() > 0:
-            last_row = self.table.rowCount() - 1
-            self.table.setCurrentCell(last_row, 3)  # Column 3 = Target (widget column)
-            self.log(f"⏬ Moved to last segment ({last_row + 1})")
-            # Get the target cell widget and set focus to it
-            target_widget = self.table.cellWidget(last_row, 3)
-            if target_widget:
-                target_widget.setFocus()
-                # Move cursor to end of text
-                target_widget.moveCursor(QTextCursor.MoveOperation.End)
+        """Navigate to last segment (Ctrl+End).
+
+        Pagination/filters may hide the last row, so switch to the last page and then
+        move to the last visible row.
+        """
+        if not hasattr(self, 'table') or not self.table or self.table.rowCount() <= 0:
+            return
+
+        # If pagination is enabled, ensure we're on the last page so the last row is visible.
+        if hasattr(self, 'go_to_last_page'):
+            self.go_to_last_page()
+
+        target_row = self.table.rowCount() - 1
+        if self.table.isRowHidden(target_row):
+            target_row = next((r for r in range(self.table.rowCount() - 1, -1, -1) if not self.table.isRowHidden(r)), target_row)
+
+        self.table.setCurrentCell(target_row, 3)  # Column 3 = Target (widget column)
+        id_item = self.table.item(target_row, 0)
+        if id_item is not None:
+            self.table.scrollToItem(id_item)
+        self.log(f"⏬ Moved to last segment ({target_row + 1})")
+
+        target_widget = self.table.cellWidget(target_row, 3)
+        if target_widget:
+            target_widget.setFocus()
+            target_widget.moveCursor(QTextCursor.MoveOperation.End)
     
     def confirm_and_next_unconfirmed(self):
         """Set current segment to confirmed and move to next unconfirmed segment (Ctrl+Enter)"""
