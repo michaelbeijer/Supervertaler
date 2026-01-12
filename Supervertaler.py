@@ -6159,19 +6159,10 @@ class SupervertalerQt(QMainWindow):
         grid_zoom_out.setShortcut(QKeySequence.StandardKey.ZoomOut)
         grid_zoom_out.triggered.connect(self.zoom_out)
         grid_zoom_menu.addAction(grid_zoom_out)
-        
-        grid_zoom_menu.addSeparator()
-        
-        grid_increase_font = QAction("Grid &Increase Font Size", self)
-        grid_increase_font.setShortcut("Ctrl++")
-        grid_increase_font.triggered.connect(self.increase_font_size)
-        grid_zoom_menu.addAction(grid_increase_font)
-        
-        grid_decrease_font = QAction("Grid &Decrease Font Size", self)
-        grid_decrease_font.setShortcut("Ctrl+-")
-        grid_decrease_font.triggered.connect(self.decrease_font_size)
-        grid_zoom_menu.addAction(grid_decrease_font)
-        
+
+        # Note: Do not add separate Ctrl++/Ctrl+- actions here.
+        # QKeySequence.StandardKey.ZoomIn/ZoomOut already maps to these keys on many layouts,
+        # and duplicates cause: "QAction::event: Ambiguous shortcut overload".
         grid_zoom_menu.addSeparator()
         
         grid_font_family_menu = grid_zoom_menu.addMenu("Grid Font &Family")
@@ -14890,8 +14881,8 @@ class SupervertalerQt(QMainWindow):
         reference_text = QLabel(
             "<b>All Zoom Controls:</b><br>"
             "View → Grid Text Zoom<br>"
-            "• Ctrl++ (NumPad +) - Increase<br>"
-            "• Ctrl+- (NumPad -) - Decrease<br><br>"
+            "• Ctrl+= (or Ctrl+NumPad +) - Increase<br>"
+            "• Ctrl+- (or Ctrl+NumPad -) - Decrease<br><br>"
             "View → Translation Results Pane<br>"
             "• Ctrl+Shift++ (Ctrl+Shift+=) - Increase<br>"
             "• Ctrl+Shift+- - Decrease<br>"
@@ -25869,7 +25860,7 @@ class SupervertalerQt(QMainWindow):
         self.log(f"✓ Font changed to {family_name}")
     
     def increase_font_size(self):
-        """Increase font size (Ctrl++)"""
+        """Increase grid font size."""
         self.default_font_size = min(72, self.default_font_size + 1)
         self.apply_font_to_grid()
         self.auto_resize_rows()
@@ -25878,7 +25869,7 @@ class SupervertalerQt(QMainWindow):
         self.save_current_font_sizes()
     
     def decrease_font_size(self):
-        """Decrease font size (Ctrl+-)"""
+        """Decrease grid font size."""
         self.default_font_size = max(7, self.default_font_size - 1)
         self.apply_font_to_grid()
         self.auto_resize_rows()
@@ -25983,11 +25974,11 @@ class SupervertalerQt(QMainWindow):
 
     
     def zoom_in(self):
-        """Increase font size (same as Ctrl++)"""
+        """Increase grid font size (zoom in)."""
         self.increase_font_size()
     
     def zoom_out(self):
-        """Decrease font size (same as Ctrl+-)"""
+        """Decrease grid font size (zoom out)."""
         self.decrease_font_size()
     
     def results_pane_zoom_in(self):
