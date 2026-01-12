@@ -786,20 +786,22 @@ Fixed critical issue where highly similar TM entries were not being found for lo
 
 ### January 11, 2026 - Version 1.9.94: TermView Quick-Insert Shortcuts
 
-**🎯 Alt+0-9 TermView Term Insertion**
+**🎯 TermView Quick-Insert Shortcuts**
+
+**Note (updated in v1.9.99):** `Alt+0` / `Alt+0,0` are reserved for the Compare Panel. TermView shortcuts start at `Alt+1`.
 
 Implemented a novel 20-term quick-insert system using Alt key shortcuts — a feature unique to Supervertaler:
 
-- **Alt+0 through Alt+9**: Insert terms 1-10 instantly (no delay)
-- **Double-tap Alt+N,N**: Insert terms 11-20 (displayed as 00, 11, 22, ..., 99)
+- **Alt+1 through Alt+9**: Insert terms 1-9 instantly (no delay)
+- **Double-tap Alt+N,N**: Insert terms 10-18 (displayed as 11, 22, ..., 99)
 - **Smart double-tap detection**: First tap inserts immediately; if same key pressed within 300ms, undoes and inserts the double-digit term
 - **Visual badges**: Blue circular badges (14px for single digit, 20px for double) show shortcut numbers
 
 **Badge Mapping:**
 | Badge | Shortcut | Internal Index |
 |-------|----------|----------------|
-| 0-9 | Alt+0 to Alt+9 | 0-9 |
-| 00, 11, ..., 99 | Alt+0,0 to Alt+9,9 | 10-19 |
+| 1-9 | Alt+1 to Alt+9 | 0-8 |
+| 11, 22, ..., 99 | Alt+1,1 to Alt+9,9 | 9-17 |
 
 **Visual Improvements:**
 - Background color now extends across entire term block (text + badge unified)

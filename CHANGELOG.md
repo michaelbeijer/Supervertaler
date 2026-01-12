@@ -158,13 +158,15 @@ Fixed a critical issue where highly similar TM entries were not being found for 
 
 ## 🎯 TermView Quick-Insert Shortcuts (v1.9.94) - January 11, 2026
 
-**New Feature: Alt+0-9 TermView Insertion**
+**New Feature: TermView Quick-Insert Shortcuts**
+
+**Note (v1.9.99+):** `Alt+0` / `Alt+0,0` are now reserved for the Compare Panel insertion workflow. TermView shortcuts start at `Alt+1`.
 
 Insert glossary terms directly from TermView using keyboard shortcuts — a novel feature not found in other CAT tools!
 
-- **Alt+0 through Alt+9** — Insert terms 1-10 (displayed as badges 0-9)
-- **Double-tap Alt+N,N** — Insert terms 11-20 (displayed as badges 00, 11, 22, ..., 99)
-- **20 terms accessible** via quick keyboard shortcuts
+- **Alt+1 through Alt+9** — Insert terms 1-9 (displayed as badges 1-9)
+- **Double-tap Alt+N,N** — Insert terms 10-18 (displayed as badges 11, 22, ..., 99)
+- **18 terms accessible** via quick keyboard shortcuts
 - **Visual badges** show shortcut numbers on each term in TermView
 - **Smart double-tap detection** — first tap inserts immediately, double-tap within 300ms replaces with the 11-20 term
 
@@ -177,10 +179,8 @@ Insert glossary terms directly from TermView using keyboard shortcuts — a nove
 **How It Works:**
 | Badge | Shortcut | Term # |
 |-------|----------|--------|
-| 0 | Alt+0 | 1st term |
-| 1-9 | Alt+1-9 | 2nd-10th terms |
-| 00 | Alt+0,0 | 11th term |
-| 11-99 | Alt+1,1 - Alt+9,9 | 12th-20th terms |
+| 1-9 | Alt+1-9 | 1st-9th terms |
+| 11-99 | Alt+1,1 - Alt+9,9 | 10th-18th terms |
 
 ---
 
