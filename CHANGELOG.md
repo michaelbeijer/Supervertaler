@@ -2,11 +2,34 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.98 (January 11, 2026)
+**Current Version:** v1.9.99 (January 12, 2026)
 **Framework:** PyQt6
 **Status:** Active Development
 
 **Note:** For historical information about legacy versions (Tkinter Edition, Classic Edition), see [legacy_versions/LEGACY_VERSIONS.md](legacy_versions/LEGACY_VERSIONS.md).
+
+---
+
+## 🔊 Compare Panel Shortcuts + Sound Effects (v1.9.99) - January 12, 2026
+
+**Feature: Compare Panel-first quick insert workflow**
+
+- **Alt+0 / Alt+0,0 insertion (Compare Panel)**: Single-tap `Alt+0` inserts the current MT result; double-tap `Alt+0,0` inserts the current TM Target.
+- **Full-segment replacement + single undo step**: Insertions replace the entire current target segment, wrapped in a single undo edit block.
+- **Compare Panel navigation shortcuts**:
+  - MT prev/next: `Ctrl+Alt+Left` / `Ctrl+Alt+Right`
+  - TM prev/next: `Ctrl+Alt+Up` / `Ctrl+Alt+Down`
+- **Context-aware match shortcuts**: Match navigation/insertion shortcuts now act only on the active panel (Compare Panel vs Translation Results), avoiding hidden-panel side effects.
+
+**Feature: Minimalist sound effects + status-bar feedback**
+
+- Added per-event **Windows sound mapping** (beeps or selected Windows `.wav` files) with a global enable toggle.
+- Added **status bar “information bar” messages** for glossary entry add outcomes (added / duplicate / error).
+- Sound effects are now **OFF by default** on fresh installs.
+
+**UX: Reduced log spam**
+
+- Collapsed repeated “Saved segment to TM(s)” messages into a single debounced log line with an `(xN)` count.
 
 ---
 

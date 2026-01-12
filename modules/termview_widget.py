@@ -264,7 +264,11 @@ class TermBlock(QWidget):
             
             # Build tooltip with shortcut hint if applicable
             if self.shortcut_number is not None and self.shortcut_number <= 19:
-                if self.shortcut_number <= 9:
+                # Alt+0 (and Alt+0,0) are reserved for the Compare Panel.
+                # Do not advertise or display these shortcuts in TermView.
+                if self.shortcut_number in (0, 10):
+                    shortcut_hint = ""
+                elif self.shortcut_number <= 9:
                     shortcut_hint = f"<br><i>Press Alt+{self.shortcut_number} to insert</i>"
                 else:
                     # Double-tap shortcuts (10-19 displayed as 00, 11, 22, etc.)
@@ -299,6 +303,24 @@ class TermBlock(QWidget):
             
             # Add shortcut number badge if assigned (0-9 for first 10, 00/11/22/.../99 for 11-20)
             if self.shortcut_number is not None and self.shortcut_number < 20:
+                # Alt+0 (and Alt+0,0) are reserved for the Compare Panel.
+                # Hide the corresponding TermView badges (0 and 00).
+                if self.shortcut_number in (0, 10):
+                    layout.addWidget(target_container)
+                    
+                    # Show count if multiple translations - very compact
+                    if len(self.translations) > 1:
+                        count_label = QLabel(f"+{len(self.translations) - 1}")
+                        count_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                        count_label.setStyleSheet("""
+                            QLabel {
+                                color: #999;
+                                font-size: 7px;
+                            }
+                        """)
+                        layout.addWidget(count_label)
+                    return
+
                 # Badge text: 0-9 for first 10 terms, 00/11/22/.../99 for terms 11-20
                 if self.shortcut_number < 10:
                     badge_text = str(self.shortcut_number)
@@ -802,12 +824,14 @@ class TermviewWidget(QWidget):
                 # Get termbase translations for this token
                 translations = matches_dict.get(lookup_key, [])
                 
-                # Assign shortcut number only to first occurrence of each term with translations
-                # Numbers 0-9 for first 10 terms, 10-19 for next 10 (displayed as 00,11,22,...,99)
+                # Assign shortcut number only to first occurrence of each term with translations.
+                # TermView numbering starts at 1 (Alt+1..Alt+9), because Alt+0 is reserved for the Compare Panel.
+                # After 1-9, we support 11-99 via double-tap Alt+N,N (internally 11-19).
                 shortcut_num = None
                 if translations and lookup_key not in assigned_shortcuts:
-                    if shortcut_counter < 20:  # Support up to 20 terms
-                        shortcut_num = shortcut_counter
+                    if shortcut_counter < 18:  # Support up to 18 terms (1-9 + 11-99)
+                        # Map 0-8 -> 1-9, 9-17 -> 11-19
+                        shortcut_num = shortcut_counter + 1 if shortcut_counter < 9 else shortcut_counter + 2
                         # Store the first translation for Alt+N insertion
                         first_trans = translations[0]
                         if isinstance(first_trans, dict):
@@ -1109,11 +1133,15 @@ class TermviewWidget(QWidget):
         self.delete_entry_requested.emit(term_id, termbase_id, source_term, target_term)
     
     def insert_term_by_number(self, number: int) -> bool:
-        """Insert term by shortcut number (Alt+0-9 for 0-9, Alt+N,N for 10-19)
+        """Insert term by shortcut number.
+
+        TermView numbering starts at 1:
+        - Alt+1..Alt+9 insert 1..9
+        - Double-tap Alt+N,N inserts 11..99 (internally 11..19)
         
         Args:
-            number: 0-19 internal term index
-            
+            number: Shortcut number (typically 1-9 or 11-19)
+        
         Returns:
             True if term was inserted, False if no term at that number
         """

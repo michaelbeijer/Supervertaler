@@ -3,8 +3,8 @@ Supervertaler
 =============
 The Ultimate Translation Workbench.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.9.98 (Glossary Notes in Tooltips)
-Release Date: January 11, 2026
+Version: 1.9.99 (Compare Panel shortcuts + sound effects)
+Release Date: January 12, 2026
 Framework: PyQt6
 
 This is the modern edition of Supervertaler using PyQt6 framework.
@@ -34,9 +34,9 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.97"
+__version__ = "1.9.99"
 __phase__ = "0.9"
-__release_date__ = "2026-01-11"
+__release_date__ = "2026-01-12"
 __edition__ = "Qt"
 
 import sys
@@ -5406,8 +5406,13 @@ class SupervertalerQt(QMainWindow):
             """Create a shortcut, using custom key from manager if set, respecting enabled state"""
             # Get the actual key sequence (custom or default) from the manager
             key_sequence = self.shortcut_manager.get_shortcut(shortcut_id)
-            if not key_sequence:
-                key_sequence = default_key  # Fallback if not in manager
+            # Important: an empty string is a valid "unassigned" default.
+            # Only fall back to the passed default_key if the shortcut ID is unknown to the manager.
+            if key_sequence == "":
+                default_ids = getattr(self.shortcut_manager, 'DEFAULT_SHORTCUTS', {})
+                custom_ids = getattr(self.shortcut_manager, 'custom_shortcuts', {})
+                if shortcut_id not in default_ids and shortcut_id not in custom_ids:
+                    key_sequence = default_key
             
             shortcut = QShortcut(QKeySequence(key_sequence), self)
             shortcut.activated.connect(handler)
@@ -5432,8 +5437,12 @@ class SupervertalerQt(QMainWindow):
             shortcut_id = f"match_insert_{i}"
             default_key = f"Ctrl+{i}"
             key_sequence = self.shortcut_manager.get_shortcut(shortcut_id)
-            if not key_sequence:
-                key_sequence = default_key
+            # Respect intentionally blank defaults (unassigned shortcuts)
+            if key_sequence == "":
+                default_ids = getattr(self.shortcut_manager, 'DEFAULT_SHORTCUTS', {})
+                custom_ids = getattr(self.shortcut_manager, 'custom_shortcuts', {})
+                if shortcut_id not in default_ids and shortcut_id not in custom_ids:
+                    key_sequence = default_key
             shortcut = QShortcut(QKeySequence(key_sequence), self)
             shortcut.activated.connect(lambda num=i: self.insert_match_by_number(num))
             self.global_shortcut_keys[shortcut_id] = key_sequence
@@ -5441,6 +5450,36 @@ class SupervertalerQt(QMainWindow):
                 shortcut.setKey(QKeySequence())  # Clear key to release combination
             self.global_shortcuts[shortcut_id] = shortcut
             self.match_shortcuts.append(shortcut)
+
+        # Compare Panel insertion shortcut
+        # Alt+0 inserts MT; double-tap Alt+0,0 inserts TM Target.
+        self._compare_panel_last_key = None
+        self._compare_panel_last_time = 0
+        create_shortcut("compare_insert_alt0", "Alt+0", self._handle_compare_panel_alt0_shortcut)
+
+        # Compare Panel navigation shortcuts
+        # MT prev/next: Ctrl+Alt+Left / Ctrl+Alt+Right
+        # TM prev/next: Ctrl+Alt+Up / Ctrl+Alt+Down
+        create_shortcut(
+            "compare_nav_mt_prev",
+            "Ctrl+Alt+Left",
+            lambda: self._compare_panel_nav_mt(-1) if self._get_active_match_shortcut_mode() == 'compare' else None,
+        )
+        create_shortcut(
+            "compare_nav_mt_next",
+            "Ctrl+Alt+Right",
+            lambda: self._compare_panel_nav_mt(1) if self._get_active_match_shortcut_mode() == 'compare' else None,
+        )
+        create_shortcut(
+            "compare_nav_tm_prev",
+            "Ctrl+Alt+Up",
+            lambda: self._compare_panel_nav_tm(-1) if self._get_active_match_shortcut_mode() == 'compare' else None,
+        )
+        create_shortcut(
+            "compare_nav_tm_next",
+            "Ctrl+Alt+Down",
+            lambda: self._compare_panel_nav_tm(1) if self._get_active_match_shortcut_mode() == 'compare' else None,
+        )
         
         # Alt+0 through Alt+9 - Insert term from TermView by number
         # Supports double-tap for terms 11-20 (00, 11, 22, ..., 99)
@@ -5451,8 +5490,12 @@ class SupervertalerQt(QMainWindow):
             shortcut_id = f"termview_insert_{i}"
             default_key = f"Alt+{i}"
             key_sequence = self.shortcut_manager.get_shortcut(shortcut_id)
-            if not key_sequence:
-                key_sequence = default_key
+            # Respect intentionally blank defaults (unassigned shortcuts)
+            if key_sequence == "":
+                default_ids = getattr(self.shortcut_manager, 'DEFAULT_SHORTCUTS', {})
+                custom_ids = getattr(self.shortcut_manager, 'custom_shortcuts', {})
+                if shortcut_id not in default_ids and shortcut_id not in custom_ids:
+                    key_sequence = default_key
             shortcut = QShortcut(QKeySequence(key_sequence), self)
             shortcut.activated.connect(lambda num=i: self._handle_termview_shortcut(num))
             self.global_shortcut_keys[shortcut_id] = key_sequence
@@ -10117,6 +10160,8 @@ class SupervertalerQt(QMainWindow):
         
         # Add term to selected termbases only
         success_count = 0
+        duplicate_count = 0
+        error_count = 0
         for tb in active_termbases:
             if tb['id'] not in selected_termbase_ids:
                 continue  # Skip unselected termbases
@@ -10169,12 +10214,28 @@ class SupervertalerQt(QMainWindow):
                                 self.log(f"  ✓ Added target synonym: {syn_data['text']}{forbidden_marker}")
                             else:
                                 self.log(f"  ✗ Failed to add target synonym: {syn_data['text']}")
+
+                else:
+                    duplicate_count += 1
                     
             except Exception as e:
+                error_count += 1
                 self.log(f"✗ Error adding term to termbase '{tb['name']}': {e}")
         
         # Show result
         if success_count > 0:
+            self._play_sound_effect('glossary_term_added')
+
+            # Non-modal info bar message (status bar)
+            try:
+                if hasattr(self, 'statusBar') and self.statusBar():
+                    if success_count == 1:
+                        self.statusBar().showMessage(f"✓ Added glossary entry: {source_text} → {target_text} (to 1 glossary)", 3500)
+                    else:
+                        self.statusBar().showMessage(f"✓ Added glossary entry to {success_count} glossaries: {source_text} → {target_text}", 3500)
+            except Exception:
+                pass
+
             QMessageBox.information(self, "Term Added", f"Successfully added term pair to {success_count} glossary(s):\\n\\nSource: {source_text}\\nTarget: {target_text}\\n\\nDomain: {metadata['domain'] or '(none)'}")
             
             # Refresh translation results to show new termbase match immediately
@@ -10206,7 +10267,26 @@ class SupervertalerQt(QMainWindow):
             else:
                 self.log("⚠️ No glossary refresh callback found (tab not initialized yet)")
         else:
-            QMessageBox.warning(self, "Error Adding Term", "Failed to add term to any glossary. Check the log for details.")
+            if duplicate_count > 0 and error_count == 0:
+                self._play_sound_effect('glossary_term_duplicate')
+                try:
+                    if hasattr(self, 'statusBar') and self.statusBar():
+                        self.statusBar().showMessage("⚠ Duplicate glossary entry (not added)", 3500)
+                except Exception:
+                    pass
+                QMessageBox.warning(
+                    self,
+                    "Duplicate Term",
+                    "This term already exists in the selected glossary(s). Duplicate terms are not allowed."
+                )
+            else:
+                self._play_sound_effect('glossary_term_error')
+                try:
+                    if hasattr(self, 'statusBar') and self.statusBar():
+                        self.statusBar().showMessage("❌ Error adding glossary entry (see log)", 3500)
+                except Exception:
+                    pass
+                QMessageBox.warning(self, "Error Adding Term", "Failed to add term to any glossary. Check the log for details.")
     
     def quick_add_term_pair_to_termbase(self, source_text: str, target_text: str):
         """Quick add a term pair to the last-used termbase without showing any dialogs (Ctrl+Q)
@@ -10262,6 +10342,8 @@ class SupervertalerQt(QMainWindow):
         self.log(f"   To termbase(s): {', '.join(termbase_names)}")
         
         success_count = 0
+        duplicate_count = 0
+        error_count = 0
         for target_termbase in target_termbases:
             try:
                 term_id = self.termbase_mgr.add_term(
@@ -10280,10 +10362,14 @@ class SupervertalerQt(QMainWindow):
                 if term_id:
                     success_count += 1
                     self.log(f"✓ Quick-added term to '{target_termbase['name']}': {source_text} → {target_text}")
+                else:
+                    duplicate_count += 1
             except Exception as e:
+                error_count += 1
                 self.log(f"✗ Error quick-adding term to '{target_termbase['name']}': {e}")
         
         if success_count > 0:
+            self._play_sound_effect('glossary_term_added')
             # Show brief success notification in statusbar instead of dialog
             if hasattr(self, 'statusBar') and self.statusBar():
                 if success_count == 1:
@@ -10313,7 +10399,16 @@ class SupervertalerQt(QMainWindow):
             if hasattr(self, 'termbase_tab_refresh_callback') and self.termbase_tab_refresh_callback:
                 self.termbase_tab_refresh_callback()
         else:
-            QMessageBox.warning(self, "Error", "Failed to add term. It may already exist in the glossary.")
+            if duplicate_count > 0 and error_count == 0:
+                self._play_sound_effect('glossary_term_duplicate')
+                if hasattr(self, 'statusBar') and self.statusBar():
+                    self.statusBar().showMessage("⚠ Duplicate glossary entry (not added)", 3500)
+                QMessageBox.warning(self, "Duplicate Term", "This term already exists in the glossary. Duplicate terms are not allowed.")
+            else:
+                self._play_sound_effect('glossary_term_error')
+                if hasattr(self, 'statusBar') and self.statusBar():
+                    self.statusBar().showMessage("❌ Error adding glossary entry (see log)", 3500)
+                QMessageBox.warning(self, "Error", "Failed to add term. Check the log for details.")
 
     def _quick_add_term_with_priority(self, glossary_rank: int):
         """Quick add selected term pair to the glossary with the specified ranking
@@ -10413,6 +10508,7 @@ class SupervertalerQt(QMainWindow):
             )
             
             if term_id:
+                self._play_sound_effect('glossary_term_added')
                 self.log(f"✓ Added to '{target_termbase['name']}': {source_text} → {target_text}")
                 self.statusBar().showMessage(f"✓ Added to '{target_termbase['name']}': {source_text} → {target_text}", 3000)
                 
@@ -10431,9 +10527,11 @@ class SupervertalerQt(QMainWindow):
                 if hasattr(self, 'termbase_tab_refresh_callback') and self.termbase_tab_refresh_callback:
                     self.termbase_tab_refresh_callback()
             else:
+                self._play_sound_effect('glossary_term_duplicate')
                 self.statusBar().showMessage(f"Term already exists in '{target_termbase['name']}'", 3000)
         except Exception as e:
             self.log(f"✗ Error adding term: {e}")
+            self._play_sound_effect('glossary_term_error')
             self.statusBar().showMessage(f"Error adding term: {e}", 3000)
 
     def add_text_to_non_translatables(self, text: str):
@@ -11490,6 +11588,7 @@ class SupervertalerQt(QMainWindow):
             )
             
             if tb_id:
+                self._play_sound_effect('glossary_created')
                 QMessageBox.information(dialog, "Success", f"Glossary '{name}' created successfully!")
                 refresh_callback()
                 dialog.accept()
@@ -13758,6 +13857,85 @@ class SupervertalerQt(QMainWindow):
         startup_group.setLayout(startup_layout)
         layout.addWidget(startup_group)
 
+        # Sound Effects group
+        sound_group = QGroupBox("🔊 Sound Effects")
+        sound_layout = QVBoxLayout()
+
+        sound_effects_cb = CheckmarkCheckBox("Enable minimalist sound effects")
+        sound_effects_cb.setChecked(general_settings.get('enable_sound_effects', False))
+        sound_effects_cb.setToolTip(
+            "Plays a subtle system beep for certain operations (e.g. glossary creation, match insertion).\n"
+            "Disable if you prefer a silent workflow."
+        )
+        sound_layout.addWidget(sound_effects_cb)
+
+        # Per-event sound mapping (Windows system beeps)
+        sound_effects_map = general_settings.get('sound_effects_map', {})
+        sound_choices = [
+            ("(None)", "none"),
+            ("OK", "ok"),
+            ("Asterisk", "asterisk"),
+            ("Exclamation", "exclamation"),
+            ("Hand", "hand"),
+            ("Question", "question"),
+            ("Windows Proximity Notification (.wav)", "windows_proximity_wav"),
+            ("Windows Restore (.wav)", "windows_restore_wav"),
+            ("Windows Navigation Start (.wav)", "windows_navigation_start_wav"),
+            ("Speech Disambiguation (.wav)", "speech_disambiguation_wav"),
+            ("Windows Startup (.wav)", "windows_startup_wav"),
+        ]
+
+        def make_sound_combo(default_key: str) -> QComboBox:
+            combo = QComboBox()
+            for label, key in sound_choices:
+                combo.addItem(label, key)
+            # Set initial
+            idx = combo.findData(default_key)
+            if idx >= 0:
+                combo.setCurrentIndex(idx)
+            return combo
+
+        event_rows = QFormLayout()
+        event_rows.setContentsMargins(0, 0, 0, 0)
+        event_rows.setSpacing(6)
+
+        # Store combos so save button can persist them
+        sound_event_combos = {}
+
+        # Glossary entry added (term pair)
+        default_term_added = sound_effects_map.get('glossary_term_added', 'asterisk')
+        sound_event_combos['glossary_term_added'] = make_sound_combo(default_term_added)
+        event_rows.addRow("Glossary entry added:", sound_event_combos['glossary_term_added'])
+
+        # Glossary created (collection)
+        default_glossary_created = sound_effects_map.get('glossary_created', 'asterisk')
+        sound_event_combos['glossary_created'] = make_sound_combo(default_glossary_created)
+        event_rows.addRow("Glossary created:", sound_event_combos['glossary_created'])
+
+        # Compare Panel match inserted/replaced
+        default_match_inserted = sound_effects_map.get('match_inserted', 'ok')
+        sound_event_combos['match_inserted'] = make_sound_combo(default_match_inserted)
+        event_rows.addRow("Match inserted/replaced:", sound_event_combos['match_inserted'])
+
+        # Glossary entry duplicate
+        default_term_duplicate = sound_effects_map.get('glossary_term_duplicate', 'exclamation')
+        sound_event_combos['glossary_term_duplicate'] = make_sound_combo(default_term_duplicate)
+        event_rows.addRow("Glossary entry duplicate:", sound_event_combos['glossary_term_duplicate'])
+
+        # Glossary add error
+        default_term_error = sound_effects_map.get('glossary_term_error', 'hand')
+        sound_event_combos['glossary_term_error'] = make_sound_combo(default_term_error)
+        event_rows.addRow("Glossary add error:", sound_event_combos['glossary_term_error'])
+
+        sound_layout.addLayout(event_rows)
+
+        sound_note = QLabel("💡 Uses Windows system beeps (no audio files).")
+        sound_note.setStyleSheet("color: #666; font-size: 9pt; padding: 5px;")
+        sound_layout.addWidget(sound_note)
+
+        sound_group.setLayout(sound_layout)
+        layout.addWidget(sound_group)
+
         # Auto Backup Settings group
         backup_group = QGroupBox("💾 Auto Backup Settings")
         backup_layout = QVBoxLayout()
@@ -14197,7 +14375,9 @@ class SupervertalerQt(QMainWindow):
             ahk_path_edit=getattr(self, 'ahk_path_edit', None),
             auto_center_cb=auto_center_cb,
             auto_confirm_100_cb=auto_confirm_100_cb,
-            auto_confirm_overwrite_cb=auto_confirm_overwrite_cb
+            auto_confirm_overwrite_cb=auto_confirm_overwrite_cb,
+            sound_effects_cb=sound_effects_cb,
+            sound_event_combos=sound_event_combos
         ))
         layout.addWidget(save_btn)
         
@@ -16587,7 +16767,7 @@ class SupervertalerQt(QMainWindow):
                                        enable_backup_cb=None, backup_interval_spin=None,
                                        tb_order_combo=None, tb_hide_shorter_cb=None, smart_selection_cb=None,
                                        ahk_path_edit=None, auto_center_cb=None, auto_confirm_100_cb=None,
-                                       auto_confirm_overwrite_cb=None):
+                                       auto_confirm_overwrite_cb=None, sound_effects_cb=None, sound_event_combos=None):
         """Save general settings from UI (non-AI settings only)"""
         self.allow_replace_in_source = allow_replace_cb.isChecked()
         self.update_warning_banner()
@@ -16649,8 +16829,36 @@ class SupervertalerQt(QMainWindow):
             'grid_font_size': self.default_font_size,
             'results_match_font_size': 9,
             'results_compare_font_size': 9,
-            'autohotkey_path': ahk_path_edit.text().strip() if ahk_path_edit is not None else existing_settings.get('autohotkey_path', '')
+            'autohotkey_path': ahk_path_edit.text().strip() if ahk_path_edit is not None else existing_settings.get('autohotkey_path', ''),
+            'enable_sound_effects': sound_effects_cb.isChecked() if sound_effects_cb is not None else existing_settings.get('enable_sound_effects', False)
         }
+
+        # Keep a fast-access instance value
+        self.enable_sound_effects = general_settings.get('enable_sound_effects', False)
+
+        # Persist per-event sound mapping
+        existing_map = existing_settings.get('sound_effects_map', {}) if isinstance(existing_settings, dict) else {}
+        new_map = dict(existing_map) if isinstance(existing_map, dict) else {}
+        if isinstance(sound_event_combos, dict):
+            for event_key, combo in sound_event_combos.items():
+                try:
+                    new_map[event_key] = combo.currentData()
+                except Exception:
+                    pass
+        # Ensure key exists even if UI wasn't present
+        if 'glossary_term_added' not in new_map:
+            new_map['glossary_term_added'] = existing_map.get('glossary_term_added', 'asterisk') if isinstance(existing_map, dict) else 'asterisk'
+        if 'glossary_created' not in new_map:
+            new_map['glossary_created'] = existing_map.get('glossary_created', 'asterisk') if isinstance(existing_map, dict) else 'asterisk'
+        if 'match_inserted' not in new_map:
+            new_map['match_inserted'] = existing_map.get('match_inserted', 'ok') if isinstance(existing_map, dict) else 'ok'
+        if 'glossary_term_duplicate' not in new_map:
+            new_map['glossary_term_duplicate'] = existing_map.get('glossary_term_duplicate', 'exclamation') if isinstance(existing_map, dict) else 'exclamation'
+        if 'glossary_term_error' not in new_map:
+            new_map['glossary_term_error'] = existing_map.get('glossary_term_error', 'hand') if isinstance(existing_map, dict) else 'hand'
+
+        general_settings['sound_effects_map'] = new_map
+        self.sound_effects_map = new_map
         
         # Add match limits if provided (MT, TM, Termbase - LLM is handled in AI Settings)
         if all([mt_spin, tm_limit_spin, tb_spin]):
@@ -19538,7 +19746,7 @@ class SupervertalerQt(QMainWindow):
             msg = f"💾 Saved segment to {saved_count} TM(s)"
             if skipped_readonly > 0:
                 msg += f" (skipped {skipped_readonly} read-only)"
-            self.log(msg)
+            self._queue_tm_save_log(msg)
             # Invalidate cache so prefetched segments get fresh TM matches
             self.invalidate_translation_cache()
         elif skipped_readonly > 0:
@@ -24960,7 +25168,7 @@ class SupervertalerQt(QMainWindow):
         
         # Box 2: Machine Translation (purple-ish) - with navigation
         box2_container, self.compare_panel_mt, self.compare_panel_mt_nav_label, mt_nav_btns = self._create_compare_panel_box(
-            "🤖 MT", box4_bg, text_color, border_color, has_navigation=True)
+            "🤖 MT", box4_bg, text_color, border_color, has_navigation=True, shortcut_badge_text="0", shortcut_badge_tooltip="Alt+0")
         if mt_nav_btns:
             mt_nav_btns[0].clicked.connect(lambda: self._compare_panel_nav_mt(-1))
             mt_nav_btns[1].clicked.connect(lambda: self._compare_panel_nav_mt(1))
@@ -24976,13 +25184,15 @@ class SupervertalerQt(QMainWindow):
         
         # Box 4: TM Target (green-ish) - syncs with TM Source navigation
         box4_container, self.compare_panel_tm_target, self.compare_panel_tm_target_label, _ = self._create_compare_panel_box(
-            "✅ TM Target", box3_bg, text_color, border_color, has_navigation=False)
+            "✅ TM Target", box3_bg, text_color, border_color, has_navigation=False, show_metadata_label=True,
+            shortcut_badge_text="00", shortcut_badge_tooltip="Alt+0,0")
         layout.addWidget(box4_container, 1)
         
         return widget
     
-    def _create_compare_panel_box(self, label: str, bg_color: str, text_color: str, border_color: str, 
-                                   has_navigation: bool = False) -> tuple:
+    def _create_compare_panel_box(self, label: str, bg_color: str, text_color: str, border_color: str,
+                                   has_navigation: bool = False, show_metadata_label: bool = False,
+                                   shortcut_badge_text: str = None, shortcut_badge_tooltip: str = None) -> tuple:
         """Create a single comparison box for the Compare Panel
         
         Returns: (container, text_edit, nav_label, nav_buttons) where nav_buttons is [prev_btn, next_btn] or None
@@ -25008,15 +25218,39 @@ class SupervertalerQt(QMainWindow):
         title_label = QLabel(label)
         title_label.setStyleSheet(f"font-weight: bold; font-size: 9px; color: {text_color}; background: transparent; border: none;")
         header_layout.addWidget(title_label)
+
+        # Optional shortcut badge (TermView-style blue bubble)
+        if shortcut_badge_text:
+            badge_width = 14 if len(shortcut_badge_text) == 1 else 20
+            badge_label = QLabel(shortcut_badge_text)
+            badge_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            badge_label.setFixedSize(badge_width, 14)
+            badge_label.setStyleSheet("""
+                QLabel {
+                    background-color: #2196F3;
+                    color: white;
+                    border-radius: 7px;
+                    font-size: 9px;
+                    font-weight: bold;
+                    padding: 0px;
+                }
+            """)
+            if shortcut_badge_tooltip:
+                badge_label.setToolTip(f"Press {shortcut_badge_tooltip} to insert")
+            header_layout.addWidget(badge_label)
         
         nav_label = None
         nav_buttons = None
-        
-        if has_navigation:
+
+        if has_navigation or show_metadata_label:
             # Navigation: (1/3) ◄ ► provider_name • 95%
             nav_label = QLabel("(0/0)")
             nav_label.setStyleSheet(f"font-size: 8px; color: {text_color}; background: transparent; border: none;")
+            # Store color so later rich-text updates can preserve theme color
+            nav_label._compare_text_color = text_color
             header_layout.addWidget(nav_label)
+
+        if has_navigation:
             
             # Prev button
             prev_btn = QPushButton("◄")
@@ -25109,10 +25343,30 @@ class SupervertalerQt(QMainWindow):
         match = self.compare_panel_mt_matches[self.compare_panel_mt_index]
         total = len(self.compare_panel_mt_matches)
         
-        # Update navigation label: (1/3) Google Translate
-        provider = match.get('provider', 'MT')
+        # Update navigation label with emphasis:
+        # - Provider name: larger (readability)
+        try:
+            import html
+            provider_escaped = html.escape(str(match.get('provider', 'MT')))
+        except Exception:
+            provider_escaped = str(match.get('provider', 'MT'))
+
+        idx = self.compare_panel_mt_index + 1
+        nav_html = (
+            f"(<span style='font-size:8px'>{idx}/{total}</span>) "
+            f"<span style='font-size:10px'>{provider_escaped}</span>"
+        )
+
         if hasattr(self, 'compare_panel_mt_nav_label') and self.compare_panel_mt_nav_label:
-            self.compare_panel_mt_nav_label.setText(f"({self.compare_panel_mt_index + 1}/{total}) {provider}")
+            # Avoid a fixed font-size stylesheet overriding rich text emphasis, but keep theme color
+            label_color = getattr(self.compare_panel_mt_nav_label, '_compare_text_color', None)
+            if label_color:
+                self.compare_panel_mt_nav_label.setStyleSheet(
+                    f"color: {label_color}; background: transparent; border: none;"
+                )
+            else:
+                self.compare_panel_mt_nav_label.setStyleSheet("background: transparent; border: none;")
+            self.compare_panel_mt_nav_label.setText(nav_html)
         
         # Update text
         self.compare_panel_mt.setPlainText(match.get('translation', ''))
@@ -25135,12 +25389,44 @@ class SupervertalerQt(QMainWindow):
         tm_name = match.get('tm_name', 'TM')
         match_pct = match.get('match_pct', 0)
         
-        # Update navigation labels: (1/3) patents_nl-en • 95%
-        nav_text = f"({self.compare_panel_tm_index + 1}/{total}) {tm_name} • {match_pct}%"
+        # Update metadata labels with emphasis:
+        # - TM name: larger
+        # - Match %: larger + bold
+        try:
+            import html
+            tm_name_escaped = html.escape(str(tm_name))
+        except Exception:
+            tm_name_escaped = str(tm_name)
+
+        idx = self.compare_panel_tm_index + 1
+        try:
+            match_pct_display = int(match_pct)
+        except Exception:
+            match_pct_display = match_pct
+
+        nav_html = (
+            f"(<span style='font-size:8px'>{idx}/{total}</span>) "
+            f"<span style='font-size:10px'>{tm_name_escaped}</span> "
+            f"<span style='font-size:8px'>•</span> "
+            f"<span style='font-size:10px; font-weight:700'>{match_pct_display}%</span>"
+        )
+
         if hasattr(self, 'compare_panel_tm_nav_label') and self.compare_panel_tm_nav_label:
-            self.compare_panel_tm_nav_label.setText(nav_text)
+            # Avoid a fixed font-size stylesheet overriding rich text emphasis, but keep theme color
+            label_color = getattr(self.compare_panel_tm_nav_label, '_compare_text_color', None)
+            if label_color:
+                self.compare_panel_tm_nav_label.setStyleSheet(f"color: {label_color}; background: transparent; border: none;")
+            else:
+                self.compare_panel_tm_nav_label.setStyleSheet("background: transparent; border: none;")
+            self.compare_panel_tm_nav_label.setText(nav_html)
+
         if hasattr(self, 'compare_panel_tm_target_label') and self.compare_panel_tm_target_label:
-            self.compare_panel_tm_target_label.setText(f"({self.compare_panel_tm_index + 1}/{total}) {tm_name} • {match_pct}%")
+            label_color = getattr(self.compare_panel_tm_target_label, '_compare_text_color', None)
+            if label_color:
+                self.compare_panel_tm_target_label.setStyleSheet(f"color: {label_color}; background: transparent; border: none;")
+            else:
+                self.compare_panel_tm_target_label.setStyleSheet("background: transparent; border: none;")
+            self.compare_panel_tm_target_label.setText(nav_html)
         
         # Update TM Source with diff highlighting
         current_source = self.compare_panel_current_source.toPlainText()
@@ -26153,6 +26439,14 @@ class SupervertalerQt(QMainWindow):
             'restore_last_project': False,
             'auto_propagate_exact_matches': True,
             'auto_center_active_segment': True,  # Default to True (like memoQ/Trados)
+            'enable_sound_effects': False,
+            'sound_effects_map': {
+                'glossary_term_added': 'asterisk',
+                'glossary_created': 'asterisk',
+                'match_inserted': 'ok',
+                'glossary_term_duplicate': 'exclamation',
+                'glossary_term_error': 'hand'
+            },
             'grid_font_size': 11,
             'results_match_font_size': 9,
             'results_compare_font_size': 9
@@ -32784,45 +33078,88 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
     # ========================================================================
     
     def select_previous_match(self):
-        """Cycle to previous match in translation results (Ctrl+Up)"""
-        if hasattr(self, 'results_panels') and self.results_panels:
-            for panel in self.results_panels:
+        """Cycle to previous match (Ctrl+Up)
+
+        Context-aware behavior:
+        - If Compare Panel tab is active: navigate MT/TM list depending on focused box
+        - If Translation Results tab is active: delegate to visible results panel
+        - Otherwise: do nothing (avoid acting on hidden panels)
+        """
+        mode = self._get_active_match_shortcut_mode()
+        if mode == 'compare':
+            self._compare_panel_nav_active_box(-1)
+            return
+        if mode == 'results':
+            for panel in self._iter_visible_results_panels():
                 try:
                     if hasattr(panel, 'select_previous_match'):
                         panel.select_previous_match()
                         break
                 except Exception as e:
                     self.log(f"Error selecting previous match: {e}")
+            return
     
     def select_next_match(self):
-        """Cycle to next match in translation results (Ctrl+Down)"""
-        if hasattr(self, 'results_panels') and self.results_panels:
-            for panel in self.results_panels:
+        """Cycle to next match (Ctrl+Down)
+
+        Context-aware behavior:
+        - If Compare Panel tab is active: navigate MT/TM list depending on focused box
+        - If Translation Results tab is active: delegate to visible results panel
+        - Otherwise: do nothing (avoid acting on hidden panels)
+        """
+        mode = self._get_active_match_shortcut_mode()
+        if mode == 'compare':
+            self._compare_panel_nav_active_box(1)
+            return
+        if mode == 'results':
+            for panel in self._iter_visible_results_panels():
                 try:
                     if hasattr(panel, 'select_next_match'):
                         panel.select_next_match()
                         break
                 except Exception as e:
                     self.log(f"Error selecting next match: {e}")
+            return
     
     def insert_match_by_number(self, match_number: int):
-        """Insert match by number (Ctrl+1-9)"""
-        if hasattr(self, 'results_panels') and self.results_panels:
-            for panel in self.results_panels:
+        """Insert match by number (Ctrl+1-9)
+
+        Context-aware behavior:
+        - If Compare Panel tab is active: insert from Compare Panel MT/TM list depending on focused box
+        - If Translation Results tab is active: delegate to visible results panel
+        - Otherwise: do nothing (avoid acting on hidden panels)
+        """
+        mode = self._get_active_match_shortcut_mode()
+        if mode == 'compare':
+            try:
+                self._insert_compare_panel_match_by_number(match_number)
+            except Exception as e:
+                self.log(f"Error inserting Compare Panel match #{match_number}: {e}")
+            return
+        if mode == 'results':
+            for panel in self._iter_visible_results_panels():
                 try:
                     if hasattr(panel, 'insert_match_by_number'):
                         if panel.insert_match_by_number(match_number):
                             break
                 except Exception as e:
                     self.log(f"Error inserting match #{match_number}: {e}")
+            return
     
     def _handle_termview_shortcut(self, key_num: int):
         """Handle TermView shortcut with double-tap detection for terms 11-20
         
-        Single tap (Alt+N): Insert term N (0-9)
-        Double tap (Alt+N,N within 300ms): Undo first insert, then insert term N+10 (00, 11, ..., 99)
+        TermView numbering starts at 1 (Alt+1..Alt+9). Alt+0 is reserved for the Compare Panel.
+        
+        Single tap (Alt+N): Insert term N (1-9)
+        Double tap (Alt+N,N within 300ms): Undo first insert, then insert term N+10 (11, 22, ..., 99)
         """
         import time
+
+        # Alt+0 is reserved for the Compare Panel.
+        if key_num == 0:
+            return
+
         current_time = time.time()
         double_tap_threshold = 0.3  # 300ms window for double-tap
         
@@ -32843,7 +33180,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             self._termview_last_time = 0
             self.insert_termview_term_by_number(term_index)
         else:
-            # Single tap - insert term 0-9
+            # Single tap - insert term 1-9
             self._termview_last_key = key_num
             self._termview_last_time = current_time
             self.insert_termview_term_by_number(key_num)
@@ -32866,15 +33203,390 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 self.log(f"Error inserting TermView term #{term_number}: {e}")
     
     def insert_selected_match(self):
-        """Insert currently selected match (Ctrl+Space)"""
-        if hasattr(self, 'results_panels') and self.results_panels:
-            for panel in self.results_panels:
+        """Insert currently selected match (Ctrl+Space)
+
+        Context-aware behavior:
+        - If Compare Panel tab is active: insert current MT translation or TM target depending on focused box
+        - If Translation Results tab is active: delegate to visible results panel
+        - Otherwise: do nothing (avoid acting on hidden panels)
+        """
+        mode = self._get_active_match_shortcut_mode()
+        if mode == 'compare':
+            try:
+                self._insert_compare_panel_current_match()
+            except Exception as e:
+                self.log(f"Error inserting Compare Panel selected match: {e}")
+            return
+        if mode == 'results':
+            for panel in self._iter_visible_results_panels():
                 try:
                     if hasattr(panel, 'insert_selected_match'):
                         if panel.insert_selected_match():
                             break
                 except Exception as e:
                     self.log(f"Error inserting selected match: {e}")
+            return
+
+    def _get_active_match_shortcut_mode(self) -> str:
+        """Return active shortcut context for match shortcuts.
+
+        Returns:
+            'compare' if Compare Panel tab is active,
+            'results' if Translation Results tab is active,
+            '' otherwise.
+        """
+        if hasattr(self, 'right_tabs') and self._widget_is_alive(self.right_tabs):
+            try:
+                current = self.right_tabs.currentWidget()
+            except Exception:
+                current = None
+            if current is not None:
+                if hasattr(self, 'compare_panel') and self.compare_panel and current is self.compare_panel:
+                    return 'compare'
+                if hasattr(self, 'translation_results_panel') and self.translation_results_panel and current is self.translation_results_panel:
+                    return 'results'
+        return ''
+
+    def _iter_visible_results_panels(self):
+        """Yield results panels that are visible to the user (tab-selected)."""
+        if not hasattr(self, 'results_panels') or not self.results_panels:
+            return
+        for panel in self.results_panels:
+            try:
+                if panel and hasattr(panel, 'isVisible') and panel.isVisible():
+                    yield panel
+            except Exception:
+                continue
+
+    def _compare_panel_nav_active_box(self, direction: int):
+        """Navigate Compare Panel matches based on which box is focused."""
+        if not hasattr(self, 'compare_panel') or not self.compare_panel:
+            return
+        if not hasattr(self, 'right_tabs') or not self._widget_is_alive(self.right_tabs):
+            return
+        if self.right_tabs.currentWidget() is not self.compare_panel:
+            return
+
+        focus_widget = QApplication.focusWidget()
+        if hasattr(self, 'compare_panel_mt') and focus_widget is self.compare_panel_mt:
+            self._compare_panel_nav_mt(direction)
+            return
+        if hasattr(self, 'compare_panel_tm_source') and focus_widget is self.compare_panel_tm_source:
+            self._compare_panel_nav_tm(direction)
+            return
+        if hasattr(self, 'compare_panel_tm_target') and focus_widget is self.compare_panel_tm_target:
+            self._compare_panel_nav_tm(direction)
+            return
+
+        # Default: TM navigation (more "match-like" than MT)
+        self._compare_panel_nav_tm(direction)
+
+    def _insert_compare_panel_current_match(self):
+        """Insert currently shown Compare Panel text based on focused box."""
+        if not hasattr(self, 'compare_panel') or not self.compare_panel:
+            return
+        if not hasattr(self, 'right_tabs') or not self._widget_is_alive(self.right_tabs):
+            return
+        if self.right_tabs.currentWidget() is not self.compare_panel:
+            return
+
+        focus_widget = QApplication.focusWidget()
+        if hasattr(self, 'compare_panel_mt') and focus_widget is self.compare_panel_mt:
+            text = self.compare_panel_mt.toPlainText().strip()
+            if text and not text.startswith('('):
+                self.on_match_inserted(text)
+            return
+
+        # Default to inserting TM target
+        if hasattr(self, 'compare_panel_tm_target'):
+            text = self.compare_panel_tm_target.toPlainText().strip()
+            if text and not text.startswith('('):
+                self.on_match_inserted(text)
+
+    def _handle_compare_panel_alt0_shortcut(self):
+        """Handle Compare Panel Alt+0 / Alt+00 (double-tap) insertion.
+
+        - Single tap (Alt+0): insert MT
+        - Double tap (Alt+0,0 within 300ms): undo first insert, then insert TM Target
+        """
+        if self._get_active_match_shortcut_mode() != 'compare':
+            return
+
+        import time
+        current_time = time.time()
+        double_tap_threshold = 0.3  # 300ms window
+        key_num = 0
+
+        if (hasattr(self, '_compare_panel_last_key') and
+            self._compare_panel_last_key == key_num and
+            hasattr(self, '_compare_panel_last_time') and
+            (current_time - self._compare_panel_last_time) < double_tap_threshold):
+            # Double-tap: undo MT insert, then insert TM Target
+            current_widget = self._get_current_target_widget()
+            if current_widget and hasattr(current_widget, 'undo'):
+                current_widget.undo()
+            self._compare_panel_last_key = None
+            self._compare_panel_last_time = 0
+            if hasattr(self, 'compare_panel_tm_target'):
+                text = self.compare_panel_tm_target.toPlainText().strip()
+                if text and not text.startswith('('):
+                    self._replace_current_target_segment_text(text, source_label='TM Target (Compare Panel)')
+            return
+
+        # Single tap: insert MT
+        self._compare_panel_last_key = key_num
+        self._compare_panel_last_time = current_time
+        if hasattr(self, 'compare_panel_mt'):
+            text = self.compare_panel_mt.toPlainText().strip()
+            if text and not text.startswith('('):
+                self._replace_current_target_segment_text(text, source_label='MT (Compare Panel)')
+
+    def _replace_current_target_segment_text(self, new_text: str, source_label: str = ""):
+        """Replace the entire current target segment text (single undo step).
+
+        This is used for Compare Panel quick-insert shortcuts like Alt+0 / Alt+0,0,
+        where the user expects a full replacement (not insertion at cursor).
+        """
+        try:
+            if not self.current_project or not self.table:
+                return
+
+            row = self.table.currentRow()
+            if row < 0:
+                return
+
+            id_item = self.table.item(row, 0)
+            if not id_item:
+                self.log(f"⚠️ No segment ID found at row {row}")
+                return
+
+            try:
+                segment_id = int(id_item.text())
+            except (ValueError, AttributeError):
+                self.log(f"⚠️ Could not parse segment ID from row {row}")
+                return
+
+            segment = next((seg for seg in self.current_project.segments if seg.id == segment_id), None)
+            if not segment:
+                self.log(f"⚠️ Could not find segment with ID {segment_id}")
+                return
+
+            target_widget = self.table.cellWidget(row, 3)
+            if target_widget and isinstance(target_widget, QTextEdit):
+                from PyQt6.QtGui import QTextCursor
+
+                cursor = target_widget.textCursor()
+                cursor.beginEditBlock()
+                cursor.select(QTextCursor.SelectionType.Document)
+                cursor.insertText(new_text)
+                cursor.endEditBlock()
+
+                segment.target = target_widget.toPlainText()
+                target_widget.setFocus()
+                target_widget.moveCursor(QTextCursor.MoveOperation.End)
+
+                label = f" ({source_label})" if source_label else ""
+                self.log(f"✓ Replaced target text in segment {segment.id}{label}")
+                self._play_sound_effect('match_inserted')
+                return
+
+            # Fallback: no editor widget, update data and (if possible) update cell
+            segment.target = new_text
+            if target_widget and hasattr(target_widget, 'setPlainText'):
+                target_widget.setPlainText(new_text)
+            label = f" ({source_label})" if source_label else ""
+            self.log(f"✓ Replaced target text in segment {segment_id}{label}")
+            self._play_sound_effect('match_inserted')
+
+        except Exception as e:
+            self.log(f"Error replacing target text: {e}")
+            import traceback
+            traceback.print_exc()
+
+    def _play_sound_effect(self, event: str):
+        """Play a minimalist UI sound effect (currently uses OS beep).
+
+        Event is informational for future expansion.
+        """
+        try:
+            # Prefer cached in-memory value if available (avoids repeated file reads)
+            enabled = getattr(self, 'enable_sound_effects', None)
+            if enabled is None:
+                settings = self.load_general_settings() if hasattr(self, 'load_general_settings') else {}
+                enabled = settings.get('enable_sound_effects', False)
+
+            if not enabled:
+                return
+
+            # Per-event mapping (defaults provided by general settings defaults)
+            sound_map = getattr(self, 'sound_effects_map', None)
+            if sound_map is None:
+                settings = self.load_general_settings() if hasattr(self, 'load_general_settings') else {}
+                sound_map = settings.get('sound_effects_map', {}) if isinstance(settings, dict) else {}
+
+            sound_key = None
+            if isinstance(sound_map, dict):
+                sound_key = sound_map.get(event)
+
+            # Windows: MessageBeep tends to be more audible than QApplication.beep()
+            if os.name == 'nt':
+                try:
+                    import winsound
+
+                    if sound_key == 'none':
+                        return
+
+                    wav_key_to_path = {
+                        'windows_proximity_wav': r"C:\\Windows\\Media\\Windows Proximity Notification.wav",
+                        'windows_restore_wav': r"C:\\Windows\\Media\\Windows Restore.wav",
+                        'windows_navigation_start_wav': r"C:\\Windows\\Media\\Windows Navigation Start.wav",
+                        'speech_disambiguation_wav': r"C:\\Windows\\Media\\Speech Disambiguation.wav",
+                        'windows_startup_wav': r"C:\\Windows\\Media\\Windows Startup.wav",
+                    }
+                    if sound_key in wav_key_to_path:
+                        wav_path = wav_key_to_path.get(sound_key)
+                        try:
+                            if wav_path and os.path.exists(wav_path):
+                                winsound.PlaySound(wav_path, winsound.SND_FILENAME | winsound.SND_ASYNC | winsound.SND_NODEFAULT)
+                                return
+                        except Exception:
+                            # Fall back to a beep below
+                            pass
+
+                    sound_to_mb = {
+                        None: winsound.MB_OK,
+                        'ok': winsound.MB_OK,
+                        'asterisk': winsound.MB_ICONASTERISK,
+                        'exclamation': winsound.MB_ICONEXCLAMATION,
+                        'hand': winsound.MB_ICONHAND,
+                        'question': winsound.MB_ICONQUESTION,
+                    }
+                    winsound.MessageBeep(sound_to_mb.get(sound_key, winsound.MB_OK))
+                    return
+                except Exception:
+                    pass
+
+            QApplication.beep()
+        except Exception:
+            # Never allow sound effects to break normal workflows
+            return
+
+    def _queue_tm_save_log(self, msg: str):
+        """Collapse repeated TM-save log messages into a single '(xN)' line.
+
+        This prevents session log spam when confirming many segments.
+        Thread-safe: flushes via a background timer and relies on self.log() being thread-safe.
+        """
+        import threading
+
+        if not hasattr(self, '_tm_save_log_lock'):
+            self._tm_save_log_lock = threading.Lock()
+            self._tm_save_log_msg = None
+            self._tm_save_log_count = 0
+            self._tm_save_log_timer = None
+
+        flush_now_msg = None
+        flush_now_count = 0
+
+        with self._tm_save_log_lock:
+            # If we're switching to a different message, flush the previous one immediately.
+            if self._tm_save_log_msg and self._tm_save_log_msg != msg and self._tm_save_log_count:
+                flush_now_msg = self._tm_save_log_msg
+                flush_now_count = self._tm_save_log_count
+                self._tm_save_log_msg = None
+                self._tm_save_log_count = 0
+
+            # Accumulate the new message
+            if self._tm_save_log_msg == msg:
+                self._tm_save_log_count += 1
+            else:
+                self._tm_save_log_msg = msg
+                self._tm_save_log_count = 1
+
+            # Reset flush timer (debounce)
+            if self._tm_save_log_timer is not None:
+                try:
+                    self._tm_save_log_timer.cancel()
+                except Exception:
+                    pass
+                self._tm_save_log_timer = None
+
+            self._tm_save_log_timer = threading.Timer(0.8, self._flush_tm_save_log_threadsafe)
+            self._tm_save_log_timer.daemon = True
+            self._tm_save_log_timer.start()
+
+        # Flush outside lock
+        if flush_now_msg and flush_now_count:
+            suffix = f" (x{flush_now_count})" if flush_now_count > 1 else ""
+            self.log(f"{flush_now_msg}{suffix}")
+
+    def _flush_tm_save_log_threadsafe(self):
+        import threading
+
+        if not hasattr(self, '_tm_save_log_lock'):
+            return
+
+        msg = None
+        count = 0
+        with self._tm_save_log_lock:
+            msg = getattr(self, '_tm_save_log_msg', None)
+            count = int(getattr(self, '_tm_save_log_count', 0) or 0)
+            self._tm_save_log_msg = None
+            self._tm_save_log_count = 0
+            self._tm_save_log_timer = None
+
+        if msg and count:
+            suffix = f" (x{count})" if count > 1 else ""
+            self.log(f"{msg}{suffix}")
+
+    def insert_compare_panel_mt(self):
+        """Insert the currently shown Compare Panel MT translation (default: Alt+M)."""
+        if self._get_active_match_shortcut_mode() != 'compare':
+            return
+        self._insert_compare_panel_mt_current()
+
+    def insert_compare_panel_tm_target(self):
+        """Insert the currently shown Compare Panel TM target (default: Alt+T)."""
+        if self._get_active_match_shortcut_mode() != 'compare':
+            return
+        self._insert_compare_panel_tm_target_current()
+
+    def _insert_compare_panel_mt_current(self):
+        if not hasattr(self, 'compare_panel_mt'):
+            return
+        text = self.compare_panel_mt.toPlainText().strip()
+        if text and not text.startswith('('):
+            self.on_match_inserted(text)
+
+    def _insert_compare_panel_tm_target_current(self):
+        if not hasattr(self, 'compare_panel_tm_target'):
+            return
+        text = self.compare_panel_tm_target.toPlainText().strip()
+        if text and not text.startswith('('):
+            self.on_match_inserted(text)
+
+    def _insert_compare_panel_match_by_number(self, match_number: int):
+        """Insert Compare Panel content by number (Ctrl+1-9 while Compare Panel is active).
+
+        Only two of these make sense for the Compare Panel:
+        - 1 = MT (current)
+        - 2 = TM Target (current)
+        """
+        if match_number not in (1, 2):
+            return
+        if not hasattr(self, 'compare_panel') or not self.compare_panel:
+            return
+        if not hasattr(self, 'right_tabs') or not self._widget_is_alive(self.right_tabs):
+            return
+        if self.right_tabs.currentWidget() is not self.compare_panel:
+            return
+
+        if match_number == 1:
+            self._insert_compare_panel_mt_current()
+            return
+        if match_number == 2:
+            self._insert_compare_panel_tm_target_current()
+            return
     
     def go_to_previous_segment(self, target_column: int = None, to_last_line: bool = False):
         """Navigate to previous segment (Alt+Up)
@@ -41010,12 +41722,33 @@ class SuperlookupTab(QWidget):
                 
                 if term_id is None:
                     # Duplicate detected
+                    if hasattr(self.main_window, '_play_sound_effect'):
+                        self.main_window._play_sound_effect('glossary_term_duplicate')
+
+                    try:
+                        if hasattr(self.main_window, 'statusBar') and self.main_window.statusBar():
+                            self.main_window.statusBar().showMessage("⚠ Duplicate glossary entry (not added)", 3500)
+                    except Exception:
+                        pass
+
                     QMessageBox.warning(self, "Duplicate Term", 
                         f"This term already exists in {termbase_combo.currentText()}:\n\n{source} → {target}\n\nDuplicate terms are not allowed.")
                     return
                 
                 if hasattr(self.main_window, 'log'):
                     self.main_window.log(f"✓ Added term to {termbase_combo.currentText()}: {source} → {target}")
+
+                if hasattr(self.main_window, '_play_sound_effect'):
+                    self.main_window._play_sound_effect('glossary_term_added')
+
+                try:
+                    if hasattr(self.main_window, 'statusBar') and self.main_window.statusBar():
+                        self.main_window.statusBar().showMessage(
+                            f"✓ Added glossary entry: {source} → {target} (to {termbase_combo.currentText()})",
+                            3500,
+                        )
+                except Exception:
+                    pass
                 
                 QMessageBox.information(self, "Term Added", 
                     f"Successfully added term:\n\n{source} → {target}\n\nto glossary: {termbase_combo.currentText()}")
@@ -41024,6 +41757,15 @@ class SuperlookupTab(QWidget):
                 self.perform_lookup()
                 
             except Exception as e:
+                if hasattr(self.main_window, '_play_sound_effect'):
+                    self.main_window._play_sound_effect('glossary_term_error')
+
+                try:
+                    if hasattr(self.main_window, 'statusBar') and self.main_window.statusBar():
+                        self.main_window.statusBar().showMessage("❌ Error adding glossary entry (see log)", 3500)
+                except Exception:
+                    pass
+
                 QMessageBox.critical(self, "Error", f"Failed to add term:\n{str(e)}")
     
     def set_tm_database(self, tm_db):

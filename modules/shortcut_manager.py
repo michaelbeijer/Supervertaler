@@ -191,64 +191,103 @@ class ShortcutManager:
         "match_insert_1": {
             "category": "Match Insertion",
             "description": "Insert Match #1",
-            "default": "Ctrl+1",
+            "default": "",
             "action": "insert_match_1",
             "context": "editor"
         },
         "match_insert_2": {
             "category": "Match Insertion",
             "description": "Insert Match #2",
-            "default": "Ctrl+2",
+            "default": "",
             "action": "insert_match_2",
             "context": "editor"
         },
         "match_insert_3": {
             "category": "Match Insertion",
             "description": "Insert Match #3",
-            "default": "Ctrl+3",
+            "default": "",
             "action": "insert_match_3",
             "context": "editor"
         },
         "match_insert_4": {
             "category": "Match Insertion",
             "description": "Insert Match #4",
-            "default": "Ctrl+4",
+            "default": "",
             "action": "insert_match_4",
             "context": "editor"
         },
         "match_insert_5": {
             "category": "Match Insertion",
             "description": "Insert Match #5",
-            "default": "Ctrl+5",
+            "default": "",
             "action": "insert_match_5",
             "context": "editor"
         },
         "match_insert_6": {
             "category": "Match Insertion",
             "description": "Insert Match #6",
-            "default": "Ctrl+6",
+            "default": "",
             "action": "insert_match_6",
             "context": "editor"
         },
         "match_insert_7": {
             "category": "Match Insertion",
             "description": "Insert Match #7",
-            "default": "Ctrl+7",
+            "default": "",
             "action": "insert_match_7",
             "context": "editor"
         },
         "match_insert_8": {
             "category": "Match Insertion",
             "description": "Insert Match #8",
-            "default": "Ctrl+8",
+            "default": "",
             "action": "insert_match_8",
             "context": "editor"
         },
         "match_insert_9": {
             "category": "Match Insertion",
             "description": "Insert Match #9",
-            "default": "Ctrl+9",
+            "default": "",
             "action": "insert_match_9",
+            "context": "editor"
+        },
+
+        # Compare Panel Insertion
+        "compare_insert_alt0": {
+            "category": "Compare Panel",
+            "description": "Insert Compare Panel MT (Alt+0) / TM Target (Alt+0,0)",
+            "default": "Alt+0",
+            "action": "insert_compare_panel_alt0",
+            "context": "editor"
+        },
+
+        # Compare Panel Navigation
+        "compare_nav_mt_prev": {
+            "category": "Compare Panel",
+            "description": "Compare Panel: Previous MT result",
+            "default": "Ctrl+Alt+Left",
+            "action": "compare_panel_nav_mt_prev",
+            "context": "editor"
+        },
+        "compare_nav_mt_next": {
+            "category": "Compare Panel",
+            "description": "Compare Panel: Next MT result",
+            "default": "Ctrl+Alt+Right",
+            "action": "compare_panel_nav_mt_next",
+            "context": "editor"
+        },
+        "compare_nav_tm_prev": {
+            "category": "Compare Panel",
+            "description": "Compare Panel: Previous TM match",
+            "default": "Ctrl+Alt+Up",
+            "action": "compare_panel_nav_tm_prev",
+            "context": "editor"
+        },
+        "compare_nav_tm_next": {
+            "category": "Compare Panel",
+            "description": "Compare Panel: Next TM match",
+            "default": "Ctrl+Alt+Down",
+            "action": "compare_panel_nav_tm_next",
             "context": "editor"
         },
         
@@ -256,7 +295,7 @@ class ShortcutManager:
         "termview_insert_0": {
             "category": "TermView Insertion",
             "description": "Insert TermView Term [0] (or [00] if double-tap)",
-            "default": "Alt+0",
+            "default": "",
             "action": "insert_termview_0",
             "context": "editor"
         },

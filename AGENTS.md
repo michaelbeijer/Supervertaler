@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** January 11, 2026 | **Version:** v1.9.98
+> **Last Updated:** January 12, 2026 | **Version:** v1.9.99
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.98 (January 2026) |
+| **Version** | v1.9.99 (January 2026) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -665,6 +665,15 @@ google_api_key=AI...
 ---
 
 ## 🔄 Recent Development History
+
+### January 12, 2026 - Version 1.9.99: Compare Panel Shortcuts + Sound Effects
+
+- **Compare Panel quick insert**: Added `Alt+0` (MT) and `Alt+0,0` (TM Target) insertion; replaces entire target segment in one undo step.
+- **Compare Panel navigation**: Added `Ctrl+Alt+Left/Right` for MT and `Ctrl+Alt+Up/Down` for TM match navigation.
+- **Context-aware shortcuts**: Match navigation/insertion now respects active panel (Compare Panel vs Translation Results).
+- **Minimalist sound effects**: Per-event Windows sound mapping (beeps or Windows `.wav`) with sound effects OFF by default.
+- **Glossary add feedback**: Status-bar “information bar” messages for add/duplicate/error outcomes.
+- **Less TM log spam**: Collapsed repeated “Saved segment to TM(s)” messages into a single debounced `(xN)` log line.
 
 ### January 11, 2026 - Docs: Contributing Guide & Code of Conduct
 
@@ -2808,4 +2817,4 @@ An intelligent proofreading system that uses LLMs to verify translation quality.
 ---
 
 *This file replaces the previous CLAUDE.md and PROJECT_CONTEXT.md files.*
-*Last updated: January 11, 2026 - v1.9.98*
+*Last updated: January 12, 2026 - v1.9.99*
