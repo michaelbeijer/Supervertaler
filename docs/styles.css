@@ -99,7 +99,7 @@ body {
     text-decoration: none !important;
     transition: opacity 0.2s;
     cursor: pointer;
-    margin-right: var(--spacing-lg);
+    margin-right: var(--spacing-md);
 }
 
 .nav-brand:hover,
