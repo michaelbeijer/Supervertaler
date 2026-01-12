@@ -31970,11 +31970,36 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         return False
 
     def _refresh_all_highlighters(self):
-        """Refresh all syntax highlighters in the grid to update spellcheck"""
+        """Refresh syntax highlighters in VISIBLE rows only (performance optimization)
+        
+        Instead of refreshing all 3000+ rows, we only refresh the rows currently
+        visible in the viewport. This makes add-to-dictionary/ignore instant.
+        Other rows will get updated when they become visible (on navigation).
+        """
         if not hasattr(self, 'table') or not self.table:
             return
         
-        for row in range(self.table.rowCount()):
+        # Get visible row range from viewport
+        viewport = self.table.viewport()
+        if not viewport:
+            return
+            
+        # Find first and last visible rows
+        first_visible_row = self.table.rowAt(0)
+        last_visible_row = self.table.rowAt(viewport.height())
+        
+        # Handle edge cases
+        if first_visible_row < 0:
+            first_visible_row = 0
+        if last_visible_row < 0 or last_visible_row >= self.table.rowCount():
+            last_visible_row = self.table.rowCount() - 1
+            
+        # Add small buffer for smoother experience
+        first_visible_row = max(0, first_visible_row - 2)
+        last_visible_row = min(self.table.rowCount() - 1, last_visible_row + 2)
+        
+        # Only refresh visible rows
+        for row in range(first_visible_row, last_visible_row + 1):
             # Target column (3) has editable text editor with spellcheck
             target_widget = self.table.cellWidget(row, 3)
             if target_widget and hasattr(target_widget, 'highlighter'):
