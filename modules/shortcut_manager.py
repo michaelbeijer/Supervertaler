@@ -444,6 +444,18 @@ class ShortcutManager:
             "default": "PgDown",
             "action": "go_to_next_page"
         },
+        "select_range_up": {
+            "category": "Grid Navigation",
+            "description": "Select Range Upward (one page)",
+            "default": "Shift+PgUp",
+            "action": "select_range_page_up"
+        },
+        "select_range_down": {
+            "category": "Grid Navigation",
+            "description": "Select Range Downward (one page)",
+            "default": "Shift+PgDown",
+            "action": "select_range_page_down"
+        },
         
         # Editor Operations
         "editor_save_and_next": {

@@ -116,7 +116,7 @@ TRANSLATABLE_STATUSES = {"not_started", "pretranslated", "translated"}
 try:
     from PyQt6.QtWidgets import (
         QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-        QTableWidget, QTableWidgetItem, QHeaderView, QMenuBar, QMenu,
+        QTableWidget, QTableWidgetItem, QTableWidgetSelectionRange, QHeaderView, QMenuBar, QMenu,
         QFileDialog, QMessageBox, QToolBar, QLabel, QComboBox,
         QPushButton, QSpinBox, QSplitter, QTextEdit, QStatusBar,
         QStyledItemDelegate, QInputDialog, QDialog, QLineEdit, QRadioButton,
@@ -1242,6 +1242,14 @@ class ReadOnlyGridTextEditor(QTextEdit):
                                 source_widget.setTextCursor(new_cursor)
                                 source_widget.setFocus()
                         return
+        
+        # Ctrl+Enter: Confirm & Next (same behavior as in target cell)
+        if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter) and event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+            main_window = self._get_main_window()
+            if main_window and hasattr(main_window, 'confirm_selected_or_next'):
+                main_window.confirm_selected_or_next()
+            event.accept()
+            return
         
         # Tab key: Cycle to target cell (column 3) in same row
         if event.key() == Qt.Key.Key_Tab and event.modifiers() == Qt.KeyboardModifier.NoModifier:
@@ -5537,6 +5545,10 @@ class SupervertalerQt(QMainWindow):
         # Page Up/Down - Navigate pagination pages
         create_shortcut("page_prev", "PgUp", self.go_to_prev_page)
         create_shortcut("page_next", "PgDown", self.go_to_next_page)
+        
+        # Shift+Page Up/Down - Select range of segments
+        create_shortcut("select_range_up", "Shift+PgUp", self.select_range_page_up)
+        create_shortcut("select_range_down", "Shift+PgDown", self.select_range_page_down)
         
         # Ctrl+G - Go to segment
         create_shortcut("edit_goto", "Ctrl+G", self.show_goto_dialog)
@@ -17992,6 +18004,98 @@ class SupervertalerQt(QMainWindow):
             self.grid_current_page += 1
             self._apply_pagination_to_grid()
     
+    def select_range_page_up(self):
+        """Select a range of segments upward (Shift+Page Up).
+        
+        Extends selection from current row upward by one page worth of segments.
+        If no selection anchor exists, starts from current row.
+        """
+        if not hasattr(self, 'table') or not self.table or not self.current_project:
+            return
+        
+        current_row = self.table.currentRow()
+        if current_row < 0:
+            return
+        
+        # Calculate page size (number of segments to select)
+        page_size = getattr(self, 'grid_page_size', 50)
+        if page_size == "All" or page_size is None:
+            page_size = 50  # Default to 50 if "All" is selected
+        
+        # Get or set the selection anchor (starting point for range selection)
+        if not hasattr(self, '_selection_anchor_row'):
+            self._selection_anchor_row = current_row
+        
+        # Calculate target row (one page up from current, but not below 0)
+        target_row = max(0, current_row - page_size)
+        
+        # Select range from anchor to target
+        self._select_range_between(self._selection_anchor_row, target_row)
+        
+        # Move focus to the target row
+        self.table.setCurrentCell(target_row, 3)  # Column 3 is target cell
+        self.table.scrollToItem(self.table.item(target_row, 0))
+    
+    def select_range_page_down(self):
+        """Select a range of segments downward (Shift+Page Down).
+        
+        Extends selection from current row downward by one page worth of segments.
+        If no selection anchor exists, starts from current row.
+        """
+        if not hasattr(self, 'table') or not self.table or not self.current_project:
+            return
+        
+        current_row = self.table.currentRow()
+        if current_row < 0:
+            return
+        
+        # Calculate page size (number of segments to select)
+        page_size = getattr(self, 'grid_page_size', 50)
+        if page_size == "All" or page_size is None:
+            page_size = 50  # Default to 50 if "All" is selected
+        
+        # Get or set the selection anchor (starting point for range selection)
+        if not hasattr(self, '_selection_anchor_row'):
+            self._selection_anchor_row = current_row
+        
+        # Calculate target row (one page down from current, but not beyond last segment)
+        max_row = len(self.current_project.segments) - 1
+        target_row = min(max_row, current_row + page_size)
+        
+        # Select range from anchor to target
+        self._select_range_between(self._selection_anchor_row, target_row)
+        
+        # Move focus to the target row
+        self.table.setCurrentCell(target_row, 3)  # Column 3 is target cell
+        self.table.scrollToItem(self.table.item(target_row, 0))
+    
+    def _select_range_between(self, start_row: int, end_row: int):
+        """Select all rows between start_row and end_row (inclusive).
+        
+        Args:
+            start_row: Selection anchor row
+            end_row: Target row to extend selection to
+        """
+        if not hasattr(self, 'table') or not self.table:
+            return
+        
+        # Determine actual start and end (handle both directions)
+        min_row = min(start_row, end_row)
+        max_row = max(start_row, end_row)
+        
+        # Clear existing selection
+        self.table.clearSelection()
+        
+        # Select the range using QTableWidgetSelectionRange
+        col_count = self.table.columnCount()
+        selection_range = QTableWidgetSelectionRange(min_row, 0, max_row, col_count - 1)
+        self.table.setRangeSelected(selection_range, True)
+    
+    def _clear_selection_anchor(self):
+        """Clear the selection anchor when a non-shift click occurs."""
+        if hasattr(self, '_selection_anchor_row'):
+            del self._selection_anchor_row
+
     def go_to_last_page(self):
         """Navigate to last page"""
         if not hasattr(self, 'grid_current_page'):
@@ -26079,41 +26183,50 @@ class SupervertalerQt(QMainWindow):
         
         # Manually calculate and set row heights for compact display
         for row in range(self.table.rowCount()):
-            max_height = 1
-            
-            # Check source cell (column 2)
-            source_widget = self.table.cellWidget(row, 2)
-            if source_widget and isinstance(source_widget, ReadOnlyGridTextEditor):
-                doc = source_widget.document()
-                if doc:  # Safety check
-                    col_width = self.table.columnWidth(2) - width_reduction
-                    if col_width > 0:
-                        doc.setTextWidth(col_width)
-                        size = doc.size()
-                        if size.isValid():  # Safety check
-                            height = int(size.height())
-                            max_height = max(max_height, height)
-            
-            # Check target cell (column 3)
-            target_widget = self.table.cellWidget(row, 3)
-            if target_widget and isinstance(target_widget, EditableGridTextEditor):
-                doc = target_widget.document()
-                if doc:  # Safety check
-                    col_width = self.table.columnWidth(3) - width_reduction
-                    if col_width > 0:
-                        doc.setTextWidth(col_width)
-                        size = doc.size()
-                        if size.isValid():  # Safety check
-                            height = int(size.height())
-                            max_height = max(max_height, height)
-            
-            # Set row height with minimal padding
-            # Minimum 32px to accommodate status icons (16px) + match text + padding without any cutoff
-            compact_height = max(max_height + 2, 32)
-            self.table.setRowHeight(row, compact_height)
+            self._auto_resize_single_row(row, width_reduction)
         
         self.log("✓ Auto-resized rows to fit content (compact)")
         self._enforce_status_row_heights()
+    
+    def _auto_resize_single_row(self, row: int, width_reduction: int = 8):
+        """Auto-resize a single row to fit its content. Called automatically after text changes."""
+        if not hasattr(self, 'table') or not self.table:
+            return
+        if row < 0 or row >= self.table.rowCount():
+            return
+        
+        max_height = 1
+        
+        # Check source cell (column 2)
+        source_widget = self.table.cellWidget(row, 2)
+        if source_widget and isinstance(source_widget, ReadOnlyGridTextEditor):
+            doc = source_widget.document()
+            if doc:
+                col_width = self.table.columnWidth(2) - width_reduction
+                if col_width > 0:
+                    doc.setTextWidth(col_width)
+                    size = doc.size()
+                    if size.isValid():
+                        height = int(size.height())
+                        max_height = max(max_height, height)
+        
+        # Check target cell (column 3)
+        target_widget = self.table.cellWidget(row, 3)
+        if target_widget and isinstance(target_widget, EditableGridTextEditor):
+            doc = target_widget.document()
+            if doc:
+                col_width = self.table.columnWidth(3) - width_reduction
+                if col_width > 0:
+                    doc.setTextWidth(col_width)
+                    size = doc.size()
+                    if size.isValid():
+                        height = int(size.height())
+                        max_height = max(max_height, height)
+        
+        # Set row height with minimal padding
+        # Minimum 32px to accommodate status icons (16px) + match text + padding without any cutoff
+        compact_height = max(max_height + 2, 32)
+        self.table.setRowHeight(row, compact_height)
     
     def apply_font_to_grid(self):
         """Apply selected font to all grid cells"""
@@ -26780,9 +26893,8 @@ class SupervertalerQt(QMainWindow):
             # Update window title
             self.update_window_title()
             
-            # Auto-resize the row
-            if hasattr(self, 'table') and self.table:
-                self.table.resizeRowToContents(row)
+            # Auto-resize only this row (fast, single-row operation)
+            self._auto_resize_single_row(row)
             
             # Save to TM ONLY if segment is confirmed (user explicitly approved)
             # Do NOT save for 'translated' status - that's just machine/batch translated
@@ -26791,6 +26903,9 @@ class SupervertalerQt(QMainWindow):
                     self.save_segment_to_activated_tms(segment.source, new_text)
                 except Exception as e:
                     self.log(f"Warning: Could not save to TM: {e}")
+            
+            # Update status bar progress stats (debounced - only after user stops typing)
+            self.update_progress_stats()
         except Exception as e:
             self.log(f"Error in debounced target handler: {e}")
     
@@ -27771,6 +27886,10 @@ class SupervertalerQt(QMainWindow):
                         target_widget.blockSignals(False)
                     
                     copied_count += 1
+        
+        # Auto-resize rows to fit new content
+        self.auto_resize_rows()
+        self.update_progress_stats()
         
         self.log(f"✓ Copied source to target for {copied_count} segment(s)")
         QMessageBox.information(self, "Copy Complete", f"Copied source to target for {copied_count} segment(s).")
@@ -29067,6 +29186,10 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
 
         row = item.row()
         col = item.column()
+        
+        # Reset selection anchor on normal click (so next Shift+PageUp/Down starts fresh)
+        # Note: We set it to the clicked row, so Shift+Page will extend from here
+        self._selection_anchor_row = row
 
         # Status column (4) - clicks disabled, use Segment Editor to change status
         # This prevents visual issues and unwanted status changes
@@ -33804,6 +33927,9 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             if verification_seg:
                 self.log(f"✅ VERIFICATION: Segment {segment_id} - target still correct: '{verification_seg.target[:30] if verification_seg.target else 'EMPTY'}', object ID={id(verification_seg)}")
             
+            # Update status bar progress stats
+            self.update_progress_stats()
+            
             # Save to TM if target has content
             if segment.target.strip():
                 try:
@@ -33905,6 +34031,8 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                                 
                                 # No more unconfirmed segments after this one
                                 self.log("✅ No more unconfirmed segments after auto-confirm")
+                                # Update status bar after auto-confirming
+                                self.update_progress_stats()
                                 return
                     
                     # Get the target cell widget and set focus to it (normal behavior without auto-confirm)
@@ -34002,6 +34130,8 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             self.project_modified = True
             self.update_window_title()
             self.log(f"✅ Confirmed {confirmed_count} segment(s), saved {tm_saved_count} to TM")
+            # Update status bar progress stats
+            self.update_progress_stats()
         else:
             self.log(f"ℹ️ All {len(selected_segments)} selected segment(s) were already confirmed")
     
@@ -35178,6 +35308,9 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                     self.table.setItem(current_row, 3, QTableWidgetItem(tm_match))
                 self.update_status_icon(current_row, "translated")
                 
+                # Auto-resize the row to fit the new content
+                self._auto_resize_single_row(current_row)
+                
                 # Add to TM if not already there
                 if self.tm_database:
                     try:
@@ -35367,6 +35500,9 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                     # Fallback: create new widget if none exists
                     self.table.setItem(current_row, 3, QTableWidgetItem(translation))
                 self.update_status_icon(current_row, "translated")
+                
+                # Auto-resize the row to fit the new content
+                self._auto_resize_single_row(current_row)
                 
                 # Add to Translation Memory
                 if self.tm_database:
@@ -35999,6 +36135,9 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                     self.log(f"✓ Batch Translation Complete (100% from TM)")
                     self.log(f"   Translated: {translated_count} | Failed: {failed_count}")
                     self.log(f"═══════════════════════════════════════════════════════════")
+                    # Auto-resize rows to fit inserted translations
+                    self.auto_resize_rows()
+                    self.update_progress_stats()
                     return
             else:
                 if not check_tm_before_api:
@@ -36076,6 +36215,9 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 self.log(f"✓ TM-Only Batch Translation Complete")
                 self.log(f"   Translated: {translated_count} | Skipped: {failed_count}")
                 self.log(f"═══════════════════════════════════════════════════════════")
+                # Auto-resize rows to fit inserted translations
+                self.auto_resize_rows()
+                self.update_progress_stats()
                 return
             
             # Initialize client based on provider type (LLM, MT, or TM)
@@ -36564,6 +36706,12 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             close_btn.setEnabled(True)
 
             self.log(f"✓ Batch translation complete: {translated_count} translated, {failed_count} failed")
+            
+            # Auto-resize all rows to fit new translations
+            self.auto_resize_rows()
+            
+            # Update status bar progress stats
+            self.update_progress_stats()
 
         except Exception as e:
             QMessageBox.critical(
@@ -37818,6 +37966,9 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                     # Update status icon
                     self.update_status_icon(target_row, 'translated')
                     self.log(f"🔧 Auto-insert: Updated status icon to 'translated'")
+                    
+                    # Auto-resize the row to fit the new content
+                    self._auto_resize_single_row(target_row)
                 else:
                     self.log(f"⚠️ Auto-insert: Could not find row for segment {segment.id}!")
             else:
