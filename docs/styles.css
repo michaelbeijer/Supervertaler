@@ -99,6 +99,7 @@ body {
     text-decoration: none !important;
     transition: opacity 0.2s;
     cursor: pointer;
+    margin-right: var(--spacing-lg);
 }
 
 .nav-brand:hover,
@@ -137,7 +138,7 @@ body {
 .nav-menu {
     display: flex;
     list-style: none;
-    gap: var(--spacing-md);
+    gap: var(--spacing-sm);
     align-items: center;
 }
 

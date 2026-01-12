@@ -17550,7 +17550,7 @@ class SupervertalerQt(QMainWindow):
         
         if not hasattr(self, 'page_size_combo') or not self._widget_is_alive(self.page_size_combo):
             self.page_size_combo = QComboBox()
-            self.page_size_combo.addItems(["25", "50", "100", "200", "All"])
+            self.page_size_combo.addItems(["5", "10", "25", "50", "100", "200", "All"])
             if not hasattr(self, 'grid_page_size'):
                 self.grid_page_size = 50
             self.page_size_combo.setCurrentText(str(self.grid_page_size) if self.grid_page_size != 999999 else "All")
