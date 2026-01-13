@@ -1299,7 +1299,15 @@ class ReadOnlyGridTextEditor(QTextEdit):
     
     def _get_main_window(self):
         """Get the main application window by traversing the parent hierarchy"""
-        table = self.table_ref if hasattr(self, 'table_ref') else self.parent()
+        # Try multiple ways to get table reference (different creation paths set different attributes)
+        table = None
+        if hasattr(self, 'table_ref') and self.table_ref:
+            table = self.table_ref
+        elif hasattr(self, 'table_widget') and self.table_widget:
+            table = self.table_widget
+        else:
+            table = self.parent()
+        
         if not table:
             return None
         main_window = table.parent()
