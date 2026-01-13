@@ -514,6 +514,58 @@ class UnifiedPromptLibrary:
         except Exception as e:
             self.log(f"✗ Failed to move prompt: {e}")
             return False
+
+    def move_folder(self, old_folder: str, new_folder: str) -> bool:
+        """Move a folder (and all contained prompts/subfolders) within the library."""
+        try:
+            if not self.library_dir:
+                return False
+
+            old_folder = old_folder or ""
+            new_folder = new_folder or ""
+
+            old_dir = self.library_dir / old_folder
+            new_dir = self.library_dir / new_folder
+
+            if not old_dir.exists() or not old_dir.is_dir():
+                return False
+
+            # Prevent moving a folder into itself / a descendant
+            old_parts = Path(old_folder).parts
+            new_parts = Path(new_folder).parts
+            if old_parts and len(new_parts) >= len(old_parts) and new_parts[:len(old_parts)] == old_parts:
+                return False
+
+            new_dir.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(old_dir), str(new_dir))
+
+            old_prefix = f"{old_folder}/" if old_folder else ""
+            new_prefix = f"{new_folder}/" if new_folder else ""
+
+            def rewrite_path(path: Optional[str]) -> Optional[str]:
+                if not path:
+                    return path
+                if old_folder and (path == old_folder or path.startswith(old_prefix)):
+                    return new_folder + path[len(old_folder):]
+                if not old_folder and path:
+                    # moving root is not supported
+                    return path
+                return path
+
+            # Update active references (paths only). Caller should reload prompts.
+            self.active_primary_prompt_path = rewrite_path(self.active_primary_prompt_path)
+
+            new_attached = []
+            for p in self.attached_prompt_paths:
+                new_attached.append(rewrite_path(p))
+            self.attached_prompt_paths = new_attached
+
+            self.log(f"✓ Moved folder: {old_folder} → {new_folder}")
+            return True
+
+        except Exception as e:
+            self.log(f"✗ Failed to move folder: {e}")
+            return False
     
     def delete_prompt(self, relative_path: str) -> bool:
         """Delete a prompt"""

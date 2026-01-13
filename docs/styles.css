@@ -168,6 +168,46 @@ body {
     box-shadow: 0 4px 12px rgba(236, 72, 153, 0.4);
 }
 
+/* Navbar version + icon buttons */
+.nav-menu a.nav-version {
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    background: rgba(59, 130, 246, 0.08);
+    padding: 0.35rem 0.6rem;
+    border-radius: 999px;
+    line-height: 1;
+}
+
+.nav-menu a.nav-version:hover {
+    color: var(--primary);
+    border-color: rgba(59, 130, 246, 0.35);
+    background: rgba(59, 130, 246, 0.12);
+}
+
+.nav-menu a.nav-icon-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    color: var(--text-secondary);
+    transition: all 0.2s ease;
+}
+
+.nav-menu a.nav-icon-link:hover {
+    color: var(--text-primary);
+    background: rgba(17, 24, 39, 0.05);
+    border-color: rgba(17, 24, 39, 0.08);
+}
+
+.nav-icon {
+    display: block;
+}
+
 /* Mobile Menu Toggle */
 .mobile-menu-toggle {
     display: none;

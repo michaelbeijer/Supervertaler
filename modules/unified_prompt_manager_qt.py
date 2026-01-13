@@ -17,7 +17,8 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTreeWidget, QTreeWidgetItem,
     QTextEdit, QPlainTextEdit, QSplitter, QGroupBox, QMessageBox, QFileDialog,
     QInputDialog, QLineEdit, QFrame, QMenu, QCheckBox, QSizePolicy, QScrollArea, QTabWidget,
-    QListWidget, QListWidgetItem, QStyledItemDelegate, QStyleOptionViewItem, QApplication, QDialog
+    QListWidget, QListWidgetItem, QStyledItemDelegate, QStyleOptionViewItem, QApplication, QDialog,
+    QAbstractItemView
 )
 from PyQt6.QtCore import Qt, QSettings, pyqtSignal, QThread, QSize, QRect, QRectF
 from PyQt6.QtGui import QFont, QColor, QAction, QIcon, QPainter, QPen, QBrush, QPainterPath, QLinearGradient
@@ -28,6 +29,75 @@ from modules.prompt_library_migration import migrate_prompt_library
 from modules.ai_attachment_manager import AttachmentManager
 from modules.ai_file_viewer_dialog import FileViewerDialog, FileRemoveConfirmDialog
 from modules.ai_actions import AIActionSystem
+
+
+class PromptLibraryTreeWidget(QTreeWidget):
+    """Tree widget that supports drag-and-drop moves for prompt files."""
+
+    def __init__(self, manager, parent=None):
+        super().__init__(parent)
+        self._manager = manager
+
+        self.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.setDragEnabled(True)
+        self.setAcceptDrops(True)
+        self.setDropIndicatorShown(True)
+        self.setDefaultDropAction(Qt.DropAction.MoveAction)
+        self.setDragDropMode(QAbstractItemView.DragDropMode.DragDrop)
+
+    def dropEvent(self, event):
+        """Handle prompt/folder moves via filesystem operations."""
+        try:
+            selected = self.selectedItems()
+            if not selected:
+                event.ignore()
+                return
+
+            source_item = selected[0]
+            source_data = source_item.data(0, Qt.ItemDataRole.UserRole)
+            if not source_data:
+                event.ignore()
+                return
+
+            src_type = source_data.get('type')
+            src_path = source_data.get('path')
+            if src_type not in {'prompt', 'folder'} or not src_path:
+                event.ignore()
+                return
+
+            pos = event.position().toPoint() if hasattr(event, 'position') else event.pos()
+            target_item = self.itemAt(pos)
+            target_data = target_item.data(0, Qt.ItemDataRole.UserRole) if target_item else None
+
+            # Determine destination folder.
+            dest_folder = ''
+            if target_data:
+                if target_data.get('type') == 'folder':
+                    dest_folder = target_data.get('path', '')
+                elif target_data.get('type') == 'prompt':
+                    dest_folder = str(Path(target_data.get('path', '')).parent)
+                    if dest_folder == '.':
+                        dest_folder = ''
+                else:
+                    # Special nodes like Favorites / Quick Run: ignore.
+                    event.ignore()
+                    return
+
+            moved = False
+            if src_type == 'prompt' and self._manager and hasattr(self._manager, '_move_prompt_to_folder'):
+                moved = self._manager._move_prompt_to_folder(src_path, dest_folder)
+
+            if src_type == 'folder' and self._manager and hasattr(self._manager, '_move_folder_to_folder'):
+                moved = self._manager._move_folder_to_folder(src_path, dest_folder)
+
+            if moved:
+                event.acceptProposedAction()
+            else:
+                event.ignore()
+
+        except Exception:
+            event.ignore()
+            return
 
 
 class ChatMessageDelegate(QStyledItemDelegate):
@@ -627,6 +697,16 @@ class UnifiedPromptManagerQt:
         btn_refresh = QPushButton("🔄 Refresh")
         btn_refresh.clicked.connect(self._refresh_library)
         btn_layout.addWidget(btn_refresh)
+
+        btn_collapse_all = QPushButton("▸ Collapse all")
+        btn_collapse_all.setToolTip("Collapse all folders in the Prompt Library tree")
+        btn_collapse_all.clicked.connect(self._collapse_prompt_library_tree)
+        btn_layout.addWidget(btn_collapse_all)
+
+        btn_expand_all = QPushButton("▾ Expand all")
+        btn_expand_all.setToolTip("Expand all folders in the Prompt Library tree")
+        btn_expand_all.clicked.connect(self._expand_prompt_library_tree)
+        btn_layout.addWidget(btn_expand_all)
         
         btn_layout.addStretch()
         
@@ -1194,6 +1274,16 @@ class UnifiedPromptManagerQt:
         btn_refresh = QPushButton("🔄 Refresh")
         btn_refresh.clicked.connect(self._refresh_library)
         toolbar_layout.addWidget(btn_refresh)
+
+        btn_collapse_all = QPushButton("▸ Collapse all")
+        btn_collapse_all.setToolTip("Collapse all folders in the Prompt Library tree")
+        btn_collapse_all.clicked.connect(self._collapse_prompt_library_tree)
+        toolbar_layout.addWidget(btn_collapse_all)
+
+        btn_expand_all = QPushButton("▾ Expand all")
+        btn_expand_all.setToolTip("Expand all folders in the Prompt Library tree")
+        btn_expand_all.clicked.connect(self._expand_prompt_library_tree)
+        toolbar_layout.addWidget(btn_expand_all)
         
         toolbar_layout.addStretch()
         
@@ -1208,7 +1298,7 @@ class UnifiedPromptManagerQt:
         layout.setContentsMargins(0, 0, 0, 0)
         
         # Tree widget
-        self.tree_widget = QTreeWidget()
+        self.tree_widget = PromptLibraryTreeWidget(self)
         self.tree_widget.setHeaderLabels(["Prompt Library"])
         self.tree_widget.setAlternatingRowColors(True)
         self.tree_widget.itemClicked.connect(self._on_tree_item_clicked)
@@ -1393,6 +1483,7 @@ class UnifiedPromptManagerQt:
     
     def _refresh_tree(self):
         """Refresh the library tree view"""
+        tree_state = self._capture_prompt_tree_state()
         self.tree_widget.clear()
         
         # Debug: Show what we have
@@ -1402,7 +1493,9 @@ class UnifiedPromptManagerQt:
         
         # Favorites section
         favorites_root = QTreeWidgetItem(["⭐ Favorites"])
-        favorites_root.setExpanded(True)
+        # Special node: not draggable/droppable
+        favorites_root.setData(0, Qt.ItemDataRole.UserRole, {'type': 'special', 'kind': 'favorites'})
+        favorites_root.setExpanded(False)
         font = favorites_root.font(0)
         font.setBold(True)
         favorites_root.setFont(0, font)
@@ -1413,11 +1506,15 @@ class UnifiedPromptManagerQt:
         for path, name in favorites:
             item = QTreeWidgetItem([name])
             item.setData(0, Qt.ItemDataRole.UserRole, {'type': 'prompt', 'path': path})
+            # Favorites are shortcuts, but allow dragging to move the actual prompt file.
+            item.setFlags(item.flags() | Qt.ItemFlag.ItemIsDragEnabled)
             favorites_root.addChild(item)
         
         # Quick Run section
         quick_run_root = QTreeWidgetItem(["🚀 Quick Run Menu"])
-        quick_run_root.setExpanded(True)
+        # Special node: not draggable/droppable
+        quick_run_root.setData(0, Qt.ItemDataRole.UserRole, {'type': 'special', 'kind': 'quick_run'})
+        quick_run_root.setExpanded(False)
         font = quick_run_root.font(0)
         font.setBold(True)
         quick_run_root.setFont(0, font)
@@ -1428,6 +1525,8 @@ class UnifiedPromptManagerQt:
         for path, name in quick_run:
             item = QTreeWidgetItem([name])
             item.setData(0, Qt.ItemDataRole.UserRole, {'type': 'prompt', 'path': path})
+            # Quick Run entries are shortcuts, but allow dragging to move the actual prompt file.
+            item.setFlags(item.flags() | Qt.ItemFlag.ItemIsDragEnabled)
             quick_run_root.addChild(item)
         
         # Library folders
@@ -1442,9 +1541,338 @@ class UnifiedPromptManagerQt:
             child_count = item.childCount()
             self.log_message(f"🔍 DEBUG: Top-level item {i}: '{text}' with {child_count} children")
         
-        # Expand all folders so prompts are visible
-        self.tree_widget.expandAll()
-        self.log_message(f"🔍 DEBUG: Called expandAll() on tree")
+        # Preserve user's expansion state across refreshes.
+        if tree_state is None and not getattr(self, "_prompt_tree_state_initialized", False):
+            # First-ever refresh: default to collapsed ("popped in").
+            self.tree_widget.collapseAll()
+            self._prompt_tree_state_initialized = True
+        else:
+            self._restore_prompt_tree_state(tree_state)
+
+        self.log_message("🔍 DEBUG: Tree refresh complete")
+
+    def _capture_prompt_tree_state(self) -> Optional[Dict[str, object]]:
+        """Capture expansion + selection state for the Prompt Library tree."""
+        if not hasattr(self, 'tree_widget') or not self.tree_widget:
+            return None
+
+        try:
+            expanded_folders = set()
+            expanded_special = {}
+
+            current = self.tree_widget.currentItem()
+            current_sel = None
+            if current is not None:
+                data = current.data(0, Qt.ItemDataRole.UserRole)
+                if data and data.get('type') in {'prompt', 'folder'}:
+                    current_sel = (data.get('type'), data.get('path'))
+
+            # Scroll position (best-effort)
+            scroll_val = None
+            try:
+                sb = self.tree_widget.verticalScrollBar()
+                scroll_val = sb.value() if sb is not None else None
+            except Exception:
+                scroll_val = None
+
+            def iter_items(parent: QTreeWidgetItem):
+                for i in range(parent.childCount()):
+                    child = parent.child(i)
+                    yield child
+                    yield from iter_items(child)
+
+            root = self.tree_widget.invisibleRootItem()
+            for item in iter_items(root):
+                data = item.data(0, Qt.ItemDataRole.UserRole)
+                if not data:
+                    continue
+
+                if data.get('type') == 'folder' and item.isExpanded():
+                    path = data.get('path')
+                    if path:
+                        expanded_folders.add(path)
+
+                if data.get('type') == 'special':
+                    kind = data.get('kind')
+                    if kind:
+                        expanded_special[kind] = item.isExpanded()
+
+            return {
+                'expanded_folders': expanded_folders,
+                'expanded_special': expanded_special,
+                'current_sel': current_sel,
+                'scroll_val': scroll_val,
+            }
+        except Exception:
+            return None
+
+    def _restore_prompt_tree_state(self, state: Optional[Dict[str, object]]):
+        """Restore expansion + selection state for the Prompt Library tree."""
+        if not state or not hasattr(self, 'tree_widget') or not self.tree_widget:
+            return
+
+        expanded_folders = state.get('expanded_folders', set()) or set()
+        expanded_special = state.get('expanded_special', {}) or {}
+        current_sel = state.get('current_sel')
+        scroll_val = state.get('scroll_val')
+
+        def iter_items(parent: QTreeWidgetItem):
+            for i in range(parent.childCount()):
+                child = parent.child(i)
+                yield child
+                yield from iter_items(child)
+
+        # Restore expansions
+        root = self.tree_widget.invisibleRootItem()
+        for item in iter_items(root):
+            data = item.data(0, Qt.ItemDataRole.UserRole)
+            if not data:
+                continue
+
+            if data.get('type') == 'folder':
+                p = data.get('path')
+                if p in expanded_folders:
+                    item.setExpanded(True)
+
+            if data.get('type') == 'special':
+                kind = data.get('kind')
+                if kind in expanded_special:
+                    item.setExpanded(bool(expanded_special[kind]))
+
+        # Restore selection (prefer the main library tree item over Favorites/Quick Run shortcuts)
+        if current_sel and len(current_sel) == 2:
+            sel_type, sel_path = current_sel
+            if sel_type == 'prompt' and sel_path:
+                self._select_and_reveal_prompt(sel_path, prefer_library_tree=True)
+            elif sel_type == 'folder' and sel_path:
+                self._select_and_reveal_folder(sel_path)
+
+        # Restore scroll position (best-effort)
+        if scroll_val is not None:
+            try:
+                sb = self.tree_widget.verticalScrollBar()
+                if sb is not None:
+                    sb.setValue(int(scroll_val))
+            except Exception:
+                pass
+
+    def _get_selected_folder_for_new_prompt(self) -> str:
+        """Return folder path where a new prompt should be created based on current selection."""
+        try:
+            item = self.tree_widget.currentItem() if hasattr(self, 'tree_widget') else None
+            if not item:
+                return "Project Prompts"
+
+            data = item.data(0, Qt.ItemDataRole.UserRole)
+            if not data:
+                return "Project Prompts"
+
+            if data.get('type') == 'folder':
+                return data.get('path', 'Project Prompts') or 'Project Prompts'
+
+            if data.get('type') == 'prompt':
+                folder = str(Path(data.get('path', '')).parent)
+                if folder and folder != '.':
+                    return folder
+                return "Project Prompts"
+
+        except Exception:
+            pass
+
+        return "Project Prompts"
+
+    def _select_and_reveal_prompt(self, relative_path: str, prefer_library_tree: bool = False):
+        """Expand parent folders (if needed) and select the prompt item in the tree."""
+        if not hasattr(self, 'tree_widget') or not self.tree_widget:
+            return
+
+        def iter_items(parent: QTreeWidgetItem):
+            for i in range(parent.childCount()):
+                child = parent.child(i)
+                yield child
+                yield from iter_items(child)
+
+        def is_under_special(it: QTreeWidgetItem) -> bool:
+            p = it.parent()
+            while p is not None:
+                d = p.data(0, Qt.ItemDataRole.UserRole)
+                if d and d.get('type') == 'special':
+                    return True
+                p = p.parent()
+            return False
+
+        root = self.tree_widget.invisibleRootItem()
+        best = None
+        for item in iter_items(root):
+            data = item.data(0, Qt.ItemDataRole.UserRole)
+            if data and data.get('type') == 'prompt' and data.get('path') == relative_path:
+                if prefer_library_tree and is_under_special(item):
+                    continue
+                best = item
+                break
+
+        if best is None and prefer_library_tree:
+            # Fall back to any match
+            for item in iter_items(root):
+                data = item.data(0, Qt.ItemDataRole.UserRole)
+                if data and data.get('type') == 'prompt' and data.get('path') == relative_path:
+                    best = item
+                    break
+
+        if best is not None:
+            p = best.parent()
+            while p is not None:
+                p.setExpanded(True)
+                p = p.parent()
+            self.tree_widget.setCurrentItem(best)
+            self.tree_widget.scrollToItem(best)
+
+    def _select_and_reveal_folder(self, folder_path: str):
+        """Select a folder item in the tree and expand its ancestors."""
+        if not hasattr(self, 'tree_widget') or not self.tree_widget:
+            return
+
+        def iter_items(parent: QTreeWidgetItem):
+            for i in range(parent.childCount()):
+                child = parent.child(i)
+                yield child
+                yield from iter_items(child)
+
+        root = self.tree_widget.invisibleRootItem()
+        for item in iter_items(root):
+            data = item.data(0, Qt.ItemDataRole.UserRole)
+            if data and data.get('type') == 'folder' and data.get('path') == folder_path:
+                p = item.parent()
+                while p is not None:
+                    p.setExpanded(True)
+                    p = p.parent()
+                self.tree_widget.setCurrentItem(item)
+                self.tree_widget.scrollToItem(item)
+                return
+
+    def _make_unique_filename(self, folder: str, filename: str) -> str:
+        """Generate a unique filename in a folder by appending (copy N) to the stem."""
+        folder = folder or ""
+        base = Path(filename).stem
+        suffix = Path(filename).suffix or ".md"
+
+        def build(name_stem: str) -> str:
+            return f"{folder}/{name_stem}{suffix}" if folder else f"{name_stem}{suffix}"
+
+        candidate_stem = f"{base} (copy)"
+        candidate = build(candidate_stem)
+        if candidate not in self.library.prompts:
+            return candidate
+
+        n = 2
+        while True:
+            candidate_stem = f"{base} (copy {n})"
+            candidate = build(candidate_stem)
+            if candidate not in self.library.prompts:
+                return candidate
+            n += 1
+
+    def _make_unique_folder_path(self, dest_folder: str, folder_name: str) -> str:
+        """Generate a unique folder path under dest_folder by appending (moved N)."""
+        dest_folder = dest_folder or ""
+
+        def build(name: str) -> str:
+            return f"{dest_folder}/{name}" if dest_folder else name
+
+        candidate = build(folder_name)
+        if not (self.library.library_dir / candidate).exists():
+            return candidate
+
+        n = 2
+        while True:
+            candidate = build(f"{folder_name} (moved {n})")
+            if not (self.library.library_dir / candidate).exists():
+                return candidate
+            n += 1
+
+    def _move_folder_to_folder(self, src_folder: str, dest_folder: str) -> bool:
+        """Move a folder (directory) to another folder (drag-and-drop backend)."""
+        if not src_folder:
+            return False
+
+        src_folder = src_folder.strip("/\\")
+        dest_folder = (dest_folder or "").strip("/\\")
+
+        src_name = Path(src_folder).name
+        new_folder = f"{dest_folder}/{src_name}" if dest_folder else src_name
+
+        # Prevent moving into itself/descendant
+        if dest_folder and (dest_folder == src_folder or dest_folder.startswith(src_folder + "/")):
+            QMessageBox.warning(self.main_widget, "Move not allowed", "You can't move a folder into itself.")
+            return False
+
+        if new_folder == src_folder:
+            return False
+
+        # Handle destination conflict
+        if (self.library.library_dir / new_folder).exists():
+            new_folder = self._make_unique_folder_path(dest_folder, src_name)
+
+        if not self.library.move_folder(src_folder, new_folder):
+            QMessageBox.warning(self.main_widget, "Move failed", "Could not move the folder.")
+            return False
+
+        # Reload prompts so keys/filepaths match new layout.
+        self.library.load_all_prompts()
+
+        # Ensure active prompt content is still valid after path rewrite
+        if self.library.active_primary_prompt_path and self.library.active_primary_prompt_path in self.library.prompts:
+            self.library.active_primary_prompt = self.library.prompts[self.library.active_primary_prompt_path].get('content')
+
+        # Remove attachments that no longer exist (shouldn't happen, but safe)
+        self.library.attached_prompt_paths = [p for p in self.library.attached_prompt_paths if p in self.library.prompts]
+
+        self._refresh_tree()
+        return True
+
+    def _move_prompt_to_folder(self, src_path: str, dest_folder: str) -> bool:
+        """Move a prompt file to another folder (drag-and-drop backend)."""
+        if src_path not in self.library.prompts:
+            return False
+
+        filename = Path(src_path).name
+        dest_folder = dest_folder or ""
+        new_path = f"{dest_folder}/{filename}" if dest_folder else filename
+
+        if new_path == src_path:
+            return False
+
+        # Handle name conflicts
+        if new_path in self.library.prompts:
+            new_path = self._make_unique_filename(dest_folder, filename)
+
+        if not self.library.move_prompt(src_path, new_path):
+            QMessageBox.warning(self.main_widget, "Move failed", "Could not move the prompt.")
+            return False
+
+        # Update folder metadata and rewrite frontmatter in the moved file.
+        try:
+            prompt_data = self.library.prompts.get(new_path, {}).copy()
+            prompt_data['folder'] = dest_folder
+            prompt_data['modified'] = datetime.now().strftime('%Y-%m-%d')
+            self.library.save_prompt(new_path, prompt_data)
+        except Exception:
+            pass
+
+        self.library.load_all_prompts()
+        self._refresh_tree()
+        self._select_and_reveal_prompt(new_path)
+        return True
+
+    def _collapse_prompt_library_tree(self):
+        """Collapse all folders in the Prompt Library tree."""
+        if hasattr(self, 'tree_widget') and self.tree_widget:
+            self.tree_widget.collapseAll()
+
+    def _expand_prompt_library_tree(self):
+        """Expand all folders in the Prompt Library tree."""
+        if hasattr(self, 'tree_widget') and self.tree_widget:
+            self.tree_widget.expandAll()
     
     def _build_tree_recursive(self, parent_item, directory: Path, relative_path: str):
         """Recursively build tree structure"""
@@ -1469,6 +1897,7 @@ class UnifiedPromptManagerQt:
                 rel_path = str(Path(relative_path) / item.name) if relative_path else item.name
                 folder_item = QTreeWidgetItem([f"📁 {item.name}"])
                 folder_item.setData(0, Qt.ItemDataRole.UserRole, {'type': 'folder', 'path': rel_path})
+                folder_item.setFlags(folder_item.flags() | Qt.ItemFlag.ItemIsDragEnabled | Qt.ItemFlag.ItemIsDropEnabled)
                 
                 if parent_item:
                     parent_item.addChild(folder_item)
@@ -1498,6 +1927,7 @@ class UnifiedPromptManagerQt:
                     
                     prompt_item = QTreeWidgetItem([name])
                     prompt_item.setData(0, Qt.ItemDataRole.UserRole, {'type': 'prompt', 'path': rel_path})
+                    prompt_item.setFlags(prompt_item.flags() | Qt.ItemFlag.ItemIsDragEnabled)
                     
                     # Visual indicators
                     if prompt_data.get('favorite'):
@@ -1864,9 +2294,8 @@ class UnifiedPromptManagerQt:
             self._refresh_tree()
     
     def _new_prompt(self):
-        """Create new prompt (defaults to Project Prompts folder)"""
-        # Delegate to folder-specific method
-        self._new_prompt_in_folder("Project Prompts")
+        """Create new prompt in the currently selected folder."""
+        self._new_prompt_in_folder(self._get_selected_folder_for_new_prompt())
     
     def _new_folder(self):
         """Create new folder"""
@@ -1909,9 +2338,36 @@ class UnifiedPromptManagerQt:
                 self._refresh_tree()
     
     def _duplicate_prompt(self, relative_path: str):
-        """Duplicate a prompt"""
-        # TODO: Implement
-        self.log_message(f"TODO: Duplicate {relative_path}")
+        """Duplicate a prompt into the same folder with a unique filename."""
+        if relative_path not in self.library.prompts:
+            return
+
+        src_data = self.library.prompts[relative_path].copy()
+        src_name = src_data.get('name', Path(relative_path).stem)
+
+        folder = str(Path(relative_path).parent)
+        if folder == '.':
+            folder = ''
+
+        filename = Path(relative_path).name
+        new_path = self._make_unique_filename(folder, filename)
+        new_name = Path(new_path).stem
+
+        src_data['name'] = new_name
+        src_data['favorite'] = False
+        src_data['quick_run'] = False
+        src_data['folder'] = folder
+        src_data['created'] = datetime.now().strftime('%Y-%m-%d')
+        src_data['modified'] = datetime.now().strftime('%Y-%m-%d')
+
+        if self.library.save_prompt(new_path, src_data):
+            self.library.load_all_prompts()
+            self._refresh_tree()
+            self._select_and_reveal_prompt(new_path)
+            self._load_prompt_in_editor(new_path)
+            self.log_message(f"✓ Duplicated: {src_name} → {new_name}")
+        else:
+            QMessageBox.warning(self.main_widget, "Duplicate failed", "Failed to duplicate the prompt.")
     
     def _delete_prompt(self, relative_path: str):
         """Delete a prompt"""

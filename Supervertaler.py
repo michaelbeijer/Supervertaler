@@ -129,6 +129,7 @@ try:
     from PyQt6.QtGui import QFont, QAction, QKeySequence, QIcon, QTextOption, QColor, QDesktopServices, QTextCharFormat, QTextCursor, QBrush, QSyntaxHighlighter, QPalette, QTextBlockFormat
     from PyQt6.QtWidgets import QStyleOptionViewItem, QStyle
     from PyQt6.QtCore import QRectF
+    from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkRequest
     from PyQt6 import sip
 except ImportError:
     print("PyQt6 not found. Installing...")
@@ -6417,6 +6418,16 @@ class SupervertalerQt(QMainWindow):
         changelog_action = QAction("📝 Changelog", self)
         changelog_action.triggered.connect(lambda: self._open_url("https://github.com/michaelbeijer/Supervertaler/blob/main/CHANGELOG.md"))
         help_menu.addAction(changelog_action)
+
+        update_check_action = QAction("🔄 Check for Updates...", self)
+        update_check_action.setToolTip("Check whether you are running the latest Supervertaler release")
+        update_check_action.triggered.connect(self.check_for_updates)
+        help_menu.addAction(update_check_action)
+
+        copy_version_info_action = QAction("📋 Copy Version Info", self)
+        copy_version_info_action.setToolTip("Copy version and system info to clipboard (useful for support)")
+        copy_version_info_action.triggered.connect(self.copy_version_info_to_clipboard)
+        help_menu.addAction(copy_version_info_action)
 
         help_menu.addSeparator()
 
@@ -35080,6 +35091,368 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 "Supervertaler Help",
                 "Supervertaler Help is available online at https://supervertaler.gitbook.io/superdocs/"
             )
+
+    def check_for_updates(self):
+        """Check GitHub for the latest Supervertaler release and report whether the user is up to date."""
+        if getattr(self, "_update_check_in_progress", False):
+            QMessageBox.information(self, "Check for Updates", "An update check is already in progress.")
+            return
+
+        self._update_check_in_progress = True
+
+        progress = QProgressDialog("Checking for updates...", "Cancel", 0, 0, self)
+        progress.setWindowTitle("Check for Updates")
+        progress.setWindowModality(Qt.WindowModality.ApplicationModal)
+        progress.setMinimumDuration(0)
+        progress.show()
+
+        # Keep references so Qt objects aren't GC'd mid-request
+        self._update_check_progress = progress
+
+        if not hasattr(self, "_update_check_net_mgr") or self._update_check_net_mgr is None:
+            self._update_check_net_mgr = QNetworkAccessManager(self)
+
+        api_url = QUrl("https://api.github.com/repos/michaelbeijer/Supervertaler/releases/latest")
+        fallback_url = QUrl("https://github.com/michaelbeijer/Supervertaler/releases/latest")
+        timeout_ms = 15000
+
+        self._update_check_fallback_attempted = False
+
+        def abort_current_reply():
+            try:
+                r = getattr(self, "_update_check_reply", None)
+                if r and not r.isFinished():
+                    r.abort()
+            except Exception:
+                pass
+
+        def start_request(kind: str):
+            """Start either the API or fallback request."""
+            if kind not in {"api", "fallback"}:
+                kind = "api"
+
+            abort_current_reply()
+
+            if kind == "fallback":
+                try:
+                    progress.setLabelText("Checking for updates (fallback)...")
+                except Exception:
+                    pass
+                url = fallback_url
+            else:
+                try:
+                    progress.setLabelText("Checking for updates...")
+                except Exception:
+                    pass
+                url = api_url
+
+            request = QNetworkRequest(url)
+            request.setRawHeader(b"User-Agent", f"Supervertaler/{__version__}".encode("utf-8", errors="ignore"))
+            if kind == "api":
+                request.setRawHeader(b"Accept", b"application/vnd.github+json")
+
+            r = self._update_check_net_mgr.get(request)
+            r.setProperty("sv_update_check_kind", kind)
+            self._update_check_reply = r
+
+            # Restart timeout for each attempt
+            try:
+                if hasattr(self, "_update_check_timer") and self._update_check_timer:
+                    self._update_check_timer.stop()
+            except Exception:
+                pass
+            timeout_timer.start(timeout_ms)
+
+            r.finished.connect(lambda rr=r: on_finished(rr))
+
+        def finish():
+            try:
+                try:
+                    if hasattr(self, "_update_check_timer") and self._update_check_timer:
+                        self._update_check_timer.stop()
+                except Exception:
+                    pass
+                try:
+                    progress.close()
+                except Exception:
+                    pass
+            finally:
+                self._update_check_in_progress = False
+                try:
+                    if hasattr(self, "_update_check_reply") and self._update_check_reply:
+                        self._update_check_reply.deleteLater()
+                except Exception:
+                    pass
+                self._update_check_reply = None
+                self._update_check_timer = None
+                self._update_check_progress = None
+
+                try:
+                    self._update_check_fallback_attempted = False
+                except Exception:
+                    pass
+
+        def show_offline_error(details: str):
+            msg = (
+                "Could not check for updates (offline or GitHub is unavailable).\n\n"
+                f"Details: {details}\n\n"
+                "Open the releases page in your browser?"
+            )
+            choice = QMessageBox.question(
+                self,
+                "Check for Updates",
+                msg,
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.Yes,
+            )
+            if choice == QMessageBox.StandardButton.Yes:
+                self._open_url("https://github.com/michaelbeijer/Supervertaler/releases")
+
+        def on_timeout():
+            kind = "api"
+            try:
+                r = getattr(self, "_update_check_reply", None)
+                if r:
+                    k = r.property("sv_update_check_kind")
+                    kind = str(k) if k else "api"
+            except Exception:
+                kind = "api"
+
+            if kind == "api" and not getattr(self, "_update_check_fallback_attempted", False):
+                self._update_check_fallback_attempted = True
+                start_request("fallback")
+                return
+
+            try:
+                abort_current_reply()
+            finally:
+                show_offline_error(f"Timed out after {timeout_ms // 1000}s")
+                finish()
+
+        timeout_timer = QTimer(self)
+        timeout_timer.setSingleShot(True)
+        timeout_timer.timeout.connect(on_timeout)
+        timeout_timer.start(timeout_ms)
+        self._update_check_timer = timeout_timer
+
+        def on_cancel():
+            abort_current_reply()
+            finish()
+
+        progress.canceled.connect(on_cancel)
+
+        def handle_latest(latest_version_text: str, latest_url: str):
+            latest_version_text = (latest_version_text or "").strip()
+            latest_url = (latest_url or "").strip() or "https://github.com/michaelbeijer/Supervertaler/releases"
+
+            current = self._normalize_version_tuple(__version__)
+            latest = self._normalize_version_tuple(latest_version_text)
+
+            if not latest:
+                QMessageBox.information(
+                    self,
+                    "Check for Updates",
+                    "Could not determine the latest version.\n\nYou can check releases on GitHub.",
+                )
+                self._open_url(latest_url)
+                return
+
+            current_text = self._format_version_for_display(__version__)
+            latest_text = self._format_version_for_display(latest_version_text)
+
+            if current < latest:
+                msg = (
+                    f"You are running {current_text}.\n"
+                    f"The latest version is {latest_text}.\n\n"
+                    "Open the latest release page?"
+                )
+                choice = QMessageBox.question(
+                    self,
+                    "Update Available",
+                    msg,
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.Yes,
+                )
+                if choice == QMessageBox.StandardButton.Yes:
+                    self._open_url(latest_url)
+            elif current == latest:
+                QMessageBox.information(
+                    self,
+                    "Up to Date",
+                    f"You are up to date.\n\nCurrent: {current_text}\nLatest: {latest_text}",
+                )
+            else:
+                QMessageBox.information(
+                    self,
+                    "Newer Than Latest",
+                    f"You are running {current_text}, which is newer than the latest published release ({latest_text}).",
+                )
+
+        def on_finished(reply_obj):
+            try:
+                kind = "api"
+                try:
+                    k = reply_obj.property("sv_update_check_kind")
+                    kind = str(k) if k else "api"
+                except Exception:
+                    kind = "api"
+
+                # If aborted/cancelled/errored, show a useful message
+                if reply_obj.error():
+                    err = reply_obj.errorString() or "Network error"
+                    if "canceled" in err.lower():
+                        finish()
+                        return
+
+                    # API can be blocked on some networks; fall back to github.com
+                    if kind == "api" and not getattr(self, "_update_check_fallback_attempted", False):
+                        self._update_check_fallback_attempted = True
+                        start_request("fallback")
+                        return
+
+                    show_offline_error(err)
+                    finish()
+                    return
+
+                if kind == "fallback":
+                    # Try to read the redirect location (preferred) because /releases/latest usually 302's.
+                    latest_url_text = "https://github.com/michaelbeijer/Supervertaler/releases"
+                    latest_version_text = ""
+
+                    try:
+                        status = reply_obj.attribute(QNetworkRequest.Attribute.HttpStatusCodeAttribute)
+                        status_code = int(status) if status is not None else 0
+                    except Exception:
+                        status_code = 0
+
+                    try:
+                        location = bytes(reply_obj.rawHeader(b"Location")).decode("utf-8", errors="replace").strip()
+                    except Exception:
+                        location = ""
+
+                    if status_code in {301, 302, 303, 307, 308} and location:
+                        if location.startswith("/"):
+                            latest_url_text = "https://github.com" + location
+                        else:
+                            latest_url_text = location
+
+                        m = re.search(r"v?\d+(?:\.\d+)+", location)
+                        if m:
+                            latest_version_text = m.group(0)
+                    else:
+                        # No redirect header; fall back to parsing the HTML.
+                        raw = bytes(reply_obj.readAll()).decode("utf-8", errors="replace")
+                        m = re.search(r"Release\s+v?(\d+(?:\.\d+)+)", raw, re.IGNORECASE)
+                        if m:
+                            latest_version_text = m.group(1)
+
+                    handle_latest(latest_version_text, latest_url_text)
+                    finish()
+                    return
+
+                # API JSON path
+                raw = bytes(reply_obj.readAll())
+                data = json.loads(raw.decode("utf-8", errors="replace"))
+                tag = (data.get("tag_name") or "").strip()
+                name = (data.get("name") or "").strip()
+                latest_version_text = tag or name
+                latest_url = (data.get("html_url") or "").strip() or "https://github.com/michaelbeijer/Supervertaler/releases"
+
+                handle_latest(latest_version_text, latest_url)
+            except Exception as e:
+                show_offline_error(str(e))
+            finally:
+                finish()
+
+        start_request("api")
+
+    def _fetch_latest_release_info_from_github(self, timeout_seconds: int = 6) -> dict:
+        """Return {version, url} for the latest GitHub release, best-effort.
+
+        Uses the public GitHub API. No auth required.
+        """
+        import urllib.request
+
+        api_url = "https://api.github.com/repos/michaelbeijer/Supervertaler/releases/latest"
+        req = urllib.request.Request(
+            api_url,
+            headers={
+                "Accept": "application/vnd.github+json",
+                "User-Agent": f"Supervertaler/{__version__}",
+            },
+        )
+
+        with urllib.request.urlopen(req, timeout=timeout_seconds) as response:
+            data = json.loads(response.read().decode("utf-8", errors="replace"))
+
+        tag = (data.get("tag_name") or "").strip()
+        name = (data.get("name") or "").strip()
+        version = tag or name
+        url = (data.get("html_url") or "").strip() or "https://github.com/michaelbeijer/Supervertaler/releases"
+
+        return {"version": version, "url": url}
+
+    def _normalize_version_tuple(self, version_text: str) -> tuple:
+        """Convert a version like 'v1.9.100' to a comparable tuple of ints."""
+        if not version_text:
+            return ()
+        text = str(version_text).strip()
+        if text.lower().startswith("v"):
+            text = text[1:]
+
+        parts = [int(p) for p in re.findall(r"\d+", text)]
+        return tuple(parts)
+
+    def _format_version_for_display(self, version_text: str) -> str:
+        """Return a user-friendly version string like 'v1.9.100'."""
+        if not version_text:
+            return "(unknown)"
+        text = str(version_text).strip()
+        if not text.lower().startswith("v"):
+            return f"v{text}"
+        return text
+
+    def _build_version_info_text(self) -> str:
+        """Build a support-friendly version/system info block for clipboard."""
+        import platform
+        from PyQt6.QtCore import QT_VERSION_STR, PYQT_VERSION_STR
+
+        lines = []
+        lines.append(f"Supervertaler {self._format_version_for_display(__version__)}")
+        try:
+            lines.append(f"Release date: {__release_date__}")
+        except Exception:
+            pass
+        try:
+            lines.append(f"Edition: {__edition__} (phase {__phase__})")
+        except Exception:
+            pass
+
+        lines.append("")
+        lines.append(f"OS: {platform.platform()}")
+        lines.append(f"Architecture: {platform.machine()}")
+        lines.append(f"Python: {platform.python_version()} ({platform.python_implementation()})")
+        lines.append(f"Qt: {QT_VERSION_STR}")
+        lines.append(f"PyQt: {PYQT_VERSION_STR}")
+        lines.append(f"Frozen (PyInstaller): {bool(getattr(sys, 'frozen', False))}")
+        lines.append(f"Executable: {sys.executable}")
+
+        return "\n".join(lines)
+
+    def copy_version_info_to_clipboard(self):
+        """Copy version info to clipboard for easy sharing in support requests."""
+        try:
+            text = self._build_version_info_text()
+            clipboard = QApplication.clipboard()
+            clipboard.setText(text)
+            QMessageBox.information(
+                self,
+                "Version Info Copied",
+                "Version info has been copied to your clipboard.\n\n"
+                "Tip: Paste it into an email or GitHub issue.",
+            )
+        except Exception as e:
+            QMessageBox.warning(self, "Copy Failed", f"Could not copy version info: {e}")
     
     def _show_ahk_setup_from_menu(self):
         """Show AutoHotkey setup dialog from Help menu"""
@@ -35134,8 +35507,25 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         info.setWordWrap(True)
         layout.addWidget(info)
 
-        # Click anywhere to close
-        dialog.mousePressEvent = lambda event: dialog.accept()
+        # Buttons
+        btn_row = QHBoxLayout()
+        copy_btn = QPushButton("📋 Copy Version Info")
+        copy_btn.setToolTip("Copy version and system info to clipboard")
+        copy_btn.clicked.connect(self.copy_version_info_to_clipboard)
+        btn_row.addWidget(copy_btn)
+
+        update_btn = QPushButton("🔄 Check for Updates...")
+        update_btn.setToolTip("Check whether you are running the latest Supervertaler release")
+        update_btn.clicked.connect(self.check_for_updates)
+        btn_row.addWidget(update_btn)
+
+        btn_row.addStretch(1)
+
+        close_btn = QPushButton("Close")
+        close_btn.clicked.connect(dialog.accept)
+        btn_row.addWidget(close_btn)
+
+        layout.addLayout(btn_row)
 
         dialog.exec()
     
