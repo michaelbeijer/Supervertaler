@@ -29715,8 +29715,11 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             # This handles <b>, </b>, <i>, memoQ {1}, [2}, Trados <1>, Déjà Vu {00001}, etc.
             import re
             clean_source_text = re.sub(r'</?(?:b|i|u|bi|sub|sup|li-[ob]|\d+)/?>', '', source_text)  # HTML/XML tags
-            clean_source_text = re.sub(r'[\[{]\d+[}\]]', '', clean_source_text)  # memoQ/Phrase tags
-            clean_source_text = re.sub(r'\{\d{5}\}', '', clean_source_text)  # Déjà Vu tags
+            clean_source_text = re.sub(r'[\[{]\d+[}\]]', '', clean_source_text)  # memoQ/Phrase numeric tags: {1}, [2}, {3]
+            clean_source_text = re.sub(r'\{\d{5}\}', '', clean_source_text)  # Déjà Vu tags: {00001}
+            # memoQ content tags: [uicontrol id="..."}  or  {uicontrol]  or  [tagname ...}  or  {tagname]
+            clean_source_text = re.sub(r'\[[^\[\]]*\}', '', clean_source_text)  # Opening: [anything}
+            clean_source_text = re.sub(r'\{[^\{\}]*\]', '', clean_source_text)  # Closing: {anything]
             
             # Search termbases for all terms that appear in the source text
             # Split source text into words and search for each one

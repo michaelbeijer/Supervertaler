@@ -716,8 +716,11 @@ class TermviewWidget(QWidget):
         # This handles CAT tool tags like <b>, </b>, <i>, </i>, <u>, </u>, <bi>, <sub>, <sup>, <li-o>, <li-b>
         # as well as memoQ tags {1}, [2}, {3], Trados tags <1>, </1>, and Déjà Vu tags {00001}
         display_text = re.sub(r'</?(?:b|i|u|bi|sub|sup|li-[ob]|\d+)/?>', '', source_text)  # HTML/XML tags
-        display_text = re.sub(r'[\[{]\d+[}\]]', '', display_text)  # memoQ/Phrase tags: {1}, [2}, {3]
+        display_text = re.sub(r'[\[{]\d+[}\]]', '', display_text)  # memoQ/Phrase numeric tags: {1}, [2}, {3]
         display_text = re.sub(r'\{\d{5}\}', '', display_text)  # Déjà Vu tags: {00001}
+        # memoQ content tags: [uicontrol id="..."}  or  {uicontrol]  or  [tagname ...}  or  {tagname]
+        display_text = re.sub(r'\[[^\[\]]*\}', '', display_text)  # Opening: [anything}
+        display_text = re.sub(r'\{[^\{\}]*\]', '', display_text)  # Closing: {anything]
         display_text = display_text.strip()
         
         # If stripping tags leaves nothing, fall back to original
