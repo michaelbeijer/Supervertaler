@@ -147,6 +147,12 @@ body {
     align-items: center;
 }
 
+@media (min-width: 769px) {
+    .nav-menu li.nav-action + li.nav-action {
+        margin-left: -0.5rem;
+    }
+}
+
 .nav-menu a {
     color: var(--text-secondary);
     text-decoration: none;
@@ -291,9 +297,27 @@ body {
         width: 100%;
         border-bottom: 1px solid var(--border-light);
     }
-    
-    .nav-menu a:hover {
+
+    .nav-menu a:not(.nav-discussions):not(.nav-version):not(.nav-icon-link):hover {
         background: var(--bg-secondary);
+    }
+
+    .nav-menu a.nav-discussions,
+    .nav-menu a.nav-version,
+    .nav-menu a.nav-icon-link {
+        display: flex;
+        width: calc(100% - (2 * var(--spacing-md)));
+        margin: 0 var(--spacing-md) var(--spacing-xs);
+        border-bottom: none;
+    }
+
+    .nav-menu a.nav-discussions,
+    .nav-menu a.nav-version {
+        justify-content: center;
+    }
+
+    .nav-menu a.nav-icon-link {
+        justify-content: center;
     }
 }
 
