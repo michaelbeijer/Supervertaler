@@ -479,6 +479,11 @@ class SpellcheckManager:
         Returns:
             List of suggested corrections
         """
+        # Skip suggestions for very long words - spylls can hang for 30+ seconds
+        # on long Dutch compound words like "gegevensverwerking" (18 chars)
+        if len(word) > 12:
+            return []
+        
         if self._hunspell:
             try:
                 suggestions = self._hunspell.suggest(word)
