@@ -3,7 +3,7 @@ Supervertaler
 =============
 The Ultimate Translation Workbench.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.9.100 (Ctrl+Return fixes + glossary/spellcheck improvements)
+Version: 1.9.101 (Prompt Library UX + update check improvements)
 Release Date: January 13, 2026
 Framework: PyQt6
 
@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.100"
+__version__ = "1.9.101"
 __phase__ = "0.9"
 __release_date__ = "2026-01-13"
 __edition__ = "Qt"
@@ -129,7 +129,7 @@ try:
     from PyQt6.QtGui import QFont, QAction, QKeySequence, QIcon, QTextOption, QColor, QDesktopServices, QTextCharFormat, QTextCursor, QBrush, QSyntaxHighlighter, QPalette, QTextBlockFormat
     from PyQt6.QtWidgets import QStyleOptionViewItem, QStyle
     from PyQt6.QtCore import QRectF
-    from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkRequest
+    from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
     from PyQt6 import sip
 except ImportError:
     print("PyQt6 not found. Installing...")
@@ -35104,6 +35104,9 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         progress.setWindowTitle("Check for Updates")
         progress.setWindowModality(Qt.WindowModality.ApplicationModal)
         progress.setMinimumDuration(0)
+        # Prevent the dialog from auto-disappearing when range is (0, 0)
+        progress.setAutoClose(False)
+        progress.setAutoReset(False)
         progress.show()
 
         # Keep references so Qt objects aren't GC'd mid-request
@@ -35117,6 +35120,9 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         timeout_ms = 15000
 
         self._update_check_fallback_attempted = False
+        # Monotonic request id so stale replies/timeouts can't close/delete the active attempt.
+        self._update_check_request_id = int(getattr(self, "_update_check_request_id", 0)) + 1
+        active_request_id = self._update_check_request_id
 
         def abort_current_reply():
             try:
@@ -35153,6 +35159,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
 
             r = self._update_check_net_mgr.get(request)
             r.setProperty("sv_update_check_kind", kind)
+            r.setProperty("sv_update_check_request_id", active_request_id)
             self._update_check_reply = r
 
             # Restart timeout for each attempt
@@ -35209,6 +35216,13 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 self._open_url("https://github.com/michaelbeijer/Supervertaler/releases")
 
         def on_timeout():
+            # Ignore stale timers from previous attempts.
+            try:
+                if int(getattr(self, "_update_check_request_id", 0)) != active_request_id:
+                    return
+            except Exception:
+                return
+
             kind = "api"
             try:
                 r = getattr(self, "_update_check_reply", None)
@@ -35289,6 +35303,29 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 )
 
         def on_finished(reply_obj):
+            # Stale reply (e.g., API reply finishing after we already started fallback).
+            try:
+                rid = reply_obj.property("sv_update_check_request_id")
+                if rid is not None and int(rid) != active_request_id:
+                    try:
+                        reply_obj.deleteLater()
+                    except Exception:
+                        pass
+                    return
+            except Exception:
+                # If we can't read the property, play it safe: only proceed if it's the active reply.
+                pass
+
+            try:
+                if reply_obj is not getattr(self, "_update_check_reply", None):
+                    try:
+                        reply_obj.deleteLater()
+                    except Exception:
+                        pass
+                    return
+            except Exception:
+                pass
+
             try:
                 kind = "api"
                 try:
@@ -35300,13 +35337,15 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 # If aborted/cancelled/errored, show a useful message
                 if reply_obj.error():
                     err = reply_obj.errorString() or "Network error"
-                    if "canceled" in err.lower():
+                    # Only treat real user cancel/abort as silent.
+                    if reply_obj.error() == QNetworkReply.NetworkError.OperationCanceledError:
                         finish()
                         return
 
                     # API can be blocked on some networks; fall back to github.com
                     if kind == "api" and not getattr(self, "_update_check_fallback_attempted", False):
                         self._update_check_fallback_attempted = True
+                        # Do not finish here; the fallback attempt becomes the active request.
                         start_request("fallback")
                         return
 

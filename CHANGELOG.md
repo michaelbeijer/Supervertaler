@@ -2,11 +2,32 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.100 (January 13, 2026)
+**Current Version:** v1.9.101 (January 13, 2026)
 **Framework:** PyQt6
 **Status:** Active Development
 
 **Note:** For historical information about legacy versions (Tkinter Edition, Classic Edition), see [legacy_versions/LEGACY_VERSIONS.md](legacy_versions/LEGACY_VERSIONS.md).
+
+---
+
+## 🧰 Prompt Library UX + Update Check Reliability (v1.9.101) - January 13, 2026
+
+**Prompt Library**
+
+- Prompt Library folders default to collapsed on first load and preserve expand/collapse + selection across refreshes.
+- Added toolbar buttons: **Collapse all** / **Expand all**.
+- Fixed **Duplicate** (creates a real copy with a unique “(copy …)” name) and adjusted **New Prompt** to create inside the currently selected folder.
+- Added drag-and-drop moves for prompt files and folders (also supports dragging Favorites/Quick Run entries as shortcuts to move the underlying prompt).
+
+**Check for Updates**
+
+- Update check now uses a longer timeout and falls back to the GitHub releases page when `api.github.com` is slow/blocked.
+- Fixed the update progress dialog briefly flashing and disappearing on some systems.
+- Fixed a rare crash/auto-close issue where the first (API) network reply could finish after the fallback started and prematurely close/delete the active fallback request.
+
+**Website**
+
+- Navbar now includes a GitHub icon link + version pill, with cache-busting query strings for CSS/JS.
 
 ---
 
